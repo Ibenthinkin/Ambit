@@ -184,6 +184,7 @@ export interface SourceAdapter {
 
 - Implement in phases (Wikipedia + Met + one more first; remaining in Phase 4).
 - Respect each source's rate limits + attribution/licensing. Responses are cached by upserting into `item`.
+- **Post-MVP source backlog:** additional candidate content APIs to trial (with a per-source trial loop) live in [`docs/source-candidates.md`](docs/source-candidates.md). Promote one into this list only after it passes the trial.
 
 ### 6.2 Embeddings — `server/services/embeddings.ts`
 ```typescript
