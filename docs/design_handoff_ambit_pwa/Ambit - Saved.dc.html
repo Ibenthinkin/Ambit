@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    @keyframes ambitfade { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes ambitrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    image-slot { display: block; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0C0B09; padding:32px; font-family:-apple-system, system-ui, sans-serif;">
+
+  <x-import component-from-global-scope="image-slot" from="./image-slot.js" hint-size="1px,1px" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></x-import>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%;">
+
+      <div style="height:100%; overflow-y:auto; background:#161411; -webkit-overflow-scrolling:touch;">
+
+        <!-- sticky glass header -->
+        <div style="position:sticky; top:0; z-index:8; padding:56px 20px 14px; backdrop-filter:blur(18px) saturate(160%); -webkit-backdrop-filter:blur(18px) saturate(160%); background:rgba(22,20,17,0.72); border-bottom:0.5px solid rgba(239,235,224,0.08);">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <a href="Ambit - Feed.dc.html" style="width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.09); text-decoration:none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+              </a>
+              <div>
+                <div style="font-family:'Newsreader', serif; font-size:26px; line-height:1; color:#EFEBE0;">Saved</div>
+                <div style="font-family:-apple-system, system-ui; font-size:12px; color:rgba(239,235,224,0.45); margin-top:5px; letter-spacing:0.15px;">{{ countLabel }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- filter segmented -->
+          <sc-if value="{{ hasAny }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex; gap:8px; margin-top:16px;">
+              <sc-for list="{{ filters }}" as="f" hint-placeholder-count="3">
+                <div onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- empty state -->
+        <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:90px 40px; animation:ambitrise .5s ease both;">
+            <div style="width:66px; height:66px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.05); border:0.5px solid rgba(239,235,224,0.1);">
+              <svg width="26" height="30" viewBox="0 0 24 30"><path d="M2 2h20v26l-10-6.4L2 28z" fill="none" stroke="{{ accent }}" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="font-family:'Newsreader', serif; font-size:23px; color:#F3EFE5; margin-top:22px;">Nothing kept yet</div>
+            <div style="font-family:'Newsreader', serif; font-size:16px; line-height:1.5; color:rgba(239,235,224,0.55); margin-top:9px; max-width:250px;">Tap the bookmark on anything that catches you. It'll wait for you here — no rush, no expiry.</div>
+            <a href="Ambit - Feed.dc.html" style="font-family:-apple-system, system-ui; font-size:14px; font-weight:600; color:#17140E; background:{{ accent }}; border-radius:999px; padding:13px 24px; margin-top:26px; text-decoration:none;">Back to exploring</a>
+          </div>
+        </sc-if>
+
+        <!-- saved grid -->
+        <sc-if value="{{ hasVisible }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:18px 20px 40px;">
+            <sc-for list="{{ items }}" as="item" hint-placeholder-count="4">
+              <div style="{{ item.cellStyle }}">
+
+                <!-- image tile -->
+                <sc-if value="{{ item.isImage }}" hint-placeholder-val="{{ true }}">
+                  <div onPointerDown="{{ item.onImgDown }}" onPointerMove="{{ item.onImgMove }}" onPointerUp="{{ item.onImgUp }}" onPointerCancel="{{ item.onImgCancel }}" onPointerLeave="{{ item.onImgCancel }}" style="position:relative; cursor:pointer; animation:ambitrise .4s ease both;">
+                    <image-slot id="{{ item.slotId }}" shape="rounded" radius="16" src="{{ item.src }}" placeholder="{{ item.placeholder }}" style="{{ item.imgStyle }}"></image-slot>
+                    <div onClick="{{ item.onUnsave }}" onPointerDown="{{ item.onUnsaveDown }}" style="position:absolute; top:9px; right:9px; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(12,11,9,0.62); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:0.5px solid rgba(239,235,224,0.16); cursor:pointer;">
+                      <svg width="11" height="14" viewBox="0 0 13 16"><path d="M1 1h11v14l-5.5-3.4L1 15z" fill="{{ accent }}" stroke="{{ accent }}" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                    </div>
+                    <div style="font-family:'Newsreader', serif; font-size:15px; line-height:1.28; color:#EFEBE0; margin-top:9px;">{{ item.title }}</div>
+                    <div style="font-family:-apple-system, system-ui; font-size:11px; color:rgba(239,235,224,0.42); margin-top:3px;">{{ item.short }}</div>
+                  </div>
+                </sc-if>
+
+                <!-- article tile (full width) -->
+                <sc-if value="{{ item.isArticle }}" hint-placeholder-val="{{ false }}">
+                  <div style="animation:ambitrise .4s ease both; background:rgba(239,235,224,0.03); border:0.5px solid rgba(239,235,224,0.07); border-radius:18px; padding:18px 18px 15px;">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+                      <span style="font-family:-apple-system, system-ui; font-size:9.5px; font-weight:600; letter-spacing:1.3px; text-transform:uppercase; color:rgba(239,235,224,0.36);">{{ item.source }}</span>
+                      <div onClick="{{ item.onUnsave }}" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.05); border:0.5px solid rgba(239,235,224,0.1); cursor:pointer; margin-top:-3px;">
+                        <svg width="10" height="13" viewBox="0 0 13 16"><path d="M1 1h11v14l-5.5-3.4L1 15z" fill="{{ accent }}" stroke="{{ accent }}" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                      </div>
+                    </div>
+                    <div style="font-family:'Newsreader', serif; font-size:20px; line-height:1.24; color:#F3EFE5; margin-top:10px;">{{ item.title }}</div>
+                    <div style="font-family:'Newsreader', serif; font-size:15px; line-height:1.5; color:rgba(239,235,224,0.58); margin-top:8px;">{{ item.lede }}</div>
+                    <a href="Ambit - Feed.dc.html" style="font-family:-apple-system, system-ui; font-size:12.5px; font-weight:500; color:{{ accent }}; text-decoration:none; display:inline-block; margin-top:13px;">Open in reader →</a>
+                  </div>
+                </sc-if>
+
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- fullscreen image -->
+      <sc-if value="{{ fullscreenActive }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeImage }}" style="position:absolute; inset:0; z-index:40; background:rgba(9,8,6,0.97); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); display:flex; flex-direction:column;">
+          <div style="display:flex; justify-content:flex-end; padding:54px 18px 0;">
+            <div style="width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.1); border:0.5px solid rgba(239,235,224,0.14);">
+              <svg width="14" height="14" viewBox="0 0 14 14" stroke="#EFEBE0" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
+            </div>
+          </div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:8px 16px;">
+            <image-slot id="{{ fullscreen.slotId }}" shape="rounded" radius="14" fit="contain" src="{{ fullscreen.src }}" placeholder="{{ fullscreen.placeholder }}" style="width:100%; height:56vh;"></image-slot>
+          </div>
+          <div onClick="{{ noop }}" style="padding:8px 26px 44px;">
+            <div style="font-family:'Newsreader', serif; font-size:22px; line-height:1.28; color:#F3EFE5;">{{ fullscreen.title }}</div>
+            <div style="font-family:-apple-system, system-ui; font-size:12.5px; color:rgba(239,235,224,0.5); margin-top:8px;">{{ fullscreen.maker }}</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- toast -->
+      <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:50%; bottom:46px; z-index:50; background:rgba(30,28,24,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:0.5px solid rgba(239,235,224,0.12); color:#EFEBE0; font-family:-apple-system, system-ui; font-size:13px; padding:11px 18px; border-radius:999px; white-space:nowrap; animation:ambitfade .22s ease both; box-shadow:0 8px 30px rgba(0,0,0,0.4);">{{ toast.text }}</div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#BFA06A&quot;, &quot;options&quot;: [&quot;#BFA06A&quot;, &quot;#8FA786&quot;, &quot;#7E93AD&quot;, &quot;#C08262&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Saved&quot; }
+}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.POOL = {
+      wave: { kind: 'image', slotId: 'am-wave', title: 'The Great Wave off Kanagawa', short: 'Hokusai · The Met', maker: 'Katsushika Hokusai · c.\u20091831 · The Met', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Great%20Wave%20off%20Kanagawa2.jpg?width=900', placeholder: 'Ukiyo-e woodblock print' },
+      turner: { kind: 'image', slotId: 'am-turner', title: 'Rain, Steam and Speed', short: 'J.\u2009M.\u2009W. Turner · 1844', maker: 'J.\u2009M.\u2009W. Turner · 1844 · National Gallery', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Rain%20Steam%20and%20Speed%20the%20Great%20Western%20Railway.jpg?width=900', placeholder: 'Romantic oil painting' },
+      gp: { kind: 'image', slotId: 'am-gp', title: 'The Vanderbilt Cup', short: 'Long Island · 1908', maker: 'Long Island · 1908 · Public domain', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Vanderbilt%20Cup%201908.jpg?width=900', placeholder: 'Vintage motorsport photo' },
+      nebula: { kind: 'image', slotId: 'am-nebula', title: 'The Pillars of Creation', short: 'NASA / ESA', maker: 'Eagle Nebula · NASA / ESA · Public domain', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Pillars%20of%20Creation.jpg?width=900', placeholder: 'Deep-space photograph' },
+      sky: { kind: 'article', source: 'Wikipedia', title: 'Why the sky is blue', lede: 'Shorter blue wavelengths scatter off air molecules far more than red ones, so blue reaches your eye from every direction.' },
+      engine: { kind: 'article', source: 'Wikipedia', title: 'The internal-combustion engine', lede: 'A controlled explosion, a few thousand times a minute, has moved most of the world for over a century.' },
+      wayfinding: { kind: 'article', source: 'Wikipedia', title: 'Polynesian wayfinding', lede: 'Navigators crossed thousands of miles of open Pacific reading only the swell, the stars and the birds.' },
+    };
+    this.ORDER = ['wave', 'sky', 'turner', 'nebula', 'wayfinding', 'gp'];
+    this.state = {
+      saved: this.loadSaved(),
+      filter: 'all',
+      fullscreenId: null,
+      toast: null,
+    };
+  }
+
+  loadSaved() {
+    let raw;
+    try { raw = JSON.parse(localStorage.getItem('ambit.saved.v1') || 'null'); } catch (e) { raw = null; }
+    if (!raw || !raw.length) {
+      // seed a demo collection on first visit so Saved reflects real feed items
+      const seed = ['wave', 'sky', 'turner', 'nebula', 'wayfinding', 'gp'];
+      try { localStorage.setItem('ambit.saved.v1', JSON.stringify(seed)); } catch (e) {}
+      return new Set(seed);
+    }
+    return new Set(raw);
+  }
+  persist(s) {
+    try { localStorage.setItem('ambit.saved.v1', JSON.stringify([...s])); } catch (e) {}
+  }
+
+  unsave(id) {
+    this.setState(s => {
+      const n = new Set(s.saved);
+      n.delete(id);
+      this.persist(n);
+      return { saved: n };
+    });
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: 'Removed from Saved' });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1700);
+  }
+
+  componentWillUnmount() { if (this.toastTimer) clearTimeout(this.toastTimer); }
+
+  openImage(id) { this.setState({ fullscreenId: id }); }
+  closeImage() { this.setState({ fullscreenId: null }); }
+
+  // open the immersive gallery on this work (guarded tap: never fires while scrolling)
+  openGallery(id) {
+    try { window.location.href = 'Ambit - Gallery.dc.html?start=' + encodeURIComponent(id); } catch (e) {}
+  }
+  tapDown(e) { this.tap = { x: e.clientX, y: e.clientY, ok: true }; }
+  tapMove(e) {
+    if (!this.tap) return;
+    if (Math.abs(e.clientX - this.tap.x) > 12 || Math.abs(e.clientY - this.tap.y) > 12) this.tap.ok = false;
+  }
+  tapUp(e, action) {
+    const t = this.tap; this.tap = null;
+    if (!t || !t.ok) return;
+    if (Math.abs(e.clientX - t.x) > 12 || Math.abs(e.clientY - t.y) > 12) return;
+    action();
+  }
+  tapCancel() { this.tap = null; }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#BFA06A';
+    const filter = this.state.filter;
+
+    const savedIds = this.ORDER.filter(id => this.state.saved.has(id));
+    const images = savedIds.filter(id => this.POOL[id].kind === 'image');
+    const articles = savedIds.filter(id => this.POOL[id].kind === 'article');
+
+    const visibleIds = filter === 'images' ? images
+      : filter === 'reading' ? articles
+      : savedIds;
+
+    const items = visibleIds.map(id => {
+      const p = this.POOL[id];
+      const isImage = p.kind === 'image';
+      return {
+        key: id,
+        isImage,
+        isArticle: !isImage,
+        title: p.title, short: p.short, maker: p.maker,
+        source: p.source, lede: p.lede,
+        slotId: p.slotId, src: p.src, placeholder: p.placeholder,
+        imgStyle: { width: '100%', height: '150px', display: 'block', pointerEvents: 'none' },
+        cellStyle: { gridColumn: isImage ? 'auto' : '1 / -1' },
+        onOpen: () => this.openImage(id),
+        onImgDown: (e) => this.tapDown(e),
+        onImgMove: (e) => this.tapMove(e),
+        onImgUp: (e) => this.tapUp(e, () => this.openGallery(id)),
+        onImgCancel: () => this.tapCancel(),
+        onUnsave: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.unsave(id); },
+        onUnsaveDown: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+      };
+    });
+
+    const total = savedIds.length;
+    const filters = [
+      { key: 'all', label: 'All' + (total ? ' · ' + total : '') },
+      { key: 'images', label: 'Images' + (images.length ? ' · ' + images.length : '') },
+      { key: 'reading', label: 'Reading' + (articles.length ? ' · ' + articles.length : '') },
+    ].map(f => ({
+      label: f.label,
+      onClick: () => this.setState({ filter: f.key }),
+      style: {
+        fontFamily: '-apple-system, system-ui, sans-serif',
+        fontSize: '12.5px',
+        fontWeight: 500,
+        padding: '8px 15px',
+        borderRadius: '999px',
+        cursor: 'pointer',
+        userSelect: 'none',
+        whiteSpace: 'nowrap',
+        transition: 'background .18s ease, color .18s ease',
+        background: filter === f.key ? accent : 'rgba(239,235,224,0.05)',
+        color: filter === f.key ? '#17140E' : 'rgba(239,235,224,0.62)',
+        border: '0.5px solid ' + (filter === f.key ? accent : 'rgba(239,235,224,0.11)'),
+      },
+    }));
+
+    const fs = this.state.fullscreenId ? this.POOL[this.state.fullscreenId] : null;
+    const fullscreen = fs ? { title: fs.title, maker: fs.maker, slotId: fs.slotId, src: fs.src, placeholder: fs.placeholder }
+      : { title: '', maker: '', slotId: '__none', src: '', placeholder: '' };
+
+    const countLabel = total === 0 ? 'Your quiet collection'
+      : (total + (total === 1 ? ' thing kept' : ' things kept'));
+
+    return {
+      accent, deviceDark: true,
+      items, filters,
+      hasAny: total > 0,
+      isEmpty: total === 0,
+      hasVisible: items.length > 0,
+      countLabel,
+      fullscreenActive: !!fs, fullscreen,
+      closeImage: () => this.closeImage(),
+      noop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

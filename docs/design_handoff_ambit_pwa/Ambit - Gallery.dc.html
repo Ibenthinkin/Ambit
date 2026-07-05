@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    @keyframes ambitfade { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes ambitscrim { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes ambitsheet { from { transform: translateY(103%); } to { transform: translateY(0); } }
+    image-slot { display: block; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0C0B09; padding:32px; font-family:-apple-system, system-ui, sans-serif;">
+
+  <x-import component-from-global-scope="image-slot" from="./image-slot.js" hint-size="1px,1px" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></x-import>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%; background:#0B0A08; overflow:hidden;">
+
+      <!-- infinite swipe track: prev / current / next -->
+      <div ref="{{ trackRef }}"
+           onPointerDown="{{ onDown }}" onPointerMove="{{ onMove }}" onPointerUp="{{ onUp }}" onPointerLeave="{{ onUp }}"
+           style="position:absolute; inset:0; z-index:5; cursor:grab; touch-action:none;">
+        <div style="{{ railStyle }}">
+          <sc-for list="{{ slides }}" as="s" hint-placeholder-count="3">
+            <div style="flex:0 0 33.3333%; height:100%; display:flex; align-items:center; justify-content:center; padding:60px 16px;">
+              <image-slot id="{{ s.slotId }}" shape="rounded" radius="12" fit="contain" src="{{ s.src }}" placeholder="{{ s.placeholder }}" style="width:100%; height:100%; pointer-events:none;"></image-slot>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- top gradient (only when chrome up) -->
+      <div style="position:absolute; top:0; left:0; right:0; height:120px; z-index:8; pointer-events:none; background:linear-gradient(to bottom, rgba(11,10,8,0.55), rgba(11,10,8,0)); opacity:{{ chromeOpacity }}; transition:opacity .6s ease;"></div>
+
+      <!-- close X: visible with title chrome -->
+      <div onClick="{{ onClose }}" style="position:absolute; top:52px; right:20px; z-index:13; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.1); border:0.5px solid rgba(239,235,224,0.16); opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointer }}; transition:opacity .6s ease; cursor:pointer;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.85)" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </div>
+
+      <!-- bottom info chrome: fades with chromeOpacity -->
+      <div style="position:absolute; left:0; right:0; bottom:0; z-index:12; padding:26px 24px 42px; background:linear-gradient(to top, rgba(11,10,8,0.94) 42%, rgba(11,10,8,0)); opacity:{{ chromeOpacity }}; transform:translateY({{ chromeShift }}); transition:opacity .6s ease, transform .6s ease; pointer-events:{{ chromePointer }};">
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px;">
+          <div onClick="{{ onTitleTap }}" style="min-width:0; cursor:pointer;">
+            <div style="font-family:'Newsreader', serif; font-size:22px; line-height:1.24; color:#F5F1E7;">{{ current.title }}</div>
+            <div style="font-family:-apple-system, system-ui; font-size:12.5px; color:rgba(239,235,224,0.52); margin-top:7px; letter-spacing:0.15px;">{{ current.maker }}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:9px; flex-shrink:0;">
+            <div onPointerDown="{{ stop }}" onClick="{{ onSave }}" style="width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.09); border:0.5px solid rgba(239,235,224,0.14); cursor:pointer;">
+              <sc-if value="{{ current.saved }}" hint-placeholder-val="{{ false }}">
+                <svg width="14" height="17" viewBox="0 0 13 16"><path d="M1 1h11v14l-5.5-3.4L1 15z" fill="{{ accent }}" stroke="{{ accent }}" stroke-width="1.3" stroke-linejoin="round"/></svg>
+              </sc-if>
+              <sc-if value="{{ current.notSaved }}" hint-placeholder-val="{{ true }}">
+                <svg width="14" height="17" viewBox="0 0 13 16"><path d="M1 1h11v14l-5.5-3.4L1 15z" fill="none" stroke="rgba(239,235,224,0.75)" stroke-width="1.3" stroke-linejoin="round"/></svg>
+              </sc-if>
+            </div>
+            <div onPointerDown="{{ stop }}" onClick="{{ onShare }}" style="width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.09); border:0.5px solid rgba(239,235,224,0.14); cursor:pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.75)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"/><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/></svg>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:7px; margin-top:16px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.34)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M11 12h1v4h1"/></svg>
+          <span style="font-family:-apple-system, system-ui; font-size:11px; color:rgba(239,235,224,0.34); letter-spacing:0.2px;">Tap again, or the title, for details</span>
+        </div>
+      </div>
+
+      <!-- DETAILS modal (long-press). Swipe down on the grabber to close; swipe left/right to close + cycle. -->
+      <sc-if value="{{ detailOpen }}" hint-placeholder-val="{{ false }}">
+        <div onPointerDown="{{ onModalDown }}" onPointerMove="{{ onModalMove }}" onPointerUp="{{ onModalUp }}" onPointerCancel="{{ onModalUp }}" style="position:absolute; inset:0; z-index:35;">
+          <div onClick="{{ closeDetail }}" style="position:absolute; inset:0; background:rgba(9,8,6,0.66); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); animation:ambitscrim .3s ease both;"></div>
+          <div ref="{{ sheetRef }}" onClick="{{ closeDetail }}" style="{{ sheetStyle }}; position:absolute; left:0; right:0; bottom:0; background:#1B1813; border-top-left-radius:26px; border-top-right-radius:26px; border-top:0.5px solid rgba(239,235,224,0.12); padding:8px 26px 40px; box-shadow:0 -12px 50px rgba(0,0,0,0.5); max-height:80%; overflow-y:auto; animation:ambitsheet .4s cubic-bezier(.22,.61,.36,1) both; touch-action:none; cursor:pointer;">
+            <!-- grabber: drag down here to close -->
+            <div style="padding:8px 0 16px; display:flex; flex-direction:column; align-items:center; cursor:grab;">
+              <div style="width:40px; height:5px; border-radius:999px; background:rgba(239,235,224,0.24);"></div>
+            </div>
+            <div style="font-family:'Newsreader', serif; font-size:25px; line-height:1.18; color:#F5F1E7;">{{ current.title }}</div>
+            <div style="font-family:-apple-system, system-ui; font-size:12.5px; color:{{ accent }}; margin-top:8px; letter-spacing:0.3px;">{{ current.maker }}</div>
+
+            <div style="display:flex; flex-direction:column; gap:0; margin-top:20px;">
+              <sc-for list="{{ facts }}" as="f" hint-placeholder-count="3">
+                <div style="display:flex; gap:14px; padding:11px 0; border-top:0.5px solid rgba(239,235,224,0.08);">
+                  <div style="flex:0 0 88px; font-family:-apple-system, system-ui; font-size:11px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:rgba(239,235,224,0.4); padding-top:2px;">{{ f.label }}</div>
+                  <div style="flex:1; font-family:'Newsreader', serif; font-size:15.5px; line-height:1.45; color:rgba(239,235,224,0.82);">{{ f.value }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="font-family:'Newsreader', serif; font-size:16px; line-height:1.6; color:rgba(239,235,224,0.72); margin-top:18px;">{{ current.detail }}</div>
+
+            <div style="display:flex; align-items:center; justify-content:center; gap:14px; margin-top:26px; opacity:0.4;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#EFEBE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9l5-5 5 5"/><path d="M7 15l5 5 5-5"/></svg>
+              <span style="font-family:-apple-system, system-ui; font-size:11px; color:#EFEBE0; letter-spacing:0.2px;">Tap or swipe down to close · swipe sideways to keep browsing</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- toast -->
+      <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:50%; bottom:120px; z-index:50; background:rgba(30,28,24,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:0.5px solid rgba(239,235,224,0.12); color:#EFEBE0; font-family:-apple-system, system-ui; font-size:13px; padding:11px 18px; border-radius:999px; white-space:nowrap; animation:ambitfade .22s ease both; box-shadow:0 8px 30px rgba(0,0,0,0.4);">{{ toast.text }}</div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#BFA06A&quot;, &quot;options&quot;: [&quot;#BFA06A&quot;, &quot;#8FA786&quot;, &quot;#7E93AD&quot;, &quot;#C08262&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Gallery&quot; }
+}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.trackRef = React.createRef();
+    this.POOL = [
+      { id: 'wave', slotId: 'am-wave', title: 'The Great Wave off Kanagawa', maker: 'Katsushika Hokusai · c.\u20091831',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Great%20Wave%20off%20Kanagawa2.jpg?width=1100', placeholder: 'Ukiyo-e woodblock print',
+        medium: 'Woodblock print', origin: 'Japan', home: 'The Met, New York',
+        detail: 'From the series Thirty-six Views of Mount Fuji. The wave\u2019s claw-like crest frames a distant Fuji, made small by the sea \u2014 a composition endlessly reproduced since.' },
+      { id: 'starry', slotId: 'am-starry', title: 'The Starry Night', maker: 'Vincent van Gogh · 1889',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Van%20Gogh%20-%20Starry%20Night%20-%20Google%20Art%20Project.jpg?width=1100', placeholder: 'Post-impressionist oil painting',
+        medium: 'Oil on canvas', origin: 'Saint-Rémy, France', home: 'MoMA, New York',
+        detail: 'Painted from the window of his asylum room, just before sunrise, with the village added from memory. The swirling sky may reflect turbulence he saw in the pre-dawn dark.' },
+      { id: 'turner', slotId: 'am-turner', title: 'Rain, Steam and Speed', maker: 'J.\u2009M.\u2009W. Turner · 1844',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Rain%20Steam%20and%20Speed%20the%20Great%20Western%20Railway.jpg?width=1100', placeholder: 'Romantic oil painting',
+        medium: 'Oil on canvas', origin: 'England', home: 'The National Gallery, London',
+        detail: 'A steam train tears across a viaduct through haze and light. Look closely and a hare runs ahead of the engine on the tracks \u2014 outpacing the machine age, for now.' },
+      { id: 'wanderer', slotId: 'am-wanderer', title: 'Wanderer above the Sea of Fog', maker: 'Caspar David Friedrich · c.\u20091818',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Caspar%20David%20Friedrich%20-%20Wanderer%20above%20the%20sea%20of%20fog.jpg?width=1100', placeholder: 'Romantic oil painting',
+        medium: 'Oil on canvas', origin: 'Germany', home: 'Kunsthalle Hamburg',
+        detail: 'A lone figure stands on a crag above a fog-drowned landscape \u2014 the defining image of German Romanticism and its idea of the sublime, individual before the vastness of nature.' },
+      { id: 'gp', slotId: 'am-gp', title: 'The Vanderbilt Cup', maker: 'Long Island · 1908',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Vanderbilt%20Cup%201908.jpg?width=1100', placeholder: 'Vintage motorsport photo',
+        medium: 'Photograph', origin: 'New York, USA', home: 'Public domain',
+        detail: 'America\u2019s first great international motor race, run on public Long Island roads. Enormous crowds and no barriers made it as dangerous to watch as to drive.' },
+      { id: 'jatte', slotId: 'am-jatte', title: 'A Sunday on La Grande Jatte', maker: 'Georges Seurat · 1884\u201386',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/A%20Sunday%20on%20La%20Grande%20Jatte,%20Georges%20Seurat,%201884.jpg?width=1100', placeholder: 'Pointillist oil painting',
+        medium: 'Oil on canvas', origin: 'Paris, France', home: 'Art Institute of Chicago',
+        detail: 'Built entirely from tiny dots of pure colour that blend in the eye rather than on the canvas \u2014 the founding work of Pointillism. Seurat spent two years on it.' },
+      { id: 'nebula', slotId: 'am-nebula', title: 'The Pillars of Creation', maker: 'Eagle Nebula · NASA / ESA',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Pillars%20of%20Creation.jpg?width=1100', placeholder: 'Deep-space photograph',
+        medium: 'Telescope image', origin: '~6,500 light-years away', home: 'NASA / ESA',
+        detail: 'Towers of cold gas and dust in the Eagle Nebula, lit and slowly eroded by nearby newborn stars. Each pillar is several light-years tall.' },
+      { id: 'milkmaid', slotId: 'am-milkmaid', title: 'The Milkmaid', maker: 'Johannes Vermeer · c.\u20091660',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Johannes%20Vermeer%20-%20Het%20melkmeisje%20-%20Google%20Art%20Project.jpg?width=1100', placeholder: 'Dutch Golden Age painting',
+        medium: 'Oil on canvas', origin: 'Delft, Netherlands', home: 'Rijksmuseum, Amsterdam',
+        detail: 'A servant pours milk in a plain kitchen, rendered with Vermeer\u2019s extraordinary attention to light \u2014 the crumbling bread and worn wall lit as if they mattered as much as any king.' },
+    ];
+    let startIdx = 0;
+    try {
+      const p = new URLSearchParams(window.location.search).get('start');
+      if (p) { const i = this.POOL.findIndex(x => x.id === p); if (i >= 0) startIdx = i; }
+    } catch (e) {}
+    this.state = {
+      index: startIdx, // virtual, can be any integer
+      dragPx: 0,
+      dragging: false,
+      chromeVisible: false,
+      saved: this.loadSaved(),
+      detailOpen: false,
+      sheetDrag: 0,
+      toast: null,
+    };
+    this.entryId = this.POOL[startIdx].id; // where we came from in the feed
+    this.startX = 0; this.startY = 0; this.moved = false; this.pressFired = false;
+    this.pointers = new Set();
+    this.sheetRef = React.createRef();
+  }
+
+  mod(k) { const n = this.POOL.length; return ((k % n) + n) % n; }
+  cur() { return this.POOL[this.mod(this.state.index)]; }
+
+  loadSaved() {
+    try { return new Set(JSON.parse(localStorage.getItem('ambit.saved.v1') || '[]')); }
+    catch (e) { return new Set(); }
+  }
+  persist(s) { try { localStorage.setItem('ambit.saved.v1', JSON.stringify([...s])); } catch (e) {} }
+
+  componentDidMount() { this.startChromeCycle(false); }
+  componentWillUnmount() {
+    clearTimeout(this.chromeTimer); clearTimeout(this.toastTimer);
+  }
+
+  openDetail() {
+    this.setState({ detailOpen: true });
+    if (navigator.vibrate) { try { navigator.vibrate(10); } catch (e) {} }
+  }
+
+  // chrome auto-cycle: 10s in each phase, same fade rate both ways
+  startChromeCycle(visible) {
+    clearTimeout(this.chromeTimer);
+    this.setState({ chromeVisible: visible });
+    this.chromeTimer = setTimeout(() => this.startChromeCycle(!visible), 10000);
+  }
+  toggleChrome() { this.startChromeCycle(!this.state.chromeVisible); }
+
+  width() { return this.trackRef.current ? this.trackRef.current.offsetWidth : 380; }
+
+  goBackToFeed() {
+    try { window.location.href = 'Ambit - Feed.dc.html?focus=' + encodeURIComponent(this.entryId); } catch (e) {}
+  }
+
+  onDown(e) {
+    if (this.state.detailOpen) return;
+    this.pointers.add(e.pointerId);
+    if (this.pointers.size >= 2) this.multiTouch = true;
+    if (this.pointers.size > 1) return; // secondary finger: don't reset primary tracking
+    this.multiTouch = false;
+    this.startX = e.clientX; this.startY = e.clientY; this.downT = Date.now();
+    const rect = this.trackRef.current ? this.trackRef.current.getBoundingClientRect() : null;
+    this.startYRel = rect ? (e.clientY - rect.top) : 0;
+    this.trackH = rect ? rect.height : 800;
+    this.curDx = 0; this.curDy = 0;
+    this.moved = false; this.pointerActive = true;
+    this.setState({ dragging: true, dragPx: 0 });
+  }
+  onMove(e) {
+    if (!this.pointerActive) return;
+    const dx = e.clientX - this.startX;
+    const dy = e.clientY - this.startY;
+    this.curDx = dx; this.curDy = dy;
+    if (!this.moved && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) this.moved = true;
+    // only track the rail horizontally for a single-finger horizontal drag
+    if (this.moved && !this.multiTouch && Math.abs(dx) >= Math.abs(dy)) this.setState({ dragPx: dx });
+    else if (this.moved && this.state.dragPx !== 0) this.setState({ dragPx: 0 });
+  }
+  onUp(e) {
+    if (e && this.pointers) this.pointers.delete(e.pointerId);
+    if (!this.pointerActive) return;
+    this.pointerActive = false;
+    const dx = this.curDx || 0, dy = this.curDy || 0, dt = Date.now() - (this.downT || 0);
+
+    // two-finger swipe (any direction) -> back to the feed
+    if (this.multiTouch && this.moved) {
+      this.multiTouch = false; this.setState({ dragPx: 0, dragging: false });
+      return this.goBackToFeed();
+    }
+
+    const vertical = Math.abs(dy) > Math.abs(dx);
+    const isUp = dy < 0;
+    const startedBottomThird = this.startYRel > this.trackH * (2 / 3);
+    const hard = Math.abs(dy) > 150 || (Math.abs(dy) > 80 && dt < 320);
+    const longSwipe = Math.abs(dy) > 60;
+
+    // hard swipe up, starting in the top two-thirds -> back to the feed
+    if (this.moved && vertical && isUp && !startedBottomThird && hard) {
+      this.setState({ dragPx: 0, dragging: false });
+      return this.goBackToFeed();
+    }
+    // slow swipe up starting from the bottom third -> open details
+    if (this.moved && vertical && isUp && startedBottomThird && longSwipe) {
+      this.setState({ dragging: false, dragPx: 0 });
+      return this.openDetail();
+    }
+    // quick tap -> first tap reveals the title chrome; a second tap (chrome already up) opens details
+    if (!this.moved) {
+      this.setState({ dragging: false, dragPx: 0 });
+      if (this.state.chromeVisible) this.openDetail();
+      else this.toggleChrome();
+      return;
+    }
+    // horizontal swipe between images
+    const threshold = this.width() * 0.2;
+    let index = this.state.index;
+    if (dx < -threshold && Math.abs(dx) >= Math.abs(dy)) index++;
+    else if (dx > threshold && Math.abs(dx) >= Math.abs(dy)) index--;
+    const changed = index !== this.state.index;
+    this.setState({ index, dragPx: 0, dragging: false });
+    if (changed) this.startChromeCycle(false); // new image: reset to hidden, cycle restarts
+  }
+
+  onTitleTap(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    this.openDetail();
+  }
+  closeDetail() { this.setState({ detailOpen: false }); }
+
+  // modal gestures: swipe-down near the grabber closes; horizontal swipe closes + cycles the gallery
+  modalDown(e) {
+    this.mStart = { x: e.clientX, y: e.clientY };
+    const sheet = this.sheetRef.current;
+    this.mGrab = false;
+    if (sheet) { const r = sheet.getBoundingClientRect(); this.mGrab = (e.clientY - r.top) < 64; }
+  }
+  modalMove(e) {
+    if (!this.mStart) return;
+    // live-follow the grabber drag downward for a tactile feel
+    if (this.mGrab) {
+      const dy = e.clientY - this.mStart.y;
+      this.setState({ sheetDrag: dy > 0 ? dy : 0 });
+    }
+  }
+  modalUp(e) {
+    const t = this.mStart; this.mStart = null;
+    if (this.state.sheetDrag) this.setState({ sheetDrag: 0 });
+    if (!t) return;
+    const dx = e.clientX - t.x, dy = e.clientY - t.y;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 48) {
+      // swipe left/right -> close modal AND cycle like the gallery normally would
+      const dir = dx < 0 ? 1 : -1;
+      this.setState(s => ({ detailOpen: false, sheetDrag: 0, index: s.index + dir, dragPx: 0, dragging: false }));
+      this.startChromeCycle(false);
+      return;
+    }
+    if (this.mGrab && dy > 56) { this.setState({ detailOpen: false, sheetDrag: 0 }); return; }
+  }
+
+  toggleSave() {
+    const id = this.cur().id;
+    this.setState(s => {
+      const n = new Set(s.saved);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      this.persist(n);
+      return { saved: n };
+    });
+  }
+  share() {
+    clearTimeout(this.toastTimer);
+    this.setState({ toast: 'Link copied \u00b7 ambit.link/i/' + this.cur().id });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1800);
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#BFA06A';
+    const w = this.width();
+    // rail shows [prev, cur, next]; each child is 1/3 of rail. Center = -33.333%
+    const dragPct = w ? (this.state.dragPx / w) * 33.3333 : 0;
+    const railStyle = {
+      display: 'flex',
+      width: '300%',
+      height: '100%',
+      transform: 'translateX(' + (-33.3333 + dragPct) + '%)',
+      transition: this.state.dragging ? 'none' : 'transform .4s cubic-bezier(.22,.61,.36,1)',
+      willChange: 'transform',
+    };
+
+    const slides = [this.state.index - 1, this.state.index, this.state.index + 1].map(k => {
+      const p = this.POOL[this.mod(k)];
+      return { key: k, slotId: p.slotId, src: p.src, placeholder: p.placeholder };
+    });
+
+    const c = this.cur();
+    const curSaved = this.state.saved.has(c.id);
+    const chromeOn = this.state.chromeVisible;
+
+    const facts = [
+      { key: 'm', label: 'Medium', value: c.medium },
+      { key: 'o', label: 'Origin', value: c.origin },
+      { key: 'h', label: 'Where it lives', value: c.home },
+    ];
+
+    return {
+      accent, deviceDark: true,
+      trackRef: this.trackRef,
+      railStyle, slides,
+      current: { title: c.title, maker: c.maker, detail: c.detail, saved: curSaved, notSaved: !curSaved },
+      facts,
+      chromeOpacity: chromeOn ? 1 : 0,
+      chromeShift: chromeOn ? '0px' : '10px',
+      chromePointer: chromeOn ? 'auto' : 'none',
+      detailOpen: this.state.detailOpen,
+      sheetRef: this.sheetRef,
+      sheetStyle: 'transform:translateY(' + (this.state.sheetDrag || 0) + 'px); transition:' + (this.state.sheetDrag ? 'none' : 'transform .3s cubic-bezier(.22,.61,.36,1)'),
+      onDown: (e) => this.onDown(e),
+      onMove: (e) => this.onMove(e),
+      onUp: (e) => this.onUp(e),
+      onModalDown: (e) => this.modalDown(e),
+      onModalMove: (e) => this.modalMove(e),
+      onModalUp: (e) => this.modalUp(e),
+      onTitleTap: (e) => this.onTitleTap(e),
+      onClose: () => this.goBackToFeed(),
+      closeDetail: () => this.closeDetail(),
+      onSave: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.toggleSave(); },
+      onShare: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.share(); },
+      stop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

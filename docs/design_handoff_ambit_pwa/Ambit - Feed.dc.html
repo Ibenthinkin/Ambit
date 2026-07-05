@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    @keyframes ambitspin { to { transform: rotate(360deg); } }
+    @keyframes ambitfade { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    image-slot { display: block; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0C0B09; padding:32px; font-family:-apple-system, system-ui, sans-serif;">
+
+  <x-import component-from-global-scope="image-slot" from="./image-slot.js" hint-size="1px,1px" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></x-import>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%;">
+
+      <div ref="{{ scrollerRef }}" style="height:100%; overflow-y:auto; background:#161411; -webkit-overflow-scrolling:touch;">
+
+        <!-- sticky glass header -->
+        <div style="position:sticky; top:0; z-index:8; padding:56px 20px 12px; display:flex; align-items:flex-end; justify-content:space-between; backdrop-filter:blur(18px) saturate(160%); -webkit-backdrop-filter:blur(18px) saturate(160%); background:rgba(22,20,17,0.66); border-bottom:0.5px solid rgba(239,235,224,0.08);">
+          <span style="font-family:'Newsreader', serif; font-style:italic; font-weight:500; font-size:28px; line-height:1; color:#EFEBE0; letter-spacing:0.2px;">Ambit</span>
+          <div style="width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.09);">
+            <svg width="14" height="17" viewBox="0 0 14 17"><path d="M1 1h12v15l-6-3.6L1 16z" fill="none" stroke="rgba(239,235,224,0.55)" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+
+        <!-- feed -->
+        <div style="display:flex; flex-direction:column; gap:28px; padding:22px 20px 12px;">
+          <sc-for list="{{ items }}" as="item" hint-placeholder-count="5">
+            <div data-feed-id="{{ item.pid }}">
+
+              <!-- serendipity connective -->
+              <sc-if value="{{ item.isLink }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; align-items:center; gap:11px; padding:2px 4px;">
+                  <div style="flex:0 0 22px; height:0.5px; background:{{ item.accent }}; opacity:0.55;"></div>
+                  <svg width="9" height="9" viewBox="0 0 10 10" style="flex-shrink:0;"><path d="M5 0l5 5-5 5-5-5z" fill="{{ item.accent }}"/></svg>
+                  <div style="font-family:-apple-system, system-ui; font-size:12.5px; line-height:1.45; color:rgba(239,235,224,0.5); letter-spacing:0.1px;">{{ item.linkFrom }} <span style="color:{{ item.accent }};">→ {{ item.linkTo }}</span></div>
+                </div>
+              </sc-if>
+
+              <!-- image card -->
+              <sc-if value="{{ item.isImage }}" hint-placeholder-val="{{ false }}">
+                <div onPointerDown="{{ item.onImgDown }}" onPointerMove="{{ item.onImgMove }}" onPointerUp="{{ item.onImgUp }}" onPointerCancel="{{ item.onImgCancel }}" onPointerLeave="{{ item.onImgCancel }}" style="cursor:pointer;">
+                  <image-slot id="{{ item.slotId }}" shape="rounded" radius="20" src="{{ item.src }}" placeholder="{{ item.placeholder }}" style="{{ item.imgStyle }}"></image-slot>
+                  <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:13px 2px 0;">
+                    <div style="min-width:0;">
+                      <div style="font-family:'Newsreader', serif; font-size:19px; line-height:1.3; color:#EFEBE0;">{{ item.title }}</div>
+                      <div style="font-family:-apple-system, system-ui; font-size:12px; color:rgba(239,235,224,0.48); margin-top:5px; letter-spacing:0.15px;">{{ item.maker }}</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:7px; flex-shrink:0;">
+                      <div onPointerDown="{{ item.onSaveDown }}" onPointerMove="{{ item.onSaveMove }}" onPointerUp="{{ item.onSaveUp }}" onPointerCancel="{{ item.onBtnCancel }}" onPointerLeave="{{ item.onBtnCancel }}" style="width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.09); cursor:pointer; transition:transform .18s cubic-bezier(.3,1.4,.5,1);">
+                        <sc-if value="{{ item.saved }}" hint-placeholder-val="{{ false }}">
+                          <svg width="13" height="16" viewBox="0 0 13 16"><path d="M1 1h11v14l-5.5-3.4L1 15z" fill="{{ item.accent }}" stroke="{{ item.accent }}" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                        </sc-if>
+                        <sc-if value="{{ item.notSaved }}" hint-placeholder-val="{{ true }}">
+                          <svg width="13" height="16" viewBox="0 0 13 16"><path d="M1 1h11v14l-5.5-3.4L1 15z" fill="none" stroke="rgba(239,235,224,0.6)" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                        </sc-if>
+                      </div>
+                      <div onPointerDown="{{ item.onSaveDown }}" onPointerMove="{{ item.onSaveMove }}" onPointerUp="{{ item.onShareUp }}" onPointerCancel="{{ item.onBtnCancel }}" onPointerLeave="{{ item.onBtnCancel }}" style="width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.09); cursor:pointer;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.6)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"/><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/></svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <!-- article card -->
+              <sc-if value="{{ item.isArticle }}" hint-placeholder-val="{{ false }}">
+                <div onPointerDown="{{ item.onPressStart }}" onPointerUp="{{ item.onPressEnd }}" onPointerLeave="{{ item.onPressCancel }}" style="{{ item.cardStyle }}">
+                  <span style="font-family:-apple-system, system-ui; font-size:10.5px; font-weight:600; letter-spacing:1.4px; text-transform:uppercase; color:rgba(239,235,224,0.38);">{{ item.source }}</span>
+                  <div style="font-family:'Newsreader', serif; font-size:24px; line-height:1.22; color:#F3EFE5; letter-spacing:0.1px; margin-top:12px;">{{ item.title }}</div>
+                  <div style="font-family:'Newsreader', serif; font-size:16px; line-height:1.55; color:rgba(239,235,224,0.62); margin-top:11px;">{{ item.lede }}</div>
+                  <sc-if value="{{ item.expanded }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-family:'Newsreader', serif; font-size:16px; line-height:1.62; color:rgba(239,235,224,0.74); margin-top:14px; white-space:pre-line;">{{ item.body }}</div>
+                  </sc-if>
+                  <sc-if value="{{ item.collapsed }}" hint-placeholder-val="{{ true }}">
+                    <div style="height:2px; border-radius:2px; background:rgba(239,235,224,0.07); margin-top:16px; overflow:hidden;">
+                      <div style="{{ item.pressBarStyle }}"></div>
+                    </div>
+                  </sc-if>
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-top:18px;">
+                    <span style="font-family:-apple-system, system-ui; font-size:13px; font-weight:500; color:{{ item.accent }};">{{ item.expandLabel }}</span>
+                    <div style="display:flex; align-items:center; gap:7px;">
+                      <div onPointerDown="{{ item.onSaveDown }}" onPointerMove="{{ item.onSaveMove }}" onPointerUp="{{ item.onSaveUp }}" onPointerCancel="{{ item.onBtnCancel }}" onPointerLeave="{{ item.onBtnCancel }}" style="width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.05); border:0.5px solid rgba(239,235,224,0.09); cursor:pointer;">
+                        <sc-if value="{{ item.saved }}" hint-placeholder-val="{{ false }}">
+                          <svg width="13" height="16" viewBox="0 0 13 16"><path d="M1 1h11v14l-5.5-3.4L1 15z" fill="{{ item.accent }}" stroke="{{ item.accent }}" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                        </sc-if>
+                        <sc-if value="{{ item.notSaved }}" hint-placeholder-val="{{ true }}">
+                          <svg width="13" height="16" viewBox="0 0 13 16"><path d="M1 1h11v14l-5.5-3.4L1 15z" fill="none" stroke="rgba(239,235,224,0.6)" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                        </sc-if>
+                      </div>
+                      <div onPointerDown="{{ item.onSaveDown }}" onPointerMove="{{ item.onSaveMove }}" onPointerUp="{{ item.onShareUp }}" onPointerCancel="{{ item.onBtnCancel }}" onPointerLeave="{{ item.onBtnCancel }}" style="width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.05); border:0.5px solid rgba(239,235,224,0.09); cursor:pointer;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.6)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"/><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/></svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+
+            </div>
+          </sc-for>
+
+          <!-- infinite-scroll sentinel + loader -->
+          <div ref="{{ sentinelRef }}" style="height:1px;"></div>
+          <div style="display:flex; align-items:center; justify-content:center; gap:10px; padding:14px 0 8px;">
+            <div style="width:15px; height:15px; border-radius:50%; border:2px solid rgba(239,235,224,0.14); border-top-color:{{ accent }}; animation:ambitspin .8s linear infinite;"></div>
+            <span style="font-family:'Newsreader', serif; font-style:italic; font-size:14px; color:rgba(239,235,224,0.4);">finding something interesting…</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- fullscreen image -->
+      <sc-if value="{{ fullscreenActive }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeImage }}" style="position:absolute; inset:0; z-index:40; background:rgba(9,8,6,0.97); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); display:flex; flex-direction:column;">
+          <div style="display:flex; justify-content:flex-end; padding:54px 18px 0;">
+            <div style="width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.1); border:0.5px solid rgba(239,235,224,0.14);">
+              <svg width="14" height="14" viewBox="0 0 14 14" stroke="#EFEBE0" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
+            </div>
+          </div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:8px 16px;">
+            <image-slot id="{{ fullscreen.slotId }}" shape="rounded" radius="14" fit="contain" src="{{ fullscreen.src }}" placeholder="{{ fullscreen.placeholder }}" style="width:100%; height:56vh;"></image-slot>
+          </div>
+          <div onClick="{{ noop }}" style="padding:8px 26px 44px;">
+            <div style="font-family:'Newsreader', serif; font-size:22px; line-height:1.28; color:#F3EFE5;">{{ fullscreen.title }}</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:8px;">
+              <div style="font-family:-apple-system, system-ui; font-size:12.5px; color:rgba(239,235,224,0.5); min-width:0;">{{ fullscreen.maker }}</div>
+              <div style="display:flex; align-items:center; gap:9px; flex-shrink:0;">
+                <div onClick="{{ fullscreen.onSave }}" style="width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.08); border:0.5px solid rgba(239,235,224,0.12); cursor:pointer;">
+                  <sc-if value="{{ fullscreen.saved }}" hint-placeholder-val="{{ false }}">
+                    <svg width="14" height="17" viewBox="0 0 13 16"><path d="M1 1h11v14l-5.5-3.4L1 15z" fill="{{ accent }}" stroke="{{ accent }}" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                  </sc-if>
+                  <sc-if value="{{ fullscreen.notSaved }}" hint-placeholder-val="{{ true }}">
+                    <svg width="14" height="17" viewBox="0 0 13 16"><path d="M1 1h11v14l-5.5-3.4L1 15z" fill="none" stroke="rgba(239,235,224,0.7)" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                  </sc-if>
+                </div>
+                <div onClick="{{ fullscreen.onShare }}" style="width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.08); border:0.5px solid rgba(239,235,224,0.12); cursor:pointer;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.7)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"/><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- toast -->
+      <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:50%; bottom:46px; z-index:50; background:rgba(30,28,24,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:0.5px solid rgba(239,235,224,0.12); color:#EFEBE0; font-family:-apple-system, system-ui; font-size:13px; padding:11px 18px; border-radius:999px; white-space:nowrap; animation:ambitfade .22s ease both; box-shadow:0 8px 30px rgba(0,0,0,0.4);">{{ toast.text }}</div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showSerendipity&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Feed&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#7E93AD&quot;,&quot;options&quot;:[&quot;#BFA06A&quot;,&quot;#8FA786&quot;,&quot;#7E93AD&quot;,&quot;#C08262&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Feed&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.scrollerRef = React.createRef();
+    this.sentinelRef = React.createRef();
+    this.state = {
+      count: 7,
+      expanded: {},
+      saved: this.loadSaved(),
+      fullscreenId: null,
+      toast: null,
+      loadingMore: false,
+      pressingIdx: null,
+    };
+    this.lastTap = { idx: null, t: 0 };
+    this.POOL = [
+      { id: 'wave', kind: 'image', slotId: 'am-wave', h: 238,
+        title: 'The Great Wave off Kanagawa',
+        maker: 'Katsushika Hokusai · c.\u20091831 · The Met',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Great%20Wave%20off%20Kanagawa2.jpg?width=900',
+        placeholder: 'Ukiyo-e woodblock print' },
+
+      { id: 'sky', kind: 'article', source: 'Wikipedia',
+        title: 'Why the sky is blue',
+        lede: 'The sky isn\u2019t coloured \u2014 it\u2019s scattered. Shorter blue wavelengths bounce off air molecules far more than red ones, so blue reaches your eye from every direction at once.',
+        body: 'This is Rayleigh scattering: the intensity of scattered light climbs steeply as wavelength shrinks, so blue and violet dominate the daytime sky.\n\nAt sunset the light travels a far longer path through the atmosphere. The blue is scattered away entirely before it reaches you, leaving the warm reds and oranges we watch sink below the horizon.' },
+
+      { id: 'link1', kind: 'link',
+        from: 'Because you saved Rayleigh scattering',
+        to: 'a painter chasing the very same light' },
+
+      { id: 'turner', kind: 'image', slotId: 'am-turner', h: 224,
+        title: 'Rain, Steam and Speed',
+        maker: 'J.\u2009M.\u2009W. Turner · 1844 · National Gallery',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Rain%20Steam%20and%20Speed%20the%20Great%20Western%20Railway.jpg?width=900',
+        placeholder: 'Romantic oil painting' },
+
+      { id: 'engine', kind: 'article', source: 'Wikipedia',
+        title: 'The internal-combustion engine',
+        lede: 'For over a century a controlled explosion, a few thousand times a minute, has moved most of the world. Its logic is almost violent in its simplicity.',
+        body: 'Fuel and air are drawn into a cylinder, compressed, then ignited. The expanding gas drives a piston; the piston turns a crank; the crank turns a wheel.\n\nEvery refinement since \u2014 overhead cams, fuel injection, the turbocharger \u2014 is a variation on that single, insistent beat.' },
+
+      { id: 'link2', kind: 'link',
+        from: 'Because you lingered on the internal-combustion engine',
+        to: 'the golden, dangerous age of Grand Prix' },
+
+      { id: 'gp', kind: 'image', slotId: 'am-gp', h: 300,
+        title: 'The Vanderbilt Cup',
+        maker: 'Long Island · 1908 · Public domain',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Vanderbilt%20Cup%201908.jpg?width=900',
+        placeholder: 'Vintage motorsport photo' },
+
+      { id: 'wayfinding', kind: 'article', source: 'Wikipedia',
+        title: 'Polynesian wayfinding',
+        lede: 'Long before instruments, navigators crossed thousands of miles of open Pacific reading only the swell, the stars, the birds and the colour of the water.',
+        body: 'A wayfinder memorised a \u2018star compass\u2019 \u2014 the points on the horizon where key stars rise and set \u2014 and held course by them through the night.\n\nBy day they read the interference of ocean swells against unseen islands, a signal felt in the hull long before any land appeared.' },
+
+      { id: 'nebula', kind: 'image', slotId: 'am-nebula', h: 300,
+        title: 'The Pillars of Creation',
+        maker: 'Eagle Nebula · NASA / ESA · Public domain',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Pillars%20of%20Creation.jpg?width=900',
+        placeholder: 'Deep-space photograph' },
+    ];
+  }
+
+  loadSaved() {
+    try { return new Set(JSON.parse(localStorage.getItem('ambit.saved.v1') || '[]')); }
+    catch (e) { return new Set(); }
+  }
+  persistSaved(s) {
+    try { localStorage.setItem('ambit.saved.v1', JSON.stringify([...s])); } catch (e) {}
+  }
+
+  componentDidMount() {
+    this.io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) this.loadMore();
+    }, { root: this.scrollerRef.current, rootMargin: '500px' });
+    if (this.sentinelRef.current) this.io.observe(this.sentinelRef.current);
+    // returning from the gallery: scroll back to the card we entered from
+    try {
+      const focus = new URLSearchParams(window.location.search).get('focus');
+      if (focus) {
+        const go = () => {
+          const sc = this.scrollerRef.current;
+          if (!sc) return;
+          const el = sc.querySelector('[data-feed-id="' + focus + '"]');
+          if (el) sc.scrollTop = Math.max(0, el.offsetTop - 84);
+        };
+        [90, 350, 800].forEach(t => setTimeout(go, t));
+      }
+    } catch (e) {}
+  }
+  componentWillUnmount() {
+    if (this.io) this.io.disconnect();
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    if (this.pressTimer) clearTimeout(this.pressTimer);
+  }
+
+  pressStart(e, idx) {
+    if (e && e.button === 2) return;
+    this.pressFired = false;
+    if (this.pressTimer) clearTimeout(this.pressTimer);
+    this.setState({ pressingIdx: idx });
+    this.pressTimer = setTimeout(() => {
+      this.pressFired = true;
+      this.pressTimer = null;
+      this.setState({ pressingIdx: null });
+      this.toggleExpand(idx);
+      if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+    }, 480);
+  }
+
+  pressEnd(e, idx) {
+    if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
+    this.setState({ pressingIdx: null });
+    if (this.pressFired) { this.pressFired = false; return; }
+    // short tap
+    if (this.state.expanded[idx]) { this.toggleExpand(idx); return; } // tap collapses
+    const now = Date.now();
+    if (this.lastTap.idx === idx && now - this.lastTap.t < 320) {
+      this.lastTap = { idx: null, t: 0 };
+      this.toggleExpand(idx); // double-tap expands
+    } else {
+      this.lastTap = { idx, t: now };
+      this.hint('Hold, or double-tap, to read');
+    }
+  }
+
+  pressCancel() {
+    if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
+    this.pressFired = false;
+    this.setState({ pressingIdx: null });
+  }
+
+  hint(text) {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: text });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1600);
+  }
+
+  loadMore() {
+    if (this.state.loadingMore) return;
+    this.setState({ loadingMore: true });
+    setTimeout(() => this.setState(s => ({ count: s.count + 4, loadingMore: false })), 600);
+  }
+
+  toggleSave(id) {
+    this.setState(s => {
+      const n = new Set(s.saved);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      this.persistSaved(n);
+      return { saved: n };
+    });
+  }
+
+  share(id) {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: 'Link copied \u00b7 ambit.link/i/' + id });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1900);
+  }
+
+  openImage(id) { this.setState({ fullscreenId: id }); }
+  closeImage() { this.setState({ fullscreenId: null }); }
+
+  // --- movement-guarded taps: only fire if the finger barely moved (never during a scroll) ---
+  // TAP_SLOP: how far the finger may drift and still count as a deliberate tap (px)
+  tapDown(e) {
+    this.tap = { x: e.clientX, y: e.clientY, ok: true };
+  }
+  tapMove(e) {
+    if (!this.tap) return;
+    if (Math.abs(e.clientX - this.tap.x) > 12 || Math.abs(e.clientY - this.tap.y) > 12) this.tap.ok = false;
+  }
+  tapUp(e, action) {
+    const t = this.tap; this.tap = null;
+    if (!t || !t.ok) return;
+    if (Math.abs(e.clientX - t.x) > 12 || Math.abs(e.clientY - t.y) > 12) return;
+    action();
+  }
+  tapCancel() { this.tap = null; }
+
+  openGallery(id) {
+    try { window.location.href = 'Ambit - Gallery.dc.html?start=' + encodeURIComponent(id); } catch (e) {}
+  }
+  toggleExpand(key) {
+    this.setState(s => ({ expanded: { ...s.expanded, [key]: !s.expanded[key] } }));
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#BFA06A';
+    const showSer = this.props.showSerendipity ?? true;
+
+    const seq = [];
+    for (let i = 0; i < this.state.count; i++) seq.push(this.POOL[i % this.POOL.length]);
+    const filtered = showSer ? seq : seq.filter(p => p.kind !== 'link');
+
+    const items = filtered.map((p, idx) => {
+      const saved = this.state.saved.has(p.id);
+      const expanded = !!this.state.expanded[idx];
+      return {
+        key: idx,
+        pid: p.id,
+        isImage: p.kind === 'image',
+        isArticle: p.kind === 'article',
+        isLink: p.kind === 'link',
+        title: p.title, maker: p.maker, source: p.source,
+        lede: p.lede, body: p.body,
+        slotId: p.slotId, placeholder: p.placeholder, src: p.src,
+        imgStyle: { width: '100%', height: p.h + 'px', display: 'block', pointerEvents: 'none' },
+        linkFrom: p.from, linkTo: p.to,
+        accent,
+        saved, notSaved: !saved,
+        expanded,
+        collapsed: !expanded,
+        pressing: this.state.pressingIdx === idx,
+        expandLabel: expanded ? 'Show less' : 'Hold or double-tap to read',
+        cardStyle: {
+          cursor: 'pointer',
+          background: 'rgba(239,235,224,0.028)',
+          border: '0.5px solid rgba(239,235,224,0.07)',
+          borderRadius: '22px',
+          padding: '22px 22px 16px',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          touchAction: 'manipulation',
+          transform: this.state.pressingIdx === idx ? 'scale(0.985)' : 'scale(1)',
+          transition: 'transform .2s ease',
+        },
+        pressBarStyle: {
+          height: '100%',
+          width: this.state.pressingIdx === idx ? '100%' : '0%',
+          background: accent,
+          borderRadius: '2px',
+          transition: this.state.pressingIdx === idx ? 'width .48s linear' : 'width .18s ease',
+        },
+        onSave: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.toggleSave(p.id); },
+        onShare: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.share(p.id); },
+        onOpen: () => this.openImage(p.id),
+        onExpand: () => this.toggleExpand(idx),
+        // image → gallery (guarded tap, immune to scrolling)
+        onImgDown: (e) => this.tapDown(e),
+        onImgMove: (e) => this.tapMove(e),
+        onImgUp: (e) => this.tapUp(e, () => this.openGallery(p.id)),
+        onImgCancel: () => this.tapCancel(),
+        // save/share (guarded tap + stopPropagation so scrolling past never fires them)
+        onSaveDown: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.tapDown(e); },
+        onSaveMove: (e) => this.tapMove(e),
+        onSaveUp: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.tapUp(e, () => this.toggleSave(p.id)); },
+        onShareUp: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.tapUp(e, () => this.share(p.id)); },
+        onBtnCancel: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.tapCancel(); },
+        onPressStart: (e) => this.pressStart(e, idx),
+        onPressEnd: (e) => this.pressEnd(e, idx),
+        onPressCancel: () => this.pressCancel(),
+        stop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+      };
+    });
+
+    const fs = this.POOL.find(p => p.id === this.state.fullscreenId) || null;
+    const fsSaved = fs ? this.state.saved.has(fs.id) : false;
+    const fullscreen = fs ? {
+      title: fs.title, maker: fs.maker, slotId: fs.slotId, placeholder: fs.placeholder, src: fs.src,
+      saved: fsSaved, notSaved: !fsSaved,
+      onSave: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.toggleSave(fs.id); },
+      onShare: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.share(fs.id); },
+    } : { title: '', maker: '', slotId: '__none', placeholder: '', src: '', saved: false, notSaved: true, onSave: () => {}, onShare: () => {} };
+
+    return {
+      items, accent, deviceDark: true,
+      scrollerRef: this.scrollerRef, sentinelRef: this.sentinelRef,
+      fullscreenActive: !!fs, fullscreen,
+      closeImage: () => this.closeImage(),
+      noop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

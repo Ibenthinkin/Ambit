@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    @keyframes ambitfade { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes ambitrise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    image-slot { display: block; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0C0B09; padding:32px; font-family:-apple-system, system-ui, sans-serif;">
+
+  <x-import component-from-global-scope="image-slot" from="./image-slot.js" hint-size="1px,1px" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></x-import>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%;">
+
+      <div style="height:100%; overflow-y:auto; background:#161411; -webkit-overflow-scrolling:touch;">
+
+        <!-- minimal public top bar -->
+        <div style="position:sticky; top:0; z-index:8; padding:52px 20px 12px; display:flex; align-items:center; justify-content:space-between; backdrop-filter:blur(18px) saturate(160%); -webkit-backdrop-filter:blur(18px) saturate(160%); background:rgba(22,20,17,0.66); border-bottom:0.5px solid rgba(239,235,224,0.07);">
+          <div style="display:flex; align-items:center; gap:9px;">
+            <svg width="20" height="20" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="{{ accent }}" stroke-width="1.5"/><circle cx="13" cy="13" r="3.4" fill="{{ accent }}"/><circle cx="21" cy="7" r="1.8" fill="{{ accent }}"/></svg>
+            <span style="font-family:'Newsreader', serif; font-style:italic; font-weight:500; font-size:20px; color:#EFEBE0;">Ambit</span>
+          </div>
+          <div onClick="{{ onShare }}" style="display:flex; align-items:center; gap:7px; padding:8px 14px; border-radius:999px; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.1); cursor:pointer;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.72)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"/><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/></svg>
+            <span style="font-family:-apple-system, system-ui; font-size:12.5px; font-weight:500; color:rgba(239,235,224,0.72);">Share</span>
+          </div>
+        </div>
+
+        <!-- shared-by attribution -->
+        <div style="padding:18px 22px 0; animation:ambitrise .5s ease both;">
+          <div style="display:flex; align-items:center; gap:9px;">
+            <div style="width:24px; height:24px; border-radius:50%; background:{{ accent }}; display:flex; align-items:center; justify-content:center; font-family:'Newsreader',serif; font-size:12px; font-weight:600; color:#17140E;">{{ sharerInitial }}</div>
+            <div style="font-family:-apple-system, system-ui; font-size:12.5px; color:rgba(239,235,224,0.5);">{{ sharedByLabel }}</div>
+          </div>
+        </div>
+
+        <!-- IMAGE item -->
+        <sc-if value="{{ isImage }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:16px 22px 0; animation:ambitrise .55s ease .05s both;">
+            <div onPointerDown="{{ onImgDown }}" onPointerMove="{{ onImgMove }}" onPointerUp="{{ onImgUp }}" onPointerCancel="{{ onImgCancel }}" onPointerLeave="{{ onImgCancel }}" style="position:relative; cursor:pointer;">
+              <image-slot id="{{ item.slotId }}" shape="rounded" radius="18" src="{{ item.src }}" placeholder="{{ item.placeholder }}" style="width:100%; height:300px; display:block;"></image-slot>
+            </div>
+            <div style="font-family:'Newsreader', serif; font-size:28px; line-height:1.16; color:#F5F1E7; margin-top:20px;">{{ item.title }}</div>
+            <div style="font-family:-apple-system, system-ui; font-size:13px; color:rgba(239,235,224,0.5); margin-top:9px; letter-spacing:0.15px;">{{ item.maker }}</div>
+            <div style="font-family:'Newsreader', serif; font-size:17px; line-height:1.6; color:rgba(239,235,224,0.72); margin-top:18px;">{{ item.body }}</div>
+          </div>
+        </sc-if>
+
+        <!-- ARTICLE item -->
+        <sc-if value="{{ isArticle }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:16px 22px 0; animation:ambitrise .55s ease .05s both;">
+            <span style="font-family:-apple-system, system-ui; font-size:10.5px; font-weight:600; letter-spacing:1.4px; text-transform:uppercase; color:{{ accent }};">{{ item.source }}</span>
+            <div style="font-family:'Newsreader', serif; font-size:30px; line-height:1.14; color:#F5F1E7; letter-spacing:0.1px; margin-top:13px;">{{ item.title }}</div>
+            <div style="font-family:'Newsreader', serif; font-style:italic; font-size:18px; line-height:1.5; color:rgba(239,235,224,0.64); margin-top:14px;">{{ item.lede }}</div>
+            <div style="height:0.5px; background:rgba(239,235,224,0.1); margin:22px 0;"></div>
+            <div style="font-family:'Newsreader', serif; font-size:17px; line-height:1.68; color:rgba(239,235,224,0.78); white-space:pre-line;">{{ item.body }}</div>
+          </div>
+        </sc-if>
+
+        <!-- serendipity teaser -->
+        <div style="padding:30px 22px 0; animation:ambitrise .6s ease .12s both;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="flex:0 0 20px; height:0.5px; background:{{ accent }}; opacity:0.5;"></div>
+            <span style="font-family:-apple-system, system-ui; font-size:11px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; color:rgba(239,235,224,0.4);">Where Ambit would wander next</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px; margin-top:14px;">
+            <sc-for list="{{ related }}" as="r" hint-placeholder-count="2">
+              <div style="display:flex; align-items:center; gap:13px; padding:13px 15px; background:rgba(239,235,224,0.03); border:0.5px solid rgba(239,235,224,0.07); border-radius:14px;">
+                <svg width="9" height="9" viewBox="0 0 10 10" style="flex-shrink:0;"><path d="M5 0l5 5-5 5-5-5z" fill="{{ accent }}"/></svg>
+                <div style="min-width:0;">
+                  <div style="font-family:'Newsreader', serif; font-size:16px; line-height:1.3; color:#EFEBE0;">{{ r.title }}</div>
+                  <div style="font-family:-apple-system, system-ui; font-size:11.5px; color:rgba(239,235,224,0.44); margin-top:2px;">{{ r.reason }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- join CTA -->
+        <div style="padding:34px 22px 44px; animation:ambitrise .6s ease .16s both;">
+          <div style="background:rgba(239,235,224,0.035); border:0.5px solid rgba(239,235,224,0.09); border-radius:22px; padding:26px 24px; text-align:center;">
+            <div style="font-family:'Newsreader', serif; font-size:24px; line-height:1.22; color:#F3EFE5;">Curiosity, without the doomscroll.</div>
+            <div style="font-family:'Newsreader', serif; font-size:15.5px; line-height:1.5; color:rgba(239,235,224,0.58); margin-top:10px;">Ambit hands you one interesting thing at a time, then quietly steps back. No feed built to keep you.</div>
+            <a href="Ambit - Landing.dc.html" style="display:block; font-family:-apple-system, system-ui; font-size:15px; font-weight:600; color:#17140E; background:{{ accent }}; border-radius:999px; padding:15px; margin-top:20px; text-decoration:none;">Get your invite</a>
+            <a href="Ambit - Feed.dc.html" style="display:inline-block; font-family:-apple-system, system-ui; font-size:13px; font-weight:500; color:rgba(239,235,224,0.55); margin-top:16px; text-decoration:none;">Keep browsing without an account →</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- toast -->
+      <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:50%; bottom:46px; z-index:50; background:rgba(30,28,24,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:0.5px solid rgba(239,235,224,0.12); color:#EFEBE0; font-family:-apple-system, system-ui; font-size:13px; padding:11px 18px; border-radius:999px; white-space:nowrap; animation:ambitfade .22s ease both; box-shadow:0 8px 30px rgba(0,0,0,0.4);">{{ toast.text }}</div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;itemId&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;turner&quot;, &quot;options&quot;: [&quot;turner&quot;, &quot;sky&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared item&quot; },
+  &quot;sharedBy&quot;: { &quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Mara&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared item&quot; },
+  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#BFA06A&quot;, &quot;options&quot;: [&quot;#BFA06A&quot;, &quot;#8FA786&quot;, &quot;#7E93AD&quot;, &quot;#C08262&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared item&quot; }
+}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.POOL = {
+      turner: {
+        kind: 'image', slotId: 'am-turner',
+        title: 'Rain, Steam and Speed', maker: 'J.\u2009M.\u2009W. Turner · 1844 · The National Gallery',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Rain%20Steam%20and%20Speed%20the%20Great%20Western%20Railway.jpg?width=1100',
+        placeholder: 'Romantic oil painting',
+        body: 'A steam train tears across a viaduct through a haze of rain and light \u2014 Turner dissolving the machine age into pure atmosphere. Look closely and a hare runs ahead of the engine on the tracks, outpacing it for now.',
+        related: [
+          { title: 'Why the sky is blue', reason: 'The same scattered light Turner was chasing' },
+          { title: 'The internal-combustion engine', reason: 'The machine that replaced his steam' },
+        ],
+      },
+      sky: {
+        kind: 'article', source: 'Wikipedia',
+        title: 'Why the sky is blue',
+        lede: 'The sky isn\u2019t coloured \u2014 it\u2019s scattered.',
+        body: 'Shorter blue wavelengths bounce off air molecules far more than red ones, so blue reaches your eye from every direction at once. This is Rayleigh scattering: the intensity of scattered light climbs steeply as wavelength shrinks.\n\nAt sunset the light travels a far longer path through the atmosphere. The blue is scattered away entirely before it reaches you, leaving the warm reds and oranges we watch sink below the horizon.',
+        related: [
+          { title: 'Rain, Steam and Speed', reason: 'A painter chasing the very same light' },
+          { title: 'Polynesian wayfinding', reason: 'Reading the colour of sky and water' },
+        ],
+      },
+    };
+    this.state = { toast: null };
+  }
+
+  componentWillUnmount() { if (this.toastTimer) clearTimeout(this.toastTimer); }
+
+  // open the immersive gallery on this work (guarded tap: never fires while scrolling)
+  openGallery(id) {
+    try { window.location.href = 'Ambit - Gallery.dc.html?start=' + encodeURIComponent(id); } catch (e) {}
+  }
+  tapDown(e) { this.tap = { x: e.clientX, y: e.clientY, ok: true }; }
+  tapMove(e) {
+    if (!this.tap) return;
+    if (Math.abs(e.clientX - this.tap.x) > 12 || Math.abs(e.clientY - this.tap.y) > 12) this.tap.ok = false;
+  }
+  tapUp(e, action) {
+    const t = this.tap; this.tap = null;
+    if (!t || !t.ok) return;
+    if (Math.abs(e.clientX - t.x) > 12 || Math.abs(e.clientY - t.y) > 12) return;
+    action();
+  }
+  tapCancel() { this.tap = null; }
+
+  share() {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    const id = this.props.itemId ?? 'turner';
+    this.setState({ toast: 'Link copied \u00b7 ambit.link/i/' + id });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1900);
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#BFA06A';
+    const id = this.props.itemId ?? 'turner';
+    const sharer = this.props.sharedBy ?? 'Mara';
+    const item = this.POOL[id] || this.POOL.turner;
+
+    return {
+      accent, deviceDark: true, item,
+      isImage: item.kind === 'image',
+      isArticle: item.kind === 'article',
+      related: item.related,
+      sharerInitial: sharer.charAt(0).toUpperCase(),
+      sharedByLabel: sharer + ' shared this with you',
+      onShare: () => this.share(),
+      onImgDown: (e) => this.tapDown(e),
+      onImgMove: (e) => this.tapMove(e),
+      onImgUp: (e) => this.tapUp(e, () => this.openGallery(id)),
+      onImgCancel: () => this.tapCancel(),
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

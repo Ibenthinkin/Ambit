@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    @keyframes ambitpop { 0% { transform: scale(1); } 40% { transform: scale(0.94); } 100% { transform: scale(1); } }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0C0B09; padding:32px; font-family:-apple-system, system-ui, sans-serif;">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%; background:#161411;">
+
+      <div style="height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch;">
+
+        <!-- header -->
+        <div style="padding:64px 24px 8px;">
+          <div style="font-family:-apple-system, system-ui; font-size:11px; font-weight:600; letter-spacing:1.8px; text-transform:uppercase; color:{{ accent }};">Ambit · Setup</div>
+          <div style="font-family:'Newsreader', serif; font-size:34px; line-height:1.14; color:#F3EFE5; letter-spacing:0.2px; margin-top:14px;">What pulls your attention?</div>
+          <div style="font-family:'Newsreader', serif; font-size:16.5px; line-height:1.5; color:rgba(239,235,224,0.6); margin-top:12px;">Choose as many as you like. Ambit starts here — then wanders sideways into things you'd never think to search for.</div>
+        </div>
+
+        <!-- chip grid -->
+        <div style="display:flex; flex-wrap:wrap; gap:10px; padding:22px 24px 180px;">
+          <sc-for list="{{ chips }}" as="chip" hint-placeholder-count="24">
+            <div onClick="{{ chip.onToggle }}" style="{{ chip.style }}">{{ chip.label }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- sticky bottom CTA -->
+      <div style="position:absolute; left:0; right:0; bottom:0; z-index:20; padding:20px 24px 40px; background:linear-gradient(to top, #161411 62%, rgba(22,20,17,0)); ">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="flex:1; min-width:0;">
+            <div style="font-family:-apple-system, system-ui; font-size:12.5px; color:rgba(239,235,224,0.5);">{{ countLabel }}</div>
+          </div>
+          <div onClick="{{ onStart }}" style="{{ ctaStyle }}">{{ ctaLabel }}</div>
+        </div>
+      </div>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#BFA06A&quot;, &quot;options&quot;: [&quot;#BFA06A&quot;, &quot;#8FA786&quot;, &quot;#7E93AD&quot;, &quot;#C08262&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Onboarding&quot; },
+  &quot;minPicks&quot;: { &quot;editor&quot;: &quot;range&quot;, &quot;default&quot;: 3, &quot;min&quot;: 1, &quot;max&quot;: 8, &quot;step&quot;: 1, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Onboarding&quot; },
+  &quot;serifChips&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Onboarding&quot; }
+}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.LABELS = [
+      'Art & painting', 'Architecture', 'Astronomy', 'The ocean', 'Ancient history',
+      'Maps', 'Typography', 'Botany', 'Birds', 'Physics', 'Machines', 'Photography',
+      'Mythology', 'Textiles', 'Poetry', 'Ceramics', 'Geology', 'Aviation', 'Music',
+      'Cinema', 'Mathematics', 'Chess', 'Insects', 'The deep sea', 'Space exploration',
+      'Sculpture', 'Calligraphy', 'Fossils', 'Weather', 'Bridges', 'Manuscripts', 'Gardens',
+    ];
+    this.state = { picked: this.loadPicked() };
+  }
+
+  loadPicked() {
+    try { return new Set(JSON.parse(localStorage.getItem('ambit.topics.v1') || '[]')); }
+    catch (e) { return new Set(); }
+  }
+  persist(s) {
+    try { localStorage.setItem('ambit.topics.v1', JSON.stringify([...s])); } catch (e) {}
+  }
+
+  toggle(label) {
+    this.setState(s => {
+      const n = new Set(s.picked);
+      if (n.has(label)) n.delete(label); else n.add(label);
+      this.persist(n);
+      return { picked: n };
+    });
+  }
+
+  start(canStart) {
+    if (!canStart) return;
+    this.persist(this.state.picked);
+    try { window.location.href = encodeURI('Ambit — Feed.dc.html'); } catch (e) {}
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#BFA06A';
+    const min = this.props.minPicks ?? 3;
+    const serif = this.props.serifChips ?? true;
+    const count = this.state.picked.size;
+    const canStart = count >= min;
+
+    const chipFont = serif
+      ? "'Newsreader', serif"
+      : "-apple-system, system-ui, sans-serif";
+
+    const chips = this.LABELS.map(label => {
+      const on = this.state.picked.has(label);
+      return {
+        label,
+        onToggle: () => this.toggle(label),
+        style: {
+          fontFamily: chipFont,
+          fontSize: serif ? '16px' : '14px',
+          fontWeight: serif ? 500 : 500,
+          lineHeight: 1,
+          whiteSpace: 'nowrap',
+          flex: '0 0 auto',
+          padding: serif ? '11px 17px' : '11px 16px',
+          borderRadius: '999px',
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background .18s ease, color .18s ease, border-color .18s ease',
+          background: on ? accent : 'rgba(239,235,224,0.05)',
+          color: on ? '#17140E' : 'rgba(239,235,224,0.82)',
+          border: on ? ('0.5px solid ' + accent) : '0.5px solid rgba(239,235,224,0.12)',
+          animation: on ? 'ambitpop .22s ease' : 'none',
+        },
+      };
+    });
+
+    const countLabel = count === 0
+      ? 'Nothing picked yet'
+      : (count + (count === 1 ? ' interest' : ' interests') + ' chosen');
+
+    const ctaLabel = canStart
+      ? 'Start exploring'
+      : ('Pick ' + (min - count) + ' more');
+
+    const ctaStyle = {
+      fontFamily: '-apple-system, system-ui, sans-serif',
+      fontSize: '15px',
+      fontWeight: 600,
+      letterSpacing: '0.2px',
+      padding: '14px 24px',
+      borderRadius: '999px',
+      whiteSpace: 'nowrap',
+      cursor: canStart ? 'pointer' : 'default',
+      transition: 'background .2s ease, color .2s ease, opacity .2s ease',
+      background: canStart ? accent : 'rgba(239,235,224,0.07)',
+      color: canStart ? '#17140E' : 'rgba(239,235,224,0.38)',
+      border: '0.5px solid ' + (canStart ? accent : 'rgba(239,235,224,0.1)'),
+    };
+
+    return {
+      accent, deviceDark: true, chips, countLabel, ctaLabel, ctaStyle,
+      onStart: () => this.start(canStart),
+    };
+  }
+}
+</script>
+</body>
+</html>

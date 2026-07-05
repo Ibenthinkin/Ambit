@@ -20,4 +20,4 @@ Phase 0 — validating that cross-source embedding serendipity actually *feels* 
 
 ## License
 
-TBD.
+MIT — see [LICENSE](LICENSE).
