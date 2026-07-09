@@ -16,7 +16,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 *Settles the two existential risks — does cross-source serendipity feel good, and is free-API density sufficient — and picks the embedding model. Code lives in `phase0/`, excluded from the future app; keep it in git for the record.*
 
-- [x] **0.1 — Commit this plan + repo tidy.** Commit this plan as `docs/BUILD_PLAN.md`. Move `Ambit/LICENSE` (stray MIT license in a subdirectory) to repo root, update README "License: TBD" → MIT. Fill `.env.example` with all vars the plan will introduce (`DATABASE_URL`, `RESEND_API_KEY`, `NEXTAUTH_SECRET`, `OPENAI_API_KEY?`, `VAULT_LOG_PATH`).
+- [x] **0.1 — Commit this plan + repo tidy.** Commit this plan as `docs/BUILD_PLAN.md`. Move `Ambit/LICENSE` (stray MIT license in a subdirectory) to repo root, update README "License: TBD" → MIT. Fill `.env.example` with all vars the plan will introduce (`DATABASE_URL`, `RESEND_API_KEY`, `NEXTAUTH_SECRET`, `OPENAI_API_KEY?`).
   *Done = plan committed, license at root, `.env.example` complete.*
 
 - [ ] **0.2 — Sample harvester.** Bun script `phase0/harvest.ts`: fetch ~300–600 raw items from **Wikipedia + Met + Art Institute of Chicago** across ~8 topic seeds spanning the onboarding chip range (e.g., Astronomy, Botany, Machines, Mythology, The ocean, Typography, Ancient history, Poetry). Normalize to a minimal `{source, sourceId, type, title, summary, imageUrl, sourceUrl, tags}` shape, dump to `phase0/items.json`. Note per-source density/quality observations in `phase0/NOTES.md`.

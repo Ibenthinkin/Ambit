@@ -6,8 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A calm, non-social **anti-doomscroll PWA**: an infinite feed of public-domain images and articles, loosely tuned to user interests, with deliberate cross-domain serendipity jumps. Invite-only, no monetization, no social features.
 
-**Rollup to planning vault.** At the end of any session that made real progress, read `VAULT_LOG_PATH` from `.env` and append a one-line milestone entry to that file — format `- [[MM-DD-YY ddd]] — <what changed>`, newest under the latest `## YYYY-MM` header. Commits are pulled into the Daily Brief automatically; this log is for the narrative beats worth reading later.
-
 ## Repository status
 
 **Pre-implementation.** There is no application code yet — this repo currently holds the spec and design references. Currently in Phase 0 (see SPEC §14): validating that cross-source embedding serendipity feels good and that free-API content density is sufficient, before the real build.
@@ -42,3 +40,17 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 - Testing is non-negotiable (SPEC §12): Vitest coverage on adapter `toItem` normalization and the feed merge/weighting logic; Playwright for the core flows.
 - Respect each source API's rate limits and attribution/licensing requirements; store `attribution` and `license` on items.
 - Never render unsanitized source HTML.
+
+## Project log (`log.md`)
+
+Keep a narrative log at repo root in `log.md` — the decisions, findings, and dead-ends that don't live in commit messages. It **complements** commits (which record *what changed in code*); the planning vault's `/brief` skill reads it directly for the Daily Brief. Don't duplicate what a commit already says.
+
+**Format** — append-only, newest on top:
+- `## YYYY-MM` month groupers (newest month first).
+- `### [[MM-DD-YY ddd]] — <title>` day headings (wikilink form; one entry per day — a second write the same day *extends* that entry, never adds a duplicate heading).
+- Default skeleton `**Shipped:** / **Decisions:** / **Open / next:**`, but flexible — include only what's relevant (an on-demand "log the findings above" might be just a `**Findings:**` block).
+
+**Write triggers:**
+1. **On-demand** — "log this" / "summarize the above and log it".
+2. **At commit checkpoints** — when you commit at the user's request, update `log.md` if the work since the last entry is narrative-worthy. A considered update at a natural boundary, *not* a line per commit.
+3. **End of session** — backstop for sessions that end without a commit. Only on genuine progress; skip trivial sessions.
