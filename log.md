@@ -5,6 +5,34 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-07
 
+### [[07-09-26 Thu]] — Phase 0.2: sample harvester
+
+**Shipped:**
+- `phase0/harvest.ts` (zero-dep Bun script) + `phase0/items.json`: **416 items** — 160 Wikipedia articles, 135 Met, 121 AIC — across the 8 topic seeds. On-disk response cache (gitignored) so 0.3/0.4 iterate without re-hitting the APIs.
+- `phase0/NOTES.md` with the density + quality findings.
+
+**Findings:**
+- **Density is a non-issue.** Every topic × source pair except one could fill its quota many times over. The binding constraint for v1 is *quality and licensing*, not volume.
+- **The real risk to serendipity is the embedding text, not the model.** Museum objects have no prose description; their summary is synthesized from catalogue fields and is dominated by artist/date/**medium**/department, with the actual subject buried last in the tags. Wikipedia hands the model 591 chars of prose; the Met hands it 137 chars of "Bronze. Sculpture-Bronze." Cross-source neighbors may therefore cluster on *medium* rather than *subject* — technically serendipitous, experientially dull. **If 0.4 looks bad, re-order the summary to lead with subject/tags before blaming the model.** 0.3 should keep summary construction swappable so 0.4 can compare *recipes*, not just bge-small vs. text-embedding-3-small.
+
+**Traps found (all will recur in the Phase 3 adapters):**
+- The Met's `isPublicDomain=true` **search filter is not honored** — 14 of the first 20 `machine` hits aren't public domain. Must re-check every object's own record, at ~2–3× the fetches. An adapter that trusts the search filter ingests copyrighted images.
+- The Met rate-limits with a silent **403, not 429**, and it clears after a pause. First run showed three topics at `0/0`, which reads exactly like "no content" but was three dropped searches (real totals: 39 / 11,666 / 1,928). Harvester now reports a failed search as `ERR`, never a zero. ~2.5 req/s is clean.
+- Wikipedia's **`cllimit` is a per-query budget, not per-page**: at `cllimit=20` over a 20-page batch, page one takes all 20 categories and the rest get none. Only `cllimit=max` works. Silent — made tags look uniformly empty.
+- **Wikipedia licensing isn't uniform**: text is CC BY-SA 4.0 but each lead image has its own per-file license the summary API doesn't expose. Resolve via `prop=imageinfo&iiprop=extmetadata` in 3.1, or don't render Wikipedia images. Met/AIC are clean CC0 once per-object verified.
+- AIC + "typography" → **0 usable items** (all 60 hits in-copyright 20th-c photography). Abstract topics need object-vocabulary seed queries against museums. **Budget real time for seed-query tuning in 2.3** — one term per topic won't work across sources.
+
+**Decisions:**
+- **Embeddings go through OpenRouter**, for model flexibility. Its embeddings endpoint (`POST /api/v1/embeddings`, batched array `input`) is real now — SPEC §6.2's "limited embeddings support" note was stale. Verified against the docs.
+- **Local `bge-small` dropped.** Two facts killed it: embeddings are computed *at ingestion only* (the feed reads vectors already in Postgres, so nothing embeds on the request path — a managed provider adds no request latency or uptime risk), and cost is negligible (~$0.002 for the whole 416-item Phase 0 corpus at $0.02/M). The "local is free" argument was carrying weight it no longer deserved. Managed wins on simplicity; no local model runtime in Phase 3.3.
+- Caveat noted: **model choice stays expensive to reverse.** A gateway makes a *same-dimension* model swap one line, but a dimension change still means re-embedding the corpus plus a `VECTOR(n)` migration. `embed()` is the single seam.
+- `bge-small` isn't on OpenRouter anyway; closest is `bge-m3` (1024-dim). So 0.3's candidates became **`openai/text-embedding-3-small` (1536)** vs **`baai/bge-m3` (1024)**.
+- **0.3 reshaped to 2 models × 2 recipes** (4 vector sets) rather than a wider model bake-off — because 0.2 found the *embedding text* is the bigger lever. Recipe A = as-harvested; recipe B = subject-first (title + tags before catalogue fields). 0.4 gets 4 columns + random baseline.
+
+**Open / next (pick up here):**
+- **0.3 — embed** (`phase0/embed.ts`). Needs `OPENROUTER_API_KEY`, not yet set in `.env`. Also probe whether OpenRouter honors OpenAI's `dimensions` param — undocumented, and it decides whether 1536 can be shortened.
+- Then 0.4 (eyeball harness → go/no-go on serendipity, model + recipe pick, `VECTOR(n)` dim). If neighbors cluster by *medium* rather than *subject*, that's recipe A failing — try recipe B before blaming the model.
+
 ### [[07-08-26 Wed]] — Repo setup + in-repo log
 **Shipped:**
 - `docs/BUILD_PLAN.md`: the living execution tracker (Phase 0 → MVP → Polish), step 0.1 done (plan committed, `LICENSE` moved to repo root, README license field fixed).

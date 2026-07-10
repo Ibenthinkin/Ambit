@@ -6,7 +6,7 @@
 
 Ambit is a calm, anti-doomscroll PWA: an infinite feed of public-domain images/articles with embeddings-led cross-source serendipity. This plan takes the repo from pre-code (spec + design handoff only) through Phase 0 validation, MVP, deploy, and polish. Execution is driven session by session; each numbered step is sized for roughly one working session.
 
-**Decisions already made:** magic-link mail = **Mailpit in dev, Resend in prod**; dev DB = **local Docker Compose (pgvector image)**; this file is the execution tracker.
+**Decisions already made:** magic-link mail = **Mailpit in dev, Resend in prod**; dev DB = **local Docker Compose (pgvector image)**; embeddings provider = **OpenRouter** (model still open, see 0.3/0.4); this file is the execution tracker.
 
 Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
@@ -16,16 +16,16 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 *Settles the two existential risks — does cross-source serendipity feel good, and is free-API density sufficient — and picks the embedding model. Code lives in `phase0/`, excluded from the future app; keep it in git for the record.*
 
-- [x] **0.1 — Commit this plan + repo tidy.** Commit this plan as `docs/BUILD_PLAN.md`. Move `Ambit/LICENSE` (stray MIT license in a subdirectory) to repo root, update README "License: TBD" → MIT. Fill `.env.example` with all vars the plan will introduce (`DATABASE_URL`, `RESEND_API_KEY`, `NEXTAUTH_SECRET`, `OPENAI_API_KEY?`).
+- [x] **0.1 — Commit this plan + repo tidy.** Commit this plan as `docs/BUILD_PLAN.md`. Move `Ambit/LICENSE` (stray MIT license in a subdirectory) to repo root, update README "License: TBD" → MIT. Fill `.env.example` with all vars the plan will introduce (`DATABASE_URL`, `RESEND_API_KEY`, `NEXTAUTH_SECRET`, `OPENROUTER_API_KEY`).
   *Done = plan committed, license at root, `.env.example` complete.*
 
-- [ ] **0.2 — Sample harvester.** Bun script `phase0/harvest.ts`: fetch ~300–600 raw items from **Wikipedia + Met + Art Institute of Chicago** across ~8 topic seeds spanning the onboarding chip range (e.g., Astronomy, Botany, Machines, Mythology, The ocean, Typography, Ancient history, Poetry). Normalize to a minimal `{source, sourceId, type, title, summary, imageUrl, sourceUrl, tags}` shape, dump to `phase0/items.json`. Note per-source density/quality observations in `phase0/NOTES.md`.
+- [x] **0.2 — Sample harvester.** Bun script `phase0/harvest.ts`: fetch ~300–600 raw items from **Wikipedia + Met + Art Institute of Chicago** across ~8 topic seeds spanning the onboarding chip range (e.g., Astronomy, Botany, Machines, Mythology, The ocean, Typography, Ancient history, Poetry). Normalize to a minimal `{source, sourceId, type, title, summary, imageUrl, sourceUrl, tags}` shape, dump to `phase0/items.json`. Note per-source density/quality observations in `phase0/NOTES.md`.
   *Done = items.json with all 3 sources represented; density notes written.*
 
-- [ ] **0.3 — Embed with both candidates.** `phase0/embed.ts`: embed `title + "\n" + summary` with (a) local `bge-small-en-v1.5` (384-dim, via `fastembed` or `@huggingface/transformers`) and (b) OpenAI `text-embedding-3-small`. Save both vector sets.
-  *Done = two embedding files; rough timing/cost noted.*
+- [ ] **0.3 — Embed: 2 models × 2 recipes.** `phase0/embed.ts`, all via **OpenRouter** (`POST /api/v1/embeddings`, batched array `input`, `OPENROUTER_API_KEY`). Models: `openai/text-embedding-3-small` (1536) and `baai/bge-m3` (1024). **Recipes** (keep summary construction swappable — 0.2 found this is the bigger lever): **A** = `title + "\n" + summary` as harvested; **B** = subject-first, leading with `title + tags` before the catalogue fields, so museum items aren't dominated by medium/department. → **4 vector sets**. Also probe whether OpenRouter honors OpenAI's `dimensions` param (undocumented; decides if 1536 can be shortened).
+  *Done = four embedding files; `dimensions` support answered; rough timing/cost noted.*
 
-- [ ] **0.4 — Eyeball harness + verdicts.** `phase0/explore.html` (or CLI): pick an item → show its top-N nearest neighbors **restricted to other sources**, side-by-side for both models, plus a random-baseline column. Spend real time browsing. ⚖️ **Decide:** (1) serendipity feels good vs random — go/no-go; (2) embedding model + `VECTOR(n)` dim; (3) any density red flags. Record all three in `SPEC.md` §6.2/§15 and `phase0/NOTES.md`.
+- [ ] **0.4 — Eyeball harness + verdicts.** `phase0/explore.html` (or CLI): pick an item → show its top-N nearest neighbors **restricted to other sources**, as 4 side-by-side columns (model × recipe) plus a random-baseline column. Spend real time browsing. ⚖️ **Decide:** (1) serendipity feels good vs random — go/no-go; (2) model + recipe + `VECTOR(n)` dim; (3) any density red flags. Watch specifically for neighbors clustering on **medium** ("all the bronzes") rather than **subject** — if so, recipe B should fix it; blame the model only after the recipe. Record all three in `SPEC.md` §6.2/§15 and `phase0/NOTES.md`.
   *Done = three decisions recorded in SPEC; Phase 0 marked complete in README status.*
 
 ---
@@ -66,7 +66,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 - [ ] **3.2 — Met + AIC adapters.** Same pattern, reusing Phase 0 findings (endpoints, quirks). Met: objects endpoint, public-domain filter, department/medium/culture → tags. AIC: `/artworks/search` with IIIF image URL construction. Fixture-based tests each.
   *Done = both adapters live-verified + tested; three total sources.*
 
-- [ ] **3.3 — Embeddings service + nearest neighbors.** `server/services/embeddings.ts` implementing the Phase-0 choice behind the single `embed(text)` signature. `nearestNeighbors(embedding, {limit, excludeIds})` in `server/db/items.ts` using pgvector cosine + HNSW. Unit test the query builder; integration-test against the dev DB with a tiny seeded set.
+- [ ] **3.3 — Embeddings service + nearest neighbors.** `server/services/embeddings.ts`: the Phase-0 model behind a single `embed(text)` seam, calling **OpenRouter** with a batched array `input` (ingestion embeds in batches, never one call per item) — model id in env so a same-dimension swap needs no code change. Export the winning recipe as `buildEmbeddingText(item)` so the string fed to the model is defined in exactly one place. `nearestNeighbors(embedding, {limit, excludeIds})` in `server/db/items.ts` using pgvector cosine + HNSW. Unit test the query builder + `buildEmbeddingText`; integration-test against the dev DB with a tiny seeded set.
   *Done = `embed()` + `nearestNeighbors()` work end-to-end against dev DB.*
 
 - [ ] **3.4 — Ingestion job.** `scripts/ingest.ts`: for each topic × seed query × adapter → fetch, normalize, embed, `upsertItem` (idempotent on `(source, source_id)`). Per-source rate-limit throttling, per-source failure isolation (one source down ≠ job dead), structured log summary (fetched/upserted/skipped/errored per source). Run it to populate the dev DB (~1–2k items).
@@ -168,7 +168,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 | Gate | Step | Options |
 |---|---|---|
-| Serendipity go/no-go + embedding model + vector dim | 0.4 | local bge-small (384) vs OpenAI `text-embedding-3-small` (1536) |
+| Serendipity go/no-go + embedding model + recipe + vector dim | 0.4 | via OpenRouter: `openai/text-embedding-3-small` (1536) vs `baai/bge-m3` (1024) × recipe A/B |
 | PWA library | 1.3 | `@serwist/next` vs `@ducanh2912/next-pwa` |
 | Public Domain Review feasibility | 6.2 | API/RSS adapter vs cut from v1 |
 | Image delivery | 7.3 | hotlink vs proxy-with-cache |

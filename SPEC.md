@@ -109,7 +109,7 @@ CREATE TABLE item (
   attribution   TEXT,                       -- required by some sources
   license       TEXT,
   tags          TEXT[] NOT NULL DEFAULT '{}',-- native source tags (secondary signal)
-  embedding     VECTOR(384),                -- pgvector; dim matches chosen model
+  embedding     VECTOR(n),                  -- pgvector; n set by the Phase 0.4 model pick (§6.2)
   fetched_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (source, source_id)
 );
@@ -117,7 +117,7 @@ CREATE TABLE item (
 
 | Field | Notes |
 |---|---|
-| `embedding` | pgvector column; dimensionality must match the embedding model (384 shown for a small local model — adjust if managed). |
+| `embedding` | pgvector column; dimensionality must match the embedding model — `1536` (`openai/text-embedding-3-small`) or `1024` (`baai/bge-m3`), decided in Phase 0.4. |
 | `tags` | native categories (Wikipedia categories, Met department/medium/culture, …); secondary relevance signal, not the primary engine. |
 | `(source, source_id)` | unique → ingestion upserts idempotently. |
 
@@ -190,7 +190,11 @@ export interface SourceAdapter {
 ```typescript
 export function embed(text: string): Promise<number[]>; // title + "\n" + summary
 ```
-- **Provider — OPEN, decided in Phase 0.** OpenRouter (Ben's AI gateway) has limited embeddings support, so this is a per-project call. Candidates: a **local model** (`bge-small-en-v1.5` / `all-MiniLM-L6-v2`, ~384-dim, ~$0) vs. **OpenAI `text-embedding-3-small`** (managed, cheap). The `VECTOR(n)` dim in §5.1 must match the chosen model.
+- **Provider — OpenRouter** (`POST https://openrouter.ai/api/v1/embeddings`, `OPENROUTER_API_KEY`). `input` accepts an array, so ingestion embeds in batches. Not streaming.
+- **Model — OPEN, decided in Phase 0.4.** Candidates, both via OpenRouter: `openai/text-embedding-3-small` (1536-dim) vs `baai/bge-m3` (1024-dim). The `VECTOR(n)` dim in §5.1 must match whichever wins.
+- **Why managed, not a local model.** Embeddings are computed **at ingestion only** — the feed's serendipity reads vectors already stored in Postgres (§9), so nothing embeds on the request path. A managed provider therefore adds no request latency and no uptime risk to the app; it is a dependency of the ingestion cron alone. Combined with negligible cost (the whole corpus is cents at $0.01–0.02/M tokens), the zero-cost argument for a local model doesn't survive contact with the numbers. A local `bge-small` fallback was considered and dropped in Phase 0.
+- **Model choice is expensive to reverse.** Switching model means re-embedding the entire corpus *and* a `VECTOR(n)` migration whenever the dimension differs. Routing through a gateway makes swapping a same-dimension model a one-line change, but does not make a dimension change free. Keep `embed()` the single seam.
+- **Embedding text is a first-class variable, not a detail.** Source text is wildly asymmetric: a Wikipedia lede is ~590 chars of prose, while a museum object has *no description at all* and its summary is synthesized from catalogue fields dominated by medium and department, with the subject buried in tags. Naive concatenation risks nearest neighbors clustering on **medium** ("things made of bronze") rather than **subject** ("things about the stars"). The construction of the embedded string is tuned in Phase 0.4 alongside the model. See `phase0/NOTES.md`.
 
 ### 6.3 Repositories — `server/db/`
 - `schema.ts` — Drizzle schema (the tables above + Auth.js adapter tables).
@@ -302,6 +306,8 @@ Production-grade from the start (portfolio / work-transferable practice — non-
 ## 15. Open questions / risks
 - **Serendipity quality** — cross-domain jumps must feel inspired, not noisy. *Validate in Phase 0.*
 - **Content density / variety** from the free APIs. *Validate in Phase 0.*
-- **Embedding model** — local vs. managed (§6.2); fixes the `VECTOR(n)` dim. *Decide in Phase 0.*
+- **Embedding model** — `text-embedding-3-small` (1536) vs `bge-m3` (1024), both via OpenRouter (§6.2); fixes the `VECTOR(n)` dim. *Decide in Phase 0.4.*
+- **Embedding text construction** — museum items have no prose; a naive `title + summary` may cluster neighbors by medium rather than subject, which would make serendipity dull. *Tune in Phase 0.4 (§6.2).*
+- **OpenRouter `dimensions` parameter is undocumented** — if it isn't supported, `text-embedding-3-small` is fixed at its native 1536 and can't be shortened. *Probe in Phase 0.3.*
 - **Source-API drift** — ~8 external APIs to keep healthy (ongoing maintenance tax).
 - **Article extraction** — clean lede/full-text across heterogeneous sources.
