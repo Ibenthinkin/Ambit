@@ -112,8 +112,10 @@ provider never touches the request path, and the corpus costs ~$0.002 to embed. 
   here are stamped `CC BY-SA 4.0 (text)`. Before shipping Wikipedia images, 3.1 must resolve
   per-image licensing (`prop=imageinfo&iiprop=extmetadata`) or the app must not render them.
   Met and AIC are unambiguous CC0 once the per-object public-domain flag is verified.
-- IIIF image URLs for AIC are constructed, not returned: `https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg`.
-  The `config.iiif_url` field in every response is the base to trust.
+- IIIF image URLs for AIC are constructed, not returned. The `config.iiif_url` field in every
+  response is the base to trust. **Use size `!843,843` (fit-in-box), not the docs' `843,`** —
+  a plain width request 403s on any original narrower than 843px (IIIF servers reject
+  upscales; found in 0.4 when ~7% of AIC thumbnails came back 403). Trap recurs in the 3.2 adapter.
 - 19 items surfaced under two different topic seeds and were collapsed on `(source, sourceId)` —
   the same key SPEC §5.1 makes unique. Confirms the real ingestion upsert will be idempotent.
 

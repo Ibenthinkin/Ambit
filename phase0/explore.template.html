@@ -1,0 +1,218 @@
+<!doctype html>
+<!--
+  Phase 0 · step 0.4 — eyeball harness TEMPLATE (throwaway code, see docs/BUILD_PLAN.md).
+  build-explore.ts injects the data payload and writes the self-contained phase0/explore.html
+  (gitignored). Open that file directly in a browser; do not open this template.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ambit · 0.4 eyeball harness</title>
+<style>
+  :root {
+    --bg: #161411; --panel: #211d18; --card: #262119; --line: #37302a;
+    --text: #e8e2d6; --muted: #9a917f; --accent: #d8c8a8;
+    --wikipedia: #82aaff; --met: #e0af68; --aic: #f7768e;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 16px 20px 60px;
+  }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  header .spacer { flex: 1; }
+  button, input[type="search"] {
+    background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 12px; font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--muted); }
+  input[type="search"] { width: 320px; cursor: text; }
+  label.toggle { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; user-select: none; }
+
+  #results {
+    position: absolute; z-index: 10; margin-top: 4px; width: 420px; max-height: 340px; overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; display: none;
+  }
+  #results div { padding: 7px 12px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+  #results div:hover { background: var(--card); }
+
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; color: #161411; flex-shrink: 0; }
+  .badge.wikipedia { background: var(--wikipedia); }
+  .badge.met { background: var(--met); }
+  .badge.aic { background: var(--aic); }
+
+  #current {
+    display: flex; gap: 16px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px; margin-bottom: 16px;
+  }
+  #current img { width: 180px; height: 180px; object-fit: cover; border-radius: 8px; background: var(--card); }
+  #current .meta { min-width: 0; }
+  #current h2 { font-size: 18px; margin: 2px 0 6px; }
+  #current .summary { color: var(--muted); max-width: 90ch; }
+  #current .tags { margin-top: 8px; color: var(--accent); font-size: 12px; }
+  #current a { color: var(--accent); }
+  .topline { display: flex; gap: 8px; align-items: baseline; color: var(--muted); font-size: 12px; }
+
+  #columns { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; align-items: start; }
+  .col h3 {
+    font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: .03em;
+    padding: 4px 2px 8px; border-bottom: 1px solid var(--line); margin-bottom: 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .col h3 .dim { color: var(--muted); font-weight: 400; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    overflow: hidden; margin-bottom: 10px; cursor: pointer; transition: border-color .12s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; background: #0f0d0b; }
+  .card .noimg {
+    width: 100%; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; background: #0f0d0b;
+  }
+  .card .body { padding: 8px 10px 10px; }
+  .card .title { font-weight: 600; font-size: 13px; margin: 4px 0 3px; }
+  .card .sub { color: var(--muted); font-size: 11.5px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .score { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 11px; margin-left: auto; }
+
+  #revealmap { color: var(--muted); font-size: 12px; margin: 10px 2px; display: none; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 24px; }
+  kbd { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ambit · 0.4 eyeball harness</h1>
+  <div style="position:relative">
+    <input id="search" type="search" placeholder="Search 416 items…" autocomplete="off" />
+    <div id="results"></div>
+  </div>
+  <button id="lucky">Random item</button>
+  <button id="back" title="Back to previous item">← Back</button>
+  <div class="spacer"></div>
+  <label class="toggle"><input id="blind" type="checkbox" /> Blind mode (shuffle + hide column labels)</label>
+</header>
+
+<div id="current"></div>
+<div id="revealmap"></div>
+<div id="columns"></div>
+
+<footer>
+  Click any card to jump to that item. Columns show the top-10 nearest neighbors <em>restricted to other
+  sources</em>; the baseline column is seeded-random (also cross-source). In blind mode, judge which column
+  feels most alive, then <button id="reveal" style="padding:2px 8px">reveal</button>. Scores are cosine —
+  comparable within a column, not across models.
+</footer>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const $ = (s) => document.querySelector(s);
+const items = DATA.items;
+const keys = Object.keys(items);
+const N = 10;
+
+// ── seeded rng (stable random baseline + stable blind shuffle per item) ──────
+function hash(str) { let h = 2166136261; for (const c of str) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry32(seed) { return () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+function randomBaseline(key) {
+  const rng = mulberry32(hash("baseline:" + key));
+  const pool = keys.filter((k) => items[k].source !== items[key].source && k !== key);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  return pool.slice(0, N).map((k) => [k, null]);
+}
+
+// ── state ────────────────────────────────────────────────────────────────────
+let currentKey = null;
+let revealed = false;
+const history = [];
+
+const columnDefs = () => [
+  ...DATA.sets.map((s) => ({ label: `${s.label} <span class="dim">· ${s.dim}d</span>`, get: (k) => DATA.neighbors[s.id][k] })),
+  { label: "random baseline", get: randomBaseline },
+];
+
+function show(key, pushHistory = true) {
+  if (pushHistory && currentKey && currentKey !== key) history.push(currentKey);
+  currentKey = key;
+  revealed = false;
+  const it = items[key];
+
+  $("#current").innerHTML = `
+    ${it.imageUrl ? `<img src="${esc(it.imageUrl)}" alt="" />` : ""}
+    <div class="meta">
+      <div class="topline"><span class="badge ${it.source}">${it.source}</span><span>${esc(it.topic)}</span><span>·</span><a href="${esc(it.sourceUrl)}" target="_blank">source ↗</a></div>
+      <h2>${esc(it.title)}</h2>
+      <div class="summary">${esc(it.summary)}</div>
+      ${it.tags.length ? `<div class="tags">${esc(it.tags.slice(0, 10).join(" · "))}</div>` : ""}
+    </div>`;
+
+  const blind = $("#blind").checked;
+  let cols = columnDefs();
+  let order = cols.map((_, i) => i);
+  if (blind) {
+    const rng = mulberry32(hash("shuffle:" + key));
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  }
+
+  $("#revealmap").style.display = "none";
+  $("#revealmap").dataset.map = order.map((ci, pos) => `${String.fromCharCode(65 + pos)} = ${cols[ci].label.replace(/<[^>]*>/g, "")}`).join("   ·   ");
+
+  $("#columns").innerHTML = order
+    .map((ci, pos) => {
+      const col = cols[ci];
+      const head = blind ? `Column ${String.fromCharCode(65 + pos)}` : col.label;
+      const cards = (col.get(key) || [])
+        .map(([nk, score]) => card(nk, blind ? null : score))
+        .join("");
+      return `<div class="col"><h3>${head}</h3>${cards || '<div class="sub" style="color:var(--muted)">no neighbors</div>'}</div>`;
+    })
+    .join("");
+
+  for (const el of document.querySelectorAll(".card")) el.addEventListener("click", () => show(el.dataset.key));
+  window.scrollTo({ top: 0 });
+}
+
+function card(key, score) {
+  const it = items[key];
+  return `<div class="card" data-key="${esc(key)}">
+    ${it.imageUrl ? `<img loading="lazy" src="${esc(it.imageUrl)}" alt="" />` : `<div class="noimg">article</div>`}
+    <div class="body">
+      <div class="topline"><span class="badge ${it.source}">${it.source}</span><span>${esc(it.topic)}</span>${score != null ? `<span class="score">${score.toFixed(3)}</span>` : ""}</div>
+      <div class="title">${esc(it.title)}</div>
+      <div class="sub">${esc(it.summary.slice(0, 220))}</div>
+    </div>
+  </div>`;
+}
+
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ── controls ─────────────────────────────────────────────────────────────────
+$("#lucky").addEventListener("click", () => show(keys[Math.floor(Math.random() * keys.length)]));
+$("#back").addEventListener("click", () => { const k = history.pop(); if (k) show(k, false); });
+$("#blind").addEventListener("change", () => show(currentKey, false));
+$("#reveal").addEventListener("click", () => {
+  const m = $("#revealmap"); m.textContent = "Reveal: " + m.dataset.map; m.style.display = "block";
+});
+
+const results = $("#results");
+$("#search").addEventListener("input", (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  if (q.length < 2) { results.style.display = "none"; return; }
+  const hits = keys.filter((k) => items[k].title.toLowerCase().includes(q)).slice(0, 25);
+  results.innerHTML = hits
+    .map((k) => `<div data-key="${esc(k)}"><span class="badge ${items[k].source}">${items[k].source}</span><span>${esc(items[k].title)}</span></div>`)
+    .join("");
+  results.style.display = hits.length ? "block" : "none";
+  for (const el of results.children) el.addEventListener("click", () => { results.style.display = "none"; $("#search").value = ""; show(el.dataset.key); });
+});
+document.addEventListener("click", (e) => { if (!results.contains(e.target) && e.target.id !== "search") results.style.display = "none"; });
+
+show(keys[Math.floor(Math.random() * keys.length)], false);
+</script>
+</body>
+</html>

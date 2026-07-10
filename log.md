@@ -5,9 +5,12 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-07
 
-### [[07-10-26 Fri]] — Phase 0.3: four vector sets, `dimensions` answered
+### [[07-10-26 Fri]] — Phase 0.3: four vector sets, `dimensions` answered; 0.4 harness built
 
 **Shipped:**
+- **0.4 eyeball harness**: `phase0/build-explore.ts` + `phase0/explore.template.html` → self-contained `phase0/explore.html` (0.7 MB, gitignored, no server needed — open it directly). Precomputed top-10 *cross-source* neighbors per item for all 4 vector sets; 5 columns (4 sets + seeded-random baseline); search / random-item / click-to-chain; **blind mode** shuffles and unlabels the columns with a reveal button, so the go/no-go and model-vs-model judgments aren't biased. Verified end-to-end in Playwright (render, navigation, blind/reveal, search) — zero console errors after the fix below.
+- **AIC image trap found + fixed in `harvest.ts`**: the docs' IIIF size `843,` 403s on any original narrower than 843px (servers reject upscales — ~7% of AIC thumbs). `!843,843` (fit-in-box) works for all. Recorded in NOTES for the 3.2 adapter; items.json regenerated from cache (only imageUrls changed, vectors unaffected).
+- Early unblinded impression from verification screenshots: for easy cases all 4 model columns are clearly on-subject vs an obviously-random baseline; the Typography article (the known-hard topic) looked much shakier. The real browsing + verdicts are still open.
 - `phase0/embed.ts` (zero-dep Bun, same style as the harvester): embeds all 416 items through OpenRouter as 2 models × 2 recipes → 4 vector sets under `phase0/vectors/` (gitignored, ~19 MB, reproducible). Skips sets already on disk; `--force` re-embeds.
 - 0.3 findings appended to `phase0/NOTES.md`; box checked in BUILD_PLAN.
 

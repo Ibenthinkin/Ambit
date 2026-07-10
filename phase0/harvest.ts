@@ -296,7 +296,9 @@ async function harvestAic(seed: (typeof TOPICS)[number]): Promise<Item[]> {
       type: "image",
       title: a.title,
       summary: aicSummary(a),
-      imageUrl: `${AIC_IIIF}/${a.image_id}/full/843,/0/default.jpg`,
+      // `!843,843` = fit within box, never upscale. The docs' `843,` 403s on any
+      // original narrower than 843px (IIIF servers reject upscales).
+      imageUrl: `${AIC_IIIF}/${a.image_id}/full/!843,843/0/default.jpg`,
       sourceUrl: `https://www.artic.edu/artworks/${a.id}`,
       tags: uniqueTags([...(a.term_titles ?? []), a.department_title, a.classification_title]),
       attribution: [a.artist_display?.replace(/\n/g, ", "), "The Art Institute of Chicago"]
