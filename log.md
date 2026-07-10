@@ -21,7 +21,8 @@ messages. `/brief` reads this. Newest on top.
 - Smoke test: cross-source neighbors of the Wikipedia *Astronomy* article are all astronomy-subject museum objects under both models. Proves the vectors work, not that serendipity is good — that's 0.4.
 
 **Open / next (pick up here):**
-- **0.4 — eyeball harness** (`phase0/explore.html` or CLI): pick item → top-N nearest neighbors *restricted to other sources*, 4 columns (model × recipe) + random baseline. Then the three ⚖️ verdicts: go/no-go on serendipity, model + recipe pick, `VECTOR(n)` dim — recorded in SPEC §6.2/§15. Watch for medium-vs-subject clustering; recipe B is the intended fix before blaming a model.
+- **Paused mid-0.4, harness done, verdicts not.** Ben browses `phase0/explore.html` (open the file directly; blind mode on, reveal after judging) and brings back the three ⚖️ verdicts: (1) serendipity vs random go/no-go, (2) model + recipe, (3) `VECTOR(n)` dim — the `dimensions` param being honored makes the dim a free choice if the OpenAI model wins. Then: record in SPEC §6.2/§15 + NOTES, check the 0.4 box, mark Phase 0 complete in README. Watch for medium-vs-subject clustering (recipe B is the intended fix); Typography items are the known-hard case.
+- If the harness needs regenerating on a fresh checkout: `bun run phase0/embed.ts` (needs `OPENROUTER_API_KEY`, ~$0.003) then `bun run phase0/build-explore.ts`.
 
 ### [[07-09-26 Thu]] — Phase 0.2: sample harvester
 
