@@ -163,3 +163,83 @@ astronomy-subject Met/AIC objects under both models (cosine 0.40–0.48 for the 
 probe. Whether neighbors cluster on **subject vs medium** for ordinary items is exactly what
 0.4's side-by-side harness exists to judge; raw cosine magnitudes are also not comparable
 across models, only rankings are.
+
+---
+
+## 0.4 — First pass and scale-up (07-10-26)
+
+**First pass (416 items, top-10-only harness): inconclusive, random baseline preferred.**
+Ben's verdict on the first `explore.html` build: the corpus was too sparse to judge, and the
+random-baseline column was his favorite of the five. Two confounds, not a clean "embeddings
+lose": (1) "random" sampled a pool 100% pre-curated around 8 topic seeds, so it was really
+random-*within-interests*, not open-web random; (2) the harness only ever showed top-10
+nearest neighbors — relevant-but-unsurprising by construction — never the mid-distance band
+where serendipity (related-but-not-obvious) actually lives. Led to two changes below.
+
+**Harvest scaled 416 → 3,168 items.** Quota raised 20 → 75/source/topic, topics 8 → 16 (added
+Architecture, Music, Textiles, Cartography, Zoology, Portraiture, Ceramics, Geology — same
+object-vocabulary-for-museums rule as the original 8). Final: 1,165 Wikipedia / 1,121 Met / 882
+AIC. 10 dead Met object IDs (404, isolated per-item as designed) + 1 stray Met 403.
+
+| Topic | Wikipedia kept/offered | Met kept/offered | AIC kept/offered |
+|---|---|---|---|
+| Astronomy | 75/85 | 75/148 | 75/100 |
+| Botany | 75/85 | 75/318 | 75/200 |
+| Machines | 75/85 | 75/3900 | 75/100 |
+| Mythology | 75/85 | 75/1236 | 75/100 |
+| The ocean | 75/85 | 75/1054 | 75/200 |
+| Typography | 75/85 | **5/39** | 75/300 |
+| Ancient history | 75/85 | 75/11666 | 75/100 |
+| Poetry | 53/85 | 75/1928 | 75/300 |
+| Architecture | 75/85 | 75/21958 | 75/300 |
+| Music | 75/85 | 75/6011 | 75/100 |
+| Textiles | 75/85 | 75/37267 | 75/200 |
+| Cartography | 75/85 | 75/1148 | 75/200 |
+| Zoology | 73/85 | 75/10860 | 75/200 |
+| Portraiture | 73/85 | 75/42031 | 75/200 |
+| Ceramics | 71/85 | 75/29291 | 75/100 |
+| Geology | 75/85 | 75/3709 | 75/200 |
+
+**New trap: AIC hard-caps `limit` at 100, and it's a 403 not a documented constraint.**
+`limit=225` (quota × 3, the old formula) returns `403 {"error":"Invalid limit","detail":"You
+have requested too many resources per page."}`. Probed the boundary directly: 100 → 200 OK,
+120 → 403. Fixed by paging (`page=1..6`, `limit=100`) instead of one large request. Recurs in
+the 3.2 adapter — cap AIC page requests at 100 and paginate for anything larger.
+
+**Reverses a 0.2 finding: AIC/Typography now yields its full quota (75/300).** 0.2 found "0
+usable items, all in-copyright 20th-c photography" — but that was a 60-item probe (`limit=60`,
+one page). Paging to 300 candidates finds enough public-domain hits. Doesn't invalidate the
+underlying lesson (abstract topics skew toward copyrighted/recent museum holdings and need
+deeper search or object-vocabulary seeds), but the "0 items" verdict specifically was an
+artifact of not paging far enough, not a true density floor.
+
+**Met/Typography stayed sparse at scale (5/75, offered 39 — matches 0.2's real total).** Not a
+harvester bug; the Met's typography-tagged corpus genuinely is that small. Confirms 0.2's
+finding rather than changing it.
+
+**Re-embed cost/time at 3,168 items (`bun run phase0/embed.ts --force`):**
+
+| Set | Dim | Tokens | Wall time |
+|---|---|---|---|
+| text-embedding-3-small × A | 1536 | 278,297 | 39.2s |
+| text-embedding-3-small × B | 1536 | 369,087 | 45.3s |
+| bge-m3 × A | 1024 | 313,242 | 422.3s |
+| bge-m3 × B | 1024 | 416,597 | 400.1s |
+
+bge-m3's ~10x-slower-per-item pattern from 0.3 held at scale (≈7 min per set vs ≈45s for the
+OpenAI model) — a firmer tiebreaker strike now, not just a 416-item artifact. `dimensions`
+probe re-confirmed HONORED at this scale too.
+
+**Harness gained a near/mid-band distance toggle** (`build-explore.ts` / `explore.template.html`).
+Each of the 4 sets now precomputes both "near" (top-10, ranks 1-10) and "mid" (10 evenly-spaced
+picks from ranks 21-120) cross-source neighbor lists; a checkbox in the harness switches all
+four model columns between the two bands. The random-baseline column is unaffected by the
+toggle — it's the fixed control either way. Verified in Playwright: toggle changes model-column
+contents (different items, correspondingly lower cosine scores) while random baseline stays
+identical; blind mode, search (now reports the live item count), and navigation still work
+against the 3,168-item corpus with zero real console errors (only a harmless missing-favicon
+404 on the local dev server used for verification).
+
+**Open for Ben's re-judgment:** same three ⚖️ verdicts as before (serendipity go/no-go, model +
+recipe, `VECTOR(n)` dim), now specifically informed by comparing **near vs mid vs random** at
+a corpus size where the mid-band actually has candidates to sample from.

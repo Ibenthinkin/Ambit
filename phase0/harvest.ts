@@ -16,7 +16,7 @@
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 
-const PER_SOURCE_PER_TOPIC = 20;
+const PER_SOURCE_PER_TOPIC = 75;
 const CACHE_DIR = new URL("./.cache/", import.meta.url).pathname;
 const OUT_FILE = new URL("./items.json", import.meta.url).pathname;
 const USE_CACHE = !process.argv.includes("--no-cache");
@@ -53,6 +53,16 @@ const TOPICS: { topic: string; wikipedia: string; met: string; aic: string }[] =
   { topic: "Typography", wikipedia: "typography", met: "typography", aic: "typography" },
   { topic: "Ancient history", wikipedia: "ancient history", met: "ancient", aic: "ancient" },
   { topic: "Poetry", wikipedia: "poetry", met: "poetry", aic: "poetry" },
+  // Added for the scaled 0.4 re-run (07-10-26): more topics, same object-vocabulary
+  // rule from 0.2 — museums index nouns, not abstractions.
+  { topic: "Architecture", wikipedia: "architecture", met: "architecture", aic: "architecture" },
+  { topic: "Music", wikipedia: "music", met: "musical instrument", aic: "musical instrument" },
+  { topic: "Textiles", wikipedia: "textile", met: "textile", aic: "textile" },
+  { topic: "Cartography", wikipedia: "cartography", met: "map", aic: "map" },
+  { topic: "Zoology", wikipedia: "zoology", met: "animal", aic: "animal" },
+  { topic: "Portraiture", wikipedia: "portrait", met: "portrait", aic: "portrait" },
+  { topic: "Ceramics", wikipedia: "ceramic art", met: "ceramic", aic: "ceramic" },
+  { topic: "Geology", wikipedia: "geology", met: "mineral", aic: "mineral" },
 ];
 
 // ── plumbing ────────────────────────────────────────────────────────────────
@@ -218,8 +228,10 @@ async function harvestMet(seed: (typeof TOPICS)[number]): Promise<Item[]> {
   const ids: number[] = search?.objectIDs ?? [];
   record("offered", "met", seed.topic, ids.length);
 
+  // 0.2 found ~30-70% of "public domain" search hits fail the per-object check,
+  // so scan well past the quota — Met's totals are in the thousands, it can afford it.
   const items: Item[] = [];
-  for (const id of ids.slice(0, PER_SOURCE_PER_TOPIC * 2)) {
+  for (const id of ids.slice(0, PER_SOURCE_PER_TOPIC * 4)) {
     if (items.length >= PER_SOURCE_PER_TOPIC) break;
     let o: any;
     try {
@@ -275,39 +287,48 @@ function aicSummary(a: any): string {
   return toLede(parts.filter(Boolean).join(". "));
 }
 
+/** Undocumented: AIC 403s "Invalid limit" above 100 — not a rate limit, a hard page-size cap. */
+const AIC_PAGE_SIZE = 100;
+
 async function harvestAic(seed: (typeof TOPICS)[number]): Promise<Item[]> {
-  const search = await getJson(
-    `${AIC_API}/artworks/search?q=${encodeURIComponent(seed.aic)}` +
-      `&limit=${PER_SOURCE_PER_TOPIC * 3}&fields=${AIC_FIELDS}`,
-    120,
-  );
-
-  const hits: any[] = search?.data ?? [];
-  record("offered", "aic", seed.topic, hits.length);
-
   const items: Item[] = [];
-  for (const a of hits) {
-    if (items.length >= PER_SOURCE_PER_TOPIC) break;
-    if (!a?.is_public_domain || !a?.image_id || !a?.title) continue;
+  let offered = 0;
+  // Page until quota is hit, hits run out, or a safety cap on requests per topic.
+  for (let page = 1; page <= 6 && items.length < PER_SOURCE_PER_TOPIC; page++) {
+    const search = await getJson(
+      `${AIC_API}/artworks/search?q=${encodeURIComponent(seed.aic)}` +
+        `&page=${page}&limit=${AIC_PAGE_SIZE}&fields=${AIC_FIELDS}`,
+      120,
+    );
 
-    items.push({
-      source: "aic",
-      sourceId: String(a.id),
-      type: "image",
-      title: a.title,
-      summary: aicSummary(a),
-      // `!843,843` = fit within box, never upscale. The docs' `843,` 403s on any
-      // original narrower than 843px (IIIF servers reject upscales).
-      imageUrl: `${AIC_IIIF}/${a.image_id}/full/!843,843/0/default.jpg`,
-      sourceUrl: `https://www.artic.edu/artworks/${a.id}`,
-      tags: uniqueTags([...(a.term_titles ?? []), a.department_title, a.classification_title]),
-      attribution: [a.artist_display?.replace(/\n/g, ", "), "The Art Institute of Chicago"]
-        .filter(Boolean)
-        .join(". "),
-      license: "CC0 1.0 (public domain)",
-      topic: seed.topic,
-    });
+    const hits: any[] = search?.data ?? [];
+    offered += hits.length;
+    if (hits.length === 0) break;
+
+    for (const a of hits) {
+      if (items.length >= PER_SOURCE_PER_TOPIC) break;
+      if (!a?.is_public_domain || !a?.image_id || !a?.title) continue;
+
+      items.push({
+        source: "aic",
+        sourceId: String(a.id),
+        type: "image",
+        title: a.title,
+        summary: aicSummary(a),
+        // `!843,843` = fit within box, never upscale. The docs' `843,` 403s on any
+        // original narrower than 843px (IIIF servers reject upscales).
+        imageUrl: `${AIC_IIIF}/${a.image_id}/full/!843,843/0/default.jpg`,
+        sourceUrl: `https://www.artic.edu/artworks/${a.id}`,
+        tags: uniqueTags([...(a.term_titles ?? []), a.department_title, a.classification_title]),
+        attribution: [a.artist_display?.replace(/\n/g, ", "), "The Art Institute of Chicago"]
+          .filter(Boolean)
+          .join(". "),
+        license: "CC0 1.0 (public domain)",
+        topic: seed.topic,
+      });
+    }
   }
+  record("offered", "aic", seed.topic, offered);
   return items;
 }
 

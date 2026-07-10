@@ -87,12 +87,13 @@
 <header>
   <h1>Ambit · 0.4 eyeball harness</h1>
   <div style="position:relative">
-    <input id="search" type="search" placeholder="Search 416 items…" autocomplete="off" />
+    <input id="search" type="search" placeholder="Search items…" autocomplete="off" />
     <div id="results"></div>
   </div>
   <button id="lucky">Random item</button>
   <button id="back" title="Back to previous item">← Back</button>
   <div class="spacer"></div>
+  <label class="toggle"><input id="distance" type="checkbox" /> Mid-band (rank ~20–120, instead of top-10)</label>
   <label class="toggle"><input id="blind" type="checkbox" /> Blind mode (shuffle + hide column labels)</label>
 </header>
 
@@ -101,9 +102,10 @@
 <div id="columns"></div>
 
 <footer>
-  Click any card to jump to that item. Columns show the top-10 nearest neighbors <em>restricted to other
-  sources</em>; the baseline column is seeded-random (also cross-source). In blind mode, judge which column
-  feels most alive, then <button id="reveal" style="padding:2px 8px">reveal</button>. Scores are cosine —
+  Click any card to jump to that item. Model columns show cross-source neighbors — top-10 by default, or toggle
+  "Mid-band" for 10 evenly-spaced picks from rank ~20–120 (still relevant, less obviously-similar). The baseline
+  column is seeded-random (also cross-source) and doesn't change with the toggle. In blind mode, judge which
+  column feels most alive, then <button id="reveal" style="padding:2px 8px">reveal</button>. Scores are cosine —
   comparable within a column, not across models.
 </footer>
 
@@ -131,16 +133,20 @@ let currentKey = null;
 let revealed = false;
 const history = [];
 
-const columnDefs = () => [
-  ...DATA.sets.map((s) => ({ label: `${s.label} <span class="dim">· ${s.dim}d</span>`, get: (k) => DATA.neighbors[s.id][k] })),
-  { label: "random baseline", get: randomBaseline },
-];
+const columnDefs = () => {
+  const band = $("#distance").checked ? "mid" : "near";
+  return [
+    ...DATA.sets.map((s) => ({ label: `${s.label} <span class="dim">· ${s.dim}d</span>`, get: (k) => DATA.neighbors[s.id][band][k] })),
+    { label: "random baseline", get: randomBaseline },
+  ];
+};
 
 function show(key, pushHistory = true) {
   if (pushHistory && currentKey && currentKey !== key) history.push(currentKey);
   currentKey = key;
   revealed = false;
   const it = items[key];
+  $("#search").placeholder = `Search ${keys.length} items…`;
 
   $("#current").innerHTML = `
     ${it.imageUrl ? `<img src="${esc(it.imageUrl)}" alt="" />` : ""}
@@ -195,6 +201,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 $("#lucky").addEventListener("click", () => show(keys[Math.floor(Math.random() * keys.length)]));
 $("#back").addEventListener("click", () => { const k = history.pop(); if (k) show(k, false); });
 $("#blind").addEventListener("change", () => show(currentKey, false));
+$("#distance").addEventListener("change", () => show(currentKey, false));
 $("#reveal").addEventListener("click", () => {
   const m = $("#revealmap"); m.textContent = "Reveal: " + m.dataset.map; m.style.display = "block";
 });

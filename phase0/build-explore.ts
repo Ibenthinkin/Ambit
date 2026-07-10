@@ -2,17 +2,24 @@
 /**
  * Phase 0 · step 0.4 — build the eyeball harness (throwaway code, see docs/BUILD_PLAN.md).
  *
- * Precomputes, for every item, the top-10 nearest neighbors RESTRICTED TO OTHER
- * SOURCES under each of the four 0.3 vector sets, and injects that plus item
- * metadata into explore.template.html → phase0/explore.html — a self-contained
- * page (gitignored) you open straight in a browser, no server. The random
- * baseline column is seeded client-side.
+ * Precomputes, for every item and each of the four 0.3 vector sets, two
+ * RESTRICTED-TO-OTHER-SOURCES neighbor bands: "near" (top-10, ranks 1-10) and
+ * "mid" (10 evenly-spaced picks from ranks 21-120) — Ben's first pass at the
+ * harness only showed "near", which is relevant-but-unsurprising by construction,
+ * and can't be distinguished from the random baseline being the more interesting
+ * column. Injects both plus item metadata into explore.template.html →
+ * phase0/explore.html — self-contained, open straight in a browser. The random
+ * baseline column is seeded client-side and unaffected by the near/mid toggle.
  *
  *   bun run phase0/build-explore.ts
  */
 
 const dir = new URL("./", import.meta.url).pathname;
-const TOP_N = 10;
+const NEAR_N = 10;
+// Band is ranks 21-120 (skip the obvious top-20, sample past it); 10 picks
+// evenly spaced across the band rather than clustered right after the cutoff.
+const MID_BAND = [20, 120] as const;
+const MID_N = 10;
 
 const SETS = [
   { id: "te3s-A", label: "text-embedding-3-small · A", file: "text-embedding-3-small--A.json" },
@@ -49,7 +56,15 @@ function normalized(vec: number[]): Float32Array {
   return v;
 }
 
-const neighbors: Record<string, Record<string, [string, number][]>> = {};
+/** 10 evenly-spaced indices across whatever of the [lo, hi) band actually exists. */
+function sampleBand<T>(scored: T[], lo: number, hi: number, n: number): T[] {
+  const band = scored.slice(lo, hi);
+  if (band.length <= n) return band;
+  const step = band.length / n;
+  return Array.from({ length: n }, (_, i) => band[Math.floor(i * step)]);
+}
+
+const neighbors: Record<string, { near: Record<string, [string, number][]>; mid: Record<string, [string, number][]> }> = {};
 const setsMeta: { id: string; label: string; dim: number }[] = [];
 
 for (const set of SETS) {
@@ -59,7 +74,9 @@ for (const set of SETS) {
   const vecs = keys.map((k) => normalized(raw.vectors[k]));
   const sources = keys.map((k) => k.split(":")[0]);
 
-  const bySet: Record<string, [string, number][]> = {};
+  const near: Record<string, [string, number][]> = {};
+  const mid: Record<string, [string, number][]> = {};
+  const round = (s: number) => Math.round(s * 1000) / 1000;
   for (let a = 0; a < keys.length; a++) {
     const scored: [string, number][] = [];
     for (let b = 0; b < keys.length; b++) {
@@ -70,11 +87,12 @@ for (const set of SETS) {
       scored.push([keys[b], dot]);
     }
     scored.sort((x, y) => y[1] - x[1]);
-    bySet[keys[a]] = scored.slice(0, TOP_N).map(([k, s]) => [k, Math.round(s * 1000) / 1000]);
+    near[keys[a]] = scored.slice(0, NEAR_N).map(([k, s]) => [k, round(s)]);
+    mid[keys[a]] = sampleBand(scored, MID_BAND[0], MID_BAND[1], MID_N).map(([k, s]) => [k, round(s)]);
   }
-  neighbors[set.id] = bySet;
+  neighbors[set.id] = { near, mid };
   setsMeta.push({ id: set.id, label: set.label, dim: raw.dim });
-  console.log(`✓ ${set.label} — ${keys.length} items → top-${TOP_N} cross-source · ${(performance.now() - t0).toFixed(0)}ms`);
+  console.log(`✓ ${set.label} — ${keys.length} items → near/mid cross-source · ${(performance.now() - t0).toFixed(0)}ms`);
 }
 
 const payload = { generatedAt: new Date().toISOString(), sets: setsMeta, items: itemsByKey, neighbors };

@@ -20,9 +20,38 @@ messages. `/brief` reads this. Newest on top.
 - **bge-m3 is ~10× slower through OpenRouter** (75.7s vs 6.6s per set) — its upstream provider, not the model. Ingestion-only, so tolerable, but a tiebreaker strike.
 - Smoke test: cross-source neighbors of the Wikipedia *Astronomy* article are all astronomy-subject museum objects under both models. Proves the vectors work, not that serendipity is good — that's 0.4.
 
+**First 0.4 verdict attempt — inconclusive, and the random column won:**
+- Ben's browse of the harness: 416 items is too sparse to judge, and **the random baseline was his favorite column**. Two confounds explain (but don't dismiss) this: (1) the "random" column samples a corpus 100% harvested around his 8 topics, so it's really *random-within-interests* — a product finding in itself; (2) the NN columns show top-10 most-similar, i.e. relevant-but-unsurprising "more of the same," while serendipity lives in the mid-distance band the harness never shows — and at ~50 items/topic that band barely exists.
+- Provisional product implication if this holds at scale: feed shifts toward "curate the pool, randomize the order, embeddings for chain-jumps off saves" — SPEC §9's randomness floor becomes the ceiling.
+
+**Revised 0.4 plan executed — harness rebuilt at scale, verdicts still Ben's to make:**
+- Harvest scaled 416 → **3,168 items** (16 topics incl. 8 new ones — Architecture, Music,
+  Textiles, Cartography, Zoology, Portraiture, Ceramics, Geology — quota 20 → 75/source/topic).
+  Hit a new trap along the way: AIC hard-caps `limit` at 100 (undocumented, 403s above it) —
+  fixed with pagination. Side effect: AIC/Typography, which 0.2 found totally empty at a
+  60-item probe, fills its full quota once paged to 300 candidates — reverses that specific
+  "0 items" finding (deeper search, not a real density floor). Met/Typography stayed genuinely
+  sparse (5/75), confirming 0.2 rather than contradicting it.
+- Re-embedded all 4 sets (`bun run phase0/embed.ts --force`) against the larger corpus.
+  bge-m3's ~10x-slower-than-OpenAI pattern held at scale (≈7 min/set vs ≈45s) — firmer
+  tiebreaker strike now. `dimensions` param re-confirmed honored at this size.
+- Harness now has a **near/mid-band toggle**: model columns default to top-10 (as before) or
+  switch to 10 evenly-spaced picks from rank ~20–120; random baseline is the fixed control
+  either way, unaffected by the toggle. Verified end-to-end in Playwright — toggle correctly
+  swaps neighbor content/scores, random stays identical, search/blind/nav all still work.
+  Full detail in `phase0/NOTES.md` under "0.4 — First pass and scale-up".
+
 **Open / next (pick up here):**
-- **Paused mid-0.4, harness done, verdicts not.** Ben browses `phase0/explore.html` (open the file directly; blind mode on, reveal after judging) and brings back the three ⚖️ verdicts: (1) serendipity vs random go/no-go, (2) model + recipe, (3) `VECTOR(n)` dim — the `dimensions` param being honored makes the dim a free choice if the OpenAI model wins. Then: record in SPEC §6.2/§15 + NOTES, check the 0.4 box, mark Phase 0 complete in README. Watch for medium-vs-subject clustering (recipe B is the intended fix); Typography items are the known-hard case.
-- If the harness needs regenerating on a fresh checkout: `bun run phase0/embed.ts` (needs `OPENROUTER_API_KEY`, ~$0.003) then `bun run phase0/build-explore.ts`.
+- **Ben re-judges** `phase0/explore.html` (open directly; blind mode on) with the corpus and
+  toggle now in place, specifically comparing **near vs mid-band vs random** — the question his
+  first-pass reaction (preferring random) actually raised. Bring back the three ⚖️ verdicts:
+  (1) serendipity go/no-go, (2) model + recipe, (3) `VECTOR(n)` dim (free choice if the OpenAI
+  model wins — `dimensions` honored). Then: record in SPEC §6.2/§15, check the 0.4 box, mark
+  Phase 0 complete in README.
+- Watch for medium-vs-subject clustering (recipe B is the intended fix); Typography is still
+  the source most likely to expose it (Met especially, given how sparse it stayed).
+- If the harness needs regenerating on a fresh checkout: `bun run phase0/harvest.ts` →
+  `bun run phase0/embed.ts --force` (needs `OPENROUTER_API_KEY`) → `bun run phase0/build-explore.ts`.
 
 ### [[07-09-26 Thu]] — Phase 0.2: sample harvester
 
