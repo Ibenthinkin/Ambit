@@ -5,6 +5,21 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-07
 
+### [[07-10-26 Fri]] — Phase 0.3: four vector sets, `dimensions` answered
+
+**Shipped:**
+- `phase0/embed.ts` (zero-dep Bun, same style as the harvester): embeds all 416 items through OpenRouter as 2 models × 2 recipes → 4 vector sets under `phase0/vectors/` (gitignored, ~19 MB, reproducible). Skips sets already on disk; `--force` re-embeds.
+- 0.3 findings appended to `phase0/NOTES.md`; box checked in BUILD_PLAN.
+
+**Findings:**
+- **OpenRouter honors OpenAI's `dimensions` param** (asked 512, got 512) — the open probe from 0.2. If 0.4 picks `text-embedding-3-small`, the `VECTOR(n)` dim is a free choice, not locked to 1536.
+- Whole run cost **~$0.003** (verified via OpenRouter usage accounting: $0.02/M vs $0.01/M). Cost is a non-factor in the model pick.
+- **bge-m3 is ~10× slower through OpenRouter** (75.7s vs 6.6s per set) — its upstream provider, not the model. Ingestion-only, so tolerable, but a tiebreaker strike.
+- Smoke test: cross-source neighbors of the Wikipedia *Astronomy* article are all astronomy-subject museum objects under both models. Proves the vectors work, not that serendipity is good — that's 0.4.
+
+**Open / next (pick up here):**
+- **0.4 — eyeball harness** (`phase0/explore.html` or CLI): pick item → top-N nearest neighbors *restricted to other sources*, 4 columns (model × recipe) + random baseline. Then the three ⚖️ verdicts: go/no-go on serendipity, model + recipe pick, `VECTOR(n)` dim — recorded in SPEC §6.2/§15. Watch for medium-vs-subject clustering; recipe B is the intended fix before blaming a model.
+
 ### [[07-09-26 Thu]] — Phase 0.2: sample harvester
 
 **Shipped:**

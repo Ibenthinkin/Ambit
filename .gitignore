@@ -26,8 +26,9 @@ yarn-error.log*
 .idea/
 .vscode/
 
-# Phase 0 harvester response cache
+# Phase 0 harvester response cache + embedding output (reproducible via embed.ts)
 phase0/.cache/
+phase0/vectors/
 
 # Python (Phase 0 prototype scripts)
 __pycache__/

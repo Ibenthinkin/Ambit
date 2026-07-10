@@ -97,7 +97,7 @@ recipe **A** = `title + "\n" + summary` as harvested; recipe **B** = subject-fir
 `bge-small` option was dropped: embeddings are computed at ingestion only, so a managed
 provider never touches the request path, and the corpus costs ~$0.002 to embed. See SPEC §6.2.
 
-### Other notes for the real adapters
+### Other notes for the real adapters (0.2)
 
 - **Wikipedia's `cllimit` is a per-query budget, not per-page.** With `cllimit=20` over a
   20-page batch, page one takes all 20 categories and the other 19 get none. Only `cllimit=max`
@@ -116,3 +116,48 @@ provider never touches the request path, and the corpus costs ~$0.002 to embed. 
   The `config.iiif_url` field in every response is the base to trust.
 - 19 items surfaced under two different topic seeds and were collapsed on `(source, sourceId)` —
   the same key SPEC §5.1 makes unique. Confirms the real ingestion upsert will be idempotent.
+
+---
+
+## 0.3 — Embed: 2 models × 2 recipes
+
+`bun run phase0/embed.ts` → **4 vector sets** (416 vectors each) under `phase0/vectors/`
+(gitignored — ~19 MB total, fully reproducible from `items.json` + the script). Each file is
+`{ model, recipe, dim, promptTokens, elapsedMs, vectors: { "source:sourceId": number[] } }`,
+floats rounded to 6 decimals. Recipe **A** = `title + "\n" + summary` as harvested; recipe
+**B** = subject-first (`title \n tags \n summary`), applied uniformly to all sources.
+
+### Timing / cost (the "rough numbers" 0.3 owed)
+
+| Set | Dim | Tokens | Wall time |
+|---|---|---|---|
+| text-embedding-3-small × A | 1536 | 38,663 | 6.6s |
+| text-embedding-3-small × B | 1536 | 50,652 | 6.0s |
+| bge-m3 × A | 1024 | 43,585 | 75.7s |
+| bge-m3 × B | 1024 | 57,407 | 38.3s |
+
+- **Cost ≈ $0.003 for the whole run** (verified via OpenRouter's `usage: {include: true}`
+  accounting: text-embedding-3-small = $0.02/M tokens, bge-m3 = $0.01/M). Cost is a
+  non-factor in the 0.4 model decision.
+- **bge-m3 is ~10× slower through OpenRouter** (its upstream provider, not the model itself).
+  Irrelevant on the request path (embeddings are ingestion-only) but it would make bulk
+  re-embeds slower; a mild strike against it if 0.4 is otherwise a tie.
+- Recipe B costs ~30% more tokens than A (the tags). Negligible in dollars.
+- The two models tokenize differently (same recipe-A text: 38,663 vs 43,585 tokens) —
+  token counts are not comparable across models.
+
+### ⚖️ Open question answered: OpenRouter honors OpenAI's `dimensions` param
+
+Asked for 512, got 512 back on `openai/text-embedding-3-small`. So if 0.4 picks the OpenAI
+model, the `VECTOR(n)` column is **not forced to 1536** — it can be shortened at request time
+(Matryoshka truncation, no client-side slice-and-renormalize needed). The dimension choice in
+0.4 is therefore a real choice, not a constraint.
+
+### Smoke test (not the 0.4 verdict)
+
+Cross-source neighbors of the Wikipedia *Astronomy* article, recipe B: all five nearest are
+astronomy-subject Met/AIC objects under both models (cosine 0.40–0.48 for the OpenAI model,
+0.51–0.55 for bge-m3). This only proves the vectors aren't garbage — it's a title-match-easy
+probe. Whether neighbors cluster on **subject vs medium** for ordinary items is exactly what
+0.4's side-by-side harness exists to judge; raw cosine magnitudes are also not comparable
+across models, only rankings are.
