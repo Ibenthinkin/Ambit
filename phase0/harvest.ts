@@ -13,14 +13,40 @@
  *   bun run phase0/harvest.ts --no-cache # force live fetches
  */
 
+/*
+ * ── If you're rusty on modern JS/TS, this file is a decent tour ──────────────
+ * Things that changed while you were away, all used below:
+ *  - Bun executes TypeScript directly — no compile step, no webpack/babel. This
+ *    file is just a script: it runs top to bottom, and top-level `await` is
+ *    legal in ES modules (no more wrapping everything in an async main()).
+ *  - `fetch()` is built into the runtime now (no axios/request needed), and
+ *    `Bun.file()` / `Bun.write()` are Bun's promise-based file I/O.
+ *  - Syntax to notice: optional chaining `a?.b`, nullish coalescing `a ?? b`
+ *    and its assignment form `a ??= b`, spread `[...set]`, and string-literal
+ *    union types (`"image" | "article"`) instead of enums.
+ *  - Patterns to notice: cache-aside fetching (getJson), retry with exponential
+ *    backoff + jitter, per-host politeness delays, and normalizing three very
+ *    different APIs into one shape — the seed of the real app's SourceAdapter
+ *    interface (SPEC §6.1).
+ */
+
+// Bun ships Node's standard library; the `node:` prefix is the modern, explicit
+// way to import from it (distinguishes stdlib from npm packages of the same name).
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 
 const PER_SOURCE_PER_TOPIC = 75;
+// ES modules have no `__dirname`; `import.meta.url` is the module's own file URL,
+// so `new URL(relative, import.meta.url)` resolves paths relative to THIS FILE
+// rather than wherever the process happened to be launched from.
 const CACHE_DIR = new URL("./.cache/", import.meta.url).pathname;
 const OUT_FILE = new URL("./items.json", import.meta.url).pathname;
+// Poor-man's flag parsing — fine for a script with one boolean flag.
 const USE_CACHE = !process.argv.includes("--no-cache");
 
+// Public-API etiquette: identify your bot with a project URL + contact email.
+// Wikipedia's API policy asks for this explicitly, and it's the difference
+// between "rate-limited politely" and "blocked as an anonymous scraper".
 const USER_AGENT =
   "AmbitPhase0/0.1 (https://github.com/bentraverse/ambit; benjamin.reilly@gmail.com)";
 
@@ -79,11 +105,16 @@ const stats = {
   failed: new Set<string>(),
 };
 
+// `??=` assigns only when the left side is null/undefined — the two uses here
+// lazily create the nested `{source: {topic: count}}` buckets on first touch,
+// replacing the old `if (!obj[k]) obj[k] = {}` dance.
 function record(bucket: "kept" | "offered", source: string, topic: string, n: number) {
   ((stats[bucket][source] ??= {})[topic] ??= 0);
   stats[bucket][source][topic] += n;
 }
 
+// The standard "await a delay" idiom: wrap setTimeout in a Promise so it
+// composes with async/await (`await sleep(400)`).
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -92,6 +123,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * a dropped search would otherwise masquerade as "this topic has no content".
  */
 async function getJson(url: string, delayMs = 0): Promise<any> {
+  // Cache-aside pattern: hash the URL into a filename, return the cached body
+  // if present, otherwise fetch and write it. This is why 0.3/0.4 could iterate
+  // for free — a re-run replays every response from disk instead of the network.
   const key = createHash("sha256").update(url).digest("hex").slice(0, 32);
   const cacheFile = `${CACHE_DIR}${key}.json`;
 
@@ -115,6 +149,10 @@ async function getJson(url: string, delayMs = 0): Promise<any> {
       return json;
     } catch (err) {
       lastErr = err;
+      // Exponential backoff: waits 1s → 3s → 9s between the 4 attempts, plus up
+      // to 500ms of random "jitter" so parallel harvesters don't all retry at
+      // the same instant. This shape (multiplier + jitter + max attempts) is the
+      // canonical way to talk to any flaky or rate-limited API.
       if (attempt < 4) await sleep(1000 * 3 ** (attempt - 1) + Math.random() * 500);
     }
   }
@@ -130,6 +168,10 @@ function toLede(text: string, max = 700): string {
   return (lastStop > max * 0.5 ? cut.slice(0, lastStop + 1) : cut.trimEnd() + "…");
 }
 
+// Two idioms in one line: `new Set(...)` + spread is the standard dedupe, and
+// `(t): t is string` is a TypeScript *type predicate* — it tells the compiler
+// that whatever survives the filter is a string, so the nulls are gone from the
+// type as well as the array. Without it, TS would still see (string|null)[].
 const uniqueTags = (tags: (string | null | undefined)[]) =>
   [...new Set(tags.filter((t): t is string => Boolean(t && t.trim())).map((t) => t.trim()))];
 
@@ -197,7 +239,9 @@ async function harvestWikipedia(seed: (typeof TOPICS)[number]): Promise<Item[]> 
 
 // ── the met ─────────────────────────────────────────────────────────────────
 // Images. Search filters to public-domain-with-image, but returns bare IDs,
-// so every object costs its own request.
+// so every object costs its own request — the classic "N+1" shape (1 search +
+// N detail fetches). Compare AIC below, whose search returns full records and
+// costs one request per page. API shape drives adapter cost more than anything.
 
 const MET_API = "https://collectionapi.metmuseum.org/public/collection/v1";
 /** ~2.5 req/s. Faster than this and the Met starts 403ing partway through a run. */
@@ -338,7 +382,9 @@ const HARVESTERS = { wikipedia: harvestWikipedia, met: harvestMet, aic: harvestA
 
 async function runSource(source: keyof typeof HARVESTERS): Promise<Item[]> {
   const out: Item[] = [];
-  // Sequential within a source (one polite request stream per host); sources run in parallel.
+  // Sequential within a source (one polite request stream per host); sources run
+  // in parallel — see the Promise.all at the bottom. Rate limits are per-host,
+  // so this gets 3× wall-clock speed without ever hammering any single API.
   for (const seed of TOPICS) {
     try {
       const items = await HARVESTERS[source](seed);
@@ -395,7 +441,10 @@ console.log(`Harvesting ${TOPICS.length} topics × 3 sources (cache ${USE_CACHE 
 
 const harvested = (await Promise.all(Object.keys(HARVESTERS).map((s) => runSource(s as any)))).flat();
 
-// Same object can surface under two topic seeds; first seed wins.
+// Same object can surface under two topic seeds. Dedupe idiom: build a Map keyed
+// by `source:sourceId` — duplicate keys overwrite, so the LAST topic in TOPICS
+// order wins — then take `.values()`. Same composite key that SPEC §5.1 makes
+// UNIQUE, which is what will make the real ingestion upsert idempotent.
 const deduped = [...new Map(harvested.map((i) => [`${i.source}:${i.sourceId}`, i])).values()];
 const dupes = harvested.length - deduped.length;
 

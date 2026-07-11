@@ -38,6 +38,22 @@ interface Item {
   tags: string[];
 }
 
+/*
+ * ── What an embedding is (30-second version) ─────────────────────────────────
+ * An embedding model maps a piece of text to a point in high-dimensional space
+ * (a plain array of 1024 or 1536 floats here) such that semantically similar
+ * texts land near each other — "near" measured by cosine similarity, i.e. the
+ * angle between the vectors. Ambit's entire product bet rides on this: a
+ * Wikipedia article about astronomy should land near a Met bronze *about the
+ * stars*, even though the two texts share almost no words. That cross-source
+ * hop through vector space is the serendipity feature (SPEC §9). In the real
+ * app these vectors live in a pgvector column and Postgres does the
+ * nearest-neighbor math; here they're just JSON files for step 0.4 to compare.
+ */
+
+// `as const` is a "const assertion": it freezes this into a readonly tuple with
+// literal types ("openai/text-embedding-3-small", not string), so a typo'd
+// model id elsewhere becomes a compile error instead of a runtime 404.
 const MODELS = [
   { id: "openai/text-embedding-3-small", expectedDim: 1536 },
   { id: "baai/bge-m3", expectedDim: 1024 },
@@ -67,6 +83,9 @@ async function embedBatch(model: string, input: string[], extra: Record<string, 
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
       const json: any = await res.json();
+      // Each result carries an `index` back to its position in the input array.
+      // Sort on it rather than trusting response order — cheap insurance, and
+      // a mis-paired vector would be a silent, hard-to-debug data corruption.
       const embeddings: number[][] = (json.data ?? [])
         .sort((a: any, b: any) => a.index - b.index)
         .map((d: any) => d.embedding);
@@ -81,6 +100,9 @@ async function embedBatch(model: string, input: string[], extra: Record<string, 
   throw lastErr;
 }
 
+// Rounding floats to 6 decimals roughly halves the JSON on disk ("0.0123456789…"
+// → "0.012346") and is far below the precision that could change a neighbor
+// *ranking* — cosine similarity only cares about direction, coarsely.
 const round6 = (v: number) => Math.round(v * 1e6) / 1e6;
 
 async function embedSet(items: Item[], model: (typeof MODELS)[number], recipe: keyof typeof RECIPES) {
@@ -131,7 +153,17 @@ async function embedSet(items: Item[], model: (typeof MODELS)[number], recipe: k
   );
 }
 
-/** Does OpenRouter pass OpenAI's `dimensions` param through? Decides if 1536 can shrink. */
+/**
+ * Does OpenRouter pass OpenAI's `dimensions` param through? Decides if 1536 can shrink.
+ *
+ * Background: OpenAI's v3 embeddings are trained with "Matryoshka Representation
+ * Learning" — the information is front-loaded so a truncated prefix of the vector
+ * (renormalized) is still a valid, slightly-lossier embedding. `dimensions: 512`
+ * asks the API to do that truncation server-side. Why care: the pgvector column
+ * is `VECTOR(n)` with a fixed n, and smaller vectors mean a smaller index and
+ * faster nearest-neighbor scans — so "can we shorten?" affects the schema.
+ * (Answer, recorded in NOTES.md: yes, honored — asked 512, got 512.)
+ */
 async function probeDimensions() {
   try {
     const { embeddings } = await embedBatch(

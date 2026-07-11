@@ -47,6 +47,14 @@ const itemsByKey = Object.fromEntries(
   ]),
 );
 
+/**
+ * Scale a vector to length 1 (a "unit vector"). The payoff: for unit vectors,
+ * cosine similarity — the angle-based measure embeddings are compared with —
+ * reduces to a plain dot product, so the hot loop below is just multiply-adds.
+ * Float32Array instead of number[] halves memory and keeps the values in one
+ * contiguous, cache-friendly block, which matters when the loop runs billions
+ * of multiplies. This is exactly what `vector_cosine_ops` does inside pgvector.
+ */
 function normalized(vec: number[]): Float32Array {
   const v = Float32Array.from(vec);
   let n = 0;
@@ -77,6 +85,11 @@ for (const set of SETS) {
   const near: Record<string, [string, number][]> = {};
   const mid: Record<string, [string, number][]> = {};
   const round = (s: number) => Math.round(s * 1000) / 1000;
+  // Brute force, on purpose: every item against every other item is O(n²·dim) —
+  // at 3,168 items × 1536 dims that's ~15 billion multiply-adds per vector set,
+  // which a tight Float32Array loop chews through in seconds. This is precisely
+  // the work the real app never does at request time: pgvector's HNSW index
+  // (SPEC §5.6) answers "top-k nearest" via a graph walk instead of a full scan.
   for (let a = 0; a < keys.length; a++) {
     const scored: [string, number][] = [];
     for (let b = 0; b < keys.length; b++) {
@@ -95,6 +108,11 @@ for (const set of SETS) {
   console.log(`✓ ${set.label} — ${keys.length} items → near/mid cross-source · ${(performance.now() - t0).toFixed(0)}ms`);
 }
 
+// Build-time data inlining: the template has a literal `/*__DATA__*/null` where
+// its DATA constant would be, and we swap the whole payload in as one JSON blob.
+// Result: a single self-contained HTML file with zero fetches — it works from
+// file:// with no server, survives moves, and can be sent to someone whole.
+// (JSON is valid JS syntax, which is the trick that makes this a plain replace.)
 const payload = { generatedAt: new Date().toISOString(), sets: setsMeta, items: itemsByKey, neighbors };
 const template = await Bun.file(`${dir}explore.template.html`).text();
 if (!template.includes("/*__DATA__*/null")) throw new Error("template placeholder missing");
