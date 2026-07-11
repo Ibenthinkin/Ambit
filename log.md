@@ -48,12 +48,20 @@ messages. `/brief` reads this. Newest on top.
   Full detail in `phase0/NOTES.md` under "0.4 — First pass and scale-up".
 
 **Open / next (pick up here):**
-- **Ben re-judges** `phase0/explore.html` (open directly; blind mode on) with the corpus and
-  toggle now in place, specifically comparing **near vs mid-band vs random** — the question his
-  first-pass reaction (preferring random) actually raised. Bring back the three ⚖️ verdicts:
-  (1) serendipity go/no-go, (2) model + recipe, (3) `VECTOR(n)` dim (free choice if the OpenAI
-  model wins — `dimensions` honored). Then: record in SPEC §6.2/§15, check the 0.4 box, mark
-  Phase 0 complete in README.
+- **Session ended at the judgment gate — everything is staged for Ben's 0.4 verdicts.** The
+  teaching pass + artifact link are committed and pushed (`a4c0251`); the harness was opened
+  for browsing but no verdicts were reached. Judging procedure agreed: blind mode ON, a round
+  at top-10 then a round with the mid-band toggle (rank ~20–120) against the fixed random
+  control, chain-jump via card clicks, reveal only after forming an opinion; probe Typography
+  and Ceramics items for medium-vs-subject clustering (recipe B is the intended fix).
+- **Ben re-judges** `phase0/explore.html` (open directly; blind mode on), comparing **near vs
+  mid-band vs random** — the question his first-pass reaction (preferring random) actually
+  raised. Bring back the three ⚖️ verdicts: (1) serendipity go/no-go, (2) model + recipe,
+  (3) `VECTOR(n)` dim (free choice if the OpenAI model wins — `dimensions` honored). Then:
+  record in SPEC §6.2/§15, check the 0.4 box, mark Phase 0 complete in README, update the
+  system-map artifact's Phase 0 section — which unlocks **Phase 1.1 (scaffold)**.
+- **System-map artifact** (keep updated as architecture evolves; same URL via the `url` param):
+  https://claude.ai/code/artifact/cb527a06-6bd3-4d00-ac4b-a13a722a8262
 - Watch for medium-vs-subject clustering (recipe B is the intended fix); Typography is still
   the source most likely to expose it (Met especially, given how sparse it stayed).
 - If the harness needs regenerating on a fresh checkout: `bun run phase0/harvest.ts` →
