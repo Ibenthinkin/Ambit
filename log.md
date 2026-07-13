@@ -5,6 +5,87 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-07
 
+### [[07-13-26 Mon]] — Phase 0.4 verdict: item-level NN is dead; topic-level drift replaces it
+
+**Verdict — the 0.4 gate returns NO on item-level nearest-neighbour recommendation.** Ben browsed
+the harness and couldn't distinguish the variants: all four vector sets produce the same thing, all
+are far too clustered, and chaining is a straight line rather than a drift. Clicking *Poetry
+Fragment (Qit'a) in Nasta'liq Script* returns pages of calligraphy from the same few poems. His
+words: "it feels like a direct search… that is not a serendipitous drift, that's just a straight
+line."
+
+**Why (the corpus explains it):**
+- **580 of 3168 items sit on a literally duplicated title.** 67 items are titled just `textile`,
+  27 `fragment`, 12 `page of calligraphy from an anthology of poetry by sa'di and hafiz`.
+- Met items have a **median title of 4 words and a median summary of 129 chars** (12% under 80).
+- So embedding `title + summary` for a museum object mostly embeds *accession-catalog boilerplate*.
+  Cosine similarity over that text degenerates into **string matching** — which is exactly why the
+  neighbours of the calligraphy fragment were a dozen items whose titles are the same sentence.
+- Compounding it: **top-k NN is by construction an anti-serendipity operator.** It returns the most
+  similar item available. Asking it for a drift and getting a straight line is the definition of the
+  function, not a tuning failure. The 0.4 mid-band toggle was the right instinct but can't rescue a
+  corpus whose mid-band is also calligraphy.
+
+**The pivot — embeddings move up a level, from items to topics.** The failure was about *what we
+embedded*, not about embeddings. Separation of concerns, and it's the whole design now:
+- **Embeddings choose WHERE to look** — topic level. 16 clean, semantically real concepts.
+- **Random draw + filters choose WHAT to show** — item level, where embeddings failed.
+
+**Shipped: `phase0/topic-graph.ts` → `phase0/topic-graph.json`.** Topic centroid = mean of every item
+vector carrying that topic (grounds each node in servable content). Emits a 16×16 adjacency matrix,
+**computed once offline and checked in** — no pgvector, no per-item vector in the DB, no embedding
+call at request time. The recommender collapses into a static lookup table we can read, hand-edit,
+and diff in a PR.
+
+**Trap found — hubness — and it would have shipped silently.** Raw cosine over topic centroids makes
+**Geology the top-2 neighbour of 10 of the 16 topics** (Music→Geology 0.73, Portraiture→Geology 0.70
+— nonsense). Classic high-dimensional pathology: a centroid near the corpus mean is "close" to
+everything, so *every user on the platform drifts into rocks*. Fix is one step —
+**subtract the global mean centroid** (the "generic digitised museum object" direction) before
+comparing. Geology drops to 3 top-2 appearances and the graph goes flat. This step is load-bearing;
+without it the feature looks like it works and is broken.
+
+**The graph, once centered, is genuinely good** — real intellectual bridges, not medium/era clusters:
+Textiles↔Machines 0.37 (the Jacquard loom), Typography→Machines 0.12 (the printing press),
+Botany→Textiles 0.22 (dyes, fibres), Ceramics→Geology 0.24 (clay), Astronomy→Cartography→The ocean
+(navigation). `Poetry → Typography → Machines` is a two-hop walk that is exactly the drift we wanted.
+**Honest caveat:** rows for **Architecture and Music** have a best-neighbour under 0.06 — no real
+structure, drift there is indistinguishable from noise. Script flags them; curate by hand.
+
+**Decisions:**
+- **Feed = three tiers over topics, random within a topic.** CORE (user's picked topics) / DRIFT
+  (walk the adjacency row, 1–2 hops, softmax-sampled) / JUMP (the *antipode* — tail of the row — a
+  principled cross-domain leap rather than mere noise). Item selection inside the chosen topic is
+  **random**, never by similarity.
+- **Personalisation-from-saves is dead and stays dead.** SPEC §9's "nearest-neighbours of recently
+  saved items" was the item-level NN that failed. Personalisation is now: which topics you pick, and
+  which topics you drift toward.
+- **The real work was never the ranking function.** A random draw over *this* corpus still serves
+  "textile" 67 times. Needed in either world, and it's what actually makes the feed feel good:
+  a **quality floor at ingest** (drop bare-noun titles, drop items sharing a title with >2 others)
+  and **diversity constraints at composition** (no two adjacent cards from one source; cap per
+  topic/creator/collection per page).
+- Keep `phase0/` on disk — `harvest.ts` is still the basis for the real adapters.
+
+**Open / next:**
+- Ben is putting the topic-drift proposal to Fable before committing, to compare approaches.
+- SPEC §9 (feed algo), §5.1 (vector column), §15 (embedding-dimension open question) and the
+  CLAUDE.md "**Embeddings are the product**" line are all now **false** and need rewriting once the
+  approach is settled. Not touched yet, deliberately.
+- Open question the graph raises: 16 topics is small enough that a **hand-authored** adjacency matrix
+  would probably beat the computed one. The computed version's value is that it scales to 50–100
+  topics without curation. Likely answer: ship the computed matrix as a *seed*, hand-fix the weak rows.
+
+### [[07-11-26 Sat]] — Auth rethink: magic link → email + password (Better Auth)
+
+**Decisions:**
+- Ben dropped magic-link auth for regular **email + password**. That forced a library change, not just a flow change: Auth.js's Credentials provider is the wrong tool for passwords — officially discouraged, JWT-only sessions (no DB persistence/revocation), and no built-in sign-up, hashing, or reset; you'd hand-roll all of it. Picked **Better Auth** instead (current docs verified): built-in email/password with scrypt hashing + reset flow, database sessions, Drizzle adapter, and a documented invite-gating seam (`databaseHooks.user.create.before` throws for uninvited emails).
+- Mail infra (Mailpit dev / Resend prod) **survives** — repurposed from magic links to password-reset mail. Email *verification* skipped: the invite list is the trust anchor.
+- Scaffold consequence: create-t3-app still only offers NextAuth, so 1.1 now declines its auth option and 2.2 adds Better Auth by hand. Auth tables switch to Better Auth's `user`/`session`/`account`/`verification` (CLI-generated); app-table FKs now reference singular `"user"`.
+- Design handoff landing prototype still shows the magic-link flow — divergence note added to its README §1 rather than rewriting the as-built prototype description; 5.2 builds sign-in/sign-up/forgot-password states in the same visual language.
+
+**Shipped:** SPEC (§1, §3.1, §5, §6.3, §8.1, §11, §12, §14), BUILD_PLAN (context, 0.1, 1.1, 2.1, 2.2, 5.2, 7.1, 8.1), README, CLAUDE.md stack line, `.env.example` (`NEXTAUTH_*` → `BETTER_AUTH_*`) all updated to match.
+
 ### [[07-10-26 Fri]] — Phase 0.3: four vector sets, `dimensions` answered; 0.4 harness built
 
 **Shipped:**

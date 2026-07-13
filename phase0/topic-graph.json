@@ -1,0 +1,1004 @@
+{
+  "model": "openai/text-embedding-3-small",
+  "recipe": "A",
+  "note": "Mean-centered topic centroids. Head of each row = drift, tail = jump. Hand-editable: rows with max sim < 0.06 (Music, Portraiture, Architecture) are noise and should be curated by hand.",
+  "builtFrom": {
+    "items": 3168,
+    "topics": 16
+  },
+  "createdAt": "2026-07-13T14:27:11.594Z",
+  "graph": {
+    "Ancient history": [
+      {
+        "topic": "Zoology",
+        "sim": 0.224
+      },
+      {
+        "topic": "Mythology",
+        "sim": 0.2078
+      },
+      {
+        "topic": "Ceramics",
+        "sim": 0.1902
+      },
+      {
+        "topic": "Geology",
+        "sim": 0.1418
+      },
+      {
+        "topic": "Architecture",
+        "sim": -0.0017
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.0303
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.0342
+      },
+      {
+        "topic": "Music",
+        "sim": -0.0383
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.1376
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.1485
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.2295
+      },
+      {
+        "topic": "Typography",
+        "sim": -0.2302
+      },
+      {
+        "topic": "Cartography",
+        "sim": -0.2322
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.2593
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.298
+      }
+    ],
+    "Architecture": [
+      {
+        "topic": "Ceramics",
+        "sim": 0.0462
+      },
+      {
+        "topic": "Typography",
+        "sim": 0.0383
+      },
+      {
+        "topic": "Portraiture",
+        "sim": 0.0138
+      },
+      {
+        "topic": "Cartography",
+        "sim": 0.0101
+      },
+      {
+        "topic": "Geology",
+        "sim": 0.004
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.0017
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.0299
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.0473
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.0572
+      },
+      {
+        "topic": "Music",
+        "sim": -0.0948
+      },
+      {
+        "topic": "Zoology",
+        "sim": -0.097
+      },
+      {
+        "topic": "Mythology",
+        "sim": -0.118
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.1759
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.1844
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.2022
+      }
+    ],
+    "Astronomy": [
+      {
+        "topic": "Cartography",
+        "sim": 0.1025
+      },
+      {
+        "topic": "Mythology",
+        "sim": 0.0931
+      },
+      {
+        "topic": "Typography",
+        "sim": 0.0277
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.0053
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.0342
+      },
+      {
+        "topic": "Geology",
+        "sim": -0.0395
+      },
+      {
+        "topic": "Architecture",
+        "sim": -0.0473
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.0582
+      },
+      {
+        "topic": "Music",
+        "sim": -0.0855
+      },
+      {
+        "topic": "Zoology",
+        "sim": -0.0964
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.1057
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.1669
+      },
+      {
+        "topic": "Ceramics",
+        "sim": -0.1759
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.1977
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.2999
+      }
+    ],
+    "Botany": [
+      {
+        "topic": "Textiles",
+        "sim": 0.2213
+      },
+      {
+        "topic": "Machines",
+        "sim": 0.0523
+      },
+      {
+        "topic": "Zoology",
+        "sim": 0.0334
+      },
+      {
+        "topic": "Cartography",
+        "sim": 0.014
+      },
+      {
+        "topic": "Ceramics",
+        "sim": -0.0164
+      },
+      {
+        "topic": "Typography",
+        "sim": -0.0237
+      },
+      {
+        "topic": "Geology",
+        "sim": -0.0484
+      },
+      {
+        "topic": "Architecture",
+        "sim": -0.0572
+      },
+      {
+        "topic": "Music",
+        "sim": -0.0649
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.0681
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.0928
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.1043
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.1669
+      },
+      {
+        "topic": "Mythology",
+        "sim": -0.2938
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.298
+      }
+    ],
+    "Cartography": [
+      {
+        "topic": "The ocean",
+        "sim": 0.1696
+      },
+      {
+        "topic": "Astronomy",
+        "sim": 0.1025
+      },
+      {
+        "topic": "Typography",
+        "sim": 0.0487
+      },
+      {
+        "topic": "Portraiture",
+        "sim": 0.0411
+      },
+      {
+        "topic": "Botany",
+        "sim": 0.014
+      },
+      {
+        "topic": "Architecture",
+        "sim": 0.0101
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.0536
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.0782
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.0997
+      },
+      {
+        "topic": "Geology",
+        "sim": -0.1057
+      },
+      {
+        "topic": "Mythology",
+        "sim": -0.1357
+      },
+      {
+        "topic": "Music",
+        "sim": -0.1744
+      },
+      {
+        "topic": "Ceramics",
+        "sim": -0.2278
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.2322
+      },
+      {
+        "topic": "Zoology",
+        "sim": -0.2487
+      }
+    ],
+    "Ceramics": [
+      {
+        "topic": "Geology",
+        "sim": 0.2395
+      },
+      {
+        "topic": "Ancient history",
+        "sim": 0.1902
+      },
+      {
+        "topic": "Zoology",
+        "sim": 0.0772
+      },
+      {
+        "topic": "Architecture",
+        "sim": 0.0462
+      },
+      {
+        "topic": "Music",
+        "sim": 0.0216
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.0093
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.0164
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.0389
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.0803
+      },
+      {
+        "topic": "Mythology",
+        "sim": -0.1296
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.1759
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.2032
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.212
+      },
+      {
+        "topic": "Cartography",
+        "sim": -0.2278
+      },
+      {
+        "topic": "Typography",
+        "sim": -0.2961
+      }
+    ],
+    "Geology": [
+      {
+        "topic": "Ceramics",
+        "sim": 0.2395
+      },
+      {
+        "topic": "Zoology",
+        "sim": 0.1672
+      },
+      {
+        "topic": "Ancient history",
+        "sim": 0.1418
+      },
+      {
+        "topic": "Music",
+        "sim": 0.0309
+      },
+      {
+        "topic": "Architecture",
+        "sim": 0.004
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.0395
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.0484
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.0557
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.0644
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.0894
+      },
+      {
+        "topic": "Cartography",
+        "sim": -0.1057
+      },
+      {
+        "topic": "Mythology",
+        "sim": -0.1356
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.1494
+      },
+      {
+        "topic": "Typography",
+        "sim": -0.185
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.2387
+      }
+    ],
+    "Machines": [
+      {
+        "topic": "Textiles",
+        "sim": 0.3652
+      },
+      {
+        "topic": "Typography",
+        "sim": 0.115
+      },
+      {
+        "topic": "Music",
+        "sim": 0.0544
+      },
+      {
+        "topic": "Botany",
+        "sim": 0.0523
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.0234
+      },
+      {
+        "topic": "Architecture",
+        "sim": -0.0299
+      },
+      {
+        "topic": "Cartography",
+        "sim": -0.0782
+      },
+      {
+        "topic": "Geology",
+        "sim": -0.0894
+      },
+      {
+        "topic": "Zoology",
+        "sim": -0.112
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.1977
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.2001
+      },
+      {
+        "topic": "Ceramics",
+        "sim": -0.2032
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.2542
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.2593
+      },
+      {
+        "topic": "Mythology",
+        "sim": -0.2866
+      }
+    ],
+    "Music": [
+      {
+        "topic": "Machines",
+        "sim": 0.0544
+      },
+      {
+        "topic": "Geology",
+        "sim": 0.0309
+      },
+      {
+        "topic": "Ceramics",
+        "sim": 0.0216
+      },
+      {
+        "topic": "Zoology",
+        "sim": -0.0092
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.0101
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.0383
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.0649
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.0755
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.0855
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.0856
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.0918
+      },
+      {
+        "topic": "Typography",
+        "sim": -0.0922
+      },
+      {
+        "topic": "Architecture",
+        "sim": -0.0948
+      },
+      {
+        "topic": "Mythology",
+        "sim": -0.1268
+      },
+      {
+        "topic": "Cartography",
+        "sim": -0.1744
+      }
+    ],
+    "Mythology": [
+      {
+        "topic": "Ancient history",
+        "sim": 0.2078
+      },
+      {
+        "topic": "Poetry",
+        "sim": 0.1028
+      },
+      {
+        "topic": "Astronomy",
+        "sim": 0.0931
+      },
+      {
+        "topic": "Portraiture",
+        "sim": 0.0916
+      },
+      {
+        "topic": "Zoology",
+        "sim": 0.014
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.0128
+      },
+      {
+        "topic": "Typography",
+        "sim": -0.1145
+      },
+      {
+        "topic": "Architecture",
+        "sim": -0.118
+      },
+      {
+        "topic": "Music",
+        "sim": -0.1268
+      },
+      {
+        "topic": "Ceramics",
+        "sim": -0.1296
+      },
+      {
+        "topic": "Geology",
+        "sim": -0.1356
+      },
+      {
+        "topic": "Cartography",
+        "sim": -0.1357
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.2866
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.2938
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.3199
+      }
+    ],
+    "Poetry": [
+      {
+        "topic": "Typography",
+        "sim": 0.1052
+      },
+      {
+        "topic": "Mythology",
+        "sim": 0.1028
+      },
+      {
+        "topic": "Portraiture",
+        "sim": 0.0382
+      },
+      {
+        "topic": "Music",
+        "sim": -0.0101
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.042
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.0582
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.0681
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.0786
+      },
+      {
+        "topic": "Ceramics",
+        "sim": -0.0803
+      },
+      {
+        "topic": "Cartography",
+        "sim": -0.0997
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.1376
+      },
+      {
+        "topic": "Architecture",
+        "sim": -0.1844
+      },
+      {
+        "topic": "Zoology",
+        "sim": -0.1958
+      },
+      {
+        "topic": "Geology",
+        "sim": -0.2387
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.2542
+      }
+    ],
+    "Portraiture": [
+      {
+        "topic": "Mythology",
+        "sim": 0.0916
+      },
+      {
+        "topic": "Cartography",
+        "sim": 0.0411
+      },
+      {
+        "topic": "Poetry",
+        "sim": 0.0382
+      },
+      {
+        "topic": "Architecture",
+        "sim": 0.0138
+      },
+      {
+        "topic": "Ceramics",
+        "sim": -0.0093
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.0197
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.0303
+      },
+      {
+        "topic": "Geology",
+        "sim": -0.0644
+      },
+      {
+        "topic": "Music",
+        "sim": -0.0918
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.0928
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.1057
+      },
+      {
+        "topic": "Zoology",
+        "sim": -0.1294
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.2001
+      },
+      {
+        "topic": "Typography",
+        "sim": -0.2072
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.2587
+      }
+    ],
+    "Textiles": [
+      {
+        "topic": "Machines",
+        "sim": 0.3652
+      },
+      {
+        "topic": "Botany",
+        "sim": 0.2213
+      },
+      {
+        "topic": "Ceramics",
+        "sim": -0.0389
+      },
+      {
+        "topic": "Cartography",
+        "sim": -0.0536
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.0714
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.0786
+      },
+      {
+        "topic": "Typography",
+        "sim": -0.0839
+      },
+      {
+        "topic": "Music",
+        "sim": -0.0856
+      },
+      {
+        "topic": "Zoology",
+        "sim": -0.1073
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.1485
+      },
+      {
+        "topic": "Geology",
+        "sim": -0.1494
+      },
+      {
+        "topic": "Architecture",
+        "sim": -0.2022
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.2587
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.2999
+      },
+      {
+        "topic": "Mythology",
+        "sim": -0.3199
+      }
+    ],
+    "The ocean": [
+      {
+        "topic": "Cartography",
+        "sim": 0.1696
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.0053
+      },
+      {
+        "topic": "Mythology",
+        "sim": -0.0128
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.0197
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.0234
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.042
+      },
+      {
+        "topic": "Typography",
+        "sim": -0.0426
+      },
+      {
+        "topic": "Geology",
+        "sim": -0.0557
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.0714
+      },
+      {
+        "topic": "Music",
+        "sim": -0.0755
+      },
+      {
+        "topic": "Zoology",
+        "sim": -0.0774
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.1043
+      },
+      {
+        "topic": "Architecture",
+        "sim": -0.1759
+      },
+      {
+        "topic": "Ceramics",
+        "sim": -0.212
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.2295
+      }
+    ],
+    "Typography": [
+      {
+        "topic": "Machines",
+        "sim": 0.115
+      },
+      {
+        "topic": "Poetry",
+        "sim": 0.1052
+      },
+      {
+        "topic": "Cartography",
+        "sim": 0.0487
+      },
+      {
+        "topic": "Architecture",
+        "sim": 0.0383
+      },
+      {
+        "topic": "Astronomy",
+        "sim": 0.0277
+      },
+      {
+        "topic": "Botany",
+        "sim": -0.0237
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.0426
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.0839
+      },
+      {
+        "topic": "Music",
+        "sim": -0.0922
+      },
+      {
+        "topic": "Mythology",
+        "sim": -0.1145
+      },
+      {
+        "topic": "Zoology",
+        "sim": -0.1611
+      },
+      {
+        "topic": "Geology",
+        "sim": -0.185
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.2072
+      },
+      {
+        "topic": "Ancient history",
+        "sim": -0.2302
+      },
+      {
+        "topic": "Ceramics",
+        "sim": -0.2961
+      }
+    ],
+    "Zoology": [
+      {
+        "topic": "Ancient history",
+        "sim": 0.224
+      },
+      {
+        "topic": "Geology",
+        "sim": 0.1672
+      },
+      {
+        "topic": "Ceramics",
+        "sim": 0.0772
+      },
+      {
+        "topic": "Botany",
+        "sim": 0.0334
+      },
+      {
+        "topic": "Mythology",
+        "sim": 0.014
+      },
+      {
+        "topic": "Music",
+        "sim": -0.0092
+      },
+      {
+        "topic": "The ocean",
+        "sim": -0.0774
+      },
+      {
+        "topic": "Astronomy",
+        "sim": -0.0964
+      },
+      {
+        "topic": "Architecture",
+        "sim": -0.097
+      },
+      {
+        "topic": "Textiles",
+        "sim": -0.1073
+      },
+      {
+        "topic": "Machines",
+        "sim": -0.112
+      },
+      {
+        "topic": "Portraiture",
+        "sim": -0.1294
+      },
+      {
+        "topic": "Typography",
+        "sim": -0.1611
+      },
+      {
+        "topic": "Poetry",
+        "sim": -0.1958
+      },
+      {
+        "topic": "Cartography",
+        "sim": -0.2487
+      }
+    ]
+  }
+}
