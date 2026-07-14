@@ -21,7 +21,11 @@
  * hand-edit, and diff in a PR.
  */
 
-const ITEMS = "phase0/items.json";
+// Centroids are computed over the CURATED corpus (0.5), not the raw harvest:
+// the graph should describe the pool the feed can actually serve, and curation
+// strips exactly the duplicated-boilerplate items that would drag a topic's
+// centroid toward the generic-catalog direction.
+const ITEMS = "phase0/items.curated.json";
 const VECS = "phase0/vectors/text-embedding-3-small--A.json";
 const OUT = "phase0/topic-graph.json";
 
@@ -99,9 +103,11 @@ const cos = (a: Float64Array, b: Float64Array) => {
 // 3. Emit the adjacency matrix: for each topic, every other topic ranked by similarity.
 //
 // The feed reads two ends of each row:
-//   - the head (rank 1-3)  -> DRIFT, the adjacent-but-different neighbour
-//   - the tail (last rank) -> JUMP, the antipode. A principled cross-domain leap
-//                             rather than mere noise.
+//   - the head (positive sims) -> DRIFT, softmax-sampled adjacent neighbours
+//   - the tail HALF            -> JUMP pool, drawn uniformly. Not the strict
+//     antipode: the tail ordering of a 16-point mean-centered space is noise,
+//     so treating rank 15 as meaningfully "farther" than rank 12 would be
+//     false precision. A far draw is principled enough.
 // ---------------------------------------------------------------------------
 const graph: Record<string, { topic: string; sim: number }[]> = {};
 for (const t of topics) {
@@ -117,7 +123,7 @@ await Bun.write(
     {
       model: vf.model,
       recipe: vf.recipe,
-      note: "Mean-centered topic centroids. Head of each row = drift, tail = jump. Hand-editable: rows with max sim < 0.06 (Music, Portraiture, Architecture) are noise and should be curated by hand.",
+      note: "Mean-centered topic centroids over the curated corpus. Positive head of each row = drift bridges, tail half = jump pool. Hand-editable: rows with max sim < 0.06 are noise and should be curated by hand (see WEAK ROWS in the build output).",
       builtFrom: { items: items.length, topics: topics.length },
       createdAt: new Date().toISOString(),
       graph,

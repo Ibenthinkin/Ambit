@@ -243,3 +243,109 @@ against the 3,168-item corpus with zero real console errors (only a harmless mis
 **Open for Ben's re-judgment:** same three ⚖️ verdicts as before (serendipity go/no-go, model +
 recipe, `VECTOR(n)` dim), now specifically informed by comparing **near vs mid vs random** at
 a corpus size where the mid-band actually has candidates to sample from.
+
+## 0.5 — Curation + feed-feel prototype (07-13-26)
+
+Follows the 0.4 verdict + pivot (see log.md): validation moves from "do item
+neighbors look right?" to "does a tiered topic feed over a CURATED pool feel
+like a drift through the good wing of the museum?" North star re-clarified by
+Ben the same day: old-Tumblr curated-but-almost-never-repeating; anti-example
+is xikipedia (traced: no embeddings at all — category-tag score bags, no
+corpus quality judgment, cold start seeds 12 huge categories at equal weight,
+which is why its opening feels random).
+
+### New sources on trial: Cleveland Museum of Art + Wellcome Collection
+
+Picked from docs/source-candidates.md for visual richness (CMA) and
+non-art-museum texture (Wellcome, history of medicine/science). Adapter traps
+found — all will recur in the Phase 3/4 adapters:
+
+- **CMA is the friendliest API of the five.** No key, `limit` up to 1000 (one
+  request per topic), explicit `cc0` search flag, full records in the search
+  response, and — rare for a museum — a real prose `description` on many
+  objects. Still re-check `share_license_status === "CC0"` per record.
+- **Wellcome `thumbnail.url` is a rendered IIIF URL locked to `!200,200`** —
+  not an `info.json` endpoint as their docs imply. Serve it as-is and every
+  image is a 200px thumb. Fix: swap the size segment for `!800,800`
+  (fit-in-box, never upscale — same IIIF trap class as AIC's `843,` in 0.4;
+  verified their thumbs endpoint honors it). License is per item and
+  heterogeneous: request-filter to `cc-0,cc-by,pdm` AND check each work's
+  `thumbnail.license.id`. `pageSize` caps at 100.
+- **AIC's IIIF server bot-blocks provider-side image fetchers** (403s Google's
+  fetcher; fine from a browser or curl). Found when the LLM curation pass
+  failed on 9/11 AIC images. Any pipeline that hands an AIC image URL to a
+  third-party service must download the image itself and pass bytes/base64.
+- **Some Met image URLs contain literal spaces** ("…TR 112 1- 3 2012…") —
+  reject as malformed by strict URL parsers; `encodeURI` before fetching.
+
+### curate.ts — the taste layer (structural floor + LLM curator)
+
+Stage 1 (free, heuristic): drop items sharing a normalized title with >2
+others (the 0.4 "67 items titled textile" pathology — all copies dropped, as
+they're interchangeable), bare single-noun titles on image items, summaries
+under 60 chars. On the 3-source 3,168 corpus: → 2,639 survivors (394
+dup-title, 129 bare-title, 6 thin; losses concentrated exactly where 0.4
+found the noise — Met/Textiles lost 69/75, Met/Machines 65).
+
+Stage 2 (LLM, cached per item×model×prompt-version): gemini-2.5-flash-lite as
+a Tumblr-art-blog-curator persona scores 1–10 + 2–4 aesthetic tags, judging
+image items by the downloaded image itself, not the catalog text (judging
+"visual interest" from "Textile. 18th century." would replay the 0.4 trap).
+40-item probes: judgments look genuinely right — museum treasures (Monk-Scribe
+Astride a Wyvern, Paracas ceramic trumpet) at 9 with usable tags ("medieval
+bestiary", "polychrome ceramic"); keyword-stray Wikipedia hits (HMS Ocean,
+Epidermis (zoology)) at 4; academic-journal stubs at 2. ~1,450 tokens/item →
+full corpus well under $1. Distribution skews 7–9; the feed's score-floor knob
+compensates, and Ben's ~30-item calibration pass can tighten the prompt later
+(PROMPT_VERSION invalidates the cache surgically).
+
+### build-feed.ts + feed.template.html → feed.html — the wind tunnel
+
+Self-contained scrolling feed implementing the post-0.4 design end-to-end,
+with every parameter a live knob (tuning never rebuilds; only corpus changes
+do): CORE/DRIFT/JUMP tier mix over the topic graph; DRIFT = softmax over
+POSITIVE-sim bridges only (first build let a -0.01 "bridge" through on weak
+rows — fixed; no bridge → stay home, honest for the flagged noise rows); JUMP
+= uniform draw from the row's tail half (the strict antipode would be false
+precision at 16 points); item pick = weighted random by (score-floor+1)^power
+× aesthetic-tag overlap boost; diversity = no adjacent same-source cards +
+per-page topic cap; seen-set in localStorage (the never-repeat promise);
+save = visible reweight (toast: "Now also drifting toward Cartography") —
+xikipedia's invisible feedback loop, made legible; debug overlay shows every
+card's why-line (tier, path, sims, curator score). Cold-start modes: taste
+picker (24 curated tiles → topic weights + aesthetic keywords), plain topic
+chips (the xikipedia-style control), and optional `--favorites "…"` (build-time
+LLM maps freeform favorites → topic weights + keywords + a blurb).
+
+Playwright-verified: onboarding (picker enables at 3 picks), 12-card pages
+compose with 0 adjacent-same-source violations, all three tiers appear with
+correct why-lines, save→toast→weight-shift works, infinite scroll appends,
+profile/seen/saves survive reload, drift hops all positive-sim after the fix,
+zero console errors (only the dev-server favicon 404).
+
+### Visual embeddings — run complete; judging open
+
+embed-images.ts via Voyage `voyage-multimodal-3.5` (text+image shared vector
+space; researched vs Jina/Cohere/DeepInfra — Voyage wins on cost + integration
+simplicity). **5,931/5,938 images · 1024-dim · 2.4B pixels (inside the free
+tier) · 35 min.** 7 failures: corrupt source files + dead Wellcome thumbs.
+
+**Trap (bit us twice in one day): museum image servers bot-block third-party
+fetchers.** Voyage's URL-input mode 400s instantly on every AIC IIIF URL —
+same class as AIC 403ing Google's fetcher in the curation pass. Ben's first
+run (URL mode, 128-image batches) spent hours in retry grind because nearly
+every batch contained an AIC image; batch fail → per-item fallback → per-item
+retries. Rewritten to download locally + send base64, 24-image batches,
+checkpoint-to-disk every 8 batches with resume-on-restart. Fixed run: ~170
+images/min. **Rule for the real ingestion pipeline: never hand a museum image
+URL to a third-party service; always pass bytes.**
+
+First unblinded impression from the 6-column harness (explore.html now adds
+the visual column; grid auto-sizes; blind mode shuffles it in with the text
+columns): for a sculptural allegory of Astronomy, text columns return the
+*subject* (astronomy allegory prints, zodiac diagrams); the visual column
+returns the *form* (tritons fountain, ornamental panels, firedogs — ornate
+sculptural things that LOOK alike). Visual NN = medium/form/vibe axis, text
+NN = subject axis. Whether vibe-drift belongs in the feed (e.g. as a "more
+like this look" affordance) is Ben's 0.5-gate judgment; neither axis is
+"wrong", they answer different questions.

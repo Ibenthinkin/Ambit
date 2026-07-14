@@ -53,7 +53,10 @@ Two keys drive cross-screen state in this prototype; recreate as real app/user s
 ## Screens
 
 ### 1. Landing / Sign-in (`Ambit - Landing.dc.html`)
-**Purpose:** Invite-only magic-link sign-in; first thing a new/logged-out user sees.
+
+> **⚠️ Design divergence (2026-07):** the product switched from magic-link to **email + password** auth (SPEC §3.1). The prototype below still shows the magic-link flow — when recreating this screen, replace the email-only form/sent-confirmation stages with sign-in (email + password) and first-time sign-up (invited emails only) states, plus a "forgot password" link. Keep the visual language (card, orbs, input/button styling) exactly as specced; the "no password, no algorithm" caption is obsolete.
+
+**Purpose:** Invite-only sign-in; first thing a new/logged-out user sees.
 **Layout:** Full-screen column, padding `0 30px 40px`, two soft blurred accent-colored orbs drifting in the background (decorative, `filter:blur(40–46px)`, opacity 0.07–0.1, 18–22s drift loop). Brand mark top (ring+dot logo + italic "Ambit" wordmark, 26px), hero headline centered vertically in remaining space, auth card pinned near the bottom.
 **Components:**
 - Hero: "A quieter way to be curious." — Newsreader 42px/1.08, followed by a 300px-max-width subhead at 18px/1.5, muted color.

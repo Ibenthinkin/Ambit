@@ -1,10 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Phase 0 · step 0.2 — sample harvester (throwaway code, see docs/BUILD_PLAN.md).
+ * Phase 0 · steps 0.2/0.5 — sample harvester (throwaway code, see docs/BUILD_PLAN.md).
  *
- * Pulls a few hundred raw items from Wikipedia + Met + Art Institute of Chicago
- * across the topic seeds below, normalizes them to a minimal common shape, and
- * dumps them to phase0/items.json for steps 0.3 (embed) and 0.4 (eyeball).
+ * Pulls a few thousand raw items from Wikipedia + Met + Art Institute of Chicago
+ * + Cleveland Museum of Art + Wellcome Collection across the topic seeds below,
+ * normalizes them to a minimal common shape, and dumps them to phase0/items.json
+ * for embedding (0.3), the eyeball harness (0.4), and curation (0.5 — curate.ts
+ * drops ~17% as catalog noise, which is why the per-topic quota runs rich).
  *
  * Zero dependencies: Bun's fetch + fs only. Responses are cached under
  * phase0/.cache/ so re-runs (and 0.3/0.4 iteration) don't re-hit the APIs.
@@ -35,7 +37,10 @@
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 
-const PER_SOURCE_PER_TOPIC = 75;
+// 150 harvested so the pool is still ≥3k items AFTER curate.ts's quality floor
+// (which hits the museum sources hardest — Met/Textiles lost 69 of 75 at the
+// old quota). Raw quota is cheap; curated survivors are what the feed draws from.
+const PER_SOURCE_PER_TOPIC = 150;
 // ES modules have no `__dirname`; `import.meta.url` is the module's own file URL,
 // so `new URL(relative, import.meta.url)` resolves paths relative to THIS FILE
 // rather than wherever the process happened to be launched from.
@@ -52,7 +57,7 @@ const USER_AGENT =
 
 /** The minimal Phase-0 shape. The real app's NormalizedItem lives in SPEC §5.1. */
 interface Item {
-  source: "wikipedia" | "met" | "aic";
+  source: "wikipedia" | "met" | "aic" | "cma" | "wellcome";
   sourceId: string;
   type: "image" | "article";
   title: string;
@@ -67,28 +72,30 @@ interface Item {
 }
 
 /**
- * Eight seeds spanning the onboarding chip range. Museums index by object
+ * Sixteen seeds spanning the onboarding chip range. Museums index by object
  * vocabulary, not concept, so they get concrete nouns where the topic is abstract.
  */
-const TOPICS: { topic: string; wikipedia: string; met: string; aic: string }[] = [
-  { topic: "Astronomy", wikipedia: "astronomy", met: "astronomy", aic: "astronomy" },
-  { topic: "Botany", wikipedia: "botany", met: "botanical", aic: "botanical" },
-  { topic: "Machines", wikipedia: "machine", met: "machine", aic: "machinery" },
-  { topic: "Mythology", wikipedia: "mythology", met: "mythology", aic: "mythology" },
-  { topic: "The ocean", wikipedia: "ocean", met: "ocean", aic: "sea" },
-  { topic: "Typography", wikipedia: "typography", met: "typography", aic: "typography" },
-  { topic: "Ancient history", wikipedia: "ancient history", met: "ancient", aic: "ancient" },
-  { topic: "Poetry", wikipedia: "poetry", met: "poetry", aic: "poetry" },
+const TOPICS: {
+  topic: string; wikipedia: string; met: string; aic: string; cma: string; wellcome: string;
+}[] = [
+  { topic: "Astronomy", wikipedia: "astronomy", met: "astronomy", aic: "astronomy", cma: "astronomy", wellcome: "astronomy" },
+  { topic: "Botany", wikipedia: "botany", met: "botanical", aic: "botanical", cma: "botanical", wellcome: "botany" },
+  { topic: "Machines", wikipedia: "machine", met: "machine", aic: "machinery", cma: "machine", wellcome: "machinery" },
+  { topic: "Mythology", wikipedia: "mythology", met: "mythology", aic: "mythology", cma: "mythology", wellcome: "mythology" },
+  { topic: "The ocean", wikipedia: "ocean", met: "ocean", aic: "sea", cma: "sea", wellcome: "sea" },
+  { topic: "Typography", wikipedia: "typography", met: "typography", aic: "typography", cma: "typography", wellcome: "printing" },
+  { topic: "Ancient history", wikipedia: "ancient history", met: "ancient", aic: "ancient", cma: "ancient", wellcome: "antiquities" },
+  { topic: "Poetry", wikipedia: "poetry", met: "poetry", aic: "poetry", cma: "poetry", wellcome: "poetry" },
   // Added for the scaled 0.4 re-run (07-10-26): more topics, same object-vocabulary
   // rule from 0.2 — museums index nouns, not abstractions.
-  { topic: "Architecture", wikipedia: "architecture", met: "architecture", aic: "architecture" },
-  { topic: "Music", wikipedia: "music", met: "musical instrument", aic: "musical instrument" },
-  { topic: "Textiles", wikipedia: "textile", met: "textile", aic: "textile" },
-  { topic: "Cartography", wikipedia: "cartography", met: "map", aic: "map" },
-  { topic: "Zoology", wikipedia: "zoology", met: "animal", aic: "animal" },
-  { topic: "Portraiture", wikipedia: "portrait", met: "portrait", aic: "portrait" },
-  { topic: "Ceramics", wikipedia: "ceramic art", met: "ceramic", aic: "ceramic" },
-  { topic: "Geology", wikipedia: "geology", met: "mineral", aic: "mineral" },
+  { topic: "Architecture", wikipedia: "architecture", met: "architecture", aic: "architecture", cma: "architecture", wellcome: "architecture" },
+  { topic: "Music", wikipedia: "music", met: "musical instrument", aic: "musical instrument", cma: "musical instrument", wellcome: "music" },
+  { topic: "Textiles", wikipedia: "textile", met: "textile", aic: "textile", cma: "textile", wellcome: "textile" },
+  { topic: "Cartography", wikipedia: "cartography", met: "map", aic: "map", cma: "map", wellcome: "map" },
+  { topic: "Zoology", wikipedia: "zoology", met: "animal", aic: "animal", cma: "animal", wellcome: "zoology" },
+  { topic: "Portraiture", wikipedia: "portrait", met: "portrait", aic: "portrait", cma: "portrait", wellcome: "portrait" },
+  { topic: "Ceramics", wikipedia: "ceramic art", met: "ceramic", aic: "ceramic", cma: "ceramic", wellcome: "pottery" },
+  { topic: "Geology", wikipedia: "geology", met: "mineral", aic: "mineral", cma: "mineral", wellcome: "geology" },
 ];
 
 // ── plumbing ────────────────────────────────────────────────────────────────
@@ -376,9 +383,172 @@ async function harvestAic(seed: (typeof TOPICS)[number]): Promise<Item[]> {
   return items;
 }
 
+// ── cleveland museum of art ─────────────────────────────────────────────────
+// Images. Added in 0.5 (source-candidates trial). The friendliest API of the
+// five: no key, `limit` up to 1000, full records in the search response (one
+// request per topic!), an explicit CC0 flag, and — rare for a museum — a real
+// prose `description` on many objects, so its summaries aren't pure catalog
+// boilerplate like the Met's.
+
+const CMA_API = "https://openaccess-api.clevelandart.org/api/artworks/";
+
+function cmaSummary(a: any): string {
+  const creators = (a.creators ?? []).map((c: any) => c.description || c.name).filter(Boolean).join("; ");
+  const parts = [
+    // Prose first when the museum wrote some — the 0.2 lesson (subject/story
+    // before medium/department) applied at the source.
+    a.description || null,
+    creators || null,
+    a.creation_date || null,
+    a.technique || null,
+    (a.culture ?? []).filter(Boolean).join(", ") || null,
+    a.type || null,
+    a.department ? `${a.department} collection` : null,
+  ];
+  return toLede(parts.filter(Boolean).join(". "));
+}
+
+async function harvestCma(seed: (typeof TOPICS)[number]): Promise<Item[]> {
+  // `cc0` is a presence-only flag (no =1). We over-ask 3× the quota in ONE
+  // request and still re-check share_license_status per record below — 0.2's
+  // Met lesson (search filters lie; the object record is the truth).
+  const search = await getJson(
+    `${CMA_API}?q=${encodeURIComponent(seed.cma)}&cc0&has_image=1` +
+      `&limit=${PER_SOURCE_PER_TOPIC * 3}&fields=id,title,tombstone,description,creators,` +
+      `creation_date,culture,technique,department,type,images,url,share_license_status`,
+    150,
+  );
+
+  const hits: any[] = search?.data ?? [];
+  record("offered", "cma", seed.topic, hits.length);
+
+  const items: Item[] = [];
+  for (const a of hits) {
+    if (items.length >= PER_SOURCE_PER_TOPIC) break;
+    if (a?.share_license_status !== "CC0" || !a?.images?.web?.url || !a?.title) continue;
+
+    items.push({
+      source: "cma",
+      sourceId: String(a.id),
+      type: "image",
+      title: a.title,
+      summary: cmaSummary(a),
+      imageUrl: a.images.web.url,
+      sourceUrl: a.url,
+      // CMA has no folksonomy tag array — classification fields stand in.
+      tags: uniqueTags([a.type, a.department, a.technique, ...(a.culture ?? [])]),
+      attribution: [
+        (a.creators ?? []).map((c: any) => c.description || c.name).filter(Boolean).join("; "),
+        "The Cleveland Museum of Art",
+      ].filter(Boolean).join(". "),
+      license: "CC0 1.0 (public domain)",
+      topic: seed.topic,
+    });
+  }
+  return items;
+}
+
+// ── wellcome collection ─────────────────────────────────────────────────────
+// Images + text. Added in 0.5 (source-candidates trial) for texture the art
+// museums don't have: history of medicine and science — anatomical plates,
+// apothecary jars, strange instruments. License is per item and heterogeneous,
+// so we ask the API to pre-filter to open licenses AND read each work's own
+// thumbnail.license — same trust-nothing rule as the Met/CMA checks.
+
+const WELLCOME_API = "https://api.wellcomecollection.org/catalogue/v2/works";
+/** No documented rate limit; stay polite — their docs steer bulk users to snapshots. */
+const WELLCOME_DELAY_MS = 250;
+/** IDs the API uses for licenses we can serve. */
+const WELLCOME_OPEN_LICENSES = new Set(["cc-0", "cc-by", "pdm"]);
+const WELLCOME_LICENSE_LABELS: Record<string, string> = {
+  "cc-0": "CC0 1.0 (public domain)",
+  "pdm": "Public Domain Mark",
+  "cc-by": "CC BY 4.0",
+};
+
+function wellcomeSummary(w: any): string {
+  const contributors = (w.contributors ?? []).map((c: any) => c.agent?.label).filter(Boolean).join("; ");
+  const date = w.production?.[0]?.dates?.[0]?.label;
+  // Works have no long `description` field; descriptive text hides in notes.
+  const noteText = (w.notes ?? [])
+    .filter((n: any) => /description|summary/i.test(n.noteType?.label ?? ""))
+    .flatMap((n: any) => n.contents ?? [])
+    .join(" ");
+  const subjects = (w.subjects ?? [])
+    .map((s: any) => s.label ?? s.concepts?.[0]?.label)
+    .filter(Boolean)
+    .join(", ");
+  const parts = [
+    noteText || null,
+    contributors || null,
+    date || null,
+    w.physicalDescription || null,
+    w.workType?.label || null,
+    subjects || null,
+  ];
+  return toLede(parts.filter(Boolean).join(". "));
+}
+
+async function harvestWellcome(seed: (typeof TOPICS)[number]): Promise<Item[]> {
+  const items: Item[] = [];
+  let offered = 0;
+  // pageSize caps at 100 (vs CMA's 1000), so this pages like AIC does.
+  for (let page = 1; page <= 8 && items.length < PER_SOURCE_PER_TOPIC; page++) {
+    const search = await getJson(
+      `${WELLCOME_API}?query=${encodeURIComponent(seed.wellcome)}` +
+        `&items.locations.license=cc-0,cc-by,pdm&pageSize=100&page=${page}` +
+        `&include=production,contributors,subjects,notes`,
+      WELLCOME_DELAY_MS,
+    );
+
+    const hits: any[] = search?.results ?? [];
+    offered += hits.length;
+    if (hits.length === 0) break;
+
+    for (const w of hits) {
+      if (items.length >= PER_SOURCE_PER_TOPIC) break;
+      const licenseId: string | undefined = w?.thumbnail?.license?.id;
+      if (!w?.title || !w?.thumbnail?.url || !licenseId || !WELLCOME_OPEN_LICENSES.has(licenseId)) continue;
+
+      items.push({
+        source: "wellcome",
+        sourceId: String(w.id),
+        type: "image",
+        title: w.title,
+        summary: wellcomeSummary(w),
+        // thumbnail.url arrives as a rendered IIIF URL locked to !200,200 —
+        // too small to serve. Swap the size segment for !800,800 (fit-in-box,
+        // never upscale — the trap AIC's `843,` taught us in 0.4; verified the
+        // thumbs endpoint honors it). If the URL shape ever changes, the
+        // replace is a no-op and we just serve their default size.
+        imageUrl: w.thumbnail.url.replace(/\/full\/![0-9]+,[0-9]+\//, "/full/!800,800/"),
+        sourceUrl: `https://wellcomecollection.org/works/${w.id}`,
+        tags: uniqueTags([
+          ...(w.subjects ?? []).map((s: any) => s.label ?? s.concepts?.[0]?.label),
+          w.workType?.label,
+        ]),
+        attribution: [
+          (w.contributors ?? []).map((c: any) => c.agent?.label).filter(Boolean).join("; "),
+          "Wellcome Collection",
+        ].filter(Boolean).join(". "),
+        license: WELLCOME_LICENSE_LABELS[licenseId] ?? licenseId,
+        topic: seed.topic,
+      });
+    }
+  }
+  record("offered", "wellcome", seed.topic, offered);
+  return items;
+}
+
 // ── run ─────────────────────────────────────────────────────────────────────
 
-const HARVESTERS = { wikipedia: harvestWikipedia, met: harvestMet, aic: harvestAic } as const;
+const HARVESTERS = {
+  wikipedia: harvestWikipedia,
+  met: harvestMet,
+  aic: harvestAic,
+  cma: harvestCma,
+  wellcome: harvestWellcome,
+} as const;
 
 async function runSource(source: keyof typeof HARVESTERS): Promise<Item[]> {
   const out: Item[] = [];
@@ -437,7 +607,9 @@ function median(xs: number[]): number {
 }
 
 await mkdir(CACHE_DIR, { recursive: true });
-console.log(`Harvesting ${TOPICS.length} topics × 3 sources (cache ${USE_CACHE ? "on" : "off"})…\n`);
+console.log(
+  `Harvesting ${TOPICS.length} topics × ${Object.keys(HARVESTERS).length} sources (cache ${USE_CACHE ? "on" : "off"})…\n`,
+);
 
 const harvested = (await Promise.all(Object.keys(HARVESTERS).map((s) => runSource(s as any)))).flat();
 

@@ -8,7 +8,7 @@ A calm, non-social **anti-doomscroll PWA**: an infinite feed of public-domain im
 
 ## Repository status
 
-**Pre-implementation.** There is no application code yet — this repo currently holds the spec and design references. Currently in Phase 0 (see SPEC §14): validating that cross-source embedding serendipity feels good and that free-API content density is sufficient, before the real build.
+**Pre-scaffold.** There is no application code yet — this repo holds the spec, design references, and the completed Phase 0 validation work in `phase0/` (throwaway-but-kept: harvester, curator, topic-graph tooling, and two self-contained browser harnesses — `feed.html` is the reference implementation of the feed algorithm and stays the feel-tuning bench). Phase 0 concluded 07-13-26: item-level embedding recommendation was **rejected**; the validated design is a tiered topic-drift feed over an LLM-curated pool (SPEC §9). Next step: Phase 1 scaffold (SPEC §14).
 
 ## Authoritative documents
 
@@ -18,7 +18,7 @@ A calm, non-social **anti-doomscroll PWA**: an infinite feed of public-domain im
 
 ## Planned stack & commands (from SPEC)
 
-Next.js (App Router) + **Bun** (runtime + package manager), TypeScript, tRPC, TailwindCSS, Drizzle ORM over Postgres + pgvector, Auth.js email magic-link (invite-gated), Vitest (unit) + Playwright (e2e). Once scaffolded, scripts use the `--bun` flag:
+Next.js (App Router) + **Bun** (runtime + package manager), TypeScript, tRPC, TailwindCSS, Drizzle ORM over plain Postgres (no pgvector — see below), Better Auth email + password (invite-gated sign-up), Vitest (unit) + Playwright (e2e). Once scaffolded, scripts use the `--bun` flag:
 
 ```
 bun run dev      # bun run --bun next dev
@@ -28,12 +28,11 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 
 ## Architecture (the parts that span files)
 
-- **One Next.js app** serves frontend + tRPC API; a **decoupled Bun ingestion script** (`scripts/ingest.ts`) fetches from source APIs on a schedule, normalizes, embeds, and upserts into Postgres.
-- **Everything normalizes to one `item` schema** (SPEC §5.1). Each external API gets an isolated `SourceAdapter` (`server/services/sources/*`) with `search()` + `toItem()`; ingestion is idempotent via the `(source, source_id)` unique constraint.
-- **Embeddings are the product.** Every item's `title + summary` is embedded into a pgvector column; the feed's serendipity comes from nearest-neighbor lookups *across sources* (SPEC §9). Native source tags are only a secondary boost signal — never the primary relevance driver.
-- **Feed composition** = weighted-random over the user's picked topics + nearest-neighbors of recently saved items, with a randomness floor. Cursor-based pagination; the cursor encodes the weighting seed.
+- **One Next.js app** serves frontend + tRPC API; a **decoupled Bun ingestion script** (`scripts/ingest.ts`) fetches from source APIs on a schedule, normalizes, **curates** (quality floor + LLM taste score — SPEC §6.2), and upserts into Postgres.
+- **Everything normalizes to one `item` schema** (SPEC §5.1). Each external API gets an isolated `SourceAdapter` (`server/services/sources/*`) with `search()` + `toItem()`; ingestion is idempotent via the `(source, source_id)` unique constraint. Museum image servers bot-block third-party fetchers — anything sending an item's image to an external service must pass bytes, never the URL.
+- **The corpus is the product.** The feed's quality comes from curation at ingest (every item carries a 1–10 LLM `curation_score` + `aesthetic_tags`), not from a ranking function. Embeddings choose **where** to look — a checked-in 16×16 topic-adjacency graph built offline from mean-centered topic centroids; curated-weighted **random** chooses what to show (never similarity — item-level NN was tested and rejected in Phase 0.4).
+- **Feed composition** (SPEC §9) = per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25 — drift-heavy on purpose) → topic via the user's weights or a graph walk → item via curated-weighted random, under diversity constraints (no adjacent same-source; per-page topic caps). Saves reweight *topics*, visibly. Cursor-based pagination; the cursor encodes the page seed. Debug overlay + tuning knobs ship behind a dev flag throughout development.
 - **Auth boundary**: all user-scoped queries filter by `userId`; the only public surface is `items.byId` / `/i/[itemId]`.
-- **Embedding model is undecided** (local 384-dim vs. OpenAI `text-embedding-3-small`) — the `VECTOR(n)` dimension must match whatever Phase 0 picks.
 
 ## Conventions
 

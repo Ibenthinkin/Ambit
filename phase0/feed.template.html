@@ -1,0 +1,537 @@
+<!doctype html>
+<!--
+  Phase 0 · step 0.5 — feed-feel prototype TEMPLATE (throwaway code, see the
+  Phase 0.5 plan + docs/BUILD_PLAN.md). build-feed.ts injects the data payload
+  and writes the self-contained phase0/feed.html (gitignored). Open that file
+  directly in a browser; do not open this template.
+
+  Everything that decides what you see happens in the <script> below, with the
+  parameters exposed in the "tune" drawer — the point of this page is to turn
+  those knobs until the feed feels like the good wing of the museum, and only
+  then freeze the recipe into SPEC §9.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ambit · feed prototype</title>
+<style>
+  :root {
+    --bg: #161411; --panel: #211d18; --card: #262119; --line: #37302a;
+    --text: #e8e2d6; --muted: #9a917f; --accent: #d8c8a8; --save: #e0af68;
+    --wikipedia: #82aaff; --met: #e0af68; --aic: #f7768e; --cma: #9ece6a; --wellcome: #bb9af7;
+    --core: #7aa2f7; --drift: #9ece6a; --jump: #f7768e;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  a { color: var(--accent); }
+  button {
+    background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 12px; font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); color: #161411; font-weight: 600; border-color: var(--accent); }
+  button.primary:disabled { opacity: .4; cursor: default; }
+
+  /* ── top bar ─────────────────────────────────────────────────────────── */
+  header {
+    position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+  header .spacer { flex: 1; }
+  header .stat { color: var(--muted); font-size: 12.5px; }
+
+  /* ── feed column ─────────────────────────────────────────────────────── */
+  #feed { max-width: 560px; margin: 0 auto; padding: 18px 12px 120px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    overflow: hidden; margin-bottom: 18px;
+  }
+  .card img { width: 100%; max-height: 74vh; object-fit: contain; display: block; background: #0f0d0b; }
+  .card .body { padding: 12px 14px 12px; }
+  .topline { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; }
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; color: #161411; flex-shrink: 0; }
+  .badge.wikipedia { background: var(--wikipedia); } .badge.met { background: var(--met); }
+  .badge.aic { background: var(--aic); } .badge.cma { background: var(--cma); } .badge.wellcome { background: var(--wellcome); }
+  .card .title { font-weight: 600; font-size: 16.5px; margin: 7px 0 5px; }
+  .card .title a { color: var(--text); text-decoration: none; }
+  .card .title a:hover { color: var(--accent); }
+  .card .summary { color: var(--muted); font-size: 13.5px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .card.article .summary { -webkit-line-clamp: 7; }
+  .card .foot { display: flex; align-items: center; margin-top: 10px; gap: 8px; }
+  .savebtn { border: none; background: none; font-size: 20px; padding: 2px 6px; color: var(--muted); }
+  .savebtn:hover { color: var(--save); border: none; }
+  .savebtn.saved { color: var(--save); }
+  .atags { color: var(--accent); font-size: 11.5px; opacity: .8; }
+
+  /* debug affordances — visible only when body.debug */
+  .why { display: none; margin-top: 8px; padding: 7px 9px; background: var(--panel); border-radius: 8px; color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  body.debug .why { display: block; }
+  .tier { display: none; font-size: 9.5px; font-weight: 700; letter-spacing: .08em; padding: 1px 6px; border-radius: 4px; color: #161411; }
+  body.debug .tier { display: inline-block; }
+  .tier.CORE { background: var(--core); } .tier.DRIFT { background: var(--drift); } .tier.JUMP { background: var(--jump); }
+
+  #exhausted { display: none; text-align: center; color: var(--muted); padding: 30px 0; }
+
+  /* ── onboarding ──────────────────────────────────────────────────────── */
+  #onboard { max-width: 760px; margin: 0 auto; padding: 40px 16px 80px; }
+  #onboard h2 { font-size: 22px; margin-bottom: 6px; }
+  #onboard .lead { color: var(--muted); margin-bottom: 26px; }
+  .mode { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 20px; }
+  .mode h3 { font-size: 15px; margin-bottom: 4px; }
+  .mode .hint { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  #pickerGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  #pickerGrid .tile { position: relative; border-radius: 10px; overflow: hidden; cursor: pointer; border: 2px solid transparent; }
+  #pickerGrid .tile img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #0f0d0b; }
+  #pickerGrid .tile .t { position: absolute; inset: auto 0 0 0; padding: 14px 6px 5px; font-size: 10.5px; line-height: 1.25; background: linear-gradient(transparent, rgba(10,8,6,.92)); }
+  #pickerGrid .tile.on { border-color: var(--accent); }
+  #pickerGrid .tile.on::after { content: "✓"; position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #161411; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  #chipRow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  #chipRow button.on { background: var(--accent); color: #161411; border-color: var(--accent); font-weight: 600; }
+  .favblurb { font-style: italic; color: var(--accent); margin: 8px 0 10px; }
+  .kwrow { color: var(--muted); font-size: 12.5px; margin-bottom: 12px; }
+
+  /* ── knobs drawer ────────────────────────────────────────────────────── */
+  #knobs {
+    position: fixed; top: 0; right: -340px; width: 330px; height: 100%; z-index: 30;
+    background: var(--panel); border-left: 1px solid var(--line); padding: 18px;
+    overflow-y: auto; transition: right .18s ease;
+  }
+  #knobs.open { right: 0; }
+  #knobs h3 { font-size: 14px; margin-bottom: 14px; }
+  #knobs .knob { margin-bottom: 14px; }
+  #knobs label { display: flex; justify-content: space-between; color: var(--muted); font-size: 12.5px; margin-bottom: 3px; }
+  #knobs label b { color: var(--text); font-variant-numeric: tabular-nums; }
+  #knobs input[type="range"] { width: 100%; accent-color: var(--accent); }
+  #knobs .section { color: var(--accent); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; margin: 20px 0 10px; }
+  #knobs .note { color: var(--muted); font-size: 11.5px; margin-top: 4px; }
+
+  #toast {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(80px); z-index: 40;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 16px; font-size: 13px; transition: transform .22s ease; pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header id="topbar" style="display:none">
+  <h1>Ambit · feed prototype</h1>
+  <span class="stat" id="profileStat"></span>
+  <div class="spacer"></div>
+  <span class="stat" id="seenStat"></span>
+  <button id="debugBtn" title="Show why each card was chosen">debug</button>
+  <button id="knobsBtn" title="Tune the composition">tune</button>
+  <button id="resetBtn" title="Wipe profile + seen and re-onboard">start over</button>
+</header>
+
+<div id="onboard" style="display:none">
+  <h2>Where should the drift begin?</h2>
+  <p class="lead">Pick either door — both just seed the same set of topic weights. Saving things in the feed keeps steering it afterwards.</p>
+
+  <div class="mode" id="favMode" style="display:none">
+    <h3>From your favorites</h3>
+    <div class="hint">Built from: <span id="favInput"></span></div>
+    <div class="favblurb" id="favBlurb"></div>
+    <div class="kwrow" id="favMeta"></div>
+    <button class="primary" id="favStart">Use this profile</button>
+  </div>
+
+  <div class="mode">
+    <h3>Tap what makes you stop scrolling</h3>
+    <div class="hint">At least 3. These seed your topics — and their look seeds your aesthetic keywords.</div>
+    <div id="pickerGrid"></div>
+    <button class="primary" id="pickerStart" disabled>Start drifting</button>
+  </div>
+
+  <div class="mode">
+    <h3>Or just pick topics</h3>
+    <div class="hint">The control condition — xikipedia-style checkbox onboarding, for comparison.</div>
+    <div id="chipRow"></div>
+    <button class="primary" id="chipStart" disabled>Start drifting</button>
+  </div>
+</div>
+
+<div id="feed" style="display:none"></div>
+<div id="exhausted">You've drifted through everything the corpus has for these topics.<br /><button id="reseen" style="margin-top:10px">Forget what I've seen</button></div>
+<div id="sentinel" style="height:1px"></div>
+
+<aside id="knobs">
+  <h3>Composition knobs</h3>
+
+  <div class="section">Tier mix (normalized)</div>
+  <div class="knob"><label>CORE — your topics <b data-v="tierCore"></b></label><input type="range" min="0" max="100" data-k="tierCore" /></div>
+  <div class="knob"><label>DRIFT — adjacent topics <b data-v="tierDrift"></b></label><input type="range" min="0" max="100" data-k="tierDrift" /></div>
+  <div class="knob"><label>JUMP — far topics <b data-v="tierJump"></b></label><input type="range" min="0" max="100" data-k="tierJump" /></div>
+
+  <div class="section">Taste</div>
+  <div class="knob"><label>Curation score floor <b data-v="scoreFloor"></b></label><input type="range" min="1" max="9" data-k="scoreFloor" />
+    <div class="note">Items below this score never appear.</div></div>
+  <div class="knob"><label>Score weighting power <b data-v="scorePower"></b></label><input type="range" min="0" max="30" data-k="scorePower" data-scale="0.1" />
+    <div class="note">0 = uniform random within a topic; higher = the curator's favorites dominate.</div></div>
+  <div class="knob"><label>Aesthetic-tag boost <b data-v="tagBoost"></b></label><input type="range" min="0" max="20" data-k="tagBoost" data-scale="0.1" />
+    <div class="note">Multiplier per keyword an item shares with your profile.</div></div>
+
+  <div class="section">Drift shape</div>
+  <div class="knob"><label>Drift temperature <b data-v="temp"></b></label><input type="range" min="3" max="60" data-k="temp" data-scale="0.01" />
+    <div class="note">Low = drift hugs the strongest bridge; high = wanders the whole row.</div></div>
+  <div class="knob"><label>Second-hop chance <b data-v="hop2"></b></label><input type="range" min="0" max="80" data-k="hop2" data-scale="0.01" />
+    <div class="note">Poetry → Typography → Machines instead of stopping at Typography.</div></div>
+
+  <div class="section">Diversity</div>
+  <div class="knob"><label>Per-page topic cap <b data-v="topicCap"></b></label><input type="range" min="1" max="8" data-k="topicCap" /></div>
+  <div class="knob"><label>Page size <b data-v="pageSize"></b></label><input type="range" min="6" max="24" data-k="pageSize" /></div>
+
+  <button id="knobsReset" style="margin-top:8px">Reset knobs to defaults</button>
+</aside>
+
+<div id="toast"></div>
+
+<script>
+// build-feed.ts replaces the literal below with { topics, graph, items,
+// tastePicker, favorites } — see "build-time data inlining" in build-explore.ts.
+const DATA = /*__DATA__*/null;
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const items = DATA.items;
+const keys = Object.keys(items);
+
+// ── persistent state ─────────────────────────────────────────────────────────
+// Everything round-trips through localStorage so the prototype behaves like a
+// product across reloads: profile (topic weights + aesthetic keywords), what
+// you've seen (the "almost never repeating" promise), what you've saved, and
+// the knob settings — all under one prefix, all wiped by "start over".
+const LS = "ambitFeed.";
+const load = (k, fallback) => { try { return JSON.parse(localStorage.getItem(LS + k)) ?? fallback; } catch { return fallback; } };
+const store = (k, v) => localStorage.setItem(LS + k, JSON.stringify(v));
+
+// Drift-heavy on purpose — the 0.5 gate verdict was "what I enjoy the most is
+// the higher further drift", so DRIFT+JUMP outweigh CORE and second hops are
+// a coin flip. These defaults are the shipped defaults in SPEC §9.
+const DEFAULT_KNOBS = {
+  tierCore: 40, tierDrift: 35, tierJump: 25,
+  scoreFloor: 4, scorePower: 1.5, tagBoost: 0.5,
+  temp: 0.15, hop2: 0.5,
+  topicCap: 3, pageSize: 12,
+};
+
+let profile = load("profile", null);       // { weights: {topic: n}, keywords: [] }
+let knobs = { ...DEFAULT_KNOBS, ...load("knobs", {}) };
+const seen = new Set(load("seen", []));
+const saved = new Set(load("saved", []));
+
+// ── composition engine ───────────────────────────────────────────────────────
+// The post-0.4 design in ~80 lines. Embeddings already did their WHERE work
+// offline (the topic graph); everything here is weighted random + constraints.
+
+const weightedPick = (entries /* [value, weight][] */) => {
+  const total = entries.reduce((s, [, w]) => s + w, 0);
+  if (total <= 0) return null;
+  let r = Math.random() * total;
+  for (const [v, w] of entries) { r -= w; if (r <= 0) return v; }
+  return entries[entries.length - 1][0];
+};
+
+const myTopics = () => Object.entries(profile.weights);
+
+/** CORE: straight weighted draw over the user's own topics. */
+function pickCore() {
+  const topic = weightedPick(myTopics());
+  return { topic, why: `CORE · ${topic}` };
+}
+
+/**
+ * DRIFT: start from one of your topics, walk its adjacency row 1 hop
+ * (softmax over the row's top half — temperature knob decides how much the
+ * strongest bridge dominates), sometimes a second hop. This is the museum-wing
+ * doorway: Poetry → Typography because of the printing press, not noise.
+ */
+function pickDrift() {
+  const start = weightedPick(myTopics());
+  const hop = (from) => {
+    // Only positive-similarity neighbors count as bridges — a weak row (0.4
+    // flagged Music/Portraiture/Architecture as noise) must not let "drift"
+    // walk a -0.01 edge and call it a connection. No bridge → stay home
+    // (CORE-like), which is honest: some wings genuinely have no doorway yet.
+    const row = (DATA.graph[from] ?? []).filter((n) => n.sim > 0);
+    return weightedPick(row.map((n) => [n, Math.exp(n.sim / knobs.temp)]));
+  };
+  const first = hop(start);
+  if (!first) return { topic: start, why: `DRIFT · ${start} (no row)` };
+  let topic = first.topic, why = `DRIFT · ${start} → ${first.topic} (${first.sim.toFixed(2)})`;
+  if (Math.random() < knobs.hop2) {
+    const second = hop(first.topic);
+    if (second && second.topic !== start) {
+      topic = second.topic;
+      why = `DRIFT · ${start} → ${first.topic} → ${second.topic} (${first.sim.toFixed(2)}, ${second.sim.toFixed(2)})`;
+    }
+  }
+  return { topic, why };
+}
+
+/**
+ * JUMP: a principled cross-domain leap — uniform draw from the BOTTOM half of
+ * one of your topics' rows. Not the strict antipode: the tail ordering of a
+ * 16-point mean-centered similarity space is noise, so pretending rank 15 is
+ * meaningfully "farther" than rank 12 would be false precision.
+ */
+function pickJump() {
+  const start = weightedPick(myTopics());
+  const row = DATA.graph[start] ?? [];
+  const tail = row.slice(Math.floor(row.length / 2));
+  const pick = tail[Math.floor(Math.random() * tail.length)];
+  if (!pick) return { topic: start, why: `JUMP · ${start} (no row)` };
+  return { topic: pick.topic, why: `JUMP · far from ${start} → ${pick.topic} (${pick.sim.toFixed(2)})` };
+}
+
+// Unseen item keys per topic, refreshed lazily. A topic's pool shrinks as you
+// scroll — the exhaustion banner appears when every pool is empty.
+function poolFor(topic) {
+  return keys.filter((k) => {
+    const it = items[k];
+    return it.topic === topic && !seen.has(k) && it.score >= knobs.scoreFloor;
+  });
+}
+
+/**
+ * WHAT to show, given WHERE to look: weighted random inside the topic.
+ * Weight = (score above floor)^power × (1 + tagBoost per shared aesthetic
+ * keyword). With power 0 and no keywords this is a pure random draw — the
+ * baseline the taste layer has to beat.
+ */
+function pickItem(topic, lastSource) {
+  let pool = poolFor(topic);
+  if (lastSource) {
+    const varied = pool.filter((k) => items[k].source !== lastSource);
+    if (varied.length) pool = varied; // soft constraint: relax rather than starve
+  }
+  if (!pool.length) return null;
+  const kw = new Set(profile.keywords ?? []);
+  return weightedPick(pool.map((k) => {
+    const it = items[k];
+    const base = Math.pow(it.score - knobs.scoreFloor + 1, knobs.scorePower);
+    const overlap = (it.atags ?? []).filter((t) => kw.has(t)).length;
+    return [k, base * (1 + knobs.tagBoost * overlap)];
+  }));
+}
+
+/** One page of the feed: tier → topic → item, under the diversity caps. */
+function composePage() {
+  const cards = [];
+  const topicCounts = {};
+  let lastSource = null;
+  for (let guard = 0; cards.length < knobs.pageSize && guard < knobs.pageSize * 40; guard++) {
+    const tierName = weightedPick([
+      ["CORE", knobs.tierCore], ["DRIFT", knobs.tierDrift], ["JUMP", knobs.tierJump],
+    ]);
+    const { topic, why } = (tierName === "CORE" ? pickCore : tierName === "DRIFT" ? pickDrift : pickJump)();
+    if (!topic || (topicCounts[topic] ?? 0) >= knobs.topicCap) continue;
+    const key = pickItem(topic, lastSource);
+    if (!key) continue;
+    seen.add(key);
+    topicCounts[topic] = (topicCounts[topic] ?? 0) + 1;
+    lastSource = items[key].source;
+    cards.push({ key, tier: tierName, why });
+  }
+  store("seen", [...seen]);
+  return cards;
+}
+
+// ── rendering ────────────────────────────────────────────────────────────────
+
+function cardHtml({ key, tier, why }) {
+  const it = items[key];
+  return `<div class="card ${it.type}" data-key="${esc(key)}">
+    ${it.imageUrl ? `<img loading="lazy" src="${esc(it.imageUrl)}" alt="" onerror="this.remove()" />` : ""}
+    <div class="body">
+      <div class="topline">
+        <span class="badge ${esc(it.source)}">${esc(it.source)}</span>
+        <span>${esc(it.topic)}</span>
+        <span class="tier ${tier}">${tier}</span>
+      </div>
+      <div class="title"><a href="${esc(it.sourceUrl)}" target="_blank" rel="noopener">${esc(it.title)}</a></div>
+      <div class="summary">${esc(it.summary)}</div>
+      <div class="foot">
+        <button class="savebtn ${saved.has(key) ? "saved" : ""}" title="Save — nudges the feed toward this">${saved.has(key) ? "♥" : "♡"}</button>
+        ${(it.atags ?? []).length ? `<span class="atags">${esc(it.atags.join(" · "))}</span>` : ""}
+      </div>
+      <div class="why">${esc(why)} · curator score ${it.score}</div>
+    </div>
+  </div>`;
+}
+
+function appendPage() {
+  const cards = composePage();
+  if (!cards.length) { $("#exhausted").style.display = "block"; return; }
+  const frag = document.createElement("div");
+  frag.innerHTML = cards.map(cardHtml).join("");
+  for (const el of frag.querySelectorAll(".card")) {
+    el.querySelector(".savebtn").addEventListener("click", () => saveItem(el.dataset.key, el));
+  }
+  while (frag.firstChild) $("#feed").appendChild(frag.firstChild);
+  updateStats();
+}
+
+/**
+ * THE feedback loop, and deliberately a visible one (xikipedia's is invisible
+ * and that reads as "random"): a save nudges the item's topic weight up and
+ * folds the item's aesthetic keywords into the profile, then says so.
+ */
+function saveItem(key, el) {
+  const it = items[key];
+  const btn = el.querySelector(".savebtn");
+  if (saved.has(key)) {
+    saved.delete(key);
+    btn.classList.remove("saved"); btn.textContent = "♡";
+  } else {
+    saved.add(key);
+    btn.classList.add("saved"); btn.textContent = "♥";
+    const fresh = !(it.topic in profile.weights);
+    profile.weights[it.topic] = Math.min(3, (profile.weights[it.topic] ?? 0) + 0.5);
+    for (const t of it.atags ?? []) if (!profile.keywords.includes(t)) profile.keywords.push(t);
+    profile.keywords = profile.keywords.slice(-24);
+    store("profile", profile);
+    toast(fresh ? `Now also drifting toward ${it.topic}` : `Drifting a little more toward ${it.topic}`);
+  }
+  store("saved", [...saved]);
+  updateStats();
+}
+
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function updateStats() {
+  const w = Object.entries(profile.weights).sort((a, b) => b[1] - a[1]);
+  $("#profileStat").textContent = w.map(([t, n]) => `${t} ${n.toFixed(1)}`).slice(0, 6).join(" · ") + (w.length > 6 ? " · …" : "");
+  $("#seenStat").textContent = `${seen.size}/${keys.length} seen · ${saved.size} saved`;
+}
+
+// ── onboarding ───────────────────────────────────────────────────────────────
+
+function startFeed(weights, keywords) {
+  profile = { weights, keywords: [...new Set(keywords)].slice(0, 24) };
+  store("profile", profile);
+  $("#onboard").style.display = "none";
+  $("#topbar").style.display = "flex";
+  $("#feed").style.display = "block";
+  appendPage();
+}
+
+function renderOnboard() {
+  $("#onboard").style.display = "block";
+
+  // Mode: favorites profile (present only if built with --favorites)
+  if (DATA.favorites) {
+    const f = DATA.favorites;
+    $("#favMode").style.display = "block";
+    $("#favInput").textContent = f.input;
+    $("#favBlurb").textContent = f.blurb;
+    $("#favMeta").textContent =
+      `topics: ${Object.entries(f.weights).map(([t, w]) => `${t} ${w}`).join(", ")} — keywords: ${f.keywords.join(", ")}`;
+    $("#favStart").addEventListener("click", () => startFeed({ ...f.weights }, [...f.keywords]));
+  }
+
+  // Mode: taste picker
+  const picked = new Set();
+  $("#pickerGrid").innerHTML = DATA.tastePicker
+    .map((k) => `<div class="tile" data-key="${esc(k)}"><img loading="lazy" src="${esc(items[k].imageUrl)}" alt="" /><div class="t">${esc(items[k].title.slice(0, 44))}</div></div>`)
+    .join("");
+  for (const tile of document.querySelectorAll("#pickerGrid .tile")) {
+    tile.addEventListener("click", () => {
+      const k = tile.dataset.key;
+      picked.has(k) ? picked.delete(k) : picked.add(k);
+      tile.classList.toggle("on", picked.has(k));
+      $("#pickerStart").disabled = picked.size < 3;
+      $("#pickerStart").textContent = `Start drifting${picked.size ? ` (${picked.size} picked)` : ""}`;
+    });
+  }
+  $("#pickerStart").addEventListener("click", () => {
+    const weights = {}, kw = [];
+    for (const k of picked) {
+      weights[items[k].topic] = (weights[items[k].topic] ?? 0) + 1;
+      kw.push(...(items[k].atags ?? []));
+    }
+    startFeed(weights, kw);
+  });
+
+  // Mode: plain topic chips (the control)
+  const chips = new Set();
+  $("#chipRow").innerHTML = DATA.topics.map((t) => `<button data-t="${esc(t)}">${esc(t)}</button>`).join("");
+  for (const b of document.querySelectorAll("#chipRow button")) {
+    b.addEventListener("click", () => {
+      const t = b.dataset.t;
+      chips.has(t) ? chips.delete(t) : chips.add(t);
+      b.classList.toggle("on", chips.has(t));
+      $("#chipStart").disabled = chips.size < 3;
+    });
+  }
+  $("#chipStart").addEventListener("click", () =>
+    startFeed(Object.fromEntries([...chips].map((t) => [t, 1])), []));
+}
+
+// ── knobs drawer ─────────────────────────────────────────────────────────────
+
+function renderKnobs() {
+  for (const input of document.querySelectorAll("#knobs input[type=range]")) {
+    const k = input.dataset.k, scale = Number(input.dataset.scale ?? 1);
+    input.value = Math.round(knobs[k] / scale);
+    const label = document.querySelector(`#knobs [data-v="${k}"]`);
+    const paint = () => (label.textContent = scale === 1 ? String(knobs[k]) : knobs[k].toFixed(2));
+    paint();
+    input.oninput = () => { knobs[k] = Number(input.value) * scale; store("knobs", knobs); paint(); };
+  }
+}
+$("#knobsBtn").addEventListener("click", () => $("#knobs").classList.toggle("open"));
+$("#knobsReset").addEventListener("click", () => { knobs = { ...DEFAULT_KNOBS }; store("knobs", knobs); renderKnobs(); });
+$("#debugBtn").addEventListener("click", () => document.body.classList.toggle("debug"));
+$("#resetBtn").addEventListener("click", () => {
+  if (!confirm("Wipe profile, seen history, saves, and knobs?")) return;
+  for (const k of ["profile", "seen", "saved", "knobs"]) localStorage.removeItem(LS + k);
+  location.reload();
+});
+$("#reseen").addEventListener("click", () => {
+  seen.clear(); store("seen", []);
+  $("#exhausted").style.display = "none";
+  appendPage();
+});
+
+// Close the drawer when clicking anywhere outside it.
+document.addEventListener("click", (e) => {
+  const k = $("#knobs");
+  if (k.classList.contains("open") && !k.contains(e.target) && e.target.id !== "knobsBtn") k.classList.remove("open");
+});
+
+// ── infinite scroll ──────────────────────────────────────────────────────────
+// IntersectionObserver fires when the 1px sentinel below the feed scrolls into
+// view (600px early via rootMargin) — the standard replacement for scroll-
+// position math, and the same mechanism the real app's feed will use.
+new IntersectionObserver(
+  (entries) => { if (entries[0].isIntersecting && profile) appendPage(); },
+  { rootMargin: "600px" },
+).observe($("#sentinel"));
+
+// ── boot ─────────────────────────────────────────────────────────────────────
+renderKnobs();
+if (profile) {
+  $("#topbar").style.display = "flex";
+  $("#feed").style.display = "block";
+  appendPage();
+} else {
+  renderOnboard();
+}
+</script>
+</body>
+</html>

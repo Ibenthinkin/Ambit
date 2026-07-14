@@ -68,13 +68,104 @@ structure, drift there is indistinguishable from noise. Script flags them; curat
 - Keep `phase0/` on disk — `harvest.ts` is still the basis for the real adapters.
 
 **Open / next:**
-- Ben is putting the topic-drift proposal to Fable before committing, to compare approaches.
+- ~~Ben is putting the topic-drift proposal to Fable before committing~~ → done, session 2 below.
 - SPEC §9 (feed algo), §5.1 (vector column), §15 (embedding-dimension open question) and the
   CLAUDE.md "**Embeddings are the product**" line are all now **false** and need rewriting once the
-  approach is settled. Not touched yet, deliberately.
-- Open question the graph raises: 16 topics is small enough that a **hand-authored** adjacency matrix
-  would probably beat the computed one. The computed version's value is that it scales to 50–100
-  topics without curation. Likely answer: ship the computed matrix as a *seed*, hand-fix the weak rows.
+  approach is settled. Not touched yet, deliberately — the sweep is gated on 0.5 (below).
+- ~~Hand-authored adjacency matrix vs computed~~ → resolved by session 2's recompute: on the
+  curated 5-source corpus the computed graph has zero weak rows; hand-editing demoted to review.
+
+---
+
+**Session 3 (night) — ⚖️ THE 0.5 GATE PASSED; Phase 0 closed; docs swept.**
+
+Ben's verdict on `feed.html`: *"it's getting good. definitely on the right track… what I enjoy
+the most is the higher further drift."* Consequences, all landed:
+- **Default tier mix shifted drift-heavy:** CORE 40 / DRIFT 35 / JUMP 25, second-hop chance
+  0.5 (was 55/30/15, hop 0.35). These are now the shipped defaults in SPEC §9. (Anyone with
+  stored knobs from an earlier browse: hit "Reset knobs to defaults" to pick them up.)
+- **Debug overlay + tuning knobs stay in the product** behind a dev flag for the whole
+  development period — feel-tuning is ongoing product work.
+- **The doc sweep, in one commit:** SPEC rewritten end-to-end for the validated design
+  (pgvector/`VECTOR(n)`/`nearestNeighbors` removed everywhere; §5.1 gains
+  `curation_score`/`aesthetic_tags`/`topic_id`; §6.2 is now the curator service; §9 is the
+  tiered-drift algorithm with the 0.5 defaults; §14 marks Phase 0 complete; §15 splits
+  settled-vs-open). CLAUDE.md "Embeddings are the product" → "The corpus is the product."
+  README status → Phase 0 complete. source-candidates: CMA + Wellcome marked ✅ kept/promoted.
+  BUILD_PLAN 0.5 all checked; 2.1/3.3/8.1 rewritten for the no-pgvector world.
+- **Still open (SPEC §15):** visual-embeddings keep-or-cut (Ben hasn't blind-judged the sixth
+  column yet), curator prompt calibration, `--favorites` with real input, topic-graph refresh
+  cadence, tier-mix under weeks of real use.
+
+**Session 2 (evening) — vision re-clarified; Phase 0.5 "Feel Gate" built end-to-end.**
+
+Fable's take on the 0.4 debate, as requested: **pivot endorsed**, with the caveat that the
+empirical "NO" was overdetermined — item-NN was never tested on a clean corpus, but the
+structural argument (top-k NN is anti-serendipity by definition) and the product-feel argument
+(random-within-interests won both rounds) decide it regardless. Pushbacks that became decisions:
+saves are **demoted to a topic-level signal, not dead**; item vectors **stay in the offline
+pipeline** (dedupe, quality, graph recompute) — only the request path drops them; JUMP =
+**random draw from the row's tail half**, not the strict antipode (false precision at 16 points).
+
+Ben then re-stated the north star: the feel of **old Tumblr's curated-but-never-repeating
+drift** — "a person's favorite wing of a museum" — pushed a bit further cross-domain, run rich
+(personal product, no scale constraints). Anti-example researched: **xikipedia** (traced the
+actual code: no embeddings — category-tag score bags; no quality layer beyond stub-removal;
+cold start seeds 12 huge categories at equal weight, which is *why* it opens boring; feedback
+loop invisible). Diagnosis for Ambit: the topic graph gives **structure (WHERE)** but nothing
+gives **taste (WHAT)** — the missing layer is item-level curation + a differentiated cold start.
+Phase 0.5 planned and approved (see BUILD_PLAN 0.5).
+
+**Shipped (all `phase0/`, verified end-to-end):**
+- **Corpus 3,168 → 9,811 → curated 8,093.** `harvest.ts` + Cleveland Museum (CC0, no key, real
+  prose descriptions — friendliest API of the five) + Wellcome Collection (open-license filter +
+  per-item license check); quota 75→150. New traps recorded in NOTES: Wellcome's `thumbnail.url`
+  is a rendered IIIF URL locked to `!200,200` (not `info.json` as docs imply); AIC's IIIF server
+  bot-blocks provider-side image fetchers; some Met image URLs contain literal spaces.
+- **`curate.ts` — the taste layer.** Stage 1 structural floor (dup-titles >2, bare-noun image
+  titles, thin summaries): 9,811 → 8,093, losses exactly where 0.4 found the noise. Stage 2:
+  gemini-2.5-flash-lite as a Tumblr-art-blog-curator persona scores every item 1–10 + aesthetic
+  tags, judging images by the *downloaded image* (base64 — the catalog text would replay the 0.4
+  trap). ~12.4M tokens ≈ $1.25, cached per item×model×prompt-version. Spot-checks read true:
+  Great Wave / Frederick Douglass daguerreotype / Voyager Family Portrait at 10; book-title-page
+  stubs at 1; keyword-strays at 4.
+- **Topic graph recomputed on the curated corpus: zero weak rows** (0.4's three noise rows all
+  healed). Machines↔Typography 0.35, Ancient history↔Mythology 0.34, Architecture→Cartography
+  0.12 — bridges are ideas, not mediums.
+- **`build-feed.ts` + `feed.template.html` → `feed.html` — the wind tunnel.** Self-contained
+  scrolling feed implementing the whole post-0.4 design: CORE/DRIFT/JUMP tier mix (drift walks
+  positive-sim bridges only — first build let a −0.01 edge through, caught via the debug
+  overlay; jump = tail-half draw), item pick weighted by curator score + aesthetic-tag overlap,
+  no-adjacent-same-source + per-page topic caps, localStorage seen-set (never repeats), save →
+  visible reweight with a toast ("Now also drifting toward Cartography" — xikipedia's invisible
+  loop, made legible), debug why-line per card, all parameters live knobs. Cold-start modes:
+  **taste picker** (24 top-scored items — now The Great Wave, The Scream, the Enigma machine,
+  celestial woodcuts), **topic chips** (the xikipedia-style control), and **`--favorites "…"`**
+  (build-time LLM maps freeform favorites → topic weights + keywords + a blurb). Playwright:
+  composed pages average curator score 8.0 (min 7), five sources interleaved, zero console errors.
+- **`embed-images.ts` ready** for the visual-vibe experiment — Voyage `voyage-multimodal-3.5`
+  (URL-native, shared text/image space, free tier covers the corpus; researched vs
+  Jina/Cohere/DeepInfra). **Blocked on `VOYAGE_API_KEY`** (free, dash.voyageai.com).
+
+**Open / next (pick up here):**
+- **Ben browses `feed.html` — this is the 0.5 gate.** Compare the taste-picker vs topic-chips
+  cold starts; turn the knobs (tier mix, score floor, drift temperature); debug overlay shows
+  every card's why. Regenerate anytime: `harvest → curate → embed → topic-graph → build-feed`.
+- Ben's curator calibration: spot-check ~30 scores (visible in the debug overlay); if the taste
+  is off, describe the miss → prompt tweak → `PROMPT_VERSION` bump re-scores for ~$1.25.
+  Reference Tumblr-blog links welcome — they'd be distilled into the curator persona.
+- `--favorites` mode needs Ben's real list to be judged fairly.
+- ~~`VOYAGE_API_KEY` → run embed-images.ts~~ → done (session 3, same day): Ben's first run
+  crawled for hours — Voyage's URL fetcher is bot-blocked by AIC (same trap as the curator,
+  second time in one day; NOTES now carries the rule: *never hand a museum image URL to a
+  third-party service, pass bytes*). Rewritten to local-download + base64 with checkpoint/resume:
+  **5,931 visual vectors in 35 min**, free tier. explore.html rebuilt with a sixth
+  **voyage-multimodal · visual** column (blind mode shuffles it in with the text columns).
+  First impression: text NN finds the *subject*, visual NN finds the *form/vibe* — for a
+  sculptural Astronomy allegory, text returns zodiac prints, visual returns tritons fountains
+  and firedogs. **Judge in the blind harness whether vibe-drift belongs in the feed.**
+- **After the gate:** the one-sweep doc rewrite (SPEC §9/§5.1/§6.1/§15, CLAUDE.md "Embeddings
+  are the product" line, README status, source-candidates trial verdicts, system-map artifact).
 
 ### [[07-11-26 Sat]] — Auth rethink: magic link → email + password (Better Auth)
 

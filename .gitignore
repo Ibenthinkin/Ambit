@@ -20,16 +20,22 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Playwright MCP session artifacts (screenshots/snapshots from verification runs)
+.playwright-mcp/
+
 # OS / editor
 .DS_Store
 *.swp
 .idea/
 .vscode/
 
-# Phase 0 harvester response cache + generated outputs (reproducible via embed.ts / build-explore.ts)
+# Phase 0 harvester response cache + generated outputs (reproducible via embed.ts / build-explore.ts / curate.ts / build-feed.ts)
 phase0/.cache/
+phase0/.cache-curate/
 phase0/vectors/
 phase0/explore.html
+phase0/feed.html
+phase0/items.curated.json
 
 # Python (Phase 0 prototype scripts)
 __pycache__/

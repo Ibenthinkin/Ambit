@@ -28,6 +28,15 @@ const SETS = [
   { id: "bgem3-B", label: "bge-m3 · B", file: "bge-m3--B.json" },
 ];
 
+// 0.5's visual-vibe experiment (embed-images.ts) joins as a fifth column when
+// its vectors exist. It only covers image items — articles have no visual
+// vector, so their visual column will read "no neighbors", which is correct.
+if (await Bun.file(`${dir}vectors/voyage-multimodal--visual.json`).exists()) {
+  SETS.push({ id: "visual", label: "voyage-multimodal · visual", file: "voyage-multimodal--visual.json" });
+} else {
+  console.log("(no visual vectors on disk — run embed-images.ts to add the visual column)");
+}
+
 const items: any[] = await Bun.file(`${dir}items.json`).json();
 const keyOf = (i: any) => `${i.source}:${i.sourceId}`;
 

@@ -6,7 +6,7 @@
 
 Ambit is a calm, anti-doomscroll PWA: an infinite feed of public-domain images/articles with embeddings-led cross-source serendipity. This plan takes the repo from pre-code (spec + design handoff only) through Phase 0 validation, MVP, deploy, and polish. Execution is driven session by session; each numbered step is sized for roughly one working session.
 
-**Decisions already made:** magic-link mail = **Mailpit in dev, Resend in prod**; dev DB = **local Docker Compose (pgvector image)**; embeddings provider = **OpenRouter** (model still open, see 0.3/0.4); this file is the execution tracker.
+**Decisions already made:** auth = **Better Auth, email + password, invite-gated sign-up** (replaced the original Auth.js magic-link plan, 2026-07); transactional mail (password reset) = **Mailpit in dev, Resend in prod**; dev DB = **local Docker Compose, plain Postgres** (pgvector dropped with the 0.4 pivot); feed = **tiered topic drift over an LLM-curated pool** (0.4/0.5 — SPEC §9); offline embeddings for topic-graph tooling = **OpenRouter `text-embedding-3-small` × recipe A**; ingest curation = **cheap vision model via OpenRouter, images passed as bytes**; this file is the execution tracker.
 
 Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
@@ -16,7 +16,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 *Settles the two existential risks — does cross-source serendipity feel good, and is free-API density sufficient — and picks the embedding model. Code lives in `phase0/`, excluded from the future app; keep it in git for the record.*
 
-- [x] **0.1 — Commit this plan + repo tidy.** Commit this plan as `docs/BUILD_PLAN.md`. Move `Ambit/LICENSE` (stray MIT license in a subdirectory) to repo root, update README "License: TBD" → MIT. Fill `.env.example` with all vars the plan will introduce (`DATABASE_URL`, `RESEND_API_KEY`, `NEXTAUTH_SECRET`, `OPENROUTER_API_KEY`).
+- [x] **0.1 — Commit this plan + repo tidy.** Commit this plan as `docs/BUILD_PLAN.md`. Move `Ambit/LICENSE` (stray MIT license in a subdirectory) to repo root, update README "License: TBD" → MIT. Fill `.env.example` with all vars the plan will introduce (`DATABASE_URL`, `RESEND_API_KEY`, `BETTER_AUTH_SECRET`, `OPENROUTER_API_KEY`). *(Originally shipped with `NEXTAUTH_SECRET`; renamed when the auth decision changed to Better Auth.)*
   *Done = plan committed, license at root, `.env.example` complete.*
 
 - [x] **0.2 — Sample harvester.** Bun script `phase0/harvest.ts`: fetch ~300–600 raw items from **Wikipedia + Met + Art Institute of Chicago** across ~8 topic seeds spanning the onboarding chip range (e.g., Astronomy, Botany, Machines, Mythology, The ocean, Typography, Ancient history, Poetry). Normalize to a minimal `{source, sourceId, type, title, summary, imageUrl, sourceUrl, tags}` shape, dump to `phase0/items.json`. Note per-source density/quality observations in `phase0/NOTES.md`.
@@ -25,14 +25,24 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 - [x] **0.3 — Embed: 2 models × 2 recipes.** `phase0/embed.ts`, all via **OpenRouter** (`POST /api/v1/embeddings`, batched array `input`, `OPENROUTER_API_KEY`). Models: `openai/text-embedding-3-small` (1536) and `baai/bge-m3` (1024). **Recipes** (keep summary construction swappable — 0.2 found this is the bigger lever): **A** = `title + "\n" + summary` as harvested; **B** = subject-first, leading with `title + tags` before the catalogue fields, so museum items aren't dominated by medium/department. → **4 vector sets**. Also probe whether OpenRouter honors OpenAI's `dimensions` param (undocumented; decides if 1536 can be shortened).
   *Done = four embedding files; `dimensions` support answered; rough timing/cost noted.*
 
-- [ ] **0.4 — Eyeball harness + verdicts.** `phase0/explore.html` (or CLI): pick an item → show its top-N nearest neighbors **restricted to other sources**, as 4 side-by-side columns (model × recipe) plus a random-baseline column. Spend real time browsing. ⚖️ **Decide:** (1) serendipity feels good vs random — go/no-go; (2) model + recipe + `VECTOR(n)` dim; (3) any density red flags. Watch specifically for neighbors clustering on **medium** ("all the bronzes") rather than **subject** — if so, recipe B should fix it; blame the model only after the recipe. Record all three in `SPEC.md` §6.2/§15 and `phase0/NOTES.md`.
-  *Done = three decisions recorded in SPEC; Phase 0 marked complete in README status.*
+- [x] **0.4 — Eyeball harness + verdicts.** `phase0/explore.html` (or CLI): pick an item → show its top-N nearest neighbors **restricted to other sources**, as 4 side-by-side columns (model × recipe) plus a random-baseline column. Spend real time browsing. ⚖️ **Decide:** (1) serendipity feels good vs random — go/no-go; (2) model + recipe + `VECTOR(n)` dim; (3) any density red flags. Watch specifically for neighbors clustering on **medium** ("all the bronzes") rather than **subject** — if so, recipe B should fix it; blame the model only after the recipe. Record all three in `SPEC.md` §6.2/§15 and `phase0/NOTES.md`.
+  *Outcome (07-13-26): verdict was **NO on item-level NN** — all four sets indistinguishable and over-clustered; corpus boilerplate + top-k's anti-serendipity nature explain it (see log.md). Pivot: embeddings move up a level to a 16×16 **topic-drift graph** (`phase0/topic-graph.ts`), item choice becomes curated-random. The SPEC/README recording moved into 0.5's gate, where the replacement design gets validated first.*
+
+- [x] **0.5 — The Feel Gate: curation + feed prototype.** The 0.4 pivot needs its own validation before Phase 1: does a **tiered topic feed over a curated pool** feel like "a drift through the good wing of the museum"? (North star re-clarified 07-13-26 — old-Tumblr curated-but-never-repeating; anti-example: xikipedia's structureless random. See log.md.)
+  - [x] Structural quality floor + dedupe: `phase0/curate.ts` stage 1 (dup-titles >2, bare-noun image titles, thin summaries) → `items.curated.json` + survival report. First run: 3,168 → 2,639, losses concentrated in Met/Textiles+Machines as 0.4 predicted.
+  - [x] Two new sources on trial in `harvest.ts` (per `docs/source-candidates.md` loop): **Cleveland Museum of Art** (CC0, no key, prose descriptions!) + **Wellcome Collection** (open-license filter + per-item check, IIIF thumbs resize trap noted). Quota 75 → 150/source/topic.
+  - [x] LLM curation pass: `curate.ts` stage 2 — cheap vision model scores every survivor 1–10 ("would a great Tumblr art-blog curator post this?") + 2–4 aesthetic tags; judged from the downloaded image (base64 — museum servers bot-block provider fetchers). Full corpus: 8,093 items, 12.4M tokens ≈ $1.25, spot-checks read true (Great Wave 10, journal stubs 1–2). *Prompt calibration against Ben-labeled items stays an ongoing item (SPEC §15) — scores skew 7–9 but rank correctly.*
+  - [x] Visual-embeddings experiment: `phase0/embed-images.ts` via **Voyage `voyage-multimodal-3.5`** — 5,931 vectors in 35 min, free tier. (First attempt in URL mode crawled for hours: AIC bot-blocks Voyage's fetcher — rewritten to base64 + checkpoint/resume; rule recorded in NOTES.) explore.html now has the visual column, blind-shuffled with the text columns. *The keep-or-cut judgment joins the ⚖️ gate below: early look says text NN = subject, visual NN = form/vibe.*
+  - [x] Feed-feel prototype: `phase0/build-feed.ts` + `feed.template.html` → `feed.html`. CORE/DRIFT/JUMP over the topic graph (drift = softmax over positive-sim bridges only; jump = bottom-half draw), curation-weighted item picks, source-adjacency + topic-cap diversity rules, seen-tracking, save-to-reweight loop with visible feedback, debug overlay, live knobs. Two cold-start modes (taste picker / topic chips) + optional third (`--favorites "…"` → LLM taste profile).
+  - [x] Recompute `topic-graph.json` on the curated 5-source corpus. *Outcome: **zero weak rows** (was 3 — Music, Portraiture, Architecture all healed by curation + corpus scale; best-neighbour sims 0.06–0.35, bridges intellectually real). Hand-curation demoted from "required fix" to an at-gate review of the rows with Ben.*
+  - [x] ⚖️ **The gate: PASSED (07-13-26).** Ben: "definitely on the right track… what I enjoy the most is the higher further drift." Consequences: default tier mix shifted drift-heavy (CORE 40 / DRIFT 35 / JUMP 25; second-hop chance 0.5); debug overlay + tuning knobs stay in through all of development. Doc sweep done in one commit (SPEC, CLAUDE.md, README, source-candidates verdicts, log.md, system-map artifact). Still open, tracked in SPEC §15: visual-embeddings keep-or-cut (blind harness ready), curator calibration, `--favorites` with real input.
+  *Done = gate passed and every 0.4/0.5 decision recorded in SPEC; Phase 0 closed in README.* ✅ **Phase 0 complete — next: 1.1 scaffold.**
 
 ---
 
 ## Phase 1 — Scaffold & tooling
 
-- [ ] **1.1 — Scaffold the app.** `create-t3-app` (Next.js App Router + tRPC + Tailwind + Drizzle + NextAuth) with Bun as runtime + package manager; TypeScript strict. Pin versions. Wire `package.json` scripts per SPEC §13 (`--bun` flag). Verify `bun run dev` serves the starter.
+- [ ] **1.1 — Scaffold the app.** `create-t3-app` (Next.js App Router + tRPC + Tailwind + Drizzle; **decline its NextAuth option** — create-t3-app doesn't offer Better Auth yet, so auth is added by hand in 2.2) with Bun as runtime + package manager; TypeScript strict. Pin versions. Wire `package.json` scripts per SPEC §13 (`--bun` flag). Verify `bun run dev` serves the starter.
   *Done = starter app runs under Bun; committed.*
 
 - [ ] **1.2 — Quality tooling + CI.** Vitest (unit) + Playwright (e2e, installed but minimal) + lint/format (ESLint + Prettier, or Biome — pick one and note it). GitHub Actions: typecheck, lint, unit tests, build on push. Add a `bun run check` meta-script.
@@ -45,11 +55,11 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 ## Phase 2 — Database & auth
 
-- [ ] **2.1 — Postgres + Drizzle schema.** `docker-compose.yml` with `pgvector/pgvector` image + Mailpit. Drizzle schema per SPEC §5 (`item`, `topic`, `user_topic`, `saved_item`, `invite`) + Auth.js adapter tables; `VECTOR(n)` from Phase 0 decision. Migrations via drizzle-kit; indexes incl. HNSW. Repository skeletons `server/db/{client,items,feed,saves,topics}.ts`.
+- [ ] **2.1 — Postgres + Drizzle schema.** `docker-compose.yml` with plain `postgres` image + Mailpit (pgvector dropped with the 0.4 pivot — no vector column anywhere in §5). Drizzle schema per SPEC §5 (`item` incl. `curation_score`/`aesthetic_tags`/`topic_id`, `topic`, `user_topic`, `saved_item`, `invite`) + Better Auth core tables (`user`, `session`, `account`, `verification` — generate with `npx auth@latest generate`, then own them in `schema.ts`). Migrations via drizzle-kit; indexes per §5.6 (note `idx_item_topic_score` — the feed's draw path). Repository skeletons `server/db/{client,items,feed,saves,topics}.ts`. Check in `server/config/topic-graph.json` (from `phase0/topic-graph.ts`).
   *Done = `docker compose up` + migrate from clean state works; schema matches SPEC §5.*
 
-- [ ] **2.2 — Magic-link auth + invite gating.** Auth.js email provider → Mailpit (dev) / Resend (prod, env-switched). `signIn` callback rejects emails without a pending/accepted `invite` row; accepting flips status. `bun run invite <email>` admin script. Session available server + client; middleware redirects unauthenticated users off `/feed`, `/saved`, `/onboarding`.
-  *Done = full loop works locally: invite → magic link lands in Mailpit → click → session; uninvited email politely refused.*
+- [ ] **2.2 — Email + password auth (Better Auth) + invite gating.** Better Auth with `emailAndPassword: { enabled: true }`, Drizzle adapter (`provider: "pg"`), catch-all route `app/api/auth/[...all]/route.ts` via `toNextJsHandler`. Invite gating in `databaseHooks.user.create.before`: throw `APIError` unless the email has a pending/accepted `invite` row; accepting flips status. Password reset via `emailAndPassword.sendResetPassword` → Mailpit (dev) / Resend (prod, env-switched); skip `requireEmailVerification` (the invite list is the trust anchor). `bun run invite <email>` admin script. Session (database-backed) available server (`auth.api.getSession({ headers })`) + client (`better-auth/react`); middleware redirects unauthenticated users off `/feed`, `/saved`, `/onboarding`.
+  *Done = full loop works locally: invite → sign-up with password → session; uninvited sign-up politely refused; forgot-password mail lands in Mailpit and resets successfully.*
 
 - [ ] **2.3 — Topic seed data.** Define the 32 onboarding topics (labels from the design handoff §2) in a checked-in config with per-source seed queries (`topic.seed_queries` JSONB); seed script upserts them. Start with seed queries for the three Phase-3 sources only; extend in 6.2.
   *Done = `topic` table seeded; labels match design handoff exactly.*
@@ -66,7 +76,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 - [ ] **3.2 — Met + AIC adapters.** Same pattern, reusing Phase 0 findings (endpoints, quirks). Met: objects endpoint, public-domain filter, department/medium/culture → tags. AIC: `/artworks/search` with IIIF image URL construction. Fixture-based tests each.
   *Done = both adapters live-verified + tested; three total sources.*
 
-- [ ] **3.3 — Embeddings service + nearest neighbors.** `server/services/embeddings.ts`: the Phase-0 model behind a single `embed(text)` seam, calling **OpenRouter** with a batched array `input` (ingestion embeds in batches, never one call per item) — model id in env so a same-dimension swap needs no code change. Export the winning recipe as `buildEmbeddingText(item)` so the string fed to the model is defined in exactly one place. `nearestNeighbors(embedding, {limit, excludeIds})` in `server/db/items.ts` using pgvector cosine + HNSW. Unit test the query builder + `buildEmbeddingText`; integration-test against the dev DB with a tiny seeded set.
+- [ ] **3.3 — Curation service.** `server/services/curator.ts`, ported from `phase0/curate.ts` (SPEC §6.2): structural quality floor + LLM curator (persona prompt as a versioned constant; response cache keyed item×model×`PROMPT_VERSION`; images downloaded and passed as base64 — museum servers bot-block provider-side fetchers, see NOTES). `drawFromTopic(topicId, {scoreFloor, excludeIds, limit})` in `server/db/items.ts` (weighted random by curation score). Unit test the floor rules + response parsing + draw-weight math; integration-test against the dev DB with a tiny seeded set.
   *Done = `embed()` + `nearestNeighbors()` work end-to-end against dev DB.*
 
 - [ ] **3.4 — Ingestion job.** `scripts/ingest.ts`: for each topic × seed query × adapter → fetch, normalize, embed, `upsertItem` (idempotent on `(source, source_id)`). Per-source rate-limit throttling, per-source failure isolation (one source down ≠ job dead), structured log summary (fetched/upserted/skipped/errored per source). Run it to populate the dev DB (~1–2k items).
@@ -91,8 +101,8 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 - [ ] **5.1 — Design system foundation.** Tailwind theme from the handoff tokens: warm-dark palette (`#161411` bg etc.), the 4-accent system (gold default) as CSS vars — one `accent` theme knob app-wide. Newsreader (400/500/600 + italics) via `next/font` + system sans. SVG icon set recreated from the prototypes (bookmark, share, close, arrows, envelope, diamond, ring-and-dot logo). Shared primitives: pill button/chip, card, toast, bottom sheet (26px top radius, slide-up motion), rise-in animation utility.
   *Done = a `/dev/tokens` scratch page renders every primitive in all 4 accents matching the handoff.*
 
-- [ ] **5.2 — Landing / sign-in.** `/` per handoff §1: hero, drifting blurred accent orbs, email form → sending → "check your inbox" states, inline validation, wired to real Auth.js magic-link flow.
-  *Done = visually matches `screenshots/01-landing.png`; real sign-in works through it.*
+- [ ] **5.2 — Landing / sign-in.** `/` per handoff §1 **plus its divergence note** (prototype shows the old magic-link flow): hero, drifting blurred accent orbs, then sign-in (email + password), first-time sign-up for invited emails, and forgot-password states — same card/input/button visual language as the prototype, inline validation, wired to real Better Auth flows.
+  *Done = visual language matches `screenshots/01-landing.png`; real sign-up, sign-in, and reset work through it.*
 
 - [ ] **5.3 — Onboarding.** `/onboarding` per handoff §2: 32-chip grid, pop animation on select, sticky CTA ("Pick N more" → "Start exploring", `minPicks=3`), persists via `topics.setMine`, redirect-until-onboarded logic.
   *Done = new user lands here, picks chips, arrives at a feed seeded from them.*
@@ -126,7 +136,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 ## Phase 7 — Hardening, e2e, performance
 
-- [ ] **7.1 — Playwright e2e suite.** SPEC §12 flows: magic-link sign-in (Mailpit API to fetch the link) → onboarding → feed renders; image fullscreen + swipe; article expand; save persists across reload; invite gating blocks uninvited email; public `/i/[itemId]` renders read-only. Wire into CI (compose services in the workflow).
+- [ ] **7.1 — Playwright e2e suite.** SPEC §12 flows: invited sign-up + sign-in (email + password) → onboarding → feed renders; password reset (Mailpit API to fetch the reset link); image fullscreen + swipe; article expand; save persists across reload; invite gating blocks uninvited sign-up; public `/i/[itemId]` renders read-only. Wire into CI (compose services in the workflow).
   *Done = suite green locally and in CI.*
 
 - [ ] **7.2 — Security pass.** Sanitize all source-derived HTML/text at ingestion (never raw `dangerouslySetInnerHTML`); authz audit — every `saved_item`/`user_topic` query filters `userId`; rate limits verified; security headers (CSP tuned for image sources); no private data on the public surface.
@@ -139,8 +149,8 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 ## Phase 8 — Deploy & beta
 
-- [ ] **8.1 — Coolify deployment.** App + Postgres(pgvector) on VPS/homelab via Coolify; git-push deploys; env vars (Resend key, DB URL, auth secret); domain + HTTPS; Coolify cron (or system cron) for `bun run ingest`; automated Postgres backups.
-  *Done = production URL live; magic link arrives via Resend; ingestion cron ran at least once unattended.*
+- [ ] **8.1 — Coolify deployment.** App + Postgres on VPS/homelab via Coolify; git-push deploys; env vars (Resend key, OpenRouter key for ingest curation, DB URL, auth secret); domain + HTTPS; Coolify cron (or system cron) for `bun run ingest`; automated Postgres backups.
+  *Done = production URL live; password-reset mail arrives via Resend; ingestion cron ran at least once unattended.*
 
 - [ ] **8.2 — Ops guardrails + beta invites.** Minimal error visibility (server log drain or self-hosted Sentry/GlitchTip), uptime ping, ingestion-failure notification (even just email-on-error). Invite Ben + first friends; collect impressions for a week; triage into Phase 9.
   *Done = friends actively using it; feedback list captured in the repo.*
@@ -168,7 +178,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 | Gate | Step | Options |
 |---|---|---|
-| Serendipity go/no-go + embedding model + recipe + vector dim | 0.4 | via OpenRouter: `openai/text-embedding-3-small` (1536) vs `baai/bge-m3` (1024) × recipe A/B |
+| Serendipity go/no-go + embedding model + recipe + vector dim | 0.4/0.5 | **Settled:** item-NN rejected; tiered topic drift over curated pool passed the feel gate. Offline model `text-embedding-3-small` × A; vector dim moot (no DB vector column). |
 | PWA library | 1.3 | `@serwist/next` vs `@ducanh2912/next-pwa` |
 | Public Domain Review feasibility | 6.2 | API/RSS adapter vs cut from v1 |
 | Image delivery | 7.3 | hotlink vs proxy-with-cache |

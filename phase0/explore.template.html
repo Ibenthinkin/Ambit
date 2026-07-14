@@ -13,7 +13,7 @@
   :root {
     --bg: #161411; --panel: #211d18; --card: #262119; --line: #37302a;
     --text: #e8e2d6; --muted: #9a917f; --accent: #d8c8a8;
-    --wikipedia: #82aaff; --met: #e0af68; --aic: #f7768e;
+    --wikipedia: #82aaff; --met: #e0af68; --aic: #f7768e; --cma: #9ece6a; --wellcome: #bb9af7;
   }
   * { box-sizing: border-box; margin: 0; }
   body {
@@ -43,6 +43,8 @@
   .badge.wikipedia { background: var(--wikipedia); }
   .badge.met { background: var(--met); }
   .badge.aic { background: var(--aic); }
+  .badge.cma { background: var(--cma); }
+  .badge.wellcome { background: var(--wellcome); }
 
   #current {
     display: flex; gap: 16px; background: var(--panel); border: 1px solid var(--line);
@@ -56,7 +58,9 @@
   #current a { color: var(--accent); }
   .topline { display: flex; gap: 8px; align-items: baseline; color: var(--muted); font-size: 12px; }
 
-  #columns { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; align-items: start; }
+  /* Column count varies (a visual-embeddings column joins when its vectors
+     exist), so the grid is sized at render time in show(). */
+  #columns { display: grid; gap: 12px; align-items: start; }
   .col h3 {
     font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: .03em;
     padding: 4px 2px 8px; border-bottom: 1px solid var(--line); margin-bottom: 8px;
@@ -179,6 +183,7 @@ function show(key, pushHistory = true) {
   $("#revealmap").style.display = "none";
   $("#revealmap").dataset.map = order.map((ci, pos) => `${String.fromCharCode(65 + pos)} = ${cols[ci].label.replace(/<[^>]*>/g, "")}`).join("   ·   ");
 
+  $("#columns").style.gridTemplateColumns = `repeat(${order.length}, 1fr)`;
   $("#columns").innerHTML = order
     .map((ci, pos) => {
       const col = cols[ci];
