@@ -333,10 +333,12 @@ Production-grade from the start (portfolio / work-transferable practice — non-
 - ~~Content density~~ → non-issue at five sources; the binding constraint was quality, answered by the curation layer.
 - ~~Embedding model / text construction / `dimensions`~~ → `text-embedding-3-small` × recipe A for offline topic centroids; `bge-m3` cut (~10× slower via OpenRouter); `dimensions` honored but moot — no vector column in the DB.
 
+**Provisionally settled (07-17-26)** — Ben judged both in the harness and is happy for now; final call deferred to when each is actually built:
+- **Visual embeddings → provisional KEEP** — the blind-harness browse read well (image vectors find *form/vibe* where text finds *subject*). If it ships, it's a "more like this look" save-affordance, not a feed tier — post-MVP; revisit when that affordance is built.
+- **Favorites-prompt onboarding → provisional KEEP** — `--favorites` results read well; planned for onboarding alongside the taste picker (BUILD_PLAN 5.3/8). Final call when onboarding is built.
+
 **Open:**
 - **Curator calibration drift** — the persona prompt encodes Ben's taste secondhand; scores skew 7–9. Spot-check against hand labels periodically; `PROMPT_VERSION` bump re-scores the corpus for ~$1.
-- **Visual embeddings keep-or-cut** — image vectors find *form/vibe* where text finds *subject* (Phase 0.5 experiment, vectors + blind harness ready). If kept: a "more like this look" save-affordance, not a feed tier. *Judge in the blind harness.*
-- **Favorites-prompt onboarding** — the build-time LLM taste-profile mode (`--favorites`) is prototyped but unjudged with real input; decide whether it ships in 5.2's onboarding alongside the taste picker.
 - **Topic-graph refresh cadence** — recompute on corpus growth is manual; decide when (per-ingest? monthly?) and whether weak-row hand edits persist across recomputes.
 - **Tier-mix defaults under real use** — CORE 40/DRIFT 35/JUMP 25 reflects one evening of browsing; revisit once the app has weeks of actual use (knobs stay in behind the dev flag for exactly this).
 - **Source-API drift** — ~8 external APIs to keep healthy (ongoing maintenance tax); museum image servers bot-block third-party fetchers (pass bytes, never URLs — bitten twice in Phase 0.5).

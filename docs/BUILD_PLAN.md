@@ -42,13 +42,15 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 ## Phase 1 — Scaffold & tooling
 
+*Detailed execution plan (incl. 07-17-26 docs-research findings on create-t3-app, Serwist/Turbopack, and Bun-as-runtime caveats): [`docs/PHASE1_PLAN.md`](PHASE1_PLAN.md).*
+
 - [ ] **1.1 — Scaffold the app.** `create-t3-app` (Next.js App Router + tRPC + Tailwind + Drizzle; **decline its NextAuth option** — create-t3-app doesn't offer Better Auth yet, so auth is added by hand in 2.2) with Bun as runtime + package manager; TypeScript strict. Pin versions. Wire `package.json` scripts per SPEC §13 (`--bun` flag). Verify `bun run dev` serves the starter.
   *Done = starter app runs under Bun; committed.*
 
-- [ ] **1.2 — Quality tooling + CI.** Vitest (unit) + Playwright (e2e, installed but minimal) + lint/format (ESLint + Prettier, or Biome — pick one and note it). GitHub Actions: typecheck, lint, unit tests, build on push. Add a `bun run check` meta-script.
+- [ ] **1.2 — Quality tooling + CI.** Vitest (unit) + Playwright (e2e, installed but minimal) + lint/format (⚖️ **settled 07-17-26: ESLint + Prettier** — the t3 default, zero swap-out; Biome's React/Next rule coverage still has gaps). GitHub Actions: typecheck, lint, unit tests, build on push. Add a `bun run check` meta-script.
   *Done = CI green on main; one placeholder unit + e2e test pass.*
 
-- [ ] **1.3 — PWA shell.** ⚖️ **Decide:** `@serwist/next` (maintained successor) vs `@ducanh2912/next-pwa`. Web app manifest (name, theme `#161411`, icons — generate from the ring-and-dot logo in the design handoff), service worker with offline app shell. Installability verified via Lighthouse.
+- [ ] **1.3 — PWA shell.** ⚖️ **Settled 07-17-26: `@serwist/next`** (`@ducanh2912/next-pwa` is deprecated and points at Serwist; note Serwist needs webpack — SW disabled under Turbopack dev, verified on prod builds). Web app manifest (name, theme `#161411`, icons — generate from the ring-and-dot logo in the design handoff), service worker with offline app shell. Installability verified via Lighthouse.
   *Done = Lighthouse flags app as installable; manifest + SW committed.*
 
 ---
@@ -77,7 +79,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   *Done = both adapters live-verified + tested; three total sources.*
 
 - [ ] **3.3 — Curation service.** `server/services/curator.ts`, ported from `phase0/curate.ts` (SPEC §6.2): structural quality floor + LLM curator (persona prompt as a versioned constant; response cache keyed item×model×`PROMPT_VERSION`; images downloaded and passed as base64 — museum servers bot-block provider-side fetchers, see NOTES). `drawFromTopic(topicId, {scoreFloor, excludeIds, limit})` in `server/db/items.ts` (weighted random by curation score). Unit test the floor rules + response parsing + draw-weight math; integration-test against the dev DB with a tiny seeded set.
-  *Done = `embed()` + `nearestNeighbors()` work end-to-end against dev DB.*
+  *Done = floor rules + curator scoring verified against a small seeded set in the dev DB; `drawFromTopic` returns weighted-random picks above the score floor. (Line rewritten 07-17-26 — previously referenced the pre-pivot `embed()`/`nearestNeighbors()` design.)*
 
 - [ ] **3.4 — Ingestion job.** `scripts/ingest.ts`: for each topic × seed query × adapter → fetch, normalize, embed, `upsertItem` (idempotent on `(source, source_id)`). Per-source rate-limit throttling, per-source failure isolation (one source down ≠ job dead), structured log summary (fetched/upserted/skipped/errored per source). Run it to populate the dev DB (~1–2k items).
   *Done = two consecutive runs: first populates, second is a no-op upsert; dev DB has all 3 sources across all topics.*
@@ -86,7 +88,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 ## Phase 4 — Feed engine & API
 
-- [ ] **4.1 — Feed algorithm.** `server/services/feed.ts` per SPEC §9: (1) candidate pull from weighted topics, (2) serendipity expansion via `nearestNeighbors` on recent saves *across sources*, (3) weighted-random merge with a tunable randomness floor + de-dup against seen items, (4) card shaping. Opaque cursor encodes pagination position + RNG seed (stable pages on refetch). **This is the highest-value test target** — unit-test merge weighting, dedup, cursor round-trip, cold-start (no saves yet), and source-mix distribution.
+- [ ] **4.1 — Feed algorithm.** `server/services/feed.ts` per SPEC §9 (port the composition from `phase0/feed.html`, the reference implementation): (1) per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25), (2) topic pick — CORE = weighted draw over `user_topic`; DRIFT = graph walk, softmax over positive-sim neighbours only, second hop p≈0.5; JUMP = uniform from the row's bottom half, (3) item pick — curated-weighted random over unseen items above the score floor (never similarity), under diversity constraints (no adjacent same-source; per-page topic cap), (4) card shaping. Opaque cursor encodes pagination position + RNG seed (stable pages on refetch); debug overlay + tuning knobs behind the dev flag. **This is the highest-value test target** — unit-test tier-mix distribution, drift-walk fallbacks (no positive bridge → CORE), diversity-constraint relaxation, seen exclusion, cursor round-trip, and cold start.
   *Done = `getFeedPage()` returns sensibly mixed pages; test suite covers the cases above.*
 
 - [ ] **4.2 — tRPC surface.** Routers per SPEC §7: `topics.list`, `topics.setMine`, `feed.page`, `items.byId` (the only public procedure), `saves.toggle`, `saves.list`. `protectedProcedure` reads session, throws `UNAUTHORIZED`. Basic per-user/IP rate limiting middleware. All user-scoped queries filter by `userId`.
@@ -179,7 +181,8 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 | Gate | Step | Options |
 |---|---|---|
 | Serendipity go/no-go + embedding model + recipe + vector dim | 0.4/0.5 | **Settled:** item-NN rejected; tiered topic drift over curated pool passed the feel gate. Offline model `text-embedding-3-small` × A; vector dim moot (no DB vector column). |
-| PWA library | 1.3 | `@serwist/next` vs `@ducanh2912/next-pwa` |
+| PWA library | 1.3 | **Settled (07-17-26): `@serwist/next`** (next-pwa deprecated; SW verified on prod builds — Serwist doesn't support Turbopack dev) |
+| Lint/format | 1.2 | **Settled (07-17-26): ESLint + Prettier** (t3 default; Biome's React/Next rule coverage still partial) |
 | Public Domain Review feasibility | 6.2 | API/RSS adapter vs cut from v1 |
 | Image delivery | 7.3 | hotlink vs proxy-with-cache |
 

@@ -5,6 +5,32 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-07
 
+### [[07-17-26 Fri]] — Phase 1 gates settled; detailed plan written; Ben takes the wheel
+
+**Decisions:**
+- **The two harness judgments left open at the 0.5 gate are provisionally settled** — Ben browsed
+  with the Voyage key in place and is happy with both the visual-embeddings column and the
+  `--favorites` taste-profile results. Recorded in SPEC §15 as **provisional KEEP** (visual
+  vectors → a future "more like this look" save-affordance, not a feed tier; `--favorites` →
+  planned for onboarding beside the taste picker); final calls deferred to when each is built.
+- **1.2 lint/format gate → ESLint + Prettier** (the t3 default — zero swap-out; Biome v2 still
+  lacks equivalents for the newer react-hooks and @next/eslint-plugin-next rules).
+- **1.3 PWA gate → `@serwist/next`** (next-pwa is deprecated in its favor). Caveat that shaped
+  the plan: Serwist has no Turbopack support, so dev runs with the SW disabled and PWA behavior
+  is verified on production builds.
+
+**Shipped:** `docs/PHASE1_PLAN.md` — a detailed execution plan for BUILD_PLAN 1.1–1.3, including
+the 07-17 docs-research findings: create-t3-app still has no Better Auth option (hand-wire in
+2.2 as planned) and its template likely lags on Next 16 / Tailwind 4 (inspect + upgrade at
+scaffold time; `create-next-app` hand-scaffold as fallback); Bun-as-runtime for Next has open
+issues (e.g. oven-sh/bun#26508), so 1.1 includes an explicit checkpoint — verify dev + build
+under `--bun`, fall back to Node runtime + Bun package manager if flaky and record it in SPEC
+§13. Also fixed two stale pre-pivot lines in BUILD_PLAN that the 0.5 sweep missed (3.3's *Done*
+line and 4.1's body still described `nearestNeighbors`).
+
+**Open / next:** Ben executes Phase 1 himself from `docs/PHASE1_PLAN.md` as a learning exercise
+— the plan doubles as the reference doc. Next session picks up wherever that leaves the tracker.
+
 ### [[07-13-26 Mon]] — Phase 0.4 verdict: item-level NN is dead; topic-level drift replaces it
 
 **Verdict — the 0.4 gate returns NO on item-level nearest-neighbour recommendation.** Ben browsed
