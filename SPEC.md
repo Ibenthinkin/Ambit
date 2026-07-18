@@ -62,7 +62,7 @@
 - Anonymous users: can view a shared item URL (read-only); cannot access the feed, saves, or onboarding.
 
 ### 3.2 Onboarding
-- First sign-in → topic-chip grid (~20–40 broad chips).
+- First sign-in → topic-chip grid. **v1 = the 16 graph-validated topics** (settled 07-17-26 — DRIFT/JUMP need a topic-graph row per topic, and the validated graph covers 16; the grid grows toward the design handoff's 32 chips as new topics are harvested and the graph recomputed, Phase 6).
 - User taps any number of chips; selections persist to `user_topic`.
 - Each chip maps to **seed queries per source** (config, not freeform). No sub-taxonomy in v1.
 - After selection → land in a feed seeded from picked topics.

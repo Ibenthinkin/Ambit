@@ -57,14 +57,16 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 ## Phase 2 — Database & auth
 
+*Detailed execution plan (incl. 07-17-26 docs-research findings on Better Auth 1.6.x patterns, Bun-specific traps, drizzle-kit workflow, and the Mailer setup): [`docs/PHASE2_PLAN.md`](PHASE2_PLAN.md).*
+
 - [ ] **2.1 — Postgres + Drizzle schema.** `docker-compose.yml` with plain `postgres` image + Mailpit (pgvector dropped with the 0.4 pivot — no vector column anywhere in §5). Drizzle schema per SPEC §5 (`item` incl. `curation_score`/`aesthetic_tags`/`topic_id`, `topic`, `user_topic`, `saved_item`, `invite`) + Better Auth core tables (`user`, `session`, `account`, `verification` — generate with `npx auth@latest generate`, then own them in `schema.ts`). Migrations via drizzle-kit; indexes per §5.6 (note `idx_item_topic_score` — the feed's draw path). Repository skeletons `server/db/{client,items,feed,saves,topics}.ts`. Check in `server/config/topic-graph.json` (from `phase0/topic-graph.ts`).
   *Done = `docker compose up` + migrate from clean state works; schema matches SPEC §5.*
 
 - [ ] **2.2 — Email + password auth (Better Auth) + invite gating.** Better Auth with `emailAndPassword: { enabled: true }`, Drizzle adapter (`provider: "pg"`), catch-all route `app/api/auth/[...all]/route.ts` via `toNextJsHandler`. Invite gating in `databaseHooks.user.create.before`: throw `APIError` unless the email has a pending/accepted `invite` row; accepting flips status. Password reset via `emailAndPassword.sendResetPassword` → Mailpit (dev) / Resend (prod, env-switched); skip `requireEmailVerification` (the invite list is the trust anchor). `bun run invite <email>` admin script. Session (database-backed) available server (`auth.api.getSession({ headers })`) + client (`better-auth/react`); middleware redirects unauthenticated users off `/feed`, `/saved`, `/onboarding`.
   *Done = full loop works locally: invite → sign-up with password → session; uninvited sign-up politely refused; forgot-password mail lands in Mailpit and resets successfully.*
 
-- [ ] **2.3 — Topic seed data.** Define the 32 onboarding topics (labels from the design handoff §2) in a checked-in config with per-source seed queries (`topic.seed_queries` JSONB); seed script upserts them. Start with seed queries for the three Phase-3 sources only; extend in 6.2.
-  *Done = `topic` table seeded; labels match design handoff exactly.*
+- [ ] **2.3 — Topic seed data.** ⚖️ **Settled 07-17-26: v1 seeds the 16 graph-validated topics, not the handoff's 32 chips** — DRIFT/JUMP need a graph row per topic; expand toward 32 in Phase 6 when new harvests land and the graph is recomputed. Labels per the mapping in `PHASE2_PLAN.md` step 3 (Cartography → "Maps"; Portraiture/Zoology keep their names). Checked-in config with per-source seed queries (`topic.seed_queries` JSONB) ported from `phase0/harvest.ts` for **all five v1 sources** (supersedes the earlier "three sources first" note — adapters come online per phase); seed script upserts them idempotently.
+  *Done = `topic` table seeded with 16 rows; labels match the PHASE2_PLAN mapping.*
 
 ---
 

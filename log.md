@@ -31,6 +31,26 @@ line and 4.1's body still described `nearestNeighbors`).
 **Open / next:** Ben executes Phase 1 himself from `docs/PHASE1_PLAN.md` as a learning exercise
 — the plan doubles as the reference doc. Next session picks up wherever that leaves the tracker.
 
+**Later the same day — Phase 2 planned the same way (`docs/PHASE2_PLAN.md`).**
+- **Decision: v1 seeds the 16 graph-validated topics, not the design handoff's 32 chips.**
+  Planning surfaced a real mismatch the docs had papered over: the handoff's onboarding grid
+  specs 32 chip labels, but the validated topic graph covers 16 topics — and DRIFT/JUMP need a
+  graph row per topic, so graph-less chips would break the feed. The grid grows toward 32 in
+  Phase 6 when new harvests land and the graph is recomputed. Label mapping settled in the plan:
+  Cartography surfaces as the handoff's "Maps"; Portraiture and Zoology stay (graph-validated
+  beats design-listed). Recorded in SPEC §3.2, BUILD_PLAN 2.3, and a divergence note in the
+  handoff README §2 (mirroring the §1 auth note).
+- Docs research findings baked into the plan: Better Auth is 1.6.x and every pattern the SPEC
+  bet on is still the recommended one (drizzleAdapter, `databaseHooks.user.create.before` +
+  `APIError` for invite gating — no first-party invite plugin exists, `toNextJsHandler`,
+  `getSessionCookie` as optimistic-only middleware check). Bun traps to respect: `better-auth`
+  in `serverExternalPackages`, and run the schema CLI as plain `bunx @better-auth/cli generate`
+  — `bunx --bun` segfaults. Drizzle 0.45.x (1.0 still beta), postgres.js as the driver
+  (`Bun.sql` a later low-risk swap), `push` for iteration + committed `generate`/`migrate` to
+  ship. Mail = tiny `Mailer` interface, Mailpit (nodemailer) dev / Resend prod.
+- BUILD_PLAN 2.3's "three sources first" superseded: `harvest.ts` already carries seed queries
+  for all five v1 sources, so the topic config ships them all and adapters come online per phase.
+
 ### [[07-13-26 Mon]] — Phase 0.4 verdict: item-level NN is dead; topic-level drift replaces it
 
 **Verdict — the 0.4 gate returns NO on item-level nearest-neighbour recommendation.** Ben browsed

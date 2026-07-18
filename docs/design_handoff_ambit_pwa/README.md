@@ -67,6 +67,9 @@ Two keys drive cross-screen state in this prototype; recreate as real app/user s
 **State:** `email` (string), `stage` ('form' | 'sent'), `sending` (bool), `error` (string).
 
 ### 2. Onboarding topic picker (`Ambit - Onboarding.dc.html`)
+
+> **⚠️ Design divergence (07-17-26):** v1 renders **16 chips, not the 32 below** — the validated topic-drift graph covers 16 topics and the feed's drift machinery needs a graph row per topic (see SPEC §3.2 / `docs/PHASE2_PLAN.md` step 3 for the label mapping: Cartography appears as "Maps"; Portraiture and Zoology are v1 chips despite not being in the list below). The grid grows toward the full 32 as later phases harvest and validate more topics. Layout, chip styling, and interactions are unchanged.
+
 **Purpose:** First-run interest selection that seeds personalization language ("Ambit starts here — then wanders sideways...").
 **Layout:** Scrollable column. Header block (eyebrow "Ambit · Setup" in accent color, 34px serif title, 16.5px serif subhead). Below it, a wrapping flex grid of 32 pill chips, `gap:10px`, padding `22px 24px 180px` (bottom padding reserves room for the sticky CTA). A sticky bottom bar (gradient-fade background) holds a left-aligned count label and a right-aligned pill CTA.
 **Components:** Chips — Newsreader 16px/500 by default (or sans 14px if `serifChips=false`), pill radius 999px, unselected = subtle fill/border, selected = solid accent fill with `#17140E` text and a small pop animation. CTA pill — disabled/neutral state ("Pick N more") until `minPicks` chips are chosen, then flips to solid accent "Start exploring".
