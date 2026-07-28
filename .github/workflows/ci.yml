@@ -1,0 +1,37 @@
+name: CI
+
+# Runs on every push and PR. Playwright/e2e stays out of this workflow until
+# Phase 7.1 wires up docker-compose Postgres in CI — until then it's a
+# local-only check (see e2e/home.spec.ts, package.json's `e2e` script).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Bun is both the package manager and (via --bun) the runtime the app
+      # ships with in prod, so CI installs/runs through the same binary
+      # rather than falling back to Node for "just CI".
+      - uses: oven-sh/setup-bun@v2
+
+      # --frozen-lockfile refuses to resolve new versions here: CI should
+      # fail loudly if bun.lock drifts from package.json, not silently
+      # install something nobody reviewed.
+      - run: bun install --frozen-lockfile
+
+      # typecheck -> lint -> format check -> unit tests, in that order so
+      # the cheapest/most-informative failure surfaces first.
+      - run: bun run check
+
+      # next.config.js validates env vars (src/env.js) at build startup, so the build needs *a*
+      # DATABASE_URL even though nothing ever connects during it — the home route is dynamic
+      # (server-rendered per request, not statically generated), so a real Postgres is only
+      # needed once someone actually requests a page, which CI never does.
+      - run: bun run build
+        env:
+          DATABASE_URL: postgres://ambit:ambit@localhost:5432/ambit

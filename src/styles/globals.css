@@ -1,0 +1,13 @@
+/* Tailwind v4 config lives in CSS, not a tailwind.config.ts — if you've used v3, this is the
+   biggest change. `@import "tailwindcss"` pulls in the framework (postcss.config.js just points
+   PostCSS at the `@tailwindcss/postcss` plugin, which processes this file); `@theme` below is
+   where design tokens (fonts, colors, spacing) get defined — each one becomes both a CSS variable
+   and a Tailwind utility class (e.g. `--font-sans` here backs the `font-sans` class). Ambit's
+   actual design tokens (see docs/design_handoff_ambit_pwa) land here in Phase 3+ as screens get
+   built. */
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}

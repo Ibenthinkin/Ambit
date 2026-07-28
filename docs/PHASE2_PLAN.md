@@ -20,6 +20,13 @@ reconciliation is decided below (Step 3) so 2.3 is purely mechanical.
 **Cross-cutting:** this project doubles as stack-learning — generous explanatory comments in
 config and code, explaining what each piece is *for*.
 
+**Check before starting 2.2:** Phase 1's scaffold (07-28-26) found `bun create t3-app@latest --help`
+now lists an experimental `--betterAuth [boolean]` flag that didn't exist when this plan was
+written — this whole plan assumes it doesn't. Worth a quick spike to see whether it actually
+covers the invite-gated-signup pattern below (`databaseHooks.user.create.before` + `APIError`) or
+just does the vanilla Better Auth wiring; if the latter, hand-wiring per this plan is probably
+still less work than fighting the generator's assumptions.
+
 ## Key findings from the 07-17 docs research
 
 - **Better Auth: current stable 1.6.x** (1.7 is an RC — stay on 1.6). All the SPEC's planned

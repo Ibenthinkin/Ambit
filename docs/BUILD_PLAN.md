@@ -44,8 +44,8 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 *Detailed execution plan (incl. 07-17-26 docs-research findings on create-t3-app, Serwist/Turbopack, and Bun-as-runtime caveats): [`docs/PHASE1_PLAN.md`](PHASE1_PLAN.md).*
 
-- [ ] **1.1 — Scaffold the app.** `create-t3-app` (Next.js App Router + tRPC + Tailwind + Drizzle; **decline its NextAuth option** — create-t3-app doesn't offer Better Auth yet, so auth is added by hand in 2.2) with Bun as runtime + package manager; TypeScript strict. Pin versions. Wire `package.json` scripts per SPEC §13 (`--bun` flag). Verify `bun run dev` serves the starter.
-  *Done = starter app runs under Bun; committed.*
+- [x] **1.1 — Scaffold the app.** `create-t3-app` (Next.js App Router + tRPC + Tailwind + Drizzle; **decline its NextAuth option** — create-t3-app doesn't offer Better Auth yet, so auth is added by hand in 2.2) with Bun as runtime + package manager; TypeScript strict. Pin versions. Wire `package.json` scripts per SPEC §13 (`--bun` flag). Verify `bun run dev` serves the starter.
+  *Done = starter app runs under Bun; committed.* ✅ Scaffolded on Next 16.2.12 (upgraded from the template's 15.2.3 via `@next/codemod`) + Tailwind v4 + ESLint 9.39.5 (10.x breaks on `eslint-plugin-react`'s ESLint-10 incompatibility). `bun run dev`/`build` verified under the real `--bun` runtime, no Node fallback needed. Homepage 500s until Phase 2 wires up a real Postgres — confirmed clean (a `TRPCError` from the missing DB), not a bundler regression.
 
 - [ ] **1.2 — Quality tooling + CI.** Vitest (unit) + Playwright (e2e, installed but minimal) + lint/format (⚖️ **settled 07-17-26: ESLint + Prettier** — the t3 default, zero swap-out; Biome's React/Next rule coverage still has gaps). GitHub Actions: typecheck, lint, unit tests, build on push. Add a `bun run check` meta-script.
   *Done = CI green on main; one placeholder unit + e2e test pass.*
