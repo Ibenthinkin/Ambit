@@ -1,0 +1,4 @@
+# Phase 0 throwaway-but-kept tooling and design-handoff prototypes aren't part of the app — see
+# the matching excludes in tsconfig.json and eslint.config.js.
+phase0/
+docs/

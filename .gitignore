@@ -8,6 +8,10 @@ dist/
 build/
 .next/
 out/
+next-env.d.ts
+*.tsbuildinfo
+/coverage
+.vercel
 
 # Env / secrets
 .env
