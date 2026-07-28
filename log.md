@@ -5,6 +5,50 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-07
 
+### [[07-28-26 Tue]] — Phase 1.1 shipped: scaffold on Next 16, two real bugs caught before they shipped
+
+**Shipped:** `bun create t3-app` (trpc + tailwind + drizzle/postgres + appRouter, `--eslint`, no auth)
+in an isolated worktree (`.claude/worktrees/phase1-scaffold`, branch `worktree-phase1-scaffold`).
+Upgraded the template Next 15.2.3 → 16.2.12 via `@next/codemod` (which also had to migrate
+`next lint` → the ESLint CLI — Next 16 removes `next lint` outright, a fact the 07-17 plan didn't
+know yet). Merged into repo root; renamed the leftover `ambit-scaffold_` Drizzle table prefix to
+`ambit_`; excluded `phase0/` and `docs/` (throwaway tooling and design prototypes, not app code)
+from tsconfig/eslint/prettier; wired `package.json` scripts to SPEC §13's `--bun` convention;
+teaching-pass comments landed in next.config.js, env.js, drizzle.config.ts, trpc.ts, globals.css.
+BUILD_PLAN 1.1 box checked.
+
+**Findings — two real bugs, not template defaults:**
+- **`eslint-plugin-react` 7.37.5 doesn't support ESLint 10** (its peerDep still caps at `^9.7`) —
+  hit a hard crash (`contextOrFilename.getFilename is not a function`) the moment `eslint-config-
+  next@16` pulled in ESLint 10. Pinned ESLint to 9.39.5, the latest 9.x line.
+- **Turbopack's client/server bundle-boundary tracer doesn't elide inline `import { type X }`**
+  the way `tsc`/webpack do — it resolved the type-only `AppRouter` import in `src/trpc/react.tsx`
+  as a real edge, pulling the `postgres` driver's Node built-ins (`fs`/`net`/`tls`) into the client
+  bundle and 500ing both `next dev` and `next build`. Confirmed by isolating the variable: `next
+  build --webpack` compiled clean on the exact same code. Fix: standalone `import type { X }`
+  instead of the inline modifier; also flipped typescript-eslint's `fixStyle` to
+  `"separate-type-imports"` so `lint:fix` can't silently reintroduce the pattern project-wide.
+- Both fixes verified under the **actual `--bun` runtime** (not just Bun-as-package-manager) for
+  both `dev` and `build` — no Node-runtime fallback needed, unlike the risk the 07-17 plan flagged.
+
+**Decisions:**
+- **Dropping the worktree technique after Phase 1.** Ben tried the scaffold hands-on and found the
+  isolated-worktree setup (separate directory, separate branch, not reachable by switching
+  branches in the main checkout) more confusing than it's worth. Once Phase 1's branch merges back
+  to `main`, future phase work goes back to a conventional branch-off-`main`/merge-back flow in the
+  normal working directory.
+- Homepage 500s locally and that's expected — no Postgres reachable yet (Phase 2 scope); confirmed
+  the failure is a clean `TRPCError` from the missing DB, not a leftover bundler regression.
+
+**Open / next:**
+- 1.2 (Vitest, Playwright, CI) and 1.3 (PWA shell / `@serwist/next`) still ahead in Phase 1 — Ben
+  is pausing here to pick back up later.
+- Flagged in `PHASE2_PLAN.md`: `create-t3-app` now has an experimental `--betterAuth` flag that
+  didn't exist when that plan was written against "create-t3-app doesn't offer Better Auth yet" —
+  worth a quick spike before 2.2's hand-wiring to see if it actually covers invite-gated signup.
+- **Docker (or Podman) needed before Phase 2** — `start-database.sh` and BUILD_PLAN 2.1 both assume
+  it for the local dev Postgres; not needed for the rest of Phase 1.
+
 ### [[07-17-26 Fri]] — Phase 1 gates settled; detailed plan written; Ben takes the wheel
 
 **Decisions:**
