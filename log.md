@@ -40,14 +40,57 @@ BUILD_PLAN 1.1 box checked.
 - Homepage 500s locally and that's expected — no Postgres reachable yet (Phase 2 scope); confirmed
   the failure is a clean `TRPCError` from the missing DB, not a leftover bundler regression.
 
-**Open / next:**
-- 1.2 (Vitest, Playwright, CI) and 1.3 (PWA shell / `@serwist/next`) still ahead in Phase 1 — Ben
-  is pausing here to pick back up later.
+**Open / next (superseded below):**
 - Flagged in `PHASE2_PLAN.md`: `create-t3-app` now has an experimental `--betterAuth` flag that
   didn't exist when that plan was written against "create-t3-app doesn't offer Better Auth yet" —
   worth a quick spike before 2.2's hand-wiring to see if it actually covers invite-gated signup.
 - **Docker (or Podman) needed before Phase 2** — `start-database.sh` and BUILD_PLAN 2.1 both assume
   it for the local dev Postgres; not needed for the rest of Phase 1.
+
+**Later the same day — Phase 1.2 shipped (Vitest, Playwright, CI), and the worktree technique's
+retirement actually carried out.**
+
+The 1.1 worktree's commits were still sitting on `worktree-phase1-scaffold`, un-merged, when this
+session picked back up — last entry's "drop the worktree technique" was a decision recorded, not
+yet executed. Fast-forward-merged into `main`, removed the worktree directory and its branch, and
+did 1.2 on a conventional branch (`phase1.2-quality-tooling`, off `main` in the normal working
+directory) per that decision — PR #1, merged after CI went green.
+
+**Shipped:**
+- Vitest, unit-testing a real `cn()` helper (`clsx` + `tailwind-merge`, added since components
+  will need it — not a fake placeholder test).
+- Playwright, smoke-testing the home page renders with no console errors (`bun run e2e`, local-only
+  — CI has no Postgres until Phase 7.1 adds compose services).
+- `bun run check` meta-script: typecheck → lint → format check → unit tests.
+- GitHub Actions (`.github/workflows/ci.yml`): checkout → setup-bun → `bun install
+  --frozen-lockfile` → `bun run check` → `bun run build` (a placeholder `DATABASE_URL` env var
+  satisfies `src/env.js`'s build-time validation; nothing actually connects since the home route
+  is dynamic, not statically generated). Verified green both on the PR and on push to `main`.
+- BUILD_PLAN 1.2 box checked; 1.1's box updated too (see finding below).
+
+**Findings:**
+- **The 1.1 "homepage 500s without Postgres" finding is now superseded, not just documented** —
+  trimmed the create-t3-app boilerplate's DB-backed `getLatest` demo query off the home page
+  (kept the DB-free `hello` query) so the Playwright smoke test can genuinely pass without
+  standing up Postgres early, keeping Phase 1 fully DB-free as designed. Deleted the now-orphaned
+  `_components/post.tsx` demo component along with it.
+- **A worktree's local `.env` doesn't survive `git worktree remove`** — the DB URL that made 1.1's
+  dev server boot lived in the worktree's own untracked `.env`, not in the repo. Once the worktree
+  was removed, the main checkout's own `.env` (a pre-Phase-1 leftover from Phase 0, holding only
+  the harvester/curator API keys) had no `DATABASE_URL`, so `bun run dev`/`build` failed *env
+  validation* outright rather than the softer "500 at query time" — a sharper failure mode worth
+  knowing about if a worktree's app never got its own committed `.env.example`-derived `.env`.
+
+**Decisions:**
+- Confirmed with Ben mid-session: rather than stand up Postgres early or water down the smoke
+  test's assertions to match a known-broken page, the right fix was trimming the demo DB call —
+  it's throwaway t3 boilerplate due for replacement by the real feed UI anyway, and it keeps the
+  "Docker not needed until Phase 2" sequencing intact.
+
+**Open / next:**
+- 1.3 (PWA shell / `@serwist/next`) is the last item in Phase 1.
+- `PHASE2_PLAN.md`'s `--betterAuth` flag spike and the Docker/Podman-before-Phase-2 need (both
+  still open, carried over from above) remain ahead of 2.1.
 
 ### [[07-17-26 Fri]] — Phase 1 gates settled; detailed plan written; Ben takes the wheel
 
