@@ -41,18 +41,21 @@
   },
   "devDependencies": {
     "@playwright/test": "1.62.0",
+    "@serwist/turbopack": "9.5.12",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "20.19.43",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitest/coverage-v8": "4.1.10",
     "drizzle-kit": "0.30.6",
+    "esbuild": "0.28.1",
     "eslint": "9.39.5",
     "eslint-config-next": "16.2.12",
     "eslint-plugin-drizzle": "0.2.3",
     "postcss": "8.5.24",
     "prettier": "3.9.6",
     "prettier-plugin-tailwindcss": "0.6.14",
+    "serwist": "9.5.12",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "typescript-eslint": "8.65.0",
@@ -64,5 +67,9 @@
   "overrides": {
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3"
-  }
+  },
+  "trustedDependencies": [
+    "@swc/core",
+    "unrs-resolver"
+  ]
 }
