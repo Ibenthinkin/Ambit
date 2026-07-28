@@ -27,6 +27,10 @@ yarn-error.log*
 # Playwright MCP session artifacts (screenshots/snapshots from verification runs)
 .playwright-mcp/
 
+# Playwright test-run artifacts (traces, screenshots on failure, HTML report)
+/test-results/
+/playwright-report/
+
 # OS / editor
 .DS_Store
 *.swp

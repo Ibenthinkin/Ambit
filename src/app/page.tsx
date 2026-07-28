@@ -1,12 +1,14 @@
 import Link from "next/link";
 
-import { LatestPost } from "~/app/_components/post";
 import { api, HydrateClient } from "~/trpc/server";
 
+// The `getLatest`/`create` demo query is intentionally not called here: it hits Postgres, and
+// Phase 1 has no database running yet (Phase 2.1 wires one up). `hello` below is a pure
+// in-memory tRPC procedure, so it's safe to call before the DB exists — see src/server/api/
+// routers/post.ts for both. This whole page is t3 boilerplate anyway, due to be replaced by the
+// real Ambit feed UI.
 export default async function Home() {
   const hello = await api.post.hello({ text: "from tRPC" });
-
-  void api.post.getLatest.prefetch();
 
   return (
     <HydrateClient>
@@ -44,8 +46,6 @@ export default async function Home() {
               {hello ? hello.greeting : "Loading tRPC query..."}
             </p>
           </div>
-
-          <LatestPost />
         </div>
       </main>
     </HydrateClient>
