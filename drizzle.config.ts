@@ -11,8 +11,7 @@ export default {
   dbCredentials: {
     url: env.DATABASE_URL,
   },
-  // Every table Drizzle manages is prefixed `ambit_` (set in schema.ts's `createTable`) so this DB
-  // could share a Postgres instance with other apps without name collisions — drizzle-kit needs
-  // the same prefix here so it only ever touches tables this project owns.
-  tablesFilter: ["ambit_*"],
+  // No `tablesFilter`: this compose Postgres is dedicated to Ambit alone, so drizzle-kit is free
+  // to manage every table in the database — no shared-instance table-name collisions to guard
+  // against (see schema.ts's file header for the fuller reasoning).
 } satisfies Config;

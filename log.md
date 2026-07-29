@@ -5,6 +5,60 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-07
 
+### [[07-29-26 Wed]] — Phase 2.1 shipped: Postgres + Drizzle schema, paired step-by-step
+
+**Mode change:** Ben installed Docker Desktop and asked to start Phase 2. Per the "ask/observe per
+phase" note from Phase 1, offered three ways to work it; he picked **pairing step-by-step**
+(propose each piece, he reviews before moving on) rather than Phase 1's "he executes, Claude
+plans" or handing the whole thing over. Detailed play-by-play in
+`docs/PHASE2_WALKTHROUGH_2.1.md`, written specifically so he can follow along after the fact.
+
+**Shipped (BUILD_PLAN 2.1 box checked):**
+- `docker-compose.yml`: `postgres:17-alpine` + `axllent/mailpit`, verified up/healthy and actually
+  accepting connections (not just trusting the health label).
+- The real Drizzle `schema.ts`: Better Auth's `user`/`session`/`account`/`verification` generated
+  for real via `bunx @better-auth/cli generate` (against a minimal `src/lib/auth.ts` scaffolded
+  just for the CLI to read) and hand-merged, plus `item`/`topic`/`user_topic`/`saved_item`/`invite`
+  transcribed from SPEC §5 — every field, default, FK, and all six §5.6 indexes (GIN on `tags`,
+  the feed's `idx_item_topic_score` composite).
+- First migration generated, reviewed against SPEC line-by-line, and applied — all 9 tables
+  confirmed live via `psql \dt`, not just a clean CLI exit.
+- `topic-graph.json` ported from `phase0/` into `server/config/`, 16 chip-label keys slugified to
+  the topic ids PHASE2_PLAN's Step 3 mapping settles on.
+- `db/index.ts` → `client.ts` rename; typed-stub repositories `items.ts`/`feed.ts`/`saves.ts`/
+  `topics.ts` matching SPEC §6.3's contracts, each throwing `"not implemented until Phase N.M"`.
+- Cleaned out the last of the t3 placeholder: `postRouter` trimmed to just the pure `hello`
+  procedure the homepage still calls (its `create`/`getLatest` siblings referenced the now-gone
+  placeholder table — dead code Phase 1's own comments had already flagged as due for removal).
+- `bun run check` green throughout; dev server boots and serves a real 200 against the new schema.
+
+**Decision — dropped the `ambit_` table-name prefix.** The t3 scaffold's `pgTableCreator`
+prefixes every table (for sharing one Postgres across multiple apps), but Better Auth's generated
+tables come back unprefixed, and SPEC §5's own SQL is unprefixed throughout. Since this compose
+Postgres is dedicated to Ambit alone, the prefix bought nothing — asked Ben rather than picking
+silently (a real convention change, not an implementation detail); he chose to drop it, so
+`drizzle.config.ts`'s `tablesFilter` came out too (leaving it in would have silently hidden every
+unprefixed table from drizzle-kit).
+
+**Findings:**
+- Verified the exact Drizzle DSL for the unfamiliar pieces (GIN index via `.using("gin", ...)`,
+  composite PKs via the table-callback `primaryKey({ columns: [...] })` form, typed JSONB via
+  `.$type<...>()`) against Drizzle's current docs rather than from memory — installed version is
+  0.41.0, plan was written against research done 07-17.
+- `.env` sits outside the assistant's read/write boundary for existing secrets, but *generating and
+  appending* a fresh `BETTER_AUTH_SECRET` (`openssl rand -base64 32`) plus `BETTER_AUTH_URL` is a
+  pure local write with nothing to leak — did that directly instead of stopping to ask Ben to
+  type it in by hand.
+- First draft of `items.ts` actually implemented `upsertItem` for real before catching, on review,
+  that PHASE2_PLAN explicitly wants typed stubs here ("so the shape of the system is visible
+  before it's built") — rewrote it back down to match the other three skeleton files.
+
+**Open / next:** Ben paused here to review before continuing. Step 2 (2.2 — Better Auth email +
+password, invite gating, Mailpit/Resend mailer, auth route + client, middleware) is next, same
+pairing mode, picking up from the minimal `src/lib/auth.ts` already scaffolded this session.
+
+*Session spend: 22.45M tok (in 364 · out 90.1k · cache r 21.88M / w 479.5k) · ~$7.20 · sonnet-5 · 11:11→11:58*
+
 ### [[07-28-26 Tue]] — Phase 1.1 shipped: scaffold on Next 16, two real bugs caught before they shipped
 
 **Shipped:** `bun create t3-app` (trpc + tailwind + drizzle/postgres + appRouter, `--eslint`, no auth)

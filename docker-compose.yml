@@ -1,0 +1,36 @@
+# Local dev infrastructure only — the Next.js app itself runs directly under Bun (`bun run dev`),
+# not in a container. This compose file stands up the two stateful services the app talks to:
+# Postgres (the curated item pool + Better Auth's session store) and Mailpit (a fake SMTP server
+# that catches outgoing mail in a web UI, so password-reset emails don't need a real provider in
+# dev — SPEC §13 swaps this for Resend in prod).
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      # Must match DATABASE_URL in .env.example: postgres://ambit:ambit@localhost:5432/ambit
+      POSTGRES_USER: ambit
+      POSTGRES_PASSWORD: ambit
+      POSTGRES_DB: ambit
+    ports:
+      - "5432:5432"
+    volumes:
+      # Named volume: data survives `docker compose down` (but not `down -v`, which is the
+      # deliberate "clean slate" escape hatch used in Phase 2's verification step).
+      - ambit_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ambit -d ambit"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP — where the app's mailer (nodemailer, Phase 2.2) sends to
+      - "8025:8025" # Web UI — open http://localhost:8025 to read caught mail
+
+volumes:
+  ambit_postgres_data:
