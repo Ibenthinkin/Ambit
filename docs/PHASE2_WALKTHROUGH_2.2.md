@@ -121,6 +121,20 @@ No UI exists yet (that's Phase 5.2), so the whole loop was driven over HTTP dire
 
 24. This walkthrough; `BUILD_PLAN.md` 2.2 box checked with a "revised at build time" note
     (`proxy.ts`, the Drizzle bump); `log.md` entry with the session-spend line.
+25. **PR's CI build failed on the first push** — not from this session's own changes. `env.js`
+    started requiring `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL` back in 2.1, but
+    `.github/workflows/ci.yml`'s `bun run build` step was never updated to supply them, and 2.1
+    was pushed straight to `main` rather than through a PR — so nothing ever ran that build step
+    against the new requirement and the gap went unnoticed. `gh run list --branch main` confirmed
+    `main` itself has been red since 07-29. Fixed the workflow (placeholder values, since nothing
+    in a CI build actually authenticates), re-pushed, CI went green.
+
+## Post-execution finding — main's CI had been broken since 2.1
+
+Discovered only because this was the **first PR opened since the 2.1 commit landed** directly on
+`main` (bypassing the pull_request CI trigger entirely). A useful argument for keeping even
+solo/paired-session work on a PR rather than pushing straight to `main`, purely so CI actually
+runs against it once.
 
 ## Notable judgment calls
 

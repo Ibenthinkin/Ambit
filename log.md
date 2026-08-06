@@ -56,6 +56,13 @@ confirmed zero schema diff from the bump before building on top of it.
   token extraction.
 - `sendResetPassword` needed to be declared `async` even though its body doesn't `await`
   anything — Better Auth's type expects a `Promise<void>` return; `tsc` caught it immediately.
+- **`main`'s CI had been silently red since 2.1 (07-29), undetected for 8 days.** `env.js`
+  started requiring `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL` in that commit, but
+  `.github/workflows/ci.yml`'s build step was never updated to supply them — invisible because
+  2.1 was pushed straight to `main` rather than through a PR, so the `pull_request` CI trigger
+  never ran against it. Only surfaced because this was the first PR since. Fixed the workflow
+  (placeholder values); worth treating even solo/paired work as PR-only going forward, purely so
+  CI actually runs.
 
 **Open / next:** 2.3 (topic seed data — the 16 validated topics, per the label mapping settled
 07-17) is next. No UI exists yet; Phase 5.2 is the first point sign-in/sign-up become visible.
