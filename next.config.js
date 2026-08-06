@@ -12,7 +12,12 @@ import "./src/env.js";
 import { withSerwist } from "@serwist/turbopack";
 
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+  // Better Auth ships some Node-only internals (crypto, its own DB adapters) that Next's default
+  // bundling tries to trace into the client/edge graph and trips over under `--bun` — this tells
+  // Next to leave the package as a real Node `require()` at runtime instead of bundling it.
+  serverExternalPackages: ["better-auth"],
+};
 
 // `@serwist/turbopack` (not the older `@serwist/next`) is the PWA/service-worker integration:
 // it compiles the service worker as a Next.js Route Handler (src/app/serwist/sw.js/route.ts)

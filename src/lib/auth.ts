@@ -1,25 +1,98 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError } from "better-auth/api";
+import { eq } from "drizzle-orm";
 
 import { env } from "~/env";
 import { db } from "~/server/db/client";
+import * as schema from "~/server/db/schema";
+import { getMailer } from "~/server/services/mailer";
 
 // The Better Auth server instance. Two audiences read this file:
-//   1. The app itself, at request time (session checks, the /api/auth/[...all] route handler —
-//      wired up in Phase 2.2).
+//   1. The app itself, at request time (session checks, the /api/auth/[...all] route handler).
 //   2. The `@better-auth/cli` schema generator (`bunx @better-auth/cli generate`), which imports
 //      this exact config to figure out which core tables/columns it owns (user, session, account,
 //      verification) — that's why this file has to exist and be runnable *before* those tables are
 //      in schema.ts, not after.
-// This is intentionally minimal for now: just enough shape for the generator to walk. Invite
-// gating, the mailer, and the route/client wiring land in Phase 2.2.
+//
+// What Better Auth owns, out of the box, just by being configured below: password hashing
+// (scrypt), session creation/expiry/rotation, CSRF-safe cookies, and the reset-password token
+// lifecycle (generate, verify, single-use, expire). What we own, all in this file: *who's allowed
+// to sign up at all* (the invite gate) and *how* reset-password mail actually gets sent (the
+// Mailer seam). Better Auth calls out to our code at exactly two points — a hook and a callback —
+// and otherwise runs the whole auth lifecycle itself.
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
+    // Passing the full schema module (not just the four auth tables) lets the adapter resolve
+    // FK-shaped relations correctly; it only *uses* user/session/account/verification, but it
+    // needs to see them by their exported names to match against its own internal field map.
+    schema,
   }),
+
   emailAndPassword: {
     enabled: true,
+
+    // Called after Better Auth has already validated the request and generated a fresh
+    // single-use token; our only job is to deliver it. `url` is the ready-to-click reset link
+    // (baseURL + token, per BETTER_AUTH_URL below).
+    sendResetPassword: async ({ user, url }) => {
+      // Deliberately not awaited: awaiting here would let a client measure "how long did
+      // request-password-reset take" and infer whether the email exists from the timing
+      // difference (mail-send vs. no-op for an unknown address) — a classic user-enumeration
+      // side channel. Fire-and-forget keeps the response time identical either way. A failed
+      // send in dev just means "check the terminal", which is an acceptable dev-only gap; prod
+      // delivery failures surface through ResendMailer's own error path/logging, not here.
+      void getMailer().send({
+        to: user.email,
+        subject: "Reset your Ambit password",
+        text: `Reset your password: ${url}\n\nIf you didn't request this, ignore this email.`,
+        html: `<p>Reset your password: <a href="${url}">${url}</a></p><p>If you didn't request this, ignore this email.</p>`,
+      });
+    },
   },
+
+  // Invite-only sign-up (SPEC §3.1). No first-party Better Auth invite plugin exists — this is
+  // the documented pattern: intercept user creation itself. `requireEmailVerification` is
+  // deliberately left off: the invite list *is* the trust anchor, so a second "prove you own
+  // this inbox" step would be redundant friction, not extra security.
+  databaseHooks: {
+    user: {
+      create: {
+        // Runs inside the sign-up flow before the row is inserted. Returning `{ data: user }`
+        // lets creation proceed (optionally with a modified user object — we pass it through
+        // unchanged); throwing an APIError aborts creation and that error is what the client
+        // sees back from `signUp.email`.
+        before: async (user) => {
+          const [pending] = await db
+            .select()
+            .from(schema.invite)
+            .where(eq(schema.invite.email, user.email))
+            .limit(1);
+
+          if (!pending) {
+            throw new APIError("BAD_REQUEST", {
+              message:
+                "Ambit is invite-only right now. Ask someone who's already in for an invite.",
+            });
+          }
+
+          return { data: user };
+        },
+
+        // Runs after the row exists. The invite has done its job (it let this sign-up through);
+        // flip it to `accepted` so it can't be pointed at a second signup and so an admin
+        // glancing at the `invite` table can see who's actually joined.
+        after: async (user) => {
+          await db
+            .update(schema.invite)
+            .set({ status: "accepted" })
+            .where(eq(schema.invite.email, user.email));
+        },
+      },
+    },
+  },
+
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
 });

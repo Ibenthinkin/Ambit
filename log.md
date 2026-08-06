@@ -3,6 +3,65 @@
 Narrative record of decisions, findings, and dead-ends that don't live in commit
 messages. `/brief` reads this. Newest on top.
 
+## 2026-08
+
+### [[08-06-26 Thu]] — Phase 1 verified complete; Phase 2.2 planned and shipped (plan-then-execute-cheaper)
+
+**Mode change:** Ben asked to confirm Phase 1 was really done, then plan Phase 2 the same way as
+prior phases. Re-ran `bun run check` fresh — still green, all three BUILD_PLAN 1.1–1.3 boxes hold.
+Since Phase 2 already had a plan (`docs/PHASE2_PLAN.md`, written 07-17) and 2.1 was already
+shipped, the ask narrowed to resuming at 2.2. New workflow tried for the first time: **plan with
+the expensive model, execute the saved plan in a separate session on a cheaper one.** The planning
+session did the docs-verification legwork (Context7 against installed versions) and wrote a
+self-contained plan to `~/.claude/plans/jolly-launching-hartmanis.md`; declined to auto-execute
+when plan mode exited, per Ben's explicit request. A follow-up session (`sonnet-5`, same day)
+picked the plan up cold and executed it end-to-end via `superpowers:executing-plans`, pairing
+checkpoints included in the plan but run unattended since Ben wasn't present to review piece-by-
+piece live — the walkthrough doc serves as the after-the-fact record instead.
+
+**Shipped (BUILD_PLAN 2.2 box checked):** full detail in `docs/PHASE2_WALKTHROUGH_2.2.md`.
+- Mailer seam (`src/server/services/mailer.ts`): `Mailer` interface, `MailpitMailer`
+  (nodemailer), `ResendMailer`, env-switched — same isolation ethos as `SourceAdapter`.
+- `src/lib/auth.ts` fleshed out: `drizzleAdapter` now gets the schema explicitly; invite gating
+  via `databaseHooks.user.create.before` (throws `APIError` for uninvited emails) / `.after`
+  (flips `invite.status` → `accepted`); `sendResetPassword` fire-and-forget through the mailer.
+- Route (`app/api/auth/[...all]/route.ts` via `toNextJsHandler`) + client
+  (`src/lib/auth-client.ts` via `createAuthClient`, same-origin, no `baseURL`).
+- Route protection + invite script (`scripts/invite.ts`, idempotent upsert-by-email).
+- Full HTTP-level verification since no UI exists until Phase 5.2: invite → sign-up → session →
+  invite flipped to accepted; uninvited sign-up refused with the polite message; password-reset
+  loop driven end-to-end through Mailpit's own API (request → catch mail → follow the emailed
+  redirect → extract token → reset → old password fails, new one signs in); proxy redirect
+  checked both directions (no cookie → 307 to `/`; valid cookie → falls through, 404 since
+  `/feed` doesn't exist yet).
+
+**Decision — `middleware.ts` → `proxy.ts`, caught before it was written.** The 07-17 plan
+predates Next 16's rename of Middleware to Proxy. The planning session's docs research flagged it
+as a revision; the executing session **re-verified it against live docs** rather than trusting
+the plan blindly (confirmed `proxy.ts` exporting `proxy()` is the current convention, and that a
+`:path*` matcher segment matches the bare parent path too — `/feed/:path*` needed to catch plain
+`/feed`, not just sub-paths, a real gotcha if it had gone unchecked). Also bumped `drizzle-orm`
+0.41.0 → 0.45.2 and `drizzle-kit` 0.30.6 → 0.31.10 first (better-auth 1.6.25's adapter peer-range),
+confirmed zero schema diff from the bump before building on top of it.
+
+**Findings:**
+- Docker Desktop wasn't running at the start of the execute session — started it, polled for the
+  daemon, then `docker compose up -d`. The named Postgres volume from 2.1 had survived (only
+  `down -v` would wipe it), so the schema was already migrated; verified with a no-op
+  `db:migrate` rather than assuming.
+- Better Auth's emailed reset link isn't a raw token — it's the library's own
+  `/api/auth/reset-password/{token}?callbackURL=...` redirect endpoint. Verified with
+  `curl -D -` (not `-L`) to read the `Location` header and confirm it lands on
+  `/reset-password?token=...`, matching what the client-side flow expects, before trusting the
+  token extraction.
+- `sendResetPassword` needed to be declared `async` even though its body doesn't `await`
+  anything — Better Auth's type expects a `Promise<void>` return; `tsc` caught it immediately.
+
+**Open / next:** 2.3 (topic seed data — the 16 validated topics, per the label mapping settled
+07-17) is next. No UI exists yet; Phase 5.2 is the first point sign-in/sign-up become visible.
+
+*Session spend: 25.94M tok (in 528 · out 134.5k · cache r 25.12M / w 682.6k) · ~$20.35 · sonnet-5 + fable-5 · 10:11→10:32*
+
 ## 2026-07
 
 ### [[07-29-26 Wed]] — Phase 2.1 shipped: Postgres + Drizzle schema, paired step-by-step
