@@ -29,9 +29,14 @@ jobs:
       - run: bun run check
 
       # next.config.js validates env vars (src/env.js) at build startup, so the build needs *a*
-      # DATABASE_URL even though nothing ever connects during it — the home route is dynamic
-      # (server-rendered per request, not statically generated), so a real Postgres is only
-      # needed once someone actually requests a page, which CI never does.
+      # value for every required var even though nothing ever connects/authenticates during it —
+      # the home route is dynamic (server-rendered per request, not statically generated), and
+      # nothing hits /api/auth/* either, so these placeholders only exist to satisfy Zod, never
+      # to do real work. (Phase 2.2 finding: BETTER_AUTH_SECRET/URL became required in 2.1 but
+      # this workflow wasn't updated at the time — main's build had been silently red since,
+      # unnoticed because that commit pushed straight to main instead of through a PR.)
       - run: bun run build
         env:
           DATABASE_URL: postgres://ambit:ambit@localhost:5432/ambit
+          BETTER_AUTH_SECRET: ci-placeholder-secret-not-used-for-anything-real
+          BETTER_AUTH_URL: http://localhost:3000
