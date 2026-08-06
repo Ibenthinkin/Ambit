@@ -5,7 +5,7 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
-### [[08-06-26 Thu]] — Phase 1 verified complete; Phase 2.2 planned and shipped (plan-then-execute-cheaper)
+### [[08-06-26 Thu]] — Phase 1 verified complete; Phase 2.2 and 2.3 shipped — **Phase 2 closed**
 
 **Mode change:** Ben asked to confirm Phase 1 was really done, then plan Phase 2 the same way as
 prior phases. Re-ran `bun run check` fresh — still green, all three BUILD_PLAN 1.1–1.3 boxes hold.
@@ -68,6 +68,52 @@ confirmed zero schema diff from the bump before building on top of it.
 07-17) is next. No UI exists yet; Phase 5.2 is the first point sign-in/sign-up become visible.
 
 *Session spend: 25.94M tok (in 528 · out 134.5k · cache r 25.12M / w 682.6k) · ~$20.35 · sonnet-5 + fable-5 · 10:11→10:32*
+
+**Third session, same day — 2.3 shipped, Phase 2 complete.** Same plan-then-execute-cheaper split
+(planned on Opus, executed on Sonnet in-session this time rather than a fresh one). Full detail in
+`docs/PHASE2_WALKTHROUGH_2.3.md`. Shipped: `src/server/config/topics.ts` (16 topics, per-source
+seed-query arrays), `scripts/seed-topics.ts` (`bun run db:seed`), and
+`src/server/config/topics.test.ts`. No migration — `seed_queries` shipped back in 2.1's migration
+0000, and narrowing the type in *config only* (`Record<V1Source, string[]>`, assignable to the
+schema's deliberately-open `Record<string, string[]>`) got the typo-safety without touching
+`schema.ts`.
+
+**Finding — the Phase 0 seed-query warning was mostly a false alarm, and the real bug is worse.**
+`phase0/NOTES.md:44-48` says to "budget real time for seed-query tuning in 2.3" and names six weak
+topic×source cells. Measuring them instead of acting on them split those six into **three unrelated
+causes**: four (all AIC) were an artifact of `harvest.ts`'s last-topic-wins dedupe; two (Textiles/Met
+150→6, Ceramics/Met 150→57) were the curation floor; only **four cells were genuinely bad queries**,
+all CMA and Met, retuned against live-measured hit counts. AIC's `/artworks/search` turns out to be a
+**relevance ranking over the whole 132k corpus, not a filter** (`pagination.total` = 132681 for every
+query), so topics overlap massively at the 600-candidate depth harvest pages to. Reproduced exactly:
+`astronomy` finds 419 usable AIC items, 415 are claimed by later-ordered topics, **4 survive** —
+matching `items.json` to the item. Astronomy is 1st in `TOPICS` order, Machines 3rd; the raw AIC
+counts track list position almost monotonically. Recorded in **SPEC §15 as a Phase 3.4 open
+question**, because `(source, source_id)` UNIQUE + a single-valued `item.topic_id` means real
+ingestion hits the identical collision — the rule it picks must be order-independent, and the
+ingest log should surface collision counts so it can't recur invisibly.
+
+**Finding — JSONB doesn't round-trip key order.** The second seed run reported "16 updated" instead
+of "16 unchanged", failing the step's own no-op requirement. Cause: change detection compared
+`JSON.stringify(row.seedQueries)` to the config object, but Postgres normalizes JSONB object keys
+(shortest first, then bytewise), so `{wikipedia, met, aic, …}` comes back `{aic, cma, met, …}`. Data
+was correct throughout; only the reporting lied. Fixed by walking a fixed key list. Any future
+"has this JSONB column changed?" check in this repo has the same trap waiting.
+
+**Decisions:** seed script upserts with `onConflictDoUpdate` (the repo's first `onConflict*` use),
+deliberately inverting `invite.ts`'s read-first-and-bail — an invite is user data that must never be
+overwritten, a topic is config that *should* re-sync when `topics.ts` is edited. Rejected `star`
+(193 CMA hits) and `printing type` (4,573 Met hits) despite good counts — hit count isn't relevance.
+Dropped the dead `typography` term from CMA entirely rather than keeping it for appearances.
+Caveat noted for later: `topic-graph.json`'s Astronomy and Machines centroids were built from
+AIC-starved samples, so worth a re-look after 3.4's real ingestion.
+
+**Open / next:** Phase 3 — 3.1 (adapter contract + Wikipedia adapter). Backend 3.x/4.x can start
+interleaving with Phase 5 UI work from here. Two things 3.x inherits: the collision rule above, and
+the fact that seed-query *quality* still isn't proven — the retuned queries were verified non-empty
+against live APIs, not verified to survive the 3.3 curation floor.
+
+*Session spend: 13.76M tok (in 214 · out 145.7k · cache r 12.73M / w 878.8k) · ~$17.98 · opus-5 + sonnet-5 · 14:42→15:48*
 
 ## 2026-07
 
