@@ -2,7 +2,7 @@
 // phase0/harvest.ts (toLede/uniqueTags), which is why the cases below mirror phase0's own findings
 // (e.g. sentence-boundary cuts, whitespace collapsing from Wikipedia's plaintext extracts).
 import { describe, expect, it } from "vitest";
-import { toLede, uniqueTags } from "./normalize";
+import { stripHtml, toLede, uniqueTags } from "./normalize";
 
 describe("toLede", () => {
   it("passes short text through unchanged (after whitespace collapse)", () => {
@@ -63,5 +63,28 @@ describe("uniqueTags", () => {
 
   it("returns an empty array for an all-empty input", () => {
     expect(uniqueTags([null, undefined, "  "])).toEqual([]);
+  });
+});
+
+describe("stripHtml", () => {
+  it("removes simple inline tags", () => {
+    expect(stripHtml("legend. <em>Erato</em> belongs")).toBe(
+      "legend.  Erato  belongs",
+    );
+  });
+
+  it("replaces adjacent tags with whitespace rather than jamming words together", () => {
+    // The CMA case that motivated this function: "<br><br>" sitting directly between a period
+    // and the next word must not collapse into "poetry.Here" — a caller running toLede()
+    // afterward turns the resulting multi-space gap into a single clean space.
+    const result = stripHtml("poetry.<br><br>Here, <em>Iupiter </em>(Jupiter)");
+    expect(result).not.toContain("poetry.Here");
+    expect(result.replace(/\s+/g, " ").trim()).toBe(
+      "poetry. Here, Iupiter (Jupiter)",
+    );
+  });
+
+  it("passes plain text through unchanged", () => {
+    expect(stripHtml("No tags here.")).toBe("No tags here.");
   });
 });

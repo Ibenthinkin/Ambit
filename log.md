@@ -82,6 +82,37 @@ records, paginated at the undocumented 100-per-page hard cap). Both register in
 
 *Session spend: 26.94M tok (in 299 · out 133.4k · cache r 26.38M / w 423.4k) · ~$10.21 · sonnet-5 + opus-4-7 · 13:23→13:31*
 
+**Same session, continued — 3.2b (CMA + Wellcome adapters) shipped. All five v1 source adapters
+complete.** Full detail in `docs/PHASE3_WALKTHROUGH_3.2b.md`. `cma.ts` (friendliest API of the
+five — one request can cover a whole topic's quota) and `wellcome.ts` (per-item license
+heterogeneity, every hit's own `thumbnail.license.id` re-checked against the open set).
+`src/server/services/sources/index.ts` completes the five-adapter registry;
+`scripts/probe-adapter.ts` now imports it directly instead of wiring adapters up by hand. 20 new
+unit tests (64 total) — all passed on the first run, no debugging cycle needed this time.
+
+**Findings:**
+- **CMA's `description` field carries raw HTML** (`<em>`, `<br>`) not mentioned anywhere in
+  `phase0/NOTES.md` — the throwaway harvester stored it but never rendered it, so nobody noticed.
+  Added `stripHtml()` to `normalize.ts` (CLAUDE.md: never render unsanitized source HTML), designed
+  to replace tags with a space rather than nothing so adjacent tags like `<br><br>` don't jam
+  words together (`poetry.<br><br>Here` → `poetry.Here` was the failure mode a dedicated unit test
+  now guards against).
+- **Wellcome's thumbnail-rewrite regex only covered half of live URL shapes.** The plan ported
+  phase0's regex verbatim (bracket form only); a live survey across four searches found the
+  plain-width form is nearly as common (47 vs 33 of 80). Checked safety first — AIC's IIIF server
+  403s a wider plain-width request, so blindly copying that assumption to Wellcome would have
+  repeated the mistake — but `curl -I` + a file-size comparison confirmed Wellcome's server honors
+  a wider plain-width request cleanly (222KB vs 47KB for the same image, not a re-served original).
+  Extended the regex to rewrite both shapes to the same `!800,800` target; re-verified against 5
+  fresh live results afterward.
+
+**Open / next:** Task 4 (3.3: curation service + `drawFromTopic`) — the taste layer that turns
+these five adapters' raw output into what the feed draws from. **Handing off to a new session
+here** — Task 3's branch (`phase-3.2b-cma-wellcome`) is committed and pushed with a PR open;
+`docs/PHASE3_PLAN.md` has the full Task 4/5 spec for a cold pickup.
+
+*Session spend: 41.58M tok (in 392 · out 109.2k · cache r 40.24M / w 1.23M) · ~$13.83 · sonnet-5 + opus-4-7 · 13:31→13:53*
+
 ### [[08-06-26 Thu]] — Phase 1 verified complete; Phase 2.2 and 2.3 shipped — **Phase 2 closed**
 
 **Mode change:** Ben asked to confirm Phase 1 was really done, then plan Phase 2 the same way as

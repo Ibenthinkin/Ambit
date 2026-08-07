@@ -7,41 +7,37 @@
  *   bun run probe wikipedia astronomy --limit 5
  *   bun run probe met "musical instrument" --limit 3
  *
- * The registry below grows by one line per adapter task; wikipedia lands in 3.1, met + aic in 3.2.
+ * As of Phase 3.2b all five v1 sources have adapters — see server/services/sources/index.ts,
+ * the registry this CLI reuses directly rather than wiring adapters up by hand.
  */
-import { aic } from "~/server/services/sources/aic";
-import { met } from "~/server/services/sources/met";
-import { wikipedia } from "~/server/services/sources/wikipedia";
-import type { SourceAdapter } from "~/server/services/sources/types";
+import { adapters as registry } from "~/server/services/sources";
+import type { SourceId } from "~/server/services/sources";
 
-const registry: Record<string, SourceAdapter<unknown>> = {
-  wikipedia,
-  met,
-  aic,
-};
-
+const knownSources = Object.keys(registry) as SourceId[];
 const [source, query, ...rest] = process.argv.slice(2);
 const limitFlagIdx = rest.indexOf("--limit");
 const limit = limitFlagIdx > -1 ? Number(rest[limitFlagIdx + 1]) : 10;
 
 if (!source || !query) {
   console.error("usage: bun run probe <source> <query> [--limit N]");
-  console.error(`known sources: ${Object.keys(registry).join(", ")}`);
+  console.error(`known sources: ${knownSources.join(", ")}`);
   process.exit(1);
 }
 
-const adapter = registry[source];
-if (!adapter) {
+// A CLI arg is always a plain string — narrow it to SourceId ourselves rather than widening the
+// registry's key type, which would lose the exhaustiveness check everywhere else that imports it.
+if (!knownSources.includes(source as SourceId)) {
   console.error(
-    `unknown source "${source}" — known: ${Object.keys(registry).join(", ")}`,
+    `unknown source "${source}" — known: ${knownSources.join(", ")}`,
   );
   process.exit(1);
 }
+const adapter = registry[source as SourceId];
 
 console.log(`Probing ${source} for "${query}" (limit ${limit})…\n`);
 const t0 = performance.now();
 const raws = await adapter.search(query, { limit });
-const items = raws.map((r) => adapter.toItem(r));
+const items = raws.map((r: unknown) => adapter.toItem(r));
 const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
 
 console.log(

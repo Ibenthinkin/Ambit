@@ -1,0 +1,241 @@
+[
+  {
+    "id": 163042,
+    "title": "Apollo, God of Light, Eloquence, Poetry, and the Fine Arts with Urania, Muse of Astronomy",
+    "tombstone": "Apollo, God of Light, Eloquence, Poetry, and the Fine Arts with Urania, Muse of Astronomy, 1798. Charles Meynier (French, 1768–1832). Oil on canvas; overall: 275 x 235 cm (108 1/4 x 92 1/2 in.). The Cleveland Museum of Art, Severance and Greta Millikin Purchase Fund, 2003.6.3",
+    "description": "A recipient of the Grand Prix de Rome in 1789, Charles Meynier became a member of the Académie des Beaux-Arts in 1815 and painted large ceiling decorations at the Louvre and numerous pictures glorifying the Napoleonic legend. <em>Erato, Muse of Lyrical Poetry</em> belongs to a cycle of five paintings executed to fulfill a commission from businessman François Boyer-Fonfréde. They were intended to decorate his home in his native Toulouse and constitute a rare instance of a complete cycle of major ...",
+    "creators": [
+      {
+        "id": 44231,
+        "description": "Charles Meynier (French, 1768–1832)",
+        "extent": null,
+        "qualifier": null,
+        "role": "artist",
+        "biography": "Charles Meynier was a recipient of the Grand Prix de Rome in 1789 and became a member of the Académie des Beaux-Arts in 1815. A history painter, he created the grand decoration for ceilings of the Louvre (1819 and 1822), and produced numerous pictures glorifying the Napoleonic legend, which for the most part remain in the château de Versailles. Through the assistance of his brother Meynier Saint-Phal, a famous actor of the Comédie Française who paid for his studies, the artist entered the atelier of the painter François André Vincent (1746-1816), a principal rival of the master Jacques-Louis David. The studio in which Meynier received his training was known by the students of David as the atelier of the\"perruques,\" (the wigs) the name given to royalists or conservatives during that period.",
+        "name_in_original_language": null,
+        "birth_year": "1768",
+        "death_year": "1832",
+        "use_in_caption": true,
+        "include_extent": false,
+        "weight": 1
+      }
+    ],
+    "creation_date": "1798",
+    "culture": [
+      "France, late 18th century"
+    ],
+    "technique": "oil on canvas",
+    "department": "Modern European Painting and Sculpture",
+    "type": "Painting",
+    "images": {
+      "annotation": "",
+      "web": {
+        "url": "https://openaccess-cdn.clevelandart.org/2003.6.3/2003.6.3_web.jpg",
+        "width": "760",
+        "height": "900",
+        "filesize": "229265",
+        "filename": "2003.6.3_web.jpg"
+      },
+      "print": {
+        "url": "https://openaccess-cdn.clevelandart.org/2003.6.3/2003.6.3_print.jpg",
+        "width": "2870",
+        "height": "3400",
+        "filesize": "3328050",
+        "filename": "2003.6.3_print.jpg"
+      },
+      "full": {
+        "url": "https://openaccess-cdn.clevelandart.org/2003.6.3/2003.6.3_full.tif",
+        "width": "11528",
+        "height": "13658",
+        "filesize": "472379040",
+        "filename": "2003.6.3_full.tif"
+      }
+    },
+    "url": "https://clevelandart.org/art/2003.6.3",
+    "share_license_status": "CC0",
+    "_fixtureNote": "servable: description field contains raw HTML (<em>, <br>) — CMA quirk not recorded in phase0/NOTES.md, must be stripped before serving as summary text (CLAUDE.md: never render unsanitized source HTML)"
+  },
+  {
+    "id": 106354,
+    "title": "Urania (astronomy) (from the Tarocchi series D:  Apollo and the Muses, #12)",
+    "tombstone": "Urania (astronomy) (from the Tarocchi series D:  Apollo and the Muses, #12), before 1467. Master of the E-Series Tarocchi (Italian, active 1460s). Engraving hand-colored with gold. The Cleveland Museum of Art, Dudley P. Allen Fund, 1924.432.12",
+    "description": "This engraving is part of the Tarocchi group marked with the letter “D,” and named<em> Apollo and the Muses</em>. In Greek mythology, the nine Muses (Calliope, Urania, Terpsichore, Erato, Polyhymnia, Thalia, Melpomene, Euterpe, and Clio) were the daughters of Zeus, king of the gods, and Mnemosyne, the Titaness of memory. The Muses were goddesses presiding over different branches of the arts and sciences. Their leader and supervisor was Apollo, the god of light, music, prophecy, and poetry.<br><b...",
+    "creators": [
+      {
+        "id": 40800,
+        "description": "Master of the E-Series Tarocchi (Italian, active 1460s)",
+        "extent": null,
+        "qualifier": null,
+        "role": "artist",
+        "biography": null,
+        "name_in_original_language": null,
+        "death_year": "1499",
+        "use_in_caption": true,
+        "include_extent": false,
+        "weight": 1
+      }
+    ],
+    "creation_date": "before 1467",
+    "culture": [
+      "Italy, Ferrara, 15th century"
+    ],
+    "technique": "engraving hand-colored with gold",
+    "department": "Prints",
+    "type": "Print",
+    "images": {
+      "annotation": null,
+      "web": {
+        "url": "https://openaccess-cdn.clevelandart.org/1924.432.12/1924.432.12_web.jpg",
+        "width": "653",
+        "height": "893",
+        "filesize": "440833",
+        "filename": "1924.432.12_web.jpg"
+      },
+      "print": {
+        "url": "https://openaccess-cdn.clevelandart.org/1924.432.12/1924.432.12_print.jpg",
+        "width": "2488",
+        "height": "3400",
+        "filesize": "5917009",
+        "filename": "1924.432.12_print.jpg"
+      },
+      "full": {
+        "url": "https://openaccess-cdn.clevelandart.org/1924.432.12/1924.432.12_full.tif",
+        "width": "3848",
+        "height": "5258",
+        "filesize": "60729504",
+        "filename": "1924.432.12_full.tif"
+      }
+    },
+    "url": "https://clevelandart.org/art/1924.432.12",
+    "share_license_status": "CC0",
+    "_fixtureNote": "servable: single creator, culture array, Prints department"
+  },
+  {
+    "id": 106391,
+    "title": "Jupiter (from the Tarocchi, series A:  Firmaments of the Universe, #46)",
+    "tombstone": "Jupiter (from the Tarocchi, series A:  Firmaments of the Universe, #46), before 1467. Master of the E-Series Tarocchi (Italian, active 1460s). Engraving. The Cleveland Museum of Art, Dudley P. Allen Fund, 1924.432.46",
+    "description": "This engraving is part of the Tarocchi group marked with the letter “A”, and named<em> Firmaments of the Universe</em>. This series comprises the seven planets from the classical astronomy (Moon, Mercury, Venus, Sun, Mars, Jupiter, Saturn) and the three celestial spheres that separate them from the Supreme Entity (<em>Prima Causa</em>) from which everything was originated. <br><br>Here, <em>Iupiter </em>(Jupiter) is personified as a full-length crowned male figure, turned to left. He is seated o...",
+    "creators": [
+      {
+        "id": 40800,
+        "description": "Master of the E-Series Tarocchi (Italian, active 1460s)",
+        "extent": null,
+        "qualifier": null,
+        "role": "artist",
+        "biography": null,
+        "name_in_original_language": null,
+        "death_year": "1499",
+        "use_in_caption": true,
+        "include_extent": false,
+        "weight": 1
+      }
+    ],
+    "creation_date": "before 1467",
+    "culture": [
+      "Italy, Ferrara, 15th century"
+    ],
+    "technique": "engraving",
+    "department": "Prints",
+    "type": "Print",
+    "images": {
+      "annotation": null,
+      "web": {
+        "url": "https://openaccess-cdn.clevelandart.org/1924.432.46/1924.432.46_web.jpg",
+        "width": "657",
+        "height": "893",
+        "filesize": "437078",
+        "filename": "1924.432.46_web.jpg"
+      },
+      "print": {
+        "url": "https://openaccess-cdn.clevelandart.org/1924.432.46/1924.432.46_print.jpg",
+        "width": "2500",
+        "height": "3400",
+        "filesize": "6001108",
+        "filename": "1924.432.46_print.jpg"
+      },
+      "full": {
+        "url": "https://openaccess-cdn.clevelandart.org/1924.432.46/1924.432.46_full.tif",
+        "width": "3912",
+        "height": "5320",
+        "filesize": "62466332",
+        "filename": "1924.432.46_full.tif"
+      }
+    },
+    "url": "https://clevelandart.org/art/1924.432.46",
+    "share_license_status": "CC0",
+    "_fixtureNote": "servable: another Tarocchi print, different accession pattern"
+  },
+  {
+    "id": 97763,
+    "title": "Lace Lappets",
+    "tombstone": "Lace Lappets, 1800s. France, Chantilly. Cotton: machine-made lace and embroidered net; average: 96.6 x 8.5 cm (38 1/16 x 3 3/8 in.). The Cleveland Museum of Art, Gift of Mrs. Albert R. Warner, 1917.395",
+    "description": "Very few complete lace headdresses from the 1700s and 1800s (known as a ‘lace head’) survive, but three pieces formed this type of headwear. This long narrow piece of lace formed the pair of lappets (streamers that frame the face). A complete lace headdress can be seen in CMA objects 1936.489 and 1936.490.",
+    "creators": [],
+    "creation_date": "1800s",
+    "culture": [
+      "France, Chantilly"
+    ],
+    "technique": "Cotton: machine-made lace and embroidered net",
+    "department": "Textiles",
+    "type": "Lace",
+    "images": {},
+    "url": "https://clevelandart.org/art/1917.395",
+    "share_license_status": "CC0",
+    "_fixtureNote": "rejected: images is an empty object {} (not just missing web.url) — no image available despite CC0 license and full catalogue text"
+  },
+  {
+    "id": 106386,
+    "title": "Luna (from the Tarocchi, series A:  Firmaments of the Universe, #41)",
+    "tombstone": "Luna (from the Tarocchi, series A:  Firmaments of the Universe, #41), before 1467. Master of the E-Series Tarocchi (Italian, active 1460s). Engraving. The Cleveland Museum of Art, Dudley P. Allen Fund, 1924.432.41",
+    "description": "This engraving is part of the Tarocchi group marked with the letter “A”, and named <em>Firmaments of the Universe</em>. This series comprises the seven planets from the classical astronomy (Moon, Mercury, Venus, Sun, Mars, Jupiter, Saturn) and the three celestial spheres that separate them from the Supreme Entity (<em>Prima Causa</em>) from which everything was originated. <br><br>Here, <em>Luna </em>(Moon) is personified as a female figure steering a chariot drawn by two horses in the sky and a...",
+    "creators": [
+      {
+        "id": 40800,
+        "description": "Master of the E-Series Tarocchi (Italian, active 1460s)",
+        "extent": null,
+        "qualifier": null,
+        "role": "artist",
+        "biography": null,
+        "name_in_original_language": null,
+        "death_year": "1499",
+        "use_in_caption": true,
+        "include_extent": false,
+        "weight": 1
+      }
+    ],
+    "creation_date": "before 1467",
+    "culture": [
+      "Italy, Ferrara, 15th century"
+    ],
+    "technique": "engraving",
+    "department": "Prints",
+    "type": "Print",
+    "images": {
+      "annotation": null,
+      "web": {
+        "url": "https://openaccess-cdn.clevelandart.org/1924.432.41/1924.432.41_web.jpg",
+        "width": "643",
+        "height": "893",
+        "filesize": "422654",
+        "filename": "1924.432.41_web.jpg"
+      },
+      "print": {
+        "url": "https://openaccess-cdn.clevelandart.org/1924.432.41/1924.432.41_print.jpg",
+        "width": "2448",
+        "height": "3400",
+        "filesize": "5749082",
+        "filename": "1924.432.41_print.jpg"
+      },
+      "full": {
+        "url": "https://openaccess-cdn.clevelandart.org/1924.432.41/1924.432.41_full.tif",
+        "width": "3840",
+        "height": "5334",
+        "filesize": "61478340",
+        "filename": "1924.432.41_full.tif"
+      }
+    },
+    "url": "https://clevelandart.org/art/1924.432.41",
+    "share_license_status": "In Copyright",
+    "_fixtureNote": "hand-edited: share_license_status changed to a non-CC0 value — live sampling never produced a real example (CMA public API appears to only surface CC0 records), so this exercises the reject-non-free path structurally"
+  }
+]
