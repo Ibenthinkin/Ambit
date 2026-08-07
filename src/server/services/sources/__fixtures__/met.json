@@ -1,0 +1,488 @@
+[
+  {
+    "objectID": 203938,
+    "isHighlight": false,
+    "accessionNumber": "64.101.1450",
+    "accessionYear": "1964",
+    "isPublicDomain": true,
+    "primaryImage": "https://images.metmuseum.org/CRDImages/es/original/DP-915-001.jpg",
+    "primaryImageSmall": "https://images.metmuseum.org/CRDImages/es/web-large/DP-915-001.jpg",
+    "additionalImages": [
+      "https://images.metmuseum.org/CRDImages/es/original/DP-915-002.jpg",
+      "https://images.metmuseum.org/CRDImages/es/original/DP-915-003.jpg"
+    ],
+    "constituents": [
+      {
+        "constituentID": 163601,
+        "role": "Artist",
+        "name": "After a model by Giambologna",
+        "constituentULAN_URL": "http://vocab.getty.edu/page/ulan/500016387",
+        "constituentWikidata_URL": "https://www.wikidata.org/wiki/Q220136",
+        "gender": ""
+      }
+    ],
+    "department": "European Sculpture and Decorative Arts",
+    "objectName": "Statuette",
+    "title": "Astronomy",
+    "culture": "",
+    "period": "",
+    "dynasty": "",
+    "reign": "",
+    "portfolio": "",
+    "artistRole": "Artist",
+    "artistPrefix": "After a model by",
+    "artistDisplayName": "Giambologna",
+    "artistDisplayBio": "Netherlandish, Douai 1529\u20131608 Florence",
+    "artistSuffix": "",
+    "artistAlphaSort": "Giambologna",
+    "artistNationality": "Netherlandish",
+    "artistBeginDate": "1529",
+    "artistEndDate": "1608",
+    "artistGender": "",
+    "artistWikidata_URL": "https://www.wikidata.org/wiki/Q220136",
+    "artistULAN_URL": "http://vocab.getty.edu/page/ulan/500016387",
+    "objectDate": "17th century",
+    "objectBeginDate": 1600,
+    "objectEndDate": 1699,
+    "medium": "Bronze",
+    "dimensions": "15 3/4 in. \u00d7 4 3/4 in. \u00d7 6 in. (40 \u00d7 12.1 \u00d7 15.2 cm)",
+    "measurements": [
+      {
+        "elementName": "Height",
+        "elementDescription": null,
+        "elementMeasurements": {
+          "Height": 53.97511
+        }
+      },
+      {
+        "elementName": "Overall",
+        "elementDescription": null,
+        "elementMeasurements": {
+          "Depth": 15.24003,
+          "Height": 40.00508,
+          "Width": 12.065024
+        }
+      }
+    ],
+    "creditLine": "Gift of Irwin Untermyer, 1964",
+    "geographyType": "",
+    "city": "",
+    "state": "",
+    "county": "",
+    "country": "",
+    "region": "",
+    "subregion": "",
+    "locale": "",
+    "locus": "",
+    "excavation": "",
+    "river": "",
+    "classification": "Sculpture-Bronze",
+    "rightsAndReproduction": "",
+    "linkResource": "",
+    "metadataDate": "2026-08-06T04:51:07.753Z",
+    "repository": "Metropolitan Museum of Art, New York, NY",
+    "objectURL": "https://www.metmuseum.org/art/collection/search/203938",
+    "tags": [
+      {
+        "term": "Female Nudes",
+        "AAT_URL": "http://vocab.getty.edu/page/aat/300189568",
+        "Wikidata_URL": "https://www.wikidata.org/wiki/Q40446"
+      },
+      {
+        "term": "Astronomy",
+        "AAT_URL": "http://vocab.getty.edu/page/aat/300054534",
+        "Wikidata_URL": "https://www.wikidata.org/wiki/Q333"
+      }
+    ],
+    "objectWikidata_URL": "https://www.wikidata.org/wiki/Q116309279",
+    "isTimelineWork": false,
+    "GalleryNumber": "536",
+    "_fixtureNote": "servable: full catalogue fields, artist bio present"
+  },
+  {
+    "objectID": 189304,
+    "isHighlight": false,
+    "accessionNumber": "07.225.14a",
+    "accessionYear": "1907",
+    "isPublicDomain": true,
+    "primaryImage": "https://images.metmuseum.org/CRDImages/es/original/5083.jpg",
+    "primaryImageSmall": "https://images.metmuseum.org/CRDImages/es/web-large/5083.jpg",
+    "additionalImages": [
+      "https://images.metmuseum.org/CRDImages/es/original/173815.jpg",
+      "https://images.metmuseum.org/CRDImages/es/original/173813.jpg"
+    ],
+    "constituents": null,
+    "department": "European Sculpture and Decorative Arts",
+    "objectName": "Figure group",
+    "title": "Figure group symbolic of Astronomy",
+    "culture": "",
+    "period": "",
+    "dynasty": "",
+    "reign": "",
+    "portfolio": "",
+    "artistRole": "",
+    "artistPrefix": "",
+    "artistDisplayName": "",
+    "artistDisplayBio": "",
+    "artistSuffix": "",
+    "artistAlphaSort": "",
+    "artistNationality": "",
+    "artistBeginDate": "",
+    "artistEndDate": "",
+    "artistGender": "",
+    "artistWikidata_URL": "",
+    "artistULAN_URL": "",
+    "objectDate": "ca. 1775",
+    "objectBeginDate": 1770,
+    "objectEndDate": 1780,
+    "medium": "Oak and beech, carved and painted",
+    "dimensions": "Overall (each): 37 1/4 \u00d7 74 1/2 \u00d7 7 7/8 in. (94.6 \u00d7 189.2 \u00d7 20 cm)",
+    "measurements": [
+      {
+        "elementName": "Overall",
+        "elementDescription": "each",
+        "elementMeasurements": {
+          "Depth": 20.00254,
+          "Height": 94.61519,
+          "Width": 189.23038
+        }
+      }
+    ],
+    "creditLine": "Gift of J. Pierpont Morgan, 1906",
+    "geographyType": "",
+    "city": "",
+    "state": "",
+    "county": "",
+    "country": "",
+    "region": "",
+    "subregion": "",
+    "locale": "",
+    "locus": "",
+    "excavation": "",
+    "river": "",
+    "classification": "Woodwork",
+    "rightsAndReproduction": "",
+    "linkResource": "",
+    "metadataDate": "2025-01-31T04:54:36.6Z",
+    "repository": "Metropolitan Museum of Art, New York, NY",
+    "objectURL": "https://www.metmuseum.org/art/collection/search/189304",
+    "tags": [
+      {
+        "term": "Eagles",
+        "AAT_URL": "http://vocab.getty.edu/page/aat/300250049",
+        "Wikidata_URL": "https://www.wikidata.org/wiki/Q2092297"
+      },
+      {
+        "term": "Astronomy",
+        "AAT_URL": "http://vocab.getty.edu/page/aat/300054534",
+        "Wikidata_URL": "https://www.wikidata.org/wiki/Q333"
+      }
+    ],
+    "objectWikidata_URL": "https://www.wikidata.org/wiki/Q116242610",
+    "isTimelineWork": false,
+    "GalleryNumber": "545",
+    "_fixtureNote": "servable: no artist name (empty string), still keeps other fields"
+  },
+  {
+    "objectID": 451379,
+    "isHighlight": false,
+    "accessionNumber": "57.36.4",
+    "accessionYear": "1957",
+    "isPublicDomain": true,
+    "primaryImage": "https://images.metmuseum.org/CRDImages/is/original/DP170379.jpg",
+    "primaryImageSmall": "https://images.metmuseum.org/CRDImages/is/web-large/DP170379.jpg",
+    "additionalImages": [
+      "https://images.metmuseum.org/CRDImages/is/original/DP372453.jpg",
+      "https://images.metmuseum.org/CRDImages/is/original/DP191.jpg",
+      "https://images.metmuseum.org/CRDImages/is/original/is57.36.4.AV1.jpg",
+      "https://images.metmuseum.org/CRDImages/is/original/is57.36.4.AV2.jpg",
+      "https://images.metmuseum.org/CRDImages/is/original/is57.36.4.R.jpg",
+      "https://images.metmuseum.org/CRDImages/is/original/DT470.jpg",
+      "https://images.metmuseum.org/CRDImages/is/original/DP197.jpg",
+      "https://images.metmuseum.org/CRDImages/is/original/DP8.jpg"
+    ],
+    "constituents": null,
+    "department": "Islamic Art",
+    "objectName": "Bowl",
+    "title": "Bowl with Courtly and Astrological Motifs",
+    "culture": "",
+    "period": "",
+    "dynasty": "",
+    "reign": "",
+    "portfolio": "",
+    "artistRole": "",
+    "artistPrefix": "",
+    "artistDisplayName": "",
+    "artistDisplayBio": "",
+    "artistSuffix": "",
+    "artistAlphaSort": "",
+    "artistNationality": "",
+    "artistBeginDate": "",
+    "artistEndDate": "",
+    "artistGender": "",
+    "artistWikidata_URL": "",
+    "artistULAN_URL": "",
+    "objectDate": "late 12th\u2013early 13th century",
+    "objectBeginDate": 1175,
+    "objectEndDate": 1225,
+    "medium": "Stonepaste; polychrome inglaze and overglaze painted and gilded on opaque monochrome glaze (mina'i)",
+    "dimensions": "H. 3 3/4 in. (9.5 cm)\r\nDiam. 7 3/8 in. (18.7 cm)\r\nWt. 14 oz. (396.9 g)",
+    "measurements": [
+      {
+        "elementName": "Overall",
+        "elementDescription": null,
+        "elementMeasurements": {
+          "Diameter": 18.7,
+          "Height": 9.5,
+          "Weight": 0.3969379
+        }
+      }
+    ],
+    "creditLine": "Purchase, Rogers Fund, and Gift of The Schiff Foundation, 1957",
+    "geographyType": "Attributed to",
+    "city": "",
+    "state": "",
+    "county": "",
+    "country": "Central or Northern Iran",
+    "region": "",
+    "subregion": "",
+    "locale": "",
+    "locus": "",
+    "excavation": "",
+    "river": "",
+    "classification": "Ceramics",
+    "rightsAndReproduction": "",
+    "linkResource": "",
+    "metadataDate": "2025-12-20T04:50:39.43Z",
+    "repository": "Metropolitan Museum of Art, New York, NY",
+    "objectURL": "https://www.metmuseum.org/art/collection/search/451379",
+    "tags": [
+      {
+        "term": "Birds",
+        "AAT_URL": "http://vocab.getty.edu/page/aat/300266506",
+        "Wikidata_URL": "https://www.wikidata.org/wiki/Q5113"
+      },
+      {
+        "term": "Horses",
+        "AAT_URL": "http://vocab.getty.edu/page/aat/300250148",
+        "Wikidata_URL": "https://www.wikidata.org/wiki/Q726"
+      },
+      {
+        "term": "Planets",
+        "AAT_URL": "http://vocab.getty.edu/page/aat/300263109",
+        "Wikidata_URL": "https://www.wikidata.org/wiki/Q634"
+      },
+      {
+        "term": "Sun",
+        "AAT_URL": "http://vocab.getty.edu/page/aat/300379806",
+        "Wikidata_URL": "https://www.wikidata.org/wiki/Q525"
+      },
+      {
+        "term": "Astronomy",
+        "AAT_URL": "http://vocab.getty.edu/page/aat/300054534",
+        "Wikidata_URL": "https://www.wikidata.org/wiki/Q333"
+      }
+    ],
+    "objectWikidata_URL": "https://www.wikidata.org/wiki/Q116245462",
+    "isTimelineWork": true,
+    "GalleryNumber": "453",
+    "_fixtureNote": "servable: five tags, Islamic Art dept, no culture/period"
+  },
+  {
+    "objectID": 745853,
+    "isHighlight": false,
+    "accessionNumber": "2017.98",
+    "accessionYear": "2017",
+    "isPublicDomain": false,
+    "primaryImage": "",
+    "primaryImageSmall": "",
+    "additionalImages": [],
+    "constituents": [
+      {
+        "constituentID": 147125,
+        "role": "Artist",
+        "name": "Hedda Sterne",
+        "constituentULAN_URL": "http://vocab.getty.edu/page/ulan/500007206",
+        "constituentWikidata_URL": "https://www.wikidata.org/wiki/Q436874",
+        "gender": "Female"
+      }
+    ],
+    "department": "Modern and Contemporary Art",
+    "objectName": "Painting",
+    "title": "Machine",
+    "culture": "",
+    "period": "",
+    "dynasty": "",
+    "reign": "",
+    "portfolio": "",
+    "artistRole": "Artist",
+    "artistPrefix": "",
+    "artistDisplayName": "Hedda Sterne",
+    "artistDisplayBio": "American, Bucharest 1910\u20132011 New York, New York",
+    "artistSuffix": "",
+    "artistAlphaSort": "Sterne, Hedda",
+    "artistNationality": "American",
+    "artistBeginDate": "1910",
+    "artistEndDate": "2011",
+    "artistGender": "Female",
+    "artistWikidata_URL": "https://www.wikidata.org/wiki/Q436874",
+    "artistULAN_URL": "http://vocab.getty.edu/page/ulan/500007206",
+    "objectDate": "1949",
+    "objectBeginDate": 1949,
+    "objectEndDate": 1949,
+    "medium": "Oil on canvas",
+    "dimensions": "30 1/8 \u00d7 40 1/8 in. (76.5 \u00d7 101.9 cm)",
+    "measurements": [
+      {
+        "elementName": "Framed",
+        "elementDescription": "F.2017.98 wood float frame",
+        "elementMeasurements": {
+          "Depth": 4.4450088,
+          "Height": 78.74016,
+          "Width": 104.45771
+        }
+      },
+      {
+        "elementName": "Overall",
+        "elementDescription": null,
+        "elementMeasurements": {
+          "Height": 76.517654,
+          "Width": 101.9177
+        }
+      }
+    ],
+    "creditLine": "Purchase, Gift of Samuel Dretzin, by exchange, Bequest of Gioconda King, by exchange, Rogers Fund, by exchange, Funds from various donors, by exchange, and Gift of Chauncey Stillman, by exchange, 2017",
+    "geographyType": "",
+    "city": "",
+    "state": "",
+    "county": "",
+    "country": "",
+    "region": "",
+    "subregion": "",
+    "locale": "",
+    "locus": "",
+    "excavation": "",
+    "river": "",
+    "classification": "Paintings",
+    "rightsAndReproduction": "\u00a9 2026 Artists Rights Society (ARS), New York",
+    "linkResource": "",
+    "metadataDate": "2026-01-07T04:49:48.69Z",
+    "repository": "Metropolitan Museum of Art, New York, NY",
+    "objectURL": "https://www.metmuseum.org/art/collection/search/745853",
+    "tags": [
+      {
+        "term": "Machines",
+        "AAT_URL": "http://vocab.getty.edu/page/aat/300167846",
+        "Wikidata_URL": "https://www.wikidata.org/wiki/Q11019"
+      }
+    ],
+    "objectWikidata_URL": "https://www.wikidata.org/wiki/Q126120081",
+    "isTimelineWork": false,
+    "GalleryNumber": "",
+    "_fixtureNote": "rejected: isPublicDomain false, no image"
+  },
+  {
+    "objectID": 490889,
+    "isHighlight": false,
+    "accessionNumber": "2000.600.14",
+    "accessionYear": "2000",
+    "isPublicDomain": false,
+    "primaryImage": "",
+    "primaryImageSmall": "",
+    "additionalImages": [],
+    "constituents": [
+      {
+        "constituentID": 162166,
+        "role": "Designer",
+        "name": "Isamu Noguchi",
+        "constituentULAN_URL": "http://vocab.getty.edu/page/ulan/500008602",
+        "constituentWikidata_URL": "https://www.wikidata.org/wiki/Q442628",
+        "gender": ""
+      },
+      {
+        "constituentID": 147910,
+        "role": "Manufacturer",
+        "name": "Zenith Radio Corporation (Chicago, Illinois)",
+        "constituentULAN_URL": "",
+        "constituentWikidata_URL": "",
+        "gender": ""
+      },
+      {
+        "constituentID": 147911,
+        "role": "Manufacturer",
+        "name": "Chicago Molded Products Corporation (Chicago, Illinois)",
+        "constituentULAN_URL": "",
+        "constituentWikidata_URL": "",
+        "gender": ""
+      },
+      {
+        "constituentID": 147912,
+        "role": "Manufacturer",
+        "name": "Kurz-Kasch, Inc. (Dayton, Ohio)",
+        "constituentULAN_URL": "",
+        "constituentWikidata_URL": "",
+        "gender": ""
+      }
+    ],
+    "department": "Modern and Contemporary Art",
+    "objectName": "Radio transmitter",
+    "title": "\"Radio Nurse\"",
+    "culture": "",
+    "period": "",
+    "dynasty": "",
+    "reign": "",
+    "portfolio": "",
+    "artistRole": "Designer",
+    "artistPrefix": "",
+    "artistDisplayName": "Isamu Noguchi",
+    "artistDisplayBio": "American, Los Angeles, California 1904\u20131988 New York",
+    "artistSuffix": "",
+    "artistAlphaSort": "Noguchi, Isamu",
+    "artistNationality": "American",
+    "artistBeginDate": "1904",
+    "artistEndDate": "1988",
+    "artistGender": "",
+    "artistWikidata_URL": "https://www.wikidata.org/wiki/Q442628",
+    "artistULAN_URL": "http://vocab.getty.edu/page/ulan/500008602",
+    "objectDate": "1937",
+    "objectBeginDate": 1937,
+    "objectEndDate": 1937,
+    "medium": "Bakelite, cellulose acetate",
+    "dimensions": "8 \u00d7 6 1/2 \u00d7 6 in., 5.2 lb. (20.3 \u00d7 16.5 \u00d7 15.2 cm, 2.4 kg)",
+    "measurements": [
+      {
+        "elementName": "Overall",
+        "elementDescription": null,
+        "elementMeasurements": {
+          "Depth": 15.24003,
+          "Height": 20.3,
+          "Weight": 2.3587046,
+          "Width": 16.5
+        }
+      }
+    ],
+    "creditLine": "John C. Waddell Collection, Gift of John C. Waddell, 2000",
+    "geographyType": "",
+    "city": "",
+    "state": "",
+    "county": "",
+    "country": "",
+    "region": "",
+    "subregion": "",
+    "locale": "",
+    "locus": "",
+    "excavation": "",
+    "river": "",
+    "classification": "Machines & Appliances",
+    "rightsAndReproduction": "\u00a9 The Isamu Noguchi Foundation and Garden Museum",
+    "linkResource": "",
+    "metadataDate": "2026-05-19T09:33:43.64Z",
+    "repository": "Metropolitan Museum of Art, New York, NY",
+    "objectURL": "https://www.metmuseum.org/art/collection/search/490889",
+    "tags": null,
+    "objectWikidata_URL": "",
+    "isTimelineWork": true,
+    "GalleryNumber": "965",
+    "_fixtureNote": "rejected: isPublicDomain false, tags is null (not just empty array)"
+  }
+]

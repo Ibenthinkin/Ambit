@@ -7,13 +7,17 @@
  *   bun run probe wikipedia astronomy --limit 5
  *   bun run probe met "musical instrument" --limit 3
  *
- * The registry below grows by one line per adapter task; wikipedia lands in 3.1.
+ * The registry below grows by one line per adapter task; wikipedia lands in 3.1, met + aic in 3.2.
  */
+import { aic } from "~/server/services/sources/aic";
+import { met } from "~/server/services/sources/met";
 import { wikipedia } from "~/server/services/sources/wikipedia";
 import type { SourceAdapter } from "~/server/services/sources/types";
 
 const registry: Record<string, SourceAdapter<unknown>> = {
   wikipedia,
+  met,
+  aic,
 };
 
 const [source, query, ...rest] = process.argv.slice(2);

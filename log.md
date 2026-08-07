@@ -55,6 +55,33 @@ plus a live `fetchBody` check.
 
 *Session spend: 30.92M tok (in 24.4k · out 209.9k · cache r 29.37M / w 1.32M) · ~≥$36.20 · sonnet-5 + fable-5 + <synthetic> · 12:16→13:23*
 
+**Same session, continued — 3.2 (Met + AIC adapters) shipped.** Full detail in
+`docs/PHASE3_WALKTHROUGH_3.2.md`. `met.ts` (N+1 shape: search returns bare IDs, one
+`GET /objects/<id>` per candidate at a 400ms delay) and `aic.ts` (one search call returns full
+records, paginated at the undocumented 100-per-page hard cap). Both register in
+`scripts/probe-adapter.ts`; 11 new unit tests (44 total).
+
+**Findings:**
+- **Live fixture-gathering re-confirmed two Phase 0 findings directly, with real examples on
+  file:** the Met's `isPublicDomain=true` search filter genuinely lies (fixture objects `745853`
+  and `490889` came back from a PD-filtered "machine" search yet are `isPublicDomain: false` on
+  their own record), and AIC's `is_public_domain` field is unreliable in a sharper way than
+  recorded before — it can be **entirely absent**, not just `false`.
+- **A wrong assumption caught by the test itself, not by review:** an early AIC fixture labeled a
+  record as having `is_public_domain` absent based on a truncated debug print; the real record had
+  it explicitly `false`. The test failed immediately (`expected true to be false`) rather than
+  silently passing on a wrong premise — fixed by hand-editing one record to genuinely lack the key
+  (marked inline) and using a different real record for the "explicitly false" case.
+- Lint flagged 12 real `prefer-nullish-coalescing` violations across both adapters; each swap was
+  checked for safety before applying (every flagged expression feeds a later `.filter(Boolean)`,
+  which treats `""` and `null` identically, so the intermediate-value change never reaches output).
+- **The Met's N+1 shape makes it the ingestion job's throughput bottleneck** — worth keeping in
+  mind for Task 5's full-populate run estimate.
+
+**Open / next:** Task 3 (3.2b: CMA + Wellcome adapters) — completes the five-adapter registry.
+
+*Session spend: 26.94M tok (in 299 · out 133.4k · cache r 26.38M / w 423.4k) · ~$10.21 · sonnet-5 + opus-4-7 · 13:23→13:31*
+
 ### [[08-06-26 Thu]] — Phase 1 verified complete; Phase 2.2 and 2.3 shipped — **Phase 2 closed**
 
 **Mode change:** Ben asked to confirm Phase 1 was really done, then plan Phase 2 the same way as
