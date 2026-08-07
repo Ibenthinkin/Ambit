@@ -26,6 +26,11 @@ export const env = createEnv({
     // Optional: unset in dev (server/services/mailer.ts falls back to Mailpit), required for
     // ResendMailer to activate in production.
     RESEND_API_KEY: z.string().min(1).optional(),
+    // Optional here (unlike the two above): only the ingest-time curator (server/services/
+    // curator.ts, Phase 3.3) and offline embedding tooling read it, never a request path, so
+    // there's no reason to fail app boot over it. curator.ts checks for its own presence at call
+    // time and throws a clear error there instead.
+    OPENROUTER_API_KEY: z.string().min(1).optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -49,6 +54,7 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     NODE_ENV: process.env.NODE_ENV,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },

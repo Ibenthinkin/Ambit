@@ -5,6 +5,51 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-07-26 Fri]] — Phase 3.3 shipped: curation service + `drawFromTopic`
+
+**Mode:** cold pickup in a new session (`/Users/ben/.claude/CLAUDE.md`'s "pick up where the last
+session left" flow) — no plan-mode brainstorming needed, `docs/PHASE3_PLAN.md` Task 4 was already
+fully specified from 3.2b's handoff. Read `log.md` + `docs/PHASE3_PLAN.md` cold, confirmed via git
+that `main` was clean and up to date at 3.2b's merge commit, then executed Task 4 directly via
+`superpowers:executing-plans`, TDD throughout (every function's tests written and run to a failing
+state before implementation — plan Steps 1-4 for the curator, Step 5 for `drawFromTopic`).
+
+**Shipped (BUILD_PLAN 3.3 box checked):** full detail in `docs/PHASE3_WALKTHROUGH_3.3.md`.
+`src/server/services/curator.ts` (structural floor + LLM curator, ported from `phase0/curate.ts`
+— prompt copied verbatim as a product artifact) and `drawFromTopic()` made real in
+`src/server/db/items.ts` (weighted-random draw, never similarity — the 0.4 failure stays dead).
+21 new tests (85 total): 12 pure curator tests, 4 pure `drawWeight` tests, 5 integration tests
+against real Postgres. Live curator smoke (~$0.01, 40 items) confirmed sane score distribution and
+a working disk cache; script deleted after verification per the plan (not part of the committed
+surface).
+
+**Findings — both infrastructure, not curation logic, and both fixed at the root rather than
+worked around:**
+- **Vitest doesn't resolve the `~/*` tsconfig path alias.** Every adapter file through 3.2b used
+  relative imports, so nothing had yet exercised a test transitively importing a `~/`-aliased
+  module. First one to do it (`items.integration.test.ts` → `db/client.ts` → `~/env`) failed
+  outright. Fixed once, permanently, with an explicit `resolve.alias` in `vitest.config.ts`.
+- **`bun run test` doesn't get Bun's automatic `.env` loading** — Vitest's bin shebangs to plain
+  Node, unlike `dev`/`build`/`start`, which force `--bun`. Integration tests were *silently
+  self-skipping* even with `docker compose up -d` running and a real `.env` present — technically
+  "working as designed" (skip when no DB) but not actually exercising the DB path Step 6 needed.
+  Tried forcing `--bun` on vitest to match the existing idiom; that broke `zod`'s package-export
+  resolution inside Vite's SSR transform instead (`z.string is not a function`) — reverted.
+  Settled on loading `.env` once in `vitest.config.ts` via Node 24's built-in
+  `process.loadEnvFile()`, a no-op in CI (no `.env` there) rather than a crash — no new dependency.
+- **A third fix rides along:** `drawFromTopic()` imports `db/client.ts` *dynamically*, inside the
+  function body, not at module scope — otherwise merely importing `items.ts` for the pure
+  `drawWeight` tests would trigger `~/env`'s Zod validation, and CI's `bun run test` step runs with
+  **zero env vars set** (only the later `bun run build` step supplies them). Verified directly, not
+  just reasoned about: ran the full suite under a stripped environment (`env -i ... bun run test`,
+  CI's actual condition) — 85 passed, 5 correctly skipped, no crash.
+
+**Open / next:** Task 5 (3.4: ingestion job) — `scripts/ingest.ts` wires all five adapters, the
+collision-resolution rule, and this task's curation service into the idempotent job that populates
+the dev DB. Branch `phase-3.3-curation` pushed with a PR open.
+
+*Session spend: 22.23M tok (in 336 · out 117.1k · cache r 21.45M / w 661.3k) · ~$8.11 · sonnet-5 · 14:53→15:07*
+
 ### [[08-07-26 Fri]] — Phase 3 planned; 3.1 (adapter contract + Wikipedia) shipped
 
 **Mode:** Ben asked for a Phase 3 execution plan (Fable, plan mode). Explored the repo's Phase 0
