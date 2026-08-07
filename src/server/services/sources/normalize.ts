@@ -31,3 +31,16 @@ export function uniqueTags(tags: (string | null | undefined)[]): string[] {
     ),
   ];
 }
+
+/**
+ * Strip HTML tags from a string, replacing each with a space rather than nothing — a naive
+ * removal would jam adjacent words together wherever a tag touches text on both sides (CMA's
+ * `<br><br>Here,` would otherwise become `poetry.Here,`, one run-on word). The caller is expected
+ * to follow this with toLede()/whitespace-collapse, which cleans up the resulting extra spaces.
+ * CMA's `description` field is the source that made this necessary (Phase 3.2b): it carries raw
+ * `<em>`/`<br>` markup the API docs don't mention, and CLAUDE.md is explicit that source HTML
+ * must never reach the app unsanitized — `item.summary` is meant to be safe plain text everywhere.
+ */
+export function stripHtml(text: string): string {
+  return text.replace(/<[^>]+>/g, " ");
+}

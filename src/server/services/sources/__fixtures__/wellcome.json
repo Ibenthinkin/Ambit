@@ -1,0 +1,371 @@
+[
+  {
+    "id": "r32p4n5s",
+    "title": "Anatomy : proceedings at the National Political Union, respecting legislative interference in the study of anatomy, and the supply of bodies for anatomical research.",
+    "thumbnail": {
+      "url": "https://iiif.wellcomecollection.org/thumbs/b22396147_0003.jp2/full/!200,200/0/default.jpg",
+      "license": {
+        "id": "pdm",
+        "type": "License",
+        "label": "Public Domain Mark",
+        "url": "https://creativecommons.org/share-your-work/public-domain/pdm/"
+      },
+      "accessConditions": [],
+      "locationType": {
+        "id": "thumbnail-image",
+        "type": "LocationType",
+        "label": "Thumbnail image"
+      },
+      "type": "DigitalLocation"
+    },
+    "production": [
+      {
+        "label": "[London] : Barnes, printer, 1832.",
+        "agents": [
+          {
+            "label": "Barnes, printer",
+            "type": "Agent"
+          }
+        ],
+        "dates": [
+          {
+            "label": "1832",
+            "type": "Period"
+          }
+        ],
+        "function": {
+          "label": "Publication",
+          "type": "Concept"
+        },
+        "type": "ProductionEvent",
+        "places": [
+          {
+            "label": "[London]",
+            "type": "Place"
+          }
+        ]
+      }
+    ],
+    "contributors": [
+      {
+        "agent": {
+          "id": "yu6gtnp9",
+          "label": "National Political Union",
+          "type": "Organisation"
+        },
+        "roles": [],
+        "primary": true,
+        "type": "Contributor"
+      },
+      {
+        "agent": {
+          "id": "v34xt6v9",
+          "label": "Royal College of Surgeons of England",
+          "type": "Organisation"
+        },
+        "roles": [
+          {
+            "label": "data contributor",
+            "type": "ContributionRole"
+          }
+        ],
+        "primary": false,
+        "type": "Contributor"
+      }
+    ],
+    "subjects": [
+      {
+        "label": "Anatomy, education",
+        "concepts": [
+          {
+            "id": "mjr5vbey",
+            "label": "Anatomy, education",
+            "type": "Concept"
+          }
+        ],
+        "id": "mjr5vbey",
+        "type": "Subject"
+      },
+      {
+        "label": "Dissection, legislation & jurisprudence",
+        "concepts": [
+          {
+            "id": "nkdmmcyg",
+            "label": "Dissection, legislation & jurisprudence",
+            "type": "Concept"
+          }
+        ],
+        "id": "nkdmmcyg",
+        "type": "Subject"
+      },
+      {
+        "label": "Cadaver",
+        "concepts": [
+          {
+            "id": "kaj4eqvf",
+            "label": "Cadaver",
+            "type": "Concept"
+          }
+        ],
+        "id": "kaj4eqvf",
+        "type": "Subject"
+      }
+    ],
+    "notes": [
+      {
+        "contents": [
+          "'Not for sale'"
+        ],
+        "noteType": {
+          "id": "general-note",
+          "type": "NoteType",
+          "label": "Notes"
+        },
+        "type": "Note"
+      },
+      {
+        "contents": [
+          "This material has been provided by The Royal College of Surgeons of England. The original may be consulted at The Royal College of Surgeons of England."
+        ],
+        "noteType": {
+          "id": "location-of-original",
+          "type": "NoteType",
+          "label": "Location of original"
+        },
+        "type": "Note"
+      }
+    ],
+    "workType": {
+      "id": "a",
+      "type": "Format",
+      "label": "Books"
+    },
+    "physicalDescription": "24 pages ; 23 cm",
+    "_fixtureNote": "servable: pdm license, rich subjects + production + physicalDescription"
+  },
+  {
+    "id": "uk9hd5q7",
+    "title": "Anatomy: artistic",
+    "thumbnail": {
+      "url": "https://iiif.wellcomecollection.org/image/L0004482/full/300,/0/default.jpg",
+      "license": {
+        "id": "cc-by",
+        "type": "License",
+        "label": "Attribution 4.0 International (CC BY 4.0)",
+        "url": "http://creativecommons.org/licenses/by/4.0/"
+      },
+      "accessConditions": [],
+      "locationType": {
+        "id": "thumbnail-image",
+        "type": "LocationType",
+        "label": "Thumbnail image"
+      },
+      "type": "DigitalLocation"
+    },
+    "production": [],
+    "contributors": [],
+    "subjects": [],
+    "notes": [],
+    "workType": {
+      "id": "q",
+      "type": "Format",
+      "label": "Digital Images"
+    },
+    "_fixtureNote": "servable: cc-by license, minimal metadata (empty subjects/contributors/notes/production)"
+  },
+  {
+    "id": "yn7vhade",
+    "title": "Anatomy, descriptive and applied.",
+    "thumbnail": {
+      "url": "https://iiif.wellcomecollection.org/thumbs/b24756878_0007.jp2/full/!200,200/0/default.jpg",
+      "license": {
+        "id": "inc",
+        "type": "License",
+        "label": "In copyright",
+        "url": "http://rightsstatements.org/vocab/InC/1.0/"
+      },
+      "accessConditions": [],
+      "locationType": {
+        "id": "thumbnail-image",
+        "type": "LocationType",
+        "label": "Thumbnail image"
+      },
+      "type": "DigitalLocation"
+    },
+    "production": [
+      {
+        "label": "London, 1909.",
+        "agents": [],
+        "dates": [
+          {
+            "label": "1909",
+            "type": "Period"
+          }
+        ],
+        "function": {
+          "label": "Publication",
+          "type": "Concept"
+        },
+        "type": "ProductionEvent",
+        "places": [
+          {
+            "label": "London,",
+            "type": "Place"
+          }
+        ]
+      }
+    ],
+    "contributors": [
+      {
+        "agent": {
+          "id": "snpkm6te",
+          "label": "Henry Gray",
+          "type": "Person"
+        },
+        "roles": [],
+        "primary": true,
+        "type": "Contributor"
+      },
+      {
+        "agent": {
+          "id": "q83sb386",
+          "label": "Howden, Robert, 1856-1941",
+          "type": "Person"
+        },
+        "roles": [
+          {
+            "label": "editor",
+            "type": "ContributionRole"
+          }
+        ],
+        "primary": false,
+        "type": "Contributor"
+      },
+      {
+        "agent": {
+          "id": "jr796kxd",
+          "label": "Royal College of Physicians, London",
+          "type": "Organisation"
+        },
+        "roles": [
+          {
+            "label": "data contributor",
+            "type": "ContributionRole"
+          }
+        ],
+        "primary": false,
+        "type": "Contributor"
+      }
+    ],
+    "subjects": [
+      {
+        "label": "Anatomy",
+        "concepts": [
+          {
+            "id": "mwxaucyw",
+            "label": "Anatomy",
+            "type": "Concept"
+          }
+        ],
+        "id": "mwxaucyw",
+        "type": "Subject"
+      },
+      {
+        "label": "Human anatomy",
+        "concepts": [
+          {
+            "id": "s6s24vd7",
+            "label": "Human anatomy",
+            "type": "Concept"
+          }
+        ],
+        "id": "s6s24vd7",
+        "type": "Subject"
+      }
+    ],
+    "notes": [
+      {
+        "contents": [
+          "Previous ed.: 1905",
+          "Previous eds. known as: Anatomy, descriptive and surgical"
+        ],
+        "noteType": {
+          "id": "general-note",
+          "type": "NoteType",
+          "label": "Notes"
+        },
+        "type": "Note"
+      },
+      {
+        "contents": [
+          "Bibliography"
+        ],
+        "noteType": {
+          "id": "bibliographic-info",
+          "type": "NoteType",
+          "label": "Bibliographic information"
+        },
+        "type": "Note"
+      },
+      {
+        "contents": [
+          "This material has been provided by Royal College of Physicians, London. The original may be consulted at Royal College of Physicians, London."
+        ],
+        "noteType": {
+          "id": "location-of-original",
+          "type": "NoteType",
+          "label": "Location of original"
+        },
+        "type": "Note"
+      }
+    ],
+    "workType": {
+      "id": "a",
+      "type": "Format",
+      "label": "Books"
+    },
+    "physicalDescription": "xiii, 1,296 pages : illustrations ; 26 cm",
+    "_fixtureNote": "rejected: thumbnail present but license.id is inc (in copyright) — not in the open set"
+  },
+  {
+    "id": "a3nduy6v",
+    "title": "Anatomy",
+    "production": [
+      {
+        "label": "1727",
+        "agents": [],
+        "dates": [
+          {
+            "label": "1727",
+            "type": "Period"
+          }
+        ],
+        "type": "ProductionEvent",
+        "places": []
+      }
+    ],
+    "contributors": [],
+    "subjects": [],
+    "notes": [
+      {
+        "contents": [
+          "Described in: Warren R. Dawson, <i>Manuscripta medica. A descriptive catalogue of the manuscripts in the Library of the Medical Society of London</i> (London, 1932)."
+        ],
+        "noteType": {
+          "id": "finding-aids",
+          "type": "NoteType",
+          "label": "Finding aids"
+        },
+        "type": "Note"
+      }
+    ],
+    "workType": {
+      "id": "h",
+      "type": "Format",
+      "label": "Archives and manuscripts"
+    },
+    "physicalDescription": "fo. 53-160",
+    "description": "Separately paged 1-159 with elaborately rubricated title-page: \"Cours | D Anatomie En | abregé. | Demontré | par Monsieur Verdier | Chirurgien juré, et | anatomiste Royal | de Saint Côme. | A Paris. | Henry Freeman | 1727.\" (fo. 53). [César Verdier, 1685-1759.] The text is divided into headed sections: Introductory (fo. 55-61); Fat (fo. 62-66); Digestion (67-73); Glands in general (fo. 73 verso-79); The Thorax (fo. 79 verso-88); Male Generative Organs (fo. 88, verso-94); Female Generative Organs (fo. 94 verso-102); Organs of Sense (fo. 102-108); \"L'Angeiologie,\" Nerves, Veins and Lymphatics (fo. 108 verso-115); Blood-vessels (fo. 115 verso-122); Neurology (fo. 123-133); Glands (133 verso-134). The last section is unfinished, and folios 135 verso-160, which are ruled in red ink, are blank.",
+    "_fixtureNote": "rejected: no thumbnail key at all (archival manuscript with no digitized image)"
+  }
+]
