@@ -18,6 +18,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "preview": "next build && next start",
+    "probe": "bun run scripts/probe-adapter.ts",
     "start": "bun run --bun next start",
     "e2e": "playwright test",
     "test": "vitest run",

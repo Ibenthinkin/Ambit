@@ -74,8 +74,8 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 *3.x and 4.x are backend-only and can interleave with Phase 5 UI work if you want variety.*
 
-- [ ] **3.1 — Adapter contract + Wikipedia.** `NormalizedItem` type + `SourceAdapter` interface (SPEC §6.1) in `server/services/sources/types.ts`. Wikipedia adapter (REST summary/search APIs): `search()` + `toItem()` with lede extraction, image when available, category tags, attribution/license fields. Vitest coverage on `toItem` with recorded fixture JSON (pattern: fixtures in `__fixtures__/`, no live calls in tests).
-  *Done = adapter returns clean `NormalizedItem`s live; unit tests pass on fixtures.*
+- [x] **3.1 — Adapter contract + Wikipedia.** `NormalizedItem` type + `SourceAdapter` interface (SPEC §6.1) in `server/services/sources/types.ts`. Wikipedia adapter (REST summary/search APIs): `search()` + `toItem()` with lede extraction, image when available, category tags, attribution/license fields. Vitest coverage on `toItem` with recorded fixture JSON (pattern: fixtures in `__fixtures__/`, no live calls in tests).
+  *Done = adapter returns clean `NormalizedItem`s live; unit tests pass on fixtures.* ✅ Planned + executed 08-07-26 (`docs/PHASE3_PLAN.md`, walkthrough `docs/PHASE3_WALKTHROUGH_3.1.md`). Adapter does 3 request shapes per article: batched intro-extract search (20 pages/call, `cllimit=max` — a per-page not per-query budget, per Phase 0), batched `imageinfo` license resolution (≤10 titles/call), and a per-article full-body fetch (whole-article extracts cap at 1 page/request — new finding, not in Phase 0's throwaway harvester, since it never fetched bodies). `scripts/probe-adapter.ts` added as the live-verification CLI reused by every later adapter task. 33 unit tests, 20 live-verified against real API responses across two topics.
 
 - [ ] **3.2 — Met + AIC adapters.** Same pattern, reusing Phase 0 findings (endpoints, quirks). Met: objects endpoint, public-domain filter, department/medium/culture → tags. AIC: `/artworks/search` with IIIF image URL construction. Fixture-based tests each.
   *Done = both adapters live-verified + tested; three total sources.*

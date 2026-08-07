@@ -1,0 +1,84 @@
+[
+  {
+    "page": {
+      "pageid": 50650,
+      "title": "Astronomy",
+      "extract": "Astronomy is a natural science that studies celestial objects and the phenomena that occur in the cosmos. It uses mathematics, physics, and chemistry to explain their origin and their overall evolution. Objects of interest include planets, moons, stars, nebulae, galaxies, meteoroids, asteroids, and comets.",
+      "original": {
+        "source": "https://upload.wikimedia.org/wikipedia/commons/0/06/Titan_in_front_of_the_ring_and_Saturn.jpg",
+        "width": 1417,
+        "height": 1326
+      },
+      "categories": [
+        { "title": "Category:Astronomy" },
+        { "title": "Category:Solar System" }
+      ]
+    },
+    "body": null,
+    "imageLicense": "Public domain",
+    "note": "free-licensed lead image, no full body fetched (intro-only case)"
+  },
+  {
+    "page": {
+      "pageid": 4183,
+      "title": "Botany",
+      "extract": "Botany, also called plant science, is the branch of natural science and biology that studies the growth, reproduction and evolution of plants over the last 3.5 billion years of life on earth.",
+      "original": {
+        "source": "https://upload.wikimedia.org/wikipedia/commons/6/6c/Myris_fragr_Fr_080112-3294_ltn.jpg",
+        "width": 1300,
+        "height": 1144
+      },
+      "categories": [{ "title": "Category:Botany" }]
+    },
+    "body": null,
+    "imageLicense": "CC BY-SA 3.0",
+    "note": "free-licensed image under a different license string shape than 'Public domain'"
+  },
+  {
+    "page": {
+      "pageid": 9247,
+      "title": "Epistemology",
+      "extract": "Epistemology is the branch of philosophy that examines the nature, origin, and limits of knowledge. Also called the theory of knowledge, it explores different types of knowledge, such as propositional knowledge about facts, practical knowledge in the form of skills, and knowledge by acquaintance as a familiarity through experience.",
+      "categories": [{ "title": "Category:Epistemology" }]
+    },
+    "body": null,
+    "imageLicense": null,
+    "note": "no lead image at all (~30% of Wikipedia articles, per phase0/NOTES.md) — page has no `original` key"
+  },
+  {
+    "page": {
+      "pageid": 46083,
+      "title": "Halley's Comet",
+      "extract": "Halley's Comet is the only known short-period comet that is consistently visible to the naked eye from Earth, appearing roughly every 74–79 years. It last appeared in the inner parts of the Solar System in 1986 and will next appear in mid-2061.",
+      "original": {
+        "source": "https://upload.wikimedia.org/wikipedia/commons/2/2a/Lspn_comet_halley.jpg",
+        "width": 1492,
+        "height": 1036
+      },
+      "categories": [
+        { "title": "Category:1531 in science" },
+        { "title": "Category:Comets" },
+        { "title": "Category:Individual comets" }
+      ]
+    },
+    "body": "Halley's Comet is the only known short-period comet that is consistently visible to the naked eye from Earth, appearing roughly every 74–79 years. It last appeared in the inner parts of the Solar System in 1986 and will next appear in mid-2061. Officially designated 1P/Halley, it is also commonly called Comet Halley, or sometimes simply Halley.\nHalley's periodic returns to the inner Solar System have been observed and recorded by astronomers around the world since at least 240 BC, but it was not until 1705 that the English astronomer Edmond Halley understood that these appearances were re-appearances of the same comet. As a result of this discovery, the comet is named after Halley.\nIn March 1986, during its latest visit to the inner Solar System, Halley's Comet became the first comet to be observed in detail by a spacecraft, the European Space Agency's Giotto mission, providing the first observational data on the structure of a comet nucleus and the mechanism of coma and tail formation.",
+    "imageLicense": "Public domain",
+    "note": "the full-body case — body is a separate single-page fetch (SPEC: whole-article extracts cap at 1 page/request)"
+  },
+  {
+    "page": {
+      "pageid": 999999,
+      "title": "Abbey Road (fictional fair-use test)",
+      "extract": "A hand-edited case standing in for a fair-use-licensed lead image, which the live sample of four real articles did not happen to produce. Exercises the reject-non-free-image path.",
+      "original": {
+        "source": "https://upload.wikimedia.org/wikipedia/en/hypothetical-fair-use-cover.jpg",
+        "width": 500,
+        "height": 500
+      },
+      "categories": [{ "title": "Category:Albums" }]
+    },
+    "body": null,
+    "imageLicense": null,
+    "note": "hand-edited: represents a page whose extmetadata resolved to a non-free license (e.g. 'Non-free use rationale'), so the adapter resolves imageLicense to null and the item goes text-only even though `original.source` is present"
+  }
+]
