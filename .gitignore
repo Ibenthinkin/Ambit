@@ -31,6 +31,10 @@ yarn-error.log*
 /test-results/
 /playwright-report/
 
+# Curator LLM-response cache (src/server/services/curator.ts, Phase 3.3) — cache-aside, one file
+# per item keyed on model+prompt-version+source id; reproducible by re-running curateItems().
+.cache/
+
 # OS / editor
 .DS_Store
 *.swp
