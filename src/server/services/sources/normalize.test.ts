@@ -1,0 +1,67 @@
+// Unit tests for the small text-shaping helpers every adapter's toItem() leans on. Ported from
+// phase0/harvest.ts (toLede/uniqueTags), which is why the cases below mirror phase0's own findings
+// (e.g. sentence-boundary cuts, whitespace collapsing from Wikipedia's plaintext extracts).
+import { describe, expect, it } from "vitest";
+import { toLede, uniqueTags } from "./normalize";
+
+describe("toLede", () => {
+  it("passes short text through unchanged (after whitespace collapse)", () => {
+    expect(toLede("A short sentence.")).toBe("A short sentence.");
+  });
+
+  it("collapses internal whitespace and trims", () => {
+    expect(toLede("  Multiple   spaces\nand\tnewlines  ")).toBe(
+      "Multiple spaces and newlines",
+    );
+  });
+
+  it("cuts at the last sentence boundary past the halfway point when text exceeds max", () => {
+    // Two sentences: the first ends well past the halfway point of a max=40 budget, so the cut
+    // should land right after "one." rather than mid-word.
+    const text =
+      "Sentence one is fairly long indeed. Sentence two continues on and on.";
+    const result = toLede(text, 40);
+    expect(result).toBe("Sentence one is fairly long indeed.");
+    expect(result.length).toBeLessThanOrEqual(40);
+  });
+
+  it("hard-cuts with an ellipsis when no sentence boundary exists past the halfway point", () => {
+    // No ". " anywhere in the first `max` chars, so toLede falls back to a hard trim + "…".
+    const text = "a".repeat(100);
+    const result = toLede(text, 40);
+    expect(result.endsWith("…")).toBe(true);
+    expect(result.length).toBe(41); // 40 chars + the ellipsis
+  });
+
+  it("defaults max to 700", () => {
+    const text = "word ".repeat(300); // 1500 chars, no sentence punctuation at all
+    const result = toLede(text);
+    expect(result.length).toBeLessThanOrEqual(701); // 700 + possible "…"
+  });
+});
+
+describe("uniqueTags", () => {
+  it("dedupes exact-duplicate tags", () => {
+    expect(uniqueTags(["Astronomy", "Astronomy", "Botany"])).toEqual([
+      "Astronomy",
+      "Botany",
+    ]);
+  });
+
+  it("drops null, undefined, and whitespace-only entries", () => {
+    expect(uniqueTags(["Astronomy", null, undefined, "   ", "Botany"])).toEqual(
+      ["Astronomy", "Botany"],
+    );
+  });
+
+  it("trims surrounding whitespace on kept tags", () => {
+    expect(uniqueTags(["  Astronomy  ", "Botany"])).toEqual([
+      "Astronomy",
+      "Botany",
+    ]);
+  });
+
+  it("returns an empty array for an all-empty input", () => {
+    expect(uniqueTags([null, undefined, "  "])).toEqual([]);
+  });
+});

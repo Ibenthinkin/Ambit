@@ -5,6 +5,56 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-07-26 Fri]] — Phase 3 planned; 3.1 (adapter contract + Wikipedia) shipped
+
+**Mode:** Ben asked for a Phase 3 execution plan (Fable, plan mode). Explored the repo's Phase 0
+reference code (`phase0/harvest.ts`, `phase0/curate.ts`, `phase0/NOTES.md`) and the Phase 2
+scaffolding it builds on (`schema.ts`, `topics.ts`, `items.ts` stubs), verified two live API
+behaviors via WebFetch (MediaWiki's `imageinfo`/`extmetadata` shape, and that full-article
+extracts cap at 1 page/request vs intro extracts' 20-page batch), then used `AskUserQuestion` to
+settle three open decisions before writing the plan:
+- **3.4's multi-topic collision gate (SPEC §15, previously open):** highest-search-rank wins, ties
+  broken alphabetically by topic id. Order-independent by construction, replacing Phase 0's
+  last-topic-wins dedupe that silently starved earlier topics (astronomy kept 4 of 419 AIC finds).
+- **Wikipedia lead images:** resolve per-image licenses at ingest (batched `imageinfo` calls) and
+  serve free-licensed images; text-only otherwise. Not deferred to "text-only forever."
+- **Adapter scope:** all five v1 sources (not three) land together in Phase 3 — `topics.ts`
+  already assumes five, and CMA/Wellcome are trial-passed with quirks recorded in `phase0/NOTES.md`.
+
+Plan saved to `docs/PHASE3_PLAN.md` (five tasks: 3.1 adapter contract + Wikipedia, 3.2 Met + AIC,
+3.2b CMA + Wellcome, 3.3 curation service + `drawFromTopic`, 3.4 ingestion job). Ben then switched
+model (Sonnet 5) and asked for direct execution in-session — a deviation from the
+plan-then-execute-cheaper split used for Phase 2 (recorded in memory: phase plans now get
+committed straight to `docs/PHASE<N>_PLAN.md`, matching the PHASE1/PHASE2 convention, rather than
+staying in the `~/.claude/plans/` scratch file).
+
+**Shipped (BUILD_PLAN 3.1 box checked):** full detail in `docs/PHASE3_WALKTHROUGH_3.1.md`.
+`server/services/sources/{types,http,normalize}.ts` (the shared adapter contract + plumbing) and
+`wikipedia.ts` (search → intro-detail batch → per-image license resolution → toItem; a separate
+`fetchBody()` for the one-page-per-request full-body case). `scripts/probe-adapter.ts` as the
+reusable live-verification CLI. 33 unit tests on fixtures; two live probes (astronomy, typography)
+plus a live `fetchBody` check.
+
+**Findings:**
+- **A real bug the live probe caught, not the fixtures:** the first live run returned zero images
+  across every item, including ones known to have free-licensed lead images. Cause — MediaWiki
+  normalizes `File:` title underscores to spaces in the `imageinfo` *response*, but the adapter's
+  license lookup was still keyed on the raw underscored value it sent in the *request*. Fixtures
+  encoded the correct mapping by construction, so only the live call exposed it; fixed by
+  normalizing both sides through one `toFileTitle()` helper. Confirms the plan's live-verification
+  step (not just fixture tests) earns its place.
+- **Full-article body fetches are a real per-item cost** Phase 0 never measured (its harvester only
+  ever pulled intro extracts) — one page per request, not batchable like the 20-page intro fetch.
+  Noted for Task 5: the ingestion job should call `fetchBody()` only after the structural floor +
+  collision resolution, not on every raw search hit.
+- Lint caught three real issues (two stray `any`s, one assertion-style nit) before this walkthrough
+  was written — fixed, not suppressed; `bun run check` green.
+
+**Open / next:** Task 2 (3.2: Met + AIC adapters), same pattern, reusing the shared plumbing from
+3.1.
+
+*Session spend: 30.92M tok (in 24.4k · out 209.9k · cache r 29.37M / w 1.32M) · ~≥$36.20 · sonnet-5 + fable-5 + <synthetic> · 12:16→13:23*
+
 ### [[08-06-26 Thu]] — Phase 1 verified complete; Phase 2.2 and 2.3 shipped — **Phase 2 closed**
 
 **Mode change:** Ben asked to confirm Phase 1 was really done, then plan Phase 2 the same way as
