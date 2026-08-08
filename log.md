@@ -5,6 +5,44 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-08-26 Sat]] — Phase 4 planned: feed engine & API (`docs/PHASE4_PLAN.md`)
+
+**Mode:** Fable planning session per the plan-then-execute-cheaper workflow — no code written;
+the deliverable is `docs/PHASE4_PLAN.md`, self-contained for a cold cheaper-model session
+(tasks 4.1 feed engine / 4.2 tRPC surface, one branch+PR each).
+
+**Decisions:**
+- **`seen_item` table, retention = forever** (Ben's call). SPEC §5 never defined a home for §9's
+  seen-tracking — the phase0 prototype kept it in localStorage, which quietly became a schema
+  gap. New table lands with 4.1's migration; decay/reset affordances are Phase 9 material.
+- **Constant-size stable cursor** — `{v, seed, page, anchor, prev[]}`, where `anchor` is
+  captured *before* the page's seen-rows insert and `prev` carries only the previous page's ids.
+  That makes the exclusion set reproducible, so refetching a cursor returns the identical page
+  even though serving already marked its items seen — SPEC §7's "stable pages on refetch"
+  without unbounded cursor growth or server-side page caches. ~400 chars, safe over tRPC's GET
+  transport (verified; `methodOverride: "POST"` exists as the escape hatch).
+- **`feed.page` returns `cards`, not bare `Item[]`** — tier + topic + drift path per card. The
+  drift path is product, not debug: 5.4's serendipity connective rows ("{From} → {To}") need it.
+  Debug payload + knob overrides gate on a new `FEED_DEBUG` env var.
+- **One pool query per page**, not per-slot `drawFromTopic` calls (12+ queries/page would blow
+  the <300 ms budget): slot plan first (pure, in-memory), then a single `getTopicPools` select,
+  then seeded in-memory draws reusing 3.3's exported `drawWeight`.
+- Cold start = uniform weights over all 16 topics; taste keywords stay deferred to 6.1;
+  rate limiting = in-memory sliding window (single-instance Coolify assumption).
+
+**Findings:**
+- `protectedProcedure` **doesn't exist yet** — Phase 2.2 shipped the optimistic proxy redirect
+  and left `trpc.ts` with a comment promising the real thing; 4.2 builds it (docs-verified
+  Better Auth `getSession` shape + tRPC v11 narrowing idiom are inlined in the plan).
+- The prototype's `pickDrift` comment says "softmax over the row's top half" but the code (and
+  SPEC §9) filter to positive-sim neighbours — the plan's porting notes call this out so the
+  executing session follows the code, not the stale comment.
+
+**Open / next:** execute `docs/PHASE4_PLAN.md` Task 1 (`phase-4.1-feed-engine`) in a cheaper
+session; probe-feed CLI is the pre-UI feel check before 4.1's box gets ticked.
+
+*Session spend: 5.96M tok (in 104 · out 142.7k · cache r 5.31M / w 513.0k) · ~$22.71 · fable-5 · 08:37→09:05*
+
 ### [[08-07-26 Fri]] — Phase 3.4 shipped: ingestion job — Phase 3 complete
 
 **Mode:** cold pickup in a new session, `docs/PHASE3_PLAN.md` Task 5 already fully specified from
