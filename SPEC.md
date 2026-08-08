@@ -241,12 +241,17 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 |---|---|---|---|
 | `topics.list` | query | — | `Topic[]` |
 | `topics.setMine` | mutation | `{ topicIds: string[] }` | `{ ok: true }` |
-| `feed.page` | query | `{ cursor?: string }` | `{ items: Item[], nextCursor?: string }` |
+| `feed.page` | query | `{ cursor?: string }` | `{ cards: FeedCard[], nextCursor?: string }` |
 | `items.byId` | query | `{ id: string }` | `Item` (public; read-only) |
 | `saves.toggle` | mutation | `{ itemId: string }` | `{ saved: boolean }` |
 | `saves.list` | query | — | `Item[]` |
 
 - `feed.page` is **cursor-based** (opaque cursor encodes pagination + the in-flight weighting seed).
+- `feed.page` returns `cards`, not bare items (revised at Phase 4.1 build time — see below): each
+  `FeedCard` is `{ item: Item, tier: "CORE" | "DRIFT" | "JUMP", topicId: string, driftPath?:
+  string[], debug?: { why: string, curationScore: number } }`. `driftPath` (the topic ids a
+  DRIFT/JUMP card's walk touched) is real product data, not gated — it's what SPEC §9's
+  connective UI rows explain a card with. `debug` is gated by `FEED_DEBUG` (§9).
 - `items.byId` is the only public (unauthenticated-allowed) procedure, backing `/i/{itemId}`.
 
 **Cursor design (Phase 4.1).** The cursor is a base64url-encoded JSON object, constant-size by

@@ -6,7 +6,16 @@
 // import pattern as items.ts's `drawFromTopic`/`upsertItem` throughout, for the same reason: CI's
 // `bun run test` step sets no env vars at all, so a static "./client" import (which reads `~/env`)
 // would crash the whole test run before a single test executes.
-import { and, eq, gte, inArray, lt, notExists, notInArray } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gte,
+  inArray,
+  lt,
+  notExists,
+  notInArray,
+} from "drizzle-orm";
 
 import type { Item } from "./items";
 import { item, seenItem } from "./schema";
@@ -23,6 +32,13 @@ import { item, seenItem } from "./schema";
  * Returns a Map keyed by every id in `topicIds` (even ones with zero eligible items — an empty
  * array, not a missing key) so services/feed.ts's `composePage` can do a plain `.get(topicId)`
  * without a null-vs-missing distinction to worry about.
+ *
+ * `ORDER BY id` is load-bearing, not cosmetic: `composePage`'s `weightedPick` walks each pool's
+ * array in order, so SPEC §7's "refetching the same cursor returns a stable page" promise depends
+ * on this query returning rows in the *same* order every time it's asked the same question.
+ * Postgres makes no ordering guarantee without an explicit `ORDER BY` — a query plan flip as the
+ * table grows, a parallel scan, or a HOT update moving a tuple could otherwise reorder results
+ * between two calls with identical inputs, silently changing which item a fixed rng draw lands on.
  */
 export async function getTopicPools(
   topicIds: string[],
@@ -67,7 +83,8 @@ export async function getTopicPools(
   const rows = await db
     .select()
     .from(item)
-    .where(and(...conditions));
+    .where(and(...conditions))
+    .orderBy(asc(item.id));
 
   for (const row of rows) pools.get(row.topicId)?.push(row);
   return pools;
