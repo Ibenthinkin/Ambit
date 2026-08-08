@@ -58,3 +58,33 @@ export class RateLimiter {
     return true;
   }
 }
+
+/**
+ * The nearest-hop IP for an unauthenticated caller, trusting exactly one reverse proxy — the key
+ * trpc.ts's rate-limit middleware falls back to when a request carries no session (`ctx.user` is
+ * null). `X-Forwarded-For` is a comma-separated hop chain (`client, proxy1, proxy2, ...`) that any
+ * client is free to send with an arbitrary *first* value — trusting that value naively would let
+ * an anonymous caller mint a fresh rate-limit key on every request just by sending a different
+ * made-up address each time, defeating the limiter exactly on the surface it matters most
+ * (`items.byId`, the one public procedure, so the one this app's own auth boundary can't already
+ * cover). Only the *last* entry is trustworthy here: Ambit's deploy target (Coolify, SPEC §13)
+ * sits behind exactly one reverse proxy, which appends the real connecting address as the final
+ * hop and passes through whatever a client already sent before it untouched — so the last segment
+ * is the one hop this server itself didn't originate but *can* trust, and every earlier segment is
+ * attacker-controlled input, never to be used as a limiter key.
+ *
+ * (This is a distinct, single-hop-*trust* concern from the single-*instance* caveat on
+ * `RateLimiter`'s own state above — that one's about multiple app processes each keeping an
+ * independent counter; this one's about a multi-hop header being spoofable regardless of instance
+ * count.)
+ *
+ * Returns `null` when the header is absent or empty — the caller (trpc.ts) falls back further, to
+ * a shared `"unknown"` bucket, rather than treating "no header at all" as its own meaningful key.
+ */
+export function trustedClientIp(headers: Headers): string | null {
+  const forwardedFor = headers.get("x-forwarded-for");
+  if (!forwardedFor) return null;
+  const hops = forwardedFor.split(",").map((hop) => hop.trim());
+  const last = hops[hops.length - 1];
+  return last && last.length > 0 ? last : null;
+}

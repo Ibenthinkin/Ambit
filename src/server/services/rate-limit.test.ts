@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { RateLimiter } from "./rate-limit";
+import { RateLimiter, trustedClientIp } from "./rate-limit";
 
 // A tiny fake clock — same "injected seam" idea as services/random.ts's rng, so these tests move
 // time deterministically instead of using a real sleep.
@@ -97,5 +97,52 @@ describe("RateLimiter", () => {
     const limiter = new RateLimiter({ limit: 1, windowMs: 1000 });
     expect(limiter.allow("a")).toBe(true);
     expect(limiter.allow("a")).toBe(false);
+  });
+});
+
+describe("trustedClientIp", () => {
+  it("returns null when there's no x-forwarded-for header at all", () => {
+    expect(trustedClientIp(new Headers())).toBeNull();
+  });
+
+  it("returns the single value when there's exactly one hop", () => {
+    const headers = new Headers({ "x-forwarded-for": "203.0.113.7" });
+    expect(trustedClientIp(headers)).toBe("203.0.113.7");
+  });
+
+  it("takes the LAST hop, not the first, from a multi-hop chain", () => {
+    // client -> proxy1 -> proxy2 (our trusted reverse proxy) -> us. The client-supplied first
+    // entry must never be trusted; only the last hop (appended by our own proxy) can be.
+    const headers = new Headers({
+      "x-forwarded-for": "1.2.3.4, 5.6.7.8, 9.10.11.12",
+    });
+    expect(trustedClientIp(headers)).toBe("9.10.11.12");
+  });
+
+  it("is not fooled by a spoofed first hop that changes on every request", () => {
+    // A malicious client can send any value it wants as the *first* entry, but our trusted proxy
+    // always appends the same real address as the *last* entry — so the key stays stable across
+    // requests from the same real client even as the attacker-controlled prefix changes.
+    const attempt1 = trustedClientIp(
+      new Headers({ "x-forwarded-for": "attacker-value-1, 9.10.11.12" }),
+    );
+    const attempt2 = trustedClientIp(
+      new Headers({ "x-forwarded-for": "totally-different-9999, 9.10.11.12" }),
+    );
+    expect(attempt1).toBe("9.10.11.12");
+    expect(attempt2).toBe("9.10.11.12");
+    expect(attempt1).toBe(attempt2);
+  });
+
+  it("trims whitespace around the last hop", () => {
+    const headers = new Headers({
+      "x-forwarded-for": "1.2.3.4,  9.10.11.12  ",
+    });
+    expect(trustedClientIp(headers)).toBe("9.10.11.12");
+  });
+
+  it("returns null for an empty header value", () => {
+    const headers = new Headers({ "x-forwarded-for": "" });
+    expect(trustedClientIp(headers)).toBeNull();
   });
 });

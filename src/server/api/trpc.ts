@@ -26,7 +26,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
-import { RateLimiter } from "~/server/services/rate-limit";
+import { RateLimiter, trustedClientIp } from "~/server/services/rate-limit";
 
 /**
  * 1. CONTEXT
@@ -138,8 +138,9 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * `publicProcedure` included: `items.byId` is the one deliberately unauthenticated surface (SPEC
  * §7), and an unauthenticated endpoint is exactly the kind of thing a scraper hits hardest.
  *
- * Keys on the session's user id when one exists, falling back to the caller's IP (`x-forwarded-
- * for`, the header a reverse proxy — Coolify's in front of this app — sets) for logged-out
+ * Keys on the session's user id when one exists, falling back to `trustedClientIp`
+ * (services/rate-limit.ts — trusts only the last `X-Forwarded-For` hop, the one segment a single
+ * trusted reverse proxy actually appended rather than attacker-controlled input) for logged-out
  * requests. `"unknown"` is the final fallback for the (should-be-rare) case neither is present, so
  * every truly-unidentifiable caller shares one bucket rather than each bypassing the limiter
  * entirely.
@@ -147,7 +148,7 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 const rateLimiter = new RateLimiter({ limit: 120, windowMs: 60_000 });
 
 const rateLimitMiddleware = t.middleware(async ({ ctx, next }) => {
-  const key = ctx.user?.id ?? ctx.headers.get("x-forwarded-for") ?? "unknown";
+  const key = ctx.user?.id ?? trustedClientIp(ctx.headers) ?? "unknown";
 
   if (!rateLimiter.allow(key)) {
     throw new TRPCError({
