@@ -17,7 +17,11 @@ function fakeClock(start = 0) {
 describe("RateLimiter", () => {
   it("allows requests under the limit", () => {
     const clock = fakeClock();
-    const limiter = new RateLimiter({ limit: 3, windowMs: 1000, now: clock.now });
+    const limiter = new RateLimiter({
+      limit: 3,
+      windowMs: 1000,
+      now: clock.now,
+    });
 
     expect(limiter.allow("a")).toBe(true);
     expect(limiter.allow("a")).toBe(true);
@@ -26,7 +30,11 @@ describe("RateLimiter", () => {
 
   it("blocks requests once the limit is hit within the window", () => {
     const clock = fakeClock();
-    const limiter = new RateLimiter({ limit: 2, windowMs: 1000, now: clock.now });
+    const limiter = new RateLimiter({
+      limit: 2,
+      windowMs: 1000,
+      now: clock.now,
+    });
 
     expect(limiter.allow("a")).toBe(true);
     expect(limiter.allow("a")).toBe(true);
@@ -36,7 +44,11 @@ describe("RateLimiter", () => {
 
   it("slides the window: old hits expire and free up budget", () => {
     const clock = fakeClock();
-    const limiter = new RateLimiter({ limit: 2, windowMs: 1000, now: clock.now });
+    const limiter = new RateLimiter({
+      limit: 2,
+      windowMs: 1000,
+      now: clock.now,
+    });
 
     expect(limiter.allow("a")).toBe(true);
     expect(limiter.allow("a")).toBe(true);
@@ -50,7 +62,11 @@ describe("RateLimiter", () => {
 
   it("partial sliding: only hits older than windowMs age out, not the whole bucket at once", () => {
     const clock = fakeClock();
-    const limiter = new RateLimiter({ limit: 2, windowMs: 1000, now: clock.now });
+    const limiter = new RateLimiter({
+      limit: 2,
+      windowMs: 1000,
+      now: clock.now,
+    });
 
     expect(limiter.allow("a")).toBe(true); // t=0
     clock.advance(600);
@@ -64,7 +80,11 @@ describe("RateLimiter", () => {
 
   it("keeps separate keys fully isolated from each other", () => {
     const clock = fakeClock();
-    const limiter = new RateLimiter({ limit: 1, windowMs: 1000, now: clock.now });
+    const limiter = new RateLimiter({
+      limit: 1,
+      windowMs: 1000,
+      now: clock.now,
+    });
 
     expect(limiter.allow("a")).toBe(true);
     expect(limiter.allow("a")).toBe(false);
