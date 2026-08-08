@@ -5,6 +5,52 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-07-26 Fri]] — Phase 3.4 shipped: ingestion job — Phase 3 complete
+
+**Mode:** cold pickup in a new session, `docs/PHASE3_PLAN.md` Task 5 already fully specified from
+3.3's handoff. Read `log.md` + `PHASE3_PLAN.md` cold, confirmed `phase-3.4-ingestion` was the
+checked-out branch off a clean `main`, executed via `superpowers:executing-plans`, TDD for the
+pure collision-resolution logic.
+
+**Shipped (BUILD_PLAN 3.4 box checked — Phase 3 complete):** full detail in
+`docs/PHASE3_WALKTHROUGH_3.4.md`. `resolveCollisions()` (`src/server/services/ingest-plan.ts`)
+settles SPEC §15's collision question: highest-search-rank wins, ties → alphabetically-smallest
+topic id, order-independent by construction (6 new unit tests, including the reversed-input-order
+property itself). `upsertItem()` made real in `src/server/db/items.ts` (insert-or-refresh-content,
+preserving id/topicId/curationScore/aestheticTags on conflict — 2 new integration tests).
+`scripts/ingest.ts` orchestrates all five adapters → collision resolution → skip-existing →
+structural floor → curation → upsert, with a structured per-source/per-topic summary table
+(`--source`/`--topic`/`--quota`/`--skip-llm`/`--dry-run` flags). 93 tests total, `bun run check`
+green.
+
+**Live verification, in order:** free structural dry-run (622 would-insert, 0 errors, all 16
+topics represented) → real small run (622 inserted, ~$0.15, score histogram matched the known 7-9
+skew) → two immediate re-runs to gate idempotency → full populate at the default quota (150,
+~64 min).
+
+**Finding — live search APIs aren't perfectly deterministic across repeated calls.** The plan's
+literal "second run inserts 0" gate didn't hold — investigated rather than assumed a bug. A direct
+probe (same adapter, same query, two back-to-back calls, no pipeline involved) confirmed
+Wikipedia's search returns different sourceIds for the identical query across separate calls —
+external API behavior, not a code defect; 3.3's walkthrough independently hit the same phenomenon
+in its curator smoke test ("a second live harvest pulled a slightly different set from the live
+search index"), a second, larger-scale confirmation of the same property. Re-runs showed a small,
+convergent trickle instead of zero (622 → +37 → +19); no duplication or re-scoring at any point —
+DB counts reconcile exactly across every run (including the full populate: 678 + 7,825 = 8,503,
+down to the last item), and `upsertItem`'s conflict path is integration-tested to preserve
+score/topic. Documented in SPEC §15 as an expected live-API characteristic, not a defect to fix.
+
+**Final dev corpus: 8,503 items** across all five sources (wikipedia 2,170 · wellcome 1,952 ·
+cma 1,528 · met 1,515 · aic 1,338) and all sixteen topics (457–608 each — astronomy at **457**,
+the direct payoff of the collision fix against phase0's pathological 4 of 419 usable AIC finds
+under its last-topic-wins dedupe). Score distribution matches SPEC §15's calibration-drift note
+(7–9 heavy); 90% of items carry an image.
+
+**Open / next:** Phase 3 is complete. Phase 4 (feed algorithm) is unblocked with a real corpus to
+tune against — `docs/BUILD_PLAN.md`'s Phase 4 section is the next planning target.
+
+*Session spend: 4.43M tok (in 10.0k · out 26.4k · cache r 4.19M / w 205.4k) · ~$2.79 · sonnet-5 + opus-4-7 · 15:07→15:09*
+
 ### [[08-07-26 Fri]] — Phase 3.3 shipped: curation service + `drawFromTopic`
 
 **Mode:** cold pickup in a new session (`/Users/ben/.claude/CLAUDE.md`'s "pick up where the last
