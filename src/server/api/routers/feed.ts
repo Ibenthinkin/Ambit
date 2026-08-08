@@ -35,7 +35,11 @@ export const feedRouter = createTRPCRouter({
   page: protectedProcedure
     .input(
       z.object({
-        cursor: z.string().optional(),
+        // A real encoded cursor (v1, `prev` capped at 64 ids by decodeCursor — see its comment)
+        // base64url-encodes to well under 2KB; 4096 is a generous ceiling that rejects a wildly
+        // oversized payload with a cheap, pre-decode zod BAD_REQUEST rather than spending a
+        // base64/JSON decode pass on it first.
+        cursor: z.string().max(4096).optional(),
         knobs: feedKnobsSchema.optional(),
       }),
     )
