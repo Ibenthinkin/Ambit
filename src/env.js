@@ -31,6 +31,16 @@ export const env = createEnv({
     // there's no reason to fail app boot over it. curator.ts checks for its own presence at call
     // time and throws a clear error there instead.
     OPENROUTER_API_KEY: z.string().min(1).optional(),
+    // Optional (Phase 4.1 decision): gates the feed engine's debug affordances (SPEC §9's "dev
+    // affordances stay in" — the debug overlay's `why`/`curationScore` on each card, and whether
+    // `feed.page` honors ad hoc knob overrides at all). Left unset, it defaults to "on" in
+    // development and "off" elsewhere — see the `env.FEED_DEBUG ?? env.NODE_ENV === "development"`
+    // fallback in server/services/feed.ts, which is why this schema field itself stays a plain
+    // optional boolean rather than baking the NODE_ENV-aware default in here.
+    FEED_DEBUG: z
+      .enum(["true", "false"])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v === "true")),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -55,6 +65,7 @@ export const env = createEnv({
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    FEED_DEBUG: process.env.FEED_DEBUG,
     NODE_ENV: process.env.NODE_ENV,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },

@@ -58,8 +58,17 @@ export async function upsertItem(values: NewItem): Promise<Item> {
   return row;
 }
 
-export function getItemById(_id: string): Promise<Item | undefined> {
-  throw new Error("getItemById: not implemented until Phase 4");
+/**
+ * Single-item lookup by id — backs the public `/i/[itemId]` route and `items.byId` (SPEC §7,
+ * §8.1), and used directly by scripts/probe-feed.ts to print a card's full record. Deliberately
+ * not user-scoped: `items.byId` is the one procedure SPEC §11 calls out as intentionally public.
+ */
+export async function getItemById(id: string): Promise<Item | undefined> {
+  // Dynamic import — see upsertItem's comment above for why "./client" is never imported at
+  // module scope in this file.
+  const { db } = await import("./client");
+  const [row] = await db.select().from(item).where(eq(item.id, id)).limit(1);
+  return row;
 }
 
 /**

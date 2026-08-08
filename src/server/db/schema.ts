@@ -232,6 +232,34 @@ export const savedItem = pgTable(
   ],
 );
 
+// The feed's "almost never repeating" promise (SPEC §9.4): every item a user has ever been
+// served, retained forever (no TTL/pruning — Phase 4.1 decision). Deliberately *not* keyed by a
+// synthetic id/timestamp-only PK: (userId, itemId) is the natural key (a user either has or
+// hasn't seen a given item), and its composite btree already answers the feed's only query shape
+// ("what has this user seen"), so there's no separate user_id index to add (SPEC §5.6 doesn't
+// list one for this table for the same reason).
+export const seenItem = pgTable(
+  "seen_item",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id),
+    itemId: text("item_id")
+      .notNull()
+      .references(() => item.id),
+    // Set explicitly from the app clock (not defaultNow()) so the cursor's `anchor` — captured on
+    // the same clock just before insert (services/feed.ts's getFeedPage) — is *the same JS Date
+    // value* as what lands in this column, not a value Postgres computes independently a moment
+    // later. That equality is what makes the cursor's exclusion query correct: `served_at <
+    // anchor` deliberately does NOT exclude the very items just marked seen by that anchor's own
+    // page (they share the exact timestamp) — the cursor's separate `prev` list excludes those
+    // instead. See services/feed.ts's cursor design note for the full reasoning.
+    servedAt: timestamp("served_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.itemId] })],
+  // No extra user_id index: the composite PK's btree already serves user-scoped lookups.
+);
+
 export const invite = pgTable("invite", {
   id: text("id")
     .primaryKey()

@@ -159,6 +159,17 @@ CREATE TABLE saved_item (
 );
 ```
 
+### 5.4b `seen_item`
+```sql
+CREATE TABLE seen_item (
+  user_id    TEXT NOT NULL REFERENCES "user"(id),
+  item_id    TEXT NOT NULL REFERENCES item(id),
+  served_at  TIMESTAMPTZ NOT NULL, -- set explicitly by the app, not DEFAULT now() — see below
+  PRIMARY KEY (user_id, item_id)
+);
+```
+Every item a user has ever been served, retained forever (no TTL/pruning) — the feed's "almost never repeating" promise (§9). `served_at` is set explicitly from the app clock rather than `DEFAULT now()` because the *exact same* Date value is reused as the next cursor's `anchor` (§7) — that equality is what lets the cursor's exclusion query use a strict `<` safely. No separate `user_id` index: the composite primary key's btree already serves the feed's only query shape ("what has this user seen").
+
 ### 5.5 `invite`
 ```sql
 CREATE TABLE invite (
@@ -230,13 +241,32 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 |---|---|---|---|
 | `topics.list` | query | — | `Topic[]` |
 | `topics.setMine` | mutation | `{ topicIds: string[] }` | `{ ok: true }` |
-| `feed.page` | query | `{ cursor?: string }` | `{ items: Item[], nextCursor?: string }` |
+| `feed.page` | query | `{ cursor?: string }` | `{ cards: FeedCard[], nextCursor?: string }` |
 | `items.byId` | query | `{ id: string }` | `Item` (public; read-only) |
 | `saves.toggle` | mutation | `{ itemId: string }` | `{ saved: boolean }` |
 | `saves.list` | query | — | `Item[]` |
 
 - `feed.page` is **cursor-based** (opaque cursor encodes pagination + the in-flight weighting seed).
+- `feed.page` returns `cards`, not bare items (revised at Phase 4.1 build time — see below): each
+  `FeedCard` is `{ item: Item, tier: "CORE" | "DRIFT" | "JUMP", topicId: string, driftPath?:
+  string[], debug?: { why: string, curationScore: number } }`. `driftPath` (the topic ids a
+  DRIFT/JUMP card's walk touched) is real product data, not gated — it's what SPEC §9's
+  connective UI rows explain a card with. `debug` is gated by `FEED_DEBUG` (§9).
 - `items.byId` is the only public (unauthenticated-allowed) procedure, backing `/i/{itemId}`.
+
+**Cursor design (Phase 4.1).** The cursor is a base64url-encoded JSON object, constant-size by
+construction: `{ v: 1, seed: number, page: number, anchor: string, prev: string[] }`. `seed` +
+`page` reseed the page's RNG deterministically (`mulberry32(hashSeed(\`${seed}:${page}\`))`), so
+refetching the same cursor against unchanged pool state reproduces the exact same page — the
+actual mechanism behind "stable pages on refetch." `anchor` is the ISO timestamp captured
+immediately before the *previous* page's items were marked seen, reused verbatim as those
+`seen_item.served_at` values; `prev` is that previous page's own item ids. Exclusion for the
+*current* page's pool is `seen_item.served_at < anchor` (everything seen before this page
+boundary) **union** `prev` (the previous page's own items, which share `anchor` exactly and so
+aren't caught by the strict `<`) **union** whatever's already been drawn so far this page
+(in-memory, within `composePage`'s own guard loop). Together these cover the user's whole seen
+history without the cursor ever growing past one page's worth of ids, no matter how long the
+scroll session runs.
 
 ## 8. Frontend — routes & components
 
@@ -272,7 +302,7 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
    - **JUMP** — uniform draw from the **bottom half** of a user topic's row. Deliberately not the strict antipode: tail ordering in a 16-point mean-centered space is noise, and false precision there adds nothing.
 2. **Item pick** — within the chosen topic, weighted random over unseen items above the **curation-score floor** (default 4): `weight = (score − floor + 1)^power × (1 + boost per aesthetic_tag shared with the user's taste keywords)`. Never similarity-ranked — that was the 0.4 failure.
 3. **Diversity constraints** — no two adjacent cards from the same source; per-page cap per topic (default 3). Constraints are soft: relax rather than starve.
-4. **Seen tracking** — served items are excluded per user (the "almost never repeating" promise); cursor encodes the page seed.
+4. **Seen tracking** — served items are excluded per user (the "almost never repeating" promise) via the `seen_item` table (§5.4b); cursor encodes the page seed. Items are marked seen **at serve time**, not at request time: `getFeedPage` composes the full page first, then captures one `servedAt` timestamp and batch-inserts `seen_item` rows for exactly the items that made it into the page — never the ones a slot considered and discarded along the way. That same `servedAt` value becomes the next cursor's `anchor` (§7's cursor design note), which is what makes a cursor refetch idempotent: the previous page's own items share `anchor` exactly rather than falling before it, so the strict `served_at < anchor` exclusion doesn't remove them on a second fetch of the same cursor — `prev` does that instead.
 5. **Card shaping** — map each `item` to an `ImageCard` or `ArticleCard` payload.
 
 **Personalisation = topics, not items.** Saving an item nudges its topic's `user_topic.weight` up (visibly — the UI says so; an invisible feedback loop reads as random, xikipedia's core failure) and folds the item's `aesthetic_tags` into the user's taste keywords. Item-level nearest-neighbour personalisation is dead (Phase 0.4) and stays dead.
