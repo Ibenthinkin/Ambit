@@ -1,13 +1,14 @@
-// Integration tests for drawFromTopic (SPEC §9.2) against a real Postgres — the weighted-draw
-// query, the excludeIds/scoreFloor filters, and the actual score-skewed distribution can't be
-// verified against fixtures the way adapter toItem() tests are. Self-skips whenever DATABASE_URL
-// isn't set (CI has no Postgres until Phase 7.1 — see .github/workflows/ci.yml); run locally with
-// `docker compose up -d` then `bun run test`.
-import { and, eq, like } from "drizzle-orm";
+// Integration tests for drawFromTopic (SPEC §9.2) and upsertItem (SPEC §6.4) against a real
+// Postgres — the weighted-draw query, the excludeIds/scoreFloor filters, the actual score-skewed
+// distribution, and upsertItem's conflict-update behavior can't be verified against fixtures the
+// way adapter toItem() tests are. Self-skips whenever DATABASE_URL isn't set (CI has no Postgres
+// until Phase 7.1 — see .github/workflows/ci.yml); run locally with `docker compose up -d` then
+// `bun run test`.
+import { and, eq, inArray, like } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { drawFromTopic } from "./items";
+import { drawFromTopic, upsertItem } from "./items";
 import { item, topic } from "./schema";
 
 describe.skipIf(!process.env.DATABASE_URL)(
@@ -151,3 +152,95 @@ describe.skipIf(!process.env.DATABASE_URL)(
     });
   },
 );
+
+describe.skipIf(!process.env.DATABASE_URL)("upsertItem (integration)", () => {
+  const topicId = `test-upsert-item-${nanoid(8)}`;
+  // A second, genuinely valid topic — used to prove a re-upsert's *different* topicId is
+  // discarded rather than applied. Real (not a dangling id): item.topic_id is a NOT NULL FK, so a
+  // nonexistent id would only prove the update never happened for the wrong reason (a constraint
+  // violation), not that upsertItem's own `set` clause deliberately omits topicId.
+  const otherTopicId = `test-upsert-item-other-${nanoid(8)}`;
+  const sourceId = `test-${nanoid(8)}`;
+
+  beforeAll(async () => {
+    const { db } = await import("./client");
+    await db.insert(topic).values([
+      {
+        id: topicId,
+        label: "Test upsertItem topic",
+        seedQueries: { wikipedia: [], met: [], aic: [], cma: [], wellcome: [] },
+      },
+      {
+        id: otherTopicId,
+        label: "Test upsertItem other topic",
+        seedQueries: { wikipedia: [], met: [], aic: [], cma: [], wellcome: [] },
+      },
+    ]);
+  });
+
+  afterEach(async () => {
+    const { db } = await import("./client");
+    await db.delete(item).where(eq(item.sourceId, sourceId));
+  });
+
+  afterAll(async () => {
+    const { db } = await import("./client");
+    await db.delete(topic).where(inArray(topic.id, [topicId, otherTopicId]));
+  });
+
+  it("inserts a new item on first sight", async () => {
+    const row = await upsertItem({
+      source: "wikipedia",
+      sourceId,
+      type: "article",
+      title: "Original title",
+      summary: "A summary long enough to be unremarkable.",
+      sourceUrl: `https://example.com/${sourceId}`,
+      topicId,
+      curationScore: 7,
+      aestheticTags: ["quiet portrait"],
+    });
+
+    expect(row.title).toBe("Original title");
+    expect(row.curationScore).toBe(7);
+  });
+
+  it("re-running with the same (source, sourceId) updates content but preserves id, topicId, curationScore, and aestheticTags", async () => {
+    const first = await upsertItem({
+      source: "wikipedia",
+      sourceId,
+      type: "article",
+      title: "Original title",
+      summary: "A summary long enough to be unremarkable.",
+      sourceUrl: `https://example.com/${sourceId}`,
+      topicId,
+      curationScore: 7,
+      aestheticTags: ["quiet portrait"],
+    });
+
+    // A second "sighting" of the same object: the catalog record changed (new title/summary), and
+    // — because this call originates from ingestion re-running toItem()+curateItems() from
+    // scratch — it carries a DIFFERENT topicId and curationScore too. Neither should stick; only
+    // the content fields are live-refreshed (see the doc comment on upsertItem in items.ts).
+    const second = await upsertItem({
+      source: "wikipedia",
+      sourceId,
+      type: "article",
+      title: "Updated title",
+      summary: "A different, still-unremarkable summary text.",
+      sourceUrl: `https://example.com/${sourceId}`,
+      topicId: otherTopicId,
+      curationScore: 2,
+      aestheticTags: [],
+    });
+
+    expect(second.id).toBe(first.id);
+    expect(second.title).toBe("Updated title");
+    expect(second.summary).toBe(
+      "A different, still-unremarkable summary text.",
+    );
+    expect(second.topicId).toBe(topicId); // preserved, not overwritten to otherTopicId
+    expect(second.curationScore).toBe(7); // preserved, not overwritten to 2
+    expect(second.aestheticTags).toEqual(["quiet portrait"]); // preserved, not cleared
+  });
+});

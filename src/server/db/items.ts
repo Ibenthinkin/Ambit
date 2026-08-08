@@ -1,6 +1,6 @@
 // Repository for the `item` table (SPEC §6.3). Per docs/PHASE2_PLAN.md step 1.6, each function's
-// real body lands with the phase that needs it — drawFromTopic is real as of Phase 3.3;
-// upsertItem/getItemById stay stubs until the phases that need them (3.4 / 4).
+// real body lands with the phase that needs it — drawFromTopic is real as of Phase 3.3, upsertItem
+// as of 3.4; getItemById stays a stub until Phase 4.
 import { and, eq, gte, notInArray } from "drizzle-orm";
 
 import { item } from "./schema";
@@ -8,10 +8,54 @@ import { item } from "./schema";
 export type NewItem = typeof item.$inferInsert;
 export type Item = typeof item.$inferSelect;
 
-// Idempotent by (source, sourceId): re-running ingestion on an item already seen updates it in
-// place instead of duplicating (SPEC §6.4). Built in Phase 3.4 (the ingestion job).
-export function upsertItem(_values: NewItem): Promise<Item> {
-  throw new Error("upsertItem: not implemented until Phase 3.4");
+/**
+ * Idempotent by (source, sourceId) — the same constraint scripts/ingest.ts's skip-existing check
+ * and resolveCollisions() key off (SPEC §6.4). A first sighting inserts; re-running ingestion on
+ * an object already in the DB refreshes its *content* fields (the source may have re-catalogued
+ * it) while deliberately leaving four columns alone:
+ *   - `id` — untouched by definition (onConflictDoUpdate never rewrites the conflict target's row
+ *     identity; every other join in the schema, e.g. saved_item.item_id, keeps pointing at it).
+ *   - `topicId` — reassigning an existing item's topic on a later ingest run would reshuffle which
+ *     users' feeds it can appear in, out from under them, for no product reason.
+ *   - `curationScore` / `aestheticTags` — these were PAID FOR (an LLM call). Re-scoring on every
+ *     ingest would burn tokens for (almost always) the same verdict; a genuine re-score only
+ *     happens deliberately, by bumping curator.ts's PROMPT_VERSION, which the curation cache keys
+ *     on — never as a side effect of an item's catalog record changing upstream.
+ */
+export async function upsertItem(values: NewItem): Promise<Item> {
+  // Dynamic import for the same reason drawFromTopic below uses one: importing "./client" at
+  // module scope pulls in "~/env"'s Zod validation, which crashes `bun run test` in CI (no env
+  // vars set for that step at all — see the comment on drawFromTopic).
+  const { db } = await import("./client");
+
+  const [row] = await db
+    .insert(item)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [item.source, item.sourceId],
+      set: {
+        title: values.title,
+        summary: values.summary,
+        body: values.body,
+        imageUrl: values.imageUrl,
+        sourceUrl: values.sourceUrl,
+        attribution: values.attribution,
+        license: values.license,
+        tags: values.tags,
+        fetchedAt: new Date(),
+      },
+    })
+    .returning();
+
+  // Drizzle types .returning() as possibly empty even though an insert-or-update on a single
+  // values row always yields exactly one row; a thrown error here would mean Postgres itself
+  // misbehaved, not a reachable app-level case — but the fallback keeps the return type honest.
+  if (!row) {
+    throw new Error(
+      `upsertItem: insert/update returned no row for ${values.source}:${values.sourceId}`,
+    );
+  }
+  return row;
 }
 
 export function getItemById(_id: string): Promise<Item | undefined> {
