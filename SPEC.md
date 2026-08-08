@@ -241,7 +241,7 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 |---|---|---|---|
 | `topics.list` | query | — | `Topic[]` |
 | `topics.setMine` | mutation | `{ topicIds: string[] }` | `{ ok: true }` |
-| `feed.page` | query | `{ cursor?: string }` | `{ cards: FeedCard[], nextCursor?: string }` |
+| `feed.page` | query | `{ cursor?: string, knobs?: Partial<FeedKnobs> }` | `{ cards: FeedCard[], nextCursor?: string }` |
 | `items.byId` | query | `{ id: string }` | `Item` (public; read-only) |
 | `saves.toggle` | mutation | `{ itemId: string }` | `{ saved: boolean }` |
 | `saves.list` | query | — | `Item[]` |
@@ -252,6 +252,11 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
   string[], debug?: { why: string, curationScore: number } }`. `driftPath` (the topic ids a
   DRIFT/JUMP card's walk touched) is real product data, not gated — it's what SPEC §9's
   connective UI rows explain a card with. `debug` is gated by `FEED_DEBUG` (§9).
+- `feed.page`'s `knobs` input (Phase 4.2) is zod-bounded to a sane range per field (mirroring
+  `FeedKnobs`) but only actually forwarded to `getFeedPage`'s knob overrides when the server's
+  `FEED_DEBUG` env var is on; off, a supplied `knobs` object is validated (still 400s on an
+  out-of-range value) but then silently ignored, never applied. This keeps a debug-tooling client
+  safe to point at a non-dev deployment without special-casing itself.
 - `items.byId` is the only public (unauthenticated-allowed) procedure, backing `/i/{itemId}`.
 
 **Cursor design (Phase 4.1).** The cursor is a base64url-encoded JSON object, constant-size by
@@ -267,6 +272,16 @@ aren't caught by the strict `<`) **union** whatever's already been drawn so far 
 (in-memory, within `composePage`'s own guard loop). Together these cover the user's whole seen
 history without the cursor ever growing past one page's worth of ids, no matter how long the
 scroll session runs.
+
+**Rate limiting (Phase 4.2).** Every procedure — `publicProcedure` included, since `items.byId` is
+exactly the unauthenticated surface a scraper would hit hardest — passes through an in-memory
+sliding-window limiter (`server/services/rate-limit.ts`'s `RateLimiter`, 120 requests/minute per
+key) before reaching its resolver. The key is the session's user id when one exists, else the
+caller's IP taken from the *last* `X-Forwarded-For` hop (the one segment a single trusted reverse
+proxy — Coolify, §13 — actually appended; earlier hops are attacker-controlled and never trusted).
+This is deliberately generous — abuse cover, not throttling of normal use — and single-instance by
+construction (state lives in one process's memory), which matches Ambit's single-app-instance
+deploy target; a multi-instance deploy would need this backed by shared state instead.
 
 ## 8. Frontend — routes & components
 
