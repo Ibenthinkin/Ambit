@@ -130,10 +130,12 @@ surface, matching Phase 3.3's precedent for one-off verification scripts).
 
 ## Findings for later tasks
 
-- **`getFeedPage`'s `FEED_DEBUG` gating has no direct test coverage yet** (see "Testing notes"
-  above) — worth a small addition to `services/feed.test.ts` or `feed.integration.test.ts` when
-  that file is next touched: assert that `knobOverrides` changes the composed page's behavior with
-  `FEED_DEBUG` on and has zero effect with it off (or unset, defaulting per `NODE_ENV`).
+- ~~**`getFeedPage`'s `FEED_DEBUG` gating has no direct test coverage yet**~~ **— resolved in
+  `b841bc7`**, the review-fix commit that landed after this doc was written. `services/feed.test.ts`
+  now has a `getFeedPage - FEED_DEBUG knob gating` block: 4 cases covering explicit off/on plus the
+  `NODE_ENV=development` fallback in both directions, mocking `~/env` and the two db modules via
+  `vi.hoisted` to keep the file's "no DB, no network" spirit. *(This doc predates the review pass —
+  it describes the pre-review tree.)*
 - **Rate limiting is unauthenticated-friendly by construction, but untested under real concurrent
   load** — `RateLimiter`'s sliding-window correctness is unit-tested with an injected clock, and
   `trustedClientIp`'s IP-spoofing resistance is unit-tested directly, but nothing yet exercises

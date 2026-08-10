@@ -5,6 +5,45 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-10-26 Mon]] — Phase 4.2 landed — **Phase 4 complete**
+
+**Shipped:** merged PR #11 (`phase-4.2-trpc-surface` → `main`, squash `456cc73`); CI green on the
+real head SHA, branch deleted both sides. That closes **Phase 4** — feed engine (4.1) and tRPC
+surface (4.2) are both on `main`, so every backend piece Phase 5's UI consumes now exists. The
+technical narrative lives in `docs/PHASE4_WALKTHROUGH_4.1.md` / `_4.2.md`; SPEC §7 gained the
+`knobs`-gating and rate-limiting paragraphs in the same merge.
+
+**Findings:**
+- ***The log stopped tracking reality for two days.*** 4.1 and 4.2 both executed *and merged* on
+  08-08 in separate cheaper-model sessions, and neither wrote back here — `log.md`'s newest entry
+  still read "Phase 4 **planned**" while `main` already carried both. Nothing was lost (the
+  walkthrough docs caught the detail), but `/brief` ran on a two-day-stale picture. This is the
+  plan-then-execute-cheaper workflow's structural blind spot: the planning session logs, the
+  executing session ships, and the write-back falls through the gap between them. **Going
+  forward:** the executing session writes its own entry, and the session that lands the PR checks
+  for the gap before merging.
+- **`PHASE4_WALKTHROUGH_4.2.md`'s first "finding for later tasks" was already stale when written** —
+  it flags `FEED_DEBUG` knob-gating as having zero test coverage, but the *next* commit
+  (`b841bc7`, a review fix) added exactly that coverage: 4 cases in `services/feed.test.ts`
+  covering explicit off/on plus the `NODE_ENV=development` fallback both ways. Corrected in the
+  doc in this commit, so the finding list doesn't send someone to redo it. Ordering hazard worth
+  remembering: a walkthrough written *before* the review-fix pass describes the pre-review tree.
+
+**Open / next:**
+- **Phase 5.1 — design system foundation** is the next box (Tailwind theme from the handoff
+  tokens, 4-accent system, Newsreader, shared primitives). Per PHASE4_PLAN the *first shippable
+  moment* is 5.4, so 5.1–5.4 is the run that produces something to actually look at.
+- One real carry-forward from 4.2: **the rate limiter is untested under concurrent load.** The
+  sliding window is unit-tested with an injected clock and `trustedClientIp`'s spoof-resistance is
+  tested directly, but nothing exercises the 120 req/min threshold end-to-end. Deliberate — it's
+  abuse cover, not throttling — but Phase 7.2/7.3's ops work is where it should get a real test.
+- **Ambit Archive** moved out to its own repo today (Ben set it up there from
+  `docs/AMBIT_ARCHIVE_SEED.md`). Its Ambit-side integration edits were gated on 4.2 landing, so
+  that precondition is now met and the `archive-seed` branch here is free to rebase onto current
+  `main` whenever the archive service is real.
+
+*Session spend: 1.37M tok (in 46 · out 16.6k · cache r 1.17M / w 187.3k) · ~$2.18 · opus-5 + sonnet-5 · 10:46→12:05*
+
 ### [[08-08-26 Sat]] — Phase 4 planned: feed engine & API (`docs/PHASE4_PLAN.md`)
 
 **Mode:** Fable planning session per the plan-then-execute-cheaper workflow — no code written;
