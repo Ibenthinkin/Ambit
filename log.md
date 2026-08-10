@@ -44,6 +44,56 @@ technical narrative lives in `docs/PHASE4_WALKTHROUGH_4.1.md` / `_4.2.md`; SPEC 
 
 *Session spend: 1.37M tok (in 46 · out 16.6k · cache r 1.17M / w 187.3k) · ~$2.18 · opus-5 + sonnet-5 · 10:46→12:05*
 
+**Same day, continued — Phase 5.1 planned (`docs/PHASE5_PLAN.md`).** Planning only, no app code;
+the doc is self-contained for a cold cheaper-model session. **Deliberately scoped to 5.1 alone** —
+5.2–5.8 get planned once the primitives exist, since detail written against imaginary primitives
+goes stale.
+
+**Findings that reshaped the task:**
+- **The prototypes have no token system.** Every value is a hard-coded inline style; the *only* CSS
+  variable in the whole handoff bundle is `--ambit-accent`, on one input, so a `:focus` rule can
+  reach it. "Tokens as CSS vars" is net-new authoring, not a port — and the prototypes disagree with
+  each other in ~10 places (rise 8px vs 10px, sheet 103% vs 105%, Feed's props JSON even declares
+  the wrong default accent).
+- **`ambitpop` is two different animations under one name** — chip select (`1→0.94→1`) in
+  Onboarding, checkmark entrance (`0.6→1.08→1`) in Install. Split into `chip-pop` / `pop-in`.
+- **`/dev/tokens` would have been publicly reachable.** `src/proxy.ts` gates only `/feed`, `/saved`,
+  `/onboarding`; nothing covers `/dev/*`. The plan requires it to `notFound()` outside development.
+
+**Decisions:**
+- **One ink color, not forty-one alphas.** The prototypes carry 19 distinct muted-text alphas, 12
+  border, 10 fill — hand-authoring noise against a README that specifies *ranges*. Tailwind v4's
+  opacity modifier runs on `color-mix()` and works on any `--color-*`, so the whole muted/border/fill
+  system collapses to `--color-ink: #EFEBE0` plus a normalized alpha ladder. (v3's
+  `rgb(var(--x) / <alpha-value>)` channel trick is exactly what a model trained earlier reaches for
+  — the plan says so explicitly.)
+- **`@theme inline` for the accent knob**, and this is the load-bearing detail: a theme token whose
+  value is a `var()` redefined at runtime silently fails under plain `@theme` — the utility keeps
+  the indirection and the `[data-accent]` scope never resolves. Same applies to `--font-serif`
+  pointing at `next/font`'s injected var. Flagged in the plan as the single most likely failure.
+- **Geist is removed, not supplemented** — the handoff ships no sans webfont at all. Newsreader
+  loads as a variable font with `weight` **omitted** and `axes: ['opsz']`, which also sidesteps an
+  unresolved docs question (whether the loader errors on a 400/500/600 + italic combination when
+  Newsreader has no italic-600).
+- **First UI testing layer in the project's life** (Ben's call): `@testing-library/react` + jsdom,
+  with Vitest keeping `environment: "node"` as the default and component files opting in per file
+  via `// @vitest-environment jsdom` — so the 172 server tests stay fast and CI actually gates
+  components. This is the precedent for 5.2–5.8.
+- Primitive set = BUILD_PLAN's list **plus** the high-reuse extras the audit surfaced (circular icon
+  button — the most-repeated element in the bundle — glass header, segmented control, input,
+  spinner), so 5.2–5.6 stop re-inventing them. No `class-variance-authority`; plain variant maps
+  through the existing `cn()`.
+
+Three docs items came back **unverified** and are flagged in the plan as "test, don't assume" rather
+than stated as fact: whether `--z-*` is a real `@theme` namespace, whether `@vitejs/plugin-react` is
+strictly required under Vitest 4, and jsdom-vs-happy-dom currency.
+
+**Open / next:** execute `docs/PHASE5_PLAN.md` in a cheaper session on `phase-5.1-design-system`.
+The visual gate is `/dev/tokens` on a real phone at the 402×874 design viewport, all four accents,
+against `docs/design_handoff_ambit_pwa/screenshots/`.
+
+*Session spend: 4.73M tok (in 76 · out 133.7k · cache r 4.00M / w 591.1k) · ~$11.26 · opus-5 · 12:05→14:05*
+
 ### [[08-08-26 Sat]] — Phase 4 planned: feed engine & API (`docs/PHASE4_PLAN.md`)
 
 **Mode:** Fable planning session per the plan-then-execute-cheaper workflow — no code written;
