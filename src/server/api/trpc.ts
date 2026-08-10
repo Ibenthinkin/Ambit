@@ -9,21 +9,24 @@
  * How a request actually flows through this file: a client call (from `src/trpc/react.tsx` in the
  * browser, or `src/trpc/server.ts` in a Server Component) hits a procedure built from
  * `publicProcedure` below. tRPC builds `createTRPCContext` for that request, runs it through
- * `timingMiddleware`, then into whatever resolver you wrote in `src/server/api/routers/*`. Every
- * router in this project gets assembled into one `AppRouter` in `src/server/api/root.ts` — that's
- * the type the client imports to get end-to-end type safety, no code generation involved.
+ * `rateLimitMiddleware` then `timingMiddleware`, then into whatever resolver you wrote in
+ * `src/server/api/routers/*`. Every router in this project gets assembled into one `AppRouter` in
+ * `src/server/api/root.ts` — that's the type the client imports to get end-to-end type safety, no
+ * code generation involved.
  *
- * Phase 2 (Better Auth) adds a `session` field to the context below and a `protectedProcedure`
- * next to `publicProcedure` that throws unless a session exists — that's the actual mechanism
- * behind CLAUDE.md's "auth boundary": every user-scoped query becomes a protected procedure that
- * filters by the session's `userId`, and `items.byId` stays on `publicProcedure` as the one
- * deliberately public surface.
+ * Phase 2 (Better Auth) added a `session`/`user` field to the context below; Phase 4.2 adds the
+ * actual mechanism that fills them in — `createTRPCContext` calls `auth.api.getSession()` once per
+ * request — plus `protectedProcedure` next to `publicProcedure`, which throws `UNAUTHORIZED`
+ * unless a session exists. That's the real machinery behind CLAUDE.md's "auth boundary": every
+ * user-scoped query becomes a protected procedure that (via its repo call) filters by the
+ * session's `userId`, and `items.byId` stays on `publicProcedure` as the one deliberately public
+ * surface (SPEC §7, §11).
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
-import { db } from "~/server/db/client";
+import { RateLimiter, trustedClientIp } from "~/server/services/rate-limit";
 
 /**
  * 1. CONTEXT
@@ -38,11 +41,30 @@ import { db } from "~/server/db/client";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
+  // Dynamic import — the same CI-has-no-env-vars reason every db/*.ts repo in this codebase
+  // dynamically imports "./client" (see items.ts's drawFromTopic comment for the canonical
+  // explanation): "~/lib/auth" statically imports server/db/client.ts, which reads "~/env"'s Zod
+  // schema at module scope. CI's `bun run test` step sets no env vars at all, so a *static*
+  // import here would crash the moment ANY test file imports this module transitively — e.g.
+  // routers.test.ts's `createCaller`, which never even calls this function (it hands the caller a
+  // hand-built mock context instead) but still imports the module that defines it.
+  const { auth } = await import("~/lib/auth");
+
+  // Better Auth's documented pattern: one `getSession` call per request, given the real incoming
+  // `Headers` (the session cookie lives there). Returns `{ session, user }` together, or `null`
+  // when there's no valid session at all — never a half-populated result, so checking the whole
+  // thing for null before destructuring (rather than checking each field separately) is both
+  // correct and enough.
+  const result = await auth.api.getSession({ headers: opts.headers });
+
   return {
-    db,
     ...opts,
+    session: result?.session ?? null,
+    user: result?.user ?? null,
   };
 };
+
+export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
 
 /**
  * 2. INITIALIZATION
@@ -110,10 +132,64 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 });
 
 /**
+ * Rate limiting (SPEC §11, Phase 4.2 decision): one shared, process-wide `RateLimiter` (see its
+ * own file header for the single-instance caveat), generous enough to be pure abuse cover rather
+ * than throttling of normal use — 120 requests/minute per key. Applied to every procedure,
+ * `publicProcedure` included: `items.byId` is the one deliberately unauthenticated surface (SPEC
+ * §7), and an unauthenticated endpoint is exactly the kind of thing a scraper hits hardest.
+ *
+ * Keys on the session's user id when one exists, falling back to `trustedClientIp`
+ * (services/rate-limit.ts — trusts only the last `X-Forwarded-For` hop, the one segment a single
+ * trusted reverse proxy actually appended rather than attacker-controlled input) for logged-out
+ * requests. `"unknown"` is the final fallback for the (should-be-rare) case neither is present, so
+ * every truly-unidentifiable caller shares one bucket rather than each bypassing the limiter
+ * entirely.
+ */
+const rateLimiter = new RateLimiter({ limit: 120, windowMs: 60_000 });
+
+const rateLimitMiddleware = t.middleware(async ({ ctx, next }) => {
+  const key = ctx.user?.id ?? trustedClientIp(ctx.headers) ?? "unknown";
+
+  if (!rateLimiter.allow(key)) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: "Too many requests — slow down and try again shortly.",
+    });
+  }
+
+  return next();
+});
+
+/**
  * Public (unauthenticated) procedure
  *
  * This is the base piece you use to build new queries and mutations on your tRPC API. It does not
  * guarantee that a user querying is authorized, but you can still access user session data if they
  * are logged in.
  */
-export const publicProcedure = t.procedure.use(timingMiddleware);
+export const publicProcedure = t.procedure
+  .use(rateLimitMiddleware)
+  .use(timingMiddleware);
+
+/**
+ * Protected (authenticated) procedure
+ *
+ * Throws `UNAUTHORIZED` unless `createTRPCContext` found a real session for this request. The
+ * `next({ ctx: { session, user } })` call below re-narrows the context type for every downstream
+ * resolver: outside this middleware `ctx.session`/`ctx.user` are `... | null` (a logged-out caller
+ * is a legitimate context shape for `publicProcedure`), but any procedure built on
+ * `protectedProcedure` sees them as always-present — no `!`/optional-chaining needed in the
+ * routers themselves (SPEC §7, §11's "all user-scoped queries filter by `userId`", which every
+ * protected router does by pulling `ctx.user.id` straight through to a repo call).
+ */
+export const protectedProcedure = publicProcedure.use(({ ctx, next }) => {
+  if (!ctx.session || !ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  return next({
+    ctx: {
+      session: ctx.session,
+      user: ctx.user,
+    },
+  });
+});

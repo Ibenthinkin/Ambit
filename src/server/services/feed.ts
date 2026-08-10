@@ -110,8 +110,21 @@ export function encodeCursor(c: FeedCursor): string {
   return Buffer.from(JSON.stringify(c), "utf8").toString("base64url");
 }
 
+// A cursor is opaque to the client, but it's still client-suppliable input, not a trusted server
+// artifact — an authenticated caller can hand-roll any base64url JSON blob they like and call
+// feed.page with it. `prev` is capped here well above any legitimate cursor's size (the router's
+// own `knobs.pageSize` zod bound tops out at 50 — see routers/feed.ts) specifically so a crafted
+// `prev: [...100k ids]` can't flow into db/feed.ts's `notInArray(item.id, excludeIds)` and blow
+// past Postgres' ~65535 bind-parameter ceiling on the feed's hottest endpoint. 64 leaves headroom
+// above that 50-item ceiling without being unbounded.
+const MAX_CURSOR_PREV = 64;
+
 /** Throws on anything that isn't a well-formed v1 cursor — a malformed or future-version cursor
- * is a client bug or a version skew, and getFeedPage has nothing sensible to degrade to. */
+ * is a client bug, a version skew, or a hand-crafted request, and getFeedPage has nothing sensible
+ * to degrade to. Beyond the shape check, `anchor` must parse as a real date (a bogus string would
+ * otherwise sail through here as "a string" and only fail much later, as an opaque Postgres
+ * serialization error deep inside getTopicPools) and `prev` is capped (see `MAX_CURSOR_PREV`
+ * above) and element-type-checked (every entry must actually be a string, not just "an array"). */
 export function decodeCursor(s: string): FeedCursor {
   let parsed: unknown;
   try {
@@ -121,14 +134,17 @@ export function decodeCursor(s: string): FeedCursor {
       "decodeCursor: malformed cursor (not valid base64url JSON)",
     );
   }
+  const candidate = parsed as Partial<FeedCursor> | null;
   if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    (parsed as Partial<FeedCursor>).v !== 1 ||
-    typeof (parsed as Partial<FeedCursor>).seed !== "number" ||
-    typeof (parsed as Partial<FeedCursor>).page !== "number" ||
-    typeof (parsed as Partial<FeedCursor>).anchor !== "string" ||
-    !Array.isArray((parsed as Partial<FeedCursor>).prev)
+    typeof candidate !== "object" ||
+    candidate?.v !== 1 ||
+    typeof candidate.seed !== "number" ||
+    typeof candidate.page !== "number" ||
+    typeof candidate.anchor !== "string" ||
+    Number.isNaN(Date.parse(candidate.anchor)) ||
+    !Array.isArray(candidate.prev) ||
+    candidate.prev.length > MAX_CURSOR_PREV ||
+    !candidate.prev.every((id) => typeof id === "string")
   ) {
     throw new Error("decodeCursor: unrecognized cursor shape or version");
   }

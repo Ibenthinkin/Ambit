@@ -1,15 +1,14 @@
 import Link from "next/link";
 
-import { api, HydrateClient } from "~/trpc/server";
+import { HydrateClient } from "~/trpc/server";
 
-// The `getLatest`/`create` demo query is intentionally not called here: it hits Postgres, and
-// Phase 1 has no database running yet (Phase 2.1 wires one up). `hello` below is a pure
-// in-memory tRPC procedure, so it's safe to call before the DB exists — see src/server/api/
-// routers/post.ts for both. This whole page is t3 boilerplate anyway, due to be replaced by the
-// real Ambit feed UI.
-export default async function Home() {
-  const hello = await api.post.hello({ text: "from tRPC" });
-
+// This whole page is t3 boilerplate, due to be replaced by the real Ambit landing/sign-in screen
+// (SPEC §8.1, Phase 5.2). It no longer calls a tRPC procedure at all: Phase 4.2 deleted the t3
+// starter's demo `post` router (nothing in the real SPEC §7 API surface belongs on an
+// unauthenticated placeholder homepage), so the `hello` greeting that used to prove tRPC was
+// wired up is gone too — `HydrateClient` stays only so this page keeps exercising the RSC tRPC
+// prefetch plumbing (src/trpc/server.ts) until Phase 5 replaces it with real prefetched data.
+export default function Home() {
   return (
     <HydrateClient>
       <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
@@ -43,7 +42,7 @@ export default async function Home() {
           </div>
           <div className="flex flex-col items-center gap-2">
             <p className="text-2xl text-white">
-              {hello ? hello.greeting : "Loading tRPC query..."}
+              Ambit — pre-Phase-5 placeholder.
             </p>
           </div>
         </div>
