@@ -14,6 +14,7 @@
 >
 > **Scope:** this doc covers **5.1 only**. 5.2–5.8 get planned once the primitives exist and their
 > API is proven — planning screens against imaginary primitives goes stale.
+> → 5.2 is planned in [`PHASE5_PLAN_5.2.md`](PHASE5_PLAN_5.2.md).
 
 **Goal:** the design system every Phase 5 screen consumes — Tailwind v4 tokens from the handoff,
 the 4-accent runtime knob, Newsreader via `next/font`, an 11-glyph icon set recreated from the

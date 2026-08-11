@@ -5,6 +5,60 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-11-26 Tue]] — Phase 5.2 planned: landing / sign-in (`docs/PHASE5_PLAN_5.2.md`)
+
+**Mode:** Opus planning session per the plan-then-execute-cheaper workflow — no app code; the
+deliverable is `docs/PHASE5_PLAN_5.2.md`, self-contained for a cold cheaper-model session.
+Planned against the *now-real* 5.1 primitive API rather than an imagined one, which was the whole
+reason 5.2–5.8 were left unplanned last time. Scoped to 5.2 alone, same rationale.
+
+**Ben's calls (four, all taken as recommended):** mode-toggle auth card (rejecting an email-first
+two-step, which would need an endpoint that tells anyone who asks which emails are registered — a
+an enumeration oracle invite-gating doesn't otherwise hand out); a display-name field on the sign-up
+mode only; a throwaway `/feed` placeholder deleted in 5.4; Playwright specs written now, local-only
+until 7.1 gives CI a Postgres.
+
+**Findings that reshaped the task:**
+- **The reset email doesn't link to our page.** Better Auth builds
+  `{baseURL}/api/auth/reset-password/{token}?callbackURL=…` — *its own* GET endpoint, which
+  validates the token and only then bounces to `/reset-password?token=…` **or**
+  `?error=INVALID_TOKEN`. So `/reset-password` is unavoidably in 5.2's scope and has to handle both
+  query shapes. Also: `resetPassword` does **not** sign the user in, and `requestPasswordReset`
+  always reports success even for unknown addresses (deliberate anti-enumeration) — which is what
+  lets the "Check your inbox" stage render with no branch.
+- **The signed-in redirect cannot live in `src/proxy.ts`.** The proxy check is cookie-shape-only,
+  so a stale-but-well-formed cookie would send `/` → `/feed` → `/` in an infinite ping-pong. It
+  belongs only where a real `getSession` runs; `proxy.ts` needs no changes at all this phase.
+- **Two 5.1 primitives actively fight this screen.** `Button` hardcodes `type="button"`, so a real
+  `<form>` would silently never submit; and its `disabled` branch swaps an accent button onto the
+  *ghost* ladder — right for Onboarding's "Pick N more", wrong mid-submit, presenting as a CTA that
+  turns grey while loading. Neither is a bug in 5.1 (both are correct for what 5.1 built against);
+  they're the first evidence of what happens when the primitives meet a screen with real async
+  state. `Input` also has no placeholder color — fixed *in the primitive*, not at the call site.
+- **The design handoff has no sign-out affordance on any screen.** Surfaced only because the
+  throwaway placeholder needed somewhere to put one. That's a real Phase 9 settings gap, logged
+  here so it isn't rediscovered later.
+
+**Decisions:** the prototype's magic-link "Check your inbox" stage is **reused verbatim** as the
+forgot-password confirmation (envelope-in-circle, email in accent) — the flow change would
+otherwise have thrown away the best-looking thing on the screen, and only the body copy changes.
+The obsolete "no password, no algorithm" caption (README §1 retires it explicitly) becomes
+"Invite-only · no ads, no algorithm". `revokeSessionsOnPasswordReset: true` gets added to
+`src/lib/auth.ts` — one line, and a reset after a suspected compromise should kill live sessions.
+
+**Flagged as the phase's weak point:** the Better Auth **error-code map** is the one part of the
+wiring not pinned by verified docs. The plan tells the executing session to trigger each failure
+against a running server and read real `error.code` values back, rather than trust a hardcoded
+list — a hallucinated code union would fail silently into the `error.message` fallback and look
+like it worked.
+
+**Open / next:** execute `docs/PHASE5_PLAN_5.2.md` in a cheaper session on `phase-5.2-landing`.
+The visual gate is `/` at 402×874 against `screenshots/01-landing.png` in all four accents; the
+functional gate is the full loop by hand through Mailpit (uninvited refusal → invite → sign-up →
+sign-out → sign-in → wrong password → reset → old password rejected).
+
+*Session spend: 6.41M tok (in 122 · out 113.9k · cache r 5.95M / w 343.8k) · ~$9.26 · opus-5 · 12:38→15:22*
+
 ### [[08-10-26 Mon]] — Phase 4.2 landed — **Phase 4 complete**
 
 **Shipped:** merged PR #11 (`phase-4.2-trpc-surface` → `main`, squash `456cc73`); CI green on the
