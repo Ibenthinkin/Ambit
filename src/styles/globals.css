@@ -2,12 +2,204 @@
    biggest change. `@import "tailwindcss"` pulls in the framework (postcss.config.js just points
    PostCSS at the `@tailwindcss/postcss` plugin, which processes this file); `@theme` below is
    where design tokens (fonts, colors, spacing) get defined — each one becomes both a CSS variable
-   and a Tailwind utility class (e.g. `--font-sans` here backs the `font-sans` class). Ambit's
-   actual design tokens (see docs/design_handoff_ambit_pwa) land here in Phase 3+ as screens get
-   built. */
+   and a Tailwind utility class (e.g. `--color-ink` here backs `text-ink`, `bg-ink`, `border-ink`).
+   Tokens are ported from docs/design_handoff_ambit_pwa/README.md (Phase 5.1) — see that file for
+   the full rationale; this file just encodes the result. */
 @import "tailwindcss";
 
+/* Tokens whose value is itself a var() that gets redefined at runtime — by a `[data-accent]`
+   attribute selector, or by next/font injecting a variable at the <html> element — MUST live in
+   `@theme inline`, not plain `@theme`. Plain `@theme` bakes the *outer* variable name into the
+   generated utility (`.bg-accent { background-color: var(--color-accent) }`), and that indirection
+   silently fails to pick up a scoped override on `--accent-raw` further down the cascade in some
+   browsers. `inline` skips the indirection and points the utility straight at the inner variable
+   (`.bg-accent { background-color: var(--accent-raw) }`), so it re-resolves live whenever
+   `--accent-raw` changes — no rebuild, no page reload. */
+@theme inline {
+  /* The single brand knob (README "Theming"): one accent, swapped as a whole set via
+     [data-accent] on <html> (see @layer base below). Phase 9.2 adds a user-facing picker; 5.1
+     ships the mechanism plus the default (gold). */
+  --color-accent: var(--accent-raw);
+  /* Points at whatever CSS variable next/font/google injects for Newsreader (src/lib/fonts.ts) —
+     also runtime-supplied, so it needs the same `inline` treatment. */
+  --font-serif: var(--font-newsreader);
+}
+
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  /* Surfaces (README "Color"). */
+  --color-bg: #161411; /* screen background — every screen except the gallery */
+  --color-bg-app: #0c0b09; /* outer app chrome, outside any screen's content */
+  --color-surface: #1b1813; /* elevated surface: sheets, modals */
+  --color-immersive: #0b0a08; /* gallery only — deliberately darker for fullscreen immersion,
+                                  not drift from the standard --color-bg (see PHASE5_PLAN.md
+                                  Decision 8) */
+  --color-overlay: #1e1c18; /* toast / install-banner fill (used at low opacity, ~92%) */
+  --color-scrim: #090806; /* sheet + modal scrims (used at ~60-66% opacity) */
+  --color-tile-hi: #221e17; /* app-icon tile gradient, light stop */
+  --color-tile-lo: #0f0d09; /* app-icon tile gradient, dark stop */
+
+  /* Ink — the one color the whole muted-text/hairline/subtle-fill system derives from. The
+     prototypes hand-authored dozens of one-off rgba(239,235,224, N) alphas; Tailwind v4's opacity
+     modifier runs on color-mix() and works on any --color-* value, so `text-ink/60`,
+     `border-ink/12`, `bg-ink/5` etc. reproduce all of them from this single token. See the alpha
+     ladder in docs/PHASE5_WALKTHROUGH_5.1.md / SPEC §10 for which modifier to use where — use
+     those normalized stops, not a value eyeballed off one screen. */
+  --color-ink: #efebe0;
+  --color-on-accent: #17140e; /* text drawn on an accent-filled surface — always this, never
+                                  white; every CTA/selected-chip/save-icon uses it */
+  --color-error: #d98c6a;
+
+  /* The handoff ships no sans webfont at all — UI chrome (labels, buttons, meta text) uses the
+     native system stack, which is why Geist is gone (Phase 5.1 Decision 3). */
+  --font-sans: -apple-system, system-ui, sans-serif;
+
+  /* Shape (README "Shape"). Pills for buttons/chips/toasts/segments; the sheet radius applies to
+     top corners only (components implement that, not this token — Tailwind has no "radius one
+     side only" theme primitive). Image radii vary by context: gallery slides are smallest
+     (immersive, full-bleed), feed/saved cards are largest. */
+  --radius-pill: 999px;
+  --radius-sheet: 26px; /* bottom sheets — top corners only */
+  --radius-card: 22px; /* the most common card radius (feed article card, item CTA card) */
+  --radius-img-lg: 20px; /* feed image cards */
+  --radius-tile: 18px; /* saved article tiles */
+  --radius-img-md: 16px; /* saved image tiles */
+  --radius-input: 14px; /* text inputs, primary buttons (landing) — NOT a pill */
+  --radius-img-sm: 12px; /* gallery slides */
+
+  /* Elevation — exactly three shadows exist anywhere in the handoff bundle. Resist adding more;
+     if a new component seems to need one, it's very likely one of these three. */
+  --shadow-toast: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --shadow-banner: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --shadow-sheet: 0 -12px 50px rgba(0, 0, 0, 0.5);
+
+  /* The system's one deliberately-non-default easing curve — everything else is plain `ease` or
+     `linear`. Used for anything that "settles": sheets sliding up, banners entering, the pop-in
+     checkmark, a swiped gallery rail coming to rest. */
+  --ease-settle: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* Named animations. Each pairs a duration/easing/fill-mode with the matching @keyframes below,
+     so a component just writes `animate-rise` etc. rather than repeating the shorthand.
+     `ambitpop` in the prototypes was actually two unrelated animations sharing one name — split
+     here into `chip-pop` (selection feedback) and `pop-in` (entrance), per Decision 6. */
+  --animate-rise: rise 0.6s ease both; /* section entrance on load, staggered per-caller via an
+                                           inline animation-delay (see Rise primitive) */
+  --animate-chip-pop: chip-pop 0.22s ease; /* onboarding chip, on select */
+  --animate-pop-in: pop-in 0.5s var(--ease-settle) both; /* install-flow checkmark entrance */
+  --animate-spinner: spinner 0.8s linear infinite;
+  --animate-toast-in: toast-in 0.22s ease both;
+  --animate-sheet-up: sheet-up 0.4s var(--ease-settle) both;
+  --animate-scrim-in: scrim-in 0.3s ease both;
+  --animate-drift: drift 18s ease-in-out infinite; /* landing page's decorative blurred orbs */
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px); /* normalized to 10px — README says 8-10px, Landing/Item use
+                                       10, only Saved used 8 (Decision 6) */
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes chip-pop {
+    0% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(0.94);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  @keyframes pop-in {
+    0% {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+    55% {
+      transform: scale(1.08);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  @keyframes spinner {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes toast-in {
+    /* Deliberately Y-only — the prototype's version baked `translate(-50%, ...)` into this same
+       keyframe to handle horizontal centering, which makes the transform load-bearing for layout.
+       The Toast primitive centers with a wrapper (`left-1/2 -translate-x-1/2`) instead and
+       animates only this Y/opacity pair on an inner element (PHASE5_PLAN.md porting note). */
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes sheet-up {
+    from {
+      transform: translateY(103%); /* normalized to 103% — the richer of the two prototype
+                                       implementations (Gallery); Install used 105% (Decision 6) */
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @keyframes scrim-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes drift {
+    0% {
+      transform: translate(0, 0) rotate(0deg);
+    }
+    50% {
+      transform: translate(14px, -18px) rotate(8deg);
+    }
+    100% {
+      transform: translate(0, 0) rotate(0deg);
+    }
+  }
+}
+
+@layer base {
+  /* The accent knob's actual values. `--accent-raw` is what @theme inline (above) points
+     --color-accent at; redefining it here per [data-accent] value is what makes `bg-accent` etc.
+     swap live when the attribute on <html> changes (src/app/layout.tsx sets the default). */
+  :root,
+  [data-accent="gold"] {
+    --accent-raw: #bfa06a; /* default */
+  }
+  [data-accent="sage"] {
+    --accent-raw: #8fa786;
+  }
+  [data-accent="slate"] {
+    --accent-raw: #7e93ad;
+  }
+  [data-accent="terracotta"] {
+    --accent-raw: #c08262;
+  }
+}
+
+@layer utilities {
+  /* Every border in the handoff is a 0.5px hairline — finer than Tailwind's built-in `border`
+     (1px) but not available as an arbitrary-value shorthand worth repeating everywhere
+     (`border-[0.5px]` at every call site). One utility, applied alongside a color/opacity
+     modifier: `border-hairline border-ink/12`. */
+  .border-hairline {
+    border-width: 0.5px;
+  }
 }

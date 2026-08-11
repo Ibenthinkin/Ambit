@@ -105,8 +105,24 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 *Order: tokens first, then screens in user-journey order. The handoff README (`docs/design_handoff_ambit_pwa/README.md`) has exact tokens, motion timings, and per-screen interaction specs — treat it as the source of truth; the `.dc.html` prototypes are the visual reference. Recreate, don't port.*
 
-- [ ] **5.1 — Design system foundation.** Tailwind theme from the handoff tokens: warm-dark palette (`#161411` bg etc.), the 4-accent system (gold default) as CSS vars — one `accent` theme knob app-wide. Newsreader (400/500/600 + italics) via `next/font` + system sans. SVG icon set recreated from the prototypes (bookmark, share, close, arrows, envelope, diamond, ring-and-dot logo). Shared primitives: pill button/chip, card, toast, bottom sheet (26px top radius, slide-up motion), rise-in animation utility.
-  *Done = a `/dev/tokens` scratch page renders every primitive in all 4 accents matching the handoff.*
+- [x] **5.1 — Design system foundation.** Tailwind theme from the handoff tokens: warm-dark palette (`#161411` bg etc.), the 4-accent system (gold default) as CSS vars — one `accent` theme knob app-wide. Newsreader (400/500/600 + italics) via `next/font` + system sans. SVG icon set recreated from the prototypes (bookmark, share, close, arrows, envelope, diamond, ring-and-dot logo). Shared primitives: pill button/chip, card, toast, bottom sheet (26px top radius, slide-up motion), rise-in animation utility.
+  *Done =* ✅ Planned + executed 08-10-26, walkthrough `docs/PHASE5_WALKTHROUGH_5.1.md`. Tokens
+  ported into `src/styles/globals.css` as Tailwind v4 `@theme`/`@theme inline` (no config file —
+  v4 is CSS-first); the one-off prototype alphas collapsed to a single `--color-ink` token plus a
+  12-row normalized alpha ladder (recorded in SPEC §10). Accent is a runtime `[data-accent]`
+  attribute on `<html>` resolving through `@theme inline` — verified live in a running `bun run
+  dev` server via Chrome DevTools MCP: toggling the accent switcher on `/dev/tokens` recolors
+  every primitive with no rebuild. Newsreader loads via `next/font/google` (`weight` omitted,
+  `axes: ['opsz']`); Geist is gone. 11 icons (`src/components/icons/`) and 11 primitives
+  (`src/components/ui/`) built per the plan's exact interfaces, all through the existing `cn()` —
+  no `class-variance-authority` added. `/dev/tokens` (dev-only — `notFound()` when
+  `NODE_ENV=production`, confirmed both ways: real content under `bun run dev`, a genuine
+  `__next_error__` 404 shell in a `bun run build` output) renders every token/icon/primitive with
+  the 4-way switcher. First UI test layer: `@testing-library/react` + jsdom, opted into per file
+  via `// @vitest-environment jsdom`, the 172 existing server tests staying on the `"node"`
+  default. 21 new component tests (button 4, chip 3, segmented 3, toast 5, bottom-sheet 4, rise 2)
+  — 193 total, all green; `bun run check` and `bun run build` (CI's placeholder-env invocation)
+  both clean.
 
 - [ ] **5.2 — Landing / sign-in.** `/` per handoff §1 **plus its divergence note** (prototype shows the old magic-link flow): hero, drifting blurred accent orbs, then sign-in (email + password), first-time sign-up for invited emails, and forgot-password states — same card/input/button visual language as the prototype, inline validation, wired to real Better Auth flows.
   *Done = visual language matches `screenshots/01-landing.png`; real sign-up, sign-in, and reset work through it.*

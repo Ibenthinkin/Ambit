@@ -94,6 +94,34 @@ against `docs/design_handoff_ambit_pwa/screenshots/`.
 
 *Session spend: 4.73M tok (in 76 · out 133.7k · cache r 4.00M / w 591.1k) · ~$11.26 · opus-5 · 12:05→14:05*
 
+**Same day, continued — Phase 5.1 executed and landed** (branch `phase-5.1-design-system`, still
+open). Picked up cold from `docs/PHASE5_PLAN.md` in a Sonnet 5 session, per the plan-then-
+execute-cheaper workflow. Full narrative in `docs/PHASE5_WALKTHROUGH_5.1.md`; BUILD_PLAN 5.1
+checked with its retrospective paragraph; SPEC §10 rewritten with the token model + alpha ladder;
+CLAUDE.md's stale "Pre-scaffold" status corrected.
+
+**Shipped:** the design system foundation — Tailwind v4 tokens (`src/styles/globals.css`, `@theme`
++ `@theme inline`), the 4-accent runtime knob (`[data-accent]` on `<html>`, gold default),
+Newsreader via `next/font` (Geist removed), 11 icons, 11 shared primitives
+(`src/components/ui/`), and `/dev/tokens` as the proof page. Also the project's first UI test
+layer (`@testing-library/react` + jsdom, opt-in per file via `// @vitest-environment jsdom`) — 21
+new component tests, 193 total, all green.
+
+**Verified, not just built:** confirmed the plan's single highest-risk item — `@theme inline`
+resolving a runtime-swapped accent — actually works, live, in a running `bun run dev` server via
+Chrome DevTools MCP (toggled the accent switcher, read `data-accent` back, screenshotted every
+primitive recoloring with no rebuild). Confirmed `/dev/tokens`'s dev-only gate from both sides:
+real content under `bun run dev`, a genuine prerendered `__next_error__` 404 in a `bun run build`
+output built with CI's exact placeholder env. Visually checked the 402×874 viewport against
+`docs/design_handoff_ambit_pwa/screenshots/03-feed.png` — wordmark weight/size, background, and
+the icon-button chrome all matched.
+
+**Open / next:** branch not yet merged — PR + `bun run check`/`bun run build` are clean locally,
+CI hasn't run yet. After merge, Phase 5.2 (Landing/sign-in) is next, planned fresh against the now-
+real primitive API rather than an imagined one.
+
+*Session spend: 21.96M tok (in 362 · out 116.9k · cache r 21.54M / w 312.0k) · ~$6.73 · sonnet-5 · 22:10→22:24*
+
 ### [[08-08-26 Sat]] — Phase 4 planned: feed engine & API (`docs/PHASE4_PLAN.md`)
 
 **Mode:** Fable planning session per the plan-then-execute-cheaper workflow — no code written;

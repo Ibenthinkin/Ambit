@@ -2,8 +2,8 @@ import "~/styles/globals.css";
 
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { type Metadata, type Viewport } from "next";
-import { Geist } from "next/font/google";
 
+import { newsreader } from "~/lib/fonts";
 import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
@@ -22,22 +22,26 @@ export const metadata: Metadata = {
 
 // `next`'s `viewport` export is a distinct API from `metadata` — `themeColor` used to live under
 // `metadata` but Next split anything that can affect the browser chrome's paint (theme color,
-// viewport sizing) out separately, so both need to be exported from this file.
+// viewport sizing) out separately, so both need to be exported from this file. This is a literal
+// hex, not a reference to `--color-bg` (globals.css) — metadata/viewport exports run outside the
+// CSS cascade and can't read a custom property — but it must be kept in sync with that token by
+// hand if the background ever changes.
 export const viewport: Viewport = {
   themeColor: "#161411",
 };
-
-const geist = Geist({
-  subsets: ["latin"],
-  variable: "--font-geist-sans",
-});
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geist.variable}`}>
-      <body>
+    // `data-accent="gold"` is the default (and, as of Phase 5.1, only) value of the app-wide
+    // accent knob — see globals.css's `@layer base` for how this attribute drives `--accent-raw`,
+    // and PHASE5_PLAN.md Decision 2 for why the picker itself is deferred to Phase 9.2.
+    <html lang="en" data-accent="gold" className={newsreader.variable}>
+      {/* `bg-bg`/`text-ink` set the base surface + text color app-wide (every screen but the
+          gallery, which opts into `bg-immersive` itself); `font-sans` is the default UI-chrome
+          typeface — components that want the serif switch to `font-serif` explicitly. */}
+      <body className="bg-bg text-ink font-sans antialiased">
         {/* Registers src/app/serwist/sw.js/route.ts as the page's service worker on mount —
             without this, the SW is compiled and servable but no browser ever installs it. */}
         <SerwistProvider swUrl="/serwist/sw.js">

@@ -8,7 +8,18 @@ A calm, non-social **anti-doomscroll PWA**: an infinite feed of public-domain im
 
 ## Repository status
 
-**Pre-scaffold.** There is no application code yet — this repo holds the spec, design references, and the completed Phase 0 validation work in `phase0/` (throwaway-but-kept: harvester, curator, topic-graph tooling, and two self-contained browser harnesses — `feed.html` is the reference implementation of the feed algorithm and stays the feel-tuning bench). Phase 0 concluded 07-13-26: item-level embedding recommendation was **rejected**; the validated design is a tiered topic-drift feed over an LLM-curated pool (SPEC §9). Next step: Phase 1 scaffold (SPEC §14).
+**Phases 0–4 complete; Phase 5 (UI) in progress.** Phase 0 (concluded 07-13-26) validated the
+design in `phase0/` (throwaway-but-kept: harvester, curator, topic-graph tooling, and two
+self-contained browser harnesses — `feed.html` is the reference implementation of the feed
+algorithm and stays the feel-tuning bench): item-level embedding recommendation was **rejected**;
+the validated design is a tiered topic-drift feed over an LLM-curated pool (SPEC §9). Phases 1–4
+scaffolded the real app — Next.js/tRPC/Drizzle/Better Auth, the four source adapters + curator
+(§6), the feed engine (§9), and the full tRPC surface (§7) — all on `main`, DB populated from a
+real ingest run. Phase 5 builds the UI against the design handoff (`docs/design_handoff_ambit_pwa/`)
+screen by screen, per `docs/BUILD_PLAN.md`'s Phase 5 ordering; 5.1 (design system foundation —
+Tailwind tokens, the 4-accent knob, primitives, `/dev/tokens`) is the first step and establishes
+what 5.2–5.8 build on. See `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
+`log.md` for the narrative of what's landed and why.
 
 ## Authoritative documents
 
