@@ -329,9 +329,52 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
 > Tags are a cheap secondary signal (filter/boost). The curation score and the topic graph are the primary drivers.
 
 ## 10. Styling (Tailwind)
-- Minimal, calm, high-contrast-on-neutral; content-forward (chrome recedes).
-- `@tailwindcss/typography` (`prose`) for expanded article text.
-- Mobile-first; large tap targets; smooth fullscreen/swipe transitions.
+
+Minimal, calm, high-contrast-on-neutral; content-forward (chrome recedes). Mobile-first; large
+tap targets; smooth fullscreen/swipe transitions. Design tokens come from the handoff
+(`docs/design_handoff_ambit_pwa/README.md`) and live in `src/styles/globals.css` as Tailwind v4
+`@theme` — there is no `tailwind.config.ts`, v4 is CSS-first. Established in Phase 5.1
+(`docs/PHASE5_WALKTHROUGH_5.1.md`); this section is the durable summary, not the planning doc.
+
+**One ink color, not per-case alphas.** The prototypes hand-authored dozens of one-off
+`rgba(239,235,224, N)` values for muted text, hairlines, and subtle fills. Tailwind v4's opacity
+modifier runs on `color-mix()` and works on any `--color-*` token, so the whole system collapses
+to a single `--color-ink: #EFEBE0` plus a normalized alpha ladder — use these stops, not a value
+eyeballed off one prototype screen:
+
+| Role | Class | Notes |
+|---|---|---|
+| Primary text | `text-ink` | headlines, wordmark, toast |
+| Secondary text | `text-ink/82` | chip labels (unselected) |
+| Body / muted | `text-ink/62` | secondary copy, meta |
+| Meta / attribution | `text-ink/55` | source lines, captions |
+| Faint label | `text-ink/40` | eyebrows, loader label |
+| Disabled | `text-ink/38` | inactive CTA text |
+| Hairline strong | `border-ink/16` | glass buttons on imagery |
+| Hairline default | `border-ink/12` | sheets, toasts, chips |
+| Hairline faint | `border-ink/8` | cards, headers |
+| Fill raised | `bg-ink/9` | chrome buttons |
+| Fill default | `bg-ink/5` | chips, ghost buttons |
+| Fill subtle | `bg-ink/3` | cards, tiles |
+
+**Accent is a runtime knob**, not a build-time theme: one `--accent-raw` CSS variable, set by a
+`[data-accent]` attribute on `<html>` (`gold` default, plus `sage`/`slate`/`terracotta`), exposed
+as the `--color-accent` token via `@theme inline` (**not** plain `@theme` — a token whose value is
+itself a runtime-redefined `var()` needs the `inline` form, or the generated utility keeps the
+outer indirection and a `[data-accent]` override never resolves). `--font-serif` (Newsreader, via
+`next/font`) needs the same treatment for the same reason. 5.1 ships the mechanism plus the gold
+default; the user-facing accent picker is Phase 9.2.
+
+**Fonts:** Newsreader (serif, `next/font/google`, variable — `weight` omitted, `axes: ['opsz']`)
+for headlines/wordmark/body-serif; the native system stack
+(`-apple-system, system-ui, sans-serif`, no webfont) for UI chrome. The handoff ships no sans
+webfont at all, which is why Geist was removed rather than kept alongside Newsreader.
+
+**Primitives** (`src/components/ui/`) are plain function components composing classes through
+`cn()` — no `class-variance-authority`. Icons (`src/components/icons/`) are inline SVG on their
+individually authored viewBoxes (the prototypes mix a 24×24 stroke set with several bespoke
+grids), colored via `currentColor`. `@tailwindcss/typography` (`prose`) for expanded article text
+is **not yet installed** — that lands in Phase 5.4 when article expand is built, not before.
 
 ## 11. Security considerations
 - **Auth enforcement** — `/feed`, `/saved`, `/onboarding` check session server-side; all tRPC mutations + user-scoped queries use `protectedProcedure`.
