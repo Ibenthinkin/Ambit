@@ -94,11 +94,12 @@ against `docs/design_handoff_ambit_pwa/screenshots/`.
 
 *Session spend: 4.73M tok (in 76 · out 133.7k · cache r 4.00M / w 591.1k) · ~$11.26 · opus-5 · 12:05→14:05*
 
-**Same day, continued — Phase 5.1 executed and landed** (branch `phase-5.1-design-system`, still
-open). Picked up cold from `docs/PHASE5_PLAN.md` in a Sonnet 5 session, per the plan-then-
-execute-cheaper workflow. Full narrative in `docs/PHASE5_WALKTHROUGH_5.1.md`; BUILD_PLAN 5.1
-checked with its retrospective paragraph; SPEC §10 rewritten with the token model + alpha ladder;
-CLAUDE.md's stale "Pre-scaffold" status corrected.
+**Same day, continued — Phase 5.1 landed** (squash-merged
+[#12](https://github.com/Ibenthinkin/Ambit/pull/12) → `main` at `3d39e9d`, merged by Ben directly
+mid-session). Picked up cold from `docs/PHASE5_PLAN.md` in a Sonnet 5 session, per the
+plan-then-execute-cheaper workflow. Full narrative in `docs/PHASE5_WALKTHROUGH_5.1.md`; BUILD_PLAN
+5.1 checked with its retrospective paragraph; SPEC §10 rewritten with the token model + alpha
+ladder; CLAUDE.md's stale "Pre-scaffold" status corrected.
 
 **Shipped:** the design system foundation — Tailwind v4 tokens (`src/styles/globals.css`, `@theme`
 + `@theme inline`), the 4-accent runtime knob (`[data-accent]` on `<html>`, gold default),
@@ -116,11 +117,20 @@ output built with CI's exact placeholder env. Visually checked the 402×874 view
 `docs/design_handoff_ambit_pwa/screenshots/03-feed.png` — wordmark weight/size, background, and
 the icon-button chrome all matched.
 
-**Open / next:** branch not yet merged — PR + `bun run check`/`bun run build` are clean locally,
-CI hasn't run yet. After merge, Phase 5.2 (Landing/sign-in) is next, planned fresh against the now-
-real primitive API rather than an imagined one.
+**Finding:** the exact gap this log flagged after Phase 4.2 recurred, in miniature — a follow-up
+log-only commit on the feature branch (correcting "PR not yet merged, CI hasn't run" to reflect
+the real state) was pushed *after* Ben had already squash-merged #12, so it landed on the
+now-deleted feature branch instead of `main`. Cherry-picked onto `main` directly (`0efbb21`,
+matching the precedent this same entry's `7375e59` set for doc-only follow-ups) rather than a new
+PR. Worth naming as its own pattern: a merge can happen while the executing session is still
+mid-write, not just across a multi-day gap.
+
+**Open / next:** Phase 5.2 (Landing/sign-in) is next, planned fresh against the now-real primitive
+API rather than an imagined one.
 
 *Session spend: 21.96M tok (in 362 · out 116.9k · cache r 21.54M / w 312.0k) · ~$6.73 · sonnet-5 · 22:10→22:24*
+*Session spend: 8.14M tok (in 101 · out 23.7k · cache r 8.00M / w 121.1k) · ~$2.73 · sonnet-5 + opus-4-7 · 22:24→22:53*
+*Session spend: 7.65M tok (in 74 · out 12.7k · cache r 7.61M / w 26.2k) · ~$1.75 · sonnet-5 · 22:53→23:14*
 
 ### [[08-08-26 Sat]] — Phase 4 planned: feed engine & API (`docs/PHASE4_PLAN.md`)
 
