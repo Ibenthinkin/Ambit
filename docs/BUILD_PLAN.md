@@ -124,8 +124,22 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   — 193 total, all green; `bun run check` and `bun run build` (CI's placeholder-env invocation)
   both clean.
 
-- [ ] **5.2 — Landing / sign-in.** `/` per handoff §1 **plus its divergence note** (prototype shows the old magic-link flow): hero, drifting blurred accent orbs, then sign-in (email + password), first-time sign-up for invited emails, and forgot-password states — same card/input/button visual language as the prototype, inline validation, wired to real Better Auth flows.
-  *Done = visual language matches `screenshots/01-landing.png`; real sign-up, sign-in, and reset work through it.*
+- [x] **5.2 — Landing / sign-in.** `/` per handoff §1 **plus its divergence note** (prototype shows the old magic-link flow): hero, drifting blurred accent orbs, then sign-in (email + password), first-time sign-up for invited emails, and forgot-password states — same card/input/button visual language as the prototype, inline validation, wired to real Better Auth flows.
+  *Done =* ✅ Planned 08-11-26, executed 08-12-26, walkthrough `docs/PHASE5_WALKTHROUGH_5.2.md`.
+  Mode-toggle `AuthCard` (not email-first) covers sign-in/sign-up/forgot/forgot-sent, wired to real
+  `signIn.email`/`signUp.email`/`requestPasswordReset`; `/reset-password` handles both the valid-
+  and expired-token query shapes; a throwaway `/feed` placeholder makes the loop walkable until
+  5.4. The plan's own checkpoints caught two real bugs invisible from reading the code: a missing
+  post-sign-in `router.push("/feed")` (the server-side redirect only fires on a fresh load), and
+  `authClient.$ERROR_CODES` resolving to `{}` at runtime (its backing endpoint 404s here) — fixed
+  by reading the real error codes off a running server instead, exactly as the plan warned to.
+  Also found and fixed, in passing: `cn()`'s plain `twMerge` didn't know about the custom
+  `border-hairline` utility and was silently dropping it app-wide (misclassified as a border-color
+  competing with `border-ink/NN`) — a Phase 5.1 regression across most primitives, root-caused and
+  fixed at the shared `cn()` helper. `bun run check` (207 tests) and `bun run build` (CI's
+  placeholder env; `/`, `/feed`, `/reset-password` all confirmed dynamic, not prerendered) both
+  green; `bun run e2e` (7 local-only tests) green, including a full Mailpit-scraped reset round
+  trip.
 
 - [ ] **5.3 — Onboarding.** `/onboarding` per handoff §2: 32-chip grid, pop animation on select, sticky CTA ("Pick N more" → "Start exploring", `minPicks=3`), persists via `topics.setMine`, redirect-until-onboarded logic.
   *Done = new user lands here, picks chips, arrives at a feed seeded from them.*

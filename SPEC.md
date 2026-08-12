@@ -56,7 +56,7 @@
 ### 3.1 Authentication
 - **Email + password** via **Better Auth** (`emailAndPassword: { enabled: true }`): built-in sign-up, sign-in, password hashing (scrypt), and password reset.
 - **Invite-gated sign-up:** account creation is rejected unless the email has a valid `invite` row — enforced server-side in Better Auth's `databaseHooks.user.create.before` hook (throw `APIError` for uninvited emails); accepting an invite flips its status.
-- **Password reset** emails via the transactional mail provider (Mailpit in dev, Resend in prod) through `emailAndPassword.sendResetPassword`. Email *verification* is skipped — the invite list (addresses Ben issued invites to) is the trust anchor, so verification would be redundant friction.
+- **Password reset** emails via the transactional mail provider (Mailpit in dev, Resend in prod) through `emailAndPassword.sendResetPassword`. Email *verification* is skipped — the invite list (addresses Ben issued invites to) is the trust anchor, so verification would be redundant friction. `revokeSessionsOnPasswordReset: true` (Phase 5.2) kills any other live sessions the moment a reset completes.
 - **Sessions are database-backed** (Better Auth default; `session` table) — revocable server-side, read on the server via `auth.api.getSession({ headers })`.
 - Auth state available on server (SSR / protected routes) and client (UI, via `better-auth/react` client).
 - Anonymous users: can view a shared item URL (read-only); cannot access the feed, saves, or onboarding.
@@ -286,9 +286,10 @@ deploy target; a multi-instance deploy would need this backed by shared state in
 ## 8. Frontend — routes & components
 
 ### 8.1 Routes (App Router)
-- `/` — landing + sign-in / sign-up (email + password; forgot-password link). *Note: the design handoff's landing prototype still shows the earlier magic-link flow — see the divergence note in `docs/design_handoff_ambit_pwa/README.md` §1.*
+- `/` — landing + sign-in / sign-up (email + password; forgot-password link). Built Phase 5.2 — a mode-toggle `AuthCard` (`src/components/landing/`), not the design handoff prototype's magic-link form; see `docs/PHASE5_WALKTHROUGH_5.2.md`.
+- `/reset-password` — where the password-reset email lands (`?token=...` on a valid link, `?error=INVALID_TOKEN` on an expired one). Ungated (src/proxy.ts's matcher deliberately excludes it — resetting a password implies being signed out).
 - `/onboarding` — topic-chip grid (first sign-in; redirect here until topics chosen).
-- `/feed` — the infinite feed (auth-gated, default authenticated landing).
+- `/feed` — the infinite feed (auth-gated, default authenticated landing). A ~20-line placeholder ships in Phase 5.2 (signed-in email + sign-out button) until Phase 5.4 builds the real screen.
 - `/saved` — saved items.
 - `/i/[itemId]` — public read-only single item.
 - `app/api/trpc/[trpc]/route.ts`, `app/api/auth/[...all]/route.ts` (Better Auth catch-all via `toNextJsHandler`).
@@ -379,7 +380,7 @@ is **not yet installed** — that lands in Phase 5.4 when article expand is buil
 ## 11. Security considerations
 - **Auth enforcement** — `/feed`, `/saved`, `/onboarding` check session server-side; all tRPC mutations + user-scoped queries use `protectedProcedure`.
 - **Authorization** — every `saved_item` / `user_topic` query filters by `userId`.
-- **Invite gating** — sign-up rejected server-side for emails without a valid `invite` (Better Auth before-create hook); passwords hashed by Better Auth (scrypt); sessions database-backed and revocable.
+- **Invite gating** — sign-up rejected server-side for emails without a valid `invite` (Better Auth before-create hook); passwords hashed by Better Auth (scrypt); sessions database-backed and revocable. `revokeSessionsOnPasswordReset: true` (Phase 5.2) means a reset after a suspected compromise kills any live sessions, not just coexists with them.
 - **Public surface** — only `items.byId` / `/i/[itemId]` are public, and items are public-domain content with no user data.
 - **Source content** — sanitize/normalize external HTML; render article text through trusted rendering, never raw `dangerouslySetInnerHTML` on unsanitized source data.
 - **Rate limiting** — basic per-user/IP limits on tRPC endpoints.
@@ -387,7 +388,7 @@ is **not yet installed** — that lands in Phase 5.4 when article expand is buil
 ## 12. Testing strategy
 Production-grade from the start (portfolio / work-transferable practice — non-negotiable).
 - **Vitest (unit):** each source adapter's `toItem` normalization; the curator's quality floor + response parsing; the feed tier/topic/item composition logic (tier mix, drift walks, diversity constraints, seen exclusion); repository query builders.
-- **Playwright (e2e):** invited sign-up + sign-in (email + password) → onboarding → feed renders; password reset via mocked mail (Mailpit); image fullscreen + swipe; article expand; save persists across reload; invite gating blocks uninvited sign-up; public `/i/[itemId]` renders read-only.
+- **Playwright (e2e):** invite gating blocks uninvited sign-up, invited sign-up + sign-in (email + password), sign-out, and the full password-reset round trip through Mailpit's HTTP API — all landed Phase 5.2 (`e2e/auth.spec.ts`, local-only until Phase 7.1 gives CI a Postgres); onboarding → feed renders; image fullscreen + swipe; article expand; save persists across reload; public `/i/[itemId]` renders read-only.
 - Aim for strong coverage on adapters + the feed algorithm (highest-value, highest-risk).
 
 ## 13. Deployment

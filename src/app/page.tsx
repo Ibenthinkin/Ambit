@@ -1,52 +1,43 @@
-import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { HydrateClient } from "~/trpc/server";
+import { AuthCard } from "~/components/landing/auth-card";
+import { LandingShell } from "~/components/landing/landing-shell";
+import { Rise } from "~/components/ui/rise";
+import { auth } from "~/lib/auth";
 
-// This whole page is t3 boilerplate, due to be replaced by the real Ambit landing/sign-in screen
-// (SPEC §8.1, Phase 5.2). It no longer calls a tRPC procedure at all: Phase 4.2 deleted the t3
-// starter's demo `post` router (nothing in the real SPEC §7 API surface belongs on an
-// unauthenticated placeholder homepage), so the `hello` greeting that used to prove tRPC was
-// wired up is gone too — `HydrateClient` stays only so this page keeps exercising the RSC tRPC
-// prefetch plumbing (src/trpc/server.ts) until Phase 5 replaces it with real prefetched data.
-export default function Home() {
+// The real Ambit landing/sign-in screen (SPEC §8.1, docs/PHASE5_PLAN_5.2.md), replacing the t3
+// starter boilerplate. A Server Component: it checks for a real session itself (not the
+// cookie-shape-only check in src/proxy.ts — see that file's comment for why the redirect can't
+// live there) and bounces straight to /feed, so a signed-in visitor never sees the auth card
+// flash before redirecting. Reading `headers()` also opts this route out of prerendering, which
+// is what keeps `auth.api.getSession` from ever running at build time.
+export default async function Home() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (session) {
+    redirect("/feed");
+  }
+
   return (
-    <HydrateClient>
-      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-        <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-          <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-            Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
+    <LandingShell>
+      <Rise delayMs={80}>
+        <div className="flex flex-1 flex-col justify-center">
+          <h1 className="text-ink font-serif text-[42px] leading-[1.08] tracking-[0.2px]">
+            A quieter way
+            <br />
+            to be curious.
           </h1>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-            <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/usage/first-steps"
-              target="_blank"
-            >
-              <h3 className="text-2xl font-bold">First Steps →</h3>
-              <div className="text-lg">
-                Just the basics - Everything you need to know to set up your
-                database and authentication.
-              </div>
-            </Link>
-            <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/introduction"
-              target="_blank"
-            >
-              <h3 className="text-2xl font-bold">Documentation →</h3>
-              <div className="text-lg">
-                Learn more about Create T3 App, the libraries it uses, and how
-                to deploy it.
-              </div>
-            </Link>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-2xl text-white">
-              Ambit — pre-Phase-5 placeholder.
-            </p>
-          </div>
+          <p className="text-ink/62 mt-5 max-w-[300px] font-serif text-[18px] leading-[1.5]">
+            No feeds engineered to keep you. Ambit hands you one interesting
+            thing at a time — art, ideas, the odd corner of the world — then
+            quietly steps back.
+          </p>
         </div>
-      </main>
-    </HydrateClient>
+      </Rise>
+
+      <Rise delayMs={160}>
+        <AuthCard />
+      </Rise>
+    </LandingShell>
   );
 }

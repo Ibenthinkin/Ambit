@@ -23,7 +23,7 @@ export function Chip({
       type="button"
       aria-pressed={selected}
       className={cn(
-        "border-hairline rounded-pill inline-flex flex-none items-center border px-[17px] py-[11px] leading-none font-medium whitespace-nowrap transition-[background-color,color,border-color] duration-200 select-none",
+        "border-hairline rounded-pill inline-flex flex-none items-center px-[17px] py-[11px] leading-none font-medium whitespace-nowrap transition-[background-color,color,border-color] duration-200 select-none",
         serif ? "font-serif text-[16px]" : "font-sans text-[14px]",
         selected
           ? "bg-accent border-accent text-on-accent animate-chip-pop"

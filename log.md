@@ -5,6 +5,60 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-12-26 Wed]] — Phase 5.2 executed and landed: landing / sign-in
+
+**Mode:** cheaper-model (Sonnet 5) execution session per the plan-then-execute-cheaper workflow —
+`docs/PHASE5_PLAN_5.2.md` worked cold, step by step, on branch `phase-5.2-landing-signin`.
+Walkthrough: `docs/PHASE5_WALKTHROUGH_5.2.md`.
+
+**Shipped:** the real `/` (mode-toggle `AuthCard`: sign-in/sign-up/forgot/forgot-sent, wired to
+`signIn.email`/`signUp.email`/`requestPasswordReset`), `/reset-password` (both the valid- and
+expired-token query shapes, `ResetPasswordCard`), and a throwaway `/feed` placeholder (signed-in
+email + sign-out, `DELETE IN 5.4`) so the whole loop is walkable. `revokeSessionsOnPasswordReset:
+true` added to `src/lib/auth.ts`. 14 new tests (`input`, `auth-card`, `reset-password-card`) plus
+a 6-test local-only `e2e/auth.spec.ts` driving the real loop through a running dev server +
+Mailpit — 207 unit tests total, all green; `bun run build` under CI's placeholder env confirms
+`/`, `/feed`, `/reset-password` all render dynamically, none accidentally prerendered.
+
+**Two real bugs, both caught by the plan's own checkpoints, neither visible from reading the
+code:**
+- **Sign-in/sign-up succeeded but never navigated anywhere.** The submit handler cleared
+  `submitting` and returned on success with no `router.push` — `/`'s server-side redirect only
+  fires on a fresh page load, so a client-side sign-in left the user staring at their own form
+  with a valid session cookie already set. Only caught by actually signing in through Chrome
+  DevTools MCP and watching nothing happen. Fixed: both success paths `router.push("/feed")` now.
+- **`authClient.$ERROR_CODES` is `{}` at runtime here** — exactly the risk the plan flagged and
+  told the executing session to check against a live server rather than trust. Better Auth's
+  client resolves it via a lazy `GET /api/auth/error-codes/to-json` call that 404s under this
+  app's config, so `signInError.code === authClient.$ERROR_CODES.INVALID_EMAIL_OR_PASSWORD` was
+  silently always `false`, and the wrong-password case fell through to Better Auth's raw message
+  instead of the mapped one. Fixed with the two verified string codes read directly off curl
+  responses against the real server (`INVALID_EMAIL_OR_PASSWORD`,
+  `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`).
+
+**A third bug, found in passing, scoped beyond this phase's own files:** `cn()`'s plain
+`twMerge` didn't recognize `.border-hairline` (5.1's custom 0.5px border utility) and
+misclassified it into the same conflict group as `border-ink/NN` — silently dropping it from
+*every* component using the design system's own documented `border-hairline border-ink/12` idiom
+(confirmed via `getComputedStyle`: `Input`/`Button` rendered a 1px border, not the specced
+0.5px hairline, with the class entirely absent from the DOM). Root-caused and fixed at the one
+shared choke point (`extendTailwindMerge` in `src/lib/utils.ts`), plus removed a redundant
+literal `border` class that six Phase-5.1 primitives (`button`, `chip`, `icon-button`,
+`segmented`, `toast`, plus `input` from this phase) each additionally had sitting next to
+`border-hairline`. Not a Phase 5.2 file, but fixed here since it directly affects this phase's own
+visual-fidelity gate — every input and button on the auth card runs through it.
+
+**Findings:** the design handoff has no sign-out affordance on any screen (Phase 9 settings gap,
+noted at planning time, confirmed again by needing to build one for the placeholder); Next.js's
+own `#__next-route-announcer__` also carries `role="alert"`, so e2e error assertions need
+`data-testid="auth-error"` rather than the ambiguous role alone (jsdom component tests don't hit
+this, only real-browser Playwright specs do).
+
+**Open / next:** plan Phase 5.3 — Onboarding (`/onboarding`, the topic-chip grid) against the now-
+real sign-up flow this phase lands users at the front of.
+
+*Session spend: 72.70M tok (in 804 · out 278.7k · cache r 70.87M / w 1.55M) · ~≥$23.18 · sonnet-5 + <synthetic> · 08:38→10:17*
+
 ### [[08-11-26 Tue]] — Phase 5.2 planned: landing / sign-in (`docs/PHASE5_PLAN_5.2.md`)
 
 **Mode:** Opus planning session per the plan-then-execute-cheaper workflow — no app code; the

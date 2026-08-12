@@ -33,7 +33,7 @@ export function IconButton({
       // here than `w-[34px] h-[34px]` repeated per call site.
       style={{ width: size, height: size, ...style }}
       className={cn(
-        "border-hairline text-ink/62 inline-flex flex-none items-center justify-center rounded-full border transition-transform duration-150 active:scale-95",
+        "border-hairline text-ink/62 inline-flex flex-none items-center justify-center rounded-full transition-transform duration-150 active:scale-95",
         glass ? "bg-ink/9 border-ink/16" : "bg-ink/5 border-ink/12",
         className,
       )}
