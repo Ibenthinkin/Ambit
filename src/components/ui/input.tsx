@@ -11,7 +11,7 @@ export function Input({ className, ...rest }: React.ComponentProps<"input">) {
   return (
     <input
       className={cn(
-        "border-hairline rounded-input border-ink/12 bg-ink/[4.5%] text-ink focus:border-accent w-full border px-[18px] py-4 font-sans text-[16px] transition-colors duration-200 outline-none",
+        "border-hairline rounded-input border-ink/12 bg-ink/[4.5%] text-ink placeholder:text-ink/32 focus:border-accent w-full px-[18px] py-4 font-sans text-[16px] transition-colors duration-200 outline-none",
         className,
       )}
       {...rest}

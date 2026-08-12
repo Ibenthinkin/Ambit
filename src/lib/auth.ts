@@ -33,6 +33,11 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
 
+    // A reset after a suspected compromise should kill any live sessions, not just let the new
+    // password coexist with whatever session an attacker already holds (PHASE5_PLAN.md Decision
+    // 5; SPEC §11).
+    revokeSessionsOnPasswordReset: true,
+
     // Called after Better Auth has already validated the request and generated a fresh
     // single-use token; our only job is to deliver it. `url` is the ready-to-click reset link
     // (baseURL + token, per BETTER_AUTH_URL below).

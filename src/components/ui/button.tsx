@@ -45,7 +45,7 @@ export function Button({
       className={cn(
         // Shared chrome: every CTA in the handoff is a solid/ghost pill or rounded rect with a
         // 0.5px border, system-sans, semibold, centered, no text selection on tap.
-        "border-hairline inline-flex items-center justify-center gap-2 border font-sans font-semibold tracking-[0.2px] whitespace-nowrap transition-[opacity,background-color,color,border-color] duration-200 select-none",
+        "border-hairline inline-flex items-center justify-center gap-2 font-sans font-semibold tracking-[0.2px] whitespace-nowrap transition-[opacity,background-color,color,border-color] duration-200 select-none",
         sizeClasses[size],
         shapeClasses[shape],
         // Disabled state (Onboarding's "Pick N more" CTA) reuses the ghost fill/border ladder

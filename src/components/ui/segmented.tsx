@@ -40,7 +40,7 @@ export function Segmented<T extends string>({
               onChange(option.key);
             }}
             className={cn(
-              "border-hairline rounded-pill border px-[15px] py-2 font-sans text-[12.5px] font-medium whitespace-nowrap transition-[background-color,color,border-color] duration-200",
+              "border-hairline rounded-pill px-[15px] py-2 font-sans text-[12.5px] font-medium whitespace-nowrap transition-[background-color,color,border-color] duration-200",
               active
                 ? "bg-accent border-accent text-on-accent"
                 : "bg-ink/5 border-ink/12 text-ink/62",

@@ -5,6 +5,114 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-12-26 Wed]] — Phase 5.2 executed and landed: landing / sign-in
+
+**Mode:** cheaper-model (Sonnet 5) execution session per the plan-then-execute-cheaper workflow —
+`docs/PHASE5_PLAN_5.2.md` worked cold, step by step, on branch `phase-5.2-landing-signin`.
+Walkthrough: `docs/PHASE5_WALKTHROUGH_5.2.md`.
+
+**Shipped:** the real `/` (mode-toggle `AuthCard`: sign-in/sign-up/forgot/forgot-sent, wired to
+`signIn.email`/`signUp.email`/`requestPasswordReset`), `/reset-password` (both the valid- and
+expired-token query shapes, `ResetPasswordCard`), and a throwaway `/feed` placeholder (signed-in
+email + sign-out, `DELETE IN 5.4`) so the whole loop is walkable. `revokeSessionsOnPasswordReset:
+true` added to `src/lib/auth.ts`. 14 new tests (`input`, `auth-card`, `reset-password-card`) plus
+a 6-test local-only `e2e/auth.spec.ts` driving the real loop through a running dev server +
+Mailpit — 207 unit tests total, all green; `bun run build` under CI's placeholder env confirms
+`/`, `/feed`, `/reset-password` all render dynamically, none accidentally prerendered.
+
+**Two real bugs, both caught by the plan's own checkpoints, neither visible from reading the
+code:**
+- **Sign-in/sign-up succeeded but never navigated anywhere.** The submit handler cleared
+  `submitting` and returned on success with no `router.push` — `/`'s server-side redirect only
+  fires on a fresh page load, so a client-side sign-in left the user staring at their own form
+  with a valid session cookie already set. Only caught by actually signing in through Chrome
+  DevTools MCP and watching nothing happen. Fixed: both success paths `router.push("/feed")` now.
+- **`authClient.$ERROR_CODES` is `{}` at runtime here** — exactly the risk the plan flagged and
+  told the executing session to check against a live server rather than trust. Better Auth's
+  client resolves it via a lazy `GET /api/auth/error-codes/to-json` call that 404s under this
+  app's config, so `signInError.code === authClient.$ERROR_CODES.INVALID_EMAIL_OR_PASSWORD` was
+  silently always `false`, and the wrong-password case fell through to Better Auth's raw message
+  instead of the mapped one. Fixed with the two verified string codes read directly off curl
+  responses against the real server (`INVALID_EMAIL_OR_PASSWORD`,
+  `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`).
+
+**A third bug, found in passing, scoped beyond this phase's own files:** `cn()`'s plain
+`twMerge` didn't recognize `.border-hairline` (5.1's custom 0.5px border utility) and
+misclassified it into the same conflict group as `border-ink/NN` — silently dropping it from
+*every* component using the design system's own documented `border-hairline border-ink/12` idiom
+(confirmed via `getComputedStyle`: `Input`/`Button` rendered a 1px border, not the specced
+0.5px hairline, with the class entirely absent from the DOM). Root-caused and fixed at the one
+shared choke point (`extendTailwindMerge` in `src/lib/utils.ts`), plus removed a redundant
+literal `border` class that six Phase-5.1 primitives (`button`, `chip`, `icon-button`,
+`segmented`, `toast`, plus `input` from this phase) each additionally had sitting next to
+`border-hairline`. Not a Phase 5.2 file, but fixed here since it directly affects this phase's own
+visual-fidelity gate — every input and button on the auth card runs through it.
+
+**Findings:** the design handoff has no sign-out affordance on any screen (Phase 9 settings gap,
+noted at planning time, confirmed again by needing to build one for the placeholder); Next.js's
+own `#__next-route-announcer__` also carries `role="alert"`, so e2e error assertions need
+`data-testid="auth-error"` rather than the ambiguous role alone (jsdom component tests don't hit
+this, only real-browser Playwright specs do).
+
+**Open / next:** plan Phase 5.3 — Onboarding (`/onboarding`, the topic-chip grid) against the now-
+real sign-up flow this phase lands users at the front of.
+
+*Session spend: 72.70M tok (in 804 · out 278.7k · cache r 70.87M / w 1.55M) · ~≥$23.18 · sonnet-5 + <synthetic> · 08:38→10:17*
+
+### [[08-11-26 Tue]] — Phase 5.2 planned: landing / sign-in (`docs/PHASE5_PLAN_5.2.md`)
+
+**Mode:** Opus planning session per the plan-then-execute-cheaper workflow — no app code; the
+deliverable is `docs/PHASE5_PLAN_5.2.md`, self-contained for a cold cheaper-model session.
+Planned against the *now-real* 5.1 primitive API rather than an imagined one, which was the whole
+reason 5.2–5.8 were left unplanned last time. Scoped to 5.2 alone, same rationale.
+
+**Ben's calls (four, all taken as recommended):** mode-toggle auth card (rejecting an email-first
+two-step, which would need an endpoint that tells anyone who asks which emails are registered — a
+an enumeration oracle invite-gating doesn't otherwise hand out); a display-name field on the sign-up
+mode only; a throwaway `/feed` placeholder deleted in 5.4; Playwright specs written now, local-only
+until 7.1 gives CI a Postgres.
+
+**Findings that reshaped the task:**
+- **The reset email doesn't link to our page.** Better Auth builds
+  `{baseURL}/api/auth/reset-password/{token}?callbackURL=…` — *its own* GET endpoint, which
+  validates the token and only then bounces to `/reset-password?token=…` **or**
+  `?error=INVALID_TOKEN`. So `/reset-password` is unavoidably in 5.2's scope and has to handle both
+  query shapes. Also: `resetPassword` does **not** sign the user in, and `requestPasswordReset`
+  always reports success even for unknown addresses (deliberate anti-enumeration) — which is what
+  lets the "Check your inbox" stage render with no branch.
+- **The signed-in redirect cannot live in `src/proxy.ts`.** The proxy check is cookie-shape-only,
+  so a stale-but-well-formed cookie would send `/` → `/feed` → `/` in an infinite ping-pong. It
+  belongs only where a real `getSession` runs; `proxy.ts` needs no changes at all this phase.
+- **Two 5.1 primitives actively fight this screen.** `Button` hardcodes `type="button"`, so a real
+  `<form>` would silently never submit; and its `disabled` branch swaps an accent button onto the
+  *ghost* ladder — right for Onboarding's "Pick N more", wrong mid-submit, presenting as a CTA that
+  turns grey while loading. Neither is a bug in 5.1 (both are correct for what 5.1 built against);
+  they're the first evidence of what happens when the primitives meet a screen with real async
+  state. `Input` also has no placeholder color — fixed *in the primitive*, not at the call site.
+- **The design handoff has no sign-out affordance on any screen.** Surfaced only because the
+  throwaway placeholder needed somewhere to put one. That's a real Phase 9 settings gap, logged
+  here so it isn't rediscovered later.
+
+**Decisions:** the prototype's magic-link "Check your inbox" stage is **reused verbatim** as the
+forgot-password confirmation (envelope-in-circle, email in accent) — the flow change would
+otherwise have thrown away the best-looking thing on the screen, and only the body copy changes.
+The obsolete "no password, no algorithm" caption (README §1 retires it explicitly) becomes
+"Invite-only · no ads, no algorithm". `revokeSessionsOnPasswordReset: true` gets added to
+`src/lib/auth.ts` — one line, and a reset after a suspected compromise should kill live sessions.
+
+**Flagged as the phase's weak point:** the Better Auth **error-code map** is the one part of the
+wiring not pinned by verified docs. The plan tells the executing session to trigger each failure
+against a running server and read real `error.code` values back, rather than trust a hardcoded
+list — a hallucinated code union would fail silently into the `error.message` fallback and look
+like it worked.
+
+**Open / next:** execute `docs/PHASE5_PLAN_5.2.md` in a cheaper session on `phase-5.2-landing`.
+The visual gate is `/` at 402×874 against `screenshots/01-landing.png` in all four accents; the
+functional gate is the full loop by hand through Mailpit (uninvited refusal → invite → sign-up →
+sign-out → sign-in → wrong password → reset → old password rejected).
+
+*Session spend: 6.41M tok (in 122 · out 113.9k · cache r 5.95M / w 343.8k) · ~$9.26 · opus-5 · 12:38→15:22*
+
 ### [[08-10-26 Mon]] — Phase 4.2 landed — **Phase 4 complete**
 
 **Shipped:** merged PR #11 (`phase-4.2-trpc-surface` → `main`, squash `456cc73`); CI green on the

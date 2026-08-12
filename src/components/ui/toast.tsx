@@ -29,7 +29,7 @@ export function Toast({ text, open, onDone, durationMs = 1800 }: ToastProps) {
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-[46px] z-[50] flex justify-center">
-      <div className="border-hairline animate-toast-in shadow-toast bg-overlay/92 rounded-pill border-ink/12 text-ink border px-[18px] py-[11px] font-sans text-[13px] whitespace-nowrap backdrop-blur-[12px]">
+      <div className="border-hairline animate-toast-in shadow-toast bg-overlay/92 rounded-pill border-ink/12 text-ink px-[18px] py-[11px] font-sans text-[13px] whitespace-nowrap backdrop-blur-[12px]">
         {text}
       </div>
     </div>
