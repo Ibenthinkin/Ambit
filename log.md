@@ -53,6 +53,38 @@ site, not worth generalizing yet.
 
 *Session spend: 10.71M tok (in 206 · out 130.6k · cache r 10.21M / w 373.5k) · ~$4.84 · sonnet-5 · 15:21→15:37*
 
+**Review pass (same day, switched to Opus 5).** Re-read the plan against the codebase rather than
+against itself. Three things were wrong, all of which would have cost the executing session real
+time, and all of which came from the same root cause — **writing spec from the prototype's inline
+styles and my own memory instead of checking the repo's actual toolchain and the handoff's shared
+sections**:
+- **Tailwind v3 gradient syntax in a v4.3.3 repo.** `bg-gradient-to-t`/`from-[62%]` should be
+  `bg-linear-to-t`/`from-62%`. Verified against Tailwind's docs. The failure mode is nasty: a v3
+  name renders *no background at all*, so the sticky bar loses its fade and chips scroll visibly
+  underneath it with nothing obviously "broken" to point at.
+- **`to-transparent` where the prototype says `rgba(22,20,17,0)`.** Not interchangeable —
+  `transparent` is transparent *black* and can band mid-fade. Now `to-bg/0`.
+- **Rise-in motion omitted entirely.** I'd checked the onboarding prototype (which doesn't implement
+  it) and missed that the README puts rise-in in its **shared** Motion section — a global token, not
+  a landing-only flourish. The prototype files are inconsistent about applying it; the spec wins.
+  *Generalizable lesson for 5.4–5.8: check the handoff's shared sections, not just the per-screen
+  one — the prototypes under-implement the global tokens.*
+
+Also hardened: navigate with `router.replace` (a `push` leaves `/onboarding` in history, where
+backing into it bounces forward to `/feed` and the back button reads as broken); flagged a stale
+client Router Cache on `/feed` as the subtlest failure mode (would present as the redirect guard
+looping — deliberately *not* pre-patched, just told the executor to walk that transition first);
+wrote out the actual `vi.mock` skeleton for `~/trpc/react`, since `useMutation()` is a hook
+returning an object and is much harder to mock than 5.2's plain-function `authClient` — and pinned
+the component to local `submitting` state so the mock stays one field wide. Fixed a step-ordering
+claim copied from 5.2 that doesn't hold here (`AuthCard` could be eyeballed on the existing `/`
+before its wiring landed; `OnboardingScreen` has no route to render in until its own step). Named
+the re-pick gap explicitly — `setUserTopics` supports weight-preserving re-picks, but Decision 4's
+redirect makes it unreachable until Phase 9 settings, so it shouldn't get built here or refiled as
+a bug later.
+
+*Session spend: 12.98M tok (in 148 · out 77.5k · cache r 12.18M / w 716.8k) · ~$14.57 · opus-5 + sonnet-5 · 15:37→16:14*
+
 ### [[08-12-26 Wed]] — Phase 5.2 executed and landed: landing / sign-in
 
 **Mode:** cheaper-model (Sonnet 5) execution session per the plan-then-execute-cheaper workflow —
