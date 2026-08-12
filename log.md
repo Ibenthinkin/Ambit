@@ -5,6 +5,54 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-12-26 Wed]] — Phase 5.3 planned: onboarding (`docs/PHASE5_PLAN_5.3.md`)
+
+**Mode:** planning session (Sonnet 5, not the usual Opus planning tier) per the
+plan-then-execute-cheaper workflow — no app code; the deliverable is `docs/PHASE5_PLAN_5.3.md`,
+self-contained for a cold cheaper-model session. Branched fresh off `main` (`b2de133`, 5.2's
+squash-merge) as `phase-5.3-onboarding`.
+
+**The backend for this screen already existed going in.** `topics.list`/`topics.setMine` and their
+repo functions landed in Phase 4.2, already tested, already handling re-pick correctly (a kept
+topic retains its learned weight). `Chip` and `Button`'s disabled→ghost-ladder behavior were built
+in 5.1 with comments explicitly anticipating this exact screen. So 5.3 turns out to be almost
+entirely UI wiring plus one small new repo helper, not new backend work — closer to 5.2's
+"primitives already exist, just assemble them" shape than to 4.x's from-scratch service work.
+
+**Findings that shaped the plan:**
+- **`src/server/config/topics.ts`'s own header comment settles the chip-order question**: "This is
+  not the onboarding chip order — that's Phase 5.3's call, and it reads from this array rather than
+  from the DB." Taken literally — chip data/order comes from the static `TOPICS` config, not a
+  `topics.list` network round-trip. This means the RSC-prefetch (`HydrateClient`) plumbing
+  `src/trpc/server.ts` sets up, which a speculative note in 5.2's walkthrough guessed 5.3 would
+  finally use, stays unused — that guess doesn't hold up against the config file's own instruction.
+  Left for 5.4's Feed instead, which genuinely needs `useInfiniteQuery` reactivity.
+- **No "onboarded" concept exists anywhere yet.** Derived as "does this user have any `user_topic`
+  rows" — a new `hasCompletedOnboarding(userId)` helper, used by both `/onboarding` (redirect to
+  `/feed` if already true) and the `/feed` placeholder (redirect to `/onboarding` if false). The
+  `/feed` change isn't wasted throwaway work — 5.4's real feed page needs the identical guard, just
+  relocated.
+- **`docs/BUILD_PLAN.md`'s own 5.3 line is stale** — still says "32-chip grid," predating the
+  07-17-26 divergence down to sixteen (only sixteen topics have a row in the offline-built
+  topic-drift graph). Flagged to fix in the same edit that ticks the box.
+- **This is the app's first client-side tRPC consumer.** Every client component so far (`AuthCard`,
+  `ResetPasswordCard`, `SignOutButton`) has talked to Better Auth's client directly; `OnboardingScreen`
+  is the first to call `api.<router>.<procedure>.useMutation()` from `~/trpc/react`, and its test
+  file will be the first to mock that module rather than `authClient`.
+
+**Decisions:** persist selection once, on submit, via `topics.setMine` — not per-toggle like the
+prototype's `localStorage` write, which only existed because the prototype had nothing else to
+persist to. No `<form>` wrapper (no text inputs to benefit from Enter-submission/autofill, unlike
+`AuthCard`). Submitting state reuses 5.2's `aria-busy` + `pointer-events-none opacity-80` pattern,
+not `disabled` — same ghost-ladder collision 5.2 already found, now confirmed to also apply here.
+The onboarding eyebrow is accent-colored per the README, deliberately distinct from the generic
+muted `text-ink/40` eyebrow convention `dev/tokens` documents for other screens — a single call
+site, not worth generalizing yet.
+
+**Open / next:** execute `docs/PHASE5_PLAN_5.3.md` in a cheaper session on `phase-5.3-onboarding`.
+
+*Session spend: 10.71M tok (in 206 · out 130.6k · cache r 10.21M / w 373.5k) · ~$4.84 · sonnet-5 · 15:21→15:37*
+
 ### [[08-12-26 Wed]] — Phase 5.2 executed and landed: landing / sign-in
 
 **Mode:** cheaper-model (Sonnet 5) execution session per the plan-then-execute-cheaper workflow —
