@@ -5,6 +5,57 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-13-26 Thu]] — Phase 5.4 (Feed) planned, then paused pending a design redo
+
+**Mode:** Sonnet 5, planning-mode session on branch `phase-5.4-feed`. Three parallel `Explore`
+agents (old design handoff, backend contract, existing frontend conventions) fed a `Plan` agent
+that produced a full `PHASE5_PLAN_5.4.md`-shaped design — architecture, gesture hooks, visual
+spec, copy, steps, verification, risks — matching 5.2/5.3's plan-doc format. Two scope questions
+were resolved with Ben up front (plain `<img loading="lazy">` over `next/image` — no
+`images.remotePatterns` configured for any of the 5 source hosts and zero `next/image` usage
+anywhere yet; image tap opens a local in-page "quick fullscreen preview," not a navigation to
+Gallery, which is Phase 5.5 and doesn't exist).
+
+**Then paused before writing anything to `main`.** Ben is unhappy with the current design handoff
+(`docs/design_handoff_ambit_pwa/`) and is redesigning it in Claude's design tool. Building out a
+detailed, pixel-accurate Feed plan against a visual spec about to be replaced would waste the work
+and risk anchoring the real build on the wrong design — so the plan was saved as-is
+(`docs/PHASE5_PLAN_5.4.md`, committed on `phase-5.4-feed`, prominently marked PAUSED at the top)
+rather than executed or merged. `phase-5.4-feed` stays unmerged until the new design lands and the
+plan's stale parts (visual spec, copy, exact class translations — everything sourced from the old
+`Ambit - Feed.dc.html`) get re-derived.
+
+**What's still trustworthy in the saved plan, confirmed directly against the repo (not just
+inherited from the old design)**: the `feed.page`/`saves.toggle`/`items.byId` signatures, the
+`Item` schema, `driftPath` semantics (read straight from `src/server/services/feed.ts` — absent
+for CORE, length-1 fallback when a topic has no positive adjacency row, `[start, hop1, hop2?]`
+otherwise), the cursor/`nextCursor` end-of-feed signal, the RSC `prefetchInfinite`/`HydrateClient`
+pattern (zero existing consumers anywhere — this would be the first, and the query-key-must-match
+requirement between server prefetch and client `useInfiniteQuery` is the sharp edge to watch for
+whenever this actually gets built), and the full `src/components/ui/` primitive/token inventory.
+None of that is design-dependent.
+
+**One open product question surfaced during review, independent of the redesign**: where sign-out
+lives once `/feed`'s throwaway placeholder is deleted (the design handoff has no sign-out
+affordance anywhere on any screen). The plan's first draft suggested relocating it to
+`/dev/tokens`, but that route hard-`notFound()`s in production — meaning that "recommendation"
+would make sign-out *categorically* unreachable for real users, not just harder to find. Caught
+before Ben was asked to sign off on it; still unresolved, flagged clearly in the saved plan's
+Decision 1 for whenever this resumes.
+
+**Decisions:** don't build UI against a design about to change. Preserve the (large) stack-level
+research investment — backend contract + primitive inventory — since none of it depends on visual
+design and re-deriving it later would be pure waste. Keep the branch unmerged rather than landing
+a plan-only doc on `main`, mirroring how 5.2/5.3's own plan-review commits lived on their phase
+branches before the phase actually executed.
+
+**Open / next:** wait for Ben's new design. When it lands: re-run the design-handoff exploration
+against it, reuse the backend/primitive research verbatim, redo only the visual-spec/copy/gesture-
+constant verification, and resolve the sign-out placement question (may be moot if the new design
+addresses it directly) before writing anything executable.
+
+*Session spend: 32.22M tok (in 278 · out 192.1k · cache r 30.05M / w 1.97M) · ~$16.52 · sonnet-5 + opus-4-7 · 22:41→12:20*
+
 ### [[08-12-26 Wed]] — Phase 5.3 planned: onboarding (`docs/PHASE5_PLAN_5.3.md`)
 
 **Mode:** planning session (Sonnet 5, not the usual Opus planning tier) per the
