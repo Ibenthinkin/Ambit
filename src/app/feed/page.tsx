@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth } from "~/lib/auth";
+import { hasCompletedOnboarding } from "~/server/db/topics";
 import { SignOutButton } from "./sign-out-button";
 
 // THROWAWAY placeholder — DELETE IN 5.4. Exists only so a successful sign-in has somewhere to
@@ -14,6 +15,13 @@ export default async function FeedPlaceholder() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect("/");
+  }
+
+  // The inverse of /onboarding's guard (PHASE5_PLAN_5.3.md Decision 5) — a signed-in user with no
+  // topic picks yet has nothing for the feed to draw from, so send them to set up first. Not
+  // throwaway: 5.4's real feed page needs this exact same guard and carries it forward unchanged.
+  if (!(await hasCompletedOnboarding(session.user.id))) {
+    redirect("/onboarding");
   }
 
   return (

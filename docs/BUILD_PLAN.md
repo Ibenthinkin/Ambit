@@ -141,8 +141,18 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   green; `bun run e2e` (7 local-only tests) green, including a full Mailpit-scraped reset round
   trip.
 
-- [ ] **5.3 — Onboarding.** `/onboarding` per handoff §2: 32-chip grid, pop animation on select, sticky CTA ("Pick N more" → "Start exploring", `minPicks=3`), persists via `topics.setMine`, redirect-until-onboarded logic.
-  *Done = new user lands here, picks chips, arrives at a feed seeded from them.*
+- [x] **5.3 — Onboarding.** `/onboarding` per handoff §2: 16-chip grid (not the handoff's 32 — the v1 topic-drift graph only covers sixteen topics; corrected here, this line predates that divergence), pop animation on select, sticky CTA ("Pick N more" → "Start exploring", `minPicks=3`), persists via `topics.setMine`, redirect-until-onboarded logic.
+  *Done =* ✅ Planned 08-12-26, executed 08-12-26, walkthrough `docs/PHASE5_WALKTHROUGH_5.3.md`.
+  `OnboardingScreen` (`src/components/onboarding/`) is the app's first client-side tRPC consumer
+  (`api.topics.setMine.useMutation()`) — every prior client component talked to Better Auth's
+  client directly. New `hasCompletedOnboarding(userId)` repo helper backs both directions of the
+  guard: `/onboarding` redirects an already-onboarded user to `/feed`, and `/feed`'s placeholder
+  (carrying forward into 5.4) redirects a not-yet-onboarded user to `/onboarding`. Chip/Button
+  primitives and the sticky-CTA gradient (`bg-linear-to-t from-bg from-62% to-bg/0`, Tailwind v4
+  syntax) needed no rework — both were built in 5.1 anticipating this exact screen. `bun run check`
+  (217 tests, up from 207) and `bun run build` (CI's placeholder env; `/onboarding` and `/feed`
+  both confirmed dynamic) both green; `bun run e2e` (7 local-only tests, including the updated
+  sign-up → onboarding → feed loop) green.
 
 - [ ] **5.4 — Feed screen.** `/feed` per handoff §3: glass sticky header, `useInfiniteQuery` on `feed.page` with IntersectionObserver sentinel + "finding something interesting…" loader, ImageCard + ArticleCard, serendipity connective rows ("{From} → {To}"), movement-guarded taps (≤12px tolerance), save/share (Web Share API with clipboard-toast fallback), article hold-~480ms-or-double-tap expand with progress bar, quick fullscreen preview, `?focus=` return-scroll.
   *Done = smooth infinite scroll of real DB content; every handoff §3 interaction works on a phone.*

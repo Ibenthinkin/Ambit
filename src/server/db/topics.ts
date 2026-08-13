@@ -94,3 +94,21 @@ export async function getUserTopicWeights(
     .where(eq(userTopic.userId, userId));
   return new Map(rows.map((row) => [row.topicId, row.weight]));
 }
+
+/**
+ * Has this user picked any topics at all? (Phase 5.3.) The single boolean both `/onboarding`
+ * (skip the picker, redirect to `/feed`, if true) and `/feed` (bounce to `/onboarding` if false)
+ * need — centralized here so the two routes can't independently drift on what "onboarded" means.
+ * `getUserTopicWeights(...).size > 0` would answer the same question but pulls every row just to
+ * count them; `.limit(1)` only ever fetches at most one.
+ */
+export async function hasCompletedOnboarding(userId: string): Promise<boolean> {
+  // Dynamic import — same CI-has-no-env-vars reason as every other function in this file.
+  const { db } = await import("./client");
+  const rows = await db
+    .select({ topicId: userTopic.topicId })
+    .from(userTopic)
+    .where(eq(userTopic.userId, userId))
+    .limit(1);
+  return rows.length > 0;
+}

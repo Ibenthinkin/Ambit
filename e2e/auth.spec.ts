@@ -62,7 +62,7 @@ test.describe.serial("auth", () => {
     await expect(page.getByTestId("auth-error")).toContainText("invite-only");
   });
 
-  test("invited sign-up succeeds and lands on the feed placeholder", async ({
+  test("invited sign-up succeeds, completes onboarding, and lands on the feed placeholder", async ({
     page,
   }) => {
     // execFileSync (argument array, no shell) rather than execSync's shell-interpolated string —
@@ -78,6 +78,18 @@ test.describe.serial("auth", () => {
     await page.getByPlaceholder("you@example.com").fill(EMAIL);
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
+
+    // A fresh sign-up has no topic picks yet, so /feed's guard bounces here first
+    // (PHASE5_PLAN_5.3.md Decision 5) — not the feed placeholder directly.
+    await page.waitForURL("/onboarding");
+
+    // Three stable labels, not positional `.nth()` picks, so a future reorder of `TOPICS`
+    // doesn't quietly change what this test selects. `pressed: false` both disambiguates from
+    // any other "Astronomy"-adjacent text on the page and asserts the pre-click state.
+    for (const label of ["Astronomy", "Botany", "Music"]) {
+      await page.getByRole("button", { name: label, pressed: false }).click();
+    }
+    await page.getByRole("button", { name: "Start exploring" }).click();
 
     await page.waitForURL("/feed");
     await expect(page.getByText(`Signed in as ${EMAIL}`)).toBeVisible();

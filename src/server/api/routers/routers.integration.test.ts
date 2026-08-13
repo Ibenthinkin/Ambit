@@ -135,6 +135,11 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     });
 
+    it("hasCompletedOnboarding is false before any topics are picked", async () => {
+      const { hasCompletedOnboarding } = await import("~/server/db/topics");
+      expect(await hasCompletedOnboarding(userId)).toBe(false);
+    });
+
     it("set, re-set with overlap: a retained topic keeps its hand-bumped weight, a dropped one is gone", async () => {
       const caller = createCaller(authedContext(userId));
       const { db } = await import("~/server/db/client");
@@ -170,6 +175,11 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       expect(afterSecond).toHaveLength(1);
       expect(afterSecond[0]!.topicId).toBe(topicA);
       expect(afterSecond[0]!.weight).toBe(7);
+    });
+
+    it("hasCompletedOnboarding is true once a setMine has landed", async () => {
+      const { hasCompletedOnboarding } = await import("~/server/db/topics");
+      expect(await hasCompletedOnboarding(userId)).toBe(true);
     });
   });
 

@@ -288,8 +288,8 @@ deploy target; a multi-instance deploy would need this backed by shared state in
 ### 8.1 Routes (App Router)
 - `/` — landing + sign-in / sign-up (email + password; forgot-password link). Built Phase 5.2 — a mode-toggle `AuthCard` (`src/components/landing/`), not the design handoff prototype's magic-link form; see `docs/PHASE5_WALKTHROUGH_5.2.md`.
 - `/reset-password` — where the password-reset email lands (`?token=...` on a valid link, `?error=INVALID_TOKEN` on an expired one). Ungated (src/proxy.ts's matcher deliberately excludes it — resetting a password implies being signed out).
-- `/onboarding` — topic-chip grid (first sign-in; redirect here until topics chosen).
-- `/feed` — the infinite feed (auth-gated, default authenticated landing). A ~20-line placeholder ships in Phase 5.2 (signed-in email + sign-out button) until Phase 5.4 builds the real screen.
+- `/onboarding` — topic-chip grid (first sign-in; redirect here until topics chosen). Built Phase 5.3 — a sixteen-chip grid (not the design handoff's thirty-two; see §3.2), `OnboardingScreen` (`src/components/onboarding/`), persisted via `topics.setMine`; see `docs/PHASE5_WALKTHROUGH_5.3.md`.
+- `/feed` — the infinite feed (auth-gated, default authenticated landing). A ~20-line placeholder ships in Phase 5.2 (signed-in email + sign-out button) until Phase 5.4 builds the real screen; Phase 5.3 adds the redirect-until-onboarded guard (bounces to `/onboarding` if the signed-in user has no topic picks yet), which carries forward into 5.4 unchanged.
 - `/saved` — saved items.
 - `/i/[itemId]` — public read-only single item.
 - `app/api/trpc/[trpc]/route.ts`, `app/api/auth/[...all]/route.ts` (Better Auth catch-all via `toNextJsHandler`).
@@ -300,7 +300,7 @@ deploy target; a multi-instance deploy would need this backed by shared state in
 - `FullscreenGallery.tsx` — fullscreen image view with left/right swipe paging.
 - `ArticleExpand.tsx` — inline expand on double-tap / long-press.
 - `SaveButton.tsx`, `ShareButton.tsx` — item actions (share → Web Share API).
-- `TopicChips.tsx` — onboarding selector.
+- `OnboardingScreen.tsx` — onboarding selector (chip grid + sticky CTA + `topics.setMine` submit; Phase 5.3). Named to match the built component — the handoff's own `TopicChips` name never landed, since the chip grid, header block, and sticky CTA all live in one client component rather than a split-out chips-only piece.
 - `InstallPrompt.tsx` — PWA install affordance.
 
 ### 8.3 PWA

@@ -85,6 +85,32 @@ a bug later.
 
 *Session spend: 12.98M tok (in 148 · out 77.5k · cache r 12.18M / w 716.8k) · ~$14.57 · opus-5 + sonnet-5 · 15:37→16:14*
 
+**Execution pass (same day, cheaper Sonnet 5 session, cold on the plan above).** Worked
+`docs/PHASE5_PLAN_5.3.md`'s 7 steps in order on `phase-5.3-onboarding`, verifying each against the
+real codebase (existing `Chip`/`Button`/`Rise` primitives, `topics` router, `TOPICS` config) before
+writing anything — no gaps found, the plan matched the repo as verified. Shipped: new
+`hasCompletedOnboarding(userId)` in `src/server/db/topics.ts` (`.limit(1)` existence check);
+`OnboardingScreen` (`src/components/onboarding/`) — the app's first client-side tRPC consumer
+(`api.topics.setMine.useMutation()`); `/onboarding`'s Server Component route (session → onboarded
+→ render); `/feed`'s inverse guard, commented as surviving into 5.4. 10 new tests (8 component, 2
+integration) — 217 total, all green. Walkthrough: `docs/PHASE5_WALKTHROUGH_5.3.md`.
+
+No new bugs — every checkpoint the plan called out (gradient render, accent recolor, exact-3 CTA
+flip, both redirect directions, the stale-Router-Cache risk on `replace("/feed")`) matched on the
+first Chrome DevTools MCP + real-loop walkthrough. One near-miss worth flagging for future
+sessions: reading `getComputedStyle` across four back-to-back synchronous `data-accent`
+`setAttribute` calls (no yield between them) initially looked like chip/CTA fill wasn't recoloring
+— an artifact of reading mid-CSS-transition, not a real bug; re-checking with a moment between
+reads showed all three (eyebrow, chips, CTA) recoloring correctly. Also added
+`data-testid="onboarding-error"` to the error slot, preemptively — 5.2's walkthrough flagged
+`role="alert"` alone as ambiguous in real-browser e2e (Next's route-announcer also carries it), and
+this is the first other inline error slot in the app since that finding.
+
+**Open / next:** Phase 5.4 — Feed screen. Real `/feed` replaces the placeholder this phase's guard
+now points at; first real consumer of `src/trpc/server.ts`'s RSC-prefetch plumbing.
+
+*Session spend: 34.01M tok (in 526 · out 105.8k · cache r 33.58M / w 331.4k) · ~$9.10 · sonnet-5 · 22:24→22:41*
+
 ### [[08-12-26 Wed]] — Phase 5.2 executed and landed: landing / sign-in
 
 **Mode:** cheaper-model (Sonnet 5) execution session per the plan-then-execute-cheaper workflow —
