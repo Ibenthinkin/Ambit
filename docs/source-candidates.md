@@ -48,6 +48,9 @@ Legend — **Type:** 🖼️ image · 📝 text · 🔀 both. **Auth:** none / k
 | DPLA API                                     | 🔀   | Mixed — filter to open     | key                        | 🔵     | US cultural-heritage aggregator; key by request.                     |
 | Biodiversity Heritage Library API            | 🔀   | Public domain              | key                        | 🔵     | Natural-history illustrations + text — beautiful, offbeat.           |
 
+https://50watts.com/
+https://www.openculture.com/2016/05/1-8-million-free-works-of-art-from-world-class-museums-a-meta-list.html
+
 Cooper Hewitt, Smithsonian Design Museum
 Metropolitan Museum of Art
 Art institute of chicago
@@ -63,6 +66,51 @@ wallhaven - wallpapers
 amazin endemic species
 behane somehow?
 holidays api
+scraping Door or perceptions
 wikipeida events on this day
 old ass news papers - https://www.loc.gov/collections/chronicling-america/about-this-collection/technical-information/?__cf_chl_f_tk=FVL9obx3BUMLHxwLD0AD8XK9_vBQGDmSQkW3HtTvaPE-1783187592-1.0.1.1-Hf3AvZHnS1TsqKMlr1u9siaDH_ixpwIp_T0HdFaXfug
 checkout out archive.org, maybe scrape some public info and stand up my own api?
+
+
+
+Art Images from Museums & Libraries
+
+    Art Institute of Chicago (44,000 images)
+    Google Art Project (250,000)
+    Harvard Bauhaus Collection (30,000)
+    L.A. County Museum (20,000)
+    New York Public Library-Historic Maps (20,000)
+    Norway National Museum (30,000)
+    Paris Art Museums (300,000)
+    SFMoMA Rauschenberg Collection
+    Stanford University’s Cantor Art Center (45,000)
+    Stanford University’s French Revolution Collection (14,000)
+    Taipei’s National Palace Museum (70,000)
+    The British Library (100,000)
+    The British Museum (4,200)
+    The Cleveland Museum of Art (30,000)
+    The Isamu Noguchi Museum (60,000)
+    The Getty (100,000)
+    The Guggenheim (1,600)
+    The Met (400,000)
+    The Morgan Library & Museum’s Online Collection (10,000)
+    The Morgan Library Rembrandt Sketches (300)
+    The Museum of Modern Art/MoMA  (65,000)
+    The Museum of New Zealand (30,000)
+    The National Gallery (35,000)
+    The New York Public Library: Photos, Maps, Letters (180,000)
+    The Rijksmuseum (210,00)
+    The Smithsonian (40,000)
+    The Tate (70,000)
+    The Whitney (21,000)
+    The Van Gogh Museum (3500)
+    Yale Center for British Art
+    Yale’s Great Depression Photo Collection (170,000)
+    Vermeer (36)
+
+Art Books
+
+    The Getty (250 books)
+    The Guggenheim (98)
+    The Met (448)
+    Getty Research Portal (100,000)
