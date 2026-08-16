@@ -43,7 +43,10 @@ export function CollectionsSheet({ open, onClose }: CollectionsSheetProps) {
       title="Your collections"
       maxHeightPct={72}
     >
-      {collections.isLoading ? (
+      {/* Both queries, not just the collections one: `count` resolves independently, and gating on
+          `collections` alone rendered "Everything kept · 0 items" to a user who has plenty saved,
+          then flipped it a moment later. */}
+      {collections.isLoading || savedCount.isLoading ? (
         <div className="flex justify-center py-8">
           <Spinner />
         </div>

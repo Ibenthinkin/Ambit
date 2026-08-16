@@ -124,6 +124,38 @@ describe("usePress", () => {
     expect(onLongPress).not.toHaveBeenCalled();
   });
 
+  // Middle-click and the mouse back/forward buttons are not presses either; only button 0 is.
+  // Touch and pen both report button 0, so nothing is lost on the devices that matter.
+  it.each([1, 3, 4])("ignores non-primary button %i", (button) => {
+    const onTap = vi.fn();
+    const onLongPress = vi.fn();
+    const { result } = renderHook(() => usePress({ onTap, onLongPress }));
+
+    act(() => result.current.onPointerDown(pointer(10, 10, button)));
+    act(() => void vi.advanceTimersByTime(1000));
+    act(() => result.current.onPointerUp(pointer(10, 10)));
+
+    expect(onLongPress).not.toHaveBeenCalled();
+    expect(onTap).not.toHaveBeenCalled();
+  });
+
+  // Regression guard: bailing out of pointer-down before resetting used to leave a previous
+  // press's timer running, so a right-click during a held press still fired the long press.
+  it("a secondary press cancels an in-flight primary press", () => {
+    const onTap = vi.fn();
+    const onLongPress = vi.fn();
+    const { result } = renderHook(() => usePress({ onTap, onLongPress }));
+
+    act(() => result.current.onPointerDown(pointer(10, 10)));
+    act(() => void vi.advanceTimersByTime(200));
+    act(() => result.current.onPointerDown(pointer(10, 10, 2))); // right-click mid-press
+    act(() => void vi.advanceTimersByTime(1000));
+    act(() => result.current.onPointerUp(pointer(10, 10)));
+
+    expect(onLongPress).not.toHaveBeenCalled();
+    expect(onTap).not.toHaveBeenCalled();
+  });
+
   it("ignores the secondary mouse button entirely", () => {
     const onTap = vi.fn();
     const onLongPress = vi.fn();

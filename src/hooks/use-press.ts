@@ -67,7 +67,15 @@ export function usePress({
 
   return {
     onPointerDown: (e) => {
-      if (e.button === 2) return; // right-click / secondary — not a press
+      // Only the primary button starts a press. Touch and pen both report `button === 0`, so this
+      // costs nothing on the devices that matter and excludes middle-click and the mouse
+      // back/forward buttons as well as right-click. `reset()` rather than a bare `return`: bailing
+      // early used to leave a previous press's timer running, so a right-click during a held press
+      // still fired `onLongPress`, and the eventual pointer-up could still fire `onTap`.
+      if (e.button !== 0) {
+        reset();
+        return;
+      }
       origin.current = { x: e.clientX, y: e.clientY };
       moved.current = false;
       longFired.current = false;
