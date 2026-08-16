@@ -3,7 +3,7 @@ import "~/styles/globals.css";
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { type Metadata, type Viewport } from "next";
 
-import { newsreader } from "~/lib/fonts";
+import { sora } from "~/lib/fonts";
 import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
@@ -34,13 +34,14 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    // `data-accent="gold"` is the default (and, as of Phase 5.1, only) value of the app-wide
+    // `data-accent="indigo"` is the default (and, as of Phase 5.4, only) value of the app-wide
     // accent knob — see globals.css's `@layer base` for how this attribute drives `--accent-raw`,
     // and PHASE5_PLAN.md Decision 2 for why the picker itself is deferred to Phase 9.2.
-    <html lang="en" data-accent="gold" className={newsreader.variable}>
+    <html lang="en" data-accent="indigo" className={sora.variable}>
       {/* `bg-bg`/`text-ink` set the base surface + text color app-wide (every screen but the
-          gallery, which opts into `bg-immersive` itself); `font-sans` is the default UI-chrome
-          typeface — components that want the serif switch to `font-serif` explicitly. */}
+          gallery, which opts into `bg-immersive` itself); `font-sans` is Sora, the redesign's one
+          typeface for everything — there is no second family to switch into. Titles opt into the
+          brighter `text-ink-hi` per-component. */}
       <body className="bg-bg text-ink font-sans antialiased">
         {/* Registers src/app/serwist/sw.js/route.ts as the page's service worker on mount —
             without this, the SW is compiled and servable but no browser ever installs it. */}

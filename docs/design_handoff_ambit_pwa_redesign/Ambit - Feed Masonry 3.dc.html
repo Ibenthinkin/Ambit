@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    a { color: #4C5FE0; text-decoration: none; }
+    a:hover { color: #7B89EA; }
+    @keyframes ambitspin { to { transform: rotate(360deg); } }
+    @keyframes ambitfade { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes ambitmenurise { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes ambitsheetup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    image-slot { display: block; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0C0B09; padding:32px; font-family:-apple-system, system-ui, sans-serif;">
+
+  <x-import component-from-global-scope="image-slot" from="./image-slot.js" hint-size="1px,1px" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></x-import>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%;">
+
+      <div ref="{{ scrollerRef }}" style="height:100%; overflow-y:auto; background:#161411; -webkit-overflow-scrolling:touch;">
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:58px 4px 0; align-items:start;">
+          <sc-for list="{{ columns }}" as="col" hint-placeholder-count="2">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <sc-for list="{{ col.items }}" as="item" hint-placeholder-count="4">
+                <div data-feed-id="{{ item.pid }}">
+
+                  <sc-if value="{{ item.isLink }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:16px 13px; background:rgba(239,235,224,0.03); border:0.5px solid rgba(239,235,224,0.06);">
+                      <div style="display:flex; align-items:center; gap:7px;">
+                        <svg width="8" height="8" viewBox="0 0 10 10" style="flex-shrink:0;"><path d="M5 0l5 5-5 5-5-5z" fill="{{ item.accent }}"/></svg>
+                        <span style="font-family:-apple-system, system-ui; font-size:9.5px; font-weight:600; letter-spacing:1.3px; text-transform:uppercase; color:rgba(239,235,224,0.34);">Because</span>
+                      </div>
+                      <div style="font-family:'Sora', sans-serif; font-size:12px; line-height:1.5; color:rgba(239,235,224,0.5); margin-top:9px;">{{ item.linkFrom }}</div>
+                      <div style="font-family:'Sora', sans-serif; font-size:15px; line-height:1.35; color:{{ item.accent }}; margin-top:6px;">{{ item.linkTo }}</div>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ item.isImage }}" hint-placeholder-val="{{ true }}">
+                    <div onPointerDown="{{ item.onPressStart }}" onPointerMove="{{ item.onPressMove }}" onPointerUp="{{ item.onPressEnd }}" onPointerCancel="{{ item.onPressCancel }}" onPointerLeave="{{ item.onPressCancel }}" style="position:relative; cursor:pointer; overflow:hidden;">
+                      <image-slot id="{{ item.slotId }}" shape="rect" src="{{ item.src }}" placeholder="{{ item.placeholder }}" style="{{ item.imgStyle }}"></image-slot>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ item.isArticle }}" hint-placeholder-val="{{ false }}">
+                    <div onPointerDown="{{ item.onPressStart }}" onPointerMove="{{ item.onPressMove }}" onPointerUp="{{ item.onPressEnd }}" onPointerCancel="{{ item.onPressCancel }}" onPointerLeave="{{ item.onPressCancel }}" style="{{ item.cardStyle }}">
+                      <span style="font-family:'Sora', sans-serif; font-size:9.5px; font-weight:600; letter-spacing:1.3px; text-transform:uppercase; color:rgba(239,235,224,0.34);">{{ item.source }}</span>
+                      <div style="font-family:'Sora', sans-serif; font-weight:600; font-size:19px; line-height:1.25; color:#F3EFE5; margin-top:10px;">{{ item.title }}</div>
+                      <div style="font-family:'Sora', sans-serif; font-size:13.5px; line-height:1.52; color:rgba(239,235,224,0.58); margin-top:9px;">{{ item.lede }}</div>
+                    </div>
+                  </sc-if>
+
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+
+        <div ref="{{ sentinelRef }}" style="height:1px;"></div>
+        <div style="display:flex; align-items:center; justify-content:center; gap:10px; padding:20px 0 26px;">
+          <div style="width:15px; height:15px; border-radius:50%; border:2px solid rgba(239,235,224,0.14); border-top-color:{{ accent }}; animation:ambitspin .8s linear infinite;"></div>
+          <span style="font-family:'Sora', sans-serif; font-size:14px; color:rgba(239,235,224,0.4);">finding something interesting…</span>
+        </div>
+        <div style="height:96px;"></div>
+      </div>
+
+      <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ onMenuToggle }}" style="position:absolute; inset:0; z-index:14; background:rgba(9,8,6,0.45);"></div>
+        <div style="position:absolute; left:18px; right:18px; bottom:104px; z-index:15; background:rgba(27,24,21,0.94); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:0.5px solid rgba(239,235,224,0.12); border-radius:20px; padding:8px; box-shadow:0 18px 44px rgba(0,0,0,0.5); animation:ambitmenurise .18s ease both;">
+          <sc-for list="{{ menuLinks }}" as="link" hint-placeholder-count="4">
+            <a href="{{ link.href }}" style="display:block; font-family:'Sora', sans-serif; font-size:15px; font-weight:500; color:#EFEBE0; padding:13px 14px; border-radius:12px;">{{ link.label }}</a>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ pickOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ onPickClose }}" style="position:absolute; inset:0; z-index:22; background:rgba(9,8,6,0.5);"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:23; max-height:72%; display:flex; flex-direction:column; background:#1B1815; border-top:0.5px solid rgba(239,235,224,0.1); border-radius:22px 22px 0 0; padding:10px 0 26px; box-shadow:0 -20px 50px rgba(0,0,0,0.45); animation:ambitsheetup .24s cubic-bezier(.22,.9,.3,1) both;">
+          <div style="width:36px; height:4px; border-radius:4px; background:rgba(239,235,224,0.18); margin:0 auto 14px; flex-shrink:0;"></div>
+          <div style="font-family:'Sora', sans-serif; font-weight:600; font-size:15px; color:#F3EFE5; text-align:center; padding:0 18px 12px; flex-shrink:0;">{{ pickTitle }}</div>
+          <div style="overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 12px;">
+            <sc-for list="{{ pickOptions }}" as="opt" hint-placeholder-count="4">
+              <div onClick="{{ opt.onPick }}" style="display:flex; align-items:center; gap:13px; padding:14px 12px; border-radius:14px; cursor:pointer; border-bottom:0.5px solid rgba(239,235,224,0.06);">
+                <span style="{{ opt.dotStyle }}"></span>
+                <div style="flex:1;">
+                  <div style="font-family:'Sora', sans-serif; font-size:15px; color:#EFEBE0;">{{ opt.label }}</div>
+                  <div style="font-family:'Sora', sans-serif; font-size:12px; color:rgba(239,235,224,0.38); margin-top:2px;">{{ opt.sub }}</div>
+                </div>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.3)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="position:absolute; left:0; right:0; bottom:26px; z-index:16; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+        <div style="pointer-events:auto; display:flex; align-items:center; gap:26px; padding:8px 20px; border-radius:999px; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+          <a href="Ambit - Profile.dc.html" style="width:31px; height:31px; display:flex; align-items:center; justify-content:center;">
+            <span style="width:25px; height:25px; border-radius:50%; display:block; background:linear-gradient(150deg, #8E92F0, #6C7BE8); border:1.5px solid rgba(255,255,255,0.75);"></span>
+          </a>
+          <div onClick="{{ onGoTop }}" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+            <svg width="31" height="31" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="1.7"/><circle cx="13" cy="13" r="3.6" fill="rgba(255,255,255,0.95)"/><circle cx="21" cy="7" r="1.9" fill="rgba(255,255,255,0.95)"/></svg>
+          </div>
+          <div onClick="{{ onPickOpen }}" style="width:31px; height:31px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.82)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:50%; bottom:100px; z-index:50; background:rgba(30,28,24,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:0.5px solid rgba(239,235,224,0.12); color:#EFEBE0; font-family:-apple-system, system-ui; font-size:13px; padding:11px 18px; border-radius:999px; white-space:nowrap; animation:ambitfade .22s ease both; box-shadow:0 8px 30px rgba(0,0,0,0.4);">{{ toast.text }}</div>
+      </sc-if>
+
+      <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ onSheetClose }}" style="position:absolute; inset:0; z-index:20; background:rgba(9,8,6,0.5);"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:21; background:#1B1815; border-top:0.5px solid rgba(239,235,224,0.1); border-radius:22px 22px 0 0; padding:10px 18px 30px; box-shadow:0 -20px 50px rgba(0,0,0,0.45); animation:ambitmenurise .2s ease both;">
+          <div style="width:36px; height:4px; border-radius:4px; background:rgba(239,235,224,0.18); margin:0 auto 16px;"></div>
+          <div style="font-family:'Sora', sans-serif; font-weight:600; font-size:15px; color:#F3EFE5; padding:0 4px 4px; text-align:center;">{{ sheetTitle }}</div>
+          <div onClick="{{ onCloserLook }}" style="display:flex; align-items:center; gap:11px; padding:14px 10px; margin-top:8px; border-radius:12px; cursor:pointer;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ accent }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <span style="font-family:'Sora', sans-serif; font-size:15px; color:#EFEBE0;">Closer Look</span>
+          </div>
+          <div style="height:0.5px; background:rgba(239,235,224,0.08); margin:6px 4px;"></div>
+          <div style="font-family:'Sora', sans-serif; font-size:11.5px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:rgba(239,235,224,0.4); padding:10px 10px 2px;">Save to collection</div>
+          <sc-for list="{{ collectionOptions }}" as="col" hint-placeholder-count="3">
+            <div onClick="{{ col.onPick }}" style="display:flex; align-items:center; gap:11px; padding:12px 10px; border-radius:12px; cursor:pointer;">
+              <span style="width:8px; height:8px; border-radius:50%; background:{{ accent }};"></span>
+              <span style="font-family:'Sora', sans-serif; font-size:15px; color:#EFEBE0;">{{ col.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showSerendipity&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Feed&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#4C5FE0&quot;,&quot;options&quot;:[&quot;#4C5FE0&quot;,&quot;#D9A73C&quot;,&quot;#3FA35C&quot;,&quot;#D9483F&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Feed&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.scrollerRef = React.createRef();
+    this.sentinelRef = React.createRef();
+    this.state = {
+      count: 14,
+      saved: this.loadSaved(),
+      collections: this.loadCollections(),
+      toast: null,
+      loadingMore: false,
+      pressingIdx: null,
+      menuOpen: false,
+      sheetOpen: false,
+      sheetItem: null,
+      pickOpen: false,
+    };
+    this.COLLECTIONS = ['Articles', 'Art', 'Photos'];
+    this.MENU_LINKS = [
+      { label: 'Saved', href: 'Ambit - Saved.dc.html' },
+      { label: 'About', href: 'Ambit - About.dc.html' },
+      { label: 'Settings', href: 'Ambit - Settings.dc.html' },
+      { label: 'Contact', href: 'Ambit - Contact.dc.html' },
+    ];
+    this.POOL = [
+      { id: 'wave', kind: 'image', slotId: 'am-wave', ratio: 0.68,
+        title: 'The Great Wave off Kanagawa',
+        maker: 'Katsushika Hokusai · c.\u20091831 · The Met',
+        src: 'assets/wave.jpg',
+        placeholder: 'Ukiyo-e woodblock print' },
+
+      { id: 'sky', kind: 'article', source: 'Wikipedia',
+        title: 'Why the sky is blue',
+        lede: 'The sky isn\u2019t coloured \u2014 it\u2019s scattered. Shorter blue wavelengths bounce off air molecules far more than red ones.',
+        body: 'This is Rayleigh scattering: the intensity of scattered light climbs steeply as wavelength shrinks, so blue and violet dominate the daytime sky. At sunset the light travels a far longer path through the atmosphere — the blue is scattered away entirely before it reaches you.' },
+
+      { id: 'link1', kind: 'link',
+        from: 'you saved Rayleigh scattering',
+        to: 'a painter chasing the same light' },
+
+      { id: 'turner', kind: 'image', slotId: 'am-turner', ratio: 0.78,
+        title: 'Rain, Steam and Speed',
+        maker: 'J.\u2009M.\u2009W. Turner · 1844 · National Gallery',
+        src: 'assets/turner.jpg',
+        placeholder: 'Romantic oil painting' },
+
+      { id: 'engine', kind: 'article', source: 'Wikipedia',
+        title: 'The internal-combustion engine',
+        lede: 'For over a century a controlled explosion, a few thousand times a minute, has moved most of the world.',
+        body: 'Fuel and air are drawn into a cylinder, compressed, then ignited. The expanding gas drives a piston; the piston turns a crank; the crank turns a wheel. Every refinement since is a variation on that single, insistent beat.' },
+
+      { id: 'gp', kind: 'image', slotId: 'am-gp', ratio: 1.24,
+        title: 'The Vanderbilt Cup',
+        maker: 'Long Island · 1908 · Public domain',
+        src: 'assets/vanderbilt.jpg',
+        placeholder: 'Vintage motorsport photo' },
+
+      { id: 'link2', kind: 'link',
+        from: 'you lingered on the combustion engine',
+        to: 'the golden age of Grand Prix' },
+
+      { id: 'wayfinding', kind: 'article', source: 'Wikipedia',
+        title: 'Polynesian wayfinding',
+        lede: 'Navigators crossed thousands of miles of open Pacific reading only the swell, the stars and the colour of the water.',
+        body: 'A wayfinder memorised a \u2018star compass\u2019 \u2014 the points on the horizon where key stars rise and set \u2014 and held course by them through the night. By day they read the interference of ocean swells against unseen islands.' },
+
+      { id: 'nebula', kind: 'image', slotId: 'am-nebula', ratio: 1.3,
+        title: 'The Pillars of Creation',
+        maker: 'Eagle Nebula · NASA / ESA · Public domain',
+        src: 'assets/pillars.jpg',
+        placeholder: 'Deep-space photograph' },
+
+      { id: 'wheatfield', kind: 'image', slotId: 'am-wheat', ratio: 0.62,
+        title: 'Wheatfield with Crows',
+        maker: 'Vincent van Gogh · 1890 · Van Gogh Museum',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Wheatfield%20with%20crows%20-%20Google%20Art%20Project.jpg?width=700',
+        placeholder: 'Post-impressionist oil painting' },
+
+      { id: 'jellies', kind: 'image', slotId: 'am-jellies', ratio: 1.42,
+        title: 'Discomedusae, Plate 88',
+        maker: 'Ernst Haeckel · 1904 · Public domain',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Haeckel%20Discomedusae%2088.jpg?width=700',
+        placeholder: 'Scientific illustration of jellyfish' },
+
+      { id: 'milkmaid', kind: 'image', slotId: 'am-milkmaid', ratio: 1.18,
+        title: 'The Milkmaid',
+        maker: 'Johannes Vermeer · c.\u20091658 · Rijksmuseum',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Johannes%20Vermeer%20-%20Het%20melkmeisje%20-%20Google%20Art%20Project.jpg?width=700',
+        placeholder: 'Dutch Golden Age painting' },
+
+      { id: 'deepfield', kind: 'image', slotId: 'am-deepfield', ratio: 1.0,
+        title: 'Hubble Ultra-Deep Field',
+        maker: 'NASA / ESA · 2004 · Public domain',
+        src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Hubble%20ultra%20deep%20field%20high%20rez%20edit1.jpg?width=700',
+        placeholder: 'Ten thousand galaxies in one frame' },
+
+      { id: 'tide', kind: 'article', source: 'Wikipedia',
+        title: 'What the moon does to the sea',
+        lede: 'Tides are the ocean leaning toward the moon \u2014 and, on the far side, leaning away from it.',
+        body: 'Gravity pulls hardest on the water nearest the moon and least on the water furthest from it, so the sea bulges at both ends of the planet at once. The Earth turns beneath those bulges, which is why most coasts get two high tides a day rather than one.' },
+
+      { id: 'cyanotype', kind: 'article', source: 'Wikipedia',
+        title: 'The first photobook was made of ferns',
+        lede: 'Anna Atkins printed algae directly onto light-sensitive paper and, in 1843, published the first book illustrated with photographs.',
+        body: 'Her cyanotypes needed no camera: the specimen lay on treated paper in the sun, and its silhouette developed in Prussian blue. She made them as a scientific reference, and they have outlived that purpose as some of the most quietly beautiful images of the century.' },
+
+      { id: 'link3', kind: 'link',
+        from: 'you spent a while with Haeckel',
+        to: 'the woman who printed with sunlight' },
+
+      { id: 'roads', kind: 'article', source: 'Wikipedia',
+        title: 'Why old roads bend',
+        lede: 'Most pre-industrial roads are cattle paths that hardened. Curves are records of avoided mud, hills and property lines.',
+        body: 'Straightness is expensive: it needs surveying, earthworks and the authority to cut through what is already there. Roman roads announce that authority; medieval lanes are negotiations with terrain, and modern cities still turn along their arguments.' },
+
+      { id: 'sourdough', kind: 'article', source: 'Wikipedia',
+        title: 'Bread is a domesticated ecosystem',
+        lede: 'A sourdough starter is a stable truce between wild yeasts and lactic acid bacteria that can be kept for a century.',
+        body: 'The bacteria acidify the flour, which suits them and suppresses rivals; the yeasts tolerate the acid and supply the gas that lifts the loaf. Feed it flour on a schedule and the community holds its composition \u2014 a small, edible model of ecological succession.' },
+
+      { id: 'ultramarine', kind: 'article', source: 'Wikipedia',
+        title: 'The blue that cost more than gold',
+        lede: 'Ultramarine came from a single Afghan mountain range, so Renaissance contracts specified exactly how much of it a painter could use.',
+        body: 'Lapis lazuli had to be mined, shipped, ground and separated from grey rock by kneading the powder in wax \u2014 days of labour for a few grams. Patrons paid for the pigment by weight, which is why the Virgin\u2019s robe, and little else, is that colour.' },
+
+      { id: 'longitude', kind: 'article', source: 'Wikipedia',
+        title: 'Longitude was a clock problem',
+        lede: 'Latitude you can read off the sun. Longitude requires knowing what time it is somewhere else.',
+        body: 'For two centuries the fix was to build a clock that kept true time through heat, damp and the roll of a ship. John Harrison\u2019s marine timekeepers finally did it, and navigation became a matter of comparing local noon against a pocketed reference.' },
+
+      { id: 'crows', kind: 'article', source: 'Wikipedia',
+        title: 'Crows hold grudges',
+        lede: 'They recognise individual human faces, remember which ones threatened them, and pass the warning to birds that never met you.',
+        body: 'In repeated experiments, researchers wearing a particular mask were mobbed years later \u2014 including by juveniles hatched after the original encounter. The information travels socially, which makes a neighbourhood\u2019s corvids a kind of distributed memory.' },
+
+      { id: 'link4', kind: 'link',
+        from: 'you saved Wheatfield with Crows',
+        to: 'what crows remember about us' },
+
+      { id: 'venice', kind: 'article', source: 'Wikipedia',
+        title: 'Venice stands on a forest',
+        lede: 'The city is built on millions of alder piles driven into the lagoon mud, where the absence of oxygen keeps them from rotting.',
+        body: 'Submerged in silt, the wood mineralised instead of decaying, hardening into something closer to stone. The foundations of the Rialto and the Salute are still those trunks, cut from Slovenian and Croatian forests a thousand years ago.' },
+
+      { id: 'silence', kind: 'article', source: 'Wikipedia',
+        title: 'There is no silent room',
+        lede: 'In the quietest chambers ever built, people report hearing their own blood.',
+        body: 'Anechoic rooms absorb almost all reflected sound, removing the faint room tone the ear uses as a reference. What remains is internal \u2014 circulation, breath, the nervous system\u2019s own noise \u2014 and most visitors find twenty minutes plenty.' },
+
+      { id: 'maps', kind: 'article', source: 'Wikipedia',
+        title: 'Every flat map lies',
+        lede: 'You cannot flatten a sphere without tearing, stretching or shearing it. Projections are choices about which lie you prefer.',
+        body: 'Mercator keeps angles true, which is why it is a sailing tool, and inflates the poles as the price. Equal-area projections keep Greenland honest and bend its shape. The useful question is never which map is correct but which distortion you can afford.' },
+
+      { id: 'clocks', kind: 'article', source: 'Wikipedia',
+        title: 'Time zones were invented by railways',
+        lede: 'Before timetables, every town kept its own noon. Trains made local time unworkable.',
+        body: 'A journey that passed through dozens of slightly different clocks could not be scheduled or made safe, so railway companies imposed a single standard time along their lines and the rest of civic life eventually followed the rails.' },
+
+      { id: 'octopus', kind: 'article', source: 'Wikipedia',
+        title: 'An octopus sees with its skin',
+        lede: 'They are colourblind by eye, yet their skin carries the same light-sensitive proteins found in their retinas.',
+        body: 'That may be how a colourblind animal matches the colour of a reef so precisely: the sensing is distributed across the body rather than centralised behind two eyes. Much of the processing happens in the arms, which stay partly autonomous.' },
+    ];
+  }
+
+  loadSaved() {
+    try { return new Set(JSON.parse(localStorage.getItem('ambit.saved.v1') || '[]')); }
+    catch (e) { return new Set(); }
+  }
+  persistSaved(s) { try { localStorage.setItem('ambit.saved.v1', JSON.stringify([...s])); } catch (e) {} }
+  loadCollections() {
+    try { return JSON.parse(localStorage.getItem('ambit.collections.v1') || '{}'); }
+    catch (e) { return {}; }
+  }
+  persistCollections(c) { try { localStorage.setItem('ambit.collections.v1', JSON.stringify(c)); } catch (e) {} }
+
+  componentDidMount() {
+    // refs can attach a tick after mount — set up once the scroller exists
+    const attach = () => {
+      const sc = this.scrollerRef.current;
+      if (!sc) { this.attachTimer = setTimeout(attach, 120); return; }
+      this.onScroll = () => {
+        if (sc.scrollHeight - sc.scrollTop - sc.clientHeight < 600) this.loadMore();
+        try { sessionStorage.setItem('ambit.feedScroll.v1', String(sc.scrollTop)); } catch (e) {}
+      };
+      sc.addEventListener('scroll', this.onScroll, { passive: true });
+      if (this.sentinelRef.current) {
+        this.io = new IntersectionObserver((entries) => {
+          if (entries.some(e => e.isIntersecting)) this.loadMore();
+        }, { root: sc, rootMargin: '500px' });
+        this.io.observe(this.sentinelRef.current);
+      }
+      this.onScroll();
+    };
+    attach();
+    try {
+      const focus = new URLSearchParams(window.location.search).get('focus');
+      const saved = parseFloat(sessionStorage.getItem('ambit.feedScroll.v1') || '0');
+      if (focus || saved > 0) {
+        const go = () => {
+          const sc = this.scrollerRef.current;
+          if (!sc) return;
+          const el = focus ? sc.querySelector('[data-feed-id="' + focus + '"]') : null;
+          if (el) sc.scrollTop = Math.max(0, el.offsetTop - 84);
+          else if (saved > 0 && sc.scrollTop < 4) sc.scrollTop = Math.min(saved, sc.scrollHeight);
+        };
+        [90, 350, 800].forEach(t => setTimeout(go, t));
+      }
+    } catch (e) {}
+  }
+  componentWillUnmount() {
+    if (this.io) this.io.disconnect();
+    if (this.attachTimer) clearTimeout(this.attachTimer);
+    if (this.onScroll && this.scrollerRef.current) this.scrollerRef.current.removeEventListener('scroll', this.onScroll);
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    if (this.pressTimer) clearTimeout(this.pressTimer);
+  }
+
+  pressStart(e, idx, item) {
+    if (e && e.button === 2) return;
+    this.pressPt = { x: e.clientX, y: e.clientY, moved: false };
+    this.longFired = false;
+    if (this.pressTimer) clearTimeout(this.pressTimer);
+    this.setState({ pressingIdx: idx });
+    this.pressTimer = setTimeout(() => {
+      this.longFired = true;
+      this.pressTimer = null;
+      this.setState({ pressingIdx: null, sheetOpen: true, sheetItem: item });
+      if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+    }, 450);
+  }
+  pressMove(e) {
+    if (!this.pressPt) return;
+    if (Math.abs(e.clientX - this.pressPt.x) > 10 || Math.abs(e.clientY - this.pressPt.y) > 10) {
+      this.pressPt.moved = true;
+      if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
+    }
+  }
+  pressEnd(e, idx, item) {
+    if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
+    this.setState({ pressingIdx: null });
+    const moved = this.pressPt && this.pressPt.moved;
+    const longFired = this.longFired;
+    this.pressPt = null;
+    this.longFired = false;
+    if (longFired || moved) return;
+    this.openItem(item.id, item.kind);
+  }
+  pressCancel() {
+    if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
+    this.pressPt = null;
+    this.longFired = false;
+    this.setState({ pressingIdx: null });
+  }
+  closeSheet() { this.setState({ sheetOpen: false, sheetItem: null }); }
+
+  // names come from the shared itemId -> collection map plus any empty collections made on the profile
+  collectionNames() {
+    let names = [...this.COLLECTIONS];
+    try {
+      const stored = JSON.parse(localStorage.getItem('ambit.collectionNames.v1') || 'null');
+      if (Array.isArray(stored) && stored.length) names = stored;
+    } catch (e) {}
+    Object.keys(this.state.collections || {}).forEach(id => {
+      const n = this.state.collections[id];
+      if (typeof n === 'string' && names.indexOf(n) === -1) names.push(n);
+    });
+    return names;
+  }
+  countIn(name) {
+    const map = this.state.collections || {};
+    return Object.keys(map).filter(id => map[id] === name).length;
+  }
+  pickOptions(accent) {
+    const dot = (color) => ({ width: '9px', height: '9px', borderRadius: '50%', background: color, flexShrink: 0 });
+    const rows = this.collectionNames().map(name => {
+      const n = this.countIn(name);
+      return {
+        key: name, label: name, sub: n === 1 ? '1 item' : n + ' items',
+        dotStyle: dot(accent),
+        onPick: () => { window.location.href = 'Ambit - Saved.dc.html'; },
+      };
+    });
+    const total = Object.keys(this.state.saved || {}).length || (this.state.saved && this.state.saved.size) || 0;
+    rows.unshift({
+      key: '__all', label: 'Everything kept', sub: total === 1 ? '1 item' : total + ' items',
+      dotStyle: dot('rgba(239,235,224,0.4)'),
+      onPick: () => { window.location.href = 'Ambit - Saved.dc.html'; },
+    });
+    rows.push({
+      key: '__new', label: 'New collection', sub: 'Make one on your profile',
+      dotStyle: dot('rgba(239,235,224,0.18)'),
+      onPick: () => { window.location.href = 'Ambit - Profile.dc.html'; },
+    });
+    return rows;
+  }
+  saveToCollection(name) {
+    const item = this.state.sheetItem;
+    if (!item) return;
+    this.setState(s => {
+      const n = new Set(s.saved); n.add(item.id);
+      this.persistSaved(n);
+      const cmap = { ...s.collections, [item.id]: name };
+      this.persistCollections(cmap);
+      return { saved: n, collections: cmap, sheetOpen: false, sheetItem: null };
+    });
+    this.hint('Saved to ' + name);
+  }
+
+  hint(text) {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: text });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1600);
+  }
+  loadMore() {
+    if (this.state.loadingMore) return;
+    this.setState({ loadingMore: true });
+    setTimeout(() => this.setState(s => ({ count: s.count + 6, loadingMore: false })), 600);
+  }
+  toggleSave(id) {
+    this.setState(s => {
+      const n = new Set(s.saved);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      this.persistSaved(n);
+      return { saved: n };
+    });
+  }
+  share(id) {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: 'Link copied \u00b7 ambit.link/i/' + id });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1900);
+  }
+
+  openItem(id, kind) {
+    const page = kind === 'article' ? 'Ambit - Item Text.dc.html' : 'Ambit - Item Image.dc.html';
+    try { window.location.href = page + '?itemId=' + encodeURIComponent(id); } catch (e) {}
+  }
+
+  // rough rendered height, used only to balance the two columns
+  estHeight(p, w) {
+    if (p.kind === 'image') return w * p.ratio;
+    if (p.kind === 'link') return 118;
+    const titleLines = Math.ceil(p.title.length / 18);
+    const ledeLines = Math.ceil(p.lede.length / 30);
+    return 74 + titleLines * 24 + ledeLines * 21;
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#4C5FE0';
+    const showSer = this.props.showSerendipity ?? true;
+    const colW = 196;
+
+    const seq = [];
+    for (let i = 0; i < this.state.count; i++) seq.push(this.POOL[i % this.POOL.length]);
+    const filtered = showSer ? seq : seq.filter(p => p.kind !== 'link');
+
+    const build = (p, idx) => {
+      const saved = this.state.saved.has(p.id);
+      return {
+        key: idx, pid: p.id,
+        isImage: p.kind === 'image', isArticle: p.kind === 'article', isLink: p.kind === 'link',
+        title: p.title, source: p.source, lede: p.lede, body: p.body,
+        slotId: p.slotId + '-' + idx, placeholder: p.placeholder, src: p.src,
+        imgStyle: { width: '100%', height: Math.round(colW * (p.ratio || 1)) + 'px', display: 'block', pointerEvents: 'none' },
+        linkFrom: p.from, linkTo: p.to,
+        accent, saved, notSaved: !saved,
+        cardStyle: {
+          cursor: 'pointer',
+          background: 'rgba(239,235,224,0.035)',
+          border: '0.5px solid rgba(239,235,224,0.07)',
+          padding: '16px 14px 14px',
+          userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation',
+          transform: this.state.pressingIdx === idx ? 'scale(0.985)' : 'scale(1)',
+          transition: 'transform .2s ease',
+        },
+        onPressStart: (e) => this.pressStart(e, idx, p),
+        onPressMove: (e) => this.pressMove(e),
+        onPressEnd: (e) => this.pressEnd(e, idx, p),
+        onPressCancel: () => this.pressCancel(),
+      };
+    };
+
+    // greedy column balancing — shortest column takes the next tile
+    const cols = [{ items: [], h: 0 }, { items: [], h: 0 }];
+    filtered.forEach((p, idx) => {
+      const target = cols[0].h <= cols[1].h ? cols[0] : cols[1];
+      target.items.push(build(p, idx));
+      target.h += this.estHeight(p, colW) + 4;
+    });
+
+    const sheetItem = this.state.sheetItem;
+    const collectionOptions = this.COLLECTIONS.map(name => ({
+      key: name, label: name, onPick: () => this.saveToCollection(name),
+    }));
+
+    return {
+      columns: cols.map((c, i) => ({ key: i, items: c.items })),
+      accent, deviceDark: true,
+      scrollerRef: this.scrollerRef, sentinelRef: this.sentinelRef,
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+      menuOpen: this.state.menuOpen,
+      menuLinks: this.MENU_LINKS,
+      onMenuToggle: () => this.setState(s => ({ menuOpen: !s.menuOpen })),
+      onGoTop: () => { const sc = this.scrollerRef.current; if (sc) sc.scrollTo({ top: 0, behavior: 'smooth' }); },
+      pickOpen: this.state.pickOpen,
+      pickTitle: 'Your collections',
+      pickOptions: this.pickOptions(accent),
+      onPickOpen: () => this.setState({ pickOpen: true }),
+      onPickClose: () => this.setState({ pickOpen: false }),
+      sheetOpen: this.state.sheetOpen,
+      sheetTitle: sheetItem ? (sheetItem.title || 'Serendipity') : '',
+      collectionOptions,
+      onSheetClose: () => this.closeSheet(),
+      onCloserLook: () => { const it = this.state.sheetItem; this.closeSheet(); if (it) this.openItem(it.id, it.kind); },
+    };
+  }
+}
+</script>
+</body>
+</html>

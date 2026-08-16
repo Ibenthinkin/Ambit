@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    a { color: #4C5FE0; text-decoration: none; }
+    a:hover { color: #7B89EA; }
+    @keyframes ambitfade { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes ambitrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .ambit-field { width: 100%; background: rgba(239,235,224,0.045); border: 0.5px solid rgba(239,235,224,0.12); border-radius: 14px; padding: 14px 15px; color: #F3EFE5; font-family: 'Sora', sans-serif; font-size: 15px; outline: none; }
+    .ambit-field:focus { border-color: rgba(76,95,224,0.7); background: rgba(239,235,224,0.06); }
+    .ambit-field::placeholder { color: rgba(239,235,224,0.3); }
+    image-slot { display: block; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0C0B09; padding:32px; font-family:-apple-system, system-ui, sans-serif;">
+
+  <x-import component-from-global-scope="image-slot" from="./image-slot.js" id="ambit-slot-stub" hint-size="1px,1px" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></x-import>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%;">
+
+      <div style="height:100%; overflow-y:auto; background:#161411; -webkit-overflow-scrolling:touch;">
+
+        <div style="position:sticky; top:0; z-index:8; display:flex; align-items:center; justify-content:space-between; padding:56px 20px 14px; backdrop-filter:blur(18px) saturate(160%); -webkit-backdrop-filter:blur(18px) saturate(160%); background:rgba(22,20,17,0.72); border-bottom:0.5px solid rgba(239,235,224,0.08);">
+          <a href="Ambit - Profile.dc.html" style="width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.1);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.72)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </a>
+          <span style="font-family:'Sora', sans-serif; font-weight:600; font-size:17px; color:#EFEBE0;">Edit profile</span>
+          <div onClick="{{ onSave }}" style="font-family:'Sora', sans-serif; font-weight:600; font-size:14.5px; color:{{ accent }}; cursor:pointer; padding:8px 2px;">Save</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; padding:34px 20px 0; animation:ambitrise .45s ease both;">
+          <image-slot id="ambit-avatar" shape="circle" src="{{ avatarSrc }}" placeholder="Drop a photo" style="width:104px; height:104px;"></image-slot>
+          <div style="font-family:'Sora', sans-serif; font-size:13px; color:rgba(239,235,224,0.45); margin-top:12px;">Tap the circle to upload a photo</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:20px; padding:34px 20px 60px;">
+          <div>
+            <div style="font-family:'Sora', sans-serif; font-size:11px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; color:rgba(239,235,224,0.38); margin-bottom:8px;">Name</div>
+            <input class="ambit-field" value="{{ name }}" onChange="{{ onName }}" placeholder="Your name" />
+          </div>
+          <div>
+            <div style="font-family:'Sora', sans-serif; font-size:11px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; color:rgba(239,235,224,0.38); margin-bottom:8px;">Handle</div>
+            <input class="ambit-field" value="{{ handle }}" onChange="{{ onHandle }}" placeholder="@you" />
+          </div>
+          <div>
+            <div style="font-family:'Sora', sans-serif; font-size:11px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; color:rgba(239,235,224,0.38); margin-bottom:8px;">About</div>
+            <textarea class="ambit-field" rows="4" value="{{ bio }}" onChange="{{ onBio }}" placeholder="What are you curious about?" style="resize:none; line-height:1.5;"></textarea>
+          </div>
+          <div>
+            <div style="font-family:'Sora', sans-serif; font-size:11px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; color:rgba(239,235,224,0.38); margin-bottom:8px;">Email</div>
+            <input class="ambit-field" value="{{ email }}" onChange="{{ onEmail }}" placeholder="you@example.com" />
+            <div style="font-family:'Sora', sans-serif; font-size:12px; color:rgba(239,235,224,0.35); margin-top:8px;">Only used for your invite and sign-in link.</div>
+          </div>
+
+          <div onClick="{{ onSave }}" style="display:flex; align-items:center; justify-content:center; height:50px; border-radius:999px; background:{{ accent }}; font-family:'Sora', sans-serif; font-weight:600; font-size:15px; color:#0F0E0B; cursor:pointer; margin-top:6px;">Save changes</div>
+          <a href="Ambit - Profile.dc.html" style="text-align:center; font-family:'Sora', sans-serif; font-size:14px; color:rgba(239,235,224,0.45);">Discard</a>
+        </div>
+      </div>
+
+      <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:50%; bottom:46px; z-index:50; background:rgba(30,28,24,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:0.5px solid rgba(239,235,224,0.12); color:#EFEBE0; font-family:'Sora', sans-serif; font-size:13px; padding:11px 18px; border-radius:999px; white-space:nowrap; animation:ambitfade .22s ease both; box-shadow:0 8px 30px rgba(0,0,0,0.4);">{{ toast.text }}</div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:466,&quot;height&quot;:938},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#4C5FE0&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#4C5FE0&quot;,&quot;#D9A93C&quot;,&quot;#4C8F5A&quot;,&quot;#C4553D&quot;]}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { toast: null, profile: this.loadProfile() };
+  }
+  loadProfile() {
+    const base = { name: 'Ben', handle: '@ibenthinkin', bio: 'Collecting the slow internet — paintings, deep field photographs, and facts that take a minute.', email: '', avatar: '' };
+    try { return Object.assign(base, JSON.parse(localStorage.getItem('ambit.profile.v1') || '{}')); }
+    catch (e) { return base; }
+  }
+  set(key, value) {
+    this.setState(s => ({ profile: Object.assign({}, s.profile, { [key]: value }) }));
+  }
+  save() {
+    try { localStorage.setItem('ambit.profile.v1', JSON.stringify(this.state.profile)); } catch (e) {}
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: 'Profile saved' });
+    this.toastTimer = setTimeout(() => { window.location.href = 'Ambit - Profile.dc.html'; }, 900);
+  }
+  componentWillUnmount() { if (this.toastTimer) clearTimeout(this.toastTimer); }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#4C5FE0';
+    const p = this.state.profile;
+    return {
+      accent, deviceDark: true,
+      name: p.name, handle: p.handle, bio: p.bio, email: p.email,
+      avatarSrc: p.avatar || '',
+      onName: (e) => this.set('name', e.target.value),
+      onHandle: (e) => this.set('handle', e.target.value),
+      onBio: (e) => this.set('bio', e.target.value),
+      onEmail: (e) => this.set('email', e.target.value),
+      onSave: () => this.save(),
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

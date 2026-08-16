@@ -103,7 +103,9 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 ## Phase 5 — UI (the design handoff made real)
 
-*Order: tokens first, then screens in user-journey order. The handoff README (`docs/design_handoff_ambit_pwa/README.md`) has exact tokens, motion timings, and per-screen interaction specs — treat it as the source of truth; the `.dc.html` prototypes are the visual reference. Recreate, don't port.*
+*Order: tokens first, then screens in user-journey order — with one forced deviation: item pages (5.7) land before the gallery (5.8) because the redesigned feed's taps navigate to them.*
+
+*Source of truth (since 08-16-26): the **redesign handoff** — `docs/design_handoff_ambit_pwa_redesign/README.md` for tokens, motion timings, and per-screen specs, with the convention that **the `.dc.html` prototypes win over the README where they conflict** (the README's Feed section predates `Ambit - Feed Masonry 3.dc.html`; verify each screen against its prototype at plan time). The bundle's `PROGRESS.md` describes an earlier design session (Newsreader/gold) and is superseded by the README. Recreate, don't port. Steps 5.1–5.3 below were built against the old handoff (`docs/design_handoff_ambit_pwa/`) and their Done-notes are kept verbatim as history; 5.4 migrates them to the new design language. Decisions taken at re-baseline (recorded in `PHASE5_PLAN_5.4.md`): keep email+password auth (no magic link — restyle only), build the collections backend (5.5), minimal-viable Profile/Settings with **sign-out living in Settings**, feed taps open item pages (prototype wins), masonry heights via fixed literal-class rotation (no image dimensions in the DB), and the bundle's `uploads/*.webp` are licensing-uncleared — production imagery is limited to the 8 Wikimedia PD works or Ben-cleared images until resolved.*
 
 - [x] **5.1 — Design system foundation.** Tailwind theme from the handoff tokens: warm-dark palette (`#161411` bg etc.), the 4-accent system (gold default) as CSS vars — one `accent` theme knob app-wide. Newsreader (400/500/600 + italics) via `next/font` + system sans. SVG icon set recreated from the prototypes (bookmark, share, close, arrows, envelope, diamond, ring-and-dot logo). Shared primitives: pill button/chip, card, toast, bottom sheet (26px top radius, slide-up motion), rise-in animation utility.
   *Done =* ✅ Planned + executed 08-10-26, walkthrough `docs/PHASE5_WALKTHROUGH_5.1.md`. Tokens
@@ -154,20 +156,45 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   both confirmed dynamic) both green; `bun run e2e` (7 local-only tests, including the updated
   sign-up → onboarding → feed loop) green.
 
-- [ ] **5.4 — Feed screen.** `/feed` per handoff §3: glass sticky header, `useInfiniteQuery` on `feed.page` with IntersectionObserver sentinel + "finding something interesting…" loader, ImageCard + ArticleCard, serendipity connective rows ("{From} → {To}"), movement-guarded taps (≤12px tolerance), save/share (Web Share API with clipboard-toast fallback), article hold-~480ms-or-double-tap expand with progress bar, quick fullscreen preview, `?focus=` return-scroll.
-  *Done = smooth infinite scroll of real DB content; every handoff §3 interaction works on a phone.*
+- [x] **5.4 — Design-system migration + restyle of built screens.** Migrate the token layer to the redesign (`PHASE5_PLAN_5.4.md`): Sora replaces Newsreader+system-sans (`--font-serif` dies), accent set becomes indigo `#4C5FE0` default + amber/green/red (`data-accent` names renamed), `--color-ink-hi` title tier, sheet radius 26→22, new sheet ease `cubic-bezier(.22,.9,.3,1)` (old 103%/settle animation renamed `--animate-sheet-gallery` for the gallery details modal), `--shadow-toolbar`, avatar-gradient utility (registered in twMerge like `border-hairline`), `prefers-reduced-motion` support. Restyle `/`, `/reset-password`, `/onboarding`, `/dev/tokens` (near-total rewrite), `/~offline` (finally on-palette) — **no flow or layout changes**; auth/onboarding tests pass unmodified as the regression signal.
+  *Done =* ✅ Planned + executed 08-16-26, walkthrough `docs/PHASE5_WALKTHROUGH_5.4.md`. Sora
+  replaces Newsreader + the system stack (`--font-serif` deleted app-wide); accent set replaced and
+  renamed to indigo (default) / amber / green / red; new `--color-ink-hi` title tier above the
+  untouched 5.1 alpha ladder; sheet radius 26→22, new `--shadow-toolbar`, and the sheet animation
+  **split in two** — the original 400ms/103% curve renamed `--animate-sheet-gallery` and reserved
+  for 5.8's details modal, with `--animate-sheet-up` rebuilt as the redesign's 260ms `sheetup`
+  (BottomSheet picked it up with no component change). New `.bg-avatar-gradient` utility,
+  registered in tailwind-merge's `bg-image` group — the exact trap `border-hairline` fell into in
+  5.1 — and `utils.test.ts` gained regression cases for both (the `border-hairline` one had never
+  actually been written). `Chip` lost its `serif` prop; `Logo` is now the redesign's exact mark
+  spec; icon strokes audited against the handoff's 1.7–2px band (`Bookmark` deliberately keeps 1.3
+  on its bespoke 13×16 grid). Landing/onboarding/reset got a typography-and-color pass with every
+  string and test id untouched, `/~offline` finally came onto the palette, and `/dev/tokens` was
+  rewritten as the new living style guide (including a side-by-side replay of the two sheet
+  curves). 219 tests green; `bun run build` clean with all four routes still dynamic; **all 7 e2e
+  green unmodified** — the phase's regression signal. Two false alarms and one pre-existing flaky
+  server test (`feed.test.ts`'s unseeded tier-ratio assertion) are documented in the walkthrough.
 
-- [ ] **5.5 — Fullscreen gallery.** Per handoff §4: three-slide translateX rail, swipe paging over the feed's image set, chrome auto-cycle (10s in/10s out), details bottom sheet with drag-close/side-swipe-cycle, hard-swipe-up + two-finger-swipe + X to return with `?focus=`, save/share.
-  *Done = gesture set works on iOS Safari; entry/exit deep-linking with the feed correct.*
+- [ ] **5.5 — Shared backbone + collections backend.** The redesign's two backbone components + the data model the save sheet needs. Backend: `collection` table (`id,userId,name,createdAt`), nullable `collectionId` FK on `saved_item`, lazy per-user seeding of Articles/Art/Photos, `saves` router evolves (`saveToCollection` / `collections`-with-counts / `unsave`; confirm nothing but the dead `/feed` placeholder still calls `toggle` before removing it), drizzle migration. UI: `PillToolbar` (glass pill, profile/mark/bookmark/share, `pointer-events` wrapper pattern, active bookmark states), `BottomSheet` v2 (centered title slot, exit animation — the null-when-closed test assertion changes here), `SaveToCollectionSheet`, `ShareSheet` (copy-link + `navigator.share`-backed targets + Save-image row in image contexts), `usePress` hook (≤12px slop tap + 450ms long-press, iOS-safe), avatar chip. All demoed live on `/dev/tokens` against the real router.
+  *Done = migration applied; router integration tests green; pill + both sheets work end-to-end on `/dev/tokens` on a real phone.*
 
-- [ ] **5.6 — Saved screen.** `/saved` per handoff §5: 2-col grid (articles full-width), All/Images/Reading segmented filter with live counts, unsave + toast, empty state, tiles open the gallery.
-  *Done = saves from feed/gallery appear, filter, unsave, persist across reload.*
+- [ ] **5.6 — Feed masonry.** `/feed` proper per the `Feed Masonry 3` prototype (placeholder dies; sign-out moves to `/dev/tokens` until 5.10, e2e updated). RSC `prefetchInfinite`/`HydrateClient` (first-ever consumer — the server prefetch input must byte-match the client `useInfiniteQuery` input) + IntersectionObserver sentinel; `/feed` stays dynamic. Two independent flex columns in a `1fr 1fr` gap-4 grid, greedy shortest-column placement with estimated heights, fixed rotation of literal height classes, square-cornered full-bleed image tiles; article cards + serendipity "BECAUSE" rows from `driftPath`; tap → item page, long-press → item sheet ("Closer look" + save-to-collection); `data-feed-id` + `?focus=` return-scroll. Reuses `PHASE5_PLAN_5.4_FEED_OLD_DESIGN.md`'s backend-contract/RSC research wholesale.
+  *Done = smooth infinite scroll of real DB content; taps/long-press correct on a phone (5.7 routes may be stubs until 5.7 lands — the pair ships back-to-back).*
 
-- [ ] **5.7 — Public item page.** `/i/[itemId]` per handoff §6: no-auth read-only item, "shared by" row, "where Ambit would wander next" teaser (2 real nearest-neighbor rows), invite CTA. OG meta tags so shared links unfurl nicely.
-  *Done = incognito visit renders item + teaser; OG preview correct; no user data leaks.*
+- [ ] **5.7 — Item pages.** `/i/[itemId]` on the public `items.byId` — image and reader variants by item type, shared-by row (param-driven), "where Ambit would wander next" (new procedure over the topic graph), join CTA for signed-out visitors, OG meta, horizontal swipe-back with rubber-band follow honoring `?focus=`. Reader body: decide at plan time between stored `summary`/`body` and a server-side cached Wikipedia extract (the prototype fetches client-side; its own README says move it server-side).
+  *Done = incognito visit renders both variants + teaser; OG preview correct; no user data leaks; swipe-back works on iOS.*
 
-- [ ] **5.8 — Install prompt + PWA polish.** Per handoff §7: collapsed banner → instruction sheet → confirmation, using real `beforeinstallprompt` where available and manual iOS-Safari instructions otherwise; dismissal persistence. Offline shell + cached last feed page.
-  *Done = installable on iOS + Android; reopening offline shows shell + last cached feed.*
+- [ ] **5.8 — Immersive gallery.** The signature screen — budget the most time. `bg-immersive`, three-cell rail over the feed's image set (entered from item pages and Saved, not feed tiles), pointer-event swipe with 20%-width threshold + `touch-action: none`, chrome hidden by default (600ms unit fade, 10s-in/10s-out auto-cycle, pointer-events off while hidden), details sheet on `--animate-sheet-gallery` with drag-close + side-swipe-cycle, hard-swipe-up / two-finger exit → `/feed?focus=`. Pill + both sheets embedded.
+  *Done = the full gesture matrix works on iOS Safari (no scroll bleed, no stuck chrome); entry/exit deep-linking correct.*
+
+- [ ] **5.9 — Saved + collections UI.** `/saved` per handoff: title + count line, horizontally scrolling collection chips with live counts (accent-filled active), the shared masonry from 5.6, unsave badge + toast, empty state, image tap → gallery, article tile → reader, pill bookmark filled-white. Share-collection scope needs a call at plan time (public `/c/{collection}` is not in current scope — degrade or defer). Pure UI over 5.5's backend. Also revisit Saved's reachability here (currently two hops from the feed — possibly intentional restraint).
+  *Done = save-from-feed → appears-in-saved → unsave round trip in e2e; chip counts match router integration tests.*
+
+- [ ] **5.10 — Profile + Settings (minimal viable).** `/profile`: name (Sora 600 28 `ink-hi`), avatar-gradient chip (no upload), collections grid from `saves.collections`, edit-name (tiny `user.updateName` procedure or Better Auth's built-in update). `/settings`: glass sticky header + back chevron, shortcut cards (Edit profile, Saved with live count), backed rows only — Add to home screen, About, **Sign out** (its permanent home; leaves `/dev/tokens`, e2e updated). No handle, no avatar upload, no stub rows (muted sources / serendipity level / invite quota wait for their features).
+  *Done = full loop sign-up → onboarding → feed → settings → sign-out in e2e; name edit round-trips.*
+
+- [ ] **5.11 — Landing slideshow + install + PWA polish.** Landing per `Landing 2`: full-bleed cross-fading slideshow (Fisher–Yates shuffle per load, `slideMs` cadence, stop-on-last → 260ms → auth sheet rises with the existing password `AuthCard` inside), preload via `new Image()`, orbs + `drift` keyframe deleted. **Hard gate: slide list restricted to the 8 Wikimedia PD works (proxied/cached, not hot-linked) or Ben-cleared images — the bundle's `uploads/*.webp` are licensing-uncleared.** Install: dismissible banner → iOS instruction sheet / real `beforeinstallprompt` elsewhere, dismissal persistence, `pop-in` checkmark; extend `sw.ts` to cache the last feed page (never the personalized feed API responses themselves — deliberate strategy, not `defaultCache`).
+  *Done = auth e2e still green (same fields inside the sheet); installable on iOS + Android; reopening offline shows shell + last cached feed.*
 
 ---
 

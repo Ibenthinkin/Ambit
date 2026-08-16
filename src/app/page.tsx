@@ -22,12 +22,14 @@ export default async function Home() {
     <LandingShell>
       <Rise delayMs={80}>
         <div className="flex flex-1 flex-col justify-center">
-          <h1 className="text-ink font-serif text-[42px] leading-[1.08] tracking-[0.2px]">
+          {/* Sora at display sizes needs NEGATIVE tracking — the serif this replaced wanted
+              +0.2px, but a geometric sans at 42px reads loose at its natural spacing. */}
+          <h1 className="text-ink-hi text-[42px] leading-[1.06] font-semibold tracking-[-0.6px]">
             A quieter way
             <br />
             to be curious.
           </h1>
-          <p className="text-ink/62 mt-5 max-w-[300px] font-serif text-[18px] leading-[1.5]">
+          <p className="text-ink/62 mt-5 max-w-[300px] text-[17px] leading-[1.55]">
             No feeds engineered to keep you. Ambit hands you one interesting
             thing at a time — art, ideas, the odd corner of the world — then
             quietly steps back.

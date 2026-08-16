@@ -1,21 +1,19 @@
-import { Newsreader } from "next/font/google";
+import { Sora } from "next/font/google";
 
-// Newsreader is a variable font (axes: ital 0-1, opsz 6-72, wght 200-800). `weight` is
-// deliberately OMITTED — for a variable font, next/font/google serves the full variable file and
-// lets weight be controlled per-element in CSS (`font-weight: 600`), rather than fetching
-// separate static instances per weight. This also sidesteps an unresolved question found during
-// planning: whether the loader errors on an explicit weight array (e.g. ['400','500','600'])
-// combined with `style: ['normal', 'italic']`, since Newsreader's italic file tops out below 600
-// upstream — omitting `weight` means the question never arises (see PHASE5_PLAN.md docs
-// findings).
+// Sora is a variable font (wght 100-800). `weight` is deliberately OMITTED — for a variable font,
+// next/font/google serves the single variable file and lets weight be controlled per-element in
+// CSS (`font-weight: 600`), which covers the redesign's 400/500/600/700/800 usage without fetching
+// a separate static instance per weight. (Same rationale as the Newsreader setup this replaced in
+// Phase 5.4; see docs/PHASE5_PLAN_5.4.md.)
 //
-// `axes: ['opsz']` opts into the optical-size axis on top of the `wght` axis next/font includes
-// by default — Newsreader's design (per the handoff) leans on `opsz` across its 14-42px range,
-// and it's not served unless explicitly requested.
-export const newsreader = Newsreader({
+// No `axes` — Sora has no optical-size axis, so the `wght` axis next/font includes by default is
+// the whole story. No `style` — the redesign uses no italics anywhere (the old serif wordmark's
+// italic treatment died with Newsreader).
+//
+// next/font/google self-hosts the font files at build time, which satisfies the handoff README's
+// "Sora via Google Fonts. Self-host in production."
+export const sora = Sora({
   subsets: ["latin"],
-  axes: ["opsz"],
-  style: ["normal", "italic"],
   display: "swap",
-  variable: "--font-newsreader",
+  variable: "--font-sora",
 });

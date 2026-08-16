@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    @keyframes ambitfade { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes ambitrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes ambitsheetup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    a { color: #4C5FE0; text-decoration: none; }
+    a:hover { color: #7B89EA; }
+    image-slot { display: block; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0C0B09; padding:32px; font-family:-apple-system, system-ui, sans-serif;">
+
+  <x-import component-from-global-scope="image-slot" from="./image-slot.js" hint-size="1px,1px" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></x-import>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%;">
+
+      <div style="height:100%; overflow-y:auto; background:#161411; -webkit-overflow-scrolling:touch;">
+
+        <div style="padding:58px 16px 0;">
+          <div style="font-family:'Sora', sans-serif; font-weight:600; font-size:26px; line-height:1; color:#EFEBE0;">Saved</div>
+          <div style="font-family:'Sora', sans-serif; font-size:12.5px; color:rgba(239,235,224,0.45); margin-top:6px; letter-spacing:0.15px;">{{ countLabel }}</div>
+        </div>
+
+        <sc-if value="{{ hasAny }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:16px 16px 4px;">
+            <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+              <div onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- empty state -->
+        <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:90px 40px; animation:ambitrise .5s ease both;">
+            <div style="width:66px; height:66px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.05); border:0.5px solid rgba(239,235,224,0.1);">
+              <svg width="26" height="30" viewBox="0 0 24 30"><path d="M2 2h20v26l-10-6.4L2 28z" fill="none" stroke="{{ accent }}" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="font-family:'Sora', sans-serif; font-size:23px; color:#F3EFE5; margin-top:22px;">Nothing kept yet</div>
+            <div style="font-family:'Sora', sans-serif; font-size:16px; line-height:1.5; color:rgba(239,235,224,0.55); margin-top:9px; max-width:250px;">Tap the bookmark on anything that catches you. It'll wait for you here — no rush, no expiry.</div>
+            <a href="Ambit - Feed Masonry 3.dc.html" style="font-family:-apple-system, system-ui; font-size:14px; font-weight:600; color:#17140E; background:{{ accent }}; border-radius:999px; padding:13px 24px; margin-top:26px; text-decoration:none;">Back to exploring</a>
+          </div>
+        </sc-if>
+
+        <!-- saved grid -->
+        <sc-if value="{{ hasVisible }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:12px 4px 120px; align-items:start;">
+            <sc-for list="{{ columns }}" as="col" hint-placeholder-count="2">
+              <div style="display:flex; flex-direction:column; gap:4px;">
+            <sc-for list="{{ col.items }}" as="item" hint-placeholder-count="3">
+              <div>
+
+                <!-- image tile -->
+                <sc-if value="{{ item.isImage }}" hint-placeholder-val="{{ true }}">
+                  <div onPointerDown="{{ item.onImgDown }}" onPointerMove="{{ item.onImgMove }}" onPointerUp="{{ item.onImgUp }}" onPointerCancel="{{ item.onImgCancel }}" onPointerLeave="{{ item.onImgCancel }}" style="position:relative; cursor:pointer; animation:ambitrise .4s ease both;">
+                    <image-slot id="{{ item.slotId }}" shape="rect" src="{{ item.src }}" placeholder="{{ item.placeholder }}" style="{{ item.imgStyle }}"></image-slot>
+                    <div onClick="{{ item.onUnsave }}" onPointerDown="{{ item.onUnsaveDown }}" style="position:absolute; top:8px; right:8px; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(12,11,9,0.5); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); cursor:pointer;">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="{{ accent }}" stroke="{{ accent }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <!-- article tile (full width) -->
+                <sc-if value="{{ item.isArticle }}" hint-placeholder-val="{{ false }}">
+                  <div style="animation:ambitrise .4s ease both; background:rgba(239,235,224,0.03); border:0.5px solid rgba(239,235,224,0.06); padding:16px 13px 14px;">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+                      <span style="font-family:'Sora', sans-serif; font-size:9.5px; font-weight:600; letter-spacing:1.3px; text-transform:uppercase; color:rgba(239,235,224,0.34);">{{ item.source }}</span>
+                      <div onClick="{{ item.onUnsave }}" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; margin-top:-3px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="{{ accent }}" stroke="{{ accent }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg>
+                      </div>
+                    </div>
+                    <div style="font-family:'Sora', sans-serif; font-weight:600; font-size:19px; line-height:1.25; color:#F3EFE5; margin-top:10px;">{{ item.title }}</div>
+                    <div style="font-family:'Sora', sans-serif; font-size:13.5px; line-height:1.52; color:rgba(239,235,224,0.58); margin-top:9px;">{{ item.lede }}</div>
+                    <a href="{{ item.href }}" style="font-family:'Sora', sans-serif; font-size:12.5px; font-weight:500; color:{{ accent }}; text-decoration:none; display:inline-block; margin-top:13px;">Open in reader →</a>
+                  </div>
+                </sc-if>
+
+              </div>
+            </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="position:absolute; left:0; right:0; bottom:26px; z-index:16; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+        <div style="pointer-events:auto; display:flex; align-items:center; gap:26px; padding:8px 20px; border-radius:999px; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+          <a href="Ambit - Profile.dc.html" style="width:31px; height:31px; display:flex; align-items:center; justify-content:center;">
+            <span style="width:25px; height:25px; border-radius:50%; display:block; background:linear-gradient(150deg, #8E92F0, #6C7BE8); border:1.5px solid rgba(255,255,255,0.75);"></span>
+          </a>
+          <a href="Ambit - Feed Masonry 3.dc.html" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center;">
+            <svg width="31" height="31" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="1.7"/><circle cx="13" cy="13" r="3.6" fill="rgba(255,255,255,0.95)"/><circle cx="21" cy="7" r="1.9" fill="rgba(255,255,255,0.95)"/></svg>
+          </a>
+          <div style="width:31px; height:31px; display:flex; align-items:center; justify-content:center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="rgba(255,255,255,0.95)" stroke="rgba(255,255,255,0.95)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg>
+          </div>
+          <div onClick="{{ onShareOpen }}" style="width:31px; height:31px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.82)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"/><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <sc-if value="{{ shareOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ onShareClose }}" style="position:absolute; inset:0; z-index:30; background:rgba(9,8,6,0.5);"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:31; background:#1B1815; border-top:0.5px solid rgba(239,235,224,0.1); border-radius:22px 22px 0 0; padding:10px 0 30px; box-shadow:0 -20px 50px rgba(0,0,0,0.45); animation:ambitsheetup .24s cubic-bezier(.22,.9,.3,1) both;">
+          <div style="width:36px; height:4px; border-radius:4px; background:rgba(239,235,224,0.18); margin:0 auto 14px;"></div>
+          <div style="font-family:'Sora', sans-serif; font-weight:600; font-size:15px; color:#F3EFE5; text-align:center; padding:0 18px 16px;">Share this collection</div>
+          <div style="display:flex; align-items:center; gap:10px; margin:0 18px; padding:6px 6px 6px 15px; background:rgba(239,235,224,0.045); border:0.5px solid rgba(239,235,224,0.1); border-radius:999px;">
+            <div style="flex:1; min-width:0; font-family:ui-monospace, monospace; font-size:12.5px; color:rgba(239,235,224,0.6); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ shareLink }}</div>
+            <div onClick="{{ onCopyLink }}" style="flex-shrink:0; font-family:'Sora', sans-serif; font-size:12.5px; font-weight:600; color:#17140E; background:{{ accent }}; border-radius:999px; padding:8px 16px; cursor:pointer;">Copy link</div>
+          </div>
+          <div style="display:flex; gap:14px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:18px 18px 4px;">
+            <div onClick="{{ onShareMessages }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border-radius:50%; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.12); display:flex; align-items:center; justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EFEBE0" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.7 8.7 0 01-3.4-.7L3 21l1.8-4.3A8.4 8.4 0 1121 11.5z"/></svg></span>
+              <span style="font-family:'Sora', sans-serif; font-size:10.5px; color:rgba(239,235,224,0.5);">Messages</span>
+            </div>
+            <div onClick="{{ onShareInstagram }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border-radius:50%; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.12); display:flex; align-items:center; justify-content:center;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#EFEBE0" stroke-width="1.7" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="#EFEBE0" stroke="none"/></svg></span>
+              <span style="font-family:'Sora', sans-serif; font-size:10.5px; color:rgba(239,235,224,0.5);">Stories</span>
+            </div>
+            <div onClick="{{ onShareX }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border-radius:50%; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.12); display:flex; align-items:center; justify-content:center; font-family:'Sora', sans-serif; font-weight:700; font-size:19px; color:#EFEBE0;">X</span>
+              <span style="font-family:'Sora', sans-serif; font-size:10.5px; color:rgba(239,235,224,0.5);">X</span>
+            </div>
+            <div onClick="{{ onSharePinterest }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border-radius:50%; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.12); display:flex; align-items:center; justify-content:center; font-family:'Sora', sans-serif; font-weight:700; font-size:19px; color:#EFEBE0;">P</span>
+              <span style="font-family:'Sora', sans-serif; font-size:10.5px; color:rgba(239,235,224,0.5);">Pinterest</span>
+            </div>
+            <div onClick="{{ onShareWhatsApp }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border-radius:50%; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.12); display:flex; align-items:center; justify-content:center; font-family:'Sora', sans-serif; font-weight:700; font-size:19px; color:#EFEBE0;">W</span>
+              <span style="font-family:'Sora', sans-serif; font-size:10.5px; color:rgba(239,235,224,0.5);">WhatsApp</span>
+            </div>
+            <div onClick="{{ onShareEmail }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border-radius:50%; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.12); display:flex; align-items:center; justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EFEBE0" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/></svg></span>
+              <span style="font-family:'Sora', sans-serif; font-size:10.5px; color:rgba(239,235,224,0.5);">Email</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- fullscreen image -->
+      <sc-if value="{{ fullscreenActive }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeImage }}" style="position:absolute; inset:0; z-index:40; background:rgba(9,8,6,0.97); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); display:flex; flex-direction:column;">
+          <div style="display:flex; justify-content:flex-end; padding:54px 18px 0;">
+            <div style="width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.1); border:0.5px solid rgba(239,235,224,0.14);">
+              <svg width="14" height="14" viewBox="0 0 14 14" stroke="#EFEBE0" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
+            </div>
+          </div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:8px 16px;">
+            <image-slot id="{{ fullscreen.slotId }}" shape="rounded" radius="14" fit="contain" src="{{ fullscreen.src }}" placeholder="{{ fullscreen.placeholder }}" style="width:100%; height:56vh;"></image-slot>
+          </div>
+          <div onClick="{{ noop }}" style="padding:8px 26px 44px;">
+            <div style="font-family:'Sora', sans-serif; font-size:22px; line-height:1.28; color:#F3EFE5;">{{ fullscreen.title }}</div>
+            <div style="font-family:-apple-system, system-ui; font-size:12.5px; color:rgba(239,235,224,0.5); margin-top:8px;">{{ fullscreen.maker }}</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- toast -->
+      <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:50%; bottom:46px; z-index:50; background:rgba(30,28,24,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:0.5px solid rgba(239,235,224,0.12); color:#EFEBE0; font-family:-apple-system, system-ui; font-size:13px; padding:11px 18px; border-radius:999px; white-space:nowrap; animation:ambitfade .22s ease both; box-shadow:0 8px 30px rgba(0,0,0,0.4);">{{ toast.text }}</div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#4C5FE0&quot;, &quot;options&quot;: [&quot;#4C5FE0&quot;, &quot;#D9A73C&quot;, &quot;#3FA35C&quot;, &quot;#D9483F&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Saved&quot; }
+}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.POOL = {
+      wave: { kind: 'image', slotId: 'am-wave', title: 'The Great Wave off Kanagawa', short: 'Hokusai · The Met', maker: 'Katsushika Hokusai · c.\u20091831 · The Met', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Great%20Wave%20off%20Kanagawa2.jpg?width=900', placeholder: 'Ukiyo-e woodblock print' },
+      turner: { kind: 'image', slotId: 'am-turner', title: 'Rain, Steam and Speed', short: 'J.\u2009M.\u2009W. Turner · 1844', maker: 'J.\u2009M.\u2009W. Turner · 1844 · National Gallery', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Rain%20Steam%20and%20Speed%20the%20Great%20Western%20Railway.jpg?width=900', placeholder: 'Romantic oil painting' },
+      gp: { kind: 'image', slotId: 'am-gp', title: 'The Vanderbilt Cup', short: 'Long Island · 1908', maker: 'Long Island · 1908 · Public domain', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Vanderbilt%20Cup%201908.jpg?width=900', placeholder: 'Vintage motorsport photo' },
+      nebula: { kind: 'image', slotId: 'am-nebula', title: 'The Pillars of Creation', short: 'NASA / ESA', maker: 'Eagle Nebula · NASA / ESA · Public domain', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Pillars%20of%20Creation.jpg?width=900', placeholder: 'Deep-space photograph' },
+      sky: { kind: 'article', source: 'Wikipedia', title: 'Why the sky is blue', lede: 'Shorter blue wavelengths scatter off air molecules far more than red ones, so blue reaches your eye from every direction.' },
+      engine: { kind: 'article', source: 'Wikipedia', title: 'The internal-combustion engine', lede: 'A controlled explosion, a few thousand times a minute, has moved most of the world for over a century.' },
+      wayfinding: { kind: 'article', source: 'Wikipedia', title: 'Polynesian wayfinding', lede: 'Navigators crossed thousands of miles of open Pacific reading only the swell, the stars and the birds.' },
+    };
+    this.ORDER = ['wave', 'sky', 'turner', 'nebula', 'wayfinding', 'gp'];
+    this.state = {
+      saved: this.loadSaved(),
+      filter: 'all',
+      fullscreenId: null,
+      toast: null,
+    };
+  }
+
+  loadSaved() {
+    let raw;
+    try { raw = JSON.parse(localStorage.getItem('ambit.saved.v1') || 'null'); } catch (e) { raw = null; }
+    if (!raw || !raw.length) {
+      // seed a demo collection on first visit so Saved reflects real feed items
+      const seed = ['wave', 'sky', 'turner', 'nebula', 'wayfinding', 'gp'];
+      try { localStorage.setItem('ambit.saved.v1', JSON.stringify(seed)); } catch (e) {}
+      return new Set(seed);
+    }
+    return new Set(raw);
+  }
+  persist(s) {
+    try { localStorage.setItem('ambit.saved.v1', JSON.stringify([...s])); } catch (e) {}
+  }
+
+  unsave(id) {
+    this.setState(s => {
+      const n = new Set(s.saved);
+      n.delete(id);
+      this.persist(n);
+      return { saved: n };
+    });
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: 'Removed from Saved' });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1700);
+  }
+
+  componentWillUnmount() { if (this.toastTimer) clearTimeout(this.toastTimer); }
+
+  openImage(id) { this.setState({ fullscreenId: id }); }
+  closeImage() { this.setState({ fullscreenId: null }); }
+
+  // open the immersive gallery on this work (guarded tap: never fires while scrolling)
+  openGallery(id) {
+    try { window.location.href = 'Ambit - Gallery.dc.html?start=' + encodeURIComponent(id); } catch (e) {}
+  }
+  tapDown(e) { this.tap = { x: e.clientX, y: e.clientY, ok: true }; }
+  tapMove(e) {
+    if (!this.tap) return;
+    if (Math.abs(e.clientX - this.tap.x) > 12 || Math.abs(e.clientY - this.tap.y) > 12) this.tap.ok = false;
+  }
+  tapUp(e, action) {
+    const t = this.tap; this.tap = null;
+    if (!t || !t.ok) return;
+    if (Math.abs(e.clientX - t.x) > 12 || Math.abs(e.clientY - t.y) > 12) return;
+    action();
+  }
+  tapCancel() { this.tap = null; }
+
+  readMap() {
+    try { return JSON.parse(localStorage.getItem('ambit.collections.v1') || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  collectionNames() {
+    let names = ['Articles', 'Art', 'Photos'];
+    try {
+      const stored = JSON.parse(localStorage.getItem('ambit.collectionNames.v1') || 'null');
+      if (Array.isArray(stored) && stored.length) names = stored;
+    } catch (e) {}
+    const map = this.readMap();
+    Object.keys(map).forEach(id => { if (names.indexOf(map[id]) === -1) names.push(map[id]); });
+    return names;
+  }
+  flashToast(text) {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: text });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1800);
+  }
+  copyLink() {
+    const link = 'ambit.link/c/' + (this.state.filter === 'all' ? 'saved' : this.state.filter.toLowerCase());
+    try { navigator.clipboard && navigator.clipboard.writeText('https://' + link); } catch (e) {}
+    this.setState({ shareOpen: false });
+    this.flashToast('Link copied \u00b7 ' + link);
+  }
+  shareTo(name) {
+    this.setState({ shareOpen: false });
+    this.flashToast('Opening ' + name + '\u2026');
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#4C5FE0';
+    const filter = this.state.filter;
+    const map = this.readMap();
+
+    const savedIds = this.ORDER.filter(id => this.state.saved.has(id));
+    const images = savedIds.filter(id => this.POOL[id].kind === 'image');
+    const articles = savedIds.filter(id => this.POOL[id].kind === 'article');
+
+    const visibleIds = filter === 'all' ? savedIds
+      : savedIds.filter(id => (map[id] || (this.POOL[id].kind === 'article' ? 'Articles' : 'Art')) === filter);
+
+    const items = visibleIds.map(id => {
+      const p = this.POOL[id];
+      const isImage = p.kind === 'image';
+      return {
+        key: id,
+        isImage,
+        isArticle: !isImage,
+        title: p.title, short: p.short, maker: p.maker,
+        source: p.source, lede: p.lede,
+        slotId: p.slotId, src: p.src, placeholder: p.placeholder,
+        imgStyle: { width: '100%', height: (isImage ? (140 + ((id.length * 37) % 5) * 26) : 0) + 'px', display: 'block', pointerEvents: 'none' },
+        href: 'Ambit - Item Text.dc.html?itemId=' + id,
+        onOpen: () => this.openImage(id),
+        onImgDown: (e) => this.tapDown(e),
+        onImgMove: (e) => this.tapMove(e),
+        onImgUp: (e) => this.tapUp(e, () => this.openGallery(id)),
+        onImgCancel: () => this.tapCancel(),
+        onUnsave: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.unsave(id); },
+        onUnsaveDown: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+      };
+    });
+
+    const total = savedIds.length;
+    const counts = {};
+    savedIds.forEach(id => {
+      const name = map[id] || (this.POOL[id].kind === 'article' ? 'Articles' : 'Art');
+      counts[name] = (counts[name] || 0) + 1;
+    });
+    const filters = [{ key: 'all', label: 'All' + (total ? ' · ' + total : '') }]
+      .concat(this.collectionNames().filter(n => counts[n]).map(n => ({ key: n, label: n + ' · ' + counts[n] })))
+      .map(f => ({
+      label: f.label,
+      onClick: () => this.setState({ filter: f.key }),
+      style: {
+        fontFamily: '-apple-system, system-ui, sans-serif',
+        fontSize: '12.5px',
+        fontWeight: 500,
+        padding: '8px 15px',
+        borderRadius: '999px',
+        cursor: 'pointer',
+        userSelect: 'none',
+        whiteSpace: 'nowrap',
+        transition: 'background .18s ease, color .18s ease',
+        background: filter === f.key ? accent : 'rgba(239,235,224,0.05)',
+        color: filter === f.key ? '#17140E' : 'rgba(239,235,224,0.62)',
+        border: '0.5px solid ' + (filter === f.key ? accent : 'rgba(239,235,224,0.11)'),
+      },
+    }));
+
+    const fs = this.state.fullscreenId ? this.POOL[this.state.fullscreenId] : null;
+    const fullscreen = fs ? { title: fs.title, maker: fs.maker, slotId: fs.slotId, src: fs.src, placeholder: fs.placeholder }
+      : { title: '', maker: '', slotId: '__none', src: '', placeholder: '' };
+
+    const countLabel = total === 0 ? 'Your quiet collection'
+      : (total + (total === 1 ? ' thing kept' : ' things kept'));
+
+    return {
+      accent, deviceDark: true,
+      items, filters,
+      columns: [
+        { key: 'c0', items: items.filter((_, i) => i % 2 === 0) },
+        { key: 'c1', items: items.filter((_, i) => i % 2 === 1) },
+      ],
+      hasAny: total > 0,
+      isEmpty: total === 0,
+      hasVisible: items.length > 0,
+      countLabel,
+      fullscreenActive: !!fs, fullscreen,
+      shareOpen: !!this.state.shareOpen,
+      shareLink: 'ambit.link/c/' + (filter === 'all' ? 'saved' : filter.toLowerCase()),
+      onShareOpen: () => this.setState({ shareOpen: true }),
+      onShareClose: () => this.setState({ shareOpen: false }),
+      onCopyLink: () => this.copyLink(),
+      onShareMessages: () => this.shareTo('Messages'),
+      onShareInstagram: () => this.shareTo('Instagram Stories'),
+      onShareX: () => this.shareTo('X'),
+      onSharePinterest: () => this.shareTo('Pinterest'),
+      onShareWhatsApp: () => this.shareTo('WhatsApp'),
+      onShareEmail: () => this.shareTo('Mail'),
+      closeImage: () => this.closeImage(),
+      noop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

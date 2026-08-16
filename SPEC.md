@@ -304,7 +304,7 @@ deploy target; a multi-instance deploy would need this backed by shared state in
 - `InstallPrompt.tsx` — PWA install affordance.
 
 ### 8.3 PWA
-- Web app manifest + service worker (e.g. `@ducanh2912/next-pwa` or equivalent); offline shell + cached last feed page; installable on mobile.
+- Web app manifest + service worker (built with Serwist — `src/app/manifest.ts`, `src/app/sw.ts` via `@serwist/turbopack`); offline shell + cached last feed page; installable on mobile.
 
 ## 9. Feed engine (the core) — tiered topic drift over a curated pool
 
@@ -333,9 +333,10 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
 
 Minimal, calm, high-contrast-on-neutral; content-forward (chrome recedes). Mobile-first; large
 tap targets; smooth fullscreen/swipe transitions. Design tokens come from the handoff
-(`docs/design_handoff_ambit_pwa/README.md`) and live in `src/styles/globals.css` as Tailwind v4
-`@theme` — there is no `tailwind.config.ts`, v4 is CSS-first. Established in Phase 5.1
-(`docs/PHASE5_WALKTHROUGH_5.1.md`); this section is the durable summary, not the planning doc.
+(`docs/design_handoff_ambit_pwa_redesign/README.md`) and live in `src/styles/globals.css` as
+Tailwind v4 `@theme` — there is no `tailwind.config.ts`, v4 is CSS-first. Established in Phase 5.1
+(`docs/PHASE5_WALKTHROUGH_5.1.md`) and migrated to the redesign in Phase 5.4
+(`docs/PHASE5_PLAN_5.4.md`); this section is the durable summary, not the planning doc.
 
 **One ink color, not per-case alphas.** The prototypes hand-authored dozens of one-off
 `rgba(239,235,224, N)` values for muted text, hairlines, and subtle fills. Tailwind v4's opacity
@@ -345,7 +346,8 @@ eyeballed off one prototype screen:
 
 | Role | Class | Notes |
 |---|---|---|
-| Primary text | `text-ink` | headlines, wordmark, toast |
+| Title tier | `text-ink-hi` | screen + item titles ONLY (`#F5F1E7`, a second opaque stop above ink) |
+| Primary text | `text-ink` | body, list labels, toast |
 | Secondary text | `text-ink/82` | chip labels (unselected) |
 | Body / muted | `text-ink/62` | secondary copy, meta |
 | Meta / attribution | `text-ink/55` | source lines, captions |
@@ -359,17 +361,24 @@ eyeballed off one prototype screen:
 | Fill subtle | `bg-ink/3` | cards, tiles |
 
 **Accent is a runtime knob**, not a build-time theme: one `--accent-raw` CSS variable, set by a
-`[data-accent]` attribute on `<html>` (`gold` default, plus `sage`/`slate`/`terracotta`), exposed
-as the `--color-accent` token via `@theme inline` (**not** plain `@theme` — a token whose value is
-itself a runtime-redefined `var()` needs the `inline` form, or the generated utility keeps the
-outer indirection and a `[data-accent]` override never resolves). `--font-serif` (Newsreader, via
-`next/font`) needs the same treatment for the same reason. 5.1 ships the mechanism plus the gold
-default; the user-facing accent picker is Phase 9.2.
+`[data-accent]` attribute on `<html>` (`indigo` `#4C5FE0` default, plus `amber`/`green`/`red`),
+exposed as the `--color-accent` token via `@theme inline` (**not** plain `@theme` — a token whose
+value is itself a runtime-redefined `var()` needs the `inline` form, or the generated utility
+keeps the outer indirection and a `[data-accent]` override never resolves). `--font-sans` (Sora,
+via `next/font`) needs the same treatment for the same reason. 5.1 shipped the mechanism, 5.4
+re-pointed it at the redesign's set; the user-facing accent picker is Phase 9.2.
 
-**Fonts:** Newsreader (serif, `next/font/google`, variable — `weight` omitted, `axes: ['opsz']`)
-for headlines/wordmark/body-serif; the native system stack
-(`-apple-system, system-ui, sans-serif`, no webfont) for UI chrome. The handoff ships no sans
-webfont at all, which is why Geist was removed rather than kept alongside Newsreader.
+**Fonts:** Sora (`next/font/google`, variable — `weight` omitted) for *everything*: headings,
+body, and UI chrome alike. The redesign uses a single typeface, so there is no `--font-serif` and
+no second family to switch into — Newsreader and the native system stack were both removed in 5.4
+(as Geist was in 5.1). Weight carries the hierarchy instead: 600 for titles/CTAs, 400 for body.
+
+**Two easing curves:** `--ease-sheet` (`cubic-bezier(.22,.9,.3,1)`, 260ms) for the pill-summoned
+bottom sheets, and `--ease-settle` (`cubic-bezier(.22,.61,.36,1)`, 400ms) for longer travel — the
+gallery details modal (`--animate-sheet-gallery`), banners, and the install pop-in. All borders
+are 0.5px via the custom `.border-hairline` utility; feed/saved image tiles are square-cornered
+full-bleed (radius 0 is the absence of a class, not a token). A global
+`prefers-reduced-motion: reduce` block collapses every animation — all motion here is decorative.
 
 **Primitives** (`src/components/ui/`) are plain function components composing classes through
 `cn()` — no `class-variance-authority`. Icons (`src/components/icons/`) are inline SVG on their

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    a { color: #4C5FE0; text-decoration: none; }
+    a:hover { color: #7B89EA; }
+    @keyframes ambitfade { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes ambitrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes ambitmenurise { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    image-slot { display: block; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0C0B09; padding:32px; font-family:-apple-system, system-ui, sans-serif;">
+
+  <x-import component-from-global-scope="image-slot" from="./image-slot.js" id="ambit-slot-stub" hint-size="1px,1px" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></x-import>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%;">
+
+      <div style="height:100%; overflow-y:auto; background:#161411; -webkit-overflow-scrolling:touch;">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:56px 20px 0;">
+          <div onClick="{{ onShare }}" style="width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.09); cursor:pointer;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.72)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"/><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/></svg>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div onClick="{{ onSearch }}" style="width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.09); cursor:pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.72)" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></svg>
+            </div>
+            <a href="Ambit - Settings.dc.html" style="width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(239,235,224,0.06); border:0.5px solid rgba(239,235,224,0.09);">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(239,235,224,0.72)" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1.03 1.56V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.11-1.55 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.56-1.03H3a2 2 0 110-4h.1a1.7 1.7 0 001.55-1.11 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34H9a1.7 1.7 0 001.03-1.56V3a2 2 0 114 0v.1a1.7 1.7 0 001.03 1.56 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87V9a1.7 1.7 0 001.56 1.03H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1.03z"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:18px; padding:30px 20px 0; animation:ambitrise .45s ease both;">
+          <sc-if value="{{ hasAvatar }}" hint-placeholder-val="{{ false }}">
+            <image-slot id="ambit-avatar" shape="circle" src="{{ avatarSrc }}" placeholder="Profile photo" style="width:88px; height:88px; flex-shrink:0;"></image-slot>
+          </sc-if>
+          <sc-if value="{{ noAvatar }}" hint-placeholder-val="{{ true }}">
+            <div style="width:88px; height:88px; border-radius:50%; flex-shrink:0; background:linear-gradient(150deg, #8E92F0, #6C7BE8);"></div>
+          </sc-if>
+          <div>
+            <div style="font-family:'Sora', sans-serif; font-weight:600; font-size:28px; line-height:1.1; color:#F5F1E7;">{{ name }}</div>
+            <div style="font-family:'Sora', sans-serif; font-size:15px; color:rgba(239,235,224,0.45); margin-top:5px;">{{ handle }}</div>
+          </div>
+        </div>
+
+        <div style="padding:14px 20px 0;">
+          <div style="font-family:'Sora', sans-serif; font-size:14.5px; line-height:1.5; color:rgba(239,235,224,0.58);">{{ bio }}</div>
+        </div>
+
+        <div style="padding:20px 20px 0;">
+          <a href="Ambit - Profile Edit.dc.html" style="display:flex; align-items:center; justify-content:center; height:46px; border-radius:999px; border:0.5px solid rgba(239,235,224,0.18); font-family:'Sora', sans-serif; font-weight:500; font-size:15px; color:#EFEBE0;">Edit profile</a>
+        </div>
+
+        <div style="display:flex; align-items:baseline; gap:9px; padding:34px 20px 0;">
+          <span style="font-family:'Sora', sans-serif; font-weight:600; font-size:17px; color:#EFEBE0;">Collections</span>
+          <span style="font-family:'Sora', sans-serif; font-size:13px; color:rgba(239,235,224,0.4);">{{ collectionCount }}</span>
+        </div>
+        <div style="height:0.5px; background:rgba(239,235,224,0.1); margin:14px 20px 0;"></div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:18px 20px 120px;">
+
+          <div onClick="{{ onNewCollection }}" style="cursor:pointer; animation:ambitrise .4s ease both;">
+            <div style="aspect-ratio:1; border-radius:20px; background:rgba(239,235,224,0.045); border:0.5px dashed rgba(239,235,224,0.16); display:flex; align-items:center; justify-content:center;">
+              <svg width="26" height="26" viewBox="0 0 26 26" stroke="rgba(239,235,224,0.55)" stroke-width="1.5" stroke-linecap="round"><path d="M13 4v18M4 13h18"/></svg>
+            </div>
+            <div style="font-family:'Sora', sans-serif; font-weight:500; font-size:15px; color:#EFEBE0; margin-top:10px;">New collection</div>
+            <div style="font-family:'Sora', sans-serif; font-size:12.5px; color:rgba(239,235,224,0.4); margin-top:3px;">Group what you keep</div>
+          </div>
+
+          <sc-for list="{{ collections }}" as="col" hint-placeholder-count="3">
+            <div onClick="{{ col.onOpen }}" style="cursor:pointer; animation:ambitrise .4s ease both;">
+              <sc-if value="{{ col.hasCover }}" hint-placeholder-val="{{ true }}">
+                <image-slot id="{{ col.slotId }}" shape="rounded" radius="20" src="{{ col.cover }}" placeholder="{{ col.name }}" style="width:100%; aspect-ratio:1;"></image-slot>
+              </sc-if>
+              <sc-if value="{{ col.isEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="aspect-ratio:1; border-radius:20px; background:rgba(239,235,224,0.04); border:0.5px solid rgba(239,235,224,0.08); display:flex; align-items:center; justify-content:center;">
+                  <svg width="22" height="26" viewBox="0 0 24 30"><path d="M2 2h20v26l-10-6.4L2 28z" fill="none" stroke="rgba(239,235,224,0.3)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                </div>
+              </sc-if>
+              <div style="font-family:'Sora', sans-serif; font-weight:500; font-size:15px; color:#EFEBE0; margin-top:10px;">{{ col.name }}</div>
+              <div style="font-family:'Sora', sans-serif; font-size:12.5px; color:rgba(239,235,224,0.4); margin-top:3px;">{{ col.countLabel }}</div>
+            </div>
+          </sc-for>
+
+        </div>
+      </div>
+
+      <div style="position:absolute; left:0; right:0; bottom:26px; z-index:16; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+        <div style="pointer-events:auto; display:flex; align-items:center; gap:26px; padding:8px 20px; border-radius:999px; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+          <div style="width:31px; height:31px; display:flex; align-items:center; justify-content:center;">
+            <span style="width:25px; height:25px; border-radius:50%; display:block; background:linear-gradient(150deg, #8E92F0, #6C7BE8); border:1.5px solid rgba(255,255,255,0.9);"></span>
+          </div>
+          <a href="Ambit - Feed Masonry 3.dc.html" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center;">
+            <svg width="31" height="31" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="1.7"/><circle cx="13" cy="13" r="3.6" fill="rgba(255,255,255,0.95)"/><circle cx="21" cy="7" r="1.9" fill="rgba(255,255,255,0.95)"/></svg>
+          </a>
+          <a href="Ambit - Saved.dc.html" style="width:31px; height:31px; display:flex; align-items:center; justify-content:center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.82)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:50%; bottom:100px; z-index:50; background:rgba(30,28,24,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:0.5px solid rgba(239,235,224,0.12); color:#EFEBE0; font-family:'Sora', sans-serif; font-size:13px; padding:11px 18px; border-radius:999px; white-space:nowrap; animation:ambitfade .22s ease both; box-shadow:0 8px 30px rgba(0,0,0,0.4);">{{ toast.text }}</div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:466,&quot;height&quot;:938},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#4C5FE0&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#4C5FE0&quot;,&quot;#D9A93C&quot;,&quot;#4C8F5A&quot;,&quot;#C4553D&quot;]}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { toast: null, content: null, profile: this.loadProfile(), collections: this.loadCollections() };
+  }
+
+  loadProfile() {
+    const base = { name: 'Ben', handle: '@ibenthinkin', bio: 'Collecting the slow internet — paintings, deep field photographs, and facts that take a minute.', avatar: '' };
+    try { return Object.assign(base, JSON.parse(localStorage.getItem('ambit.profile.v1') || '{}')); }
+    catch (e) { return base; }
+  }
+  // the feed stores itemId -> collectionName; extra (possibly empty) names live in their own key
+  loadCollections() {
+    let map = {};
+    try { map = JSON.parse(localStorage.getItem('ambit.collections.v1') || '{}') || {}; } catch (e) {}
+    let names = ['Articles', 'Art', 'Photos'];
+    try {
+      const stored = JSON.parse(localStorage.getItem('ambit.collectionNames.v1') || 'null');
+      if (Array.isArray(stored) && stored.length) names = stored;
+    } catch (e) {}
+    const out = {};
+    names.forEach(n => { out[n] = []; });
+    Object.keys(map).forEach(id => {
+      const name = map[id];
+      if (typeof name !== 'string') return;
+      if (!out[name]) out[name] = [];
+      out[name].push(id);
+    });
+    return out;
+  }
+  persistNames(names) { try { localStorage.setItem('ambit.collectionNames.v1', JSON.stringify(names)); } catch (e) {} }
+
+  componentDidMount() {
+    fetch('assets/content.json').then(r => r.json()).then(j => this.setState({ content: j })).catch(() => {});
+  }
+  componentWillUnmount() { if (this.toastTimer) clearTimeout(this.toastTimer); }
+
+  flash(text) {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: text });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1800);
+  }
+
+  coverFor(ids) {
+    if (!ids || !ids.length) return '';
+    const images = (this.state.content && this.state.content.images) || {};
+    for (let i = 0; i < ids.length; i++) {
+      const rec = images[ids[i]];
+      if (rec && rec.src) return rec.src;
+    }
+    return '';
+  }
+
+  addCollection() {
+    const names = Object.keys(this.state.collections);
+    let n = names.length + 1, name = 'Collection ' + n;
+    while (names.indexOf(name) !== -1) { n++; name = 'Collection ' + n; }
+    const next = Object.assign({}, this.state.collections);
+    next[name] = [];
+    this.setState({ collections: next });
+    this.persistNames(Object.keys(next));
+    this.flash(name + ' created');
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#4C5FE0';
+    const p = this.state.profile;
+    const entries = Object.keys(this.state.collections);
+    const collections = entries.map((name) => {
+      const ids = this.state.collections[name] || [];
+      const cover = this.coverFor(ids);
+      return {
+        key: name, name,
+        countLabel: ids.length === 1 ? '1 item' : ids.length + ' items',
+        cover, hasCover: !!cover, isEmpty: !cover,
+        slotId: 'ambit-col-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        onOpen: () => { window.location.href = 'Ambit - Saved.dc.html'; },
+      };
+    });
+    return {
+      accent, deviceDark: true,
+      name: p.name, handle: p.handle, bio: p.bio,
+      avatarSrc: p.avatar || '', hasAvatar: !!p.avatar, noAvatar: !p.avatar,
+      collections, collectionCount: String(entries.length),
+      onNewCollection: () => this.addCollection(),
+      onShare: () => this.flash('Link copied \u00b7 ambit.link/' + (p.handle || '').replace('@', '')),
+      onSearch: () => this.flash('Search \u00b7 coming soon'),
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

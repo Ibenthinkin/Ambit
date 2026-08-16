@@ -56,8 +56,10 @@ export function ResetPasswordCard({ token }: { token: string }) {
   if (success) {
     return (
       <div className="py-1.5 text-center">
-        <div className="text-ink font-serif text-[23px]">Password updated.</div>
-        <div className="text-ink/62 mt-2 font-serif text-[16px] leading-[1.5]">
+        <div className="text-ink-hi text-[23px] font-semibold tracking-[-0.2px]">
+          Password updated.
+        </div>
+        <div className="text-ink/62 mt-2 text-[15.5px] leading-[1.55]">
           Sign in with your new password.
         </div>
         <Link href="/" className="mt-[22px] inline-block">
@@ -71,7 +73,7 @@ export function ResetPasswordCard({ token }: { token: string }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div className="text-ink mb-5 font-serif text-[23px]">
+      <div className="text-ink-hi mb-5 text-[23px] font-semibold tracking-[-0.2px]">
         Choose a new password.
       </div>
       <div className="space-y-2.5">

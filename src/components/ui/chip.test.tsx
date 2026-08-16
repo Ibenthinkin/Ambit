@@ -24,15 +24,20 @@ describe("Chip", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it("switches font class with the serif variant", () => {
-    render(<Chip serif>Serif</Chip>);
-    render(<Chip serif={false}>Sans</Chip>);
+  // Replaced the old serif-variant test in Phase 5.4: the `serif` prop is gone (the redesign has
+  // one typeface), so the meaningful thing left to assert about the toggle is that it reports its
+  // state to assistive tech, which the onboarding grid depends on.
+  it("reports its toggle state via aria-pressed", () => {
+    render(<Chip selected>On</Chip>);
+    render(<Chip>Off</Chip>);
 
-    expect(screen.getByRole("button", { name: "Serif" })).toHaveClass(
-      "font-serif",
+    expect(screen.getByRole("button", { name: "On" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
     );
-    expect(screen.getByRole("button", { name: "Sans" })).toHaveClass(
-      "font-sans",
+    expect(screen.getByRole("button", { name: "Off" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
     );
   });
 });
