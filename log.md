@@ -134,6 +134,18 @@ not one component with a flag. Same read also settled that collection *creation*
 animation, `ambitmenurise`) is 5.6's, not 5.5's. Drag-to-close likewise turns out to belong to
 5.8's gallery modal, despite `bottom-sheet.tsx`'s own comment attributing it to 5.5.
 
+**Readiness check before executing, and one gap it caught.** Verified rather than assumed:
+migration state clean (2 journaled / 2 applied, `saved_item` still exactly
+`user_id/item_id/saved_at`, no `collection` table), DB populated (8,563 items · 16 users · 14
+onboarded · **0 saves**), both containers up, `DATABASE_URL` present so the integration tests
+actually run instead of self-skipping. The gap: **every procedure Step 9's demo touches is
+`protectedProcedure`**, but `/dev/tokens` has never needed a session — an anonymous visit would
+have failed each new section with `UNAUTHORIZED`, reading like a broken component rather than a
+missing login. The plan now opens with a verified Preconditions block and asks the demo to render
+a visible signed-out banner instead of failing silently. Worth noting the empty `saved_item` too:
+the accent dot and "Already saved here" can't appear until the first save goes through the sheet
+being built, which is the correct starting state and not a bug to chase.
+
 **Open / next:** execute `PHASE5_PLAN_5.5.md`. Its Done bar is a real phone, not CI — the
 `pointer-events` wrapper, the slop guard, and the sheet exit animation all pass in a desktop
 browser while being wrong on iOS. Still carried forward: the landing hero/wordmark crowding (0px
