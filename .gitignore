@@ -54,3 +54,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Design source archives (extracted copies are committed under docs/)
+Ambit Redesign.zip
