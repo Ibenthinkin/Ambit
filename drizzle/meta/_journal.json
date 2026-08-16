@@ -15,6 +15,13 @@
       "when": 1786196025439,
       "tag": "0001_kind_crusher_hogan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786897478596,
+      "tag": "0002_quick_whizzer",
+      "breakpoints": true
     }
   ]
 }
