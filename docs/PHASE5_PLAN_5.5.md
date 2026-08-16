@@ -25,6 +25,28 @@ Recreate the designs in the app's own components; do not port prototype code.
 
 ---
 
+## Preconditions — verified 08-16-26, re-check if time has passed
+
+- **Migration state is clean.** `drizzle/meta/_journal.json` lists two migrations and the database
+  has two applied, so Step 1 generates a straightforward `0002_*`. `saved_item` currently has
+  exactly `user_id, item_id, saved_at` and no `collection` table exists — that is the baseline the
+  generated SQL should be diffing against.
+- **The database is populated**: 8,563 items, 16 users, 14 onboarded. Plenty for the demo. Note
+  **`saved_item` is empty** — so the accent dot and "Already saved here" only appear after you save
+  something through the sheet you just built. That is the correct starting state, not a bug.
+- **Containers**: `ambit-postgres-1` and `ambit-mailpit-1` are up. `DATABASE_URL` is in `.env`, so
+  the integration tests will actually run rather than self-skip.
+
+**You must be signed in for Step 9's demo to work.** `feed.page` and every `saves.*` procedure is a
+`protectedProcedure`, but `/dev/tokens` is currently a session-less static page — so an anonymous
+visit makes every new demo section fail with `UNAUTHORIZED`, which reads like a broken component
+rather than a missing session. Before wiring the demo: `bun run invite <your-email>`, then sign up
+through `/` and complete onboarding (the guard added in 5.3 will force it). Sign-in state persists
+across dev-server restarts. If a sheet renders empty and the network tab shows `UNAUTHORIZED`, this
+is why — do not go debugging the query.
+
+---
+
 ## Decisions already made with Ben — do not relitigate
 
 Four put to Ben directly on 08-16-26; all four sided with the recommendation.
@@ -379,6 +401,12 @@ The sheets need a real `itemId` to save. Get one from `api.feed.page.useQuery({}
 first card's item — no new dev-only procedure, and it exercises the same path a real screen will.
 The page is already `"use client"` and already `notFound()`s in production; nothing changes there.
 
+**Render a visible signed-out state** rather than letting the queries fail silently. All of these
+procedures are protected (see Preconditions), and `/dev/tokens` has never needed a session before,
+so add a short banner in the new sections when `feed.page` errors with `UNAUTHORIZED`: "Sign in at
+`/` to demo the backbone against the real router." Two lines of code that save the next person the
+same fifteen minutes.
+
 ### 10. Tests — the complete expected-changes list
 
 Existing tests that **must** change (each one is a deliberate consequence, not a break to route
@@ -430,7 +458,8 @@ Backend, then components, then the real thing:
 5. `bun run e2e` — all 7 still green **unmodified**. Nothing in this phase touches a user-facing
    flow, so any e2e change is a signal something leaked out of scope.
 6. **On a real phone** (the phase's actual Done bar, per BUILD_PLAN): open `/dev/tokens` on the dev
-   server over LAN and check —
+   server over LAN, **signed in** (see Preconditions — sign in on the phone too; the session is
+   per-browser), and check —
    - the pill floats correctly and the page scrolls *under* it (the `pointer-events` test);
    - a long press opens a sheet and does **not** raise Safari's callout or select text;
    - a tap during a scroll does not fire (the slop guard);
