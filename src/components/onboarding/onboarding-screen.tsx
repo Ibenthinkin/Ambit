@@ -84,10 +84,10 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
           <p className="text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase">
             Ambit · Setup
           </p>
-          <h1 className="text-ink mt-[14px] font-serif text-[34px] leading-[1.14] tracking-[0.2px]">
+          <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] font-semibold tracking-[-0.4px]">
             What pulls your attention?
           </h1>
-          <p className="text-ink/62 mt-3 font-serif text-[16.5px] leading-[1.5]">
+          <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
             Choose as many as you like. Ambit starts here — then wanders
             sideways into things you&apos;d never think to search for.
           </p>

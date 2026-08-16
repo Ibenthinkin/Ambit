@@ -156,8 +156,24 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   both confirmed dynamic) both green; `bun run e2e` (7 local-only tests, including the updated
   sign-up → onboarding → feed loop) green.
 
-- [ ] **5.4 — Design-system migration + restyle of built screens.** Migrate the token layer to the redesign (`PHASE5_PLAN_5.4.md`): Sora replaces Newsreader+system-sans (`--font-serif` dies), accent set becomes indigo `#4C5FE0` default + amber/green/red (`data-accent` names renamed), `--color-ink-hi` title tier, sheet radius 26→22, new sheet ease `cubic-bezier(.22,.9,.3,1)` (old 103%/settle animation renamed `--animate-sheet-gallery` for the gallery details modal), `--shadow-toolbar`, avatar-gradient utility (registered in twMerge like `border-hairline`), `prefers-reduced-motion` support. Restyle `/`, `/reset-password`, `/onboarding`, `/dev/tokens` (near-total rewrite), `/~offline` (finally on-palette) — **no flow or layout changes**; auth/onboarding tests pass unmodified as the regression signal.
-  *Done = `bun run check` + `build` + `e2e` green with auth/onboarding tests untouched; `/dev/tokens` renders the new system, accent switcher live across all four new hues.*
+- [x] **5.4 — Design-system migration + restyle of built screens.** Migrate the token layer to the redesign (`PHASE5_PLAN_5.4.md`): Sora replaces Newsreader+system-sans (`--font-serif` dies), accent set becomes indigo `#4C5FE0` default + amber/green/red (`data-accent` names renamed), `--color-ink-hi` title tier, sheet radius 26→22, new sheet ease `cubic-bezier(.22,.9,.3,1)` (old 103%/settle animation renamed `--animate-sheet-gallery` for the gallery details modal), `--shadow-toolbar`, avatar-gradient utility (registered in twMerge like `border-hairline`), `prefers-reduced-motion` support. Restyle `/`, `/reset-password`, `/onboarding`, `/dev/tokens` (near-total rewrite), `/~offline` (finally on-palette) — **no flow or layout changes**; auth/onboarding tests pass unmodified as the regression signal.
+  *Done =* ✅ Planned + executed 08-16-26, walkthrough `docs/PHASE5_WALKTHROUGH_5.4.md`. Sora
+  replaces Newsreader + the system stack (`--font-serif` deleted app-wide); accent set replaced and
+  renamed to indigo (default) / amber / green / red; new `--color-ink-hi` title tier above the
+  untouched 5.1 alpha ladder; sheet radius 26→22, new `--shadow-toolbar`, and the sheet animation
+  **split in two** — the original 400ms/103% curve renamed `--animate-sheet-gallery` and reserved
+  for 5.8's details modal, with `--animate-sheet-up` rebuilt as the redesign's 260ms `sheetup`
+  (BottomSheet picked it up with no component change). New `.bg-avatar-gradient` utility,
+  registered in tailwind-merge's `bg-image` group — the exact trap `border-hairline` fell into in
+  5.1 — and `utils.test.ts` gained regression cases for both (the `border-hairline` one had never
+  actually been written). `Chip` lost its `serif` prop; `Logo` is now the redesign's exact mark
+  spec; icon strokes audited against the handoff's 1.7–2px band (`Bookmark` deliberately keeps 1.3
+  on its bespoke 13×16 grid). Landing/onboarding/reset got a typography-and-color pass with every
+  string and test id untouched, `/~offline` finally came onto the palette, and `/dev/tokens` was
+  rewritten as the new living style guide (including a side-by-side replay of the two sheet
+  curves). 219 tests green; `bun run build` clean with all four routes still dynamic; **all 7 e2e
+  green unmodified** — the phase's regression signal. Two false alarms and one pre-existing flaky
+  server test (`feed.test.ts`'s unseeded tier-ratio assertion) are documented in the walkthrough.
 
 - [ ] **5.5 — Shared backbone + collections backend.** The redesign's two backbone components + the data model the save sheet needs. Backend: `collection` table (`id,userId,name,createdAt`), nullable `collectionId` FK on `saved_item`, lazy per-user seeding of Articles/Art/Photos, `saves` router evolves (`saveToCollection` / `collections`-with-counts / `unsave`; confirm nothing but the dead `/feed` placeholder still calls `toggle` before removing it), drizzle migration. UI: `PillToolbar` (glass pill, profile/mark/bookmark/share, `pointer-events` wrapper pattern, active bookmark states), `BottomSheet` v2 (centered title slot, exit animation — the null-when-closed test assertion changes here), `SaveToCollectionSheet`, `ShareSheet` (copy-link + `navigator.share`-backed targets + Save-image row in image contexts), `usePress` hook (≤12px slop tap + 450ms long-press, iOS-safe), avatar chip. All demoed live on `/dev/tokens` against the real router.
   *Done = migration applied; router integration tests green; pill + both sheets work end-to-end on `/dev/tokens` on a real phone.*

@@ -1,9 +1,14 @@
-// The full icon set recreated from the design handoff prototypes (docs/design_handoff_ambit_pwa),
-// per PHASE5_PLAN.md Step 4 / Decision 5. Each icon keeps its AUTHORED viewBox rather than being
-// rescaled onto one shared grid — the prototypes mix a 24×24 Feather-style stroke set with
-// bespoke grids (bookmark 13×16, the sheet-close X 14×14, the diamond 10×10, the ring-and-dot
-// logo 26×26), and hand-rescaling those onto a single grid was found, during planning, to
-// introduce visual drift for no benefit.
+// The full icon set recreated from the design handoff prototypes, per PHASE5_PLAN.md Step 4 /
+// Decision 5. Each icon keeps its AUTHORED viewBox rather than being rescaled onto one shared
+// grid — the prototypes mix a 24×24 Feather-style stroke set with bespoke grids (bookmark 13×16,
+// the sheet-close X 14×14, the diamond 10×10, the ring-and-dot logo 26×26), and hand-rescaling
+// those onto a single grid was found, during planning, to introduce visual drift for no benefit.
+//
+// Stroke weights (audited in Phase 5.4 against the redesign, which specifies "1.7-2px stroke,
+// round caps/joins"): every 24-grid icon already sits in that band and was left alone; `Envelope`
+// was nudged 1.6 → 1.7 to join it. `Bookmark` deliberately keeps its lighter 1.3 — on its bespoke
+// 13×16 grid that is proportionally *heavier* than 1.7 on a 24 grid, so matching the number would
+// fatten the app's most-repeated glyph. `Logo` is now the redesign's exact mark spec (see below).
 //
 // Every icon uses `currentColor` for its stroke/fill (the prototypes hardcoded either a muted
 // `rgba(239,235,224, N)` or the accent hex per call site — recreated here as inherited text
@@ -148,7 +153,7 @@ export function Envelope({ size = 24, className, ...rest }: IconProps) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.6}
+      strokeWidth={1.7}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -176,8 +181,9 @@ export function Diamond({ size = 9, className, ...rest }: IconProps) {
 }
 
 /**
- * Logo — the ring-and-dot brand mark. Three circles, no paths at all. Stroke width normalized to
- * 1.5 (Item/Install's value, used in 3 of 4 prototype instances; Landing alone used 1.4).
+ * Logo — the ring-and-dot brand mark. Three circles, no paths at all. Values are the redesign's
+ * exact mark spec (README "Floating toolbar"): 26 viewBox, ring r=11.5 stroke 1.7, inner dot
+ * r=3.6 filled, satellite dot r=1.9 at (21,7).
  */
 export function Logo({ size = 24, className, ...rest }: IconProps) {
   return (
@@ -194,10 +200,10 @@ export function Logo({ size = 24, className, ...rest }: IconProps) {
         r={11.5}
         fill="none"
         stroke="currentColor"
-        strokeWidth={1.5}
+        strokeWidth={1.7}
       />
-      <circle cx={13} cy={13} r={3.4} fill="currentColor" />
-      <circle cx={21} cy={7} r={1.8} fill="currentColor" />
+      <circle cx={13} cy={13} r={3.6} fill="currentColor" />
+      <circle cx={21} cy={7} r={1.9} fill="currentColor" />
     </svg>
   );
 }

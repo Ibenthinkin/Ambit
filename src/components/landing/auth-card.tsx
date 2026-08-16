@@ -145,10 +145,10 @@ export function AuthCard() {
         <div className="border-hairline border-ink/12 bg-ink/5 mx-auto flex size-14 items-center justify-center rounded-full">
           <Envelope size={26} className="text-accent" />
         </div>
-        <div className="text-ink mt-[18px] font-serif text-[23px]">
+        <div className="text-ink-hi mt-[18px] text-[23px] font-semibold tracking-[-0.2px]">
           Check your inbox
         </div>
-        <div className="text-ink/62 mt-2 font-serif text-[16px] leading-[1.5]">
+        <div className="text-ink/62 mt-2 text-[15.5px] leading-[1.55]">
           We sent a password reset link to{" "}
           <span className="text-accent">{email.trim()}</span>. It expires in an
           hour.

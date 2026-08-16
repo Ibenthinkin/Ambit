@@ -51,6 +51,41 @@ docs: Saved's two-hop reachability (5.9), share-collection scope with no public 
 
 *Session spend: 9.69M tok (in 166 · out 138.6k · cache r 9.02M / w 526.7k) · ~$26.49 · fable-5 · 21:52→00:10*
 
+**Then executed 5.4 in the same session** (Ben switched to Opus 5 and said go, so the
+plan-then-execute-cheaper split didn't apply this time — the plan doc is still written to be
+executable cold). Walkthrough: `docs/PHASE5_WALKTHROUGH_5.4.md`. The app is now on the redesign's
+token layer: Sora everywhere, indigo accent set, `ink-hi` title tier, 22px sheets, reduced-motion
+support. **All 7 e2e green unmodified** — the signal the restyle stayed a restyle.
+
+**Findings:** the sheet animation had to *split* rather than change — the old 400ms/103% curve is
+still wanted for 5.8's gallery modal, so it was renamed `--animate-sheet-gallery` and
+`--animate-sheet-up` rebuilt as the redesign's 260ms `sheetup`; `BottomSheet` picked the new one
+up with no component change. Adding `.bg-avatar-gradient` walked straight back into the
+`border-hairline` twMerge trap from 5.1 (custom `bg-`/`border-` classes get misread as *color*
+utilities and silently dropped next to `bg-ink/NN`) — registered it in the `bg-image` group, and
+discovered the `border-hairline` regression test everyone assumed existed had never been written.
+Both now have one.
+
+Two false alarms cost real time and are written up in the walkthrough so they don't cost it twice:
+(1) every `.border-hairline` element measured `1px`, looking exactly like the 5.2 regression —
+it's **Chrome snapping sub-pixel borders to a whole device pixel at DPR 1**, and a raw inline
+`border-width: 0.5px` measures the same; check `devicePixelRatio` before panicking. (2) an e2e
+sign-up test timed out at `/feed` waiting for `/onboarding`, reading as a broken redirect guard —
+it was a cold dev compile (the font/CSS changes invalidated the build cache); warm, it passes in
+3.1s. Nothing was "fixed" for either.
+
+**Also found, deliberately not fixed:** `feed.test.ts`'s tier-ratio test is genuinely flaky —
+1000 draws through unseeded `Math.random`, asserting CORE within ±0.05 of 0.4; it failed once at
+0.46. Pure server logic, untouched by this phase; seeding it or widening the tolerance changes
+what the test means, so it's flagged rather than quietly patched.
+
+**Open / next:** 5.5 — the shared backbone (pill toolbar, sheet shell v2, save/share sheets,
+`usePress`) plus the collections backend. Needs its own plan doc first. Carry forward: the flaky
+feed test, and the landing hero/wordmark crowding (0px gap — pre-existing, and 5.11 replaces that
+screen wholesale, so it was left alone).
+
+*Session spend: 51.39M tok (in 460 · out 175.3k · cache r 49.88M / w 1.34M) · ~$42.82 · opus-5 + fable-5 + opus-4-7 · 00:10→00:29*
+
 ### [[08-13-26 Thu]] — Phase 5.4 (Feed) planned, then paused pending a design redo
 
 **Mode:** Sonnet 5, planning-mode session on branch `phase-5.4-feed`. Three parallel `Explore`

@@ -1,5 +1,13 @@
 # Phase 5.1 — Design system foundation: detailed execution plan
 
+> ⚠️ **Partly superseded (08-16-26).** Decision 2 (the accent set — now indigo `#4C5FE0` default
+> + amber/green/red), Decision 3 (fonts — Newsreader + system sans replaced by Sora throughout),
+> and the reference-files table (which points at the retired
+> `docs/design_handoff_ambit_pwa/`) were re-baselined by the design redo; see
+> [`PHASE5_PLAN_5.4.md`](PHASE5_PLAN_5.4.md). The *mechanisms* this doc established — the
+> `--color-ink` alpha ladder, the `@theme inline` + `[data-accent]` accent knob, per-file jsdom
+> opt-in, `/dev/tokens` 404ing in production, authored icon viewBoxes — all still stand.
+>
 > Companion to [`BUILD_PLAN.md`](BUILD_PLAN.md) Phase 5 (step 5.1), same format as
 > [`PHASE4_PLAN.md`](PHASE4_PLAN.md). Written 08-10-26. Check the BUILD_PLAN box when the
 > *Done =* line is met. Assumes Phase 4 complete (feed engine + full tRPC surface on `main`,

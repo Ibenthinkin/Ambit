@@ -28,10 +28,10 @@ export default async function ResetPasswordPage({
             <ResetPasswordCard token={token} />
           ) : (
             <div className="text-center">
-              <div className="text-ink font-serif text-[23px]">
+              <div className="text-ink-hi text-[23px] font-semibold tracking-[-0.2px]">
                 This link has expired.
               </div>
-              <div className="text-ink/62 mt-2 font-serif text-[16px] leading-[1.5]">
+              <div className="text-ink/62 mt-2 text-[15.5px] leading-[1.55]">
                 Password reset links are valid for one hour. Request a new one
                 from the sign-in screen.
               </div>

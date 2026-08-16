@@ -28,20 +28,28 @@ import { Segmented } from "~/components/ui/segmented";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
 
-// The Phase 5.1 proof page (PHASE5_PLAN.md Step 6): every token, icon, and primitive in one
-// place, with a live accent switcher, so the whole design system can be checked against
-// docs/design_handoff_ambit_pwa/screenshots/ without having to build a real screen first. This
-// is the "Done =" gate for 5.1 — if something here doesn't match the handoff, it'll be wrong on
-// every screen that consumes it later.
+// The living style guide: every token, icon, and primitive in one place with a live accent
+// switcher, so the design system can be checked whole without building a real screen first.
+// Originally the Phase 5.1 proof page; re-pointed at the redesign handoff
+// (docs/design_handoff_ambit_pwa_redesign/) in 5.4. If something here doesn't match the handoff,
+// it'll be wrong on every screen that consumes it later.
+//
+// This page has two more jobs coming up: it hosts the live demos of 5.5's backbone components
+// (pill toolbar + the two sheets, wired to the real router), and it is the INTERIM HOME OF
+// SIGN-OUT from 5.6 (when /feed's placeholder is deleted) until Settings lands in 5.10.
 //
 // `src/proxy.ts` only gates `/feed`, `/saved`, `/onboarding` — a `/dev/*` route would otherwise
 // be reachable in production. Since this is a plain client component (no DB, no tRPC, so it
 // can't leak data), the guard is just this early `notFound()` rather than an auth check.
+//
+// Accent hexes are duplicated here (they also live in globals.css's `@layer base`) because the
+// swatch dots need the literal color to paint *before* the attribute is switched — a
+// `bg-accent` swatch would show four identical dots.
 const ACCENTS = [
-  { key: "gold", label: "Gold", hex: "#BFA06A" },
-  { key: "sage", label: "Sage", hex: "#8FA786" },
-  { key: "slate", label: "Slate", hex: "#7E93AD" },
-  { key: "terracotta", label: "Terracotta", hex: "#C08262" },
+  { key: "indigo", label: "Indigo", hex: "#4C5FE0" },
+  { key: "amber", label: "Amber", hex: "#D9A73C" },
+  { key: "green", label: "Green", hex: "#3FA35C" },
+  { key: "red", label: "Red", hex: "#D9483F" },
 ] as const;
 type AccentKey = (typeof ACCENTS)[number]["key"];
 
@@ -50,9 +58,14 @@ type AccentKey = (typeof ACCENTS)[number]["key"];
 // visible at a glance.
 const TEXT_LADDER = [
   {
+    cls: "text-ink-hi",
+    label: "Title tier",
+    note: "screen + item titles ONLY (#F5F1E7)",
+  },
+  {
     cls: "text-ink",
     label: "Primary text",
-    note: "headlines, wordmark, toast",
+    note: "body, list labels, toast (#EFEBE0)",
   },
   {
     cls: "text-ink/82",
@@ -130,13 +143,15 @@ function Section({
 export default function TokensPage() {
   if (process.env.NODE_ENV === "production") notFound();
 
-  const [accent, setAccent] = React.useState<AccentKey>("gold");
+  const [accent, setAccent] = React.useState<AccentKey>("indigo");
   const [selectedChips, setSelectedChips] = React.useState<Set<string>>(
     () => new Set(["Painting"]),
   );
   const [segment, setSegment] = React.useState<"all" | "reading">("all");
   const [toastOpen, setToastOpen] = React.useState(false);
   const [sheetOpen, setSheetOpen] = React.useState(false);
+  // Bumping this remounts the two motion demos, which is what replays a CSS animation.
+  const [motionKey, setMotionKey] = React.useState(0);
 
   // The accent knob is a `data-accent` attribute on <html> (see globals.css's `@layer base` and
   // src/app/layout.tsx). Setting it here on the real document element — not a wrapper div — is
@@ -145,14 +160,14 @@ export default function TokensPage() {
   React.useEffect(() => {
     document.documentElement.dataset.accent = accent;
     return () => {
-      document.documentElement.dataset.accent = "gold";
+      document.documentElement.dataset.accent = "indigo";
     };
   }, [accent]);
 
   return (
     <div className="bg-bg text-ink min-h-screen pb-32">
       <GlassHeader>
-        <span className="text-ink font-serif text-[28px] leading-none font-medium tracking-[0.2px] italic">
+        <span className="text-ink-hi text-[28px] leading-none font-semibold tracking-[-0.2px]">
           Ambit
         </span>
         <IconButton aria-label="Bookmark">
@@ -183,29 +198,78 @@ export default function TokensPage() {
           </div>
         </Section>
 
-        <Section title="Type scale">
+        {/* Sora everywhere — the redesign has no second typeface. Sizes/weights are the rows of
+            the handoff README's type table that the app actually uses today; the gallery/reader
+            rows get added as those screens land. */}
+        <Section title="Type scale — Sora">
           <div className="flex flex-col gap-3">
-            <p className="text-ink font-serif text-[28px] leading-none font-medium italic">
-              Ambit — wordmark (Newsreader italic 500, 28px)
+            <p className="text-ink-hi text-[28px] leading-[1.1] font-semibold tracking-[-0.2px]">
+              Screen title / wordmark (600, 26–28px)
             </p>
-            <p className="text-ink font-serif text-[25px] leading-[1.18]">
-              Sheet / gallery title (Newsreader 25px)
+            <p className="text-ink-hi text-[25px] leading-[1.18]">
+              Detail-sheet title (400, 25px)
             </p>
-            <p className="text-ink font-serif text-[19px] leading-[1.3]">
-              Card title (Newsreader 19px)
+            <p className="text-ink-hi text-[19px] leading-[1.25] font-semibold">
+              Card / tile headline (600, 19–20px)
             </p>
-            <p className="text-ink/82 font-serif text-[16px] leading-[1.45]">
-              Body serif — sheet fact values, gallery detail (Newsreader 16px)
+            <p className="text-ink/82 text-[16px] leading-[1.72]">
+              Body copy — reader paragraphs, sheet fact values (400, 16px/1.72)
             </p>
-            <p className="text-ink font-sans text-[15.5px] font-semibold">
-              CTA label (system sans 15.5px, semibold)
+            <p className="text-ink/62 text-[13.5px] leading-[1.55]">
+              Lede / secondary body (400, 13.5–17px)
             </p>
-            <p className="text-ink/62 font-sans text-[13px]">
-              Toast / meta text (system sans 13px)
+            <p className="text-ink font-semibold">
+              CTA label (600, 15.5px, +0.2px tracking)
             </p>
-            <p className="text-ink/40 font-sans text-[11px] tracking-[0.6px] uppercase">
-              Eyebrow label (system sans 11px, uppercase)
+            <p className="text-ink/55 text-[12.5px] tracking-[0.15px]">
+              Metadata / maker line (400, 12.5px)
             </p>
+            <p className="text-ink/40 text-[10px] font-semibold tracking-[1.3px] uppercase">
+              Eyebrow / source label (600, 9.5–11px, uppercase)
+            </p>
+          </div>
+        </Section>
+
+        {/* Surfaces + elevation: the opaque fills and the four shadows, which the alpha ladder
+            below deliberately doesn't cover (those are ink-over-bg, these are their own colors). */}
+        <Section title="Surfaces & elevation">
+          <div className="flex flex-wrap gap-3">
+            {[
+              { cls: "bg-bg", label: "bg — app" },
+              { cls: "bg-surface", label: "surface — sheets" },
+              { cls: "bg-immersive", label: "immersive — gallery" },
+              { cls: "bg-overlay", label: "overlay — toast" },
+            ].map((s) => (
+              <div key={s.cls} className="flex flex-col items-center gap-2">
+                <div
+                  className={`border-hairline rounded-card border-ink/12 h-14 w-14 border ${s.cls}`}
+                />
+                <span className="text-ink/40 w-24 text-center text-[10.5px]">
+                  {s.label}
+                </span>
+              </div>
+            ))}
+            <div className="flex flex-col items-center gap-2">
+              <div className="bg-avatar-gradient h-14 w-14 rounded-full" />
+              <span className="text-ink/40 w-24 text-center text-[10.5px]">
+                avatar gradient
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4 pt-2">
+            {[
+              { cls: "shadow-toast", label: "toast" },
+              { cls: "shadow-banner", label: "banner" },
+              { cls: "shadow-sheet", label: "sheet" },
+              { cls: "shadow-toolbar", label: "toolbar (5.5)" },
+            ].map((s) => (
+              <div key={s.cls} className="flex flex-col items-center gap-2">
+                <div className={`rounded-card bg-surface h-14 w-20 ${s.cls}`} />
+                <span className="text-ink/40 w-24 text-center text-[10.5px]">
+                  {s.label}
+                </span>
+              </div>
+            ))}
           </div>
         </Section>
 
@@ -312,9 +376,6 @@ export default function TokensPage() {
                 );
               },
             )}
-            <Chip serif={false} selected>
-              Sans chip
-            </Chip>
           </div>
         </Section>
 
@@ -339,13 +400,10 @@ export default function TokensPage() {
 
         <Section title="Card">
           <div className="flex flex-wrap gap-4">
-            <Card className="text-ink/82 w-56 p-5 font-serif text-[16px]">
+            <Card className="text-ink/82 w-56 p-5 text-[16px]">
               radius=&quot;card&quot; (22px) — feed article card
             </Card>
-            <Card
-              radius="tile"
-              className="text-ink/62 w-56 p-5 font-sans text-[13px]"
-            >
+            <Card radius="tile" className="text-ink/62 w-56 p-5 text-[13px]">
               radius=&quot;tile&quot; (18px) — saved tile
             </Card>
           </div>
@@ -374,10 +432,49 @@ export default function TokensPage() {
         </Section>
 
         <Section title="Rise">
-          <p className="text-ink/40 font-sans text-[12px]">
+          <p className="text-ink/40 text-[12px]">
             Reload the page — this card fades/rises in on mount via the shared{" "}
             <code>animate-rise</code> utility.
           </p>
+        </Section>
+
+        {/* The two sheet curves side by side. They're easy to confuse in code and very distinct
+            in motion: `sheet-up` is the short, snappy pill-sheet entrance used app-wide;
+            `sheet-gallery` is the longer, further-travelling one reserved for the gallery's
+            details modal (5.8). Replaying them together is the only reliable way to check the
+            right one is wired to the right surface. */}
+        <Section title="Motion — the two sheet curves">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-20 w-28 overflow-hidden">
+                <div
+                  key={`sheet-${motionKey}`}
+                  className="animate-sheet-up bg-surface border-hairline border-ink/12 rounded-t-sheet h-full w-full border-t"
+                />
+              </div>
+              <span className="text-ink/40 w-28 text-center text-[10.5px]">
+                animate-sheet-up · 260ms ease-sheet
+              </span>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-20 w-28 overflow-hidden">
+                <div
+                  key={`gallery-${motionKey}`}
+                  className="animate-sheet-gallery bg-surface border-hairline border-ink/12 rounded-t-sheet h-full w-full border-t"
+                />
+              </div>
+              <span className="text-ink/40 w-28 text-center text-[10.5px]">
+                animate-sheet-gallery · 400ms ease-settle
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              shape="pill"
+              onClick={() => setMotionKey((k) => k + 1)}
+            >
+              Replay
+            </Button>
+          </div>
         </Section>
 
         <Section title="Toast">
@@ -408,12 +505,13 @@ export default function TokensPage() {
       />
 
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
-        <div className="text-ink font-serif text-[25px] leading-[1.18]">
+        <div className="text-ink-hi text-[25px] leading-[1.18]">
           Detail sheet
         </div>
-        <p className="text-ink/72 mt-3 font-serif text-[15.5px] leading-[1.6]">
-          BottomSheet renders scrim + panel + grabber. Drag-to-close is
-          5.5&apos;s job.
+        <p className="text-ink/72 mt-3 text-[15.5px] leading-[1.6]">
+          BottomSheet renders scrim + panel + grabber, on the 260ms{" "}
+          <code>--ease-sheet</code> curve. Drag-to-close, the title slot and an
+          exit animation are 5.5&apos;s job.
         </p>
       </BottomSheet>
     </div>

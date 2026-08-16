@@ -4,11 +4,13 @@
 // real navigation (nothing links here); it's Serwist's fallback target only.
 export default function OfflinePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] px-4 text-center text-white">
-      <h1 className="text-3xl font-extrabold tracking-tight">
+    // Brought onto the design system in Phase 5.4 — this page carried the T3 starter's purple
+    // gradient and `text-white` right through 5.1-5.3, being the one screen no route links to.
+    <main className="bg-bg flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+      <h1 className="text-ink-hi text-[26px] leading-[1.1] font-semibold tracking-[-0.3px]">
         You&apos;re offline
       </h1>
-      <p className="mt-4 max-w-xs text-white/70">
+      <p className="text-ink/62 mt-3 max-w-[280px] text-[15.5px] leading-[1.55]">
         Ambit needs a connection to load new pages. Reconnect and try again.
       </p>
     </main>

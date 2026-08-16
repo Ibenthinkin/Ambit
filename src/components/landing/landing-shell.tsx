@@ -26,7 +26,9 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
         <Rise>
           <div className="flex items-center gap-2.5 pt-24">
             <Logo size={26} className="text-accent" />
-            <span className="text-ink font-serif text-[26px] font-medium italic">
+            {/* The wordmark loses its italic with Newsreader — Sora ships no italic, and the
+                redesign's own wordmark treatment is upright. Weight carries it instead. */}
+            <span className="text-ink-hi text-[26px] font-semibold tracking-[-0.2px]">
               Ambit
             </span>
           </div>
