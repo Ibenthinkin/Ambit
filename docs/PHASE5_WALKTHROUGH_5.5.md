@@ -124,6 +124,52 @@ So: same class of false alarm the 5.4 walkthrough recorded, and the same lesson 
 safe assertion against a dev server that may be compiling the route underneath it. The suite's
 tightest timeouts are a standing flake risk worth revisiting when e2e joins CI in Phase 7.1.
 
+## Post-merge: `/code-review`, and the two things it caught that mattered
+
+Ran `/code-review` over the whole range after merging. Ten findings, all applied (commit `05e77d6`).
+Two were real defects rather than polish, and both are the same *kind* of mistake — code that works
+in the place you happened to test it:
+
+1. **`/dev/tokens` was permanently burning the corpus.** `feed.page` looks like a read, and is
+   declared as a tRPC *query* — but `getFeedPage` calls `markSeen` unconditionally, and `seen_item`
+   has no TTL by design (it's what backs the feed's "almost never repeats" promise). So every visit
+   to the style guide consumed a page of the signed-in user's feed forever, and with the 30s
+   `staleTime` and React Query's default `refetchOnWindowFocus`, tabbing back consumed another. The
+   demo now prefers an item the user has already saved (`saves.list` is a pure read) and borrows
+   from the feed only behind a button that names the cost. **The general lesson: a tRPC `query` is
+   not a promise of purity**, and this one's write is three files away from its call site.
+2. **Nothing in the app establishes a positioning context.** `PillToolbar` and `BottomSheet` were
+   both `absolute`, inherited from prototypes that sit inside an iOS-frame wrapper. The real app has
+   no such wrapper — not `layout.tsx`, not `/dev/tokens` — so both resolved against the initial
+   containing block: the pill scrolled away with the page instead of floating, and a sheet opened
+   after scrolling rendered off-screen at the top of the document. Both are now `fixed`, which is
+   what "floating toolbar" means in a viewport rather than a mock frame. **This would have read as
+   broken during the on-device pass**, which is exactly the check this phase's Done bar names — the
+   review caught it first only because it read the CSS rather than the screenshots.
+
+The third medium was **silent save failures** — the sheet dismisses the instant a row is picked, so
+a failed write was indistinguishable from a success. `onError` is now a *required* prop rather than
+optional, which is why the type checker found all four call sites immediately.
+
+The remaining seven were smaller: full dialog semantics and a Tab trap on the sheet shell (the scrim
+hid the page visually but did nothing to the tab order), `overflow-y-auto` back on the panel as a
+floor for free-form children, `usePress` resetting before bailing on a non-primary button, the
+"Everything kept" count waiting for its own query instead of flashing `0 items`, the Share demo
+button disabled until an item exists, and the sheets test restoring shared fixture state in
+`afterEach` so one failure can't cascade.
+
+One finding was **deliberately not built**: lazy seeding keys on "the user has no collections" rather
+than "has never been seeded". That's harmless while collections can't be deleted, and it becomes a
+bug the moment 5.10 ships deletion — so it's documented at the call site and written into
+BUILD_PLAN's 5.10 line, rather than migrated speculatively now.
+
+And one bug found *while* fixing: the focus trap's first draft filtered candidates by
+`offsetParent !== null`, which reports `null` for everything under jsdom — the trap would have
+tested as empty while working fine in a browser. Same family as the `AnimationEvent` finding above:
+**jsdom's missing layout and event interfaces will quietly invert what a DOM test proves.**
+
+After the fixes: **279 tests** (was 268), build clean, e2e 7/7.
+
 ## Not in this phase, on purpose
 
 - **Drag-to-close.** `bottom-sheet.tsx`'s own comment used to attribute it to 5.5; the design only

@@ -205,6 +205,49 @@ gap — 5.11 replaces that screen wholesale).
 
 *Session spend: 66.61M tok (in 553 · out 243.5k · cache r 65.68M / w 681.0k) · ~≥$44.36 · opus-5 + opus-4-7 + &lt;synthetic&gt; · 12:12→13:55*
 
+**Then `/code-review` over the merged range — ten findings, all applied** (`05e77d6`, merged
+`988e221`). Two were real defects, and they're the same *kind* of mistake: code that works in the
+one place it was exercised.
+
+1. **`/dev/tokens` was permanently burning the corpus.** `feed.page` is declared a tRPC *query* and
+   reads like one, but `getFeedPage` calls `markSeen` unconditionally and `seen_item` has no TTL by
+   design — so every visit to the style guide consumed a page of the signed-in user's feed forever,
+   and with the 30s `staleTime` plus React Query's default `refetchOnWindowFocus`, tabbing back
+   consumed another. Now it prefers an already-saved item (`saves.list` is a pure read) and borrows
+   from the feed only behind a button that names the cost. **A tRPC `query` is not a promise of
+   purity** — this one's write is three files from its call site.
+2. **Nothing in the app establishes a positioning context.** The pill and the sheet were both
+   `absolute`, inherited from prototypes that live inside an iOS-frame wrapper. The real app has no
+   such wrapper (not `layout.tsx`, not `/dev/tokens`), so both resolved against the initial
+   containing block — the pill scrolled away instead of floating, and a sheet opened after scrolling
+   rendered off-screen at the top of the document. Both are `fixed` now. Notable because **this is
+   precisely what the on-device pass would have surfaced**: the review got there first only by
+   reading CSS instead of screenshots.
+
+Third medium: save failures were silent (the sheet dismisses the instant a row is picked, so a
+failed write looked like a success). `onError` is now a *required* prop, which is why the type
+checker immediately found all four call sites — a case where making the API stricter did the
+finding for me.
+
+The other seven were smaller — full dialog semantics + a real Tab trap on the sheet shell (the scrim
+hid the page visually but did nothing to the tab order), `overflow-y-auto` restored as a floor,
+`usePress` resetting before bailing on a non-primary button, the "Everything kept" count waiting on
+its own query, the Share demo button disabled until an item exists, and the sheets test restoring
+fixture state in `afterEach`. One finding I deliberately **didn't** build: lazy seeding keys on "no
+collections" rather than "never seeded", which is harmless until deletion exists — documented at the
+call site and written into BUILD_PLAN's 5.10 line instead of migrated speculatively.
+
+**A bug found while fixing, worth keeping next to the `AnimationEvent` one:** the focus trap's first
+draft filtered candidates by `offsetParent !== null`, which reports `null` for *everything* under
+jsdom — the trap would have tested as empty while working fine in a browser. Twice in one phase now,
+**jsdom's missing layout and event interfaces quietly inverted what a DOM test proved.** Worth
+remembering in 5.8, which is almost entirely gesture and animation.
+
+279 tests (was 268), build clean, e2e 7/7. 5.5 is still **code complete, not done** — the on-device
+pass remains, and two of these three defects are exactly the sort it exists to catch.
+
+*Session spend: 31.62M tok (in 184 · out 64.6k · cache r 31.36M / w 198.1k) · ~$18.87 · opus-5 + opus-4-7 · 13:55→14:11*
+
 ### [[08-13-26 Thu]] — Phase 5.4 (Feed) planned, then paused pending a design redo
 
 **Mode:** Sonnet 5, planning-mode session on branch `phase-5.4-feed`. Three parallel `Explore`
