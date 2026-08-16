@@ -86,6 +86,61 @@ screen wholesale, so it was left alone).
 
 *Session spend: 51.39M tok (in 460 · out 175.3k · cache r 49.88M / w 1.34M) · ~$42.82 · opus-5 + fable-5 + opus-4-7 · 00:10→00:29*
 
+**Then a third session: cleared the two carry-forwards and planned 5.5.**
+
+**The flaky test had a second cause nobody had looked for.** The 5.4 note above blamed unseeded
+`Math.random`, which was half right. Measured properly — 400 seeded repetitions of the fixture,
+rather than eyeballing one failure — the real failure rate is **4.5%**, roughly ten times what
+1000 binomial draws against a ±0.05 window should produce. The reason: **the fixture couldn't fill
+the page.** 4 topics × 200 items = 800 items for a `pageSize: 1000` page, so `composePage` ran to
+total pool exhaustion on *every* run. Once a topic's pool empties every tier landing on it just
+retries, and the tiers don't concentrate on topics equally (JUMP draws the bottom half of a row,
+CORE spreads across all of `weights`) — so the measured mix wasn't the configured ratio at all.
+JUMP centred on **0.229**, not 0.25, leaving its true mean under 2σ from the failure edge. That
+off-centre mean, not the rng, is what made a 3σ-looking tolerance fail one run in twenty-two.
+
+Fixed both: pools to 400/topic (means re-centre on 0.402 / 0.349 / 0.250, and a new assertion pins
+"the page filled" so it can't silently regress), and eight fixed seeds pooled into one 8000-draw
+sample. Determinism paid for a **tighter** tolerance — ±0.02, 2.5× stricter than what it replaces —
+so the de-flaked test is a better regression detector than the flaky one, verified by injecting a
+`tierCore 40→35 / tierJump 25→30` change and watching it fail. The file's *other* `Math.random`
+tests were deliberately left alone: they assert invariants ("never lands back on start"), where
+unseeded draws usefully fuzz a bit more of the space each run. **The lesson worth keeping:** a
+statistical test's fixture has to be able to *reach* the thing it measures — a starved fixture
+silently changes what the assertion means, and reads as rng noise.
+
+**Branch housekeeping:** `phase-3.3-curation` and `phase-5.2-landing-signin` deleted both sides.
+Git reported them unmerged because both landed as *squash* merges (PRs #8 and #13), so the branch
+tips were never ancestors of `main` — content verified present on `main` before deleting.
+`archive-seed` deliberately survives: it's live post-MVP work, not a stale branch.
+
+**Phase 5.5 planned** — `docs/PHASE5_PLAN_5.5.md`, written to execute cold. Four decisions put to
+Ben, all sided with the recommendation: one collection per item (picking another row *moves* it,
+matching the prototypes' `{itemId: collectionName}` shape); `saves.toggle` removed rather than kept
+(verified dead — nothing in `src/` or `e2e/` calls it, *not even* the `/feed` placeholder the
+BUILD_PLAN line assumed did, so SPEC §7's six-procedure surface changes); all six share targets via
+`navigator.share` with a toast fallback rather than six brittle per-service intent URLs; and the
+Save-image row deferred to 5.7, since it needs a server-side image proxy (museum hosts bot-block
+third-party fetchers) and image contexts don't exist until then.
+
+**The plan's main finding, which the BUILD_PLAN line got wrong:** the pill's bookmark sheet has
+**two modes**, not one. With an item in context (item pages, gallery) it's a save sheet — title
+"Save to collection", accent dot + "Already saved here", picking assigns. With no item (the feed
+pill) it's a *browse* sheet — title "Your collections", "Everything kept" + counts + "New
+collection · Make one on your profile", picking navigates to Saved. Two components over one shell,
+not one component with a flag. Same read also settled that collection *creation* lives on Profile
+(5.10) — so 5.5 ships no `createCollection` procedure, keeping the discipline that just deleted
+`toggle` — and that the feed's long-press item sheet ("Closer Look" + compact rows, on a third
+animation, `ambitmenurise`) is 5.6's, not 5.5's. Drag-to-close likewise turns out to belong to
+5.8's gallery modal, despite `bottom-sheet.tsx`'s own comment attributing it to 5.5.
+
+**Open / next:** execute `PHASE5_PLAN_5.5.md`. Its Done bar is a real phone, not CI — the
+`pointer-events` wrapper, the slop guard, and the sheet exit animation all pass in a desktop
+browser while being wrong on iOS. Still carried forward: the landing hero/wordmark crowding (0px
+gap — 5.11 replaces that screen wholesale).
+
+*Session spend: 14.89M tok (in 264 · out 155.5k · cache r 13.44M / w 1.29M) · ~$23.21 · opus-5 + opus-4-7 · 09:01→12:12*
+
 ### [[08-13-26 Thu]] — Phase 5.4 (Feed) planned, then paused pending a design redo
 
 **Mode:** Sonnet 5, planning-mode session on branch `phase-5.4-feed`. Three parallel `Explore`
