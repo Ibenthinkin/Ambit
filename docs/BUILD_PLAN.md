@@ -177,6 +177,22 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 - [ ] **5.5 — Shared backbone + collections backend.** The redesign's two backbone components + the data model the save sheet needs — planned in `PHASE5_PLAN_5.5.md` (08-16-26), which carries four decisions taken with Ben: **one collection per item** (picking another row *moves* it), `saves.toggle` **removed** (verified dead — nothing in `src/` or `e2e/` calls it, not even the `/feed` placeholder), share targets all via `navigator.share` with a toast fallback, and the Save-image row **deferred to 5.7** with the image proxy it needs. Backend: `collection` table (`id,userId,name,createdAt`, unique `(userId,name)`), nullable `collectionId` FK on `saved_item`, lazy per-user seeding of Articles/Art/Photos, `saves` router evolves (`saveToCollection` / `collections`-with-counts / `unsave` / `list({collectionId?})`), drizzle migration, SPEC §5/§6.3/§7 updated. UI: `PillToolbar` (glass pill, profile/mark/bookmark/share, `pointer-events` wrapper pattern, active bookmark states), `BottomSheet` v2 (centered title slot, exit animation — the null-when-closed test assertion changes here; drag-to-close turns out to belong to 5.8, not here), **two** collection sheets rather than one — `SaveToCollectionSheet` (item in context: accent dot + "Already saved here", picking saves) and `CollectionsSheet` (feed pill, no item: "Everything kept" + counts + "New collection · Make one on your profile", picking navigates) — plus `ShareSheet` (copy-link + `navigator.share` targets), `usePress` hook (≤12px slop tap + 450ms long-press, iOS-safe), avatar chip. Collection *creation* is not here: the prototypes put it on Profile (5.10). All demoed live on `/dev/tokens` against the real router.
   *Done = migration applied; router integration tests green; pill + both sheets work end-to-end on `/dev/tokens` on a real phone.*
+  *Status =* ⚠️ **Code complete 08-16-26, awaiting the on-device pass.** Walkthrough
+  `docs/PHASE5_WALKTHROUGH_5.5.md`. Migration `0002_quick_whizzer` applied; 268 tests green (was
+  219), including 19 router tests against real Postgres — the cross-user authorization case among
+  them (saving into another user's collection is `NOT_FOUND`, and nothing lands in theirs).
+  `bun run build` clean, `bun run e2e` 7/7. Five deviations from the plan, all recorded in the
+  walkthrough: `saves.count` added as a real procedure (the alternative fetched every item record
+  to produce a number), seeded collections get staggered `created_at` (Postgres' `now()` is
+  transaction start time, so one insert left `ORDER BY created_at` a three-way tie), `onSaved`
+  reports the collection id as well as its name, `Bookmark` already had its `filled` variant from
+  5.4, and the share targets needed explicit `aria-label`s. Two findings worth carrying into 5.8's
+  much heavier animation work: **jsdom implements no `AnimationEvent`**, so React never delivers
+  `onAnimationEnd` there and animated components must listen natively to be testable; and the
+  sheet's exit state has to be adjusted **during render**, not in an effect, or the close flickers.
+  **Still open: the real-phone pass** — the `pointer-events` wrapper, the 12px slop guard and the
+  sheet exit animation all pass in a desktop browser while being wrong on iOS, which is exactly why
+  this step's Done bar names a device.
 
 - [ ] **5.6 — Feed masonry.** `/feed` proper per the `Feed Masonry 3` prototype (placeholder dies; sign-out moves to `/dev/tokens` until 5.10, e2e updated). RSC `prefetchInfinite`/`HydrateClient` (first-ever consumer — the server prefetch input must byte-match the client `useInfiniteQuery` input) + IntersectionObserver sentinel; `/feed` stays dynamic. Two independent flex columns in a `1fr 1fr` gap-4 grid, greedy shortest-column placement with estimated heights, fixed rotation of literal height classes, square-cornered full-bleed image tiles; article cards + serendipity "BECAUSE" rows from `driftPath`; tap → item page, long-press → item sheet ("Closer look" + save-to-collection); `data-feed-id` + `?focus=` return-scroll. Reuses `PHASE5_PLAN_5.4_FEED_OLD_DESIGN.md`'s backend-contract/RSC research wholesale.
   *Done = smooth infinite scroll of real DB content; taps/long-press correct on a phone (5.7 routes may be stubs until 5.7 lands — the pair ships back-to-back).*

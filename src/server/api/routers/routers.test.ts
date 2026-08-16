@@ -90,14 +90,35 @@ describe("protected procedures reject a null session", () => {
     });
   });
 
-  it("saves.toggle throws UNAUTHORIZED", async () => {
+  it("saves.collections throws UNAUTHORIZED", async () => {
+    await expect(caller.saves.collections()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  it("saves.saveToCollection throws UNAUTHORIZED", async () => {
     await expect(
-      caller.saves.toggle({ itemId: "some-item" }),
+      caller.saves.saveToCollection({
+        itemId: "some-item",
+        collectionId: "some-collection",
+      }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("saves.unsave throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.saves.unsave({ itemId: "some-item" }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("saves.list throws UNAUTHORIZED", async () => {
     await expect(caller.saves.list()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  it("saves.count throws UNAUTHORIZED", async () => {
+    await expect(caller.saves.count()).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
   });
@@ -127,11 +148,20 @@ describe("zod input validation", () => {
     );
   });
 
-  it("saves.toggle rejects a missing itemId", async () => {
+  it("saves.saveToCollection rejects a missing collectionId", async () => {
     const caller = createCaller(authedContext());
-    // @ts-expect-error deliberately malformed input — proving the zod schema, not TS, is what
-    // catches this at runtime (a caller in JS, or a stale client build, has no compiler to save it).
-    await expect(caller.saves.toggle({})).rejects.toMatchObject({
+    await expect(
+      // @ts-expect-error deliberately malformed input — proving the zod schema, not TS, is what
+      // catches this at runtime (a caller in JS, or a stale client build, has no compiler to
+      // save it).
+      caller.saves.saveToCollection({ itemId: "some-item" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("saves.unsave rejects a missing itemId", async () => {
+    const caller = createCaller(authedContext());
+    // @ts-expect-error deliberately malformed input — see the note above.
+    await expect(caller.saves.unsave({})).rejects.toMatchObject({
       code: "BAD_REQUEST",
     });
   });
@@ -190,7 +220,12 @@ describe("feed.page forwards knobs to getFeedPage unconditionally", () => {
 });
 
 describe("appRouter shape", () => {
-  it("exposes exactly the six SPEC §7 procedures, no leftover post router", () => {
+  // Phase 5.5 grew this from six procedures to nine: `saves.toggle` was removed (verified dead —
+  // nothing outside these tests ever called it) and the collection-aware surface took its place.
+  // This assertion is deliberately exhaustive rather than a subset check: it's the one thing that
+  // makes an accidentally-exported procedure, or one that quietly outlives its last caller, show
+  // up as a failing test instead of shipping.
+  it("exposes exactly the nine SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -198,8 +233,11 @@ describe("appRouter shape", () => {
         "topics.setMine",
         "feed.page",
         "items.byId",
-        "saves.toggle",
+        "saves.collections",
+        "saves.saveToCollection",
+        "saves.unsave",
         "saves.list",
+        "saves.count",
       ].sort(),
     );
   });

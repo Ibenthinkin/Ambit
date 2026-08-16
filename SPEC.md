@@ -152,12 +152,32 @@ CREATE TABLE user_topic (
 ### 5.4 `saved_item`
 ```sql
 CREATE TABLE saved_item (
-  user_id  TEXT NOT NULL REFERENCES "user"(id),
-  item_id  TEXT NOT NULL REFERENCES item(id),
-  saved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  user_id       TEXT NOT NULL REFERENCES "user"(id),
+  item_id       TEXT NOT NULL REFERENCES item(id),
+  collection_id TEXT REFERENCES collection(id) ON DELETE SET NULL, -- nullable: see below
+  saved_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, item_id)
 );
 ```
+**One collection per item, by construction** (Phase 5.5): the primary key is `(user_id, item_id)`, so there is exactly one row per saved item and therefore exactly one collection. That's the design's own model — the prototypes key collections as `{ [itemId]: collectionName }`, render a single accent dot, and label exactly one row "Already saved here" — so picking a different collection *moves* the item (an `UPDATE`) rather than adding a second membership.
+
+`collection_id` is **nullable**, meaning "saved but uncollected": such a row is counted by the UI's "Everything kept" total but appears under no named collection. `ON DELETE SET NULL` rather than `CASCADE` because deleting a collection must never silently delete the user's saves.
+
+### 5.4c `collection`
+```sql
+CREATE TABLE collection (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES "user"(id),
+  name       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, name)
+);
+```
+A user's named buckets for saved items, backing the save-to-collection sheet (Phase 5.5). Three defaults — **Articles, Art, Photos** — are seeded **lazily**, on the first read in `db/collections.ts`, rather than at sign-up: nothing before 5.5 needed them, so seeding on read gets existing users theirs without a backfill migration.
+
+The `(user_id, name)` unique constraint is load-bearing for that seeding, not just hygiene: two concurrent first-reads both attempt the insert, and the constraint is what turns the loser's `ON CONFLICT DO NOTHING` into a no-op instead of a duplicate row. The seeded rows get **staggered `created_at` values** (offset by index, written app-side) because Postgres' `now()` is transaction start time and would otherwise leave `ORDER BY created_at` with a three-way tie and no stable sheet order.
+
+Collection *creation* is a Phase 5.10 concern (it lives on the Profile screen in the design), so there is deliberately no `createCollection` procedure yet.
 
 ### 5.4b `seen_item`
 ```sql
@@ -187,6 +207,7 @@ CREATE INDEX idx_item_source      ON item(source);
 CREATE INDEX idx_item_topic_score ON item(topic_id, curation_score); -- the feed's draw path
 CREATE INDEX idx_item_tags_gin    ON item USING GIN (tags);
 CREATE INDEX idx_saved_item_user  ON saved_item(user_id);
+CREATE INDEX idx_collection_user  ON collection(user_id);
 ```
 
 ## 6. Backend — ingestion, curation, repositories
@@ -224,7 +245,8 @@ The Phase 0.5 finding: **the corpus is the product, not the ranking.** Curation 
 - `client.ts` — Drizzle client over Postgres (singleton).
 - `items.ts` — `upsertItem`, `getItemById`, `drawFromTopic(topicId, { scoreFloor, excludeIds, limit })` (weighted-random by curation score — the feed's item pick).
 - `feed.ts` — `getFeedPage(userId, cursor)` (composes §9).
-- `saves.ts` — `saveItem`, `unsaveItem`, `getSavedItems(userId)`.
+- `saves.ts` — `unsaveItem`, `isItemSaved`, `getSavedItems(userId, { collectionId? })`, `getSavedCount(userId)`. Reads and the delete only: the *write* path is `collections.ts`'s `setItemCollection`, because every save in the redesign goes through the save-to-collection sheet and therefore always carries a collection.
+- `collections.ts` — `getCollections(userId)` (with item counts; lazily seeds the three defaults), `getCollectionForUser(userId, collectionId)` (the ownership check), `setItemCollection(userId, itemId, collectionId)`.
 - `topics.ts` — `listTopics`, `setUserTopics(userId, topicIds)`.
 
 All user-scoped queries filter by `userId`.
@@ -243,9 +265,14 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 | `topics.setMine` | mutation | `{ topicIds: string[] }` | `{ ok: true }` |
 | `feed.page` | query | `{ cursor?: string, knobs?: Partial<FeedKnobs> }` | `{ cards: FeedCard[], nextCursor?: string }` |
 | `items.byId` | query | `{ id: string }` | `Item` (public; read-only) |
-| `saves.toggle` | mutation | `{ itemId: string }` | `{ saved: boolean }` |
-| `saves.list` | query | — | `Item[]` |
+| `saves.collections` | query | — | `{ id, name, createdAt, itemCount }[]` |
+| `saves.saveToCollection` | mutation | `{ itemId: string, collectionId: string }` | `{ collectionName: string }` |
+| `saves.unsave` | mutation | `{ itemId: string }` | `{ saved: false }` |
+| `saves.list` | query | `{ collectionId?: string }` | `Item[]` |
+| `saves.count` | query | — | `number` |
 
+- **`saves.saveToCollection` is the API's only authorization-sensitive input** (Phase 5.5). Every other protected procedure is scoped by `ctx.user.id` alone, and `items.byId` is deliberately public — this is the one place a client supplies the id of a *user-owned* row. It verifies the collection belongs to the caller and throws `NOT_FOUND`, not `FORBIDDEN`, for both "no such collection" and "someone else's": a probe must not be able to tell a real collection id from a fake one. It also saves the item if it wasn't already, so there is no separate "save" procedure.
+- `saves.toggle` **was removed in Phase 5.5** (it had become dead code — nothing outside its own tests ever called it, not even the throwaway `/feed` placeholder). A collection-less save is also semantically wrong now that every save routes through the save-to-collection sheet.
 - `feed.page` is **cursor-based** (opaque cursor encodes pagination + the in-flight weighting seed).
 - `feed.page` returns `cards`, not bare items (revised at Phase 4.1 build time — see below): each
   `FeedCard` is `{ item: Item, tier: "CORE" | "DRIFT" | "JUMP", topicId: string, driftPath?:

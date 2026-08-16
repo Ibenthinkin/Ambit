@@ -213,6 +213,36 @@ export const userTopic = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.topicId] })],
 );
 
+// A user's named buckets for saved items (SPEC §5.4c, Phase 5.5). Three defaults — Articles, Art,
+// Photos — are seeded *lazily*, on the first read in db/collections.ts, rather than at sign-up:
+// nothing before Phase 5.5 needed them, so seeding on read means existing users get theirs without
+// a backfill migration.
+export const collection = pgTable(
+  "collection",
+  {
+    // nanoid generated app-side, same reason as `item` and `invite`: the app knows the id before
+    // the insert lands.
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    // Load-bearing for the lazy seeding above, not just hygiene: two concurrent first-reads (a
+    // double-mounted React 19 dev render is enough) both try to insert the three defaults, and
+    // this constraint is what turns the loser's `onConflictDoNothing` into a no-op instead of a
+    // duplicate "Articles" row.
+    unique("uq_collection_user_name").on(table.userId, table.name),
+    index("idx_collection_user").on(table.userId),
+  ],
+);
+
 export const savedItem = pgTable(
   "saved_item",
   {
@@ -222,6 +252,21 @@ export const savedItem = pgTable(
     itemId: text("item_id")
       .notNull()
       .references(() => item.id),
+    // Which collection this save lives in — **nullable**, meaning "saved but uncollected": such a
+    // row is counted by the UI's "Everything kept" total but appears under no named collection.
+    //
+    // One collection per item, by construction: this table's primary key is (user_id, item_id), so
+    // there is exactly one row per saved item and therefore exactly one collection. That's the
+    // design's own model (the prototypes key collections as `{ [itemId]: collectionName }`, render
+    // a single accent dot, and label exactly one row "Already saved here") — picking a different
+    // collection *moves* the item via an UPDATE rather than adding a second membership.
+    //
+    // `set null` rather than `cascade`: deleting a collection must never silently delete the
+    // user's saves. Collection deletion isn't built yet (creation lands in 5.10); the constraint
+    // is written correctly now so that phase doesn't have to migrate it.
+    collectionId: text("collection_id").references(() => collection.id, {
+      onDelete: "set null",
+    }),
     savedAt: timestamp("saved_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

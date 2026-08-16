@@ -17,6 +17,9 @@ import {
   PlusSquare,
   Share,
 } from "~/components/icons";
+import { CollectionsSheet } from "~/components/sheets/collections-sheet";
+import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sheet";
+import { ShareSheet } from "~/components/sheets/share-sheet";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
@@ -26,7 +29,10 @@ import { IconButton } from "~/components/ui/icon-button";
 import { Input } from "~/components/ui/input";
 import { Segmented } from "~/components/ui/segmented";
 import { Spinner } from "~/components/ui/spinner";
+import { PillToolbar, type BookmarkState } from "~/components/ui/pill-toolbar";
 import { Toast } from "~/components/ui/toast";
+import { usePress } from "~/hooks/use-press";
+import { api } from "~/trpc/react";
 
 // The living style guide: every token, icon, and primitive in one place with a live accent
 // switcher, so the design system can be checked whole without building a real screen first.
@@ -34,13 +40,16 @@ import { Toast } from "~/components/ui/toast";
 // (docs/design_handoff_ambit_pwa_redesign/) in 5.4. If something here doesn't match the handoff,
 // it'll be wrong on every screen that consumes it later.
 //
-// This page has two more jobs coming up: it hosts the live demos of 5.5's backbone components
-// (pill toolbar + the two sheets, wired to the real router), and it is the INTERIM HOME OF
-// SIGN-OUT from 5.6 (when /feed's placeholder is deleted) until Settings lands in 5.10.
+// It also hosts the live demo of 5.5's backbone (pill toolbar, both collection sheets, the share
+// sheet, `usePress`) wired to the REAL router — see `BackboneSection` at the bottom. One more job
+// is coming: this is the INTERIM HOME OF SIGN-OUT from 5.6 (when /feed's placeholder is deleted)
+// until Settings lands in 5.10.
 //
 // `src/proxy.ts` only gates `/feed`, `/saved`, `/onboarding` — a `/dev/*` route would otherwise
-// be reachable in production. Since this is a plain client component (no DB, no tRPC, so it
-// can't leak data), the guard is just this early `notFound()` rather than an auth check.
+// be reachable in production, so the guard is this early `notFound()`. Note that as of 5.5 the
+// page DOES reach tRPC (the backbone demo), but only through the same protected procedures a real
+// screen uses, scoped to the signed-in user — there's nothing here an authed user couldn't
+// already see.
 //
 // Accent hexes are duplicated here (they also live in globals.css's `@layer base`) because the
 // swatch dots need the literal color to paint *before* the attribute is switched — a
@@ -150,6 +159,7 @@ export default function TokensPage() {
   const [segment, setSegment] = React.useState<"all" | "reading">("all");
   const [toastOpen, setToastOpen] = React.useState(false);
   const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [backboneToast, setBackboneToast] = React.useState<string | null>(null);
   // Bumping this remounts the two motion demos, which is what replays a CSS animation.
   const [motionKey, setMotionKey] = React.useState(0);
 
@@ -496,6 +506,8 @@ export default function TokensPage() {
             Open sheet
           </Button>
         </Section>
+
+        <BackboneSection onToast={setBackboneToast} />
       </div>
 
       <Toast
@@ -504,16 +516,158 @@ export default function TokensPage() {
         onDone={() => setToastOpen(false)}
       />
 
-      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
-        <div className="text-ink-hi text-[25px] leading-[1.18]">
-          Detail sheet
+      <BottomSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title="Detail sheet"
+      >
+        {/* The shell carries no horizontal padding of its own (5.5) so the collection sheets can
+            scroll their rows edge to edge — free-form content supplies its own. */}
+        <div className="px-[26px] pb-4">
+          <p className="text-ink/72 text-[15.5px] leading-[1.6]">
+            Scrim + panel + grabber + centered title, in on the 260ms{" "}
+            <code>--ease-sheet</code> curve and out again on{" "}
+            <code>sheet-down</code>. Drag-to-close belongs to 5.8&apos;s gallery
+            modal, not here.
+          </p>
         </div>
-        <p className="text-ink/72 mt-3 text-[15.5px] leading-[1.6]">
-          BottomSheet renders scrim + panel + grabber, on the 260ms{" "}
-          <code>--ease-sheet</code> curve. Drag-to-close, the title slot and an
-          exit animation are 5.5&apos;s job.
-        </p>
       </BottomSheet>
+
+      <Toast
+        text={backboneToast ?? ""}
+        open={backboneToast !== null}
+        onDone={() => setBackboneToast(null)}
+      />
     </div>
+  );
+}
+
+/**
+ * Phase 5.5's backbone, demoed against the **real router** — the pill, both collection sheets, the
+ * share sheet, and `usePress`. This is the phase's acceptance surface: everything here writes to
+ * Postgres, so a pick that toasts and survives a reload is the proof the backend works.
+ */
+function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
+  const [bookmark, setBookmark] = React.useState<BookmarkState>("idle");
+  const [saveOpen, setSaveOpen] = React.useState(false);
+  const [browseOpen, setBrowseOpen] = React.useState(false);
+  const [shareOpen, setShareOpen] = React.useState(false);
+  const [pressLog, setPressLog] = React.useState("waiting…");
+  const [currentCollectionId, setCurrentCollectionId] = React.useState<
+    string | undefined
+  >();
+
+  // A real item to save, drawn the same way a real screen will draw one — no dev-only procedure.
+  const feed = api.feed.page.useQuery({});
+  const demoItem = feed.data?.cards[0]?.item;
+
+  const press = usePress({
+    onTap: () => setPressLog("tapped"),
+    onLongPress: () => setPressLog("long-pressed"),
+  });
+
+  // Everything below is a protected procedure, and this page has never needed a session before —
+  // so an anonymous visit would fail every control here with an opaque UNAUTHORIZED. Say so
+  // instead.
+  if (feed.error?.data?.code === "UNAUTHORIZED") {
+    return (
+      <Section title="Backbone (5.5)">
+        <p className="text-ink/60 text-[14px] leading-[1.6]">
+          Sign in at <code>/</code> to demo the backbone against the real router
+          — the pill, the sheets and the collections backend are all behind{" "}
+          <code>protectedProcedure</code>.
+        </p>
+      </Section>
+    );
+  }
+
+  return (
+    <Section title="Backbone (5.5)">
+      <div className="flex flex-wrap gap-2">
+        {(["idle", "saved", "on-saved"] as const).map((state) => (
+          <Chip
+            key={state}
+            selected={bookmark === state}
+            onClick={() => setBookmark(state)}
+          >
+            {state}
+          </Chip>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="ghost"
+          shape="pill"
+          onClick={() => setBrowseOpen(true)}
+        >
+          Collections sheet
+        </Button>
+        <Button
+          variant="ghost"
+          shape="pill"
+          disabled={!demoItem}
+          onClick={() => setSaveOpen(true)}
+        >
+          Save sheet
+        </Button>
+        <Button variant="ghost" shape="pill" onClick={() => setShareOpen(true)}>
+          Share sheet
+        </Button>
+      </div>
+
+      <p className="text-ink/40 text-[12px]">
+        {demoItem
+          ? `Demo item: ${demoItem.title}`
+          : "Loading a real item from the feed…"}
+      </p>
+
+      <div
+        {...press}
+        className="border-hairline border-ink/12 bg-ink/5 flex h-24 touch-manipulation items-center justify-center rounded-[14px] select-none"
+        style={{ WebkitTouchCallout: "none" }}
+      >
+        <span className="text-ink/60 text-[14px]">usePress: {pressLog}</span>
+      </div>
+
+      <PillToolbar
+        bookmark={bookmark}
+        onBookmark={() => (demoItem ? setSaveOpen(true) : setBrowseOpen(true))}
+        onShare={() => setShareOpen(true)}
+        onProfile={() => onToast("Profile is 5.10")}
+        onHome={() => onToast("Feed is 5.6")}
+      />
+
+      <CollectionsSheet
+        open={browseOpen}
+        onClose={() => setBrowseOpen(false)}
+      />
+
+      {demoItem ? (
+        <>
+          <SaveToCollectionSheet
+            open={saveOpen}
+            onClose={() => setSaveOpen(false)}
+            itemId={demoItem.id}
+            currentCollectionId={currentCollectionId}
+            onSaved={(collection) => {
+              setBookmark("saved");
+              setCurrentCollectionId(collection.id);
+              onToast(`Saved to ${collection.name}`);
+            }}
+          />
+          <ShareSheet
+            open={shareOpen}
+            onClose={() => setShareOpen(false)}
+            url={`${typeof window === "undefined" ? "" : window.location.origin}/i/${demoItem.id}`}
+            title={demoItem.title}
+            onCopied={(url) => onToast(`Link copied · ${url}`)}
+            onShareUnavailable={() =>
+              onToast("Sharing isn't available on this device")
+            }
+          />
+        </>
+      ) : null}
+    </Section>
   );
 }
