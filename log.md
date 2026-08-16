@@ -153,6 +153,58 @@ gap — 5.11 replaces that screen wholesale).
 
 *Session spend: 14.89M tok (in 264 · out 155.5k · cache r 13.44M / w 1.29M) · ~$23.21 · opus-5 + opus-4-7 · 09:01→12:12*
 
+**Then executed 5.5 in the same session** — Ben said go rather than handing the plan to a cheaper
+model, so the plan-then-execute-cheaper split didn't apply again. Walkthrough:
+`docs/PHASE5_WALKTHROUGH_5.5.md`. Merged to `main` as `a80fd4e`. **Code complete, not done**: the
+step's Done bar names a real phone, and that pass hasn't happened.
+
+**The plan held up.** Ten steps, executed in order, three commits; the generated migration came out
+as exactly the predicted five statements, and the pre-flight Preconditions block earned itself
+immediately (nothing was rediscovered at execution time). Five deviations, all deliberate and all
+recorded: `saves.count` promoted to a real procedure (the alternative fetched every item record to
+produce a number — and unlike the `toggle` we just deleted, it has a consumer); seeded collections
+get **staggered `created_at`** values, because Postgres' `now()` is transaction start time and one
+three-row insert therefore left `ORDER BY created_at` a three-way tie with no stable sheet order;
+`onSaved` reports the collection id as well as its name, since every caller needs the id to move its
+own `currentCollectionId`; `Bookmark` already had the `filled` variant the plan wanted added; and
+the share targets needed explicit `aria-label`s (three of six are a bare letter glyph, which
+announces as "X X" at best and "P" at worst).
+
+**Two findings that will matter in 5.8**, which has far more animation to test than this:
+1. **jsdom implements no `AnimationEvent` at all**, so React never delivers a synthetic
+   `onAnimationEnd` there — probed four ways (from a child with `bubbles: true`, a manual bubbling
+   `dispatchEvent`, directly on the handler element, testing-library's default init), all zero
+   calls. This began as "why won't my exit-animation test pass" and ended as "it *can't*." The sheet
+   attaches a **native** listener via a ref instead: testable, and it's the path a browser actually
+   takes. Also needs an `e.target === el` guard, since `animationend` bubbles and any child
+   animation would otherwise tear the sheet down mid-exit.
+2. **The exit state is adjusted during render, not in an effect.** The first version tripped
+   `react-hooks/set-state-in-effect`, which turned out to be flagging a real defect rather than
+   style: an effect renders the closed sheet once and *then* re-renders it as leaving — a visible
+   flicker on the way out. React's documented "adjusting state when a prop changes" pattern fixes it
+   and shrinks the component to one `leaving` bit with `mounted = open || leaving` derived.
+
+**An e2e investigation that took a wrong turn worth recording.** After a 12-hour-old hung dev server
+(holding port 3000 with no listening socket, so Playwright could neither reuse nor replace it) was
+cleared, the suite failed one auth test on the `auth-error` assertion; re-run, it failed a
+*different* test on the *same* assertion (`test.describe.serial` aborts the file, so the two runs
+stopped at different points). The obvious next move — A/B against `main` — passed 7/7 and looked
+like proof the regression was 5.5's. **It wasn't.** `main`'s tree was already warm from the
+preceding runs, so that comparison varied branch *and* compile state together. Warmth alone was the
+real variable: every failure was a first run after a code change, with Next still compiling routes
+on demand; warm, the branch went 7/7 three times running at ~14s. Same false-alarm class 5.4
+recorded, plus a sharper lesson — **an A/B is only evidence if it isolates one variable** — and a
+standing note that the suite's 5s `toContainText` timeouts are a flake risk to revisit when e2e
+joins CI in 7.1.
+
+**Open / next:** the on-device pass for 5.5 (`pointer-events` wrapper, 12px slop guard, sheet exit
+animation — all of which pass on a desktop while being wrong on iOS), then 5.6, the feed masonry.
+5.6 inherits `usePress` and builds what a long press opens (the "Closer Look" item sheet, on a
+third animation, `ambitmenurise`). Still carried forward: the landing hero/wordmark crowding (0px
+gap — 5.11 replaces that screen wholesale).
+
+*Session spend: 66.61M tok (in 553 · out 243.5k · cache r 65.68M / w 681.0k) · ~≥$44.36 · opus-5 + opus-4-7 + &lt;synthetic&gt; · 12:12→13:55*
+
 ### [[08-13-26 Thu]] — Phase 5.4 (Feed) planned, then paused pending a design redo
 
 **Mode:** Sonnet 5, planning-mode session on branch `phase-5.4-feed`. Three parallel `Explore`
