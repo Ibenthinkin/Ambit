@@ -210,6 +210,27 @@ describe("pickJump", () => {
 describe("composePage", () => {
   const baseKnobs: FeedKnobs = { ...DEFAULT_KNOBS };
 
+  // This assertion is statistical, so it's built to two rules that the original version of it
+  // broke on both counts (it flaked at ~4.5% of runs — measured, not estimated):
+  //
+  // 1. **The page must be able to fill.** The pools have to hold comfortably more items than
+  //    `pageSize`, or `composePage` runs to pool exhaustion and the mix stops being the configured
+  //    ratio at all. The old fixture offered 4 × 200 = 800 items for a 1000-card page, so every
+  //    run drained the pools dry; once a topic empties, every tier that lands on it just retries,
+  //    and the tiers don't concentrate on topics equally (JUMP draws from the bottom half of a
+  //    row, CORE spreads over all of `weights`). The measured result: JUMP centred on 0.229 rather
+  //    than 0.25 — under 2σ from the old ±0.05 failure edge, which is where the flake came from.
+  //    4 × 400 = 1600 items for the same 1000-card page fills every time and re-centres the
+  //    measurement on 0.402 / 0.349 / 0.250.
+  // 2. **The rng must be seeded.** Every *other* Math.random test in this file is an invariant
+  //    ("only ever returns a topic in weights", "never lands back on start") where unseeded draws
+  //    are a feature — they fuzz a bit more of the space on each run. This one is the opposite: it
+  //    measures a *distribution*, so an unseeded rng just rolls dice against the tolerance on
+  //    every CI run. Eight fixed seeds are pooled into one 8000-draw sample, which is both
+  //    deterministic and tight enough to carry a ±0.02 tolerance — 2.5× stricter than the ±0.05
+  //    it replaces, so this is a sharper regression detector than the flaky version, not a
+  //    weakened one. (Checked against 40 different seed-block choices: worst deviation from
+  //    target across all of them was 0.0146.)
   it("mixes tiers at roughly the configured CORE/DRIFT/JUMP ratio", () => {
     // A dense little graph so DRIFT/JUMP always resolve to *some* topic, and a generous topicCap
     // so the cap never blocks a draw — isolates the tier-mix signal from diversity constraints.
@@ -221,27 +242,38 @@ describe("composePage", () => {
       ]),
     );
     const weights = new Map(topics.map((t) => [t, 1]));
-    const pools = new Map(
-      topics.map((t) => [
-        t,
-        Array.from({ length: 200 }, () => makeItem({ topicId: t })),
-      ]),
-    );
     const knobs: FeedKnobs = { ...baseKnobs, topicCap: 1000, pageSize: 1000 };
-    const cards = composePage({
-      weights,
-      graph,
-      pools,
-      rng: Math.random,
-      knobs,
-    });
 
     const counts = { CORE: 0, DRIFT: 0, JUMP: 0 };
-    for (const c of cards) counts[c.tier]++;
-    const total = cards.length;
-    expect(counts.CORE / total).toBeCloseTo(0.4, 1);
-    expect(counts.DRIFT / total).toBeCloseTo(0.35, 1);
-    expect(counts.JUMP / total).toBeCloseTo(0.25, 1);
+    let total = 0;
+    for (let seed = 0; seed < 8; seed++) {
+      // Fresh pools per seed: composePage splices drawn items out of its own working copy, but
+      // each run needs to start from a full pool for the "page always fills" property to hold.
+      const pools = new Map(
+        topics.map((t) => [
+          t,
+          Array.from({ length: 400 }, () => makeItem({ topicId: t })),
+        ]),
+      );
+      const cards = composePage({
+        weights,
+        graph,
+        pools,
+        rng: mulberry32(hashSeed(`tier-mix:${seed}`)),
+        knobs,
+      });
+      expect(cards).toHaveLength(knobs.pageSize); // rule 1: the page filled, no exhaustion skew
+      for (const c of cards) counts[c.tier]++;
+      total += cards.length;
+    }
+
+    const TOLERANCE = 0.02;
+    expect(counts.CORE / total).toBeGreaterThan(0.4 - TOLERANCE);
+    expect(counts.CORE / total).toBeLessThan(0.4 + TOLERANCE);
+    expect(counts.DRIFT / total).toBeGreaterThan(0.35 - TOLERANCE);
+    expect(counts.DRIFT / total).toBeLessThan(0.35 + TOLERANCE);
+    expect(counts.JUMP / total).toBeGreaterThan(0.25 - TOLERANCE);
+    expect(counts.JUMP / total).toBeLessThan(0.25 + TOLERANCE);
   });
 
   it("respects the per-page topic cap", () => {
