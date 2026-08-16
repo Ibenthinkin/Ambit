@@ -103,7 +103,14 @@
                                                                           modal ONLY (5.8) — a
                                                                           longer, further travel
                                                                           than the pill sheets */
+  --animate-sheet-down: sheet-down 0.26s var(--ease-sheet) both; /* the exit half of the pair
+                                                                     above (5.5) — a sheet that
+                                                                     vanished instantly on close
+                                                                     read as a glitch next to how
+                                                                     deliberately it arrives */
   --animate-scrim-in: scrim-in 0.3s ease both;
+  --animate-scrim-out: scrim-out 0.26s ease both; /* matched to sheet-down so the scrim and the
+                                                      panel leave together */
   --animate-drift: drift 18s ease-in-out infinite; /* landing page's decorative blurred orbs */
 
   @keyframes rise {
@@ -177,12 +184,28 @@
       transform: translateY(0);
     }
   }
+  @keyframes sheet-down {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(100%);
+    }
+  }
   @keyframes scrim-in {
     from {
       opacity: 0;
     }
     to {
       opacity: 1;
+    }
+  }
+  @keyframes scrim-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
     }
   }
   @keyframes drift {

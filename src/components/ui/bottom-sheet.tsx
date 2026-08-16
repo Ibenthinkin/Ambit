@@ -2,22 +2,113 @@
 
 import * as React from "react";
 
-// The shared bottom-sheet shell: a 22px-top-radius panel sliding up from the bottom over a
-// blurred scrim. Closes on scrim click or Escape. Drag-to-close (the prototypes' pointer-tracked
-// sheet drag), the centered title slot, and an exit animation are all **5.5's** problem — this
-// primitive only implements the two programmatic close paths, and the grabber below is decorative
-// until then.
+import { cn } from "~/lib/utils";
+
+// The shared bottom-sheet shell: a 22px-top-radius panel sliding up from the bottom over a blurred
+// scrim. Closes on scrim click or Escape. Every sheet in the app is this shell plus content —
+// save-to-collection, the pill's collections list, share (all 5.5), and the feed's long-press item
+// sheet (5.6).
 //
-// Phase 5.4 note: the `animate-sheet-up` class now resolves to the redesign's snappier 260ms
-// `sheetup` curve. The longer 400ms travel this component originally used lives on as
-// `animate-sheet-gallery`, reserved for the gallery details modal (5.8).
+// Phase 5.5 added the centered title slot and the **exit** animation. The exit is the reason this
+// component carries state at all: returning `null` the instant `open` flipped false made the sheet
+// vanish, which read as a glitch next to how deliberately it arrives. So a closing sheet stays
+// mounted through `sheet-down` and unmounts on `animationend`, with a timer as the fallback (see
+// `EXIT_MS`).
+//
+// Still not here: **drag-to-close**. The header comment used to attribute it to 5.5, but the design
+// only specifies a drag-following close on the gallery details sheet — so it belongs to 5.8, and
+// the grabber below stays decorative until then.
+//
+// Phase 5.4 note: `animate-sheet-up` resolves to the redesign's snappier 260ms `sheetup` curve. The
+// longer 400ms travel this component originally used lives on as `animate-sheet-gallery`, reserved
+// for the gallery details modal (5.8).
+
+/**
+ * Matched to `--animate-sheet-down`'s 260ms, plus a little slack. Only a *fallback*: `animationend`
+ * normally unmounts the sheet first. It exists because `animationend` never fires at all in two
+ * real situations — a tab backgrounded mid-close, and jsdom, which runs no animations — and a sheet
+ * that never unmounts leaves a scrim swallowing every tap on the page.
+ */
+const EXIT_MS = 300;
+
 export interface BottomSheetProps {
   open: boolean;
   onClose: () => void;
+  /** Centered title, Sora 600 15px — every sheet in the design has one. */
+  title?: string;
   children: React.ReactNode;
+  /**
+   * Caps the panel height, with the caller's content doing the scrolling. The save sheet's list is
+   * the reason this exists (the design puts it at 72%); the default lets short sheets size to
+   * their content.
+   */
+  maxHeightPct?: number;
 }
 
-export function BottomSheet({ open, onClose, children }: BottomSheetProps) {
+/**
+ * There's no point animating a sheet out for someone who asked the OS for less motion — globals.css
+ * already collapses every animation to 0.01ms under this query, so without this check the sheet
+ * would just sit there, invisible and inert, for the length of the fallback timer.
+ *
+ * `matchMedia` is guarded because jsdom doesn't implement it; absent, this reads as "no preference",
+ * which is the right default.
+ */
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true
+  );
+}
+
+export function BottomSheet({
+  open,
+  onClose,
+  title,
+  children,
+  maxHeightPct = 80,
+}: BottomSheetProps) {
+  // Only the *closing* phase needs state; "open" is a prop, so `leaving` is the single extra bit
+  // and the sheet is on screen whenever either is true.
+  const [leaving, setLeaving] = React.useState(false);
+  const [prevOpen, setPrevOpen] = React.useState(open);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+
+  const finish = React.useCallback(() => setLeaving(false), []);
+
+  // Adjusting state *during render* when a prop changes, rather than in an effect. This is React's
+  // own documented pattern for exactly this shape ("You Might Not Need an Effect"): an effect here
+  // would render the closed sheet once, then re-render it as leaving — a visible flicker, and the
+  // reason `react-hooks/set-state-in-effect` flags it.
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    // Reduced motion skips the exit entirely: globals.css collapses every animation to 0.01ms
+    // under that query, so animating out would leave the sheet sitting there inert instead.
+    setLeaving(!open && !prefersReducedMotion());
+  }
+
+  const mounted = open || leaving;
+
+  // The exit itself. A **native** listener rather than React's `onAnimationEnd`: React's synthetic
+  // animation events are never delivered in jsdom (which has no `AnimationEvent` at all), so the
+  // synthetic version of this is untestable — and this is the path that actually runs in a browser.
+  // The timer is only a fallback; `animationend` also never fires for a tab backgrounded mid-close,
+  // and a sheet that never unmounts leaves a scrim swallowing every tap on the page.
+  React.useEffect(() => {
+    if (!leaving) return;
+    const el = panelRef.current;
+    const onEnd = (e: Event) => {
+      // `animationend` bubbles, so a child's animation finishing would otherwise tear the sheet
+      // down mid-exit. Only this panel's own animation counts.
+      if (e.target === el) finish();
+    };
+    el?.addEventListener("animationend", onEnd);
+    const id = setTimeout(finish, EXIT_MS);
+    return () => {
+      el?.removeEventListener("animationend", onEnd);
+      clearTimeout(id);
+    };
+  }, [leaving, finish]);
+
   React.useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -27,24 +118,50 @@ export function BottomSheet({ open, onClose, children }: BottomSheetProps) {
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   return (
     // z-[35] mirrors the prototype's own stacking value — there's no `--z-*` theme namespace to
     // draw a name from (PHASE5_PLAN.md flagged this unverified; arbitrary value it is).
-    <div className="absolute inset-0 z-[35]">
+    // `pointer-events-none` while leaving: a sheet on its way out must not eat the tap that comes
+    // right after it.
+    <div
+      className={cn(
+        "absolute inset-0 z-[35]",
+        leaving && "pointer-events-none",
+      )}
+    >
       <div
         data-testid="bottom-sheet-scrim"
         onClick={onClose}
-        className="animate-scrim-in bg-scrim/66 absolute inset-0 backdrop-blur-[3px]"
+        className={cn(
+          "bg-scrim/66 absolute inset-0 backdrop-blur-[3px]",
+          leaving ? "animate-scrim-out" : "animate-scrim-in",
+        )}
       />
-      <div className="border-hairline animate-sheet-up bg-surface shadow-sheet rounded-t-sheet border-ink/12 absolute inset-x-0 bottom-0 max-h-[80%] overflow-y-auto border-t px-[26px] pt-2 pb-10">
-        {/* Grabber — purely decorative until 5.5 wires up drag-to-close. 36×4 at the redesign's
-            own 0.18 alpha, left off the text/border/fill ladder (which has no "solid indicator
-            bar" category to normalize this into). */}
-        <div className="flex flex-col items-center py-4">
+      <div
+        ref={panelRef}
+        data-testid="bottom-sheet-panel"
+        style={{ maxHeight: `${maxHeightPct}%` }}
+        className={cn(
+          "border-hairline bg-surface shadow-sheet rounded-t-sheet border-ink/12 absolute inset-x-0 bottom-0 flex flex-col border-t pt-2 pb-[26px]",
+          leaving ? "animate-sheet-down" : "animate-sheet-up",
+        )}
+      >
+        {/* Grabber — decorative until 5.8 wires up drag-to-close. 36×4 at the redesign's own 0.18
+            alpha, left off the text/border/fill ladder (which has no "solid indicator bar"
+            category to normalize this into). */}
+        <div className="flex shrink-0 flex-col items-center py-4">
           <div className="rounded-pill bg-ink/18 h-1 w-9" />
         </div>
+        {title ? (
+          <h2 className="text-ink-hi shrink-0 px-[18px] pb-3 text-center text-[15px] font-semibold">
+            {title}
+          </h2>
+        ) : null}
+        {/* Horizontal padding is deliberately NOT on the shell: the save/collections sheets need
+            edge-to-edge scrolling rows, so each sheet's content owns its own insets — matching the
+            prototypes' `padding:10px 0 26px` shell. */}
         {children}
       </div>
     </div>
