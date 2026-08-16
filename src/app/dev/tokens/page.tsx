@@ -557,9 +557,32 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
     string | undefined
   >();
 
-  // A real item to save, drawn the same way a real screen will draw one — no dev-only procedure.
-  const feed = api.feed.page.useQuery({});
-  const demoItem = feed.data?.cards[0]?.item;
+  // The demo needs one real item to save. Getting it is fussier than it looks, because
+  // **`feed.page` writes**: `getFeedPage` calls `markSeen` unconditionally, and `seen_item` has no
+  // TTL or pruning (a deliberate Phase 4.1 decision — it's what backs the feed's "almost never
+  // repeats" promise). Calling it on mount, as this demo first did, meant every visit to the style
+  // guide burned a page of items out of the signed-in user's feed *permanently* — and with the
+  // 30s `staleTime` and React Query's default `refetchOnWindowFocus`, merely tabbing back burned
+  // another. Opening a style guide must not consume the corpus.
+  //
+  // So: prefer an item the user has already saved (`saves.list` is a pure read), and fall back to
+  // borrowing one from the feed only when the user explicitly asks — with the cost spelled out on
+  // the button.
+  const saved = api.saves.list.useQuery(undefined, {
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+  const [borrowFromFeed, setBorrowFromFeed] = React.useState(false);
+  const feed = api.feed.page.useQuery(
+    {},
+    {
+      enabled: borrowFromFeed,
+      staleTime: Infinity,
+      refetchOnWindowFocus: false,
+      retry: false,
+    },
+  );
+  const demoItem = saved.data?.[0] ?? feed.data?.cards[0]?.item;
 
   const press = usePress({
     onTap: () => setPressLog("tapped"),
@@ -569,7 +592,10 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
   // Everything below is a protected procedure, and this page has never needed a session before —
   // so an anonymous visit would fail every control here with an opaque UNAUTHORIZED. Say so
   // instead.
-  if (feed.error?.data?.code === "UNAUTHORIZED") {
+  if (
+    saved.error?.data?.code === "UNAUTHORIZED" ||
+    feed.error?.data?.code === "UNAUTHORIZED"
+  ) {
     return (
       <Section title="Backbone (5.5)">
         <p className="text-ink/60 text-[14px] leading-[1.6]">
@@ -611,15 +637,33 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
         >
           Save sheet
         </Button>
-        <Button variant="ghost" shape="pill" onClick={() => setShareOpen(true)}>
+        <Button
+          variant="ghost"
+          shape="pill"
+          // Same guard as Save: ShareSheet is only mounted once there's an item, so an enabled
+          // button here just set state on an unmounted component and appeared to do nothing.
+          disabled={!demoItem}
+          onClick={() => setShareOpen(true)}
+        >
           Share sheet
         </Button>
+        {!demoItem && !borrowFromFeed ? (
+          <Button
+            variant="ghost"
+            shape="pill"
+            onClick={() => setBorrowFromFeed(true)}
+          >
+            Borrow an item from the feed (consumes one page)
+          </Button>
+        ) : null}
       </div>
 
       <p className="text-ink/40 text-[12px]">
         {demoItem
           ? `Demo item: ${demoItem.title}`
-          : "Loading a real item from the feed…"}
+          : saved.isLoading || feed.isLoading
+            ? "Finding an item…"
+            : "No saved item yet — borrow one from the feed to demo the save sheet."}
       </p>
 
       <div
@@ -633,7 +677,9 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
       <PillToolbar
         bookmark={bookmark}
         onBookmark={() => (demoItem ? setSaveOpen(true) : setBrowseOpen(true))}
-        onShare={() => setShareOpen(true)}
+        onShare={() =>
+          demoItem ? setShareOpen(true) : onToast("No demo item loaded yet")
+        }
         onProfile={() => onToast("Profile is 5.10")}
         onHome={() => onToast("Feed is 5.6")}
       />
@@ -655,6 +701,7 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
               setCurrentCollectionId(collection.id);
               onToast(`Saved to ${collection.name}`);
             }}
+            onError={onToast}
           />
           <ShareSheet
             open={shareOpen}

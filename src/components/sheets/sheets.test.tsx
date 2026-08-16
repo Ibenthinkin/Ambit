@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CollectionsSheet } from "./collections-sheet";
 import { SaveToCollectionSheet } from "./save-to-collection-sheet";
@@ -10,19 +10,33 @@ import { ShareSheet } from "./share-sheet";
 // vi.hoisted() — the same pattern onboarding-screen.test.tsx established for mocking
 // `~/trpc/react`, where the awkward part is that `api.x.y.useQuery()` is a *hook returning an
 // object*, not a plain function.
-const { mutateMock, pushMock, invalidateMock, collectionsData, countData } =
-  vi.hoisted(() => ({
-    mutateMock: vi.fn(),
-    pushMock: vi.fn(),
-    invalidateMock: vi.fn().mockResolvedValue(undefined),
-    collectionsData: {
-      current: [
-        { id: "c1", name: "Articles", createdAt: new Date(), itemCount: 2 },
-        { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0 },
-      ],
-    },
-    countData: { current: 7 },
-  }));
+const {
+  mutateMock,
+  pushMock,
+  invalidateMock,
+  collectionsData,
+  countData,
+  countLoading,
+  mutationOpts,
+} = vi.hoisted(() => ({
+  mutateMock: vi.fn(),
+  pushMock: vi.fn(),
+  invalidateMock: vi.fn().mockResolvedValue(undefined),
+  collectionsData: {
+    current: [
+      { id: "c1", name: "Articles", createdAt: new Date(), itemCount: 2 },
+      { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0 },
+    ],
+  },
+  countData: { current: 7 },
+  countLoading: { current: false },
+  // Typed rather than `unknown`: the tests drive the sheet's failure branch through this, so the
+  // shape is the contract under test.
+  mutationOpts: {
+    current: undefined as
+      undefined | { onError: (err: { data?: { code?: string } }) => void },
+  },
+}));
 
 vi.mock("~/trpc/react", () => ({
   api: {
@@ -37,9 +51,21 @@ vi.mock("~/trpc/react", () => ({
       collections: {
         useQuery: () => ({ data: collectionsData.current, isLoading: false }),
       },
-      count: { useQuery: () => ({ data: countData.current }) },
+      count: {
+        useQuery: () => ({
+          data: countLoading.current ? undefined : countData.current,
+          isLoading: countLoading.current,
+        }),
+      },
       saveToCollection: {
-        useMutation: () => ({ mutate: mutateMock, isPending: false }),
+        // Captures the caller's onSuccess/onError so a test can drive either branch — the sheet's
+        // whole failure story lives in the options object, not in the mutate call.
+        useMutation: (opts: {
+          onError: (err: { data?: { code?: string } }) => void;
+        }) => {
+          mutationOpts.current = opts;
+          return { mutate: mutateMock, isPending: false };
+        },
       },
     },
   },
@@ -47,9 +73,23 @@ vi.mock("~/trpc/react", () => ({
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
 
+const DEFAULT_COLLECTIONS = [
+  { id: "c1", name: "Articles", createdAt: new Date(), itemCount: 2 },
+  { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0 },
+];
+
 beforeEach(() => {
   mutateMock.mockClear();
   pushMock.mockClear();
+});
+
+// Restoring shared fixture state in a TEARDOWN hook, not at the end of the test body: a test that
+// mutates `collectionsData` and restores it inline leaves the mutation in place for every
+// subsequent test in the file if one of its own expects throws first — turning a single failure
+// into a cascade of unrelated ones.
+afterEach(() => {
+  collectionsData.current = DEFAULT_COLLECTIONS;
+  countLoading.current = false;
 });
 
 describe("SaveToCollectionSheet", () => {
@@ -60,6 +100,7 @@ describe("SaveToCollectionSheet", () => {
         onClose={vi.fn()}
         itemId="item-1"
         onSaved={vi.fn()}
+        onError={vi.fn()}
       />,
     );
     expect(
@@ -77,6 +118,7 @@ describe("SaveToCollectionSheet", () => {
         itemId="item-1"
         currentCollectionId="c2"
         onSaved={vi.fn()}
+        onError={vi.fn()}
       />,
     );
     expect(screen.getByText("Already saved here")).toBeInTheDocument();
@@ -94,13 +136,10 @@ describe("SaveToCollectionSheet", () => {
         onClose={vi.fn()}
         itemId="item-1"
         onSaved={vi.fn()}
+        onError={vi.fn()}
       />,
     );
     expect(screen.getByText("1 item")).toBeInTheDocument();
-    collectionsData.current = [
-      { id: "c1", name: "Articles", createdAt: new Date(), itemCount: 2 },
-      { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0 },
-    ];
   });
 
   it("saves into the picked collection and closes", () => {
@@ -111,6 +150,7 @@ describe("SaveToCollectionSheet", () => {
         onClose={onClose}
         itemId="item-1"
         onSaved={vi.fn()}
+        onError={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByText("Art"));
@@ -119,6 +159,48 @@ describe("SaveToCollectionSheet", () => {
       collectionId: "c2",
     });
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  // The sheet dismisses the instant a row is picked, so a failed write is otherwise
+  // indistinguishable from a successful one — the user walks away believing the item was filed.
+  it("reports a failed save instead of dismissing silently", () => {
+    const onError = vi.fn();
+    const onSaved = vi.fn();
+    render(
+      <SaveToCollectionSheet
+        open
+        onClose={vi.fn()}
+        itemId="item-1"
+        onSaved={onSaved}
+        onError={onError}
+      />,
+    );
+    fireEvent.click(screen.getByText("Art"));
+
+    mutationOpts.current!.onError({ data: { code: "INTERNAL_SERVER_ERROR" } });
+
+    expect(onError).toHaveBeenCalledWith("Couldn't save that. Try again.");
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("names an expired session specifically, since that one is actionable", () => {
+    const onError = vi.fn();
+    render(
+      <SaveToCollectionSheet
+        open
+        onClose={vi.fn()}
+        itemId="item-1"
+        onSaved={vi.fn()}
+        onError={onError}
+      />,
+    );
+    fireEvent.click(screen.getByText("Art"));
+
+    mutationOpts.current!.onError({ data: { code: "UNAUTHORIZED" } });
+
+    expect(onError).toHaveBeenCalledWith(
+      "Your session expired — sign in and try again.",
+    );
   });
 });
 
@@ -142,6 +224,16 @@ describe("CollectionsSheet", () => {
     // 7 total, while the two collections hold 2 and 0 — proving the total isn't derived from them
     // (an item saved outside any collection only shows up here).
     expect(screen.getByText("7 items")).toBeInTheDocument();
+  });
+
+  // `collections` and `count` are independent queries with no ordering guarantee between them, so
+  // gating only on the first showed "Everything kept · 0 items" to a user with plenty saved, then
+  // flipped it a moment later.
+  it("waits for the count rather than flashing a wrong one", () => {
+    countLoading.current = true;
+    render(<CollectionsSheet open onClose={vi.fn()} />);
+    expect(screen.queryByText("0 items")).not.toBeInTheDocument();
+    expect(screen.queryByText("Everything kept")).not.toBeInTheDocument();
   });
 
   // The behavioral difference from its look-alike sibling: these rows navigate, they never save.

@@ -31,6 +31,13 @@ export interface SaveToCollectionSheetProps {
    * so reopening the sheet shows the accent dot on the right row.
    */
   onSaved: (collection: { id: string; name: string }) => void;
+  /**
+   * Called if the write fails. Required, not optional, and deliberately so: the sheet dismisses the
+   * instant a row is picked, so without this a failed save — an expired session, a dropped
+   * connection, the router's own NOT_FOUND — is completely indistinguishable from a successful one.
+   * The user walks away believing the item was filed.
+   */
+  onError: (message: string) => void;
 }
 
 export function SaveToCollectionSheet({
@@ -39,6 +46,7 @@ export function SaveToCollectionSheet({
   itemId,
   currentCollectionId,
   onSaved,
+  onError,
 }: SaveToCollectionSheetProps) {
   const utils = api.useUtils();
   // `enabled: open` — the sheet's data is worthless until it's on screen, and every screen in the
@@ -55,6 +63,13 @@ export function SaveToCollectionSheet({
         utils.saves.count.invalidate(),
       ]);
       onSaved({ id: variables.collectionId, name: result.collectionName });
+    },
+    onError: (error) => {
+      onError(
+        error.data?.code === "UNAUTHORIZED"
+          ? "Your session expired — sign in and try again."
+          : "Couldn't save that. Try again.",
+      );
     },
   });
 

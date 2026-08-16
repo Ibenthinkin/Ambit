@@ -72,6 +72,10 @@ export function BottomSheet({
   const [leaving, setLeaving] = React.useState(false);
   const [prevOpen, setPrevOpen] = React.useState(open);
   const panelRef = React.useRef<HTMLDivElement>(null);
+  // Whatever had focus before the sheet opened, so it can be handed back on close — otherwise a
+  // keyboard user is dumped at the top of the document every time a sheet dismisses.
+  const returnFocusRef = React.useRef<HTMLElement | null>(null);
+  const titleId = React.useId();
 
   const finish = React.useCallback(() => setLeaving(false), []);
 
@@ -109,13 +113,62 @@ export function BottomSheet({
     };
   }, [leaving, finish]);
 
+  // Everything a modal owes the keyboard, in one place. Escape was already here; the rest is the
+  // entry half that was missing — without it a screen reader announces nothing when a sheet opens
+  // and Tab walks straight through the scrim into the page behind, which is still fully
+  // interactive.
   React.useEffect(() => {
     if (!open) return;
+    const panel = panelRef.current;
+    returnFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    // Focus the panel itself rather than its first control: the sheet's *title* is what the user
+    // needs announced, and jumping straight onto a collection row would skip it.
+    panel?.focus();
+
+    // No `offsetParent`-style visibility filter here: it reports `null` for everything in jsdom
+    // (which has no layout engine), which would silently empty this list under test while working
+    // in a browser — the worst of both. Sheets don't render hidden controls, so the selector alone
+    // is enough.
+    const focusablesIn = (root: HTMLElement) => [
+      ...root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ];
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !panel) return;
+      // A real trap, not just an initial focus move — the scrim hides the page visually but does
+      // nothing to the tab order.
+      const focusables = focusablesIn(panel);
+      if (focusables.length === 0) {
+        e.preventDefault(); // nothing to land on; keep focus on the panel
+        panel.focus();
+        return;
+      }
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      const active = document.activeElement;
+      if (!e.shiftKey && (active === last || active === panel)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault();
+        last.focus();
+      }
     };
+
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      returnFocusRef.current?.focus();
+    };
   }, [open, onClose]);
 
   if (!mounted) return null;
@@ -123,13 +176,18 @@ export function BottomSheet({
   return (
     // z-[35] mirrors the prototype's own stacking value — there's no `--z-*` theme namespace to
     // draw a name from (PHASE5_PLAN.md flagged this unverified; arbitrary value it is).
+    //
+    // **`fixed`, not `absolute`.** The prototypes position against their iOS-frame wrapper; the
+    // real app's equivalent of that frame is the viewport. With `absolute` this resolved against
+    // the initial containing block on any page without a positioned ancestor (no page has one —
+    // not `layout.tsx`, not `/dev/tokens`), so a sheet opened after scrolling rendered off-screen
+    // at the top of the document. `fixed` makes it independent of what the caller happens to wrap
+    // it in.
+    //
     // `pointer-events-none` while leaving: a sheet on its way out must not eat the tap that comes
     // right after it.
     <div
-      className={cn(
-        "absolute inset-0 z-[35]",
-        leaving && "pointer-events-none",
-      )}
+      className={cn("fixed inset-0 z-[35]", leaving && "pointer-events-none")}
     >
       <div
         data-testid="bottom-sheet-scrim"
@@ -142,9 +200,18 @@ export function BottomSheet({
       <div
         ref={panelRef}
         data-testid="bottom-sheet-panel"
+        role="dialog"
+        aria-modal="true"
+        {...(title ? { "aria-labelledby": titleId } : {})}
+        // Focusable so the sheet itself can take focus on open (see the keyboard effect above),
+        // but not a tab stop of its own.
+        tabIndex={-1}
         style={{ maxHeight: `${maxHeightPct}%` }}
         className={cn(
-          "border-hairline bg-surface shadow-sheet rounded-t-sheet border-ink/12 absolute inset-x-0 bottom-0 flex flex-col border-t pt-2 pb-[26px]",
+          // `overflow-y-auto` as a floor: the collection sheets scroll their own row list (which
+          // keeps the grabber and title pinned), but a sheet with free-form children taller than
+          // the cap would otherwise spill out of the rounded panel and paint over the scrim.
+          "border-hairline bg-surface shadow-sheet rounded-t-sheet border-ink/12 absolute inset-x-0 bottom-0 flex flex-col overflow-y-auto border-t pt-2 pb-[26px] outline-none",
           leaving ? "animate-sheet-down" : "animate-sheet-up",
         )}
       >
@@ -155,7 +222,10 @@ export function BottomSheet({
           <div className="rounded-pill bg-ink/18 h-1 w-9" />
         </div>
         {title ? (
-          <h2 className="text-ink-hi shrink-0 px-[18px] pb-3 text-center text-[15px] font-semibold">
+          <h2
+            id={titleId}
+            className="text-ink-hi shrink-0 px-[18px] pb-3 text-center text-[15px] font-semibold"
+          >
             {title}
           </h2>
         ) : null}

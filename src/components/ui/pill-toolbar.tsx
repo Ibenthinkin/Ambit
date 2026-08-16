@@ -82,8 +82,12 @@ export function PillToolbar({
 
   return (
     <div
+      // `fixed`, not `absolute`, for the same reason as BottomSheet: no page in the app establishes
+      // a positioning context, so `absolute` resolved against the initial containing block and the
+      // pill scrolled away with the page instead of floating over it. A floating toolbar is
+      // viewport-relative by definition.
       className={cn(
-        "pointer-events-none absolute inset-x-0 bottom-[26px] z-30 flex justify-center",
+        "pointer-events-none fixed inset-x-0 bottom-[26px] z-30 flex justify-center",
         className,
       )}
     >

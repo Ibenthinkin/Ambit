@@ -67,6 +67,80 @@ describe("BottomSheet", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  // The shell is the base for four sheets, so its modal semantics are four screens' worth of
+  // accessibility in one place. Escape always worked; this is the entry half.
+  describe("dialog semantics and focus", () => {
+    it("is a labelled modal dialog", () => {
+      render(
+        <BottomSheet open onClose={vi.fn()} title="Save to collection">
+          <button type="button">Articles</button>
+        </BottomSheet>,
+      );
+      const dialog = screen.getByRole("dialog", {
+        name: "Save to collection",
+      });
+      expect(dialog).toHaveAttribute("aria-modal", "true");
+    });
+
+    it("moves focus to the panel so the title is announced", () => {
+      render(
+        <BottomSheet open onClose={vi.fn()} title="Share">
+          <button type="button">Copy link</button>
+        </BottomSheet>,
+      );
+      // The panel, not its first control: focusing a row would skip past the sheet's own title.
+      expect(document.activeElement).toBe(
+        screen.getByTestId("bottom-sheet-panel"),
+      );
+    });
+
+    it("returns focus to whatever opened it", () => {
+      render(<button type="button">Open sheet</button>);
+      const opener = screen.getByRole("button", { name: "Open sheet" });
+      opener.focus();
+
+      const { rerender } = render(
+        <BottomSheet open onClose={vi.fn()} title="Share">
+          <button type="button">Copy link</button>
+        </BottomSheet>,
+      );
+      expect(document.activeElement).not.toBe(opener);
+
+      rerender(
+        <BottomSheet open={false} onClose={vi.fn()} title="Share">
+          <button type="button">Copy link</button>
+        </BottomSheet>,
+      );
+      // Without this, dismissing a sheet dumps a keyboard user at the top of the document.
+      expect(document.activeElement).toBe(opener);
+    });
+
+    it("keeps Tab inside the sheet", () => {
+      render(
+        <BottomSheet open onClose={vi.fn()} title="Save to collection">
+          <button type="button">Articles</button>
+          <button type="button">Art</button>
+        </BottomSheet>,
+      );
+      const first = screen.getByRole("button", { name: "Articles" });
+      const last = screen.getByRole("button", { name: "Art" });
+
+      // From the panel, Tab lands on the first control...
+      fireEvent.keyDown(document, { key: "Tab" });
+      expect(document.activeElement).toBe(first);
+
+      // ...and from the last, it wraps rather than escaping into the page behind the scrim.
+      last.focus();
+      fireEvent.keyDown(document, { key: "Tab" });
+      expect(document.activeElement).toBe(first);
+
+      // Shift+Tab off the first wraps backwards to the last.
+      first.focus();
+      fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+      expect(document.activeElement).toBe(last);
+    });
+  });
+
   // Phase 5.5's exit animation. The old "renders nothing when closed" assertion covered both
   // "never opened" and "just closed"; those are now different, and this block is the difference.
   describe("exit animation", () => {

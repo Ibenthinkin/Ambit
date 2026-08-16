@@ -96,6 +96,11 @@ export async function getCollections(
   const rows = await read();
   if (rows.length > 0) return rows;
 
+  // NOTE for 5.10, when collection *creation* (and eventually deletion) lands: this keys seeding on
+  // "the user has no collections", not "the user has never been seeded". Today those are the same
+  // thing, because collections can't be deleted. Once they can, a user who deliberately deletes all
+  // three defaults gets them silently recreated on their next sheet open, with no way to opt out —
+  // so deletion needs a per-user `collections_seeded_at` marker (or equivalent) landing with it.
   await seedDefaultCollections(userId);
   return read();
 }
