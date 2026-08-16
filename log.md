@@ -5,6 +5,52 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-16-26 Sun]] — Redesign landed; Phase 5 re-baselined (5.4 is now the design migration)
+
+**Shipped:** Ben's redesign handoff arrived (`docs/design_handoff_ambit_pwa_redesign/` — 11
+prototype screens + an authoritative README; the bundle's own `PROGRESS.md` is a leftover from
+an earlier design session and is superseded). This session planned the integration and produced
+the docs: BUILD_PLAN's Phase 5 rewritten (5.4–5.8 → a new 5.4–5.11 ordering), a self-contained
+`PHASE5_PLAN_5.4.md` for the design-system migration (written to be executed by a cheaper-model
+session), the old feed plan preserved as `PHASE5_PLAN_5.4_FEED_OLD_DESIGN.md` (its
+backend/RSC research is load-bearing for the future 5.6 feed plan), SPEC §8.3's stale next-pwa
+mention fixed (repo uses Serwist). Branch housekeeping: `phase-5.4-feed`'s lone commit merged
+to `main`, branch deleted, work now on `phase-5.4-design-migration`.
+
+**Decisions** (four put to Ben directly, all sided with the recommendation):
+1. **Auth keeps email+password + invite gate** — the new Landing shows magic-link, but it's a
+   restyle-only divergence, same as 5.2 recorded. Protects the whole auth test surface.
+2. **Collections backend gets built (5.5)** — the save-to-collection sheet is a backbone
+   component on nearly every screen; building it on mocks then rewiring would double work.
+3. **Profile/Settings minimal viable** — only backed rows; **sign-out lives in Settings**,
+   which finally resolves the open Decision 1 from the paused feed plan (interim home during
+   5.6–5.9: `/dev/tokens`).
+4. **Feed gestures: prototype wins over README** — verified by reading `Feed Masonry 3.dc.html`:
+   taps open item pages (not the Gallery, as the stale README section says) and long-press
+   opens a per-item sheet; "prototypes win" is now the recorded Phase 5 convention, checked
+   per-screen at plan time.
+
+Settled without Ben: masonry heights via the old plan's fixed literal-class rotation (the DB
+has no image dimensions; adding them at ingest is a possible later enhancement), and a hard
+licensing gate — the bundle's 20 `uploads/*.webp` are uncleared, so production imagery stays
+limited to the 8 Wikimedia PD works until resolved.
+
+**Findings worth keeping:** the token layer migrates unusually cleanly — bg/ink/on-accent are
+byte-identical between old and new designs, so the 5.1 alpha-ladder architecture survives
+intact; the real changes are Sora replacing Newsreader+system-sans (`--font-serif` dies
+app-wide), the accent set (gold/sage/slate/terracotta → indigo-default/amber/green/red,
+renamed), sheet radius 26→22, a second sheet easing, and a handful of net-new tokens
+(`ink-hi #F5F1E7`, `shadow-toolbar`, avatar gradient — the latter needs the same twMerge
+registration that bit 5.2 via `border-hairline`). Item pages moved ahead of the Gallery in the
+ordering because the decided gesture model routes feed taps to them.
+
+**Open / next:** execute `PHASE5_PLAN_5.4.md` in a cheaper-model session (regression signal:
+auth/onboarding tests pass unmodified). Deferred flags recorded in BUILD_PLAN for later plan
+docs: Saved's two-hop reachability (5.9), share-collection scope with no public `/c/` route
+(5.9), reader body source — stored text vs server-side Wikipedia cache (5.7).
+
+*Session spend: 9.69M tok (in 166 · out 138.6k · cache r 9.02M / w 526.7k) · ~$26.49 · fable-5 · 21:52→00:10*
+
 ### [[08-13-26 Thu]] — Phase 5.4 (Feed) planned, then paused pending a design redo
 
 **Mode:** Sonnet 5, planning-mode session on branch `phase-5.4-feed`. Three parallel `Explore`

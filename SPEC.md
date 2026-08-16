@@ -304,7 +304,7 @@ deploy target; a multi-instance deploy would need this backed by shared state in
 - `InstallPrompt.tsx` — PWA install affordance.
 
 ### 8.3 PWA
-- Web app manifest + service worker (e.g. `@ducanh2912/next-pwa` or equivalent); offline shell + cached last feed page; installable on mobile.
+- Web app manifest + service worker (built with Serwist — `src/app/manifest.ts`, `src/app/sw.ts` via `@serwist/turbopack`); offline shell + cached last feed page; installable on mobile.
 
 ## 9. Feed engine (the core) — tiered topic drift over a curated pool
 

@@ -1,4 +1,13 @@
-# Phase 5.4 — Feed: detailed execution plan
+# Phase 5.4 — Feed: detailed execution plan (OLD DESIGN — superseded)
+
+> 🗄️ **SUPERSEDED 08-16-26.** The design redo landed
+> (`docs/design_handoff_ambit_pwa_redesign/`) and Phase 5 was re-baselined: "5.4" is now
+> the design-system migration (`PHASE5_PLAN_5.4.md`), and the Feed became **5.6** in the
+> new ordering (see `BUILD_PLAN.md` Phase 5). This file is kept because its
+> **backend-contract, docs-findings, and RSC-prefetch sections are load-bearing research
+> for the future 5.6 feed plan** — reuse them without re-deriving; do not delete this
+> file. Everything visual in here (spec, copy, class translations) describes the *old*
+> design and must not be built.
 
 > ⚠️ **PAUSED — do not execute as-is.** Written 08-13-26, on branch `phase-5.4-feed`, in a planning
 > session that got as far as a full design pass (three parallel `Explore` agents covering the old
