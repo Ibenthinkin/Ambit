@@ -282,6 +282,49 @@ callback and reset link points at the wrong server.
 
 *Session spend: 18.67M tok (in 95 · out 44.0k · cache r 17.31M / w 1.31M) · ~$22.71 · opus-5 + opus-4-7 · 14:11→23:19*
 
+### The on-device pass — started, **still blocked**, picking up in the morning
+
+**Unresolved: on Ben's phone, `/dev/tokens` renders but nothing on it responds to a tap.** Two fixes
+went in tonight that were each real defects but *neither resolved it*. Recording that plainly so
+tomorrow doesn't start from a false premise.
+
+**Fixed on the way, both genuine, neither the cause:**
+1. **The auth card's mode-switch links were 20px tap targets.** "First time? Create your account" —
+   the only route to sign-up — was a bare 13px text button with no padding (measured 207×20, against
+   Apple's 44px minimum). Now 231×44 via `py-3`/`min-h-11` with a compensating negative margin, on
+   all five of the card's text buttons. Verified with a touch tap 4px from the top edge, which
+   missed the old box entirely. Ben got signed in, so this was at worst contributory.
+2. **A precaching service worker was running in front of the dev server.** The app registered its
+   ~120KB Serwist worker in *every* environment. Against a dev server whose chunk URLs change on
+   each rebuild, a device that loaded the app earlier keeps being served stale JS: the HTML and CSS
+   are fine so the page looks right, but the hydration bundle doesn't match and no handler is ever
+   attached — silent in the terminal *and* the console, which is what made it expensive. Now
+   production-only, plus a dev-only `SwCleanup` that unregisters any already-installed worker and
+   clears its caches (registration alone can't help a device that already has one). Verified
+   behaviourally: real `next start` still registers `/serwist/sw.js`; dev reports 0 registrations,
+   0 caches, 33 interactive buttons.
+
+**Ruled out, with evidence — don't re-tread these:**
+- **Not a WebKit/Safari bug.** Installed Playwright's webkit and drove `/dev/tokens` through
+  Safari's own engine on a fresh profile: 33 buttons, the accent switcher flips `data-accent`, no
+  page errors, even with a service worker controlling the page.
+- **Not the server.** Dev log is clean 200s throughout.
+- **Not hydration in a fresh browser** — Chromium and WebKit both mount and run the tRPC queries.
+- **Not the auth state.** Ben is signed in and onboarded (3 topics).
+
+**The cheap discriminator to run first in the morning** (nobody has actually run it yet, which is
+the real gap in tonight's debugging — every hypothesis was tested against *my* browsers, never
+against the failing device): **have Ben tap an accent swatch at the top of `/dev/tokens`.** Those are
+pure client state, no network and no tRPC. If the accent changes, hydration is fine and the problem
+is confined to the backbone section's data path; if it doesn't, the page's JS isn't running at all on
+that device and the next step is Safari Web Inspector over USB — the actual console from the actual
+phone, which is the one piece of evidence this whole investigation never had.
+
+Also worth checking in the morning: whether `SwCleanup` fired on his device at all, and whether the
+phone is loading a cached *document* rather than a fresh one.
+
+*Session spend: 40.47M tok (in 218 · out 77.7k · cache r 40.13M / w 264.0k) · ~$23.97 · opus-5 + opus-4-7 · 23:19→00:17*
+
 ### [[08-13-26 Thu]] — Phase 5.4 (Feed) planned, then paused pending a design redo
 
 **Mode:** Sonnet 5, planning-mode session on branch `phase-5.4-feed`. Three parallel `Explore`
