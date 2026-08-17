@@ -170,6 +170,33 @@ tested as empty while working fine in a browser. Same family as the `AnimationEv
 
 After the fixes: **279 tests** (was 268), build clean, e2e 7/7.
 
+### Round two: reviewing the fixes found the fix was broken
+
+A second `/code-review` pass over round one turned up four more, and the first is the one worth
+remembering: **the accessibility work added in round one did not survive a re-rendering parent.**
+`BottomSheet`'s focus effect listed `onClose` in its dependency array, and every call site passes a
+fresh inline arrow (`onClose={() => setSaveOpen(false)}`) — so *any* parent render while a sheet was
+open tore the effect down and rebuilt it. That yanked focus off whatever the user had tabbed to and
+put it back on the panel, and re-recorded the restore-focus target as a control *inside* the sheet,
+so closing then "restored" focus to a node about to be unmounted. Precisely the failure the change
+was written to prevent. `onClose` now lives in a ref; the entry/exit focus effect keys on `open`
+alone. The regression guard was mutation-tested — reinstating the old dependency array fails it.
+
+The second was **the third instance of this phase's positioning bug**: `Toast` was still `absolute`,
+which made round one's new failed-save message paint off-screen on a long page — so the fix for
+"silent save failures" was itself silent. Now `fixed`, with a `raised` variant that clears the pill.
+The handoff's otherwise-puzzling "toast bottom: 46–120px depending on screen" turns out to encode
+exactly that distinction.
+
+Also: the Tab trap leaked whenever focus sat outside the panel (Safari blurs to `<body>` when you
+tap non-focusable sheet content, and from `<body>` an unguarded Tab walks into the page behind the
+scrim), and `/dev/tokens`'s borrow button vanished after a single failed attempt.
+
+**282 tests, build clean, e2e 7/7.** The standing lesson from both rounds: this phase's recurring
+defect was never logic, it was *context* — `absolute` inherited from prototypes that live in a frame
+the real app doesn't have, and an effect whose dependencies were correct in isolation and wrong
+against real callers. Neither shows up in a unit test that renders the component alone.
+
 ## Not in this phase, on purpose
 
 - **Drag-to-close.** `bottom-sheet.tsx`'s own comment used to attribute it to 5.5; the design only

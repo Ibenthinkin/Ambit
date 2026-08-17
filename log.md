@@ -248,6 +248,40 @@ pass remains, and two of these three defects are exactly the sort it exists to c
 
 *Session spend: 31.62M tok (in 184 · out 64.6k · cache r 31.36M / w 198.1k) · ~$18.87 · opus-5 + opus-4-7 · 13:55→14:11*
 
+**Round two: reviewing the fixes found that the fix was broken.** Four more findings, and the first
+is the one worth keeping: **the accessibility work from round one didn't survive a re-rendering
+parent.** `BottomSheet`'s focus effect listed `onClose` in its deps, and every call site passes a
+fresh inline arrow — so *any* parent render while a sheet was open tore the effect down and rebuilt
+it, yanking focus off whatever the user had tabbed to and re-recording the restore target as a
+control *inside* the sheet. Closing then "restored" focus to a node about to be unmounted: exactly
+the failure the change was written to prevent. `onClose` is in a ref now, and the guard was
+mutation-tested — putting the old dependency array back fails it.
+
+Second: **the third instance of this phase's positioning bug.** `Toast` was still `absolute`, so
+round one's new failed-save message painted off-screen on a long page — the fix for silent failures
+was itself silent. Now `fixed`, with a `raised` variant clearing the pill; the handoff's otherwise
+odd "toast bottom: 46–120px depending on screen" turns out to encode exactly that. Plus a Tab-trap
+leak when focus sits outside the panel (Safari blurs to `<body>` on taps to non-focusable sheet
+content, and from there an unguarded Tab walks into the page behind the scrim), and a `/dev/tokens`
+borrow button that vanished after one failed attempt.
+
+**The through-line of both rounds: the recurring defect was never logic, it was _context_.**
+`absolute` inherited from prototypes that live inside an iOS frame the real app doesn't have; an
+effect whose dependency array is textbook-correct in isolation and wrong against every real caller;
+`markSeen` firing three files away from a call site that looks like a read. None of those show up in
+a unit test that renders the thing alone — which is also why the phase's Done bar is a device, not
+CI. 282 tests, build clean, e2e 7/7.
+
+**Also answered, not a bug:** `bun run invite` sends no email — it's an admin script that inserts an
+`invite` row so the sign-up gate accepts an address (SPEC §3.1). The only mail the app ever sends is
+the password reset, and in dev it goes to Mailpit (`localhost:1025`, UI on `:8025`), never a real
+inbox; `requireEmailVerification` is deliberately off because the invite list *is* the trust anchor.
+Worth knowing before the device pass: port 3000 is currently held by an unrelated `node` app, and
+`BETTER_AUTH_URL` is pinned to `http://localhost:3000`, so Ambit has to own that port or every auth
+callback and reset link points at the wrong server.
+
+*Session spend: 18.67M tok (in 95 · out 44.0k · cache r 17.31M / w 1.31M) · ~$22.71 · opus-5 + opus-4-7 · 14:11→23:19*
+
 ### [[08-13-26 Thu]] — Phase 5.4 (Feed) planned, then paused pending a design redo
 
 **Mode:** Sonnet 5, planning-mode session on branch `phase-5.4-feed`. Three parallel `Explore`
