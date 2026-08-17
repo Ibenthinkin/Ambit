@@ -19,34 +19,72 @@ import * as React from "react";
 // the next load instead of needing Settings → Clear Website Data.
 //
 // Renders nothing, and is never included in a production build (see layout.tsx).
+
+// The reload below is corrective, but it's also a loop hazard: if some *other* context keeps
+// re-registering the worker — an old tab still running a pre-fix bundle, or the installed PWA
+// window from the 5.5 device pass — then "found a registration → reload" fires on every load and
+// the page refreshes forever (it did, on 08-17-26). sessionStorage survives reloads but is scoped
+// to this one tab, which makes it exactly the right memory for "this tab already got its one
+// corrective reload".
+const RELOADED_KEY = "ambit:dev-sw-cleanup-reloaded";
+
+export async function cleanupStaleServiceWorkers(
+  reload: () => void = () => window.location.reload(),
+): Promise<void> {
+  if (!("serviceWorker" in navigator)) return;
+
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    if (registrations.length === 0) {
+      // Clean state: re-arm the guard so a worker that shows up much later in this tab's life
+      // still gets its one corrective reload.
+      sessionStorage.removeItem(RELOADED_KEY);
+      return;
+    }
+
+    await Promise.all(registrations.map((r) => r.unregister()));
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+
+    // Reload only if it can actually help, and only once per tab session.
+    //
+    // `controller` is the worker currently serving THIS page's requests. If it's null, the page
+    // came straight from the network — nothing live is stale, so the unregister alone finishes
+    // the job. If it's set, the bundle running right now may have come from the SW cache, and one
+    // reload swaps in the clean state.
+    if (!navigator.serviceWorker.controller) {
+      console.info(
+        "[dev] Removed %d stale service worker registration(s) and cleared caches.",
+        registrations.length,
+      );
+      return;
+    }
+    if (sessionStorage.getItem(RELOADED_KEY)) {
+      // We already reloaded once and a registration is BACK — reloading again would loop.
+      // Something else on this origin keeps re-registering the worker.
+      console.warn(
+        "[dev] A service worker re-appeared after cleanup already reloaded this tab — not reloading again. " +
+          "Close other localhost tabs and any installed Ambit PWA window, then reload manually.",
+      );
+      return;
+    }
+    sessionStorage.setItem(RELOADED_KEY, "1");
+    console.info(
+      "[dev] Removed %d stale service worker registration(s) and cleared caches. Reloading…",
+      registrations.length,
+    );
+    reload();
+  } catch (err) {
+    // Never let dev-only cleanup break the page it's cleaning up.
+    console.warn("[dev] service worker cleanup failed", err);
+  }
+}
+
 export function SwCleanup() {
   React.useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-
-    void (async () => {
-      try {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        if (registrations.length === 0) return;
-
-        await Promise.all(registrations.map((r) => r.unregister()));
-        if ("caches" in window) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map((k) => caches.delete(k)));
-        }
-
-        // The unregistered worker keeps controlling THIS page until it's replaced or the page is
-        // reloaded, so the stale bundle is still live right now — one reload makes the clean state
-        // take effect.
-        console.info(
-          "[dev] Removed %d stale service worker registration(s) and cleared caches. Reloading…",
-          registrations.length,
-        );
-        window.location.reload();
-      } catch (err) {
-        // Never let dev-only cleanup break the page it's cleaning up.
-        console.warn("[dev] service worker cleanup failed", err);
-      }
-    })();
+    void cleanupStaleServiceWorkers();
   }, []);
 
   return null;

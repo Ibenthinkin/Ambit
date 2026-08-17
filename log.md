@@ -5,6 +5,31 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-17-26 Mon]] — The dev SW cleanup could itself loop; guarded
+
+**Findings:** Ben hit an endless refresh loop on `localhost:3000` in dev. Root cause wasn't
+current code — `main`'s layout correctly registers no SW outside production — but a missing
+guard in `SwCleanup`: it reloaded *every* time it found a registration, with no memory of
+having already done so. Fine when cleanup converges (verified: a manually installed worker
+cleans up in exactly one reload), but the server log showed the worker being **re-registered
+between cleanups** (repeating `GET /` + `GET /serwist/sw.js` pairs) — most plausibly a second
+context still running a pre-fix bundle (an old tab, or the installed PWA from the 5.5 device
+pass; the loop died on its own around when other windows got closed, consistent with that).
+Cleanup-unregisters ↔ other-context-re-registers is a standoff that refreshes forever. Ruled
+out along the way: dev-served `sw.js` is byte-stable across fetches (no update-churn loop),
+and a clean browser profile doesn't loop at all.
+
+**Shipped:** the cleanup logic extracted to an exported `cleanupStaleServiceWorkers()` and made
+loop-proof (TDD, 6 new tests): reload at most once per tab session (`sessionStorage` flag,
+re-armed once a pass finds nothing), skip the reload entirely when no worker controls the page
+(nothing live is stale), and warn loudly instead of reloading when a registration re-appears
+after the one corrective reload — worst case is now one extra reload plus a console message
+naming the likely culprit.
+
+**Open / next:** unchanged from 08-16 — execute against the redesign per BUILD_PLAN 5.5+.
+
+*Session spend: 9.21M tok (in 216 · out 87.3k · cache r 8.86M / w 258.9k) · ~$18.40 · fable-5 · 10:15→11:37*
+
 ### [[08-16-26 Sun]] — Redesign landed; Phase 5 re-baselined (5.4 is now the design migration)
 
 **Shipped:** Ben's redesign handoff arrived (`docs/design_handoff_ambit_pwa_redesign/` — 11
