@@ -3,6 +3,7 @@ import "~/styles/globals.css";
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { type Metadata, type Viewport } from "next";
 
+import { SwCleanup } from "~/components/dev/sw-cleanup";
 import { sora } from "~/lib/fonts";
 import { TRPCReactProvider } from "~/trpc/react";
 
@@ -44,10 +45,23 @@ export default function RootLayout({
           brighter `text-ink-hi` per-component. */}
       <body className="bg-bg text-ink font-sans antialiased">
         {/* Registers src/app/serwist/sw.js/route.ts as the page's service worker on mount —
-            without this, the SW is compiled and servable but no browser ever installs it. */}
-        <SerwistProvider swUrl="/serwist/sw.js">
-          <TRPCReactProvider>{children}</TRPCReactProvider>
-        </SerwistProvider>
+            without this, the SW is compiled and servable but no browser ever installs it.
+            **Production only.** A precaching service worker in front of a dev server is a trap:
+            chunk URLs change on every rebuild, so a device that loaded the app earlier keeps being
+            served stale JS from the SW cache. The page renders (HTML and CSS are fine) but the
+            hydration bundle doesn't match, so nothing responds to a tap — with no error in the
+            terminal and none in the console. That failure mode ate an hour of 5.5's on-device pass.
+            `SwCleanup` handles the other half: devices that already installed one. */}
+        {process.env.NODE_ENV === "production" ? (
+          <SerwistProvider swUrl="/serwist/sw.js">
+            <TRPCReactProvider>{children}</TRPCReactProvider>
+          </SerwistProvider>
+        ) : (
+          <>
+            <SwCleanup />
+            <TRPCReactProvider>{children}</TRPCReactProvider>
+          </>
+        )}
       </body>
     </html>
   );
