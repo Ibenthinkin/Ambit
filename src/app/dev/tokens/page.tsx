@@ -533,10 +533,12 @@ export default function TokensPage() {
         </div>
       </BottomSheet>
 
+      {/* `raised` because BackboneSection mounts the pill — an unraised toast would sit under it. */}
       <Toast
         text={backboneToast ?? ""}
         open={backboneToast !== null}
         onDone={() => setBackboneToast(null)}
+        raised
       />
     </div>
   );
@@ -647,13 +649,24 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
         >
           Share sheet
         </Button>
-        {!demoItem && !borrowFromFeed ? (
+        {/* Stays visible while there's no item, not just before the first attempt: the feed query
+            is `retry: false`, so a failed or empty borrow would otherwise leave the section with no
+            item and no way to try again short of a reload. */}
+        {!demoItem ? (
           <Button
             variant="ghost"
             shape="pill"
-            onClick={() => setBorrowFromFeed(true)}
+            disabled={feed.isFetching}
+            onClick={() => {
+              if (borrowFromFeed) void feed.refetch();
+              else setBorrowFromFeed(true);
+            }}
           >
-            Borrow an item from the feed (consumes one page)
+            {feed.isFetching
+              ? "Borrowing…"
+              : feed.isError
+                ? "Borrow failed — try again"
+                : "Borrow an item from the feed (consumes one page)"}
           </Button>
         ) : null}
       </div>
