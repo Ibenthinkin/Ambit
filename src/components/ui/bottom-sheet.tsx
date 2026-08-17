@@ -113,10 +113,18 @@ export function BottomSheet({
     };
   }, [leaving, finish]);
 
-  // Everything a modal owes the keyboard, in one place. Escape was already here; the rest is the
-  // entry half that was missing — without it a screen reader announces nothing when a sheet opens
-  // and Tab walks straight through the scrim into the page behind, which is still fully
-  // interactive.
+  // `onClose` through a ref so the effects below can depend on `open` alone. Every call site passes
+  // a fresh inline arrow (`onClose={() => setSaveOpen(false)}`), so listing it as a dependency made
+  // the focus effect tear down and rebuild on *every parent render* — which yanked focus back onto
+  // the panel mid-interaction and, worse, re-recorded "what to restore focus to" as a control
+  // *inside* the sheet, so closing restored focus to a node about to be unmounted. The feature
+  // defeated itself.
+  const onCloseRef = React.useRef(onClose);
+  React.useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  // Entry/exit focus — deliberately keyed on `open` alone, so it runs exactly once per open.
   React.useEffect(() => {
     if (!open) return;
     const panel = panelRef.current;
@@ -127,6 +135,14 @@ export function BottomSheet({
     // Focus the panel itself rather than its first control: the sheet's *title* is what the user
     // needs announced, and jumping straight onto a collection row would skip it.
     panel?.focus();
+    return () => returnFocusRef.current?.focus();
+  }, [open]);
+
+  // The keyboard contract: Escape closes, Tab stays inside. The scrim hides the page visually but
+  // does nothing to the tab order, so without a real trap the next Tab walks straight into the
+  // page behind it.
+  React.useEffect(() => {
+    if (!open) return;
 
     // No `offsetParent`-style visibility filter here: it reports `null` for everything in jsdom
     // (which has no layout engine), which would silently empty this list under test while working
@@ -139,13 +155,13 @@ export function BottomSheet({
     ];
 
     const onKey = (e: KeyboardEvent) => {
+      const panel = panelRef.current;
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab" || !panel) return;
-      // A real trap, not just an initial focus move — the scrim hides the page visually but does
-      // nothing to the tab order.
+
       const focusables = focusablesIn(panel);
       if (focusables.length === 0) {
         e.preventDefault(); // nothing to land on; keep focus on the panel
@@ -155,6 +171,16 @@ export function BottomSheet({
       const first = focusables[0]!;
       const last = focusables[focusables.length - 1]!;
       const active = document.activeElement;
+
+      // Focus escaping the panel entirely is the case that actually leaks. Safari blurs to `body`
+      // when you tap non-focusable sheet content (the title, the grabber, the padding) rather than
+      // focusing the `tabindex="-1"` ancestor — and from `body`, an unguarded Tab goes to the first
+      // focusable in *document* order, i.e. the page behind the scrim.
+      if (!panel.contains(active)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
       if (!e.shiftKey && (active === last || active === panel)) {
         e.preventDefault();
         first.focus();
@@ -165,11 +191,8 @@ export function BottomSheet({
     };
 
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      returnFocusRef.current?.focus();
-    };
-  }, [open, onClose]);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   if (!mounted) return null;
 

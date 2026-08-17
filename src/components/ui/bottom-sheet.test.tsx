@@ -115,6 +115,79 @@ describe("BottomSheet", () => {
       expect(document.activeElement).toBe(opener);
     });
 
+    // Regression guard. Every call site passes a fresh inline `onClose` arrow, so listing it as an
+    // effect dependency made the focus effect tear down and rebuild on every parent render. Two
+    // consequences, both of which defeat the feature this block exists for.
+    it("does not steal focus back when the parent re-renders", () => {
+      const { rerender } = render(
+        <BottomSheet open onClose={() => undefined} title="Save to collection">
+          <button type="button">Articles</button>
+          <button type="button">Art</button>
+        </BottomSheet>,
+      );
+      const art = screen.getByRole("button", { name: "Art" });
+      art.focus();
+      expect(document.activeElement).toBe(art);
+
+      // A new inline arrow, exactly as a parent state or query update produces.
+      rerender(
+        <BottomSheet open onClose={() => undefined} title="Save to collection">
+          <button type="button">Articles</button>
+          <button type="button">Art</button>
+        </BottomSheet>,
+      );
+
+      // Focus must stay where the user put it.
+      expect(document.activeElement).toBe(art);
+    });
+
+    it("still restores focus outward after a parent re-render", () => {
+      render(<button type="button">Open sheet</button>);
+      const opener = screen.getByRole("button", { name: "Open sheet" });
+      opener.focus();
+
+      const { rerender } = render(
+        <BottomSheet open onClose={() => undefined} title="Share">
+          <button type="button">Copy link</button>
+        </BottomSheet>,
+      );
+      // A re-render mid-open used to re-record the restore target as a control *inside* the sheet,
+      // so closing "restored" focus to a node that was about to be unmounted.
+      rerender(
+        <BottomSheet open onClose={() => undefined} title="Share">
+          <button type="button">Copy link</button>
+        </BottomSheet>,
+      );
+      rerender(
+        <BottomSheet open={false} onClose={() => undefined} title="Share">
+          <button type="button">Copy link</button>
+        </BottomSheet>,
+      );
+
+      expect(document.activeElement).toBe(opener);
+    });
+
+    // Safari blurs to <body> when you tap non-focusable sheet content (title, grabber, padding)
+    // rather than focusing the tabindex="-1" ancestor. From body, an unguarded Tab goes to the
+    // first focusable in *document* order — straight into the page behind the scrim.
+    it("pulls focus back in when it has escaped the panel entirely", () => {
+      render(<button type="button">Behind the scrim</button>);
+      render(
+        <BottomSheet open onClose={vi.fn()} title="Save to collection">
+          <button type="button">Articles</button>
+          <button type="button">Art</button>
+        </BottomSheet>,
+      );
+
+      (document.activeElement as HTMLElement | null)?.blur();
+      expect(document.activeElement).toBe(document.body);
+
+      fireEvent.keyDown(document, { key: "Tab" });
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Articles" }),
+      );
+    });
+
     it("keeps Tab inside the sheet", () => {
       render(
         <BottomSheet open onClose={vi.fn()} title="Save to collection">
