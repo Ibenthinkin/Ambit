@@ -30,6 +30,18 @@ naming the likely culprit.
 
 *Session spend: 9.21M tok (in 216 · out 87.3k · cache r 8.86M / w 258.9k) · ~$18.40 · fable-5 · 10:15→11:37*
 
+**Later: the on-device blocker itself found and fixed.** The dead-buttons incident wasn't the
+service worker at all — Next dev refuses to serve `/_next/*` assets to any origin that isn't
+localhost, so a phone loading the dev server via the LAN URL gets HTML whose scripts never
+finish booting: React never hydrates and every button is inert. `allowedDevOrigins:
+["192.168.1.168"]` in `next.config.js` (the machine's DHCP address — re-copy from `next dev`'s
+"Network:" line if it changes) is what makes on-device testing against the dev server possible.
+Verified with a throwaway phone sign-up (`blanktest@example.dev`), then cleaned up: user row
+deleted (session/account cascade), its accepted invite row removed, and confirmed it had left
+no saves/topics/seen-items/collections behind.
+
+*Session spend: 1.34M tok (in 44 · out 7.4k · cache r 1.21M / w 120.1k) · ~$3.98 · fable-5 · 15:48→15:49*
+
 ### [[08-16-26 Sun]] — Redesign landed; Phase 5 re-baselined (5.4 is now the design migration)
 
 **Shipped:** Ben's redesign handoff arrived (`docs/design_handoff_ambit_pwa_redesign/` — 11

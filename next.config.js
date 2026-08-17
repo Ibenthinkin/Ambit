@@ -17,6 +17,14 @@ const config = {
   // bundling tries to trace into the client/edge graph and trips over under `--bun` — this tells
   // Next to leave the package as a real Node `require()` at runtime instead of bundling it.
   serverExternalPackages: ["better-auth"],
+  // Next dev blocks its own /_next/* resources for any origin that isn't localhost, so a page
+  // opened via the LAN URL (`next dev`'s "Network:" line — how phones reach the dev server, and
+  // what the 08-17-26 dead-buttons incident turned out to be) gets served HTML whose scripts
+  // can't finish booting: React never hydrates and nothing on the page responds. Allowing the
+  // LAN origin here is what makes on-device testing against the dev server work at all. The IP
+  // is DHCP-assigned — if the machine's address changes, update it (or re-copy from the
+  // "Network:" line at dev-server startup).
+  allowedDevOrigins: ["192.168.1.168"],
 };
 
 // `@serwist/turbopack` (not the older `@serwist/next`) is the PWA/service-worker integration:
