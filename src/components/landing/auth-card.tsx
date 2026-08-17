@@ -156,7 +156,7 @@ export function AuthCard() {
         <button
           type="button"
           onClick={() => switchMode("forgot")}
-          className="text-ink/55 mt-[22px] font-sans text-[13px] font-medium"
+          className="text-ink/55 mt-[22px] -mb-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
         >
           Use a different email
         </button>
@@ -269,7 +269,7 @@ export function AuthCard() {
           <button
             type="button"
             onClick={() => switchMode("forgot")}
-            className="text-ink/55 font-sans text-[13px] font-medium"
+            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
           >
             Forgot your password?
           </button>
@@ -290,7 +290,7 @@ export function AuthCard() {
           <button
             type="button"
             onClick={() => switchMode("signup")}
-            className="text-ink/55 font-sans text-[13px] font-medium"
+            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
           >
             First time? Create your account
           </button>
@@ -299,7 +299,7 @@ export function AuthCard() {
           <button
             type="button"
             onClick={() => switchMode("signin")}
-            className="text-ink/55 font-sans text-[13px] font-medium"
+            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
           >
             Already have an account? Sign in
           </button>
@@ -308,7 +308,7 @@ export function AuthCard() {
           <button
             type="button"
             onClick={() => switchMode("signin")}
-            className="text-ink/55 font-sans text-[13px] font-medium"
+            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
           >
             Back to sign in
           </button>
