@@ -42,6 +42,26 @@ no saves/topics/seen-items/collections behind.
 
 *Session spend: 1.34M tok (in 44 · out 7.4k · cache r 1.21M / w 120.1k) · ~$3.98 · fable-5 · 15:48→15:49*
 
+**Later still: 5.6 planned** (`docs/PHASE5_PLAN_5.6.md`, written to execute cold in a
+cheaper-model session). Two decisions put to Ben, both siding with the recommendation:
+**Because tiles appear at most once per page** — on the page's first JUMP with a 2+ `driftPath`
+(every eligible DRIFT+JUMP would have been ~7 of 12 tiles; the prototype's cadence is
+occasional) — and the copy is "you've been exploring {fromTopic}" over "{toTopic}" in accent,
+since the prototype's item-level narrative lines can't be generated from topic labels. Settled
+at plan time: the feed pill drops share (3 items; prototype wins, and there's no "current item"
+on a feed to share — `PillToolbar.onShare` goes optional), the masonry height rotation becomes
+literal **aspect-ratio** classes rather than fixed px (same 8 prototype ratios, still
+statically scannable, but it doesn't distort on 430px phones), and a minimal `/i/[itemId]` stub
+ships inside 5.6 so tile taps navigate somewhere real before 5.7. Notable exploration findings
+baked into the plan: the README's whole feed-gesture section is stale against `Feed Masonry 3`
+(no double-tap, no inline expand, no feed header at all), the prototype's IO root and
+scroll-restore are scroller-scoped ios-frame scaffolding (window-scoped in the real app — the
+same class of bug as 5.5's `absolute`→`fixed` trio), and `feed.page`'s unconditional `markSeen`
+makes refetch discipline (`staleTime: Infinity`, byte-matched hydration inputs) a correctness
+constraint, not a perf nicety. 5.5's never-run device pass folds into 5.6's Done bar.
+
+*Session spend: 5.27M tok (in 106 · out 111.0k · cache r 4.26M / w 899.2k) · ~$27.80 · fable-5 · 16:20→21:06*
+
 ### [[08-16-26 Sun]] — Redesign landed; Phase 5 re-baselined (5.4 is now the design migration)
 
 **Shipped:** Ben's redesign handoff arrived (`docs/design_handoff_ambit_pwa_redesign/` — 11
