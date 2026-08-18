@@ -192,10 +192,31 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   sheet's exit state has to be adjusted **during render**, not in an effect, or the close flickers.
   **Still open: the real-phone pass** — the `pointer-events` wrapper, the 12px slop guard and the
   sheet exit animation all pass in a desktop browser while being wrong on iOS, which is exactly why
-  this step's Done bar names a device.
+  this step's Done bar names a device. It was blocked on the dev-origin issue (fixed 08-17 via
+  `allowedDevOrigins`) and is now folded into **5.6's** device pass, which covers both phases'
+  gestures in one sitting.
 
 - [ ] **5.6 — Feed masonry.** `/feed` proper per the `Feed Masonry 3` prototype (placeholder dies; sign-out moves to `/dev/tokens` until 5.10, e2e updated). RSC `prefetchInfinite`/`HydrateClient` (first-ever consumer — the server prefetch input must byte-match the client `useInfiniteQuery` input) + IntersectionObserver sentinel; `/feed` stays dynamic. Two independent flex columns in a `1fr 1fr` gap-4 grid, greedy shortest-column placement with estimated heights, fixed rotation of literal height classes, square-cornered full-bleed image tiles; article cards + serendipity "BECAUSE" rows from `driftPath`; tap → item page, long-press → item sheet ("Closer look" + save-to-collection); `data-feed-id` + `?focus=` return-scroll. Reuses `PHASE5_PLAN_5.4_FEED_OLD_DESIGN.md`'s backend-contract/RSC research wholesale. Planned in `PHASE5_PLAN_5.6.md` (08-17-26), which carries two decisions taken with Ben — **Because tiles: at most one per page, on the page's first JUMP with `driftPath ≥ 2`**, copy "you've been exploring {from}" / "{to}" in accent — plus three settled at plan time: the feed pill has **3 items, no share** (`PillToolbar.onShare` goes optional; prototype wins, and share-on-feed has no referent), the height rotation uses literal **aspect-ratio** classes (the prototype's 8 ratios; scales on wider phones where fixed px would distort), and a minimal `/i/[itemId]` **stub ships in 5.6** so taps navigate for real. 5.5's still-open device pass folds into this phase's Done bar.
   *Done = smooth infinite scroll of real DB content; taps/long-press correct on a phone (5.7 routes may be stubs until 5.7 lands — the pair ships back-to-back).*
+  *Status =* ⚠️ **Code complete 08-17-26, awaiting the on-device pass** (which now carries 5.5's
+  too — see that step). Walkthrough `docs/PHASE5_WALKTHROUGH_5.6.md`. 328 tests green (was 288),
+  `bun run e2e` **14/14** across three consecutive parallel runs, `bun run build` clean. The RSC
+  hydration contract is verified empirically, not just by construction: a hard reload of `/feed`
+  makes **zero** client `feed.page` requests, and each scroll to the bottom makes exactly one.
+  Six deviations, all in the walkthrough; two are worth knowing here. **Article ledes are clamped
+  to five lines** (with `masonry.ts`'s height estimate capped to match) — the prototype doesn't
+  clamp because its fixture ledes are hand-written sentences, whereas the real `summary` column
+  holds Wikipedia extracts of 600+ characters, which rendered as a twenty-five-line wall in a
+  196px column. And **`?focus=` cannot work through the stub's Back link**: `/feed` is dynamic and
+  `getFeedPage` never repeats items, so a fresh `<Link>` navigation lands on an entirely different
+  feed — measured. Browser *back* does preserve it (router cache) and restores scroll exactly,
+  which is the evidence 5.7's back gesture should **pop history rather than push**. Two e2e bugs
+  found that looked like flake and weren't: Playwright's default `test-results/` sits in the
+  project root and its mid-run writes trigger Fast Refresh (fixed with a dot-directory
+  `outputDir`), and the landing form **natively submits before hydration** — a GET to `/?` that
+  silently discards the typed values. The latter is a real auth-screen defect, worked around in
+  the tests (`e2e/support.ts`'s `waitForHydration`) and left for 5.2's owners rather than reached
+  across for here.
 
 - [ ] **5.7 — Item pages.** `/i/[itemId]` on the public `items.byId` — image and reader variants by item type, shared-by row (param-driven), "where Ambit would wander next" (new procedure over the topic graph), join CTA for signed-out visitors, OG meta, horizontal swipe-back with rubber-band follow honoring `?focus=`. Reader body: decide at plan time between stored `summary`/`body` and a server-side cached Wikipedia extract (the prototype fetches client-side; its own README says move it server-side).
   *Done = incognito visit renders both variants + teaser; OG preview correct; no user data leaks; swipe-back works on iOS.*

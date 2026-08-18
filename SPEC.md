@@ -316,16 +316,15 @@ deploy target; a multi-instance deploy would need this backed by shared state in
 - `/` — landing + sign-in / sign-up (email + password; forgot-password link). Built Phase 5.2 — a mode-toggle `AuthCard` (`src/components/landing/`), not the design handoff prototype's magic-link form; see `docs/PHASE5_WALKTHROUGH_5.2.md`.
 - `/reset-password` — where the password-reset email lands (`?token=...` on a valid link, `?error=INVALID_TOKEN` on an expired one). Ungated (src/proxy.ts's matcher deliberately excludes it — resetting a password implies being signed out).
 - `/onboarding` — topic-chip grid (first sign-in; redirect here until topics chosen). Built Phase 5.3 — a sixteen-chip grid (not the design handoff's thirty-two; see §3.2), `OnboardingScreen` (`src/components/onboarding/`), persisted via `topics.setMine`; see `docs/PHASE5_WALKTHROUGH_5.3.md`.
-- `/feed` — the infinite feed (auth-gated, default authenticated landing). A ~20-line placeholder ships in Phase 5.2 (signed-in email + sign-out button) until Phase 5.4 builds the real screen; Phase 5.3 adds the redirect-until-onboarded guard (bounces to `/onboarding` if the signed-in user has no topic picks yet), which carries forward into 5.4 unchanged.
+- `/feed` — the infinite feed (auth-gated, default authenticated landing). Built Phase 5.6 (`docs/PHASE5_WALKTHROUGH_5.6.md`), replacing 5.2's placeholder: an **RSC shell** — the two guards (session → `/`; not-onboarded → `/onboarding`, carried forward verbatim from 5.3), a `prefetchInfinite` + `HydrateClient` handoff, and `FeedScreen`. The route stays **dynamic** by construction (it reads `headers()` and the feed is per-user). The prefetch input and the client `useInfiniteQuery` input must stay byte-identical (`{}` on both sides) or hydration silently misses and the client refetches — which costs a page of the user's corpus, since `feed.page` writes `seen_item`.
 - `/saved` — saved items.
-- `/i/[itemId]` — public read-only single item.
+- `/i/[itemId]` — public read-only single item, on the public `items.byId`. An **interim stub** ships in Phase 5.6 (title, source eyebrow, image/summary, and a Back link to `/feed?focus={id}`) so the feed's taps navigate somewhere real; Phase 5.7 replaces it wholesale.
 - `app/api/trpc/[trpc]/route.ts`, `app/api/auth/[...all]/route.ts` (Better Auth catch-all via `toNextJsHandler`).
 
 ### 8.2 Components
-- `Feed.tsx` — infinite scroll (TanStack Query `useInfiniteQuery` on `feed.page`); renders mixed cards.
-- `ImageCard.tsx` / `ArticleCard.tsx` — the two card types.
+- `components/feed/` (Phase 5.6) — the built names, which diverge from the sketch below. `feed-screen.tsx` is the infinite scroll (`useInfiniteQuery` on `feed.page`, `IntersectionObserver` sentinel rooted on the **viewport**); `masonry.ts` holds the layout decisions as pure functions (`buildTiles` inserts at most one serendipity tile per fetched page, on its first `JUMP` with `driftPath.length >= 2`; `packColumns` greedily fills the shorter of two columns, which — unlike CSS `columns` — can never reorder a tile the reader is already looking at); `image-tile.tsx` / `article-card.tsx` / `because-tile.tsx` are the three tiles; `use-feed-scroll.ts` is the `?focus=` return-scroll and session scroll restore.
 - `FullscreenGallery.tsx` — fullscreen image view with left/right swipe paging.
-- `ArticleExpand.tsx` — inline expand on double-tap / long-press.
+- ~~`ArticleExpand.tsx`~~ — **dropped at the 5.4 re-baseline.** The redesign has no in-feed expand: an article card is a doorway (eyebrow + headline + clamped lede) and the body lives on the item page. Long-press on a feed tile opens the item sheet instead (`sheets/item-sheet.tsx`, 5.6).
 - `SaveButton.tsx`, `ShareButton.tsx` — item actions (share → Web Share API).
 - `OnboardingScreen.tsx` — onboarding selector (chip grid + sticky CTA + `topics.setMine` submit; Phase 5.3). Named to match the built component — the handoff's own `TopicChips` name never landed, since the chip grid, header block, and sticky CTA all live in one client component rather than a split-out chips-only piece.
 - `InstallPrompt.tsx` — PWA install affordance.
@@ -410,8 +409,11 @@ full-bleed (radius 0 is the absence of a class, not a token). A global
 **Primitives** (`src/components/ui/`) are plain function components composing classes through
 `cn()` — no `class-variance-authority`. Icons (`src/components/icons/`) are inline SVG on their
 individually authored viewBoxes (the prototypes mix a 24×24 stroke set with several bespoke
-grids), colored via `currentColor`. `@tailwindcss/typography` (`prose`) for expanded article text
-is **not yet installed** — that lands in Phase 5.4 when article expand is built, not before.
+grids), colored via `currentColor`. `@tailwindcss/typography` (`prose`) is **not installed and is
+not planned**: the redesign has no expandable article body in the feed (5.6's article cards are
+eyebrow + headline + a five-line-clamped lede, and nothing more), and the reader on the item page
+renders stored plain text with `whitespace-pre-line` rather than source HTML — which is also the
+only safe option, since §11 forbids rendering unsanitized source markup.
 
 ## 11. Security considerations
 - **Auth enforcement** — `/feed`, `/saved`, `/onboarding` check session server-side; all tRPC mutations + user-scoped queries use `protectedProcedure`.
@@ -424,7 +426,8 @@ is **not yet installed** — that lands in Phase 5.4 when article expand is buil
 ## 12. Testing strategy
 Production-grade from the start (portfolio / work-transferable practice — non-negotiable).
 - **Vitest (unit):** each source adapter's `toItem` normalization; the curator's quality floor + response parsing; the feed tier/topic/item composition logic (tier mix, drift walks, diversity constraints, seen exclusion); repository query builders.
-- **Playwright (e2e):** invite gating blocks uninvited sign-up, invited sign-up + sign-in (email + password), sign-out, and the full password-reset round trip through Mailpit's HTTP API — all landed Phase 5.2 (`e2e/auth.spec.ts`, local-only until Phase 7.1 gives CI a Postgres); onboarding → feed renders; image fullscreen + swipe; article expand; save persists across reload; public `/i/[itemId]` renders read-only.
+- **Playwright (e2e):** invite gating blocks uninvited sign-up, invited sign-up + sign-in (email + password), sign-out, and the full password-reset round trip through Mailpit's HTTP API — all landed Phase 5.2 (`e2e/auth.spec.ts`, local-only until Phase 7.1 gives CI a Postgres). Phase 5.6 added `e2e/feed.spec.ts`: onboarding → a populated two-column feed, infinite scroll appends, long-press → item sheet → save, tap → item page → back with `?focus=`, and the pill's sheets. Still to come: image fullscreen + swipe, save persists across reload, public `/i/[itemId]` renders read-only.
+  Two rules the suite learned the hard way in 5.6, both in `e2e/support.ts` / `playwright.config.ts` with comments: **Playwright's output must not live in the project root** (its mid-run writes trigger the dev server's Fast Refresh, which remounts the app mid-test), and **landing-page interactions must wait for hydration** (the auth form's submit button submits natively before React attaches, reloading to `/?` and discarding the input).
 - Aim for strong coverage on adapters + the feed algorithm (highest-value, highest-risk).
 
 ## 13. Deployment

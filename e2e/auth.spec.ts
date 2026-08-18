@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 
 import { expect, test } from "@playwright/test";
 
+import { signIn, waitForHydration } from "./support";
+
 // The full email + password loop against a REAL dev server + Postgres + Mailpit (SPEC §12 names
 // these exact flows). Local-only, like e2e/home.spec.ts's own comment explains — CI has no
 // Postgres until Phase 7.1 adds it to the workflow. Uses a fresh `ambit-e2e-${Date.now()}@...`
@@ -51,6 +53,7 @@ test.describe.serial("auth", () => {
     page,
   }) => {
     await page.goto("/");
+    await waitForHydration(page);
     await page
       .getByRole("button", { name: "First time? Create your account" })
       .click();
@@ -62,7 +65,7 @@ test.describe.serial("auth", () => {
     await expect(page.getByTestId("auth-error")).toContainText("invite-only");
   });
 
-  test("invited sign-up succeeds, completes onboarding, and lands on the feed placeholder", async ({
+  test("invited sign-up succeeds, completes onboarding, and lands on the real feed", async ({
     page,
   }) => {
     // execFileSync (argument array, no shell) rather than execSync's shell-interpolated string —
@@ -71,6 +74,7 @@ test.describe.serial("auth", () => {
     execFileSync("bun", ["run", "invite", EMAIL], { stdio: "pipe" });
 
     await page.goto("/");
+    await waitForHydration(page);
     await page
       .getByRole("button", { name: "First time? Create your account" })
       .click();
@@ -92,7 +96,10 @@ test.describe.serial("auth", () => {
     await page.getByRole("button", { name: "Start exploring" }).click();
 
     await page.waitForURL("/feed");
-    await expect(page.getByText(`Signed in as ${EMAIL}`)).toBeVisible();
+    // 5.6 replaced the "Signed in as …" placeholder with the real masonry, so the end of the
+    // sign-up journey is now provable the way a user would judge it: there are tiles on screen.
+    // A freshly onboarded user gets a full page of them from the dev corpus.
+    await expect(page.locator("[data-feed-id]").first()).toBeVisible();
   });
 
   test("sign out returns to the landing page, and /feed bounces an unauthenticated visitor", async ({
@@ -102,12 +109,12 @@ test.describe.serial("auth", () => {
     // A stale session from the previous test's cookie jar isn't guaranteed by Playwright's
     // per-test isolation, so sign in fresh here rather than assuming one carried over.
     if (page.url().endsWith("/")) {
-      await page.getByPlaceholder("you@example.com").fill(EMAIL);
-      await page.getByPlaceholder("Password").fill(PASSWORD);
-      await page.getByRole("button", { name: "Sign in" }).click();
-      await page.waitForURL("/feed");
+      await signIn(page, EMAIL, PASSWORD);
     }
 
+    // Sign-out moved to /dev/tokens in 5.6, when /feed's placeholder was deleted — the design has
+    // no sign-out affordance on any real screen until Settings lands in 5.10.
+    await page.goto("/dev/tokens");
     await page.getByRole("button", { name: "Sign out" }).click();
     await page.waitForURL("/");
 
@@ -117,6 +124,7 @@ test.describe.serial("auth", () => {
 
   test("a wrong password shows the mapped error", async ({ page }) => {
     await page.goto("/");
+    await waitForHydration(page);
     await page.getByPlaceholder("you@example.com").fill(EMAIL);
     await page.getByPlaceholder("Password").fill("totallywrongpassword");
     await page.getByRole("button", { name: "Sign in" }).click();
@@ -128,6 +136,7 @@ test.describe.serial("auth", () => {
 
   test("forgot password sends a reset email", async ({ page }) => {
     await page.goto("/");
+    await waitForHydration(page);
     await page.getByRole("button", { name: "Forgot your password?" }).click();
     await page.getByPlaceholder("you@example.com").fill(EMAIL);
     await page.getByRole("button", { name: "Send reset link" }).click();
@@ -143,6 +152,7 @@ test.describe.serial("auth", () => {
 
     await page.goto(resetLink);
     await page.waitForURL(/\/reset-password\?token=/);
+    await waitForHydration(page);
     await page
       .getByPlaceholder("New password (8+ characters)")
       .fill(NEW_PASSWORD);
@@ -156,6 +166,7 @@ test.describe.serial("auth", () => {
     // effect rather than just that the endpoint returned success.
     await page.getByRole("link", { name: "Sign in" }).click();
     await page.waitForURL("/");
+    await waitForHydration(page);
     await page.getByPlaceholder("you@example.com").fill(EMAIL);
     await page.getByPlaceholder("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();

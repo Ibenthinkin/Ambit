@@ -33,6 +33,7 @@ import { PillToolbar, type BookmarkState } from "~/components/ui/pill-toolbar";
 import { Toast } from "~/components/ui/toast";
 import { usePress } from "~/hooks/use-press";
 import { api } from "~/trpc/react";
+import { SignOutButton } from "./sign-out-button";
 
 // The living style guide: every token, icon, and primitive in one place with a live accent
 // switcher, so the design system can be checked whole without building a real screen first.
@@ -41,9 +42,9 @@ import { api } from "~/trpc/react";
 // it'll be wrong on every screen that consumes it later.
 //
 // It also hosts the live demo of 5.5's backbone (pill toolbar, both collection sheets, the share
-// sheet, `usePress`) wired to the REAL router — see `BackboneSection` at the bottom. One more job
-// is coming: this is the INTERIM HOME OF SIGN-OUT from 5.6 (when /feed's placeholder is deleted)
-// until Settings lands in 5.10.
+// sheet, `usePress`) wired to the REAL router — see `BackboneSection` at the bottom. And since 5.6
+// deleted /feed's placeholder, it is the INTERIM HOME OF SIGN-OUT (the "Session" section) until
+// Settings lands in 5.10.
 //
 // `src/proxy.ts` only gates `/feed`, `/saved`, `/onboarding` — a `/dev/*` route would otherwise
 // be reachable in production, so the guard is this early `notFound()`. Note that as of 5.5 the
@@ -186,6 +187,12 @@ export default function TokensPage() {
       </GlassHeader>
 
       <div className="flex flex-col gap-10 px-5 pt-8">
+        {/* First, because it's the only thing on this page that isn't a design token: 5.6 deleted
+            /feed's placeholder, and this is where sign-out waits until Settings lands in 5.10. */}
+        <Section title="Session">
+          <SignOutButton />
+        </Section>
+
         <Section title="Accent">
           <div className="flex flex-wrap gap-2">
             {ACCENTS.map((a) => (

@@ -1,0 +1,26 @@
+// Turns an item's `source` column — a lowercase slug like `"aic"` — into the eyebrow the UI
+// shows above an article's headline ("ART INSTITUTE OF CHICAGO").
+//
+// A lookup table rather than a formatting rule, because the rule doesn't exist: two of the five v1
+// sources are initialisms nobody expands correctly by algorithm (`aic`, `cma`), one is a proper
+// noun with an article baked in ("The Met"), and only `wikipedia` happens to be its own label
+// capitalized. So: name the ones we ship, and title-case the rest.
+//
+// **The fallback is load-bearing, not defensive padding.** `item.source` is deliberately an open
+// set in the schema (SPEC §6.1 commits five adapters for v1; Phase 6 adds more, and the
+// ambit-archive / loupe integrations add private ones) — so this function will regularly see a
+// slug that predates it. Rendering `"smithsonian"` as "Smithsonian" is a perfectly good outcome;
+// rendering it as `undefined` is not.
+const SOURCE_LABELS: Record<string, string> = {
+  wikipedia: "Wikipedia",
+  met: "The Met",
+  aic: "Art Institute of Chicago",
+  cma: "Cleveland Museum of Art",
+  wellcome: "Wellcome Collection",
+};
+
+export function sourceLabel(source: string): string {
+  return (
+    SOURCE_LABELS[source] ?? source.charAt(0).toUpperCase() + source.slice(1)
+  );
+}

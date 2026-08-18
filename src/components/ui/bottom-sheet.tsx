@@ -22,6 +22,11 @@ import { cn } from "~/lib/utils";
 // Phase 5.4 note: `animate-sheet-up` resolves to the redesign's snappier 260ms `sheetup` curve. The
 // longer 400ms travel this component originally used lives on as `animate-sheet-gallery`, reserved
 // for the gallery details modal (5.8).
+//
+// Phase 5.6 added the `animation` prop (see `ANIMATIONS` below). The feed's long-press sheet is a
+// contextual menu, not an arriving surface, so it lifts and fades instead of sliding — but it is
+// otherwise this same shell, which is the whole point of putting the difference in one prop rather
+// than forking the component.
 
 /**
  * Matched to `--animate-sheet-down`'s 260ms, plus a little slack. Only a *fallback*: `animationend`
@@ -43,7 +48,24 @@ export interface BottomSheetProps {
    * their content.
    */
   maxHeightPct?: number;
+  /**
+   * How the panel arrives and leaves.
+   *
+   * - `"sheet"` (default) — the 260ms slide up from off-screen. Every 5.5 sheet.
+   * - `"menu"` — a 200ms lift-and-fade. The feed's long-press sheet (5.6) is a *contextual menu*
+   *   summoned by a finger already resting on the thing it acts on; sliding a whole surface up
+   *   from the bottom overstates that. Same shell, same scrim, same keyboard contract — only the
+   *   two animation classes differ.
+   */
+  animation?: "sheet" | "menu";
 }
+
+// Enter/exit class pairs per variant. Both halves live together deliberately: an exit that doesn't
+// mirror its entrance is the kind of mismatch that only shows up on a device.
+const ANIMATIONS = {
+  sheet: { in: "animate-sheet-up", out: "animate-sheet-down" },
+  menu: { in: "animate-menu-rise", out: "animate-menu-drop" },
+} as const;
 
 /**
  * There's no point animating a sheet out for someone who asked the OS for less motion — globals.css
@@ -66,6 +88,7 @@ export function BottomSheet({
   title,
   children,
   maxHeightPct = 80,
+  animation = "sheet",
 }: BottomSheetProps) {
   // Only the *closing* phase needs state; "open" is a prop, so `leaving` is the single extra bit
   // and the sheet is on screen whenever either is true.
@@ -235,7 +258,7 @@ export function BottomSheet({
           // keeps the grabber and title pinned), but a sheet with free-form children taller than
           // the cap would otherwise spill out of the rounded panel and paint over the scrim.
           "border-hairline bg-surface shadow-sheet rounded-t-sheet border-ink/12 absolute inset-x-0 bottom-0 flex flex-col overflow-y-auto border-t pt-2 pb-[26px] outline-none",
-          leaving ? "animate-sheet-down" : "animate-sheet-up",
+          leaving ? ANIMATIONS[animation].out : ANIMATIONS[animation].in,
         )}
       >
         {/* Grabber — decorative until 5.8 wires up drag-to-close. 36×4 at the redesign's own 0.18

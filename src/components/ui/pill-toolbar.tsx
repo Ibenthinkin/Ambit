@@ -27,7 +27,13 @@ export type BookmarkState = "idle" | "saved" | "on-saved";
 export interface PillToolbarProps {
   bookmark?: BookmarkState;
   onBookmark: () => void;
-  onShare: () => void;
+  /**
+   * Optional, and the share glyph is omitted entirely when it's absent. The feed is why: share
+   * needs a *current item* to have a referent, and a feed has none — so the feed's pill is three
+   * items (profile, mark, bookmark), matching the redesign's own Feed Masonry prototype, which
+   * likewise omits it (PHASE5_PLAN_5.6.md Decision 3).
+   */
+  onShare?: () => void;
   /** Defaults to navigating to `/profile` (5.10). */
   onProfile?: () => void;
   /** Defaults to navigating to `/feed`. In the gallery this returns to the anchored feed (5.8). */
@@ -118,9 +124,13 @@ export function PillToolbar({
           />
         </PillButton>
 
-        <PillButton label="Share" onClick={onShare}>
-          <Share size={23} className="text-white/82" />
-        </PillButton>
+        {/* Omitted, not disabled: a greyed-out share button on the feed would still be asking
+            "share what?" — the answer is that there's nothing to share, so there's no control. */}
+        {onShare ? (
+          <PillButton label="Share" onClick={onShare}>
+            <Share size={23} className="text-white/82" />
+          </PillButton>
+        ) : null}
 
         {extra}
       </nav>

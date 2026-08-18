@@ -28,7 +28,7 @@ yarn-error.log*
 .playwright-mcp/
 
 # Playwright test-run artifacts (traces, screenshots on failure, HTML report)
-/test-results/
+/.playwright/
 /playwright-report/
 
 # Curator LLM-response cache (src/server/services/curator.ts, Phase 3.3) — cache-aside, one file

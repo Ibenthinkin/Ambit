@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CollectionsSheet } from "./collections-sheet";
+import { ItemSheet } from "./item-sheet";
 import { SaveToCollectionSheet } from "./save-to-collection-sheet";
 import { ShareSheet } from "./share-sheet";
 
@@ -30,11 +31,18 @@ const {
   },
   countData: { current: 7 },
   countLoading: { current: false },
-  // Typed rather than `unknown`: the tests drive the sheet's failure branch through this, so the
-  // shape is the contract under test.
+  // Typed rather than `unknown`: the tests drive the sheet's success and failure branches through
+  // this, so the shape is the contract under test.
   mutationOpts: {
     current: undefined as
-      undefined | { onError: (err: { data?: { code?: string } }) => void },
+      | undefined
+      | {
+          onError: (err: { data?: { code?: string } }) => void;
+          onSuccess: (
+            result: { collectionName: string },
+            variables: { itemId: string; collectionId: string },
+          ) => Promise<void>;
+        },
   },
 }));
 
@@ -60,9 +68,7 @@ vi.mock("~/trpc/react", () => ({
       saveToCollection: {
         // Captures the caller's onSuccess/onError so a test can drive either branch — the sheet's
         // whole failure story lives in the options object, not in the mutate call.
-        useMutation: (opts: {
-          onError: (err: { data?: { code?: string } }) => void;
-        }) => {
+        useMutation: (opts: NonNullable<typeof mutationOpts.current>) => {
           mutationOpts.current = opts;
           return { mutate: mutateMock, isPending: false };
         },
@@ -201,6 +207,91 @@ describe("SaveToCollectionSheet", () => {
     expect(onError).toHaveBeenCalledWith(
       "Your session expired — sign in and try again.",
     );
+  });
+});
+
+// The feed's long-press sheet (5.6) — the third sibling. Same collections backend as the save
+// sheet, plus the "Closer Look" peek, minus the "Already saved here" state.
+describe("ItemSheet", () => {
+  const ITEM = { id: "item-9", title: "Study of a Heron" };
+
+  const renderSheet = (
+    props: Partial<React.ComponentProps<typeof ItemSheet>> = {},
+  ) =>
+    render(
+      <ItemSheet
+        open
+        onClose={vi.fn()}
+        item={ITEM}
+        onSaved={vi.fn()}
+        onError={vi.fn()}
+        {...props}
+      />,
+    );
+
+  it("shows the item's title, the peek action, and a row per collection", () => {
+    renderSheet();
+    expect(screen.getByText("Study of a Heron")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Closer Look" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Save to collection")).toBeInTheDocument();
+    expect(screen.getByText("Articles")).toBeInTheDocument();
+    expect(screen.getByText("Art")).toBeInTheDocument();
+  });
+
+  it("closes and navigates to the item page on Closer Look", () => {
+    const onClose = vi.fn();
+    renderSheet({ onClose });
+    fireEvent.click(screen.getByRole("button", { name: "Closer Look" }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(pushMock).toHaveBeenCalledWith("/i/item-9");
+  });
+
+  it("saves the long-pressed item into the picked collection and closes", () => {
+    const onClose = vi.fn();
+    renderSheet({ onClose });
+    fireEvent.click(screen.getByText("Art"));
+    expect(mutateMock).toHaveBeenCalledWith({
+      itemId: "item-9",
+      collectionId: "c2",
+    });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("hands the caller the collection it landed in, so the feed can toast it", async () => {
+    const onSaved = vi.fn();
+    renderSheet({ onSaved });
+    fireEvent.click(screen.getByText("Art"));
+
+    await mutationOpts.current!.onSuccess(
+      { collectionName: "Art" },
+      { itemId: "item-9", collectionId: "c2" },
+    );
+
+    expect(onSaved).toHaveBeenCalledWith({ id: "c2", name: "Art" });
+  });
+
+  // Same hazard as the save sheet: this one dismisses on pick too, so a silent failure reads as
+  // success.
+  it("reports a failed save instead of dismissing silently", () => {
+    const onError = vi.fn();
+    renderSheet({ onError });
+    fireEvent.click(screen.getByText("Art"));
+
+    mutationOpts.current!.onError({ data: { code: "INTERNAL_SERVER_ERROR" } });
+
+    expect(onError).toHaveBeenCalledWith("Couldn't save that. Try again.");
+  });
+
+  // The sheet outlives the item selection by one exit animation, so `item: null` is a real state
+  // it renders in — not a defensive branch.
+  it("survives a null item without firing anything", () => {
+    renderSheet({ item: null });
+    fireEvent.click(screen.getByRole("button", { name: "Closer Look" }));
+    fireEvent.click(screen.getByText("Art"));
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(mutateMock).not.toHaveBeenCalled();
   });
 });
 

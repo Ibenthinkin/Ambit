@@ -62,6 +62,66 @@ constraint, not a perf nicety. 5.5's never-run device pass folds into 5.6's Done
 
 *Session spend: 5.27M tok (in 106 · out 111.0k · cache r 4.26M / w 899.2k) · ~$27.80 · fable-5 · 16:20→21:06*
 
+**And then executed: 5.6 is code complete** (`docs/PHASE5_WALKTHROUGH_5.6.md`). The plan held —
+nine steps, all landed roughly as written — so what's worth recording is the four places the
+real world argued with it.
+
+**The prototype's fixture lied about the data.** Article ledes are specified (and prototyped)
+as `item.summary` straight through, unclamped, which is fine when every lede in the fixture is
+a hand-written sentence. The actual column holds source synopses, and Wikipedia's run 600+
+characters — the first real article card rendered **twenty-five lines tall** in a 196px column.
+That's the redesign's "no body, no expand affordance" rule broken by accident: at that length
+the lede *is* the body. Clamped to five lines, with `masonry.ts`'s height estimate capped to
+match so the packer still predicts the tile it's placing. Only findable by running it against
+the real corpus, which is the argument for doing the browser pass before writing the
+walkthrough rather than after.
+
+**`?focus=` can't work through the stub's Back link, and that isn't a bug in `?focus=`.** The
+return-scroll assumes coming back to `/feed` shows you the feed you left. Browser *back* does —
+the App Router restores the RSC payload from its client cache, the tiles are all still there,
+and scroll restores exactly (measured: 628 → 628). But a fresh `<Link href="/feed?focus=…">`
+re-runs the dynamic route, and `getFeedPage` never repeats items, so you land on **entirely
+different cards** and the focused tile is genuinely gone (measured: 24 new tiles, old one
+absent). Left as planned — 5.7 owns the real back gesture, and this is the evidence for what it
+should be: pop history, don't push.
+
+**Two scroll-restore races that jsdom cannot see.** The first implementation restored to 0
+every time, for two independent reasons: `scrollTo({top: 900})` on a document that hasn't laid
+out yet silently *clamps* near the top (so the restore path needed the retry schedule the focus
+path already had, plus a check of where it actually landed), and the rAF scroll-persist
+listener was **eating its own tail** — a clamped restore fires `scroll`, which writes the
+clamped offset over the saved one, so by the next attempt there was nothing left to restore to.
+Persistence is now suppressed until the restore sequence settles.
+
+**Two e2e bugs wearing a flake costume.** The feed suite passed serially and failed under
+parallel workers, in a different test each run, always on sign-in. The house wisdom
+("first-run failure after a change is usually on-demand compilation — re-run first") sent me
+round the loop twice before I read a trace, which is the lesson: the recorded flake pattern is
+a prior, not a diagnosis. Cause one — **Playwright's `test-results/` sits in the project root**
+and writes traces *during* the run, which trips Next's dev watcher; the failing trace has
+`[Fast Refresh] rebuilding` exactly where the navigation should have been, and a remount mid
+sign-in swallows `router.push`. Fixed with a dot-directory `outputDir` (Turbopack ignores
+those). Cause two, revealed once the first was gone — `navigated to "http://localhost:3000/?"`:
+the landing form is a real `<form onSubmit>` with a `type="submit"` button, so **a click before
+hydration submits it natively**, reloading the page and discarding the typed values. Worked
+around in the tests (`e2e/support.ts`'s `waitForHydration`, polling for React DOM's own
+`__reactFiber$` keys) and left otherwise alone — it's a real auth-screen defect, but it's 5.2's,
+not the feed's, and reaching across to fix it mid-phase seemed worse than recording it.
+
+The hydration contract the plan worried most about turned out fine, and is checkable in ten
+seconds: hard-reload `/feed` with the Network tab on `trpc` and there are **zero** requests —
+page one comes entirely from the dehydrated cache — then exactly one per scroll to the bottom.
+328 tests green (was 288), e2e 14/14 across three consecutive parallel runs, build clean.
+
+**Open / next:** the **on-device pass** is the one thing left, and it needs Ben and a phone —
+tap vs. long-press vs. scroll on real tiles (the 12px slop guard and the four iOS incantations
+all pass in a desktop browser while being wrong on iOS, which is why the Done bar names a
+device), plus 5.5's carried-over pill/sheet pass, plus the `pt-[58px]` top inset, which is a
+plain value today because no screen in the app has established a safe-area convention yet.
+Then 5.7 — item pages, which also inherit the image proxy the feed's broken tiles are waiting on.
+
+*Session spend: 84.25M tok (in 764 · out 260.7k · cache r 83.26M / w 728.1k) · ~$55.43 · opus-5 · 21:26→23:11*
+
 ### [[08-16-26 Sun]] — Redesign landed; Phase 5 re-baselined (5.4 is now the design migration)
 
 **Shipped:** Ben's redesign handoff arrived (`docs/design_handoff_ambit_pwa_redesign/` — 11

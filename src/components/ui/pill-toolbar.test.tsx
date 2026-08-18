@@ -23,6 +23,17 @@ describe("PillToolbar", () => {
     }
   });
 
+  // The feed's shape (5.6): three controls, because share has no referent without a current item.
+  it("omits share entirely when no handler is given", () => {
+    render(<PillToolbar onBookmark={vi.fn()} />);
+    expect(
+      screen.queryByRole("button", { name: "Share" }),
+    ).not.toBeInTheDocument();
+    for (const label of ["Profile", "Feed", "Save to collection"]) {
+      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    }
+  });
+
   it("fires onBookmark and onShare", () => {
     const onBookmark = vi.fn();
     const onShare = vi.fn();
