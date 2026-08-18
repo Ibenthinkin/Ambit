@@ -108,6 +108,16 @@
                                                                      vanished instantly on close
                                                                      read as a glitch next to how
                                                                      deliberately it arrives */
+  --animate-menu-rise: menu-rise 0.2s ease both; /* the *menu* flavour of a bottom sheet (5.6's
+                                                     feed long-press sheet): a short lift-and-fade
+                                                     rather than a full-height slide, because this
+                                                     one appears under the thumb that summoned it,
+                                                     not as a new surface arriving from off-screen */
+  --animate-menu-drop: menu-drop 0.15s ease both; /* the exit half. The prototype unmounts its menu
+                                                      instantly, but BottomSheet's close path awaits
+                                                      an exit animation before unmounting (see that
+                                                      component's EXIT_MS), so the menu variant
+                                                      needs a symmetric — and fast — way out */
   --animate-scrim-in: scrim-in 0.3s ease both;
   --animate-scrim-out: scrim-out 0.26s ease both; /* matched to sheet-down so the scrim and the
                                                       panel leave together */
@@ -190,6 +200,26 @@
     }
     to {
       transform: translateY(100%);
+    }
+  }
+  @keyframes menu-rise {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes menu-drop {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-6px);
     }
   }
   @keyframes scrim-in {
