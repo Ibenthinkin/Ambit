@@ -267,14 +267,44 @@ describe("FeedScreen", () => {
 
   // Museum CDNs bot-block third-party fetchers, so this path is exercised for real until the 5.7
   // image proxy lands.
-  it("holds the tile's slot with a caption when an image fails to load", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
-    const img = document.querySelector('[data-feed-id="i1"] img')!;
+  //
+  // The retry matters more on a phone than it looks on a desktop: a single dropped request used to
+  // latch the tile into `Image unavailable` for the life of the page, with no way back, so a brief
+  // dead spot in mobile coverage permanently pocked the wall (found 08-18-26 on-device).
+  it("retries a failed image rather than giving up on the first error", () => {
+    vi.useFakeTimers();
+    try {
+      render(<FeedScreen topicLabels={LABELS} />);
+      const img = document.querySelector('[data-feed-id="i1"] img')!;
 
-    fireEvent.error(img);
+      fireEvent.error(img);
+      act(() => void vi.advanceTimersByTime(5_000));
 
-    expect(screen.getByText("Image unavailable")).toBeInTheDocument();
-    expect(document.querySelector('[data-feed-id="i1"] img')).toBeNull();
+      expect(document.querySelector('[data-feed-id="i1"] img')).not.toBeNull();
+      expect(screen.queryByText("Image unavailable")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("holds the tile's slot with a caption once the retries are exhausted", () => {
+    vi.useFakeTimers();
+    try {
+      render(<FeedScreen topicLabels={LABELS} />);
+
+      // One more failure than the retry budget allows.
+      for (let i = 0; i < 4; i++) {
+        const img = document.querySelector('[data-feed-id="i1"] img');
+        if (!img) break;
+        fireEvent.error(img);
+        act(() => void vi.advanceTimersByTime(5_000));
+      }
+
+      expect(screen.getByText("Image unavailable")).toBeInTheDocument();
+      expect(document.querySelector('[data-feed-id="i1"] img')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("says so when the corpus is exhausted", () => {
