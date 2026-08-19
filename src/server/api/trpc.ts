@@ -114,8 +114,19 @@ export const createTRPCRouter = t.router;
  * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
  * network latency that would occur in production but not in local development.
  */
-const timingMiddleware = t.middleware(async ({ next, path }) => {
+const timingMiddleware = t.middleware(async ({ next, path, ctx }) => {
   const start = Date.now();
+  // WHO called this. `x-trpc-source` is set to "rsc" by src/trpc/server.ts and "nextjs-react" by
+  // src/trpc/react.tsx, so the log line separates an RSC prefetch from a client fetch — a
+  // distinction the dev server's request log genuinely cannot make, because a server-side caller
+  // produces no HTTP request of its own to log. Earned its place on 08-18-26, when a runaway
+  // `feed.page` could not be attributed to either side for want of exactly this tag.
+  //
+  // Load-bearing beyond curiosity: `feed.page` writes `seen_item` on every call, so an unexplained
+  // execution is a page of the user's corpus quietly burned (see feed/page.tsx and feed-screen.tsx
+  // on why the hydration handoff has to key byte-identically). "unknown" means neither helper set
+  // the header — a raw curl, or a caller that bypassed both.
+  const source = ctx.headers.get("x-trpc-source") ?? "unknown";
 
   if (t._config.isDev) {
     // artificial delay in dev
@@ -126,7 +137,9 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
   const result = await next();
 
   const end = Date.now();
-  console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
+  console.log(
+    `[TRPC] ${path} took ${end - start}ms to execute (src=${source})`,
+  );
 
   return result;
 });

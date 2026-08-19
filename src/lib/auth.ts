@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
 
+import { devTrustedOrigins } from "~/config/dev-origins.js";
 import { env } from "~/env";
 import { db } from "~/server/db/client";
 import * as schema from "~/server/db/schema";
@@ -100,4 +101,12 @@ export const auth = betterAuth({
 
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
+
+  // Better Auth rejects any request whose `Origin` doesn't match its trusted set, and that set is
+  // just `baseURL`'s origin unless told otherwise. `baseURL` is http://localhost:3000, so a phone
+  // loading the dev server over the tailnet gets a page that renders perfectly and then answers
+  // sign-in with `403` + `[Better Auth]: Invalid origin: …` — which is a different failure, at a
+  // different layer, from the one `allowedDevOrigins` fixes. Empty in production, where the only
+  // legitimate origin is `baseURL` itself.
+  trustedOrigins: devTrustedOrigins(3000),
 });
