@@ -5,6 +5,74 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
+
+**Findings:** Working from a different location, on the tailnet. Three things came out of trying to
+start the 5.6 device pass, and only the third is really about images.
+
+**The dev origin has to be the tailnet one, not a LAN IP.** `next.config.js` still pinned
+`192.168.1.168` from 08-17; the machine was on `192.168.68.65` and would have reproduced the
+dead-buttons bug verbatim. A DHCP lease rots every time Ben changes location, so the durable entry
+is the Tailscale address — `100.109.133.60` / `macbook-air-m5.halley-morpho.ts.net` — which follows
+the machine between networks. The LAN entry stays as a same-network fallback.
+
+**Two independent allowlists both have to name every dev origin, and they fail at completely
+different moments.** Fixing `allowedDevOrigins` got the phone a page that rendered perfectly and
+then answered sign-in with `403` — `[Better Auth]: Invalid origin`. Next's list governs `/_next/*`
+asset serving (get it wrong: nothing hydrates, no error anywhere); Better Auth's `trustedOrigins`
+governs its CSRF check (get it wrong: the page is fine until you try to sign in). Nothing connects
+them, they look like unrelated bugs, and the second is invisible until you're past the first — so
+they now share one list in `src/config/dev-origins.js`, which carries both failure signatures in
+its header. `trustedOrigins` returns `[]` in production, so a personal tailnet address can't ride
+into a real build. Verified the security property directly: an unlisted origin still gets 403.
+
+**The Art Institute of Chicago hard-blocks a `localhost` referer, and has all along.** Chasing the
+phone's broken images turned up something else entirely: 20/20 AIC images 403 with
+`Referer: http://localhost:3000/`, 20/20 succeed with any other referer, user-agent irrelevant. The
+403 is **Cloudflare's**, not the origin's — `www.artic.edu` sits behind bot management, and a
+localhost referer reads as a bot to it. Since `next dev`'s canonical origin *is* localhost:3000,
+**every one of AIC's 1,338 images — 17.5% of the corpus — has been failing silently on the laptop,
+presumably for all of Phase 5**, hidden by a fallback tile designed to look unremarkable. The
+lesson is the shape of it: a fallback that renders calmly is a fallback that can hide a total
+outage of one source. That's an argument for the dev diagnostic label, and for 5.7's image proxy
+being the structural fix (one origin for every image) rather than a per-source workaround.
+
+**Shipped:** the shared dev-origin list; `trustedOrigins` on the auth server; image tiles that
+**retry** (2 attempts, widening backoff, no cache-busting — a unique query param would miss the CDN
+cache every time and harden a rate-limit into a wall) instead of latching `Image unavailable`
+permanently on the first dropped request, which on a phone turned every transient blip into a
+permanent hole; a dev-only `source · hostname` label on the fallback, which is the only reason the
+AIC concentration was visible at all on a device with no console; and `(src=rsc|nextjs-react)` on
+the `[TRPC]` log line — kept deliberately, because a server-side caller issues no HTTP request of
+its own, so the dev request log *structurally cannot* attribute one, and `feed.page` writes
+`seen_item` on every call. 329 tests green (was 328).
+
+**Not root-caused, and recorded as such:** the laptop's endless refresh. It cleared on restart with
+the new config and never recurred, so the trail is cold. Ruled out with evidence: not the service
+worker (zero `sw.js` requests; `SwCleanup`'s sessionStorage guard is genuinely loop-proof), not the
+onboarding↔feed bounce (`redirect()` throws before the prefetch, and all 172 prefetches completed).
+Left standing was a contradiction never resolved — 172 server-side `feed.page` executions against
+zero `GET /feed` lines, after confirming that plain, proxy-pass-through, RSC, and RSC-prefetch
+requests all *do* log. Worth knowing for next time: **proxy-*redirected* requests produce no log
+line at all**, which is what sent that investigation sideways for a while.
+
+**Open / next:** the phone's broken images **did not reproduce** from the dev machine — 48/48 mixed
+and 20/20 AIC-only succeeded with the phone's exact request shape (iOS UA + tailnet referer,
+concurrent). So the AIC block above may be the whole story with "phone" a red herring, or there may
+be a second phone-specific cause (iCloud Private Relay against Cloudflare, a Tailscale exit node,
+carrier CGNAT). Handed off in `docs/HANDOFF_aic-images.md`, whose first recommended action is the
+cheap one: both devices on `/feed`, compare the diagnostic labels. Also open: whether the referer
+block is a dev-only artifact, since both referers ever tested are dev-only and nobody has seen what
+AIC does with a production origin. Unchanged: the 5.6 on-device pass itself still owes tap vs.
+long-press on real tiles, 5.5's pill/sheet pass, and the `pt-[58px]` inset.
+
+**Watch out:** overlapping `bun run test` runs (or a busy dev server) balloon vitest setup from ~7s
+to ~650s and fail unrelated Postgres-touching integration tests — three times this session, a
+different test each time. Passes alone, passes clean serially. Check what else is running before
+debugging a red integration test; but per 5.6's flake, check the setup timing rather than assuming.
+
+*Session spend: 30.24M tok (in 490 · out 188.2k · cache r 29.38M / w 669.3k) · ~≥$26.09 · opus-5 + <synthetic> · 11:51→19:17*
+
 ### [[08-17-26 Mon]] — The dev SW cleanup could itself loop; guarded
 
 **Findings:** Ben hit an endless refresh loop on `localhost:3000` in dev. Root cause wasn't
