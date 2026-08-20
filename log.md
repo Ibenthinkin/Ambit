@@ -64,18 +64,33 @@ Matched on path rather than an `RSC:` header so a header rename can't make it pa
 checked with a negative control — stub `cameFromFeed` to `false` and it fails, so it isn't testing
 nothing.
 
+**Confirmed on device.** Ben re-tested after the fix: returning to the feed from an item view
+lands on the same spot, same items. The behaviour the whole investigation was chasing is now the
+behaviour you get.
+
+**AIC suspended, not removed.** Ben's call, and the right one — the source was actively getting in
+the way of building. `src/server/config/suspended-sources.ts` switches a source off **end to end**:
+ingestion skips it, *and* `getTopicPools` refuses to draw its existing rows. Doing only the first
+would have been worse than doing nothing, since 1,338 undrawable rows would have gone on winning
+slots in the draw and the feed would have looked like it had quietly gone bad. Nothing is deleted
+and no re-ingest is needed to reverse it: the adapter, its tests and every row stay put, so lifting
+the flag is a one-line change. `--source aic` still ingests when asked explicitly, and says out loud
+that the feed won't draw the result. 5.7's image proxy is what lifts this.
+
 **Open / next:** the fix removes the loop's fuel but not the loop's *cost*: `feed.page` still writes
 `seen_item` during a server render whose output can be discarded, so any future reload loop burns
 corpus again, just slower. The durable fix is to let receipt — not attempted render — be what marks
-an item seen; carry it into the 5.7 plan. Still open from 08-18: AIC images 403 on a `localhost`
-referer (17.5% of the corpus, `docs/HANDOFF_aic-images.md`), and **still unresolved on device** —
-AIC tiles were the only ones missing on the phone even over a tailnet referer that returns 200 from
-the laptop, so the second cause that handoff predicted is real. 5.7's image proxy is the structural
-answer. Minor corpus leak found in passing: 60 real items (30 met, 30 wikipedia) still carry
+an item seen; carry it into the 5.7 plan. AIC is parked rather than solved: the `localhost`-referer 403 stands
+(`docs/HANDOFF_aic-images.md`), and the on-device result **confirmed a second cause** — AIC tiles
+were the only ones missing on the phone even over a tailnet referer that returns 200 from the
+laptop, which is exactly what that handoff predicted and nobody had been able to demonstrate.
+Suspending the source buys quiet, not an answer; the questions to resume with are that second cause
+and whether the block is a dev-only artifact at all (both referers ever tested are dev-only). Minor corpus leak found in passing: 60 real items (30 met, 30 wikipedia) still carry
 `topic_id = test-feed-topic-*` from an integration test that never restored them, which makes them
 unreachable by the feed — `source='e2e'` cleanup is clean, this is a different leak.
 
 *Session spend: 18.77M tok (in 306 · out 111.1k · cache r 18.13M / w 524.1k) · ~$17.09 · opus-5 · 10:00→11:05*
+*Session spend: 10.07M tok (in 181 · out 69.1k · cache r 9.75M / w 247.5k) · ~$8.38 · opus-5 + opus-4-7 · 11:05→11:51*
 
 ### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
 
