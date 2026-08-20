@@ -92,6 +92,59 @@ unreachable by the feed — `source='e2e'` cleanup is clean, this is a different
 *Session spend: 18.77M tok (in 306 · out 111.1k · cache r 18.13M / w 524.1k) · ~$17.09 · opus-5 · 10:00→11:05*
 *Session spend: 10.07M tok (in 181 · out 69.1k · cache r 9.75M / w 247.5k) · ~$8.38 · opus-5 + opus-4-7 · 11:05→11:51*
 
+**Decisions (afternoon) — blog-first content, decided in Ambit-Admin and landed here as docs.**
+Ben reviewed the ecosystem's content strategy. The trigger was in the *other* repo — ambit-archive's
+A.3b planned **$150/month of SerpApi** to identify artworks — but pulling that thread redirected
+where Ambit's content comes from at all. Five decisions; **docs only, no code, no schema change.**
+
+- **Ambit's future content comes primarily from designated blogs.** Blogs already carry the tags,
+  descriptions and the article explaining *why* an image matters — exactly the metadata that
+  identification was going to buy, and that image APIs make you manufacture. This is the strategy,
+  not a source addition.
+- **The presentation contract is excerpt + link-out, with no reader view.** A blog item is a **link
+  card**: image, Ambit's short description, a 1–2 sentence blurb about the source article, a
+  `from: <blog>` credit by the title, and a **prominent link to the actual article**. Ambit hosts no
+  reformatted articles; `body` is not a display surface for blog items; full text is used **at
+  ingest only** (topics, tags, blurb) and never stored for display. The recorded goal is to **drive
+  readers out to the blog** — which is what makes the posture honest rather than merely legal-ish.
+- **Honest rights posture — no fair-use claim, no republication.** Image or short excerpt + visible
+  credit + link out; truthful license strings ("Rights retained by original authors — displayed with
+  credit and link"); remove-on-request. Loupe is the precedent. Tenable because Ambit is invite-only
+  and non-monetized. The README and CLAUDE.md now say this in the places that used to say
+  "public/PD/fair-use".
+- **The `from: <source>` credit line is not blog-specific and ships with 5.7**, for every source —
+  museum and Wikipedia items included. 9.4 stays the licensing *audit* and now covers blog credit
+  and license display too.
+- **Shape: an in-repo adapter family, explicitly not a third cross-service pattern.** Recorded in
+  Ambit-Admin so nobody re-opens the "two blessed patterns" rule to accommodate it: those govern
+  seams *between* the three services, and this one lives entirely inside Ambit.
+- **New BUILD_PLAN step 6.3, gated on a design session** (⚖️), carrying **seven open questions**:
+  the adapter interface (blogs don't `search(q)`), topic assignment without seed queries,
+  items-per-post and the feed-flooding/dedupe rule, where the blurb lives, image hosting (the
+  **strongest case yet for 7.3's proxy-with-cache** — decide them together), scrape etiquette, and
+  whether blog items go through the curator pass. Public Domain Review **moved from 6.2 into 6.3**:
+  its "scraping-lite or cut" gate was always a blog question.
+- **First corpus: doorofperception.com**, already scraped — 11,572 images sitting in ambit-archive
+  with an `index.csv` of per-image post URLs as the attribution source. Ingesting it here retires
+  85% of the archive's corpus and prototypes the whole strategy for **$0**. It also owns the
+  Ambit-side dedupe design, since those items may already be in the corpus via the archive adapter
+  (A.5). Sequenced after archive A.5/A.6 and after the 6.3 design session.
+- **5.8 gets a parked note, not a design.** Ben wants archive ("wildcard") items more present in
+  gallery browsing. Recorded as a wish to revisit with the gallery in hand — archive items are
+  **labeling only** today, flowing through the normal feed algorithm under a constant attribution.
+  **No new feed tier, no mechanics now.**
+
+**Two drifts found while executing, both worth recording.** The plan assumed
+`fix-feed-back-navigation` was merged and that `docs/source-candidates.md` carried an uncommitted
+link dump; neither was true — the branch is 6 commits ahead of `main` with no PR, and the dump was
+already committed and triaged this morning as `3739638`. So this docs branch is cut from
+`fix-feed-back-navigation`, not `main` (Ben's call). And the plan wanted **artvee** listed as a
+designated blog, which the morning's triage had already **cut** on robots.txt grounds — the cut
+stands, and it is now cited in the blogs table as the worked precedent for open question 6: a site
+that machine-readably refuses agents doesn't become a designated blog because its works are PD.
+
+*Session spend: 8.46M tok (in 106 · out 48.4k · cache r 8.32M / w 96.7k) · ~$6.34 · opus-5 · 12:11→12:22*
+
 ### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
 
 **Findings:** Working from a different location, on the tailnet. Three things came out of trying to

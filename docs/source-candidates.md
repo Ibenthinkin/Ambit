@@ -67,14 +67,46 @@ Ben's 08-20 batch. Four of the thirteen URLs were APIs and moved into the table 
 | [Long Now — Earthquake Lessons](https://sb.longnow.org/SB_homepage/Earthquake_Lessons.html) · [strategy+business 06109](https://www.strategy-business.com/article/06109) | Individual Stewart Brand essays on named sites. No API, no open license, single-author copyrighted work. | ❌ **Not a source.** Two essays is not a corpus, and neither site offers a licensed feed. If these are here as *taste* references — the register Ambit's text items should hit — that is a genuinely useful signal, but it belongs in the feel-tuning notes, not the adapter backlog. Worth confirming which was meant. |
 | [Getty photographs](https://www.getty.edu/museum/photographs/) · [Getty Primo portal](https://primo.getty.edu/primo-explore/search?vid=GETTY_PORTAL) | Browse UIs over the same holdings as the Getty API row. Primo is the *library* catalogue (a discovery layer, not an open-image endpoint). | 🟡 Covered by the **Getty** row. The API, not the portal, is the integration surface. |
 
+## Designated blogs (08-20-26)
+
+> **These do not go through the trial loop above.** Blogs are not APIs: they are handled by the
+> planned **blog-adapter family** (`SPEC.md` §6.1, `docs/BUILD_PLAN.md` step 6.3) — a shared scraper
+> core plus per-blog config — and they are displayed as **link cards**: image or short excerpt,
+> Ambit's own description, a blurb about the article, a `from: <blog>` credit, and a prominent link
+> to the original. Ambit hosts no reformatted articles and makes no fair-use claim.
+>
+> **Their bar is different too:** not "does it have a filterable open-license API" but **scrape
+> feasibility + the link-card posture** — is the content reachable politely, and is
+> credit-plus-link-out an honest way to show it? **Scrape etiquette is a real gate, and there is
+> already a worked precedent: artvee was cut** on 08-20-26 (see the Candidates table) because its
+> `robots.txt` runs an AI block list. A site that machine-readably refuses agents does not become a
+> designated blog just because the works it hosts are public domain.
+>
+> Nothing here is built. The v1 design session (6.3) owes seven answers before any adapter exists.
+
+| Blog | Type | Posture | Status | Notes |
+| ---- | ---- | ------- | ------ | ----- |
+| **doorofperception.com** | image — art / visionary culture | Link card: credit + link out | **Scrape complete** | The first corpus, and the reason the strategy exists. **11,572 images already on disk**, in `ambit-archive` under `storage/sources/doorofperception/`, with `index.csv` (11,584 rows: `file, post_slug, post_url, original_url, mime, downloaded`) as the **attribution source** — do not delete or regenerate it. Currently ingested as *archive* items; migrating them here retires 85% of the archive corpus. Sequenced after archive A.5/A.6 and after 6.3's design session, and it **owns the Ambit-side dedupe question**, since those items may already be in the corpus via the archive adapter. |
+| **50watts.com** | image — book art, illustration, obscure design | Link card | Untried | Long-running curated blog with dense per-post image sets and real editorial writing — close to the exact texture the README's "old Tumblr art blogs" reference names. Scrape feasibility unchecked. |
+| **thisiscolossal.com** | image — contemporary art & visual culture | Link card | Untried | High post volume, consistently strong imagery, and the most *current* of the set where the rest skew historical. Commercial site: check robots.txt and rate posture first. |
+| **lastmuseum.com** | image — art | Link card | Untried | Unverified — confirm it is live and what it actually is before spending design time on it. |
+| **thingsorganizedneatly.tumblr.com** | image — knolling / arranged objects | Link card | Untried | Tumblr, so posts are short: image plus little or no article text. That makes it the useful **edge case** for open question 4 (where the blurb lives) — a blog with nothing to blurb still has to render as an honest link card. |
+| **openculture.com** | both — aggregator | Link card, *but* | Parked | **An aggregator, not a primary source.** Its posts are pointers at some institution's archive — exactly the distinction the "Leads, not sources" table above draws — and crediting Open Culture for an image the Library of Congress holds is the wrong credit. May belong in the seeding list below rather than as a designated blog; decide at 6.3. |
+| **Public Domain Review** | both — essays + PD imagery | Link card | Parked | **Moved here from BUILD_PLAN 6.2 (08-20-26)**, where it sat as an API-adapter candidate carrying a "check API/RSS reality — may need scraping-lite or cutting" gate. That gate was always a blog question: PDR is an essay publication with public-domain imagery, so the link-card posture fits it better than an adapter would. Its own material being largely PD makes it the gentlest first test of the posture. |
+
+### Single posts worth seeding
+
+Individual articles, not whole blogs — the kind of thing that seeds one item or one topic rather than justifying an adapter. Kept here so they don't get lost in the raw dump.
+
+- [Open Culture — 1.8 million free works of art from world-class museums (meta-list)](https://www.openculture.com/2016/05/1-8-million-free-works-of-art-from-world-class-museums-a-meta-list.html) — a list *of* archives; mine it for candidate APIs rather than ingesting it.
+- The 08-20 batch's other Open Culture posts (Margolies, Jung, Japanese woodblock, wildlife illustrations) are triaged in the Leads table above — most point at institutions Ambit already reaches.
+
+
 ## Untriaged raw notes
 
 _Older dump, kept as-is — not yet run through the bar above._
 
-
-https://50watts.com/
-https://www.openculture.com/2016/05/1-8-million-free-works-of-art-from-world-class-museums-a-meta-list.html
-
+#
 Cooper Hewitt, Smithsonian Design Museum
 Metropolitan Museum of Art
 Art institute of chicago
@@ -86,11 +118,8 @@ free uv index api
 hacker news api
 nga.goc national gallery
 getty images
-wallhaven - wallpapers
-amazin endemic species
-behane somehow?
+amazing endemic species
 holidays api
-scraping Door or perceptions
 wikipeida events on this day
 old ass news papers - https://www.loc.gov/collections/chronicling-america/about-this-collection/technical-information/?__cf_chl_f_tk=FVL9obx3BUMLHxwLD0AD8XK9_vBQGDmSQkW3HtTvaPE-1783187592-1.0.1.1-Hf3AvZHnS1TsqKMlr1u9siaDH_ixpwIp_T0HdFaXfug
 checkout out archive.org, maybe scrape some public info and stand up my own api?

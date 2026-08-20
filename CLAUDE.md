@@ -13,7 +13,7 @@ design in `phase0/` (throwaway-but-kept: harvester, curator, topic-graph tooling
 self-contained browser harnesses — `feed.html` is the reference implementation of the feed
 algorithm and stays the feel-tuning bench): item-level embedding recommendation was **rejected**;
 the validated design is a tiered topic-drift feed over an LLM-curated pool (SPEC §9). Phases 1–4
-scaffolded the real app — Next.js/tRPC/Drizzle/Better Auth, the four source adapters + curator
+scaffolded the real app — Next.js/tRPC/Drizzle/Better Auth, the five source adapters + curator
 (§6), the feed engine (§9), and the full tRPC surface (§7) — all on `main`, DB populated from a
 real ingest run. Phase 5 builds the UI against the design handoff (`docs/design_handoff_ambit_pwa/`)
 screen by screen, per `docs/BUILD_PLAN.md`'s Phase 5 ordering; 5.1 (design system foundation —
@@ -86,6 +86,7 @@ The session UUID is the second-to-last component of the scratchpad path in your 
 
 Ambit is one of three cooperating services — with **ambit-archive** (`~/Dev/ambit-archive`, Ben's private personal-image source) and **loupe** (`~/Dev/loupe`, his personal magazine-clipping bench). The cross-project map lives in Ben's private vault at `~/vaults/Memory-Palace/05 Projects/Ambit-Admin/` (`Ecosystem Architecture.md` + `Roadmap & Backlog.md`). The parts that bind this repo:
 
-- **The boundary is rights/visibility**: Ambit houses public/PD/fair-use sources every user may see (new *public* sources land here, in `server/services/sources/`); personal/experimental/unattributed content stays in ambit-archive; personal-use archive material stays in loupe. Ambit is the ecosystem's **only user-facing surface** and the sole gate for the planned per-user content-pool privileges.
+- **The boundary is rights/visibility**: Ambit houses public, public-domain and openly-licensed sources every user may see (new *public* sources land here, in `server/services/sources/`); personal/experimental/unattributed content stays in ambit-archive; personal-use archive material stays in loupe. Ambit is the ecosystem's **only user-facing surface** and the sole gate for the planned per-user content-pool privileges.
+- **Two rights postures live under Ambit's roof as of 08-20-26** (Ambit-Admin decision). Alongside owned display of open material, Ambit does **link-card display of designated blogs**: a single image or short excerpt + a visible `from: <blog>` credit + a **prominent link to the original**, in the shape of a social link preview and **never a republished article**. **No fair-use claim** — license strings stay honest ("Rights retained by original authors"), removal on request is the standing policy, and the point of the link-out is to drive readers *to* the blog. Full article text is used at ingest only, never stored for display. Tenable because Ambit is invite-only and non-monetized. Design is open: SPEC §6.1 and `docs/BUILD_PLAN.md` 6.3.
 - **Two blessed source-integration patterns**: search-shaped (`search(q)`, ranked order — the museums, ambit-archive) and corpus-walk (cursor-paginated full ingest — loupe, whose adapter must fail fast on 401/403 and never dedupe on loupe article `id`). Don't invent a third shape.
 - The `SourceAdapter` contract (`server/services/sources/types.ts`) is a **cross-service agreement** — ambit-archive built to it verbatim. Before changing it (or either private-source integration), read the Ambit-Admin doc and record the decision in its log.
