@@ -183,13 +183,33 @@ React *before* the effect runs, which only a real component does. And the authed
 it, the exact trap that helper's own comment describes for the landing form. That last one presented
 as a flake (2 failures in 7 runs) and wasn't.
 
-**The finding worth keeping** is about the proxy, and it's a shape rather than a fact: every
-client-side attempt at AIC was doomed because a browser won't let you *unset* the `Referer` that
-Cloudflare was judging. Moving the fetch server-side doesn't work around the rule, it removes the
-input the rule reads. ~80 lines closed a defect that had 17.5% of the corpus dark on every dev
-machine. The property to defend there is "item id in, never a URL" — the helpful `?url=` escape
-hatch is what turns an image proxy into an SSRF gadget, so it's commented as a boundary, not a
-detail.
+**The big one: the proxy works, and AIC still doesn't.** The manual dev pass was the first time
+anyone pointed the finished proxy at a real AIC row, and it returned 502. Direct measurement:
+`www.artic.edu` now answers `403` with `cf-mitigated: challenge` and a "Just a moment..." body to
+*everything* from this network — the IIIF image URLs, **§2.2's own control URL that returned 200
+that morning**, a desktop-Chrome user-agent, and the plain homepage. That is a Cloudflare
+**interactive JS challenge**, not the referer rule, and no server-side fetch can ever pass one:
+there is no header to send, only a script to run. `api.artic.edu` is unaffected (200), so ingestion
+would have gone on adding rows nobody can see — the exact half-suspended state the list exists to
+prevent. **So `aic` went back onto `SUSPENDED_SOURCES`**, reversing the plan's Decision 2 in part.
+Undistinguished: whether AIC escalated generally, or this IP earned a challenge after the morning's
+48-concurrent probe. Cheap test is time and a different network; `HANDOFF_aic-images.md` §8 has the
+commands and both readings.
+
+**The proxy is still right, and the reasoning still holds** — every client-side attempt was doomed
+because a browser won't let you *unset* the `Referer` Cloudflare was judging, and moving the fetch
+server-side removes the input rather than working around the rule. Met, CMA and Wellcome all
+verified streaming through it. It just turned out to be aimed at a mitigation AIC had already moved
+past. What it bought regardless: one origin for every image (which is what makes the Save-image row
+possible at all), somewhere for 7.3's resizing and caching to live, and immunity to the next source
+that dislikes our referer. The property to defend there is "item id in, never a URL" — the helpful
+`?url=` escape hatch is what turns an image proxy into an SSRF gadget, so it's commented as a
+boundary rather than a detail.
+
+**And the lesson, cheaply bought:** §2.2 was measured carefully — 20/20, both directions — and was
+still the wrong thing to be building against by the time the build finished, because nobody re-ran
+the control. One `curl` in the dev pass caught it. Re-measure the premise before declaring the fix,
+especially when the premise is somebody else's live infrastructure.
 
 **Verified:** `bun run check` green at every commit (42 files / 395 tests, up from 378); **six
 consecutive green `bun run e2e` runs** after the hydration fix, against the repo's three-run bar;
@@ -199,12 +219,16 @@ when the browser abandons in-flight requests — it reproduces with this branch 
 predates the proxy, and no test is affected. The proxy now joins `req.signal` into its upstream
 fetch anyway, since not pulling bytes for a departed reader is right on its own terms.
 
-**Open / next:** the **iOS device pass** is the last thing between 5.7 and done, and it's carrying
-four questions rather than one — swipe-back feel, back-restores-the-feed on device, Save-image
-reaching the camera roll, and whether AIC images load on the phone now (HANDOFF Q2, finally a clean
-experiment rather than a confounded one). OG preview against a real scraper waits on a deployed
-origin (Q3, same dependency). The 60 items stranded on `topic_id = test-feed-topic-*` are still
-there — the backfill's dry run bumped into one.
+**Open / next:** the **iOS device pass** is the last thing between 5.7 and done — swipe-back feel,
+back-restores-the-feed on device, and Save-image reaching the camera roll. AIC on the phone is no
+longer really a question for it: the host-wide challenge explains the 08-18 phone observation and
+tonight's laptop one with a single mechanism (HANDOFF §8.2), which is the closest thing to an answer
+Q2 has had. Retry `curl -sI https://www.artic.edu/` in a day or two, and from another network sooner
+— that's what distinguishes "they escalated" from "this IP is in the doghouse", and un-suspending is
+one line either way. Q3 (is any of this dev-only?) is now the *interesting* question rather than the
+academic one, and still waits on a deployed origin — as does checking the OG preview against a real
+scraper. The 60 items stranded on `topic_id = test-feed-topic-*` are still there; the backfill's dry
+run bumped into one.
 
 *Session spend: 58.51M tok (in 25.9k · out 288.1k · cache r 56.74M / w 1.46M) · ~≥$47.08 · opus-5 + opus-4-7 + <synthetic> · 17:34→19:04*
 

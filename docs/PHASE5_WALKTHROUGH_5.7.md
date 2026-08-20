@@ -2,8 +2,8 @@
 
 **Executed 08-20-26** against `docs/PHASE5_PLAN_5.7.md`, on branch `feat/phase-5.7-item-pages`.
 Nine tasks, all landed, each its own commit with `bun run check` green. The plan was written to be
-executed cold and largely was; three places argued back, and one of them was the plan contradicting
-its own fixture.
+executed cold and largely was; four places argued back — one of them the plan contradicting its own
+fixture, and one of them big enough to reverse a decision (AIC).
 
 **Status: code complete, one item outstanding — the iOS device pass** (see the end).
 
@@ -18,8 +18,8 @@ invitation. Signed-in readers additionally get the floating pill, the save and s
 Save-image row that reaches the iOS camera roll. Both get a horizontal swipe-back that follows the
 thumb.
 
-Riding along, by prior decision: the **image proxy**, which lifted the AIC suspension, and the move
-of **seen-marking from render-time to receipt**.
+Riding along, by prior decision: the **image proxy** — which works, but did *not* lift the AIC
+suspension (see below) — and the move of **seen-marking from render-time to receipt**.
 
 **New files**
 
@@ -45,13 +45,13 @@ of **seen-marking from render-time to receipt**.
 
 **Changed:** `feed.page` no longer writes `seen_item` (the new `feed.markSeen` mutation does, on the
 client's ack); `drawFromTopic` gained the suspended-source filter `getTopicPools` already had;
-`SUSPENDED_SOURCES` is now empty; the Wikipedia adapter asks for `exsectionformat=wiki`;
+`SUSPENDED_SOURCES` still holds `aic`, for a new reason; the Wikipedia adapter asks for `exsectionformat=wiki`;
 `ShareSheet`'s long-reserved `imageContext` prop finally does something; `image-tile.tsx` loads
 through the proxy; a `Download` icon joined the set.
 
 ---
 
-## The three places reality argued with the plan
+## The four places reality argued with the plan
 
 **1. The plan's own OG fixture couldn't satisfy its own assertion.** T8 said to seed the image item
 with a `data:` URI pixel *and* to assert `og:image` ends in `/api/img/{imageId}`. Those are mutually
@@ -66,7 +66,23 @@ re-rendered — but the effect has `[]` deps and had already run (and bailed) ag
 Rewritten as `use-swipe-back.test.tsx` with a two-line component that attaches the ref in JSX, which
 is what a real consumer does and the only ordering the effect is written for.
 
-**3. The e2e pill click needed a hydration wait, and the failure looked like a flake.** The authed
+**3. AIC did not come back, and the plan's Decision 2 half-reverses.**
+The proxy was supposed to lift the suspension by removing the referer AIC's Cloudflare rules were
+judging, and it does remove it. But the manual dev pass — the first time anyone pointed the finished
+proxy at a real AIC row — got a `502`. Direct measurement found `www.artic.edu` returning `403` with
+`cf-mitigated: challenge` and a "Just a moment..." body to *everything* from this network: the IIIF
+URLs, §2.2's own control URL that returned 200 that morning, a desktop-Chrome user-agent, and the
+plain homepage. That is a Cloudflare **interactive JS challenge**, and no server-side fetch can ever
+pass one — there is no header to send, only a script to run. `api.artic.edu` is unaffected (200), so
+ingestion would have gone on adding rows nobody could see.
+
+So `aic` went back onto `SUSPENDED_SOURCES`, which is the state the list exists for. The proxy is
+not wasted and not wrong — Met, CMA and Wellcome all verified streaming through it — it just turned
+out to be aimed at a mitigation AIC had already moved past. Whether the escalation is permanent or
+this IP earning a challenge after 08-20's 48-concurrent probe is undistinguished; the cheap test is
+to retry in a day, or from another network. `HANDOFF_aic-images.md` §8 carries the commands.
+
+**4. The e2e pill click needed a hydration wait, and the failure looked like a flake.** The authed
 test clicked "Save to collection" and timed out waiting for a sheet that never opened — twice in
 seven runs. The pill is server-rendered before React attaches to it, so an early click lands on
 inert markup and vanishes. This is precisely the trap `e2e/support.ts`'s `waitForHydration` was
@@ -84,11 +100,18 @@ neither part is optional: flip the adapter (going forward) *and* backfill (the 2
 there). The parser degrades to all-paragraphs on a marker-less body, which is what let T1 ship and
 be tested days before the backfill ran.
 
-**The image proxy is a smaller change than the problem it solves.** Every attempt to fix AIC from
-the client side was doomed, because the thing Cloudflare objected to — a `localhost` referer — is
-not something a browser lets you unset. Moving the fetch to the server doesn't *work around* the
-rule; it removes the input the rule reads. The route is ~80 lines and closed a defect that had
-17.5% of the corpus dark on every dev machine.
+**The image proxy is the right shape even though it didn't fix AIC.** Every client-side attempt was
+doomed, because the thing Cloudflare objected to — a `localhost` referer — is not something a
+browser lets you unset. Moving the fetch to the server doesn't *work around* the rule; it removes
+the input the rule reads. That reasoning holds; AIC simply stopped using that rule. What the route
+did buy, immediately and permanently: one origin for every image (which is what makes the
+Save-image row possible at all), a place to put resizing and caching in 7.3, and immunity to the
+*next* source that decides it doesn't like our referer.
+
+**And a lesson about diagnosis, cheaply learned.** §2.2 was measured carefully — 20/20, both
+directions — and was still the wrong thing to build against by the time the build finished, because
+nobody re-ran the control. The dev pass caught it in one `curl`. Re-measure the premise before
+declaring the fix, especially when the premise is somebody else's live infrastructure.
 
 **The security property to protect there is "item id in, never a URL."** An image proxy that
 dereferences caller-supplied URLs is an SSRF gadget pointed at whatever the app server can reach.
@@ -144,18 +167,25 @@ it did not change the count, so the noise is not coming from there.
   three-run flake bar. 22 tests (14 feed/auth/home, 8 item).
 - Backfill: `--limit 5 --dry-run` first (which correctly skipped a leftover `test-feed-*` fixture row
   with a non-numeric `source_id`), then the full 2 200-row run against the dev DB.
+- Manual dev pass: both variants render signed-out with credit line, teaser and CTA; the proxy
+  streams real bytes for Met / CMA / Wellcome rows; AIC 502s, which is what re-opened the
+  suspension.
 
 ## Still open
 
 - **The iOS device pass**, which the Done bar names explicitly. Four things to judge on the phone:
   the swipe-back's rubber-band follow and commit; that back from a feed-tapped item restores the
   exact feed (pop, not push); that Save image lands in the camera roll through the share sheet; and
-  whether AIC images now load on the phone — the verdict on `HANDOFF_aic-images.md`'s Q2, which the
-  proxy has finally made a clean experiment rather than a confounded one.
+  whether AIC images load on the phone — though the laptop measurement above has largely pre-empted
+  that one (`HANDOFF_aic-images.md` §8.2: a host-wide challenge explains both the phone's 08-18
+  behaviour and today's, with one mechanism).
 - **OG preview against a real scraper.** The meta tags are asserted in e2e, but nobody has pasted a
   `/i/{id}` URL into a preview debugger — and `og:image` resolves against `BETTER_AUTH_URL`, so this
   can only really be checked once there's a deployed origin (`HANDOFF_aic-images.md` Q3, same
   dependency).
+- **AIC.** Retry `curl -sI https://www.artic.edu/` in a day or two, and from a different network
+  sooner — that distinguishes "they escalated" from "this IP is in the doghouse". Un-suspending is
+  one line.
 - **The 60 items stuck on `topic_id = test-feed-topic-*`** — noted in log 08-20, still a separate
   cleanup. The backfill's dry run bumped into one of them.
 
