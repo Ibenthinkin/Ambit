@@ -43,6 +43,7 @@ import type {
   StructuralDropRule,
 } from "~/server/services/curator";
 import { curateItems, structuralFloor } from "~/server/services/curator";
+import { isSuspendedSource } from "~/server/config/suspended-sources";
 import { adapters } from "~/server/services/sources";
 import type { SourceId } from "~/server/services/sources";
 
@@ -174,7 +175,28 @@ async function main() {
     console.error(`unknown --topic "${topicFlag}" — no such topic in the DB.`);
     process.exit(1);
   }
-  const sourceIds = (sourceFlag ? [sourceFlag] : knownSources) as SourceId[];
+  // A default run skips suspended sources (config/suspended-sources.ts says why each is off).
+  // An explicit `--source aic` still runs — the flag is how you re-test one, which is exactly what
+  // you need the day the reason for the suspension is supposedly fixed — but it says so, so nobody
+  // reads the resulting rows as evidence the source is back in the feed. (It isn't: the feed
+  // filters suspended sources at draw time too.)
+  const sourceIds = (
+    sourceFlag
+      ? [sourceFlag]
+      : knownSources.filter((id) => !isSuspendedSource(id))
+  ) as SourceId[];
+
+  if (sourceFlag && isSuspendedSource(sourceFlag)) {
+    console.log(
+      `⚠ "${sourceFlag}" is a suspended source — ingesting it because you asked explicitly, but ` +
+        `the feed will not draw its items until it is removed from SUSPENDED_SOURCES.\n`,
+    );
+  } else {
+    const skipped = knownSources.filter((id) => isSuspendedSource(id));
+    if (skipped.length > 0) {
+      console.log(`Skipping suspended source(s): ${skipped.join(", ")}\n`);
+    }
+  }
 
   console.log(
     `Ingesting ${topics.length} topic(s) × ${sourceIds.length} source(s), quota ${quota}/cell` +

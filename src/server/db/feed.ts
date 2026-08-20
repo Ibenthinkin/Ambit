@@ -17,6 +17,7 @@ import {
   notInArray,
 } from "drizzle-orm";
 
+import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
 import type { Item } from "./items";
 import { item, seenItem } from "./schema";
 
@@ -73,6 +74,13 @@ export async function getTopicPools(
     gte(item.curationScore, opts.scoreFloor),
     notSeenBeforeAnchor,
   ];
+  // A suspended source's rows stay in the table but must never win a slot — see
+  // config/suspended-sources.ts for why each one is off and what lifts it. Filtering here rather
+  // than at ingest is what makes the switch retroactive: the corpus already holds thousands of
+  // rows from a source that was healthy when they were fetched.
+  if (SUSPENDED_SOURCES.length > 0) {
+    conditions.push(notInArray(item.source, SUSPENDED_SOURCES));
+  }
   // notInArray(id, []) is invalid SQL (an empty IN-list) — the same footgun items.ts's
   // drawFromTopic already guards against, so only add the clause when there's something to
   // exclude (page 1's "nothing seen yet on this page" case included).
