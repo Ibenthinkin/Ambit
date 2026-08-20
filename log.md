@@ -168,6 +168,46 @@ question — whether AIC images load on the phone through the proxy, HANDOFF Q2)
 
 *Session spend: 4.24M tok (in 84 · out 122.5k · cache r 3.65M / w 466.4k) · ~≥$19.10 · fable-5 + <synthetic> · 15:33→17:00*
 
+**5.7 executed (evening)** — nine tasks, nine commits, on `feat/phase-5.7-item-pages`. Walkthrough
+in `docs/PHASE5_WALKTHROUGH_5.7.md`; the plan held up almost unchanged, so what follows is only the
+parts that aren't in it.
+
+**Three things argued back.** The plan's own OG fixture contradicted its own assertion — it seeded
+the e2e image item with a `data:` pixel *and* asked `og:image` to end in `/api/img/{id}`, which the
+page deliberately refuses to emit for a `data:` URL (nothing behind the proxy to fetch, and a broken
+preview image is worse than none). Fixed by seeding a fourth item with an http URL that exists for
+that meta tag alone. `renderHook` turned out to be the wrong tool for `useSwipeBack`, whose entire
+behaviour is an effect attaching native listeners to a ref'd node: the ref has to be attached by
+React *before* the effect runs, which only a real component does. And the authed e2e test needed
+`waitForHydration` pointed at the pill — a server-rendered toolbar takes an early click and drops
+it, the exact trap that helper's own comment describes for the landing form. That last one presented
+as a flake (2 failures in 7 runs) and wasn't.
+
+**The finding worth keeping** is about the proxy, and it's a shape rather than a fact: every
+client-side attempt at AIC was doomed because a browser won't let you *unset* the `Referer` that
+Cloudflare was judging. Moving the fetch server-side doesn't work around the rule, it removes the
+input the rule reads. ~80 lines closed a defect that had 17.5% of the corpus dark on every dev
+machine. The property to defend there is "item id in, never a URL" — the helpful `?url=` escape
+hatch is what turns an image proxy into an SSRF gadget, so it's commented as a boundary, not a
+detail.
+
+**Verified:** `bun run check` green at every commit (42 files / 395 tests, up from 378); **six
+consecutive green `bun run e2e` runs** after the hydration fix, against the repo's three-run bar;
+the Wikipedia body backfill dry-run, then the full 2,200-row run against the dev DB. Recorded but
+not chased: the dev server emits a few `unhandledRejection: Error: aborted` lines during an e2e run
+when the browser abandons in-flight requests — it reproduces with this branch stashed, so it
+predates the proxy, and no test is affected. The proxy now joins `req.signal` into its upstream
+fetch anyway, since not pulling bytes for a departed reader is right on its own terms.
+
+**Open / next:** the **iOS device pass** is the last thing between 5.7 and done, and it's carrying
+four questions rather than one — swipe-back feel, back-restores-the-feed on device, Save-image
+reaching the camera roll, and whether AIC images load on the phone now (HANDOFF Q2, finally a clean
+experiment rather than a confounded one). OG preview against a real scraper waits on a deployed
+origin (Q3, same dependency). The 60 items stranded on `topic_id = test-feed-topic-*` are still
+there — the backfill's dry run bumped into one.
+
+*Session spend: 58.51M tok (in 25.9k · out 288.1k · cache r 56.74M / w 1.46M) · ~≥$47.08 · opus-5 + opus-4-7 + <synthetic> · 17:34→19:04*
+
 ### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
 
 **Findings:** Working from a different location, on the tailnet. Three things came out of trying to

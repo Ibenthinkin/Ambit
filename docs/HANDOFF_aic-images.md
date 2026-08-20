@@ -180,6 +180,30 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 
 ---
 
+## 8. Postscript — 08-20-26: the proxy shipped
+
+**§2.2 is closed by construction.** Phase 5.7 landed `/api/img/[itemId]`
+(`src/app/api/img/[itemId]/route.ts`): every http(s) item image is now fetched **server-side**, with
+Ambit's UA and **no `Referer` header at all**. The referer Cloudflare was judging simply isn't sent
+any more, so there is nothing left for the `localhost` rule to match. AIC came off
+`SUSPENDED_SOURCES` in the same commit; the list is now empty, and the machinery stays in place for
+whatever goes bad next.
+
+The route takes an **item id and resolves the URL from our own table** — it never accepts a URL from
+a caller. That is the open-proxy/SSRF boundary and it is commented as such in the file; don't
+"helpfully" add a `?url=` escape hatch. Its rate limiter is a separate 600/min-per-IP instance
+rather than the shared tRPC one, because a single feed page loads ~24 images and would otherwise
+starve the API. Resizing (§2.4 / IIIF `!843,843`) and a CDN cache layer remain **7.3's**, unchanged.
+
+**Q2 (the phone-path second cause) is still open**, and is exactly what 5.7's iOS device pass is
+for. The proxy removes the referer variable entirely, so if AIC images still fail on the phone
+after this, the remaining cause is genuinely something else — and that is now a clean experiment
+rather than a confounded one. Record the verdict here when the pass runs.
+
+**Q3 (is the block a dev-only artifact?) stays open until deploy**, and is now mostly academic: with
+every image served from Ambit's own origin, the production answer stops mattering for correctness.
+Worth confirming once anyway, since it decides whether the proxy is load-bearing or merely tidy.
+
 ### Footnote: an unrelated trap in this repo's test suite
 
 `bun run test` is ~12s and green (35 files / 329 tests). But when two runs overlap, or the dev
