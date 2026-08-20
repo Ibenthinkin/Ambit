@@ -1,17 +1,25 @@
-// Integration tests for `getTopicPools`'s source filter against a real Postgres. The filter is a
-// SQL clause, so a fixture-mocked test would only be checking that a mock was called — the thing
-// worth pinning is that a suspended source's rows genuinely cannot come back. Self-skips whenever
-// DATABASE_URL isn't set (same pattern as db/items.integration.test.ts); run locally with
-// `docker compose up -d` then `bun run test`.
+// Integration tests for the suspended-source filter against a real Postgres, across **both** draw
+// paths — `getTopicPools` (the feed) and `drawFromTopic` (the wander teaser and probe-feed). The
+// filter is a SQL clause, so a fixture-mocked test would only be checking that a mock was called;
+// the thing worth pinning is that a suspended source's rows genuinely cannot come back.
+//
+// `SUSPENDED_SOURCES` is empty as of 5.7 (aic came back with the image proxy), so the loops below
+// currently assert nothing. That is the point: the day a source is switched off again, this is
+// what fails if one of the two draw paths forgot to filter — which is exactly the half-suspended
+// state suspended-sources.ts's header warns about.
+//
+// Self-skips whenever DATABASE_URL isn't set (same pattern as db/items.integration.test.ts); run
+// locally with `docker compose up -d` then `bun run test`.
 import { inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
 import { getTopicPools } from "./feed";
+import { drawFromTopic } from "./items";
 
 describe.skipIf(!process.env.DATABASE_URL)(
-  "getTopicPools (integration)",
+  "suspended-source filtering (integration)",
   () => {
     const topicId = `test-pools-topic-${nanoid(8)}`;
     const userId = `test-pools-user-${nanoid(8)}`;
@@ -70,7 +78,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       await db.delete(topic).where(inArray(topic.id, [topicId]));
     });
 
-    it("never returns items from a suspended source", async () => {
+    it("getTopicPools never returns items from a suspended source", async () => {
       const pools = await getTopicPools([topicId], {
         userId,
         anchor: new Date(),
@@ -79,6 +87,20 @@ describe.skipIf(!process.env.DATABASE_URL)(
       });
 
       const sources = (pools.get(topicId) ?? []).map((row) => row.source);
+      expect(sources).toContain("met");
+      for (const suspended of SUSPENDED_SOURCES) {
+        expect(sources).not.toContain(suspended);
+      }
+    });
+
+    it("drawFromTopic never returns items from a suspended source", async () => {
+      const drawn = await drawFromTopic(topicId, {
+        scoreFloor: 1,
+        excludeIds: [],
+        limit: 50,
+      });
+
+      const sources = drawn.map((row) => row.source);
       expect(sources).toContain("met");
       for (const suspended of SUSPENDED_SOURCES) {
         expect(sources).not.toContain(suspended);

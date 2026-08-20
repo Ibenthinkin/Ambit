@@ -46,6 +46,28 @@ export async function isItemSaved(
 }
 
 /**
+ * Which collection `itemId` is filed in for `userId`, or `undefined` if the user hasn't saved it
+ * at all. Backs `saves.forItem`, which is what tells an item page's bookmark control whether to
+ * render lit, and which row of the save sheet to mark "Already saved here".
+ *
+ * `null` and `undefined` mean different things here and the distinction is load-bearing:
+ * `undefined` is "not saved", while `null` is "saved but uncollected" — a real state, since
+ * `saved_item.collection_id` is nullable.
+ */
+export async function getSavedItemCollection(
+  userId: string,
+  itemId: string,
+): Promise<string | null | undefined> {
+  const { db } = await import("./client");
+  const [row] = await db
+    .select({ collectionId: savedItem.collectionId })
+    .from(savedItem)
+    .where(and(eq(savedItem.userId, userId), eq(savedItem.itemId, itemId)))
+    .limit(1);
+  return row ? row.collectionId : undefined;
+}
+
+/**
  * A user's saved items, most-recently-saved first (SPEC §7's `saves.list`) — joins `saved_item` to
  * `item` so the caller gets full item records, not just ids.
  *

@@ -334,6 +334,76 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
     });
   });
 
+  describe("items.wanderNext", () => {
+    // The fixture topic has no row in the checked-in topic graph, so every pick lands on the
+    // own-topic fallback — which is exactly the shape the e2e corpus has, and the reason that
+    // fallback exists.
+    it("offers real neighbours to an anonymous caller, never the item itself", async () => {
+      const rows = await createCaller(anonContext()).items.wanderNext({
+        itemId: itemOneId,
+      });
+
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.length).toBeLessThanOrEqual(3);
+      for (const row of rows) {
+        expect(row.id).not.toBe(itemOneId);
+        expect(Object.keys(row).sort()).toEqual(["id", "reason", "title"]);
+      }
+    });
+
+    it("returns an empty teaser for an unknown item rather than throwing", async () => {
+      const rows = await createCaller(anonContext()).items.wanderNext({
+        itemId: "definitely-not-a-real-item",
+      });
+      expect(rows).toEqual([]);
+    });
+  });
+
+  describe("saves.forItem", () => {
+    it("round-trips across save and unsave", async () => {
+      const caller = createCaller(authedContext(userId));
+      const [articles] = await caller.saves.collections();
+
+      await caller.saves.unsave({ itemId: itemTwoId });
+      expect(await caller.saves.forItem({ itemId: itemTwoId })).toEqual({
+        saved: false,
+        collectionId: null,
+      });
+
+      await caller.saves.saveToCollection({
+        itemId: itemTwoId,
+        collectionId: articles!.id,
+      });
+      expect(await caller.saves.forItem({ itemId: itemTwoId })).toEqual({
+        saved: true,
+        collectionId: articles!.id,
+      });
+
+      await caller.saves.unsave({ itemId: itemTwoId });
+      expect(await caller.saves.forItem({ itemId: itemTwoId })).toEqual({
+        saved: false,
+        collectionId: null,
+      });
+    });
+
+    it("is scoped to the caller — another user's save is invisible", async () => {
+      const caller = createCaller(authedContext(userId));
+      const [articles] = await caller.saves.collections();
+      await caller.saves.saveToCollection({
+        itemId: itemOneId,
+        collectionId: articles!.id,
+      });
+
+      const other = createCaller(authedContext(otherUserId));
+      expect(await other.saves.forItem({ itemId: itemOneId })).toEqual({
+        saved: false,
+        collectionId: null,
+      });
+
+      await caller.saves.unsave({ itemId: itemOneId });
+    });
+  });
+
   describe("feed.page end-to-end", () => {
     const feedUserId = `test-router-feed-user-${nanoid(8)}`;
     const feedTopicId = `test-router-feed-topic-${nanoid(8)}`;

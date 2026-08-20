@@ -31,6 +31,8 @@ vi.mock("~/server/services/feed", async (importOriginal) => {
 // Same treatment for the `seen_item` writer behind `feed.markSeen` — the router's job is to hand
 // it the *session's* user id (never a client-supplied one) plus the acked ids, and that's provable
 // without a database.
+vi.mock("~/server/services/wander", () => ({ getWanderNext: vi.fn() }));
+
 vi.mock("~/server/db/feed", async (importOriginal) => {
   const actual = await importOriginal<typeof FeedRepo>();
   return { ...actual, markSeen: vi.fn() };
@@ -39,6 +41,12 @@ vi.mock("~/server/db/feed", async (importOriginal) => {
 const { getFeedPage: mockedGetFeedPage } =
   await import("~/server/services/feed");
 const { markSeen: mockedMarkSeen } = await import("~/server/db/feed");
+
+// `items.wanderNext` reaches Postgres through services/wander.ts; mocked here for the same reason
+// as `getFeedPage` — this file's subject is the auth boundary and argument forwarding, not the
+// draw itself (wander.test.ts owns that).
+const { getWanderNext: mockedGetWanderNext } =
+  await import("~/server/services/wander");
 
 // A minimal, well-formed logged-out context — the shape `createTRPCContext` would produce for a
 // request with no session cookie at all.
@@ -138,10 +146,16 @@ describe("protected procedures reject a null session", () => {
       code: "UNAUTHORIZED",
     });
   });
+
+  it("saves.forItem throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.saves.forItem({ itemId: "some-item" }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
 });
 
-describe("items.byId is public", () => {
-  it("a null session never yields UNAUTHORIZED — it reaches the resolver", async () => {
+describe("the two public procedures", () => {
+  it("items.byId: a null session never yields UNAUTHORIZED — it reaches the resolver", async () => {
     const caller = createCaller(anonContext());
     // The id is deliberately nonexistent: this test only cares whether the *auth* boundary let
     // the call through, not what a real DB does with it (that's items.integration.test.ts's
@@ -153,6 +167,24 @@ describe("items.byId is public", () => {
         expect(err.code).not.toBe("UNAUTHORIZED");
       }
     }
+  });
+
+  // The boundary test in the *other* direction: the item page's teaser has to render for a
+  // stranger following a shared link, so an anonymous caller must reach this resolver.
+  it("items.wanderNext serves an anonymous caller", async () => {
+    vi.mocked(mockedGetWanderNext).mockResolvedValue([
+      { id: "b", title: "Another thing", reason: "a drift from X into Y" },
+    ]);
+
+    const rows = await createCaller(anonContext()).items.wanderNext({
+      itemId: "a",
+    });
+
+    expect(rows).toEqual([
+      { id: "b", title: "Another thing", reason: "a drift from X into Y" },
+    ]);
+    // No user id reaches the service — there is no parameter for one.
+    expect(vi.mocked(mockedGetWanderNext)).toHaveBeenCalledWith("a");
   });
 });
 
@@ -249,11 +281,12 @@ describe("feed.page forwards knobs to getFeedPage unconditionally", () => {
 
 describe("appRouter shape", () => {
   // Phase 5.5 grew this from six procedures to nine (`saves.toggle` was removed — verified dead —
-  // and the collection-aware surface took its place); 5.7 adds `feed.markSeen`, the receipt half
-  // of the feed. This assertion is deliberately exhaustive rather than a subset check: it's the
+  // and the collection-aware surface took its place); 5.7 adds three — `feed.markSeen` (the
+  // receipt half of the feed), `items.wanderNext` (the item page's teaser, and the API's *second*
+  // public procedure), and `saves.forItem`. This assertion is deliberately exhaustive rather than a subset check: it's the
   // one thing that makes an accidentally-exported procedure, or one that quietly outlives its
   // last caller, show up as a failing test instead of shipping.
-  it("exposes exactly the ten SPEC §7 procedures, no leftover post router", () => {
+  it("exposes exactly the twelve SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -262,11 +295,13 @@ describe("appRouter shape", () => {
         "feed.page",
         "feed.markSeen",
         "items.byId",
+        "items.wanderNext",
         "saves.collections",
         "saves.saveToCollection",
         "saves.unsave",
         "saves.list",
         "saves.count",
+        "saves.forItem",
       ].sort(),
     );
   });

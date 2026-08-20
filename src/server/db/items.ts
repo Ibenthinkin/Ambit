@@ -3,6 +3,7 @@
 // as of 3.4; getItemById stays a stub until Phase 4.
 import { and, eq, gte, notInArray } from "drizzle-orm";
 
+import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
 import { item } from "./schema";
 
 export type NewItem = typeof item.$inferInsert;
@@ -166,6 +167,13 @@ export async function drawFromTopic(
     eq(item.topicId, topicId),
     gte(item.curationScore, scoreFloor),
   ];
+  // A suspended source's rows stay in the table but must never win a slot — same guard, same
+  // reasoning, as db/feed.ts's `getTopicPools`. Filtering at draw time rather than at ingest is
+  // what makes the switch retroactive over a corpus already full of rows from a source that was
+  // healthy when they were fetched. Every draw path needs it, or the suspension is only half on.
+  if (SUSPENDED_SOURCES.length > 0) {
+    conditions.push(notInArray(item.source, SUSPENDED_SOURCES));
+  }
   if (excludeIds.length > 0) conditions.push(notInArray(item.id, excludeIds));
 
   const pool = await db
