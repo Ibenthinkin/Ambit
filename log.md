@@ -5,6 +5,78 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-20-26 Thu]] — The 5.6 device pass passes; the feed was eating the corpus on every Back
+
+**The pass itself: green.** 5.6's tile gestures (tap vs. long-press vs. scroll, the 12px slop
+guard, the four iOS incantations) and 5.5's carried-over pill/sheet checks all behave correctly on
+the phone. The `pt-[58px]` inset clears the status bar as-is. That closes the Done bar both phases
+have been waiting on since 08-16.
+
+**Findings:** Ben also reported a slow load and a hydration error, and chasing those turned up
+something much worse underneath.
+
+**The slow load was transport, not code.** The phone was on the same LAN the whole time (direct
+Tailscale path), but the first packet took 784ms — radio asleep — and the warm link still measures
+4–128ms with 47ms stddev. Jittery wifi plus an unminified dev bundle means chunk fetches time out,
+and the log filled with `ChunkLoadError`. Worth recording how it was *ruled out* as a build
+problem: every one of the seven failing chunk names still returned 200 from the running server, so
+the names hadn't churned and nothing was stale. That also clears the service worker, 08-17's
+suspect — a stale SW cache would have named chunks the server no longer has. "Zero `sw.js`
+requests" was never evidence either way, since a cached SW makes no request.
+
+**The hydration error was a symptom, not a bug.** When a chunk failure breaks the RSC→client cache
+handoff, the client refetches `feed.page` — which returns *different items*, because the server's
+render already marked the first twelve seen and the cursor excludes the seen history. Client render
+≠ server HTML, guaranteed. Nothing to fix in the components.
+
+**The real defect, and Ben named it faster than the investigation did:** going to an item page and
+coming back rebuilt the feed from scratch. The item stub's Back was `<Link href="/feed?focus={id}">`
+— a *push*, so the dynamic route re-ran, `getFeedPage` never repeats items, and the reader landed
+among cards they'd never seen with their scroll position gone. Cost per round trip: **two pages of
+corpus**, one drawn by the RSC render and one by the client query. `use-feed-scroll.ts`'s header had
+described this precisely and filed the fix under 5.7; what nobody had connected is that it fires on
+every single Back, not just in edge cases.
+
+**Which is where 08-18's unresolved contradiction goes.** That session was left holding "172
+server-side `feed.page` executions against zero `GET /feed` lines" and couldn't reconcile it. The
+answer is the finding it had already made one paragraph earlier: proxy-*redirected* requests
+produce no log line, so `/` → 307 → `/feed` renders invisibly. Combine that with a ChunkLoadError
+reload loop and the arithmetic closes — **1,116 items marked seen in six minutes**, 696 in the worst
+single minute, ~130 renders × 12 items at ~700–1200ms each.
+
+**So the "reading history" wasn't reading.** Ben's account held 2,743 `seen_item` rows and his three
+CORE topics were the most exhausted in the corpus (portraiture 82%, zoology 73%, architecture 67%)
+— which would have made the feed draw from the dregs of exactly the topics he picked, and read as
+an algorithm problem. Cleared, with a CSV backup.
+
+**Shipped:** `BackToFeed` + `feed-origin.ts`. Back now **pops history** when the reader arrived from
+the feed and only pushes `?focus=` when they didn't — which is the cold-opened shared link, where
+there is no feed behind the page and popping would leave Ambit entirely. The distinction rides on a
+`sessionStorage` marker the feed writes on tap. **The markup deliberately does not branch on that
+marker at render time**: the obvious shape (read storage, return a button or a link) is a hydration
+mismatch by construction, since the server has no `sessionStorage` — so the anchor is
+unconditional and the pop is an interception of its click. Same DOM on both sides, and it still
+works if JS never boots. Also refreshed the rotted LAN dev origin (`.68.65` → `.1.215`).
+
+333 unit tests (was 329) + 14 e2e green. The e2e that asserted the *old* behaviour was rewritten to
+pin the new one: same tile ids before and after, and zero requests to `/feed` or `feed.page`.
+Matched on path rather than an `RSC:` header so a header rename can't make it pass vacuously, and
+checked with a negative control — stub `cameFromFeed` to `false` and it fails, so it isn't testing
+nothing.
+
+**Open / next:** the fix removes the loop's fuel but not the loop's *cost*: `feed.page` still writes
+`seen_item` during a server render whose output can be discarded, so any future reload loop burns
+corpus again, just slower. The durable fix is to let receipt — not attempted render — be what marks
+an item seen; carry it into the 5.7 plan. Still open from 08-18: AIC images 403 on a `localhost`
+referer (17.5% of the corpus, `docs/HANDOFF_aic-images.md`), and **still unresolved on device** —
+AIC tiles were the only ones missing on the phone even over a tailnet referer that returns 200 from
+the laptop, so the second cause that handoff predicted is real. 5.7's image proxy is the structural
+answer. Minor corpus leak found in passing: 60 real items (30 met, 30 wikipedia) still carry
+`topic_id = test-feed-topic-*` from an integration test that never restored them, which makes them
+unreachable by the feed — `source='e2e'` cleanup is clean, this is a different leak.
+
+*Session spend: 18.77M tok (in 306 · out 111.1k · cache r 18.13M / w 524.1k) · ~$17.09 · opus-5 · 10:00→11:05*
+
 ### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
 
 **Findings:** Working from a different location, on the tailnet. Three things came out of trying to
