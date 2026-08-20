@@ -1,63 +1,140 @@
-// INTERIM STUB — replaced wholesale in 5.7.
-//
-// It exists because 5.6's feed navigates somewhere on every tap, and a tap that 404s makes the
-// gesture layer untestable. So: the least page that can honestly be called an item page, and one
-// real job beyond that — `BackToFeed` returns the reader to the feed they left (popping history
-// when they came from it, building a fresh `?focus=` feed when they arrived cold), which makes
-// this the live test rig for the feed's return-scroll (Step 7 of PHASE5_PLAN_5.6.md).
-// BUILD_PLAN explicitly allows this stub.
-//
-// Deliberately absent, all 5.7's: OG/Twitter metadata, the real hero treatment, article body
-// rendering, the save/share controls, swipe-back, and "wander next".
-//
-// Reads the repo directly rather than going through tRPC, matching how `/onboarding` and `/feed`
-// fetch on the server. The underlying procedure (`items.byId`) is the app's one `publicProcedure`
-// — SPEC §8.1 makes this page readable by anyone with the link, invite or not — so there is no
-// session guard here on purpose.
+import { cache } from "react";
+import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { BackToFeed } from "~/components/item/back-to-feed";
-import { sourceLabel } from "~/lib/source-label";
+import { ImageItemBody } from "~/components/item/image-item-body";
+import { JoinCta } from "~/components/item/join-cta";
+import { ReaderItemBody } from "~/components/item/reader-item-body";
+import { SharedByRow, sharedByName } from "~/components/item/shared-by-row";
+import { WanderNext } from "~/components/item/wander-next";
+import { Rise } from "~/components/ui/rise";
+import { auth } from "~/lib/auth";
 import { getItemById } from "~/server/db/items";
+import { api } from "~/trpc/server";
+import { env } from "~/env";
 
-export default async function ItemStubPage({
+// The item page — the app's **one public surface** (SPEC §8.1). Anyone with the link can read it,
+// invite or not, which shapes almost every decision in this file:
+//
+//   - Two variants keyed on `item.type`: a picture with a caption, or an article to read.
+//   - The pill toolbar, the sheets, and every protected query render for signed-in readers ONLY.
+//     A signed-out visitor gets content, credit, the wander teaser, and an invitation — and the
+//     page fires no user-scoped query on their behalf, because there is no user.
+//   - `generateMetadata` is built purely from the item row. A shared link's preview card must
+//     never carry anything about the person who shared it.
+//
+// The route is deliberately absent from `src/proxy.ts`'s matcher; don't add it.
+//
+// Reads the repo directly rather than going through tRPC for the item itself, matching `/feed` and
+// `/onboarding`. The teaser goes through the server caller, so its one procedure has a single
+// definition rather than a service call here and a procedure elsewhere.
+
+// `cache` dedupes the row between `generateMetadata` and the render — Next calls both for the same
+// request, and without this the page would hit Postgres twice for identical data.
+const getItem = cache(getItemById);
+
+export async function generateMetadata({
   params,
 }: {
   params: Promise<{ itemId: string }>;
+}): Promise<Metadata> {
+  const { itemId } = await params;
+  const item = await getItem(itemId);
+  if (!item) return { title: "Not found · Ambit" };
+
+  const description = item.summary
+    ? item.summary.slice(0, 200)
+    : `From ${item.source} on Ambit.`;
+
+  // Only when there's a real image behind the proxy: scrapers can't use a 404, and a broken
+  // `og:image` renders worse than none at all. `data:` URLs never reach the proxy (see the route).
+  const hasProxyImage = Boolean(
+    item.imageUrl && !item.imageUrl.startsWith("data:"),
+  );
+  const images = hasProxyImage ? [`/api/img/${item.id}`] : undefined;
+
+  return {
+    // Relative URLs above need an absolute base to resolve against for scrapers — this is the
+    // app's own origin (env.js).
+    metadataBase: new URL(env.BETTER_AUTH_URL),
+    title: `${item.title} · Ambit`,
+    description,
+    openGraph: {
+      title: item.title,
+      description,
+      url: `/i/${item.id}`,
+      siteName: "Ambit",
+      type: "article",
+      ...(images ? { images } : {}),
+    },
+    twitter: {
+      card: hasProxyImage ? "summary_large_image" : "summary",
+      title: item.title,
+      description,
+      ...(images ? { images } : {}),
+    },
+  };
+}
+
+export default async function ItemPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ itemId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { itemId } = await params;
-  const item = await getItemById(itemId);
+  const item = await getItem(itemId);
   if (!item) notFound();
 
+  // The session decides two things and nothing else: whether the pill toolbar exists, and whether
+  // the join card does. There is no redirect here — being signed out is a supported way to read
+  // this page, not a problem to fix.
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  // Resolved on the server, so a signed-out visitor's page costs them zero client requests. The
+  // procedure is public precisely so this works (see routers/items.ts).
+  const wander = await api.items.wanderNext({ itemId });
+
+  const sharedBy = sharedByName((await searchParams).from);
+  const variant = item.type === "image" ? "image" : "article";
+
   return (
-    <main className="bg-bg text-ink min-h-dvh px-5 py-10">
+    // Bottom padding clears the floating pill (T7 mounts it); the column width and gutters are the
+    // redesign's.
+    <main className="bg-bg text-ink min-h-dvh px-[22px] pt-[68px] pb-[110px]">
+      {/* Interim: replaced by the shell's swipe-back + pill in the next commit of this phase. */}
       <BackToFeed itemId={item.id} className="text-ink/55 text-[14px]" />
 
-      <p className="text-ink/40 mt-8 text-[10px] font-semibold tracking-[1.3px] uppercase">
-        {sourceLabel(item.source)}
-      </p>
-      <h1 className="text-ink-hi mt-2 text-[25px] leading-[1.18] font-semibold">
-        {item.title}
-      </h1>
-
-      {item.imageUrl ? (
-        // Plain `<img>` for the same reason as the feed tiles: the image hosts are an open,
-        // growing set and next/image would need each one allowlisted. See image-tile.tsx.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={item.imageUrl}
-          alt={item.title}
-          className="mt-6 block max-w-full"
-        />
+      {sharedBy ? (
+        <Rise>
+          <div className="mt-[18px]">
+            <SharedByRow name={sharedBy} />
+          </div>
+        </Rise>
       ) : null}
 
-      {/* Both, when both exist — plenty of articles are illustrated, and the stub's job is to make
-          the item recognisable, not to lay it out well. */}
-      {item.summary ? (
-        <p className="text-ink/62 mt-6 text-[16px] leading-[1.72]">
-          {item.summary}
-        </p>
-      ) : null}
+      <Rise delayMs={50}>
+        <div className="mt-[18px]">
+          {variant === "image" ? (
+            <ImageItemBody item={item} />
+          ) : (
+            <ReaderItemBody item={item} />
+          )}
+        </div>
+      </Rise>
+
+      <Rise delayMs={120}>
+        <WanderNext rows={wander} />
+      </Rise>
+
+      {session ? null : (
+        <Rise delayMs={160}>
+          <JoinCta variant={variant} />
+        </Rise>
+      )}
     </main>
   );
 }
