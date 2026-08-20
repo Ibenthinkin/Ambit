@@ -148,11 +148,12 @@ test.describe.serial("feed", () => {
   test("renders without console errors", async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
-      // Image loads are filtered out, and only image loads. The feed hotlinks museum CDNs until
-      // the image proxy lands in 5.7, and several of them bot-block third-party referrers — those
-      // 403s are a known, designed-for condition (the tile falls back to "Image unavailable"),
-      // not a defect this assertion should chase. Everything else — React errors, hydration
-      // mismatches, thrown exceptions — still fails the test, which is the signal worth having.
+      // Image loads are filtered out, and only image loads. Images route through `/api/img/` as
+      // of 5.7, but the bytes still come from a museum CDN at the far end, and a CI box with no
+      // outbound network gets a failed load rather than a picture — a known, designed-for
+      // condition (the tile falls back to "Image unavailable"), not a defect this assertion should
+      // chase. Everything else — React errors, hydration mismatches, thrown exceptions — still
+      // fails the test, which is the signal worth having.
       const text = msg.text();
       const isImageLoad =
         text.includes("Failed to load resource") ||
@@ -200,9 +201,10 @@ test.describe.serial("feed", () => {
   // The feed a reader comes back to must be *the feed they left*. This used to push
   // `/feed?focus={id}`, which re-ran the dynamic route and built an entirely new page of cards —
   // so the reader lost their place, and each round trip permanently spent two pages of their
-  // corpus (`feed.page` writes `seen_item`, and both the RSC render and the client query draw
-  // one). Found on-device 08-20-26. The assertions below are the guard: same tiles, and nothing
-  // drawn.
+  // corpus (through 5.6 `feed.page` wrote `seen_item` itself, and both the RSC render and the
+  // client query drew one). Found on-device 08-20-26. The assertions below are the guard: same
+  // tiles, and nothing drawn. Both halves still matter with receipt-based marking — a fresh draw
+  // is a fresh page of cards whether or not it gets acked.
   test("returning from an item page restores the same feed without drawing new items", async ({
     page,
   }) => {

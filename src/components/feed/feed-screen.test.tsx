@@ -16,6 +16,7 @@ const {
   refetchMock,
   pushMock,
   saveMutateMock,
+  ackSeenMock,
   invalidateMock,
 } = vi.hoisted(() => ({
   feedState: {
@@ -26,6 +27,7 @@ const {
   refetchMock: vi.fn(),
   pushMock: vi.fn(),
   saveMutateMock: vi.fn(),
+  ackSeenMock: vi.fn(),
   invalidateMock: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -38,7 +40,10 @@ vi.mock("~/trpc/react", () => ({
         count: { invalidate: invalidateMock },
       },
     }),
-    feed: { page: { useInfiniteQuery: () => feedState.current } },
+    feed: {
+      page: { useInfiniteQuery: () => feedState.current },
+      markSeen: { useMutation: () => ({ mutate: ackSeenMock }) },
+    },
     saves: {
       collections: {
         useQuery: () => ({
@@ -171,6 +176,7 @@ beforeEach(() => {
   fetchNextPageMock.mockClear();
   pushMock.mockClear();
   saveMutateMock.mockClear();
+  ackSeenMock.mockClear();
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -263,6 +269,27 @@ describe("FeedScreen", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // Receipt, not render, is what spends an item (5.7). The server composes a page and writes
+  // nothing; this effect is the only thing that tells the DB the reader got it.
+  it("acks each received page exactly once", () => {
+    render(<FeedScreen topicLabels={LABELS} />);
+
+    expect(ackSeenMock).toHaveBeenCalledTimes(2);
+    expect(ackSeenMock).toHaveBeenNthCalledWith(1, {
+      itemIds: ["i1", "a1", "i2", "j1"],
+    });
+    expect(ackSeenMock).toHaveBeenNthCalledWith(2, { itemIds: ["i3", "i4"] });
+  });
+
+  it("does not re-ack a page it has already acked on a re-render", () => {
+    const { rerender } = render(<FeedScreen topicLabels={LABELS} />);
+    ackSeenMock.mockClear();
+
+    rerender(<FeedScreen topicLabels={LABELS} />);
+
+    expect(ackSeenMock).not.toHaveBeenCalled();
   });
 
   // Every http(s) image goes through Ambit's own origin as of 5.7 — that single fact is what

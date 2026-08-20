@@ -41,16 +41,18 @@ export function FeedScreen({ topicLabels }: FeedScreenProps) {
     // prefetches with the identical input, and React Query keys a query by (path, input). Any
     // asymmetry doesn't error — it just produces a different key, so the server's payload sits
     // unused in the cache and the client quietly refetches. Which is worse here than it sounds:
-    // `feed.page` writes `seen_item` unconditionally, so an invisible refetch permanently burns a
-    // page of this user's corpus. `knobs` stays absent because it's dev tooling (only honored
-    // under the server's FEED_DEBUG flag) and sending it would be a second way to break the match.
+    // a refetched page is a page the reader receives, and receiving is what burns it (the ack
+    // effect below) — so a broken key silently costs a page of this user's corpus every mount.
+    // `knobs` stays absent because it's dev tooling (only honored under the server's FEED_DEBUG
+    // flag) and sending it would be a second way to break the match.
     {},
     {
       getNextPageParam: (last) => last.nextCursor,
-      // Load-bearing for the same reason, and the precedent /dev/tokens set: every `feed.page`
-      // call consumes items permanently. Any stray refetch — a tab regaining focus, a laptop
-      // waking up — silently eats a page. Treat an unexplained `feed.page` request in the Network
-      // tab as a bug, never as something to paper over with a cache tweak.
+      // Load-bearing for the same reason, and the precedent /dev/tokens set: every page the
+      // client receives gets acked, and an acked item never comes back. Any stray refetch — a tab
+      // regaining focus, a laptop waking up — silently eats a page. Treat an unexplained
+      // `feed.page` request in the Network tab as a bug, never as something to paper over with a
+      // cache tweak.
       staleTime: Infinity,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
@@ -71,6 +73,29 @@ export function FeedScreen({ topicLabels }: FeedScreenProps) {
   } | null>(null);
 
   const pages = React.useMemo(() => data?.pages ?? [], [data]);
+
+  // ── receipt ───────────────────────────────────────────────────────────────────────────────────
+  // Marking an item seen is the client's job as of 5.7, not the server's. `feed.page` composes a
+  // page and says nothing about who saw it; this effect acks the pages that actually arrived here.
+  // The server used to write `seen_item` during its own render, which meant every discarded render
+  // — a route prefetch, a back-pop re-running the dynamic `/feed` — spent a page of corpus on
+  // nobody (1,116 items in six minutes, log.md 08-20-26).
+  //
+  // Keyed on each page's first card id, in a ref rather than state: the set must survive re-renders
+  // without causing one. Re-acking after a genuine remount (the reader pops back from an item page,
+  // React Query replays its cached pages) is deliberate and harmless — `markSeen` is
+  // `onConflictDoNothing`, so the first write wins and the original `served_at` stands, which is
+  // what keeps the cursor's anchor arithmetic stable.
+  const { mutate: ackSeen } = api.feed.markSeen.useMutation();
+  const ackedPages = React.useRef(new Set<string>());
+  React.useEffect(() => {
+    for (const page of pages) {
+      const key = page.cards[0]?.item.id;
+      if (!key || ackedPages.current.has(key)) continue;
+      ackedPages.current.add(key);
+      ackSeen({ itemIds: page.cards.map((c) => c.item.id) });
+    }
+  }, [pages, ackSeen]);
 
   const { columns, firstPageTiles, cardCount } = React.useMemo(() => {
     const tiles = buildTiles(pages, topicLabels);

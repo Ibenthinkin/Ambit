@@ -390,7 +390,52 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       await db.delete(topic).where(eq(topic.id, feedTopicId));
     });
 
-    it("page 1 -> cursor -> page 2 returns disjoint cards, and an unauthed call is rejected", async () => {
+    /** How many items this fixture user has been marked as having seen. */
+    const seenCount = async () => {
+      const { db } = await import("~/server/db/client");
+      const { seenItem } = await import("~/server/db/schema");
+      const rows = await db
+        .select({ itemId: seenItem.itemId })
+        .from(seenItem)
+        .where(eq(seenItem.userId, feedUserId));
+      return rows.length;
+    };
+
+    // The 5.7 boundary, asserted from the outside: asking for a page costs the reader nothing.
+    // Only the ack does. Through 5.6 this call inserted a full page of `seen_item` rows, which is
+    // how a prefetch or a back-pop re-render could quietly spend someone's corpus.
+    it("feed.page composes without writing a single seen_item row", async () => {
+      const caller = createCaller(authedContext(feedUserId));
+      const before = await seenCount();
+
+      const page = await caller.feed.page({});
+
+      expect(page.cards.length).toBeGreaterThan(0);
+      expect(await seenCount()).toBe(before);
+    });
+
+    it("feed.markSeen writes rows that read back, and rejects an unauthed ack", async () => {
+      await expect(
+        createCaller(anonContext()).feed.markSeen({ itemIds: ["whatever"] }),
+      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+
+      const caller = createCaller(authedContext(feedUserId));
+      const page = await caller.feed.page({});
+      const ids = page.cards.map((c) => c.item.id);
+      const before = await seenCount();
+
+      expect(await caller.feed.markSeen({ itemIds: ids })).toEqual({
+        ok: true,
+      });
+
+      expect(await seenCount()).toBe(before + ids.length);
+      // And re-acking is a no-op rather than an error — a remount replaying cached pages does
+      // exactly this (`onConflictDoNothing`).
+      await caller.feed.markSeen({ itemIds: ids });
+      expect(await seenCount()).toBe(before + ids.length);
+    });
+
+    it("page 1 -> ack -> page 2 returns disjoint cards, and an unauthed call is rejected", async () => {
       await expect(
         createCaller(anonContext()).feed.page({}),
       ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
@@ -399,6 +444,12 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       const page1 = await caller.feed.page({});
       expect(page1.cards.length).toBeGreaterThan(0);
       expect(page1.nextCursor).toBeDefined();
+
+      // The client's half of the contract. Without it page 2 is free to repeat page 1 — correct
+      // behavior for an unacknowledged page, and not what this test is about.
+      await caller.feed.markSeen({
+        itemIds: page1.cards.map((c) => c.item.id),
+      });
 
       const page2 = await caller.feed.page({ cursor: page1.nextCursor });
       const page1Ids = new Set(page1.cards.map((c) => c.item.id));
