@@ -265,8 +265,16 @@ describe("FeedScreen", () => {
     }
   });
 
-  // Museum CDNs bot-block third-party fetchers, so this path is exercised for real until the 5.7
-  // image proxy lands.
+  // Every http(s) image goes through Ambit's own origin as of 5.7 — that single fact is what
+  // unblocked AIC's 1,338 images (see api/img/[itemId]/route.ts).
+  it("loads tile images through the proxy, not the source CDN", () => {
+    render(<FeedScreen topicLabels={LABELS} />);
+
+    const img = document.querySelector('[data-feed-id="i1"] img')!;
+    expect(img.getAttribute("src")).toBe("/api/img/i1");
+  });
+
+  // A proxied image can still fail — a flaky network, a source CDN that's down.
   //
   // The retry matters more on a phone than it looks on a desktop: a single dropped request used to
   // latch the tile into `Image unavailable` for the life of the page, with no way back, so a brief

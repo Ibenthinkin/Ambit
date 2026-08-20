@@ -74,6 +74,15 @@ export function ImageTile({
     });
   }, []);
 
+  // Every http(s) image is fetched through Ambit's own proxy (`/api/img/[itemId]`) — one origin,
+  // no referer sent upstream, which is what unblocked AIC (see the route's header comment). The
+  // `data:` bypass is for the e2e corpus, whose items carry inline base64 pixels: there is nothing
+  // for a proxy to fetch, and teaching the route to dereference `data:` would be strictly worse
+  // than branching here.
+  const src = item.imageUrl?.startsWith("data:")
+    ? item.imageUrl
+    : `/api/img/${item.id}`;
+
   return (
     <div
       {...press}
@@ -84,10 +93,10 @@ export function ImageTile({
       style={{ WebkitTouchCallout: "none" }}
     >
       {broken || !item.imageUrl ? (
-        // Images are hotlinked straight from museum CDNs until the image proxy lands in 5.7, and
-        // several of those bot-block third-party referrers — so a nonzero broken rate here is
-        // expected, not a defect. It still has to hold its slot: collapsing the tile would
-        // reshuffle the column under the reader's thumb.
+        // Images come through Ambit's own proxy as of 5.7, which removes the referer-block class
+        // of failure entirely — but not flaky networks, a source CDN that's down, or an object
+        // that's been de-accessioned upstream. The tile still has to hold its slot when one of
+        // those happens: collapsing it would reshuffle the column under the reader's thumb.
         <div className="bg-ink/5 flex h-full w-full flex-col items-center justify-center gap-1 px-2 text-center">
           <span className="text-ink/40 text-[11px]">Image unavailable</span>
           {/* Which source failed, readable from a phone with no DevTools attached — the on-device
@@ -106,14 +115,14 @@ export function ImageTile({
         // host declared in next.config.js — but this feed draws from an open, growing set of
         // museum CDNs (SPEC §6.1's five sources today, more in Phase 6, plus the private
         // ambit-archive/loupe hosts), so the allowlist would be a permanent maintenance tax that
-        // silently breaks a source the day it's added. The real answer is the image proxy in 5.7,
-        // which gives every image one origin; until then, plain and honest.
+        // silently breaks a source the day it's added. The proxy (5.7) is what collapses that open
+        // set to one origin at the network layer, which is the part that actually mattered.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           // Remounting on `attempt` is what re-issues the request — same URL, fresh element.
           key={attempt}
           loading="lazy"
-          src={item.imageUrl}
+          src={src}
           alt={item.title}
           onError={handleError}
           className="pointer-events-none block h-full w-full object-cover"
