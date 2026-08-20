@@ -197,20 +197,53 @@ test.describe.serial("feed", () => {
     await expect(page.getByText(/^Saved to /)).toBeVisible();
   });
 
-  test("a tap opens the item page, whose Back link returns with a focus id", async ({
+  // The feed a reader comes back to must be *the feed they left*. This used to push
+  // `/feed?focus={id}`, which re-ran the dynamic route and built an entirely new page of cards —
+  // so the reader lost their place, and each round trip permanently spent two pages of their
+  // corpus (`feed.page` writes `seen_item`, and both the RSC render and the client query draw
+  // one). Found on-device 08-20-26. The assertions below are the guard: same tiles, and nothing
+  // drawn.
+  test("returning from an item page restores the same feed without drawing new items", async ({
     page,
   }) => {
     await onFeed(page);
 
-    const tile = page.locator("[data-feed-id]").first();
-    const itemId = await tile.getAttribute("data-feed-id");
-    await tile.locator("> *").click();
+    const feedIds = () =>
+      page
+        .locator("[data-feed-id]")
+        .evaluateAll((nodes) =>
+          nodes.map((node) => node.getAttribute("data-feed-id")),
+        );
 
+    const before = await feedIds();
+    expect(before.length).toBeGreaterThan(0);
+
+    const itemId = before[0]!;
+    await page.locator(`[data-feed-id="${itemId}"] > *`).click();
     await page.waitForURL(`/i/${itemId}`);
     await expect(page.getByRole("heading")).toBeVisible();
 
+    // Every way back to /feed that would cost a page of corpus: the client query, and any request
+    // for the route itself — a document load or an RSC payload fetch both re-run the server
+    // component. Matched on the path alone rather than on an `RSC:` header, so that a header Next
+    // renames out from under us can never turn this into a vacuous pass. Counted from here so the
+    // outbound trip's own requests don't muddy it.
+    const draws: string[] = [];
+    page.on("request", (request) => {
+      const { pathname } = new URL(request.url());
+      if (pathname.startsWith("/api/trpc/feed.page")) draws.push("client");
+      else if (pathname === "/feed") draws.push(`route:${request.method()}`);
+    });
+
     await page.getByRole("link", { name: "← Back" }).click();
-    await page.waitForURL(`/feed?focus=${itemId}`);
+
+    // Popped, not pushed — so the URL is the feed entry that was already on the stack, with no
+    // `?focus=` in it. (`?focus=` remains the href, and is what a cold-opened shared link uses.)
+    await page.waitForURL(/\/feed$/);
+    await expect(page.locator("[data-feed-id]").first()).toBeVisible();
+
+    expect(await feedIds()).toEqual(before);
+    expect(draws).toEqual([]);
   });
 
   test("the pill's bookmark browses collections", async ({ page }) => {

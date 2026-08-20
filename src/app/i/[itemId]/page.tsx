@@ -2,9 +2,10 @@
 //
 // It exists because 5.6's feed navigates somewhere on every tap, and a tap that 404s makes the
 // gesture layer untestable. So: the least page that can honestly be called an item page, and one
-// real job beyond that — its Back link returns to `/feed?focus={id}`, which makes it the live test
-// rig for the feed's return-scroll (Step 7 of PHASE5_PLAN_5.6.md). BUILD_PLAN explicitly allows
-// this stub.
+// real job beyond that — `BackToFeed` returns the reader to the feed they left (popping history
+// when they came from it, building a fresh `?focus=` feed when they arrived cold), which makes
+// this the live test rig for the feed's return-scroll (Step 7 of PHASE5_PLAN_5.6.md).
+// BUILD_PLAN explicitly allows this stub.
 //
 // Deliberately absent, all 5.7's: OG/Twitter metadata, the real hero treatment, article body
 // rendering, the save/share controls, swipe-back, and "wander next".
@@ -14,8 +15,8 @@
 // — SPEC §8.1 makes this page readable by anyone with the link, invite or not — so there is no
 // session guard here on purpose.
 import { notFound } from "next/navigation";
-import Link from "next/link";
 
+import { BackToFeed } from "~/components/item/back-to-feed";
 import { sourceLabel } from "~/lib/source-label";
 import { getItemById } from "~/server/db/items";
 
@@ -30,9 +31,7 @@ export default async function ItemStubPage({
 
   return (
     <main className="bg-bg text-ink min-h-dvh px-5 py-10">
-      <Link href={`/feed?focus=${item.id}`} className="text-ink/55 text-[14px]">
-        ← Back
-      </Link>
+      <BackToFeed itemId={item.id} className="text-ink/55 text-[14px]" />
 
       <p className="text-ink/40 mt-8 text-[10px] font-semibold tracking-[1.3px] uppercase">
         {sourceLabel(item.source)}
