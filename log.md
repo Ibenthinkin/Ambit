@@ -145,6 +145,29 @@ that machine-readably refuses agents doesn't become a designated blog because it
 
 *Session spend: 8.46M tok (in 106 · out 48.4k · cache r 8.32M / w 96.7k) · ~$6.34 · opus-5 · 12:11→12:22*
 
+**5.7 planned (afternoon)** — `docs/PHASE5_PLAN_5.7.md`, written cold-executable for a
+cheaper-model session. Three decisions taken with Ben at plan time: **reader body = stored `body`
++ backfill** — planning surfaced that the ingester stores Wikipedia bodies with
+`exsectionformat=plain`, so the corpus has *no* `== heading ==` markers and the prototype's reader
+parser can't work on it as stored; the adapter flips to `exsectionformat=wiki` and a one-off
+script re-fetches existing bodies, rather than taking a runtime Wikipedia dependency. **The image
+proxy ships in 5.7**, not 7.3 — `/api/img/[itemId]`, itemId-lookup-only (never a URL param; that's
+the SSRF boundary), no Referer sent (which is what defeats AIC's 403), so the AIC suspension lifts
+in the same phase that caused it. And **signed-out visitors get no pill toolbar** — the prototypes
+don't model auth; anon gets content + credit line + join CTA only. The morning's two carries both
+landed in scope: seen-marking moves to receipt (`feed.markSeen`, with the argument for why the
+cursor's anchor math survives written into the plan), and the pop-don't-push evidence became a
+shared `useLeaveToFeed` hook that both the swipe-back gesture and the pill's Feed button use —
+`BackToFeed` dies with the stub. One prototype/plan conflict resolved against the prototype: the
+wander-next teaser renders on *both* variants (the redesign draws it image-only; the Done bar says
+"both variants + teaser", and the Done bar wins).
+
+**Open / next:** execute T1–T9 per the plan doc; run the Wikipedia body backfill after merge; the
+phase closes on an iOS device pass (swipe-back feel, Save-image to camera roll, and — the real
+question — whether AIC images load on the phone through the proxy, HANDOFF Q2).
+
+*Session spend: 4.24M tok (in 84 · out 122.5k · cache r 3.65M / w 466.4k) · ~≥$19.10 · fable-5 + <synthetic> · 15:33→17:00*
+
 ### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
 
 **Findings:** Working from a different location, on the tailnet. Three things came out of trying to
