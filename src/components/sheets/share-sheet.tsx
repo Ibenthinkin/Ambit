@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { Download } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 
 // The share sheet. Copy-link row + a scrolling row of targets.
@@ -13,10 +14,10 @@ import { BottomSheet } from "~/components/ui/bottom-sheet";
 // The six circles stay because they're the design's own visual rhythm, and because the OS sheet
 // they open is where the real choice happens.
 //
-// Not here yet: the **Save image** row. It only appears in image contexts, which don't exist until
-// 5.7, and it needs a server-side image proxy — museum image servers bot-block third-party
-// fetchers (CLAUDE.md), so a cross-origin client-side download can't work. `imageContext` is
-// accepted now so callers don't change shape when 5.7 fills it in.
+// The **Save image** row (5.7) appears only in image contexts, and only when the caller supplies a
+// handler — an article's share sheet has no image to offer. It was blocked until now on the image
+// proxy: museum servers bot-block third-party fetchers (CLAUDE.md), so a cross-origin client-side
+// download couldn't work. With `/api/img/[itemId]` serving from Ambit's own origin, it can.
 
 /** Targets, in the design's order. The three letter-glyph brands render a Sora 700 character. */
 const TARGETS = [
@@ -71,8 +72,14 @@ export interface ShareSheetProps {
   title: string;
   /** Sharing a collection rather than an item (5.9) — only changes the sheet's title. */
   collection?: boolean;
-  /** Reserved for 5.7's Save-image row; accepted now so callers don't change shape later. */
+  /** Whether the thing being shared is an image — gates the Save-image row. */
   imageContext?: boolean;
+  /**
+   * Fetches the full-resolution image and hands it to the OS (or falls back to a download). The
+   * work lives with the caller, which knows the item id; the sheet only owns the row. Absent on an
+   * article, and the row is then absent too.
+   */
+  onSaveImage?: () => void;
   onCopied: (url: string) => void;
   /** No `navigator.share` and no clipboard — the screen should say so rather than fail silently. */
   onShareUnavailable: () => void;
@@ -84,6 +91,8 @@ export function ShareSheet({
   url,
   title,
   collection = false,
+  imageContext = false,
+  onSaveImage,
   onCopied,
   onShareUnavailable,
 }: ShareSheetProps) {
@@ -164,6 +173,33 @@ export function ShareSheet({
           </button>
         ))}
       </div>
+
+      {/* Both conditions, not either: `imageContext` says there *is* an image, `onSaveImage` says
+          someone can actually fetch it. A row that appears without a handler is a dead button. */}
+      {imageContext && onSaveImage ? (
+        <>
+          <div className="bg-ink/10 mx-[18px] mt-[14px] h-[0.5px]" />
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onSaveImage();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex w-full items-center gap-[13px] px-[18px] py-[15px] text-left"
+          >
+            <Download size={18} className="text-accent flex-none" />
+            <span className="min-w-0">
+              <span className="text-ink block text-[14.5px] font-medium">
+                Save image
+              </span>
+              <span className="text-ink/42 mt-[2px] block text-[11.5px]">
+                Adds the full-resolution image to your camera roll
+              </span>
+            </span>
+          </button>
+        </>
+      ) : null}
     </BottomSheet>
   );
 }

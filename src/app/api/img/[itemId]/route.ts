@@ -58,7 +58,14 @@ export async function GET(
     upstream = await fetch(item.imageUrl, {
       // No `Referer`, and that omission is the entire point of the route — see the header comment.
       headers: { "User-Agent": USER_AGENT, Accept: "image/*" },
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      // Two ways to give up: the upstream taking too long, and the reader leaving. The second is
+      // routine — a feed scrolls ~24 images past the viewport and a navigation cancels whatever is
+      // still in flight — so the request's own signal is joined here to stop pulling bytes nobody
+      // will see, and to let the stream below unwind as a cancellation rather than an error.
+      signal: AbortSignal.any([
+        req.signal,
+        AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      ]),
     });
   } catch {
     return new Response("Upstream fetch failed", {

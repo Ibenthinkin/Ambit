@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { BackToFeed } from "~/components/item/back-to-feed";
 import { ImageItemBody } from "~/components/item/image-item-body";
+import { ItemShell } from "~/components/item/item-shell";
 import { JoinCta } from "~/components/item/join-cta";
 import { ReaderItemBody } from "~/components/item/reader-item-body";
 import { SharedByRow, sharedByName } from "~/components/item/shared-by-row";
@@ -102,39 +102,43 @@ export default async function ItemPage({
   const variant = item.type === "image" ? "image" : "article";
 
   return (
-    // Bottom padding clears the floating pill (T7 mounts it); the column width and gutters are the
-    // redesign's.
-    <main className="bg-bg text-ink min-h-dvh px-[22px] pt-[68px] pb-[110px]">
-      {/* Interim: replaced by the shell's swipe-back + pill in the next commit of this phase. */}
-      <BackToFeed itemId={item.id} className="text-ink/55 text-[14px]" />
-
-      {sharedBy ? (
-        <Rise>
-          <div className="mt-[18px]">
+    <ItemShell
+      itemId={item.id}
+      title={item.title}
+      hasImage={Boolean(item.imageUrl)}
+      authed={Boolean(session)}
+      appUrl={env.BETTER_AUTH_URL}
+      // First token only: a share link says "Mara shared this with you", not a full legal name.
+      viewerName={session?.user.name?.trim().split(/\s+/)[0]}
+    >
+      {/* Bottom padding clears the floating pill; the column width and gutters are the redesign's. */}
+      <main className="bg-bg text-ink min-h-dvh px-[22px] pt-[68px] pb-[110px]">
+        {sharedBy ? (
+          <Rise>
             <SharedByRow name={sharedBy} />
+          </Rise>
+        ) : null}
+
+        <Rise delayMs={50}>
+          <div className="mt-[18px]">
+            {variant === "image" ? (
+              <ImageItemBody item={item} />
+            ) : (
+              <ReaderItemBody item={item} />
+            )}
           </div>
         </Rise>
-      ) : null}
 
-      <Rise delayMs={50}>
-        <div className="mt-[18px]">
-          {variant === "image" ? (
-            <ImageItemBody item={item} />
-          ) : (
-            <ReaderItemBody item={item} />
-          )}
-        </div>
-      </Rise>
-
-      <Rise delayMs={120}>
-        <WanderNext rows={wander} />
-      </Rise>
-
-      {session ? null : (
-        <Rise delayMs={160}>
-          <JoinCta variant={variant} />
+        <Rise delayMs={120}>
+          <WanderNext rows={wander} />
         </Rise>
-      )}
-    </main>
+
+        {session ? null : (
+          <Rise delayMs={160}>
+            <JoinCta variant={variant} />
+          </Rise>
+        )}
+      </main>
+    </ItemShell>
   );
 }

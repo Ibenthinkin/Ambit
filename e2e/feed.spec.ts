@@ -223,7 +223,9 @@ test.describe.serial("feed", () => {
     const itemId = before[0]!;
     await page.locator(`[data-feed-id="${itemId}"] > *`).click();
     await page.waitForURL(`/i/${itemId}`);
-    await expect(page.getByRole("heading")).toBeVisible();
+    // Level 1 specifically: the item page grew a second heading in 5.7 (the wander-next teaser),
+    // and the item's own title is the one that proves the page rendered.
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
     // Every way back to /feed that would cost a page of corpus: the client query, and any request
     // for the route itself — a document load or an RSC payload fetch both re-run the server
@@ -237,7 +239,9 @@ test.describe.serial("feed", () => {
       else if (pathname === "/feed") draws.push(`route:${request.method()}`);
     });
 
-    await page.getByRole("link", { name: "← Back" }).click();
+    // The pill's Feed button is the way back now — `BackToFeed` was folded into `useLeaveToFeed`
+    // (5.7) and the pill calls it. The e2e user is signed in, so the pill is there.
+    await page.getByRole("button", { name: "Feed" }).click();
 
     // Popped, not pushed — so the URL is the feed entry that was already on the stack, with no
     // `?focus=` in it. (`?focus=` remains the href, and is what a cold-opened shared link uses.)

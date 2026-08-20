@@ -165,6 +165,28 @@ export function Envelope({ size = 24, className, ...rest }: IconProps) {
   );
 }
 
+/** Download — the share sheet's "Save image" row (5.7). Tray with an arrow falling into it. */
+export function Download({ size = 18, className, ...rest }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.9}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...rest}
+    >
+      <path d="M12 3v13" />
+      <path d="M8 12l4 4 4-4" />
+      <path d="M4 19h16" />
+    </svg>
+  );
+}
+
 /** Diamond — the small serendipity/connective-row bullet. Fill-only; never had a stroke. */
 export function Diamond({ size = 9, className, ...rest }: IconProps) {
   return (
