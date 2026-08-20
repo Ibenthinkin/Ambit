@@ -25,7 +25,11 @@ Trial one or a few at a time; never batch-add without eyeballing the cross-sourc
 
 ## Committed v1 sources (for reference — see SPEC §6.1)
 
-Wikipedia · Met Museum · Art Institute of Chicago · Smithsonian Open Access · Project Gutenberg / Wikisource · Wikiquote · NASA APOD · Public Domain Review.
+Wikipedia · Met Museum · ~~Art Institute of Chicago~~ (suspended) · Cleveland Museum of Art · Wellcome Collection.
+
+> **Corrected 08-20-26.** This line previously read "Wikipedia · Met · AIC · Smithsonian Open Access · Project Gutenberg / Wikisource · Wikiquote · NASA APOD · Public Domain Review", which was never the built set — it looks like an early draft that outlived the decision. Four of those eight have no adapter and are *candidates*, not commitments; treating Smithsonian as already-integrated is exactly the mistake this file exists to prevent. The real v1 set is the five in `server/services/sources/index.ts`.
+>
+> **AIC is suspended** as of 08-20-26 (`server/config/suspended-sources.ts`) — ingestion skips it and the feed won't draw its rows. Not a cut: the adapter and all 1,338 rows stay, and Phase 5.7's image proxy is expected to lift it. See SPEC §6.1.
 
 ## Candidates
 
@@ -39,7 +43,7 @@ Legend — **Type:** 🖼️ image · 📝 text · 🔀 both. **Auth:** none / k
 | Wellcome Collection API                      | 🔀   | Open (CC, filterable)      | none                       | ✅     | **Kept — promoted to SPEC §6.1 (Phase 0.5 trial).** History-of-science texture the art museums lack. Traps recorded in phase0/NOTES.md: thumbnail URL locked to 200px (rewrite the IIIF size segment); license per item (`cc-0,cc-by,pdm` filter + per-work check); thin summaries (many title-page stubs — the curator handles them). |
 | Openverse API                                | 🖼️   | CC / PD (filterable)       | none (key = higher limits) | 🔵     | Aggregates openly-licensed images across sources — filter to CC0/PD. |
 | NASA Image & Video Library (images.nasa.gov) | 🖼️   | Public domain              | none                       | 🔵     | Distinct from APOD — full NASA media catalog.                        |
-| Library of Congress (loc.gov JSON)           | 🔀   | Mostly PD (check per-item) | none                       | 🔵     | Photos, prints, maps, ephemera + text. Rate-limited.                 |
+| Library of Congress (loc.gov JSON)           | 🔀   | Mostly PD (check per-item) | none                       | 🟡     | **Parked — promising, one gap.** Probed 08-20-26: `?fo=json` on any `/pictures/search/` URL returns JSON, no auth, and results carry a ready-to-use `image.full` on `tile.loc.gov`. Concrete entry point Ben found: **the John Margolies roadside-architecture archive, `?q=mrg` — 11,708 images, LoC-designated "free to use and reuse"** since 2017, staff-added subject/geo headings. The gap: the per-result `rights` field came back **empty** on every row sampled, so PD status is *not* readable from the search response — an adapter has to either scope itself to collections LoC has blanket-cleared (like `mrg`) or make a second per-item call. Scoping to cleared collections is the cheaper first trial and fits `search(q)` shape fine. |
 | Chronicling America (LoC newspapers)         | 🔀   | Public domain              | none                       | 🔵     | Historic newspaper pages + OCR text — great "old world" texture.     |
 | Internet Archive (advancedsearch + metadata) | 🔀   | Mixed — filter to PD/open  | none                       | 🔵     | Vast; needs careful license filtering, but huge density.             |
 | Open Library API                             | 🔀   | Metadata open; covers vary | none                       | 🔵     | Book blurbs + cover images; pairs with Gutenberg.                    |
@@ -47,6 +51,26 @@ Legend — **Type:** 🖼️ image · 📝 text · 🔀 both. **Auth:** none / k
 | Europeana API                                | 🔀   | Mixed — filter to open     | key                        | 🔵     | Aggregates EU cultural heritage; rich but license-heterogeneous.     |
 | DPLA API                                     | 🔀   | Mixed — filter to open     | key                        | 🔵     | US cultural-heritage aggregator; key by request.                     |
 | Biodiversity Heritage Library API            | 🔀   | Public domain              | key                        | 🔵     | Natural-history illustrations + text — beautiful, offbeat.           |
+| **Smithsonian Open Access** (api.si.edu)     | 🔀   | CC0 (filterable)           | key (free, api.data.gov)   | 🟡     | **Parked — strongest untried candidate of Ben's batch; trial next.** Probed live 08-20-26 with `DEMO_KEY`: `media_usage:CC0` + `online_media_type:"Images"` returns **5,237,894 rows**, and every sampled item carried `usage.access: "CC0"` — i.e. the license filter Ambit needs is a *query parameter*, not a per-item second call, which is the trap CMA and Wellcome each cost us. Plain `search(q)` shape, so it fits the blessed search-shaped pattern with no invention. Density is the open question, not licensing: 5.2M items skew heavily to specimen and archival records, so the trial should check how much survives the curator's floor rather than how much exists. `x-ratelimit-limit: 10` on DEMO_KEY; a real api.data.gov key raises it. |
+| **Getty Museum** (data.getty.edu)            | 🖼️   | Open Content = PD, no restrictions | none                | 🟡     | **Parked — wants a design decision before an adapter.** Real and unauthenticated (verified 08-20-26: the SPARQL endpoint answers a CIDOC-CRM query with JSON results, and `/museum/collection/docs/` is live). But **it is a Linked Art / JSON-LD knowledge graph, not a search API** — objects are JSON-LD documents at UUID URLs, and free-text discovery goes through SPARQL. That fits *neither* blessed integration shape (search-shaped or corpus-walk, per CLAUDE.md's ecosystem section), so trialing it means either writing SPARQL that emulates `search(q)` or treating it as a corpus walk — a call to make deliberately, not mid-adapter. Content quality is not in doubt; the shape is. |
+| Artvee                                       | 🖼️   | PD (curated)               | none — **no API**          | ❌     | **Cut 08-20-26.** Two independent reasons. There is no public API — it is a browsable site, so ingestion would mean scraping. And its `robots.txt` deploys the "Ultimate AI Block List v1.7", explicitly disallowing AI/agent user-agents. A source whose operator has stated that preference in machine-readable form is not one Ambit should be taking, and a hand-rolled scraper around it is worse. The underlying works are public domain and reachable through sources that *do* offer APIs — that is the route in, if the imagery is what appeals. |
+
+## Leads, not sources (triaged 08-20-26)
+
+Ben's 08-20 batch. Four of the thirteen URLs were APIs and moved into the table above (Smithsonian, Getty, Artvee, and the Margolies collection folded into the LoC row). The rest are **not sources** — they are magazine articles *about* collections, or essays. That distinction matters: an Open Culture post is a pointer, and the thing worth recording is the archive it points at, since that archive is what an adapter would talk to.
+
+| Lead | What it actually points at | Verdict |
+| ---- | -------------------------- | ------- |
+| [Margolies roadside architecture](https://www.openculture.com/2026/07/free-photos-from-john-margolies-archive-of-americana-architecture.html) + [`loc.gov/pictures/?q=mrg`](https://www.loc.gov/pictures/search/?q=mrg&st=gallery) | **Library of Congress**, 11,708 images, "free to use and reuse". Same collection, two links. | ✅ Folded into the **LoC** row — this is its concrete first trial. |
+| [Carl Jung's visionary art](https://www.openculture.com/2026/07/visionary-mystical-art-of-carl-jung.html) · [Jung on tarot](https://www.openculture.com/2023/10/carl-jung-on-the-power-of-tarot-cards.html) | *The Red Book / Liber Novus*. **Not public domain** — Jung died 1961 (so life+70 runs to ~2031), the facsimile was published by Norton in 2009, and the manuscript is estate-controlled. No institution offers it under an open license. | ❌ **Licensing trap.** Ambit's imagery bar is PD/CC0/open, and this clears none of it. Historic *tarot decks* are a separate matter — Waite–Smith (1909) is PD in the US and reachable via existing sources. |
+| [Japanese woodblock prints of the body](https://www.openculture.com/2026/07/japanese-woodblock-prints-illustrate-the-human-body.html) · [1,300 wildlife illustrations](https://www.openculture.com/2026/07/explore-1300-beautiful-wildlife-illustrations-from-the-19th-century.html) | Both are 19th-c. institutional holdings of exactly the kind **Wellcome** (medical/anatomical) and **BHL** (natural history) already cover — Wellcome is a committed source, BHL an existing candidate. | 🟡 **No new adapter needed.** Treat as *seed-query* material: if this texture is missing from the feed, the fix is a better `seedQueries` cell on the sources we have, not a new source. Worth checking against the corpus before assuming it's absent. |
+| [Long Now — Earthquake Lessons](https://sb.longnow.org/SB_homepage/Earthquake_Lessons.html) · [strategy+business 06109](https://www.strategy-business.com/article/06109) | Individual Stewart Brand essays on named sites. No API, no open license, single-author copyrighted work. | ❌ **Not a source.** Two essays is not a corpus, and neither site offers a licensed feed. If these are here as *taste* references — the register Ambit's text items should hit — that is a genuinely useful signal, but it belongs in the feel-tuning notes, not the adapter backlog. Worth confirming which was meant. |
+| [Getty photographs](https://www.getty.edu/museum/photographs/) · [Getty Primo portal](https://primo.getty.edu/primo-explore/search?vid=GETTY_PORTAL) | Browse UIs over the same holdings as the Getty API row. Primo is the *library* catalogue (a discovery layer, not an open-image endpoint). | 🟡 Covered by the **Getty** row. The API, not the portal, is the integration surface. |
+
+## Untriaged raw notes
+
+_Older dump, kept as-is — not yet run through the bar above._
+
 
 https://50watts.com/
 https://www.openculture.com/2016/05/1-8-million-free-works-of-art-from-world-class-museums-a-meta-list.html
@@ -70,67 +94,3 @@ scraping Door or perceptions
 wikipeida events on this day
 old ass news papers - https://www.loc.gov/collections/chronicling-america/about-this-collection/technical-information/?__cf_chl_f_tk=FVL9obx3BUMLHxwLD0AD8XK9_vBQGDmSQkW3HtTvaPE-1783187592-1.0.1.1-Hf3AvZHnS1TsqKMlr1u9siaDH_ixpwIp_T0HdFaXfug
 checkout out archive.org, maybe scrape some public info and stand up my own api?
-
-
-
-Art Images from Museums & Libraries
-
-    Art Institute of Chicago (44,000 images)
-    Google Art Project (250,000)
-    Harvard Bauhaus Collection (30,000)
-    L.A. County Museum (20,000)
-    New York Public Library-Historic Maps (20,000)
-    Norway National Museum (30,000)
-    Paris Art Museums (300,000)
-    SFMoMA Rauschenberg Collection
-    Stanford University’s Cantor Art Center (45,000)
-    Stanford University’s French Revolution Collection (14,000)
-    Taipei’s National Palace Museum (70,000)
-    The British Library (100,000)
-    The British Museum (4,200)
-    The Cleveland Museum of Art (30,000)
-    The Isamu Noguchi Museum (60,000)
-    The Getty (100,000)
-    The Guggenheim (1,600)
-    The Met (400,000)
-    The Morgan Library & Museum’s Online Collection (10,000)
-    The Morgan Library Rembrandt Sketches (300)
-    The Museum of Modern Art/MoMA  (65,000)
-    The Museum of New Zealand (30,000)
-    The National Gallery (35,000)
-    The New York Public Library: Photos, Maps, Letters (180,000)
-    The Rijksmuseum (210,00)
-    The Smithsonian (40,000)
-    The Tate (70,000)
-    The Whitney (21,000)
-    The Van Gogh Museum (3500)
-    Yale Center for British Art
-    Yale’s Great Depression Photo Collection (170,000)
-    Vermeer (36)
-
-Art Books
-
-    The Getty (250 books)
-    The Guggenheim (98)
-    The Met (448)
-    Getty Research Portal (100,000)
-
-
-https://www.thisiscolossal.com/
-https://lastmuseum.com/
-https://thingsorganizedneatly.tumblr.com/
-
-
-https://sb.longnow.org/SB_homepage/Earthquake_Lessons.html
-https://www.strategy-business.com/article/06109?_ref=https://sb.longnow.org/&pg=0
-https://www.openculture.com/2026/07/visionary-mystical-art-of-carl-jung.html
-https://www.openculture.com/2023/10/carl-jung-on-the-power-of-tarot-cards.html
-https://www.openculture.com/2026/07/japanese-woodblock-prints-illustrate-the-human-body.html
-https://www.getty.edu/projects/open-content-program/faqs/
-https://www.getty.edu/museum/photographs/
-https://primo.getty.edu/primo-explore/search?vid=GETTY_PORTAL
-https://www.si.edu/openaccess
-https://artvee.com/
-https://www.openculture.com/2026/07/explore-1300-beautiful-wildlife-illustrations-from-the-19th-century.html
-https://www.openculture.com/2026/07/free-photos-from-john-margolies-archive-of-americana-architecture.html
-https://www.loc.gov/pictures/search/?q=mrg&st=gallery
