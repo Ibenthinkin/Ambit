@@ -13,6 +13,7 @@ import { Toast } from "~/components/ui/toast";
 import { api } from "~/trpc/react";
 import { ArticleCard } from "./article-card";
 import { BecauseTile } from "./because-tile";
+import { markFeedOrigin } from "./feed-origin";
 import { ImageTile } from "./image-tile";
 import { buildTiles, packColumns, type FeedTile } from "./masonry";
 import { useFeedScroll } from "./use-feed-scroll";
@@ -123,7 +124,14 @@ export function FeedScreen({ topicLabels }: FeedScreenProps) {
   useFeedScroll();
 
   // ── gestures ──────────────────────────────────────────────────────────────────────────────────
-  const openItem = (id: string) => router.push(`/i/${id}`);
+  // The marker is what lets the item page's Back *pop* this feed off the history stack instead of
+  // pushing a brand-new one. Without it every return trip rebuilds the feed from scratch — new
+  // cards, lost scroll position, and two pages of the reader's corpus spent per tap (the RSC
+  // render draws one and the client query draws another). See `feed-origin.ts`.
+  const openItem = (id: string) => {
+    markFeedOrigin(id);
+    router.push(`/i/${id}`);
+  };
   const openItemSheet = (item: { id: string; title: string }) => {
     setPressedItem(item);
     setItemSheetOpen(true);

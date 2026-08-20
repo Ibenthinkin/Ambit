@@ -5,6 +5,146 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-20-26 Thu]] — The 5.6 device pass passes; the feed was eating the corpus on every Back
+
+**The pass itself: green.** 5.6's tile gestures (tap vs. long-press vs. scroll, the 12px slop
+guard, the four iOS incantations) and 5.5's carried-over pill/sheet checks all behave correctly on
+the phone. The `pt-[58px]` inset clears the status bar as-is. That closes the Done bar both phases
+have been waiting on since 08-16.
+
+**Findings:** Ben also reported a slow load and a hydration error, and chasing those turned up
+something much worse underneath.
+
+**The slow load was transport, not code.** The phone was on the same LAN the whole time (direct
+Tailscale path), but the first packet took 784ms — radio asleep — and the warm link still measures
+4–128ms with 47ms stddev. Jittery wifi plus an unminified dev bundle means chunk fetches time out,
+and the log filled with `ChunkLoadError`. Worth recording how it was *ruled out* as a build
+problem: every one of the seven failing chunk names still returned 200 from the running server, so
+the names hadn't churned and nothing was stale. That also clears the service worker, 08-17's
+suspect — a stale SW cache would have named chunks the server no longer has. "Zero `sw.js`
+requests" was never evidence either way, since a cached SW makes no request.
+
+**The hydration error was a symptom, not a bug.** When a chunk failure breaks the RSC→client cache
+handoff, the client refetches `feed.page` — which returns *different items*, because the server's
+render already marked the first twelve seen and the cursor excludes the seen history. Client render
+≠ server HTML, guaranteed. Nothing to fix in the components.
+
+**The real defect, and Ben named it faster than the investigation did:** going to an item page and
+coming back rebuilt the feed from scratch. The item stub's Back was `<Link href="/feed?focus={id}">`
+— a *push*, so the dynamic route re-ran, `getFeedPage` never repeats items, and the reader landed
+among cards they'd never seen with their scroll position gone. Cost per round trip: **two pages of
+corpus**, one drawn by the RSC render and one by the client query. `use-feed-scroll.ts`'s header had
+described this precisely and filed the fix under 5.7; what nobody had connected is that it fires on
+every single Back, not just in edge cases.
+
+**Which is where 08-18's unresolved contradiction goes.** That session was left holding "172
+server-side `feed.page` executions against zero `GET /feed` lines" and couldn't reconcile it. The
+answer is the finding it had already made one paragraph earlier: proxy-*redirected* requests
+produce no log line, so `/` → 307 → `/feed` renders invisibly. Combine that with a ChunkLoadError
+reload loop and the arithmetic closes — **1,116 items marked seen in six minutes**, 696 in the worst
+single minute, ~130 renders × 12 items at ~700–1200ms each.
+
+**So the "reading history" wasn't reading.** Ben's account held 2,743 `seen_item` rows and his three
+CORE topics were the most exhausted in the corpus (portraiture 82%, zoology 73%, architecture 67%)
+— which would have made the feed draw from the dregs of exactly the topics he picked, and read as
+an algorithm problem. Cleared, with a CSV backup.
+
+**Shipped:** `BackToFeed` + `feed-origin.ts`. Back now **pops history** when the reader arrived from
+the feed and only pushes `?focus=` when they didn't — which is the cold-opened shared link, where
+there is no feed behind the page and popping would leave Ambit entirely. The distinction rides on a
+`sessionStorage` marker the feed writes on tap. **The markup deliberately does not branch on that
+marker at render time**: the obvious shape (read storage, return a button or a link) is a hydration
+mismatch by construction, since the server has no `sessionStorage` — so the anchor is
+unconditional and the pop is an interception of its click. Same DOM on both sides, and it still
+works if JS never boots. Also refreshed the rotted LAN dev origin (`.68.65` → `.1.215`).
+
+333 unit tests (was 329) + 14 e2e green. The e2e that asserted the *old* behaviour was rewritten to
+pin the new one: same tile ids before and after, and zero requests to `/feed` or `feed.page`.
+Matched on path rather than an `RSC:` header so a header rename can't make it pass vacuously, and
+checked with a negative control — stub `cameFromFeed` to `false` and it fails, so it isn't testing
+nothing.
+
+**Confirmed on device.** Ben re-tested after the fix: returning to the feed from an item view
+lands on the same spot, same items. The behaviour the whole investigation was chasing is now the
+behaviour you get.
+
+**AIC suspended, not removed.** Ben's call, and the right one — the source was actively getting in
+the way of building. `src/server/config/suspended-sources.ts` switches a source off **end to end**:
+ingestion skips it, *and* `getTopicPools` refuses to draw its existing rows. Doing only the first
+would have been worse than doing nothing, since 1,338 undrawable rows would have gone on winning
+slots in the draw and the feed would have looked like it had quietly gone bad. Nothing is deleted
+and no re-ingest is needed to reverse it: the adapter, its tests and every row stay put, so lifting
+the flag is a one-line change. `--source aic` still ingests when asked explicitly, and says out loud
+that the feed won't draw the result. 5.7's image proxy is what lifts this.
+
+**Open / next:** the fix removes the loop's fuel but not the loop's *cost*: `feed.page` still writes
+`seen_item` during a server render whose output can be discarded, so any future reload loop burns
+corpus again, just slower. The durable fix is to let receipt — not attempted render — be what marks
+an item seen; carry it into the 5.7 plan. AIC is parked rather than solved: the `localhost`-referer 403 stands
+(`docs/HANDOFF_aic-images.md`), and the on-device result **confirmed a second cause** — AIC tiles
+were the only ones missing on the phone even over a tailnet referer that returns 200 from the
+laptop, which is exactly what that handoff predicted and nobody had been able to demonstrate.
+Suspending the source buys quiet, not an answer; the questions to resume with are that second cause
+and whether the block is a dev-only artifact at all (both referers ever tested are dev-only). Minor corpus leak found in passing: 60 real items (30 met, 30 wikipedia) still carry
+`topic_id = test-feed-topic-*` from an integration test that never restored them, which makes them
+unreachable by the feed — `source='e2e'` cleanup is clean, this is a different leak.
+
+*Session spend: 18.77M tok (in 306 · out 111.1k · cache r 18.13M / w 524.1k) · ~$17.09 · opus-5 · 10:00→11:05*
+*Session spend: 10.07M tok (in 181 · out 69.1k · cache r 9.75M / w 247.5k) · ~$8.38 · opus-5 + opus-4-7 · 11:05→11:51*
+
+**Decisions (afternoon) — blog-first content, decided in Ambit-Admin and landed here as docs.**
+Ben reviewed the ecosystem's content strategy. The trigger was in the *other* repo — ambit-archive's
+A.3b planned **$150/month of SerpApi** to identify artworks — but pulling that thread redirected
+where Ambit's content comes from at all. Five decisions; **docs only, no code, no schema change.**
+
+- **Ambit's future content comes primarily from designated blogs.** Blogs already carry the tags,
+  descriptions and the article explaining *why* an image matters — exactly the metadata that
+  identification was going to buy, and that image APIs make you manufacture. This is the strategy,
+  not a source addition.
+- **The presentation contract is excerpt + link-out, with no reader view.** A blog item is a **link
+  card**: image, Ambit's short description, a 1–2 sentence blurb about the source article, a
+  `from: <blog>` credit by the title, and a **prominent link to the actual article**. Ambit hosts no
+  reformatted articles; `body` is not a display surface for blog items; full text is used **at
+  ingest only** (topics, tags, blurb) and never stored for display. The recorded goal is to **drive
+  readers out to the blog** — which is what makes the posture honest rather than merely legal-ish.
+- **Honest rights posture — no fair-use claim, no republication.** Image or short excerpt + visible
+  credit + link out; truthful license strings ("Rights retained by original authors — displayed with
+  credit and link"); remove-on-request. Loupe is the precedent. Tenable because Ambit is invite-only
+  and non-monetized. The README and CLAUDE.md now say this in the places that used to say
+  "public/PD/fair-use".
+- **The `from: <source>` credit line is not blog-specific and ships with 5.7**, for every source —
+  museum and Wikipedia items included. 9.4 stays the licensing *audit* and now covers blog credit
+  and license display too.
+- **Shape: an in-repo adapter family, explicitly not a third cross-service pattern.** Recorded in
+  Ambit-Admin so nobody re-opens the "two blessed patterns" rule to accommodate it: those govern
+  seams *between* the three services, and this one lives entirely inside Ambit.
+- **New BUILD_PLAN step 6.3, gated on a design session** (⚖️), carrying **seven open questions**:
+  the adapter interface (blogs don't `search(q)`), topic assignment without seed queries,
+  items-per-post and the feed-flooding/dedupe rule, where the blurb lives, image hosting (the
+  **strongest case yet for 7.3's proxy-with-cache** — decide them together), scrape etiquette, and
+  whether blog items go through the curator pass. Public Domain Review **moved from 6.2 into 6.3**:
+  its "scraping-lite or cut" gate was always a blog question.
+- **First corpus: doorofperception.com**, already scraped — 11,572 images sitting in ambit-archive
+  with an `index.csv` of per-image post URLs as the attribution source. Ingesting it here retires
+  85% of the archive's corpus and prototypes the whole strategy for **$0**. It also owns the
+  Ambit-side dedupe design, since those items may already be in the corpus via the archive adapter
+  (A.5). Sequenced after archive A.5/A.6 and after the 6.3 design session.
+- **5.8 gets a parked note, not a design.** Ben wants archive ("wildcard") items more present in
+  gallery browsing. Recorded as a wish to revisit with the gallery in hand — archive items are
+  **labeling only** today, flowing through the normal feed algorithm under a constant attribution.
+  **No new feed tier, no mechanics now.**
+
+**Two drifts found while executing, both worth recording.** The plan assumed
+`fix-feed-back-navigation` was merged and that `docs/source-candidates.md` carried an uncommitted
+link dump; neither was true — the branch is 6 commits ahead of `main` with no PR, and the dump was
+already committed and triaged this morning as `3739638`. So this docs branch is cut from
+`fix-feed-back-navigation`, not `main` (Ben's call). And the plan wanted **artvee** listed as a
+designated blog, which the morning's triage had already **cut** on robots.txt grounds — the cut
+stands, and it is now cited in the blogs table as the worked precedent for open question 6: a site
+that machine-readably refuses agents doesn't become a designated blog because its works are PD.
+
+*Session spend: 8.46M tok (in 106 · out 48.4k · cache r 8.32M / w 96.7k) · ~$6.34 · opus-5 · 12:11→12:22*
+
 ### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
 
 **Findings:** Working from a different location, on the tailnet. Three things came out of trying to

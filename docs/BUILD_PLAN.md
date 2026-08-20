@@ -175,9 +175,11 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   green unmodified** — the phase's regression signal. Two false alarms and one pre-existing flaky
   server test (`feed.test.ts`'s unseeded tier-ratio assertion) are documented in the walkthrough.
 
-- [ ] **5.5 — Shared backbone + collections backend.** The redesign's two backbone components + the data model the save sheet needs — planned in `PHASE5_PLAN_5.5.md` (08-16-26), which carries four decisions taken with Ben: **one collection per item** (picking another row *moves* it), `saves.toggle` **removed** (verified dead — nothing in `src/` or `e2e/` calls it, not even the `/feed` placeholder), share targets all via `navigator.share` with a toast fallback, and the Save-image row **deferred to 5.7** with the image proxy it needs. Backend: `collection` table (`id,userId,name,createdAt`, unique `(userId,name)`), nullable `collectionId` FK on `saved_item`, lazy per-user seeding of Articles/Art/Photos, `saves` router evolves (`saveToCollection` / `collections`-with-counts / `unsave` / `list({collectionId?})`), drizzle migration, SPEC §5/§6.3/§7 updated. UI: `PillToolbar` (glass pill, profile/mark/bookmark/share, `pointer-events` wrapper pattern, active bookmark states), `BottomSheet` v2 (centered title slot, exit animation — the null-when-closed test assertion changes here; drag-to-close turns out to belong to 5.8, not here), **two** collection sheets rather than one — `SaveToCollectionSheet` (item in context: accent dot + "Already saved here", picking saves) and `CollectionsSheet` (feed pill, no item: "Everything kept" + counts + "New collection · Make one on your profile", picking navigates) — plus `ShareSheet` (copy-link + `navigator.share` targets), `usePress` hook (≤12px slop tap + 450ms long-press, iOS-safe), avatar chip. Collection *creation* is not here: the prototypes put it on Profile (5.10). All demoed live on `/dev/tokens` against the real router.
+- [x] **5.5 — Shared backbone + collections backend.** The redesign's two backbone components + the data model the save sheet needs — planned in `PHASE5_PLAN_5.5.md` (08-16-26), which carries four decisions taken with Ben: **one collection per item** (picking another row *moves* it), `saves.toggle` **removed** (verified dead — nothing in `src/` or `e2e/` calls it, not even the `/feed` placeholder), share targets all via `navigator.share` with a toast fallback, and the Save-image row **deferred to 5.7** with the image proxy it needs. Backend: `collection` table (`id,userId,name,createdAt`, unique `(userId,name)`), nullable `collectionId` FK on `saved_item`, lazy per-user seeding of Articles/Art/Photos, `saves` router evolves (`saveToCollection` / `collections`-with-counts / `unsave` / `list({collectionId?})`), drizzle migration, SPEC §5/§6.3/§7 updated. UI: `PillToolbar` (glass pill, profile/mark/bookmark/share, `pointer-events` wrapper pattern, active bookmark states), `BottomSheet` v2 (centered title slot, exit animation — the null-when-closed test assertion changes here; drag-to-close turns out to belong to 5.8, not here), **two** collection sheets rather than one — `SaveToCollectionSheet` (item in context: accent dot + "Already saved here", picking saves) and `CollectionsSheet` (feed pill, no item: "Everything kept" + counts + "New collection · Make one on your profile", picking navigates) — plus `ShareSheet` (copy-link + `navigator.share` targets), `usePress` hook (≤12px slop tap + 450ms long-press, iOS-safe), avatar chip. Collection *creation* is not here: the prototypes put it on Profile (5.10). All demoed live on `/dev/tokens` against the real router.
   *Done = migration applied; router integration tests green; pill + both sheets work end-to-end on `/dev/tokens` on a real phone.*
-  *Status =* ⚠️ **Code complete 08-16-26, awaiting the on-device pass.** Walkthrough
+  *Status =* ✅ **Done.** Code complete 08-16-26; the on-device pass (folded into 5.6's) passed
+  08-20-26 — the pill's `pointer-events` wrapper does not eat scrolls that start low on the
+  screen, and the sheet exit animation plays. Walkthrough
   `docs/PHASE5_WALKTHROUGH_5.5.md`. Migration `0002_quick_whizzer` applied; 268 tests green (was
   219), including 19 router tests against real Postgres — the cross-user authorization case among
   them (saving into another user's collection is `NOT_FOUND`, and nothing lands in theirs).
@@ -196,10 +198,12 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   `allowedDevOrigins`) and is now folded into **5.6's** device pass, which covers both phases'
   gestures in one sitting.
 
-- [ ] **5.6 — Feed masonry.** `/feed` proper per the `Feed Masonry 3` prototype (placeholder dies; sign-out moves to `/dev/tokens` until 5.10, e2e updated). RSC `prefetchInfinite`/`HydrateClient` (first-ever consumer — the server prefetch input must byte-match the client `useInfiniteQuery` input) + IntersectionObserver sentinel; `/feed` stays dynamic. Two independent flex columns in a `1fr 1fr` gap-4 grid, greedy shortest-column placement with estimated heights, fixed rotation of literal height classes, square-cornered full-bleed image tiles; article cards + serendipity "BECAUSE" rows from `driftPath`; tap → item page, long-press → item sheet ("Closer look" + save-to-collection); `data-feed-id` + `?focus=` return-scroll. Reuses `PHASE5_PLAN_5.4_FEED_OLD_DESIGN.md`'s backend-contract/RSC research wholesale. Planned in `PHASE5_PLAN_5.6.md` (08-17-26), which carries two decisions taken with Ben — **Because tiles: at most one per page, on the page's first JUMP with `driftPath ≥ 2`**, copy "you've been exploring {from}" / "{to}" in accent — plus three settled at plan time: the feed pill has **3 items, no share** (`PillToolbar.onShare` goes optional; prototype wins, and share-on-feed has no referent), the height rotation uses literal **aspect-ratio** classes (the prototype's 8 ratios; scales on wider phones where fixed px would distort), and a minimal `/i/[itemId]` **stub ships in 5.6** so taps navigate for real. 5.5's still-open device pass folds into this phase's Done bar.
+- [x] **5.6 — Feed masonry.** `/feed` proper per the `Feed Masonry 3` prototype (placeholder dies; sign-out moves to `/dev/tokens` until 5.10, e2e updated). RSC `prefetchInfinite`/`HydrateClient` (first-ever consumer — the server prefetch input must byte-match the client `useInfiniteQuery` input) + IntersectionObserver sentinel; `/feed` stays dynamic. Two independent flex columns in a `1fr 1fr` gap-4 grid, greedy shortest-column placement with estimated heights, fixed rotation of literal height classes, square-cornered full-bleed image tiles; article cards + serendipity "BECAUSE" rows from `driftPath`; tap → item page, long-press → item sheet ("Closer look" + save-to-collection); `data-feed-id` + `?focus=` return-scroll. Reuses `PHASE5_PLAN_5.4_FEED_OLD_DESIGN.md`'s backend-contract/RSC research wholesale. Planned in `PHASE5_PLAN_5.6.md` (08-17-26), which carries two decisions taken with Ben — **Because tiles: at most one per page, on the page's first JUMP with `driftPath ≥ 2`**, copy "you've been exploring {from}" / "{to}" in accent — plus three settled at plan time: the feed pill has **3 items, no share** (`PillToolbar.onShare` goes optional; prototype wins, and share-on-feed has no referent), the height rotation uses literal **aspect-ratio** classes (the prototype's 8 ratios; scales on wider phones where fixed px would distort), and a minimal `/i/[itemId]` **stub ships in 5.6** so taps navigate for real. 5.5's still-open device pass folds into this phase's Done bar.
   *Done = smooth infinite scroll of real DB content; taps/long-press correct on a phone (5.7 routes may be stubs until 5.7 lands — the pair ships back-to-back).*
-  *Status =* ⚠️ **Code complete 08-17-26, awaiting the on-device pass** (which now carries 5.5's
-  too — see that step). Walkthrough `docs/PHASE5_WALKTHROUGH_5.6.md`. 328 tests green (was 288),
+  *Status =* ✅ **Done.** Code complete 08-17-26; **on-device pass passed 08-20-26**, carrying
+  5.5's too — tap vs. long-press vs. scroll all correct on the phone, no iOS selection or callout
+  on a long press, and `pt-[58px]` clears the status bar as-is (no safe-area value needed yet).
+  Walkthrough `docs/PHASE5_WALKTHROUGH_5.6.md`. 328 tests green (was 288),
   `bun run e2e` **14/14** across three consecutive parallel runs, `bun run build` clean. The RSC
   hydration contract is verified empirically, not just by construction: a hard reload of `/feed`
   makes **zero** client `feed.page` requests, and each scroll to the bottom makes exactly one.
@@ -207,9 +211,11 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   to five lines** (with `masonry.ts`'s height estimate capped to match) — the prototype doesn't
   clamp because its fixture ledes are hand-written sentences, whereas the real `summary` column
   holds Wikipedia extracts of 600+ characters, which rendered as a twenty-five-line wall in a
-  196px column. And **`?focus=` cannot work through the stub's Back link**: `/feed` is dynamic and
+  196px column. And **`?focus=` cannot work through a pushed Back link**: `/feed` is dynamic and
   `getFeedPage` never repeats items, so a fresh `<Link>` navigation lands on an entirely different
-  feed — measured. Browser *back* does preserve it (router cache) and restores scroll exactly,
+  feed — measured. (Fixed 08-20-26, once the device pass showed what it cost in practice: the
+  stub's Back now *pops* history via `BackToFeed`, and only pushes `?focus=` for a cold-opened
+  shared link. See log.md.) Browser *back* does preserve it (router cache) and restores scroll exactly,
   which is the evidence 5.7's back gesture should **pop history rather than push**. Two e2e bugs
   found that looked like flake and weren't: Playwright's default `test-results/` sits in the
   project root and its mid-run writes trigger Fast Refresh (fixed with a dot-directory
@@ -219,9 +225,11 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   across for here.
 
 - [ ] **5.7 — Item pages.** `/i/[itemId]` on the public `items.byId` — image and reader variants by item type, shared-by row (param-driven), "where Ambit would wander next" (new procedure over the topic graph), join CTA for signed-out visitors, OG meta, horizontal swipe-back with rubber-band follow honoring `?focus=`. Reader body: decide at plan time between stored `summary`/`body` and a server-side cached Wikipedia extract (the prototype fetches client-side; its own README says move it server-side).
+  **Added 08-20-26 — the item page hosts the generalized credit line.** A `from: <source>` line sits near the title and links `sourceUrl`, **for every source**, not just blogs — museum and Wikipedia items get it too, which is why it ships here once rather than inside 6.3. Blog items (6.3) additionally show the article blurb and a **prominent** link out to the original. Explicitly **no reader-view work for blogs**: Ambit never reformats and hosts someone else's article. 9.4 remains the licensing audit and now covers this line's wording too.
   *Done = incognito visit renders both variants + teaser; OG preview correct; no user data leaks; swipe-back works on iOS.*
 
 - [ ] **5.8 — Immersive gallery.** The signature screen — budget the most time. `bg-immersive`, three-cell rail over the feed's image set (entered from item pages and Saved, not feed tiles), pointer-event swipe with 20%-width threshold + `touch-action: none`, chrome hidden by default (600ms unit fade, 10s-in/10s-out auto-cycle, pointer-events off while hidden), details sheet on `--animate-sheet-gallery` with drag-close + side-swipe-cycle, hard-swipe-up / two-finger exit → `/feed?focus=`. Pill + both sheets embedded.
+  **Parked 08-20-26:** once the gallery lands, revisit how often archive ("wildcard") items appear in gallery browsing — Ben wants that flavor more present. Recorded as a wish, not a design: archive items are **labeling only** today, flowing through the normal feed algorithm with a constant attribution. **No new feed tier and no mechanics now**; revisit here with the gallery in hand.
   *Done = the full gesture matrix works on iOS Safari (no scroll bleed, no stuck chrome); entry/exit deep-linking correct.*
 
 - [ ] **5.9 — Saved + collections UI.** `/saved` per handoff: title + count line, horizontally scrolling collection chips with live counts (accent-filled active), the shared masonry from 5.6, unsave badge + toast, empty state, image tap → gallery, article tile → reader, pill bookmark filled-white. Share-collection scope needs a call at plan time (public `/c/{collection}` is not in current scope — degrade or defer). Pure UI over 5.5's backend. Also revisit Saved's reachability here (currently two hops from the feed — possibly intentional restraint).
@@ -240,8 +248,59 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 - [ ] **6.1 — Feed learns from saves.** Saves adjust `user_topic.weight` / inferred related topics (SPEC §3.3b) while retaining the randomness floor. Extend feed tests: a burst of saves in one domain measurably (but not overwhelmingly) shifts composition.
   *Done = weight adjustment covered by tests; feed visibly adapts without collapsing into a filter bubble.*
 
-- [ ] **6.2 — Remaining v1 adapters (batched).** Same adapter+fixture pattern for: **Smithsonian Open Access** (key), **NASA APOD** (key), **Wikiquote**, **Project Gutenberg/Wikisource**, **Public Domain Review** (check API/RSS reality — may need scraping-lite or cutting; ⚖️ decide when reached). Extend topic seed queries to all sources; re-run ingestion; eyeball feed mix.
+- [ ] **6.2 — Remaining v1 adapters (batched).** Same adapter+fixture pattern for: **Smithsonian Open Access** (key), **NASA APOD** (key), **Wikiquote**, **Project Gutenberg/Wikisource**, ~~**Public Domain Review**~~ (**moved to 6.3, 08-20-26** — the "scraping-lite or cut" gate was really a blog question, and 6.3 is where blogs are answered). Extend topic seed queries to all sources; re-run ingestion; eyeball feed mix.
   *Done = 7–8 live sources; ingestion healthy; per-source items visible in feed.*
+
+- [ ] **6.3 — Blog source adapters (⚖️ design session first — decided 08-20-26, undesigned).**
+  **Strategy:** Ambit's content comes primarily from **blogs** rather than from image scraping plus
+  paid identification, because blogs already carry what costs money to manufacture — tags,
+  descriptions, and an article saying why the image matters. Recorded in Ambit-Admin (08-20-26)
+  along with the rights posture this step must honour.
+
+  **Presentation contract — excerpt + link-out, no reader view.** A blog item is a **link card**:
+  the image, Ambit's own short description, a 1–2 sentence blurb on what the source article is
+  about, the `from: <blog>` credit from 5.7, and a **prominent link to the actual article**. Ambit
+  hosts no reformatted articles; **`body` is not a display surface for blog items.** Full article
+  text is used **at ingest only** — to derive topics, tags and the blurb — and is never stored for
+  display. The recorded goal is to **drive readers out to the blog**, which is also what makes the
+  rights posture honest: image or short excerpt + visible credit + link out, truthful license
+  strings ("Rights retained by original authors — displayed with credit and link"), and
+  remove-on-request. **No fair-use claim anywhere.**
+
+  **v1 sketch** (a sketch, not a spec — the design session decides): a shared scraper core plus
+  per-blog config; **one `SourceId` per blog**; the ingest unit is a **post**; each notable image
+  becomes one `image` item and/or the post becomes one summary card; `source_id` = post-slug
+  (+ index where a post yields several); `sourceUrl` = the post URL; `attribution` = the blog name;
+  an honest per-blog license constant.
+
+  **Seven open questions — settle these before any code:**
+  1. **Adapter interface.** Blogs don't do `search(q)`, so the search-shaped contract doesn't fit as
+     written. A local-index fake `search()` over already-scraped posts, or an ingest entry point
+     shaped like an in-repo corpus walk?
+  2. **Topic assignment without seed queries.** Search-shaped sources derive an item's topic from
+     *which query surfaced it*; there is no such query here. LLM classification at ingest, or
+     per-blog topic defaults?
+  3. **Items per post, and the flooding rule.** A post with 30 images could swamp a feed page. How
+     many items per post, and how does dedupe/spacing work?
+  4. **Where the blurb lives.** Proposed: a nullable `body` (used as blurb, never as a reader
+     surface), with `summary` as fallback. Needs a schema call.
+  5. **Image hosting.** Blog images hotlinked from someone else's server is the **strongest case yet
+     for 7.3's proxy-with-cache** — decide 7.3 and this together.
+  6. **Scrape etiquette.** robots.txt compliance, request rate, re-crawl cadence, and identifying
+     the agent. *A worked precedent already exists:* artvee was **cut 08-20-26** because its
+     robots.txt runs an AI block list — a blog that machine-readably refuses agents does not become
+     a designated blog just because its works are public domain.
+  7. **Curation.** Do blog items go through the normal curator pass and quality floor? Presumably
+     yes; confirm rather than assume.
+
+  **First corpus: doorofperception.com.** The scrape already exists — 11,572 images on disk in
+  `ambit-archive`, with `storage/sources/doorofperception/index.csv` (11,584 rows) mapping every
+  image to its post URL and original URL, which is the attribution source. Ingesting it here
+  **retires 85% of the archive corpus** and prototypes this whole step for $0. It also owns the
+  **Ambit-side dedupe design** — those items may already have been ingested through the archive
+  adapter (A.5). Designated-blog list: `docs/source-candidates.md`.
+  *Done = a design session's decisions recorded in a plan doc; then one blog live end to end,
+  displaying as a link card with credit and link-out, and no article text rendered by Ambit.*
 
 ---
 
@@ -275,7 +334,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 - [ ] **9.1 — Motion-fidelity pass.** Audit every screen against handoff timings (rise-ins, chip pop, sheet cubic-bezier, toast, gallery chrome cycle); fix drift.
 - [ ] **9.2 — Accent picker.** Settings surface to choose among the 4 accents (per-user persistence) — the design's single brand knob, currently default-only.
 - [ ] **9.3 — Accessibility pass.** Focus states, reduced-motion variants for every animation, contrast check on muted-opacity text, screen-reader labels on icon buttons, gesture alternatives (buttons for swipe-only actions).
-- [ ] **9.4 — Attribution & licensing UI.** Per-item attribution/license display meeting each source's terms (gallery details sheet + item page).
+- [ ] **9.4 — Attribution & licensing UI.** Per-item attribution/license display meeting each source's terms (gallery details sheet + item page). **Note 08-20-26:** the `from: <source>` credit line itself ships earlier, with **5.7** — this step stays the *audit*, and now also covers blog credit and license-string display (6.3's honest-rights posture: credit visible, link out prominent, no fair-use claim).
 - [ ] **9.5 — Empty/error/edge states.** Feed exhaustion, source outage degradation, slow-network skeletons, broken-image fallback, dead-link pruning during ingestion.
 - [ ] **9.6 — Source trials from the backlog.** Run `docs/source-candidates.md` trial loop; suggested first: Cleveland Museum (CC0, no key) and PoetryDB (pure-text serendipity). Also organize the raw candidate list at the bottom of that file into the table. One or two per session, eyeball cross-source jumps, Keep/Park/Cut.
 - [ ] **9.7 — Feed tuning pass.** Expose algorithm knobs (randomness floor, serendipity ratio, image:article mix) as config; tune by feel with beta feedback.
@@ -292,8 +351,9 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 | Serendipity go/no-go + embedding model + recipe + vector dim | 0.4/0.5 | **Settled:** item-NN rejected; tiered topic drift over curated pool passed the feel gate. Offline model `text-embedding-3-small` × A; vector dim moot (no DB vector column). |
 | PWA library | 1.3 | **Settled (07-17-26): `@serwist/next`** (next-pwa deprecated; SW verified on prod builds — Serwist doesn't support Turbopack dev) |
 | Lint/format | 1.2 | **Settled (07-17-26): ESLint + Prettier** (t3 default; Biome's React/Next rule coverage still partial) |
-| Public Domain Review feasibility | 6.2 | API/RSS adapter vs cut from v1 |
-| Image delivery | 7.3 | hotlink vs proxy-with-cache |
+| Public Domain Review feasibility | ~~6.2~~ → 6.3 | **Moved 08-20-26** — it is a blog question; answered by 6.3's design session |
+| Blog adapter family v1 | 6.3 | **New 08-20-26.** Seven questions (adapter interface, topic assignment, items-per-post, blurb home, image hosting, scrape etiquette, curation) — a design session before any code |
+| Image delivery | 7.3 | hotlink vs proxy-with-cache — **6.3 strengthens the proxy case**; decide together |
 
 ## Verification approach
 

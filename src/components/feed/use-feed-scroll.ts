@@ -16,14 +16,19 @@ import { useSearchParams } from "next/navigation";
 // **What actually happens on a return, verified in the browser (08-17-26)** — worth knowing before
 // changing anything here, because it isn't what you'd assume:
 //
-//   - **Browser back preserves the feed.** The App Router restores /feed's RSC payload from the
+//   - **Popping history preserves the feed.** The App Router restores /feed's RSC payload from the
 //     client router cache, so the same tiles are still there and `?focus=` can find its target.
+//     This is now the normal return path: `BackToFeed` pops whenever the reader arrived from the
+//     feed (see `feed-origin.ts`), and an e2e test pins it — same tile ids, zero requests for
+//     `/feed` or `feed.page`.
 //   - **Following a fresh `<Link href="/feed?focus=…">` does not.** `/feed` is a dynamic route, so
 //     that navigation re-runs the server component, and `getFeedPage` never repeats items — the
 //     feed you land on is made of entirely different cards. The focused tile is genuinely gone,
-//     and falling back to the remembered offset is the only honest thing left to do. (It also
-//     costs a page of corpus, which is why the item page's Back link is a stopgap: 5.7 replaces it
-//     with a real back gesture that pops history instead of pushing a new entry.)
+//     and falling back to the remembered offset is the only honest thing left to do. That path
+//     now only happens where it is the *right* answer — a cold-opened shared link, which has no
+//     feed behind it to go back to. Until 08-20-26 it was the path every return took, at a cost
+//     of two pages of corpus each (the RSC render draws one, the client query another) plus the
+//     reader's place in the feed.
 //
 // The two races this has to survive, both found the same way — by watching it fail in Chrome:
 //

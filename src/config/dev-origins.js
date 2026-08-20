@@ -25,7 +25,7 @@
 export const DEV_ORIGIN_HOSTS = [
   "100.109.133.60",
   "macbook-air-m5.halley-morpho.ts.net",
-  "192.168.68.65",
+  "192.168.1.215",
 ];
 
 /**
