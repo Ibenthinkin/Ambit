@@ -5,6 +5,72 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-21-26 Fri]] — Handoff: the three questions 5.8 can't be planned without
+
+**Nothing shipped; this is a handoff.** Picked up at the top of 5.8 (the immersive gallery), got as
+far as the questions that gate the plan doc, and Ben moved the planning session to Fable. Recording
+the questions here so the next session starts from them instead of re-deriving them.
+
+**Where `main` actually is.** Clean at `376b2e7`, 395 unit tests + e2e green at branch tip. 5.7 is
+*fully* closed — merged at `44371e7`, iOS device pass passed 08-20-26, and last night's follow-up
+commit added the HTTPS dev origin and the hero callout guard. No `PHASE5_PLAN_5.8.md` exists yet.
+
+**Q1 — what the gallery swipes through.** The prototype fakes this with a fixed 28-item `POOL`;
+the real app has to answer it, and the answer decides the auth posture, the route, and whether the
+gallery burns corpus. Three readings:
+
+- **A wander rail** — prev/next from a topic-graph walk seeded by the entry item, i.e. `wander.ts`
+  (already public, already unpersonalized, already backing the item page's teaser) extended from
+  three rows to an endless images-only rail. Infinite by construction, which is what the
+  prototype's wrap is imitating; **public**, which matters because the entry point is the hero on
+  `/i/[itemId]` and the person tapping it may be a stranger who cold-opened a shared link; and it
+  marks nothing seen, so swiping doesn't spend corpus. Costs a new public procedure.
+- **The feed's image set** — what BUILD_PLAN 5.8 currently says ("over the feed's image set").
+  Swiping continues exactly what the reader was just scrolling, but a feed page carries only ~6–8
+  images, the pool has to reach a *different route* through client state, and it has no answer for
+  either the stranger or Saved (5.9).
+- **Fresh `feed.page` draws** — personalized and endless, but auth-only (breaks the public hero)
+  and every swipe-through burns corpus through `markSeen`. That is precisely the failure mode
+  08-20 spent a session removing; listed to be rejected in writing, not to be considered.
+
+**Q2 — do feed tiles enter the gallery?** BUILD_PLAN says the gallery is entered from item pages
+and Saved, "not feed tiles". The redesign README's gesture matrix lists **Feed** as an entry
+("Tap image → Feed, Saved, Item image → Open Gallery at that work `?start={id}`"). A real
+conflict, and one the recorded convention doesn't settle by itself — *prototypes beat the README*,
+but here the README disagrees with BUILD_PLAN rather than with a prototype. Today's shipped
+behaviour is 5.6's: a tile tap opens the item page, a long-press opens the item sheet.
+
+**Q3 — route shape.** An own route (`/g/[itemId]`-ish) makes the exit a history **pop** through
+the `useLeaveToFeed` machinery 5.7 already built, and makes the gallery deep-linkable. An overlay
+mounted over `/i/[itemId]` opens instantly and changes no URL, but then the OS back gesture leaves
+the item page entirely instead of closing the gallery — so it has to hand-roll a history entry,
+which is the first option with extra steps. Worth deciding explicitly rather than by default,
+because 5.7 established that back/exit behaviour here is a **correctness** constraint (a pushed
+`/feed` re-runs the dynamic route and draws a page) and not a matter of feel.
+
+**Two constraints 5.8 must not trip, both bought expensively on 08-20.** The item hero's iOS
+long-press "Add to Photos" (two taps to the camera roll, the best path a web app can have) works
+*only* because the hero doesn't set `-webkit-touch-callout: none` the way the feed tiles must — so
+wiring the gallery tap onto that hero must not copy the tile's iOS incantations wholesale. There's
+a warning comment in `image-item-body.tsx`; it is the thing most likely to be undone by an
+executing session doing the obvious. And **device passes now run over HTTPS**
+(`tailscale serve --bg 3000`), because `navigator.share`, the clipboard and service workers are
+secure-context-only and were silently `undefined` over plain http — 5.8's share/save paths can't
+be tested on the LAN origin at all.
+
+**Also still parked, and 5.8 is where it was deferred to:** how often archive ("wildcard") items
+turn up in gallery browsing. Ben wants that flavour more present. Still a wish, not a design —
+archive items are labelling-only today. Q1's answer is what makes it addressable at all, since a
+wander rail is where a "more wildcard" knob would live.
+
+**Open / next:** answer Q1–Q3 with Ben in the Fable planning session, then write
+`docs/PHASE5_PLAN_5.8.md` cold-executable in the 5.4–5.7 house style. Unrelated and still open from
+08-20: the 60 real items (30 met, 30 wikipedia) stranded on `topic_id = test-feed-topic-*` by an
+integration test that never restored them, and AIC's Cloudflare challenge (`HANDOFF_aic-images.md`
+§8) — neither blocks 5.8.
+
+*Session spend: 3.20M tok (in 76 · out 25.7k · cache r 2.98M / w 197.5k) · ~$4.11 · opus-5 · 08:11→08:22*
+
 ### [[08-20-26 Thu]] — The 5.6 device pass passes; the feed was eating the corpus on every Back
 
 **The pass itself: green.** 5.6's tile gestures (tap vs. long-press vs. scroll, the 12px slop
