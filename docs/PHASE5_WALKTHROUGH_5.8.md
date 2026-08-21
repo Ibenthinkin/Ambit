@@ -5,8 +5,10 @@ tasks, all landed, each its own commit with `bun run check` green. The plan was 
 executed cold and very nearly was: three places argued back, none of them a design question, and one
 of them a bug the phase merely *exposed* rather than caused.
 
-**Status: complete.** The iOS device pass ran 08-21-26 and passed; what it turned up — one real
-cluster of defects, all fixed on this branch — is at the end.
+**Status: complete, with one loose end stated plainly.** The iOS device pass ran 08-21-26 and
+passed; what it turned up — one real cluster of gesture defects — is at the end, along with the fix.
+**That fix is unit-tested but has not itself been re-confirmed on device**, so the next person to
+pick up a phone should start there.
 
 ---
 
@@ -167,6 +169,12 @@ Plus one scoping fix: the details sheet's drag armed only in its top 64px, so a 
 mid-sheet did nothing. It now arms anywhere on a panel that isn't scrolled, with the grabber band
 still ruling on a scrolled one.
 
+**The fix has not been re-confirmed on device.** It is pinned by nine new unit tests — every
+threshold, both axis locks, and the cancelled-multi-touch rescue — and the e2e suite is green three
+runs running, but a threshold is a *feel* judgement and no test can make one. The four gestures to
+re-run first are the four that prompted it: the rail swipe, the item page's left-to-right, a quick
+flick down on the details sheet, and the two-finger exit.
+
 **The lesson to carry into 5.9 and 5.10:** when several gestures across several screens all feel
 "too hard", suspect a shared missing dimension before you suspect the numbers. Four threshold tweaks
 would have shipped four half-fixes and left the two-finger exit broken entirely.
@@ -186,6 +194,8 @@ three, covering nothing while showing green. It now picks the first tile that ac
 
 ### Left for a later pass
 
+- **Re-confirming the gesture fix on device** — see above. The only unfinished item that could still
+  change code.
 - **Rail feel**, deliberately — see above. Re-judge when the corpus spans more sources.
 - **`wildcardChance` is still 0.1**, untuned. Turn it up under `FEED_DEBUG` (the details sheet grows
   a `Debug` row showing `via · topic`) once there is more to wander between.

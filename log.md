@@ -213,14 +213,17 @@ it drew an article — a third of runs, showing green while covering nothing.
 told from a lucky one. `wildcardChance` stays at its untuned 0.1 for the same reason. Both want a
 re-run once more sources land, not a guess now.
 
-**Open / next:** merge 5.8, then 5.9 (Saved), which inherits the gallery entry for free — the origin
-marker stores an item id, not a route. Worth watching: `bun run e2e` flaked twice in ~8 full runs
+**Open / next:** **re-confirm the gesture fix on device** — it is pinned by nine unit tests and the
+e2e suite is green, but a threshold is a feel judgement and no test makes one; the session ended with
+the dev server stopped before a retest. Then merge 5.8 and start 5.9 (Saved), which inherits the
+gallery entry for free — the origin marker stores an item id, not a route. Worth watching: `bun run e2e` flaked twice in ~8 full runs
 during this session, in *different* specs each time including ones this branch never touched, always
 a 30s "waiting for element to be visible". Consistent with the machine-load note in CLAUDE.md and
 with a dev server shared with the phone; three consecutive green runs closed it out. If it recurs on
 a quiet machine it's real and worth chasing.
 
 *Session spend: 36.82M tok (in 194 · out 115.4k · cache r 36.57M / w 141.6k) · ~$22.58 · opus-5 · 10:28→11:19*
+*Session spend: 6.33M tok (in 61 · out 30.9k · cache r 6.02M / w 283.8k) · ~$5.63 · opus-5 + opus-4-7 · 11:19→11:33*
 
 ### [[08-20-26 Thu]] — The 5.6 device pass passes; the feed was eating the corpus on every Back
 
