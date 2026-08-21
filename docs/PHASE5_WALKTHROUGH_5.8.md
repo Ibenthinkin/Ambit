@@ -5,9 +5,8 @@ tasks, all landed, each its own commit with `bun run check` green. The plan was 
 executed cold and very nearly was: three places argued back, none of them a design question, and one
 of them a bug the phase merely *exposed* rather than caused.
 
-**Status: code complete, awaiting the iOS device pass.** Everything a browser can prove is green
-(three consecutive `bun run e2e` runs, 27 tests). What can't be proved in Chromium is listed at the
-end, with the one regression to watch for.
+**Status: complete.** The iOS device pass ran 08-21-26 and passed; what it turned up — one real
+cluster of defects, all fixed on this branch — is at the end.
 
 ---
 
@@ -122,7 +121,9 @@ resize.
 
 ## Verification
 
-- `bun run check` green before every commit. 478 unit/integration tests across 48 files.
+- `bun run check` green before every commit. 487 unit/integration tests across 48 files (478 at
+  code-complete; the device-pass fixes added nine, all pinning gesture thresholds that had just been
+  shown to be wrong by hand).
 - `bun run e2e`: **three consecutive green runs**, 27 tests. Covers cold-open signed-out (no pill,
   no console errors), tap → chrome → tap-again → details with the From row linking out, the article
   guard 404, the full feed → item → hero → gallery doorway, the pill's Feed button landing on the
@@ -131,26 +132,66 @@ resize.
 - Integration coverage asserts the same corpus promise one layer down: a `galleryRail` call writes
   no `seen_item` rows, returns image rows only, never the anchor, and respects `exclude`.
 
-## Still open — the iOS device pass
+## The device pass (08-21-26) — passed, with one cluster worth the whole exercise
 
-Not yet run. It has to happen over the HTTPS tailnet origin (`tailscale serve --bg 3000`), because
-the Web Share API is secure-context only and share/clipboard simply don't exist on plain
-`http://` over the LAN. What it needs to judge, none of which Chromium can:
+Run over the `tailscale serve` HTTPS origin. **The regression everyone was watching for did not
+happen**: long-pressing the item hero still offers "Add to Photos". Save-to-collection, share, and
+Save-image all work from inside the gallery. Cold-opened `/g/` signed-out is clean. The rail's
+mechanics, the chrome cycle, the hard-flick exit, and the pill's Feed button all behaved.
 
-- Rail swipe feel and the 20% threshold; the chrome fade; tap-again → details; slow-up from the
-  title distinguished from hard-up from the picture; the two-finger exit.
-- Drag-to-close live-following the finger; side-swipe cycling.
-- Exit popping to the item page with its state intact; the pill's Feed button landing on the intact
-  feed with its scroll position preserved.
-- Save-to-collection, share, and Save-image from inside the gallery.
-- **Long-press on the item hero still offering "Add to Photos."** The single most likely regression
-  of the phase — the warning comment in `image-item-body.tsx` exists because the obvious
-  implementation breaks it, and a test now pins the two things that would (an anchor around the
-  image, or `-webkit-touch-callout: none` in its markup). The device is still the only place the
-  callout itself can be seen.
+Ben's verdict on the rail itself: *"the mechanics are good, like I wanted"*, with the caveat that
+**feel can't really be judged until there are more sources to wander between** — a two-museum corpus
+doesn't drift far enough to tell a good walk from a lucky one. Worth re-running once more sources
+land rather than tuning against today's corpus.
 
-Also worth a look during the pass: `wildcardChance` with `FEED_DEBUG=true` and the dial turned up,
-to judge how much serendipity the rail actually wants. 0.1 is a starting position, not a verdict.
+**Four separate complaints, one cause.** Rail swipes "quite hard"; the item page's left-to-right back
+gesture "too hard to do"; the details sheet "should close with a down swipe"; the two-finger exit
+"barely fires". They looked like four thresholds needing four nudges. They were three shared defects:
+
+1. **No velocity path anywhere.** Every commit was distance-only, which punishes the confident flick
+   and rewards the hesitant drag — backwards, since a fast short movement is the more deliberate of
+   the two. Every threshold is now "far enough **or** fast enough", which is the two-way test the
+   hard-flick exit already used and the reason *that* one always felt right.
+2. **The axis was re-decided at release.** A thumb swipe arcs. Judging horizontal-vs-vertical from
+   the final delta means a good sideways swipe that drifted down finishes as "vertical" and does
+   nothing. `useSwipeBack` was worse still: it *permanently abandoned* the gesture the first time
+   vertical won mid-drag, so the item page's back swipe died halfway across and snapped back for no
+   visible reason. Both hooks now decide once, at the slop, and hold.
+3. **The two-finger exit was discarded at the moment it was recognised.** iOS Safari fires
+   `pointercancel` when it claims a multi-touch gesture for the system — which it does for
+   two-finger swipes *even under `touch-action: none`* — and the hook treated every cancel as
+   "throw this away". A cancelled gesture that was multi-touch and had moved is now an exit; a
+   cancelled single-finger one still isn't, because that's a real interruption.
+
+Plus one scoping fix: the details sheet's drag armed only in its top 64px, so a swipe down from
+mid-sheet did nothing. It now arms anywhere on a panel that isn't scrolled, with the grabber band
+still ruling on a scrolled one.
+
+**The lesson to carry into 5.9 and 5.10:** when several gestures across several screens all feel
+"too hard", suspect a shared missing dimension before you suspect the numbers. Four threshold tweaks
+would have shipped four half-fixes and left the two-finger exit broken entirely.
+
+### Two things found while pinning the fix in tests
+
+**React normalizes synthetic `timeStamp` as `nativeEvent.timeStamp || Date.now()`.** A falsy native
+value silently becomes an epoch millisecond sitting next to a sibling event's `performance.now()`
+one — two clocks, one subtraction, a *negative* elapsed, and a velocity test that passes for every
+gesture. `BottomSheet` reads `Date.now()` on both ends instead; `use-rail-gestures` can keep reading
+`e.timeStamp` because it attaches **native** listeners, where React never touches the value. The
+distinction is now written down in both files.
+
+**A test that skips itself reads as a pass.** `e2e/gallery.spec.ts`'s doorway test took the feed's
+first tile blind and bailed with `test.skip` when it turned out to be an article — roughly one run in
+three, covering nothing while showing green. It now picks the first tile that actually has an image.
+
+### Left for a later pass
+
+- **Rail feel**, deliberately — see above. Re-judge when the corpus spans more sources.
+- **`wildcardChance` is still 0.1**, untuned. Turn it up under `FEED_DEBUG` (the details sheet grows
+  a `Debug` row showing `via · topic`) once there is more to wander between.
+- **The iOS long-press callout can't be styled**, and shouldn't be. Ben noted it doesn't match the
+  app; it is Safari's own image menu, and replacing it with anything of ours is precisely what would
+  cost the two-tap path to Photos.
 
 ## Not in this phase, on purpose
 
