@@ -101,38 +101,67 @@ describe("useRailGestures", () => {
   });
 
   describe("advance", () => {
-    it("commits past a fifth of the track's width, in both directions", () => {
-      // 400px track → 80px threshold.
-      fire("pointerdown", { x: 300, y: 400 });
-      fire("pointermove", { x: 180, y: 400 });
-      fire("pointerup", { x: 180, y: 400 });
+    // Two ways to commit, and both matter: the device pass found a distance-only threshold made
+    // ordinary swiping "quite hard", because the gesture people actually perform is a quick flick
+    // that never travels far.
+    it("commits on distance alone when the drag was slow, in both directions", () => {
+      // 400px track → 60px distance threshold. 800ms is far outside the flick window.
+      fire("pointerdown", { x: 300, y: 400, at: 0 });
+      fire("pointermove", { x: 200, y: 400, at: 800 });
+      fire("pointerup", { x: 200, y: 400, at: 800 });
       expect(onAdvance).toHaveBeenCalledWith(1); // finger left → rail forward
 
-      fire("pointerdown", { x: 100, y: 400 });
-      fire("pointermove", { x: 220, y: 400 });
-      fire("pointerup", { x: 220, y: 400 });
+      fire("pointerdown", { x: 100, y: 400, at: 0 });
+      fire("pointermove", { x: 200, y: 400, at: 800 });
+      fire("pointerup", { x: 200, y: 400, at: 800 });
       expect(onAdvance).toHaveBeenCalledWith(-1);
       expect(onAdvance).toHaveBeenCalledTimes(2);
     });
 
-    it("snaps back under the threshold", () => {
-      fire("pointerdown", { x: 300, y: 400 });
-      fire("pointermove", { x: 250, y: 400 }); // 50px, under 80
+    it("commits on speed alone when the flick was short", () => {
+      // 45px — well under the 60px distance threshold — but inside the flick window.
+      fire("pointerdown", { x: 300, y: 400, at: 0 });
+      fire("pointermove", { x: 255, y: 400, at: 120 });
+      fire("pointerup", { x: 255, y: 400, at: 120 });
+
+      expect(onAdvance).toHaveBeenCalledWith(1);
+    });
+
+    it("snaps back when the drag was neither far enough nor fast enough", () => {
+      fire("pointerdown", { x: 300, y: 400, at: 0 });
+      fire("pointermove", { x: 250, y: 400, at: 800 }); // 50px, under 60, and slow
       expect(dragPx()).toBe(-50);
 
-      fire("pointerup", { x: 250, y: 400 });
+      fire("pointerup", { x: 250, y: 400, at: 800 });
       expect(onAdvance).not.toHaveBeenCalled();
       expect(dragPx()).toBe(0); // back to rest; the caller animates the return
     });
 
-    it("keeps vertical travel out of dragPx entirely", () => {
+    // The axis is decided once, when the gesture clears the slop, and held. Re-deciding it at
+    // release is what made an arcing thumb swipe fail — a sideways flick that drifted downward
+    // finished as "vertical" and did nothing.
+    it("locks to horizontal on the first real movement and stays there", () => {
+      fire("pointerdown", { x: 200, y: 400, at: 0 });
+      fire("pointermove", { x: 240, y: 405, at: 60 }); // horizontal wins → locked to x
+      expect(dragPx()).toBe(40);
+
+      // The thumb arcs well below the horizontal from here. The rail keeps following it.
+      fire("pointermove", { x: 300, y: 560, at: 200 });
+      expect(dragPx()).toBe(100);
+
+      fire("pointerup", { x: 300, y: 560, at: 200 });
+      expect(onAdvance).toHaveBeenCalledWith(-1);
+      expect(onExit).not.toHaveBeenCalled();
+      expect(onOpenDetails).not.toHaveBeenCalled();
+    });
+
+    it("locks to vertical just as firmly — a later sideways drift never reaches dragPx", () => {
       fire("pointerdown", { x: 200, y: 400 });
-      fire("pointermove", { x: 220, y: 300 }); // mostly vertical
+      fire("pointermove", { x: 220, y: 300 }); // mostly vertical → locked to y
       expect(dragPx()).toBe(0);
 
-      // And once it turns horizontal, the follow resumes from the true dx.
       fire("pointermove", { x: 320, y: 380 });
-      expect(dragPx()).toBe(120);
+      expect(dragPx()).toBe(0);
     });
   });
 
@@ -160,6 +189,26 @@ describe("useRailGestures", () => {
 
       expect(onExit).not.toHaveBeenCalled();
       expect(onOpenDetails).not.toHaveBeenCalled();
+    });
+
+    // iOS Safari fires `pointercancel` the moment it claims a multi-touch gesture for the system,
+    // even under `touch-action: none`. Discarding the gesture there threw the two-finger exit away
+    // at exactly the moment it was recognised — which is why it "barely fires" on device.
+    it("survives Safari cancelling the gesture out from under it", () => {
+      fire("pointerdown", { x: 200, y: 400, id: 1 });
+      fire("pointerdown", { x: 240, y: 400, id: 2 });
+      fire("pointermove", { x: 200, y: 300, id: 1 });
+      fire("pointercancel", { x: 200, y: 300, id: 1 });
+
+      expect(onExit).toHaveBeenCalledTimes(1);
+    });
+
+    it("still discards a cancelled single-finger gesture — that's an interruption, not a swipe", () => {
+      fire("pointerdown", { x: 200, y: 400 });
+      fire("pointermove", { x: 200, y: 200 });
+      fire("pointercancel", { x: 200, y: 200 });
+
+      expect(onExit).not.toHaveBeenCalled();
     });
 
     it("takes any two-finger movement, and ignores a two-finger rest", () => {

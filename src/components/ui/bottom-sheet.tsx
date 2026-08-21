@@ -43,10 +43,26 @@ import { cn } from "~/lib/utils";
  */
 const EXIT_MS = { pill: 300, gallery: 360 } as const;
 
-/** Past this much downward travel, releasing the grabber closes the sheet instead of snapping back. */
+/** Past this much downward travel, releasing closes the sheet instead of snapping back. */
 const DRAG_CLOSE_PX = 56;
 
-/** How far down the panel a `pointerdown` still counts as "on the grabber". */
+/**
+ * The fast path: this much downward travel inside {@link FLICK_MS} closes regardless of distance.
+ *
+ * Added after the 08-21-26 device pass, where Ben's report was simply that "the details sheet should
+ * close with a down swipe" — and it didn't, because a *swipe* is a flick and the only test was a
+ * distance one. Same two-way "far enough OR fast enough" shape as the gallery's own gestures
+ * (`hooks/use-rail-gestures.ts`).
+ */
+const FLICK_PX = 24;
+const FLICK_MS = 300;
+
+/**
+ * How far down the panel a `pointerdown` counts as "on the grabber" *even when the sheet is
+ * scrolled*. Below this, the drag arms only when the panel is scrolled to its top — at which point
+ * a downward drag has nothing else it could mean, which is the same rule every native sheet uses.
+ * Arming only in this band was the other half of why a down-swipe from mid-sheet did nothing.
+ */
 const GRAB_ZONE_PX = 64;
 
 /** Past this much sideways travel (and more sideways than vertical), a release cycles instead. */
@@ -295,6 +311,7 @@ export function BottomSheet({
     id: number;
     x: number;
     y: number;
+    at: number;
     armed: boolean;
     dy: number;
     dx: number;
@@ -316,11 +333,23 @@ export function BottomSheet({
     // title, i.e. the parts that aren't the sheet's own scrollable body. A sideways flick is
     // tracked from anywhere, because there is nothing for it to fight with.
     const armed =
-      dragToClose && e.clientY - el.getBoundingClientRect().top <= GRAB_ZONE_PX;
+      dragToClose &&
+      (e.clientY - el.getBoundingClientRect().top <= GRAB_ZONE_PX ||
+        // Anywhere on a sheet that isn't scrolled: there is no scroll for the drag to steal, so a
+        // downward pull can only mean "put this away".
+        el.scrollTop <= 0);
     drag.current = {
       id: e.pointerId,
       x: e.clientX,
       y: e.clientY,
+      // **`Date.now()`, deliberately, and not `e.timeStamp`.** These are React *synthetic*
+      // handlers, and React normalizes that field as `nativeEvent.timeStamp || Date.now()` — so a
+      // falsy native timestamp silently becomes an epoch millisecond while its sibling event keeps
+      // a `performance.now()`-based one. Two clocks, one subtraction, a negative "elapsed", and a
+      // velocity test that passes for every gesture. (`hooks/use-rail-gestures.ts` reads
+      // `e.timeStamp` safely because it attaches *native* listeners, where the value is the raw
+      // DOMHighResTimeStamp React never touches.)
+      at: Date.now(),
       armed,
       dy: 0,
       dx: 0,
@@ -348,6 +377,7 @@ export function BottomSheet({
     if (!state || !el || state.id !== e.pointerId) return;
 
     const { dx, dy } = state;
+    const elapsed = Date.now() - state.at; // one clock — see `at`'s note in onPointerDown
 
     /** Hand the panel back to the CSS animations, wherever the finger left it. */
     const release = () => {
@@ -371,7 +401,8 @@ export function BottomSheet({
 
     if (!state.armed) return;
 
-    if (dy > DRAG_CLOSE_PX) {
+    // Far enough OR fast enough — a flick down is a dismissal even when it barely travelled.
+    if (dy > DRAG_CLOSE_PX || (dy > FLICK_PX && elapsed < FLICK_MS)) {
       // The exit animation runs from `translateY(0)`, so releasing at (say) 70px down snaps that
       // last stretch back before sliding away. Visible only if you look for it, and the alternative
       // — hand-rolling the close travel here — would mean two implementations of the exit that

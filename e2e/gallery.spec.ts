@@ -225,21 +225,22 @@ test.describe.serial("the immersive gallery", () => {
     const before = await feedIds();
     expect(before.length).toBeGreaterThan(0);
 
-    // Whichever tile the feed happened to draw — the entry item's identity doesn't matter here,
-    // only that the doorway works from wherever the reader actually is.
-    const itemId = before[0]!;
-    await page.locator(`[data-feed-id="${itemId}"] > *`).click();
+    // The first *image* tile, not simply the first tile. The feed mixes articles in, and an
+    // article's item page has no hero to tap — picking slot zero blind meant this test skipped
+    // itself roughly a third of the time, which reads as a pass and covers nothing.
+    const imageTile = page.locator("[data-feed-id]:has(img)").first();
+    await expect(imageTile).toBeVisible();
+    const itemId = (await imageTile.getAttribute("data-feed-id"))!;
+    expect(before).toContain(itemId);
+
+    await imageTile.locator("> *").click();
     await page.waitForURL(`/i/${itemId}`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-    const hero = page.locator("main img").first();
-    if ((await hero.count()) === 0) {
-      // An article landed in slot zero; nothing to tap through. The doorway is exercised from a
-      // known image below, so this test's remaining assertions still stand on their own.
-      test.skip(true, "the feed drew an article into the first slot");
-    }
+    // The hero is a client wrapper around a server-rendered `<img>`; clicking before React attaches
+    // does nothing at all and the test waits out its timeout (`support.ts`'s note in full).
     await waitForHydration(page, "main img");
-    await hero.click();
+    await page.locator("main img").first().click();
     await page.waitForURL(`/g/${itemId}`);
     await expect(page.getByTestId("gallery-track")).toBeVisible();
 
