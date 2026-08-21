@@ -272,6 +272,7 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 | `feed.markSeen` | mutation | `{ itemIds: string[] }` (max 64) | `{ ok: true }` |
 | `items.byId` | query | `{ id: string }` | `Item` (public; read-only) |
 | `items.wanderNext` | query | `{ itemId: string }` | `{ id, title, reason }[]` (public; read-only) |
+| `items.galleryRail` | query | `{ itemId: string, count?: number (1-16, default 8), exclude?: string[] (max 200), knobs?: Partial<GalleryKnobs> }` | `RailItem[]` (public; read-only, **no `seen_item` writes**) |
 | `saves.collections` | query | — | `{ id, name, createdAt, itemCount }[]` |
 | `saves.saveToCollection` | mutation | `{ itemId: string, collectionId: string }` | `{ collectionName: string }` |
 | `saves.unsave` | mutation | `{ itemId: string }` | `{ saved: false }` |
@@ -279,7 +280,7 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 | `saves.count` | query | — | `number` |
 | `saves.forItem` | query | `{ itemId: string }` | `{ saved: true, collectionId: string \| null } \| { saved: false, collectionId: null }` |
 
-- **`saves.saveToCollection` is the API's only authorization-sensitive input** (Phase 5.5). Every other protected procedure is scoped by `ctx.user.id` alone, and the two public procedures take no user id at all — this is the one place a client supplies the id of a *user-owned* row. It verifies the collection belongs to the caller and throws `NOT_FOUND`, not `FORBIDDEN`, for both "no such collection" and "someone else's": a probe must not be able to tell a real collection id from a fake one. It also saves the item if it wasn't already, so there is no separate "save" procedure.
+- **`saves.saveToCollection` is the API's only authorization-sensitive input** (Phase 5.5). Every other protected procedure is scoped by `ctx.user.id` alone, and the three public procedures take no user id at all — this is the one place a client supplies the id of a *user-owned* row. It verifies the collection belongs to the caller and throws `NOT_FOUND`, not `FORBIDDEN`, for both "no such collection" and "someone else's": a probe must not be able to tell a real collection id from a fake one. It also saves the item if it wasn't already, so there is no separate "save" procedure.
 - `saves.toggle` **was removed in Phase 5.5** (it had become dead code — nothing outside its own tests ever called it, not even the throwaway `/feed` placeholder). A collection-less save is also semantically wrong now that every save routes through the save-to-collection sheet.
 - `feed.page` is **cursor-based** (opaque cursor encodes pagination + the in-flight weighting seed).
 - `feed.page` returns `cards`, not bare items (revised at Phase 4.1 build time — see below): each
@@ -292,11 +293,22 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
   `FEED_DEBUG` env var is on; off, a supplied `knobs` object is validated (still 400s on an
   out-of-range value) but then silently ignored, never applied. This keeps a debug-tooling client
   safe to point at a non-dev deployment without special-casing itself.
-- **Two public (unauthenticated-allowed) procedures**, both backing `/i/{itemId}`: `items.byId`
-  and — as of Phase 5.7 — `items.wanderNext`, which serves that page's "where Ambit would wander
-  next" teaser. `wanderNext` is safe to expose by construction rather than by care: it takes no
-  user id, walks only the checked-in topic graph, and returns `{id, title, reason}` and nothing
-  else, so there is no user data for it to leak. Everything else in the API is protected.
+- **Three public (unauthenticated-allowed) procedures**, backing the app's two public routes
+  `/i/{itemId}` and `/g/{itemId}`: `items.byId`; `items.wanderNext` (Phase 5.7), the item page's
+  "where Ambit would wander next" teaser; and `items.galleryRail` (Phase 5.8), the immersive
+  gallery's endless rail. All three are safe to expose by construction rather than by care: none
+  takes a user id, they walk only the checked-in topic graph, and their return shapes are public
+  item data, so there is no user data for them to leak. Everything else in the API is protected.
+- **`items.galleryRail` (Phase 5.8)** draws the next stretch of the gallery's wander rail from an
+  anchor item (§9's "gallery rail"). `RailItem` is `{ id, title, attribution, imageUrl, summary,
+  source, sourceUrl, license, topicId, debug?: { via, topic } }` — `debug` gated by `FEED_DEBUG`,
+  as `feed.page`'s is. `count` is capped at 16 and `exclude` at 200, which bounds the SQL `IN`-list
+  a sequence with no end would otherwise grow without limit; past 200 the rail accepts a rare
+  repeat far behind the reader. `knobs` follows `feed.page`'s contract exactly — zod-bounded,
+  accepted always, applied only when `FEED_DEBUG` is on, never an error. **The procedure writes no
+  `seen_item` rows, ever**: swiping the gallery is free, which is precisely why the rail is its own
+  machinery rather than repeated `feed.page` draws (a rejected design that would have re-created
+  the 08-20-26 corpus burn one swipe at a time).
 - **`feed.markSeen` (Phase 5.7)** is the receipt half of the feed: `feed.page` composes a page and
   writes nothing, and the client acks the page it actually received. It moved off the server render
   because a render is not evidence of a reader — Next prefetches routes, and a back-pop re-running
@@ -346,6 +358,7 @@ deploy target; a multi-instance deploy would need this backed by shared state in
 - `/feed` — the infinite feed (auth-gated, default authenticated landing). Built Phase 5.6 (`docs/PHASE5_WALKTHROUGH_5.6.md`), replacing 5.2's placeholder: an **RSC shell** — the two guards (session → `/`; not-onboarded → `/onboarding`, carried forward verbatim from 5.3), a `prefetchInfinite` + `HydrateClient` handoff, and `FeedScreen`. The route stays **dynamic** by construction (it reads `headers()` and the feed is per-user). The prefetch input and the client `useInfiniteQuery` input must stay byte-identical (`{}` on both sides) or hydration silently misses and the client refetches — which costs a page of the user's corpus, since a received page is acked seen (`feed.markSeen`, Phase 5.7).
 - `/saved` — saved items.
 - `/i/[itemId]` — public read-only single item. Built Phase 5.7 (`docs/PHASE5_WALKTHROUGH_5.7.md`), replacing 5.6's interim stub. An **image variant** and a **reader variant** keyed on `item.type`; a `from: <source>` credit line under both titles, linking `item.sourceUrl` (every source, not just blogs — §6.1's rights posture, generalized); the article body typeset from the stored `body` column via `src/lib/reader-blocks.ts` (no runtime source fetch, no source HTML, so nothing to sanitize); a `?from=Name` param-driven "shared this with you" row (≤40 chars, text-only, never persisted, never looked up); the `items.wanderNext` teaser on both variants; and a join CTA for signed-out visitors only. The pill toolbar, both sheets, and the protected `saves.forItem` query render **only** when authed — a signed-out visitor triggers no user-scoped request at all, and `generateMetadata` is built purely from the item row so a shared link's preview carries nothing about the sharer. Leaving is `useLeaveToFeed`: **pop** history when the visit came from the feed, push `/feed?focus={id}` only for a cold-opened link — a pushed navigation re-runs the dynamic `/feed` and draws a fresh page of corpus. A horizontal swipe-back (`useSwipeBack`, 0.35× rubber-band follow, commits past 70px) shares that same exit. Ungated in `src/proxy.ts` by design.
+- `/g/[itemId]` — the **immersive gallery**, the app's second public route. Built Phase 5.8 (`docs/PHASE5_WALKTHROUGH_5.8.md`): a full-bleed, images-only, zero-chrome-until-you-ask screen, entered by tapping the item page's hero (and, from 5.9, from Saved). **Images only** — a crafted `/g/{articleId}` 404s. Swiping walks the **wander rail** (§9): endless, bidirectional, and marking nothing seen. Chrome (title, maker, hint, pill) starts hidden and cycles on a 10s loop; a tap raises it, a tap while it's up opens the details sheet (tap-again, not double-tap — the prototype's own behaviour). Exits are `useExitGallery`: the close gesture **pops** to the entry surface when a `gallery-origin` marker says one is on the stack, else pushes `/i/{entryId}`; the pill's Feed button does `history.go(-2)` over `…feed → /i/x → /g/x` when *both* origin markers line up, else the documented `/feed?focus={id}` cold-open path. Sharing from here shares `/i/{currentId}`, never `/g/` — so the route carries minimal metadata and `robots: noindex`. The pill, both sheets, and the protected `saves.forItem` query render **only** when authed. Ungated in `src/proxy.ts` by design, like `/i/`.
 - `/api/img/[itemId]` — the image proxy (Phase 5.7). Takes an **item id and looks the URL up in our own table; it never accepts a URL**, from a query param or anywhere else — that is the SSRF/open-proxy boundary. It fetches server-side with Ambit's UA and **no `Referer`** — which removes the variable behind the Art Institute of Chicago's `localhost`-referer block (`docs/HANDOFF_aic-images.md` §2.2), though AIC turned out to have escalated to a host-wide Cloudflare *interactive challenge* that no server-side fetch can pass, so that source stays suspended (ibid. §8). Successes stream through with `Cache-Control: public, max-age=31536000, immutable`; every failure path is `no-store`. Its rate limiter is a **separate, generous instance** (600/min per IP) rather than the shared tRPC one — a single feed page loads ~24 images and would otherwise starve the API. `data:` image URLs bypass it client-side. Resizing / IIIF sizing / a CDN cache layer are deliberately deferred to 7.3.
 - `app/api/trpc/[trpc]/route.ts`, `app/api/auth/[...all]/route.ts` (Better Auth catch-all via `toNextJsHandler`).
 
@@ -382,6 +395,29 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
 **The topic graph** feeding DRIFT/JUMP is a checked-in JSON (§5.2): topic centroids = mean of member-item vectors, **minus the global mean centroid** (load-bearing — skipping the centering makes one hub topic every row's neighbour), cosine-ranked. Regenerate offline when the corpus grows; hand-edit rows freely.
 
 **Dev affordances stay in.** The debug overlay (why each card: tier, drift path with sims, curator score) and the tuning knobs (tier mix, score floor, temperature, hop chance, caps) ship in the app behind a dev flag for the whole development period — feel-tuning is ongoing product work, not a Phase 0 artifact.
+
+**The gallery rail (Phase 5.8)** is this same machinery, extended into a sequence with no end and
+run for a reader looking at one picture rather than scrolling a page (`server/services/gallery-rail.ts`,
+behind `items.galleryRail`, powering `/g/[itemId]`). Per slot it rolls a **wildcard** first — with
+probability `wildcardChance` (default **0.1**) the slot leaves the topic graph entirely and draws
+corpus-wide, preferring `server/config/wildcard-sources.ts`'s list when that is non-empty. A wildcard
+is a detour, not a relocation: the walk does not advance through it. Otherwise it draws a tier using
+the feed's own **CORE/DRIFT/JUMP shares**, read from `DEFAULT_KNOBS` rather than restated, and
+`stay`/`drift`/`jump` mean here exactly what they mean above — with drift and jump *advancing* the
+walk, so a long swipe genuinely arrives somewhere else. Then one curated-weighted image per step,
+with a three-link fallback (step topic → anchor's topic → anywhere) and a **short batch** when even
+that runs dry, which the client reads as "this end is exhausted" and rubber-bands against.
+
+Three things it deliberately isn't. It is **not personalized** — no `userId` parameter exists, the
+same structural guarantee as `services/wander.ts`, and the reason `/g/` can be public. It is **not
+similarity-ranked**, for the Phase 0.4 reason. And it **writes no `seen_item` rows, ever**: swiping
+the gallery spends none of the reader's corpus. Repeated `feed.page` draws were rejected in writing
+at plan time for exactly that — auth-only, and every swipe-through would have re-created the
+corpus-burn defect removed on 08-20-26.
+
+`WILDCARD_SOURCES` is **empty today**. It is the doorway for ambit-archive's personal images, which
+will slot straight into the wildcard when that integration lands; until then the wildcard draws from
+the whole corpus, which is a real behaviour rather than a degraded one.
 
 > Tags are a cheap secondary signal (filter/boost). The curation score and the topic graph are the primary drivers.
 
@@ -449,7 +485,7 @@ only safe option, since §11 forbids rendering unsanitized source markup.
 - **Auth enforcement** — `/feed`, `/saved`, `/onboarding` check session server-side; all tRPC mutations + user-scoped queries use `protectedProcedure`.
 - **Authorization** — every `saved_item` / `user_topic` query filters by `userId`.
 - **Invite gating** — sign-up rejected server-side for emails without a valid `invite` (Better Auth before-create hook); passwords hashed by Better Auth (scrypt); sessions database-backed and revocable. `revokeSessionsOnPasswordReset: true` (Phase 5.2) means a reset after a suspected compromise kills any live sessions, not just coexists with them.
-- **Public surface** — `items.byId`, `items.wanderNext`, and `/i/[itemId]` (plus `/api/img/[itemId]`) are the only unauthenticated surfaces, and all of them serve public-domain content with no user data. `wanderNext` takes no user id and returns `{id,title,reason}`; the item page's metadata is built from the item row alone; the proxy resolves an item id, never a caller-supplied URL.
+- **Public surface** — `items.byId`, `items.wanderNext`, `items.galleryRail`, `/i/[itemId]`, and `/g/[itemId]` (plus `/api/img/[itemId]`) are the only unauthenticated surfaces, and all of them serve public-domain content with no user data. None of the three procedures takes a user id: `wanderNext` returns `{id,title,reason}` and `galleryRail` returns public item fields only; both pages' metadata is built from the item row alone; the proxy resolves an item id, never a caller-supplied URL. `/g/` additionally carries `robots: noindex` — `/i/` is the canonical, OG-carrying surface for a shared link, and two indexed pages for one work would be one too many.
 - **Source content** — sanitize/normalize external HTML; render article text through trusted rendering, never raw `dangerouslySetInnerHTML` on unsanitized source data.
 - **Rate limiting** — basic per-user/IP limits on tRPC endpoints.
 

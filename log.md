@@ -128,6 +128,52 @@ AIC's Cloudflare challenge.
 
 *Session spend: 8.56M tok (in 154 · out 147.4k · cache r 7.87M / w 534.1k) · ~$25.93 · fable-5 · 08:39→09:37*
 
+---
+
+**5.8 executed, cold, from the plan Fable wrote.** Eight tasks on `feat/phase-5.8-gallery`, each its
+own commit with `bun run check` green; `bun run e2e` green three runs running (27 tests). Narrative in
+`docs/PHASE5_WALKTHROUGH_5.8.md`; what shipped is in the commits and the BUILD_PLAN entry. What is
+worth keeping here is the part neither of those records.
+
+**The plan was executable cold, and the two places it wasn't were both self-contradictions rather
+than gaps.** T2 said to gate the debug knobs in the router "mirroring `routers/feed.ts`" — which
+doesn't gate them; `getFeedPage` does, precisely so the router can't grow an opinion that disagrees
+with the service. T4 asked for a handlers object in one sentence and a ref'd node in the next. In
+both cases the *named pattern* was right and the *instruction* was wrong, which is a useful signal
+about how to read a plan written from a repo survey: where it points at an existing file, follow the
+file.
+
+**A latent e2e bug the phase exposed and did not cause.** `feed.spec.ts` and `item.spec.ts` both seed
+under `source: "e2e"` and both deleted the whole source in `afterAll`. Under `fullyParallel` the spec
+files run in separate workers, so adding a third such spec had them deleting each other's fixtures
+mid-run — surfacing as an empty feed in one file and a 404'd item page in another, neither of which
+contained the cause. All three cleanups are now scoped to their own `sourceId` prefix. The general
+shape is worth remembering: **a shared fixture namespace plus a broad delete is a time bomb that only
+goes off when a third participant arrives.**
+
+**Two CSS facts that cost real time.** `--animate-sheet-*` carries `animation-fill-mode: both`, so
+after the entrance the keyframe's own `translateY(0)` beats any inline transform — drag-to-close does
+nothing until `style.animation = "none"` hands control over. And `pointer-events: none` on an ancestor
+is not a lock: `PillToolbar` sets `auto` on its own nav (deliberately, so its full-width wrapper
+doesn't eat scrolls), and a descendant's `auto` wins. Making the faded-out chrome genuinely inert
+needed `visibility`, which also happens to transition with exactly the right discrete semantics.
+
+**The parked archive question got answered as a doorway, not a feature.** There is no ambit-archive
+adapter in this repo — "archive items" are labelling support with no rows behind them — so 08-20's
+"Ben wants that flavour more present" became `wildcardChance` (default 0.1) over a `WILDCARD_SOURCES`
+list that is empty today. A tunable serendipity dial now; the archive's slug drops into that list when
+the integration lands, and nothing else changes. Worth turning up under `FEED_DEBUG` during the device
+pass to find out what the rail actually wants — 0.1 is a starting position, not a verdict.
+
+**Open / next:** the **iOS device pass**, over the `tailscale serve` HTTPS origin, is the only thing
+between 5.8 and done — the gesture matrix, drag-close, both exits, and above all whether the hero's
+long-press still offers **Add to Photos** (a test now pins the two implementation choices that would
+break it, but the callout itself is only visible on a device). Then merge and 5.9, which inherits the
+gallery entry from Saved for free — the origin marker stores an item id, not a route. Still parked and
+still non-blocking: the `test-feed-topic-*` stranded items and AIC's Cloudflare challenge.
+
+*Session spend: 49.80M tok (in 672 · out 256.9k · cache r 48.39M / w 1.15M) · ~$39.94 · opus-5 + opus-4-7 · 09:52→10:28*
+
 ### [[08-20-26 Thu]] — The 5.6 device pass passes; the feed was eating the corpus on every Back
 
 **The pass itself: green.** 5.6's tile gestures (tap vs. long-press vs. scroll, the 12px slop
