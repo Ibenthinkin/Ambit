@@ -32,6 +32,7 @@ vi.mock("~/server/services/feed", async (importOriginal) => {
 // it the *session's* user id (never a client-supplied one) plus the acked ids, and that's provable
 // without a database.
 vi.mock("~/server/services/wander", () => ({ getWanderNext: vi.fn() }));
+vi.mock("~/server/services/gallery-rail", () => ({ getGalleryRail: vi.fn() }));
 
 vi.mock("~/server/db/feed", async (importOriginal) => {
   const actual = await importOriginal<typeof FeedRepo>();
@@ -47,6 +48,12 @@ const { markSeen: mockedMarkSeen } = await import("~/server/db/feed");
 // draw itself (wander.test.ts owns that).
 const { getWanderNext: mockedGetWanderNext } =
   await import("~/server/services/wander");
+
+// And `items.galleryRail` reaches it through services/gallery-rail.ts — mocked for the same
+// reason. The walk, the wildcard, and the FEED_DEBUG gate are gallery-rail.test.ts's subject; this
+// file's is the auth boundary and argument forwarding.
+const { getGalleryRail: mockedGetGalleryRail } =
+  await import("~/server/services/gallery-rail");
 
 // A minimal, well-formed logged-out context — the shape `createTRPCContext` would produce for a
 // request with no session cookie at all.
@@ -154,7 +161,7 @@ describe("protected procedures reject a null session", () => {
   });
 });
 
-describe("the two public procedures", () => {
+describe("the three public procedures", () => {
   it("items.byId: a null session never yields UNAUTHORIZED — it reaches the resolver", async () => {
     const caller = createCaller(anonContext());
     // The id is deliberately nonexistent: this test only cares whether the *auth* boundary let
@@ -185,6 +192,90 @@ describe("the two public procedures", () => {
     ]);
     // No user id reaches the service — there is no parameter for one.
     expect(vi.mocked(mockedGetWanderNext)).toHaveBeenCalledWith("a");
+  });
+
+  // Same direction, same reason: `/g/[itemId]` is deep-linkable and opens from the public item
+  // page, so a stranger swiping the gallery must reach this resolver.
+  it("items.galleryRail serves an anonymous caller", async () => {
+    const rail = [
+      {
+        id: "b",
+        title: "Another thing",
+        attribution: null,
+        imageUrl: "https://example.test/b.jpg",
+        summary: null,
+        source: "met",
+        sourceUrl: "https://example.test/o",
+        license: null,
+        topicId: "botany",
+      },
+    ];
+    vi.mocked(mockedGetGalleryRail).mockResolvedValue(rail);
+
+    const rows = await createCaller(anonContext()).items.galleryRail({
+      itemId: "a",
+    });
+
+    expect(rows).toEqual(rail);
+    // No user id reaches the service — there is no parameter for one.
+    expect(vi.mocked(mockedGetGalleryRail)).toHaveBeenCalledWith("a", {
+      count: 8,
+      excludeIds: [],
+      knobs: undefined,
+    });
+  });
+});
+
+describe("items.galleryRail input handling", () => {
+  beforeEach(() => {
+    vi.mocked(mockedGetGalleryRail).mockReset();
+    vi.mocked(mockedGetGalleryRail).mockResolvedValue([]);
+  });
+
+  it("forwards count, exclude and knobs untouched", async () => {
+    const caller = createCaller(anonContext());
+
+    await caller.items.galleryRail({
+      itemId: "a",
+      count: 3,
+      exclude: ["x", "y"],
+      knobs: { wildcardChance: 0.9 },
+    });
+
+    // Whether the knobs actually change the draw is entirely `getGalleryRail`'s call (gated on the
+    // server's FEED_DEBUG env var — SPEC §9's "dev affordances behind a dev flag"), exactly as
+    // `feed.page` leaves that decision to `getFeedPage`. The router must never do its own
+    // redundant gating that could disagree.
+    expect(vi.mocked(mockedGetGalleryRail)).toHaveBeenCalledWith("a", {
+      count: 3,
+      excludeIds: ["x", "y"],
+      knobs: { wildcardChance: 0.9 },
+    });
+  });
+
+  it("rejects an out-of-range count", async () => {
+    const caller = createCaller(anonContext());
+    await expect(
+      caller.items.galleryRail({ itemId: "a", count: 99 }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(vi.mocked(mockedGetGalleryRail)).not.toHaveBeenCalled();
+  });
+
+  it("rejects an exclude list past the IN-list cap", async () => {
+    const caller = createCaller(anonContext());
+    await expect(
+      caller.items.galleryRail({
+        itemId: "a",
+        exclude: Array.from({ length: 201 }, (_, i) => `id-${i}`),
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("rejects a wildcardChance outside [0, 1]", async () => {
+    const caller = createCaller(anonContext());
+    await expect(
+      caller.items.galleryRail({ itemId: "a", knobs: { wildcardChance: 2 } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });
 
@@ -283,10 +374,11 @@ describe("appRouter shape", () => {
   // Phase 5.5 grew this from six procedures to nine (`saves.toggle` was removed — verified dead —
   // and the collection-aware surface took its place); 5.7 adds three — `feed.markSeen` (the
   // receipt half of the feed), `items.wanderNext` (the item page's teaser, and the API's *second*
-  // public procedure), and `saves.forItem`. This assertion is deliberately exhaustive rather than a subset check: it's the
+  // public procedure), and `saves.forItem`; 5.8 adds `items.galleryRail`, the *third* and (for now)
+  // last public one. This assertion is deliberately exhaustive rather than a subset check: it's the
   // one thing that makes an accidentally-exported procedure, or one that quietly outlives its
   // last caller, show up as a failing test instead of shipping.
-  it("exposes exactly the twelve SPEC §7 procedures, no leftover post router", () => {
+  it("exposes exactly the thirteen SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -296,6 +388,7 @@ describe("appRouter shape", () => {
         "feed.markSeen",
         "items.byId",
         "items.wanderNext",
+        "items.galleryRail",
         "saves.collections",
         "saves.saveToCollection",
         "saves.unsave",

@@ -1,7 +1,7 @@
 // Repository for the `item` table (SPEC §6.3). Per docs/PHASE2_PLAN.md step 1.6, each function's
 // real body lands with the phase that needs it — drawFromTopic is real as of Phase 3.3, upsertItem
 // as of 3.4; getItemById stays a stub until Phase 4.
-import { and, eq, gte, notInArray } from "drizzle-orm";
+import { and, eq, gte, inArray, notInArray } from "drizzle-orm";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
 import { item } from "./schema";
@@ -136,6 +136,12 @@ export async function drawFromTopic(
     excludeIds: string[];
     limit: number;
     tasteKeywords?: string[];
+    /**
+     * Restrict the pool to one item type. Added for the gallery rail (5.8), which is images-only
+     * by construction — a full-bleed picture screen has nothing to do with an article. Absent for
+     * every feed/wander caller, which wants whatever the topic holds.
+     */
+    type?: "image" | "article";
     /** Score-weight sharpness (SPEC §9.2's shipped default, phase0/feed.template.html:221). */
     power?: number;
     /** Aesthetic-tag-overlap boost per shared tag (same source as `power`'s default). */
@@ -149,6 +155,7 @@ export async function drawFromTopic(
     excludeIds,
     limit,
     tasteKeywords = [],
+    type,
     power = 1.5,
     boostPerTag = 0.5,
     rng = Math.random,
@@ -175,13 +182,42 @@ export async function drawFromTopic(
     conditions.push(notInArray(item.source, SUSPENDED_SOURCES));
   }
   if (excludeIds.length > 0) conditions.push(notInArray(item.id, excludeIds));
+  if (type) conditions.push(eq(item.type, type));
 
   const pool = await db
     .select()
     .from(item)
     .where(and(...conditions));
 
-  const tasteSet = new Set(tasteKeywords.map((k) => k.toLowerCase()));
+  return sampleCurated(pool, {
+    scoreFloor,
+    power,
+    boostPerTag,
+    tasteKeywords,
+    limit,
+    rng,
+  });
+}
+
+/**
+ * The shared tail of every curated draw: score each row with `drawWeight` (plus the taste-tag
+ * boost) and sample without replacement. Extracted when the gallery rail's corpus-wide draw landed
+ * (5.8) so the two draws can't drift apart — "curated-weighted random, never similarity" (SPEC §9)
+ * is the one sentence the whole corpus-as-product bet rests on, and it deserves exactly one
+ * implementation.
+ */
+function sampleCurated(
+  pool: Item[],
+  opts: {
+    scoreFloor: number;
+    power: number;
+    boostPerTag: number;
+    tasteKeywords: string[];
+    limit: number;
+    rng: () => number;
+  },
+): Item[] {
+  const tasteSet = new Set(opts.tasteKeywords.map((k) => k.toLowerCase()));
   const weighted = pool.map((row) => {
     const sharedTags = row.aestheticTags.filter((t) =>
       tasteSet.has(t.toLowerCase()),
@@ -190,13 +226,85 @@ export async function drawFromTopic(
       value: row,
       weight: drawWeight(
         row.curationScore,
-        scoreFloor,
-        power,
+        opts.scoreFloor,
+        opts.power,
         sharedTags,
-        boostPerTag,
+        opts.boostPerTag,
       ),
     };
   });
 
-  return weightedSampleWithoutReplacement(weighted, limit, rng);
+  return weightedSampleWithoutReplacement(weighted, opts.limit, opts.rng);
+}
+
+/**
+ * `drawFromTopic` with the topic taken away: a curated-weighted draw of images from the **whole**
+ * corpus, above `scoreFloor`, optionally narrowed to a set of sources.
+ *
+ * This is the gallery rail's wildcard draw (5.8, SPEC §9's "gallery rail" note). The topic walk is
+ * what makes the rail feel like it is going somewhere; the wildcard is what stops it from only ever
+ * going somewhere *adjacent*. Where a JUMP still leaps along an edge of the topic graph, this
+ * ignores the graph entirely — the serendipity dial with no floor under it.
+ *
+ * `sources` exists for `WILDCARD_SOURCES` (server/config/wildcard-sources.ts): when that list is
+ * non-empty the wildcard prefers those sources, which is the hook ambit-archive's personal images
+ * will hang on. Empty list → no source restriction, which is today's behaviour.
+ *
+ * Deliberately has no `topicId` and no `userId`: the rail is public and unpersonalized for the same
+ * structural reason `services/wander.ts` is (there is no parameter to leak through).
+ */
+export async function drawImageAnywhere(opts: {
+  scoreFloor: number;
+  excludeIds: string[];
+  limit: number;
+  /** Narrow the draw to these sources; empty (the default) means the whole corpus. */
+  sources?: string[];
+  tasteKeywords?: string[];
+  power?: number;
+  boostPerTag?: number;
+  /** Injectable for deterministic tests; production callers should leave this at its default. */
+  rng?: () => number;
+}): Promise<Item[]> {
+  const {
+    scoreFloor,
+    excludeIds,
+    limit,
+    sources = [],
+    tasteKeywords = [],
+    power = 1.5,
+    boostPerTag = 0.5,
+    rng = Math.random,
+  } = opts;
+
+  // Dynamic import for the same envless-CI reason as every other function in this file — see the
+  // long comment inside `drawFromTopic`.
+  const { db } = await import("./client");
+
+  const conditions = [
+    eq(item.type, "image"),
+    gte(item.curationScore, scoreFloor),
+  ];
+  // Same suspended-source guard as `drawFromTopic`. A new draw path that forgot it would quietly
+  // re-open a source the app has switched off — "a source that is only half-suspended is worse
+  // than one that isn't suspended at all" (config/suspended-sources.ts).
+  if (SUSPENDED_SOURCES.length > 0) {
+    conditions.push(notInArray(item.source, SUSPENDED_SOURCES));
+  }
+  if (excludeIds.length > 0) conditions.push(notInArray(item.id, excludeIds));
+  // `inArray(col, [])` is invalid SQL for the same reason `notInArray` is — an empty IN-list.
+  if (sources.length > 0) conditions.push(inArray(item.source, sources));
+
+  const pool = await db
+    .select()
+    .from(item)
+    .where(and(...conditions));
+
+  return sampleCurated(pool, {
+    scoreFloor,
+    power,
+    boostPerTag,
+    tasteKeywords,
+    limit,
+    rng,
+  });
 }

@@ -122,18 +122,23 @@ test.describe.serial("item pages", () => {
 
   test.afterAll(async () => {
     const { db, item, seenItem, savedItem } = conn;
-    const { eq, inArray } = await import("drizzle-orm");
+    const { inArray, like } = await import("drizzle-orm");
 
+    // **Scoped to this spec's own `sourceId` prefix, not to `source: "e2e"`.** Every spec seeds
+    // under that same source, and `fullyParallel` runs the spec files in separate workers — so a
+    // cleanup that deleted the whole source would pull another spec's fixtures out from under it
+    // mid-run. That is exactly what happened when 5.8 added a third such spec: the feed came back
+    // empty and an item page 404'd, in two different files, for no reason visible in either.
     const seeded = await db
       .select({ id: item.id })
       .from(item)
-      .where(eq(item.source, "e2e"));
+      .where(like(item.sourceId, "e2e-item-%"));
     const ids = seeded.map((row) => row.id);
     if (ids.length > 0) {
       // Children first — both tables carry a foreign key onto `item`.
       await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
       await db.delete(savedItem).where(inArray(savedItem.itemId, ids));
-      await db.delete(item).where(eq(item.source, "e2e"));
+      await db.delete(item).where(inArray(item.id, ids));
     }
   });
 
@@ -315,6 +320,16 @@ test.describe.serial("item pages", () => {
     // Reopening shows where it went, which is what `saves.forItem` is for.
     await page.getByRole("button", { name: "Save to collection" }).click();
     await expect(page.getByText("Already saved here")).toBeVisible();
+    await page.getByTestId("bottom-sheet-scrim").click();
+
+    // The hero is a doorway as of 5.8 — a tap opens the immersive gallery. A Playwright click is a
+    // tap (no movement between down and up, so `usePress`'s slop guard passes). The gallery's own
+    // behaviour is `gallery.spec.ts`'s subject; what belongs here is that the *item page* sends
+    // the reader there at all.
+    await waitForHydration(page, "main img");
+    await page.locator("main img").first().click();
+    await page.waitForURL(`/g/${imageId}`);
+    await expect(page.getByTestId("gallery-track")).toBeVisible();
   });
 
   test("a signed-in reader can sign in again and still read the page", async ({

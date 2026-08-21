@@ -359,6 +359,99 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
     });
   });
 
+  describe("items.galleryRail", () => {
+    // Images of its own: the two shared fixture items are articles, and the rail is images-only by
+    // construction. They live in `topicA` so the outer afterAll's topic-scoped delete sweeps them
+    // up with everything else.
+    let plateOneId: string;
+    let plateTwoId: string;
+
+    beforeAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { item } = await import("~/server/db/schema");
+      const [one, two] = await db
+        .insert(item)
+        .values(
+          [1, 2].map((n) => ({
+            source: "met",
+            sourceId: `test-router-plate-${n}-${nanoid(8)}`,
+            type: "image" as const,
+            title: `Integration test plate ${n}`,
+            summary: "A caption long enough to be unremarkable.",
+            imageUrl: `https://example.com/test-router-plate-${n}.jpg`,
+            sourceUrl: `https://example.com/test-router-plate-${n}-${nanoid(8)}`,
+            topicId: topicA,
+            curationScore: 9,
+            aestheticTags: [],
+          })),
+        )
+        .returning();
+      plateOneId = one!.id;
+      plateTwoId = two!.id;
+    });
+
+    it("serves an anonymous caller image rows only, never the anchor", async () => {
+      const { db } = await import("~/server/db/client");
+      const { item } = await import("~/server/db/schema");
+
+      const rail = await createCaller(anonContext()).items.galleryRail({
+        itemId: plateOneId,
+      });
+
+      expect(rail.length).toBeGreaterThan(0);
+      expect(rail.map((r) => r.id)).not.toContain(plateOneId);
+
+      // Asserted against the rows themselves rather than trusted from the wire shape: `type` is
+      // deliberately not part of `RailItem`, so the only honest check is to look them back up.
+      const drawn = await db
+        .select({ id: item.id, type: item.type })
+        .from(item)
+        .where(
+          inArray(
+            item.id,
+            rail.map((r) => r.id),
+          ),
+        );
+      expect(drawn.length).toBe(rail.length);
+      expect(drawn.every((row) => row.type === "image")).toBe(true);
+    });
+
+    it("respects `exclude` and caps the batch at `count`", async () => {
+      const rail = await createCaller(anonContext()).items.galleryRail({
+        itemId: plateOneId,
+        count: 3,
+        exclude: [plateTwoId],
+      });
+
+      expect(rail.length).toBeLessThanOrEqual(3);
+      expect(rail.map((r) => r.id)).not.toContain(plateTwoId);
+    });
+
+    // The sentence the whole rail design turns on (decision 1, and the 08-20-26 corpus-burn
+    // postmortem): swiping the gallery is free. There is no user on this path at all, so *any*
+    // new row here would be a bug, not merely a mis-attributed one — hence the unscoped count.
+    it("writes no seen_item rows at all", async () => {
+      const { db } = await import("~/server/db/client");
+      const { seenItem } = await import("~/server/db/schema");
+      const countRows = async () =>
+        (await db.select({ itemId: seenItem.itemId }).from(seenItem)).length;
+
+      const before = await countRows();
+      await createCaller(anonContext()).items.galleryRail({
+        itemId: plateOneId,
+        count: 8,
+      });
+      expect(await countRows()).toBe(before);
+    });
+
+    it("returns an empty rail for an unknown anchor rather than throwing", async () => {
+      const rail = await createCaller(anonContext()).items.galleryRail({
+        itemId: "definitely-not-a-real-item",
+      });
+      expect(rail).toEqual([]);
+    });
+  });
+
   describe("saves.forItem", () => {
     it("round-trips across save and unsave", async () => {
       const caller = createCaller(authedContext(userId));

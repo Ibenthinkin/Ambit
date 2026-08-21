@@ -85,18 +85,23 @@ test.describe.serial("feed", () => {
 
   test.afterAll(async () => {
     const { db, item, seenItem, savedItem } = conn;
-    const { eq, inArray } = await import("drizzle-orm");
+    const { inArray, like } = await import("drizzle-orm");
 
+    // **Scoped to this spec's own `sourceId` prefix, not to `source: "e2e"`.** Every spec seeds
+    // under that same source, and `fullyParallel` runs the spec files in separate workers — so a
+    // cleanup that deleted the whole source would pull another spec's fixtures out from under it
+    // mid-run. That is exactly what happened when 5.8 added a third such spec: the feed came back
+    // empty and an item page 404'd, in two different files, for no reason visible in either.
     const seeded = await db
       .select({ id: item.id })
       .from(item)
-      .where(eq(item.source, "e2e"));
+      .where(like(item.sourceId, "e2e-feed-%"));
     const ids = seeded.map((row) => row.id);
     if (ids.length > 0) {
       // Children first — both tables carry a foreign key onto `item`.
       await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
       await db.delete(savedItem).where(inArray(savedItem.itemId, ids));
-      await db.delete(item).where(eq(item.source, "e2e"));
+      await db.delete(item).where(inArray(item.id, ids));
     }
   });
 

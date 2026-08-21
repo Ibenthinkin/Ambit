@@ -4,6 +4,39 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BottomSheet } from "./bottom-sheet";
 
+/**
+ * The drag's velocity test reads the wall clock (see `bottom-sheet.tsx`'s note on why it can't read
+ * the event's own timestamp through a React synthetic handler), so the gap between a move and its
+ * release is controlled by advancing vitest's fake clock — which mocks `Date.now()`.
+ *
+ * Every drag test runs under fake timers for that reason. `pause` is how a test says "the finger
+ * rested here for a while" without waiting.
+ */
+const pause = (ms: number) => act(() => void vi.advanceTimersByTime(ms));
+
+/** Comfortably outside the 300ms flick window, so only the distance threshold can close. */
+const SLOW = 800;
+
+const send = (
+  panel: HTMLElement,
+  type: "pointerDown" | "pointerMove" | "pointerUp",
+  init: Record<string, unknown>,
+) => fireEvent[type](panel, { pointerId: 1, ...init });
+
+const grab = (panel: HTMLElement, y = 10) =>
+  send(panel, "pointerDown", { button: 0, clientX: 0, clientY: y });
+
+/**
+ * jsdom reports `scrollTop` as 0 for everything, which reads as "this sheet is at its top" —
+ * the state in which a downward drag anywhere on the panel dismisses it. Faking a scrolled
+ * panel is how the grab-zone rule gets tested at all.
+ */
+const scrollDownTo = (panel: HTMLElement, top: number) =>
+  Object.defineProperty(panel, "scrollTop", {
+    value: top,
+    configurable: true,
+  });
+
 describe("BottomSheet", () => {
   it("renders nothing when it has never been opened", () => {
     render(
@@ -347,6 +380,290 @@ describe("BottomSheet", () => {
       expect(screen.getByTestId("bottom-sheet-panel")).toHaveClass(
         "animate-sheet-up",
       );
+    });
+  });
+  // ── 5.8: the gallery variant and its gestures ─────────────────────────────────────────────────
+  // Everything above this line is the pill sheet, unchanged and untouched by the additions below —
+  // which is the actual proof that they're additive.
+  describe("gallery variant", () => {
+    it("swaps in the gallery animation pair, and back out again on close", () => {
+      vi.useFakeTimers();
+      const { rerender } = render(
+        <BottomSheet open onClose={vi.fn()} variant="gallery">
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+      expect(panel).toHaveClass("animate-sheet-gallery");
+      expect(panel).toHaveClass("rounded-t-[26px]");
+
+      rerender(
+        <BottomSheet open={false} onClose={vi.fn()} variant="gallery">
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      expect(screen.getByTestId("bottom-sheet-panel")).toHaveClass(
+        "animate-sheet-gallery-out",
+      );
+      act(() => void vi.runAllTimers());
+      vi.useRealTimers();
+    });
+
+    it("leaves the pill variant on its own animations", () => {
+      render(
+        <BottomSheet open onClose={vi.fn()}>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+      expect(panel).toHaveClass("animate-sheet-up");
+      expect(panel).not.toHaveClass("animate-sheet-gallery");
+    });
+  });
+
+  describe("drag to close", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    /**
+     * jsdom has no layout engine, so `getBoundingClientRect()` is all zeroes — which happens to be
+     * exactly what the grab-zone check wants (a `clientY` of 10 reads as 10px below the panel's
+     * top). Stated rather than relied on silently.
+     */
+    it("follows the finger downward, and only downward", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      grab(panel);
+      send(panel, "pointerMove", { clientX: 0, clientY: 50 });
+      expect(panel.style.transform).toBe("translateY(40px)");
+
+      // Dragging back up past the origin pins at rest rather than stretching the sheet taller.
+      send(panel, "pointerMove", { clientX: 0, clientY: -40 });
+      expect(panel.style.transform).toBe("translateY(0px)");
+    });
+
+    it("closes past the threshold", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      grab(panel);
+      send(panel, "pointerMove", { clientX: 0, clientY: 90 });
+      pause(SLOW);
+      send(panel, "pointerUp", { clientX: 0, clientY: 90 });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      // Handed back to the CSS animations, so the exit runs instead of the inline transform.
+      expect(panel.style.transform).toBe("");
+      expect(panel.style.animation).toBe("");
+    });
+
+    it("snaps back when the drag was neither far enough nor fast enough", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      grab(panel);
+      send(panel, "pointerMove", { clientX: 0, clientY: 40 });
+      pause(SLOW);
+      send(panel, "pointerUp", { clientX: 0, clientY: 40 });
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(panel.style.transform).toBe("");
+      expect(panel.style.transition).toContain("transform");
+    });
+
+    // "The details sheet should close with a down swipe" — device pass, 08-21-26. It didn't,
+    // because a swipe is a flick and the only test was a distance one.
+    it("closes on a short, fast flick down", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      grab(panel);
+      send(panel, "pointerMove", { clientX: 0, clientY: 35 });
+      pause(120);
+      send(panel, "pointerUp", { clientX: 0, clientY: 35 });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    // The other half of the same report: the drag used to arm only in the panel's top 64px, so a
+    // swipe starting anywhere below that did nothing at all.
+    it("arms from anywhere on a sheet that isn't scrolled", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      grab(panel, 300); // deep into the body, far below the grabber
+      send(panel, "pointerMove", { clientX: 0, clientY: 400 });
+      expect(panel.style.transform).toBe("translateY(100px)");
+
+      pause(SLOW);
+      send(panel, "pointerUp", { clientX: 0, clientY: 400 });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("stays out of the way of a scroll already in progress", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+      scrollDownTo(panel, 120);
+
+      // A scrolled sheet, pressed below the grabber: this drag is the reader scrolling back up,
+      // and hijacking it into a dismissal would make long sheets unreadable.
+      grab(panel, 200);
+      send(panel, "pointerMove", { clientX: 0, clientY: 300 });
+      expect(panel.style.transform).toBe("");
+
+      pause(SLOW);
+      send(panel, "pointerUp", { clientX: 0, clientY: 300 });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("still arms from the grabber even when the sheet is scrolled", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+      scrollDownTo(panel, 120);
+
+      grab(panel, 10);
+      send(panel, "pointerMove", { clientX: 0, clientY: 110 });
+      pause(SLOW);
+      send(panel, "pointerUp", { clientX: 0, clientY: 110 });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("attaches no pointer handlers at all when neither gesture prop is passed", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose}>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      // The proof a pill sheet is untouched: the same event sequence that closes a gallery sheet
+      // does nothing here.
+      grab(panel);
+      send(panel, "pointerMove", { clientX: 0, clientY: 200 });
+      pause(SLOW);
+      send(panel, "pointerUp", { clientX: 0, clientY: 200 });
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(panel.style.transform).toBe("");
+    });
+  });
+
+  describe("side swipe", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    const swipe = (panel: HTMLElement, dx: number) => {
+      grab(panel);
+      send(panel, "pointerMove", { clientX: dx, clientY: 14 });
+      pause(SLOW);
+      send(panel, "pointerUp", { clientX: dx, clientY: 14 });
+    };
+
+    it("closes and reports 1 for a leftward swipe — 'next'", () => {
+      const onClose = vi.fn();
+      const onSwipeSide = vi.fn();
+      render(
+        <BottomSheet
+          open
+          onClose={onClose}
+          variant="gallery"
+          dragToClose
+          onSwipeSide={onSwipeSide}
+        >
+          <p>Details</p>
+        </BottomSheet>,
+      );
+
+      swipe(screen.getByTestId("bottom-sheet-panel"), -120);
+
+      expect(onSwipeSide).toHaveBeenCalledWith(1);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports -1 for a rightward swipe", () => {
+      const onClose = vi.fn();
+      const onSwipeSide = vi.fn();
+      render(
+        <BottomSheet
+          open
+          onClose={onClose}
+          variant="gallery"
+          dragToClose
+          onSwipeSide={onSwipeSide}
+        >
+          <p>Details</p>
+        </BottomSheet>,
+      );
+
+      swipe(screen.getByTestId("bottom-sheet-panel"), 120);
+
+      expect(onSwipeSide).toHaveBeenCalledWith(-1);
+    });
+
+    it("ignores travel under the threshold, and travel that was mostly vertical", () => {
+      const onClose = vi.fn();
+      const onSwipeSide = vi.fn();
+      render(
+        <BottomSheet
+          open
+          onClose={onClose}
+          variant="gallery"
+          dragToClose
+          onSwipeSide={onSwipeSide}
+        >
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      swipe(panel, 20); // under SWIPE_SIDE_PX
+      expect(onSwipeSide).not.toHaveBeenCalled();
+
+      // Further down than across: a dismissal, not a cycle.
+      grab(panel);
+      send(panel, "pointerMove", { clientX: 60, clientY: 110 });
+      pause(SLOW);
+      send(panel, "pointerUp", { clientX: 60, clientY: 110 });
+      expect(onSwipeSide).not.toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalledTimes(1); // dy 100 > 56, so it closed
     });
   });
 });

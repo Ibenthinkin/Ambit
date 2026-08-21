@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Item } from "~/server/db/items";
+import { ImageItemBody } from "./image-item-body";
 import { JoinCta } from "./join-cta";
 import { ReaderItemBody } from "./reader-item-body";
 import { SharedByRow, sharedByName } from "./shared-by-row";
@@ -21,6 +22,9 @@ vi.mock("next/link", () => ({
     </a>
   ),
 }));
+
+const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
 
 const makeItem = (over: Partial<Item> = {}): Item =>
   ({
@@ -161,5 +165,54 @@ describe("sharedByName", () => {
     expect(sharedByName("   ")).toBeNull();
     expect(sharedByName(["a", "b"])).toBeNull();
     expect(sharedByName("x".repeat(41))).toBeNull();
+  });
+});
+
+describe("ImageItemBody's hero", () => {
+  const image = () =>
+    makeItem({
+      type: "image",
+      title: "A plate",
+      imageUrl: "https://example.test/plate.jpg",
+      attribution: "An engraver",
+    });
+
+  it("opens the gallery on a tap, marking the origin on the way", () => {
+    sessionStorage.clear();
+    pushMock.mockClear();
+    render(<ImageItemBody item={image()} />);
+
+    const img = screen.getByAltText("A plate");
+    fireEvent.pointerDown(img, { button: 0, clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(img, { clientX: 10, clientY: 10 });
+
+    expect(pushMock).toHaveBeenCalledWith("/g/item-1");
+    // The marker is what makes the gallery's close gesture a *pop* back to this page rather than a
+    // push. See `components/gallery/gallery-origin.ts`.
+    expect(sessionStorage.getItem("ambit.galleryOrigin.v1")).toBe("item-1");
+  });
+
+  it("does not fire on a press that travelled — a scroll is not a tap", () => {
+    pushMock.mockClear();
+    render(<ImageItemBody item={image()} />);
+
+    const img = screen.getByAltText("A plate");
+    fireEvent.pointerDown(img, { button: 0, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(img, { clientX: 10, clientY: 90 });
+    fireEvent.pointerUp(img, { clientX: 10, clientY: 90 });
+
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  // The phase's single most likely regression, pinned: an anchor changes iOS's long-press callout
+  // on the image it wraps, and the callout is what offers the native "Add to Photos" (verified on
+  // device 08-20-26). `-webkit-touch-callout: none` — which the *feed tiles* need — would kill it
+  // outright. Neither may appear here. See `image-item-body.tsx`'s header for the full account.
+  it("wraps the picture in no anchor and suppresses no callout", () => {
+    const { container } = render(<ImageItemBody item={image()} />);
+
+    const img = screen.getByAltText("A plate");
+    expect(img.closest("a")).toBeNull();
+    expect(container.innerHTML).not.toContain("webkit-touch-callout");
   });
 });
