@@ -19,13 +19,16 @@
 // graph-less topic would give the feed somewhere to go and no way back out. The chip grid grows
 // toward the handoff's thirty-two in Phase 6, once new harvests land and the graph is recomputed.
 
-/** The five sources with adapters landing in Phase 3. Phase 6 adds Smithsonian, NASA APOD, etc. */
+/** The five sources with adapters landing in Phase 3, plus `archive` (Phase A.5) — Ben's own
+ *  personal-archive service rather than a public museum API, ingested over its /search endpoint.
+ *  Phase 6 adds Smithsonian, NASA APOD, etc. */
 export const V1_SOURCES = [
   "wikipedia",
   "met",
   "aic",
   "cma",
   "wellcome",
+  "archive",
 ] as const;
 
 export type V1Source = (typeof V1_SOURCES)[number];
@@ -55,6 +58,27 @@ export interface TopicConfig {
 // Queries are ported from phase0/harvest.ts's TOPICS block, which is what actually produced the
 // 8,093-item corpus the topic graph was built from. Four cells were retuned for 2.3 (each marked
 // and justified inline); everything else is verbatim, because it demonstrably worked.
+//
+// The `archive` cells (Phase A.5) are the exception to that porting: there was nothing to port,
+// so they were written against real tag counts queried read-only out of ambit-archive's SQLite on
+// 08-17-26. Two structural differences from the museum cells are worth knowing before retuning
+// them:
+//
+//   1. **An archive cell can never come back empty.** /search is cosine ranking over the whole
+//      embedded corpus, so every query fills its quota with nearest neighbours however weak the
+//      match. Ingestion's "empty cell → warn and continue" path simply never fires here; the
+//      failure mode is silent off-topic drift instead, which only eyeballing catches.
+//   2. **Weak topics therefore get ONE query, not two.** A topic's quota splits per-query inside
+//      its cell, so a second query on a thin subject doubles the off-topic fill. Cells marked
+//      "weak coverage" below are deliberately single-query for that reason.
+//
+// Coverage, by top matching tag counts (08-17-26): strong — portraiture (portrait 1096),
+// architecture (526 + architectural drawing 99), botany (botanical 213 + botanical illustration
+// 132), the-ocean (beach 112, ocean 96, marine life 76), geology (geology 104, mineral 95),
+// zoology (wildlife 103, birds ~87), typography (hand-lettered 99, poster 97, typography 88),
+// astronomy (space 76, cosmic 70, stars 66), mythology (~47 scenes + ~90 creatures); moderate —
+// ancient-history, machines, textiles, cartography; weak — ceramics, music, poetry, each
+// annotated at its cell. Expect retuning after the first real ingest regardless.
 export const TOPICS: readonly TopicConfig[] = [
   {
     id: "ancient-history",
@@ -65,6 +89,10 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["ancient"],
       cma: ["ancient"],
       wellcome: ["antiquities"],
+      archive: [
+        "ancient ruins and archaeology",
+        "classical statue or carved stone relief",
+      ],
     },
   },
   {
@@ -76,6 +104,7 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["architecture"],
       cma: ["architecture"],
       wellcome: ["architecture"],
+      archive: ["striking architecture", "architectural drawing or model"],
     },
   },
   {
@@ -90,6 +119,7 @@ export const TOPICS: readonly TopicConfig[] = [
       // decorative star motifs on quilts and ceramics far more often than anything astronomical.
       cma: ["astronomy", "celestial", "moon"],
       wellcome: ["astronomy"],
+      archive: ["night sky full of stars", "planets spacecraft and the cosmos"],
     },
   },
   {
@@ -101,6 +131,7 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["botanical"],
       cma: ["botanical"],
       wellcome: ["botany"],
+      archive: ["botanical illustration", "flowers and plants"],
     },
   },
   {
@@ -114,6 +145,10 @@ export const TOPICS: readonly TopicConfig[] = [
       // `globe` (41) and `atlas` (5) scrape together what's there.
       cma: ["map", "globe", "atlas"],
       wellcome: ["map"],
+      archive: [
+        "old map of terrain or coastline",
+        "topographic or celestial chart",
+      ],
     },
   },
   {
@@ -125,6 +160,11 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["ceramic"],
       cma: ["ceramic"],
       wellcome: ["pottery"],
+      // Weak corpus coverage — ceramic + pottery + vase tags total roughly 20 items. Cosine
+      // search still fills the quota from nearest neighbours no matter how weak the match, so
+      // the risk here is drift, not starvation: eyeball this cell at probe time, then retune
+      // or accept. One query rather than two, deliberately.
+      archive: ["glazed ceramic pottery vessel"],
     },
   },
   {
@@ -136,6 +176,7 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["mineral"],
       cma: ["mineral"],
       wellcome: ["geology"],
+      archive: ["mineral specimen or crystal", "dramatic rock formation"],
     },
   },
   {
@@ -147,6 +188,7 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["machinery"],
       cma: ["machine"],
       wellcome: ["machinery"],
+      archive: ["industrial machinery", "mechanical device or engine"],
     },
   },
   {
@@ -158,6 +200,8 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["musical instrument"],
       cma: ["musical instrument"],
       wellcome: ["music"],
+      // Weak coverage — musician + drum tags total roughly 15 items. Same caveat as ceramics.
+      archive: ["musician performing with an instrument"],
     },
   },
   {
@@ -169,6 +213,7 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["mythology"],
       cma: ["mythology"],
       wellcome: ["mythology"],
+      archive: ["mythological scene with gods or creatures", "mythical beast"],
     },
   },
   {
@@ -180,6 +225,12 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["poetry"],
       cma: ["poetry"],
       wellcome: ["poetry"],
+      // Weakest cell in the matrix: the corpus carries no poem/poetry tags at all, so nearest
+      // neighbours will skew toward typography and manuscript material — which is also what
+      // the typography cell draws. resolveCollisions settles the overlap deterministically
+      // (lowest rank wins; ties break alphabetically, so poetry takes them), and the
+      // collision count is one of A.5's recorded measurements.
+      archive: ["handwritten poem or manuscript page"],
     },
   },
   {
@@ -191,6 +242,10 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["portrait"],
       cma: ["portrait"],
       wellcome: ["portrait"],
+      archive: [
+        "portrait of a person",
+        "expressive portrait photograph or painting",
+      ],
     },
   },
   {
@@ -202,6 +257,7 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["textile"],
       cma: ["textile"],
       wellcome: ["textile"],
+      archive: ["woven textile or fabric pattern", "embroidery and stitching"],
     },
   },
   {
@@ -213,6 +269,7 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["sea"],
       cma: ["sea"],
       wellcome: ["sea"],
+      archive: ["ocean waves and seascape", "underwater marine life"],
     },
   },
   {
@@ -230,6 +287,7 @@ export const TOPICS: readonly TopicConfig[] = [
       // the dead term is dropped entirely rather than kept for appearances.
       cma: ["calligraphy", "letterpress"],
       wellcome: ["printing"],
+      archive: ["typography and lettering", "hand-lettered poster design"],
     },
   },
   {
@@ -241,6 +299,7 @@ export const TOPICS: readonly TopicConfig[] = [
       aic: ["animal"],
       cma: ["animal"],
       wellcome: ["zoology"],
+      archive: ["wild animal", "insect or bird illustration"],
     },
   },
 ];

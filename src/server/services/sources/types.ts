@@ -1,12 +1,14 @@
-// The contract every source adapter implements (SPEC §6.1). Each external API (Wikipedia, Met,
-// AIC, CMA, Wellcome, ...) lives in its own file under server/services/sources/ and speaks this
-// same shape outward, so the ingestion job (Phase 3.4) never needs to know a source's own field
-// names, pagination style, or licensing quirks — those all get absorbed by that source's toItem().
+// The contract every source adapter implements (SPEC §6.1). Each source (Wikipedia, Met, AIC,
+// CMA, Wellcome, and — since Phase A.5 — Ben's own archive service) lives in its own file under
+// server/services/sources/ and speaks this same shape outward, so the ingestion job (Phase 3.4)
+// never needs to know a source's own field names, pagination style, or licensing quirks — those
+// all get absorbed by that source's toItem().
 
 /** The open set of source ids. Kept a plain string union (not narrowed further) because Phase 6
  *  adds more sources without touching this file — only the DB's `item.source` column and this
  *  union grow. */
-export type SourceId = "wikipedia" | "met" | "aic" | "cma" | "wellcome";
+export type SourceId =
+  "wikipedia" | "met" | "aic" | "cma" | "wellcome" | "archive";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds

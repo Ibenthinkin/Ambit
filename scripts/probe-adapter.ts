@@ -7,8 +7,10 @@
  *   bun run probe wikipedia astronomy --limit 5
  *   bun run probe met "musical instrument" --limit 3
  *
- * As of Phase 3.2b all five v1 sources have adapters — see server/services/sources/index.ts,
- * the registry this CLI reuses directly rather than wiring adapters up by hand.
+ * As of Phase 3.2b all five v1 sources have adapters, joined by `archive` in Phase A.5 — see
+ * server/services/sources/index.ts, the registry this CLI reuses directly rather than wiring
+ * adapters up by hand. (`probe archive` needs ARCHIVE_URL/ARCHIVE_API_KEY set and the
+ * ambit-archive service running; the adapter throws a clear error otherwise.)
  */
 import { adapters as registry } from "~/server/services/sources";
 import type { SourceId } from "~/server/services/sources";

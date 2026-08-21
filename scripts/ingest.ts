@@ -26,7 +26,7 @@
  *      kind of collision (SPEC §15) and a summary that hides it would let that bug recur unseen.
  *
  * Usage:
- *   bun run ingest                              # full run, all 16 topics × 5 sources, quota 150
+ *   bun run ingest                              # full run, all 16 topics × 6 sources, quota 150
  *   bun run ingest --quota 10 --dry-run          # cheap structure check, no writes, no LLM cost*
  *   bun run ingest --quota 10 --skip-llm         # writes with neutral score 5 — free but real rows
  *   bun run ingest --topic astronomy --source met --quota 20

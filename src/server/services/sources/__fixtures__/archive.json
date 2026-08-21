@@ -1,0 +1,100 @@
+[
+  {
+    "id": "NXyx9eXl6BU7Z4cKNIKW6",
+    "contentHash": "6837cb229f5b77235e3e4e410303130fcd3e0cb69dd1a52c222228522bb73b23",
+    "title": "Detailed botanical illustration of pitcher plants",
+    "summary": "A colorful botanical illustration depicts multiple pitcher plants with intricate red, pink, orange, and green pitchers and curling vines. The composition is arranged centrally on a cream-colored background with text printed at the top and bottom edges. The palette features vibrant natural tones with fine detailing on the leaves and traps.",
+    "tags": [
+      "botanical illustration",
+      "pitcher plants",
+      "lithograph",
+      "scientific plate",
+      "floral print"
+    ],
+    "kind": "artwork",
+    "width": 840,
+    "height": 1248,
+    "capturedAt": null,
+    "imageUrl": "http://localhost:3001/img/6837cb229f5b77235e3e4e410303130fcd3e0cb69dd1a52c222228522bb73b23.webp",
+    "license": "unknown"
+  },
+  {
+    "id": "ybyE4gwQacDi5zPxyacxW",
+    "contentHash": "cbca4621f40c590e71bd6bb4287ffb84335caf37db9067a6097ea25f24ed47c9",
+    "title": "Botanical illustration of a plant root system",
+    "summary": "A detailed botanical illustration shows the above-ground foliage and extensive underground root system of a leafy plant. The drawing is rendered in black and white pencil on a plain background, with a depth scale marked in centimeters along the left side. Hand-written text appears in the upper left corner, reading Cynara scolymus, Artichoke, abb. 152.",
+    "tags": [
+      "botanical illustration",
+      "root system",
+      "diagram",
+      "pencil drawing",
+      "monochrome",
+      "scientific illustration"
+    ],
+    "kind": "diagram",
+    "width": 3000,
+    "height": 2273,
+    "capturedAt": null,
+    "imageUrl": "http://localhost:3001/img/cbca4621f40c590e71bd6bb4287ffb84335caf37db9067a6097ea25f24ed47c9.webp",
+    "license": "unknown"
+  },
+  {
+    "id": "s3coiEG4M_ARKZ-9Qekcc",
+    "contentHash": "553ba5665e233909e1dacc8b97c538cfcd53b4904c74f3e82a1b776e7fa2f604",
+    "title": "Botanical illustration of plant root system",
+    "summary": "A detailed botanical diagram illustrates a plant with its leafy stem above ground and an extensive root system spreading below. The pencil drawing is set against a plain background with depth markers labeled along the left vertical axis. Handwritten text appears in the upper left corner.",
+    "tags": [
+      "botanical illustration",
+      "root system",
+      "diagram",
+      "pencil drawing",
+      "scientific illustration",
+      "monochrome"
+    ],
+    "kind": "diagram",
+    "width": 1795,
+    "height": 2430,
+    "capturedAt": null,
+    "imageUrl": "http://localhost:3001/img/553ba5665e233909e1dacc8b97c538cfcd53b4904c74f3e82a1b776e7fa2f604.webp",
+    "license": "unknown"
+  },
+  {
+    "id": "YkA4jga6BeitZGhOHFQgS",
+    "contentHash": "ab873be2d9530371ae86ea5828537ce736e234a602cc80324704c63acfc7148d",
+    "title": "Botanical illustration of various orchid species",
+    "summary": "A detailed botanical illustration features a dense arrangement of diverse orchid species in full bloom. The lithograph displays a rich palette of pinks, whites, deep maroons, yellows, and browns against a muted beige and grey background. Text at the top reads Haeckel, Kunstformen der Natur and Tafel 74 - Cypripedium, while text at the bottom reads Orchideae. - Venusblumen.",
+    "tags": [
+      "botanical illustration",
+      "lithograph",
+      "orchids",
+      "flowers",
+      "natural history",
+      "vintage print"
+    ],
+    "kind": "artwork",
+    "width": 840,
+    "height": 1156,
+    "capturedAt": null,
+    "imageUrl": "http://localhost:3001/img/ab873be2d9530371ae86ea5828537ce736e234a602cc80324704c63acfc7148d.webp",
+    "license": "unknown"
+  },
+  {
+    "id": "riMGjW0e1ATY_iNm0qzTm",
+    "contentHash": "b5c0e39bc088f03cf6340d27a0fd2e7c28049ad9bf2d04aa215469931642817e",
+    "title": "Botanical illustration of oranges and leaves",
+    "summary": "A detailed botanical illustration features a whole orange with green leaves, a sliced orange showing internal segments, and another peeled orange half. The image is rendered with a stippled dot pattern in vibrant yellow, orange, and green against a light blue background. Handwritten text reading \"62.17\" and \"L.C. Transfer 1921\" appears in the upper area.",
+    "tags": [
+      "botanical illustration",
+      "citrus",
+      "orange",
+      "stippling",
+      "artwork"
+    ],
+    "kind": "artwork",
+    "width": 750,
+    "height": 1094,
+    "capturedAt": "2018-06-23T21:08:51.000Z",
+    "imageUrl": "http://localhost:3001/img/b5c0e39bc088f03cf6340d27a0fd2e7c28049ad9bf2d04aa215469931642817e.webp",
+    "license": "unknown"
+  }
+]
