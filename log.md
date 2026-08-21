@@ -28,6 +28,34 @@ Worth knowing for its own sake: the same sweep found **`structuralFloor`'s `dup-
 shipped** (`search.ts`/`server.ts`, tested) while the brief had been carrying it as open for four days.
 A copy of a repo's backlog goes stale the moment anyone works in the repo.
 
+---
+
+**Phase 6.2 planned — and reframed while being planned.** A Fable session picked the next phase
+with Ben: **sources before more UI** (5.9/5.10 wait), on the strength of 5.8's own finding that
+rail feel and `wildcardChance` can't be judged against a two-museum corpus. Plan doc:
+`docs/PHASE6_PLAN_6.2.md`, cold-executable in the 5.x style.
+
+**The reframe:** BUILD_PLAN 6.2 still promised "remaining v1 adapters — Smithsonian, APOD,
+Wikiquote, Gutenberg", but the 08-20 correction in `source-candidates.md` had already established
+those were never commitments. So 6.2 is now **the first run of the trial loop**, and the batch is
+what the candidates table actually ranks: **Smithsonian Open Access, LoC (cleared-collections
+scope, starting with Margolies), NASA Image & Video Library, PoetryDB** — Ben took all four.
+NASA's full library deliberately replaces APOD (no auth, whole catalog vs. keyed
+image-of-the-day); Wikiquote and Gutenberg/Wikisource become candidate rows instead of silently
+vanishing.
+
+**Decisions:** trial **and** promote in one phase, but gated — the executing session builds all
+four adapters, sample-ingests with the curator on (whose bytes-not-URLs image download doubles as
+a hotlink health check, the exact thing that killed AIC), then **stops for Ben's Keep/Park/Cut**
+before any promotion. Partial topic coverage is by design (ingest already skips empty cells —
+verified, not built). No graph recompute, no new topics; hotlinking stands and image-host
+misbehavior is recorded as 7.3 evidence, not solved. `WILDCARD_SOURCES` membership is asked per
+keeper, default no.
+
+**One prerequisite is Ben's:** a free api.data.gov key as `SMITHSONIAN_API_KEY` before execution.
+
+*Session spend: 8.51M tok (in 152 · out 135.6k · cache r 7.73M / w 649.0k) · ~$27.49 · fable-5 · 17:02→17:36*
+
 ### [[08-21-26 Fri]] — Handoff: the three questions 5.8 can't be planned without
 
 **Nothing shipped; this is a handoff.** Picked up at the top of 5.8 (the immersive gallery), got as
