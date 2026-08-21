@@ -349,4 +349,240 @@ describe("BottomSheet", () => {
       );
     });
   });
+  // ── 5.8: the gallery variant and its gestures ─────────────────────────────────────────────────
+  // Everything above this line is the pill sheet, unchanged and untouched by the additions below —
+  // which is the actual proof that they're additive.
+  describe("gallery variant", () => {
+    it("swaps in the gallery animation pair, and back out again on close", () => {
+      vi.useFakeTimers();
+      const { rerender } = render(
+        <BottomSheet open onClose={vi.fn()} variant="gallery">
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+      expect(panel).toHaveClass("animate-sheet-gallery");
+      expect(panel).toHaveClass("rounded-t-[26px]");
+
+      rerender(
+        <BottomSheet open={false} onClose={vi.fn()} variant="gallery">
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      expect(screen.getByTestId("bottom-sheet-panel")).toHaveClass(
+        "animate-sheet-gallery-out",
+      );
+      act(() => void vi.runAllTimers());
+      vi.useRealTimers();
+    });
+
+    it("leaves the pill variant on its own animations", () => {
+      render(
+        <BottomSheet open onClose={vi.fn()}>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+      expect(panel).toHaveClass("animate-sheet-up");
+      expect(panel).not.toHaveClass("animate-sheet-gallery");
+    });
+  });
+
+  describe("drag to close", () => {
+    /**
+     * jsdom has no layout engine, so `getBoundingClientRect()` is all zeroes — which happens to be
+     * exactly what the grab-zone check wants (a `clientY` of 10 reads as 10px below the panel's
+     * top). Stated rather than relied on silently.
+     */
+    const grab = (panel: HTMLElement, y = 10) =>
+      fireEvent.pointerDown(panel, {
+        pointerId: 1,
+        button: 0,
+        clientX: 0,
+        clientY: y,
+      });
+
+    it("follows the finger downward, and only downward", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      grab(panel);
+      fireEvent.pointerMove(panel, { pointerId: 1, clientX: 0, clientY: 50 });
+      expect(panel.style.transform).toBe("translateY(40px)");
+
+      // Dragging back up past the origin pins at rest rather than stretching the sheet taller.
+      fireEvent.pointerMove(panel, { pointerId: 1, clientX: 0, clientY: -40 });
+      expect(panel.style.transform).toBe("translateY(0px)");
+    });
+
+    it("closes past the threshold", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      grab(panel);
+      fireEvent.pointerMove(panel, { pointerId: 1, clientX: 0, clientY: 90 });
+      fireEvent.pointerUp(panel, { pointerId: 1, clientX: 0, clientY: 90 });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      // Handed back to the CSS animations, so the exit runs instead of the inline transform.
+      expect(panel.style.transform).toBe("");
+      expect(panel.style.animation).toBe("");
+    });
+
+    it("snaps back under the threshold", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      grab(panel);
+      fireEvent.pointerMove(panel, { pointerId: 1, clientX: 0, clientY: 40 });
+      fireEvent.pointerUp(panel, { pointerId: 1, clientX: 0, clientY: 40 });
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(panel.style.transform).toBe("");
+      expect(panel.style.transition).toContain("transform");
+    });
+
+    it("ignores a press that started below the grab zone", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose} variant="gallery" dragToClose>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      // 200px down is the sheet's own scrollable body — a downward drag there is a scroll.
+      grab(panel, 200);
+      fireEvent.pointerMove(panel, { pointerId: 1, clientX: 0, clientY: 300 });
+      expect(panel.style.transform).toBe("");
+
+      fireEvent.pointerUp(panel, { pointerId: 1, clientX: 0, clientY: 300 });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("attaches no pointer handlers at all when neither gesture prop is passed", () => {
+      const onClose = vi.fn();
+      render(
+        <BottomSheet open onClose={onClose}>
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      // The proof a pill sheet is untouched: the same event sequence that closes a gallery sheet
+      // does nothing here.
+      fireEvent.pointerDown(panel, {
+        pointerId: 1,
+        button: 0,
+        clientX: 0,
+        clientY: 10,
+      });
+      fireEvent.pointerMove(panel, { pointerId: 1, clientX: 0, clientY: 200 });
+      fireEvent.pointerUp(panel, { pointerId: 1, clientX: 0, clientY: 200 });
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(panel.style.transform).toBe("");
+    });
+  });
+
+  describe("side swipe", () => {
+    const swipe = (panel: HTMLElement, dx: number) => {
+      fireEvent.pointerDown(panel, {
+        pointerId: 1,
+        button: 0,
+        clientX: 0,
+        clientY: 10,
+      });
+      fireEvent.pointerMove(panel, { pointerId: 1, clientX: dx, clientY: 14 });
+      fireEvent.pointerUp(panel, { pointerId: 1, clientX: dx, clientY: 14 });
+    };
+
+    it("closes and reports 1 for a leftward swipe — 'next'", () => {
+      const onClose = vi.fn();
+      const onSwipeSide = vi.fn();
+      render(
+        <BottomSheet
+          open
+          onClose={onClose}
+          variant="gallery"
+          dragToClose
+          onSwipeSide={onSwipeSide}
+        >
+          <p>Details</p>
+        </BottomSheet>,
+      );
+
+      swipe(screen.getByTestId("bottom-sheet-panel"), -120);
+
+      expect(onSwipeSide).toHaveBeenCalledWith(1);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports -1 for a rightward swipe", () => {
+      const onClose = vi.fn();
+      const onSwipeSide = vi.fn();
+      render(
+        <BottomSheet
+          open
+          onClose={onClose}
+          variant="gallery"
+          dragToClose
+          onSwipeSide={onSwipeSide}
+        >
+          <p>Details</p>
+        </BottomSheet>,
+      );
+
+      swipe(screen.getByTestId("bottom-sheet-panel"), 120);
+
+      expect(onSwipeSide).toHaveBeenCalledWith(-1);
+    });
+
+    it("ignores travel under the threshold, and travel that was mostly vertical", () => {
+      const onClose = vi.fn();
+      const onSwipeSide = vi.fn();
+      render(
+        <BottomSheet
+          open
+          onClose={onClose}
+          variant="gallery"
+          dragToClose
+          onSwipeSide={onSwipeSide}
+        >
+          <p>Details</p>
+        </BottomSheet>,
+      );
+      const panel = screen.getByTestId("bottom-sheet-panel");
+
+      swipe(panel, 20); // under SWIPE_SIDE_PX
+      expect(onSwipeSide).not.toHaveBeenCalled();
+
+      // Further down than across: a dismissal, not a cycle.
+      fireEvent.pointerDown(panel, {
+        pointerId: 1,
+        button: 0,
+        clientX: 0,
+        clientY: 10,
+      });
+      fireEvent.pointerMove(panel, { pointerId: 1, clientX: 60, clientY: 110 });
+      fireEvent.pointerUp(panel, { pointerId: 1, clientX: 60, clientY: 110 });
+      expect(onSwipeSide).not.toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalledTimes(1); // dy 100 > 56, so it closed
+    });
+  });
 });

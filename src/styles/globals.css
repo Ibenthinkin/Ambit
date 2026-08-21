@@ -103,6 +103,15 @@
                                                                           modal ONLY (5.8) — a
                                                                           longer, further travel
                                                                           than the pill sheets */
+  --animate-sheet-gallery-out: sheet-gallery-out 0.3s var(--ease-settle) both; /* the exit half of
+                                                                                  the pair above
+                                                                                  (5.8), the same
+                                                                                  keyframes
+                                                                                  reversed and a
+                                                                                  little quicker —
+                                                                                  a sheet should
+                                                                                  leave faster than
+                                                                                  it arrives */
   --animate-sheet-down: sheet-down 0.26s var(--ease-sheet) both; /* the exit half of the pair
                                                                      above (5.5) — a sheet that
                                                                      vanished instantly on close
@@ -192,6 +201,14 @@
     }
     to {
       transform: translateY(0);
+    }
+  }
+  @keyframes sheet-gallery-out {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(103%); /* mirrors sheet-gallery's own travel exactly */
     }
   }
   @keyframes sheet-down {
