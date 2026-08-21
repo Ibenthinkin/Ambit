@@ -29,14 +29,27 @@ export const DEV_ORIGIN_HOSTS = [
 ];
 
 /**
- * The same hosts as full `http://host:port` origins, which is the shape Better Auth matches against
- * the request's `Origin` header. Returns `[]` outside development so a production build can never
- * carry a personal tailnet address into its trusted set.
+ * The same hosts as full origins, which is the shape Better Auth matches against the request's
+ * `Origin` header. Returns `[]` outside development so a production build can never carry a
+ * personal tailnet address into its trusted set.
+ *
+ * **Two schemes, and the https one is load-bearing for a whole class of testing.** A plain
+ * `http://` LAN origin is not a *secure context*, and browsers gate real features on that — the
+ * Web Share API (`navigator.share` / `canShare`, which is what puts an image in the iOS camera
+ * roll), the async clipboard, service workers. On http they are not "broken", they are `undefined`,
+ * so code falls through to whatever fallback it has and the feature looks quietly wrong: 5.7's
+ * Save-image landed in Files instead of Photos for exactly this reason. `tailscale serve --bg 3000`
+ * puts a real cert in front of the dev server at `https://<magicdns-name>` (port 443, hence the
+ * port-less entry), which makes the phone a secure context and those features testable at all.
  *
  * @param {number} port - the port `next dev` is serving on (3000 unless `-p` says otherwise).
  * @returns {string[]}
  */
 export function devTrustedOrigins(port = 3000) {
   if (process.env.NODE_ENV === "production") return [];
-  return DEV_ORIGIN_HOSTS.map((host) => `http://${host}:${port}`);
+  return DEV_ORIGIN_HOSTS.flatMap((host) => [
+    `http://${host}:${port}`,
+    // Port-less: Tailscale Serve terminates TLS on 443, so the Origin header carries no port.
+    `https://${host}`,
+  ]);
 }

@@ -5,7 +5,7 @@ Nine tasks, all landed, each its own commit with `bun run check` green. The plan
 executed cold and largely was; four places argued back — one of them the plan contradicting its own
 fixture, and one of them big enough to reverse a decision (AIC).
 
-**Status: code complete, one item outstanding — the iOS device pass** (see the end).
+**Status: complete.** The iOS device pass passed 08-20-26; what it turned up is at the end.
 
 ---
 
@@ -194,18 +194,51 @@ it did not change the count, so the noise is not coming from there.
   streams real bytes for Met / CMA / Wellcome rows; AIC 502s, which is what re-opened the
   suspension.
 
-## Still open
+## The device pass (08-20-26) — passed, with three findings
 
-- **The iOS device pass**, which the Done bar names explicitly. Four things to judge on the phone:
-  the swipe-back's rubber-band follow and commit; that back from a feed-tapped item restores the
-  exact feed (pop, not push); that Save image lands in the camera roll through the share sheet; and
-  whether AIC images load on the phone — though the laptop measurement above has largely pre-empted
-  that one (`HANDOFF_aic-images.md` §8.2: a host-wide challenge explains both the phone's 08-18
-  behaviour and today's, with one mechanism).
+Swipe-back follows and commits correctly; back from a feed-tapped item restores the exact feed from
+**both** exits (the gesture and the pill's Feed button); Save image reaches the camera roll.
+
+**AIC needed no measurement, because the proxy dissolved the question.** Images are now fetched by
+the *server*, so what the phone sees is determined by the laptop's network position, not its own.
+There is no separate "phone path" for images any more, and the 08-18 observation (AIC failing on the
+phone over a referer that worked from the laptop) is explained by the same host-wide challenge
+§8.2 documents. Q2 is answered structurally rather than empirically.
+
+**Save image went to Files, not Photos — because the Web Share API is secure-context only.** Over a
+plain `http://` LAN origin `navigator.share` / `canShare` are not broken, they are `undefined`, so
+the handler fell straight through to its `<a download>` fallback. Nothing wrong with the code; the
+*test environment* couldn't exercise the real path. Fixed properly rather than worked around:
+`tailscale serve --bg 3000` fronts the dev server with a real cert at `https://<magicdns-name>`, and
+`src/config/dev-origins.js` now emits the https, port-less origin so Better Auth's CSRF check
+accepts a sign-in from it. Re-tested there, the OS share sheet appears with the image and Save Image
+in it. **Every future device pass touching share, clipboard, or service workers should run over that
+HTTPS origin** — all three are gated on secure context and all three fail silently without it.
+
+**The best save path turns out to be one we already had and nearly didn't notice.** Long-pressing
+the hero gives iOS's native image callout, including **"Add to Photos"** — two taps, versus three
+through the share sheet. It works because nothing on the item page suppresses the callout, unlike
+the feed tiles where `-webkit-touch-callout: none` is load-bearing. That is now written into
+`image-item-body.tsx` as a warning to 5.8, which will wire a gallery tap onto that same hero and
+whose obvious move is to copy the feed tile's iOS incantations wholesale. The share sheet's row
+stays regardless: it is the *discoverable* affordance (nobody guesses at a long-press) and the right
+behaviour on desktop.
+
+Worth stating plainly, since it bounds the design: **no web API can write to the iOS photo library.**
+`navigator.share({files})` handing off to a user-mediated OS sheet is the ceiling for a web app, by
+Apple's deliberate choice. A one-tap silent save is not something more effort would buy.
+
+## Still open
 - **OG preview against a real scraper.** The meta tags are asserted in e2e, but nobody has pasted a
   `/i/{id}` URL into a preview debugger — and `og:image` resolves against `BETTER_AUTH_URL`, so this
   can only really be checked once there's a deployed origin (`HANDOFF_aic-images.md` Q3, same
   dependency).
+- **Image speed on a real deploy, and image *size*.** The device pass felt slow, and measurement
+  put that entirely on `next dev`: the same proxied image is 170–970ms under `next dev`, 27–55ms on
+  a production build — *faster* than the 60–90ms of hotlinking the museum CDN directly, because the
+  proxy reuses one warm upstream connection instead of a fresh TLS handshake per image. Nothing to
+  fix in 5.7, but re-measure once deployed. What is real: a Wikipedia hero measured **1.95 MB**
+  unresized, which is squarely 7.3's IIIF sizing and will matter on cellular.
 - **AIC.** Retry `curl -sI https://www.artic.edu/` in a day or two, and from a different network
   sooner — that distinguishes "they escalated" from "this IP is in the doghouse". Un-suspending is
   one line.

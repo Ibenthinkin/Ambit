@@ -251,6 +251,42 @@ run bumped into one.
 *Session spend: 58.51M tok (in 25.9k · out 288.1k · cache r 56.74M / w 1.46M) · ~≥$47.08 · opus-5 + opus-4-7 + <synthetic> · 17:34→19:04*
 *Session spend: 34.42M tok (in 223 · out 72.7k · cache r 34.11M / w 232.2k) · ~≥$20.65 · opus-5 + opus-4-7 + <synthetic> · 19:04→20:35*
 
+**5.7's device pass — passed, and the two things it found were both about the test environment
+rather than the code.** Swipe-back follows and commits; back restores the exact feed from both
+exits; Save image reaches the camera roll. 5.7 is done.
+
+**Save image landed in Files, not Photos, and the cause is a class of bug worth naming: the Web
+Share API is secure-context only.** Over `http://` on the LAN, `navigator.share` / `canShare` are
+not broken, they are `undefined` — so the handler fell straight through to its `<a download>`
+fallback and looked quietly wrong. The clipboard and service workers are gated the same way, which
+means *every* device pass over plain http has been silently unable to test three whole features.
+Fixed at the root rather than worked around: `tailscale serve --bg 3000` puts a real cert in front
+of the dev server at `https://macbook-air-m5.halley-morpho.ts.net`, and `dev-origins.js` now emits
+the https, port-less origin too so Better Auth's CSRF check accepts a sign-in from it. Re-tested
+there and the OS share sheet appears with the image in it. **Run future device passes over that
+HTTPS origin.**
+
+**The best save path was already shipped and nobody had noticed.** Long-pressing the hero gives
+iOS's native "Add to Photos" — two taps, against three through the share sheet — and it works only
+because the item page doesn't suppress the image callout the way the feed tiles must
+(`-webkit-touch-callout: none` is load-bearing there, it fights the long-press-opens-item-sheet
+gesture). **5.8 will wire a gallery tap onto that same hero and the obvious move is to copy the feed
+tile's iOS incantations wholesale, which would silently kill this** — so it's now a warning comment
+in `image-item-body.tsx`. The share-sheet row stays anyway: it's the discoverable affordance, and
+it's the right behaviour on desktop. Worth recording the bound too, since it ends the "can we make
+it one tap" conversation: **no web API can write to the iOS photo library at all** — a user-mediated
+OS sheet is the ceiling for a web app, by Apple's deliberate choice.
+
+**"Way too slow" on device was `next dev`, and the numbers are worth keeping.** Same proxied image:
+**170–970ms under `next dev`, 27–55ms on a production build, against 60–90ms hotlinking the museum
+CDN directly.** So in production the proxy is *faster* than the hotlinking it replaced — it reuses
+one warm upstream connection instead of paying a TLS handshake per image — and the proxy's own work
+is 23–33ms (1ms DB + 22–32ms upstream). Same shape as 08-20's morning finding: the dev server is not
+the app. One real number underneath it though: a Wikipedia hero measured **1.95 MB** unresized,
+which is 7.3's IIIF sizing and will bite on cellular.
+
+*Session spend: 25.05M tok (in 124 · out 57.6k · cache r 24.94M / w 53.7k) · ~$14.45 · opus-5 · 20:35→22:53*
+
 ### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
 
 **Findings:** Working from a different location, on the tailnet. Three things came out of trying to

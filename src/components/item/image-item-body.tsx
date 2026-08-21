@@ -9,6 +9,17 @@ import { CreditLine } from "./credit-line";
 // that gallery is 5.8's. An affordance that invites a tap and then does nothing is worse than no
 // affordance, so until 5.8 wires it this is a picture and not a button — no `cursor-pointer`, no
 // `onClick`, nothing to discover and be disappointed by.
+//
+// **Do not add `-webkit-touch-callout: none` here when 5.8 does wire that tap.** The feed tiles set
+// it (see `components/feed/image-tile.tsx`, where it's load-bearing — iOS raises its own image
+// menu partway through the long-press that opens the item sheet, and the gesture never completes),
+// so copying that block over is the obvious move and it would be a regression. Leaving the callout
+// alone is what gives the hero iOS's native **"Add to Photos"** on long-press: two taps to the
+// camera roll, against three through the share sheet, and verified on device 08-20-26. No web API
+// can write to the photo library directly — `navigator.share({files})` handing off to the OS sheet
+// is the ceiling for a web app — so this native callout is genuinely the best path we have, and it
+// costs nothing but restraint. The share sheet's Save-image row stays as the *discoverable* one
+// (nobody guesses at a long-press) and as the right behaviour on desktop.
 export interface ImageItemBodyProps {
   item: Item;
 }
