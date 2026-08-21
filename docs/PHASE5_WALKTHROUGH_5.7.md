@@ -82,12 +82,27 @@ out to be aimed at a mitigation AIC had already moved past. Whether the escalati
 this IP earning a challenge after 08-20's 48-concurrent probe is undistinguished; the cheap test is
 to retry in a day, or from another network. `HANDOFF_aic-images.md` §8 carries the commands.
 
-**4. The e2e pill click needed a hydration wait, and the failure looked like a flake.** The authed
-test clicked "Save to collection" and timed out waiting for a sheet that never opened — twice in
-seven runs. The pill is server-rendered before React attaches to it, so an early click lands on
-inert markup and vanishes. This is precisely the trap `e2e/support.ts`'s `waitForHydration` was
-written for on the landing form; the fix was to point it at the toolbar (`nav[aria-label='Ambit
-toolbar']`). Six consecutive green full runs since.
+**4. The e2e pill click needed a hydration wait — and then the same fix, applied one place too many,
+took the whole suite down.** The authed item test clicked "Save to collection" and timed out waiting
+for a sheet that never opened, twice in seven runs. The pill is server-rendered before React
+attaches to it, so an early click lands on inert markup and vanishes — precisely the trap
+`e2e/support.ts`'s `waitForHydration` was written for on the landing form. Pointing it at the
+toolbar (`nav[aria-label='Ambit toolbar']`) fixed that test, and six consecutive green full runs
+followed.
+
+Later, a *different* feed test failed once while the machine was under unrelated load, and the
+obvious move — put the same wait in `feed.spec.ts`'s shared `onFeed()` helper — was wrong. `onFeed`
+is called by six tests that run in parallel, and `waitForHydration` polls on
+`requestAnimationFrame`; six workers each spinning a rAF poll starved the dev server, and the suite
+started failing on plain `page.goto("/")` timeouts across *every* spec, taking 9 minutes to do it.
+That looked exactly like the environmental contention this repo's HANDOFF footnote warns about, and
+for a while it was diagnosed as such. What settled it was one cheap experiment: check out the last
+known-green commit and run. It passed in 60 seconds — so the regression was mine, and bisecting from
+there took one more run. **The wait was reverted; feed.spec never needed it.**
+
+Two lessons, both cheap in hindsight. A fix that is right for one call site is not automatically
+right for a shared helper six parallel workers go through. And when a suite degrades, `git checkout
+<last-green> && run` costs one run and beats any amount of theorizing about load averages.
 
 ---
 
@@ -135,6 +150,13 @@ pixels as `imageUrl`. Branching in the client (`startsWith("data:")`) is two lin
 is a proxy that dereferences a URL scheme, which is the opposite direction from the SSRF boundary
 above.
 
+**`feed.markSeen: aborted` in the dev log is the receipt tradeoff, made visible.** Every e2e run
+prints a few of these: the ack fires on mount, and a reader who navigates away immediately has the
+browser cancel it in flight. That is exactly the "lost ack" failure mode the design accepted — the
+page can be served again — and it is dev-only output (`routers`' `onError` logger is gated on
+`NODE_ENV === "development"`). Worth knowing it's normal rather than a defect, and worth remembering
+it's a real, not merely theoretical, path.
+
 **Unrelated log noise, recorded rather than chased.** The dev server emits a handful of
 `unhandledRejection: Error: aborted` / `ECONNRESET` lines during an e2e run when the browser
 abandons in-flight requests mid-navigation. It predates this phase (it reproduces with 5.7's
@@ -163,8 +185,9 @@ it did not change the count, so the noise is not coming from there.
 ## Verification
 
 - `bun run check` green before every commit; 42 files / 395 tests at the end of T8.
-- `bun run e2e` — **six consecutive green full runs** after the hydration fix, against the repo's
-  three-run flake bar. 22 tests (14 feed/auth/home, 8 item).
+- `bun run e2e` — six consecutive green full runs after the hydration fix, then three more at branch
+  tip after reverting the over-applied one, against the repo's three-run flake bar. 22 tests
+  (14 feed/auth/home, 8 item), ~45s a run.
 - Backfill: `--limit 5 --dry-run` first (which correctly skipped a leftover `test-feed-*` fixture row
   with a non-numeric `source_id`), then the full 2 200-row run against the dev DB.
 - Manual dev pass: both variants render signed-out with credit line, teaser and CTA; the proxy

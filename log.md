@@ -211,10 +211,28 @@ still the wrong thing to be building against by the time the build finished, bec
 the control. One `curl` in the dev pass caught it. Re-measure the premise before declaring the fix,
 especially when the premise is somebody else's live infrastructure.
 
-**Verified:** `bun run check` green at every commit (42 files / 395 tests, up from 378); **six
-consecutive green `bun run e2e` runs** after the hydration fix, against the repo's three-run bar;
-the Wikipedia body backfill dry-run, then the full 2,200-row run against the dev DB. Recorded but
-not chased: the dev server emits a few `unhandledRejection: Error: aborted` lines during an e2e run
+**One self-inflicted detour worth recording, because the *method* is the lesson.** The authed item
+e2e test needed a `waitForHydration` on the pill — a server-rendered toolbar takes an early click
+and drops it. Correct, and six green full runs followed. Then a different feed test failed once
+while the machine was loaded, and applying the same wait to `feed.spec.ts`'s shared `onFeed()`
+helper took the entire suite down: six parallel workers each spinning a `requestAnimationFrame` poll
+starved the dev server, and every spec began timing out on plain `page.goto("/")`, 9 minutes a run.
+It looked *exactly* like the environmental contention the HANDOFF footnote describes, and it got
+diagnosed that way for several rounds — .next cleared, load averages inspected, Postgres bloat
+checked, query paths timed (all fine: `getWanderNext` 25–72ms, dev server 40–500ms warm). What
+actually settled it in one run: `git checkout <last-green> && bun run e2e` → 22 passed in 60s. Mine,
+then. Reverted; feed.spec never needed it. A fix that's right for one call site isn't automatically
+right for a shared helper, and "check out the last green commit" beats any amount of theorising
+about load.
+
+**Verified:** `bun run check` green at every commit (42 files / 395 tests, up from 378); six
+consecutive green `bun run e2e` runs after the hydration fix, and three more at branch tip after the
+revert, against the repo's three-run bar;
+the Wikipedia body backfill dry-run, then the full 2,200-row run against the dev DB. Also normal, now that it's understood: `❌ tRPC failed on feed.markSeen: aborted` appears a few
+times per e2e run — the ack fires on mount and the browser cancels it when the reader navigates
+away. That is the "lost ack" tradeoff the receipt design accepted, made visible, and it's dev-only
+output. Recorded but not chased: the dev server also emits a few `unhandledRejection: Error:
+aborted` lines during an e2e run
 when the browser abandons in-flight requests — it reproduces with this branch stashed, so it
 predates the proxy, and no test is affected. The proxy now joins `req.signal` into its upstream
 fetch anyway, since not pulling bytes for a departed reader is right on its own terms.
@@ -231,6 +249,7 @@ scraper. The 60 items stranded on `topic_id = test-feed-topic-*` are still there
 run bumped into one.
 
 *Session spend: 58.51M tok (in 25.9k · out 288.1k · cache r 56.74M / w 1.46M) · ~≥$47.08 · opus-5 + opus-4-7 + <synthetic> · 17:34→19:04*
+*Session spend: 34.42M tok (in 223 · out 72.7k · cache r 34.11M / w 232.2k) · ~≥$20.65 · opus-5 + opus-4-7 + <synthetic> · 19:04→20:35*
 
 ### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
 
