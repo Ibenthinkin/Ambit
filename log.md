@@ -94,6 +94,40 @@ integration test that never restored them, and AIC's Cloudflare challenge (`HAND
 
 *Session spend: 3.20M tok (in 76 · out 25.7k · cache r 2.98M / w 197.5k) · ~$4.11 · opus-5 · 08:11→08:22*
 
+**The Fable session happened; 5.8 is planned.** All three questions answered with Ben, and
+`docs/PHASE5_PLAN_5.8.md` written cold-executable — the handoff below is discharged.
+
+**Decisions:** **Q1 → the wander rail.** A new public `items.galleryRail` extends the wander
+machinery into an endless, bidirectional, images-only rail: topic walk using the feed's own
+CORE/DRIFT/JUMP shares picks where, curated-weighted random picks what, and nothing is ever
+marked seen. **Q2 settled itself by evidence, not preference** — the redesign *feed prototype's
+own code* sends image taps to the item page (`openItem()` → `Item Image.dc.html`); only the Saved
+and Item-Image prototypes call `openGallery()`. So the README's gesture-matrix row for Feed is
+simply wrong, prototypes-beat-README applies after all, and BUILD_PLAN's "not feed tiles" stands.
+**Q3 → own route `/g/[itemId]`**, exits popping through a `gallery-origin` marker that mirrors
+`feed-origin` (the pill's Feed button reaches the intact feed via `history.go(-2)` when both
+markers line up — zero draws).
+
+**The wildcard wish got re-grounded at plan time:** there is no ambit-archive adapter in this repo
+to boost — "archive items" are labelling support only. The knob became `wildcardChance` (a rail
+slot ignores the walk and draws corpus-wide, preferring a `WILDCARD_SOURCES` list that is empty
+today), honored under the same `FEED_DEBUG` gate as the feed knobs. A serendipity dial now, the
+archive doorway later.
+
+**Two prototype-vs-README corrections worth remembering:** the gallery has **no double-tap** —
+tap shows chrome, tap-again opens details (the prototype's code and its own hint copy agree); and
+the details sheet's Medium/Origin/Where-it-lives facts don't exist in the schema, so the table
+maps to Maker/From/License/Topic. The 08-20 constraints are wired into the plan as first-class
+tasks and device-pass items: the hero tap is a slop-guarded pointer handler (never a `<Link>`,
+never the tile's touch-callout suppression — Add to Photos survives), and the device pass runs
+over the `tailscale serve` HTTPS origin.
+
+**Open / next:** hand `PHASE5_PLAN_5.8.md` to an executing session (T1/T3/T4 are independent
+starts). Still parked from 08-20, still non-blocking: the `test-feed-topic-*` stranded items and
+AIC's Cloudflare challenge.
+
+*Session spend: 8.56M tok (in 154 · out 147.4k · cache r 7.87M / w 534.1k) · ~$25.93 · fable-5 · 08:39→09:37*
+
 ### [[08-20-26 Thu]] — The 5.6 device pass passes; the feed was eating the corpus on every Back
 
 **The pass itself: green.** 5.6's tile gestures (tap vs. long-press vs. scroll, the 12px slop
