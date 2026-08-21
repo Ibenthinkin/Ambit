@@ -292,13 +292,12 @@ export const seenItem = pgTable(
     itemId: text("item_id")
       .notNull()
       .references(() => item.id),
-    // Set explicitly from the app clock (not defaultNow()) so the cursor's `anchor` — captured on
-    // the same clock just before insert (services/feed.ts's getFeedPage) — is *the same JS Date
-    // value* as what lands in this column, not a value Postgres computes independently a moment
-    // later. That equality is what makes the cursor's exclusion query correct: `served_at <
-    // anchor` deliberately does NOT exclude the very items just marked seen by that anchor's own
-    // page (they share the exact timestamp) — the cursor's separate `prev` list excludes those
-    // instead. See services/feed.ts's cursor design note for the full reasoning.
+    // When the reader was actually *handed* this item, set explicitly from the app clock rather
+    // than defaultNow(). As of 5.7 the writer is the client's receipt ack (`feed.markSeen`), not
+    // the server render — a render whose output gets discarded must not spend corpus. So this
+    // timestamp now lands strictly *after* the cursor `anchor` of the page it belongs to, which is
+    // exactly what keeps a refetch of that same cursor from excluding its own page. See
+    // services/feed.ts's cursor design note for the full argument.
     servedAt: timestamp("served_at", { withTimezone: true }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.userId, table.itemId] })],

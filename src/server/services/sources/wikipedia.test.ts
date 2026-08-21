@@ -2,14 +2,24 @@
 // recorded once against the real API on 08-07-26). Covers toItem()'s normalization and the two pure
 // predicates that gate what search()/toItem() are willing to keep: isLowValueTitle (search-result
 // filtering) and isFreeImageLicense (the per-image license resolution decided in docs/PHASE3_PLAN.md).
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import fixtures from "./__fixtures__/wikipedia.json";
 import {
+  fetchBody,
   isFreeImageLicense,
   isLowValueTitle,
   wikipedia,
   type WikipediaRaw,
 } from "./wikipedia";
+
+// The one place the adapter is exercised through its HTTP layer rather than a fixture: what
+// matters about fetchBody is the *shape of the request it sends*, which no recorded response can
+// show. Mocking ./http keeps that assertion honest and still offline.
+const fetchJson = vi.hoisted(() => vi.fn());
+vi.mock("./http", () => ({
+  fetchJson,
+  USER_AGENT: "test-agent",
+}));
 
 const raws = fixtures as unknown as WikipediaRaw[];
 const byTitle = (title: string) => {
@@ -104,5 +114,38 @@ describe("isFreeImageLicense", () => {
   it("rejects null/undefined (unresolved license)", () => {
     expect(isFreeImageLicense(null)).toBe(false);
     expect(isFreeImageLicense(undefined)).toBe(false);
+  });
+});
+
+describe("wikipedia.fetchBody", () => {
+  const body = (extract: string) => ({
+    query: { pages: { "50650": { extract } } },
+  });
+
+  // The whole point of 5.7's flip: `wiki` keeps `== Section ==` markers in the extract, which is
+  // the only structure `parseReaderBlocks` (src/lib/reader-blocks.ts) has to work with. `plain`
+  // strips them and the reader page renders one undivided slab.
+  it("asks for section markers, not a flattened extract", async () => {
+    fetchJson.mockResolvedValueOnce(body("== Orbit ==\nIt goes around."));
+
+    const result = await fetchBody(50650);
+
+    expect(result).toBe("== Orbit ==\nIt goes around.");
+    const url = fetchJson.mock.calls[0]?.[0] as string;
+    expect(url).toContain("exsectionformat=wiki");
+    expect(url).not.toContain("exsectionformat=plain");
+    expect(url).toContain("pageids=50650");
+  });
+
+  it("truncates a runaway article at 50 000 characters", async () => {
+    fetchJson.mockResolvedValueOnce(body("x".repeat(60_000)));
+
+    expect((await fetchBody(50650))?.length).toBe(50_000);
+  });
+
+  it("returns null when the page has no extract", async () => {
+    fetchJson.mockResolvedValueOnce({ query: { pages: {} } });
+
+    expect(await fetchBody(50650)).toBeNull();
   });
 });

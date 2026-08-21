@@ -5,6 +5,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { markSeen } from "~/server/db/feed";
 import { decodeCursor, getFeedPage } from "~/server/services/feed";
 
 // Zod-bounded mirror of `Partial<FeedKnobs>` (services/feed.ts) — every field optional (a caller
@@ -62,5 +63,29 @@ export const feedRouter = createTRPCRouter({
       }
 
       return getFeedPage(ctx.user.id, input.cursor, input.knobs);
+    }),
+
+  // The receipt half of the feed (5.7). `feed.page` composes a page but writes nothing about who
+  // saw it; the client calls this once it has a page in hand, and *that* is what burns the items
+  // out of the reader's corpus.
+  //
+  // It moved here because a server render is not evidence of a reader. Next prefetches routes,
+  // and a back-pop that re-runs the dynamic `/feed` renders it again — through 5.6 each of those
+  // marked a full page seen, which measured out at 1,116 items in six minutes (log.md 08-20-26).
+  //
+  // A static import of `db/feed` is safe despite the envless-CI rule: that module dynamic-imports
+  // its own client, so nothing here pulls `~/env` in at module scope.
+  markSeen: protectedProcedure
+    .input(
+      z.object({
+        // 64 mirrors `MAX_CURSOR_PREV` in services/feed.ts, for the same reason: this array flows
+        // into an `IN`-list, and the router's `pageSize` knob tops out at 50, so 64 is headroom
+        // over any legitimate page without being unbounded.
+        itemIds: z.array(z.string()).min(1).max(64),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await markSeen(ctx.user.id, input.itemIds, new Date());
+      return { ok: true } as const;
     }),
 });

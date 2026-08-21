@@ -148,11 +148,12 @@ test.describe.serial("feed", () => {
   test("renders without console errors", async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
-      // Image loads are filtered out, and only image loads. The feed hotlinks museum CDNs until
-      // the image proxy lands in 5.7, and several of them bot-block third-party referrers — those
-      // 403s are a known, designed-for condition (the tile falls back to "Image unavailable"),
-      // not a defect this assertion should chase. Everything else — React errors, hydration
-      // mismatches, thrown exceptions — still fails the test, which is the signal worth having.
+      // Image loads are filtered out, and only image loads. Images route through `/api/img/` as
+      // of 5.7, but the bytes still come from a museum CDN at the far end, and a CI box with no
+      // outbound network gets a failed load rather than a picture — a known, designed-for
+      // condition (the tile falls back to "Image unavailable"), not a defect this assertion should
+      // chase. Everything else — React errors, hydration mismatches, thrown exceptions — still
+      // fails the test, which is the signal worth having.
       const text = msg.text();
       const isImageLoad =
         text.includes("Failed to load resource") ||
@@ -200,9 +201,10 @@ test.describe.serial("feed", () => {
   // The feed a reader comes back to must be *the feed they left*. This used to push
   // `/feed?focus={id}`, which re-ran the dynamic route and built an entirely new page of cards —
   // so the reader lost their place, and each round trip permanently spent two pages of their
-  // corpus (`feed.page` writes `seen_item`, and both the RSC render and the client query draw
-  // one). Found on-device 08-20-26. The assertions below are the guard: same tiles, and nothing
-  // drawn.
+  // corpus (through 5.6 `feed.page` wrote `seen_item` itself, and both the RSC render and the
+  // client query drew one). Found on-device 08-20-26. The assertions below are the guard: same
+  // tiles, and nothing drawn. Both halves still matter with receipt-based marking — a fresh draw
+  // is a fresh page of cards whether or not it gets acked.
   test("returning from an item page restores the same feed without drawing new items", async ({
     page,
   }) => {
@@ -221,7 +223,9 @@ test.describe.serial("feed", () => {
     const itemId = before[0]!;
     await page.locator(`[data-feed-id="${itemId}"] > *`).click();
     await page.waitForURL(`/i/${itemId}`);
-    await expect(page.getByRole("heading")).toBeVisible();
+    // Level 1 specifically: the item page grew a second heading in 5.7 (the wander-next teaser),
+    // and the item's own title is the one that proves the page rendered.
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
     // Every way back to /feed that would cost a page of corpus: the client query, and any request
     // for the route itself — a document load or an RSC payload fetch both re-run the server
@@ -235,7 +239,9 @@ test.describe.serial("feed", () => {
       else if (pathname === "/feed") draws.push(`route:${request.method()}`);
     });
 
-    await page.getByRole("link", { name: "← Back" }).click();
+    // The pill's Feed button is the way back now — `BackToFeed` was folded into `useLeaveToFeed`
+    // (5.7) and the pill calls it. The e2e user is signed in, so the pill is there.
+    await page.getByRole("button", { name: "Feed" }).click();
 
     // Popped, not pushed — so the URL is the feed entry that was already on the stack, with no
     // `?focus=` in it. (`?focus=` remains the href, and is what a cold-opened shared link uses.)

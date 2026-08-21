@@ -16,6 +16,7 @@ const {
   refetchMock,
   pushMock,
   saveMutateMock,
+  ackSeenMock,
   invalidateMock,
 } = vi.hoisted(() => ({
   feedState: {
@@ -26,6 +27,7 @@ const {
   refetchMock: vi.fn(),
   pushMock: vi.fn(),
   saveMutateMock: vi.fn(),
+  ackSeenMock: vi.fn(),
   invalidateMock: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -38,7 +40,10 @@ vi.mock("~/trpc/react", () => ({
         count: { invalidate: invalidateMock },
       },
     }),
-    feed: { page: { useInfiniteQuery: () => feedState.current } },
+    feed: {
+      page: { useInfiniteQuery: () => feedState.current },
+      markSeen: { useMutation: () => ({ mutate: ackSeenMock }) },
+    },
     saves: {
       collections: {
         useQuery: () => ({
@@ -171,6 +176,7 @@ beforeEach(() => {
   fetchNextPageMock.mockClear();
   pushMock.mockClear();
   saveMutateMock.mockClear();
+  ackSeenMock.mockClear();
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -265,8 +271,37 @@ describe("FeedScreen", () => {
     }
   });
 
-  // Museum CDNs bot-block third-party fetchers, so this path is exercised for real until the 5.7
-  // image proxy lands.
+  // Receipt, not render, is what spends an item (5.7). The server composes a page and writes
+  // nothing; this effect is the only thing that tells the DB the reader got it.
+  it("acks each received page exactly once", () => {
+    render(<FeedScreen topicLabels={LABELS} />);
+
+    expect(ackSeenMock).toHaveBeenCalledTimes(2);
+    expect(ackSeenMock).toHaveBeenNthCalledWith(1, {
+      itemIds: ["i1", "a1", "i2", "j1"],
+    });
+    expect(ackSeenMock).toHaveBeenNthCalledWith(2, { itemIds: ["i3", "i4"] });
+  });
+
+  it("does not re-ack a page it has already acked on a re-render", () => {
+    const { rerender } = render(<FeedScreen topicLabels={LABELS} />);
+    ackSeenMock.mockClear();
+
+    rerender(<FeedScreen topicLabels={LABELS} />);
+
+    expect(ackSeenMock).not.toHaveBeenCalled();
+  });
+
+  // Every http(s) image goes through Ambit's own origin as of 5.7 — that single fact is what
+  // unblocked AIC's 1,338 images (see api/img/[itemId]/route.ts).
+  it("loads tile images through the proxy, not the source CDN", () => {
+    render(<FeedScreen topicLabels={LABELS} />);
+
+    const img = document.querySelector('[data-feed-id="i1"] img')!;
+    expect(img.getAttribute("src")).toBe("/api/img/i1");
+  });
+
+  // A proxied image can still fail — a flaky network, a source CDN that's down.
   //
   // The retry matters more on a phone than it looks on a desktop: a single dropped request used to
   // latch the tile into `Image unavailable` for the life of the page, with no way back, so a brief

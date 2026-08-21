@@ -99,9 +99,14 @@ export async function getTopicPools(
 }
 
 /**
- * Batch-inserts this page's served items into `seen_item`, `onConflictDoNothing` so refetching a
- * cursor — which deliberately re-marks the same items (SPEC §7's stability promise) — never
- * throws on the composite `(userId, itemId)` primary key.
+ * Batch-inserts a page's items into `seen_item`. Called from the `feed.markSeen` mutation as of
+ * 5.7 — the client acks a page it has actually received, rather than `getFeedPage` marking during
+ * a render whose output may be thrown away.
+ *
+ * `onConflictDoNothing` on the composite `(userId, itemId)` primary key, so a re-ack — refetching
+ * a cursor, or a remount replaying cached pages — never throws, and equally never moves an
+ * existing row's `served_at`. First write wins, which is exactly what the cursor's anchor
+ * arithmetic depends on (SPEC §7's stability promise; see services/feed.ts's cursor design note).
  */
 export async function markSeen(
   userId: string,

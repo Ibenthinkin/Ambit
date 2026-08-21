@@ -16,7 +16,7 @@ import { TOPICS } from "~/server/config/topics";
 import topicGraphData from "~/server/config/topic-graph.json";
 import { drawWeight } from "~/server/db/items";
 import { getUserTopicWeights } from "~/server/db/topics";
-import { getTopicPools, markSeen } from "~/server/db/feed";
+import { getTopicPools } from "~/server/db/feed";
 import { hashSeed, mulberry32, weightedPick } from "./random";
 
 // ── the topic adjacency graph (SPEC §5.2, §9) ──────────────────────────────────────────────────
@@ -90,14 +90,26 @@ export interface FeedPage {
 // (pageSize, a small fixed knob), never the user's whole seen history, so the cursor doesn't grow
 // unboundedly across a long scroll session the way a naive "all seen ids" cursor would.
 //
-// Design note — why `anchor` + `prev` are both needed, not just one: `anchor` is the timestamp
-// captured immediately before the previous page's items were marked seen, and it's reused
-// *exactly* (not re-derived) as those seen_item rows' `served_at` value (see schema.ts's comment
-// on `seenItem.servedAt`). That means the previous page's own items have `served_at === anchor`
-// exactly — a strict `served_at < anchor` filter does NOT exclude them (by design: it only
-// excludes everything served *before* this page-boundary instant, i.e. all prior history). `prev`
-// is what excludes the immediately-preceding page's own items instead. Together they cover
-// everything the user has ever been served, in one query, without the cursor growing over time.
+// Design note — why `anchor` + `prev` are both needed, not just one: `anchor` is the instant the
+// previous page was composed (a page boundary), and `prev` is that page's own item ids. Page N+1
+// excludes `served_at < anchor` — everything served before the boundary, i.e. all prior history —
+// plus `prev`, which covers the immediately-preceding page itself. Together they account for
+// everything the reader has been served, in one query, without the cursor growing over time.
+//
+// **Why the anchor still holds now that seen-marking happens on receipt (5.7).** Through 5.6 the
+// server wrote `seen_item` during the render, so the previous page's rows carried
+// `served_at === anchor` exactly and the strict `<` was what kept them out of their own query. As
+// of 5.7 the *client* acks the page it actually received (`feed.markSeen`), so those rows land at
+// some `T_ack > anchor`. The math survives, on both paths that matter:
+//   - **Composing page N+1.** Page N is excluded by `prev`. Pages ≤ N−1 were acked before page N
+//     was ever composed, so their `served_at < anchor(N+1)` and the timestamp filter has them.
+//   - **Refetching cursor N** (a remount, a back-pop, React Query retrying): the filter still
+//     excludes only `served_at < anchor(N)`, and page N's own acks are *later* than that anchor —
+//     so the page does not exclude itself, and the identical page reproduces. That stability is
+//     what SPEC §7's opaque-cursor promise actually rests on.
+// The one genuinely new failure mode is a lost or slow ack racing a fast scroll, which can repeat
+// a page. Cosmetic and self-limiting — against render-time marking, which burned 1,116 corpus
+// items in six minutes on server renders whose output was thrown away (log.md 08-20-26).
 export interface FeedCursor {
   v: 1;
   seed: number;
@@ -458,10 +470,13 @@ function reachableTopics(
  * 3. "Slot plan first, pools second": compute the reachable topic superset (pure, in-memory, see
  *    `reachableTopics` above), fetch every one of those topics' pools in one `getTopicPools`
  *    call, then hand everything to `composePage` for the actual tier/topic/item guard loop.
- * 4. Capture `servedAt` *before* `markSeen` (schema.ts's comment on `seenItem.servedAt` explains
- *    why this exact Date value, not a fresh one, has to be both the seen_item rows' timestamp and
- *    the next cursor's `anchor`). `nextCursor` is then constant-size by construction: `prev` is
- *    exactly this page's item ids, never the user's whole history.
+ * 4. Capture `servedAt` as the next cursor's `anchor` — purely the page-boundary instant now.
+ *    This function deliberately does NOT mark anything seen: as of 5.7 the client acks the page it
+ *    actually received (`feed.markSeen`), because a server render whose output is discarded — a
+ *    prefetch, a back-pop that re-runs the dynamic `/feed` — used to spend corpus nobody ever saw.
+ *    See the cursor design note above for why the anchor arithmetic survives the move.
+ *    `nextCursor` is constant-size by construction: `prev` is exactly this page's item ids, never
+ *    the user's whole history.
  * 5. Zero cards composed → exhaustion: `{ cards: [], nextCursor: undefined }`. The "you've seen
  *    everything" banner is Phase 5's concern, not this function's.
  */
@@ -516,11 +531,11 @@ export async function getFeedPage(
     return { cards: [], nextCursor: undefined };
   }
 
-  // Captured once, reused as both the seen_item rows' timestamp and the next cursor's anchor —
-  // see the FeedCursor design note above for why that exact equality matters.
+  // The page-boundary instant, and nothing else — no `seen_item` write happens here. The client
+  // acks what it received (`feed.markSeen`); see the FeedCursor design note above for why an
+  // anchor that now *precedes* the page's own seen rows still excludes the right things.
   const servedAt = new Date();
   const itemIds = cards.map((c) => c.item.id);
-  await markSeen(userId, itemIds, servedAt);
 
   const nextCursor = encodeCursor({
     v: 1,

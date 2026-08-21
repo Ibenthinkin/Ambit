@@ -334,6 +334,76 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
     });
   });
 
+  describe("items.wanderNext", () => {
+    // The fixture topic has no row in the checked-in topic graph, so every pick lands on the
+    // own-topic fallback — which is exactly the shape the e2e corpus has, and the reason that
+    // fallback exists.
+    it("offers real neighbours to an anonymous caller, never the item itself", async () => {
+      const rows = await createCaller(anonContext()).items.wanderNext({
+        itemId: itemOneId,
+      });
+
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.length).toBeLessThanOrEqual(3);
+      for (const row of rows) {
+        expect(row.id).not.toBe(itemOneId);
+        expect(Object.keys(row).sort()).toEqual(["id", "reason", "title"]);
+      }
+    });
+
+    it("returns an empty teaser for an unknown item rather than throwing", async () => {
+      const rows = await createCaller(anonContext()).items.wanderNext({
+        itemId: "definitely-not-a-real-item",
+      });
+      expect(rows).toEqual([]);
+    });
+  });
+
+  describe("saves.forItem", () => {
+    it("round-trips across save and unsave", async () => {
+      const caller = createCaller(authedContext(userId));
+      const [articles] = await caller.saves.collections();
+
+      await caller.saves.unsave({ itemId: itemTwoId });
+      expect(await caller.saves.forItem({ itemId: itemTwoId })).toEqual({
+        saved: false,
+        collectionId: null,
+      });
+
+      await caller.saves.saveToCollection({
+        itemId: itemTwoId,
+        collectionId: articles!.id,
+      });
+      expect(await caller.saves.forItem({ itemId: itemTwoId })).toEqual({
+        saved: true,
+        collectionId: articles!.id,
+      });
+
+      await caller.saves.unsave({ itemId: itemTwoId });
+      expect(await caller.saves.forItem({ itemId: itemTwoId })).toEqual({
+        saved: false,
+        collectionId: null,
+      });
+    });
+
+    it("is scoped to the caller — another user's save is invisible", async () => {
+      const caller = createCaller(authedContext(userId));
+      const [articles] = await caller.saves.collections();
+      await caller.saves.saveToCollection({
+        itemId: itemOneId,
+        collectionId: articles!.id,
+      });
+
+      const other = createCaller(authedContext(otherUserId));
+      expect(await other.saves.forItem({ itemId: itemOneId })).toEqual({
+        saved: false,
+        collectionId: null,
+      });
+
+      await caller.saves.unsave({ itemId: itemOneId });
+    });
+  });
+
   describe("feed.page end-to-end", () => {
     const feedUserId = `test-router-feed-user-${nanoid(8)}`;
     const feedTopicId = `test-router-feed-topic-${nanoid(8)}`;
@@ -390,7 +460,52 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       await db.delete(topic).where(eq(topic.id, feedTopicId));
     });
 
-    it("page 1 -> cursor -> page 2 returns disjoint cards, and an unauthed call is rejected", async () => {
+    /** How many items this fixture user has been marked as having seen. */
+    const seenCount = async () => {
+      const { db } = await import("~/server/db/client");
+      const { seenItem } = await import("~/server/db/schema");
+      const rows = await db
+        .select({ itemId: seenItem.itemId })
+        .from(seenItem)
+        .where(eq(seenItem.userId, feedUserId));
+      return rows.length;
+    };
+
+    // The 5.7 boundary, asserted from the outside: asking for a page costs the reader nothing.
+    // Only the ack does. Through 5.6 this call inserted a full page of `seen_item` rows, which is
+    // how a prefetch or a back-pop re-render could quietly spend someone's corpus.
+    it("feed.page composes without writing a single seen_item row", async () => {
+      const caller = createCaller(authedContext(feedUserId));
+      const before = await seenCount();
+
+      const page = await caller.feed.page({});
+
+      expect(page.cards.length).toBeGreaterThan(0);
+      expect(await seenCount()).toBe(before);
+    });
+
+    it("feed.markSeen writes rows that read back, and rejects an unauthed ack", async () => {
+      await expect(
+        createCaller(anonContext()).feed.markSeen({ itemIds: ["whatever"] }),
+      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+
+      const caller = createCaller(authedContext(feedUserId));
+      const page = await caller.feed.page({});
+      const ids = page.cards.map((c) => c.item.id);
+      const before = await seenCount();
+
+      expect(await caller.feed.markSeen({ itemIds: ids })).toEqual({
+        ok: true,
+      });
+
+      expect(await seenCount()).toBe(before + ids.length);
+      // And re-acking is a no-op rather than an error — a remount replaying cached pages does
+      // exactly this (`onConflictDoNothing`).
+      await caller.feed.markSeen({ itemIds: ids });
+      expect(await seenCount()).toBe(before + ids.length);
+    });
+
+    it("page 1 -> ack -> page 2 returns disjoint cards, and an unauthed call is rejected", async () => {
       await expect(
         createCaller(anonContext()).feed.page({}),
       ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
@@ -399,6 +514,12 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       const page1 = await caller.feed.page({});
       expect(page1.cards.length).toBeGreaterThan(0);
       expect(page1.nextCursor).toBeDefined();
+
+      // The client's half of the contract. Without it page 2 is free to repeat page 1 — correct
+      // behavior for an unacknowledged page, and not what this test is about.
+      await caller.feed.markSeen({
+        itemIds: page1.cards.map((c) => c.item.id),
+      });
 
       const page2 = await caller.feed.page({ cursor: page1.nextCursor });
       const page1Ids = new Set(page1.cards.map((c) => c.item.id));

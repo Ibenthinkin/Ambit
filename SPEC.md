@@ -191,7 +191,7 @@ CREATE TABLE seen_item (
   PRIMARY KEY (user_id, item_id)
 );
 ```
-Every item a user has ever been served, retained forever (no TTL/pruning) — the feed's "almost never repeating" promise (§9). `served_at` is set explicitly from the app clock rather than `DEFAULT now()` because the *exact same* Date value is reused as the next cursor's `anchor` (§7) — that equality is what lets the cursor's exclusion query use a strict `<` safely. No separate `user_id` index: the composite primary key's btree already serves the feed's only query shape ("what has this user seen").
+Every item a user has ever been served, retained forever (no TTL/pruning) — the feed's "almost never repeating" promise (§9). `served_at` is when the reader was actually *handed* the item, set explicitly from the app clock rather than `DEFAULT now()`; as of Phase 5.7 the writer is the client's receipt ack (`feed.markSeen`), so it lands strictly *after* the cursor `anchor` of the page it belongs to — which is exactly what keeps a refetch of that cursor from excluding its own page (§7's cursor design note). No separate `user_id` index: the composite primary key's btree already serves the feed's only query shape ("what has this user seen").
 
 ### 5.5 `invite`
 ```sql
@@ -269,14 +269,17 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 | `topics.list` | query | — | `Topic[]` |
 | `topics.setMine` | mutation | `{ topicIds: string[] }` | `{ ok: true }` |
 | `feed.page` | query | `{ cursor?: string, knobs?: Partial<FeedKnobs> }` | `{ cards: FeedCard[], nextCursor?: string }` |
+| `feed.markSeen` | mutation | `{ itemIds: string[] }` (max 64) | `{ ok: true }` |
 | `items.byId` | query | `{ id: string }` | `Item` (public; read-only) |
+| `items.wanderNext` | query | `{ itemId: string }` | `{ id, title, reason }[]` (public; read-only) |
 | `saves.collections` | query | — | `{ id, name, createdAt, itemCount }[]` |
 | `saves.saveToCollection` | mutation | `{ itemId: string, collectionId: string }` | `{ collectionName: string }` |
 | `saves.unsave` | mutation | `{ itemId: string }` | `{ saved: false }` |
 | `saves.list` | query | `{ collectionId?: string }` | `Item[]` |
 | `saves.count` | query | — | `number` |
+| `saves.forItem` | query | `{ itemId: string }` | `{ saved: true, collectionId: string \| null } \| { saved: false, collectionId: null }` |
 
-- **`saves.saveToCollection` is the API's only authorization-sensitive input** (Phase 5.5). Every other protected procedure is scoped by `ctx.user.id` alone, and `items.byId` is deliberately public — this is the one place a client supplies the id of a *user-owned* row. It verifies the collection belongs to the caller and throws `NOT_FOUND`, not `FORBIDDEN`, for both "no such collection" and "someone else's": a probe must not be able to tell a real collection id from a fake one. It also saves the item if it wasn't already, so there is no separate "save" procedure.
+- **`saves.saveToCollection` is the API's only authorization-sensitive input** (Phase 5.5). Every other protected procedure is scoped by `ctx.user.id` alone, and the two public procedures take no user id at all — this is the one place a client supplies the id of a *user-owned* row. It verifies the collection belongs to the caller and throws `NOT_FOUND`, not `FORBIDDEN`, for both "no such collection" and "someone else's": a probe must not be able to tell a real collection id from a fake one. It also saves the item if it wasn't already, so there is no separate "save" procedure.
 - `saves.toggle` **was removed in Phase 5.5** (it had become dead code — nothing outside its own tests ever called it, not even the throwaway `/feed` placeholder). A collection-less save is also semantically wrong now that every save routes through the save-to-collection sheet.
 - `feed.page` is **cursor-based** (opaque cursor encodes pagination + the in-flight weighting seed).
 - `feed.page` returns `cards`, not bare items (revised at Phase 4.1 build time — see below): each
@@ -289,24 +292,43 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
   `FEED_DEBUG` env var is on; off, a supplied `knobs` object is validated (still 400s on an
   out-of-range value) but then silently ignored, never applied. This keeps a debug-tooling client
   safe to point at a non-dev deployment without special-casing itself.
-- `items.byId` is the only public (unauthenticated-allowed) procedure, backing `/i/{itemId}`.
+- **Two public (unauthenticated-allowed) procedures**, both backing `/i/{itemId}`: `items.byId`
+  and — as of Phase 5.7 — `items.wanderNext`, which serves that page's "where Ambit would wander
+  next" teaser. `wanderNext` is safe to expose by construction rather than by care: it takes no
+  user id, walks only the checked-in topic graph, and returns `{id, title, reason}` and nothing
+  else, so there is no user data for it to leak. Everything else in the API is protected.
+- **`feed.markSeen` (Phase 5.7)** is the receipt half of the feed: `feed.page` composes a page and
+  writes nothing, and the client acks the page it actually received. It moved off the server render
+  because a render is not evidence of a reader — Next prefetches routes, and a back-pop re-running
+  the dynamic `/feed` renders it again; each of those used to spend a page of corpus (measured at
+  1,116 items in six minutes, 08-20-26). The 64-id input cap mirrors the cursor's `MAX_CURSOR_PREV`
+  for the same reason: the array flows into an `IN`-list.
 
 **Cursor design (Phase 4.1).** The cursor is a base64url-encoded JSON object, constant-size by
 construction: `{ v: 1, seed: number, page: number, anchor: string, prev: string[] }`. `seed` +
 `page` reseed the page's RNG deterministically (`mulberry32(hashSeed(\`${seed}:${page}\`))`), so
 refetching the same cursor against unchanged pool state reproduces the exact same page — the
-actual mechanism behind "stable pages on refetch." `anchor` is the ISO timestamp captured
-immediately before the *previous* page's items were marked seen, reused verbatim as those
-`seen_item.served_at` values; `prev` is that previous page's own item ids. Exclusion for the
-*current* page's pool is `seen_item.served_at < anchor` (everything seen before this page
-boundary) **union** `prev` (the previous page's own items, which share `anchor` exactly and so
-aren't caught by the strict `<`) **union** whatever's already been drawn so far this page
-(in-memory, within `composePage`'s own guard loop). Together these cover the user's whole seen
-history without the cursor ever growing past one page's worth of ids, no matter how long the
-scroll session runs.
+actual mechanism behind "stable pages on refetch." `anchor` is the ISO timestamp of the *previous*
+page's composition — a page boundary; `prev` is that previous page's own item ids. Exclusion for
+the *current* page's pool is `seen_item.served_at < anchor` (everything seen before this page
+boundary) **union** `prev` (the previous page's own items) **union** whatever's already been drawn
+so far this page (in-memory, within `composePage`'s own guard loop). Together these cover the
+user's whole seen history without the cursor ever growing past one page's worth of ids, no matter
+how long the scroll session runs.
 
-**Rate limiting (Phase 4.2).** Every procedure — `publicProcedure` included, since `items.byId` is
-exactly the unauthenticated surface a scraper would hit hardest — passes through an in-memory
+*Anchor arithmetic after the Phase 5.7 receipt move.* Through 5.6 the server marked items seen
+during the render, so a page's rows carried `served_at === anchor` exactly and the strict `<` was
+what kept them out of their own query. Now the client acks on receipt, so those rows land at some
+`T_ack > anchor`. Both paths still hold. **Composing page N+1:** page N is excluded by `prev`, and
+pages ≤ N−1 were acked before page N was composed, so their `served_at < anchor(N+1)`.
+**Refetching cursor N:** the filter still excludes only `served_at < anchor(N)`, and page N's own
+acks are *later* than that anchor — so the page does not exclude itself and reproduces identically,
+which is what the stability promise above actually rests on. The one new failure mode is a lost or
+slow ack racing a fast scroll, which can repeat a page: cosmetic and self-limiting, against a
+render-time cost measured in four figures.
+
+**Rate limiting (Phase 4.2).** Every procedure — `publicProcedure` included, since the public
+procedures are exactly the unauthenticated surface a scraper would hit hardest — passes through an in-memory
 sliding-window limiter (`server/services/rate-limit.ts`'s `RateLimiter`, 120 requests/minute per
 key) before reaching its resolver. The key is the session's user id when one exists, else the
 caller's IP taken from the *last* `X-Forwarded-For` hop (the one segment a single trusted reverse
@@ -321,9 +343,10 @@ deploy target; a multi-instance deploy would need this backed by shared state in
 - `/` — landing + sign-in / sign-up (email + password; forgot-password link). Built Phase 5.2 — a mode-toggle `AuthCard` (`src/components/landing/`), not the design handoff prototype's magic-link form; see `docs/PHASE5_WALKTHROUGH_5.2.md`.
 - `/reset-password` — where the password-reset email lands (`?token=...` on a valid link, `?error=INVALID_TOKEN` on an expired one). Ungated (src/proxy.ts's matcher deliberately excludes it — resetting a password implies being signed out).
 - `/onboarding` — topic-chip grid (first sign-in; redirect here until topics chosen). Built Phase 5.3 — a sixteen-chip grid (not the design handoff's thirty-two; see §3.2), `OnboardingScreen` (`src/components/onboarding/`), persisted via `topics.setMine`; see `docs/PHASE5_WALKTHROUGH_5.3.md`.
-- `/feed` — the infinite feed (auth-gated, default authenticated landing). Built Phase 5.6 (`docs/PHASE5_WALKTHROUGH_5.6.md`), replacing 5.2's placeholder: an **RSC shell** — the two guards (session → `/`; not-onboarded → `/onboarding`, carried forward verbatim from 5.3), a `prefetchInfinite` + `HydrateClient` handoff, and `FeedScreen`. The route stays **dynamic** by construction (it reads `headers()` and the feed is per-user). The prefetch input and the client `useInfiniteQuery` input must stay byte-identical (`{}` on both sides) or hydration silently misses and the client refetches — which costs a page of the user's corpus, since `feed.page` writes `seen_item`.
+- `/feed` — the infinite feed (auth-gated, default authenticated landing). Built Phase 5.6 (`docs/PHASE5_WALKTHROUGH_5.6.md`), replacing 5.2's placeholder: an **RSC shell** — the two guards (session → `/`; not-onboarded → `/onboarding`, carried forward verbatim from 5.3), a `prefetchInfinite` + `HydrateClient` handoff, and `FeedScreen`. The route stays **dynamic** by construction (it reads `headers()` and the feed is per-user). The prefetch input and the client `useInfiniteQuery` input must stay byte-identical (`{}` on both sides) or hydration silently misses and the client refetches — which costs a page of the user's corpus, since a received page is acked seen (`feed.markSeen`, Phase 5.7).
 - `/saved` — saved items.
-- `/i/[itemId]` — public read-only single item, on the public `items.byId`. An **interim stub** ships in Phase 5.6 (title, source eyebrow, image/summary, and a Back link to `/feed?focus={id}`) so the feed's taps navigate somewhere real; Phase 5.7 replaces it wholesale.
+- `/i/[itemId]` — public read-only single item. Built Phase 5.7 (`docs/PHASE5_WALKTHROUGH_5.7.md`), replacing 5.6's interim stub. An **image variant** and a **reader variant** keyed on `item.type`; a `from: <source>` credit line under both titles, linking `item.sourceUrl` (every source, not just blogs — §6.1's rights posture, generalized); the article body typeset from the stored `body` column via `src/lib/reader-blocks.ts` (no runtime source fetch, no source HTML, so nothing to sanitize); a `?from=Name` param-driven "shared this with you" row (≤40 chars, text-only, never persisted, never looked up); the `items.wanderNext` teaser on both variants; and a join CTA for signed-out visitors only. The pill toolbar, both sheets, and the protected `saves.forItem` query render **only** when authed — a signed-out visitor triggers no user-scoped request at all, and `generateMetadata` is built purely from the item row so a shared link's preview carries nothing about the sharer. Leaving is `useLeaveToFeed`: **pop** history when the visit came from the feed, push `/feed?focus={id}` only for a cold-opened link — a pushed navigation re-runs the dynamic `/feed` and draws a fresh page of corpus. A horizontal swipe-back (`useSwipeBack`, 0.35× rubber-band follow, commits past 70px) shares that same exit. Ungated in `src/proxy.ts` by design.
+- `/api/img/[itemId]` — the image proxy (Phase 5.7). Takes an **item id and looks the URL up in our own table; it never accepts a URL**, from a query param or anywhere else — that is the SSRF/open-proxy boundary. It fetches server-side with Ambit's UA and **no `Referer`** — which removes the variable behind the Art Institute of Chicago's `localhost`-referer block (`docs/HANDOFF_aic-images.md` §2.2), though AIC turned out to have escalated to a host-wide Cloudflare *interactive challenge* that no server-side fetch can pass, so that source stays suspended (ibid. §8). Successes stream through with `Cache-Control: public, max-age=31536000, immutable`; every failure path is `no-store`. Its rate limiter is a **separate, generous instance** (600/min per IP) rather than the shared tRPC one — a single feed page loads ~24 images and would otherwise starve the API. `data:` image URLs bypass it client-side. Resizing / IIIF sizing / a CDN cache layer are deliberately deferred to 7.3.
 - `app/api/trpc/[trpc]/route.ts`, `app/api/auth/[...all]/route.ts` (Better Auth catch-all via `toNextJsHandler`).
 
 ### 8.2 Components
@@ -349,7 +372,9 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
    - **JUMP** — uniform draw from the **bottom half** of a user topic's row. Deliberately not the strict antipode: tail ordering in a 16-point mean-centered space is noise, and false precision there adds nothing.
 2. **Item pick** — within the chosen topic, weighted random over unseen items above the **curation-score floor** (default 4): `weight = (score − floor + 1)^power × (1 + boost per aesthetic_tag shared with the user's taste keywords)`. Never similarity-ranked — that was the 0.4 failure.
 3. **Diversity constraints** — no two adjacent cards from the same source; per-page cap per topic (default 3). Constraints are soft: relax rather than starve.
-4. **Seen tracking** — served items are excluded per user (the "almost never repeating" promise) via the `seen_item` table (§5.4b); cursor encodes the page seed. Items are marked seen **at serve time**, not at request time: `getFeedPage` composes the full page first, then captures one `servedAt` timestamp and batch-inserts `seen_item` rows for exactly the items that made it into the page — never the ones a slot considered and discarded along the way. That same `servedAt` value becomes the next cursor's `anchor` (§7's cursor design note), which is what makes a cursor refetch idempotent: the previous page's own items share `anchor` exactly rather than falling before it, so the strict `served_at < anchor` exclusion doesn't remove them on a second fetch of the same cursor — `prev` does that instead.
+4. **Seen tracking** — served items are excluded per user (the "almost never repeating" promise) via the `seen_item` table (§5.4b); cursor encodes the page seed. Items are marked seen **on receipt** as of Phase 5.7: `getFeedPage` composes the page and writes nothing, and the client acks the page it actually received through the `feed.markSeen` mutation. Only the items that made it into a page are ever acked — never the ones a slot considered and discarded along the way.
+
+   *Why it moved off the render (08-20-26).* A server render is not evidence of a reader. Next prefetches routes, and a back-pop that re-runs the dynamic `/feed` renders it again; through 5.6 each of those marked a full page seen, measured at 1,116 items burned in six minutes. The cost of the move is that a lost or slow ack racing a fast scroll can repeat one page — cosmetic, self-limiting, and much the cheaper failure. `getFeedPage` still captures a `servedAt`, now purely as the next cursor's `anchor` (the page-boundary instant); §7's cursor design note carries the argument for why the exclusion arithmetic survives acks landing *after* that anchor rather than exactly on it.
 5. **Card shaping** — map each `item` to an `ImageCard` or `ArticleCard` payload.
 
 **Personalisation = topics, not items.** Saving an item nudges its topic's `user_topic.weight` up (visibly — the UI says so; an invisible feedback loop reads as random, xikipedia's core failure) and folds the item's `aesthetic_tags` into the user's taste keywords. Item-level nearest-neighbour personalisation is dead (Phase 0.4) and stays dead.
@@ -424,7 +449,7 @@ only safe option, since §11 forbids rendering unsanitized source markup.
 - **Auth enforcement** — `/feed`, `/saved`, `/onboarding` check session server-side; all tRPC mutations + user-scoped queries use `protectedProcedure`.
 - **Authorization** — every `saved_item` / `user_topic` query filters by `userId`.
 - **Invite gating** — sign-up rejected server-side for emails without a valid `invite` (Better Auth before-create hook); passwords hashed by Better Auth (scrypt); sessions database-backed and revocable. `revokeSessionsOnPasswordReset: true` (Phase 5.2) means a reset after a suspected compromise kills any live sessions, not just coexists with them.
-- **Public surface** — only `items.byId` / `/i/[itemId]` are public, and items are public-domain content with no user data.
+- **Public surface** — `items.byId`, `items.wanderNext`, and `/i/[itemId]` (plus `/api/img/[itemId]`) are the only unauthenticated surfaces, and all of them serve public-domain content with no user data. `wanderNext` takes no user id and returns `{id,title,reason}`; the item page's metadata is built from the item row alone; the proxy resolves an item id, never a caller-supplied URL.
 - **Source content** — sanitize/normalize external HTML; render article text through trusted rendering, never raw `dangerouslySetInnerHTML` on unsanitized source data.
 - **Rate limiting** — basic per-user/IP limits on tRPC endpoints.
 

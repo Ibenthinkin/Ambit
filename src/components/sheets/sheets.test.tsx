@@ -473,4 +473,67 @@ describe("ShareSheet", () => {
     await waitFor(() => expect(onShareUnavailable).toHaveBeenCalledOnce());
     vi.unstubAllGlobals();
   });
+
+  // Both conditions have to hold: an article has no image to save, and an image with no handler
+  // would be a dead button.
+  it("offers Save image only in an image context with a handler", () => {
+    const onSaveImage = vi.fn();
+    const { rerender } = render(
+      <ShareSheet
+        {...props}
+        imageContext
+        onSaveImage={onSaveImage}
+        onClose={vi.fn()}
+        onCopied={vi.fn()}
+        onShareUnavailable={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: /Save image/ }),
+    ).toBeInTheDocument();
+
+    // The article share sheet — same props, no image.
+    rerender(
+      <ShareSheet
+        {...props}
+        onSaveImage={onSaveImage}
+        onClose={vi.fn()}
+        onCopied={vi.fn()}
+        onShareUnavailable={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /Save image/ })).toBeNull();
+
+    // And an image with nobody to fetch it.
+    rerender(
+      <ShareSheet
+        {...props}
+        imageContext
+        onClose={vi.fn()}
+        onCopied={vi.fn()}
+        onShareUnavailable={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /Save image/ })).toBeNull();
+  });
+
+  it("closes the sheet before handing off the save", () => {
+    const onClose = vi.fn();
+    const onSaveImage = vi.fn();
+    render(
+      <ShareSheet
+        {...props}
+        imageContext
+        onSaveImage={onSaveImage}
+        onClose={onClose}
+        onCopied={vi.fn()}
+        onShareUnavailable={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Save image/ }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onSaveImage).toHaveBeenCalledOnce();
+  });
 });

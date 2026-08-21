@@ -19,8 +19,8 @@
  * request — plus `protectedProcedure` next to `publicProcedure`, which throws `UNAUTHORIZED`
  * unless a session exists. That's the real machinery behind CLAUDE.md's "auth boundary": every
  * user-scoped query becomes a protected procedure that (via its repo call) filters by the
- * session's `userId`, and `items.byId` stays on `publicProcedure` as the one deliberately public
- * surface (SPEC §7, §11).
+ * session's `userId`, while `items.byId` and `items.wanderNext` stay on `publicProcedure` as the
+ * two deliberately public surfaces (SPEC §7, §11).
  */
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
@@ -148,8 +148,9 @@ const timingMiddleware = t.middleware(async ({ next, path, ctx }) => {
  * Rate limiting (SPEC §11, Phase 4.2 decision): one shared, process-wide `RateLimiter` (see its
  * own file header for the single-instance caveat), generous enough to be pure abuse cover rather
  * than throttling of normal use — 120 requests/minute per key. Applied to every procedure,
- * `publicProcedure` included: `items.byId` is the one deliberately unauthenticated surface (SPEC
- * §7), and an unauthenticated endpoint is exactly the kind of thing a scraper hits hardest.
+ * `publicProcedure` included: `items.byId` and `items.wanderNext` are the deliberately
+ * unauthenticated surface (SPEC §7), and an unauthenticated endpoint is exactly the kind of thing
+ * a scraper hits hardest.
  *
  * Keys on the session's user id when one exists, falling back to `trustedClientIp`
  * (services/rate-limit.ts — trusts only the last `X-Forwarded-For` hop, the one segment a single

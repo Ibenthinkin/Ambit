@@ -567,6 +567,16 @@ describe("getFeedPage — FEED_DEBUG knob gating", () => {
     mockMarkSeen.mockReset().mockResolvedValue(undefined);
   });
 
+  // The 5.7 move: composing a page says nothing about who saw it. The mock stays wired precisely
+  // so this negative is provable — a server render that marks items is what burned 1,116 of them
+  // in six minutes (log.md 08-20-26), and it would come back silently.
+  it("never marks anything seen — receipt is the client's ack, not the render", async () => {
+    const page = await getFeedPage("user-1");
+
+    expect(page.cards.length).toBeGreaterThan(0);
+    expect(mockMarkSeen).not.toHaveBeenCalled();
+  });
+
   it("ignores knobOverrides when FEED_DEBUG is explicitly off", async () => {
     mockEnv.FEED_DEBUG = false;
     const page = await getFeedPage("user-1", undefined, { pageSize: 3 });

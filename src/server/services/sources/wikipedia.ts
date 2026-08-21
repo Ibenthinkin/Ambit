@@ -173,10 +173,17 @@ async function search(
  * intro extracts do), so this is deliberately NOT called from search(); the ingestion job calls
  * it only for items that survive the structural floor + collision resolution, to avoid paying
  * for text nobody will curate or serve.
+ *
+ * `exsectionformat=wiki` (not `plain`, as through 5.6) so the extract keeps its section markers —
+ * `== Section ==` / `=== Subsection ===`. That is the only structure a plain-text extract can
+ * carry, and it is what the reader variant of `/i/[itemId]` typesets from
+ * (`src/lib/reader-blocks.ts`); without it a 50 000-character article renders as one undivided
+ * slab. Rows ingested before the flip have marker-less bodies until
+ * `scripts/backfill-wikipedia-bodies.ts` has been run over them.
  */
 export async function fetchBody(pageId: number): Promise<string | null> {
   const res = (await fetchJson(
-    `${WIKI_API}?action=query&format=json&prop=extracts&explaintext=1&exsectionformat=plain&pageids=${pageId}`,
+    `${WIKI_API}?action=query&format=json&prop=extracts&explaintext=1&exsectionformat=wiki&pageids=${pageId}`,
     { delayMs: 120 },
   )) as { query?: { pages?: Record<string, { extract?: string }> } };
   const extract = res.query?.pages?.[String(pageId)]?.extract;

@@ -1,8 +1,15 @@
 // Integration tests for getFeedPage (SPEC §7, §9) against a real Postgres — the seen-tracking,
 // cursor-stability, and exhaustion behaviors can't be verified against pure fixtures the way
 // feed.test.ts's composePage/pickCore/etc. tests can, since they depend on the actual
-// getTopicPools/markSeen round trip. Self-skips whenever DATABASE_URL isn't set (same pattern as
-// db/items.integration.test.ts); run locally with `docker compose up -d` then `bun run test`.
+// getTopicPools/markSeen round trip.
+//
+// **These tests ack.** As of 5.7 `getFeedPage` marks nothing seen — the client does, on receipt
+// (`feed.markSeen`). So a sequential-paging test has to play the client's part: fetch, ack, then
+// ask for the next page. The `ack()` helper below is that half of the contract, and a test that
+// forgets it will simply be served the same items again, which is correct behavior, not a bug.
+//
+// Self-skips whenever DATABASE_URL isn't set (same pattern as db/items.integration.test.ts); run
+// locally with `docker compose up -d` then `bun run test`.
 //
 // Fixture shape, and why every non-exhausted page below has exactly 3 cards, not `pageSize`
 // (default 12): every fixture item shares one throwaway topic, and the default `topicCap` is 3
@@ -14,7 +21,7 @@ import { and, eq, like } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { getFeedPage } from "./feed";
+import { getFeedPage, type FeedPage } from "./feed";
 
 describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
   const topicId = `test-feed-topic-${nanoid(8)}`;
@@ -23,6 +30,16 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
   const sourceIdPrefix = `test-feed-${nanoid(8)}-`;
   const ITEM_COUNT = 30;
   const CARDS_PER_PAGE = 3; // topicCap, given every fixture item lives in one topic
+
+  /** Stands in for the client's receipt ack — what `feed.markSeen` does in the real app. */
+  const ack = async (page: FeedPage) => {
+    const { markSeen } = await import("~/server/db/feed");
+    await markSeen(
+      userId,
+      page.cards.map((c) => c.item.id),
+      new Date(),
+    );
+  };
 
   beforeAll(async () => {
     const { db } = await import("~/server/db/client");
@@ -96,9 +113,10 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
     expect(page.nextCursor).toBeDefined();
   });
 
-  it("marks served items seen, so the very next page excludes them", async () => {
+  it("excludes an acked page's items from the very next page", async () => {
     const page0 = await getFeedPage(userId);
     const page0Ids = new Set(page0.cards.map((c) => c.item.id));
+    await ack(page0);
 
     const page1 = await getFeedPage(userId, page0.nextCursor);
     const page1Ids = page1.cards.map((c) => c.item.id);
@@ -108,14 +126,20 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
     for (const id of page1Ids) expect(page0Ids.has(id)).toBe(false);
   });
 
-  it("refetching a cursor returns the identical page, even after its items were marked seen", async () => {
+  // The load-bearing one for 5.7's receipt move: acks now land *after* the cursor anchor they
+  // belong to, where they used to land exactly on it. If that broke the exclusion query, this is
+  // where it would show — a reader who pops back to the feed would be handed a different page than
+  // the one they left.
+  it("refetching a cursor returns the identical page, even after its items were acked", async () => {
     const page0 = await getFeedPage(userId);
+    await ack(page0);
     const cursorForPage1 = page0.nextCursor!;
 
     const firstFetch = await getFeedPage(userId, cursorForPage1);
-    // firstFetch's own items are now in seen_item — refetching the *same* cursor must still
-    // reproduce them, because the exclusion query's anchor is frozen at the cursor's own moment
-    // (schema.ts's comment on seenItem.servedAt), not "whatever's in seen_item right now."
+    await ack(firstFetch);
+    // firstFetch's own items are now in seen_item, timestamped later than this cursor's anchor —
+    // refetching the *same* cursor must still reproduce them, because the exclusion query is
+    // frozen at the cursor's own moment, not "whatever's in seen_item right now."
     const secondFetch = await getFeedPage(userId, cursorForPage1);
 
     expect(secondFetch.cards.map((c) => c.item.id)).toEqual(
@@ -139,6 +163,7 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
         expect(seenIds.has(c.item.id)).toBe(false); // never repeats across pages
         seenIds.add(c.item.id);
       }
+      await ack(page); // the client's half of the loop — without it, page 2 repeats page 1
       cursor = page.nextCursor;
     }
 

@@ -15,7 +15,12 @@ import {
   setItemCollection,
 } from "~/server/db/collections";
 import { getItemById } from "~/server/db/items";
-import { getSavedCount, getSavedItems, unsaveItem } from "~/server/db/saves";
+import {
+  getSavedCount,
+  getSavedItems,
+  getSavedItemCollection,
+  unsaveItem,
+} from "~/server/db/saves";
 
 export const savesRouter = createTRPCRouter({
   /**
@@ -93,4 +98,25 @@ export const savesRouter = createTRPCRouter({
 
   /** Total number of saved items — the "Everything kept" row's count in the collections sheet. */
   count: protectedProcedure.query(({ ctx }) => getSavedCount(ctx.user.id)),
+
+  /**
+   * Whether the caller has saved one specific item, and where they filed it — what an item page's
+   * bookmark control needs to render lit rather than idle, and what tells the save sheet which row
+   * to mark "Already saved here".
+   *
+   * A flat `{saved, collectionId}` rather than `string | null | undefined`, because "saved but
+   * uncollected" and "not saved" are genuinely different states and a single nullable field
+   * collapses them (see `getSavedItemCollection`'s own note).
+   */
+  forItem: protectedProcedure
+    .input(z.object({ itemId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const collectionId = await getSavedItemCollection(
+        ctx.user.id,
+        input.itemId,
+      );
+      return collectionId === undefined
+        ? ({ saved: false, collectionId: null } as const)
+        : ({ saved: true, collectionId } as const);
+    }),
 });

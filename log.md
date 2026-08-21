@@ -168,6 +168,89 @@ question — whether AIC images load on the phone through the proxy, HANDOFF Q2)
 
 *Session spend: 4.24M tok (in 84 · out 122.5k · cache r 3.65M / w 466.4k) · ~≥$19.10 · fable-5 + <synthetic> · 15:33→17:00*
 
+**5.7 executed (evening)** — nine tasks, nine commits, on `feat/phase-5.7-item-pages`. Walkthrough
+in `docs/PHASE5_WALKTHROUGH_5.7.md`; the plan held up almost unchanged, so what follows is only the
+parts that aren't in it.
+
+**Three things argued back.** The plan's own OG fixture contradicted its own assertion — it seeded
+the e2e image item with a `data:` pixel *and* asked `og:image` to end in `/api/img/{id}`, which the
+page deliberately refuses to emit for a `data:` URL (nothing behind the proxy to fetch, and a broken
+preview image is worse than none). Fixed by seeding a fourth item with an http URL that exists for
+that meta tag alone. `renderHook` turned out to be the wrong tool for `useSwipeBack`, whose entire
+behaviour is an effect attaching native listeners to a ref'd node: the ref has to be attached by
+React *before* the effect runs, which only a real component does. And the authed e2e test needed
+`waitForHydration` pointed at the pill — a server-rendered toolbar takes an early click and drops
+it, the exact trap that helper's own comment describes for the landing form. That last one presented
+as a flake (2 failures in 7 runs) and wasn't.
+
+**The big one: the proxy works, and AIC still doesn't.** The manual dev pass was the first time
+anyone pointed the finished proxy at a real AIC row, and it returned 502. Direct measurement:
+`www.artic.edu` now answers `403` with `cf-mitigated: challenge` and a "Just a moment..." body to
+*everything* from this network — the IIIF image URLs, **§2.2's own control URL that returned 200
+that morning**, a desktop-Chrome user-agent, and the plain homepage. That is a Cloudflare
+**interactive JS challenge**, not the referer rule, and no server-side fetch can ever pass one:
+there is no header to send, only a script to run. `api.artic.edu` is unaffected (200), so ingestion
+would have gone on adding rows nobody can see — the exact half-suspended state the list exists to
+prevent. **So `aic` went back onto `SUSPENDED_SOURCES`**, reversing the plan's Decision 2 in part.
+Undistinguished: whether AIC escalated generally, or this IP earned a challenge after the morning's
+48-concurrent probe. Cheap test is time and a different network; `HANDOFF_aic-images.md` §8 has the
+commands and both readings.
+
+**The proxy is still right, and the reasoning still holds** — every client-side attempt was doomed
+because a browser won't let you *unset* the `Referer` Cloudflare was judging, and moving the fetch
+server-side removes the input rather than working around the rule. Met, CMA and Wellcome all
+verified streaming through it. It just turned out to be aimed at a mitigation AIC had already moved
+past. What it bought regardless: one origin for every image (which is what makes the Save-image row
+possible at all), somewhere for 7.3's resizing and caching to live, and immunity to the next source
+that dislikes our referer. The property to defend there is "item id in, never a URL" — the helpful
+`?url=` escape hatch is what turns an image proxy into an SSRF gadget, so it's commented as a
+boundary rather than a detail.
+
+**And the lesson, cheaply bought:** §2.2 was measured carefully — 20/20, both directions — and was
+still the wrong thing to be building against by the time the build finished, because nobody re-ran
+the control. One `curl` in the dev pass caught it. Re-measure the premise before declaring the fix,
+especially when the premise is somebody else's live infrastructure.
+
+**One self-inflicted detour worth recording, because the *method* is the lesson.** The authed item
+e2e test needed a `waitForHydration` on the pill — a server-rendered toolbar takes an early click
+and drops it. Correct, and six green full runs followed. Then a different feed test failed once
+while the machine was loaded, and applying the same wait to `feed.spec.ts`'s shared `onFeed()`
+helper took the entire suite down: six parallel workers each spinning a `requestAnimationFrame` poll
+starved the dev server, and every spec began timing out on plain `page.goto("/")`, 9 minutes a run.
+It looked *exactly* like the environmental contention the HANDOFF footnote describes, and it got
+diagnosed that way for several rounds — .next cleared, load averages inspected, Postgres bloat
+checked, query paths timed (all fine: `getWanderNext` 25–72ms, dev server 40–500ms warm). What
+actually settled it in one run: `git checkout <last-green> && bun run e2e` → 22 passed in 60s. Mine,
+then. Reverted; feed.spec never needed it. A fix that's right for one call site isn't automatically
+right for a shared helper, and "check out the last green commit" beats any amount of theorising
+about load.
+
+**Verified:** `bun run check` green at every commit (42 files / 395 tests, up from 378); six
+consecutive green `bun run e2e` runs after the hydration fix, and three more at branch tip after the
+revert, against the repo's three-run bar;
+the Wikipedia body backfill dry-run, then the full 2,200-row run against the dev DB. Also normal, now that it's understood: `❌ tRPC failed on feed.markSeen: aborted` appears a few
+times per e2e run — the ack fires on mount and the browser cancels it when the reader navigates
+away. That is the "lost ack" tradeoff the receipt design accepted, made visible, and it's dev-only
+output. Recorded but not chased: the dev server also emits a few `unhandledRejection: Error:
+aborted` lines during an e2e run
+when the browser abandons in-flight requests — it reproduces with this branch stashed, so it
+predates the proxy, and no test is affected. The proxy now joins `req.signal` into its upstream
+fetch anyway, since not pulling bytes for a departed reader is right on its own terms.
+
+**Open / next:** the **iOS device pass** is the last thing between 5.7 and done — swipe-back feel,
+back-restores-the-feed on device, and Save-image reaching the camera roll. AIC on the phone is no
+longer really a question for it: the host-wide challenge explains the 08-18 phone observation and
+tonight's laptop one with a single mechanism (HANDOFF §8.2), which is the closest thing to an answer
+Q2 has had. Retry `curl -sI https://www.artic.edu/` in a day or two, and from another network sooner
+— that's what distinguishes "they escalated" from "this IP is in the doghouse", and un-suspending is
+one line either way. Q3 (is any of this dev-only?) is now the *interesting* question rather than the
+academic one, and still waits on a deployed origin — as does checking the OG preview against a real
+scraper. The 60 items stranded on `topic_id = test-feed-topic-*` are still there; the backfill's dry
+run bumped into one.
+
+*Session spend: 58.51M tok (in 25.9k · out 288.1k · cache r 56.74M / w 1.46M) · ~≥$47.08 · opus-5 + opus-4-7 + <synthetic> · 17:34→19:04*
+*Session spend: 34.42M tok (in 223 · out 72.7k · cache r 34.11M / w 232.2k) · ~≥$20.65 · opus-5 + opus-4-7 + <synthetic> · 19:04→20:35*
+
 ### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
 
 **Findings:** Working from a different location, on the tailnet. Three things came out of trying to

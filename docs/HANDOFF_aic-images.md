@@ -180,6 +180,68 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 
 ---
 
+## 8. Postscript — 08-20-26: the proxy shipped, and AIC escalated past it
+
+**The proxy landed and does what it was built to do.** Phase 5.7 shipped `/api/img/[itemId]`
+(`src/app/api/img/[itemId]/route.ts`): every http(s) item image is now fetched **server-side**, with
+Ambit's UA and **no `Referer` header at all**. Verified end to end against real corpus rows — Met,
+CMA and Wellcome images all stream back `200` with real bytes through it.
+
+The route takes an **item id and resolves the URL from our own table** — it never accepts a URL from
+a caller. That is the open-proxy/SSRF boundary and it is commented as such in the file; don't
+"helpfully" add a `?url=` escape hatch. Its rate limiter is a separate 600/min-per-IP instance
+rather than the shared tRPC one, because a single feed page loads ~24 images and would otherwise
+starve the API. Resizing (§2.4 / IIIF `!843,843`) and a CDN cache layer remain **7.3's**, unchanged.
+
+### 8.1 But AIC still fails, and it is no longer §2.2
+
+Measured the same evening, from the same laptop, after the proxy was live:
+
+```sh
+# a real corpus image URL — no referer, Ambit UA
+curl -so /dev/null -w '%{http_code}\n' 'https://www.artic.edu/iiif/2/a56fc9da-.../full/!843,843/0/default.jpg'   # 403
+# §2.2's own control URL, which returned 200 that morning
+curl -so /dev/null -w '%{http_code}\n' 'https://www.artic.edu/iiif/2/cf6ae0ea-.../full/!843,843/0/default.jpg'   # 403
+# a desktop-Chrome UA, no referer
+curl -so /dev/null -w '%{http_code}\n' -H 'User-Agent: Mozilla/5.0 ... Chrome/126.0 ...' <same URL>              # 403
+# the plain homepage
+curl -sI 'https://www.artic.edu/'                                                                                 # 403
+#   cf-mitigated: challenge
+#   <title>Just a moment...</title>
+# the JSON API, for contrast
+curl -so /dev/null -w '%{http_code}\n' 'https://api.artic.edu/api/v1/artworks?limit=1'                           # 200
+```
+
+**`cf-mitigated: challenge` is the whole finding.** `www.artic.edu` is serving a Cloudflare
+**interactive JS challenge** to this network, for every path, regardless of referer or user-agent —
+including its own homepage. That is a categorically different mitigation from §2.2's referer rule,
+and **no server-side fetch can ever pass one**: there is no header to send, only a script to
+execute. The proxy removed the variable §2.2 named; something broader replaced it.
+
+Two readings, not yet distinguished. Either AIC's bot management escalated generally, or this IP
+earned a challenge — the morning of 08-20 ran 48 concurrent image fetches from it (§2.3), which is
+exactly the shape of traffic that triggers one. Both are consistent with the evidence. The cheap
+test is time: retry `curl https://www.artic.edu/` from this network in a day or two, and from a
+different network sooner.
+
+**So `aic` went back onto `SUSPENDED_SOURCES`** at the end of 5.7. Leaving it live would have put
+1,338 tiles into the feed that render "Image unavailable" — with `api.artic.edu` still healthy,
+ingestion would cheerfully keep adding more. That is exactly the half-suspended state
+`suspended-sources.ts` exists to prevent. It stays one line to reverse.
+
+### 8.2 What this does to the open questions
+
+**Q2 (the phone-path second cause)** looks answered, and not in the way anyone hoped: the laptop now
+shows the same failure the phone showed on 08-18 over a referer that worked from the laptop at the
+time. A host-wide challenge that varies by client and IP reputation explains both observations with
+one mechanism. Treat it as the leading hypothesis, not a closed question — the device pass can still
+confirm the phone behaves identically now.
+
+**Q3 (is the block a dev-only artifact?)** is now the *most* interesting question rather than an
+academic one. A deployed origin has a different IP, a different traffic profile, and no history of
+probing — if AIC serves it normally, this whole file is a dev-environment story. Check it the day
+there is a production origin.
+
 ### Footnote: an unrelated trap in this repo's test suite
 
 `bun run test` is ~12s and green (35 files / 329 tests). But when two runs overlap, or the dev
