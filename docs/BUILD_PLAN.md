@@ -354,6 +354,40 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 ---
 
+## Phase A.5 — Archive source adapter
+
+*New scope, **outside the 0–9 sequence**. A.5 is a phase of the sibling `ambit-archive` project, not
+of Ambit's own build order — it lands here because the deliverable is an Ambit adapter. The plan it
+was executed from lives in that repo at `docs/PHASE_A5_PLAN.md`, along with the wire contract
+(`SPEC.md` §8) and the walkthrough.*
+
+- [x] **A.5 — the `archive` adapter.** A sixth source (SPEC §6.1): `sources/archive.ts`, `archive`
+      added to `SourceId` / the registry / `V1_SOURCES`, an `archive` seed-query cell on all 16
+      topics, `ARCHIVE_URL` + `ARCHIVE_API_KEY` (both optional), and one shared-code change —
+      `fetchJson` gained an optional `headers` bag, because the archive is the first source that
+      authenticates. **Done =** `bun run check` green, a clean `--dry-run --skip-llm` structural
+      run, a real ingest landing rows, and a strict-zero-insert second run (archive ranking is
+      deterministic, so unlike Wikipedia's convergent trickle a nonzero re-run is a *finding*).
+
+Two things this phase parks for later steps:
+
+- **`images.remotePatterns` is moot, not deferred.** The original plan (written pre-5.7) expected
+  to add the archive's origin to `next.config.js`. It isn't needed: **5.7's image proxy** means
+  every `next/image` in the app points at same-origin `/api/img/<itemId>` and the server
+  dereferences `item.imageUrl` itself, so no source origin — this one or any future one — ever
+  reaches the browser. Nothing for 5.6/feed-UI to pick up.
+- **Content pools remain the trigger to revisit the archive's public `/img` route.** Real ingest
+  proceeded before per-user gating of private sources exists, on the recorded 08-17-26 call that
+  Ambit is Ben-only today. The archive stays deliberately user-blind (one static key, server to
+  server); per-reader gating of personal content is Ambit's job, and pools is where it lands.
+  See Ambit-Admin's `Ecosystem Architecture.md`.
+
+Also of note: the seed document that started this ecosystem is now owned by `ambit-archive`
+(`docs/SEED.md`). Ambit's stale `archive-seed` branch — one docs-only commit, ~90 behind `main` —
+is disposable; nothing should be built on it.
+
+---
+
 ## Open decision gates (recap)
 
 | Gate | Step | Options |
