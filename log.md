@@ -5,6 +5,29 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-21-26 Fri]] — Two environment facts moved out of the Daily Brief and into CLAUDE.md
+
+Vault-side hygiene with a repo-side consequence. Ben trimmed the Daily Brief's attention list from 35
+items to 16 on the rule that **an item belongs there only if the brief is its only home** — anything an
+active repo's own plan tracks gets a pointer, not a copy. Verifying that before trimming found two
+Ambit items with no home at all, so they now live in `CLAUDE.md` under a new *Local dev environment*
+section rather than only inside an old log entry:
+
+- **Ambit must own port 3000** — `BETTER_AUTH_URL` is pinned to `http://localhost:3000` and
+  `tailscale serve --bg 3000` fronts the same port, so a squatting `node` process breaks auth callbacks
+  and device passes at once. This had existed only in the 08-16 entry and had been dropped from every
+  Open/next list since.
+- **Device passes must run over HTTPS** — the Web Share API is secure-context only, so on plain HTTP
+  `navigator.share` is `undefined` rather than broken, and share/clipboard/service-worker checks were
+  silently untestable in every past pass.
+
+Also recorded there: a red Postgres-touching integration test usually means the machine is busy
+(overlapping `bun run test`, loaded dev server → vitest setup ~7s → ~650s), not that the code broke.
+
+Worth knowing for its own sake: the same sweep found **`structuralFloor`'s `dup-title` fix already
+shipped** (`search.ts`/`server.ts`, tested) while the brief had been carrying it as open for four days.
+A copy of a repo's backlog goes stale the moment anyone works in the repo.
+
 ### [[08-21-26 Fri]] — Handoff: the three questions 5.8 can't be planned without
 
 **Nothing shipped; this is a handoff.** Picked up at the top of 5.8 (the immersive gallery), got as
