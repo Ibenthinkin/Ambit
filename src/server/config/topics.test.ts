@@ -57,7 +57,7 @@ describe("TOPICS ↔ topic-graph.json", () => {
 });
 
 describe("seed queries", () => {
-  it("covers all five v1 sources for every topic", () => {
+  it("covers every v1 source for every topic", () => {
     for (const t of TOPICS) {
       expect(Object.keys(t.seedQueries).sort()).toEqual([...V1_SOURCES].sort());
     }
