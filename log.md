@@ -53,8 +53,11 @@ misbehavior is recorded as 7.3 evidence, not solved. `WILDCARD_SOURCES` membersh
 keeper, default no.
 
 **One prerequisite is Ben's:** a free api.data.gov key as `SMITHSONIAN_API_KEY` before execution.
+Discharged same evening — key is in `.env`, and 6.2 is **ready to hand to an executing session**
+(T1–T4 are independent starts; the session must stop at T6 for Ben's Keep/Park/Cut verdicts).
 
 *Session spend: 8.51M tok (in 152 · out 135.6k · cache r 7.73M / w 649.0k) · ~$27.49 · fable-5 · 17:02→17:36*
+*Session spend: 3.54M tok (in 44 · out 13.4k · cache r 2.83M / w 703.6k) · ~$17.57 · fable-5 · 17:36→19:33*
 
 ### [[08-21-26 Fri]] — Handoff: the three questions 5.8 can't be planned without
 
