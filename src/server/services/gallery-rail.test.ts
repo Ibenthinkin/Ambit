@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Item } from "~/server/db/items";
 import type { TopicGraph } from "./feed";
+import { WILDCARD_SOURCES } from "~/server/config/wildcard-sources";
 import { hashSeed, mulberry32 } from "./random";
 import {
   getGalleryRail,
@@ -304,7 +305,7 @@ describe("getGalleryRail", () => {
     expect(mockDrawImageAnywhere.mock.calls.length).toBeLessThanOrEqual(2);
   });
 
-  it("draws corpus-wide, unrestricted, on a wildcard slot (WILDCARD_SOURCES is empty today)", async () => {
+  it("leaves the topic walk entirely on a wildcard slot, preferring the configured sources", async () => {
     mockGetItemById.mockResolvedValue(makeItem({ id: "anchor" }));
     drawsAlwaysWork();
     mockEnv.FEED_DEBUG = true; // so the knob override below is honored
@@ -318,10 +319,42 @@ describe("getGalleryRail", () => {
     expect(rail).toHaveLength(3);
     expect(mockDrawFromTopic).not.toHaveBeenCalled();
     expect(mockDrawImageAnywhere).toHaveBeenCalledTimes(3);
+    // Asserted against the config rather than a literal: the point is that whatever is in that list
+    // is what a wildcard reaches for first, not that the list currently says "archive".
     for (const [opts] of mockDrawImageAnywhere.mock.calls) {
-      expect((opts as { sources?: string[] }).sources).toEqual([]);
+      expect((opts as { sources?: string[] }).sources).toEqual(
+        WILDCARD_SOURCES,
+      );
     }
     expect(rail.every((r) => r.debug?.via === "wildcard")).toBe(true);
+  });
+
+  // The half that makes opening the doorway safe against an archive with nothing in it yet: the
+  // preferred draw comes back empty and the wildcard reaches the whole corpus instead, exactly as
+  // it did when the list was empty.
+  it("falls through to the whole corpus when the preferred sources have nothing", async () => {
+    mockGetItemById.mockResolvedValue(makeItem({ id: "anchor" }));
+    mockDrawFromTopic.mockResolvedValue([]);
+    mockDrawImageAnywhere.mockImplementation((opts: { sources?: string[] }) =>
+      Promise.resolve(
+        opts.sources && opts.sources.length > 0
+          ? [] // the archive is empty
+          : [makeItem({ id: "from-the-corpus" })],
+      ),
+    );
+    mockEnv.FEED_DEBUG = true;
+
+    const rail = await getGalleryRail("anchor", {
+      count: 1,
+      rng: mulberry32(hashSeed("fallthrough")),
+      knobs: { wildcardChance: 1 },
+    });
+
+    expect(rail.map((r) => r.id)).toEqual(["from-the-corpus"]);
+    const attempted = mockDrawImageAnywhere.mock.calls.map(
+      ([opts]) => (opts as { sources?: string[] }).sources,
+    );
+    expect(attempted).toEqual([WILDCARD_SOURCES, []]);
   });
 
   it("ignores knob overrides when the debug flag is off", async () => {

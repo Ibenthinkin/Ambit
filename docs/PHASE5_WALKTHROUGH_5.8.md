@@ -29,9 +29,10 @@ the feed's own CORE/DRIFT/JUMP shares, then one curated-weighted image, with a t
 `items.galleryRail`, the API's third and (for now) last public procedure.
 
 **The knob.** `wildcardChance`, default 0.1 — the probability a slot ignores the topic walk
-entirely and draws corpus-wide, preferring `server/config/wildcard-sources.ts`'s list. That list is
-empty today and the emptiness is the point: it is the doorway ambit-archive's personal images walk
-through when that integration lands.
+entirely and draws corpus-wide, preferring `server/config/wildcard-sources.ts`'s list. That list
+shipped empty *with this phase*, and the emptiness was the point: it is the doorway ambit-archive's
+personal images walk through when that integration lands. (It landed the same day — Phase A.5 — and
+`"archive"` is now the list's one entry. Nothing else had to change.)
 
 **The plumbing.** `BottomSheet` grew `variant: "gallery"`, `dragToClose` and `onSwipeSide` (all
 additive; the existing suite passes untouched, which is the proof). `useRailGestures` and
@@ -207,5 +208,7 @@ three, covering nothing while showing green. It now picks the first tile that ac
 
 Saved's gallery entry and collection rails (5.9). URL sync while swiping — decided against; revisit
 only if refresh-mid-session turns out to matter. The ambit-archive integration itself:
-`WILDCARD_SOURCES` stays empty, and the knob is the doorway, not the feature. OG metadata for `/g/`
+`WILDCARD_SOURCES` stayed empty for this phase, and the knob was the doorway, not the feature.
+(Phase A.5 walked through it on 08-21-26: the archive adapter landed and `"archive"` went into that
+list, which is the entire change 5.8 was built to make possible.) OG metadata for `/g/`
 — `/i/` is the share surface. Image preloading and IIIF sizing (7.3).

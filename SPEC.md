@@ -416,9 +416,13 @@ the gallery spends none of the reader's corpus. Repeated `feed.page` draws were 
 at plan time for exactly that — auth-only, and every swipe-through would have re-created the
 corpus-burn defect removed on 08-20-26.
 
-`WILDCARD_SOURCES` is **empty today**. It is the doorway for ambit-archive's personal images, which
-will slot straight into the wildcard when that integration lands; until then the wildcard draws from
-the whole corpus, which is a real behaviour rather than a degraded one.
+`WILDCARD_SOURCES` holds **`archive`** as of Phase A.5, and nothing else. It shipped empty in 5.8 —
+the knob was the doorway, not the feature — because the archive adapter didn't exist on this side
+yet; A.5 landed it (§6.1), and this list is the one line that had to change for Ben's own
+photographs to start surfacing as the rail's wildcards. The preferred draw falls through to a
+source-unrestricted one when it comes back empty, so an archive with nothing ingested yet costs
+nothing: the wildcard reaches the whole corpus, which is a real behaviour rather than a degraded
+one.
 
 > Tags are a cheap secondary signal (filter/boost). The curation score and the topic graph are the primary drivers.
 
