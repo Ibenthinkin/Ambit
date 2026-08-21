@@ -20,14 +20,23 @@ export const USER_AGENT =
  */
 export async function fetchJson(
   url: string,
-  opts?: { delayMs?: number },
+  opts?: { delayMs?: number; headers?: Record<string, string> },
 ): Promise<unknown> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
       if (opts?.delayMs) await sleep(opts.delayMs);
       const res = await fetch(url, {
-        headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+        // Spread last so a caller can add headers (never drop the defaults). This exists for
+        // the archive adapter (Phase A.5), the first source that authenticates — it needs an
+        // `x-archive-key` on every request. Routing that through fetchJson rather than a bare
+        // fetch is the whole point: the keyed source inherits the retry/backoff and the
+        // User-Agent instead of quietly reimplementing half of them.
+        headers: {
+          "User-Agent": USER_AGENT,
+          Accept: "application/json",
+          ...opts?.headers,
+        },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
       return await res.json();
