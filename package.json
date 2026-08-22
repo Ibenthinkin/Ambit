@@ -19,6 +19,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "preview": "next build && next start",
+    "recurate": "bun run scripts/recurate.ts",
     "probe": "bun run scripts/probe-adapter.ts",
     "probe:feed": "bun run scripts/probe-feed.ts",
     "start": "bun run --bun next start",

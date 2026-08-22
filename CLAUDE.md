@@ -67,6 +67,15 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   same moment before believing it, and consider clearing accumulated e2e users/seen rows. Delete
   this note if the test is ever made robust.
 - **A red Postgres-touching integration test usually means the machine is busy, not that the code broke.** Overlapping `bun run test` runs, or a dev server under load, balloon vitest setup from ~7s to ~650s and then fail *unrelated* integration tests — three times in one session on 2026-08-20, a different test each time. Check what else is running before debugging the test. Delete this note if test isolation is ever fixed; don't leave it as folklore.
+- **A valid API key that still 401s is probably being shadowed by the shell.** Bun resolves real
+  environment variables *ahead* of `.env`, so an `export OPENROUTER_API_KEY=…` left in `~/.zshrc`
+  wins over the file and editing `.env` changes nothing the process ever sees. This cost most of
+  08-22-26: the stale and fresh keys were both 73 chars (`sk-or-v1-` + 64 hex), so length, prefix,
+  format and a password-manager comparison all agreed the key was correct. Diagnose with
+  `env -u OPENROUTER_API_KEY bun -e '…'` — if that succeeds where a bare run 401s, it's the shadow,
+  not the key. (Related tell: OpenRouter's `"User not found."` is an *account*-level error; a
+  malformed key reads `"No auth credentials found"`.) The zshrc exports are gone as of 08-22-26,
+  but any new machine or re-added export brings it straight back.
 
 
 ## Project log (`log.md`)
