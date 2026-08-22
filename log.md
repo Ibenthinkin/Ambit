@@ -29,9 +29,14 @@ messages. `/brief` reads this. Newest on top.
   their images, so judging from title alone scored them low. `tile.loc.gov` is no longer throttling — the
   Phase 6.2 429 that caused the text-only scores in the first place has cleared.
 
-**Open / next:** confirm 376 is the full LoC row count (`select count(*) from item where source='loc'`); if
-so, rows 0–258 (first run) plus 259–375 (this one) means the source is fully re-curated and `recurate.ts`'s
-LoC job is done.
+**Confirmed:** LoC holds **376 rows total**, so rows 0–258 (first run) plus 259–375 (this one) cover the
+source completely — every LoC item has now been scored against its image, and `recurate.ts`'s LoC job is
+done. Post-repair distribution: avg **8.21**, range 7–9, **0 rows with empty tags** and **0 bare-5s** — the
+shape `recurate.ts` treats as a give-up fallback survives nowhere in the source. (There is no score-based
+floor hiding low rows: `ingest.ts`'s structural floor is rule-based and runs *before* the curator, so 7–9
+is the genuine range.)
+
+**Open / next:** nothing outstanding on LoC.
 
 *Session spend: 3.94M tok (in 110 · out 27.9k · cache r 3.62M / w 297.7k) · ~$5.48 · opus-5 · 09:13→13:17*
 
