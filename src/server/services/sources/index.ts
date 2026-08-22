@@ -7,6 +7,7 @@
 import { aic } from "./aic";
 import { archive } from "./archive";
 import { cma } from "./cma";
+import { loc } from "./loc";
 import { met } from "./met";
 import { smithsonian } from "./smithsonian";
 import type { SourceAdapter, SourceId } from "./types";
@@ -21,6 +22,7 @@ export const adapters: Record<SourceId, SourceAdapter<unknown>> = {
   wellcome,
   archive,
   smithsonian,
+  loc,
 };
 
 export type {
