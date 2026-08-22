@@ -19,7 +19,8 @@ export type SourceId =
   // Keep/Park/Cut verdict on the trial evidence.
   | "smithsonian"
   | "loc"
-  | "nasa-images";
+  | "nasa-images"
+  | "poetrydb";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds
