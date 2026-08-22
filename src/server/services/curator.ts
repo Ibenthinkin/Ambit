@@ -206,11 +206,24 @@ function cacheKey(item: NormalizedItem): string {
  * One curator call for one item, cache-aside. Image items are judged by the image itself; if the
  * image can't be fetched, the curator judges on text alone (a missing thumbnail shouldn't null
  * out an item's score) rather than failing the whole call.
+ *
+ * `imageFetchFailed` reports that degradation to the caller. It used to be invisible, and Phase
+ * 6.2 is what showed why that mattered: tile.loc.gov started returning 429 to this machine
+ * partway through a 334-image LoC ingest, and *nothing anywhere said so* — the run reported a
+ * clean success, and the only symptom was a score average that came in half a point lower than
+ * the same source's sample run. A score assigned without ever looking at the image is a
+ * different measurement from one assigned with it, and the run has to be able to say which it
+ * made. (Cache hits report `false`: an item scored from cache made no fetch to fail.)
  */
 async function scoreItem(
   item: NormalizedItem,
   opts: { force?: boolean },
-): Promise<{ score: number; tags: string[]; tokens: number }> {
+): Promise<{
+  score: number;
+  tags: string[];
+  tokens: number;
+  imageFetchFailed: boolean;
+}> {
   const cacheFile = path.join(CACHE_DIR, `${cacheKey(item)}.json`);
 
   if (!opts.force) {
@@ -219,7 +232,7 @@ async function scoreItem(
         score: number;
         tags: string[];
       };
-      return { ...cached, tokens: 0 };
+      return { ...cached, tokens: 0, imageFetchFailed: false };
     } catch {
       // no cache entry yet — fall through and call the LLM
     }
@@ -237,13 +250,16 @@ async function scoreItem(
     | { type: "text"; text: string }
     | { type: "image_url"; image_url: { url: string } }
   )[] = [textPart];
+  let imageFetchFailed = false;
   if (item.type === "image" && item.imageUrl) {
     const dataUrl = await imageAsDataUrl(item.imageUrl);
     if (dataUrl)
       content.push({ type: "image_url", image_url: { url: dataUrl } });
-    else
+    else {
+      imageFetchFailed = true;
       textPart.text +=
         "\n(The image could not be fetched — judge from the text alone.)";
+    }
   }
 
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -287,7 +303,11 @@ async function scoreItem(
 
       await mkdir(CACHE_DIR, { recursive: true });
       await writeFile(cacheFile, JSON.stringify(result));
-      return { ...result, tokens: json.usage?.total_tokens ?? 0 };
+      return {
+        ...result,
+        tokens: json.usage?.total_tokens ?? 0,
+        imageFetchFailed,
+      };
     } catch (err) {
       lastErr = err;
       if (attempt < 4)
@@ -297,6 +317,10 @@ async function scoreItem(
   throw lastErr;
 }
 
+/** Per-source count of items whose image the curator could not fetch and therefore scored from
+ *  text alone. Keyed by `item.source`; sources with zero failures are absent. */
+export type ImageFetchFailures = Record<string, number>;
+
 /**
  * Stage 2 — LLM-curate a batch of structurally-floored items. Returns items in input order (the
  * caller's collision-resolution / rank logic depends on stable ordering). A hand-rolled
@@ -304,12 +328,18 @@ async function scoreItem(
  * out — the zero-dependency stand-in for p-limit (safe because JS is single-threaded; "parallel"
  * here means overlapping network waits, not threads). A judgment that fails after 4 retries gets
  * a neutral score rather than vanishing from the corpus, logged so a systemic failure is visible.
+ *
+ * `opts.onImageFetchFailure` is the hook for the *quieter* degradation described on scoreItem: an
+ * item whose image couldn't be fetched still gets a score, but from text alone. Ingest counts
+ * these per source and prints them, because a source whose images the curator can't pull is a
+ * source the feed can't show — and, before Phase 6.2, that condition was completely silent.
  */
 export async function curateItems(
   items: NormalizedItem[],
   opts?: {
     force?: boolean;
     onProgress?: (done: number, total: number) => void;
+    onImageFetchFailure?: (item: NormalizedItem) => void;
   },
 ): Promise<CuratedItem[]> {
   const out: CuratedItem[] = new Array<CuratedItem>(items.length);
@@ -322,9 +352,10 @@ export async function curateItems(
       const item = items[i];
       if (!item) continue;
       try {
-        const { score, tags } = await scoreItem(item, {
+        const { score, tags, imageFetchFailed } = await scoreItem(item, {
           force: opts?.force ?? false,
         });
+        if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
         out[i] = { ...item, curationScore: score, aestheticTags: tags };
       } catch (err) {
         console.warn(
