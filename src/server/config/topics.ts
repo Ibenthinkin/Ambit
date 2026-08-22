@@ -21,7 +21,7 @@
 
 /** The five sources with adapters landing in Phase 3, plus `archive` (Phase A.5) — Ben's own
  *  personal-archive service rather than a public museum API, ingested over its /search endpoint.
- *  Phase 6 adds Smithsonian, NASA APOD, etc. */
+ *  Phase 6.2 adds four more behind TRIAL_SOURCES below — trialed, not committed. */
 export const V1_SOURCES = [
   "wikipedia",
   "met",
@@ -33,6 +33,23 @@ export const V1_SOURCES = [
 
 export type V1Source = (typeof V1_SOURCES)[number];
 
+/** The Phase 6.2 trial batch (docs/source-candidates.md's trial loop) — adapters that exist and
+ *  ingest, but are not committed sources until Ben's Keep/Park/Cut verdict. Kept separate from
+ *  V1_SOURCES precisely so the type system can treat them differently: a v1 source owes every
+ *  topic a cell, a trial source owes only the topics where it is honest. */
+export const TRIAL_SOURCES = [
+  "smithsonian",
+  "loc",
+  "nasa-images",
+  "poetrydb",
+] as const;
+
+export type TrialSource = (typeof TRIAL_SOURCES)[number];
+
+/** Every source that may appear in a seedQueries cell. Iterate this — not V1_SOURCES — anywhere
+ *  the question is "what did this topic actually ask for". */
+export const SEED_SOURCES = [...V1_SOURCES, ...TRIAL_SOURCES] as const;
+
 /**
  * Per-source search terms that seed a topic's ingestion.
  *
@@ -40,8 +57,17 @@ export type V1Source = (typeof V1_SOURCES)[number];
  * one term per topic does not survive contact with five different APIs (phase0/NOTES.md:44). The
  * DB column is deliberately typed looser (`Record<string, string[]>` in schema.ts) so Phase 6 can
  * add sources without a migration; this narrower type just catches typos across sixteen rows.
+ *
+ * The two halves are typed differently on purpose (Phase 6.2 decision 4, "partial topic coverage
+ * is by design"): every v1 source is **required** on every topic, while a trial source's cell is
+ * **optional** — PoetryDB will never feed `ceramics`, and pretending otherwise would mean either
+ * a dishonest query or an empty array. An absent cell costs nothing: scripts/ingest.ts reads
+ * `seedQueries[sourceId] ?? []` and skips an empty list, so a source simply doesn't appear in the
+ * topics it has nothing to say about. What the optional-but-typed shape still buys is the typo
+ * check — `nasa_images:` or `poetryDB:` fails to compile rather than silently seeding nothing.
  */
-export type SeedQueries = Record<V1Source, string[]>;
+export type SeedQueries = Record<V1Source, string[]> &
+  Partial<Record<TrialSource, string[]>>;
 
 export interface TopicConfig {
   /** Slug. MUST match a key in server/config/topic-graph.json — see the header. */
@@ -93,6 +119,10 @@ export const TOPICS: readonly TopicConfig[] = [
         "ancient ruins and archaeology",
         "classical statue or carved stone relief",
       ],
+      // Live hit counts 08-21-26: antiquities 3,048 · ancient 2,497. Both are modest by
+      // Smithsonian standards, which is the point — the broad terms here return archival and
+      // specimen records rather than objects.
+      smithsonian: ["antiquities", "ancient"],
     },
   },
   {
@@ -105,6 +135,10 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["architecture"],
       wellcome: ["architecture"],
       archive: ["striking architecture", "architectural drawing or model"],
+      // Margolies photographed roadside America, so this cell is building *types*, not the word
+      // "architecture" (which the collection never uses). Hits: motel 990 · gas station 756 ·
+      // diner 86 — the small one is kept because diners are the collection's signature subject.
+      loc: ["motel", "diner", "gas station"],
     },
   },
   {
@@ -120,6 +154,11 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["astronomy", "celestial", "moon"],
       wellcome: ["astronomy"],
       archive: ["night sky full of stars", "planets spacecraft and the cosmos"],
+      // Hits: galaxy 1,729 · nebula 316.
+      "nasa-images": ["nebula", "galaxy"],
+      // Line-keywords, not subjects: PoetryDB searches the text of poems. Matches: stars 312 ·
+      // moon 415.
+      poetrydb: ["stars", "moon"],
     },
   },
   {
@@ -132,6 +171,12 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["botanical"],
       wellcome: ["botany"],
       archive: ["botanical illustration", "flowers and plants"],
+      // `botanical` (21,929) leans toward the illustration plates; `herbarium` (12,613) toward
+      // pressed specimens. Both are in deliberately, to let T5's evidence show which survives
+      // the curator's floor.
+      smithsonian: ["botanical", "herbarium"],
+      // Matches: flower 634 · rose 585.
+      poetrydb: ["flower", "rose"],
     },
   },
   {
@@ -149,6 +194,9 @@ export const TOPICS: readonly TopicConfig[] = [
         "old map of terrain or coastline",
         "topographic or celestial chart",
       ],
+      // The nearest honest thing NASA has to a map: 7,356 hits, satellite imagery of terrain.
+      // Not cartography in the drawn sense — a Park-worthy stretch if the tiles read wrong.
+      "nasa-images": ["earth observation"],
     },
   },
   {
@@ -165,6 +213,8 @@ export const TOPICS: readonly TopicConfig[] = [
       // the risk here is drift, not starvation: eyeball this cell at probe time, then retune
       // or accept. One query rather than two, deliberately.
       archive: ["glazed ceramic pottery vessel"],
+      // Hits: ceramic 3,642 · pottery 708.
+      smithsonian: ["ceramic", "pottery"],
     },
   },
   {
@@ -177,6 +227,10 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["mineral"],
       wellcome: ["geology"],
       archive: ["mineral specimen or crystal", "dramatic rock formation"],
+      // Hits: mineral 15,024 · crystal 1,930.
+      smithsonian: ["mineral", "crystal"],
+      // Hits: volcano 1,208 · glacier 367.
+      "nasa-images": ["volcano", "glacier"],
     },
   },
   {
@@ -189,6 +243,12 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["machine"],
       wellcome: ["machinery"],
       archive: ["industrial machinery", "mechanical device or engine"],
+      // Hits: machine 4,232 · engine 2,207.
+      smithsonian: ["machine", "engine"],
+      // 779 hits — Margolies shot cars in front of everything.
+      loc: ["automobile"],
+      // Hits: rocket 46,251 · aircraft 9,928.
+      "nasa-images": ["rocket", "aircraft"],
     },
   },
   {
@@ -214,6 +274,8 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["mythology"],
       wellcome: ["mythology"],
       archive: ["mythological scene with gods or creatures", "mythical beast"],
+      // 173 matches — the thinnest poetrydb cell, and honestly so.
+      poetrydb: ["gods"],
     },
   },
   {
@@ -231,6 +293,9 @@ export const TOPICS: readonly TopicConfig[] = [
       // (lowest rank wins; ties break alphabetically, so poetry takes them), and the
       // collision count is one of A.5's recorded measurements.
       archive: ["handwritten poem or manuscript page"],
+      // The one cell where the source and the topic are the same thing. Matches: love 1,504 ·
+      // night 1,006 · song 524.
+      poetrydb: ["love", "night", "song"],
     },
   },
   {
@@ -246,6 +311,8 @@ export const TOPICS: readonly TopicConfig[] = [
         "portrait of a person",
         "expressive portrait photograph or painting",
       ],
+      // 22,221 hits, across the portrait galleries and every unit's people photographs.
+      smithsonian: ["portrait"],
     },
   },
   {
@@ -258,6 +325,8 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["textile"],
       wellcome: ["textile"],
       archive: ["woven textile or fabric pattern", "embroidery and stitching"],
+      // Hits: textile 13,350 · woven 4,402.
+      smithsonian: ["textile", "woven"],
     },
   },
   {
@@ -270,6 +339,10 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["sea"],
       wellcome: ["sea"],
       archive: ["ocean waves and seascape", "underwater marine life"],
+      // Hits: ocean 9,804 · sea ice 443.
+      "nasa-images": ["ocean", "sea ice"],
+      // 842 matches.
+      poetrydb: ["sea"],
     },
   },
   {
@@ -288,6 +361,9 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["calligraphy", "letterpress"],
       wellcome: ["printing"],
       archive: ["typography and lettering", "hand-lettered poster design"],
+      // Roadside lettering is what this collection is *for*. `sign` (2,197) carries the cell;
+      // `neon sign` (10) is kept because those ten are the best of them.
+      loc: ["neon sign", "sign"],
     },
   },
   {
@@ -300,6 +376,11 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["animal"],
       wellcome: ["zoology"],
       archive: ["wild animal", "insect or bird illustration"],
+      // Deliberately NOT `specimen` (5,029,597 hits) — that term is the whole natural-history
+      // catalogue and would flood the trial with tray shots. `animal` (1,113,345) and `bird`
+      // (566,124) are still enormous; how much of that survives curation is the density
+      // question this trial exists to answer.
+      smithsonian: ["animal", "bird"],
     },
   },
 ];

@@ -14,7 +14,7 @@
 import { sql } from "drizzle-orm";
 
 import type { SeedQueries } from "~/server/config/topics";
-import { TOPICS, V1_SOURCES } from "~/server/config/topics";
+import { SEED_SOURCES, TOPICS } from "~/server/config/topics";
 import { db } from "~/server/db/client";
 import { topic } from "~/server/db/schema";
 
@@ -28,7 +28,10 @@ import { topic } from "~/server/db/schema";
  * preserved by JSONB, so it's compared as-is.
  */
 function seedQueriesEqual(a: SeedQueries, b: SeedQueries): boolean {
-  return V1_SOURCES.every((source) => {
+  // SEED_SOURCES, not V1_SOURCES: since Phase 6.2 a topic can carry trial-source cells too, and
+  // walking only the v1 six would report "unchanged" for a run that in fact rewrote them — the
+  // upsert would still be correct, but the summary would be lying about what it did.
+  return SEED_SOURCES.every((source) => {
     const [x, y] = [a[source] ?? [], b[source] ?? []];
     return x.length === y.length && x.every((q, i) => q === y[i]);
   });
