@@ -55,6 +55,17 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 
 - **Ambit must own port 3000.** `BETTER_AUTH_URL` is pinned to `http://localhost:3000`, so every auth callback and password-reset link points at whatever is listening there — and `tailscale serve --bg 3000`, which is how device passes get HTTPS, fronts the same port. An unrelated `node` app has been squatting 3000 since 08-16; run `lsof -ti:3000` and clear it before starting a dev server or a device pass.
 - **Run device passes over HTTPS, not `http://` on the LAN.** The Web Share API is secure-context only, so on plain HTTP `navigator.share` is `undefined` rather than broken — share, clipboard and service workers silently can't be tested at all. Use the tailnet origin (`https://macbook-air-m5.halley-morpho.ts.net`); it and every other dev origin must be listed in `src/config/dev-origins.js`.
+- **`e2e/gallery.spec.ts:193` ("tile → item → hero → gallery, and back") goes flaky as the dev DB
+  accumulates e2e state.** Distinct from the note below, and don't confuse them: that one is CPU
+  load and hits a *different* test each time; this is the **same test every time**, it passes 10/10
+  in isolation, and it only fails inside a full `bun run e2e`. Verified on `main` 08-21-26 — clean
+  3/3 early in the evening, then 2 failures in 3 runs a couple of hours later with no code change
+  between. What accumulated in between: **274 `user` rows and 6,709 `seen_item` rows** from repeated
+  suites, on top of a corpus that grew 30% the same day. Both failure signatures are the same class
+  — clicking something mid-animation (`element is not stable`, or a `waitForURL` that never
+  resolves). **So: a red gallery.spec:193 is not evidence about your branch.** Check `main` at the
+  same moment before believing it, and consider clearing accumulated e2e users/seen rows. Delete
+  this note if the test is ever made robust.
 - **A red Postgres-touching integration test usually means the machine is busy, not that the code broke.** Overlapping `bun run test` runs, or a dev server under load, balloon vitest setup from ~7s to ~650s and then fail *unrelated* integration tests — three times in one session on 2026-08-20, a different test each time. Check what else is running before debugging the test. Delete this note if test isolation is ever fixed; don't leave it as folklore.
 
 

@@ -118,11 +118,26 @@ descriptions carry `&quot;`/`&amp;`, which strips tags leaves behind). And the p
 score-distribution SQL doesn't run — `round(double precision, integer)` doesn't exist in Postgres;
 `avg` needs a `::numeric` cast.
 
+**The e2e red herring, worth an hour of someone else's time.** The final `bun run e2e` failed
+`gallery.spec.ts:193` four times running while `main` passed 27/27 on the same DB — which reads as
+conclusive and isn't. The test passes 10/10 in isolation; only the full suite fails it; the failure
+signature moves between "element is not stable" and a `waitForURL` that never resolves. Only one
+file in the whole diff can even reach that flow (`source-label.ts`, whose longer credit lines could
+plausibly shift layout under an animation) — swapping in `main`'s copy **still failed**. Re-running
+`main` itself settled it: clean 3/3 early in the evening, **2 failures in 3 runs two hours later**,
+no code change between. What accumulated in between: **274 `user` rows and 6,709 `seen_item` rows**
+from repeated suites, on a corpus 30% larger than that morning. A pre-existing flake this phase made
+more likely without causing. Recorded in CLAUDE.md and explicitly distinguished from the older
+busy-machine note — that one hits a *different* test each time, this one is always the same test.
+Not fixed here; making it robust is its own change.
+
 **Open / next:** (1) **`--force` re-curate the 376 LoC items** once `tile.loc.gov` clears, with the
 new counter on, and record the real number. (2) **Ben's call on a curator rubric for text items** —
 blocks un-parking poetrydb, and lands before 6.3's blogs, which are text by construction. (3) 7.3's
 proxy-vs-cache decision now has two different kinds of evidence pointing at different fixes.
-(4) 6.1 (feed learns from saves) is untouched and next in the phase.
+(4) `gallery.spec.ts:193` wants either a stability fix or a dev-DB reset habit — 274 accumulated
+e2e users is not a healthy baseline. (5) 6.1 (feed learns from saves) is untouched and next in the
+phase.
 
 *Session spend: 82.88M tok (in 954 · out 338.6k · cache r 80.81M / w 1.74M) · ~$62.59 · opus-5 + opus-4-7 · 19:56→21:14*
 

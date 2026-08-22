@@ -525,6 +525,43 @@ SPEC §15 carries it.
 
 ---
 
+# One thing this phase did *not* break, and the hour it took to prove it
+
+`bun run e2e` is the phase's final check, and it came back red: **`gallery.spec.ts:193` — "from the
+feed: tile → item → hero → gallery, and back to the intact feed"**. Four full runs, four failures.
+`main` passed 27/27 on the same database. That looks conclusive, and it was wrong.
+
+The path to the actual answer, since the wrong turn is the instructive part:
+
+1. **The test passes 10/10 in isolation** (`--repeat-each=2` on the whole file). Only the full suite
+   fails it. So: ordering or accumulated state, not the test's own logic.
+2. **The failure signature moves** — sometimes `element is not stable` on the gallery pill's Feed
+   button, sometimes a `waitForURL` to `/g/<id>` that never resolves. Both are the same class:
+   clicking something mid-animation. Not a specific defect.
+3. **Only one file in the whole diff can reach that flow.** Everything else 6.2 touched is
+   ingest-only — adapters, curator, `topics.ts`, fixtures. The one exception is
+   `src/lib/source-label.ts`, whose new entries make three credit lines materially longer, which is
+   a plausible cause of a layout shift under an animation. So: check out `main`'s version of that
+   one file and run the suite.
+4. **It failed anyway** — 1 of 2 runs, with `main`'s `source-label.ts` in place. Hypothesis dead.
+5. **Re-run `main` itself, now, rather than trusting the earlier result.** `main` failed the same
+   test in **2 of 3** runs.
+
+`main` was clean 3/3 early in the evening and flaky 2/3 two hours later, with no code change in
+between. What accumulated in between was **274 `user` rows and 6,709 `seen_item` rows** from
+repeated suites, against a corpus that grew 30% the same day.
+
+**So it is a pre-existing flake that this phase made more likely without causing**, and the useful
+output is knowing not to read it as a branch signal. Recorded in CLAUDE.md next to — and explicitly
+distinguished from — the existing busy-machine note, which describes a *different* failure (CPU
+load, a different test each time). This one is the same test every time. **Deliberately not fixed
+here**: making that test robust is its own change, and 6.2's scope is sources.
+
+The rest of the suite: 25–26 passing on every run, `bun run check` green at every commit
+(547 unit tests).
+
+---
+
 # What else changed, and why (part two)
 
 Three small things, each forced by something above rather than chosen:
