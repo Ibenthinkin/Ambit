@@ -5,6 +5,36 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-22-26 Sat]] — LoC re-curation repaired, and a stale key no amount of checking could find
+
+**Findings:**
+- `bun run recurate --source loc` failed *every* item with OpenRouter `401 {"message":"User not found."}`.
+  The cause was not the key in `.env`: **Bun resolves real environment variables ahead of `.env`**, and
+  `~/.zshrc` carried two `export OPENROUTER_API_KEY` lines — the second, dead one winning. Editing `.env`
+  changed nothing the process ever saw. Both old and new keys were 73 chars (`sk-or-v1-` + 64 hex), so
+  length, prefix, format and a password-manager comparison all looked correct; the shadow was invisible to
+  every check short of `env -u OPENROUTER_API_KEY bun -e …`, which returned 200 on the first try. The zshrc
+  exports are deleted — `.env` is now the only source.
+- **"User not found." is OpenRouter's *account*-level error**, not a bad-key error (a malformed key reads
+  "No auth credentials found"). That distinction was the tell, and it pointed at the account for two rounds
+  before the real answer turned out to be which key was being sent at all. Worth remembering next time.
+- The 401s were never cached. `curator.ts`'s `writeFile` to `.cache/curation/` sits inside the `try` after a
+  successful parse, so the failed run left no poisoned entries needing a sweep before the retry.
+
+**Shipped:**
+- **LoC re-curation complete** — resumed from offset 259 (5-row smoke test, then 112): **117 rows re-scored
+  against the actual image**, `no-image 0`, `fallback-skips 0`, so nothing was left on a text-only judgment.
+  avg 7.20→7.60 on the smoke set, 7.72→8.16 across the remaining 112; 49 of those changed score.
+- The upward drift is what the text-only scores predicted: LoC's billboard/signage catalog titles undersell
+  their images, so judging from title alone scored them low. `tile.loc.gov` is no longer throttling — the
+  Phase 6.2 429 that caused the text-only scores in the first place has cleared.
+
+**Open / next:** confirm 376 is the full LoC row count (`select count(*) from item where source='loc'`); if
+so, rows 0–258 (first run) plus 259–375 (this one) means the source is fully re-curated and `recurate.ts`'s
+LoC job is done.
+
+*Session spend: 3.94M tok (in 110 · out 27.9k · cache r 3.62M / w 297.7k) · ~$5.48 · opus-5 · 09:13→13:17*
+
 ### [[08-21-26 Fri]] — Two environment facts moved out of the Daily Brief and into CLAUDE.md
 
 Vault-side hygiene with a repo-side consequence. Ben trimmed the Daily Brief's attention list from 35
