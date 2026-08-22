@@ -76,10 +76,26 @@ describe("seed queries", () => {
     }
   });
 
-  it("gives at least one trial source a cell (the 6.2 batch is seeded)", () => {
-    for (const source of TRIAL_SOURCES) {
-      const topics = TOPICS.filter((t) => source in t.seedQueries);
-      expect(topics.length, source).toBeGreaterThan(0);
+  // Phase 6.2's verdicts, encoded (docs/PHASE6_WALKTHROUGH_6.2.md). Three of the four trial
+  // sources were kept and carry cells; poetrydb was parked and carries none, which is what makes
+  // it inert — ingest reads `seedQueries[sourceId] ?? []` and skips an empty list, so a source
+  // with no cells is never searched no matter that its adapter is registered.
+  //
+  // If this fails because poetrydb was un-parked, the fix is to move it into the kept list here.
+  // That is the intended way to notice, not a nuisance: "which sources actually ingest" is a
+  // decision, and it should not be possible to change it without a test saying so.
+  it("gives every kept trial source cells, and the parked one none", () => {
+    const cellCount = (source: string) =>
+      TOPICS.filter((t) => source in t.seedQueries).length;
+
+    for (const source of ["smithsonian", "loc", "nasa-images"]) {
+      expect(cellCount(source), source).toBeGreaterThan(0);
+    }
+    expect(cellCount("poetrydb"), "poetrydb is parked").toBe(0);
+
+    // Every name checked above has to be a real trial source, or the assertions are vacuous.
+    for (const source of ["smithsonian", "loc", "nasa-images", "poetrydb"]) {
+      expect(TRIAL_SOURCES).toContain(source);
     }
   });
 

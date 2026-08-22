@@ -33,10 +33,17 @@ export const V1_SOURCES = [
 
 export type V1Source = (typeof V1_SOURCES)[number];
 
-/** The Phase 6.2 trial batch (docs/source-candidates.md's trial loop) — adapters that exist and
- *  ingest, but are not committed sources until Ben's Keep/Park/Cut verdict. Kept separate from
- *  V1_SOURCES precisely so the type system can treat them differently: a v1 source owes every
- *  topic a cell, a trial source owes only the topics where it is honest. */
+/** The Phase 6.2 trial batch (docs/source-candidates.md's trial loop). Kept separate from
+ *  V1_SOURCES so the type system can treat the two halves differently: a v1 source owes every
+ *  topic a cell, a source here owes only the topics where it is honest.
+ *
+ *  Verdicts landed 08-21-26 (docs/PHASE6_WALKTHROUGH_6.2.md): **smithsonian, loc and nasa-images
+ *  were kept** and promoted into SPEC §6.1 with full cells below; **poetrydb was parked** — its
+ *  adapter and tests stay in the repo and it stays in this list, but it has no cells, so ingest
+ *  never reaches it. The two reasons are recorded in the walkthrough: its summaries pick up
+ *  epigraphs and dedications as though they were the poem's opening, and the curator's rubric is
+ *  written for images and cannot score a lyric poem (Pope scored 4). Both are fixable; neither
+ *  was 6.2's to fix. Un-parking it means giving it cells again — nothing else. */
 export const TRIAL_SOURCES = [
   "smithsonian",
   "loc",
@@ -135,10 +142,21 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["architecture"],
       wellcome: ["architecture"],
       archive: ["striking architecture", "architectural drawing or model"],
+      // Hits: building 12,915 · architecture 10,421.
+      smithsonian: ["architecture", "building"],
       // Margolies photographed roadside America, so this cell is building *types*, not the word
-      // "architecture" (which the collection never uses). Hits: motel 990 · gas station 756 ·
-      // diner 86 — the small one is kept because diners are the collection's signature subject.
-      loc: ["motel", "diner", "gas station"],
+      // "architecture" (which the collection never uses). Hits: hotel 1,030 · motel 990 ·
+      // gas station 756 · restaurant 756 · ice cream 171 · diner 86. The two small ones are kept
+      // because diners and ice-cream stands are the collection's signature subjects, and the
+      // trial's `architecture` cell scored 8.31 on exactly them.
+      loc: [
+        "motel",
+        "gas station",
+        "hotel",
+        "restaurant",
+        "diner",
+        "ice cream",
+      ],
     },
   },
   {
@@ -154,11 +172,13 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["astronomy", "celestial", "moon"],
       wellcome: ["astronomy"],
       archive: ["night sky full of stars", "planets spacecraft and the cosmos"],
-      // Hits: galaxy 1,729 · nebula 316.
-      "nasa-images": ["nebula", "galaxy"],
-      // Line-keywords, not subjects: PoetryDB searches the text of poems. Matches: stars 312 ·
-      // moon 415.
-      poetrydb: ["stars", "moon"],
+      // Promoted 08-21-26. Smithsonian is *weak* here and the queries say so: bare `astronomy`
+      // returns 32 rows. The instrument vocabulary is what its collections actually index —
+      // telescope 190 · observatory 702 · celestial 118 — so the cell buys objects about looking
+      // at the sky rather than pictures of it. NASA carries this topic; this is texture.
+      smithsonian: ["telescope", "celestial", "observatory"],
+      // Hits: telescope 7,925 · galaxy 1,729 · nebula 316.
+      "nasa-images": ["galaxy", "telescope", "nebula"],
     },
   },
   {
@@ -175,8 +195,6 @@ export const TOPICS: readonly TopicConfig[] = [
       // pressed specimens. Both are in deliberately, to let T5's evidence show which survives
       // the curator's floor.
       smithsonian: ["botanical", "herbarium"],
-      // Matches: flower 634 · rose 585.
-      poetrydb: ["flower", "rose"],
     },
   },
   {
@@ -194,9 +212,14 @@ export const TOPICS: readonly TopicConfig[] = [
         "old map of terrain or coastline",
         "topographic or celestial chart",
       ],
-      // The nearest honest thing NASA has to a map: 7,356 hits, satellite imagery of terrain.
-      // Not cartography in the drawn sense — a Park-worthy stretch if the tiles read wrong.
-      "nasa-images": ["earth observation"],
+      // Hits: map 3,320 · globe 642 · atlas 539.
+      smithsonian: ["map", "globe", "atlas"],
+      // The nearest honest thing NASA has to a map: satellite 11,918 · earth observation 7,356,
+      // both satellite imagery of terrain rather than cartography in the drawn sense. The trial
+      // cell yielded only 3 items — NASA publishes long runs of near-identical scene captures
+      // under one title and dup-title takes them — so `satellite` was added to widen the
+      // vocabulary rather than the quota.
+      "nasa-images": ["earth observation", "satellite"],
     },
   },
   {
@@ -229,8 +252,8 @@ export const TOPICS: readonly TopicConfig[] = [
       archive: ["mineral specimen or crystal", "dramatic rock formation"],
       // Hits: mineral 15,024 · crystal 1,930.
       smithsonian: ["mineral", "crystal"],
-      // Hits: volcano 1,208 · glacier 367.
-      "nasa-images": ["volcano", "glacier"],
+      // Hits: volcano 1,208 · desert 1,011 · glacier 367.
+      "nasa-images": ["volcano", "desert", "glacier"],
     },
   },
   {
@@ -247,8 +270,8 @@ export const TOPICS: readonly TopicConfig[] = [
       smithsonian: ["machine", "engine"],
       // 779 hits — Margolies shot cars in front of everything.
       loc: ["automobile"],
-      // Hits: rocket 46,251 · aircraft 9,928.
-      "nasa-images": ["rocket", "aircraft"],
+      // Hits: rocket 46,251 · aircraft 9,928 · spacesuit 2,935.
+      "nasa-images": ["rocket", "aircraft", "spacesuit"],
     },
   },
   {
@@ -262,6 +285,8 @@ export const TOPICS: readonly TopicConfig[] = [
       wellcome: ["music"],
       // Weak coverage — musician + drum tags total roughly 15 items. Same caveat as ceramics.
       archive: ["musician performing with an instrument"],
+      // Hits: music 2,766 · musical instrument 793.
+      smithsonian: ["music", "musical instrument"],
     },
   },
   {
@@ -274,8 +299,8 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["mythology"],
       wellcome: ["mythology"],
       archive: ["mythological scene with gods or creatures", "mythical beast"],
-      // 173 matches — the thinnest poetrydb cell, and honestly so.
-      poetrydb: ["gods"],
+      // 430 hits — modest, but they are objects rather than specimen records.
+      smithsonian: ["mythology"],
     },
   },
   {
@@ -293,9 +318,6 @@ export const TOPICS: readonly TopicConfig[] = [
       // (lowest rank wins; ties break alphabetically, so poetry takes them), and the
       // collision count is one of A.5's recorded measurements.
       archive: ["handwritten poem or manuscript page"],
-      // The one cell where the source and the topic are the same thing. Matches: love 1,504 ·
-      // night 1,006 · song 524.
-      poetrydb: ["love", "night", "song"],
     },
   },
   {
@@ -313,6 +335,10 @@ export const TOPICS: readonly TopicConfig[] = [
       ],
       // 22,221 hits, across the portrait galleries and every unit's people photographs.
       smithsonian: ["portrait"],
+      // Added at promotion — the one topic outside the trial's five where NASA is genuinely
+      // honest. Hits: astronaut 57,854 (too broad; it returns hardware and training footage),
+      // so the cell asks for the framing instead: astronaut portrait 1,862 · crew portrait 1,308.
+      "nasa-images": ["astronaut portrait", "crew portrait"],
     },
   },
   {
@@ -325,8 +351,12 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["textile"],
       wellcome: ["textile"],
       archive: ["woven textile or fabric pattern", "embroidery and stitching"],
-      // Hits: textile 13,350 · woven 4,402.
-      smithsonian: ["textile", "woven"],
+      // Hits: textile 13,350 · embroidery 3,109 · lace 2,828 · woven 4,402. `embroidery` and
+      // `lace` were added at promotion for a specific reason: the trial's `textile` query lost
+      // most of its yield to the structural floor's dup-title rule, because Cooper Hewitt
+      // catalogues a great many objects under the literal title "Textile". Vocabulary that
+      // returns differently-titled objects is the fix; a bigger quota is not.
+      smithsonian: ["textile", "embroidery", "lace", "woven"],
     },
   },
   {
@@ -339,10 +369,12 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["sea"],
       wellcome: ["sea"],
       archive: ["ocean waves and seascape", "underwater marine life"],
-      // Hits: ocean 9,804 · sea ice 443.
-      "nasa-images": ["ocean", "sea ice"],
-      // 842 matches.
-      poetrydb: ["sea"],
+      // Deliberately NOT bare `ocean` (121,063 hits) — that is the invertebrate-zoology specimen
+      // catalogue, and it would flood the cell with tray shots exactly the way `specimen` would
+      // flood zoology. seascape 1,020 · whale 8,631 · ship 2,320 buy the sea as a subject.
+      smithsonian: ["seascape", "whale", "ship"],
+      // Hits: ocean 9,804 · hurricane 1,845 · sea ice 443.
+      "nasa-images": ["ocean", "hurricane", "sea ice"],
     },
   },
   {
@@ -361,9 +393,12 @@ export const TOPICS: readonly TopicConfig[] = [
       cma: ["calligraphy", "letterpress"],
       wellcome: ["printing"],
       archive: ["typography and lettering", "hand-lettered poster design"],
+      // `typography` itself returns 24 rows — dead, and dropped rather than kept for appearances
+      // (the same call CMA's cell made in 2.3). poster 302 · calligraphy 138 · letterpress 110.
+      smithsonian: ["poster", "calligraphy", "letterpress"],
       // Roadside lettering is what this collection is *for*. `sign` (2,197) carries the cell;
-      // `neon sign` (10) is kept because those ten are the best of them.
-      loc: ["neon sign", "sign"],
+      // `neon sign` (10) is kept because those ten are the best of them. billboard 135.
+      loc: ["sign", "billboard", "neon sign"],
     },
   },
   {
