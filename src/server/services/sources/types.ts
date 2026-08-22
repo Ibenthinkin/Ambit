@@ -18,7 +18,8 @@ export type SourceId =
   // rows, not yet committed v1 sources — each is promoted into SPEC §6.1 or cut after Ben's
   // Keep/Park/Cut verdict on the trial evidence.
   | "smithsonian"
-  | "loc";
+  | "loc"
+  | "nasa-images";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds

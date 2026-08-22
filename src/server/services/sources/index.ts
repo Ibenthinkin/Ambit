@@ -9,6 +9,7 @@ import { archive } from "./archive";
 import { cma } from "./cma";
 import { loc } from "./loc";
 import { met } from "./met";
+import { nasaImages } from "./nasa-images";
 import { smithsonian } from "./smithsonian";
 import type { SourceAdapter, SourceId } from "./types";
 import { wellcome } from "./wellcome";
@@ -23,6 +24,7 @@ export const adapters: Record<SourceId, SourceAdapter<unknown>> = {
   archive,
   smithsonian,
   loc,
+  "nasa-images": nasaImages,
 };
 
 export type {
