@@ -8,7 +8,16 @@
  *  adds more sources without touching this file — only the DB's `item.source` column and this
  *  union grow. */
 export type SourceId =
-  "wikipedia" | "met" | "aic" | "cma" | "wellcome" | "archive";
+  | "wikipedia"
+  | "met"
+  | "aic"
+  | "cma"
+  | "wellcome"
+  | "archive"
+  // Phase 6.2 trial sources (docs/source-candidates.md's trial loop). They are adapters and DB
+  // rows, not yet committed v1 sources — each is promoted into SPEC §6.1 or cut after Ben's
+  // Keep/Park/Cut verdict on the trial evidence.
+  | "smithsonian";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds
