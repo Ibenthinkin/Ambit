@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import topicGraph from "./topic-graph.json";
-import { TOPICS, V1_SOURCES } from "./topics";
+import { SEED_SOURCES, TOPICS, TRIAL_SOURCES, V1_SOURCES } from "./topics";
 
 const ids = TOPICS.map((t) => t.id);
 const graphKeys = Object.keys(topicGraph.graph);
@@ -59,7 +59,43 @@ describe("TOPICS ↔ topic-graph.json", () => {
 describe("seed queries", () => {
   it("covers every v1 source for every topic", () => {
     for (const t of TOPICS) {
-      expect(Object.keys(t.seedQueries).sort()).toEqual([...V1_SOURCES].sort());
+      const keys = Object.keys(t.seedQueries);
+      for (const source of V1_SOURCES) expect(keys, t.id).toContain(source);
+    }
+  });
+
+  // Phase 6.2 (decision 4): a trial source gets a cell only on the topics where it is honest —
+  // PoetryDB has nothing to say about ceramics, and NASA has nothing to say about textiles. What
+  // is NOT allowed is a cell naming a source that doesn't exist, which is the typo this catches.
+  it("names only known sources", () => {
+    const known = new Set<string>(SEED_SOURCES);
+    for (const t of TOPICS) {
+      for (const key of Object.keys(t.seedQueries)) {
+        expect(known, `${t.id}/${key}`).toContain(key);
+      }
+    }
+  });
+
+  // Phase 6.2's verdicts, encoded (docs/PHASE6_WALKTHROUGH_6.2.md). Three of the four trial
+  // sources were kept and carry cells; poetrydb was parked and carries none, which is what makes
+  // it inert — ingest reads `seedQueries[sourceId] ?? []` and skips an empty list, so a source
+  // with no cells is never searched no matter that its adapter is registered.
+  //
+  // If this fails because poetrydb was un-parked, the fix is to move it into the kept list here.
+  // That is the intended way to notice, not a nuisance: "which sources actually ingest" is a
+  // decision, and it should not be possible to change it without a test saying so.
+  it("gives every kept trial source cells, and the parked one none", () => {
+    const cellCount = (source: string) =>
+      TOPICS.filter((t) => source in t.seedQueries).length;
+
+    for (const source of ["smithsonian", "loc", "nasa-images"]) {
+      expect(cellCount(source), source).toBeGreaterThan(0);
+    }
+    expect(cellCount("poetrydb"), "poetrydb is parked").toBe(0);
+
+    // Every name checked above has to be a real trial source, or the assertions are vacuous.
+    for (const source of ["smithsonian", "loc", "nasa-images", "poetrydb"]) {
+      expect(TRIAL_SOURCES).toContain(source);
     }
   });
 
@@ -67,8 +103,12 @@ describe("seed queries", () => {
   // that source — the failure mode Phase 0 spent real time diagnosing (see the walkthrough).
   it("gives every source at least one non-empty, trimmed query", () => {
     for (const t of TOPICS) {
-      for (const source of V1_SOURCES) {
+      for (const source of SEED_SOURCES) {
+        // An absent trial cell is fine and expected; a *present* one still has to carry real
+        // queries, because an empty array is silently skipped at ingest — the failure mode Phase 0
+        // spent real time diagnosing.
         const queries = t.seedQueries[source];
+        if (queries === undefined) continue;
         expect(queries.length, `${t.id}/${source}`).toBeGreaterThan(0);
         for (const q of queries) {
           expect(q, `${t.id}/${source}`).toBe(q.trim());
@@ -80,8 +120,9 @@ describe("seed queries", () => {
 
   it("has no duplicate queries within a source", () => {
     for (const t of TOPICS) {
-      for (const source of V1_SOURCES) {
+      for (const source of SEED_SOURCES) {
         const queries = t.seedQueries[source];
+        if (queries === undefined) continue;
         expect(new Set(queries).size, `${t.id}/${source}`).toBe(queries.length);
       }
     }

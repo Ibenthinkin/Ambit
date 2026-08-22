@@ -39,6 +39,11 @@ export const env = createEnv({
     // for validation and because this file is where the app's env surface is documented.
     ARCHIVE_URL: z.string().url().optional(),
     ARCHIVE_API_KEY: z.string().min(1).optional(),
+    // Smithsonian Open Access (Phase 6.2 trial) — a free api.data.gov key. Optional for exactly
+    // the reasons above: ingest-only, and a clone without one must still boot and ingest every
+    // other source. sources/smithsonian.ts reads process.env at search() time and throws its own
+    // "not configured" error there.
+    SMITHSONIAN_API_KEY: z.string().min(1).optional(),
     // Optional (Phase 4.1 decision): gates the feed engine's debug affordances (SPEC §9's "dev
     // affordances stay in" — the debug overlay's `why`/`curationScore` on each card, and whether
     // `feed.page` honors ad hoc knob overrides at all). Left unset, it defaults to "on" in
@@ -75,6 +80,7 @@ export const env = createEnv({
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     ARCHIVE_URL: process.env.ARCHIVE_URL,
     ARCHIVE_API_KEY: process.env.ARCHIVE_API_KEY,
+    SMITHSONIAN_API_KEY: process.env.SMITHSONIAN_API_KEY,
     FEED_DEBUG: process.env.FEED_DEBUG,
     NODE_ENV: process.env.NODE_ENV,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,

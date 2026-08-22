@@ -11,10 +11,19 @@ describe("sourceLabel", () => {
     expect(sourceLabel("wellcome")).toBe("Wellcome Collection");
   });
 
-  // `item.source` is an open set — Phase 6 adapters and the private ambit-archive/loupe sources
+  it("names Phase 6.2's trial sources too", () => {
+    // The fallback gets every one of these wrong ("Loc", "Nasa-images", "Poetrydb"), which is why
+    // they are in the table rather than left to it.
+    expect(sourceLabel("smithsonian")).toBe("Smithsonian Open Access");
+    expect(sourceLabel("loc")).toBe("Library of Congress");
+    expect(sourceLabel("nasa-images")).toBe("NASA Image Library");
+    expect(sourceLabel("poetrydb")).toBe("PoetryDB");
+  });
+
+  // `item.source` is an open set — future adapters and the private ambit-archive/loupe sources
   // will all reach this function before anyone thinks to add them to the table.
   it("title-cases an unknown source rather than rendering nothing", () => {
-    expect(sourceLabel("smithsonian")).toBe("Smithsonian");
+    expect(sourceLabel("archive")).toBe("Archive");
     expect(sourceLabel("e2e")).toBe("E2e");
     expect(sourceLabel("")).toBe("");
   });

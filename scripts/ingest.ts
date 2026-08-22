@@ -265,6 +265,12 @@ async function main() {
 
   // Step 5: curate. --skip-llm assigns a neutral score instead of calling the network at all —
   // free, and useful for verifying the rest of the pipeline's plumbing before spending a cent.
+  // Counted per source, printed in the summary below. A curator that can't fetch an image scores
+  // the item from its text alone and says nothing about it — which in Phase 6.2 meant a 334-item
+  // LoC run reported clean success while tile.loc.gov was busy 429ing every image request. "The
+  // feed can't show what the curator couldn't fetch" is the AIC lesson; this is the counter that
+  // makes it visible at the moment it happens rather than months later.
+  const imageFetchFailures: Record<string, number> = {};
   let lastPrintedPct = -1;
   const curated: CuratedItem[] = skipLlm
     ? kept.map((it): CuratedItem => ({
@@ -279,6 +285,10 @@ async function main() {
             lastPrintedPct = pct;
             console.log(`  curating: ${done}/${total} (${pct}%)`);
           }
+        },
+        onImageFetchFailure: (it) => {
+          imageFetchFailures[it.source] =
+            (imageFetchFailures[it.source] ?? 0) + 1;
         },
       });
 
@@ -304,6 +314,7 @@ async function main() {
     sourceIds,
     statsBySource,
     collisionCountBySource,
+    imageFetchFailures,
     alreadyInDb,
     flooredByRule,
     curatedCount: curated.length,
@@ -324,6 +335,9 @@ function printSummary(args: {
   sourceIds: SourceId[];
   statsBySource: Map<SourceId, SourceRunStats>;
   collisionCountBySource: Record<string, number>;
+  /** Per source, how many items the curator scored from text alone because their image would not
+   *  fetch. Zero is the expected reading; anything else is the AIC failure mode showing up. */
+  imageFetchFailures: Record<string, number>;
   alreadyInDb: number;
   flooredByRule: Record<StructuralDropRule, number>;
   curatedCount: number;
@@ -338,6 +352,7 @@ function printSummary(args: {
     sourceIds,
     statsBySource,
     collisionCountBySource,
+    imageFetchFailures,
     alreadyInDb,
     flooredByRule,
     curatedCount,
@@ -356,7 +371,8 @@ function printSummary(args: {
       "searched".padEnd(10),
       "offered".padEnd(10),
       "errors".padEnd(8),
-      "collisions",
+      "collisions".padEnd(12),
+      "no-image",
     ].join(""),
   );
   for (const sourceId of sourceIds) {
@@ -372,7 +388,8 @@ function printSummary(args: {
         String(s.searched).padEnd(10),
         String(s.offered).padEnd(10),
         String(s.errors).padEnd(8),
-        String(collisionCountBySource[sourceId] ?? 0),
+        String(collisionCountBySource[sourceId] ?? 0).padEnd(12),
+        String(imageFetchFailures[sourceId] ?? 0),
       ].join(""),
     );
   }

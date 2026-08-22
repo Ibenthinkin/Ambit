@@ -44,3 +44,24 @@ export function uniqueTags(tags: (string | null | undefined)[]): string[] {
 export function stripHtml(text: string): string {
   return text.replace(/<[^>]+>/g, " ");
 }
+
+/**
+ * Decode the handful of HTML character entities that survive stripHtml() — which removes *tags*
+ * and would happily leave `&quot;` sitting in the middle of a summary. Only the entities actually
+ * observed in source data are handled, plus the numeric form for a straight apostrophe: a general
+ * entity decoder is a much larger thing than any source here needs, and an incomplete one that
+ * pretends otherwise is worse than a short honest list.
+ *
+ * NASA's image library (Phase 6.2) is what made this necessary: 13 of 600 sampled descriptions
+ * carried `&quot;` or `&amp;` around quoted scientist remarks. `&amp;` is decoded last so an
+ * already-escaped sequence like `&amp;quot;` resolves to `&quot;` rather than to a bare quote.
+ */
+export function decodeEntities(text: string): string {
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}

@@ -9,7 +9,7 @@
 // **The fallback is load-bearing, not defensive padding.** `item.source` is deliberately an open
 // set in the schema (SPEC §6.1 commits five adapters for v1; Phase 6 adds more, and the
 // ambit-archive / loupe integrations add private ones) — so this function will regularly see a
-// slug that predates it. Rendering `"smithsonian"` as "Smithsonian" is a perfectly good outcome;
+// slug that predates it. Rendering `"archive"` as "Archive" is a perfectly good outcome;
 // rendering it as `undefined` is not.
 const SOURCE_LABELS: Record<string, string> = {
   wikipedia: "Wikipedia",
@@ -17,6 +17,14 @@ const SOURCE_LABELS: Record<string, string> = {
   aic: "Art Institute of Chicago",
   cma: "Cleveland Museum of Art",
   wellcome: "Wellcome Collection",
+  // Phase 6.2's trial sources. Named here rather than left to the fallback because the fallback
+  // gets all four visibly wrong: "Loc", "Nasa-images" and "Poetrydb" are not things anyone calls
+  // them, and a credit line is the one place a source's name has to be right — it is the claim
+  // the item is making about where it came from.
+  smithsonian: "Smithsonian Open Access",
+  loc: "Library of Congress",
+  "nasa-images": "NASA Image Library",
+  poetrydb: "PoetryDB",
 };
 
 export function sourceLabel(source: string): string {

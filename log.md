@@ -28,6 +28,119 @@ Worth knowing for its own sake: the same sweep found **`structuralFloor`'s `dup-
 shipped** (`search.ts`/`server.ts`, tested) while the brief had been carrying it as open for four days.
 A copy of a repo's backlog goes stale the moment anyone works in the repo.
 
+---
+
+**Phase 6.2 planned — and reframed while being planned.** A Fable session picked the next phase
+with Ben: **sources before more UI** (5.9/5.10 wait), on the strength of 5.8's own finding that
+rail feel and `wildcardChance` can't be judged against a two-museum corpus. Plan doc:
+`docs/PHASE6_PLAN_6.2.md`, cold-executable in the 5.x style.
+
+**The reframe:** BUILD_PLAN 6.2 still promised "remaining v1 adapters — Smithsonian, APOD,
+Wikiquote, Gutenberg", but the 08-20 correction in `source-candidates.md` had already established
+those were never commitments. So 6.2 is now **the first run of the trial loop**, and the batch is
+what the candidates table actually ranks: **Smithsonian Open Access, LoC (cleared-collections
+scope, starting with Margolies), NASA Image & Video Library, PoetryDB** — Ben took all four.
+NASA's full library deliberately replaces APOD (no auth, whole catalog vs. keyed
+image-of-the-day); Wikiquote and Gutenberg/Wikisource become candidate rows instead of silently
+vanishing.
+
+**Decisions:** trial **and** promote in one phase, but gated — the executing session builds all
+four adapters, sample-ingests with the curator on (whose bytes-not-URLs image download doubles as
+a hotlink health check, the exact thing that killed AIC), then **stops for Ben's Keep/Park/Cut**
+before any promotion. Partial topic coverage is by design (ingest already skips empty cells —
+verified, not built). No graph recompute, no new topics; hotlinking stands and image-host
+misbehavior is recorded as 7.3 evidence, not solved. `WILDCARD_SOURCES` membership is asked per
+keeper, default no.
+
+**One prerequisite is Ben's:** a free api.data.gov key as `SMITHSONIAN_API_KEY` before execution.
+Discharged same evening — key is in `.env`, and 6.2 is **ready to hand to an executing session**
+(T1–T4 are independent starts; the session must stop at T6 for Ben's Keep/Park/Cut verdicts).
+
+*Session spend: 8.51M tok (in 152 · out 135.6k · cache r 7.73M / w 649.0k) · ~$27.49 · fable-5 · 17:02→17:36*
+*Session spend: 3.54M tok (in 44 · out 13.4k · cache r 2.83M / w 703.6k) · ~$17.57 · fable-5 · 17:36→19:33*
+
+---
+
+**6.2 executed — four trialed, three kept, one parked.** The plan ran end to end in one session,
+including the T6 stop. Verdicts: **Keep** smithsonian · **Keep** loc · **Keep** nasa-images ·
+**Park** poetrydb. Corpus went from ~8,900 items over six drawable sources to **~11,300 over
+eight**. Evidence sheet and walkthrough: `docs/PHASE6_WALKTHROUGH_6.2.md`.
+
+**Findings, in rough order of how much they'll matter later:**
+
+**1. `tile.loc.gov` rate-limits by IP, and it caught us mid-ingest.** The LoC sample run's hotlink
+check was clean (42/42). The 334-image *promotion* run tripped a sustained HTTP 429 — not a burst
+problem: serial requests a second apart 429 identically, as do requests with no User-Agent and
+requests carrying a stock Chrome one. No `Retry-After`, no `x-ratelimit-*`, still blocking forty
+minutes later. **This is a different problem from AIC's and points somewhere else.** AIC is a
+referer rule, which a proxy fixes by definition. This is a *budget*, which a **cache** fixes and a
+bare proxy might make worse by funnelling every reader's requests through one address — and the
+feed hotlinks heroes from the *reader's* connection, so the exposure isn't ours to observe. Into
+SPEC §15 for 7.3, per the phase's own "record, don't solve" decision.
+
+**2. The curator's image-download failure was completely silent, and that's now fixed.** It has
+always degraded gracefully — appends "(The image could not be fetched…)" and scores from text — but
+said nothing. So a 334-item run finished, reported clean success, and left no way to answer whether
+those scores were made by looking at the pictures. `scoreItem` now returns `imageFetchFailed`,
+`curateItems` takes a hook, ingest prints a `no-image` column. **The instrument didn't exist when
+it was needed**, which is the whole lesson; LoC's 376 scores are of unknown provenance and want a
+`--force` re-curation once the block clears. That's the first thing to pick up.
+
+**3. PoetryDB was parked for a reason that isn't PoetryDB's fault.** It averaged 5.50 with nothing
+above 7 — but Pope and Seeger both scored **4**, against a prompt that asks for "visually striking
+or quietly beautiful images" and "*huh, I never knew that*". A lyric poem cannot win on that
+rubric, and it's the same structural reason wikipedia sits at 5.27 corpus-wide. **So the number was
+reading the prompt, not the corpus**, and the honest verdict was Park rather than Cut. Two fixable
+blockers recorded: that rubric gap (Ben's call — `CURATOR_PROMPT` is a taste artifact, SPEC §15),
+and summaries that take the first two lines of `lines[]`, which includes epigraphs — "The Last
+Oracle" leads with transliterated Greek. Parking is implemented as *no seed cells*: adapter and
+tests stay, ingest never reaches it, a test locks the state so un-parking can't happen silently.
+
+**4. Two plan assumptions died on contact, both replaced on measurement.** PoetryDB's `GET
+/lines/<keyword>` — the natural one-step search — **503s at any real result-set size** (nine
+keywords tested; only a single-poem match returned 200), so search became a two-step. And LoC's
+per-collection rights wording couldn't come from the collection's rights page, which is a
+JavaScript-rendered LibGuide with no static text; it came from the API's own `rights_information`
+instead, which is better anyway — reproducible by anyone re-running the probe.
+
+**5. Density is a vocabulary problem, not a quota problem.** Smithsonian loses 31% of offered items
+at the structural floor and NASA 42%, almost all dup-title. The instructive part is which cells came
+in thin and why: `smithsonian/textiles` yielded 4 from a 13,350-hit query because Cooper Hewitt
+catalogues objects under the literal title "Textile"; `nasa/cartography` yielded 3 from 7,356
+because NASA publishes long runs of near-identical scene captures. Both were fixed at promotion by
+**changing the words**, not raising the quota — a bigger quota just floors more. (`specimen`
+returns 5,029,697 Smithsonian rows and is never used.)
+
+**Small things that had to happen:** `sourceLabel()` gained the four names, because the credit line
+rendered "from: Loc" and "from: Poetrydb" — a false detail sitting directly in front of the evidence
+Ben was verdicting against. `normalize.decodeEntities()` joined `stripHtml` (13 of 600 NASA
+descriptions carry `&quot;`/`&amp;`, which strips tags leaves behind). And the plan's own
+score-distribution SQL doesn't run — `round(double precision, integer)` doesn't exist in Postgres;
+`avg` needs a `::numeric` cast.
+
+**The e2e red herring, worth an hour of someone else's time.** The final `bun run e2e` failed
+`gallery.spec.ts:193` four times running while `main` passed 27/27 on the same DB — which reads as
+conclusive and isn't. The test passes 10/10 in isolation; only the full suite fails it; the failure
+signature moves between "element is not stable" and a `waitForURL` that never resolves. Only one
+file in the whole diff can even reach that flow (`source-label.ts`, whose longer credit lines could
+plausibly shift layout under an animation) — swapping in `main`'s copy **still failed**. Re-running
+`main` itself settled it: clean 3/3 early in the evening, **2 failures in 3 runs two hours later**,
+no code change between. What accumulated in between: **274 `user` rows and 6,709 `seen_item` rows**
+from repeated suites, on a corpus 30% larger than that morning. A pre-existing flake this phase made
+more likely without causing. Recorded in CLAUDE.md and explicitly distinguished from the older
+busy-machine note — that one hits a *different* test each time, this one is always the same test.
+Not fixed here; making it robust is its own change.
+
+**Open / next:** (1) **`--force` re-curate the 376 LoC items** once `tile.loc.gov` clears, with the
+new counter on, and record the real number. (2) **Ben's call on a curator rubric for text items** —
+blocks un-parking poetrydb, and lands before 6.3's blogs, which are text by construction. (3) 7.3's
+proxy-vs-cache decision now has two different kinds of evidence pointing at different fixes.
+(4) `gallery.spec.ts:193` wants either a stability fix or a dev-DB reset habit — 274 accumulated
+e2e users is not a healthy baseline. (5) 6.1 (feed learns from saves) is untouched and next in the
+phase.
+
+*Session spend: 82.88M tok (in 954 · out 338.6k · cache r 80.81M / w 1.74M) · ~$62.59 · opus-5 + opus-4-7 · 19:56→21:14*
+
 ### [[08-21-26 Fri]] — Handoff: the three questions 5.8 can't be planned without
 
 **Nothing shipped; this is a handoff.** Picked up at the top of 5.8 (the immersive gallery), got as

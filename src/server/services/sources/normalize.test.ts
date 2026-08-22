@@ -2,7 +2,7 @@
 // phase0/harvest.ts (toLede/uniqueTags), which is why the cases below mirror phase0's own findings
 // (e.g. sentence-boundary cuts, whitespace collapsing from Wikipedia's plaintext extracts).
 import { describe, expect, it } from "vitest";
-import { stripHtml, toLede, uniqueTags } from "./normalize";
+import { decodeEntities, stripHtml, toLede, uniqueTags } from "./normalize";
 
 describe("toLede", () => {
   it("passes short text through unchanged (after whitespace collapse)", () => {
@@ -86,5 +86,21 @@ describe("stripHtml", () => {
 
   it("passes plain text through unchanged", () => {
     expect(stripHtml("No tags here.")).toBe("No tags here.");
+  });
+});
+
+describe("decodeEntities", () => {
+  it("decodes the entities NASA descriptions actually carry", () => {
+    expect(
+      decodeEntities("said &quot;a jelly doughnut&quot; &amp; meant it"),
+    ).toBe('said "a jelly doughnut" & meant it');
+  });
+
+  it("resolves &amp; last, so a double-escaped entity survives one pass intact", () => {
+    expect(decodeEntities("&amp;quot;")).toBe("&quot;");
+  });
+
+  it("leaves an unrecognized entity alone rather than mangling it", () => {
+    expect(decodeEntities("caf&eacute;")).toBe("caf&eacute;");
   });
 });

@@ -2,9 +2,9 @@
 // parsing are both deterministic and network-free, so they're covered here on literals; the
 // live LLM call path (curateItems' network branch) is exercised by the Phase 3.3 curator smoke
 // script instead — no live HTTP in unit tests (CLAUDE.md / PHASE3_PLAN.md convention).
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { parseCuratorResponse, structuralFloor } from "./curator";
+import { curateItems, parseCuratorResponse, structuralFloor } from "./curator";
 import type { NormalizedItem } from "./sources/types";
 
 /** A minimal, valid NormalizedItem literal — tests override just the fields they care about. */
@@ -116,5 +116,95 @@ describe("parseCuratorResponse", () => {
       '{"score": 5, "tags": [123, "", "  ", "Real Tag", "second", "third", "fourth", "fifth"]}',
     );
     expect(result.tags).toEqual(["real tag", "second", "third", "fourth"]);
+  });
+});
+
+// The one place this file's "no live HTTP" rule needs a stub rather than a literal. The behavior
+// under test — that an unfetchable image is *reported* rather than silently absorbed — lives
+// entirely inside curateItems' network branch, and it is exactly the kind of thing a smoke script
+// won't assert because a smoke run against healthy sources never triggers it. So: `fetch` is
+// stubbed, not called. Nothing here touches the network.
+//
+// Why it exists at all: Phase 6.2 ingested 334 Library of Congress items while tile.loc.gov was
+// returning 429 to every image request, and the run reported clean success. The curator scored
+// those items from their text alone and said nothing.
+describe("curateItems image-fetch reporting", () => {
+  const okCompletion = {
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        choices: [{ message: { content: '{"score": 7, "tags": ["a"]}' } }],
+        usage: { total_tokens: 1 },
+      }),
+  };
+
+  /** Stubs fetch so image requests fail with `imageStatus` and the OpenRouter call succeeds. */
+  function stubFetch(imageStatus: number) {
+    vi.stubGlobal("fetch", (input: string | URL) => {
+      const url = String(input);
+      if (url.includes("openrouter.ai")) return Promise.resolve(okCompletion);
+      return Promise.resolve({ ok: false, status: imageStatus });
+    });
+  }
+
+  beforeEach(() => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("reports each image item whose image could not be fetched", async () => {
+    stubFetch(429);
+    const failures: string[] = [];
+    // `force: true` bypasses the on-disk cache read — a cached score reports no failure (it made
+    // no fetch to fail), which is correct behavior and would make this test pass for the wrong
+    // reason on a second run.
+    await curateItems(
+      [
+        makeItem({
+          sourceId: "curator-test-a",
+          type: "image",
+          imageUrl: "https://tile.example.gov/a.jpg",
+        }),
+        makeItem({
+          sourceId: "curator-test-b",
+          type: "image",
+          imageUrl: "https://tile.example.gov/b.jpg",
+        }),
+      ],
+      { force: true, onImageFetchFailure: (it) => failures.push(it.sourceId) },
+    );
+    // Sorted, not positional: curateItems runs a concurrency pool, so the order callbacks fire in
+    // is genuinely nondeterministic. (Only the *returned array* is order-stable — the pool writes
+    // each result to its own input index precisely so the caller's rank logic can rely on it.)
+    expect(failures.sort()).toEqual(["curator-test-a", "curator-test-b"]);
+  });
+
+  it("says nothing for an article item, which has no image to fetch", async () => {
+    stubFetch(429);
+    const failures: string[] = [];
+    await curateItems([makeItem({ sourceId: "curator-test-article" })], {
+      force: true,
+      onImageFetchFailure: (it) => failures.push(it.sourceId),
+    });
+    expect(failures).toEqual([]);
+  });
+
+  it("still scores the item rather than dropping it", async () => {
+    stubFetch(404);
+    const [curated] = await curateItems(
+      [
+        makeItem({
+          sourceId: "curator-test-c",
+          type: "image",
+          imageUrl: "https://tile.example.gov/c.jpg",
+        }),
+      ],
+      { force: true },
+    );
+    // A missing thumbnail must not null out a score — the item is judged on its text instead.
+    expect(curated?.curationScore).toBe(7);
   });
 });

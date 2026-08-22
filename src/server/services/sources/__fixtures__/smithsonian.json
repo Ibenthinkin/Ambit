@@ -1,0 +1,1214 @@
+[
+ {
+  "id": "ld1-1643390182193-1643390191242-0",
+  "title": "Tomb figure of a lion",
+  "unitCode": "NMAA",
+  "type": "edanmdm",
+  "url": "edanmdm:fsg_F1929.15",
+  "content": {
+   "freetext": {
+    "date": [
+     {
+      "label": "Date",
+      "content": "first half of 8th century"
+     },
+     {
+      "label": "Period",
+      "content": "Tang dynasty"
+     }
+    ],
+    "notes": [
+     {
+      "label": "Description",
+      "content": "Pottery with \"three-color\" glaze. Clay: buff white. Glaze: mottled blue, yellow and white with fine crackle. Earth adhesions. Decoration: modelled figure of a lion biting its right hind leg and seated on a rock; three large round perforations in sides of rock."
+     },
+     {
+      "label": "Provenance",
+      "content": "To 1929"
+     },
+     {
+      "label": "Provenance",
+      "content": "Yamanaka & Co., Washington, DC [1]"
+     }
+    ],
+    "place": [
+     {
+      "label": "Origin",
+      "content": "China"
+     }
+    ],
+    "topic": [
+     {
+      "label": "Topic",
+      "content": "ceramic"
+     },
+     {
+      "label": "Topic",
+      "content": "lion"
+     },
+     {
+      "label": "Topic",
+      "content": "Tang dynasty (618 - 907)"
+     },
+     {
+      "label": "Topic",
+      "content": "China"
+     },
+     {
+      "label": "Topic",
+      "content": "earthenware"
+     },
+     {
+      "label": "Topic",
+      "content": "Chinese Art"
+     }
+    ],
+    "setName": [
+     {
+      "label": "Related Online Resources",
+      "content": "Google Arts & Culture"
+     },
+     {
+      "label": "See more items in",
+      "content": "National Museum of Asian Art"
+     }
+    ],
+    "creditLine": [
+     {
+      "label": "Credit Line",
+      "content": "Purchase \u2014 Charles Lang Freer Endowment"
+     }
+    ],
+    "dataSource": [
+     {
+      "label": "Data Source",
+      "content": "National Museum of Asian Art"
+     }
+    ],
+    "identifier": [
+     {
+      "label": "Accession Number",
+      "content": "F1929.15"
+     }
+    ],
+    "objectType": [
+     {
+      "label": "Type",
+      "content": "Sculpture"
+     }
+    ],
+    "objectRights": [
+     {
+      "label": "Restrictions & Rights",
+      "content": "CC0"
+     }
+    ],
+    "physicalDescription": [
+     {
+      "label": "Medium",
+      "content": "Earthenware with lead-silicate glazes tinted with iron, copper, and cobalt"
+     },
+     {
+      "label": "Dimensions",
+      "content": "H: 19 cm (7 1/2 in)"
+     }
+    ]
+   },
+   "indexedStructured": {
+    "date": [
+     "700s"
+    ],
+    "name": [
+     "Yamanaka and Co."
+    ],
+    "place": [
+     "China"
+    ],
+    "topic": [
+     "Cats",
+     "Art",
+     "Animals",
+     "Chinese Art",
+     "Pottery",
+     "Tang dynasty (618 - 907)",
+     "Ceramics"
+    ],
+    "culture": [
+     "Chinese"
+    ],
+    "geoLocation": [
+     {
+      "L2": {
+       "type": "Country",
+       "content": "China"
+      }
+     }
+    ],
+    "object_type": [
+     "Sculpture"
+    ],
+    "online_media_type": [
+     "Images"
+    ]
+   },
+   "descriptiveNonRepeating": {
+    "guid": "http://n2t.net/ark:/65665/ye379f8c0a4-f13f-41d3-9475-6343f5bb48d9",
+    "title": {
+     "label": "Title",
+     "content": "Tomb figure of a lion"
+    },
+    "record_ID": "fsg_F1929.15",
+    "unit_code": "NMAA",
+    "title_sort": "TOMB FIGURE OF A LION",
+    "data_source": "National Museum of Asian Art",
+    "record_link": "https://asia.si.edu/object/F1929.15/",
+    "online_media": {
+     "media": [
+      {
+       "id": "media:FS-7735_05",
+       "guid": "http://n2t.net/ark:/65665/jy5eddb2c1c-430d-445e-ae16-73605491c60d",
+       "type": "Images",
+       "idsId": "FS-7735_05",
+       "usage": {
+        "access": "CC0"
+       },
+       "content": "https://ids.si.edu/ids/deliveryService?id=FS-7735_05",
+       "thumbnail": "https://ids.si.edu/ids/deliveryService?id=FS-7735_05",
+       "altTextAccessibility": "Tomb figure: animal",
+       "extDescrAccessibility": "Earthenware with lead-silicate glazes tinted with iron, copper, and cobalt, H: 19 cm (7 1/2 in)"
+      }
+     ],
+     "mediaCount": 1
+    },
+    "metadata_usage": {
+     "access": "CC0"
+    }
+   }
+  },
+  "hash": "d29b88cd972cb06e199019b26eae8eae112de311",
+  "docSignature": "36b05830ca797f58a18307cfda25a9e9",
+  "timestamp": "1664286030",
+  "lastTimeUpdated": "1774366292",
+  "version": "1774366052"
+ },
+ {
+  "id": "ld1-1643409295870-1643409362198-0",
+  "title": "Dendrobium orchid (Botanical illustration)",
+  "unitCode": "NMNHBOTANY",
+  "type": "edanmdm",
+  "url": "edanmdm:nmnhbotany_16306278",
+  "content": {
+   "freetext": {
+    "notes": [
+     {
+      "label": "Notes",
+      "content": "Illustration by Alice R. Tangerini."
+     },
+     {
+      "label": "Record Last Modified",
+      "content": "10 Mar 2026"
+     },
+     {
+      "label": "Specimen Count",
+      "content": "1"
+     }
+    ],
+    "setName": [
+     {
+      "label": "See more items in",
+      "content": "Botany"
+     },
+     {
+      "label": "See more items in",
+      "content": "Non-specimen graphic"
+     },
+     {
+      "label": "See more items in",
+      "content": "Botanical Art"
+     }
+    ],
+    "publisher": [
+     {
+      "label": "Published Name",
+      "content": "Dendrobium orchid (Botanical illustration)"
+     }
+    ],
+    "dataSource": [
+     {
+      "label": "Data Source",
+      "content": "NMNH - Botany Dept."
+     }
+    ],
+    "identifier": [
+     {
+      "label": "Other Numbers",
+      "content": "Botanical Art Plate Link : 5205 b"
+     }
+    ],
+    "taxonomicName": [
+     {
+      "label": "Taxonomy",
+      "content": "Plantae Monocotyledonae Asparagales Orchidaceae Epidendroideae"
+     }
+    ],
+    "physicalDescription": [
+     {
+      "label": "Preparation",
+      "content": "digital"
+     }
+    ]
+   },
+   "indexedStructured": {
+    "name": [
+     "Botanical Art"
+    ],
+    "topic": [
+     "Monocotyledonae"
+    ],
+    "tax_class": [
+     "Monocotyledonae"
+    ],
+    "tax_order": [
+     "Asparagales"
+    ],
+    "tax_family": [
+     "Orchidaceae"
+    ],
+    "tax_kingdom": [
+     "Plantae"
+    ],
+    "scientific_name": [
+     "Dendrobium orchid (Botanical illustration)"
+    ],
+    "online_media_type": [
+     "Images"
+    ]
+   },
+   "descriptiveNonRepeating": {
+    "guid": "http://n2t.net/ark:/65665/3618931f7-d954-466d-9c3b-db7568b97bda",
+    "title": {
+     "label": "title",
+     "content": "Dendrobium orchid (Botanical illustration)"
+    },
+    "record_ID": "nmnhbotany_16306278",
+    "unit_code": "NMNHBOTANY",
+    "title_sort": "DENDROBIUM ORCHID BOTANICAL ILLUSTRATION",
+    "data_source": "NMNH - Botany Dept.",
+    "record_link": "http://n2t.net/ark:/65665/3618931f7-d954-466d-9c3b-db7568b97bda",
+    "online_media": {
+     "media": [
+      {
+       "id": "media:NMNH-DendrobiumorchidflowerBW5205",
+       "guid": "http://n2t.net/ark:/65665/m3dffebbfd-e4af-4225-9ed3-cee28d563038",
+       "type": "Images",
+       "idsId": "ark:/65665/m3dffebbfde4af42259ed3cee28d563038",
+       "usage": {
+        "access": "CC0"
+       },
+       "content": "https://ids.si.edu/ids/deliveryService/id/ark:/65665/m3dffebbfde4af42259ed3cee28d563038",
+       "thumbnail": "https://ids.si.edu/ids/deliveryService/id/ark:/65665/m3dffebbfde4af42259ed3cee28d563038/90",
+       "altTextAccessibility": "",
+       "extDescrAccessibility": ""
+      }
+     ],
+     "mediaCount": 1
+    },
+    "metadata_usage": {
+     "access": "CC0"
+    }
+   }
+  },
+  "hash": "99133b58833ed4a8aed0c97afe26634af4aa7a08",
+  "docSignature": "8fbf836f14a4a1f09b1b419cdc3babf1",
+  "timestamp": "1663786271",
+  "lastTimeUpdated": "1779886079",
+  "version": "1779873470"
+ },
+ {
+  "id": "ld1-1643621402936-1643621406100-0",
+  "title": "Pipe",
+  "unitCode": "NMAfA",
+  "type": "edanmdm",
+  "url": "edanmdm:nmafa_89-8-22",
+  "content": {
+   "freetext": {
+    "date": [
+     {
+      "label": "Date",
+      "content": "Early-late 19th century"
+     }
+    ],
+    "name": [
+     {
+      "label": "Maker",
+      "content": "Nyoro artist"
+     }
+    ],
+    "notes": [
+     {
+      "label": "Label Text",
+      "content": "Among many African peoples, pipe smoking is considered an important social activity, with men in particular using long pipes that require their full attention. The ceramic bowl of this pipe, with its black burnished slip finish, resembles the local ceramic vessels."
+     },
+     {
+      "label": "Description",
+      "content": "Pipe composed of a greyish black globular ceramic bowl and a long red-brown wood stem. The exterior of the bowl is a black burnished slip, and a band of herringbone pattern is incised below the rim."
+     },
+     {
+      "label": "Provenance",
+      "content": "Collected, Uganda, 1882"
+     }
+    ],
+    "place": [
+     {
+      "label": "Geography",
+      "content": "Uganda"
+     }
+    ],
+    "topic": [
+     {
+      "label": "Topic",
+      "content": "Male use"
+     },
+     {
+      "label": "Topic",
+      "content": "Tobacco"
+     },
+     {
+      "label": "Topic",
+      "content": "male"
+     }
+    ],
+    "setName": [
+     {
+      "label": "See more items in",
+      "content": "National Museum of African Art Collection"
+     }
+    ],
+    "creditLine": [
+     {
+      "label": "Credit Line",
+      "content": "Acquisition grant from the James Smithson Society"
+     }
+    ],
+    "dataSource": [
+     {
+      "label": "Data Source",
+      "content": "National Museum of African Art"
+     }
+    ],
+    "identifier": [
+     {
+      "label": "Object number",
+      "content": "89-8-22"
+     }
+    ],
+    "objectType": [
+     {
+      "label": "Type",
+      "content": "Sculpture"
+     }
+    ],
+    "objectRights": [
+     {
+      "label": "Restrictions & Rights",
+      "content": "CC0"
+     }
+    ],
+    "physicalDescription": [
+     {
+      "label": "Medium",
+      "content": "Ceramic, wood"
+     },
+     {
+      "label": "Dimensions",
+      "content": "H x W x D: 8.3 x 62.9 x 8.3 cm (3 1/4 x 24 3/4 x 3 1/4 in.)"
+     }
+    ]
+   },
+   "indexedStructured": {
+    "date": [
+     "1800s",
+     "1880s"
+    ],
+    "place": [
+     "Uganda"
+    ],
+    "topic": [
+     "Tobacco",
+     "Male use"
+    ],
+    "geoLocation": [
+     {
+      "L2": {
+       "type": "Country",
+       "content": "Uganda"
+      }
+     }
+    ],
+    "object_type": [
+     "Sculpture"
+    ],
+    "online_media_type": [
+     "Images"
+    ],
+    "online_media_rights": [
+     "Copyright protected/restricted"
+    ]
+   },
+   "descriptiveNonRepeating": {
+    "guid": "http://n2t.net/ark:/65665/ys775a4e8f4-4b26-448e-a093-781502fb6b30",
+    "title": {
+     "label": "Object Name",
+     "content": "Pipe"
+    },
+    "record_ID": "nmafa_89-8-22",
+    "unit_code": "NMAfA",
+    "title_sort": "PIPE",
+    "data_source": "National Museum of African Art",
+    "online_media": {
+     "media": [
+      {
+       "id": "media:NMAfA-D20010146",
+       "guid": "http://n2t.net/ark:/65665/vg4526857ad-a792-487d-970b-2cfd1302325d",
+       "type": "Images",
+       "idsId": "NMAfA-D20010146",
+       "usage": {
+        "access": "CC0"
+       },
+       "content": "https://ids.si.edu/ids/deliveryService?id=NMAfA-D20010146",
+       "thumbnail": "https://ids.si.edu/ids/deliveryService?id=NMAfA-D20010146",
+       "altTextAccessibility": "Nyoro artist",
+       "extDescrAccessibility": "Ceramic, wood H x W x D: 8.3 x 62.9 x 8.3 cm (3 1/4 x 24 3/4 x 3 1/4 in.) Pipe composed of a greyish black globular ceramic bowl and a long red-brown wood stem. The exterior of the bowl is a black burnished slip, and a band of herringbone pattern is incised below the rim."
+      }
+     ],
+     "mediaCount": 1
+    },
+    "metadata_usage": {
+     "access": "CC0"
+    }
+   }
+  },
+  "hash": "0f745c7c98d135d85228f6f541ee7fa5dba37d41",
+  "docSignature": "5bd6a003a5f2d99bb5b798166fe6391e",
+  "timestamp": "1663781618",
+  "lastTimeUpdated": "1770024853",
+  "version": "1770024646"
+ },
+ {
+  "id": "ld1-1705400443849-1705400467117-0",
+  "title": "Corundum (var. ruby)",
+  "unitCode": "NMNHMINSCI",
+  "type": "edanmdm",
+  "url": "edanmdm:nmnhmineralsciences_17124213",
+  "content": {
+   "freetext": {
+    "name": [
+     {
+      "label": "Taxon",
+      "content": "Calcite - Associated Mineral"
+     },
+     {
+      "label": "Taxon",
+      "content": "Corundum (var. ruby) - Primary Mineral"
+     }
+    ],
+    "notes": [
+     {
+      "label": "Record Last Modified",
+      "content": "22 Aug 2025"
+     },
+     {
+      "label": "Specimen Count",
+      "content": "1"
+     }
+    ],
+    "place": [
+     {
+      "label": "Place",
+      "content": "Pyin-Oo-Lwin District, Mandalay, Myanmar [Burma], Asia"
+     }
+    ],
+    "setName": [
+     {
+      "label": "See more items in",
+      "content": "Mineral Sciences"
+     },
+     {
+      "label": "See more items in",
+      "content": "Minerals"
+     }
+    ],
+    "dataSource": [
+     {
+      "label": "Data Source",
+      "content": "NMNH - Mineral Sciences Dept."
+     }
+    ],
+    "identifier": [
+     {
+      "label": "Other Numbers",
+      "content": "IGSN ID : 10.58151/NHB0089X4"
+     },
+     {
+      "label": "USNM Number",
+      "content": "NMNH 177816-00"
+     }
+    ]
+   },
+   "indexedStructured": {
+    "place": [
+     "Pyin-Oo-Lwin District",
+     "Asia",
+     "Myanmar [Burma]",
+     "Mandalay"
+    ],
+    "topic": [
+     "Mineralogy"
+    ],
+    "geoLocation": [
+     {
+      "L1": {
+       "type": "Continent",
+       "content": "Asia"
+      },
+      "L2": {
+       "type": "Country",
+       "content": "Myanmar [Burma]"
+      },
+      "L3": {
+       "type": "State",
+       "content": "Mandalay"
+      },
+      "L4": {
+       "type": "County",
+       "content": "Pyin-Oo-Lwin District"
+      }
+     }
+    ],
+    "scientific_name": [
+     "Calcite",
+     "Corundum (var. ruby)"
+    ],
+    "online_media_type": [
+     "Images"
+    ]
+   },
+   "descriptiveNonRepeating": {
+    "guid": "http://n2t.net/ark:/65665/34bf5d7ef-d72f-4a27-a7f5-bd19c75e54ea",
+    "title": {
+     "label": "title",
+     "content": "Corundum (var. ruby)"
+    },
+    "record_ID": "nmnhmineralsciences_17124213",
+    "unit_code": "NMNHMINSCI",
+    "title_sort": "CORUNDUM VAR RUBY",
+    "data_source": "NMNH - Mineral Sciences Dept.",
+    "record_link": "http://n2t.net/ark:/65665/34bf5d7ef-d72f-4a27-a7f5-bd19c75e54ea",
+    "online_media": {
+     "media": [
+      {
+       "id": "media:NMNH-NMNH-2024-00918-000004",
+       "guid": "http://n2t.net/ark:/65665/m3e4558f42-2427-4d47-94f5-a6d9c78dbf24",
+       "type": "Images",
+       "idsId": "ark:/65665/m3e4558f4224274d4794f5a6d9c78dbf24",
+       "usage": {
+        "access": "CC0"
+       },
+       "content": "https://ids.si.edu/ids/deliveryService/id/ark:/65665/m3e4558f4224274d4794f5a6d9c78dbf24",
+       "thumbnail": "https://ids.si.edu/ids/deliveryService/id/ark:/65665/m3e4558f4224274d4794f5a6d9c78dbf24/90",
+       "altTextAccessibility": "A ruby mineral specimen, (NMNH 17716), from the Mogok region of Burma. This is an unusual mineral specimen because it is made up of small, tabular, translucent crystals ranging from 1.5 centimeters to 1 millimeter in dimeter.",
+       "extDescrAccessibility": "A ruby mineral specimen, (NMNH 17716), from the Mogok region of Burma. This is an unusual mineral specimen because it is made up of small, tabular, translucent crystals ranging from 1.5 centimeters to 1 millimeter in dimeter. The base of the ruby is an almost beige looking quartz, with red crystals fanning upward. This photo has a black to dark red background."
+      }
+     ],
+     "mediaCount": 2
+    },
+    "metadata_usage": {
+     "access": "CC0"
+    }
+   }
+  },
+  "hash": "4b1dc7cfdd10e336b2a7771f9a9bda843ab362cb",
+  "docSignature": "2a164744e3fdeb86974040a4098ab134",
+  "timestamp": "1705422600",
+  "lastTimeUpdated": "1767187920",
+  "version": "1767176491"
+ },
+ {
+  "id": "ld1-1643399887910-1643399893549-1",
+  "title": "Textile",
+  "unitCode": "CHNDM",
+  "type": "edanmdm",
+  "url": "edanmdm:chndm_1915-5-6-a",
+  "content": {
+   "freetext": {
+    "date": [
+     {
+      "label": "Date",
+      "content": "1915"
+     }
+    ],
+    "name": [
+     {
+      "label": "Manufacturer",
+      "content": "Cheney Brothers, South Manchester, Connecticut, USA"
+     }
+    ],
+    "notes": [
+     {
+      "label": "Catalogue Status",
+      "content": "Research in Progress"
+     },
+     {
+      "label": "Description",
+      "content": "Reproduction textile with an adapted design from a sixteenth century textile. Pattern has interlacing bands forming ogives that frame a central pomegranate and surrounding pomegranate buds."
+     }
+    ],
+    "place": [
+     {
+      "label": "made in",
+      "content": "USA"
+     }
+    ],
+    "setName": [
+     {
+      "label": "See more items in",
+      "content": "Cooper Hewitt, Smithsonian Design Museum Collection"
+     },
+     {
+      "label": "See more items in",
+      "content": "Textiles Department"
+     }
+    ],
+    "creditLine": [
+     {
+      "label": "Credit Line",
+      "content": "Gift of Cheney Brothers"
+     }
+    ],
+    "dataSource": [
+     {
+      "label": "Data Source",
+      "content": "Cooper Hewitt, Smithsonian Design Museum"
+     }
+    ],
+    "identifier": [
+     {
+      "label": "Accession Number",
+      "content": "1915-5-6-a"
+     }
+    ],
+    "objectType": [
+     {
+      "label": "Type",
+      "content": "woven textiles"
+     },
+     {
+      "label": "Type",
+      "content": "Textile"
+     }
+    ],
+    "objectRights": [
+     {
+      "label": "Restrictions & Rights",
+      "content": "CC0"
+     }
+    ],
+    "physicalDescription": [
+     {
+      "label": "Medium",
+      "content": "Medium: silk Technique: compound satin weave"
+     },
+     {
+      "label": "Dimensions",
+      "content": "H x W: 63.6 \u00d7 64.5 cm (25 1/16 \u00d7 25 3/8 in.)"
+     }
+    ]
+   },
+   "indexedStructured": {
+    "date": [
+     "1910s"
+    ],
+    "name": [
+     "Cheney Brothers"
+    ],
+    "place": [
+     "USA"
+    ],
+    "geoLocation": [
+     {
+      "L2": {
+       "type": "Country",
+       "content": "USA"
+      }
+     }
+    ],
+    "object_type": [
+     "Textiles"
+    ],
+    "online_media_type": [
+     "Images"
+    ]
+   },
+   "descriptiveNonRepeating": {
+    "guid": "http://n2t.net/ark:/65665/kq4e9915229-c439-4927-bd89-27f00e6e8895",
+    "title": {
+     "label": "Title",
+     "content": "Textile"
+    },
+    "record_ID": "chndm_1915-5-6-a",
+    "unit_code": "CHNDM",
+    "title_sort": "TEXTILE",
+    "data_source": "Cooper Hewitt, Smithsonian Design Museum",
+    "record_link": "https://collection.cooperhewitt.org/view/objects/asitem/id/20825",
+    "online_media": {
+     "media": [
+      {
+       "id": "media:CHSDM-37ACBA834E7E2-000001",
+       "guid": "http://n2t.net/ark:/65665/vc943220ede-890d-4526-9997-249bb3524edd",
+       "type": "Images",
+       "idsId": "CHSDM-37ACBA834E7E2-000001",
+       "usage": {
+        "access": "CC0"
+       },
+       "content": "https://ids.si.edu/ids/deliveryService?id=CHSDM-37ACBA834E7E2-000001",
+       "thumbnail": "https://ids.si.edu/ids/deliveryService?id=CHSDM-37ACBA834E7E2-000001",
+       "altTextAccessibility": "",
+       "extDescrAccessibility": "Reproduction textile with an adapted design from a sixteenth century textile. Pattern has interlacing bands forming ogives that frame a central pomegranate and surrounding pomegranate buds."
+      }
+     ],
+     "mediaCount": 1
+    },
+    "metadata_usage": {
+     "access": "CC0"
+    }
+   }
+  },
+  "hash": "1d848ce7cda4d975e4cd94e06029ebd106a32667",
+  "docSignature": "7df70a149db45bf746c4370e877fad88",
+  "timestamp": "1663784056",
+  "lastTimeUpdated": "1774089457",
+  "version": "1774086217"
+ },
+ {
+  "id": "ld1-1643390182193-1643390191242-0",
+  "title": "Tomb figure of a lion",
+  "unitCode": "NMAA",
+  "type": "edanmdm",
+  "url": "edanmdm:fsg_F1929.15",
+  "content": {
+   "freetext": {
+    "date": [
+     {
+      "label": "Date",
+      "content": "first half of 8th century"
+     },
+     {
+      "label": "Period",
+      "content": "Tang dynasty"
+     }
+    ],
+    "notes": [
+     {
+      "label": "Description",
+      "content": "Pottery with \"three-color\" glaze. Clay: buff white. Glaze: mottled blue, yellow and white with fine crackle. Earth adhesions. Decoration: modelled figure of a lion biting its right hind leg and seated on a rock; three large round perforations in sides of rock."
+     },
+     {
+      "label": "Provenance",
+      "content": "To 1929"
+     },
+     {
+      "label": "Provenance",
+      "content": "Yamanaka & Co., Washington, DC [1]"
+     },
+     {
+      "label": "Provenance",
+      "content": "From 1929"
+     },
+     {
+      "label": "Provenance",
+      "content": "Freer Gallery of Art, purchased from Yamanaka & Co., Washington, DC in April 1929 [2]"
+     },
+     {
+      "label": "Provenance",
+      "content": "Notes:"
+     },
+     {
+      "label": "Provenance",
+      "content": "[1] Curatorial Remark 1 in the object record."
+     },
+     {
+      "label": "Provenance",
+      "content": "[2] See note 1."
+     },
+     {
+      "label": "Collection",
+      "content": "Freer Gallery of Art Collection"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Luxury Arts of the Silk Route Empires (May 9, 1993 to January 28, 2007)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Chinese Ceramics (March 15, 1982 to July 10, 1986)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Chinese Art (March 9, 1981 to March 12, 1982)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Chinese Ceramics (May 9, 1980 to March 6, 1981)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Chinese Ceramics (April 11, 1978 to September 4, 1980)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Chinese Art (January 1, 1963 to March 6, 1981)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Untitled Exhibition, Chinese Ceramics (March 7, 1957 to January 1, 1963)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Untitled Exhibition, Chinese Ceramics, 1955 (September 19, 1955 to November 10, 1955)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Centennial Exhibition, Gallery 13 (November 10, 1955 to March 1, 1957)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Untitled Exhibition, Chinese Art, West Corridor, 1947 (January 8, 1947 to February 10, 1947)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Untitled Exhibition, Chinese Art, 1946 (May 6, 1946 to November 17, 1955)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Untitled Exhibition, Chinese Metalwork, Pottery, and Painting (March 23, 1944 to May 2, 1946)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Untitled Exhibition, Chinese and Korean Ceramics (March 22, 1943 to November 13, 1944)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Untitled Exhibition, Chinese Painting and Ceramics, 1943 (March 22, 1943 to November 13, 1944)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Untitled Exhibition, Chinese Painting and Ceramics (March 14, 1931 to March 22, 1943)"
+     },
+     {
+      "label": "Exhibition History",
+      "content": "Chinese Painting and Pottery (May 2, 1923 to March 22, 1943)"
+     },
+     {
+      "label": "Previous custodian or owner",
+      "content": "Yamanaka and Co. \u5c71\u4e2d\u5546\u4f1a (1917-1965)"
+     }
+    ],
+    "place": [
+     {
+      "label": "Origin",
+      "content": "China"
+     }
+    ],
+    "topic": [
+     {
+      "label": "Topic",
+      "content": "ceramic"
+     },
+     {
+      "label": "Topic",
+      "content": "lion"
+     },
+     {
+      "label": "Topic",
+      "content": "Tang dynasty (618 - 907)"
+     },
+     {
+      "label": "Topic",
+      "content": "China"
+     },
+     {
+      "label": "Topic",
+      "content": "earthenware"
+     },
+     {
+      "label": "Topic",
+      "content": "Chinese Art"
+     }
+    ],
+    "setName": [
+     {
+      "label": "Related Online Resources",
+      "content": "Google Arts & Culture"
+     },
+     {
+      "label": "See more items in",
+      "content": "National Museum of Asian Art"
+     }
+    ],
+    "creditLine": [
+     {
+      "label": "Credit Line",
+      "content": "Purchase \u2014 Charles Lang Freer Endowment"
+     }
+    ],
+    "dataSource": [
+     {
+      "label": "Data Source",
+      "content": "National Museum of Asian Art"
+     }
+    ],
+    "identifier": [
+     {
+      "label": "Accession Number",
+      "content": "F1929.15"
+     }
+    ],
+    "objectType": [
+     {
+      "label": "Type",
+      "content": "Sculpture"
+     }
+    ],
+    "objectRights": [
+     {
+      "label": "Restrictions & Rights",
+      "content": "CC0"
+     }
+    ],
+    "physicalDescription": [
+     {
+      "label": "Medium",
+      "content": "Earthenware with lead-silicate glazes tinted with iron, copper, and cobalt"
+     },
+     {
+      "label": "Dimensions",
+      "content": "H: 19 cm (7 1/2 in)"
+     }
+    ]
+   },
+   "indexedStructured": {
+    "date": [
+     "700s"
+    ],
+    "name": [
+     "Yamanaka and Co."
+    ],
+    "place": [
+     "China"
+    ],
+    "topic": [
+     "Cats",
+     "Art",
+     "Animals",
+     "Chinese Art",
+     "Pottery",
+     "Tang dynasty (618 - 907)",
+     "Ceramics"
+    ],
+    "culture": [
+     "Chinese"
+    ],
+    "geoLocation": [
+     {
+      "L2": {
+       "type": "Country",
+       "content": "China"
+      }
+     }
+    ],
+    "object_type": [
+     "Sculpture"
+    ],
+    "online_media_type": [
+     "Images"
+    ]
+   },
+   "descriptiveNonRepeating": {
+    "guid": "http://n2t.net/ark:/65665/ye379f8c0a4-f13f-41d3-9475-6343f5bb48d9",
+    "title": {
+     "label": "Title",
+     "content": "Tomb figure of a lion"
+    },
+    "record_ID": "synthetic_not_cc0",
+    "unit_code": "NMAA",
+    "title_sort": "TOMB FIGURE OF A LION",
+    "data_source": "National Museum of Asian Art",
+    "record_link": "https://asia.si.edu/object/F1929.15/",
+    "online_media": {
+     "media": [
+      {
+       "id": "media:FS-7735_05",
+       "guid": "http://n2t.net/ark:/65665/jy5eddb2c1c-430d-445e-ae16-73605491c60d",
+       "type": "Images",
+       "idsId": "FS-7735_05",
+       "usage": {
+        "access": "Usage conditions apply"
+       },
+       "content": "https://ids.si.edu/ids/deliveryService?id=FS-7735_05",
+       "thumbnail": "https://ids.si.edu/ids/deliveryService?id=FS-7735_05",
+       "altTextAccessibility": "Tomb figure: animal",
+       "extDescrAccessibility": "Earthenware with lead-silicate glazes tinted with iron, copper, and cobalt, H: 19 cm (7 1/2 in)"
+      }
+     ],
+     "mediaCount": 1
+    },
+    "metadata_usage": {
+     "access": "CC0"
+    }
+   }
+  },
+  "hash": "d29b88cd972cb06e199019b26eae8eae112de311",
+  "docSignature": "36b05830ca797f58a18307cfda25a9e9",
+  "timestamp": "1664286030",
+  "lastTimeUpdated": "1774366292",
+  "version": "1774366052"
+ },
+ {
+  "id": "ld1-1643399887910-1643399893549-1",
+  "title": "Textile",
+  "unitCode": "CHNDM",
+  "type": "edanmdm",
+  "url": "edanmdm:chndm_1915-5-6-a",
+  "content": {
+   "freetext": {
+    "date": [
+     {
+      "label": "Date",
+      "content": "1915"
+     }
+    ],
+    "name": [
+     {
+      "label": "Manufacturer",
+      "content": "Cheney Brothers, South Manchester, Connecticut, USA"
+     }
+    ],
+    "notes": [
+     {
+      "label": "Catalogue Status",
+      "content": "Research in Progress"
+     },
+     {
+      "label": "Description",
+      "content": "Reproduction textile with an adapted design from a sixteenth century textile. Pattern has interlacing bands forming ogives that frame a central pomegranate and surrounding pomegranate buds."
+     }
+    ],
+    "place": [
+     {
+      "label": "made in",
+      "content": "USA"
+     }
+    ],
+    "setName": [
+     {
+      "label": "See more items in",
+      "content": "Cooper Hewitt, Smithsonian Design Museum Collection"
+     },
+     {
+      "label": "See more items in",
+      "content": "Textiles Department"
+     }
+    ],
+    "creditLine": [
+     {
+      "label": "Credit Line",
+      "content": "Gift of Cheney Brothers"
+     }
+    ],
+    "dataSource": [
+     {
+      "label": "Data Source",
+      "content": "Cooper Hewitt, Smithsonian Design Museum"
+     }
+    ],
+    "identifier": [
+     {
+      "label": "Accession Number",
+      "content": "1915-5-6-a"
+     }
+    ],
+    "objectType": [
+     {
+      "label": "Type",
+      "content": "woven textiles"
+     },
+     {
+      "label": "Type",
+      "content": "Textile"
+     }
+    ],
+    "objectRights": [
+     {
+      "label": "Restrictions & Rights",
+      "content": "CC0"
+     }
+    ],
+    "physicalDescription": [
+     {
+      "label": "Medium",
+      "content": "Medium: silk Technique: compound satin weave"
+     },
+     {
+      "label": "Dimensions",
+      "content": "H x W: 63.6 \u00d7 64.5 cm (25 1/16 \u00d7 25 3/8 in.)"
+     }
+    ]
+   },
+   "indexedStructured": {
+    "date": [
+     "1910s"
+    ],
+    "name": [
+     "Cheney Brothers"
+    ],
+    "place": [
+     "USA"
+    ],
+    "geoLocation": [
+     {
+      "L2": {
+       "type": "Country",
+       "content": "USA"
+      }
+     }
+    ],
+    "object_type": [
+     "Textiles"
+    ],
+    "online_media_type": [
+     "Images"
+    ]
+   },
+   "descriptiveNonRepeating": {
+    "guid": "http://n2t.net/ark:/65665/kq4e9915229-c439-4927-bd89-27f00e6e8895",
+    "title": {
+     "label": "Title",
+     "content": "Textile"
+    },
+    "record_ID": "synthetic_no_media",
+    "unit_code": "CHNDM",
+    "title_sort": "TEXTILE",
+    "data_source": "Cooper Hewitt, Smithsonian Design Museum",
+    "record_link": "https://collection.cooperhewitt.org/view/objects/asitem/id/20825",
+    "metadata_usage": {
+     "access": "CC0"
+    }
+   }
+  },
+  "hash": "1d848ce7cda4d975e4cd94e06029ebd106a32667",
+  "docSignature": "7df70a149db45bf746c4370e877fad88",
+  "timestamp": "1663784056",
+  "lastTimeUpdated": "1774089457",
+  "version": "1774086217"
+ }
+]
