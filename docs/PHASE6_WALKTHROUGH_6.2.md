@@ -4,10 +4,11 @@
 The first run of `docs/source-candidates.md`'s **trial loop**, over four candidates: Smithsonian
 Open Access, Library of Congress (Margolies archive), NASA Image & Video Library, and PoetryDB.
 
-**Status: T1–T5 landed, stopped at T6 as the plan requires.** Four adapters built, fixture-tested,
-live-probed, and sample-ingested through the full curator. The evidence is below.
-**Ben's four Keep / Park / Cut verdicts are the next thing that happens** — T7 (promotion) and T8
-(docs) do not run until they land.
+**Status: complete. Verdicts landed 08-21-26 — Keep · Keep · Keep · Park.** Four adapters built,
+fixture-tested, live-probed and sample-ingested; the evidence sheet below is what Ben verdicted
+against; the three keepers were then promoted with full seed cells and full ingests, and PoetryDB
+was parked. **What went past the plan is at the end** — one finding (a Library of Congress rate
+limit) that a bare "everything worked" reading would miss, and the small curator change it forced.
 
 ---
 
@@ -85,7 +86,8 @@ For 7.3's proxy decision that is a *negative* result worth recording: none of th
 proxy the way AIC does. (The curator itself is silent about this — on a failed image download it
 appends "(The image could not be fetched — judge from the text alone.)" to the prompt and scores
 anyway, with no log line. That silence is why this was measured separately rather than read off the
-ingest output, and it is arguably a gap in the curator worth closing later.)
+ingest output. That gap is **closed as of this phase** — see "The finding that went past the plan"
+below, which is what forced it.)
 
 ## Idempotency
 
@@ -130,6 +132,9 @@ Dev server on `:3000`, then:
 
 Rendered screenshots of one per source are in `docs/phase6.2-evidence/`
 (`si-i-page.png`, `loc-i-page.png`, `nasa-i-page.png`, `poem-i-page.png`).
+
+**The five poetrydb links above no longer resolve** — the Park verdict deleted its trial rows. The
+screenshot is the surviving record, which is exactly why it was taken.
 
 ## Where the trial corpus actually sits in the feed
 
@@ -378,6 +383,8 @@ statement, reproducible, and verifiable by anyone re-running the probe.
 
 # THE GATE — T6
 
+*(Kept as written, because it is the document Ben verdicted against. The answers follow it.)*
+
 **Four verdicts needed, in the trial loop's own terms** (`docs/source-candidates.md`): **Keep**
 (promote to SPEC §6.1 + full seed cells + full ingest), **Park** (needs work — note why), or **Cut**
 (struck through with the reason).
@@ -410,4 +417,121 @@ feed in context, remembering that at 209 items the trial's share of any pool is 
 
 ---
 
-*T7 (promotion) and T8 (docs) are written and waiting. They do not run until the four verdicts land.*
+**Ben's verdicts, 08-21-26:**
+
+| Source | Verdict | |
+| ------ | ------- | -- |
+| **smithsonian** | ✅ **Keep** | promoted |
+| **loc** | ✅ **Keep** | promoted; **not** added to `WILDCARD_SOURCES` (the plain Keep was chosen over the offered Keep-plus-wildcard, so the default of "no" stands) |
+| **nasa-images** | ✅ **Keep** | promoted, with the license posture stated plainly rather than parked on |
+| **poetrydb** | 🟡 **Park** | needs the summary fix first |
+
+---
+
+# T7 — What promotion actually produced
+
+## Full seed cells
+
+Every query below was measured live before it was written down, and the count sits in the comment
+next to it in `topics.ts`. Two cells were retuned by what the *trial* found rather than by hit
+count, which is the more interesting kind:
+
+- **`smithsonian/textiles` gained `embroidery` and `lace`.** The trial's `textile` query returns
+  13,350 rows and yielded 4 items, because Cooper Hewitt catalogues a great many objects under the
+  literal title "Textile" and dup-title takes all of them. Vocabulary that returns
+  *differently-titled* objects is the fix. A bigger quota is not — it would just floor more.
+- **`nasa-images/cartography` gained `satellite`.** Same shape: `earth observation` returns 7,356
+  rows and yielded 3, because NASA publishes long runs of near-identical scene captures under one
+  title.
+
+Coverage after promotion: **smithsonian 14 of 16 topics** (poetry is the honest omission — 173
+hits, and they are not poems), **nasa-images 6** (the trial's five plus `portraiture`, where
+`astronaut portrait` / `crew portrait` beat bare `astronaut` at 57,854 hits of mostly hardware),
+**loc 3** (its honest three, with wider building-type vocabulary).
+
+## Full ingest
+
+| Source | offered | floored | **inserted** | avg | p50 | ≥8 | topics |
+| ------ | ------- | ------- | ------------ | --- | --- | -- | ------ |
+| smithsonian | 2,252 | 702 (31%) | **1,529** | 7.73 | 8 | 62% | 14 |
+| nasa-images | 900 | 378 (42%) | **520** | 7.96 | 8 | 71% | 6 |
+| loc | 410 | 7 (2%) | **376** | 7.98 | 8 | 77% | 3 |
+
+All three held their sample-run averages within half a point at 10–30× the volume, and all three
+sit inside the band the committed sources occupy (`met` 8.14, `wellcome` 7.53). Errors: zero across
+all three runs. Collisions: 21 / 2 / 27.
+
+The corpus is now **~11,300 items across nine sources** (eight drawable — `aic` is still suspended).
+
+## Feed check
+
+`bun run probe:feed --uniform --pages 5` — 60 cards:
+
+```
+cma 14 · wellcome 11 · met 10 · smithsonian 9 · wikipedia 5 · loc 5 · archive 4 · nasa-images 2
+tier mix: CORE 38% · DRIFT 30% · JUMP 32%   topic spread: 15 topics   source-adjacency violations: 0
+```
+
+The three keepers took 16 of 60 slots on their first outing, in context and without breaking the
+no-adjacent-same-source constraint. Compare the pre-promotion run, where 209 trial items across the
+same corpus surfaced exactly one tile in 48 cards.
+
+---
+
+# The finding that went past the plan
+
+**`tile.loc.gov` rate-limits by IP, and it caught us mid-ingest.**
+
+The sample run's hotlink check was clean — 42/42. The *promotion* run's was not: a re-check of 100
+random LoC images immediately afterward returned **HTTP 429 on all 100**. It is not a burst
+problem. Serial requests one second apart 429 identically; so do requests with no User-Agent, and
+so do requests carrying a stock Chrome User-Agent. There is no `Retry-After` header and no
+`x-ratelimit-*` of any kind. Forty minutes after the ingest it was still blocking.
+
+So: **334 curator image downloads in 105 seconds is over the budget**, whatever the budget is, and
+the Library does not publish one.
+
+Two consequences, and they point in different directions.
+
+**For the ingest, this is easy and was not caught.** The adapter's own politeness delay (500ms)
+governs *search* calls; the curator's image downloads run through a separate path at CONCURRENCY 8
+with no delay at all. That is fine for museum CDNs and not fine here.
+
+**For the feed, this is the real question, and it is 7.3's.** A feed page hotlinks its heroes from
+*the reader's* connection, not ours — a dozen `tile.loc.gov` requests per page, from an IP that is
+also loading everything else. Nothing observable from outside says how close that comes to the
+limit. And note it is a different problem from AIC's, which is a referer rule that a proxy fixes by
+definition: this one is a **budget**, which a *cache* fixes and a bare proxy might make *worse* by
+funnelling every reader's requests through one address. Recorded in SPEC §15 for 7.3 to decide, per
+plan decision 5 — evidence, not a fix.
+
+**What it exposed in the curator, which is the part worth keeping.** When `imageAsDataUrl` fails,
+the curator appends "(The image could not be fetched — judge from the text alone.)" to the prompt
+and scores the item anyway. That is correct — a missing thumbnail should not null out an item — but
+it was **completely silent**. No log line, no count, nothing in the run summary. So a 334-item run
+completed, reported success, and left no way to answer the only question that mattered: were those
+scores made by looking at the pictures, or not?
+
+`scoreItem` now returns `imageFetchFailed`, `curateItems` takes an `onImageFetchFailure` hook, and
+the ingest summary prints a **`no-image` column** beside errors and collisions. Zero is the
+expected reading. Anything else is the AIC failure mode surfacing while it is still cheap to notice.
+
+**The honest state of LoC's 376 scores:** unknown provenance. The counter did not exist during that
+run, so there is no record of how many were scored text-only — only the suggestive fact that the
+average came in at 7.98 against the sample run's 8.52, which is equally well explained by regression
+to the mean at 9× the volume. **The repair is a `--force` re-curation once the block clears**, which
+is left as the first thing to do rather than done here, because the block outlasted the session.
+SPEC §15 carries it.
+
+---
+
+# What else changed, and why (part two)
+
+Three small things, each forced by something above rather than chosen:
+
+- **`sourceLabel()` gained four entries** — see the section above.
+- **`normalize.decodeEntities()`** — see the section above.
+- **`curateItems` grew image-fetch reporting** — see immediately above. Tested with a stubbed
+  `fetch` rather than a literal, which is a deliberate exception to `curator.test.ts`'s "no live
+  HTTP" rule: the behavior lives entirely in the network branch, and a smoke run against healthy
+  sources never triggers it. Nothing in the test touches the network.

@@ -176,7 +176,10 @@ describe("curateItems image-fetch reporting", () => {
       ],
       { force: true, onImageFetchFailure: (it) => failures.push(it.sourceId) },
     );
-    expect(failures).toEqual(["curator-test-a", "curator-test-b"]);
+    // Sorted, not positional: curateItems runs a concurrency pool, so the order callbacks fire in
+    // is genuinely nondeterministic. (Only the *returned array* is order-stable — the pool writes
+    // each result to its own input index precisely so the caller's rank logic can rely on it.)
+    expect(failures.sort()).toEqual(["curator-test-a", "curator-test-b"]);
   });
 
   it("says nothing for an article item, which has no image to fetch", async () => {
