@@ -5,6 +5,49 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-24-26 Mon]] — Phase 5.10 planned: Profile + Settings, scope re-baselined
+
+**The headline decision: BUILD_PLAN's "minimal viable" 5.10 is superseded.** Asked why the
+entry cut so much, Ben pulled the full designed surface back into scope — bio, handle, the
+complete settings row set — with three carve-outs: **avatar upload is out permanently**,
+replaced by a deterministic per-user color disc now and a *preference-derived sprite/glyph
+generator* as a named post-MVP feature; the three expensive rows (**Serendipity, Muted
+sources, Invite a friend**) ship as honest stubs (visible, no fabricated values, "coming
+soon" toasts) rather than real features; **email is read-only** (Better Auth's update-user
+rejects email changes; change-email is a later auth phase).
+
+**Decisions locked with Ben:** handle is display-only (no share button — no public profiles
+to share); `/profile/edit` is a dedicated route (real multi-field form, not a sheet); new
+collection gets a name-input sheet (the prototype's zero-input auto-name is rejected — no
+rename exists, so auto-names would be permanent); sign-out gets a standalone card above the
+version footer (the prototype has no sign-out anywhere — 5.10 invents it); collection
+deletion/rename deferred entirely (no design pressure, and it keeps the `collections_seeded_at`
+migration out); contact mailto = Ben's address; `package.json` → 0.4.0 so the footer's "v0.4"
+is wired, not hardcoded; collection tiles get real cover images (additive `cover` on
+`saves.collections`).
+
+**Plan-time findings:**
+- The Profile/Settings prototypes live in the **redesign** bundle, and there are **three**
+  screens, not two — `Ambit - Profile Edit.dc.html` is where all editing happens. The bundle
+  has no sign-out and no collection deletion anywhere (grep-verified across all 11 files).
+- `handle`/`bio` can't ride `ctx.user` — `getSession` only returns columns Better Auth
+  declares — so the phase adds a proper tRPC `user` router (`me` + `updateProfile`) rather
+  than `authClient.updateUser` or `additionalFields`.
+- The repo was already waiting again: `PillToolbar`'s default `onProfile` pushes `/profile`
+  (a 404 today) from three shipped screens; the accent knob from 5.1 becomes Appearance's
+  real picker; the Notifications row can show live browser permission state without any push
+  feature existing.
+
+**Shipped:** `docs/PHASE5_PLAN_5.10.md` — cold-executable in the 5.9 format (migration 0003,
+`user` router, `createCollection`, `topics.mine`, covers, three screens + four sheets, three
+new origin markers, ~35-40 new tests + a sixth e2e spec, 12-step order with the
+don't-delete-sign-out-early trap flagged).
+
+**Open / next:** execute the plan in a cheaper session on `feat/5.10-profile-settings`; then
+5.11 (landing/PWA) or the still-thrice-deferred 6.3 blog design session.
+
+*Session spend: 17.91M tok (in 154 · out 181.9k · cache r 16.33M / w 1.40M) · ~≥$51.61 · fable-5 + opus-4-7 + <synthetic> · 23:53→12:34*
+
 ### [[08-23-26 Sun]] — Phase 6.1 planned: the feed learns from saves
 
 **Decisions (locked with Ben, do not relitigate):** 6.1 chosen over resuming UI (5.9/5.10), a
