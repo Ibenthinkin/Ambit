@@ -41,6 +41,32 @@ bound under shipped knobs).
 
 *Session spend: 3.86M tok (in 80 · out 90.8k · cache r 2.70M / w 1.07M) · ~$28.69 · fable-5 · 19:30→20:13*
 
+**Executed the same evening** (second session, straight through, no mid-phase stops — as planned):
+
+**Shipped:** the save→feed learning loop, merged as `feat/6.1-feed-learns-from-saves`. A new save
+bumps its topic `LEAST(3.0, w + 0.5)` atomically (one upsert; `xmax = 0` answers new-vs-existing
+with no read-then-write race — Drizzle took the expression without needing the plan's fallback);
+taste keywords now derive at feed time from the last-24 unique tags over recent saves, deleting
+the `feed.ts` TODO; the combined toast ships from a single `saveToastText` helper at all four
+call sites. 558 vitest tests + 15 e2e green; walkthrough: `docs/PHASE6_WALKTHROUGH_6.1.md`.
+
+**Findings (where the plan met reality):**
+- The tier-mix test's flat-`sim` fixture is **asymmetric for per-topic share measurements**:
+  `pickJump` slices each row's stored tail, so with tied sims, tail membership falls out of array
+  order and the alphabetically-first topic measured 0.195 instead of 0.25 under uniform weights.
+  Rotated sims (0.9/0.5/0.1 cyclic) restore real symmetry — worth remembering next time a
+  distribution test wants per-topic (not per-tier) assertions.
+- The predicted `sheets.test.tsx` *typecheck* break never happened — `vi.mock` replaces the tRPC
+  hooks at runtime only, so hand-typed mock shapes never meet the component's types. The break
+  was real but surfaced as a runtime assertion instead.
+- Scripted FEED_DEBUG check: 5 botany saves doubled botany's share of fresh pages (10/48 vs 5/48
+  for a cold twin) — measurable, not overwhelming; every save toasted the topic by name.
+
+**Open / next:** 5.9/5.10/5.11 (remaining UI), or the 6.3 blog-source design session.
+
+*Session spend: 20.15M tok (in 442 · out 147.5k · cache r 19.21M / w 794.0k) · ~$35.95 · fable-5 + opus-4-7 · 20:17→20:31*
+*Session spend: 2.32M tok (in 28 · out 11.0k · cache r 2.29M / w 18.0k) · ~$3.20 · fable-5 · 20:31→20:33*
+
 ### [[08-22-26 Sat]] — LoC re-curation repaired, and a stale key no amount of checking could find
 
 **Findings:**

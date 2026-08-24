@@ -69,14 +69,14 @@
 
 ### 3.3 Feed
 - Infinite vertical scroll of mixed image/article cards, paginated (cursor-based).
-- Composition: weighted-random across (a) picked topics and (b) related topics inferred from saved items — always retaining some randomness.
+- Composition: weighted-random across (a) picked topics and (b) related topics inferred from saved items — always retaining some randomness. (The inference mechanism is §9's save→weight loop, shipped in Phase 6.1.)
 - Image card: tap → fullscreen; swipe left/right pages through a fullscreen gallery of the feed's images.
 - Article card: headline + lede/synopsis; double-tap / long-press expands full text inline.
 
 ### 3.4 Save & share
 - Save toggles an item into the user's saved set (synced).
 - Share invokes the native share sheet with the item's public URL.
-- Saves feed back into related-topic weighting.
+- Saves feed back into related-topic weighting (§9 — a new save bumps the topic's weight; shipped in Phase 6.1).
 
 ### 3.5 Sharing / public item
 - Any item is viewable read-only at `/i/{itemId}` (public-domain content; no auth, no owner info).
@@ -396,7 +396,7 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
    *Why it moved off the render (08-20-26).* A server render is not evidence of a reader. Next prefetches routes, and a back-pop that re-runs the dynamic `/feed` renders it again; through 5.6 each of those marked a full page seen, measured at 1,116 items burned in six minutes. The cost of the move is that a lost or slow ack racing a fast scroll can repeat one page — cosmetic, self-limiting, and much the cheaper failure. `getFeedPage` still captures a `servedAt`, now purely as the next cursor's `anchor` (the page-boundary instant); §7's cursor design note carries the argument for why the exclusion arithmetic survives acks landing *after* that anchor rather than exactly on it.
 5. **Card shaping** — map each `item` to an `ImageCard` or `ArticleCard` payload.
 
-**Personalisation = topics, not items.** Saving an item nudges its topic's `user_topic.weight` up (visibly — the UI says so; an invisible feedback loop reads as random, xikipedia's core failure) and folds the item's `aesthetic_tags` into the user's taste keywords. Item-level nearest-neighbour personalisation is dead (Phase 0.4) and stays dead.
+**Personalisation = topics, not items** (shipped in Phase 6.1). A **new** save — not a move between collections — does `LEAST(3.0, weight + 0.5)` on the saved item's topic (`WEIGHT_BUMP`/`WEIGHT_CAP` in `db/topics.ts`, phase0's defaults), creating the `user_topic` row at 1.5 when the user never picked that topic. That row creation is the *entire* "related topics inferred from saves" mechanism — deliberately no graph-neighbour spillover, because DRIFT/JUMP already spread a raised weight structurally (weighted draws pick the start of graph walks, and `reachableTopics` widens the fetched pools two hops out). Moves between collections don't re-bump; unsave doesn't decrement (weights record demonstrated interest; unsave is collection housekeeping). Taste keywords are **derived at feed time, never stored**: the last-24 unique `aesthetic_tags` across the user's most recent saves, recency-ordered, case-insensitively deduped (`getTasteKeywords` in `db/saves.ts`) — so there is nothing to migrate or decay, and unsave self-heals the list. Visibility is the combined save toast ("Saved to Art · Now drifting toward Cartography") — the UI *says* it reweighted, because an invisible feedback loop reads as random, xikipedia's core failure. Item-level nearest-neighbour personalisation is dead (Phase 0.4) and stays dead.
 
 **The topic graph** feeding DRIFT/JUMP is a checked-in JSON (§5.2): topic centroids = mean of member-item vectors, **minus the global mean centroid** (load-bearing — skipping the centering makes one hub topic every row's neighbour), cosine-ranked. Regenerate offline when the corpus grows; hand-edit rows freely.
 
