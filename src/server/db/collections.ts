@@ -3,9 +3,9 @@
 // design: `userId` is always an explicit parameter so a caller can't accidentally read or write
 // across users (SPEC §11's authorization rule), and `getCollectionForUser` exists specifically so
 // the router can prove a client-supplied `collectionId` belongs to the caller.
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull } from "drizzle-orm";
 
-import { collection, savedItem } from "~/server/db/schema";
+import { collection, item, savedItem } from "~/server/db/schema";
 
 /**
  * The three collections every user starts with. Exported because the seeding logic below and its
@@ -19,6 +19,13 @@ export interface CollectionWithCount {
   name: string;
   createdAt: Date;
   itemCount: number;
+  /**
+   * The image URL of the most recently saved *image* item in this collection, or null when the
+   * collection is empty or holds only articles. Phase 5.10's Profile grid paints it as the tile's
+   * cover; the two sheets that predate it simply ignore the field, which is why this could be
+   * added to the shared shape rather than forked into a second read.
+   */
+  cover: string | null;
 }
 
 /**
@@ -93,16 +100,93 @@ export async function getCollections(
       .groupBy(collection.id)
       .orderBy(asc(collection.createdAt));
 
-  const rows = await read();
-  if (rows.length > 0) return rows;
+  let rows = await read();
+  if (rows.length === 0) {
+    // NOTE, still live after 5.10 (creation landed; deletion did not): this keys seeding on "the
+    // user has no collections", not "the user has never been seeded". Today those are the same
+    // thing, because collections can't be deleted. Once they can, a user who deliberately deletes
+    // all three defaults gets them silently recreated on their next sheet open, with no way to opt
+    // out — so deletion needs a per-user `collections_seeded_at` marker (or equivalent) landing
+    // with it.
+    await seedDefaultCollections(userId);
+    rows = await read();
+  }
 
-  // NOTE for 5.10, when collection *creation* (and eventually deletion) lands: this keys seeding on
-  // "the user has no collections", not "the user has never been seeded". Today those are the same
-  // thing, because collections can't be deleted. Once they can, a user who deliberately deletes all
-  // three defaults gets them silently recreated on their next sheet open, with no way to opt out —
-  // so deletion needs a per-user `collections_seeded_at` marker (or equivalent) landing with it.
-  await seedDefaultCollections(userId);
-  return read();
+  return withCovers(userId, rows);
+}
+
+/**
+ * Attaches each collection's cover image — the most recently saved image item in it (Phase 5.10's
+ * Profile grid). A second round trip rather than a join onto the count query above, because the
+ * two want different shapes: the count is a `GROUP BY` aggregate, and a cover is one specific row
+ * per group. `DISTINCT ON` is Postgres' own answer to "the first row of each group under this
+ * ordering", so the ordering here isn't cosmetic — `collection_id` first is what `DISTINCT ON`
+ * requires, and `saved_at DESC` is what makes the surviving row the newest save.
+ *
+ * Only image items qualify (`imageUrl IS NOT NULL`), so an article-only collection reports null and
+ * the tile falls back to its bookmark placeholder — a cover slot is a picture or it's nothing.
+ */
+async function withCovers(
+  userId: string,
+  rows: Omit<CollectionWithCount, "cover">[],
+): Promise<CollectionWithCount[]> {
+  if (rows.length === 0) return [];
+  const { db } = await import("./client");
+
+  const covers = await db
+    .selectDistinctOn([savedItem.collectionId], {
+      collectionId: savedItem.collectionId,
+      imageUrl: item.imageUrl,
+    })
+    .from(savedItem)
+    .innerJoin(item, eq(item.id, savedItem.itemId))
+    .where(
+      and(
+        eq(savedItem.userId, userId),
+        // Uncollected saves (a null `collection_id`) belong to no tile, and an item with no image
+        // can't be a cover — both are excluded here rather than filtered out afterwards so the
+        // `DISTINCT ON` picks the newest *qualifying* save rather than discarding a group whose
+        // newest save happens to be an article.
+        isNotNull(savedItem.collectionId),
+        isNotNull(item.imageUrl),
+      ),
+    )
+    .orderBy(savedItem.collectionId, desc(savedItem.savedAt));
+
+  const byCollection = new Map(
+    covers.map((row) => [row.collectionId, row.imageUrl]),
+  );
+  return rows.map((row) => ({
+    ...row,
+    cover: byCollection.get(row.id) ?? null,
+  }));
+}
+
+/**
+ * Creates one named collection for a user — Phase 5.10's new-collection sheet on `/profile`.
+ *
+ * `onConflictDoNothing` against the same `(user_id, name)` unique constraint the seeding insert
+ * uses, so a duplicate name returns `undefined` rather than throwing: the caller maps that to a
+ * clean `CONFLICT` the sheet can render inline. (House idiom — the "undefined means the constraint
+ * caught it" shape is exactly what `getCollectionForUser` does for authorization.)
+ *
+ * One interplay worth naming: a create that lands *before* this user has ever read their
+ * collections leaves them with one collection and therefore suppresses the lazy default seeding
+ * above (which triggers only on a zero-row read). Unreachable through the UI — the Profile screen
+ * renders the grid, and therefore reads, before the sheet can be opened — and accepted rather than
+ * defended against, because the defense (seeding here too) would double the write on every create.
+ */
+export async function createCollection(
+  userId: string,
+  name: string,
+): Promise<{ id: string; name: string } | undefined> {
+  const { db } = await import("./client");
+  const [row] = await db
+    .insert(collection)
+    .values({ userId, name })
+    .onConflictDoNothing()
+    .returning({ id: collection.id, name: collection.name });
+  return row;
 }
 
 /**

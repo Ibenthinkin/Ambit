@@ -16,10 +16,11 @@ the validated design is a tiered topic-drift feed over an LLM-curated pool (SPEC
 scaffolded the real app — Next.js/tRPC/Drizzle/Better Auth, the five source adapters + curator
 (§6), the feed engine (§9), and the full tRPC surface (§7) — all on `main`, DB populated from a
 real ingest run. Phase 5 builds the UI against the design handoff (`docs/design_handoff_ambit_pwa/`)
-screen by screen, per `docs/BUILD_PLAN.md`'s Phase 5 ordering; 5.1 (design system foundation —
-Tailwind tokens, the 4-accent knob, primitives, `/dev/tokens`) is the first step and establishes
-what 5.2–5.8 build on. See `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
-`log.md` for the narrative of what's landed and why.
+screen by screen, per `docs/BUILD_PLAN.md`'s Phase 5 ordering. **5.1–5.10 are shipped** (design
+system, auth, onboarding, feed, item, gallery, Saved, Profile/Settings/Edit) — as of 5.10 the app
+has no internal 404s left and sign-out lives on `/settings`. **5.11 (landing slideshow + install +
+PWA polish) is the remaining Phase 5 step.** See `docs/BUILD_PLAN.md` for the full phase-by-phase
+build order and `log.md` for the narrative of what's landed and why.
 
 ## Authoritative documents
 

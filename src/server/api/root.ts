@@ -2,6 +2,7 @@ import { feedRouter } from "~/server/api/routers/feed";
 import { itemsRouter } from "~/server/api/routers/items";
 import { savesRouter } from "~/server/api/routers/saves";
 import { topicsRouter } from "~/server/api/routers/topics";
+import { userRouter } from "~/server/api/routers/user";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -18,6 +19,9 @@ export const appRouter = createTRPCRouter({
   feed: feedRouter,
   items: itemsRouter,
   saves: savesRouter,
+  // Phase 5.10: the reader's own profile row (`handle`/`bio` are invisible on `ctx.user` — see
+  // routers/user.ts's header for why this isn't Better Auth's `updateUser`).
+  user: userRouter,
 });
 
 // export type definition of API

@@ -46,11 +46,16 @@ describe("PillToolbar", () => {
     expect(onShare).toHaveBeenCalledOnce();
   });
 
-  it("navigates to /profile and /feed by default", () => {
+  it("navigates to /profile and /feed by default, marking the profile origin on the way", () => {
     push.mockClear();
+    sessionStorage.clear();
     renderPill();
     fireEvent.click(screen.getByRole("button", { name: "Profile" }));
     expect(push).toHaveBeenCalledWith("/profile");
+    // 5.10: written *before* the push, so it's already there when /profile mounts and its exits
+    // can tell an in-app arrival from a cold one (see profile-origin.ts).
+    expect(sessionStorage.getItem("ambit.profileOrigin.v1")).toBe("1");
+
     fireEvent.click(screen.getByRole("button", { name: "Feed" }));
     expect(push).toHaveBeenCalledWith("/feed");
   });

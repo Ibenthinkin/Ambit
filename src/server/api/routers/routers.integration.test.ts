@@ -51,12 +51,24 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
   // real collection id belonging to someone else to attack with (Phase 5.5).
   const otherUserId = `test-router-other-${nanoid(8)}`;
   const BOTH_USERS = [userId, otherUserId];
+  /**
+   * A per-run handle for the profile tests. `user.handle` is **globally** unique and this suite's
+   * users are the only rows deleted afterwards — so a literal like "bentest" collides with any
+   * leftover from a previous run (or from e2e/settings.spec.ts, which claims one of its own). Same
+   * discipline as the ids above, adapted to the handle pattern: `^[a-z0-9_]{2,24}$` has no room for
+   * nanoid's uppercase or `-`.
+   */
+  const testHandle = `t${nanoid(10)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "0")}`;
   const topicA = `test-router-topic-a-${nanoid(8)}`;
   const topicB = `test-router-topic-b-${nanoid(8)}`;
   let itemOneId: string;
   let itemTwoId: string;
   let itemThreeId: string;
   let itemFourId: string;
+  /** The one *image* item in topicA — 5.10's collection-cover query only ever picks these. */
+  let itemFiveId: string;
 
   beforeAll(async () => {
     const { db } = await import("~/server/db/client");
@@ -88,7 +100,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
         emailVerified: false,
       },
     ]);
-    const [itemOne, itemTwo, s3, s4] = await db
+    const [itemOne, itemTwo, s3, s4, s5] = await db
       .insert(item)
       .values([
         {
@@ -138,12 +150,27 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
           curationScore: 7,
           aestheticTags: ["botanical plate", "sepia"],
         },
+        // Item five backs 5.10's collection-cover assertions: the only one here with an
+        // `imageUrl`, and in topicA so the afterAll sweep cleans it up with the rest.
+        {
+          source: "met",
+          sourceId: `test-router-item-5-${nanoid(8)}`,
+          type: "image" as const,
+          title: "Integration test item five",
+          summary: "A summary long enough to be unremarkable.",
+          imageUrl: "https://example.com/test-router-item-5.jpg",
+          sourceUrl: `https://example.com/test-router-item-5-${nanoid(8)}`,
+          topicId: topicA,
+          curationScore: 7,
+          aestheticTags: [],
+        },
       ])
       .returning();
     itemOneId = itemOne!.id;
     itemTwoId = itemTwo!.id;
     itemThreeId = s3!.id;
     itemFourId = s4!.id;
+    itemFiveId = s5!.id;
   });
 
   afterAll(async () => {
@@ -225,6 +252,19 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
     it("hasCompletedOnboarding is true once a setMine has landed", async () => {
       const { hasCompletedOnboarding } = await import("~/server/db/topics");
       expect(await hasCompletedOnboarding(userId)).toBe(true);
+    });
+
+    // 5.10: what Settings' "What you see" row reads. Runs after the re-pick above, so the
+    // expected answer is that re-pick's survivor — proving `mine` reflects the *current*
+    // selection rather than everything ever picked.
+    it("topics.mine returns exactly what the last setMine wrote", async () => {
+      const caller = createCaller(authedContext(userId));
+      expect(await caller.topics.mine()).toEqual([topicA]);
+
+      await caller.topics.setMine({ topicIds: [topicA, topicB] });
+      expect((await caller.topics.mine()).sort()).toEqual(
+        [topicA, topicB].sort(),
+      );
     });
   });
 
@@ -376,6 +416,145 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       }
       const everything = await caller.saves.list();
       expect(everything).toHaveLength(await caller.saves.count());
+    });
+
+    // ── 5.10 ────────────────────────────────────────────────────────────────────────────────────
+
+    it("createCollection appends a new empty collection, and refuses a duplicate name", async () => {
+      const caller = createCaller(authedContext(userId));
+
+      const made = await caller.saves.createCollection({ name: "Maps" });
+      expect(made.name).toBe("Maps");
+
+      const all = await caller.saves.collections();
+      // Ordered by `createdAt`, so a collection made now sorts after the three staggered defaults
+      // — the whole reason `seedDefaultCollections` bothers to offset their timestamps.
+      expect(all.map((c) => c.name)).toEqual([
+        "Articles",
+        "Art",
+        "Photos",
+        "Maps",
+      ]);
+      expect(all.find((c) => c.name === "Maps")?.itemCount).toBe(0);
+
+      // Both flavours of duplicate hit the same `(user_id, name)` unique constraint: a name the
+      // user made themselves, and one the seeding gave them.
+      await expect(
+        caller.saves.createCollection({ name: "Maps" }),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+      await expect(
+        caller.saves.createCollection({ name: "Articles" }),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+    });
+
+    it("covers report the newest saved image per collection, and null when there is none", async () => {
+      const caller = createCaller(authedContext(userId));
+      const maps = (await caller.saves.collections()).find(
+        (c) => c.name === "Maps",
+      )!;
+
+      // Two saves into one collection: the image item first, then an article. The cover has to
+      // stay the image even though the article is the *newer* save — which is what the
+      // `imageUrl IS NOT NULL` filter inside the DISTINCT ON buys, and what a plain
+      // "newest save in this collection" query would get wrong.
+      await caller.saves.saveToCollection({
+        itemId: itemFiveId,
+        collectionId: maps.id,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await caller.saves.saveToCollection({
+        itemId: itemOneId,
+        collectionId: maps.id,
+      });
+
+      const after = await caller.saves.collections();
+      expect(after.find((c) => c.name === "Maps")?.cover).toBe(
+        "https://example.com/test-router-item-5.jpg",
+      );
+      // Art holds itemTwo, an article — a collection with saves but no pictures still reports
+      // null, and the Profile tile falls back to its bookmark placeholder.
+      expect(after.find((c) => c.name === "Art")?.cover).toBeNull();
+      // And an empty collection, likewise.
+      expect(after.find((c) => c.name === "Photos")?.cover).toBeNull();
+    });
+  });
+
+  // Phase 5.10 — the profile row behind `/profile`, `/profile/edit` and `/settings`. The whole
+  // reason this router exists is that `ctx.user` can't answer these questions (Better Auth only
+  // returns the columns it declares), so every assertion here is deliberately a real round trip
+  // to Postgres rather than anything the mocked-context unit tests could fake.
+  describe("5.10 — user.me + user.updateProfile", () => {
+    it("me returns the row, with both new columns null on a user who has never edited", async () => {
+      const caller = createCaller(authedContext(userId));
+      expect(await caller.user.me()).toEqual({
+        id: userId,
+        name: "Test router user",
+        email: `${userId}@example.com`,
+        handle: null,
+        bio: null,
+      });
+    });
+
+    it("updateProfile round-trips, storing a mixed-case handle lowercased", async () => {
+      const caller = createCaller(authedContext(userId));
+
+      const saved = await caller.user.updateProfile({
+        name: "Ben R",
+        handle: testHandle.toUpperCase(),
+        bio: "  Curious about maps.  ",
+      });
+      expect(saved).toMatchObject({
+        name: "Ben R",
+        handle: testHandle,
+        // `.trim()` runs in the zod schema, so what lands in the column is already tidy.
+        bio: "Curious about maps.",
+      });
+      // And it is genuinely in the table, not just in the mutation's return value.
+      expect(await caller.user.me()).toMatchObject({
+        name: "Ben R",
+        handle: testHandle,
+      });
+    });
+
+    it("a handle held by someone else is a CONFLICT, but re-saving your own is fine", async () => {
+      const mine = createCaller(authedContext(userId));
+      const theirs = createCaller(authedContext(otherUserId));
+
+      await expect(
+        theirs.user.updateProfile({
+          // Different case again — the lowercasing is what makes the constraint uncheatable.
+          handle: testHandle.toUpperCase(),
+          name: "Test router other user",
+          bio: null,
+        }),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+
+      // The `excludeUserId` half of `isHandleTaken`: without it, every save of an unchanged
+      // profile would report the user's own handle as taken.
+      await expect(
+        mine.user.updateProfile({
+          name: "Ben R",
+          handle: testHandle,
+          bio: null,
+        }),
+      ).resolves.toMatchObject({ handle: testHandle });
+    });
+
+    it("a null handle clears the column, freeing it for someone else", async () => {
+      const mine = createCaller(authedContext(userId));
+      const theirs = createCaller(authedContext(otherUserId));
+
+      await mine.user.updateProfile({ name: "Ben R", handle: null, bio: null });
+      expect(await mine.user.me()).toMatchObject({ handle: null, bio: null });
+
+      // Postgres treats NULLs as distinct, so the name is genuinely free now.
+      await expect(
+        theirs.user.updateProfile({
+          name: "Test router other user",
+          handle: testHandle,
+          bio: null,
+        }),
+      ).resolves.toMatchObject({ handle: testHandle });
     });
   });
 

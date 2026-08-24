@@ -15,6 +15,22 @@ export default defineConfig({
   // ignores dot-directories, so moving the output here takes the watcher out of the loop.
   outputDir: "./.playwright/test-results",
   fullyParallel: true,
+  // **Capped, deliberately.** Playwright's default is half the machine's cores, which put five
+  // workers on this box — and from 5.9 onward that was reliably too many. The failure is always the
+  // same shape and never the same test: a server-bound wait (a feed compose, a save's three
+  // invalidation refetches, a `waitForURL` behind a dynamic route) outlives its allowance because
+  // four other workers are driving the same single dev server and the same Postgres. Each phase's
+  // reflex was to raise that one assertion's timeout, which moved the failure rather than fixing it.
+  //
+  // 5.10 makes six spec files, and PHASE5_PLAN_5.10.md §5 named this the moment to stop: cap the
+  // workers instead. Three keeps the wall clock close (the suite is I/O-bound on one dev server, so
+  // the fifth and fourth workers were buying very little) and takes the contention out. The
+  // per-assertion 15s allowances already in the specs stay as they are — they're honest about a
+  // dynamic feed being slow, and they're what makes three workers enough.
+  //
+  // CI gets one worker: it has no Postgres until Phase 7.1, and when it does it'll be a smaller box
+  // than this one.
+  workers: process.env.CI ? 1 : 3,
   // `test.only` is handy locally to focus one spec while iterating, but it's exactly the kind of
   // thing that should never silently ship — CI fails the run outright if one slips into a commit.
   forbidOnly: !!process.env.CI,

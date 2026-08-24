@@ -4,17 +4,31 @@ import * as React from "react";
 import { notFound } from "next/navigation";
 
 import {
+  Bell,
   Bookmark,
+  ChatBubble,
   Check,
   ChevronLeft,
+  ChevronRight,
   ChevronsUpDown,
   Close,
+  Contrast,
   Diamond,
   Envelope,
+  FeedLines,
+  Gear,
+  Globe,
   Info,
   Lock,
   Logo,
+  Magnifier,
+  Mute,
+  Person,
+  PersonPlus,
+  Photo,
+  Plus,
   PlusSquare,
+  Rays,
   Share,
 } from "~/components/icons";
 import { CollectionsSheet } from "~/components/sheets/collections-sheet";
@@ -33,8 +47,8 @@ import { PillToolbar, type BookmarkState } from "~/components/ui/pill-toolbar";
 import { Toast } from "~/components/ui/toast";
 import { usePress } from "~/hooks/use-press";
 import { saveToastText } from "~/lib/save-toast";
+import { ACCENTS, type AccentKey, storedAccent } from "~/lib/accent";
 import { api } from "~/trpc/react";
-import { SignOutButton } from "./sign-out-button";
 
 // The living style guide: every token, icon, and primitive in one place with a live accent
 // switcher, so the design system can be checked whole without building a real screen first.
@@ -43,9 +57,9 @@ import { SignOutButton } from "./sign-out-button";
 // it'll be wrong on every screen that consumes it later.
 //
 // It also hosts the live demo of 5.5's backbone (pill toolbar, both collection sheets, the share
-// sheet, `usePress`) wired to the REAL router — see `BackboneSection` at the bottom. And since 5.6
-// deleted /feed's placeholder, it is the INTERIM HOME OF SIGN-OUT (the "Session" section) until
-// Settings lands in 5.10.
+// sheet, `usePress`) wired to the REAL router — see `BackboneSection` at the bottom. It hosted
+// sign-out too, from 5.6 (when /feed's placeholder was deleted) until 5.10 gave it a real home on
+// /settings — that "Session" section and its `sign-out-button.tsx` are gone.
 //
 // `src/proxy.ts` only gates `/feed`, `/saved`, `/onboarding` — a `/dev/*` route would otherwise
 // be reachable in production, so the guard is this early `notFound()`. Note that as of 5.5 the
@@ -53,16 +67,9 @@ import { SignOutButton } from "./sign-out-button";
 // screen uses, scoped to the signed-in user — there's nothing here an authed user couldn't
 // already see.
 //
-// Accent hexes are duplicated here (they also live in globals.css's `@layer base`) because the
-// swatch dots need the literal color to paint *before* the attribute is switched — a
-// `bg-accent` swatch would show four identical dots.
-const ACCENTS = [
-  { key: "indigo", label: "Indigo", hex: "#4C5FE0" },
-  { key: "amber", label: "Amber", hex: "#D9A73C" },
-  { key: "green", label: "Green", hex: "#3FA35C" },
-  { key: "red", label: "Red", hex: "#D9483F" },
-] as const;
-type AccentKey = (typeof ACCENTS)[number]["key"];
+// The accent list moved to `~/lib/accent.ts` in 5.10, when Settings gave it a real user-facing
+// picker — including the note on why the hexes are duplicated from globals.css. This page now
+// imports it rather than keeping a second copy that could drift.
 
 // The alpha ladder from PHASE5_PLAN.md Step 2 / SPEC §10 — the whole muted-text/hairline/fill
 // system, reproduced here as swatches instead of prose so a mismatch against the prototypes is
@@ -132,6 +139,21 @@ const ICONS = [
   { name: "Lock", Comp: Lock },
   { name: "Info", Comp: Info },
   { name: "PlusSquare", Comp: PlusSquare },
+  { name: "Magnifier", Comp: Magnifier },
+  // 5.10's settings-row set. All 24-grid/1.7 except the two noted at their definitions.
+  { name: "Gear", Comp: Gear },
+  { name: "ChevronRight", Comp: ChevronRight },
+  { name: "Person", Comp: Person },
+  { name: "PersonPlus", Comp: PersonPlus },
+  { name: "FeedLines", Comp: FeedLines },
+  { name: "Mute", Comp: Mute },
+  { name: "Rays", Comp: Rays },
+  { name: "Photo", Comp: Photo },
+  { name: "Bell", Comp: Bell },
+  { name: "Contrast", Comp: Contrast },
+  { name: "Globe", Comp: Globe },
+  { name: "ChatBubble", Comp: ChatBubble },
+  { name: "Plus", Comp: Plus },
 ] as const;
 
 function Section({
@@ -169,10 +191,16 @@ export default function TokensPage() {
   // src/app/layout.tsx). Setting it here on the real document element — not a wrapper div — is
   // the actual mechanism under test: every `bg-accent`/`text-accent`/etc. utility on this page
   // should re-resolve live when this switches, no rebuild or reload.
+  //
+  // This switcher is deliberately *previewing*, not persisting: it never calls `setAccent`, so
+  // playing with the swatches here doesn't quietly rewrite the reader's real preference (Settings
+  // owns that). The unmount restore therefore reads `storedAccent()` rather than hardcoding
+  // "indigo" — before 5.10 those were the same thing; now, resetting to the literal default would
+  // stomp the accent of anyone who set one and then visited this page.
   React.useEffect(() => {
     document.documentElement.dataset.accent = accent;
     return () => {
-      document.documentElement.dataset.accent = "indigo";
+      document.documentElement.dataset.accent = storedAccent();
     };
   }, [accent]);
 
@@ -188,12 +216,6 @@ export default function TokensPage() {
       </GlassHeader>
 
       <div className="flex flex-col gap-10 px-5 pt-8">
-        {/* First, because it's the only thing on this page that isn't a design token: 5.6 deleted
-            /feed's placeholder, and this is where sign-out waits until Settings lands in 5.10. */}
-        <Section title="Session">
-          <SignOutButton />
-        </Section>
-
         <Section title="Accent">
           <div className="flex flex-wrap gap-2">
             {ACCENTS.map((a) => (
@@ -701,7 +723,6 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
         onShare={() =>
           demoItem ? setShareOpen(true) : onToast("No demo item loaded yet")
         }
-        onProfile={() => onToast("Profile is 5.10")}
         onHome={() => onToast("Feed is 5.6")}
       />
 

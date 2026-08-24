@@ -36,6 +36,19 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
+  // Phase 5.10's two profile columns. Both nullable so the Better Auth sign-up insert — and the
+  // invite-gate `user.create.before` databaseHook that runs with it (lib/auth.ts) — never has to
+  // know these columns exist; a user who never opens /profile/edit simply has null in both.
+  //
+  // `handle` is stored BARE and LOWERCASE ("bentraverse", never "@BenTraverse"): the client strips
+  // a typed `@` and `user.updateProfile` lowercases, so the unique constraint below can't be
+  // sidestepped by case alone. Rendered as `@{handle}`. Display-only — there are no public
+  // profiles, so nothing resolves a handle back to a user.
+  //
+  // Postgres treats NULLs as distinct for uniqueness, so unlimited users can have no handle at
+  // all while the constraint still holds for everyone who sets one.
+  handle: text("handle").unique(),
+  bio: text("bio"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

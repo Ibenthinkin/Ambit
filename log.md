@@ -5,7 +5,7 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
-### [[08-24-26 Mon]] — Archive is live and verified; Ambit's side of A.6 is untouched
+### [[08-24-26 Mon]] — Archive is live and verified; Ambit's side of A.6 closed the same afternoon
 
 No Ambit code changed. Recording this here because [[Ambit Archive]] is now a real, reachable
 source and the hookup is Ambit's to do.
@@ -15,24 +15,47 @@ returns a ranked array for a valid key and 401 for a wrong or absent one, and `/
 serves derivatives with an immutable cache header. Item count settled at **13,379** after two
 images were deliberately purged.
 
-**What Ambit still owes (runbook Task 18):**
-- `~/Dev/ambit/.env` needs `ARCHIVE_URL=https://archive.home.benreilly.io` and the archive key.
-- `bun run ingest --source archive --quota 20` — **space-separated flags only**; `--source=archive`
-  silently runs a full six-source ingest at the default quota, because `ingest.ts` parses with
-  `args.indexOf("--source")`. That has already cost one session six minutes of hammering museum APIs.
-- The **310 rows ingested 08-21 carry baked-in `http://localhost:3001/img/…` URLs** and render
-  broken. Re-ingest or delete them, and note which.
-- An archive image rendering inside Ambit through `/api/img/[itemId]` is still unverified.
+**Task 18 (Ambit's side) — done, second session the same day.** `.env` already carried
+`ARCHIVE_URL=https://archive.home.benreilly.io` and the key; what was left was the stale rows and the
+proof.
 
-**Note before doing any of it:** the archive key is due for rotation — it was echoed in plaintext
-during testing. Rotate it in Coolify, `~/Dev/ambit-archive/.env` and `~/Dev/ambit/.env` in one pass,
-or the two copies drift, which is exactly how the Immich key broke the same evening.
+- **The 310 rows from 08-21 were repaired by a URL rewrite, not a re-ingest or a delete.** Two
+  reasons, one of them a finding: `scripts/ingest.ts` filters out anything already in the DB
+  *before* `upsertItem` runs (`ingest.ts:238-249`), so the upsert's `imageUrl` refresh never touches
+  an existing row — **a re-ingest cannot repair a stale URL, ever**. And delete-then-re-ingest would
+  re-pay curation for 310 items. The archive's `/img/<sha>.webp` path is pure content-hash string
+  maths, so swapping `http://localhost:3001/` → `https://archive.home.benreilly.io/` on `image_url`
+  and `source_url` is exact. Dry-run first (310 rows, sample HEADs 200 on prod), then applied: 310
+  updated, 0 left. Zero saves referenced them; 4 `seen_item` rows did.
+- **HEAD-swept all 310 image URLs on prod: 310/310 → 200.** Neither of the two images purged from
+  the archive on 08-24 was ever in Ambit's rows, so nothing to delete.
+- `bun run ingest --source archive --quota 20` (space-separated flags) against prod: 29 searches,
+  320 offered, **0 errors**, 10 collisions → the identical 310, all skipped, 0 inserted, 2.6s. The
+  search ranking is deterministic, so at the same quota the adapter draws the same set it drew on
+  08-21; a bigger quota is how the archive grows its footprint in Ambit, not a re-run.
+- **An archive image renders inside Ambit through `/api/img/[itemId]`**: 200 `image/webp`,
+  1010×1400, 150 KB, 0.47s server-side. That was the last unverified line of runbook Task 19 that
+  Ambit could answer; also re-checked from here: no key → 401, direct `/img` → 200 with
+  `public, max-age=31536000, immutable`, two traversal forms → 404.
+- Noticed, not fixed: the ingest run enumerated **18 topics, not 16** — two `test-feed-topic-*`
+  rows are sitting in `topic`, e2e leftovers of the same accumulation `CLAUDE.md` warns about for
+  `gallery.spec:193`. They draw 0 archive items, so harmless today; worth sweeping with the e2e
+  users/seen rows.
+
+**Key rotation — decided against (later the same day).** The key was echoed in plaintext during
+testing, but it only guards read-only `/search` on a host that resolves LAN-only (Pi-hole
+split-horizon, no public route), and `/img` is public-by-hash regardless. Grepped both repos' docs,
+logs and the vault: the value is nowhere but the two `.env`s, Coolify, and the 08-24 session
+transcript. Low enough to leave. **Rotate if the archive ever gets a public route or the key is
+reused** — and do it in all three places in one pass, or the copies drift the way the Immich key
+did. Verified the standing key from Ambit's `.env`: `/search` 200, wrong key 401, no shell shadow.
 
 Full detail in `~/Dev/ambit-archive/log.md`; the VM 202 DNS fix is in the vault's homelab log.
 
 *Session spend: 32.51M tok (in 400 · out 251.5k · cache r 31.64M / w 615.6k) · ~$28.27 · opus-5 · 11:35→14:37*
+*Session spend: 8.05M tok (in 9.2k · out 113.5k · cache r 7.60M / w 327.5k) · ~$19.92 · fable-5 · 15:19→15:29*
 
-### [[08-24-26 Mon]] — Phase 5.10 planned: Profile + Settings, scope re-baselined
+### [[08-24-26 Mon]] — Phase 5.10: Profile + Settings planned, then shipped
 
 **The headline decision: BUILD_PLAN's "minimal viable" 5.10 is superseded.** Asked why the
 entry cut so much, Ben pulled the full designed surface back into scope — bio, handle, the
@@ -70,10 +93,66 @@ is wired, not hardcoded; collection tiles get real cover images (additive `cover
 new origin markers, ~35-40 new tests + a sixth e2e spec, 12-step order with the
 don't-delete-sign-out-early trap flagged).
 
-**Open / next:** execute the plan in a cheaper session on `feat/5.10-profile-settings`; then
-5.11 (landing/PWA) or the still-thrice-deferred 6.3 blog design session.
+---
+
+**Executed the same day** on `feat/5.10-profile-settings`, straight through with no mid-phase
+stop. `bun run check` green (642 vitest tests, 47 new), `bun run build` clean, `bun run e2e` green
+across all six spec files on three consecutive runs. Walkthrough:
+`docs/PHASE5_WALKTHROUGH_5.10.md`. All fourteen plan decisions held; the app has no internal 404s
+left.
+
+**Four things argued back, none of them the design:**
+
+- **The prototype's warn tint already had a token.** The plan said to render `#D98C6A` as a
+  literal with a "no theme token" comment. `--color-error` in globals.css *is* that hex.
+  `text-error` throughout instead.
+- **The plan's shape for the two client-capability reads is a lint error in this repo.** Null
+  `useState` + an effect that fills it in — for the accent (localStorage) and the notification
+  permission (`window.Notification`) — is exactly what `react-hooks/set-state-in-effect` flags,
+  and it's an error here, not a warning. Both are genuinely external stores, so both became
+  `useSyncExternalStore` with a `getServerSnapshot` returning `null`: same pre-mount null the plan
+  wanted, one render sooner, no suppression, and the server/hydration renders agree by
+  construction. The topics sheet's re-seed-on-open took the *other* house answer — render-time
+  state adjustment against a `prevOpen`, which is what `BottomSheet` already does. Two hardenings
+  fell out of testing it: `getSnapshot` needs no cache (it returns a string; `Object.is` compares
+  by value) and caching it was a way for store and reality to disagree across tests; and
+  `"Notification" in window` is **not** a sufficient guard — a webview, or a test that stubs the
+  global away, leaves the key present with an undefined value and `.permission` throws.
+- **`listTopics()` has no `ORDER BY`.** Settings' "What you see" row takes the first three picked
+  labels, and I wrote it deferring to "the catalog's order" with a comment claiming that was
+  stable. Postgres returned "Botany, Music, Astronomy" and the e2e assertion caught it. Sorted
+  alphabetically now. **Flagged, not fixed:** the onboarding chip grid renders from that same
+  unordered query, so its order is arbitrary too — real if minor, and fixing it means changing a
+  screen 5.10 doesn't own.
+- **Global handle uniqueness bit two test fixtures, in sequence.** `user.handle` is unique across
+  the whole table and e2e user rows persist by design (the timestamped *email* only stops reruns
+  colliding on email). `e2e/settings.spec.ts` used a literal `@BenTest`: it passed once, then
+  failed against its own predecessor. `routers.integration.test.ts` then failed the same way,
+  losing to the e2e user. Both handles are run-scoped now, and the squatted `bentest` was released
+  from the dev DB by hand. Neither was a code defect — both were fixtures assuming a namespace
+  they don't own, and both would have failed on `main` a month from now.
+
+**Playwright workers capped at 3 (CI: 1) — the deferred decision, finally taken.** 5.9 recommended
+it, the 5.10 plan named the trigger condition, and six spec files hit it immediately: two
+consecutive whole-suite runs each failed two tests, never the same two
+(`gallery.spec:193` / `saved.spec:142` / `feed.spec:173` in rotation), and every one passed in
+isolation. Playwright's default had put five workers on this box against one dev server and one
+Postgres. Three workers, then three consecutive green full runs at 1.7–1.8 min versus ~1.5 for the
+flaky five-worker runs — the fourth and fifth workers were buying almost nothing and costing
+correctness. **`gallery.spec:193` passed all three times**, which is suggestive about CLAUDE.md's
+documented dev-DB flake but not proof; the note stays until it survives more sessions.
+
+**Also shipped, beyond the plan's own list:** 9.2 (the accent picker) is checked off in BUILD_PLAN
+— 5.10 had to build the Settings surface anyway, so it landed here, persisted **per-device** in
+localStorage rather than as a user column. And 9.11 is new: the preference-derived sprite/glyph
+avatar generator, as the locked decision required, with the pill's per-user disc folded into it.
+
+**Open / next:** 5.11 (landing/PWA) or the still-thrice-deferred 6.3 blog design session. Two
+small things noticed and left: `listTopics` ordering (above), and — from this morning's archive
+session — the two `test-feed-topic-*` rows still sitting in `topic`.
 
 *Session spend: 17.91M tok (in 154 · out 181.9k · cache r 16.33M / w 1.40M) · ~≥$51.61 · fable-5 + opus-4-7 + <synthetic> · 23:53→12:34*
+*Session spend: 62.55M tok (in 522 · out 233.1k · cache r 61.44M / w 872.9k) · ~$45.28 · opus-5 · 16:09→16:56*
 
 ### [[08-23-26 Sun]] — Phase 6.1 planned: the feed learns from saves
 

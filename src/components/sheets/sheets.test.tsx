@@ -367,7 +367,7 @@ describe("CollectionsSheet", () => {
 
   // 5.9: the marker is what lets the Saved screen pop back here instead of rebuilding the feed
   // (two pages of corpus per trip — see saved-origin.ts). Written before the push, so it's already
-  // there when /saved mounts. /profile deliberately gets none: only Saved reads it.
+  // there when /saved mounts.
   it("marks the saved-origin before navigating to Saved", () => {
     sessionStorage.clear();
     render(<CollectionsSheet open onClose={vi.fn()} />);
@@ -375,10 +375,18 @@ describe("CollectionsSheet", () => {
     fireEvent.click(screen.getByText("Everything kept"));
     expect(sessionStorage.getItem("ambit.savedOrigin.v1")).toBe("1");
     expect(pushMock).toHaveBeenCalledWith("/saved");
+  });
 
+  // 5.10: the New-collection row writes the *profile* marker and never the saved one — each screen
+  // reads only its own, and a stray savedOrigin would make /saved pop somewhere it never came from.
+  it("marks the profile-origin, not the saved one, before navigating to Profile", () => {
     sessionStorage.clear();
+    render(<CollectionsSheet open onClose={vi.fn()} />);
+
     fireEvent.click(screen.getByText("New collection"));
+    expect(sessionStorage.getItem("ambit.profileOrigin.v1")).toBe("1");
     expect(sessionStorage.getItem("ambit.savedOrigin.v1")).toBeNull();
+    expect(pushMock).toHaveBeenCalledWith("/profile");
   });
 });
 
