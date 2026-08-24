@@ -349,6 +349,34 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
         }),
       ).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
+
+    // 5.9's chips display `collections()` counts but *filter to* `list({collectionId})` — two
+    // different queries whose agreement nothing else enforces. This pins it: every count matches
+    // its filtered list's length, and the All chip's number (`count()`) matches the unfiltered
+    // list. Runs against whatever save state the tests above left behind, plus two fresh saves
+    // spread across two collections so neither side of the arithmetic is trivially zero.
+    it("5.9 — the chips' arithmetic: every collection count matches its filtered list, and All matches the unfiltered list", async () => {
+      const caller = createCaller(authedContext(userId));
+      const collections = await caller.saves.collections();
+      const articles = collections.find((c) => c.name === "Articles")!;
+      const art = collections.find((c) => c.name === "Art")!;
+
+      await caller.saves.saveToCollection({
+        itemId: itemOneId,
+        collectionId: articles.id,
+      });
+      await caller.saves.saveToCollection({
+        itemId: itemTwoId,
+        collectionId: art.id,
+      });
+
+      for (const c of await caller.saves.collections()) {
+        const filtered = await caller.saves.list({ collectionId: c.id });
+        expect(filtered).toHaveLength(c.itemCount);
+      }
+      const everything = await caller.saves.list();
+      expect(everything).toHaveLength(await caller.saves.count());
+    });
   });
 
   // Phase 6.1: a *new* save bumps the saved item's topic weight (and creates the row when the

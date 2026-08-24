@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
+import { markSavedOrigin } from "~/components/saved/saved-origin";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { api } from "~/trpc/react";
@@ -33,6 +34,10 @@ export function CollectionsSheet({ open, onClose }: CollectionsSheetProps) {
 
   const go = (href: string) => {
     onClose();
+    // Written immediately before the push, so the Saved screen's back-arrow (and its pill's Feed
+    // button) can pop back to whatever screen opened this sheet instead of rebuilding the feed —
+    // see `saved-origin.ts` for the corpus arithmetic behind that distinction.
+    if (href.startsWith("/saved")) markSavedOrigin();
     router.push(href);
   };
 

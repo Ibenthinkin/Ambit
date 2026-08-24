@@ -36,7 +36,12 @@ export interface ImageTileProps {
   /** A literal Tailwind aspect class from `IMAGE_ASPECTS` — see masonry.ts on why literal. */
   aspectClass: string;
   onTap: () => void;
-  onLongPress: () => void;
+  /**
+   * Optional as of 5.9: Saved renders these tiles with no item sheet (its unsave badge replaces
+   * it). `usePress` treats an absent handler as "never arm the timer", which also leaves iOS's
+   * own image callout undisturbed there — the same reasoning as `hero-gallery-link.tsx`.
+   */
+  onLongPress?: () => void;
 }
 
 export function ImageTile({

@@ -8,22 +8,38 @@ import { cn } from "~/lib/utils";
 // Decision 6).
 //
 // The `serif` prop is gone as of Phase 5.4 — the redesign uses one typeface (Sora) everywhere, so
-// there is no second family to switch into. The Saved screen's filter chip (5.9) is a smaller
-// 12.5px/500 variant of this same pill; it gets added as a size prop when that screen is built,
-// rather than guessed at now.
+// there is no second family to switch into.
+//
+// `size="sm"` is the Saved screen's collection filter chip (5.9, `Ambit - Saved.dc.html`): the
+// same pill at 12.5px/500 with tighter padding — and **no pop on select**. The pop belongs to
+// onboarding, where toggling a chip is the screen's one event; Saved's chips are a filter row the
+// reader flicks between, and a squash animation on every flick reads as noise. The prototype's own
+// chips transition colors only, which the shared `transition ... duration-200` already covers.
 export interface ChipProps extends React.ComponentProps<"button"> {
   selected?: boolean;
+  size?: "md" | "sm";
 }
 
-export function Chip({ selected = false, className, ...rest }: ChipProps) {
+export function Chip({
+  selected = false,
+  size = "md",
+  className,
+  ...rest
+}: ChipProps) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       className={cn(
-        "border-hairline rounded-pill inline-flex flex-none items-center px-[17px] py-[11px] text-[15px] leading-none font-medium whitespace-nowrap transition-[background-color,color,border-color] duration-200 select-none",
+        "border-hairline rounded-pill inline-flex flex-none items-center leading-none font-medium whitespace-nowrap transition-[background-color,color,border-color] duration-200 select-none",
+        size === "md"
+          ? "px-[17px] py-[11px] text-[15px]"
+          : "px-[15px] py-2 text-[12.5px]",
         selected
-          ? "bg-accent border-accent text-on-accent animate-chip-pop"
+          ? cn(
+              "bg-accent border-accent text-on-accent",
+              size === "md" && "animate-chip-pop",
+            )
           : "bg-ink/5 border-ink/12 text-ink/82",
         className,
       )}
