@@ -5,6 +5,42 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-23-26 Sun]] — Phase 6.1 planned: the feed learns from saves
+
+**Decisions (locked with Ben, do not relitigate):** 6.1 chosen over resuming UI (5.9/5.10), a
+feel-tune pass, or the 6.3 blog design session. Four design calls, all landing on the recommended
+option: **no unsave decrement** (weights record demonstrated interest; unsave is housekeeping);
+**taste keywords derived at feed time** from the last-24 unique tags across recent saves — never
+stored, so no migration and unsave self-heals; **one combined toast** ("Saved to Art · Now
+drifting toward Cartography"); **no graph-neighbor spillover** — creating the `user_topic` row on
+a save of an unpicked topic *is* the related-topic inference, and DRIFT/JUMP structure spreads it
+from there. Bump arithmetic wasn't up for debate: phase0's `min(3, w + 0.5)` is the shipped
+default per SPEC §9's standing rule.
+
+**Findings from the plan-time exploration:**
+- BUILD_PLAN 6.1 cites **SPEC §3.3b, which doesn't exist** — the material lives in §3.3/§3.4/§9.
+  The plan fixes the phantom.
+- The engine was already waiting: `feed.ts:526` carries the literal `tasteKeywords: []` TODO
+  naming Phase 6.1, and `drawWeight` already applies the tag boost. Saving currently has **zero**
+  side effects beyond the upsert; `isItemSaved` sits router-unused since `saves.toggle` died —
+  it's the ready-made new-save-vs-move check.
+- Two breakages a cold executor would hit blind, now pre-charted: strict `toEqual` assertions on
+  the mutation's return shape, and `sheets.test.tsx`'s hand-typed mock contract failing
+  *typecheck* (not just tests) once components read `result.drift`.
+- One real edge case, documented-not-mechanized: an authed never-onboarded user can save from the
+  public `/i/`/`/g/` pages, which creates a single-row weights map *and* flips
+  `hasCompletedOnboarding`, silently skipping the picker forever. Bounded and acceptable for an
+  invite-gated app; recorded, nothing built.
+
+**Shipped:** `docs/PHASE6_PLAN_6.1.md` — cold-executable in the 6.2 style (five tasks, ending in
+docs; verified-at-plan-time blocks; the 5.4 seeded-distribution test pattern reused for the
+"measurably but not overwhelmingly" done bar: >+5pp shift at cap weight, <50% share, topicCap
+bound under shipped knobs).
+
+**Open / next:** execute the plan in a cheaper session on `feat/6.1-feed-learns-from-saves`.
+
+*Session spend: 3.86M tok (in 80 · out 90.8k · cache r 2.70M / w 1.07M) · ~$28.69 · fable-5 · 19:30→20:13*
+
 ### [[08-22-26 Sat]] — LoC re-curation repaired, and a stale key no amount of checking could find
 
 **Findings:**
