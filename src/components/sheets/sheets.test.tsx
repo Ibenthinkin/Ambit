@@ -39,7 +39,10 @@ const {
       | {
           onError: (err: { data?: { code?: string } }) => void;
           onSuccess: (
-            result: { collectionName: string },
+            result: {
+              collectionName: string;
+              drift: { topicLabel: string; isNew: boolean } | null;
+            },
             variables: { itemId: string; collectionId: string },
           ) => Promise<void>;
         },
@@ -265,11 +268,31 @@ describe("ItemSheet", () => {
     fireEvent.click(screen.getByText("Art"));
 
     await mutationOpts.current!.onSuccess(
-      { collectionName: "Art" },
+      { collectionName: "Art", drift: null },
       { itemId: "item-9", collectionId: "c2" },
     );
 
-    expect(onSaved).toHaveBeenCalledWith({ id: "c2", name: "Art" });
+    expect(onSaved).toHaveBeenCalledWith({ id: "c2", name: "Art" }, null);
+  });
+
+  // Phase 6.1: what the save taught the feed rides along to the caller, whose toast says it.
+  it("passes the drift through to onSaved", async () => {
+    const onSaved = vi.fn();
+    renderSheet({ onSaved });
+    fireEvent.click(screen.getByText("Art"));
+
+    await mutationOpts.current!.onSuccess(
+      {
+        collectionName: "Art",
+        drift: { topicLabel: "Cartography", isNew: true },
+      },
+      { itemId: "item-9", collectionId: "c2" },
+    );
+
+    expect(onSaved).toHaveBeenCalledWith(
+      { id: "c2", name: "Art" },
+      { topicLabel: "Cartography", isNew: true },
+    );
   });
 
   // Same hazard as the save sheet: this one dismisses on pick too, so a silent failure reads as

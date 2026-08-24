@@ -32,6 +32,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { PillToolbar, type BookmarkState } from "~/components/ui/pill-toolbar";
 import { Toast } from "~/components/ui/toast";
 import { usePress } from "~/hooks/use-press";
+import { saveToastText } from "~/lib/save-toast";
 import { api } from "~/trpc/react";
 import { SignOutButton } from "./sign-out-button";
 
@@ -716,10 +717,10 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
             onClose={() => setSaveOpen(false)}
             itemId={demoItem.id}
             currentCollectionId={currentCollectionId}
-            onSaved={(collection) => {
+            onSaved={(collection, drift) => {
               setBookmark("saved");
               setCurrentCollectionId(collection.id);
-              onToast(`Saved to ${collection.name}`);
+              onToast(saveToastText(collection.name, drift));
             }}
             onError={onToast}
           />

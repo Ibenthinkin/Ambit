@@ -11,6 +11,7 @@ import { PillToolbar } from "~/components/ui/pill-toolbar";
 import { Toast } from "~/components/ui/toast";
 import { useChromeCycle } from "~/hooks/use-chrome-cycle";
 import { useRailGestures } from "~/hooks/use-rail-gestures";
+import { saveToastText } from "~/lib/save-toast";
 import { sourceLabel } from "~/lib/source-label";
 import type { RailItem } from "~/server/services/gallery-rail";
 import { api } from "~/trpc/react";
@@ -355,8 +356,8 @@ export function GalleryScreen({
             onClose={() => setSaveOpen(false)}
             itemId={current.id}
             currentCollectionId={saved.data?.collectionId ?? undefined}
-            onSaved={async (collection) => {
-              setToast(`Saved to ${collection.name}`);
+            onSaved={async (collection, drift) => {
+              setToast(saveToastText(collection.name, drift));
               await utils.saves.forItem.invalidate({ itemId: current.id });
             }}
             onError={setToast}

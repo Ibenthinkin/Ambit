@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import type { SaveDrift } from "~/lib/save-toast";
 import { Spinner } from "~/components/ui/spinner";
 import { api } from "~/trpc/react";
 import {
@@ -28,9 +29,11 @@ export interface SaveToCollectionSheetProps {
   /**
    * Called after a successful save. Carries the id as well as the name because the caller almost
    * always needs both: the name to toast with, and the id to move its own `currentCollectionId` to
-   * so reopening the sheet shows the accent dot on the right row.
+   * so reopening the sheet shows the accent dot on the right row. `drift` (Phase 6.1) is what the
+   * save just taught the feed — null on a move between collections — so callers can build the
+   * combined toast via `saveToastText`.
    */
-  onSaved: (collection: { id: string; name: string }) => void;
+  onSaved: (collection: { id: string; name: string }, drift: SaveDrift) => void;
   /**
    * Called if the write fails. Required, not optional, and deliberately so: the sheet dismisses the
    * instant a row is picked, so without this a failed save — an expired session, a dropped
@@ -62,7 +65,10 @@ export function SaveToCollectionSheet({
         utils.saves.list.invalidate(),
         utils.saves.count.invalidate(),
       ]);
-      onSaved({ id: variables.collectionId, name: result.collectionName });
+      onSaved(
+        { id: variables.collectionId, name: result.collectionName },
+        result.drift,
+      );
     },
     onError: (error) => {
       onError(
