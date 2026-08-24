@@ -111,3 +111,56 @@ export async function getSavedCount(userId: string): Promise<number> {
     .where(eq(savedItem.userId, userId));
   return row?.total ?? 0;
 }
+
+/**
+ * The pure half of taste-keyword derivation (Phase 6.1), split out so it can be unit-tested
+ * without a database. `tagLists` is expected most-recent-save first, each item's stored tag order
+ * preserved; the flatten keeps that order, so the result is recency-ordered. Dedupe is
+ * case-insensitive, keeping the first-seen form — matching `pickItem`'s lowercase comparison, so
+ * "Etching" and "etching" can never both occupy a slot in the window.
+ */
+export function deriveTasteKeywords(
+  tagLists: string[][],
+  cap: number,
+): string[] {
+  const seen = new Set<string>();
+  const keywords: string[] = [];
+  for (const tag of tagLists.flat()) {
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    keywords.push(tag);
+    if (keywords.length >= cap) break;
+  }
+  return keywords;
+}
+
+/**
+ * The user's current taste keywords: the last-`cap` unique `aesthetic_tags` across their most
+ * recent saves, recency-ordered (phase0's rolling last-24 window, SPEC §9). **Derived at feed
+ * time, never stored** — a deliberate divergence from phase0's persisted profile: there is no
+ * schema to migrate, nothing to decay, and unsaving an item self-heals the list on the next
+ * read. The cost is one extra small query per feed page, which is fine.
+ *
+ * `scanLimit` bounds the row scan: 30 recent saves is comfortably enough to fill a 24-keyword
+ * window (items average several tags each) without ever pulling a power-user's full history.
+ */
+export async function getTasteKeywords(
+  userId: string,
+  opts: { cap?: number; scanLimit?: number } = {},
+): Promise<string[]> {
+  const cap = opts.cap ?? 24;
+  const scanLimit = opts.scanLimit ?? 30;
+  const { db } = await import("./client");
+  const rows = await db
+    .select({ aestheticTags: item.aestheticTags })
+    .from(savedItem)
+    .innerJoin(item, eq(savedItem.itemId, item.id))
+    .where(eq(savedItem.userId, userId))
+    .orderBy(desc(savedItem.savedAt))
+    .limit(scanLimit);
+  return deriveTasteKeywords(
+    rows.map((row) => row.aestheticTags),
+    cap,
+  );
+}

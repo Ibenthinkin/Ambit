@@ -18,17 +18,32 @@ import { hashSeed, mulberry32 } from "./random";
 // vi.mock factories are hoisted above every import in this file, so anything they close over has
 // to go through vi.hoisted — this is Vitest's documented pattern for sharing *mutable* state with
 // a mock (mockEnv.FEED_DEBUG gets flipped per-test below) rather than a fixed return value.
-const { mockEnv, mockGetUserTopicWeights, mockGetTopicPools, mockMarkSeen } =
-  vi.hoisted(() => ({
-    mockEnv: { FEED_DEBUG: undefined as boolean | undefined, NODE_ENV: "test" },
-    mockGetUserTopicWeights: vi.fn(),
-    mockGetTopicPools: vi.fn(),
-    mockMarkSeen: vi.fn(),
-  }));
+const {
+  mockEnv,
+  mockGetUserTopicWeights,
+  mockGetTasteKeywords,
+  mockGetTopicPools,
+  mockMarkSeen,
+} = vi.hoisted(() => ({
+  mockEnv: { FEED_DEBUG: undefined as boolean | undefined, NODE_ENV: "test" },
+  mockGetUserTopicWeights: vi.fn(),
+  mockGetTasteKeywords: vi.fn(),
+  mockGetTopicPools: vi.fn(),
+  mockMarkSeen: vi.fn(),
+}));
 
 vi.mock("~/env", () => ({ env: mockEnv }));
-vi.mock("~/server/db/topics", () => ({
+// Spread the actual module so pure exports (WEIGHT_BUMP/WEIGHT_CAP — pinned by the 6.1
+// distribution tests below) stay real; only the DB-touching read is replaced. Safe to
+// importActual here because db/topics.ts follows the repo's dynamic-import-of-client pattern —
+// nothing env-touching runs at module scope.
+vi.mock("~/server/db/topics", async (importActual) => ({
+  ...(await importActual<typeof import("~/server/db/topics")>()),
   getUserTopicWeights: mockGetUserTopicWeights,
+}));
+vi.mock("~/server/db/saves", async (importActual) => ({
+  ...(await importActual<typeof import("~/server/db/saves")>()),
+  getTasteKeywords: mockGetTasteKeywords,
 }));
 vi.mock("~/server/db/feed", () => ({
   getTopicPools: mockGetTopicPools,
@@ -546,6 +561,8 @@ describe("getFeedPage — FEED_DEBUG knob gating", () => {
     mockGetUserTopicWeights
       .mockReset()
       .mockResolvedValue(new Map(GATE_TOPICS.map((id) => [id, 1])));
+    // An empty taste profile — these tests exercise the FEED_DEBUG gate, not the tag boost.
+    mockGetTasteKeywords.mockReset().mockResolvedValue([]);
     mockGetTopicPools
       .mockReset()
       .mockImplementation(async (topicIds: string[]) => {

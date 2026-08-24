@@ -416,6 +416,29 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       expect(weights.get(topicA)).toBeCloseTo(3.0);
     });
 
+    it("taste keywords derive from the most recent saves, deduped in recency order", async () => {
+      const caller = createCaller(authedContext(otherUserId));
+      const { getTasteKeywords } = await import("~/server/db/saves");
+      const [articles] = await caller.saves.collections();
+
+      // itemThree ("etching", "botanical plate") is already saved from the tests above; a short
+      // delay before saving itemFour so the two saved_at timestamps are unambiguously ordered
+      // (same precedent as the saves.list test).
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await caller.saves.saveToCollection({
+        itemId: itemFourId,
+        collectionId: articles!.id,
+      });
+
+      // Most-recent save first (itemFour), each item's stored tag order preserved, and
+      // "botanical plate" — present on both — kept only at its first-seen (most recent) slot.
+      expect(await getTasteKeywords(otherUserId)).toEqual([
+        "botanical plate",
+        "sepia",
+        "etching",
+      ]);
+    });
+
     it("unsave leaves the learned weight untouched", async () => {
       const caller = createCaller(authedContext(otherUserId));
       const { getUserTopicWeights } = await import("~/server/db/topics");

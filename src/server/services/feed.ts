@@ -15,6 +15,7 @@ import type { Item } from "~/server/db/items";
 import { TOPICS } from "~/server/config/topics";
 import topicGraphData from "~/server/config/topic-graph.json";
 import { drawWeight } from "~/server/db/items";
+import { getTasteKeywords } from "~/server/db/saves";
 import { getUserTopicWeights } from "~/server/db/topics";
 import { getTopicPools } from "~/server/db/feed";
 import { hashSeed, mulberry32, weightedPick } from "./random";
@@ -501,7 +502,12 @@ export async function getFeedPage(
   const { env } = await import("~/env");
   const debugEnabled = env.FEED_DEBUG ?? env.NODE_ENV === "development";
 
-  const rawWeights = await getUserTopicWeights(userId);
+  // Two independent single-user reads — weights for the topic draws, taste keywords for the
+  // item-draw boost (Phase 6.1) — fetched in parallel since neither depends on the other.
+  const [rawWeights, tasteKeywords] = await Promise.all([
+    getUserTopicWeights(userId),
+    getTasteKeywords(userId),
+  ]);
   const weights = rawWeights.size > 0 ? rawWeights : coldStartWeights();
 
   const knobs: FeedKnobs = {
@@ -523,7 +529,7 @@ export async function getFeedPage(
     pools,
     rng,
     knobs,
-    tasteKeywords: [], // Phase 6.1 wires the user's actual taste keywords through here
+    tasteKeywords,
     debug: debugEnabled,
   });
 
