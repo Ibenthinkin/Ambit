@@ -67,6 +67,32 @@ call sites. 558 vitest tests + 15 e2e green; walkthrough: `docs/PHASE6_WALKTHROU
 *Session spend: 20.15M tok (in 442 · out 147.5k · cache r 19.21M / w 794.0k) · ~$35.95 · fable-5 + opus-4-7 · 20:17→20:31*
 *Session spend: 2.32M tok (in 28 · out 11.0k · cache r 2.29M / w 18.0k) · ~$3.20 · fable-5 · 20:31→20:33*
 
+**Phase 5.9 planned the same night** (third session): **5.9 Saved UI chosen** over the 6.3 blog
+design session (deferred a third time, knowingly) and the feel-tune pass — it's the next Phase 5
+screen in journey order, pure UI over 5.5's shipped backend, and 6.2's corpus discharged the
+"sources before more UI" argument from 08-21.
+
+**Decisions locked in the plan (`docs/PHASE5_PLAN_5.9.md`):** chips are **collections**, not the
+prototype's All/Images/Reading type filter, and the grid is the 5.6 shared masonry, not the
+prototype's caption grid — both reinterpretations BUILD_PLAN's own 5.9 entry already made. Filter
+state lives in the URL (`/saved?collection=`); a third `saved-origin` marker (mirroring
+feed/gallery-origin, deliberately unabstracted) so leaving Saved pops instead of rebuilding the
+feed; article taps carry **no** origin marker (feed-origin's semantics would mislabel the pill);
+unsave is optimistic with the item-sheet invalidation trio; no long-press/ItemSheet on Saved tiles.
+
+**Plan-time findings:** the repo was already waiting for this screen everywhere — `proxy.ts`
+matches `/saved/:path*`, `CollectionsSheet` pushes `/saved?collection={id}` links that currently
+404, `PillToolbar` reserves the `"on-saved"` white bookmark, and `chip.tsx`'s header comment
+promises exactly the `size="sm"` prop the plan adds. Zero backend work: `saves.list`'s doc comment
+even names 5.9's chips as its purpose. Deferred and flagged: share-collection (entirely),
+collection creation (5.10 owns it — chips show seeded defaults only until then), `saves.list`
+pagination, and the Saved-reachability question (two hops from feed — flag, don't fix).
+
+**Open / next:** execute `docs/PHASE5_PLAN_5.9.md` in a cheaper session on
+`feat/5.9-saved-collections-ui`.
+
+*Session spend: 3.16M tok (in 76 · out 72.9k · cache r 2.85M / w 234.3k) · ~$11.18 · fable-5 · 22:12→22:57*
+
 ### [[08-22-26 Sat]] — LoC re-curation repaired, and a stale key no amount of checking could find
 
 **Findings:**
