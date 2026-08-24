@@ -28,9 +28,10 @@ export async function unsaveItem(
 }
 
 /**
- * Whether `itemId` is currently saved by `userId` — the read the `saves.toggle` procedure needs to
- * decide which direction to toggle, split out from `getSavedItems` (which returns full `Item`
- * rows, more than a single membership check needs to fetch).
+ * Whether `itemId` is currently saved by `userId` — what `saves.saveToCollection` uses to tell a
+ * *new* save (which bumps the topic's weight — Phase 6.1) from a move between collections (which
+ * doesn't). Split out from `getSavedItems` (which returns full `Item` rows, more than a single
+ * membership check needs to fetch).
  */
 export async function isItemSaved(
   userId: string,

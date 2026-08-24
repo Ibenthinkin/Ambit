@@ -19,8 +19,10 @@ import {
   getSavedCount,
   getSavedItems,
   getSavedItemCollection,
+  isItemSaved,
   unsaveItem,
 } from "~/server/db/saves";
+import { bumpTopicWeight, getTopicLabel } from "~/server/db/topics";
 
 export const savesRouter = createTRPCRouter({
   /**
@@ -45,8 +47,11 @@ export const savesRouter = createTRPCRouter({
    *    it's why `getCollectionForUser` returns `undefined` for "someone else's" as well as "no
    *    such": both map to `NOT_FOUND` here, so probing can't tell a real id from a fake one.
    *
-   * Returns the collection's name so the caller can toast "Saved to {name}" without a second round
-   * trip.
+   * Returns the collection's name so the caller can toast "Saved to {name}" without a second
+   * round trip — plus, on a *new* save (not a move between collections), a `drift` field naming
+   * the topic whose weight just got bumped (Phase 6.1, SPEC §9): the toast grows into
+   * "Saved to Art · Now drifting toward Cartography". `drift` is null on a move, because moving
+   * an item between collections is housekeeping, not a fresh signal of interest.
    */
   saveToCollection: protectedProcedure
     .input(z.object({ itemId: z.string(), collectionId: z.string() }))
@@ -70,8 +75,20 @@ export const savesRouter = createTRPCRouter({
         });
       }
 
+      const wasSaved = await isItemSaved(ctx.user.id, input.itemId);
       await setItemCollection(ctx.user.id, input.itemId, input.collectionId);
-      return { collectionName: collection.name } as const;
+      if (wasSaved) {
+        return { collectionName: collection.name, drift: null } as const;
+      }
+      // Accepted race: two concurrent first-saves of the same item can both see `wasSaved ===
+      // false` and double-bump. The client's in-flight guard makes that rare, and WEIGHT_CAP
+      // bounds the damage — not worth a serializable transaction.
+      const bumped = await bumpTopicWeight(ctx.user.id, item.topicId);
+      const topicLabel = (await getTopicLabel(item.topicId)) ?? item.topicId;
+      return {
+        collectionName: collection.name,
+        drift: { topicLabel, isNew: bumped.isNew },
+      } as const;
     }),
 
   /**

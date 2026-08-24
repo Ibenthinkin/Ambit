@@ -4,7 +4,7 @@
 // directly, since that's a one-off config load, not a user-facing repository operation.
 // `getUserTopicWeights` is real as of Phase 4.1 — the feed engine's own read of a user's CORE
 // weights (SPEC §9.1).
-import { and, eq, notInArray } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
 
 import { topic, userTopic } from "~/server/db/schema";
 
@@ -111,4 +111,73 @@ export async function hasCompletedOnboarding(userId: string): Promise<boolean> {
     .where(eq(userTopic.userId, userId))
     .limit(1);
   return rows.length > 0;
+}
+
+/**
+ * How much one *new* save nudges the saved item's topic weight (Phase 6.1). The values are
+ * phase0's shipped defaults (`phase0/feed.template.html:398` — SPEC §9's standing rule that the
+ * bench's defaults are the app's defaults): +0.5 per save, capped at 3.0 against the 1.0
+ * cold-start default. Deliberately NOT part of `FeedKnobs`: knobs are compose-side and
+ * zod-mirrored in `routers/feed.ts`; these are save-side *write* constants. `WEIGHT_CAP` is also
+ * unrelated to `DEFAULT_KNOBS.topicCap` (a per-page diversity bound) despite the similar name.
+ */
+export const WEIGHT_BUMP = 0.5;
+export const WEIGHT_CAP = 3.0;
+
+/**
+ * Bumps a user's weight for one topic — the write half of SPEC §9's "saving an item nudges its
+ * topic's weight up". A single atomic upsert:
+ *
+ *   - No row yet (the user never picked this topic, or never onboarded at all): a fresh row is
+ *     created at `1.0 + bump` — the cold default plus the nudge. That row creation *is* the
+ *     entire "related topics inferred from saves" mechanism; there is deliberately no
+ *     graph-neighbor spillover, because DRIFT/JUMP already spread a raised weight structurally
+ *     (weighted draws pick the start of graph walks, and `reachableTopics` widens the fetched
+ *     pools two hops out).
+ *   - Row exists: `LEAST(cap, weight + bump)`. Note `LEAST` also clamps a hand-set super-cap
+ *     weight *down* on its next bump — production writes can't exceed the cap, only test
+ *     fixtures can set e.g. 7.0, so that's a fixture-only quirk, not a bug.
+ */
+export async function bumpTopicWeight(
+  userId: string,
+  topicId: string,
+  opts: { bump?: number; cap?: number } = {},
+): Promise<{ isNew: boolean; weight: number }> {
+  const bump = opts.bump ?? WEIGHT_BUMP;
+  const cap = opts.cap ?? WEIGHT_CAP;
+  // Dynamic import — same CI-has-no-env-vars reason as every other function in this file.
+  const { db } = await import("./client");
+  const [row] = await db
+    .insert(userTopic)
+    .values({ userId, topicId, weight: 1.0 + bump })
+    .onConflictDoUpdate({
+      target: [userTopic.userId, userTopic.topicId],
+      set: { weight: sql`LEAST(${cap}, ${userTopic.weight} + ${bump})` },
+    })
+    .returning({
+      weight: userTopic.weight,
+      // Postgres's `xmax` system column is 0 on a freshly inserted row and non-zero when
+      // ON CONFLICT updated an existing one — which answers new-vs-existing in the same atomic
+      // statement, with no read-then-write race window.
+      isNew: sql<boolean>`(xmax = 0)`,
+    });
+  return row!;
+}
+
+/**
+ * One topic's human-readable label — what the save toast needs to say *which* topic is now
+ * drifting ("Saved to Art · Now drifting toward Cartography"). Read from the table rather than
+ * the static `TOPICS` config because integration-fixture topics exist only as rows; for a real
+ * item the FK on `item.topic_id` guarantees a row exists.
+ */
+export async function getTopicLabel(
+  topicId: string,
+): Promise<string | undefined> {
+  const { db } = await import("./client");
+  const [row] = await db
+    .select({ label: topic.label })
+    .from(topic)
+    .where(eq(topic.id, topicId))
+    .limit(1);
+  return row?.label;
 }
