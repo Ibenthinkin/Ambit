@@ -5,6 +5,33 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-24-26 Mon]] — Archive is live and verified; Ambit's side of A.6 is untouched
+
+No Ambit code changed. Recording this here because [[Ambit Archive]] is now a real, reachable
+source and the hookup is Ambit's to do.
+
+`archive.home.benreilly.io` serves the full corpus over a valid cert through Caddy, `/search`
+returns a ranked array for a valid key and 401 for a wrong or absent one, and `/img/<sha>.webp`
+serves derivatives with an immutable cache header. Item count settled at **13,379** after two
+images were deliberately purged.
+
+**What Ambit still owes (runbook Task 18):**
+- `~/Dev/ambit/.env` needs `ARCHIVE_URL=https://archive.home.benreilly.io` and the archive key.
+- `bun run ingest --source archive --quota 20` — **space-separated flags only**; `--source=archive`
+  silently runs a full six-source ingest at the default quota, because `ingest.ts` parses with
+  `args.indexOf("--source")`. That has already cost one session six minutes of hammering museum APIs.
+- The **310 rows ingested 08-21 carry baked-in `http://localhost:3001/img/…` URLs** and render
+  broken. Re-ingest or delete them, and note which.
+- An archive image rendering inside Ambit through `/api/img/[itemId]` is still unverified.
+
+**Note before doing any of it:** the archive key is due for rotation — it was echoed in plaintext
+during testing. Rotate it in Coolify, `~/Dev/ambit-archive/.env` and `~/Dev/ambit/.env` in one pass,
+or the two copies drift, which is exactly how the Immich key broke the same evening.
+
+Full detail in `~/Dev/ambit-archive/log.md`; the VM 202 DNS fix is in the vault's homelab log.
+
+*Session spend: 32.51M tok (in 400 · out 251.5k · cache r 31.64M / w 615.6k) · ~$28.27 · opus-5 · 11:35→14:37*
+
 ### [[08-24-26 Mon]] — Phase 5.10 planned: Profile + Settings, scope re-baselined
 
 **The headline decision: BUILD_PLAN's "minimal viable" 5.10 is superseded.** Asked why the
