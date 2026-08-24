@@ -10,6 +10,7 @@ import { PillToolbar } from "~/components/ui/pill-toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
+import { saveToastText } from "~/lib/save-toast";
 import { api } from "~/trpc/react";
 import { ArticleCard } from "./article-card";
 import { BecauseTile } from "./because-tile";
@@ -287,7 +288,9 @@ export function FeedScreen({ topicLabels }: FeedScreenProps) {
         open={itemSheetOpen}
         onClose={() => setItemSheetOpen(false)}
         item={pressedItem}
-        onSaved={(collection) => setToast(`Saved to ${collection.name}`)}
+        onSaved={(collection, drift) =>
+          setToast(saveToastText(collection.name, drift))
+        }
         onError={setToast}
       />
 

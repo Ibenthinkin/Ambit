@@ -12,23 +12,39 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Item } from "~/server/db/items";
+import { WEIGHT_CAP } from "~/server/db/topics";
 import { TOPICS } from "~/server/config/topics";
 import { hashSeed, mulberry32 } from "./random";
 
 // vi.mock factories are hoisted above every import in this file, so anything they close over has
 // to go through vi.hoisted — this is Vitest's documented pattern for sharing *mutable* state with
 // a mock (mockEnv.FEED_DEBUG gets flipped per-test below) rather than a fixed return value.
-const { mockEnv, mockGetUserTopicWeights, mockGetTopicPools, mockMarkSeen } =
-  vi.hoisted(() => ({
-    mockEnv: { FEED_DEBUG: undefined as boolean | undefined, NODE_ENV: "test" },
-    mockGetUserTopicWeights: vi.fn(),
-    mockGetTopicPools: vi.fn(),
-    mockMarkSeen: vi.fn(),
-  }));
+const {
+  mockEnv,
+  mockGetUserTopicWeights,
+  mockGetTasteKeywords,
+  mockGetTopicPools,
+  mockMarkSeen,
+} = vi.hoisted(() => ({
+  mockEnv: { FEED_DEBUG: undefined as boolean | undefined, NODE_ENV: "test" },
+  mockGetUserTopicWeights: vi.fn(),
+  mockGetTasteKeywords: vi.fn(),
+  mockGetTopicPools: vi.fn(),
+  mockMarkSeen: vi.fn(),
+}));
 
 vi.mock("~/env", () => ({ env: mockEnv }));
-vi.mock("~/server/db/topics", () => ({
+// Spread the actual module so pure exports (WEIGHT_BUMP/WEIGHT_CAP — pinned by the 6.1
+// distribution tests below) stay real; only the DB-touching read is replaced. Safe to
+// importActual here because db/topics.ts follows the repo's dynamic-import-of-client pattern —
+// nothing env-touching runs at module scope.
+vi.mock("~/server/db/topics", async (importActual) => ({
+  ...(await importActual<typeof import("~/server/db/topics")>()),
   getUserTopicWeights: mockGetUserTopicWeights,
+}));
+vi.mock("~/server/db/saves", async (importActual) => ({
+  ...(await importActual<typeof import("~/server/db/saves")>()),
+  getTasteKeywords: mockGetTasteKeywords,
 }));
 vi.mock("~/server/db/feed", () => ({
   getTopicPools: mockGetTopicPools,
@@ -546,6 +562,8 @@ describe("getFeedPage — FEED_DEBUG knob gating", () => {
     mockGetUserTopicWeights
       .mockReset()
       .mockResolvedValue(new Map(GATE_TOPICS.map((id) => [id, 1])));
+    // An empty taste profile — these tests exercise the FEED_DEBUG gate, not the tag boost.
+    mockGetTasteKeywords.mockReset().mockResolvedValue([]);
     mockGetTopicPools
       .mockReset()
       .mockImplementation(async (topicIds: string[]) => {
@@ -601,5 +619,105 @@ describe("getFeedPage — FEED_DEBUG knob gating", () => {
     mockEnv.NODE_ENV = "production";
     const page = await getFeedPage("user-1", undefined, { pageSize: 3 });
     expect(page.cards).toHaveLength(DEFAULT_KNOBS.pageSize); // 12 — override never applied
+  });
+});
+
+// Phase 6.1's done-bar assertion, in test form: a burst of saves in one domain (modelled as that
+// topic sitting at WEIGHT_CAP, the most learning the bump can ever accumulate) measurably shifts
+// page composition — but never overwhelms it. Both tests follow the two hard-won rules from the
+// tier-mix test above: pools fat enough that every page fills (and asserting that it filled), and
+// seeded rng pooled across 8 fixed seeds into one sample before any share is asserted.
+describe("composePage — learned weights (6.1)", () => {
+  // A dense 4-topic graph like the tier-mix test's, but with *rotated* sims rather than a flat
+  // tie: row of topic i = [i+1 @ 0.9, i+2 @ 0.5, i+3 @ 0.1] (cyclic). The flat-0.3 fixture is
+  // subtly asymmetric for a per-*topic* share measurement — pickJump slices each row's stored
+  // tail, and with tied sims the tail membership falls out of array order, so whichever topic
+  // sorts first is systematically underdrawn by JUMP (measured: 0.195 rather than 0.25). The
+  // rotation gives every topic the same role in every mechanism — each is one topic's
+  // 0.9-neighbour, one's 0.5, one's 0.1, and sits in exactly two JUMP tails — so uniform weights
+  // really do mean a 0.25 share, and the boosted condition's only variable is the weight.
+  const topics = ["a", "b", "c", "d"];
+  const ROTATED_SIMS = [0.9, 0.5, 0.1];
+  const graph: TopicGraph = Object.fromEntries(
+    topics.map((t, i) => [
+      t,
+      ROTATED_SIMS.map((sim, hop) => ({
+        topic: topics[(i + hop + 1) % topics.length]!,
+        sim,
+      })),
+    ]),
+  );
+
+  /** One pooled 8000-draw sample of topic-a's share of the page, under the given weights. */
+  function shareOfTopicA(weights: Map<string, number>): number {
+    const knobs: FeedKnobs = {
+      ...DEFAULT_KNOBS,
+      topicCap: 1000,
+      pageSize: 1000,
+    };
+    let aCount = 0;
+    let total = 0;
+    for (let seed = 0; seed < 8; seed++) {
+      // Fresh pools per seed — composePage splices draws out of its working copy.
+      const pools = new Map(
+        topics.map((t) => [
+          t,
+          Array.from({ length: 400 }, () => makeItem({ topicId: t })),
+        ]),
+      );
+      const cards = composePage({
+        weights,
+        graph,
+        pools,
+        rng: mulberry32(hashSeed(`learned-mix:${seed}`)),
+        knobs,
+      });
+      expect(cards).toHaveLength(knobs.pageSize); // the page filled — no exhaustion skew
+      aCount += cards.filter((c) => c.topicId === "a").length;
+      total += cards.length;
+    }
+    return aCount / total;
+  }
+
+  it("a topic at the weight cap draws measurably more of the page, but never a majority", () => {
+    const uniformShareA = shareOfTopicA(new Map(topics.map((t) => [t, 1])));
+    const boostedShareA = shareOfTopicA(
+      new Map(topics.map((t) => [t, t === "a" ? WEIGHT_CAP : 1])),
+    );
+
+    // Sanity: under uniform weights, four topics split the page evenly.
+    expect(uniformShareA).toBeGreaterThan(0.25 - 0.03);
+    expect(uniformShareA).toBeLessThan(0.25 + 0.03);
+
+    // The "measurably shifts" clause of the 6.1 done bar…
+    expect(boostedShareA).toBeGreaterThan(uniformShareA + 0.05);
+    // …and the "but not overwhelmingly" clause: DRIFT+JUMP are 60% of slots and use weights only
+    // to pick walk *starts*, so even a fully-learned topic never takes a majority of the page.
+    expect(boostedShareA).toBeLessThan(0.5);
+  });
+
+  it("under shipped knobs the per-page topic cap bounds even a capped-weight topic", () => {
+    const weights = new Map(topics.map((t) => [t, t === "a" ? WEIGHT_CAP : 1]));
+    for (let seed = 0; seed < 8; seed++) {
+      const pools = new Map(
+        topics.map((t) => [
+          t,
+          Array.from({ length: 50 }, () => makeItem({ topicId: t })),
+        ]),
+      );
+      const cards = composePage({
+        weights,
+        graph,
+        pools,
+        rng: mulberry32(hashSeed(`learned-cap:${seed}`)),
+        knobs: DEFAULT_KNOBS,
+      });
+      // 4 topics × topicCap 3 = exactly pageSize 12 achievable — the page can and must fill.
+      expect(cards).toHaveLength(DEFAULT_KNOBS.pageSize);
+      // A fully-learned topic can never exceed a quarter of a shipped page.
+      expect(cards.filter((c) => c.topicId === "a").length).toBeLessThanOrEqual(
+        DEFAULT_KNOBS.topicCap,
+      );
+    }
   });
 });

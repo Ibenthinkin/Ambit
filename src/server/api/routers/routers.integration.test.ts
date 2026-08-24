@@ -55,6 +55,8 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
   const topicB = `test-router-topic-b-${nanoid(8)}`;
   let itemOneId: string;
   let itemTwoId: string;
+  let itemThreeId: string;
+  let itemFourId: string;
 
   beforeAll(async () => {
     const { db } = await import("~/server/db/client");
@@ -86,7 +88,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
         emailVerified: false,
       },
     ]);
-    const [itemOne, itemTwo] = await db
+    const [itemOne, itemTwo, s3, s4] = await db
       .insert(item)
       .values([
         {
@@ -111,10 +113,37 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
           curationScore: 7,
           aestheticTags: [],
         },
+        // Items three and four back the 6.1 describe below — both in topicA (so the afterAll
+        // item sweep, which deletes by topicA, cleans them up for free), with overlapping
+        // aesthetic tags so the taste-keyword derivation has a dedupe case to prove.
+        {
+          source: "wikipedia",
+          sourceId: `test-router-item-3-${nanoid(8)}`,
+          type: "article" as const,
+          title: "Integration test item three",
+          summary: "A summary long enough to be unremarkable.",
+          sourceUrl: `https://example.com/test-router-item-3-${nanoid(8)}`,
+          topicId: topicA,
+          curationScore: 7,
+          aestheticTags: ["etching", "botanical plate"],
+        },
+        {
+          source: "wikipedia",
+          sourceId: `test-router-item-4-${nanoid(8)}`,
+          type: "article" as const,
+          title: "Integration test item four",
+          summary: "A summary long enough to be unremarkable.",
+          sourceUrl: `https://example.com/test-router-item-4-${nanoid(8)}`,
+          topicId: topicA,
+          curationScore: 7,
+          aestheticTags: ["botanical plate", "sepia"],
+        },
       ])
       .returning();
     itemOneId = itemOne!.id;
     itemTwoId = itemTwo!.id;
+    itemThreeId = s3!.id;
+    itemFourId = s4!.id;
   });
 
   afterAll(async () => {
@@ -127,7 +156,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
     // graph it is.
     await db.delete(savedItem).where(inArray(savedItem.userId, BOTH_USERS));
     await db.delete(seenItem).where(eq(seenItem.userId, userId));
-    await db.delete(userTopic).where(eq(userTopic.userId, userId));
+    await db.delete(userTopic).where(inArray(userTopic.userId, BOTH_USERS));
     await db.delete(collection).where(inArray(collection.userId, BOTH_USERS));
     await db.delete(item).where(and(eq(item.topicId, topicA)));
     await db.delete(user).where(inArray(user.id, BOTH_USERS));
@@ -221,7 +250,10 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
         itemId: itemOneId,
         collectionId: articles!.id,
       });
-      expect(saved).toEqual({ collectionName: "Articles" });
+      expect(saved).toEqual({
+        collectionName: "Articles",
+        drift: { topicLabel: "Test router topic A", isNew: false },
+      });
 
       // A short delay so the two `saved_at` timestamps are unambiguously ordered — real distinct
       // user actions are never sub-millisecond apart in practice, but a test can be.
@@ -252,7 +284,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
         itemId: itemOneId,
         collectionId: art.id,
       });
-      expect(moved).toEqual({ collectionName: "Art" });
+      expect(moved).toEqual({ collectionName: "Art", drift: null });
 
       // The one-collection-per-item rule (SPEC §5.4): still exactly two saves overall, and the
       // item now counts against Art instead of Articles.
@@ -316,6 +348,107 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
           collectionId: "definitely-not-a-real-collection",
         }),
       ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+  });
+
+  // Phase 6.1: a *new* save bumps the saved item's topic weight (and creates the row when the
+  // user never picked that topic). Driven as `otherUserId` deliberately — they have no
+  // `user_topic` rows at all, so the row-creation path is what's exercised, and the topics-block
+  // fixture that hand-sets `userId`'s topicA weight to 7.0 can't contaminate the arithmetic.
+  // Weight assertions use toBeCloseTo throughout: the column is `real` (float4).
+  describe("6.1 — a save teaches the feed", () => {
+    it("a first save creates the topic row at default + bump and reports it as new", async () => {
+      const caller = createCaller(authedContext(otherUserId));
+      const { getUserTopicWeights } = await import("~/server/db/topics");
+      const [articles] = await caller.saves.collections();
+
+      const saved = await caller.saves.saveToCollection({
+        itemId: itemThreeId,
+        collectionId: articles!.id,
+      });
+      expect(saved.drift).toEqual({
+        topicLabel: "Test router topic A",
+        isNew: true,
+      });
+
+      const weights = await getUserTopicWeights(otherUserId);
+      expect(weights.get(topicA)).toBeCloseTo(1.5);
+    });
+
+    it("moving a saved item to another collection does not re-bump", async () => {
+      const caller = createCaller(authedContext(otherUserId));
+      const { getUserTopicWeights } = await import("~/server/db/topics");
+      const collections = await caller.saves.collections();
+      const art = collections.find((c) => c.name === "Art")!;
+
+      const moved = await caller.saves.saveToCollection({
+        itemId: itemThreeId,
+        collectionId: art.id,
+      });
+      expect(moved).toEqual({ collectionName: "Art", drift: null });
+
+      const weights = await getUserTopicWeights(otherUserId);
+      expect(weights.get(topicA)).toBeCloseTo(1.5);
+    });
+
+    it("repeated saves cap the weight at 3.0", async () => {
+      // Direct db-fn calls (established precedent in this file) — driving this through the
+      // router would need a fresh fixture item per bump, since only *new* saves bump.
+      const { bumpTopicWeight, getUserTopicWeights } =
+        await import("~/server/db/topics");
+
+      const second = await bumpTopicWeight(otherUserId, topicA);
+      expect(second.isNew).toBe(false);
+      expect(second.weight).toBeCloseTo(2.0);
+
+      const third = await bumpTopicWeight(otherUserId, topicA);
+      expect(third.weight).toBeCloseTo(2.5);
+
+      const fourth = await bumpTopicWeight(otherUserId, topicA);
+      expect(fourth.weight).toBeCloseTo(3.0);
+
+      // At the cap: a further bump must stay clamped, not creep past it.
+      const fifth = await bumpTopicWeight(otherUserId, topicA);
+      expect(fifth.isNew).toBe(false);
+      expect(fifth.weight).toBeCloseTo(3.0);
+
+      const weights = await getUserTopicWeights(otherUserId);
+      expect(weights.get(topicA)).toBeCloseTo(3.0);
+    });
+
+    it("taste keywords derive from the most recent saves, deduped in recency order", async () => {
+      const caller = createCaller(authedContext(otherUserId));
+      const { getTasteKeywords } = await import("~/server/db/saves");
+      const [articles] = await caller.saves.collections();
+
+      // itemThree ("etching", "botanical plate") is already saved from the tests above; a short
+      // delay before saving itemFour so the two saved_at timestamps are unambiguously ordered
+      // (same precedent as the saves.list test).
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await caller.saves.saveToCollection({
+        itemId: itemFourId,
+        collectionId: articles!.id,
+      });
+
+      // Most-recent save first (itemFour), each item's stored tag order preserved, and
+      // "botanical plate" — present on both — kept only at its first-seen (most recent) slot.
+      expect(await getTasteKeywords(otherUserId)).toEqual([
+        "botanical plate",
+        "sepia",
+        "etching",
+      ]);
+    });
+
+    it("unsave leaves the learned weight untouched", async () => {
+      const caller = createCaller(authedContext(otherUserId));
+      const { getUserTopicWeights } = await import("~/server/db/topics");
+
+      await caller.saves.unsave({ itemId: itemThreeId });
+
+      // Weights record demonstrated interest; unsave is collection housekeeping, not a
+      // retraction (locked 6.1 decision — no decrement).
+      const weights = await getUserTopicWeights(otherUserId);
+      expect(weights.get(topicA)).toBeCloseTo(3.0);
     });
   });
 

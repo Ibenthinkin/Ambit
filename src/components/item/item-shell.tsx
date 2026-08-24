@@ -8,6 +8,7 @@ import { PillToolbar } from "~/components/ui/pill-toolbar";
 import { Toast } from "~/components/ui/toast";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
 import { useSwipeBack } from "~/hooks/use-swipe-back";
+import { saveToastText } from "~/lib/save-toast";
 import { api } from "~/trpc/react";
 
 // The client layer wrapped around an item page's server-rendered content: the swipe-back gesture,
@@ -117,8 +118,8 @@ export function ItemShell({
             onClose={() => setSaveOpen(false)}
             itemId={itemId}
             currentCollectionId={saved.data?.collectionId ?? undefined}
-            onSaved={async (collection) => {
-              setToast(`Saved to ${collection.name}`);
+            onSaved={async (collection, drift) => {
+              setToast(saveToastText(collection.name, drift));
               await utils.saves.forItem.invalidate({ itemId });
             }}
             onError={setToast}

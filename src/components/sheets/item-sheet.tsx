@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Magnifier } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import type { SaveDrift } from "~/lib/save-toast";
 import { Spinner } from "~/components/ui/spinner";
 import { api } from "~/trpc/react";
 
@@ -33,7 +34,8 @@ export interface ItemSheetProps {
    * mid-flight — the sheet has to outlive the item selection by one animation.
    */
   item: { id: string; title: string } | null;
-  onSaved: (collection: { id: string; name: string }) => void;
+  /** Same contract as `SaveToCollectionSheet.onSaved` — see its comment for what `drift` is. */
+  onSaved: (collection: { id: string; name: string }, drift: SaveDrift) => void;
   /**
    * Required, for the same reason `SaveToCollectionSheet.onError` is: the sheet dismisses the
    * instant a row is picked, so a failed write is otherwise indistinguishable from a successful
@@ -65,7 +67,10 @@ export function ItemSheet({
         utils.saves.list.invalidate(),
         utils.saves.count.invalidate(),
       ]);
-      onSaved({ id: variables.collectionId, name: result.collectionName });
+      onSaved(
+        { id: variables.collectionId, name: result.collectionName },
+        result.drift,
+      );
     },
     onError: (error) => {
       onError(
