@@ -25,7 +25,8 @@ import { DebugBadge } from "./debug-badge";
 export interface ArticleCardProps {
   card: FeedCard;
   onTap: () => void;
-  onLongPress: () => void;
+  /** Optional as of 5.9 — see `ImageTileProps.onLongPress`; Saved's cards have no item sheet. */
+  onLongPress?: () => void;
 }
 
 export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
