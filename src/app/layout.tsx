@@ -35,10 +35,40 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    // `data-accent="indigo"` is the default (and, as of Phase 5.4, only) value of the app-wide
-    // accent knob — see globals.css's `@layer base` for how this attribute drives `--accent-raw`,
-    // and PHASE5_PLAN.md Decision 2 for why the picker itself is deferred to Phase 9.2.
-    <html lang="en" data-accent="indigo" className={sora.variable}>
+    // `data-accent="indigo"` is what the SERVER always renders — the default accent. Settings'
+    // picker (5.10) stores the reader's choice in `localStorage` and the inline script below
+    // re-applies it before first paint, so the attribute on a hydrated page is frequently *not*
+    // "indigo".
+    //
+    // `suppressHydrationWarning` is the price of that, and it's scoped to this one element on
+    // purpose: React would otherwise log a mismatch on every load for a reader whose accent isn't
+    // the default. It suppresses the warning for `<html>`'s own attributes only — nothing inside
+    // the tree is affected, so a genuine content mismatch anywhere else still shouts.
+    <html
+      lang="en"
+      data-accent="indigo"
+      suppressHydrationWarning
+      className={sora.variable}
+    >
+      <head>
+        {/* **Runs before the first paint, and before any module has loaded.** That timing is the
+            whole feature: applied from an effect instead, the page paints indigo and then flips to
+            the reader's accent a frame later — a flash on every single navigation, which is
+            precisely what a preference like this must not cost.
+
+            Being pre-module is also why this can't `import { storedAccent }` from
+            `~/lib/accent.ts`. The key and the four valid values are duplicated there, with a
+            keep-in-sync warning at the top of that file. The allow-list is not optional: without
+            it a hand-edited storage entry writes arbitrary text into an attribute selector.
+
+            `dangerouslySetInnerHTML` is how Next renders an inline script at all — the string is a
+            constant written here, with nothing interpolated into it. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var a=localStorage.getItem("ambit.accent.v1");if(a==="indigo"||a==="amber"||a==="green"||a==="red"){document.documentElement.dataset.accent=a}}catch(e){}`,
+          }}
+        />
+      </head>
       {/* `bg-bg`/`text-ink` set the base surface + text color app-wide (every screen but the
           gallery, which opts into `bg-immersive` itself); `font-sans` is Sora, the redesign's one
           typeface for everything — there is no second family to switch into. Titles opt into the

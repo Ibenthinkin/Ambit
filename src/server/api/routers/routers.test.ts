@@ -159,6 +159,32 @@ describe("protected procedures reject a null session", () => {
       caller.saves.forItem({ itemId: "some-item" }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
+
+  it("saves.createCollection throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.saves.createCollection({ name: "Maps" }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("topics.mine throws UNAUTHORIZED", async () => {
+    await expect(caller.topics.mine()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  // Phase 5.10's two profile procedures. `user.me` is the one place in the API where a rejection
+  // here is the *only* thing standing between a stranger and someone's email address.
+  it("user.me throws UNAUTHORIZED", async () => {
+    await expect(caller.user.me()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  it("user.updateProfile throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.user.updateProfile({ name: "Ben", handle: null, bio: null }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
 });
 
 describe("the three public procedures", () => {
@@ -317,6 +343,43 @@ describe("zod input validation", () => {
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
+  it("saves.createCollection rejects a blank or over-long name", async () => {
+    const caller = createCaller(authedContext());
+    // Trimmed *before* the min check, so whitespace alone is blank — the sheet's Create button is
+    // disabled on blank input, but a stale client build has no such guard.
+    await expect(
+      caller.saves.createCollection({ name: "   " }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      caller.saves.createCollection({ name: "x".repeat(41) }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("user.updateProfile rejects an empty name and a malformed handle", async () => {
+    const caller = createCaller(authedContext());
+    await expect(
+      caller.user.updateProfile({ name: "  ", handle: null, bio: null }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    // Spaces, punctuation and a single character are all out — the pattern is
+    // `^[a-z0-9_]{2,24}$` and the client only ever strips a leading `@`.
+    for (const handle of ["b", "ben traverse", "ben!", "b".repeat(25)]) {
+      await expect(
+        caller.user.updateProfile({ name: "Ben", handle, bio: null }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    }
+  });
+
+  it("user.updateProfile rejects a bio past 280 characters", async () => {
+    const caller = createCaller(authedContext());
+    await expect(
+      caller.user.updateProfile({
+        name: "Ben",
+        handle: null,
+        bio: "x".repeat(281),
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
   it("feed.page rejects a knobs field with an out-of-range value", async () => {
     const caller = createCaller(authedContext());
     await expect(
@@ -375,10 +438,12 @@ describe("appRouter shape", () => {
   // and the collection-aware surface took its place); 5.7 adds three — `feed.markSeen` (the
   // receipt half of the feed), `items.wanderNext` (the item page's teaser, and the API's *second*
   // public procedure), and `saves.forItem`; 5.8 adds `items.galleryRail`, the *third* and (for now)
-  // last public one. This assertion is deliberately exhaustive rather than a subset check: it's the
+  // last public one. 5.10 adds four: `saves.createCollection` and `topics.mine` (Profile's grid and
+  // Settings' topic row), plus the whole `user` router. This assertion is deliberately exhaustive
+  // rather than a subset check: it's the
   // one thing that makes an accidentally-exported procedure, or one that quietly outlives its
   // last caller, show up as a failing test instead of shipping.
-  it("exposes exactly the thirteen SPEC §7 procedures, no leftover post router", () => {
+  it("exposes exactly the seventeen SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -395,6 +460,10 @@ describe("appRouter shape", () => {
         "saves.list",
         "saves.count",
         "saves.forItem",
+        "saves.createCollection",
+        "topics.mine",
+        "user.me",
+        "user.updateProfile",
       ].sort(),
     );
   });

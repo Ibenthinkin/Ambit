@@ -25,5 +25,13 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/feed/:path*", "/saved/:path*", "/onboarding/:path*"],
+  // 5.10 adds Profile and Settings. `/profile/:path*` covers `/profile/edit` too — the pattern
+  // matches the segment and everything under it.
+  matcher: [
+    "/feed/:path*",
+    "/saved/:path*",
+    "/onboarding/:path*",
+    "/profile/:path*",
+    "/settings/:path*",
+  ],
 };

@@ -96,6 +96,24 @@ export async function getUserTopicWeights(
 }
 
 /**
+ * Just the ids of the topics a user has picked (Phase 5.10) — what Settings' "What you see" row
+ * needs to label itself, and what its sheet needs to open pre-selected.
+ *
+ * Deliberately not `getUserTopicWeights`: that returns a Map because the feed engine draws against
+ * the weights, and handing a UI a structure it has to strip the values off of invites the next
+ * caller to start reading them. A picker cares only about membership.
+ */
+export async function getUserTopicIds(userId: string): Promise<string[]> {
+  // Dynamic import — same CI-has-no-env-vars reason as every other function in this file.
+  const { db } = await import("./client");
+  const rows = await db
+    .select({ topicId: userTopic.topicId })
+    .from(userTopic)
+    .where(eq(userTopic.userId, userId));
+  return rows.map((row) => row.topicId);
+}
+
+/**
  * Has this user picked any topics at all? (Phase 5.3.) The single boolean both `/onboarding`
  * (skip the picker, redirect to `/feed`, if true) and `/feed` (bounce to `/onboarding` if false)
  * need — centralized here so the two routes can't independently drift on what "onboarded" means.

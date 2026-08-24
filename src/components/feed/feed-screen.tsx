@@ -274,7 +274,9 @@ export function FeedScreen({ topicLabels }: FeedScreenProps) {
         bookmark="idle"
         onBookmark={() => setCollectionsOpen(true)}
         onHome={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        onProfile={() => setToast("Profile is 5.10")}
+        // No `onProfile` override as of 5.10: the pill's own default navigates to the real
+        // `/profile` (marking the origin on the way), so the toast placeholder that stood in for a
+        // 404 is gone.
         // No `onShare` — there's no "current item" on a feed for a share to refer to, so the
         // pill renders three controls here (Decision 3).
       />

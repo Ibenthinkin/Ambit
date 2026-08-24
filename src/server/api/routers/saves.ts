@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import {
+  createCollection,
   getCollectionForUser,
   getCollections,
   setItemCollection,
@@ -32,6 +33,29 @@ export const savesRouter = createTRPCRouter({
   collections: protectedProcedure.query(({ ctx }) =>
     getCollections(ctx.user.id),
   ),
+
+  /**
+   * Makes a new named collection (Phase 5.10's new-collection sheet on `/profile`).
+   *
+   * A duplicate name comes back from the repo as `undefined` (its `onConflictDoNothing` swallowed
+   * the write) and becomes a `CONFLICT` the sheet renders inline, under the field, without closing.
+   *
+   * Flag, accepted: the `(user_id, name)` unique constraint is **case-sensitive**, so "art" and
+   * "Art" can coexist. Case-insensitive uniqueness would mean a `citext` column or a functional
+   * index, and neither is worth a migration for a list the user reads whole and can't yet rename.
+   */
+  createCollection: protectedProcedure
+    .input(z.object({ name: z.string().trim().min(1).max(40) }))
+    .mutation(async ({ ctx, input }) => {
+      const row = await createCollection(ctx.user.id, input.name);
+      if (!row) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: `You already have a collection called "${input.name}"`,
+        });
+      }
+      return row;
+    }),
 
   /**
    * Files an item into a collection, saving it if it wasn't already. Picking a different

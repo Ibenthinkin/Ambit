@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { Bookmark, Logo, Share } from "~/components/icons";
+import { markProfileOrigin } from "~/components/profile/profile-origin";
 import { AvatarChip } from "~/components/ui/avatar-chip";
 import { cn } from "~/lib/utils";
 
@@ -34,7 +35,12 @@ export interface PillToolbarProps {
    * likewise omits it (PHASE5_PLAN_5.6.md Decision 3).
    */
   onShare?: () => void;
-  /** Defaults to navigating to `/profile` (5.10). */
+  /**
+   * Defaults to navigating to `/profile`, marking the origin on the way so Profile's own exits pop
+   * back here instead of rebuilding a dynamic feed (`profile-origin.ts`). Real as of 5.10 — until
+   * that phase every screen passed an override that toasted "Profile is 5.10", because the route
+   * didn't exist. Profile itself passes an inert override: you're already there.
+   */
   onProfile?: () => void;
   /** Defaults to navigating to `/feed`. In the gallery this returns to the anchored feed (5.8). */
   onHome?: () => void;
@@ -83,7 +89,12 @@ export function PillToolbar({
   className,
 }: PillToolbarProps) {
   const router = useRouter();
-  const goProfile = onProfile ?? (() => router.push("/profile"));
+  const goProfile =
+    onProfile ??
+    (() => {
+      markProfileOrigin();
+      router.push("/profile");
+    });
   const goHome = onHome ?? (() => router.push("/feed"));
 
   return (
