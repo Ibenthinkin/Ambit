@@ -98,8 +98,13 @@ test.describe.serial("auth", () => {
     await page.waitForURL("/feed");
     // 5.6 replaced the "Signed in as …" placeholder with the real masonry, so the end of the
     // sign-up journey is now provable the way a user would judge it: there are tiles on screen.
-    // A freshly onboarded user gets a full page of them from the dev corpus.
-    await expect(page.locator("[data-feed-id]").first()).toBeVisible();
+    // A freshly onboarded user gets a full page of them from the dev corpus. 15s, not the default
+    // 5: this is the suite's first server-bound feed compose, and once 5.9 brought the parallel
+    // worker count to five, the default made this test the whole run's consistent loser
+    // (08-23-26, three runs) — the same load allowance feed.spec's own polls already use.
+    await expect(page.locator("[data-feed-id]").first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("sign out returns to the landing page, and /feed bounces an unauthenticated visitor", async ({

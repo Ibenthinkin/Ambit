@@ -93,6 +93,30 @@ pagination, and the Saved-reachability question (two hops from feed — flag, do
 
 *Session spend: 3.16M tok (in 76 · out 72.9k · cache r 2.85M / w 234.3k) · ~$11.18 · fable-5 · 22:12→22:57*
 
+**5.9 executed the same night** (fourth session, straight through): `/saved` shipped and merged
+as `feat/5.9-saved-collections-ui`. The plan held — no design question surfaced; 581 vitest tests
+green (21 new), build clean, the new e2e spec 5/5. Walkthrough:
+`docs/PHASE5_WALKTHROUGH_5.9.md`.
+
+**Findings (where reality improved on or argued with the plan):**
+- **Chip taps cost zero client fetches**, not the one the plan budgeted: `router.replace` to
+  `/saved?collection=` is an RSC navigation, so the shell re-prefetches the filtered list and the
+  payload hydrates the new query key. The hydration contract covers the filter, not just the
+  cold load (verified with a scripted Network-tab check, plus zero client `saves.*` on hard
+  reload).
+- **The e2e suite's five-worker load, not the code, was the whole fight.** Adding the fifth spec
+  file pushed server-bound waits past Playwright's 5s default with a rotating victim
+  (`auth:68` × 3, then feed's console test, then saved's own save round-trip) — every one green
+  in isolation, and `main` red the same way under the same load. Fixes: 15s allowances on the
+  server-bound waits (saved.spec + auth:68, matching feed.spec's own polls), and cleared 271
+  accumulated e2e users / 6.4k seen rows (the documented gallery:193 aggravator). If a sixth
+  spec repeats this, cap `workers` in playwright.config.ts instead of spreading more timeouts.
+
+**Open / next:** 5.10 (profile/settings — collection creation, the Saved-reachability decision),
+5.11, or the thrice-deferred 6.3 blog design session.
+
+*Session spend: 34.67M tok (in 427 · out 199.7k · cache r 33.89M / w 586.0k) · ~$53.30 · fable-5 + opus-4-7 · 23:18→23:53*
+
 ### [[08-22-26 Sat]] — LoC re-curation repaired, and a stale key no amount of checking could find
 
 **Findings:**

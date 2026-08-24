@@ -88,7 +88,11 @@ test.describe.serial("saved", () => {
     if (!new URL(page.url()).pathname.startsWith("/feed")) {
       await signIn(page, EMAIL, PASSWORD);
     }
-    await expect(page.locator("[data-feed-id]").first()).toBeVisible();
+    // 15s for the same reason as every server-bound wait in this file: a feed compose under five
+    // parallel workers has repeatedly outlived the 5s default (08-23-26).
+    await expect(page.locator("[data-feed-id]").first()).toBeVisible({
+      timeout: 15_000,
+    });
   }
 
   /** Gets the shared user onto /saved, via the session guard's redirect if signed out. */
@@ -127,9 +131,11 @@ test.describe.serial("saved", () => {
     await expect(page.getByRole("button", { name: /^All/ })).toHaveCount(0);
 
     // A direct `goto` wrote no origin marker, so leaving is a push to /feed, not a pop out of
-    // the app.
+    // the app. `commit`, not the default `load`: the assertion is *where the CTA navigates*, and
+    // waiting out a full dynamic /feed compose on a box already running four other workers is how
+    // this test spent its budget on someone else's page (seen on 08-23-26's suite runs).
     await page.getByRole("button", { name: "Back to exploring" }).click();
-    await page.waitForURL(/\/feed/);
+    await page.waitForURL(/\/feed/, { waitUntil: "commit" });
   });
 
   // BUILD_PLAN's done bar, end to end: save on the feed → find it on Saved → unsave → gone.
@@ -150,7 +156,10 @@ test.describe.serial("saved", () => {
 
     const sheet = page.getByTestId("bottom-sheet-panel");
     await sheet.getByText("Articles").click();
-    await expect(page.getByText(/^Saved to /)).toBeVisible();
+    // 15s, not the default 5: the toast waits out the save mutation plus three invalidation
+    // refetches, and on a box running four parallel workers that round trip alone has blown a 5s
+    // assertion (08-23-26). Same allowance feed.spec gives its own server-bound polls.
+    await expect(page.getByText(/^Saved to /)).toBeVisible({ timeout: 15_000 });
 
     // The pill's bookmark → collections sheet → "Everything kept" is the app's own doorway to
     // Saved (and what writes the saved-origin marker test 5 relies on).
