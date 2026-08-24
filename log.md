@@ -96,10 +96,10 @@ don't-delete-sign-out-early trap flagged).
 ---
 
 **Executed the same day** on `feat/5.10-profile-settings`, straight through with no mid-phase
-stop. `bun run check` green (642 vitest tests, 47 new), `bun run build` clean, `bun run e2e` green
-across all six spec files on three consecutive runs. Walkthrough:
-`docs/PHASE5_WALKTHROUGH_5.10.md`. All fourteen plan decisions held; the app has no internal 404s
-left.
+stop, and **merged to `main`** (`595b038`), re-verified green there. `bun run check` green (642
+vitest tests, 47 new), `bun run build` clean, `bun run e2e` green across all six spec files on
+three consecutive runs. Walkthrough: `docs/PHASE5_WALKTHROUGH_5.10.md`. All fourteen plan decisions
+held; the app has no internal 404s left.
 
 **Four things argued back, none of them the design:**
 
@@ -153,6 +153,7 @@ session — the two `test-feed-topic-*` rows still sitting in `topic`.
 
 *Session spend: 17.91M tok (in 154 · out 181.9k · cache r 16.33M / w 1.40M) · ~≥$51.61 · fable-5 + opus-4-7 + <synthetic> · 23:53→12:34*
 *Session spend: 62.55M tok (in 522 · out 233.1k · cache r 61.44M / w 872.9k) · ~$45.28 · opus-5 · 16:09→16:56*
+*Session spend: 6.07M tok (in 51 · out 24.8k · cache r 5.04M / w 1.00M) · ~$12.11 · opus-5 + opus-4-7 · 16:56→19:50*
 
 ### [[08-23-26 Sun]] — Phase 6.1 planned: the feed learns from saves
 
