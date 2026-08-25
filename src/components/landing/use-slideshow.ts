@@ -61,8 +61,14 @@ export function useSlideshow({
   // Latest-callback ref: the effect below must not tear down and restart the cycle merely because
   // the parent re-rendered with a new `onDone` identity. Reading it through a ref keeps the
   // dependency list honest without making the timing hostage to the caller's memoization.
+  //
+  // The assignment lives in an effect rather than in the render body — a render may be thrown away
+  // (StrictMode, a suspended sibling), and writing a ref from one that never commits is how a
+  // component ends up holding a callback belonging to a render that never happened.
   const onDoneRef = React.useRef(onDone);
-  onDoneRef.current = onDone;
+  React.useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
   const finish = React.useCallback(() => {
     if (!runningRef.current) return;

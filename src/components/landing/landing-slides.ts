@@ -165,7 +165,20 @@ export function preloadRun(
 
   // `.decode()` rejects on a failed load — a missing file must not stall the screen forever, so a
   // rejection resolves like a success and the cycle starts regardless.
-  const firstDecoded = images[0]!.decode().catch(() => undefined);
+  //
+  // The existence check is not paranoia about old browsers so much as about *odd* ones: `decode`
+  // is absent in jsdom and in a few embedded webviews, and calling a missing method here would
+  // throw during the mount effect and take the whole landing page down — the one screen that has
+  // no signed-in state to fall back to. Without it, the timeout below is the only gate, which
+  // costs a moment and nothing else.
+  const first = images[0]!;
+  const firstDecoded =
+    typeof first.decode === "function"
+      ? first.decode().catch(() => undefined)
+      : new Promise<void>((resolve) => {
+          first.addEventListener("load", () => resolve(), { once: true });
+          first.addEventListener("error", () => resolve(), { once: true });
+        });
   const cap = new Promise<void>((resolve) => setTimeout(resolve, timeoutMs));
 
   return Promise.race([firstDecoded, cap]).then(() => undefined);
