@@ -5,6 +5,16 @@ import { defineConfig, devices } from "@playwright/test";
 // `bun run e2e` runs this config; see e2e/home.spec.ts for the one smoke test Phase 1.2 adds.
 export default defineConfig({
   testDir: "./e2e",
+  // `*.prod.spec.ts` is excluded from the ordinary suite because it cannot pass against it: the
+  // service worker is registered in production builds only (see `app/layout.tsx`), and `webServer`
+  // below runs `next dev`. Run it deliberately, against a real build:
+  //
+  //   lsof -ti:3000 | xargs kill; bun run build && bun run start &
+  //   bunx playwright test pwa.prod.spec.ts --workers=1
+  //
+  // It is the only automated check of the caching strategy — offline feed, offline fallback, and
+  // the invariant that no personalized tRPC response is ever stored.
+  testIgnore: /\.prod\.spec\.ts$/,
   // **A dot-directory on purpose, and load-bearing.** Playwright's default `test-results/` sits in
   // the project root, where it writes traces, screenshots and error-context files *while the tests
   // are still running*. Next's dev-server watcher sees those writes as project changes and fires

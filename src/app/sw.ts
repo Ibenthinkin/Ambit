@@ -73,9 +73,16 @@ const serwist = new Serwist({
   // unit-tested outside a worker; the invariant "no tRPC request reaches a caching rule" is
   // asserted there directly.
   //
-  // Anything no rule matches goes straight to the network. That is the deliberate default: RSC
-  // payload fetches, item pages, and everything not listed here are better served slow-and-correct
-  // than fast-and-stale.
+  // Anything no rule matches is served from the network and never stored. That is the deliberate
+  // default: RSC payload fetches, item pages, and everything not listed here are better
+  // slow-and-correct than fast-and-stale.
+  //
+  // It is spelled as an explicit trailing `NetworkOnly` rather than by omission, and that
+  // distinction is load-bearing: a request no rule matches never enters Serwist's routing at all,
+  // and `fallbacks` (below) only applies to requests Serwist itself handled. Leaving the list
+  // unterminated therefore doesn't just skip caching — it silently disables the offline page for
+  // every route except `/feed`, which a browser then answers with its own connection error.
+  // Verified the hard way against a production build during 5.11.
   runtimeCaching: [
     { matcher: isAuthApi, handler: new NetworkOnly() },
     // Never stored. Every tRPC response is per-reader, and a feed page is *spent* when received
@@ -135,6 +142,8 @@ const serwist = new Serwist({
         ],
       }),
     },
+    // The terminator. See the note above: this is what keeps the offline fallback reachable.
+    { matcher: () => true, handler: new NetworkOnly() },
   ],
   // When a request fails outright (fully offline, DNS down — not just a slow network), this is
   // the last resort: serve the precached offline shell instead of the browser's own "no
