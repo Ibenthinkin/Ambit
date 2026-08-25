@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 
 import { expect, test } from "@playwright/test";
 
-import { signIn, waitForHydration } from "./support";
+import { openAuthSheet, signIn, waitForHydration } from "./support";
 
 // The full email + password loop against a REAL dev server + Postgres + Mailpit (SPEC §12 names
 // these exact flows). Local-only, like e2e/home.spec.ts's own comment explains — CI has no
@@ -53,7 +53,7 @@ test.describe.serial("auth", () => {
     page,
   }) => {
     await page.goto("/");
-    await waitForHydration(page);
+    await openAuthSheet(page);
     await page
       .getByRole("button", { name: "First time? Create your account" })
       .click();
@@ -74,7 +74,7 @@ test.describe.serial("auth", () => {
     execFileSync("bun", ["run", "invite", EMAIL], { stdio: "pipe" });
 
     await page.goto("/");
-    await waitForHydration(page);
+    await openAuthSheet(page);
     await page
       .getByRole("button", { name: "First time? Create your account" })
       .click();
@@ -132,7 +132,7 @@ test.describe.serial("auth", () => {
 
   test("a wrong password shows the mapped error", async ({ page }) => {
     await page.goto("/");
-    await waitForHydration(page);
+    await openAuthSheet(page);
     await page.getByPlaceholder("you@example.com").fill(EMAIL);
     await page.getByPlaceholder("Password").fill("totallywrongpassword");
     await page.getByRole("button", { name: "Sign in" }).click();
@@ -144,7 +144,7 @@ test.describe.serial("auth", () => {
 
   test("forgot password sends a reset email", async ({ page }) => {
     await page.goto("/");
-    await waitForHydration(page);
+    await openAuthSheet(page);
     await page.getByRole("button", { name: "Forgot your password?" }).click();
     await page.getByPlaceholder("you@example.com").fill(EMAIL);
     await page.getByRole("button", { name: "Send reset link" }).click();
@@ -160,6 +160,8 @@ test.describe.serial("auth", () => {
 
     await page.goto(resetLink);
     await page.waitForURL(/\/reset-password\?token=/);
+    // `/reset-password` renders the same screen in static mode — one still image, sheet already
+    // up, and no email field for `openAuthSheet` to wait on. Plain hydration is the right gate.
     await waitForHydration(page);
     await page
       .getByPlaceholder("New password (8+ characters)")
@@ -174,7 +176,7 @@ test.describe.serial("auth", () => {
     // effect rather than just that the endpoint returned success.
     await page.getByRole("link", { name: "Sign in" }).click();
     await page.waitForURL("/");
-    await waitForHydration(page);
+    await openAuthSheet(page);
     await page.getByPlaceholder("you@example.com").fill(EMAIL);
     await page.getByPlaceholder("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();

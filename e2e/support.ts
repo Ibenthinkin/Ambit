@@ -33,9 +33,30 @@ export async function waitForHydration(page: Page, selector = "form") {
   }, selector);
 }
 
+/**
+ * Raises the landing page's sign-in sheet and waits until its fields can actually be typed into.
+ *
+ * **Why every landing test now needs this.** Phase 5.11 put the auth form inside a sheet that
+ * spends the first ~5 seconds of a visit translated off the bottom of the screen while the
+ * slideshow runs. The fields are in the DOM the whole time — `waitForHydration` still works, and
+ * has to keep working — but they are outside the viewport, so Playwright's actionability checks
+ * would sit and wait on them. The glyph is the reader's own way to skip ahead; tests take the same
+ * path rather than waiting the slideshow out on every single test.
+ */
+export async function openAuthSheet(page: Page) {
+  await waitForHydration(page);
+  const glyph = page.getByRole("button", { name: "Open sign-in" });
+  // The sheet may already be up — a slow machine can let the slideshow finish first, and this is
+  // safe to call twice. Once the sheet rises the glyph unmounts, so its absence is the signal.
+  if (await glyph.isVisible()) await glyph.click();
+  await expect(page.getByPlaceholder("you@example.com")).toBeInViewport({
+    timeout: 15_000,
+  });
+}
+
 /** Signs an existing user in through the landing page and waits for the feed to render. */
 export async function signIn(page: Page, email: string, password: string) {
-  await waitForHydration(page);
+  await openAuthSheet(page);
   await page.getByPlaceholder("you@example.com").fill(email);
   await page.getByPlaceholder("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
