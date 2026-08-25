@@ -8,24 +8,25 @@ A calm, non-social **anti-doomscroll PWA**: an infinite feed of public-domain im
 
 ## Repository status
 
-**Phases 0–4 complete; Phase 5 (UI) in progress.** Phase 0 (concluded 07-13-26) validated the
+**Phases 0–5 complete.** Phase 0 (concluded 07-13-26) validated the
 design in `phase0/` (throwaway-but-kept: harvester, curator, topic-graph tooling, and two
 self-contained browser harnesses — `feed.html` is the reference implementation of the feed
 algorithm and stays the feel-tuning bench): item-level embedding recommendation was **rejected**;
 the validated design is a tiered topic-drift feed over an LLM-curated pool (SPEC §9). Phases 1–4
 scaffolded the real app — Next.js/tRPC/Drizzle/Better Auth, the five source adapters + curator
 (§6), the feed engine (§9), and the full tRPC surface (§7) — all on `main`, DB populated from a
-real ingest run. Phase 5 builds the UI against the design handoff (`docs/design_handoff_ambit_pwa/`)
-screen by screen, per `docs/BUILD_PLAN.md`'s Phase 5 ordering. **5.1–5.10 are shipped** (design
-system, auth, onboarding, feed, item, gallery, Saved, Profile/Settings/Edit) — as of 5.10 the app
-has no internal 404s left and sign-out lives on `/settings`. **5.11 (landing slideshow + install +
-PWA polish) is the remaining Phase 5 step.** See `docs/BUILD_PLAN.md` for the full phase-by-phase
-build order and `log.md` for the narrative of what's landed and why.
+real ingest run. Phase 5 built the UI against the redesign handoff (`docs/design_handoff_ambit_pwa_redesign/`)
+screen by screen, per `docs/BUILD_PLAN.md`'s Phase 5 ordering. **All of 5.1–5.11 are shipped**
+(design system, auth, onboarding, feed, item, gallery, Saved, Profile/Settings/Edit, and the
+landing slideshow + install flow + PWA caching). The app has no internal 404s, sign-out lives on
+`/settings`, and it is installable with the last feed page available offline. **Next: 6.3's blog
+design session, or Phase 7.** See `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
+`log.md` for the narrative of what's landed and why.
 
 ## Authoritative documents
 
 - **`SPEC.md`** — the build-ready technical spec: architecture, DB schema, tRPC API surface, feed algorithm, build order (§14), and open questions (§15). Treat it as the source of truth when scaffolding or implementing; it's a living doc — update it as decisions land.
-- **`docs/design_handoff_ambit_pwa/`** — high-fidelity design handoff. The `.dc.html` files are self-contained interactive prototypes (open directly in a browser), one per screen, with a detailed README covering design tokens, motion specs, and per-screen interaction notes. Recreate these designs in the app's own components — do not copy the prototype code, and do not port `ios-frame.jsx`/`image-slot.js` (presentation scaffolding only).
+- **`docs/design_handoff_ambit_pwa_redesign/`** — the authoritative design handoff since 08-16-26 (11 `.dc.html` prototypes + README). **Where the prototypes and the README conflict, the prototypes win** — a recorded Phase 5 convention. The bundle's `PROGRESS.md` describes an earlier session and is superseded. The older `docs/design_handoff_ambit_pwa/` is kept as history only. The `.dc.html` files are self-contained interactive prototypes (open directly in a browser), one per screen, with a detailed README covering design tokens, motion specs, and per-screen interaction notes. Recreate these designs in the app's own components — do not copy the prototype code, and do not port `ios-frame.jsx`/`image-slot.js` (presentation scaffolding only).
 - **`docs/source-candidates.md`** — post-MVP backlog of candidate content APIs with a per-source trial loop. These are *not* v1 sources; the committed v1 set lives in SPEC §6.1. Promote a candidate into the SPEC only after it passes the trial.
 
 ## Planned stack & commands (from SPEC)
