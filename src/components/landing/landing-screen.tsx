@@ -137,7 +137,9 @@ export function LandingScreen({ mode, children }: LandingScreenProps) {
         </button>
       ) : null}
 
-      <AuthSheet open={open} onCollapse={collapse}>
+      {/* The hero follows the *route*, not the mode: a reduced-motion visitor to `/` still gets
+          the pitch, while `/reset-password` never does regardless of how it renders. */}
+      <AuthSheet open={open} onCollapse={collapse} showHero={mode !== "static"}>
         {children}
       </AuthSheet>
     </div>

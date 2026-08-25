@@ -24,10 +24,22 @@ export interface AuthSheetProps {
    * nothing to go back to — the logo then renders as plain decoration.
    */
   onCollapse?: () => void;
+  /**
+   * The product pitch above the form. On by default, and switched off for `/reset-password`: a
+   * reader who followed a reset link is mid-task and already has an account, so selling them the
+   * app above the words "This link has expired" is noise in front of the thing they came for. The
+   * slideshow, the logo and the sheet itself are what keep the two screens recognisably one app.
+   */
+  showHero?: boolean;
   children: React.ReactNode;
 }
 
-export function AuthSheet({ open, onCollapse, children }: AuthSheetProps) {
+export function AuthSheet({
+  open,
+  onCollapse,
+  showHero = true,
+  children,
+}: AuthSheetProps) {
   return (
     <>
       {/* Non-interactive by design: the prototype's scrim has no handler, and collapsing is the
@@ -82,20 +94,22 @@ export function AuthSheet({ open, onCollapse, children }: AuthSheetProps) {
             near-empty screen; inside a panel that also has to hold four form fields, the redesign
             gives the same words a supporting role instead. `whitespace-nowrap` is the prototype's
             — the line is tuned to sit on one row at 402px. */}
-        <div className="text-left">
-          <div className="text-ink-hi text-[16px] leading-[1.2] tracking-[0.1px] whitespace-nowrap">
-            A quieter way to be curious.
+        {showHero ? (
+          <div className="text-left">
+            <div className="text-ink-hi text-[16px] leading-[1.2] tracking-[0.1px] whitespace-nowrap">
+              A quieter way to be curious.
+            </div>
+            <p className="text-ink/60 mt-[10px] max-w-[320px] text-[14.5px] leading-[1.55]">
+              No feeds engineered to keep you. Ambit hands you one interesting
+              thing at a time, then quietly steps back.
+            </p>
+            <div className="text-ink-hi mt-[14px] text-[16px] tracking-[0.1px]">
+              Ambit
+            </div>
           </div>
-          <p className="text-ink/60 mt-[10px] max-w-[320px] text-[14.5px] leading-[1.55]">
-            No feeds engineered to keep you. Ambit hands you one interesting
-            thing at a time, then quietly steps back.
-          </p>
-          <div className="text-ink-hi mt-[14px] text-[16px] tracking-[0.1px]">
-            Ambit
-          </div>
-        </div>
+        ) : null}
 
-        <div className="mt-[26px]">{children}</div>
+        <div className={showHero ? "mt-[26px]" : "mt-2"}>{children}</div>
       </div>
     </>
   );

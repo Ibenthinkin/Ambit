@@ -78,6 +78,14 @@ describe("LandingScreen — cycle mode", () => {
     expect(sheet()).toHaveAttribute("data-open", "false");
   });
 
+  it("shows the pitch on the sign-in route", async () => {
+    await renderScreen();
+
+    expect(
+      screen.getByText("A quieter way to be curious."),
+    ).toBeInTheDocument();
+  });
+
   it("keeps the form mounted while the sheet is down — the e2e suite waits on it", async () => {
     await renderScreen();
 
@@ -151,6 +159,14 @@ describe("LandingScreen — static mode", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Back to the slideshow" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("drops the marketing hero — a reset link lands mid-task, not mid-pitch", async () => {
+    await renderScreen("static");
+
+    expect(
+      screen.queryByText("A quieter way to be curious."),
     ).not.toBeInTheDocument();
   });
 
