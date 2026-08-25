@@ -4,6 +4,7 @@ import { SerwistProvider } from "@serwist/turbopack/react";
 import { type Metadata, type Viewport } from "next";
 
 import { SwCleanup } from "~/components/dev/sw-cleanup";
+import { InstallListener } from "~/components/install/install-listener";
 import { sora } from "~/lib/fonts";
 import { TRPCReactProvider } from "~/trpc/react";
 
@@ -82,6 +83,11 @@ export default function RootLayout({
             hydration bundle doesn't match, so nothing responds to a tap — with no error in the
             terminal and none in the console. That failure mode ate an hour of 5.5's on-device pass.
             `SwCleanup` handles the other half: devices that already installed one. */}
+        {/* Renders nothing — it just starts listening for the browser's install events, which fire
+            once and early and are lost if nothing is listening at that moment. It sits outside the
+            production branch on purpose: the install *flow* has nothing to do with the service
+            worker, and a reader testing on a dev build should still see it behave. */}
+        <InstallListener />
         {process.env.NODE_ENV === "production" ? (
           <SerwistProvider swUrl="/serwist/sw.js">
             <TRPCReactProvider>{children}</TRPCReactProvider>

@@ -33,7 +33,7 @@ import { avatarGradient } from "~/lib/avatar-hue";
 import { api } from "~/trpc/react";
 import { AboutSheet } from "./about-sheet";
 import { AccentSheet } from "./accent-sheet";
-import { InstallSheet } from "./install-sheet";
+import { InstallSheet } from "~/components/install/install-sheet";
 import { SettingsGroup, SettingsRow } from "./settings-row";
 import { TopicsSheet } from "./topics-sheet";
 import { useNotificationPermission } from "./use-notification-permission";
