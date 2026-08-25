@@ -217,7 +217,7 @@ test.describe.serial("settings", () => {
     await page.getByText("Serendipity").click();
     await expect(page.getByText("Serendipity · coming soon")).toBeVisible();
 
-    await expect(page.getByText("Ambit · invite-only · v0.4")).toBeVisible();
+    await expect(page.getByText("Ambit · invite-only · v0.5")).toBeVisible();
   });
 
   test("sign out from its permanent home ends the session", async ({

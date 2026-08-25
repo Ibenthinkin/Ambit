@@ -11,9 +11,32 @@
 // `caches`, `fetch` events, etc.) for *this file only*, instead of the DOM types (`window`,
 // `document`) every other file in the app uses — a page and a service worker run in genuinely
 // different JS environments, so they get different global type declarations.
-import { defaultCache } from "@serwist/turbopack/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist } from "serwist";
+import {
+  CacheableResponsePlugin,
+  CacheFirst,
+  ExpirationPlugin,
+  NetworkFirst,
+  NetworkOnly,
+  Serwist,
+  StaleWhileRevalidate,
+} from "serwist";
+
+import {
+  IMAGES_CACHE,
+  isAuthApi,
+  isFeedDocument,
+  isImageProxy,
+  isNextStatic,
+  isStaticAsset,
+  isTrpc,
+  NEXT_STATIC_CACHE,
+  PAGES_CACHE,
+  STATIC_CACHE,
+} from "~/lib/sw-rules";
+
+/** Seconds in a day — the expiration plugin counts in seconds, which reads badly inline. */
+const DAY = 24 * 60 * 60;
 
 // `__SW_MANIFEST` doesn't exist yet at the time you're reading this source — the build step
 // (createSerwistRoute, in the route handler) generates it: a list of every static asset Next
@@ -43,11 +66,76 @@ const serwist = new Serwist({
   // worker, instead of waiting for the worker to boot first — shaves latency off every page load
   // once the SW is installed.
   navigationPreload: true,
-  // `defaultCache` is Serwist's opinionated, framework-aware set of runtime caching rules for
-  // everything precaching doesn't cover: Next's on-demand JS chunks, fonts, images, API calls.
-  // Phase 1 keeps the default rather than hand-tuning per-route strategies; SPEC's feed/item
-  // routes may want a bespoke strategy later (e.g. never cache a personalized feed page).
-  runtimeCaching: defaultCache,
+  // **Hand-written, and first match wins.** Phase 1 used Serwist's `defaultCache`; 5.11 replaced
+  // it because that default routed every same-origin `/api/*` except auth through `NetworkFirst`
+  // into one shared 16-entry bucket — which meant the personalized feed was being cached, and was
+  // evicting the image proxy while it did. The predicates live in `~/lib/sw-rules` so they can be
+  // unit-tested outside a worker; the invariant "no tRPC request reaches a caching rule" is
+  // asserted there directly.
+  //
+  // Anything no rule matches goes straight to the network. That is the deliberate default: RSC
+  // payload fetches, item pages, and everything not listed here are better served slow-and-correct
+  // than fast-and-stale.
+  runtimeCaching: [
+    { matcher: isAuthApi, handler: new NetworkOnly() },
+    // Never stored. Every tRPC response is per-reader, and a feed page is *spent* when received
+    // (the client acks it as seen), so replaying one would show items the server thinks are done.
+    { matcher: isTrpc, handler: new NetworkOnly() },
+    {
+      // Immutable by construction — the route serves `max-age=31536000, immutable` — and the
+      // single most expensive thing the app fetches. 150 entries is roughly six feed pages'
+      // worth, which is what makes an offline feed look like a feed.
+      matcher: isImageProxy,
+      handler: new CacheFirst({
+        cacheName: IMAGES_CACHE,
+        plugins: [
+          new CacheableResponsePlugin({ statuses: [200] }),
+          new ExpirationPlugin({
+            maxEntries: 150,
+            maxAgeSeconds: 7 * DAY,
+            maxAgeFrom: "last-used",
+          }),
+        ],
+      }),
+    },
+    {
+      // The feed document only, and network-first with no timeout: a live network always wins, and
+      // the cache is purely for being genuinely offline. `/feed` is an RSC page with its first
+      // page of items dehydrated into the HTML, so this one entry is the whole of "reopening
+      // offline shows the last feed" — no API response is cached to achieve it.
+      matcher: isFeedDocument,
+      handler: new NetworkFirst({
+        cacheName: PAGES_CACHE,
+        plugins: [
+          {
+            // A signed-out reader's `/feed` is a redirect to `/`. Storing that would cache the
+            // wrong page *and* produce a response a navigation request may not be served at all.
+            cacheWillUpdate: async ({ response }) =>
+              response.status === 200 && !response.redirected ? response : null,
+          },
+          new ExpirationPlugin({ maxEntries: 4 }),
+        ],
+      }),
+    },
+    {
+      matcher: isNextStatic,
+      handler: new CacheFirst({
+        cacheName: NEXT_STATIC_CACHE,
+        plugins: [
+          new ExpirationPlugin({ maxEntries: 96, maxAgeSeconds: 30 * DAY }),
+        ],
+      }),
+    },
+    {
+      matcher: isStaticAsset,
+      handler: new StaleWhileRevalidate({
+        cacheName: STATIC_CACHE,
+        plugins: [
+          new ExpirationPlugin({ maxEntries: 40, maxAgeSeconds: 30 * DAY }),
+        ],
+      }),
+    },
+  ],
   // When a request fails outright (fully offline, DNS down — not just a slow network), this is
   // the last resort: serve the precached offline shell instead of the browser's own "no
   // internet" error page. Only for `document` requests (actual page navigations) — a failed
