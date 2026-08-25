@@ -55,6 +55,46 @@ Full detail in `~/Dev/ambit-archive/log.md`; the VM 202 DNS fix is in the vault'
 *Session spend: 32.51M tok (in 400 · out 251.5k · cache r 31.64M / w 615.6k) · ~$28.27 · opus-5 · 11:35→14:37*
 *Session spend: 8.05M tok (in 9.2k · out 113.5k · cache r 7.60M / w 327.5k) · ~$19.92 · fable-5 · 15:19→15:29*
 
+**Evening: Phase 5.11 planned — landing slideshow + install + PWA polish** (the last Phase 5
+step; `docs/PHASE5_PLAN_5.11.md`, cold-executable in the 5.10 format). Three decisions put to
+Ben, all answered: slides are **the 8 Wikimedia PD works fetched once into `public/landing/`
+plus a set Ben is clearing himself** (the bundle's `uploads/*.webp` stay out — that gate holds);
+pacing is **"faster, ~5 s"** — `slideMs 600`, a random subset of 8 per load, tap-anywhere or the
+floating glyph skips; the install banner shows on the **second feed visit**, "Not now" snoozes
+30 days, the X is permanent, never when already standalone. Approved on the landing design
+with "hero size is easy to change, don't care on the first go" — the prototype's 16 px sheet
+hero ships as drawn.
+
+**Plan-time findings worth keeping:**
+- **`defaultCache` was caching the personalized feed.** `@serwist/turbopack`'s default rules
+  put every same-origin `/api/*` except auth through `NetworkFirst` into a 16-entry `apis`
+  bucket; tRPC queries go over GET, so feed pages have been landing in Cache Storage since
+  Phase 1, sharing those 16 slots with `/api/img/*`. 5.11 replaces it with a hand-written
+  strategy: tRPC `NetworkOnly`, image proxy `CacheFirst` (150 / 7 d), only the `/feed`
+  **document** `NetworkFirst` — the RSC HTML carries the first page dehydrated, so "last cached
+  feed" needs no API response cached at all. Redirected responses are never stored (a signed-out
+  `/feed` is a redirect to `/`, and a cached redirect breaks navigations), and sign-out purges
+  the pages bucket.
+- **`start_url: "/"` defeats offline launch.** `/` is itself a redirect when signed in, so an
+  installed app opened offline would hit the `~offline` fallback instead of the cached feed.
+  Moves to `/feed`, which still bounces signed-out readers to `/` server-side.
+- **The one prototype deviation:** the "Ambit is on your home screen" confirmation fires on
+  `appinstalled` (Chromium) or on the *first standalone launch* (iOS), never after "Got it" —
+  Safari gives the page no install signal, so the prototype's flow would confirm an install
+  that may not have happened.
+- The sheet must be **mounted from first paint** (translated off-screen, not unmounted):
+  `waitForHydration(page, "form")` and every auth e2e selector depend on the form being in
+  the DOM; the tests take the reader's own skip path (`openAuthSheet` clicks the glyph).
+- 5.10's `InstallSheet` header comment had already reserved this phase's use of it; it moves to
+  `components/install/` and is otherwise untouched.
+
+**Open / next:** execute `docs/PHASE5_PLAN_5.11.md` on `feat/5.11-landing-install-pwa` in a
+cheaper session — Ben's cleared images are an optional prerequisite, not a blocker. Offline and
+install verification is manual against `bun run preview` (the SW is production-only by policy).
+Phase 5 closes with that merge; then the 6.3 blog design session or Phase 7.
+
+*Session spend: 8.58M tok (in 4.8k · out 174.3k · cache r 7.71M / w 696.7k) · ~$29.59 · fable-5 + opus-5 · 19:54→23:46*
+
 ### [[08-24-26 Mon]] — Phase 5.10: Profile + Settings planned, then shipped
 
 **The headline decision: BUILD_PLAN's "minimal viable" 5.10 is superseded.** Asked why the
