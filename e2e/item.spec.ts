@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 
 import { expect, test } from "@playwright/test";
 
-import { signIn, waitForHydration } from "./support";
+import { openAuthSheet, signIn, waitForHydration } from "./support";
 
 // The item pages (`/i/[itemId]`) against a real dev server and real Postgres — the app's one
 // public surface, so most of what follows runs in a context that is **never signed in**. That is
@@ -284,7 +284,7 @@ test.describe.serial("item pages", () => {
     page,
   }) => {
     await page.goto("/");
-    await waitForHydration(page);
+    await openAuthSheet(page);
     await page
       .getByRole("button", { name: "First time? Create your account" })
       .click();

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 
 import { expect, test } from "@playwright/test";
 
-import { waitForHydration } from "./support";
+import { openAuthSheet, waitForHydration } from "./support";
 
 // The immersive gallery (`/g/[itemId]`) against a real dev server and real Postgres. Like `/i/`, it
 // is a **public** surface, so most of what follows runs in a context that has never signed in —
@@ -194,7 +194,7 @@ test.describe.serial("the immersive gallery", () => {
     page,
   }) => {
     await page.goto("/");
-    await waitForHydration(page);
+    await openAuthSheet(page);
     await page
       .getByRole("button", { name: "First time? Create your account" })
       .click();

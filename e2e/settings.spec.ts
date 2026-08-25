@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import { eq, inArray } from "drizzle-orm";
 
-import { signIn, waitForHydration } from "./support";
+import { openAuthSheet, signIn } from "./support";
 
 // Phase 5.10's three screens — Profile, Profile Edit, Settings — against a real dev server and
 // Postgres. Same local-only caveat and "leaves a real user row behind by design" arrangement as
@@ -82,7 +82,7 @@ test.describe.serial("settings", () => {
     page,
   }) => {
     await page.goto("/");
-    await waitForHydration(page);
+    await openAuthSheet(page);
     await page
       .getByRole("button", { name: "First time? Create your account" })
       .click();

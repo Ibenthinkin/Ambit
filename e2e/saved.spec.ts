@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import { and, eq, inArray, like } from "drizzle-orm";
 
-import { signIn, waitForHydration } from "./support";
+import { openAuthSheet, signIn } from "./support";
 
 // The Saved screen (5.9) against a real dev server and Postgres — same local-only caveat and
 // same "leaves a real user row behind by design" arrangement as `feed.spec.ts`, whose scaffolding
@@ -108,7 +108,7 @@ test.describe.serial("saved", () => {
     page,
   }) => {
     await page.goto("/");
-    await waitForHydration(page);
+    await openAuthSheet(page);
     await page
       .getByRole("button", { name: "First time? Create your account" })
       .click();
