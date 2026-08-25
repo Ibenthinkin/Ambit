@@ -11,8 +11,9 @@ import { hasCompletedOnboarding } from "~/server/db/topics";
 // the session check here is defense in depth behind src/proxy.ts's cookie-shape-only optimistic
 // redirect (that file's matcher already covers /onboarding/:path*), and the onboarded check keeps
 // an already-set-up user from re-visiting the picker directly (Decision 10 — there is no re-pick
-// UI in v1). No <LandingShell> reuse: onboarding has its own chrome (no drifting orbs, no brand
-// mark), so it gets this small dedicated wrapper instead of a shared one.
+// UI in v1). Onboarding has its own chrome and shares no wrapper with the landing screen — it
+// never did, and as of 5.11 there is no shared shell left to reuse anyway (`LandingShell` and its
+// drifting orbs were deleted with the Landing 2 rebuild).
 export default async function OnboardingPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {

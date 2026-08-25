@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { signIn, waitForHydration } from "./support";
+import { openAuthSheet, signIn } from "./support";
 
 // The feed masonry against a real dev server, real Postgres and the real feed engine (SPEC §12,
 // PHASE5_PLAN_5.6.md Step 8). Same local-only caveat as `auth.spec.ts` — CI has no Postgres until
@@ -119,7 +119,7 @@ test.describe.serial("feed", () => {
     page,
   }) => {
     await page.goto("/");
-    await waitForHydration(page);
+    await openAuthSheet(page);
     await page
       .getByRole("button", { name: "First time? Create your account" })
       .click();
@@ -268,5 +268,65 @@ test.describe.serial("feed", () => {
   test("the pill has no share control on the feed", async ({ page }) => {
     await onFeed(page);
     await expect(page.getByRole("button", { name: "Share" })).toHaveCount(0);
+  });
+
+  // The install banner's whole design is about *not* nagging, so what's worth pinning is the
+  // restraint: it waits for a second visit, "Add" leads somewhere real, and the X is final.
+  // Headless Chromium never fires `beforeinstallprompt`, so "Add" here always takes the
+  // instructions path — which is also the path every iOS reader gets, and the only one a test can
+  // drive (a real install dialog is browser chrome, outside the page).
+  test("the install banner waits for a second visit, then respects the answer", async ({
+    page,
+  }) => {
+    await onFeed(page);
+
+    // Seed the state as though this reader came by yesterday. Faster and far steadier than trying
+    // to manufacture a six-hour gap.
+    await page.evaluate(() =>
+      localStorage.setItem(
+        "ambit.install.v1",
+        JSON.stringify({
+          v: 1,
+          feedVisits: 1,
+          lastVisitAt: Date.now() - 7 * 60 * 60 * 1000,
+        }),
+      ),
+    );
+    await page.reload();
+
+    const banner = page.getByTestId("install-banner");
+    await expect(banner).toBeVisible({ timeout: 15_000 });
+
+    await banner.getByRole("button", { name: "Add" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Add to home screen" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Closing the instructions is a "not now" — a month's silence, not a refusal.
+    await page.keyboard.press("Escape");
+    await expect(banner).toBeHidden();
+    const afterSnooze = await page.evaluate(() =>
+      localStorage.getItem("ambit.install.v1"),
+    );
+    expect(afterSnooze).toContain("snoozedUntil");
+
+    // Now take the other branch: the X, which must stick across reloads.
+    await page.evaluate(() =>
+      localStorage.setItem(
+        "ambit.install.v1",
+        JSON.stringify({ v: 1, feedVisits: 2, lastVisitAt: Date.now() }),
+      ),
+    );
+    await page.reload();
+    await expect(banner).toBeVisible({ timeout: 15_000 });
+
+    await banner.getByRole("button", { name: "Not now" }).click();
+    await expect(banner).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.locator("[data-feed-id]").first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(banner).toHaveCount(0);
   });
 });

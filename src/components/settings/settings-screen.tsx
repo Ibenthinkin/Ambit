@@ -33,7 +33,9 @@ import { avatarGradient } from "~/lib/avatar-hue";
 import { api } from "~/trpc/react";
 import { AboutSheet } from "./about-sheet";
 import { AccentSheet } from "./accent-sheet";
-import { InstallSheet } from "./install-sheet";
+import { InstallSheet } from "~/components/install/install-sheet";
+import { isStandalone, useInstall } from "~/lib/install-store";
+import { purgePagesCache } from "~/lib/sw-rules";
 import { SettingsGroup, SettingsRow } from "./settings-row";
 import { TopicsSheet } from "./topics-sheet";
 import { useNotificationPermission } from "./use-notification-permission";
@@ -54,6 +56,9 @@ import { useNotificationPermission } from "./use-notification-permission";
 //
 // And it answers 5.9's open reachability question: the "Everything kept" shortcut card is the third
 // doorway into Saved, after the pill's bookmark and the collections sheet.
+
+/** Display mode never changes within a page's life, so this subscription has nothing to report. */
+const subscribeToNothing = () => () => undefined;
 
 /** Ben's address — the "Get in touch" row is a mailto, not a form; there's no inbox to build. */
 const CONTACT_EMAIL = "benjamin.reilly@gmail.com";
@@ -89,6 +94,15 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
   // sets the attribute before first paint. This is only about what React knows.)
   const accent = useAccent();
   const notifications = useNotificationPermission();
+  // Same shape, same reason: the display mode and the browser's install prompt are both unreadable
+  // during a server render. `false` through hydration means the row renders its ordinary "Install"
+  // state and settles a frame later, which is the harmless direction to be wrong in.
+  const install = useInstall();
+  const standalone = React.useSyncExternalStore(
+    subscribeToNothing,
+    isStandalone,
+    () => false,
+  );
 
   const leaveSettings = React.useCallback(() => {
     // Pop when an in-app surface brought us here; otherwise fall back to /profile, where the gear
@@ -200,11 +214,22 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
             // here would be fiction.
             onClick={stub("Invite a friend")}
           />
+          {/* Three states, because the honest answer differs by platform. Already installed: say
+              so and offer nothing. A real `beforeinstallprompt` in hand (Chromium): fire it — one
+              tap beats three steps of instructions. Otherwise, and that includes every iOS
+              reader, the instruction sheet. */}
           <SettingsRow
             icon={<Download size={17} />}
             label="Add to home screen"
-            action="Install"
-            onClick={() => setOpenSheet("install")}
+            value={standalone ? "Installed" : undefined}
+            action={standalone ? undefined : "Install"}
+            onClick={
+              standalone
+                ? undefined
+                : install.canPrompt
+                  ? () => void install.prompt()
+                  : () => setOpenSheet("install")
+            }
           />
         </SettingsGroup>
 
@@ -339,6 +364,11 @@ function SignOutRow() {
     <button
       type="button"
       onClick={() => {
+        // Drop the cached `/feed` document before the session goes. It holds the first page of a
+        // personalized feed dehydrated into its HTML, and on a shared device the next person to
+        // open the app offline would otherwise be shown the last reader's feed. Best-effort and
+        // deliberately not awaited — signing out must not wait on, or be blocked by, a cache.
+        void purgePagesCache();
         void authClient.signOut().then(() => router.push("/"));
       }}
       onPointerDown={(e) => e.stopPropagation()}

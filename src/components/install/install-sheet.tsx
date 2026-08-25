@@ -10,9 +10,10 @@ import { BottomSheet } from "~/components/ui/bottom-sheet";
 // **Why instructions on iOS at all:** Safari has no `beforeinstallprompt`, no programmatic install,
 // and doesn't read the web app manifest for its Add-to-Home-Screen flow (which is why layout.tsx
 // carries a separate `appleWebApp` block). The only thing an app can do there is point at the
-// browser's own controls. Android/Chromium *does* have a prompt event, and 5.11's install flow will
-// use it — this sheet is written to be imported by that phase rather than replaced by it: the steps
-// stay correct as the fallback for every browser the prompt doesn't fire in.
+// browser's own controls. Android/Chromium *does* have a prompt event, and 5.11's install flow uses
+// it — this sheet is the fallback for every browser that prompt doesn't fire in, which is exactly
+// what 5.10 wrote it to be. It moved from `components/settings/` to `components/install/` in 5.11
+// when it gained a second caller (`install-flow.tsx`) alongside the Settings row.
 //
 // Installing matters here beyond tidiness: on iOS, notification permission (Settings' Permissions
 // group) exists *only* inside an installed PWA, so this sheet is the path that makes that row

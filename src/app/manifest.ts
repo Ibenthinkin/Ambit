@@ -9,7 +9,12 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Ambit",
     short_name: "Ambit",
     description: "A calm, non-social anti-doomscroll feed.",
-    start_url: "/",
+    // **`/feed`, not `/`.** The landing route redirects a signed-in reader to `/feed`, and a
+    // redirect is precisely what an offline launch cannot follow — an installed app opened with no
+    // network would land on the offline fallback instead of the feed the service worker has
+    // cached. Pointing straight at `/feed` costs nothing for a signed-out reader, since that route
+    // bounces them back to `/` server-side.
+    start_url: "/feed",
     display: "standalone",
     // Matches the design handoff's dark screen background (README: "Background (screen):
     // #161411") — background_color is what paints during the splash-screen instant between tap

@@ -36,6 +36,9 @@ const {
   setMineOpts,
   invalidateMock,
   signOutMock,
+  installState,
+  promptMock,
+  purgeMock,
 } = vi.hoisted(() => ({
   meState: { current: blankQuery() },
   savedCount: { current: 0 },
@@ -49,7 +52,31 @@ const {
   },
   invalidateMock: vi.fn().mockResolvedValue(undefined),
   signOutMock: vi.fn().mockResolvedValue(undefined),
+  installState: { current: { standalone: false, canPrompt: false } },
+  promptMock: vi.fn().mockResolvedValue("accepted"),
+  purgeMock: vi.fn().mockResolvedValue(undefined),
 }));
+
+// The install row reads two things no test environment provides: the display mode, and Chromium's
+// deferred install prompt. Both are stubbed at the module boundary the same way the notification
+// permission already is.
+vi.mock("~/lib/install-store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/lib/install-store")>();
+  return {
+    ...actual,
+    isStandalone: () => installState.current.standalone,
+    useInstall: () => ({
+      canPrompt: installState.current.canPrompt,
+      installed: false,
+      prompt: promptMock,
+    }),
+  };
+});
+
+vi.mock("~/lib/sw-rules", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/lib/sw-rules")>();
+  return { ...actual, purgePagesCache: purgeMock };
+});
 
 vi.mock("~/trpc/react", () => ({
   api: {
@@ -103,7 +130,7 @@ function stubNotifications(
 }
 
 function renderScreen() {
-  return render(<SettingsScreen versionLabel="v0.4" />);
+  return render(<SettingsScreen versionLabel="v0.5" />);
 }
 
 beforeEach(() => {
@@ -114,6 +141,9 @@ beforeEach(() => {
   sessionStorage.clear();
   localStorage.clear();
   stubNotifications("default");
+  installState.current = { standalone: false, canPrompt: false };
+  promptMock.mockClear();
+  purgeMock.mockClear();
   pushMock.mockClear();
   backMock.mockClear();
   setMineMutateMock.mockClear();
@@ -187,7 +217,7 @@ describe("SettingsScreen — rows", () => {
 
   it("shows the version footer it was handed", () => {
     renderScreen();
-    expect(screen.getByText("Ambit · invite-only · v0.4")).toBeInTheDocument();
+    expect(screen.getByText("Ambit · invite-only · v0.5")).toBeInTheDocument();
   });
 
   it("back pops when marked and pushes to /profile when opened cold", () => {
@@ -332,6 +362,37 @@ describe("SettingsScreen — Appearance", () => {
   });
 });
 
+describe("SettingsScreen — Add to home screen", () => {
+  it("offers the instruction sheet when the browser has no prompt", () => {
+    installState.current = { standalone: false, canPrompt: false };
+    renderScreen();
+
+    fireEvent.click(screen.getByText("Add to home screen"));
+
+    // The sheet's own title, which is the same string — two nodes now carry it.
+    expect(screen.getAllByText("Add to home screen").length).toBeGreaterThan(1);
+    expect(promptMock).not.toHaveBeenCalled();
+  });
+
+  it("fires the browser's real prompt when there is one", () => {
+    installState.current = { standalone: false, canPrompt: true };
+    renderScreen();
+
+    fireEvent.click(screen.getByText("Add to home screen"));
+
+    expect(promptMock).toHaveBeenCalledOnce();
+  });
+
+  it("says 'Installed' and offers nothing once the app is on the home screen", () => {
+    installState.current = { standalone: true, canPrompt: false };
+    renderScreen();
+
+    expect(screen.getByText("Installed")).toBeInTheDocument();
+    // The action pill is gone — there is nothing left to do from here.
+    expect(screen.queryByText("Install")).not.toBeInTheDocument();
+  });
+});
+
 describe("SettingsScreen — sign out", () => {
   it("signs out and returns to the landing page", async () => {
     renderScreen();
@@ -339,6 +400,8 @@ describe("SettingsScreen — sign out", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
 
     expect(signOutMock).toHaveBeenCalledOnce();
+    // The cached feed document goes with the session — it carries the last reader's first page.
+    expect(purgeMock).toHaveBeenCalledOnce();
     // The push waits on the promise; flush the microtask queue before asserting it.
     await act(async () => undefined);
     expect(pushMock).toHaveBeenCalledWith("/");

@@ -130,12 +130,13 @@
   --animate-scrim-in: scrim-in 0.3s ease both;
   --animate-scrim-out: scrim-out 0.26s ease both; /* matched to sheet-down so the scrim and the
                                                       panel leave together */
-  --animate-drift: drift 18s ease-in-out infinite; /* landing page's decorative blurred orbs */
 
   @keyframes rise {
     from {
       opacity: 0;
-      transform: translateY(10px); /* normalized to 10px — README says 8-10px, Landing/Item use
+      transform: translateY(
+        10px
+      ); /* normalized to 10px — README says 8-10px, Landing/Item use
                                        10, only Saved used 8 (Decision 6) */
     }
     to {
@@ -196,7 +197,9 @@
   }
   @keyframes sheet-gallery {
     from {
-      transform: translateY(103%); /* normalized to 103% — the richer of the two prototype
+      transform: translateY(
+        103%
+      ); /* normalized to 103% — the richer of the two prototype
                                        implementations (Gallery); Install used 105% (Decision 6) */
     }
     to {
@@ -208,7 +211,9 @@
       transform: translateY(0);
     }
     to {
-      transform: translateY(103%); /* mirrors sheet-gallery's own travel exactly */
+      transform: translateY(
+        103%
+      ); /* mirrors sheet-gallery's own travel exactly */
     }
   }
   @keyframes sheet-down {
@@ -253,17 +258,6 @@
     }
     to {
       opacity: 0;
-    }
-  }
-  @keyframes drift {
-    0% {
-      transform: translate(0, 0) rotate(0deg);
-    }
-    50% {
-      transform: translate(14px, -18px) rotate(8deg);
-    }
-    100% {
-      transform: translate(0, 0) rotate(0deg);
     }
   }
 }
