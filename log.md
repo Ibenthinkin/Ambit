@@ -5,6 +5,66 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.**
+
+**Shipped:** `feat/5.11-landing-install-pwa`, ten commits, merged to `main`. The redesign's
+`Landing 2` (slideshow → auth sheet), a real install flow (banner → browser prompt or instructions
+→ confirmation), and a hand-written service-worker caching strategy. `LandingShell`, the drifting
+orbs and the `drift` keyframe are deleted. v0.5.0. Walkthrough:
+`docs/PHASE5_WALKTHROUGH_5.11.md`.
+
+**Three PWA findings, all worth keeping:**
+
+1. **`defaultCache` had been caching the personalized feed since Phase 1.** Its last rule routes
+   every same-origin `/api/*` except auth through `NetworkFirst` into a shared 16-entry bucket, and
+   tRPC queries travel as GET — so feed pages were sitting in Cache Storage, evicting the image
+   proxy from the same 16 slots. Replaced by predicates in `src/lib/sw-rules.ts` (no `serwist`
+   import, so they unit-test in node and page code can call `purgePagesCache` too). Only the
+   `/feed` **document** is cached, never an API response: the RSC HTML carries the first page
+   dehydrated, which is the whole of "reopening offline shows the last feed".
+2. **An unterminated `runtimeCaching` list silently disables the offline page.** A request matching
+   no rule never enters Serwist's routing at all, and `fallbacks` only applies to requests Serwist
+   handled — so "anything unmatched goes straight to the network" (what the plan said, and what I
+   wrote) meant an offline `/settings` got Chrome's own error page instead of the precached
+   `~offline` shell. `defaultCache`'s catch-all `NetworkOnly` looks redundant and is not. **Only
+   caught because I wrote the plan's "manual" §6.3 verification as a script** — no unit test could
+   have (every matcher was individually correct) and no `bun run e2e` could either (the SW is
+   production-only). That script is kept as `e2e/pwa.prod.spec.ts`, excluded from the default suite
+   via `testIgnore: /\.prod\.spec\.ts$/`.
+3. **`start_url: "/"` defeats an offline launch** — `/` is itself a redirect when signed in, and a
+   redirect is precisely what an offline navigation cannot follow. Now `/feed`, which still bounces
+   signed-out readers server-side.
+
+**The repo's lint rules reject the textbook React shape, twice.** `react-hooks/set-state-in-effect`
+errored on both new stateful components (the plan wrote each as "read `localStorage`/`matchMedia`/a
+shuffle in a mount effect, then setState"), and `react-hooks/refs` on the latest-callback
+assignment. No file in the repo suppresses either, so the shape changed rather than the config:
+**`useSyncExternalStore(subscribeToNothing, () => true, () => false)` as the hydration boundary, a
+lazy `useState` initializer containing reads only, and derived state instead of a second effect.**
+The "reads only" part is not pedantry — StrictMode double-invokes initializers, and `InstallFlow`'s
+would otherwise have counted every visit twice and brought the banner forward a whole session.
+Worth remembering: in this repo, *"read it in a mount effect and setState" is not available.*
+
+**Two smaller things.** `/reset-password` was showing the marketing pitch above "This link has
+expired" — the prototype never had to face that, since its sheet only ever held a sign-in form; the
+hero is now keyed to the route, not the render mode. And `sips -s formatOptions 72` made the
+Haeckel plate **bigger** (533 KB → 626 KB); `formatOptions low` gave 185 KB with no visible
+blocking at a 100% crop. Eight slides, 1.6 MB total.
+
+**Verified against a real production build** (`e2e/pwa.prod.spec.ts`): SW activated; buckets
+`ambit-images` 22 / `ambit-pages` 1 / `ambit-next-static` 1 / precache 43; **no `apis` bucket and
+zero cached `/api/trpc/*`**; offline reload of `/feed` renders 12 tiles; offline `/settings` gets
+the `~offline` shell; sign-out drops `ambit-pages` and keeps the images.
+
+**Open / next:** two device passes only Ben can do — the **Chromium install dialog** (headless
+never fires `beforeinstallprompt`, so that branch is unit-tested only) and the **iOS home-screen
+pass** over the tailnet, where the confirmation should appear exactly once on first launch from the
+icon. Ben's cleared landing images never arrived, so the run ships as the 8 Wikimedia works; adding
+more is one file plus one line, and the 8-slide cap keeps the pacing at ~5s however long the list
+grows. Then: the thrice-deferred **6.3 blog design session**, or Phase 7.
+
+*Session spend: 53.70M tok (in 8.7k · out 253.8k · cache r 52.23M / w 1.21M) · ~$43.42 · opus-5 + opus-4-7 + fable-5 · 23:46→00:33*
+
 ### [[08-24-26 Mon]] — Archive is live and verified; Ambit's side of A.6 closed the same afternoon
 
 No Ambit code changed. Recording this here because [[Ambit Archive]] is now a real, reachable
