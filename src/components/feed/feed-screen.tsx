@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { CollectionsSheet } from "~/components/sheets/collections-sheet";
+import { InstallFlow } from "~/components/install/install-flow";
 import { ItemSheet } from "~/components/sheets/item-sheet";
 import { Button } from "~/components/ui/button";
 import { PillToolbar } from "~/components/ui/pill-toolbar";
@@ -295,6 +296,12 @@ export function FeedScreen({ topicLabels }: FeedScreenProps) {
         }
         onError={setToast}
       />
+
+      {/* The install ask lives here rather than in the layout: the feed is the only screen where
+          a reader is plainly *using* the app rather than passing through it, and it is the one
+          place a banner can sit without covering something they came for. It renders nothing at
+          all until the visit count, the display mode and the dismissal history all say otherwise. */}
+      <InstallFlow />
 
       {/* `raised` — this screen mounts the pill, and an unraised toast would sit behind it. */}
       <Toast
