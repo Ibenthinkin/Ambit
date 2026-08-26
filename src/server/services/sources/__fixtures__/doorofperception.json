@@ -1,0 +1,122 @@
+[
+  {
+    "id": 26468,
+    "slug": "the-geologic-atlas-of-the-moon",
+    "link": "https://doorofperception.com/2026/08/the-geologic-atlas-of-the-moon/",
+    "date": "2026-08-08T12:10:25",
+    "title": {
+      "rendered": "The Geologic Atlas<br>of the Moon"
+    },
+    "excerpt": {
+      "rendered": "<p>The Geologic Atlas of the Moon looks like abstract painting, but only as a byproduct of classifying the lunar surface into type and age. The palette exists so that four billion years can be told apart at a glance.</p>\n",
+      "protected": false
+    },
+    "tags": [
+      86,
+      91,
+      73,
+      81,
+      164,
+      78,
+      201
+    ],
+    "categories": [
+      1,
+      8,
+      15
+    ],
+    "featured_media": 26524,
+    "_embedded": {
+      "wp:featuredmedia": [
+        {
+          "source_url": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-Featured-1.jpg",
+          "media_details": {
+            "width": 800,
+            "height": 805
+          }
+        }
+      ]
+    },
+    "tagNames": [
+      "abstract",
+      "art",
+      "colorful",
+      "design",
+      "horizons",
+      "science",
+      "topophilia"
+    ]
+  },
+  {
+    "id": 26480,
+    "slug": "dop-explore",
+    "link": "https://doorofperception.com/2026/08/dop-explore/",
+    "date": "2026-08-07T12:50:39",
+    "title": {
+      "rendered": "D O P Explore<br>A Passage Through Affinities"
+    },
+    "excerpt": {
+      "rendered": "<p>D O P Explore opens the archive as one connected whole. The machine&#8217;s eye reads every image and traces the affinities between them.</p>\n",
+      "protected": false
+    },
+    "tags": [
+      91,
+      81,
+      111,
+      164,
+      122,
+      76,
+      168,
+      161,
+      79
+    ],
+    "categories": [
+      1,
+      14,
+      8,
+      13,
+      7,
+      6
+    ],
+    "featured_media": 26502,
+    "_embedded": {
+      "wp:featuredmedia": [
+        {
+          "source_url": "https://doorofperception.com/wp-content/uploads/Intro-Animation-small.gif",
+          "media_details": {
+            "width": 320,
+            "height": 320
+          }
+        }
+      ]
+    },
+    "tagNames": [
+      "art",
+      "design",
+      "documentary",
+      "horizons",
+      "microcosm",
+      "perception",
+      "personal",
+      "videos",
+      "visions"
+    ]
+  },
+  {
+    "id": 1,
+    "slug": "no-featured-image",
+    "link": "https://doorofperception.com/2020/01/no-featured-image/",
+    "date": "2020-01-01T00:00:00",
+    "title": {
+      "rendered": "A post with no picture"
+    },
+    "excerpt": {
+      "rendered": "<p>An excerpt long enough to clear the structural floor, which is sixty characters.</p>\n"
+    },
+    "tags": [],
+    "categories": [],
+    "featured_media": 0,
+    "_embedded": {},
+    "tagNames": []
+  }
+]

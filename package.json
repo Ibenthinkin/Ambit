@@ -22,6 +22,7 @@
     "recurate": "bun run scripts/recurate.ts",
     "probe": "bun run scripts/probe-adapter.ts",
     "probe:feed": "bun run scripts/probe-feed.ts",
+    "probe:walk": "bun run scripts/probe-walk.ts",
     "start": "bun run --bun next start",
     "e2e": "playwright test",
     "test": "vitest run",
