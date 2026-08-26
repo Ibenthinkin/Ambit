@@ -13,15 +13,46 @@ export const USER_AGENT =
   "Ambit/0.1 (https://github.com/Ibenthinkin/Ambit; benjamin.reilly@gmail.com)";
 
 /**
- * GET a JSON endpoint with an optional politeness delay before the request and retry-with-backoff
- * on failure. The retry exists chiefly for the Met, whose rate limit surfaces as an HTTP 403 that
- * looks exactly like a permanent denial but clears after a short pause (phase0/NOTES.md) — so any
- * non-ok response is treated as retryable, not just network errors.
+ * A non-ok status the caller told us never to retry. Distinct class so the retry loop can let it
+ * through untouched, and so a walker can distinguish "refused" from "flaky" in its own error path.
  */
-export async function fetchJson(
+export class HttpRefusedError extends Error {
+  constructor(
+    public readonly status: number,
+    url: string,
+  ) {
+    super(`HTTP ${status} for ${url} — refused; not retried`);
+    this.name = "HttpRefusedError";
+  }
+}
+
+export interface FetchJsonOpts {
+  delayMs?: number;
+  headers?: Record<string, string>;
+  /**
+   * Statuses that end the call on the first attempt instead of entering the backoff loop. Added
+   * in Phase 6.3 for corpus-walk sources: a 401/403 from a blog is a refusal, and a bot that
+   * retries a refusal four times with backoff is exactly the bot robots.txt exists to keep out.
+   * (Also the loupe adapter requirement on record in Ambit-Admin.) Left unset, every non-ok
+   * response is retryable — the Met's rate limit surfaces as a 403 that clears after a pause.
+   */
+  noRetryOn?: number[];
+}
+
+/**
+ * GET a JSON endpoint and return the parsed body *and* the response headers. Retry-with-backoff
+ * on failure (see the module header): the retry exists chiefly for the Met, whose rate limit
+ * surfaces as an HTTP 403 that looks exactly like a permanent denial but clears after a short
+ * pause (phase0/NOTES.md) — so any non-ok response is treated as retryable, not just network
+ * errors, unless `noRetryOn` says otherwise.
+ *
+ * Headers are returned because WordPress paginates by header (`x-wp-totalpages`), and a walker
+ * that cannot read it has to guess when the corpus ends. Most callers want `fetchJson` below.
+ */
+export async function fetchJsonResponse(
   url: string,
-  opts?: { delayMs?: number; headers?: Record<string, string> },
-): Promise<unknown> {
+  opts?: FetchJsonOpts,
+): Promise<{ data: unknown; headers: Headers }> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
@@ -38,9 +69,15 @@ export async function fetchJson(
           ...opts?.headers,
         },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-      return await res.json();
+      if (!res.ok) {
+        if (opts?.noRetryOn?.includes(res.status))
+          throw new HttpRefusedError(res.status, url);
+        throw new Error(`HTTP ${res.status} for ${url}`);
+      }
+      return { data: await res.json(), headers: res.headers };
     } catch (err) {
+      // A refusal is the caller's decision, not a transport failure: straight out, no backoff.
+      if (err instanceof HttpRefusedError) throw err;
       lastErr = err;
       // Exponential backoff (1s → 3s → 9s) plus up to 500ms of jitter so concurrent adapters
       // don't all retry in lockstep — same shape phase0/harvest.ts and phase0/curate.ts both use.
@@ -49,6 +86,14 @@ export async function fetchJson(
     }
   }
   throw lastErr;
+}
+
+/** The common case: just the body. Identical policy to fetchJsonResponse. */
+export async function fetchJson(
+  url: string,
+  opts?: FetchJsonOpts,
+): Promise<unknown> {
+  return (await fetchJsonResponse(url, opts)).data;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
