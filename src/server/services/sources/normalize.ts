@@ -55,6 +55,9 @@ export function stripHtml(text: string): string {
  * NASA's image library (Phase 6.2) is what made this necessary: 13 of 600 sampled descriptions
  * carried `&quot;` or `&amp;` around quoted scientist remarks. `&amp;` is decoded last so an
  * already-escaped sequence like `&amp;quot;` resolves to `&quot;` rather than to a bare quote.
+ *
+ * Numeric forms (decimal and hex) were added for WordPress (Phase 6.3), which renders curly
+ * quotes and dashes as `&#8217;` / `&#x2014;` rather than as named entities.
  */
 export function decodeEntities(text: string): string {
   return text
@@ -63,5 +66,19 @@ export function decodeEntities(text: string): string {
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) =>
+      String.fromCodePoint(parseInt(h, 16)),
+    )
     .replace(/&amp;/g, "&");
+}
+
+/**
+ * The whole chain for a field that arrives as rendered HTML — WordPress's `title.rendered` and
+ * `excerpt.rendered` (Phase 6.3). Tags → spaces, entities → characters, whitespace → single
+ * spaces, trimmed. Produces plain text and only plain text: this is the line that keeps CLAUDE.md's
+ * "never render unsanitized source HTML" true for blogs, because nothing HTML-shaped survives it.
+ */
+export function htmlToText(html: string): string {
+  return decodeEntities(stripHtml(html)).replace(/\s+/g, " ").trim();
 }
