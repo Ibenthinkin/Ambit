@@ -44,8 +44,8 @@ import type {
 } from "~/server/services/curator";
 import { curateItems, structuralFloor } from "~/server/services/curator";
 import { isSuspendedSource } from "~/server/config/suspended-sources";
-import { adapters } from "~/server/services/sources";
-import type { SourceId } from "~/server/services/sources";
+import { adapters, ALL_SOURCE_IDS } from "~/server/services/sources";
+import type { SearchSourceId, SourceId } from "~/server/services/sources";
 
 // ── CLI flags ──────────────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ if (!Number.isFinite(quota) || quota <= 0) {
   process.exit(1);
 }
 
-const knownSources = Object.keys(adapters) as SourceId[];
+const knownSources = ALL_SOURCE_IDS;
 if (sourceFlag && !knownSources.includes(sourceFlag as SourceId)) {
   console.error(
     `unknown --source "${sourceFlag}" — known: ${knownSources.join(", ")}`,
@@ -104,7 +104,9 @@ interface SourceRunStats {
  * same per-host-serial, cross-host-parallel shape phase0/harvest.ts proved out.
  */
 async function processSource(
-  sourceId: SourceId,
+  // Phase 6.3 narrowed this from SourceId: `adapters` is now keyed by the search half of that
+  // union, and a walk source reaches processWalker instead.
+  sourceId: SearchSourceId,
   topics: DbTopic[],
   perCellQuota: number,
 ): Promise<SourceRunStats> {
@@ -186,6 +188,13 @@ async function main() {
       : knownSources.filter((id) => !isSuspendedSource(id))
   ) as SourceId[];
 
+  // Phase 6.3: the run has two lanes, because there are now two adapter shapes. `adapters` is
+  // keyed by the search half of SourceId and `walkers` by the walk half, so membership in one of
+  // those records is the split. (The walk lane itself lands with processWalker below.)
+  const searchIds = sourceIds.filter(
+    (id) => id in adapters,
+  ) as SearchSourceId[];
+
   if (sourceFlag && isSuspendedSource(sourceFlag)) {
     console.log(
       `⚠ "${sourceFlag}" is a suspended source — ingesting it because you asked explicitly, but ` +
@@ -208,13 +217,13 @@ async function main() {
   // "one source down ≠ job dead" guarantee processSource already gives at the topic level, one
   // level up.
   const results = await Promise.allSettled(
-    sourceIds.map((sourceId) => processSource(sourceId, topics, quota)),
+    searchIds.map((sourceId) => processSource(sourceId, topics, quota)),
   );
 
   const statsBySource = new Map<SourceId, SourceRunStats>();
   const allClaims: Claim[] = [];
   for (const [i, result] of results.entries()) {
-    const sourceId = sourceIds[i]!;
+    const sourceId = searchIds[i]!;
     if (result.status === "fulfilled") {
       statsBySource.set(sourceId, result.value);
       allClaims.push(...result.value.claims);
@@ -311,7 +320,7 @@ async function main() {
 
   printSummary({
     topics,
-    sourceIds,
+    sourceIds: searchIds,
     statsBySource,
     collisionCountBySource,
     imageFetchFailures,

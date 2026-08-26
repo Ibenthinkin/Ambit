@@ -11,6 +11,8 @@
 // ambit-archive / loupe integrations add private ones) — so this function will regularly see a
 // slug that predates it. Rendering `"archive"` as "Archive" is a perfectly good outcome;
 // rendering it as `undefined` is not.
+import { BLOGS } from "~/server/config/blogs";
+
 const SOURCE_LABELS: Record<string, string> = {
   wikipedia: "Wikipedia",
   met: "The Met",
@@ -25,6 +27,9 @@ const SOURCE_LABELS: Record<string, string> = {
   loc: "Library of Congress",
   "nasa-images": "NASA Image Library",
   poetrydb: "PoetryDB",
+  // Phase 6.3: blogs name themselves in the registry — one source of truth for the credit line,
+  // the attribution column, and the link-out row's copy.
+  ...Object.fromEntries(BLOGS.map((b) => [b.id, b.label])),
 };
 
 export function sourceLabel(source: string): string {
