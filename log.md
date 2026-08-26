@@ -5,7 +5,7 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
-### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.**
+### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.** Then: 6.3's design session opened.
 
 **Shipped:** `feat/5.11-landing-install-pwa`, ten commits, merged to `main`. The redesign's
 `Landing 2` (slideshow → auth sheet), a real install flow (banner → browser prompt or instructions
@@ -64,6 +64,45 @@ more is one file plus one line, and the 8-slide cap keeps the pacing at ~5s howe
 grows. Then: the thrice-deferred **6.3 blog design session**, or Phase 7.
 
 *Session spend: 53.70M tok (in 8.7k · out 253.8k · cache r 52.23M / w 1.21M) · ~$43.42 · opus-5 + opus-4-7 + fable-5 · 23:46→00:33*
+
+**Later the same day — the 6.3 blog-adapter design session opened, and stopped four questions in**
+so the rest could be handed to another model. Everything needed to resume is in
+`docs/PHASE6_DESIGN_HANDOFF_6.3.md`; only the parts that won't survive in that doc are here.
+
+**Four probes reframed the seven open questions before any of them were asked.** (1) The image
+proxy Phase 5 built already answers Q5 — `/api/img/[itemId]` fetches by item id with no referer, so
+blog images need no new hosting story and only the cache layer is left, which that route's own
+comment already gives to 7.3. (2) **doorofperception is WordPress and its REST API is live**:
+390 posts, `robots.txt` allow-all with no AI block list, `featured_media` on every post, and
+`excerpt.rendered` is a *written* paragraph rather than a truncation. So corpus #1 needs no HTML
+scraping at all, and BUILD_PLAN's "shared scraper core" is more honestly a WP REST corpus-walk
+adapter — which also means the blog strategy's first test doesn't exercise the scraper it was
+sketched around. (3) The 310 `archive` rows carry **no post provenance**: `attribution: "Personal
+archive"`, `source_url` pointing at the archive's own `/img/<sha>.webp`. Any doorofperception image
+already in the corpus is on screen right now with the wrong credit and no link out — so the overlap
+question was never housekeeping, it was a rights correction. (4) 11,572 images across 390 posts
+(p50 29, max 123) against an ~11,300-item corpus, and a taxonomy — Art / Consciousness /
+Psychedelic — that only partly overlaps the sixteen topics.
+
+**Decisions:** one item per post using the blog's own featured image (~390 items, ~3% of corpus,
+and the link-card shape the rights posture describes) · ambit-archive **stops serving
+doorofperception** from `/search` and Ambit deletes those rows, so every image from that blog
+carries its credit or isn't there · **corpus-walk becomes a second blessed adapter shape**, a
+`CorpusWalkAdapter` sibling leaving `SourceAdapter` — the cross-service agreement — untouched, and
+loupe inherits it · topic assignment folds into the curator's existing LLM call as "one of 16 or
+none", with nulls **dropped and counted** rather than force-fit, because a psychedelia post filed
+under `botany` teaches the drift graph something false. The plan owes a measured histogram over all
+390 before any of that is committed to.
+
+**Open / next:** the interrupted question is where a blog card's text lives — one blurb in
+`summary` with `body` hard-null (which turns "Ambit never renders blog article text" into an
+invariant a test can assert), versus BUILD_PLAN's original two-text sketch, a new column, or a
+third `type`. Then scrape etiquette for blogs #2+, curator confirmation, re-crawl semantics, the
+designated-blog registry, and an explicit call on whether the archive retirement ships inside 6.3
+or splits out. Two things live outside this repo: the archive-side exclusion, and recording that
+decision in the Ambit-Admin vault doc, since it changes a private-source integration.
+
+*Session spend: 7.57M tok (in 170 · out 112.9k · cache r 6.76M / w 703.2k) · ~$12.34 · opus-5 + opus-4-7 · 08:19→22:09*
 
 ### [[08-24-26 Mon]] — Archive is live and verified; Ambit's side of A.6 closed the same afternoon
 
