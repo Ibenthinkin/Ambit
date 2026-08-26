@@ -125,10 +125,14 @@ sharing skip/floor/curator/upsert — with classification as a curator mode. The
 is configuration, not code: stop scanning the folder, run a complete sync attended, let the sweep
 withdraw; its 20% mass-drop guard will trip on purpose. Approved design: `docs/PHASE6_DESIGN_6.3.md`.
 
-**Open / next:** write `docs/PHASE6_PLAN_6.3.md` (cold-executable, Ben runs it elsewhere); the
-plan's first executable step is the classification histogram over all 390 posts, before any write.
+**Open / next:** `docs/PHASE6_PLAN_6.3.md` is written — thirteen tasks, cold-executable, for a
+separate session. T7 is the gate: the classification histogram over all 390 posts, recorded before
+any write, with a stop-and-show if the yield is under ~30%. T12 is the attended one: the archive's
+20% mass-drop guard is *expected* to block the first sync, and `--force-sweep` is Ben reading the
+number.
 
 *Session spend: 10.66M tok (in 12.2k · out 135.4k · cache r 9.88M / w 626.4k) · ~$28.28 · fable-5 + opus-5 · 22:09→22:39*
+*Session spend: 11.34M tok (in 11.2k · out 250.5k · cache r 10.48M / w 594.0k) · ~$35.00 · fable-5 · 22:39→22:53*
 
 ### [[08-24-26 Mon]] — Archive is live and verified; Ambit's side of A.6 closed the same afternoon
 
