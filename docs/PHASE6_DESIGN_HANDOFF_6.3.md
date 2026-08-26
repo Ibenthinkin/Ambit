@@ -2,6 +2,10 @@
 
 **Written 08-25-26, mid-session, to hand off to another model.** Self-contained: assume the
 reader has none of the prior conversation. Nothing has been implemented; no files changed.
+**Reviewed by the receiving model the same day** — every checkable claim verified against the
+repo; corrections applied inline and new findings added as F5–F7 and the §7 amendments.
+**The session then completed: the approved design is `docs/PHASE6_DESIGN_6.3.md`.** This file is
+kept as the working record — the probes, numbers and rejected options behind that design.
 
 ---
 
@@ -12,9 +16,9 @@ reader has none of the prior conversation. Nothing has been implemented; no file
 be settled before any code. This session is that design session. It is being run under the
 `superpowers:brainstorming` skill on the **architectural path**.
 
-**Where the session stopped:** four of the seven questions are answered by Ben (§4 below). The
+**Where the session stopped:** four of the seven questions are answered by Ben (§5 below). The
 fifth was asked and Ben declined it to clarify something first — what he wanted to clarify is
-unknown, so **re-open §5's question by asking him that first.**
+unknown, so **re-open §6's question by asking him that first.**
 
 ### Process state (brainstorming skill, architectural path)
 
@@ -99,6 +103,13 @@ Flags: `--quota --topic --source --dry-run --skip-llm`.
 **Everything in it assumes seed cells** — quota, collision resolution and the summary table all
 key off `(topic × source)`. That is the surface a corpus-walk shape has to extend.
 
+*Verified on review:* the present-row skip is **step 3, before the floor (4) and the curator (5)**
+(`scripts/ingest.ts:238–281`), so an already-ingested post is never re-classified or re-scored on
+a re-run. And `upsertItem`'s conflict branch (`src/server/db/items.ts`) refreshes only the content
+columns — `title, summary, body, imageUrl, sourceUrl, attribution, license, tags, fetchedAt` —
+**never `topicId`, `curationScore` or `aestheticTags`**. A refreshed blog post keeps its topic and
+score; only a delete-and-reingest re-decides them.
+
 ### 3.4 Topics — `src/server/config/topics.ts`
 
 Sixteen, and the id is a join key across four systems (config → `topic` table →
@@ -131,6 +142,9 @@ this route like every other image. Only the cache layer is open, and it belongs 
   → `ImageItemBody` or `ReaderItemBody`.
 - `src/components/item/reader-item-body.tsx` — the only surface that renders `item.body`
   (via `parseReaderBlocks`). `ImageItemBody` never touches `body`.
+- `src/lib/source-label.ts` — `SOURCE_LABELS` lookup table for the credit line; the fallback
+  title-cases the slug (`"doorofperception"` → "Doorofperception"), so **every blog needs an entry
+  there** — the comment says a credit line "is the one place a source's name has to be right".
 - `src/components/item/credit-line.tsx` — `from: <source>` linking out, **generalized to every
   source in 5.7**. Its comment: the blog-specific extras (standing blurb, heavier link-out
   treatment that makes the card read as a link preview) are "6.3's, deliberately not here."
@@ -150,7 +164,8 @@ this route like every other image. Only the cache layer is open, and it belongs 
 | archive | 310 |
 | e2e | 1 |
 
-**≈ 11,300 total.**
+**≈ 11,300 total.** (The `e2e` row is `e2e-hydration-0`, seeded by the Playwright suite; it is not
+a `SourceId` and has nothing to do with 6.3.)
 
 ---
 
@@ -221,6 +236,56 @@ Some land cleanly (botany 53, forest 53, sculpture 44). Psychedelia / consciousn
 counterculture have **no honest home** among the sixteen, and `item.topic_id` is NOT NULL and must
 be a topic with a graph row. Hence the reject-rather-than-force decision in §5.
 
+### F5 — the curator, precisely (`src/server/services/curator.ts`)
+
+- Model `google/gemini-2.5-flash-lite` via OpenRouter; `PROMPT_VERSION = 1`; the prompt asks for
+  **exactly** `{"score": <1-10>, "tags": [...]}` (line 48), parsed by `parseCuratorResponse`.
+- It **already sends the image as bytes** (a `data:` URL, line 257) — so a blog's hero goes to
+  the model without any hotlink/referer question, same as museum images.
+- It has a **response cache keyed so a re-run of an already-scored item bills zero** (line 190).
+  Changing the prompt for D4 changes `PROMPT_VERSION`, which is the honest thing to do, but note
+  D4 only *needs* a topic for corpus-walk items — search-shaped items already carry one from their
+  seed query. The design should say whether topic classification is a **second prompt variant used
+  only on the walk path** (no re-scoring risk for the museum corpus) or one prompt for all.
+- `structuralFloor`'s `thin-summary` rule drops anything under **~60 chars**. Over all 390
+  doorofperception excerpts: min 47 · p10 93 · **p50 130** · max 287 chars, and **3 are under 60**
+  — those three would be floored, which is fine and honest. Excerpts are card-sized by
+  construction.
+- SPEC §15's "the curator has no rubric for text" (why PoetryDB parked) does **not** bite here: a
+  link card is image-led, and the hero goes to the model as bytes.
+
+### F6 — WordPress mechanics for corpus #1
+
+- `?_embed=wp:featuredmedia` returns the featured image's `source_url`, `width × height`, and
+  its `sizes` **in the same posts call** — no per-post media fetch. **390 posts = 4 requests** at
+  `per_page=100`, with `x-wp-totalpages` as the cursor's end.
+- The featured images are a purpose-made **"Featured" crop at ~800 px** (e.g.
+  `…-Geological-Atlas-of-the-Moon-Featured-1.jpg`, 800×805; `sizes.full = 800`). The full-size
+  originals live in the post body / in `index.csv`. 800 px is fine for a phone feed tile and the
+  item hero; it is **not** gallery-grade. D1 stands; this is a quality note for the plan, and a
+  reason `index.csv` stays valuable (it maps slug → full-res originals if that ever matters).
+- Edge cases over all 390: **1 post has no `featured_media`** (skip it, count it); `dop-explore`'s
+  featured image is a 320×320 GIF (a nav post — let the curator score it, it will not survive).
+- `title.rendered` contains `<br>` and entities; `excerpt.rendered` is wrapped in `<p>` — both need
+  a strip-and-decode step in `toItem()`. Numeric `categories[]`/`tags[]` need a one-time
+  `/wp/v2/tags?per_page=100` resolve if we want names in `item.tags`.
+
+### F7 — blogs #2+ are NOT WordPress, and one is closed to agents
+
+Probed 08-25-26 with the Ambit User-Agent:
+
+| blog | shape | robots.txt | verdict |
+|---|---|---|---|
+| **50watts.com** | WP REST **403** (browser UA too); `/feed/` 404 | **`User-agent: * / Disallow: /`** — all agents refused, plus named AI blocks | **Out, by the artvee precedent** — a machine-readable refusal is a refusal. Only route in is asking the author. |
+| **publicdomainreview.org** | **Gatsby** (not WP); no robots.txt (404 → allow) | — | `/rss.xml` → 200 `application/xml`. A **feed-walk**, not a WP walk. |
+| **thingsorganizedneatly.tumblr.com** | Tumblr legacy `/api/read/json` → 200 | (unchecked) | A Tumblr-API walk. The "nothing to blurb" edge case. |
+
+→ **Design consequence:** the "shared core" is not a WordPress client. What is shared is the
+`CorpusWalkAdapter` contract + the registry + the link-card display; **each blog is its own
+adapter** (WP REST, RSS, Tumblr API) exactly as each museum is. That is the same one-file-per-source
+pattern the repo already has — good news, not scope creep. Three walk flavours are one more reason
+to keep `walk(cursor)` generic (opaque string cursor, adapter-defined).
+
 ---
 
 ## 5. Decisions locked (Ben, this session)
@@ -255,6 +320,13 @@ interface CorpusWalkAdapter<Raw> {
 `scripts/ingest.ts` learns two shapes: search-shaped → topic×source seed cells (unchanged);
 corpus-walk → walk to exhaustion, topic assigned per item. **loupe inherits this contract**
 (CLAUDE.md already blesses corpus-walk for it; this is its first implementation).
+*Verified on review:* Ambit-Admin's `Ecosystem Architecture.md` (line 75) already defines the
+shape in these exact terms — "a cursor/date-paginated walk of its whole corpus with no search
+capability. Ambit ingests it in full and **assigns topics on its own side** (Loupe's tags are the
+raw signal)" — so D3 *and* D4 implement a recorded decision rather than make a new one. Two loupe
+adapter requirements on record there bind this contract's design: **fail fast on 401/403** (the
+shared `fetchJson` retries every non-2xx) and **never dedupe on the source's own `id`** when ids
+aren't stable across corrections.
 Rejected: fake `search()` over a local post index; a separate `scripts/ingest-blogs.ts`.
 
 **D4 — Topic assignment: LLM classification with an honest reject.**
@@ -319,19 +391,23 @@ tags:        WP tag names (resolved from numeric ids)
   already exports a `USER_AGENT`. Precedent to honour: **artvee was cut** for a machine-readable
   AI block list, so "check robots and obey it" is policy, not politeness.
 - **Curation (BUILD_PLAN Q7).** Confirm rather than assume that blog items go through
-  `structuralFloor` + the LLM curator. Presumed yes. Watch for `thin-summary` firing on short
-  excerpts, and note SPEC §15's open "the curator has no rubric for text items" (the reason
-  PoetryDB was parked) — a link card is image-led, so this is probably fine, but say so explicitly.
+  `structuralFloor` + the LLM curator. Presumed yes — and F5 removes the two worries (text rubric,
+  thin-summary). Still a design call to *state*, and it has a sibling on the Ambit-Admin backlog:
+  "do Loupe/Archive items pass through Ambit's LLM curation pass like public sources, or enter
+  pre-trusted?" — answer both with one rule if possible.
 - **Re-crawl / update semantics.** A corpus walk over a *live* blog is not a one-shot: posts get
   added and edited. `unique(source, sourceId)` + `upsertItem`'s insert-or-refresh already handles
   it, but the walk needs a defined cadence and a cursor story, and D4's LLM classification cost is
-  re-paid on refresh unless it's skipped for already-present rows (the existing pipeline already
-  skips present rows *before* curation — confirm the walk path does the same).
+  re-paid on refresh unless it's skipped for already-present rows. *Confirmed on review* (§3.3):
+  the skip is before curation, and a refresh never touches topic/score. The walk path must reuse
+  that same step, and the design should say what a **removed** post does (the walk stops seeing
+  it; nothing deletes it — is that acceptable under remove-on-request?).
 - **`SourceId` growth.** BUILD_PLAN's sketch says one `SourceId` per blog. Confirm, and decide
   where the designated-blog registry lives (`src/server/config/blogs.ts`?) — it needs to carry per
   blog: id, display name, base URL, license string, and whichever of D4/§6's knobs apply. It is
   also what `source ∈ BLOGS` in option A's invariant would read.
-- **Which blog is #2, and is it WP?** `docs/source-candidates.md` lists 50watts.com,
+- **Which blog is #2?** Answered in part by F7: **none of the candidates is WP**, and
+  **50watts is out** unless Ben asks its author. `docs/source-candidates.md` lists 50watts.com,
   thingsorganizedneatly.tumblr.com (the deliberate edge case — Tumblr posts have little or no
   article text, so "a blog with nothing to blurb still has to render as an honest link card"),
   openculture.com (parked — an aggregator, so crediting it for a Library of Congress image is the

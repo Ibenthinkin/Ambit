@@ -104,6 +104,32 @@ decision in the Ambit-Admin vault doc, since it changes a private-source integra
 
 *Session spend: 7.57M tok (in 170 · out 112.9k · cache r 6.76M / w 703.2k) · ~$12.34 · opus-5 + opus-4-7 · 08:19→22:09*
 
+**The design session then finished, under a different model.** The handoff doc was checked cold —
+every path, line number and count held, and two of its "confirm this" asks are now confirmed (the
+present-row skip runs *before* the curator; `upsertItem`'s refresh never touches topic or score, so
+a re-crawled post keeps both). Three probes changed the inputs: **none of the blog #2 candidates
+is WordPress, and 50watts is out** — `User-agent: * / Disallow: /`, REST 403 regardless of UA — so
+the "shared scraper core" is not a WP client but the walk contract + registry + card, with each
+blog its own adapter exactly as each museum is; **the curator already sends the hero as bytes and
+caches by item**, so classification is a prompt *variant* on the walk path with its own cache key
+rather than a change the museum corpus ever sees; and doorofperception's featured images are a
+purpose-made **~800 px crop** — fine for tile and hero, not gallery-grade, and a reason `index.csv`
+stays valuable. Ambit-Admin's *Ecosystem Architecture* turned out to already define corpus-walk in
+D3+D4's exact terms, so those two implement a recorded decision rather than make one.
+
+**Decisions to close it out:** one blurb in `summary` with `body` hard-null for every blog item
+(so "Ambit never renders blog article text" is an invariant CI refuses, not a rule to remember);
+D2 ships **inside** 6.3, ordered blog-live → verified → retire, so there is never a window with
+neither credit; and the walk lane joins the pipeline at step 3 — bypassing collision resolution,
+sharing skip/floor/curator/upsert — with classification as a curator mode. The archive retirement
+is configuration, not code: stop scanning the folder, run a complete sync attended, let the sweep
+withdraw; its 20% mass-drop guard will trip on purpose. Approved design: `docs/PHASE6_DESIGN_6.3.md`.
+
+**Open / next:** write `docs/PHASE6_PLAN_6.3.md` (cold-executable, Ben runs it elsewhere); the
+plan's first executable step is the classification histogram over all 390 posts, before any write.
+
+*Session spend: 10.66M tok (in 12.2k · out 135.4k · cache r 9.88M / w 626.4k) · ~$28.28 · fable-5 + opus-5 · 22:09→22:39*
+
 ### [[08-24-26 Mon]] — Archive is live and verified; Ambit's side of A.6 closed the same afternoon
 
 No Ambit code changed. Recording this here because [[Ambit Archive]] is now a real, reachable
