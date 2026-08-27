@@ -15,6 +15,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "ingest": "bun run scripts/ingest.ts",
+    "retire": "bun run scripts/retire-source-rows.ts",
     "invite": "bun run scripts/invite.ts",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",

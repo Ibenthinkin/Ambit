@@ -144,3 +144,23 @@ three DRIFT (`astronomy → mythology`, `poetry → mythology`, `portraiture →
 (`music → mythology`). Nothing in the draw path filters on source; the integration test added in
 T8 pins that.
 
+## D2 — archive retirement (attended)
+
+Recorded in Ambit-Admin first (T11: `log.md` 08-27-26 entry, `Roadmap & Backlog.md` ticks,
+`Ecosystem Architecture.md` corpus-walk + DoP paragraphs, status table) — per that project's rule
+that contract changes and private-source integrations are written down there before they happen.
+
+**Step 1 — provenance export (archive side, read-only).** `archive_provenance.external_id LIKE
+'%/storage/sources/doorofperception/%'` → **11,496 distinct archive items** (the scrape had 11,572
+files; content-hash dedupe collapsed 76). Ids written to the session scratchpad.
+
+**Step 2 — Ambit's retire script, dry.** `bun run retire --source archive --ids <file>`:
+**251 matching item rows** for source `archive` out of its 310 — the doorofperception images Ambit
+has been showing under `attribution: "Personal archive"` with no post link — and **0 `saved_item`
+rows** would go with them (nobody has saved one). The other 59 archive rows are personal material
+and stay.
+
+**Steps 3–4 (the sweep and the delete) are attended** — `DISK_ROOTS` edit in ambit-archive, a sync
+whose 20% mass-drop guard is *expected* to block, `--force-sweep` with Ben reading the number, then
+`--confirm` here. Recorded below when run.
+
