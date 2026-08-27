@@ -71,19 +71,23 @@ clean (29 searched · 93 offered · 0 errors). D2 is done end to end; the "no de
 caveat is lifted. The D2 numbers, final: archive 310 → 59 in Ambit; 11,496 withdrawn on both
 archive copies; `index.csv` and 392 files untouched on both.
 
-**Open / next:** (1) **Persist the Coolify env before Sunday 08-30 02:00** —
-`DISK_ROOTS=/app/storage/sources/personal` + redeploy. Not optional: `sync.ts` revives a withdrawn
-item on re-sighting, so one weekly walk of the old root brings all 11,496 back. After that the
-weekly disk task exits 1 on the zero guard every Sunday — disable it or accept the red. (2) Two
-`test-feed-topic-*` rows in the dev `topic` table still print in every ingest summary — e2e/test
-leak, not fixed. (3) ambit-archive has an uncommitted, unrelated A.6c log/SPEC diff from another
-session — left alone. Then Phase 7. Blog #2 is PDR (RSS walk) or thingsorganizedneatly (Tumblr
-walk), each its own adapter on the same contract.
+**And persisted**: Ben set `DISK_ROOTS=/app/storage/sources/personal` in Coolify and redeployed;
+after the restart production `/health` reads **1,993**, the same as the Mac copy. That step was
+load-bearing, not tidy — `sync.ts` revives a withdrawn item on re-sighting, so the weekly Sunday
+walk of the old root would have restored all 11,496. **D2 is closed on every copy.**
+
+**Open / next:** (1) The weekly Sunday `sync --connector=disk` task on Coolify now exits 1 on the
+zero guard every run — disable it, or accept the red. (2) Two `test-feed-topic-*` rows in the dev
+`topic` table still print in every ingest summary — e2e/test leak, not fixed. (3) ambit-archive
+has an uncommitted, unrelated A.6c log/SPEC diff from another session — left alone. Then Phase 7.
+Blog #2 is PDR (RSS walk) or thingsorganizedneatly (Tumblr walk), each its own adapter on the same
+contract.
 
 *Session spend: 26.05M tok (in 30.2k · out 264.0k · cache r 24.52M / w 1.23M) · ~≥$50.61 · fable-5 + opus-4-7 + <synthetic> · 12:10→13:09*
 *Session spend: 5.95M tok (in 5.0k · out 68.5k · cache r 5.49M / w 389.5k) · ~$16.76 · fable-5 · 15:28→15:35*
 *Session spend: 5.84M tok (in 2.4k · out 69.5k · cache r 5.67M / w 99.0k) · ~$11.15 · fable-5 · 15:35→15:41*
 *Session spend: 5.51M tok (in 1.8k · out 28.5k · cache r 5.15M / w 326.8k) · ~$13.13 · fable-5 · 15:41→19:26*
+*Session spend: 5.91M tok (in 1.5k · out 130.8k · cache r 5.74M / w 33.5k) · ~$12.96 · fable-5 · 19:26→19:33*
 
 ### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.** Then: 6.3's design session opened.
 

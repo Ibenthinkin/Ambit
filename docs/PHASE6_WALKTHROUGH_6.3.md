@@ -4,8 +4,8 @@
 branch `feat/6.3-blog-adapters`.
 
 **Status: complete.** T1–T13 merged to `main`; D2 swept on the Mac copy and on production (VM 202)
-08-27-26. One ops follow-up: make the Coolify `DISK_ROOTS` change permanent before Sunday 08-30
-02:00 — see *D2 — archive retirement*, Step 3.
+08-27-26, Coolify env persisted and redeployed (`/health` 1,993 on both copies). See *D2 —
+archive retirement* for the two things the plan got wrong.
 
 ---
 
@@ -219,11 +219,12 @@ did not know, both found by trying to do what it said:
   the 04:00 restart or a redeploy, because that is the boot-time index count. Archive adapter
   dry-run against production: 29 searched · 93 offered · 0 errors.
 
-  **The env override must be made permanent before Sunday 08-30 02:00**: `sync.ts` revives a
-  withdrawn item on re-sighting (`withdrawnAt: null` at lines 132 and 184), so if the weekly
-  disk task walks `/app/storage/sources` once more, all 11,496 come back. Coolify → Environment
-  Variables → `DISK_ROOTS=/app/storage/sources/personal` → redeploy; then disable the weekly
-  task or accept its zero-guard exit 1.
+  **The env override had to be made permanent**, because `sync.ts` revives a withdrawn item on
+  re-sighting (`withdrawnAt: null` at lines 132 and 184) — one weekly walk of the old root would
+  have brought all 11,496 back. Ben set `DISK_ROOTS=/app/storage/sources/personal` in Coolify and
+  redeployed the same evening; after the restart `/health` reads **`{"ok":true,"items":1993}`**,
+  the same count as the Mac copy, and `/search` is unchanged. Remaining choice on the host: the
+  weekly Sunday disk task now exits 1 on the zero guard every run — disable it, or accept the red.
 
 **Step 4 — Ambit's delete, run 08-27-26.** `bun run retire --source archive --ids <file>
 --confirm` → `251 matching item row(s) for source "archive"; 0 saved_item row(s)` →
@@ -249,7 +250,7 @@ costs one command.
 4. `select count(*) from item where source in (WALK_SOURCES) and body is not null` = 0 — ✅.
 5. `/search` on the archive returns no doorofperception image; Ambit holds 0 archive rows with DoP
    provenance; `index.csv` and files untouched — ✅ on the dev copy, in Ambit, and on
-   production (VM 202, swept 08-27-26 evening; Coolify env persistence pending, see Step 3).
+   production (VM 202, swept and redeployed 08-27-26 evening — `/health` 1,993 on both copies).
 6. Ambit-Admin log carries the D2 and contract entries, dated before the sweep — ✅.
 
 ## What to remember
