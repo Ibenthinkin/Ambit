@@ -60,21 +60,30 @@ gallery.spec:193 flake this time) — and the branch is merged to `main`. Two fi
    13,380 items and ranks the scrape; SSH to `ben@192.168.1.202` refuses the Mac's key, so **the
    production sweep is the one step still open**, and it is Ben's to run.
 
-**Open / next:** (1) **VM 202's sweep** — `mkdir /app/storage/sources/personal` in the volume,
-Coolify `DISK_ROOTS=/app/storage/sources/personal`, redeploy, `docker exec "$C" bun run sync
---connector=disk` (expect the zero-guard block) then `--force-sweep` (expect ~11,568 / ~11,496,
-minus the two 08-24 purges); after that the weekly Sunday disk sync exits 1 on the zero guard
-every week — disable the scheduled task or accept the red. (2) **Until then, no unqualified
-`bun run ingest`**: `archive` is in the default set and production still ranks the scrape, so a
-default run can re-insert miscredited rows; `--source <x>` only, and the retire script is
-idempotent if it happens. (3) Two `test-feed-topic-*` rows in the dev `topic` table still print in
-every ingest summary — e2e/test leak, not fixed. (4) ambit-archive has an uncommitted, unrelated
-A.6c log/SPEC diff from another session — left alone. Then Phase 7. Blog #2 is PDR (RSS walk) or
-thingsorganizedneatly (Tumblr walk), each its own adapter on the same contract.
+**Production swept the same evening, by Ben on VM 202** — after one false start: the first
+`docker exec … sync` ran before the env change and walked the old root (11,572 files hashed for a
+run that could withdraw nothing; killed). The fix was a one-exec override, `docker exec -e
+DISK_ROOTS=/app/storage/sources/personal "$C" bun run sync --connector=disk --force-sweep` →
+**`retired 11568 provenance · withdrew 11496 items`**, the same line as the Mac. Verified from
+Ambit: production `/search` returns personal material only for the three scrape-shaped probes
+(withdrawn items leave `/search` at hydration, no restart), and the archive adapter dry-run is
+clean (29 searched · 93 offered · 0 errors). D2 is done end to end; the "no default ingest"
+caveat is lifted. The D2 numbers, final: archive 310 → 59 in Ambit; 11,496 withdrawn on both
+archive copies; `index.csv` and 392 files untouched on both.
+
+**Open / next:** (1) **Persist the Coolify env before Sunday 08-30 02:00** —
+`DISK_ROOTS=/app/storage/sources/personal` + redeploy. Not optional: `sync.ts` revives a withdrawn
+item on re-sighting, so one weekly walk of the old root brings all 11,496 back. After that the
+weekly disk task exits 1 on the zero guard every Sunday — disable it or accept the red. (2) Two
+`test-feed-topic-*` rows in the dev `topic` table still print in every ingest summary — e2e/test
+leak, not fixed. (3) ambit-archive has an uncommitted, unrelated A.6c log/SPEC diff from another
+session — left alone. Then Phase 7. Blog #2 is PDR (RSS walk) or thingsorganizedneatly (Tumblr
+walk), each its own adapter on the same contract.
 
 *Session spend: 26.05M tok (in 30.2k · out 264.0k · cache r 24.52M / w 1.23M) · ~≥$50.61 · fable-5 + opus-4-7 + <synthetic> · 12:10→13:09*
 *Session spend: 5.95M tok (in 5.0k · out 68.5k · cache r 5.49M / w 389.5k) · ~$16.76 · fable-5 · 15:28→15:35*
 *Session spend: 5.84M tok (in 2.4k · out 69.5k · cache r 5.67M / w 99.0k) · ~$11.15 · fable-5 · 15:35→15:41*
+*Session spend: 5.51M tok (in 1.8k · out 28.5k · cache r 5.15M / w 326.8k) · ~$13.13 · fable-5 · 15:41→19:26*
 
 ### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.** Then: 6.3's design session opened.
 

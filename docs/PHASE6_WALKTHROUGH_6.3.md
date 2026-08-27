@@ -3,8 +3,9 @@
 **Executed 08-27-26** against `docs/PHASE6_PLAN_6.3.md` (design: `docs/PHASE6_DESIGN_6.3.md`), on
 branch `feat/6.3-blog-adapters`.
 
-**Status: complete on the Ambit side (T1–T13); D2's production sweep on VM 202 outstanding** —
-see *D2 — archive retirement*, Step 3.
+**Status: complete.** T1–T13 merged to `main`; D2 swept on the Mac copy and on production (VM 202)
+08-27-26. One ops follow-up: make the Coolify `DISK_ROOTS` change permanent before Sunday 08-30
+02:00 — see *D2 — archive retirement*, Step 3.
 
 ---
 
@@ -205,6 +206,25 @@ did not know, both found by trying to do what it said:
   there: with an empty root the **weekly Sunday `sync --connector=disk` task will exit 1 on the
   zero guard every week** — disable the scheduled task, or accept a standing red.
 
+- **Production swept, later the same evening, by Ben on VM 202.** First attempt ran `docker exec
+  "$C" bun run sync --connector=disk` *before* the env change — so it walked the old root, hashing
+  all 11,572 files (one `VipsJpeg: premature end of JPEG image` in the scrape, harmless), a run
+  that could only retire the Mac-path provenance and withdraw nothing. Killed; re-run with a
+  one-exec override: `docker exec -e DISK_ROOTS=/app/storage/sources/personal "$C" bun run sync
+  --connector=disk --force-sweep` → `disk: seen 0 · created 0 · linked 0 · skipped 0 · failed 0
+  (0.0s)` then **`sweep: retired 11568 provenance · withdrew 11496 items`** — the same line as
+  the Mac copy. Verified from Ambit: `/search` for *visionary art*, *psychedelic poster* and
+  *botanical illustration* now returns personal material only (withdrawn items drop out of
+  `/search` at hydration, no restart needed — `search.ts:18`); `/health` still reads 13,380 until
+  the 04:00 restart or a redeploy, because that is the boot-time index count. Archive adapter
+  dry-run against production: 29 searched · 93 offered · 0 errors.
+
+  **The env override must be made permanent before Sunday 08-30 02:00**: `sync.ts` revives a
+  withdrawn item on re-sighting (`withdrawnAt: null` at lines 132 and 184), so if the weekly
+  disk task walks `/app/storage/sources` once more, all 11,496 come back. Coolify → Environment
+  Variables → `DISK_ROOTS=/app/storage/sources/personal` → redeploy; then disable the weekly
+  task or accept its zero-guard exit 1.
+
 **Step 4 — Ambit's delete, run 08-27-26.** `bun run retire --source archive --ids <file>
 --confirm` → `251 matching item row(s) for source "archive"; 0 saved_item row(s)` →
 **`deleted 251 item(s) and their seen/saved rows`**. Dry re-run: `0 matching item row(s)`.
@@ -228,8 +248,8 @@ costs one command.
    sections — ✅, e2e-asserted.
 4. `select count(*) from item where source in (WALK_SOURCES) and body is not null` = 0 — ✅.
 5. `/search` on the archive returns no doorofperception image; Ambit holds 0 archive rows with DoP
-   provenance; `index.csv` and files untouched — ✅ on the **dev copy** and in Ambit; **⏳ on
-   production** (VM 202), see Step 3.
+   provenance; `index.csv` and files untouched — ✅ on the dev copy, in Ambit, and on
+   production (VM 202, swept 08-27-26 evening; Coolify env persistence pending, see Step 3).
 6. Ambit-Admin log carries the D2 and contract entries, dated before the sweep — ✅.
 
 ## What to remember
