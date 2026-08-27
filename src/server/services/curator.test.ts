@@ -4,7 +4,14 @@
 // script instead — no live HTTP in unit tests (CLAUDE.md / PHASE3_PLAN.md convention).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { curateItems, parseCuratorResponse, structuralFloor } from "./curator";
+import {
+  CLASSIFY_PROMPT,
+  CURATOR_PROMPT,
+  curateItems,
+  parseCuratorResponse,
+  structuralFloor,
+  TOPIC_IDS,
+} from "./curator";
 import type { NormalizedItem } from "./sources/types";
 
 /** A minimal, valid NormalizedItem literal — tests override just the fields they care about. */
@@ -80,6 +87,9 @@ describe("parseCuratorResponse", () => {
     expect(result).toEqual({
       score: 8,
       tags: ["botanical plate", "hand-lettered"],
+      // Phase 6.3: parseCuratorResponse always reports a topic, and outside classify mode the
+      // honest answer is null — a museum item's topic comes from the seed query that found it.
+      topicId: null,
     });
   });
 
@@ -206,5 +216,110 @@ describe("curateItems image-fetch reporting", () => {
     );
     // A missing thumbnail must not null out a score — the item is judged on its text instead.
     expect(curated?.curationScore).toBe(7);
+  });
+});
+
+describe("CLASSIFY_PROMPT", () => {
+  it("is the curator rubric plus a topic block and a topic-aware reply line", () => {
+    const rubric = CURATOR_PROMPT.slice(
+      0,
+      CURATOR_PROMPT.lastIndexOf("Reply with ONLY"),
+    );
+    expect(CLASSIFY_PROMPT.startsWith(rubric)).toBe(true);
+    for (const id of TOPIC_IDS) expect(CLASSIFY_PROMPT).toContain(`  ${id} —`);
+    expect(CLASSIFY_PROMPT).toMatch(/"topic": <topic id or null>\}$/);
+    // The product artifact is untouched: it still ends with its original reply line.
+    expect(CURATOR_PROMPT).toMatch(
+      /\{"score": <1-10>, "tags": \["\.\.\.", "\.\.\."\]\}$/,
+    );
+  });
+});
+
+describe("parseCuratorResponse — classify mode", () => {
+  const ids = new Set(["botany", "zoology"]);
+
+  it("returns a known topic id", () => {
+    expect(
+      parseCuratorResponse('{"score": 8, "tags": ["a"], "topic": "botany"}', {
+        topicIds: ids,
+      }),
+    ).toEqual({ score: 8, tags: ["a"], topicId: "botany" });
+  });
+
+  it("turns an invented topic id into null — never a foreign-key error 300 items in", () => {
+    expect(
+      parseCuratorResponse('{"score": 8, "tags": [], "topic": "psychedelia"}', {
+        topicIds: ids,
+      }).topicId,
+    ).toBeNull();
+  });
+
+  it("returns null for an explicit null, a missing field, and outside classify mode", () => {
+    expect(
+      parseCuratorResponse('{"score": 8, "tags": [], "topic": null}', {
+        topicIds: ids,
+      }).topicId,
+    ).toBeNull();
+    expect(
+      parseCuratorResponse('{"score": 8, "tags": []}', { topicIds: ids })
+        .topicId,
+    ).toBeNull();
+    expect(
+      parseCuratorResponse('{"score": 8, "tags": [], "topic": "botany"}')
+        .topicId,
+    ).toBeNull();
+  });
+});
+
+describe("curateItems classify mode", () => {
+  let bodies: {
+    model: string;
+    messages: { role: string; content: unknown }[];
+  }[];
+  beforeEach(() => {
+    bodies = [];
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubGlobal("fetch", (input: string | URL, init?: { body?: string }) => {
+      if (String(input).includes("openrouter.ai")) {
+        bodies.push(JSON.parse(init?.body ?? "{}") as (typeof bodies)[number]);
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              choices: [
+                {
+                  message: {
+                    content: '{"score": 7, "tags": ["a"], "topic": "botany"}',
+                  },
+                },
+              ],
+              usage: { total_tokens: 1 },
+            }),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("sends CLASSIFY_PROMPT and returns the topic when classify is on", async () => {
+    const [out] = await curateItems(
+      [makeItem({ sourceId: `classify-${Date.now()}` })],
+      { classify: true, force: true },
+    );
+    expect(out?.topicId).toBe("botany");
+    expect(bodies[0]?.messages[0]?.content).toBe(CLASSIFY_PROMPT);
+  });
+
+  it("sends CURATOR_PROMPT and ignores any topic when classify is off", async () => {
+    const [out] = await curateItems(
+      [makeItem({ sourceId: `score-${Date.now()}` })],
+      { force: true },
+    );
+    expect(out?.topicId).toBeNull();
+    expect(bodies[0]?.messages[0]?.content).toBe(CURATOR_PROMPT);
   });
 });

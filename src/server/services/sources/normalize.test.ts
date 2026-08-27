@@ -2,7 +2,13 @@
 // phase0/harvest.ts (toLede/uniqueTags), which is why the cases below mirror phase0's own findings
 // (e.g. sentence-boundary cuts, whitespace collapsing from Wikipedia's plaintext extracts).
 import { describe, expect, it } from "vitest";
-import { decodeEntities, stripHtml, toLede, uniqueTags } from "./normalize";
+import {
+  decodeEntities,
+  htmlToText,
+  stripHtml,
+  toLede,
+  uniqueTags,
+} from "./normalize";
 
 describe("toLede", () => {
   it("passes short text through unchanged (after whitespace collapse)", () => {
@@ -102,5 +108,33 @@ describe("decodeEntities", () => {
 
   it("leaves an unrecognized entity alone rather than mangling it", () => {
     expect(decodeEntities("caf&eacute;")).toBe("caf&eacute;");
+  });
+});
+
+describe("htmlToText", () => {
+  // WordPress's `title.rendered` and `excerpt.rendered` (Phase 6.3): a <br> inside a title, a <p>
+  // wrapper with a trailing newline, and numeric entities for curly quotes and dashes.
+  it("turns a WP-rendered title with a <br> into one clean line", () => {
+    expect(htmlToText("The Geologic Atlas<br>of the Moon")).toBe(
+      "The Geologic Atlas of the Moon",
+    );
+  });
+
+  it("strips the <p> wrapper and collapses whitespace on an excerpt", () => {
+    expect(
+      htmlToText(
+        "<p>The palette exists so that four billion years can be told apart at a glance.</p>\n",
+      ),
+    ).toBe(
+      "The palette exists so that four billion years can be told apart at a glance.",
+    );
+  });
+
+  it("decodes numeric entities, decimal and hex, and leaves &amp; for last", () => {
+    expect(htmlToText("Rock &#8217;n&#8217; roll &#x2014; &amp;c.")).toBe(
+      "Rock \u2019n\u2019 roll \u2014 &c.",
+    );
+    // A double-escaped sequence resolves ONE level, never two.
+    expect(htmlToText("&amp;#8217;")).toBe("&#8217;");
   });
 });

@@ -216,3 +216,61 @@ describe("ImageItemBody's hero", () => {
     expect(container.innerHTML).not.toContain("webkit-touch-callout");
   });
 });
+
+describe("ImageItemBody — blog items and the maker line", () => {
+  it("shows the link-out row and no reader body for a blog item", () => {
+    render(
+      <ImageItemBody
+        item={makeItem({
+          type: "image",
+          source: "doorofperception",
+          title: "The Geologic Atlas of the Moon",
+          summary:
+            "The palette exists so that four billion years can be told apart at a glance.",
+          imageUrl: "https://example.test/hero.jpg",
+          sourceUrl:
+            "https://doorofperception.com/2026/08/the-geologic-atlas-of-the-moon/",
+          attribution: "Door of Perception",
+          body: null,
+        })}
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: /Read the post on Door of Perception/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/four billion years/)).toBeInTheDocument();
+  });
+
+  it("prints the maker line once when attribution merely repeats the source label", () => {
+    render(
+      <ImageItemBody
+        item={makeItem({
+          type: "image",
+          source: "doorofperception",
+          attribution: "Door of Perception",
+          imageUrl: "https://example.test/hero.jpg",
+          sourceUrl: "https://doorofperception.com/x/",
+        })}
+      />,
+    );
+    // The label appears in the credit line's link and the link-out row — never as a maker line.
+    expect(screen.getAllByText(/Door of Perception/)).toHaveLength(2);
+    expect(
+      screen.queryByText("Door of Perception", { exact: true, selector: "p" }),
+    ).toBeNull();
+  });
+
+  it("still prints a real maker when the source names one", () => {
+    render(
+      <ImageItemBody
+        item={makeItem({
+          type: "image",
+          source: "met",
+          attribution: "An engraver",
+          imageUrl: "https://example.test/p.jpg",
+        })}
+      />,
+    );
+    expect(screen.getByText("An engraver")).toBeInTheDocument();
+  });
+});

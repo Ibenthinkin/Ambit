@@ -41,7 +41,7 @@ import { db } from "~/server/db/client";
 import { item } from "~/server/db/schema";
 import { curateItems } from "~/server/services/curator";
 import type { NormalizedItem } from "~/server/services/sources/types";
-import { adapters } from "~/server/services/sources";
+import { ALL_SOURCE_IDS } from "~/server/services/sources";
 import type { SourceId } from "~/server/services/sources";
 
 // ── CLI flags (same conventions as scripts/ingest.ts) ──────────────────────
@@ -57,7 +57,7 @@ const limit = flagValue("limit") ? Number(flagValue("limit")) : undefined;
 const offset = flagValue("offset") ? Number(flagValue("offset")) : 0;
 const dryRun = args.includes("--dry-run");
 
-const knownSources = Object.keys(adapters) as SourceId[];
+const knownSources = ALL_SOURCE_IDS;
 if (!sourceFlag || !knownSources.includes(sourceFlag as SourceId)) {
   console.error(`--source is required — known: ${knownSources.join(", ")}`);
   process.exit(1);

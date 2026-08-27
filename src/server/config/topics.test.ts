@@ -9,7 +9,13 @@
 import { describe, expect, it } from "vitest";
 
 import topicGraph from "./topic-graph.json";
-import { SEED_SOURCES, TOPICS, TRIAL_SOURCES, V1_SOURCES } from "./topics";
+import {
+  SEED_SOURCES,
+  TOPICS,
+  TRIAL_SOURCES,
+  V1_SOURCES,
+  WALK_SOURCES,
+} from "./topics";
 
 const ids = TOPICS.map((t) => t.id);
 const graphKeys = Object.keys(topicGraph.graph);
@@ -62,6 +68,20 @@ describe("seed queries", () => {
       const keys = Object.keys(t.seedQueries);
       for (const source of V1_SOURCES) expect(keys, t.id).toContain(source);
     }
+  });
+
+  // Phase 6.3: a walk source (a blog) has no seed queries at all — it is ingested by walking its
+  // whole corpus and classifying each item, not by searching it per topic. A cell naming one is
+  // therefore always a mistake, and the three tiers must not overlap or a source would be both
+  // searched and walked.
+  it("gives walk sources no cells, and keeps the three source tiers disjoint", () => {
+    for (const t of TOPICS) {
+      for (const source of WALK_SOURCES) {
+        expect(t.seedQueries, `${t.id}/${source}`).not.toHaveProperty(source);
+      }
+    }
+    const seed = new Set<string>(SEED_SOURCES);
+    for (const source of WALK_SOURCES) expect(seed.has(source)).toBe(false);
   });
 
   // Phase 6.2 (decision 4): a trial source gets a cell only on the topics where it is honest —

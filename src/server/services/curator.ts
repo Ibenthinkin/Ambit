@@ -17,6 +17,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { TOPICS } from "~/server/config/topics";
 import { USER_AGENT } from "./sources/http";
 import type { NormalizedItem } from "./sources/types";
 
@@ -47,9 +48,35 @@ Also give 2-4 short lowercase aesthetic tags describing its look or appeal (e.g.
 
 Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."]}`;
 
+/** The sixteen ids the classify mode may answer with. Built from config so a topic added to
+ *  TOPICS is automatically a legal answer, and anything else the model says is not. */
+export const TOPIC_IDS: ReadonlySet<string> = new Set(TOPICS.map((t) => t.id));
+
+/**
+ * Phase 6.3's classify mode: the SAME rubric with a topic block appended. Used only for
+ * corpus-walk items (blogs), which arrive with no topic because no seed query surfaced them; the
+ * museum path never sees this prompt, so its scores and cache are untouched. Built by slicing
+ * rather than editing CURATOR_PROMPT, because that string is a product artifact carrying Ben's
+ * taste calibration (SPEC §15) and is not implementation detail to be reworded.
+ *
+ * "or null" is the important clause (D4): a post with no honest home among the sixteen is dropped
+ * by ingest, never force-fitted — topic_id is the feed's unit of drift, and a psychedelia post
+ * filed under botany teaches the drift graph something false.
+ */
+export const CLASSIFY_PROMPT =
+  CURATOR_PROMPT.slice(0, CURATOR_PROMPT.lastIndexOf("Reply with ONLY")) +
+  `Also file this item under exactly ONE of these topics — the one a reader who chose that topic would be glad to find it in — or null if none is an honest home. Never force a fit.
+${TOPICS.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
+
+Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "topic": <topic id or null>}`;
+
 export type CuratedItem = NormalizedItem & {
   curationScore: number;
   aestheticTags: string[];
+  /** Phase 6.3: the classify mode's answer for corpus-walk items; always null outside it. Ingest
+   *  drops a walk item whose topicId is null and counts it. Search-shaped items ignore this field
+   *  — their topic comes from the seed query that surfaced them. */
+  topicId: string | null;
 };
 
 /** Structural-floor drop reasons, each mapped to a Phase 0.4 finding (see phase0/NOTES.md). */
@@ -158,9 +185,13 @@ async function imageAsDataUrl(url: string): Promise<string | null> {
  * reject an unusable score (0, negative, missing, NaN) so the caller can retry rather than
  * silently caching garbage.
  */
-export function parseCuratorResponse(content: string): {
+export function parseCuratorResponse(
+  content: string,
+  opts?: { topicIds?: ReadonlySet<string> },
+): {
   score: number;
   tags: string[];
+  topicId: string | null;
 } {
   const parsed: unknown = JSON.parse(content);
   const record =
@@ -183,7 +214,17 @@ export function parseCuratorResponse(content: string): {
     .map((t: string) => t.trim().toLowerCase())
     .slice(0, 4);
 
-  return { score, tags };
+  // Only meaningful in classify mode, and even then only a KNOWN id passes — the model is capable
+  // of inventing "psychedelia", and a foreign-key error deep into an ingest run is the worst place
+  // to learn that. Anything else is the honest reject: null.
+  const topicId =
+    opts?.topicIds &&
+    typeof record.topic === "string" &&
+    opts.topicIds.has(record.topic)
+      ? record.topic
+      : null;
+
+  return { score, tags, topicId };
 }
 
 // Cache dir lives at the repo root (not under src/), same cache-aside pattern as phase0's
@@ -193,10 +234,13 @@ export function parseCuratorResponse(content: string): {
 // for `bun run` invocations either way.
 const CACHE_DIR = path.join(process.cwd(), ".cache", "curation");
 
-function cacheKey(item: NormalizedItem): string {
+function cacheKey(item: NormalizedItem, classify: boolean): string {
+  // The default-mode key is byte-identical to Phase 3's so no museum item is ever re-billed;
+  // classify mode gets its own namespace because its answer carries one more field.
+  const mode = classify ? "classify|" : "";
   return createHash("sha256")
     .update(
-      `${CURATOR_MODEL}|v${PROMPT_VERSION}|${item.source}:${item.sourceId}`,
+      `${CURATOR_MODEL}|v${PROMPT_VERSION}|${mode}${item.source}:${item.sourceId}`,
     )
     .digest("hex")
     .slice(0, 32);
@@ -217,22 +261,31 @@ function cacheKey(item: NormalizedItem): string {
  */
 async function scoreItem(
   item: NormalizedItem,
-  opts: { force?: boolean },
+  opts: { force?: boolean; classify?: boolean },
 ): Promise<{
   score: number;
   tags: string[];
+  topicId: string | null;
   tokens: number;
   imageFetchFailed: boolean;
 }> {
-  const cacheFile = path.join(CACHE_DIR, `${cacheKey(item)}.json`);
+  const classify = opts.classify ?? false;
+  const cacheFile = path.join(CACHE_DIR, `${cacheKey(item, classify)}.json`);
 
   if (!opts.force) {
     try {
       const cached = JSON.parse(await readFile(cacheFile, "utf-8")) as {
         score: number;
         tags: string[];
+        topicId?: string | null;
       };
-      return { ...cached, tokens: 0, imageFetchFailed: false };
+      return {
+        score: cached.score,
+        tags: cached.tags,
+        topicId: cached.topicId ?? null,
+        tokens: 0,
+        imageFetchFailed: false,
+      };
     } catch {
       // no cache entry yet — fall through and call the LLM
     }
@@ -281,7 +334,10 @@ async function scoreItem(
         body: JSON.stringify({
           model: CURATOR_MODEL,
           messages: [
-            { role: "system", content: CURATOR_PROMPT },
+            {
+              role: "system",
+              content: classify ? CLASSIFY_PROMPT : CURATOR_PROMPT,
+            },
             { role: "user", content },
           ],
           // Asks the provider to guarantee syntactically valid JSON output.
@@ -299,6 +355,7 @@ async function scoreItem(
       };
       const result = parseCuratorResponse(
         json.choices?.[0]?.message?.content ?? "{}",
+        classify ? { topicIds: TOPIC_IDS } : undefined,
       );
 
       await mkdir(CACHE_DIR, { recursive: true });
@@ -338,6 +395,9 @@ export async function curateItems(
   items: NormalizedItem[],
   opts?: {
     force?: boolean;
+    /** Phase 6.3: switches to CLASSIFY_PROMPT and fills `topicId`. Used by ingest's walk lane
+     *  only — corpus-walk items have no seed query to inherit a topic from. */
+    classify?: boolean;
     onProgress?: (done: number, total: number) => void;
     onImageFetchFailure?: (item: NormalizedItem) => void;
   },
@@ -352,16 +412,27 @@ export async function curateItems(
       const item = items[i];
       if (!item) continue;
       try {
-        const { score, tags, imageFetchFailed } = await scoreItem(item, {
-          force: opts?.force ?? false,
-        });
+        const { score, tags, topicId, imageFetchFailed } = await scoreItem(
+          item,
+          { force: opts?.force ?? false, classify: opts?.classify ?? false },
+        );
         if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
-        out[i] = { ...item, curationScore: score, aestheticTags: tags };
+        out[i] = {
+          ...item,
+          curationScore: score,
+          aestheticTags: tags,
+          topicId,
+        };
       } catch (err) {
         console.warn(
           `  curator: ${item.source}:${item.sourceId} "${item.title.slice(0, 40)}" — ${String(err)}`,
         );
-        out[i] = { ...item, curationScore: 5, aestheticTags: [] };
+        out[i] = {
+          ...item,
+          curationScore: 5,
+          aestheticTags: [],
+          topicId: null,
+        };
       }
       done++;
       opts?.onProgress?.(done, items.length);

@@ -12,10 +12,14 @@
  * adapters up by hand. (`probe archive` needs ARCHIVE_URL/ARCHIVE_API_KEY set and the
  * ambit-archive service running; the adapter throws a clear error otherwise.)
  */
-import { adapters as registry } from "~/server/services/sources";
-import type { SourceId } from "~/server/services/sources";
+import {
+  adapters as registry,
+  ALL_SOURCE_IDS,
+  walkers,
+} from "~/server/services/sources";
+import type { SearchSourceId, SourceId } from "~/server/services/sources";
 
-const knownSources = Object.keys(registry) as SourceId[];
+const knownSources = ALL_SOURCE_IDS;
 const [source, query, ...rest] = process.argv.slice(2);
 const limitFlagIdx = rest.indexOf("--limit");
 const limit = limitFlagIdx > -1 ? Number(rest[limitFlagIdx + 1]) : 10;
@@ -34,7 +38,14 @@ if (!knownSources.includes(source as SourceId)) {
   );
   process.exit(1);
 }
-const adapter = registry[source as SourceId];
+// Phase 6.3: a corpus-walk source has no search() to probe — its twin CLI is probe:walk.
+if (source in walkers) {
+  console.error(
+    `"${source}" is a corpus-walk source — probe it with: bun run probe:walk ${source}`,
+  );
+  process.exit(1);
+}
+const adapter = registry[source as SearchSourceId];
 
 console.log(`Probing ${source} for "${query}" (limit ${limit})…\n`);
 const t0 = performance.now();
