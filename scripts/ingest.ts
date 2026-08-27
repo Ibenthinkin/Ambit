@@ -286,6 +286,7 @@ async function main() {
         ...it,
         curationScore: 5,
         aestheticTags: [],
+        topicId: null,
       }))
     : await curateItems(kept, {
         onProgress: (done, total) => {
