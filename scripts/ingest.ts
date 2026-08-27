@@ -15,6 +15,10 @@
  *      plate can satisfy both "anatomy" and "art" searches). `item.topic_id` is single-valued and
  *      NOT NULL, so exactly one claim has to win — resolveCollisions() (server/services/
  *      ingest-plan.ts) picks the highest-ranked claim, order-independently (SPEC §15).
+ *   3b. (Phase 6.3) Corpus-WALK sources — blogs — have no seed cells and no topics yet. Each is
+ *       walked to exhaustion (processWalker), its items skip collision resolution (nothing to
+ *       collide on), and they join the search winners at step 4 below. Their topic comes from the
+ *       curator's classify mode; a null topic is dropped and counted, never force-fitted.
  *   4. Winners already sitting in the DB (by the same (source, sourceId) key the UNIQUE
  *      constraint enforces) are skipped — this is what makes a second run of this script cheap
  *      and idempotent: nothing gets re-normalized, re-floored, or re-curated for free.
@@ -30,22 +34,38 @@
  *   bun run ingest --quota 10 --dry-run          # cheap structure check, no writes, no LLM cost*
  *   bun run ingest --quota 10 --skip-llm         # writes with neutral score 5 — free but real rows
  *   bun run ingest --topic astronomy --source met --quota 20
+ *   bun run ingest --source doorofperception --dry-run   # walk + classify, print the topic
+ *                                                         # histogram, write nothing (bills)
+ *   bun run ingest --source doorofperception --prune     # also delete rows for posts the blog
+ *                                                         # has removed (complete walks only)
  *   (* --dry-run alone still calls the curator unless paired with --skip-llm; combine both for a
  *      genuinely free structural dry run.)
  */
+import { and, eq, inArray } from "drizzle-orm";
+
 import { db } from "~/server/db/client";
 import { upsertItem } from "~/server/db/items";
-import { item, topic } from "~/server/db/schema";
+import { item, savedItem, seenItem, topic } from "~/server/db/schema";
 import type { Claim } from "~/server/services/ingest-plan";
-import { resolveCollisions } from "~/server/services/ingest-plan";
+import {
+  planPrune,
+  resolveCollisions,
+  topicHistogram,
+} from "~/server/services/ingest-plan";
 import type {
   CuratedItem,
   StructuralDropRule,
 } from "~/server/services/curator";
 import { curateItems, structuralFloor } from "~/server/services/curator";
 import { isSuspendedSource } from "~/server/config/suspended-sources";
-import { adapters, ALL_SOURCE_IDS } from "~/server/services/sources";
-import type { SearchSourceId, SourceId } from "~/server/services/sources";
+import { adapters, ALL_SOURCE_IDS, walkers } from "~/server/services/sources";
+import type {
+  NormalizedItem,
+  SearchSourceId,
+  SourceId,
+  WalkPage,
+} from "~/server/services/sources";
+import type { WalkSourceId } from "~/server/config/topics";
 
 // ── CLI flags ──────────────────────────────────────────────────────────────
 
@@ -60,6 +80,9 @@ const topicFlag = flagValue("topic");
 const quota = Number(flagValue("quota") ?? 150);
 const skipLlm = args.includes("--skip-llm");
 const dryRun = args.includes("--dry-run");
+// Phase 6.3: delete rows of a walk source that a COMPLETE walk did not see (planPrune). Never
+// the default: deletion is the one thing an ingest run must not do by accident.
+const prune = args.includes("--prune");
 
 if (!Number.isFinite(quota) || quota <= 0) {
   console.error(
@@ -164,6 +187,79 @@ async function processSource(
   return stats;
 }
 
+// ── Phase 6.3: per-walker walk + normalize ───────────────────────────────────
+
+interface WalkRunStats {
+  walked: number; // walk() pages attempted
+  offered: number; // raws normalized into items
+  errors: number; // failed pages or toItem throws — never folded into "offered: 0"
+  /** Every sourceId the walk saw, normalized or not — planPrune's input. */
+  seenSourceIds: string[];
+  /** True iff the walk reached the end with no errors and no --quota bound: only then may the
+   *  absence of a row mean the post is gone. */
+  complete: boolean;
+  items: NormalizedItem[];
+}
+
+/**
+ * Walk one corpus-walk source to exhaustion (or to `quotaItems` under --quota). Sequential by
+ * construction — one host, one cursor — and the adapter owns its own politeness delay. A failed
+ * page is an error and stops the walk (a cursor past a failure is not something we can trust),
+ * which also marks the run incomplete so --prune cannot act on it.
+ */
+async function processWalker(
+  sourceId: WalkSourceId,
+  quotaItems: number | undefined,
+): Promise<WalkRunStats> {
+  const walker = walkers[sourceId];
+  const stats: WalkRunStats = {
+    walked: 0,
+    offered: 0,
+    errors: 0,
+    seenSourceIds: [],
+    complete: false,
+    items: [],
+  };
+  let cursor: string | undefined;
+  let reachedEnd = false;
+  do {
+    stats.walked++;
+    let page: WalkPage<unknown>;
+    try {
+      page = await walker.walk(
+        cursor,
+        quotaItems ? { limit: quotaItems - stats.offered } : undefined,
+      );
+    } catch (err) {
+      stats.errors++;
+      console.warn(
+        `  ${sourceId}: walk FAILED at cursor ${cursor ?? "(start)"} — ${String(err)}`,
+      );
+      break;
+    }
+    for (const raw of page.raw) {
+      try {
+        const normalized = walker.toItem(raw);
+        stats.seenSourceIds.push(normalized.sourceId);
+        stats.items.push(normalized);
+        stats.offered++;
+      } catch (err) {
+        stats.errors++;
+        console.warn(`  ${sourceId}: toItem failed — ${String(err)}`);
+      }
+      if (quotaItems && stats.offered >= quotaItems) break;
+    }
+    cursor = page.next;
+    reachedEnd = cursor === undefined;
+  } while (
+    cursor !== undefined &&
+    !(quotaItems && stats.offered >= quotaItems)
+  );
+
+  stats.complete = reachedEnd && stats.errors === 0 && quotaItems === undefined;
+  return stats;
+}
+
 // ── main ─────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -190,10 +286,20 @@ async function main() {
 
   // Phase 6.3: the run has two lanes, because there are now two adapter shapes. `adapters` is
   // keyed by the search half of SourceId and `walkers` by the walk half, so membership in one of
-  // those records is the split. (The walk lane itself lands with processWalker below.)
+  // those records is the split.
   const searchIds = sourceIds.filter(
     (id) => id in adapters,
   ) as SearchSourceId[];
+  const walkIds = sourceIds.filter((id) => id in walkers) as WalkSourceId[];
+  // For a walker, --quota is a TOTAL item bound (there are no cells to be "per" of); absent, the
+  // walk runs to exhaustion, which is the only kind of walk --prune may trust.
+  const walkQuota = args.includes("--quota") ? quota : undefined;
+
+  if (topicFlag && sourceFlag && sourceFlag in walkers) {
+    console.log(
+      `note: --topic does not apply to "${sourceFlag}" — walk sources have no seed cells; walking everything.\n`,
+    );
+  }
 
   if (sourceFlag && isSuspendedSource(sourceFlag)) {
     console.log(
@@ -208,7 +314,7 @@ async function main() {
   }
 
   console.log(
-    `Ingesting ${topics.length} topic(s) × ${sourceIds.length} source(s), quota ${quota}/cell` +
+    `Ingesting ${topics.length} topic(s) × ${searchIds.length} search source(s) + ${walkIds.length} walk source(s), quota ${quota}/cell` +
       `${skipLlm ? " [skip-llm]" : ""}${dryRun ? " [dry-run]" : ""}…\n`,
   );
 
@@ -216,13 +322,17 @@ async function main() {
   // all) so a single source crashing outright doesn't take the other four down with it — the same
   // "one source down ≠ job dead" guarantee processSource already gives at the topic level, one
   // level up.
-  const results = await Promise.allSettled(
-    searchIds.map((sourceId) => processSource(sourceId, topics, quota)),
-  );
+  // Phase 6.3: the walk lane runs alongside, under the same allSettled guarantee.
+  const [searchResults, walkResults] = await Promise.all([
+    Promise.allSettled(
+      searchIds.map((sourceId) => processSource(sourceId, topics, quota)),
+    ),
+    Promise.allSettled(walkIds.map((id) => processWalker(id, walkQuota))),
+  ]);
 
   const statsBySource = new Map<SourceId, SourceRunStats>();
   const allClaims: Claim[] = [];
-  for (const [i, result] of results.entries()) {
+  for (const [i, result] of searchResults.entries()) {
     const sourceId = searchIds[i]!;
     if (result.status === "fulfilled") {
       statsBySource.set(sourceId, result.value);
@@ -236,6 +346,28 @@ async function main() {
         offered: 0,
         errors: 1,
         claims: [],
+      });
+    }
+  }
+
+  const walkStatsBySource = new Map<WalkSourceId, WalkRunStats>();
+  const walkItems: NormalizedItem[] = [];
+  for (const [i, result] of walkResults.entries()) {
+    const sourceId = walkIds[i]!;
+    if (result.status === "fulfilled") {
+      walkStatsBySource.set(sourceId, result.value);
+      walkItems.push(...result.value.items);
+    } else {
+      console.warn(
+        `  ${sourceId}: WALK FAILED ENTIRELY — ${String(result.reason)}`,
+      );
+      walkStatsBySource.set(sourceId, {
+        walked: 0,
+        offered: 0,
+        errors: 1,
+        seenSourceIds: [],
+        complete: false,
+        items: [],
       });
     }
   }
@@ -257,6 +389,12 @@ async function main() {
     (w) => !existingKeys.has(`${w.item.source}:${w.item.sourceId}`),
   );
   const alreadyInDb = winners.length - newWinners.length;
+  // Walk items bypassed collision resolution (nothing to collide on) but share the skip: a
+  // re-crawled post already in the DB costs nothing, exactly like a re-found museum object.
+  const newWalkItems = walkItems.filter(
+    (it) => !existingKeys.has(`${it.source}:${it.sourceId}`),
+  );
+  const alreadyInDbWalk = walkItems.length - newWalkItems.length;
 
   // Step 4: structural floor. structuralFloor() only sees NormalizedItems, so a lookup map keyed
   // on (source, sourceId) — the same key the DB's UNIQUE constraint uses — is how each surviving
@@ -264,7 +402,18 @@ async function main() {
   const winnerByKey = new Map(
     newWinners.map((w) => [`${w.item.source}:${w.item.sourceId}`, w] as const),
   );
-  const { kept, dropped } = structuralFloor(newWinners.map((w) => w.item));
+  // Both lanes are floored together so dup-title is batch-wide, then split back apart: a walk
+  // item is exactly one that no winner claimed.
+  const { kept, dropped } = structuralFloor([
+    ...newWinners.map((w) => w.item),
+    ...newWalkItems,
+  ]);
+  const keptSearch = kept.filter((it) =>
+    winnerByKey.has(`${it.source}:${it.sourceId}`),
+  );
+  const keptWalk = kept.filter(
+    (it) => !winnerByKey.has(`${it.source}:${it.sourceId}`),
+  );
   const flooredByRule: Record<StructuralDropRule, number> = {
     "dup-title": 0,
     "bare-title": 0,
@@ -281,32 +430,39 @@ async function main() {
   // makes it visible at the moment it happens rather than months later.
   const imageFetchFailures: Record<string, number> = {};
   let lastPrintedPct = -1;
-  const curated: CuratedItem[] = skipLlm
-    ? kept.map((it): CuratedItem => ({
-        ...it,
-        curationScore: 5,
-        aestheticTags: [],
-        topicId: null,
-      }))
-    : await curateItems(kept, {
-        onProgress: (done, total) => {
-          const pct = Math.floor((done / total) * 100);
-          if (pct !== lastPrintedPct && (pct % 10 === 0 || done === total)) {
-            lastPrintedPct = pct;
-            console.log(`  curating: ${done}/${total} (${pct}%)`);
-          }
-        },
-        onImageFetchFailure: (it) => {
-          imageFetchFailures[it.source] =
-            (imageFetchFailures[it.source] ?? 0) + 1;
-        },
-      });
+  const curateOpts = {
+    onProgress: (done: number, total: number) => {
+      const pct = Math.floor((done / total) * 100);
+      if (pct !== lastPrintedPct && (pct % 10 === 0 || done === total)) {
+        lastPrintedPct = pct;
+        console.log(`  curating: ${done}/${total} (${pct}%)`);
+      }
+    },
+    onImageFetchFailure: (it: NormalizedItem) => {
+      imageFetchFailures[it.source] = (imageFetchFailures[it.source] ?? 0) + 1;
+    },
+  };
+  const neutral = (it: NormalizedItem): CuratedItem => ({
+    ...it,
+    curationScore: 5,
+    aestheticTags: [],
+    topicId: null,
+  });
+  const curatedSearch: CuratedItem[] = skipLlm
+    ? keptSearch.map(neutral)
+    : await curateItems(keptSearch, curateOpts);
+  // Walk items get the classify mode. Under --skip-llm they cannot be classified at all, so every
+  // one is a null-topic drop: a structural check of the walk, nothing more — and the summary says so.
+  const curatedWalk: CuratedItem[] = skipLlm
+    ? keptWalk.map(neutral)
+    : await curateItems(keptWalk, { ...curateOpts, classify: true });
+  const histogram = topicHistogram(curatedWalk);
 
   // Step 6: upsert. Under --dry-run this loop still computes exactly what WOULD be written (so
   // the summary reflects reality) but never calls upsertItem — the "no DB writes" guarantee.
   let inserted = 0;
   const insertedByTopic = new Map<string, number>();
-  for (const curatedItem of curated) {
+  for (const curatedItem of curatedSearch) {
     const winner = winnerByKey.get(
       `${curatedItem.source}:${curatedItem.sourceId}`,
     );
@@ -319,17 +475,74 @@ async function main() {
     );
   }
 
+  // Walk items: the classified topic, or the honest reject.
+  let noTopic = 0;
+  for (const curatedItem of curatedWalk) {
+    if (curatedItem.topicId === null) {
+      noTopic++;
+      continue;
+    }
+    if (!dryRun)
+      await upsertItem({ ...curatedItem, topicId: curatedItem.topicId });
+    inserted++;
+    insertedByTopic.set(
+      curatedItem.topicId,
+      (insertedByTopic.get(curatedItem.topicId) ?? 0) + 1,
+    );
+  }
+
+  // Phase 6.3: --prune. Only a COMPLETE walk may say a row is gone; and even then only delete
+  // when asked. Children first — seen_item and saved_item both carry a foreign key onto item.
+  const pruned: Record<string, number> = {};
+  for (const [sourceId, ws] of walkStatsBySource) {
+    const gone = ws.complete
+      ? planPrune({
+          source: sourceId,
+          seenSourceIds: ws.seenSourceIds,
+          existingKeys,
+        })
+      : [];
+    if (gone.length === 0) continue;
+    console.log(
+      `\n${sourceId}: ${gone.length} row(s) in the DB were not seen by this complete walk:`,
+    );
+    for (const id of gone) console.log(`  ${id}`);
+    if (!prune || dryRun) {
+      console.log(
+        `  (not deleted — ${dryRun ? "--dry-run" : "pass --prune to delete"})`,
+      );
+      continue;
+    }
+    await db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ id: item.id })
+        .from(item)
+        .where(and(eq(item.source, sourceId), inArray(item.sourceId, gone)));
+      const ids = rows.map((r) => r.id);
+      if (ids.length === 0) return;
+      await tx.delete(seenItem).where(inArray(seenItem.itemId, ids));
+      await tx.delete(savedItem).where(inArray(savedItem.itemId, ids));
+      await tx.delete(item).where(inArray(item.id, ids));
+      pruned[sourceId] = ids.length;
+    });
+    console.log(`  deleted ${pruned[sourceId] ?? 0}`);
+  }
+
   printSummary({
     topics,
     sourceIds: searchIds,
     statsBySource,
     collisionCountBySource,
     imageFetchFailures,
-    alreadyInDb,
+    alreadyInDb: alreadyInDb + alreadyInDbWalk,
     flooredByRule,
-    curatedCount: curated.length,
+    curatedCount: curatedSearch.length + curatedWalk.length,
     inserted,
     insertedByTopic,
+    walkStatsBySource,
+    histogram,
+    noTopic,
+    pruned,
     elapsedSec: (performance.now() - t0) / 1000,
     dryRun,
     skipLlm,
@@ -353,6 +566,11 @@ function printSummary(args: {
   curatedCount: number;
   inserted: number;
   insertedByTopic: Map<string, number>;
+  /** Phase 6.3: the walk lane's own table, D4's histogram, and what --prune did (or would do). */
+  walkStatsBySource: Map<WalkSourceId, WalkRunStats>;
+  histogram: { byTopic: Record<string, number>; noTopic: number };
+  noTopic: number;
+  pruned: Record<string, number>;
   elapsedSec: number;
   dryRun: boolean;
   skipLlm: boolean;
@@ -368,6 +586,10 @@ function printSummary(args: {
     curatedCount,
     inserted,
     insertedByTopic,
+    walkStatsBySource,
+    histogram,
+    noTopic,
+    pruned,
     elapsedSec,
     dryRun,
     skipLlm,
@@ -404,8 +626,47 @@ function printSummary(args: {
     );
   }
 
+  if (walkStatsBySource.size > 0) {
+    console.log(`\n${line}\nWalk sources (Phase 6.3)\n${line}`);
+    console.log(
+      [
+        "source".padEnd(18),
+        "pages".padEnd(8),
+        "offered".padEnd(10),
+        "errors".padEnd(8),
+        "complete",
+      ].join(""),
+    );
+    for (const [id, s] of walkStatsBySource) {
+      console.log(
+        [
+          id.padEnd(18),
+          String(s.walked).padEnd(8),
+          String(s.offered).padEnd(10),
+          String(s.errors).padEnd(8),
+          s.complete ? "yes" : "no",
+        ].join(""),
+      );
+    }
+    console.log(
+      `\nclassification${skipLlm ? " (--skip-llm: nothing can be classified; every walk item is a no-topic drop)" : ""}:`,
+    );
+    for (const [topicId, n] of Object.entries(histogram.byTopic).sort(
+      (a, b) => b[1] - a[1],
+    )) {
+      console.log(`  ${topicId.padEnd(24)} ${n}`);
+    }
+    console.log(
+      `  ${"(no honest topic — dropped)".padEnd(24)} ${histogram.noTopic}`,
+    );
+    for (const [id, n] of Object.entries(pruned)) {
+      console.log(`pruned from ${id}: ${n}`);
+    }
+  }
+
   console.log(`\n${line}\nPipeline totals\n${line}`);
   console.log(`already in DB (skipped):  ${alreadyInDb}`);
+  console.log(`no-topic dropped (walk):  ${noTopic}`);
   console.log(
     `structural floor dropped: ${Object.values(flooredByRule).reduce((a, b) => a + b, 0)}` +
       ` (dup-title ${flooredByRule["dup-title"]}, bare-title ${flooredByRule["bare-title"]}, thin-summary ${flooredByRule["thin-summary"]})`,

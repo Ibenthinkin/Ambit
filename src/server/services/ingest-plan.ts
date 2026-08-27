@@ -83,3 +83,43 @@ export function resolveCollisions(claims: Claim[]): {
 
   return { winners, collisionCountBySource };
 }
+
+// ── Phase 6.3: the walk lane's two pure decisions ───────────────────────────────────────────
+
+/** The per-topic yield of a classified batch, with the honest-reject bucket kept separate. This
+ *  is D4's measurement (docs/PHASE6_DESIGN_6.3.md §6): `--dry-run` on a walker prints it, and the
+ *  first executable step of 6.3 was to read it before writing a row. */
+export function topicHistogram(items: { topicId: string | null }[]): {
+  byTopic: Record<string, number>;
+  noTopic: number;
+} {
+  const byTopic: Record<string, number> = {};
+  let noTopic = 0;
+  for (const it of items) {
+    if (it.topicId === null) noTopic++;
+    else byTopic[it.topicId] = (byTopic[it.topicId] ?? 0) + 1;
+  }
+  return { byTopic, noTopic };
+}
+
+/**
+ * Which of `source`'s rows in the DB did a complete walk NOT see? Those are posts the blog has
+ * removed — the remove-on-request case. Pure: the caller guarantees the walk was complete (no
+ * --quota, zero errors) before trusting the answer, and deletes only under --prune.
+ * `existingKeys` is ingest's `${source}:${sourceId}` set, already loaded for the skip step.
+ */
+export function planPrune(args: {
+  source: string;
+  seenSourceIds: Iterable<string>;
+  existingKeys: ReadonlySet<string>;
+}): string[] {
+  const seen = new Set(args.seenSourceIds);
+  const prefix = `${args.source}:`;
+  const gone: string[] = [];
+  for (const key of args.existingKeys) {
+    if (!key.startsWith(prefix)) continue;
+    const sourceId = key.slice(prefix.length);
+    if (!seen.has(sourceId)) gone.push(sourceId);
+  }
+  return gone.sort();
+}

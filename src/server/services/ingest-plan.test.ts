@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import type { NormalizedItem } from "./sources/types";
 import type { Claim } from "./ingest-plan";
-import { resolveCollisions } from "./ingest-plan";
+import { planPrune, resolveCollisions, topicHistogram } from "./ingest-plan";
 
 /** A minimal, valid NormalizedItem — only `source`/`sourceId` vary across the fixtures below,
  *  since those two fields are the collision key (an item is "the same object" iff both match). */
@@ -120,5 +120,51 @@ describe("resolveCollisions", () => {
     expect(winnerForB?.topicId).toBe("botany");
     expect(winnerForB?.collidedWith).toEqual([]);
     expect(collisionCountBySource).toEqual({ aic: 1 });
+  });
+});
+
+// ── Phase 6.3: the walk lane's two pure decisions ───────────────────────────────────────────
+
+describe("topicHistogram", () => {
+  it("counts classified items per topic and the null bucket separately", () => {
+    const h = topicHistogram([
+      { topicId: "botany" },
+      { topicId: "botany" },
+      { topicId: "zoology" },
+      { topicId: null },
+    ]);
+    expect(h.byTopic).toEqual({ botany: 2, zoology: 1 });
+    expect(h.noTopic).toBe(1);
+  });
+});
+
+describe("planPrune", () => {
+  // Phase 6.3's remove-on-request path: rows in the DB for a walk source that a COMPLETE walk did
+  // not see are the posts the blog has removed. The function only decides; ingest deletes, and
+  // only under --prune.
+  it("names the DB rows of this source that the walk did not see", () => {
+    const existingKeys = new Set([
+      "doorofperception:a",
+      "doorofperception:b",
+      "met:x",
+    ]);
+    expect(
+      planPrune({
+        source: "doorofperception",
+        seenSourceIds: ["a"],
+        existingKeys,
+      }),
+    ).toEqual(["b"]);
+  });
+
+  it("never names another source's rows", () => {
+    const existingKeys = new Set(["met:x", "loc:y"]);
+    expect(
+      planPrune({
+        source: "doorofperception",
+        seenSourceIds: [],
+        existingKeys,
+      }),
+    ).toEqual([]);
   });
 });
