@@ -2,6 +2,7 @@ import { sourceLabel } from "~/lib/source-label";
 import type { Item } from "~/server/db/items";
 import { CreditLine } from "./credit-line";
 import { HeroGalleryLink } from "./hero-gallery-link";
+import { LinkOutRow } from "./link-out-row";
 
 // The image variant of `/i/[itemId]`: the picture, big, then the least text that makes it
 // legible — title, who made it, where it came from, and the summary.
@@ -35,6 +36,14 @@ export function ImageItemBody({ item }: ImageItemBodyProps) {
     ? item.imageUrl
     : `/api/img/${item.id}`;
 
+  // Whoever the source names as maker — unless that is just the source's own name again, in which
+  // case the credit line below already says it and saying it twice reads as a bug. Phase 6.3
+  // exposed this: a blog's attribution IS the blog. (This also drops the old museum fallback that
+  // printed the source label as a maker line; it duplicated the credit line there too.)
+  const label = sourceLabel(item.source);
+  const maker =
+    item.attribution && item.attribution !== label ? item.attribution : null;
+
   return (
     <article>
       {item.imageUrl ? (
@@ -56,10 +65,9 @@ export function ImageItemBody({ item }: ImageItemBodyProps) {
         {item.title}
       </h1>
 
-      {/* Whoever the source names as maker; failing that, the institution holding it. */}
-      <p className="text-ink/50 mt-[8px] text-[13px]">
-        {item.attribution ?? sourceLabel(item.source)}
-      </p>
+      {maker ? (
+        <p className="text-ink/50 mt-[8px] text-[13px]">{maker}</p>
+      ) : null}
 
       <CreditLine source={item.source} sourceUrl={item.sourceUrl} />
 
@@ -68,6 +76,9 @@ export function ImageItemBody({ item }: ImageItemBodyProps) {
           {item.summary}
         </p>
       ) : null}
+
+      {/* Blog items only (renders null otherwise): the link-out that makes the card a preview. */}
+      <LinkOutRow source={item.source} sourceUrl={item.sourceUrl} />
     </article>
   );
 }

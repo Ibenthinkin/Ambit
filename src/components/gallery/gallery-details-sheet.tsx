@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { LinkOutRow } from "~/components/item/link-out-row";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { sourceLabel } from "~/lib/source-label";
 import { TOPICS } from "~/server/config/topics";
@@ -81,7 +82,9 @@ export function GalleryDetailsSheet({
         {/* Accent here, unlike the ink-toned maker line on the picture itself: this is the sheet's
             own subject line, and the design gives the accent to the thing you came here to read. */}
         <p className="text-accent mt-[8px] text-[12.5px] tracking-[0.3px]">
-          {item.attribution ?? sourceLabel(item.source)}
+          {item.attribution && item.attribution !== sourceLabel(item.source)
+            ? item.attribution
+            : sourceLabel(item.source)}
         </p>
 
         <dl className="mt-[18px]">
@@ -120,6 +123,13 @@ export function GalleryDetailsSheet({
             {item.summary}
           </p>
         ) : null}
+
+        {/* Phase 6.3: a blog item's link-out. The wrapper stops the sheet's close-on-tap so the
+            one real target here keeps working — LinkOutRow itself carries no handler, so it can
+            also render inside the server-component item page. */}
+        <div onClick={(e) => e.stopPropagation()}>
+          <LinkOutRow source={item.source} sourceUrl={item.sourceUrl} />
+        </div>
 
         <p className="text-ink/40 mt-[26px] text-center text-[11px]">
           Tap or swipe down to close · swipe sideways to keep browsing

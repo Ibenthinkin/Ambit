@@ -45,7 +45,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       // above any score floor — so anything missing from the pool is missing because of the source
       // filter and nothing else.
       await db.insert(item).values(
-        ["met", ...SUSPENDED_SOURCES].map((source, i) => ({
+        ["met", "doorofperception", ...SUSPENDED_SOURCES].map((source, i) => ({
           source,
           sourceId: `${sourceIdPrefix}${i}`,
           type: "image" as const,
@@ -88,6 +88,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
       const sources = (pools.get(topicId) ?? []).map((row) => row.source);
       expect(sources).toContain("met");
+      // Phase 6.3: a walk-source row is an ordinary row to the draw — nothing filters on source
+      // except suspension, and a blog is never suspended by default.
+      expect(sources).toContain("doorofperception");
       for (const suspended of SUSPENDED_SOURCES) {
         expect(sources).not.toContain(suspended);
       }
@@ -102,6 +105,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
       const sources = drawn.map((row) => row.source);
       expect(sources).toContain("met");
+      // Phase 6.3: a walk-source row is an ordinary row to the draw — nothing filters on source
+      // except suspension, and a blog is never suspended by default.
+      expect(sources).toContain("doorofperception");
       for (const suspended of SUSPENDED_SOURCES) {
         expect(sources).not.toContain(suspended);
       }
