@@ -5,6 +5,52 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-27-26 Thu]] — Phase 6.3 executed: corpus-walk lane, doorofperception live as 318 link cards; D2 staged to the attended step
+
+**Shipped:** `feat/6.3-blog-adapters`, T1–T4 from the prior session plus T5–T12 (Ambit side)
+today, twelve commits. The gate held: **classified all 390 posts before any write — 318 filed
+(82%), 68 honestly refused**, mythology 109 / portraiture 59 / botany 47 / architecture 30 down to
+ceramics 0. Ingested 318 at 8.64 avg (92% ≥ 8, against the archive scrape's 8.56), idempotent on
+re-run, `--prune` armed, blog cards drawing in every tier. `LinkOutRow` on the item page and the
+gallery sheet, maker-line dedupe, the `body`-is-null invariant asserted in CI both as a fixture
+test and a DB query, one signed-out e2e. Docs (SPEC §5.1/§6.1/§6.4/§15, BUILD_PLAN, candidates,
+CLAUDE.md) and the Ambit-Admin vault (log, roadmap, architecture) are updated. Walkthrough:
+`docs/PHASE6_WALKTHROUGH_6.3.md`.
+
+**Three things the plan did not know, found by running it:**
+
+1. **A walk that can never be complete is a `--prune` that can never run.** T6 as written made
+   `complete` require `errors === 0`; doorofperception has one post with no featured image that
+   `toItem` rejects on every walk, so the re-run reported `complete no` where the plan expected
+   `yes`. Split `pageErrors` from `errors`: a failed *page* voids completeness (the cursor past it
+   is untrustworthy), a rejected *post* does not. Related and kept: a rejected raw is not in
+   `seenSourceIds` — it was never a row, so `planPrune` can't name it, and if it once had a hero
+   and lost it, it *should* go.
+2. **The walk table had no `no-image` column**, so the plan's "stop if heroes don't fetch"
+   precondition was unreadable from the histogram run — and the curator cache hides the answer on
+   any re-run. Added the column; checked the first run's heroes directly through the curator's own
+   fetch path (20/20 OK). Worth remembering: *a cached curator run can't tell you whether images
+   fetched* — the only honest reading is the first pass.
+3. **`onClick` on the plan's `LinkOutRow` would have broken `ImageItemBody` as a server
+   component** (a function prop on a host element). Written handler-free from the start; the
+   gallery sheet's close-on-tap is stopped by a wrapper `div` there instead. The 68 refused posts
+   also pass through the curator on every run (68 cache hits, free) — the cost of "dropped, not
+   stored", and the summary counts them so it never reads as a leak.
+
+**Decisions:** dry-run T12 numbers are recorded and the destructive half is *not* run unattended,
+per the plan — **11,496 archive items carry doorofperception provenance; Ambit holds 251 archive
+rows from them (of 310), 0 saved by anyone.** Two e2e/test-state leaks noted, not fixed: two
+`test-feed-topic-*` rows sit in the dev `topic` table and print in every ingest summary.
+
+**Open / next:** the attended tail of D2 — remove the doorofperception root from ambit-archive's
+`DISK_ROOTS`, `bun run sync --connector=disk` (expect `sweep blocked` at ~85% > 20%), then
+`--force-sweep` with the number read, then `bun run retire --source archive --ids <file>
+--confirm` here (251 rows), verify counts, append to the walkthrough, and T13's merge. After that:
+Phase 7. Blog #2 is PDR (RSS walk) or thingsorganizedneatly (Tumblr walk), each its own adapter
+on the same contract.
+
+*Session spend: 26.05M tok (in 30.2k · out 264.0k · cache r 24.52M / w 1.23M) · ~≥$50.61 · fable-5 + opus-4-7 + <synthetic> · 12:10→13:09*
+
 ### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.** Then: 6.3's design session opened.
 
 **Shipped:** `feat/5.11-landing-install-pwa`, ten commits, merged to `main`. The redesign's
