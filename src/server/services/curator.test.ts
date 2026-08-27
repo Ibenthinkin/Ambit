@@ -248,10 +248,9 @@ describe("parseCuratorResponse — classify mode", () => {
 
   it("turns an invented topic id into null — never a foreign-key error 300 items in", () => {
     expect(
-      parseCuratorResponse(
-        '{"score": 8, "tags": [], "topic": "psychedelia"}',
-        { topicIds: ids },
-      ).topicId,
+      parseCuratorResponse('{"score": 8, "tags": [], "topic": "psychedelia"}', {
+        topicIds: ids,
+      }).topicId,
     ).toBeNull();
   });
 
@@ -273,7 +272,10 @@ describe("parseCuratorResponse — classify mode", () => {
 });
 
 describe("curateItems classify mode", () => {
-  let bodies: { model: string; messages: { role: string; content: unknown }[] }[];
+  let bodies: {
+    model: string;
+    messages: { role: string; content: unknown }[];
+  }[];
   beforeEach(() => {
     bodies = [];
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");

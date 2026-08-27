@@ -105,7 +105,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 *Order: tokens first, then screens in user-journey order — with one forced deviation: item pages (5.7) land before the gallery (5.8) because the redesigned feed's taps navigate to them.*
 
-***Phase 5 is complete as of 08-25-26** — 5.1 through 5.11 all shipped and merged to `main`. The app has no internal 404s, is installable, and works offline for the last feed page. Next: 6.3's blog design session, or Phase 7.*
+***Phase 5 is complete as of 08-25-26** — 5.1 through 5.11 all shipped and merged to `main`. The app has no internal 404s, is installable, and works offline for the last feed page. 6.3 shipped 08-27-26 (blog adapters; doorofperception live as link cards). Next: Phase 7.*
 
 *Source of truth (since 08-16-26): the **redesign handoff** — `docs/design_handoff_ambit_pwa_redesign/README.md` for tokens, motion timings, and per-screen specs, with the convention that **the `.dc.html` prototypes win over the README where they conflict** (the README's Feed section predates `Ambit - Feed Masonry 3.dc.html`; verify each screen against its prototype at plan time). The bundle's `PROGRESS.md` describes an earlier design session (Newsreader/gold) and is superseded by the README. Recreate, don't port. Steps 5.1–5.3 below were built against the old handoff (`docs/design_handoff_ambit_pwa/`) and their Done-notes are kept verbatim as history; 5.4 migrates them to the new design language. Decisions taken at re-baseline (recorded in `PHASE5_PLAN_5.4.md`): keep email+password auth (no magic link — restyle only), build the collections backend (5.5), minimal-viable Profile/Settings with **sign-out living in Settings**, feed taps open item pages (prototype wins), masonry heights via fixed literal-class rotation (no image dimensions in the DB), and the bundle's `uploads/*.webp` are licensing-uncleared — production imagery is limited to the 8 Wikimedia PD works or Ben-cleared images until resolved.*
 
@@ -277,7 +277,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   **Verdicts (Ben, 08-21-26): Keep · Keep · Keep · Park.** Smithsonian (1,529 items @ 7.73 avg, 14 topics), LoC (376 @ 7.98, best distribution in the corpus) and NASA (520 @ 7.96, 6 topics) were promoted to SPEC §6.1 with full seed cells and full ingests. PoetryDB was **parked** — its adapter and tests stay, its seed cells were removed so ingest never reaches it, and the two reasons are recorded: summaries pick up epigraphs as though they were the poem's opening, and the curator's rubric is written for images and cannot score a lyric poem (SPEC §15).
   *Done = ✅ Planned 08-21-26 (`docs/PHASE6_PLAN_6.2.md`), executed the same day — walkthrough and evidence sheet: `docs/PHASE6_WALKTHROUGH_6.2.md`. Nine live sources (eight drawable; `aic` still suspended); ingestion healthy; all three keepers visible in the feed under `FEED_DEBUG` with zero source-adjacency violations.* **Two findings beyond the plan, both recorded in SPEC §15:** `tile.loc.gov` **rate-limits by IP** with no `Retry-After` (a 334-image ingest tripped a sustained 429 from every User-Agent) — the strongest evidence yet for **7.3**'s proxy-with-cache, and unlike AIC's referer rule it is a *budget*, which a cache fixes and a bare proxy might worsen. And the curator's image-download failures were **completely silent** until this phase; they are now counted and printed per source, which is what made the LoC block diagnosable at all.
 
-- [ ] **6.3 — Blog source adapters (⚖️ design session first — decided 08-20-26, undesigned).**
+- [x] **6.3 — Blog source adapters.**
   **Strategy:** Ambit's content comes primarily from **blogs** rather than from image scraping plus
   paid identification, because blogs already carry what costs money to manufacture — tags,
   descriptions, and an article saying why the image matters. Recorded in Ambit-Admin (08-20-26)
@@ -293,40 +293,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
   strings ("Rights retained by original authors — displayed with credit and link"), and
   remove-on-request. **No fair-use claim anywhere.**
 
-  **v1 sketch** (a sketch, not a spec — the design session decides): a shared scraper core plus
-  per-blog config; **one `SourceId` per blog**; the ingest unit is a **post**; each notable image
-  becomes one `image` item and/or the post becomes one summary card; `source_id` = post-slug
-  (+ index where a post yields several); `sourceUrl` = the post URL; `attribution` = the blog name;
-  an honest per-blog license constant.
-
-  **Seven open questions — settle these before any code:**
-  1. **Adapter interface.** Blogs don't do `search(q)`, so the search-shaped contract doesn't fit as
-     written. A local-index fake `search()` over already-scraped posts, or an ingest entry point
-     shaped like an in-repo corpus walk?
-  2. **Topic assignment without seed queries.** Search-shaped sources derive an item's topic from
-     *which query surfaced it*; there is no such query here. LLM classification at ingest, or
-     per-blog topic defaults?
-  3. **Items per post, and the flooding rule.** A post with 30 images could swamp a feed page. How
-     many items per post, and how does dedupe/spacing work?
-  4. **Where the blurb lives.** Proposed: a nullable `body` (used as blurb, never as a reader
-     surface), with `summary` as fallback. Needs a schema call.
-  5. **Image hosting.** Blog images hotlinked from someone else's server is the **strongest case yet
-     for 7.3's proxy-with-cache** — decide 7.3 and this together.
-  6. **Scrape etiquette.** robots.txt compliance, request rate, re-crawl cadence, and identifying
-     the agent. *A worked precedent already exists:* artvee was **cut 08-20-26** because its
-     robots.txt runs an AI block list — a blog that machine-readably refuses agents does not become
-     a designated blog just because its works are public domain.
-  7. **Curation.** Do blog items go through the normal curator pass and quality floor? Presumably
-     yes; confirm rather than assume.
-
-  **First corpus: doorofperception.com.** The scrape already exists — 11,572 images on disk in
-  `ambit-archive`, with `storage/sources/doorofperception/index.csv` (11,584 rows) mapping every
-  image to its post URL and original URL, which is the attribution source. Ingesting it here
-  **retires 85% of the archive corpus** and prototypes this whole step for $0. It also owns the
-  **Ambit-side dedupe design** — those items may already have been ingested through the archive
-  adapter (A.5). Designated-blog list: `docs/source-candidates.md`.
-  *Done = a design session's decisions recorded in a plan doc; then one blog live end to end,
-  displaying as a link card with credit and link-out, and no article text rendered by Ambit.*
+  *Done = a design session's decisions recorded; one blog live end to end as a link card with credit and link-out, no article text rendered by Ambit.* ✅ **Designed 08-25-26** (`docs/PHASE6_DESIGN_6.3.md` — the seven questions answered; `docs/PHASE6_PLAN_6.3.md`, thirteen cold-executable tasks), **executed 08-27-26** on `feat/6.3-blog-adapters` (walkthrough: `docs/PHASE6_WALKTHROUGH_6.3.md`). **What it turned out to be:** not a "shared scraper core" — doorofperception is WordPress with a live REST API, so the shared part is the **`CorpusWalkAdapter` contract** (a sibling of `SourceAdapter`, which stayed untouched as the cross-service agreement) plus the walk lane in ingest, the designated-blog registry (`config/blogs.ts`), a robots check every run, and the `LinkOutRow`; each blog is its own adapter exactly as each museum is. **Topic assignment is the curator's classify mode** — one of sixteen or *none*, nulls dropped and counted. **The histogram, over all 390 posts before any write:** 389 normalized · 3 floored · **318 classified (82%) · 68 refused (18%)**; mythology 109, portraiture 59, botany 47, architecture 30, the long tail down to ceramics 0. Ingested 318 rows at 8.64 avg (92% ≥ 8), idempotent on re-run, `complete yes`, `--prune` armed. `body` is null for every blog item — an invariant CI asserts (SPEC §5.1). **50watts cut 08-25-26** (`Disallow: /`, REST 403). **D2** (the archive stops serving doorofperception; Ambit deletes those miscredited rows) executes as the attended tail of the same branch — archive rows before: 310; after: *recorded in the walkthrough at T12*.
 
 ---
 
