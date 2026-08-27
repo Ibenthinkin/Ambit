@@ -42,14 +42,39 @@ per the plan — **11,496 archive items carry doorofperception provenance; Ambit
 rows from them (of 310), 0 saved by anyone.** Two e2e/test-state leaks noted, not fixed: two
 `test-feed-topic-*` rows sit in the dev `topic` table and print in every ingest summary.
 
-**Open / next:** the attended tail of D2 — remove the doorofperception root from ambit-archive's
-`DISK_ROOTS`, `bun run sync --connector=disk` (expect `sweep blocked` at ~85% > 20%), then
-`--force-sweep` with the number read, then `bun run retire --source archive --ids <file>
---confirm` here (251 rows), verify counts, append to the walkthrough, and T13's merge. After that:
-Phase 7. Blog #2 is PDR (RSS walk) or thingsorganizedneatly (Tumblr walk), each its own adapter
-on the same contract.
+**D2 executed, later the same day — and the plan had the wrong instance.** Ambit's half is
+done: `retire --confirm` deleted **251 archive rows (310 → 59), 0 saves lost**, re-run matches 0,
+`body`-null invariant still 0. The Mac archive copy is swept: `retired 11568 provenance · withdrew
+11496 items`, files and `index.csv` untouched, `/search` on it returns personal material only. T13
+verification green — `bun run check` 72 files / 774 tests, e2e **41 passed in 2.1 m** (no
+gallery.spec:193 flake this time) — and the branch is merged to `main`. Two findings:
+
+1. **`DISK_ROOTS` had no entry to remove.** It was the single root `./storage/sources` with the
+   scrape as its only subfolder. A blank root is rejected at startup and a missing one is a
+   connector *problem* (blocks the sweep, no override), so the mechanism became *repoint at an
+   empty sibling* (`./storage/sources/personal`). That also changes which guard fires: the **zero
+   guard**, not the 20% ratio guard the plan predicted — reached first once the walk sees nothing.
+2. **Every one of Ambit's archive rows points at VM 202** (`archive.home.benreilly.io`), not the
+   Mac copy the plan's step 3 edited. Checked by reading `image_url` hosts *before* the sweep —
+   one query, and without it the Mac sweep would have read as "done". Production still reports
+   13,380 items and ranks the scrape; SSH to `ben@192.168.1.202` refuses the Mac's key, so **the
+   production sweep is the one step still open**, and it is Ben's to run.
+
+**Open / next:** (1) **VM 202's sweep** — `mkdir /app/storage/sources/personal` in the volume,
+Coolify `DISK_ROOTS=/app/storage/sources/personal`, redeploy, `docker exec "$C" bun run sync
+--connector=disk` (expect the zero-guard block) then `--force-sweep` (expect ~11,568 / ~11,496,
+minus the two 08-24 purges); after that the weekly Sunday disk sync exits 1 on the zero guard
+every week — disable the scheduled task or accept the red. (2) **Until then, no unqualified
+`bun run ingest`**: `archive` is in the default set and production still ranks the scrape, so a
+default run can re-insert miscredited rows; `--source <x>` only, and the retire script is
+idempotent if it happens. (3) Two `test-feed-topic-*` rows in the dev `topic` table still print in
+every ingest summary — e2e/test leak, not fixed. (4) ambit-archive has an uncommitted, unrelated
+A.6c log/SPEC diff from another session — left alone. Then Phase 7. Blog #2 is PDR (RSS walk) or
+thingsorganizedneatly (Tumblr walk), each its own adapter on the same contract.
 
 *Session spend: 26.05M tok (in 30.2k · out 264.0k · cache r 24.52M / w 1.23M) · ~≥$50.61 · fable-5 + opus-4-7 + <synthetic> · 12:10→13:09*
+*Session spend: 5.95M tok (in 5.0k · out 68.5k · cache r 5.49M / w 389.5k) · ~$16.76 · fable-5 · 15:28→15:35*
+*Session spend: 5.84M tok (in 2.4k · out 69.5k · cache r 5.67M / w 99.0k) · ~$11.15 · fable-5 · 15:35→15:41*
 
 ### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.** Then: 6.3's design session opened.
 
