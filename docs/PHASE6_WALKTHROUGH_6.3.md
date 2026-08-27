@@ -3,7 +3,8 @@
 **Executed 08-27-26** against `docs/PHASE6_PLAN_6.3.md` (design: `docs/PHASE6_DESIGN_6.3.md`), on
 branch `feat/6.3-blog-adapters`.
 
-**Status: in progress.** Sections are appended as each task lands its evidence.
+**Status: complete on the Ambit side (T1–T13); D2's production sweep on VM 202 outstanding** —
+see *D2 — archive retirement*, Step 3.
 
 ---
 
@@ -160,7 +161,93 @@ has been showing under `attribution: "Personal archive"` with no post link — a
 rows** would go with them (nobody has saved one). The other 59 archive rows are personal material
 and stay.
 
-**Steps 3–4 (the sweep and the delete) are attended** — `DISK_ROOTS` edit in ambit-archive, a sync
-whose 20% mass-drop guard is *expected* to block, `--force-sweep` with Ben reading the number, then
-`--confirm` here. Recorded below when run.
+**Step 3 — the sweep (archive side), run 08-27-26 on the Mac's dev copy.** Two things the plan
+did not know, both found by trying to do what it said:
+
+- **There was no `DISK_ROOTS` entry to remove.** The plan wrote "remove the
+  `…/storage/sources/doorofperception` entry (colon-separated; leave the others)", but `.env` held
+  the single root `./storage/sources`, and `doorofperception/` is its *only* subfolder. An empty
+  `DISK_ROOTS` is rejected at startup (`DISK_ROOTS is empty — nothing to walk`), and a root that
+  does not exist is recorded as a connector *problem*, which blocks the sweep with no override —
+  so neither "blank it" nor "point it somewhere missing" can produce a sweep. Mechanism used:
+  `DISK_ROOTS=./storage/sources/personal`, a new **empty sibling** of the scrape folder, which is
+  also where future loose personal files go. Nothing moved, nothing deleted — the folder still
+  holds 392 entries and `index.csv` (3.26 MB, 08-08) is untouched.
+- **The zero guard fires, not the ratio guard.** `bun run sync --connector=disk` →
+  `disk: seen 0 · created 0 · linked 0 · skipped 0 · failed 0 (0.0s)` then `sweep blocked: run saw
+  0 assets — an empty source is indistinguishable from a broken one — re-run with --force-sweep if
+  the source really is empty`, exit 1. The plan predicted the 20% mass-drop guard ("85% > 20%"),
+  which assumed other roots would still yield files; with the walk empty the zero guard is
+  reached first. Either way the archive's safety worked and asked for a human. Then
+  `bun run sync --connector=disk --force-sweep` → **`sweep: retired 11568 provenance · withdrew
+  11496 items`**, exit 0.
+
+  After, in `archive.db`: disk provenance 11,572 rows, **all** `removed_at` set (4 had been
+  retired before D2); immich 2,018 live; `archive_item` 13,514 total, **11,496 withdrawn**, and
+  the join `provenance LIKE '%/doorofperception/%' AND withdrawn_at IS NULL` = **0**.
+  `connector_run.disk` re-baselined to `asset_count 0`. Served, on a throwaway `bun src/server.ts`
+  at :3011: `/health` → `{"ok":true,"items":1993}` (was 13,380-class), and `/search` for
+  *visionary art*, *psychedelic poster* and *botanical illustration* returns personal material
+  only — the ranked list still fills to `limit`, as the plan said it would.
+
+- **But that is the dev copy, and Ambit does not read it.** Before touching anything I checked
+  where Ambit's 310 archive rows point: **all 310 carry `https://archive.home.benreilly.io` image
+  URLs** — the A.6 deployment on VM 202 (`ARCHIVE_URL` in `.env`), whose Coolify volume holds its
+  own `archive.db` and `/app/storage/sources/doorofperception/` (rsynced 08-23) under
+  `DISK_ROOTS=/app/storage/sources` in the Coolify env. Production still answers `/health` with
+  **13,380 items** and ranks scrape images for *visionary art*. SSH to `ben@192.168.1.202` refuses
+  the agent's key (`publickey,password`), so **the production half of D2 is not done** and is the
+  one attended step that remains. What it needs, in-container on VM 202 (`C=$(docker ps -q
+  --filter name=tmwkqzly5mr8svazskcqtyvn)`): `mkdir` the empty subdirectory in the volume,
+  repoint the Coolify `DISK_ROOTS` to `/app/storage/sources/personal`, redeploy, then
+  `docker exec "$C" bun run sync --connector=disk` (expect the zero-guard block) and
+  `… --force-sweep` (expect the same line, ± the two 08-24 purges). One consequence to decide
+  there: with an empty root the **weekly Sunday `sync --connector=disk` task will exit 1 on the
+  zero guard every week** — disable the scheduled task, or accept a standing red.
+
+**Step 4 — Ambit's delete, run 08-27-26.** `bun run retire --source archive --ids <file>
+--confirm` → `251 matching item row(s) for source "archive"; 0 saved_item row(s)` →
+**`deleted 251 item(s) and their seen/saved rows`**. Dry re-run: `0 matching item row(s)`.
+Counts after: **`archive` 59** (310 − 251), **`doorofperception` 318**; `body IS NOT NULL` for
+doorofperception = 0. `bun run ingest --source archive --quota 5 --dry-run --skip-llm` against
+production: 1.9 s, no errors — the adapter is unaffected by the slimmer archive it will meet.
+
+**Hazard until the production sweep runs:** a default `bun run ingest` includes `archive`, and
+production still ranks the scrape, so an unqualified ingest can re-insert miscredited rows. Run
+with `--source <x>` until VM 202 is swept; the retire script is idempotent and the ids file is
+`archive_provenance.external_id LIKE '%/storage/sources/doorofperception/%'`, so a second pass
+costs one command.
+
+## The done-bar, item by item
+
+1. `bun run test` green including `source-invariants`, `blogs.test`, `robots.test`, `http.test`,
+   the walker fixtures, curator classify, `topicHistogram`/`planPrune` — ✅ (T13's `bun run check`
+   run is recorded in `log.md`).
+2. `bun run ingest --source doorofperception` idempotent, `complete yes`, no prune — ✅ (above).
+3. `/i/<blog item>` shows title · maker line once · `from:` · blurb · link-out row · no reader
+   sections — ✅, e2e-asserted.
+4. `select count(*) from item where source in (WALK_SOURCES) and body is not null` = 0 — ✅.
+5. `/search` on the archive returns no doorofperception image; Ambit holds 0 archive rows with DoP
+   provenance; `index.csv` and files untouched — ✅ on the **dev copy** and in Ambit; **⏳ on
+   production** (VM 202), see Step 3.
+6. Ambit-Admin log carries the D2 and contract entries, dated before the sweep — ✅.
+
+## What to remember
+
+- **The 800 px hero.** `featured_media` is a purpose-made crop — tile- and hero-grade, not
+  gallery-grade. Full-resolution originals for these posts exist only in the archive's
+  `index.csv` + files, which is why those stay on disk.
+- **The 68-post null bucket is the topic-expansion input**, not a defect. The curator's "none" is
+  honest; a psychedelia post force-fit into `botany` would teach the drift graph something false.
+- **A cached curator run cannot tell you whether images fetched.** The `no-image` column is only
+  readable on a first pass; re-runs answer from the cache.
+- **A walk that can never be complete is a `--prune` that can never run** — `pageErrors` vs
+  `errors`, and a rejected post is not a row, so `planPrune` cannot name it.
+- **Before an ops step, check which instance a URL points at.** The plan's D2 targeted the Mac
+  `.env`; every row Ambit holds points at VM 202. Reading `image_url` hosts first cost one query
+  and would have cost a wasted "done" otherwise. Corollary for the archive's disk connector: a
+  single-root `DISK_ROOTS` has no entry to remove — repoint it at an empty sibling, never blank it.
+- **50watts is cut** (`Disallow: /`, REST 403 regardless of UA). Blog #2 is Public Domain Review
+  (RSS walk) or thingsorganizedneatly (Tumblr JSON walk) — each its own adapter on the same
+  `CorpusWalkAdapter` contract; no third shape.
 
