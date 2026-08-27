@@ -50,12 +50,13 @@ let imageId: string;
 let articleId: string;
 let imagelessId: string;
 let httpImageId: string;
+let blogId: string;
 
 test.describe.serial("item pages", () => {
   test.beforeAll(async () => {
     conn = await connect();
 
-    const [image, article, imageless, httpImage] = await conn.db
+    const [image, article, imageless, httpImage, blog] = await conn.db
       .insert(conn.item)
       .values([
         {
@@ -109,6 +110,24 @@ test.describe.serial("item pages", () => {
           topicId: "astronomy",
           curationScore: 9,
         },
+        {
+          // Phase 6.3: a blog link card. Same `e2e-item-` prefix so afterAll's cleanup finds it;
+          // a real blog `source` so the link-out row renders.
+          source: "doorofperception",
+          sourceId: `e2e-item-blog-${Date.now()}`,
+          type: "image" as const,
+          title: "A seeded post",
+          summary:
+            "The blog's own excerpt, long enough to occupy a couple of lines on the card.",
+          body: null,
+          imageUrl: PIXEL,
+          sourceUrl: "https://doorofperception.com/2026/01/a-seeded-post/",
+          attribution: "Door of Perception",
+          license:
+            "Rights retained by original authors — displayed with credit and link",
+          topicId: "astronomy",
+          curationScore: 9,
+        },
       ])
       .returning();
 
@@ -116,6 +135,7 @@ test.describe.serial("item pages", () => {
     articleId = article!.id;
     imagelessId = imageless!.id;
     httpImageId = httpImage!.id;
+    blogId = blog!.id;
 
     execFileSync("bun", ["run", "invite", EMAIL], { stdio: "pipe" });
   });
@@ -206,6 +226,33 @@ test.describe.serial("item pages", () => {
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Save to collection" }),
+    ).toHaveCount(0);
+  });
+
+  test("a blog item is a link card: credit, blurb, and a prominent link out — no reader view", async ({
+    page,
+  }) => {
+    await page.goto(`/i/${blogId}`);
+    await expect(
+      page.getByRole("heading", { name: "A seeded post", level: 1 }),
+    ).toBeVisible();
+    await expect(page.getByText(/The blog's own excerpt/)).toBeVisible();
+    // The credit line and the link-out row both point at the post.
+    // `exact`, or Playwright's substring match also catches "Read the post on Door of Perception".
+    await expect(
+      page.getByRole("link", { name: "Door of Perception", exact: true }),
+    ).toHaveAttribute(
+      "href",
+      "https://doorofperception.com/2026/01/a-seeded-post/",
+    );
+    const linkOut = page.getByRole("link", {
+      name: /Read the post on Door of Perception/,
+    });
+    await expect(linkOut).toBeVisible();
+    await expect(linkOut).toHaveAttribute("target", "_blank");
+    // No typeset article: the reader body's section headings never render for a blog item.
+    await expect(
+      page.locator("article").getByRole("heading", { level: 2 }),
     ).toHaveCount(0);
   });
 
