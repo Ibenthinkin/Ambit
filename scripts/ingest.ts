@@ -193,10 +193,16 @@ interface WalkRunStats {
   walked: number; // walk() pages attempted
   offered: number; // raws normalized into items
   errors: number; // failed pages or toItem throws — never folded into "offered: 0"
-  /** Every sourceId the walk saw, normalized or not — planPrune's input. */
+  /** Of `errors`, the ones that were whole pages — the only kind that voids completeness. */
+  pageErrors: number;
+  /** Every sourceId the walk normalized — planPrune's input. A raw that toItem rejects (no
+   *  featured image, say) is not here, which is right: it was never a row, so planPrune cannot
+   *  name it; and if it once WAS a row and has since lost its image, it should go. */
   seenSourceIds: string[];
-  /** True iff the walk reached the end with no errors and no --quota bound: only then may the
-   *  absence of a row mean the post is gone. */
+  /** True iff the walk reached the end with no failed PAGE and no --quota bound: only then may
+   *  the absence of a row mean the post is gone. A single rejected post does not void this —
+   *  doorofperception has one permanently, and a walk that can never be complete is a --prune
+   *  that can never run. (Found on the first real run, 08-27-26.) */
   complete: boolean;
   items: NormalizedItem[];
 }
@@ -216,6 +222,7 @@ async function processWalker(
     walked: 0,
     offered: 0,
     errors: 0,
+    pageErrors: 0,
     seenSourceIds: [],
     complete: false,
     items: [],
@@ -232,6 +239,7 @@ async function processWalker(
       );
     } catch (err) {
       stats.errors++;
+      stats.pageErrors++;
       console.warn(
         `  ${sourceId}: walk FAILED at cursor ${cursor ?? "(start)"} — ${String(err)}`,
       );
@@ -256,7 +264,8 @@ async function processWalker(
     !(quotaItems && stats.offered >= quotaItems)
   );
 
-  stats.complete = reachedEnd && stats.errors === 0 && quotaItems === undefined;
+  stats.complete =
+    reachedEnd && stats.pageErrors === 0 && quotaItems === undefined;
   return stats;
 }
 
@@ -365,6 +374,7 @@ async function main() {
         walked: 0,
         offered: 0,
         errors: 1,
+        pageErrors: 1,
         seenSourceIds: [],
         complete: false,
         items: [],
