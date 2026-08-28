@@ -68,9 +68,9 @@ ls /Applications/Google\ Chrome.app >/dev/null && echo "chrome present"   # Ligh
 
 ### T1 — `scripts/bench-feed.ts`: the baseline, recorded
 
-- [ ] **1.1** New script (`"bench:feed": "bun run scripts/bench-feed.ts"` in `package.json`, alphabetical). Flags via the `flag()` helper pattern from `scripts/probe-feed.ts`: `--user <email>` (default: the first non-`ambit-%@example.com` user), `--pages N` (default 12). It (a) times `getFeedPage` for N consecutive pages via the returned cursor and prints min / p50 / p95 / max in ms; (b) separately times one `getTopicPools(<all topic ids>, { userId, anchor: new Date(), scoreFloor: 4, excludeIds: [] })` call and prints its wall time, the row count, and the approximate payload (`JSON.stringify(rows).length` in MB). Header comment: not a test; it hits the dev DB; numbers depend on the machine — always compare before/after on the same machine in the same minute.
-- [ ] **1.2** Run it; paste the output into `docs/PHASE7_WALKTHROUGH_7.3.md` (start the file now with the executed-against header) under **Baseline**. Expect p50 ≈ 140 ms and ~11k rows.
-- [ ] **1.3** `bun run check` green. Commit: `chore(scripts): bench-feed — feed page latency and pool payload`.
+- [x] **1.1** New script (`"bench:feed": "bun run scripts/bench-feed.ts"` in `package.json`, alphabetical). Flags via the `flag()` helper pattern from `scripts/probe-feed.ts`: `--user <email>` (default: the first non-`ambit-%@example.com` user), `--pages N` (default 12). It (a) times `getFeedPage` for N consecutive pages via the returned cursor and prints min / p50 / p95 / max in ms; (b) separately times one `getTopicPools(<all topic ids>, { userId, anchor: new Date(), scoreFloor: 4, excludeIds: [] })` call and prints its wall time, the row count, and the approximate payload (`JSON.stringify(rows).length` in MB). Header comment: not a test; it hits the dev DB; numbers depend on the machine — always compare before/after on the same machine in the same minute.
+- [x] **1.2** Run it; paste the output into `docs/PHASE7_WALKTHROUGH_7.3.md` (start the file now with the executed-against header) under **Baseline**. Expect p50 ≈ 140 ms and ~11k rows.
+- [x] **1.3** `bun run check` green. Commit: `chore(scripts): bench-feed — feed page latency and pool payload`.
 
 *Done = the walkthrough has a baseline block with p50/p95, rows, MB.*
 

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "bench:feed": "bun run scripts/bench-feed.ts",
     "build": "bun run --bun next build",
     "check": "bun run typecheck && bun run lint && bun run format:check && bun run test",
     "db:generate": "drizzle-kit generate",
