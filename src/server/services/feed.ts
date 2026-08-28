@@ -14,10 +14,10 @@
 import type { Item } from "~/server/db/items";
 import { TOPICS } from "~/server/config/topics";
 import topicGraphData from "~/server/config/topic-graph.json";
-import { drawWeight } from "~/server/db/items";
+import { drawWeight, getItemsByIds } from "~/server/db/items";
 import { getTasteKeywords } from "~/server/db/saves";
 import { getUserTopicWeights } from "~/server/db/topics";
-import { getTopicPools } from "~/server/db/feed";
+import { getTopicPools, type PoolItem } from "~/server/db/feed";
 import { hashSeed, mulberry32, weightedPick } from "./random";
 
 // ── the topic adjacency graph (SPEC §5.2, §9) ──────────────────────────────────────────────────
@@ -66,6 +66,24 @@ export const DEFAULT_KNOBS: FeedKnobs = {
 
 export type Tier = "CORE" | "DRIFT" | "JUMP";
 
+/**
+ * A composed card, as it leaves `composePage` — with the **projection** the engine composed from
+ * rather than the full row (Phase 7.3). `getFeedPage` swaps in the real `Item` before returning;
+ * see `FeedCard` below for why two types exist.
+ */
+export interface ComposedCard extends Omit<FeedCard, "item"> {
+  item: PoolItem;
+}
+
+/**
+ * **The card the router and the client see, unchanged since 4.1 — `item` is a whole `Item`.**
+ *
+ * Since 7.3 the engine no longer *composes* from whole items: pools carry a five-column
+ * `PoolItem` projection, because reading ten thousand candidates as full rows cost ~35 MB per
+ * page (db/feed.ts's `getTopicPools`). The twelve winners are hydrated by id at the end of
+ * `getFeedPage`, so this shape — and therefore the tRPC output and every component — is
+ * byte-for-byte what it was.
+ */
 export interface FeedCard {
   item: Item;
   tier: Tier;
@@ -292,12 +310,12 @@ export function pickJump(
  * out the last-shown source, but only keep that filter if it doesn't empty the pool.
  */
 function pickItem(
-  pool: Item[] | undefined,
+  pool: PoolItem[] | undefined,
   lastSource: string | null,
   knobs: Pick<FeedKnobs, "scoreFloor" | "scorePower" | "tagBoost">,
   tasteKeywords: string[],
   rng: () => number,
-): Item | null {
+): PoolItem | null {
   if (!pool || pool.length === 0) return null;
 
   let candidates = pool;
@@ -307,7 +325,7 @@ function pickItem(
   }
 
   const tasteSet = new Set(tasteKeywords.map((k) => k.toLowerCase()));
-  const entries: [Item, number][] = candidates.map((it) => {
+  const entries: [PoolItem, number][] = candidates.map((it) => {
     const sharedTags = it.aestheticTags.filter((t) =>
       tasteSet.has(t.toLowerCase()),
     ).length;
@@ -332,7 +350,7 @@ export interface ComposePageOpts {
   // by getFeedPage before calling this function — see the "slot plan first, pools second" note on
   // getFeedPage below for why this is a Map handed in, not a per-slot DB call the way the
   // prototype's interleaved loop did it.
-  pools: Map<string, Item[]>;
+  pools: Map<string, PoolItem[]>;
   rng: () => number;
   knobs: FeedKnobs;
   tasteKeywords?: string[];
@@ -351,7 +369,7 @@ export interface ComposePageOpts {
  * near-exhausted corpus) or, in the limit, zero (full exhaustion — getFeedPage's job to turn that
  * into "no next page," not this function's).
  */
-export function composePage(opts: ComposePageOpts): FeedCard[] {
+export function composePage(opts: ComposePageOpts): ComposedCard[] {
   const {
     weights,
     graph,
@@ -365,10 +383,10 @@ export function composePage(opts: ComposePageOpts): FeedCard[] {
   // Working copies of each topic's pool: an item drawn this page is spliced out immediately, so
   // it can never be drawn again on the same page (the in-page exclusion half of SPEC §9.4's "seen"
   // tracking — seen_item covers everything *before* this page, this covers *within* it).
-  const working = new Map<string, Item[]>();
+  const working = new Map<string, PoolItem[]>();
   for (const [topicId, items] of pools) working.set(topicId, [...items]);
 
-  const cards: FeedCard[] = [];
+  const cards: ComposedCard[] = [];
   const topicCounts = new Map<string, number>();
   let lastSource: string | null = null;
 
@@ -523,7 +541,7 @@ export async function getFeedPage(
     excludeIds: prev,
   });
 
-  const cards = composePage({
+  const composed = composePage({
     weights,
     graph: TOPIC_GRAPH,
     pools,
@@ -533,7 +551,7 @@ export async function getFeedPage(
     debug: debugEnabled,
   });
 
-  if (cards.length === 0) {
+  if (composed.length === 0) {
     return { cards: [], nextCursor: undefined };
   }
 
@@ -541,7 +559,22 @@ export async function getFeedPage(
   // acks what it received (`feed.markSeen`); see the FeedCursor design note above for why an
   // anchor that now *precedes* the page's own seen rows still excludes the right things.
   const servedAt = new Date();
-  const itemIds = cards.map((c) => c.item.id);
+  const itemIds = composed.map((c) => c.item.id);
+
+  // **Hydrate the winners** (Phase 7.3). `composePage` worked from the five-column `PoolItem`
+  // projection; the client needs whole rows, and this is the one query that fetches them — twelve,
+  // by id, instead of the ten thousand full rows the pools used to carry.
+  //
+  // An id missing from the map means the item was deleted between the pool query and this one
+  // (the e2e suite's own teardown is the only thing on this machine that does that). Drop the
+  // card rather than throw: a page one card short is a far better outcome for a reader than a
+  // failed request, and `prev`/`nextCursor` above still cover the ids that *were* drawn, so the
+  // next page excludes them either way.
+  const hydrated = await getItemsByIds(itemIds);
+  const cards: FeedCard[] = composed.flatMap((card) => {
+    const full = hydrated.get(card.item.id);
+    return full ? [{ ...card, item: full }] : [];
+  });
 
   const nextCursor = encodeCursor({
     v: 1,

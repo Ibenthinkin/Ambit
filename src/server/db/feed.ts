@@ -22,6 +22,18 @@ import type { Item } from "./items";
 import { item, seenItem } from "./schema";
 
 /**
+ * The slice of an `Item` the feed engine actually reads while composing a page: `topicId` keys the
+ * pool, `source` drives the no-adjacent-same-source constraint, and `curationScore` +
+ * `aestheticTags` are the whole of `drawWeight`'s input. Everything else on the row — title,
+ * summary, the 13 KB `body`, image and licence fields — is for *rendering*, and rendering only
+ * happens for the twelve cards that win (see `getTopicPools` below, and `getItemsByIds`).
+ */
+export type PoolItem = Pick<
+  Item,
+  "id" | "topicId" | "source" | "curationScore" | "aestheticTags"
+>;
+
+/**
  * One SELECT per page, not one per topic (SPEC §9's "slot plan first, pools second" — see
  * services/feed.ts's `getFeedPage`): every item across `topicIds` that's above `scoreFloor` and
  * that this user hasn't been served before `anchor` (`seen_item.served_at < anchor` — a strict
@@ -40,6 +52,17 @@ import { item, seenItem } from "./schema";
  * Postgres makes no ordering guarantee without an explicit `ORDER BY` — a query plan flip as the
  * table grows, a parallel scan, or a HOT update moving a tuple could otherwise reorder results
  * between two calls with identical inputs, silently changing which item a fixed rng draw lands on.
+ *
+ * **A projection, not whole rows** (Phase 7.3, decision D6). This used to be a bare `select()`,
+ * and on 08-28-26 that meant **9,848 full rows — about 35.8 MB — dragged out of Postgres to
+ * compose twelve cards**. Most of the weight was the `body` column: ~2,200 Wikipedia rows carry
+ * one, averaging 13 KB, and `composePage` never reads it. It reads exactly five fields, which is
+ * what `PoolItem` is. The ~12 winners are re-fetched whole afterwards, by id, in one query
+ * (`getItemsByIds` → `getFeedPage`) — twelve full rows instead of ten thousand.
+ *
+ * On this laptop, over a local socket, that was worth ~10 ms; the reason to do it anyway is the
+ * VPS in 8.1, where the database is a network hop away and 35 MB per page is the whole latency
+ * budget.
  */
 export async function getTopicPools(
   topicIds: string[],
@@ -49,8 +72,8 @@ export async function getTopicPools(
     scoreFloor: number;
     excludeIds: string[];
   },
-): Promise<Map<string, Item[]>> {
-  const pools = new Map<string, Item[]>();
+): Promise<Map<string, PoolItem[]>> {
+  const pools = new Map<string, PoolItem[]>();
   for (const topicId of topicIds) pools.set(topicId, []);
   if (topicIds.length === 0) return pools;
 
@@ -89,7 +112,13 @@ export async function getTopicPools(
   }
 
   const rows = await db
-    .select()
+    .select({
+      id: item.id,
+      topicId: item.topicId,
+      source: item.source,
+      curationScore: item.curationScore,
+      aestheticTags: item.aestheticTags,
+    })
     .from(item)
     .where(and(...conditions))
     .orderBy(asc(item.id));
