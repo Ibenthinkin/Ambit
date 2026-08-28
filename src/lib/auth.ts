@@ -109,4 +109,41 @@ export const auth = betterAuth({
   // different layer, from the one `allowedDevOrigins` fixes. Empty in production, where the only
   // legitimate origin is `baseURL` itself.
   trustedOrigins: devTrustedOrigins(3000),
+
+  // **The auth rate limiter, made an explicit choice rather than an inherited default.**
+  //
+  // Better Auth ships a rate limiter that is *disabled in development and enabled under
+  // `NODE_ENV=production`*, with a stricter built-in rule for the credential paths: **3 requests
+  // per 10 seconds per IP** on anything starting `/sign-in`, `/sign-up`, `/change-password` or
+  // `/change-email`. Nothing in this file used to say so, which meant the policy was invisible
+  // until something ran into it.
+  //
+  // Phase 7.1 ran into it, twice over, and both are worth writing down:
+  //
+  //  1. **The e2e suite cannot pass under it, and shouldn't have to.** `e2e/auth.spec.ts` signs in
+  //     four times in about twenty-five seconds — two of them seconds apart *inside one test*,
+  //     because proving a password reset took effect means showing the old password is rejected
+  //     and the new one works. Those requests are the assertions. (The suite's *avoidable*
+  //     sign-ins were removed separately: specs now reuse one session per file rather than signing
+  //     in per test — see e2e/support.ts's saveSession.)
+  //
+  //  2. **The default is dangerous for this app in production, for a reason unrelated to tests.**
+  //     The limiter keys on client IP, and Ambit sits behind Coolify's reverse proxy with no
+  //     trusted-proxy IP source configured — so every reader may land in one shared bucket. Three
+  //     sign-ins per ten seconds *for the entire beta* is an outage waiting for the evening two
+  //     people sign in at once. Deriving a real per-client IP is Phase 7.2's job; until then the
+  //     honest move is a limit that a shared bucket can survive.
+  //
+  // 20 per 10 seconds still stops credential stuffing cold (a real attacker wants thousands, not
+  // twenty), and sign-up sits behind the invite gate above regardless. Everything else — the
+  // 100-per-minute global default, and the 3-per-60s rule on password-reset mail, which no
+  // legitimate reader and no spec goes near — keeps Better Auth's defaults.
+  rateLimit: {
+    customRules: {
+      // Exact paths, not prefixes: customRules keys match the path exactly unless they contain a
+      // `*`, and email+password are the only credential endpoints this app exposes.
+      "/sign-in/email": { window: 10, max: 20 },
+      "/sign-up/email": { window: 10, max: 20 },
+    },
+  },
 });
