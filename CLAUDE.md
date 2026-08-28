@@ -26,7 +26,15 @@ cards). **7.1 shipped 08-27-26** — the Playwright suite (8 specs, 42 tests) ru
 suites run there too; `bun run e2e:prod` reproduces that configuration locally. Running against a
 production build is what found two bugs `next dev` had been hiding (Better Auth's production-only
 rate limiter, and the accent knob not surviving a reload) — both fixed in 7.1.
-**Next: 7.2.** See `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
+**7.2 shipped 08-28-26** — the security pass: every response now carries nosniff,
+`X-Frame-Options: DENY`, referrer and permissions policies, HSTS gated on an https
+`BETTER_AUTH_URL`, and an **enforced Content-Security-Policy with a per-request nonce**
+(`src/config/security-headers.js` builds every value; `next.config.js` sends the static ones and
+`src/proxy.ts` mints the nonce). SPEC §11 now ends every bullet in the test that proves it. Two
+findings: 41 corpus rows carry `<i>`/`<em>` markup in `title`/`summary` from four adapters
+(reader-visible, fix is one `htmlToText()` in `normalize.ts` — recorded, not made), and the CSP
+surfaced a dev-only hydration error from the way browsers blank a `<script nonce>` attribute.
+**Next: 7.3.** See `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
 `log.md` for the narrative of what's landed and why.
 
 ## Authoritative documents
