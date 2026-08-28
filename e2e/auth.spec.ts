@@ -1,13 +1,12 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test } from "@playwright/test";
 
-import { openAuthSheet, signIn, waitForHydration } from "./support";
+import { inviteUser, openAuthSheet, signIn, waitForHydration } from "./support";
 
 // The full email + password loop against a REAL dev server + Postgres + Mailpit (SPEC §12 names
-// these exact flows). Local-only, like e2e/home.spec.ts's own comment explains — CI has no
-// Postgres until Phase 7.1 adds it to the workflow. Uses a fresh `ambit-e2e-${Date.now()}@...`
-// address per run and shells out to the real `bun run invite` admin path (execFileSync), same as
+// these exact flows). Runs locally against the dev server and, since Phase 7.1, in CI against a
+// production build with a fresh Postgres and Mailpit of its own. Uses a fresh
+// `ambit-e2e-${Date.now()}@...` address per run and shells out to the real `bun run invite` admin
+// path (`inviteUser` in ./support), same as
 // docs/PHASE2_WALKTHROUGH_2.2.md's manual curl-driven verification, just automated — this
 // **leaves a real user row in the dev DB by design** (the timestamped email means reruns never
 // collide with a previous run's leftover user).
@@ -68,10 +67,8 @@ test.describe.serial("auth", () => {
   test("invited sign-up succeeds, completes onboarding, and lands on the real feed", async ({
     page,
   }) => {
-    // execFileSync (argument array, no shell) rather than execSync's shell-interpolated string —
-    // EMAIL is generated internally here, not user input, but there's no reason to route through
-    // a shell for a fixed two-argument command.
-    execFileSync("bun", ["run", "invite", EMAIL], { stdio: "pipe" });
+    // See support.ts's inviteUser() for why this goes through the real admin script.
+    inviteUser(EMAIL);
 
     await page.goto("/");
     await openAuthSheet(page);

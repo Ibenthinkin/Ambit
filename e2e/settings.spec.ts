@@ -1,13 +1,18 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 import { eq, inArray } from "drizzle-orm";
 
-import { openAuthSheet, signIn } from "./support";
+import {
+  connect,
+  inviteUser,
+  openAuthSheet,
+  signIn,
+  type Connection,
+} from "./support";
 
 // Phase 5.10's three screens — Profile, Profile Edit, Settings — against a real dev server and
-// Postgres. Same local-only caveat and "leaves a real user row behind by design" arrangement as
-// `feed.spec.ts` and `saved.spec.ts`, whose scaffolding this copies.
+// Postgres — locally the dev server, and since Phase 7.1 a production build with a fresh database
+// in CI. Same "leaves a real user row behind by design" arrangement as `feed.spec.ts` and
+// `saved.spec.ts`, whose scaffolding this shares (./support).
 //
 // **No seeded corpus here**, unlike saved.spec: nothing this file asserts depends on which items
 // exist. The collection tiles are about names and counts, and every count starts at zero. That
@@ -31,23 +36,13 @@ const PASSWORD = "correcthorse123";
  */
 const HANDLE = `e2e${RUN}`;
 
-/** See feed.spec.ts's `connect` for why this is dynamic: `~/env` throws without DATABASE_URL. */
-async function connect() {
-  process.loadEnvFile(new URL("../.env", import.meta.url));
-  const [{ db }, schema] = await Promise.all([
-    import("../src/server/db/client"),
-    import("../src/server/db/schema"),
-  ]);
-  return { db, ...schema };
-}
-
-type Connection = Awaited<ReturnType<typeof connect>>;
+// See support.ts's connect() for why the DB handle is loaded in `beforeAll`, not imported statically.
 let conn: Connection;
 
 test.describe.serial("settings", () => {
   test.beforeAll(async () => {
     conn = await connect();
-    execFileSync("bun", ["run", "invite", EMAIL], { stdio: "pipe" });
+    inviteUser(EMAIL);
   });
 
   test.afterAll(async () => {

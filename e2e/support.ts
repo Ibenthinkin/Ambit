@@ -1,4 +1,7 @@
+import { execFileSync } from "node:child_process";
+
 import { expect, type Page } from "@playwright/test";
+import { inArray, like } from "drizzle-orm";
 
 /**
  * Blocks until React has hydrated the landing page's form.
@@ -62,4 +65,74 @@ export async function signIn(page: Page, email: string, password: string) {
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL("/feed");
   await expect(page).toHaveURL(/\/feed/);
+}
+
+/** A 1×1 transparent GIF. Inline, so a tile's happy path never depends on a network hop — and,
+ *  because `image-tile.tsx` renders `data:` URLs directly, never on the image proxy either. */
+export const PIXEL =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+/**
+ * The DB handle every DB-touching spec loads in `beforeAll`.
+ *
+ * **Why the `.env` load is optional.** Playwright runs under plain Node, which — unlike Bun — does
+ * not read `.env` on its own, and `~/server/db/client` pulls in `~/env`, whose Zod validation
+ * throws at *import* time without `DATABASE_URL`. Locally the file supplies it. In CI there is no
+ * `.env` at all: the workflow puts the same variables straight into the job's environment, which
+ * `~/env` reads identically — so a missing file is simply not an error there. (`vitest.config.ts`
+ * makes the same accommodation for the same reason.) `process.loadEnvFile` throws on a missing
+ * file, hence the try/catch; if the variables are absent *both* ways, `~/env`'s own message says so.
+ *
+ * **Why the imports are dynamic.** A static import would be hoisted above the env load.
+ */
+export async function connect() {
+  try {
+    process.loadEnvFile(new URL("../.env", import.meta.url));
+  } catch {
+    // No .env (CI) — the job environment must already carry DATABASE_URL and the auth vars.
+  }
+  const [{ db }, schema] = await Promise.all([
+    import("../src/server/db/client"),
+    import("../src/server/db/schema"),
+  ]);
+  return { db, ...schema };
+}
+
+export type Connection = Awaited<ReturnType<typeof connect>>;
+
+/**
+ * Grants `email` an invite through the real admin path (`scripts/invite.ts`), exactly as
+ * docs/PHASE2_WALKTHROUGH_2.2.md did by hand. `execFileSync` with an argument array, no shell:
+ * the address is generated, not user input, but there's no reason to route it through one.
+ * Requires `bun` on PATH — true locally and under `oven-sh/setup-bun` in CI.
+ */
+export function inviteUser(email: string): void {
+  execFileSync("bun", ["run", "invite", email], { stdio: "pipe" });
+}
+
+/**
+ * Deletes every seeded item whose `sourceId` starts with `prefix`, children first (`seen_item`
+ * and `saved_item` both reference `item`).
+ *
+ * **Scoped to a prefix, never to `source: "e2e"`.** Every spec seeds under that same source, and
+ * `fullyParallel` runs the spec files in separate workers — so a cleanup that deleted the whole
+ * source would pull another spec's fixtures out from under it mid-run. That is exactly what
+ * happened when 5.8 added a third such spec: the feed came back empty and an item page 404'd, in
+ * two different files, for no reason visible in either. Callers pass their own prefix
+ * (`"e2e-feed-"`, `"e2e-item-"`, …) and nothing else.
+ */
+export async function cleanupSeeded(
+  conn: Connection,
+  prefix: string,
+): Promise<void> {
+  const { db, item, seenItem, savedItem } = conn;
+  const seeded = await db
+    .select({ id: item.id })
+    .from(item)
+    .where(like(item.sourceId, `${prefix}%`));
+  const ids = seeded.map((row) => row.id);
+  if (ids.length === 0) return;
+  await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
+  await db.delete(savedItem).where(inArray(savedItem.itemId, ids));
+  await db.delete(item).where(inArray(item.id, ids));
 }

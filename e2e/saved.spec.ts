@@ -1,13 +1,20 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
-import { and, eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
-import { openAuthSheet, signIn } from "./support";
+import {
+  cleanupSeeded,
+  connect,
+  inviteUser,
+  openAuthSheet,
+  PIXEL,
+  signIn,
+  type Connection,
+} from "./support";
 
-// The Saved screen (5.9) against a real dev server and Postgres — same local-only caveat and
-// same "leaves a real user row behind by design" arrangement as `feed.spec.ts`, whose scaffolding
-// this copies wholesale. Deliberately NOT modeled on `gallery.spec.ts`'s multi-screen doorway
+// The Saved screen (5.9) against a real server and Postgres — locally the dev server, and since
+// Phase 7.1 a production build with a fresh database in CI, which the seeded corpus below makes
+// possible. Same "leaves a real user row behind by design" arrangement as `feed.spec.ts`, whose
+// scaffolding this shares (./support). Deliberately NOT modeled on `gallery.spec.ts`'s multi-screen doorway
 // test (its long navigation chains are the environment-flaky part of that suite); each test here
 // keeps its chain short.
 //
@@ -20,23 +27,9 @@ const PASSWORD = "correcthorse123";
 /** The topics this spec's user picks in onboarding, and where its seeded items live. */
 const TOPICS = ["astronomy", "botany", "music"] as const;
 
-/** A 1×1 transparent GIF. Inline, so the image tiles never depend on a network hop. */
-const PIXEL =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-
 const SEED_COUNT = 12;
 
-/** See feed.spec.ts's `connect` for why this is dynamic: `~/env` throws without DATABASE_URL. */
-async function connect() {
-  process.loadEnvFile(new URL("../.env", import.meta.url));
-  const [{ db }, schema] = await Promise.all([
-    import("../src/server/db/client"),
-    import("../src/server/db/schema"),
-  ]);
-  return { db, ...schema };
-}
-
-type Connection = Awaited<ReturnType<typeof connect>>;
+// See support.ts's connect() for why the DB handle is loaded in `beforeAll`, not imported statically.
 let conn: Connection;
 
 test.describe.serial("saved", () => {
@@ -50,7 +43,7 @@ test.describe.serial("saved", () => {
           source: "e2e",
           // The spec-specific prefix is what the afterAll cleanup is scoped to — deleting by
           // `source: "e2e"` would pull other specs' fixtures out from under their parallel
-          // workers (see feed.spec.ts's afterAll for the incident that taught this).
+          // workers (see support.ts's cleanupSeeded() for the incident that taught this).
           sourceId: `e2e-saved-${i}`,
           type: i % 3 === 0 ? ("article" as const) : ("image" as const),
           title: `Saved E2E fixture ${i}`,
@@ -63,23 +56,13 @@ test.describe.serial("saved", () => {
       )
       .onConflictDoNothing();
 
-    execFileSync("bun", ["run", "invite", EMAIL], { stdio: "pipe" });
+    inviteUser(EMAIL);
   });
 
   test.afterAll(async () => {
-    const { db, item, seenItem, savedItem } = conn;
-
-    const seeded = await db
-      .select({ id: item.id })
-      .from(item)
-      .where(like(item.sourceId, "e2e-saved-%"));
-    const ids = seeded.map((row) => row.id);
-    if (ids.length > 0) {
-      // Children first — both tables carry a foreign key onto `item`.
-      await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
-      await db.delete(savedItem).where(inArray(savedItem.itemId, ids));
-      await db.delete(item).where(inArray(item.id, ids));
-    }
+    // Scoped to this spec's own prefix, never to `source: "e2e"` as a whole — see
+    // support.ts's cleanupSeeded() for the 5.8 incident that taught this.
+    await cleanupSeeded(conn, "e2e-saved-");
   });
 
   /** Gets the shared user onto a populated /feed (storage is per-test, so sign in each time). */
