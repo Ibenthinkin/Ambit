@@ -83,9 +83,9 @@ git checkout -b feat/8.1-deploy
 
 Four small, independently testable changes. Commit as one.
 
-- [ ] **1.1 `GET /api/health`** — new `src/app/api/health/route.ts`. Runs `select 1` through `db`, and `access(IMAGE_CACHE_DIR, W_OK)` (create the dir if missing, as `image-cache.ts` does). Returns `200 {"ok":true,"db":"ok","imageCache":"ok","commit":<SOURCE_COMMIT|null>}` or `503` with the failing field named. **Never echoes env, headers, or paths.** `dynamic = "force-dynamic"`, `Cache-Control: no-store`. Add it to `src/proxy.ts`'s matcher exclusions is **not** needed (the CSP header on a JSON response is harmless; leave the matcher alone). Vitest: one DB-backed test in the existing self-skipping style (`src/app/api/health/route.test.ts`) asserting the 200 shape, plus a unit test that a bad cache dir yields 503. Playwright: one line in `e2e/security.spec.ts`'s header sweep so `/api/health` carries the static headers too.
-- [ ] **1.2 `MAIL_FROM`** — `src/env.js`: `MAIL_FROM: z.string().min(1).default("Ambit <noreply@ambit.benreilly.io>")` (+ `runtimeEnv`); `mailer.ts:56` reads it; `.env.example` documents it beside `RESEND_API_KEY` ("must be an address on the Resend-verified sending domain"). Extend the existing mailer test if one asserts the from-address; otherwise add one.
-- [ ] **1.3 Better Auth client IP behind Cloudflare (D11)** — `src/lib/auth.ts`: add
+- [x] **1.1 `GET /api/health`** — new `src/app/api/health/route.ts`. Runs `select 1` through `db`, and `access(IMAGE_CACHE_DIR, W_OK)` (create the dir if missing, as `image-cache.ts` does). Returns `200 {"ok":true,"db":"ok","imageCache":"ok","commit":<SOURCE_COMMIT|null>}` or `503` with the failing field named. **Never echoes env, headers, or paths.** `dynamic = "force-dynamic"`, `Cache-Control: no-store`. Add it to `src/proxy.ts`'s matcher exclusions is **not** needed (the CSP header on a JSON response is harmless; leave the matcher alone). Vitest: one DB-backed test in the existing self-skipping style (`src/app/api/health/route.test.ts`) asserting the 200 shape, plus a unit test that a bad cache dir yields 503. Playwright: one line in `e2e/security.spec.ts`'s header sweep so `/api/health` carries the static headers too.
+- [x] **1.2 `MAIL_FROM`** — `src/env.js`: `MAIL_FROM: z.string().min(1).default("Ambit <noreply@ambit.benreilly.io>")` (+ `runtimeEnv`); `mailer.ts:56` reads it; `.env.example` documents it beside `RESEND_API_KEY` ("must be an address on the Resend-verified sending domain"). Extend the existing mailer test if one asserts the from-address; otherwise add one.
+- [x] **1.3 Better Auth client IP behind Cloudflare (D11)** — `src/lib/auth.ts`: add
   ```ts
   advanced: {
     ipAddress: {
@@ -98,15 +98,15 @@ Four small, independently testable changes. Commit as one.
   },
   ```
   and rewrite the "Phase 8.1 action" paragraph of the D4 comment block (L165-168) to record what was done and point at T6's proof. Keep `trustedProxies` unset. Unit test in `src/lib/auth.test.ts` (or wherever the auth options are asserted): production config names `cf-connecting-ip`; non-production leaves it undefined. `rate-limit.ts`'s `trustedClientIp` stays as is (last hop) — add a one-line test case "Cloudflare-appended chain `spoofed, 203.0.113.9` → `203.0.113.9`" if not already present.
-- [ ] **1.4 Serwist precache revision** — `route.ts:13-15` becomes `process.env.SOURCE_COMMIT || spawnSync(...).stdout?.trim() || crypto.randomUUID()`, comment updated (Coolify sets `SOURCE_COMMIT` at runtime; a container has no `.git`; the empty-string case).
-- [ ] **1.5** `bun run check` green. **Commit:** `feat(deploy): /api/health, MAIL_FROM, Cloudflare client IP, SOURCE_COMMIT precache revision`.
+- [x] **1.4 Serwist precache revision** — `route.ts:13-15` becomes `process.env.SOURCE_COMMIT || spawnSync(...).stdout?.trim() || crypto.randomUUID()`, comment updated (Coolify sets `SOURCE_COMMIT` at runtime; a container has no `.git`; the empty-string case).
+- [x] **1.5** `bun run check` green. **Commit:** `feat(deploy): /api/health, MAIL_FROM, Cloudflare client IP, SOURCE_COMMIT precache revision`.
 
 *Done = `check` green; `curl -s localhost:3000/api/health` on the dev server returns the 200 shape; the from-address is no longer a literal.*
 
 ### T2 — Code: the container, proven locally (agent; ~1.5 h)
 
-- [ ] **2.1 `.dockerignore`** — `node_modules`, `.next`, `.cache`, `.playwright`, `.git`, `.github`, `.superpowers`, `.claude`, `**/.env`, `**/.env.*`, `!.env.example`, `docs`, `e2e`, `phase0`, `*.zip`, `OVERNIGHT_STATUS.md`, `log.md`, `tsconfig.tsbuildinfo`, `start-database.sh`. **`.env` exclusion is load-bearing** — a local `docker build` would otherwise bake the Mac's secrets into an image layer. (`phase0/` is not needed at runtime: the topic graph the feed reads is `src/server/config/topic-graph.json`.)
-- [ ] **2.2 `Dockerfile`** (root), commented in the archive's teaching style:
+- [x] **2.1 `.dockerignore`** — `node_modules`, `.next`, `.cache`, `.playwright`, `.git`, `.github`, `.superpowers`, `.claude`, `**/.env`, `**/.env.*`, `!.env.example`, `docs`, `e2e`, `phase0`, `*.zip`, `OVERNIGHT_STATUS.md`, `log.md`, `tsconfig.tsbuildinfo`, `start-database.sh`. **`.env` exclusion is load-bearing** — a local `docker build` would otherwise bake the Mac's secrets into an image layer. (`phase0/` is not needed at runtime: the topic graph the feed reads is `src/server/config/topic-graph.json`.)
+- [x] **2.2 `Dockerfile`** (root), commented in the archive's teaching style:
   ```dockerfile
   FROM oven/bun:1.4.0-debian AS base
   WORKDIR /app
@@ -146,8 +146,8 @@ Four small, independently testable changes. Commit as one.
   CMD ["sh", "-c", "bun run db:migrate && bun run db:seed && bun run --bun next start"]
   ```
   Check whether `next build` needs `src/config/*.js` and `src/env.js` — they're under `src/`, so yes, copied. If the build stage complains about a file outside these `COPY`s, add it rather than widening to `COPY . .` in runtime.
-- [ ] **2.3 CI parity** — `.github/workflows/ci.yml`: both `setup-bun@v2` steps get `bun-version: 1.4.0` (CI currently floats to latest; the image is pinned).
-- [ ] **2.4 Local boot proof against an empty database** (Docker Desktop, arm64 image — fine for the proof; Coolify builds amd64 on the host):
+- [x] **2.3 CI parity** — `.github/workflows/ci.yml`: both `setup-bun@v2` steps get `bun-version: 1.4.0` (CI currently floats to latest; the image is pinned).
+- [x] **2.4 Local boot proof against an empty database** (Docker Desktop, arm64 image — fine for the proof; Coolify builds amd64 on the host):
   ```bash
   docker compose exec postgres psql -U ambit -c 'create database ambit_docker'
   docker build --build-arg BETTER_AUTH_URL=https://ambit.benreilly.io -t ambit:local .
@@ -166,10 +166,12 @@ Four small, independently testable changes. Commit as one.
   docker compose exec postgres psql -U ambit -c 'drop database ambit_docker'
   ```
   **Fallback (D5):** if `bun run --bun next start` misbehaves inside the container but `next start` under Node doesn't, the image installs Node 24 LTS in `runtime` and `CMD` uses `bun run start` without `--bun` for the server only — record it as a finding; do not switch to standalone in this phase. If `sharp` fails to load, the fallback is `oven/bun:1.4.0` (full Debian) — same glibc, more libs.
-- [ ] **2.5** `bun run check` green (Vitest sees no new tests here). **Commit:** `feat(deploy): Dockerfile + .dockerignore — CI's proven boot path in a container; pin Bun 1.4.0 in CI`.
-- [ ] **2.6** Push the branch; wait for both CI jobs green (the `e2e` job is the migrate/seed/boot rehearsal on amd64). Merge to `main` (`--no-ff`) and push — Coolify deploys from `main`.
+- [x] **2.5** `bun run check` green (Vitest sees no new tests here). **Commit:** `feat(deploy): Dockerfile + .dockerignore — CI's proven boot path in a container; pin Bun 1.4.0 in CI`.
+- [x] **2.6** Push the branch; wait for both CI jobs green (the `e2e` job is the migrate/seed/boot rehearsal on amd64). Merge to `main` (`--no-ff`) and push — Coolify deploys from `main`.
 
 *Done = a container built from `main` boots from an empty database to `healthy` on the Mac; HSTS is present because the build arg was https; `docker exec … bun run ingest` works inside the image.*
+
+> **Execution state (08-28-26):** T1 and T2 are complete and merged to `main` (`59c76e5`), both CI jobs green. A pre-flight finding not in the plan: `main`'s `check` job had been red since the 7.3 merge (unit tests importing `~/env`, which validates at import time, in a job with no environment) — fixed in `4f1af6a` before T1. Two corrections to the plan's text: a feature-branch push triggers no CI (the workflow runs on `main` pushes and pull requests), so T2.6 needed PR #19; and `docker build` can fail with `DeadlineExceeded` loading the base image's metadata, which is a transient registry timeout, not a wrong tag. **Execution resumes at T3, which needs Ben.**
 
 ### T3 — 🖐️ Coolify: database + application on VM 202 (Ben with the agent; ~1 h)
 
