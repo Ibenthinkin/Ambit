@@ -138,6 +138,34 @@ export const auth = betterAuth({
   // twenty), and sign-up sits behind the invite gate above regardless. Everything else — the
   // 100-per-minute global default, and the 3-per-60s rule on password-reset mail, which no
   // legitimate reader and no spec goes near — keeps Better Auth's defaults.
+  //
+  // ---
+  //
+  // **Where the client IP comes from, and why 7.2 adds no proxy code (decision D4, 08-27-26).**
+  //
+  // The limiter above is only as good as the IP it keys on, and 7.1 left an open worry: behind
+  // Coolify's Traefik, would every reader share one bucket? The answer, checked against Better
+  // Auth's own source and changelog on 08-27-26 (installed here: 1.6.25):
+  //
+  //  * Better Auth reads the client IP from `advanced.ipAddress.ipAddressHeaders`, which defaults
+  //    to `x-forwarded-for`.
+  //  * **Since 1.6.21 it refuses to trust a comma-separated chain.** A multi-hop
+  //    `X-Forwarded-For: a, b, c` is treated as untrusted (no IP) rather than believed; only a
+  //    single-valued header is used, unless `advanced.ipAddress.trustedProxies` is set, in which
+  //    case it walks the chain right-to-left past the addresses you named.
+  //  * Coolify's Traefik strips inbound `X-Forwarded-*` from untrusted peers and sets its own, so
+  //    what reaches the app in production is the single-valued form — the case that works.
+  //  * Ambit's own limiter (`services/rate-limit.ts`'s `trustedClientIp`) takes the **last** hop
+  //    for exactly the same reason: it is the one segment a trusted proxy appended rather than
+  //    attacker-controlled input. Both limiters therefore agree on who a caller is.
+  //
+  // So there is nothing to configure here today, and `trustedProxies` stays unset: setting it
+  // requires knowing the proxy's real address, which only the deployed environment can tell us.
+  //
+  // **Phase 8.1 action:** behind the deployed proxy, make one real request to `/sign-in/email`
+  // from two different clients and confirm the limit applies per client rather than per proxy. If
+  // the header arrives multi-valued (Traefik reconfigured, or a CDN added in front), set
+  // `advanced.ipAddress.trustedProxies` to the proxy's address — that is the whole fix.
   rateLimit: {
     customRules: {
       // Exact paths, not prefixes: customRules keys match the path exactly unless they contain a

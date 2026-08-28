@@ -2,6 +2,7 @@ import "~/styles/globals.css";
 
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { type Metadata, type Viewport } from "next";
+import { headers } from "next/headers";
 
 import { AccentSync } from "~/components/accent-sync";
 import { SwCleanup } from "~/components/dev/sw-cleanup";
@@ -33,9 +34,16 @@ export const viewport: Viewport = {
   themeColor: "#161411",
 };
 
-export default function RootLayout({
+// **Async, and that is load-bearing twice over** (Phase 7.2). `headers()` is a dynamic API, so
+// reading it here does two things at once: it hands us the per-request CSP nonce that `proxy.ts`
+// minted, and — because this is the *root* layout — it opts every route in the app into on-demand
+// rendering. Both are required by the policy: a nonce that was baked into static HTML at build
+// time would be the same nonce for every visitor, which is the same as having no nonce at all.
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     // `data-accent="indigo"` is what the SERVER always renders — the default accent. Settings'
     // picker (5.10) stores the reader's choice in `localStorage` and the inline script below
@@ -64,8 +72,25 @@ export default function RootLayout({
             it a hand-edited storage entry writes arbitrary text into an attribute selector.
 
             `dangerouslySetInnerHTML` is how Next renders an inline script at all — the string is a
-            constant written here, with nothing interpolated into it. */}
+            constant written here, with nothing interpolated into it. (`no-dangerous-html.test.ts`
+            asserts that this is the app's only use of it, and that this string stays a constant.)
+
+            The `nonce` is Phase 7.2's: under `script-src 'self' 'nonce-…' 'strict-dynamic'` an
+            inline script without one simply does not run, and this one running before paint is the
+            entire feature. It comes from `proxy.ts` via the `x-nonce` request header. */}
         <script
+          nonce={nonce}
+          // **The nonce is why this needs `suppressHydrationWarning`.** The CSP spec tells
+          // browsers to *blank the `nonce` content attribute* once the element is parsed, so that
+          // a script on the page can never read it back out of the DOM and forge one. React's
+          // dev-only hydration check doesn't know that: it compares the server's
+          // `nonce="MzczM…"` against the browser's now-empty attribute and logs a mismatch on
+          // every page load. (The IDL property still holds the real value, and the script has
+          // already run by then — nothing is actually wrong.) Production builds don't log it, but
+          // three e2e specs assert "no console errors" against the dev server, and they were
+          // right to fail: an unexplained hydration error is exactly what they exist to catch.
+          // Scoped to this one element, like the `suppressHydrationWarning` on <html> above.
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `try{var a=localStorage.getItem("ambit.accent.v1");if(a==="indigo"||a==="amber"||a==="green"||a==="red"){document.documentElement.dataset.accent=a}}catch(e){}`,
           }}

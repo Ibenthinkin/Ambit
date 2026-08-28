@@ -50,5 +50,72 @@ describe.skipIf(!process.env.DATABASE_URL)(
         );
       expect(rows).toEqual([]);
     });
+
+    // **Phase 7.2, T5/D7 — the other half of "no source HTML is ever rendered".**
+    //
+    // `no-dangerous-html.test.ts` proves the app never *renders* stored text as markup. This
+    // proves the stored text isn't markup in the first place, which is the belt to that
+    // suspenders: every adapter is supposed to normalise to plain text (blogs go through
+    // `htmlToText()` at ingest — normalize.ts), and a regression there would be silent, because a
+    // tag rendered as a text node looks like an oddly-punctuated caption rather than a bug.
+    //
+    // `~ '<[a-zA-Z/][^>]*>'` is deliberately narrow: it wants `<p>`, `<a href=…>`, `</div>` — not
+    // a bare `<` in "a < b", and not the `<3` in a caption.
+    //
+    // **This test ran on 08-28-26 and found 55 rows. Both exclusions below are that finding**
+    // (D7: record it, exclude it, do not rewrite adapters overnight):
+    //
+    //  * **`title`/`summary` — 41 rows of genuinely stored markup**, all of it `<i>`/`<em>`
+    //    italics that the source APIs put in the field and the adapters passed through verbatim:
+    //    smithsonian 35 titles, met 2 titles, wellcome 2 titles + 1 summary, nasa-images 1
+    //    summary. Not a security bug — nothing renders them as HTML, which is the point of the
+    //    other test — but a *reader-visible* one: the item page shows the literal characters, e.g.
+    //    `Sword Guard (<i>Tsuba</i>) With the Motif of Sunrise Over the Ocean`. The fix is one
+    //    `htmlToText()` call in `normalize.ts` plus a re-normalise of the existing rows, which is
+    //    an adapter change and therefore not 7.2's. See docs/PHASE7_WALKTHROUGH_7.2.md.
+    //  * **`body` — 14 wikipedia rows that are false positives.** Wikipedia has articles *about*
+    //    markup, and their plain-text extracts legitimately contain the strings `<section>`,
+    //    `<ref>`, `<b>` and `<ul>` as prose. Nothing is stored as HTML there; the regex simply
+    //    cannot tell an article about a tag from a tag. Wikipedia is also the only source that
+    //    carries a `body` at all, and blog bodies are covered by the test above.
+    //
+    // What is left is still worth running: every *other* source — aic, cma, loc, and any source a
+    // later phase adds — must keep all three fields tag-free, and this is what says so.
+    it("no stored title, summary or body contains an HTML tag", async () => {
+      const { db } = await import("~/server/db/client");
+      const { sql } = await import("drizzle-orm");
+
+      /** Sources whose stored italics are the 08-28-26 finding above, not a new regression. */
+      const KNOWN_MARKUP_IN_TITLES = [
+        "smithsonian",
+        "met",
+        "wellcome",
+        "nasa-images",
+      ];
+
+      const offenders = await db.execute<{
+        source: string;
+        id: string;
+        field: string;
+      }>(sql`
+        select source, id, 'title' as field from item
+          where title ~ '<[a-zA-Z/][^>]*>'
+            and source not in ${KNOWN_MARKUP_IN_TITLES}
+        union all
+        select source, id, 'summary' as field from item
+          where summary ~ '<[a-zA-Z/][^>]*>'
+            and source not in ${KNOWN_MARKUP_IN_TITLES}
+        union all
+        select source, id, 'body' as field from item
+          where body ~ '<[a-zA-Z/][^>]*>'
+            and source <> 'wikipedia'
+      `);
+
+      const rows = Array.from(offenders);
+      // Printed, not just counted: the whole value of a finding here is knowing which adapter and
+      // which field, and a bare row count sends the next reader back to the psql prompt.
+      if (rows.length > 0) console.error("stored HTML found:", rows);
+      expect(rows).toEqual([]);
+    });
   },
 );

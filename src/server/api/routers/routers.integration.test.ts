@@ -968,4 +968,107 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     });
   });
+  // **Phase 7.2, T5/D8 — the authorization boundary, proven with two real users.**
+  //
+  // SPEC §11's line is "all user-scoped queries filter by `userId`". Every router does it by
+  // pulling `ctx.user.id` straight through to a repo call, and reading the code is how that has
+  // been checked until now. This describe checks it the other way round: give two users a real
+  // database, have one of them do things, and assert the other sees none of it. A repo function
+  // that ever forgot its `userId` predicate would fail here rather than in production.
+  //
+  // Runs last on purpose — it reads the save/topic state the describes above built, and only adds
+  // to it. `otherUserId` (B below) is the same second user 5.5's cross-collection test introduced.
+  describe("7.2 — user isolation", () => {
+    it("a save by A is invisible to B, and B cannot unsave it", async () => {
+      const a = createCaller(authedContext(userId));
+      const b = createCaller(authedContext(otherUserId));
+
+      // B is **not** a blank slate by the time this runs — the 6.1 describe above drives its
+      // saves and topic weights as B. So every assertion here is against B's own state *before*
+      // A acts, which is the honest form of the question anyway: did anything A did move?
+      const bCountBefore = await b.saves.count();
+
+      const [aArticles] = await a.saves.collections();
+      await a.saves.saveToCollection({
+        itemId: itemThreeId,
+        collectionId: aArticles!.id,
+      });
+
+      const bList = await b.saves.list();
+      expect(bList.map((i) => i.id)).not.toContain(itemThreeId);
+      expect(await b.saves.count()).toBe(bCountBefore);
+      expect(await b.saves.forItem({ itemId: itemThreeId })).toMatchObject({
+        saved: false,
+      });
+
+      // `unsave` is a delete scoped by `(userId, itemId)`, so B's attempt is a silent no-op rather
+      // than an error — the assertion that matters is the one after it.
+      await b.saves.unsave({ itemId: itemThreeId });
+      const aList = await a.saves.list();
+      expect(aList.map((i) => i.id)).toContain(itemThreeId);
+    });
+
+    it("A's topic selection leaves B's empty", async () => {
+      const a = createCaller(authedContext(userId));
+      const b = createCaller(authedContext(otherUserId));
+
+      // Same reason as above: B already has topicA, from the 6.1 saves that bumped its weight.
+      const bTopicsBefore = await b.topics.mine();
+
+      await a.topics.setMine({ topicIds: [topicA, topicB] });
+
+      expect(await a.topics.mine()).toEqual(
+        expect.arrayContaining([topicA, topicB]),
+      );
+      // B never picked topicB, and A picking it must not put it there.
+      expect(await b.topics.mine()).toEqual(bTopicsBefore);
+      expect(await b.topics.mine()).not.toContain(topicB);
+    });
+
+    it("user.me answers with the caller's own row and nothing of A's", async () => {
+      const a = createCaller(authedContext(userId));
+      const b = createCaller(authedContext(otherUserId));
+
+      const aMe = await a.user.me();
+      const bMe = await b.user.me();
+
+      expect(bMe.id).toBe(otherUserId);
+      expect(bMe.email).toBe(`${otherUserId}@example.com`);
+      expect(bMe.id).not.toBe(aMe.id);
+      expect(bMe.email).not.toBe(aMe.email);
+      // A set a handle in the 5.10 describe above; B never did, so this also proves the profile
+      // read is not falling back to "some user row".
+      expect(bMe.name).toBe("Test router other user");
+      expect(bMe.handle).not.toBe(aMe.handle);
+    });
+
+    // **Seen-ness is per reader.** `seen_item` is the one table that decides what the feed is
+    // *allowed* to show, so a missing `userId` filter there would be the worst of these bugs: one
+    // reader's browsing would silently burn everyone else's corpus. Seeded directly rather than by
+    // paging A's feed, so the assertion is about exactly one row.
+    it("A's seen rows do not exclude anything from B's pools", async () => {
+      const { db } = await import("~/server/db/client");
+      const { seenItem } = await import("~/server/db/schema");
+      const { getTopicPools } = await import("~/server/db/feed");
+
+      await db
+        .insert(seenItem)
+        .values({ userId, itemId: itemFourId, servedAt: new Date() })
+        .onConflictDoNothing();
+
+      const opts = {
+        anchor: new Date(),
+        scoreFloor: 4,
+        excludeIds: [] as string[],
+      };
+      const aPools = await getTopicPools([topicA], { ...opts, userId });
+      const bPools = await getTopicPools([topicA], {
+        ...opts,
+        userId: otherUserId,
+      });
+
+      expect(aPools.get(topicA)!.map((i) => i.id)).not.toContain(itemFourId);
+      expect(bPools.get(topicA)!.map((i) => i.id)).toContain(itemFourId);
+    });
+  });
 });

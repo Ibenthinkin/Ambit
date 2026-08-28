@@ -5,6 +5,66 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-28-26 Fri]] — Phase 7.2 executed unattended: the security pass, and 41 rows of markup nobody had looked for
+
+**Shipped:** `feat/7.2-security`, T1–T7, six commits, run start-to-finish by the overnight Ralph
+loop against `docs/PHASE7_OVERNIGHT.md`. The app has security headers for the first time —
+nosniff, `X-Frame-Options: DENY`, `Referrer-Policy`, a `Permissions-Policy` that locks only what
+the app never uses, HSTS gated on an https `BETTER_AUTH_URL`, and an **enforced CSP with a
+per-request nonce and `'strict-dynamic'`**. Every value comes from one pure module
+(`src/config/security-headers.js`), consumed by `next.config.js` for the static headers and by
+`src/proxy.ts` for the CSP, which is the only place a nonce can be minted. SPEC §11 was rewritten
+so every bullet ends in the test that proves it. `check` 774 → 797 tests; `e2e:prod` 42 → 46;
+`e2e` 41 → 45.
+
+**D2 was never needed.** The plan carried a written retreat — drop the nonce, fall back to
+`script-src 'unsafe-inline'` — for exactly the case where an unattended run can't debug a red CSP.
+The enforced policy was green on `e2e:prod` the first time it ran. The negative control the plan
+asked for was done and undone: deleting the CSP line from `proxy.ts` fails `security.spec.ts` with
+`no CSP on /`.
+
+**Two findings, both from tests that had never existed before:**
+
+1. **41 corpus rows carry stored markup.** The new DB invariant asks whether any stored `title`,
+   `summary` or `body` contains an HTML tag. Four adapters pass their source's italics straight
+   through: smithsonian 35 titles, met 2, wellcome 2 + 1 summary, nasa-images 1 summary. Not a
+   security bug — nothing renders source text as HTML, which is what the new source-scan test
+   guarantees — but reader-visible right now: *Sword Guard (`<i>`Tsuba`</i>`) With the Motif of
+   Sunrise Over the Ocean*. The fix is one `htmlToText()` call in `normalize.ts` plus a
+   re-normalise of existing rows, which is an adapter change and therefore not this phase's (D7:
+   record it, don't rewrite adapters overnight). A further 14 wikipedia `body` hits are **false
+   positives** — articles *about* markup, whose prose contains `<section>`, `<ref>`, `<b>`, `<ul>`.
+   The invariant excludes exactly those, per field, with both reasons in the test.
+2. **The CSP surfaced a dev-only hydration error.** Browsers blank a `<script nonce>` content
+   attribute once parsed — that is the CSP spec, so a script on the page can never read a nonce
+   back out of the DOM and forge one. React's dev-only hydration check doesn't know that, sees the
+   server's value against an empty attribute, and logs a mismatch on every load; four "renders
+   without console errors" specs went red on the dev server while `e2e:prod` stayed green.
+   `suppressHydrationWarning`, scoped to that one element, with the reason written down.
+
+**Decisions:** the CSP is enforced rather than report-only, with a nonce (D1); `style-src` keeps
+`'unsafe-inline'` deliberately — fifteen components set `style={{…}}` and blocking inline *styles*
+buys nothing against script injection; **no IP-trust code was needed** (D4) — Better Auth ≥ 1.6.21
+already refuses a multi-hop `X-Forwarded-For`, and Ambit's own `trustedClientIp()` takes the last
+hop for the same reason, so both limiters agree; HSTS is gated on the URL's scheme, never on
+`NODE_ENV`, because CI runs a production build over plain http (D5).
+
+**Also worth knowing:** reading `headers()` in the root layout is what makes the nonce
+per-request, and it makes every route render on demand — three previously static routes
+(`/~offline`, `/_not-found`, `/dev/tokens`) are now `ƒ`, and no `await connection()` was needed.
+Cookie flags were read off a real production sign-up rather than the docs:
+`HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`, with `Secure` correctly absent over http.
+
+**Open / next:** the 41 markup rows (one `htmlToText()` + a re-normalise); 8.1 confirms per-client
+rate limiting and a `Secure` cookie behind the deployed proxy. And **the e2e suite is flaky on this
+box in a way worth fixing**: `feed.spec.ts`'s `afterAll` `cleanupSeeded` dies on
+`seen_item_item_id_item_id_fk` when an in-flight `feed.markSeen` lands a row after the teardown
+transaction deleted them — the transaction comment in `support.ts` says this was supposed to be
+fixed, and it isn't. Roughly three failures across eight full runs tonight, never the same test
+twice, always green on a re-run. 7.3 is next.
+
+*Session spend: 28.74M tok (in 479 · out 174.9k · cache r 27.77M / w 789.8k) · ~$24.78 · opus-5 + opus-4-7 · 00:10→00:44*
+
 ### [[08-27-26 Thu]] — Phase 6.3 executed: corpus-walk lane, doorofperception live as 318 link cards; D2 staged to the attended step
 
 **Shipped:** `feat/6.3-blog-adapters`, T1–T4 from the prior session plus T5–T12 (Ambit side)
