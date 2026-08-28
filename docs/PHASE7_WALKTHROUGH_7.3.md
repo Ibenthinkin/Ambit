@@ -346,3 +346,32 @@ written down rather than a fabricated figure. It is worth one pass in a real, no
   deliberately not plumbed into the upstream fetch — a reader scrolling past would otherwise cancel
   the one fetch this image was ever going to cost.
 - **`img:warm --rate 1` is inside LoC's budget; a burst is not.** 372 images, zero 429s.
+
+## A postscript on the e2e flake, now diagnosed
+
+`e2e/gallery.spec.ts:248` ("a gallery session spends none of the reader's corpus") failed twice in a
+row on the final gate, and the error is worth writing down because 7.2 recorded the same signature
+without a cause:
+
+```
+Error: expect(received).toBe(expected)   // seen_item rows for this user
+Expected: 12
+Received: 10
+```
+
+**The count goes *down*.** The test asserts a signed-out gallery session adds no `seen_item` rows;
+what actually happened is that two existing rows were *deleted* mid-test. Every spec seeds under
+`source: "e2e"`, `fullyParallel` runs them in separate workers, and the feed draws from the whole
+corpus — so the gallery user's feed page can legitimately be served another spec's fixtures, and
+when *that* spec's `afterAll` runs `cleanupSeeded`, it deletes those items and the gallery user's
+`seen_item` rows along with them.
+
+That is the same root cause as the `seen_item_item_id_item_id_fk` teardown failure 7.2 recorded, seen
+from the other side: one spec's cleanup reaching into another spec's state. It is a **harness**
+defect, not an app one, and it is unrelated to this phase's changes — 7.2 saw it before `getFeedPage`
+hydrated anything. Confirmed by running `gallery.spec.ts` alone: **5/5 green**, repeatedly, and the
+full suite green on the next run.
+
+A fix belongs in `e2e/support.ts` — either seed each spec under its own `source` rather than a shared
+`"e2e"`, or have `cleanupSeeded` scope its `seen_item`/`saved_item` deletes to the spec's own user —
+and is worth doing before it costs another phase an evening.

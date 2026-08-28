@@ -5,6 +5,72 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-28-26 Fri]] — Phase 7.3 executed unattended: proxy-with-cache settled, and 35 MB the feed had been dragging per page
+
+**Shipped:** `feat/7.3-images-perf`, T1–T6, six commits, second half of the overnight Ralph run.
+**BUILD_PLAN's two-phase-old ⚖️ image gate is closed: proxy-with-cache.** `/api/img/[itemId]` now
+fills a disk cache and serves ≤1600px WebP, so a source image is fetched from its museum **once,
+ever** (`src/server/services/image-cache.ts`; `bun run img:warm` spends those fetches politely, per
+host, skipping what is cached and abandoning a host after three consecutive 429s). `check` 797 →
+820 tests; `e2e:prod` still 46.
+
+**The number nobody was looking for.** T2 was filed as hygiene — the feed was already at 138 ms
+against a 300 ms bar, so the plan expected the projection to matter only on a VPS. It was the
+phase's biggest win: `getTopicPools` did a bare `select()` and was dragging **9,848 full rows,
+about 35.8 MB**, out of Postgres to compose twelve cards, most of it the `body` column
+`composePage` never reads. Pools now carry a five-column `PoolItem` projection and `getFeedPage`
+hydrates the winners by id. **p50 138 → 22 ms, p95 174 → 51 ms, payload 35.8 → 1.6 MB**, with
+`FeedCard` and therefore every client byte-for-byte unchanged. The plan measured latency in its
+research and concluded there was nothing to win; it never measured payload.
+
+**Two real bugs, both found by running the thing rather than reading it.** The first `img:warm`
+against LoC died 50 images in: `AbortSignal.timeout` covers the **body read** as well as the fetch,
+and that rejection was escaping `fillCache` unwrapped — as a `DOMException`, which **is not
+`instanceof Error` under Bun**, so the obvious timeout check both mislabelled it and passes under
+Node, where the unit tests run. Through the route that would have been a 500 instead of a 502, on
+exactly the slow-museum morning the cache exists for. Both halves fixed and tested. Separately, the
+in-flight map was cleared in a `.finally()` whose derived promise nobody awaited — every failed fill
+would have raised an unhandled rejection; its own unit test caught that before it reached a log.
+
+**The warm run answered a 6.2 question.** 372 LoC images at 1/s: **zero 429s**, four timeouts. So
+`tile.loc.gov`'s unpublished budget tolerates a steady trickle and it was the *burst* that tripped
+it in 6.2 — and it is a one-time cost now regardless. Cache measures 62 KB a file, ~0.67 GB
+projected for the whole corpus, half the plan's estimate.
+
+**Lighthouse** (throttled mobile, production build): `/` 87 perf / 95 a11y / 96 BP; `/feed` 91 →
+**90 perf, 100 BP, Speed Index 1.6 s → 0.9 s** after `decoding="async"` on tiles, `fetchPriority`
+on the hero and a `preload` for it. LCP did not move, and the report says why: **the landing
+slideshow is 1.6 MB of JPEG** and is `/`'s LCP essentially in full — a 9.x follow-up the `sharp`
+pipeline this phase added would fix in one script.
+
+**Decisions:** proxy-with-cache over `next/image` (a fetch per width/quality variant) and over
+hotlinking (AIC's referer rule, LoC's per-IP budget) — D1; one variant per item, ≤1600px WebP q82 —
+D2; disk, no eviction, **8.1 mounts the volume** — D3; failures never cached, at any layer — D4;
+concurrent misses share one fill — D5; share/download filenames follow the served type — D8.
+
+**Findings recorded, not fixed:** a **production React #418 hydration error that only appears under
+Lighthouse's emulation** (three runs of four, consistently on `/`; ruled out CPU throttling at 4×
+and 8× via CDP; invisible to `e2e:prod`, which asserts no console errors on that page and passes).
+And **`/i/[itemId]` returns `NO_FCP` to headless Lighthouse** while demonstrably rendering fine —
+first-paint at 72 ms, hero through the cache as a 640×432 WebP, a screenshot showing the finished
+page — so it has no numbers in the evidence set, deliberately, rather than a fabricated one. Worth
+one pass in a real non-headless Chrome. Related and cheap: `globals.css`'s reduced-motion block
+zeroes `animation-duration` but not `animation-delay`, so a reduced-motion reader still waits out
+the 160 ms `<Rise>` stagger.
+
+**The time sink was not code.** `bun add sharp` staled Vite's dep-optimizer cache, and the symptom
+looked nothing like a dependency problem: the suite went from 34 s to 486–1,218 s, `import` alone
+taking 700–3,200 s, with *different* tests failing every run — including pure unit tests that cannot
+fail for logic reasons — while Postgres sat idle and sub-millisecond. `rm -rf node_modules/.vite`
+put it back to 35 s. Written into CLAUDE.md so the next phase doesn't re-derive it.
+
+**Open / next:** the full `bun run img:warm --rate 2` (7.3 warmed `loc` only); **8.1 must mount
+`IMAGE_CACHE_DIR` as a persistent volume**, plus 7.2's two proxy confirmations (per-client rate
+limiting, `Secure` cookie); the landing JPEGs → WebP; the #418 hydration error; and 7.2's 41 rows of
+stored `<i>`/`<em>` markup. 8.1 is next.
+
+*Session spend: 99.02M tok (in 686 · out 261.5k · cache r 97.21M / w 1.55M) · ~≥$66.10 · opus-5 + opus-4-7 + <synthetic> · 00:44→07:06*
+
 ### [[08-28-26 Fri]] — Phase 7.2 executed unattended: the security pass, and 41 rows of markup nobody had looked for
 
 **Shipped:** `feat/7.2-security`, T1–T7, six commits, run start-to-finish by the overnight Ralph
