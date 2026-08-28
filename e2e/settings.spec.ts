@@ -2,11 +2,13 @@ import { expect, test, type Cookie, type Page } from "@playwright/test";
 import { eq, inArray } from "drizzle-orm";
 
 import {
+  cleanupSeeded,
   connect,
   inviteUser,
   openAuthSheet,
   restoreSession,
   saveSession,
+  seedFeedCorpus,
   type Connection,
 } from "./support";
 
@@ -15,9 +17,11 @@ import {
 // in CI. Same "leaves a real user row behind by design" arrangement as `feed.spec.ts` and
 // `saved.spec.ts`, whose scaffolding this shares (./support).
 //
-// **No seeded corpus here**, unlike saved.spec: nothing this file asserts depends on which items
-// exist. The collection tiles are about names and counts, and every count starts at zero. That
-// keeps the afterAll to one table.
+// **Nothing here depends on *which* items exist** — the collection tiles are about names and
+// counts, and every count starts at zero. It does need the feed to have *something* in it, though:
+// the first test walks the sign-up journey through onboarding to a populated feed. That used to
+// come free from the development database; on CI's empty one (Phase 7.1) the file seeds its own
+// small corpus, like every other spec. See support.ts's seedFeedCorpus().
 //
 // Every server-bound wait carries an explicit 15s. The 5s default became the suite's consistent
 // loser once 5.9 brought the parallel worker count to five (08-23-26), and this file makes six spec
@@ -37,6 +41,9 @@ const PASSWORD = "correcthorse123";
  */
 const HANDLE = `e2e${RUN}`;
 
+/** The topics this spec's user picks in onboarding, and where its seeded items live. */
+const TOPICS = ["astronomy", "botany", "music"] as const;
+
 // See support.ts's connect() for why the DB handle is loaded in `beforeAll`, not imported statically.
 let conn: Connection;
 
@@ -50,6 +57,9 @@ let session: Cookie[] = [];
 test.describe.serial("settings", () => {
   test.beforeAll(async () => {
     conn = await connect();
+    // Six tests, most of which pass through /feed at least once, and each visit costs this reader
+    // a page (12) it can never be served again — see support.ts's seedFeedCorpus().
+    await seedFeedCorpus(conn, "e2e-settings-", 90, TOPICS);
     inviteUser(EMAIL);
   });
 
@@ -70,6 +80,9 @@ test.describe.serial("settings", () => {
     // row itself stays, like every other spec's — the timestamped email means reruns never collide.
     await db.delete(savedItem).where(inArray(savedItem.userId, [row.id]));
     await db.delete(collection).where(eq(collection.userId, row.id));
+
+    // And the corpus, children-first, scoped to this file's own prefix.
+    await cleanupSeeded(conn, "e2e-settings-");
   });
 
   /** Gets the shared user onto a path. Storage is per-test, so the session the sign-up test

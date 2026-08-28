@@ -1,6 +1,15 @@
 import { expect, test } from "@playwright/test";
 
-import { inviteUser, openAuthSheet, signIn, waitForHydration } from "./support";
+import {
+  cleanupSeeded,
+  connect,
+  inviteUser,
+  openAuthSheet,
+  seedFeedCorpus,
+  signIn,
+  waitForHydration,
+  type Connection,
+} from "./support";
 
 // The full email + password loop against a REAL dev server + Postgres + Mailpit (SPEC §12 names
 // these exact flows). Runs locally against the dev server and, since Phase 7.1, in CI against a
@@ -17,6 +26,12 @@ import { inviteUser, openAuthSheet, signIn, waitForHydration } from "./support";
 // separate assertions instead of one long chain that fails opaquely partway through.
 const EMAIL = `ambit-e2e-${Date.now()}@example.com`;
 const PASSWORD = "correcthorse123";
+
+/** The topics this spec's user picks in onboarding, and where its seeded items live. */
+const TOPICS = ["astronomy", "botany", "music"] as const;
+
+// See support.ts's connect() for why the DB handle is loaded in `beforeAll`, not imported statically.
+let conn: Connection;
 const NEW_PASSWORD = "correcthorse456";
 
 // Polls Mailpit's HTTP API (http://localhost:8025) for the most recent message to `email` and
@@ -48,6 +63,19 @@ async function fetchResetLink(email: string): Promise<string> {
 }
 
 test.describe.serial("auth", () => {
+  // A corpus of its own, added in 7.1. This file's last sign-up assertion is that the reader lands
+  // on a *populated* feed, and it used to lean on the development database to supply the tiles —
+  // which CI's empty one does not. See support.ts's seedFeedCorpus(). Two feed loads here, so 40
+  // rows is generous.
+  test.beforeAll(async () => {
+    conn = await connect();
+    await seedFeedCorpus(conn, "e2e-auth-", 40, TOPICS);
+  });
+
+  test.afterAll(async () => {
+    await cleanupSeeded(conn, "e2e-auth-");
+  });
+
   test("uninvited sign-up is refused with the invite-only message", async ({
     page,
   }) => {
@@ -95,7 +123,8 @@ test.describe.serial("auth", () => {
     await page.waitForURL("/feed");
     // 5.6 replaced the "Signed in as …" placeholder with the real masonry, so the end of the
     // sign-up journey is now provable the way a user would judge it: there are tiles on screen.
-    // A freshly onboarded user gets a full page of them from the dev corpus. 15s, not the default
+    // A freshly onboarded user gets a full page of them from this file's seeded corpus (locally the
+    // development corpus supplies plenty more). 15s, not the default
     // 5: this is the suite's first server-bound feed compose, and once 5.9 brought the parallel
     // worker count to five, the default made this test the whole run's consistent loser
     // (08-23-26, three runs) — the same load allowance feed.spec's own polls already use.

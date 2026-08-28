@@ -132,9 +132,22 @@ export async function cleanupSeeded(
     .where(like(item.sourceId, `${prefix}%`));
   const ids = seeded.map((row) => row.id);
   if (ids.length === 0) return;
-  await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
-  await db.delete(savedItem).where(inArray(savedItem.itemId, ids));
-  await db.delete(item).where(inArray(item.id, ids));
+
+  // **One transaction, children first.** Two statements with a gap between them is a race against
+  // the server, which is still running: the feed writes `seen_item` rows as it composes a page,
+  // and a request still in flight when the last test ended can land its insert *after* the child
+  // delete and *before* the item delete — at which point the item delete fails a foreign key and
+  // the file ends red on its cleanup rather than on anything it asserted. It went unnoticed while
+  // the specs seeded a page's worth of rows and showed up as soon as 7.1 sized them for CI, where
+  // a file draws several pages and writes several times as many rows.
+  //
+  // Inside a transaction the deletes are one unit and a concurrent inserter blocks on the row lock
+  // rather than slipping between them.
+  await db.transaction(async (tx) => {
+    await tx.delete(seenItem).where(inArray(seenItem.itemId, ids));
+    await tx.delete(savedItem).where(inArray(savedItem.itemId, ids));
+    await tx.delete(item).where(inArray(item.id, ids));
+  });
 }
 
 /**
@@ -177,4 +190,48 @@ export async function restoreSession(page: Page, cookies: Cookie[]) {
     );
   }
   await page.context().addCookies(cookies);
+}
+
+/**
+ * Inserts `count` drawable image/article rows under `prefix`, spread across `topics`.
+ *
+ * **Why a spec needs its own corpus at all, and why it needs this many rows.** Locally the feed
+ * draws from an 8.5k-item development database, so a spec that only *reads* the feed never had to
+ * think about supply. CI's database holds nothing but what the specs put in it (Phase 7.1), and
+ * the feed excludes every item this reader has already been served (`seen_item`) — so each visit
+ * to /feed permanently consumes up to a page, 12 rows, for that user. A file whose tests each
+ * open the feed therefore burns roughly `12 × tests`, and when the pool runs dry the next test
+ * waits out its timeout on a feed with no tiles at all. That was four red tests on the first CI
+ * run: two files seeding nothing (they had never needed to) and two seeding a single page's worth.
+ *
+ * Callers size `count` from how many feed loads their file performs, with headroom. The rows are
+ * cheap — one bulk insert — and `cleanupSeeded(conn, prefix)` takes them all away again.
+ */
+export async function seedFeedCorpus(
+  conn: Connection,
+  prefix: string,
+  count: number,
+  topics: readonly string[],
+): Promise<void> {
+  await conn.db
+    .insert(conn.item)
+    .values(
+      Array.from({ length: count }, (_, i) => ({
+        source: "e2e",
+        sourceId: `${prefix}${i}`,
+        // Roughly a third articles, so both tile components get exercised. The per-branch
+        // `as const` is load-bearing: nothing gives this object literal a contextual type, so
+        // without them TypeScript widens `type` to `string` and the insert stops matching the
+        // column's narrowed union.
+        type: i % 3 === 0 ? ("article" as const) : ("image" as const),
+        title: `E2E fixture ${prefix}${i}`,
+        summary: `A lede for fixture ${i}, long enough to occupy a couple of lines.`,
+        imageUrl: PIXEL,
+        sourceUrl: `https://example.test/${prefix}${i}`,
+        topicId: topics[i % topics.length]!,
+        // Comfortably above the engine's default `scoreFloor` of 4, so these are drawable.
+        curationScore: 9,
+      })),
+    )
+    .onConflictDoNothing();
 }

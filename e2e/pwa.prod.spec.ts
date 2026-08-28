@@ -35,7 +35,11 @@ const PASSWORD = "correcthorse123";
 /** The topics this spec's user picks in onboarding, and where its seeded items live. */
 const TOPICS = ["astronomy", "botany", "music"] as const;
 
-const SEED_COUNT = 12;
+// This spec loads the feed twice (once after onboarding, once after the reload that puts /feed
+// through the SW's NetworkFirst handler), and each load costs the reader a page it can never be
+// served again. On CI's empty database the first sizing left only three tiles standing by the
+// second load — enough to pass, with no margin at all. See support.ts's seedFeedCorpus().
+const SEED_COUNT = 40;
 
 /**
  * A same-origin image, so the request is real — `image-tile.tsx` sends every http(s) `imageUrl`

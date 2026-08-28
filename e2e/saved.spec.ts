@@ -28,7 +28,11 @@ const PASSWORD = "correcthorse123";
 /** The topics this spec's user picks in onboarding, and where its seeded items live. */
 const TOPICS = ["astronomy", "botany", "music"] as const;
 
-const SEED_COUNT = 12;
+// Enough for the whole file, not for one page. Each test that opens /feed or /saved costs this
+// reader a page (12) of corpus it can never be served again; twelve rows only ever covered the
+// first. That was invisible until CI's empty database (Phase 7.1) removed the development corpus
+// standing behind them. See support.ts's seedFeedCorpus().
+const SEED_COUNT = 120;
 
 // See support.ts's connect() for why the DB handle is loaded in `beforeAll`, not imported statically.
 let conn: Connection;

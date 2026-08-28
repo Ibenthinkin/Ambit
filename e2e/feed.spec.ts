@@ -33,7 +33,12 @@ const PASSWORD = "correcthorse123";
 /** The topics this spec's user picks in onboarding, and where its seeded items live. */
 const TOPICS = ["astronomy", "botany", "music"] as const;
 
-const SEED_COUNT = 30;
+// Eight tests, and every one of them opens the feed — which costs this reader a page (12) it can
+// never be served again, because the engine excludes their `seen_item` rows. Thirty rows was
+// plenty while the development corpus stood behind them; on CI's empty database (Phase 7.1) the
+// pool ran dry mid-file and the remaining tests waited out their timeouts on a feed with no tiles.
+// 150 is roughly the file's consumption plus headroom. See support.ts's seedFeedCorpus().
+const SEED_COUNT = 150;
 
 // See support.ts's connect() for why the DB handle is loaded here rather than imported statically.
 let conn: Connection;
