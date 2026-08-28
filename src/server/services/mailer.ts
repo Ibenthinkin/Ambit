@@ -44,16 +44,23 @@ class MailpitMailer implements Mailer {
   }
 }
 
-class ResendMailer implements Mailer {
+// Exported for its own test only — `getMailer()` below is how the app gets one.
+export class ResendMailer implements Mailer {
   private client: Resend;
+  private from: string;
 
-  constructor(apiKey: string) {
+  /**
+   * @param from - the envelope sender, which Resend rejects unless it is on a domain verified in
+   *   the account. Defaults to `MAIL_FROM` (8.1); passed explicitly by tests.
+   */
+  constructor(apiKey: string, from: string = env.MAIL_FROM) {
     this.client = new Resend(apiKey);
+    this.from = from;
   }
 
   async send(message: MailMessage): Promise<void> {
     const { error } = await this.client.emails.send({
-      from: "Ambit <noreply@ambit.app>", // swap for the real verified sending domain at deploy time
+      from: this.from,
       ...message,
     });
     if (error) {

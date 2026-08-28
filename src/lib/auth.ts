@@ -8,6 +8,7 @@ import { env } from "~/env";
 import { db } from "~/server/db/client";
 import * as schema from "~/server/db/schema";
 import { getMailer } from "~/server/services/mailer";
+import { authIpAddressHeaders } from "~/server/services/rate-limit";
 
 // The Better Auth server instance. Two audiences read this file:
 //   1. The app itself, at request time (session checks, the /api/auth/[...all] route handler).
@@ -159,19 +160,30 @@ export const auth = betterAuth({
   //    for exactly the same reason: it is the one segment a trusted proxy appended rather than
   //    attacker-controlled input. Both limiters therefore agree on who a caller is.
   //
-  // So there is nothing to configure here today, and `trustedProxies` stays unset: setting it
-  // requires knowing the proxy's real address, which only the deployed environment can tell us.
-  //
-  // **Phase 8.1 action:** behind the deployed proxy, make one real request to `/sign-in/email`
-  // from two different clients and confirm the limit applies per client rather than per proxy. If
-  // the header arrives multi-valued (Traefik reconfigured, or a CDN added in front), set
-  // `advanced.ipAddress.trustedProxies` to the proxy's address — that is the whole fix.
+  // **What 8.1 changed (decision D11, 08-28-26).** The deploy did not land behind Coolify's
+  // Traefik after all: the container publishes a host port and a Cloudflare Tunnel reaches it
+  // directly (SPEC §13), so a CDN *is* in front, and the "single-valued header" premise above no
+  // longer holds. Cloudflare **appends** the connecting address to any `X-Forwarded-For` the
+  // client sent, which means a caller can make the header multi-valued whenever they like — and
+  // Better Auth then reads no IP at all and drops everyone into one shared bucket. The fix is
+  // `advanced.ipAddress.ipAddressHeaders` below, not `trustedProxies` (which stays unset:
+  // cloudflared is a peer that dials out, not an addressable proxy hop this server can name).
+  // `services/rate-limit.ts`'s `authIpAddressHeaders` holds the reasoning and the test.
   rateLimit: {
     customRules: {
       // Exact paths, not prefixes: customRules keys match the path exactly unless they contain a
       // `*`, and email+password are the only credential endpoints this app exposes.
       "/sign-in/email": { window: 10, max: 20 },
       "/sign-up/email": { window: 10, max: 20 },
+    },
+  },
+
+  advanced: {
+    ipAddress: {
+      // Production only — see authIpAddressHeaders. Proven behaviourally in 8.1's T6: twenty-one
+      // sign-in attempts from one client 429 while a second client signs in untouched, and adding
+      // a spoofed `X-Forwarded-For` to the loop changes nothing.
+      ipAddressHeaders: authIpAddressHeaders(env.NODE_ENV),
     },
   },
 });

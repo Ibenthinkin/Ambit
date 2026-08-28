@@ -234,5 +234,11 @@ test.describe.serial("security headers", () => {
     const trpc = await request.get(`/api/trpc/items.byId?input=${input}`);
     expect(trpc.status(), "items.byId is the public surface").toBe(200);
     expect(trpc.headers()["x-content-type-options"]).toBe("nosniff");
+
+    // The readiness probe (8.1, D10) is public, unauthenticated JSON and answers through the
+    // Cloudflare Tunnel, so it is in the sweep for the same reason the other two are.
+    const health = await request.get("/api/health");
+    expect(health.status(), "the health probe should be ready").toBe(200);
+    expect(health.headers()["x-content-type-options"]).toBe("nosniff");
   });
 });
