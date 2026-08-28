@@ -1,0 +1,42 @@
+# Build context exclusions (Phase 8.1). Patterns are relative to the context root, so a bare
+# `docs` means the one at the top, unlike .gitignore where it would also match src/docs/.
+#
+# **The .env lines are the load-bearing ones.** Coolify builds from a git clone, where .env was
+# never committed — but a *local* `docker build` (T2.4's proof) sends the working directory to the
+# daemon, and a copied .env would be baked into an image layer, secrets and all, and would then
+# silently shadow the environment Coolify supplies at runtime. Both halves are bad; neither is
+# visible from the outside.
+**/.env
+**/.env.*
+!.env.example
+
+# Never rebuilt from, always regenerated inside the image. `node_modules` is also the single
+# biggest thing in this directory, and shipping the Mac's arm64 tree to an amd64 build would be
+# actively wrong, not just slow.
+node_modules
+.next
+.cache
+.playwright
+tsconfig.tsbuildinfo
+
+# .git is excluded on purpose and the serwist route knows it: the precache revision reads
+# SOURCE_COMMIT first because `git rev-parse` cannot work in here.
+.git
+.github
+.claude
+.superpowers
+
+# Not needed at runtime, and leaving them out keeps a rebuild from being invalidated every time a
+# walkthrough, a log entry or a spec is edited — the files that change most often in this repo.
+docs
+e2e
+*.md
+!README.md
+
+# Phase 0's throwaway harnesses and tooling. Nothing at runtime reads them: the topic graph the
+# feed walks is checked in at src/server/config/topic-graph.json.
+phase0
+
+*.zip
+start-database.sh
+.DS_Store

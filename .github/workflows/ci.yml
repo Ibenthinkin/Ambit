@@ -20,8 +20,13 @@ jobs:
 
       # Bun is both the package manager and (via --bun) the runtime the app
       # ships with in prod, so CI installs/runs through the same binary
-      # rather than falling back to Node for "just CI".
+      # rather than falling back to Node for "just CI". Pinned to the same
+      # version the production image's base tag carries (Phase 8.1's
+      # Dockerfile: oven/bun:1.4.0-debian) — CI proving a boot path on a
+      # different runtime than the one that runs it is a gap, not parity.
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
 
       # --frozen-lockfile refuses to resolve new versions here: CI should
       # fail loudly if bun.lock drifts from package.json, not silently
@@ -92,7 +97,10 @@ jobs:
       E2E_PROD: "1"
     steps:
       - uses: actions/checkout@v7
+      # Same pin as the check job above, for the same reason.
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
       - run: bun install --frozen-lockfile
 
       # Chromium is ~150 MB; cache the download between runs. `--with-deps` still runs on a cache
