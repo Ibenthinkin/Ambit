@@ -83,11 +83,42 @@ has an uncommitted, unrelated A.6c log/SPEC diff from another session — left a
 Blog #2 is PDR (RSS walk) or thingsorganizedneatly (Tumblr walk), each its own adapter on the same
 contract.
 
+**7.1 planned, later the same evening — and a numbering slip caught first.** Ben asked to "start
+planning phase 7 the blog adapter"; Phase 7 in the build plan is *hardening* (7.1 e2e in CI, 7.2
+security, 7.3 image strategy) and the blog adapter was 6.3. Advice given and taken: run Phase 7 in
+plan order — 7.3 is the most load-bearing open decision in the repo (AIC still suspended, LoC's
+per-IP budget, blog heroes riding an uncached `/api/img`), but it changes how every image is served,
+so the CI safety net lands first — and leave blog #2 (PDR / Tumblr walks) for after beta, via 9.6's
+trial loop. Plan: `docs/PHASE7_PLAN_7.1.md`, seven tasks, cold-executable.
+
+**What 7.1 turned out to be:** smaller than the build plan reads. Eight specs / 41 tests already
+cover every SPEC §12 flow except swipe gestures (untestable in Playwright, covered at the hook
+level); every spec seeds its own `source: "e2e"` corpus. The work is the wiring, plus three findings:
+(1) the five identical `connect()` helpers call `process.loadEnvFile("../.env")`, which **throws**
+when the file is missing — every DB-touching spec would have died in `beforeAll` on the first CI
+run; consolidated into `e2e/support.ts` with the tolerant idiom `vitest.config.ts` already uses.
+(2) `pwa.prod.spec.ts` seeds nothing and asserts `ambit-images` is non-empty — but tiles render
+`data:` URLs *without* the proxy, and the SW's image rule matches `/api/img/` only, so on an empty
+database the spec needs same-origin **http** fixtures (`/icon-192.png`). (3) With a Postgres in the
+job, the five `describe.skipIf(!DATABASE_URL)` Vitest suites un-skip for free — they have never run
+in CI since 3.3.
+
+**Decisions (Ben):** CI runs against a **production build** (`E2E_PROD=1`; `bun run e2e:prod`
+reproduces it locally), which is what lets the PWA spec — the only automated check of the caching
+strategy — join the suite; service workers stay allowed (blocking risks console-error assertions);
+GitHub service containers rather than compose-in-the-workflow; real `db:migrate` so CI is the first
+proof the journal applies to an empty database ahead of 8.1; `bun run e2e:clean` for the local
+user/seen-row accumulation behind the `gallery.spec:193` flake — CI never sees it.
+
+**Open / next:** execute 7.1 in a cheaper session; then plan 7.2 (security pass) and 7.3 (the image
+decision, with 6.2's LoC evidence in hand).
+
 *Session spend: 26.05M tok (in 30.2k · out 264.0k · cache r 24.52M / w 1.23M) · ~≥$50.61 · fable-5 + opus-4-7 + <synthetic> · 12:10→13:09*
 *Session spend: 5.95M tok (in 5.0k · out 68.5k · cache r 5.49M / w 389.5k) · ~$16.76 · fable-5 · 15:28→15:35*
 *Session spend: 5.84M tok (in 2.4k · out 69.5k · cache r 5.67M / w 99.0k) · ~$11.15 · fable-5 · 15:35→15:41*
 *Session spend: 5.51M tok (in 1.8k · out 28.5k · cache r 5.15M / w 326.8k) · ~$13.13 · fable-5 · 15:41→19:26*
 *Session spend: 5.91M tok (in 1.5k · out 130.8k · cache r 5.74M / w 33.5k) · ~$12.96 · fable-5 · 19:26→19:33*
+*Session spend: 9.09M tok (in 5.7k · out 151.6k · cache r 8.48M / w 452.7k) · ~$25.17 · fable-5 · 19:52→20:13*
 
 ### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.** Then: 6.3's design session opened.
 
