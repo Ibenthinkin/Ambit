@@ -73,7 +73,7 @@ grep '"version"' node_modules/better-auth/package.json   # expect 1.6.25 (≥ 1.
 
 ### T2 — `src/config/security-headers.js`: every header value, pure and tested
 
-- [ ] **2.1** Create `src/config/security-headers.js` (plain ESM + JSDoc, like `dev-origins.js`, so `next.config.js` can import it). Export:
+- [x] **2.1** Create `src/config/security-headers.js` (plain ESM + JSDoc, like `dev-origins.js`, so `next.config.js` can import it). Export:
 
 ```js
 /** The static headers every response carries. `https` gates HSTS (decision D5). */
@@ -110,8 +110,8 @@ export function buildCsp({ nonce, dev }) {
 ```
 
   Comment each directive with *why that value* in this app (what loads from where — see the Verified facts row). Explain in the file header why this is `.js` (next.config.js is plain ESM) and why both consumers must build from here.
-- [ ] **2.2** `src/config/security-headers.test.ts`: HSTS present iff `https`; every static key present; `buildCsp` contains the nonce, `'strict-dynamic'`, `frame-ancestors 'none'`; `'unsafe-eval'` and `ws:` appear only with `dev: true`; no directive allows a third-party origin (assert the string contains no `http` substring).
-- [ ] **2.3** `next.config.js`: add
+- [x] **2.2** `src/config/security-headers.test.ts`: HSTS present iff `https`; every static key present; `buildCsp` contains the nonce, `'strict-dynamic'`, `frame-ancestors 'none'`; `'unsafe-eval'` and `ws:` appear only with `dev: true`; no directive allows a third-party origin (assert the string contains no `http` substring).
+- [x] **2.3** `next.config.js`: add
 
 ```js
 async headers() {
@@ -125,8 +125,8 @@ async headers() {
 ```
 
   importing `env` from `./src/env.js` (already imported for its side effect — bind the name) and the helper from `./src/config/security-headers.js`. Comment: CSP is *not* here because it needs a per-request nonce — that lives in `proxy.ts`.
-- [ ] **2.4** `bun run check` green; `bun run e2e:prod` green (headers alone should break nothing). `curl -sI http://localhost:3000/ | grep -i -E "x-content-type|x-frame|referrer|permissions"` against `bun run start` shows all four; no HSTS (http).
-- [ ] **2.5** Commit: `feat(security): static security headers from one pure module`.
+- [x] **2.4** `bun run check` green; `bun run e2e:prod` green (headers alone should break nothing). `curl -sI http://localhost:3000/ | grep -i -E "x-content-type|x-frame|referrer|permissions"` against `bun run start` shows all four; no HSTS (http).
+- [x] **2.5** Commit: `feat(security): static security headers from one pure module`.
 
 *Done = `security-headers.test.ts` green; the four static headers on every route under `next start`; HSTS absent over http.*
 
