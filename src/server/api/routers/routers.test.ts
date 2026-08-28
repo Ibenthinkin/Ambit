@@ -489,3 +489,47 @@ describe("feed.markSeen acks against the session's own user", () => {
     expect(servedAt).toBeInstanceOf(Date);
   });
 });
+
+// Phase 7.2 T1. SPEC §11 says the tRPC surface is rate-limited; until now nothing proved the
+// *rejection* path — only the limiter's own unit tests (services/rate-limit.test.ts) and the
+// middleware's presence. This exercises the middleware end to end through a real caller: the
+// 121st call inside one window, on one key, comes back as TOO_MANY_REQUESTS rather than reaching
+// the resolver.
+//
+// Two details make it fast and self-contained:
+//
+//   * **A private key.** The limiter (`trpc.ts`) is one process-wide instance shared by every
+//     test in this file, and it keys on `ctx.user?.id ?? trustedClientIp(headers) ?? "unknown"`.
+//     A unique user id gives this test a bucket nobody else has touched — and, just as important,
+//     leaves the `"unknown"` bucket every anonymous test above shares unspent.
+//   * **Issued concurrently.** `timingMiddleware` sleeps 100–500ms per call outside production,
+//     so 121 sequential calls would cost the better part of a minute. The limiter's `allow()` is
+//     synchronous and runs *before* that sleep (publicProcedure applies rate-limit first), so
+//     firing the allowance in parallel counts identically and costs one sleep.
+describe("the tRPC rate limiter rejects past its per-key allowance", () => {
+  const LIMIT = 120; // must match the `new RateLimiter({ limit: 120, ... })` in trpc.ts
+
+  beforeEach(() => {
+    vi.mocked(mockedGetGalleryRail).mockReset().mockResolvedValue([]);
+  });
+
+  it("allows 120 calls on one key and throws TOO_MANY_REQUESTS on the 121st", async () => {
+    // A key no other test in this process uses, so the window starts empty here.
+    const caller = createCaller(authedContext(`rl-${crypto.randomUUID()}`));
+
+    const allowed = await Promise.all(
+      Array.from({ length: LIMIT }, () =>
+        caller.items.galleryRail({ itemId: "a" }),
+      ),
+    );
+    expect(allowed).toHaveLength(LIMIT);
+
+    await expect(
+      caller.items.galleryRail({ itemId: "a" }),
+    ).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
+
+    // The rejection happened in the middleware, not the resolver: the service was called exactly
+    // as many times as the limiter allowed.
+    expect(vi.mocked(mockedGetGalleryRail)).toHaveBeenCalledTimes(LIMIT);
+  });
+});
