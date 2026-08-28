@@ -71,6 +71,36 @@ stored `<i>`/`<em>` markup. 8.1 is next.
 
 *Session spend: 99.02M tok (in 686 · out 261.5k · cache r 97.21M / w 1.55M) · ~≥$66.10 · opus-5 + opus-4-7 + <synthetic> · 00:44→07:06*
 
+**Planned (afternoon): Phase 8.1** — `docs/PHASE8_PLAN_8.1.md`, cold-executable but **attended**
+(🖐️ Ben steps for the Coolify / Cloudflare / Resend UIs and the two host shells; the agent prepares
+values and verifies from the Mac). Decisions with Ben, don't relitigate: **homelab, not a VPS** —
+Ambit is VM 202's second Coolify tenant beside the archive, public through the *existing*
+`homelab` Cloudflare Tunnel on VM 200 with one ingress rule → `192.168.1.202:3000` (the `glance`
+off-host precedent), no Caddy LAN name (Better Auth trusts only `baseURL` in production), no
+Cloudflare Access; hostname **`ambit.benreilly.io`**; **fresh ingest on the server**, nothing copied
+from the Mac; **Postgres 17 as a Coolify database** with its scheduled `pg_dump` and a mandatory
+restore drill. The image mirrors CI rather than `output: "standalone"` — `drizzle-kit` (a
+devDependency) runs the boot-time migrate and the ingest cron `docker exec`s `scripts/`, so a
+pruned or standalone image would break both, and Bun + standalone is undocumented anyway.
+
+**Plan-time findings worth knowing before executing:** the repo has **no Dockerfile, no health
+route, no backup or cron config** at all. `next.config.js` bakes HSTS from `BETTER_AUTH_URL`'s
+scheme *at build time*, so `SKIP_ENV_VALIDATION` would throw on `.startsWith` — the real https
+origin must be a **build ARG** (Coolify "Build Variable"). The Resend from-address is a hardcoded
+`noreply@ambit.app` and a missing key fails **silently** (fire-and-forget send → Mailpit on
+`localhost:1025`) — the plan adds `MAIL_FROM` and makes a real reset mail the only proof. The
+serwist precache revision is `""` in a container without `.git` (`stdout ?? uuid` — empty string
+isn't null). And **Cloudflare appends to any client-supplied `X-Forwarded-For`**, which Better
+Auth ≥ 1.6.21 then treats as *no IP* — production keys on `cf-connecting-ip` (D11), proven by a
+two-client + spoofed-header test rather than by reading the headers back. Resend's DNS records sit
+on `send.` / `resend._domainkey.` subdomains, so they coexist with the tunnel's CNAME.
+
+**Open / next:** execute 8.1 in a cheaper session (one evening for T1–T6, a second sitting for
+the first ingest, the image warm and the restore drill; the done-bar needs one *unattended*
+01:30 ingest run, so it closes the morning after). Then 8.2.
+
+*Session spend: 5.99M tok (in 3.6k · out 139.6k · cache r 5.34M / w 509.2k) · ~$22.54 · fable-5 · 12:33→12:55*
+
 ### [[08-28-26 Fri]] — Phase 7.2 executed unattended: the security pass, and 41 rows of markup nobody had looked for
 
 **Shipped:** `feat/7.2-security`, T1–T7, six commits, run start-to-finish by the overnight Ralph
