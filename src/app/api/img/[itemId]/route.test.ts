@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Item } from "~/server/db/items";
+import type * as ImageCacheModule from "~/server/services/image-cache";
+import { ImageFillError } from "~/server/services/image-cache";
 import type * as RateLimitModule from "~/server/services/rate-limit";
 import { GET } from "./route";
 
@@ -35,6 +37,21 @@ vi.mock("~/server/services/rate-limit", async () => {
   };
 });
 
+// Phase 7.3: the route no longer fetches anything itself — it hands the item to the cache and
+// turns what comes back into a response. So the cache is mocked here for the same reason the DB is
+// (this file's subject is the handler's contract), and `image-cache.test.ts` owns the fetch,
+// resize, atomic write, in-flight dedupe and the no-referer rule.
+//
+// `importActual` matters: the real `ImageFillError` class has to reach the route, because the
+// route tells a cache failure from a programming mistake with `instanceof`.
+const getOrFill = vi.hoisted(() => vi.fn());
+vi.mock("~/server/services/image-cache", async () => ({
+  ...(await vi.importActual<typeof ImageCacheModule>(
+    "~/server/services/image-cache",
+  )),
+  getOrFill,
+}));
+
 const itemWith = (imageUrl: string | null): Item =>
   ({
     id: "item-1",
@@ -48,9 +65,19 @@ const request = (headers: Record<string, string> = {}) =>
 const call = (itemId = "item-1", headers?: Record<string, string>) =>
   GET(request(headers), { params: Promise.resolve({ itemId }) });
 
+/** What a filled cache hands back: the WebP bytes, and whether they came off disk. */
+const cached = (text = "WEBPBYTES", hit = false) => ({
+  bytes: Buffer.from(text),
+  contentType: "image/webp" as const,
+  hit,
+});
+
 beforeEach(() => {
   limiterState.allow = true;
   limiterState.keys = [];
+  getOrFill.mockReset().mockResolvedValue(cached());
+  // Still stubbed, and still asserted on below: after 7.3 the route reaching `fetch` at all would
+  // mean it had gone around the cache.
   vi.stubGlobal("fetch", vi.fn());
 });
 
@@ -60,41 +87,46 @@ afterEach(() => {
 });
 
 describe("GET /api/img/[itemId]", () => {
-  it("streams the upstream image with an immutable cache header", async () => {
+  it("serves the cached WebP with an immutable cache header", async () => {
     getItemById.mockResolvedValue(itemWith("https://cdn.test/a.png"));
-    vi.mocked(fetch).mockResolvedValue(
-      new Response("PNGBYTES", { headers: { "Content-Type": "image/png" } }),
-    );
 
     const res = await call();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toBe("image/png");
+    // One variant per item since 7.3, always WebP (decision D2).
+    expect(res.headers.get("content-type")).toBe("image/webp");
+    expect(res.headers.get("content-length")).toBe("9"); // "WEBPBYTES"
     expect(res.headers.get("cache-control")).toBe(
       "public, max-age=31536000, immutable",
     );
-    expect(await res.text()).toBe("PNGBYTES");
+    expect(await res.text()).toBe("WEBPBYTES");
   });
 
-  // The whole reason the route exists: AIC's Cloudflare rules 403 a localhost referer, and a
-  // server-side fetch that sends no referer at all sidesteps them (HANDOFF_aic-images.md §2.2).
-  it("fetches the stored URL with Ambit's UA and no referer", async () => {
-    getItemById.mockResolvedValue(
-      itemWith("https://www.artic.edu/iiif/2/abc/full/843,/0/default.jpg"),
+  // The header exists so "the cache actually works" is observable rather than inferred from a
+  // stopwatch — `bun run start` plus two curls is the live proof, and this is the unit one.
+  it("reports whether the bytes came off disk or cost an upstream fetch", async () => {
+    getItemById.mockResolvedValue(itemWith("https://cdn.test/a.png"));
+
+    getOrFill.mockResolvedValueOnce(cached("A", false));
+    expect((await call()).headers.get("x-ambit-cache")).toBe("fill");
+
+    getOrFill.mockResolvedValueOnce(cached("A", true));
+    expect((await call()).headers.get("x-ambit-cache")).toBe("hit");
+  });
+
+  // **The itemId is the whole security boundary** (SPEC §11): the URL comes from our own table and
+  // there is no other way for a caller to influence what gets fetched. What the route hands the
+  // cache is the row it just read — never anything off the request.
+  it("hands the cache the row it read, and never fetches anything itself", async () => {
+    const item = itemWith(
+      "https://www.artic.edu/iiif/2/abc/full/843,/0/default.jpg",
     );
-    vi.mocked(fetch).mockResolvedValue(new Response("BYTES"));
+    getItemById.mockResolvedValue(item);
 
     await call();
 
-    const [url, init] = vi.mocked(fetch).mock.calls[0]!;
-    expect(url).toBe(
-      "https://www.artic.edu/iiif/2/abc/full/843,/0/default.jpg",
-    );
-    const headers = (init?.headers ?? {}) as Record<string, string>;
-    expect(headers["User-Agent"]).toContain("Ambit/");
-    expect(Object.keys(headers).map((h) => h.toLowerCase())).not.toContain(
-      "referer",
-    );
+    expect(getOrFill).toHaveBeenCalledWith(item);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("404s an unknown item", async () => {
@@ -104,14 +136,14 @@ describe("GET /api/img/[itemId]", () => {
 
     expect(res.status).toBe(404);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(fetch).not.toHaveBeenCalled();
+    expect(getOrFill).not.toHaveBeenCalled();
   });
 
   it("404s an item with no image", async () => {
     getItemById.mockResolvedValue(itemWith(null));
 
     expect((await call()).status).toBe(404);
-    expect(fetch).not.toHaveBeenCalled();
+    expect(getOrFill).not.toHaveBeenCalled();
   });
 
   // `data:` images (the e2e corpus) are rendered straight by the client; anything non-http(s) is
@@ -120,24 +152,30 @@ describe("GET /api/img/[itemId]", () => {
     getItemById.mockResolvedValue(itemWith("data:image/gif;base64,R0lGOD"));
 
     expect((await call()).status).toBe(404);
-    expect(fetch).not.toHaveBeenCalled();
+    expect(getOrFill).not.toHaveBeenCalled();
   });
 
-  it("502s — uncached — when upstream refuses", async () => {
+  // Decision D4: nothing about a failure is remembered, at any layer — the cache writes no file
+  // and the response says no-store, so the next request tries again.
+  it.each(["upstream", "decode", "too-large", "timeout"] as const)(
+    "502s — uncached — on a %s fill failure",
+    async (kind) => {
+      getItemById.mockResolvedValue(itemWith("https://cdn.test/a.png"));
+      getOrFill.mockRejectedValue(new ImageFillError(kind, "nope"));
+
+      const res = await call();
+
+      expect(res.status).toBe(502);
+      expect(res.headers.get("cache-control")).toBe("no-store");
+    },
+  );
+
+  // A cache failure is a 502; a *programming* mistake must not be quietly dressed up as one.
+  it("lets a non-ImageFillError propagate rather than masking it as a 502", async () => {
     getItemById.mockResolvedValue(itemWith("https://cdn.test/a.png"));
-    vi.mocked(fetch).mockResolvedValue(new Response("no", { status: 403 }));
+    getOrFill.mockRejectedValue(new TypeError("undefined is not a function"));
 
-    const res = await call();
-
-    expect(res.status).toBe(502);
-    expect(res.headers.get("cache-control")).toBe("no-store");
-  });
-
-  it("502s when the upstream fetch throws or times out", async () => {
-    getItemById.mockResolvedValue(itemWith("https://cdn.test/a.png"));
-    vi.mocked(fetch).mockRejectedValue(new Error("timed out"));
-
-    expect((await call()).status).toBe(502);
+    await expect(call()).rejects.toBeInstanceOf(TypeError);
   });
 
   it("rate limits on the trusted client IP, before any DB or upstream work", async () => {
@@ -153,7 +191,7 @@ describe("GET /api/img/[itemId]", () => {
     // Last hop, not the spoofable first one — same rule as the tRPC limiter.
     expect(limiterState.keys).toEqual(["10.0.0.1"]);
     expect(getItemById).not.toHaveBeenCalled();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(getOrFill).not.toHaveBeenCalled();
   });
 
   it("buys its own budget rather than sharing the API's", async () => {

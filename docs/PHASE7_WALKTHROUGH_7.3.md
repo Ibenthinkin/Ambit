@@ -84,3 +84,57 @@ in the composed order** and that the card's other fields survive the swap; the o
 case where the two queries can legitimately disagree — an item deleted between them — and asserts
 the card is dropped rather than thrown, with the cursor still naming it so the next page excludes
 it.
+
+## T3 — the cache, live
+
+`bun run start` against the real corpus, on a LoC item (`tile.loc.gov` is the source whose per-IP
+budget made the cache the decision — Phase 6.2), cache directory emptied first:
+
+```
+--- request 1 (cold) ---
+x-ambit-cache: fill
+200 image/webp 43664 bytes · 0.056190s
+
+--- request 2 (warm) ---
+x-ambit-cache: hit
+200 image/webp 43664 bytes · 0.004508s
+```
+
+```
+$ ls -l .cache/img
+-rw-r--r--  43664  Fom4CiEzfyDGQF2lemd8K.webp
+```
+
+The second request never leaves the machine — 4.5 ms against 56 ms, and, far more to the point,
+**zero upstream traffic**. `X-Ambit-Cache` exists precisely so that is observable with `curl -I`
+rather than inferred from a stopwatch; the route test asserts on it too.
+
+The shape that landed:
+
+- **`src/server/services/image-cache.ts`** owns everything: `readCached` → in-flight dedupe →
+  `fillCache` (fetch → `sharp` rotate/resize/WebP → temp file → `rename`). 13 unit tests, none of
+  which touch the network — the "upstream" bytes are real images `sharp` makes on the spot, so the
+  resize path is genuinely exercised.
+- **The route is now thin**: rate-limit → resolve the id → `getOrFill` → answer. Its own tests grew
+  from 11 to 13 and none were trimmed; the fetch-level assertions (the **no-`Referer`** contract,
+  which is the whole reason the proxy exists) *moved* into `image-cache.test.ts` along with the
+  fetch itself rather than being dropped.
+- **D8**: `lib/image-filename.ts` derives the save/share extension from `blob.type`, so a WebP is
+  no longer handed to iOS Files under a `.jpg` name. Used by both save-image paths (item page and
+  gallery), with its own unit test.
+
+**One bug the tests caught before it could reach a log.** The in-flight map is cleared in a
+`.finally()`, and `.finally()` returns a *new* promise that rejects with the same reason — which
+nothing was awaiting. Every failed fill would have raised an unhandled rejection. A trailing
+`.catch(() => undefined)` on the derived promise fixes it; the caller still gets the rejection from
+the original.
+
+**Two deliberate choices worth knowing about:**
+
+- **The request's abort signal is not plumbed into the upstream fetch.** A reader who scrolls past
+  an image cancels their *response*; if that also cancelled the fetch, the museum would be asked
+  again next time — the exact cost this cache exists to avoid. Only the 15 s timeout can abort a
+  fill. A fill is worth finishing even when nobody is waiting for it.
+- **Nothing about a failure is remembered, at any layer** (D4): no file is written, the response is
+  `no-store`, *and* the in-flight entry is cleared on rejection — so a museum having a bad minute
+  doesn't poison the item until a restart. There is a test for each of those three.
