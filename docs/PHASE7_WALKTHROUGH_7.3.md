@@ -208,3 +208,96 @@ Two mistakes, one symptom, both fixed and both now covered by tests:
 
 Neither is the kind of thing reading the code finds. Running it against a real museum for seven
 minutes is.
+
+## T5 — Lighthouse, throttled mobile, against the production build
+
+`bunx lighthouse … --form-factor=mobile --screenEmulation.mobile --throttling-method=simulate
+--chrome-flags="--headless=new"`, before and after the cheap fixes. JSON reports for all four runs
+are in `docs/phase7.3-evidence/` (the HTML is gitignored — a megabyte of inlined report viewer per
+run, reproducible from the JSON).
+
+| | `/` before → after | `/feed` before → after |
+|---|---|---|
+| **Performance** | 87 → 86 | 91 → 90 |
+| **Accessibility** | 95 → 95 | 95 → 95 |
+| **Best practices** | 96 → 96 | 96 → **100** |
+| First Contentful Paint | 0.8 s → 0.8 s | 1.0 s → **0.9 s** |
+| Largest Contentful Paint | 4.1 s → 4.2 s | 3.5 s → 3.6 s |
+| Speed Index | 0.8 s → 0.8 s | 1.6 s → **0.9 s** |
+| Total Blocking Time | 10 ms → **0 ms** | 0 ms → 0 ms |
+| Cumulative Layout Shift | 0 → 0 | 0 → 0 |
+
+**Read that honestly.** The one-point performance moves are run-to-run noise, not a regression —
+the same page measured twice varies by more than that. What is real: **`/feed`'s Speed Index nearly
+halved** (1.6 s → 0.9 s), and `/` dropped its remaining blocking time to zero. **LCP did not
+move**, and the reports say exactly why (below).
+
+**The fixes applied** (D7: behaviour-neutral, each well under 30 minutes, and only the ones the
+reports actually named):
+
+- `image-item-body.tsx` — `fetchPriority="high"` and `decoding="async"` on the hero, the LCP
+  element of the public item page.
+- `app/i/[itemId]/page.tsx` — `preload('/api/img/<id>', { as: "image", fetchPriority: "high" })`,
+  so the hero's request starts with the HTML rather than after it. Verified in the served markup:
+  `<link rel="preload" href="/api/img/…" as="image" fetchPriority="high"/>`.
+- `image-tile.tsx` — `decoding="async"` on feed tiles. A feed page holds ~24 of them, and this is
+  the change the Speed Index win is most likely attributable to.
+
+### What Lighthouse said that we did *not* fix
+
+1. **The landing slideshow is `/`'s LCP, and it is 1.6 MB of JPEG.** The report's image-delivery
+   insight names `wheatfield-with-crows.jpg`: 199,057 bytes, of which it considers **181,623
+   wasted** — "using a modern image format (WebP, AVIF) … could improve this image's download
+   size." All eight slides are ~200 KB JPEGs. That is `/`'s 4.1 s LCP, essentially in full. The
+   plan anticipated this exact case and said to note it rather than re-encode assets overnight,
+   so: **a 9.x follow-up, and a cheap one** — the same `sharp` pipeline this phase just added would
+   take those eight files to WebP in one script.
+2. **Unused JavaScript**, 300 ms on `/` and 450 ms on `/feed`. Real, and not a 30-minute fix.
+3. **Colour contrast**, on both pages — `text-ink/40`, `text-ink/34` and `text-accent` on the app
+   background fail WCAG AA. It is why accessibility sits at 95 rather than 100. These are design
+   tokens from the redesign handoff, so changing them is a design decision, not a perf fix.
+
+### Two findings worth Ben's attention
+
+**1. A production hydration error, visible only under Lighthouse's emulation.**
+
+Three of the four runs logged:
+
+```
+Error: Minified React error #418  (hydration failed — the server-rendered HTML didn't match)
+```
+
+consistently on `/`, and on `/feed` before the change but not after. React #418 is the production,
+minified form of the hydration mismatch that dev builds print in full. It is worth taking seriously
+because **nothing else in the project can see it**: `bun run e2e:prod` asserts "no console errors"
+on both these pages and passes, and plain Playwright against the same production server logs
+nothing at 390 px or 1280 px.
+
+Two attempts to pin it down, both negative: it is **not** CPU throttling (reproduced Lighthouse's
+4× via CDP `Emulation.setCPUThrottlingRate`, plus 8×, and got a clean console every time, with
+`data-accent` correctly `indigo` and localStorage empty), and it is not viewport. The remaining
+Lighthouse-specific variables are its simulated network throttling and its two-pass load. The
+`<html data-accent>` accent mechanism is the obvious suspect — it is the one thing on this app that
+deliberately mutates the root element before hydration, and Phase 7.1 already found one bug in it —
+but that is a hypothesis, not a diagnosis. **Recorded, not fixed**: fixing the accent architecture
+is not a behaviour-neutral 30-minute change.
+
+**2. `/i/[itemId]` cannot be measured by headless Lighthouse at all** — and the page is fine.
+
+Every attempt returns `NO_FCP` ("The page did not paint any content"), including with
+`--force-prefers-reduced-motion` and with occlusion/backgrounding detection disabled. `/` and
+`/feed` measure normally in the same setup. The page itself is demonstrably healthy: it answers 200
+with 26 KB of HTML, Playwright records `first-paint` at 72–88 ms, the hero comes through the cache
+as a 640×432 WebP with `img.complete === true`, fonts load, `main.innerText` carries the title, and
+a screenshot at 1280×720 shows the finished page exactly as designed.
+
+The one structural difference is that every section of this page is wrapped in `<Rise>` —
+`animation: rise 0.6s ease both`, which starts at `opacity: 0`, staggered 0/50/120/160 ms. With
+`both` fill, the content is *fully transparent* until its animation starts, and Chrome does not
+count a transparent paint as contentful. That explains a delayed FCP; it does not obviously explain
+never recording one, and forcing reduced motion did not help — though note the reduced-motion block
+in `globals.css` zeroes `animation-duration` but **not `animation-delay`**, so a reduced-motion
+reader still waits out the 160 ms stagger. That one-line gap is worth closing regardless.
+
+So `/i/[itemId]` has **no Lighthouse numbers in this evidence set**, deliberately, with the reason
+written down rather than a fabricated figure. It is worth one pass in a real, non-headless Chrome.

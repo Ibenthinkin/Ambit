@@ -127,16 +127,16 @@ export async function getOrFill(item, opts?): Promise<CachedImage>
 
 ### T5 — Lighthouse on throttled mobile; the cheap fixes
 
-- [ ] **5.1** `bunx lighthouse@latest --help | head -50` once to confirm the flags in the Verified facts row. Create `docs/phase7.3-evidence/` (commit JSON summaries only — add `docs/phase7.3-evidence/*.html` to `.gitignore`).
-- [ ] **5.2** `scripts/lh-cookie.ts` (dev-only, ~30 lines): re-verify `asResponse` in Better Auth's docs (Context7: `/better-auth/better-auth`, query "auth.api signInEmail asResponse set-cookie"); if it holds, sign in the bench user (email from `--user`, password from `--password`) and print the `Cookie:` header value. If it does not hold, or the bench user's password is unknown, **skip `/feed`** and record why — do not invent a password reset flow for this.
-- [ ] **5.3** With `bun run build && bun run start` running, for each URL — `/`, `/i/<an image item id with a warmed LoC image>`, and `/feed` if 5.2 produced a cookie: `bunx lighthouse http://localhost:3000<path> --only-categories=performance,accessibility,best-practices --form-factor=mobile --screenEmulation.mobile --throttling-method=simulate --chrome-flags="--headless=new" --output=json --output=html --output-path=docs/phase7.3-evidence/before-<name>` (`--extra-headers '{"Cookie":"<value>"}'` for `/feed`). Extract into the walkthrough: the three category scores, LCP, CLS, TBT, and the top three opportunities/diagnostics by estimated savings.
-- [ ] **5.4** Fixes, each behaviour-neutral and each ≤ 30 min (D7) — do the ones the report actually names, skip the rest:
+- [x] **5.1** `bunx lighthouse@latest --help | head -50` once to confirm the flags in the Verified facts row. Create `docs/phase7.3-evidence/` (commit JSON summaries only — add `docs/phase7.3-evidence/*.html` to `.gitignore`).
+- [x] **5.2** `scripts/lh-cookie.ts` (dev-only, ~30 lines): re-verify `asResponse` in Better Auth's docs (Context7: `/better-auth/better-auth`, query "auth.api signInEmail asResponse set-cookie"); if it holds, sign in the bench user (email from `--user`, password from `--password`) and print the `Cookie:` header value. If it does not hold, or the bench user's password is unknown, **skip `/feed`** and record why — do not invent a password reset flow for this.
+- [x] **5.3** With `bun run build && bun run start` running, for each URL — `/`, `/i/<an image item id with a warmed LoC image>`, and `/feed` if 5.2 produced a cookie: `bunx lighthouse http://localhost:3000<path> --only-categories=performance,accessibility,best-practices --form-factor=mobile --screenEmulation.mobile --throttling-method=simulate --chrome-flags="--headless=new" --output=json --output=html --output-path=docs/phase7.3-evidence/before-<name>` (`--extra-headers '{"Cookie":"<value>"}'` for `/feed`). Extract into the walkthrough: the three category scores, LCP, CLS, TBT, and the top three opportunities/diagnostics by estimated savings.
+- [x] **5.4** Fixes, each behaviour-neutral and each ≤ 30 min (D7) — do the ones the report actually names, skip the rest:
   - hero (`image-item-body.tsx`): `fetchPriority="high"` and `decoding="async"`; and in `/i/[itemId]/page.tsx`, `preload(`/api/img/${item.id}`, { as: "image" })` from `react-dom` when the item has a proxy image (this is the LCP element on the public page);
   - tiles (`image-tile.tsx`): `decoding="async"`;
   - landing slideshow: only if Lighthouse flags it — the slides are static `/landing/*.jpg`; if they are the LCP and oversized, note it as a 9.x follow-up rather than re-encoding assets overnight;
   - anything Lighthouse flags under best-practices that is a one-liner (e.g. a missing `<meta>`), if it is unambiguous.
-- [ ] **5.5** Rebuild, re-run 5.3 as `after-<name>`, paste the deltas. `bun run check` and `bun run e2e:prod` green.
-- [ ] **5.6** Commit: `perf(ui): hero fetch priority + preload; async decoding; Lighthouse evidence`.
+- [x] **5.5** Rebuild, re-run 5.3 as `after-<name>`, paste the deltas. `bun run check` and `bun run e2e:prod` green.
+- [x] **5.6** Commit: `perf(ui): hero fetch priority + preload; async decoding; Lighthouse evidence`.
 
 *Done = before/after JSON in `docs/phase7.3-evidence/`, scores and top findings in the walkthrough, the cheap fixes in.*
 

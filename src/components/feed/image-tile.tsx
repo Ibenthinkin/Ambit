@@ -127,6 +127,10 @@ export function ImageTile({
           // Remounting on `attempt` is what re-issues the request — same URL, fresh element.
           key={attempt}
           loading="lazy"
+          // Phase 7.3: a feed page holds ~24 of these, and decoding each one on the main thread is
+          // exactly the kind of work that makes a scroll stutter on a phone. `async` hands the
+          // decode to another thread; the picture is identical.
+          decoding="async"
           src={src}
           alt={item.title}
           onError={handleError}

@@ -52,9 +52,18 @@ export function ImageItemBody({ item }: ImageItemBodyProps) {
               `components/feed/image-tile.tsx` for the full account. Untouched by the wrapper: every
               attribute here is exactly what 5.7 shipped. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
+          {/* **This is the LCP element of the app's one public, shareable page** (Phase 7.3, T5).
+              `fetchPriority="high"` tells the browser to pull it ahead of the other requests the
+              page starts — without it the hero competes with the JS bundle for the first
+              connections — and `decoding="async"` keeps the decode off the main thread so it can
+              never delay the rest of the paint. Neither changes a pixel of the result. The
+              matching `preload` is in `app/i/[itemId]/page.tsx`, which starts the request before
+              this markup is even parsed. */}
           <img
             src={src}
             alt={item.title}
+            fetchPriority="high"
+            decoding="async"
             className="rounded-tile block h-[300px] w-full object-cover"
           />
         </HeroGalleryLink>
