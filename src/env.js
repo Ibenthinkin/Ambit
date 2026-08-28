@@ -26,6 +26,12 @@ export const env = createEnv({
     // Optional: unset in dev (server/services/mailer.ts falls back to Mailpit), required for
     // ResendMailer to activate in production.
     RESEND_API_KEY: z.string().min(1).optional(),
+    // The envelope sender for every transactional mail (Phase 8.1). It has to be an address on a
+    // domain verified in Resend — anything else is rejected at send time, and the send is
+    // fire-and-forget (see auth.ts's sendResetPassword), so a wrong value here is *silent*. The
+    // default is the deployed domain; a different deployment overrides it rather than editing
+    // mailer.ts, which is why this is a var at all.
+    MAIL_FROM: z.string().min(1).default("Ambit <noreply@ambit.benreilly.io>"),
     // Optional here (unlike the two above): only the ingest-time curator (server/services/
     // curator.ts, Phase 3.3) and offline embedding tooling read it, never a request path, so
     // there's no reason to fail app boot over it. curator.ts checks for its own presence at call
@@ -83,6 +89,7 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    MAIL_FROM: process.env.MAIL_FROM,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     ARCHIVE_URL: process.env.ARCHIVE_URL,
     ARCHIVE_API_KEY: process.env.ARCHIVE_API_KEY,

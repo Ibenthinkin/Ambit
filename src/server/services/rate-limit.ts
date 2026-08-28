@@ -88,3 +88,31 @@ export function trustedClientIp(headers: Headers): string | null {
   const last = hops[hops.length - 1];
   return last && last.length > 0 ? last : null;
 }
+
+/**
+ * The header(s) Better Auth should read the client IP from, given the runtime environment (Phase
+ * 8.1, decision D11).
+ *
+ * Better Auth's own limiter keys on an IP it takes from `advanced.ipAddress.ipAddressHeaders`,
+ * which defaults to `x-forwarded-for` — and since 1.6.21 it refuses to trust a *multi-valued*
+ * chain, treating `a, b` as no IP at all rather than guessing which hop is real. In production
+ * that default is not merely weaker than it looks, it is switchable off by the caller: Cloudflare
+ * **appends** the connecting address to whatever `X-Forwarded-For` the client sent, so anyone who
+ * sends one at all makes the header multi-valued and takes Better Auth's per-IP limiting with
+ * them — every request lands in one shared "no IP" bucket, which is the credential-stuffing case
+ * the limiter exists for.
+ *
+ * `CF-Connecting-IP` has neither problem: Cloudflare sets it unconditionally, single-valued, from
+ * the connection it terminated, and overwrites anything the client sent. It is only correct
+ * *behind Cloudflare*, though — trusting it anywhere else would let a caller name their own
+ * address — so it is scoped to production, which is the only environment that sits behind the
+ * tunnel. Dev and CI keep the `x-forwarded-for` default.
+ *
+ * `trustedClientIp` above needs no equivalent switch: it already takes the last hop, which is
+ * precisely the segment Cloudflare appended. Both limiters therefore agree on who a caller is.
+ *
+ * @returns the header list to configure, or `undefined` to leave Better Auth's default in place.
+ */
+export function authIpAddressHeaders(nodeEnv: string): string[] | undefined {
+  return nodeEnv === "production" ? ["cf-connecting-ip"] : undefined;
+}

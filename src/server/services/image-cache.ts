@@ -80,8 +80,14 @@ function isTimeout(err: unknown): boolean {
   );
 }
 
-/** The cache directory, resolved against the project root when the env var is relative. */
-function cacheDir(dir = env.IMAGE_CACHE_DIR): string {
+/**
+ * The cache directory, resolved against the project root when the env var is relative.
+ *
+ * Exported since 8.1 so `/api/health` can prove the same directory this module writes to is
+ * present and writable — the readiness signal has to check the *resolved* path, not the raw env
+ * var, or a relative `IMAGE_CACHE_DIR` would be checked against the wrong place.
+ */
+export function imageCacheDir(dir = env.IMAGE_CACHE_DIR): string {
   return isAbsolute(dir) ? dir : resolve(process.cwd(), dir);
 }
 
@@ -94,7 +100,7 @@ function cacheDir(dir = env.IMAGE_CACHE_DIR): string {
  * up in our own table. Keep it that way.
  */
 export function cachePathFor(itemId: string, dir?: string): string {
-  return join(cacheDir(dir), `${itemId}.webp`);
+  return join(imageCacheDir(dir), `${itemId}.webp`);
 }
 
 /** `mkdir -p`, memoised per directory — a fill shouldn't syscall for this on every miss. */
@@ -232,7 +238,7 @@ export async function fillCache(
   // **Write to a temp name, then rename.** `rename` within a filesystem is atomic, so a concurrent
   // reader either sees no file or sees a complete one — never the half-written file a plain
   // `writeFile` would expose if the process died mid-write.
-  const dir = cacheDir(opts.dir);
+  const dir = imageCacheDir(opts.dir);
   await ensureDir(dir);
   const final = cachePathFor(item.id, opts.dir);
   const temp = `${final}.${process.pid}.${randomUUID()}.tmp`;

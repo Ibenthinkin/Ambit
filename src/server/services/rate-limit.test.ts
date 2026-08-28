@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { RateLimiter, trustedClientIp } from "./rate-limit";
+import {
+  authIpAddressHeaders,
+  RateLimiter,
+  trustedClientIp,
+} from "./rate-limit";
 
 // A tiny fake clock — same "injected seam" idea as services/random.ts's rng, so these tests move
 // time deterministically instead of using a real sleep.
@@ -141,8 +145,30 @@ describe("trustedClientIp", () => {
     expect(trustedClientIp(headers)).toBe("9.10.11.12");
   });
 
+  // The production shape, spelled out: Cloudflare appends the address it terminated to whatever
+  // the client sent, so the spoofed value is always the *first* hop and the real one always last.
+  it("takes Cloudflare's appended hop, not the client's spoofed one", () => {
+    const headers = new Headers({
+      "x-forwarded-for": "spoofed, 203.0.113.9",
+    });
+    expect(trustedClientIp(headers)).toBe("203.0.113.9");
+  });
+
   it("returns null for an empty header value", () => {
     const headers = new Headers({ "x-forwarded-for": "" });
     expect(trustedClientIp(headers)).toBeNull();
+  });
+});
+
+// Phase 8.1, D11: which header Better Auth's own limiter reads the client IP from. The value is
+// only trustworthy behind Cloudflare, so the environment gate is the point of the function.
+describe("authIpAddressHeaders", () => {
+  it("names cf-connecting-ip in production, where Cloudflare sets it", () => {
+    expect(authIpAddressHeaders("production")).toEqual(["cf-connecting-ip"]);
+  });
+
+  it("leaves Better Auth's default alone everywhere else", () => {
+    expect(authIpAddressHeaders("development")).toBeUndefined();
+    expect(authIpAddressHeaders("test")).toBeUndefined();
   });
 });
