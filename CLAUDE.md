@@ -34,7 +34,14 @@ rate limiter, and the accent knob not surviving a reload) — both fixed in 7.1.
 findings: 41 corpus rows carry `<i>`/`<em>` markup in `title`/`summary` from four adapters
 (reader-visible, fix is one `htmlToText()` in `normalize.ts` — recorded, not made), and the CSP
 surfaced a dev-only hydration error from the way browsers blank a `<script nonce>` attribute.
-**Next: 7.3.** See `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
+**7.3 shipped 08-28-26** — performance + images. The **image-delivery gate is settled:
+proxy-with-cache**. `/api/img/[itemId]` now fills a disk cache (`IMAGE_CACHE_DIR`, default
+`.cache/img`) and serves **≤1600px WebP**, so every source image is fetched from its museum
+**once, ever** (`src/server/services/image-cache.ts`; `bun run img:warm` spends those fetches
+politely, per host). And the feed's page compose went from **138 ms to 22 ms** — `getTopicPools`
+had been dragging 9,848 full rows / 35.8 MB out of Postgres to pick twelve cards; it now returns a
+five-column projection and `getFeedPage` hydrates the winners by id. `bun run bench:feed` is the
+before/after. **Next: 8.1.** See `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
 `log.md` for the narrative of what's landed and why.
 
 ## Authoritative documents
@@ -86,6 +93,20 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   every run — so a green CI and a red local `gallery.spec:193` are consistent, and the local one is
   the accumulation. Delete this note if the test is ever made robust.
 - **A red Postgres-touching integration test usually means the machine is busy, not that the code broke.** Overlapping `bun run test` runs, or a dev server under load, balloon vitest setup from ~7s to ~650s and then fail *unrelated* integration tests — three times in one session on 2026-08-20, a different test each time. Check what else is running before debugging the test. Delete this note if test isolation is ever fixed; don't leave it as folklore.
+- **After `bun add`/`bun remove`, clear Vite's dep cache before trusting a red test run.** Adding
+  `sharp` in 7.3 invalidated `node_modules/.vite`, and the symptom was nothing like a dependency
+  problem: `bun run test` went from **34 s to 486–1,218 s**, `import` alone taking 700–3,200 s, with
+  *different* tests failing every run — including pure unit tests that cannot fail for logic reasons
+  (`routers.test.ts`'s "throws UNAUTHORIZED"), test-file counts varying run to run (77 → 71 → 72),
+  and one `saves.list` call taking **826 seconds**. Postgres was provably idle and sub-millisecond
+  throughout, and no stray processes were running, so it reads exactly like the busy-machine class
+  below and isn't. **`rm -rf node_modules/.vite node_modules/.cache/vite`** put it back to 35 s /
+  820 tests immediately. Suspect this whenever the *whole* suite degrades right after a dependency
+  change; the busy-machine note below is for when it degrades without one.
+- **Deleting `.cache/img` forces the image proxy to refetch from the museums.** It is one
+  `<itemId>.webp` per item (Phase 7.3) and safe to delete, but it is also the only thing standing
+  between a scroll and `tile.loc.gov`'s per-IP budget — refill it with `bun run img:warm --rate 2`
+  rather than letting readers do it. `bun run img:warm --dry-run` counts what a run would fetch.
 - **A valid API key that still 401s is probably being shadowed by the shell.** Bun resolves real
   environment variables *ahead* of `.env`, so an `export OPENROUTER_API_KEY=…` left in `~/.zshrc`
   wins over the file and editing `.env` changes nothing the process ever sees. This cost most of

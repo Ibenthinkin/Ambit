@@ -301,3 +301,48 @@ reader still waits out the 160 ms stagger. That one-line gap is worth closing re
 
 So `/i/[itemId]` has **no Lighthouse numbers in this evidence set**, deliberately, with the reason
 written down rather than a fabricated figure. It is worth one pass in a real, non-headless Chrome.
+
+## Verification (the done-bar)
+
+| # | Bar | Result |
+|---|---|---|
+| 1 | `bun run check` green with `image-cache.test.ts` and the extended `route.test.ts` | ✅ 77 files / **820 tests** (was 797 after 7.2) |
+| 2 | `bun run e2e:prod` green, `pwa.prod.spec.ts` included | ✅ **46 passed** |
+| 3 | Two curls to the same `/api/img/<id>`: `fill` then `hit`, both WebP | ✅ 56 ms → 4.5 ms, 43,664 bytes both |
+| 4 | `bun run bench:feed`: p50 < 300 ms and the pool payload in single-digit MB | ✅ **p50 22 ms**, payload **1.6 MB** |
+| 5 | `docs/phase7.3-evidence/` has before/after JSON for at least `/` and `/i/[id]` | ⚠️ `/` and **`/feed`** — `/i/[itemId]` returns `NO_FCP` to headless Lighthouse (see T5) |
+| 6 | BUILD_PLAN's gate table says the image decision is settled, and SPEC says how | ✅ gate row flipped; SPEC §8.1a, §11, §13, §15 |
+
+## What the plan got wrong
+
+1. **T2 was filed as hygiene. It was the phase's biggest win.** The plan's own reasoning was sound —
+   the feed was already at 138 ms against a 300 ms bar, so the projection was "for the VPS". On a
+   laptop over a local socket it still cut p50 by 6× and p95 by 3.4×, because serialising 35.8 MB is
+   not free anywhere. The lesson is narrower than "measure": the plan measured *latency* in 7.3's
+   research and concluded there was nothing to win, without measuring *payload*.
+2. **The disk estimate was 2× too pessimistic** — 62 KB a file rather than 120, so ~0.67 GB for the
+   corpus rather than 1.3. WebP at q82 is simply better than the source JPEGs.
+3. **The plan's failure taxonomy for `fillCache` missed the one that actually happened.** It
+   enumerated upstream / decode / too-large / timeout and had the route map each to a 502 — but it
+   put the timeout only on the *fetch*, and the real timeout landed on the **body read**, outside
+   the guard. Combined with `DOMException` not being `instanceof Error` under Bun, that is two
+   compounding mistakes in code the plan specified almost line by line. Seven minutes against a real
+   museum found both; no amount of re-reading would have.
+4. **Nothing anticipated that `/i/[itemId]` would be unmeasurable.** T5 named it as one of the three
+   URLs and gave a fallback only for `/feed` (if the cookie script failed). The page that *did* need
+   a fallback was the one the plan was most confident about.
+5. **`bun add sharp` cost more time than any code in this phase** — it silently staled Vite's dep
+   cache, and the resulting non-deterministic, minutes-long test runs read exactly like the
+   documented busy-machine flake. Now written down in CLAUDE.md so the next phase doesn't re-derive
+   it.
+
+## What to remember
+
+- **`X-Ambit-Cache` is the cheapest observability in the codebase.** One header turned "is the cache
+  working" from a stopwatch question into `curl -I`, and into an assertion in the route test.
+- **The security boundary did not move.** The cache key is the item id, the URL still comes only
+  from the DB, and nothing in this phase accepts a caller-supplied URL, path or size.
+- **A fill is worth finishing even when nobody is waiting for it.** The request's abort signal is
+  deliberately not plumbed into the upstream fetch — a reader scrolling past would otherwise cancel
+  the one fetch this image was ever going to cost.
+- **`img:warm --rate 1` is inside LoC's budget; a burst is not.** 372 images, zero 429s.
