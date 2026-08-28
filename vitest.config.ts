@@ -21,6 +21,23 @@ try {
   // and DB-backed tests skip themselves rather than failing
 }
 
+// `~/env` (src/env.js) validates the whole schema the moment it is *imported*, and DATABASE_URL /
+// BETTER_AUTH_SECRET / BETTER_AUTH_URL are required there. That is right for the app and wrong for
+// a unit test run: CI's `check` job has no .env and — deliberately — no DATABASE_URL, so the five
+// DB-backed suites skip themselves. Any unit test that transitively imports `~/env` therefore blew
+// up at import time with "Invalid environment variables" (7.3's image-cache.ts:31 was the first to
+// do it, and took its route test down with it — main's `check` job went red on the 7.3 merge).
+//
+// Handing the job a placeholder DATABASE_URL would fix the import and break the skip guards, so
+// instead: when there is no DATABASE_URL there is no real environment to validate, and env.js's
+// own documented escape hatch is used. Locally (a real .env) nothing changes — validation still
+// runs, exactly as it does at boot. The defaults the schema would have applied are set by hand,
+// because skipValidation makes `env` a straight pass-through of `runtimeEnv`.
+if (!process.env.DATABASE_URL) {
+  process.env.SKIP_ENV_VALIDATION = "1";
+  process.env.IMAGE_CACHE_DIR ??= ".cache/img";
+}
+
 // Vitest owns fast, isolated unit tests against plain functions (SPEC §12: adapter `toItem`
 // normalization, feed merge/weighting logic, etc.) *and*, as of Phase 5.1, component tests for
 // the shared UI primitives. It's Vite-powered, so files run directly against TS/TSX source with
