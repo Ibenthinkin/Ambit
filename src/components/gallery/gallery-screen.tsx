@@ -11,6 +11,7 @@ import { PillToolbar } from "~/components/ui/pill-toolbar";
 import { Toast } from "~/components/ui/toast";
 import { useChromeCycle } from "~/hooks/use-chrome-cycle";
 import { useRailGestures } from "~/hooks/use-rail-gestures";
+import { imageFileName } from "~/lib/image-filename";
 import { saveToastText } from "~/lib/save-toast";
 import { sourceLabel } from "~/lib/source-label";
 import type { RailItem } from "~/server/services/gallery-rail";
@@ -198,7 +199,10 @@ export function GalleryScreen({
       const res = await fetch(`/api/img/${itemId}`);
       if (!res.ok) throw new Error(`image ${res.status}`);
       const blob = await res.blob();
-      const file = new File([blob], `${itemId}.jpg`, { type: blob.type });
+      // The extension follows what the proxy actually served (WebP since 7.3) rather than a
+      // hardcoded `.jpg` — see lib/image-filename.ts for why that matters to the OS.
+      const name = imageFileName(itemId, blob.type);
+      const file = new File([blob], name, { type: blob.type });
 
       if (navigator.canShare?.({ files: [file] })) {
         try {
@@ -213,7 +217,7 @@ export function GalleryScreen({
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
-      a.download = `${itemId}.jpg`;
+      a.download = name;
       a.click();
       URL.revokeObjectURL(href);
       setToast("Image saved");

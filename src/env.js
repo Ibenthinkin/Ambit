@@ -44,6 +44,12 @@ export const env = createEnv({
     // other source. sources/smithsonian.ts reads process.env at search() time and throws its own
     // "not configured" error there.
     SMITHSONIAN_API_KEY: z.string().min(1).optional(),
+    // Where the image proxy keeps its cache (Phase 7.3). One `<itemId>.webp` file per item, so
+    // every source image is fetched from upstream exactly once, ever. Relative paths resolve
+    // against `process.cwd()`. Safe to delete at any time — the next request refills it.
+    // **8.1 mounts this as a persistent volume** so a deploy doesn't send the whole corpus back to
+    // the museums.
+    IMAGE_CACHE_DIR: z.string().min(1).default(".cache/img"),
     // Optional (Phase 4.1 decision): gates the feed engine's debug affordances (SPEC §9's "dev
     // affordances stay in" — the debug overlay's `why`/`curationScore` on each card, and whether
     // `feed.page` honors ad hoc knob overrides at all). Left unset, it defaults to "on" in
@@ -81,6 +87,7 @@ export const env = createEnv({
     ARCHIVE_URL: process.env.ARCHIVE_URL,
     ARCHIVE_API_KEY: process.env.ARCHIVE_API_KEY,
     SMITHSONIAN_API_KEY: process.env.SMITHSONIAN_API_KEY,
+    IMAGE_CACHE_DIR: process.env.IMAGE_CACHE_DIR,
     FEED_DEBUG: process.env.FEED_DEBUG,
     NODE_ENV: process.env.NODE_ENV,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,

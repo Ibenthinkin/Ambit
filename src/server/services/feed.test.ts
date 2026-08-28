@@ -25,12 +25,19 @@ const {
   mockGetTasteKeywords,
   mockGetTopicPools,
   mockMarkSeen,
+  mockGetItemsByIds,
+  itemRegistry,
 } = vi.hoisted(() => ({
   mockEnv: { FEED_DEBUG: undefined as boolean | undefined, NODE_ENV: "test" },
   mockGetUserTopicWeights: vi.fn(),
   mockGetTasteKeywords: vi.fn(),
   mockGetTopicPools: vi.fn(),
   mockMarkSeen: vi.fn(),
+  mockGetItemsByIds: vi.fn(),
+  // Every fixture `makeItem` ever built, by id — the stand-in for the `item` table that
+  // `getItemsByIds` reads (Phase 7.3: the engine composes from projections and hydrates the
+  // winners at the end, so a `getFeedPage` test needs both halves mocked, not just the pools).
+  itemRegistry: new Map<string, unknown>(),
 }));
 
 vi.mock("~/env", () => ({ env: mockEnv }));
@@ -49,6 +56,13 @@ vi.mock("~/server/db/saves", async (importActual) => ({
 vi.mock("~/server/db/feed", () => ({
   getTopicPools: mockGetTopicPools,
   markSeen: mockMarkSeen,
+}));
+// `drawWeight` is a pure export of this module and the taste formula these tests pin, so it stays
+// real; only the hydrate query is replaced. It answers out of `itemRegistry`, which is exactly
+// what a real `item` table would hold for these fixtures.
+vi.mock("~/server/db/items", async (importActual) => ({
+  ...(await importActual<typeof import("~/server/db/items")>()),
+  getItemsByIds: mockGetItemsByIds,
 }));
 
 import {
@@ -69,7 +83,7 @@ import {
 let nextId = 0;
 function makeItem(overrides: Partial<Item> = {}): Item {
   nextId++;
-  return {
+  const built = {
     id: overrides.id ?? `item-${nextId}`,
     source: overrides.source ?? "wikipedia",
     sourceId: overrides.sourceId ?? `src-${nextId}`,
@@ -87,7 +101,21 @@ function makeItem(overrides: Partial<Item> = {}): Item {
     aestheticTags: overrides.aestheticTags ?? [],
     fetchedAt: overrides.fetchedAt ?? new Date(),
   };
+  // Registered so the mocked `getItemsByIds` can hand it back when the engine hydrates.
+  itemRegistry.set(built.id, built);
+  return built;
 }
+
+// The hydrate half of `getFeedPage`, answered from the fixtures this file built. Mirrors the real
+// function's contract exactly: a Map, and an id it doesn't know about is simply absent.
+mockGetItemsByIds.mockImplementation((ids: string[]) => {
+  const found = new Map<string, Item>();
+  for (const id of ids) {
+    const row = itemRegistry.get(id);
+    if (row) found.set(id, row as Item);
+  }
+  return Promise.resolve(found);
+});
 
 describe("pickCore", () => {
   it("returns null when there are no topics to draw from", () => {
@@ -583,6 +611,9 @@ describe("getFeedPage — FEED_DEBUG knob gating", () => {
         return pools;
       });
     mockMarkSeen.mockReset().mockResolvedValue(undefined);
+    // Cleared, not reset: the default implementation set up at the top of the file (answer out of
+    // `itemRegistry`) has to survive, but the call log must not leak between tests.
+    mockGetItemsByIds.mockClear();
   });
 
   // The 5.7 move: composing a page says nothing about who saw it. The mock stays wired precisely
@@ -619,6 +650,50 @@ describe("getFeedPage — FEED_DEBUG knob gating", () => {
     mockEnv.NODE_ENV = "production";
     const page = await getFeedPage("user-1", undefined, { pageSize: 3 });
     expect(page.cards).toHaveLength(DEFAULT_KNOBS.pageSize); // 12 — override never applied
+  });
+
+  // **Phase 7.3's projection/hydrate seam.** `composePage` now works from five-column `PoolItem`
+  // projections and `getFeedPage` re-fetches the winners whole. The thing that could silently go
+  // wrong is the join between the two: hydrating a different set than was composed, losing the
+  // composed order, or dropping the debug fields on the way through.
+  it("hydrates exactly the ids it composed, in order, keeping every other card field", async () => {
+    mockEnv.FEED_DEBUG = true;
+    const page = await getFeedPage("user-1", undefined, { pageSize: 5 });
+
+    expect(mockGetItemsByIds).toHaveBeenCalledOnce();
+    const [askedFor] = mockGetItemsByIds.mock.calls[0] as [string[]];
+    const returned = page.cards.map((c) => c.item.id);
+
+    // Same ids, same order — not merely the same set.
+    expect(returned).toEqual(askedFor);
+    // And what came back is a whole row, not the projection the pools carried.
+    expect(page.cards[0]!.item).toHaveProperty("sourceUrl");
+    expect(page.cards[0]!.item).toHaveProperty("title");
+    // The card's own fields survive the swap.
+    expect(page.cards[0]!.tier).toBeTruthy();
+    expect(page.cards[0]!.debug?.why).toBeTruthy();
+  });
+
+  // The one case where the two queries can legitimately disagree: an item deleted between them.
+  // A page one card short beats a failed request (see getFeedPage's comment).
+  it("drops a card whose item vanished between the pool query and the hydrate", async () => {
+    mockEnv.FEED_DEBUG = false;
+    mockGetItemsByIds.mockImplementationOnce((ids: string[]) => {
+      const found = new Map<string, Item>();
+      // Everything but the first — as if that row were deleted mid-request.
+      for (const id of ids.slice(1)) {
+        const row = itemRegistry.get(id);
+        if (row) found.set(id, row as Item);
+      }
+      return Promise.resolve(found);
+    });
+
+    const page = await getFeedPage("user-1");
+
+    expect(page.cards).toHaveLength(DEFAULT_KNOBS.pageSize - 1);
+    // The cursor still names every id that was *drawn*, missing row included, so the next page
+    // excludes it rather than offering it straight back.
+    expect(page.nextCursor).toBeDefined();
   });
 });
 

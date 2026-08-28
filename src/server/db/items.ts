@@ -73,6 +73,30 @@ export async function getItemById(id: string): Promise<Item | undefined> {
 }
 
 /**
+ * The batch form: full rows for a set of ids, in one query (Phase 7.3).
+ *
+ * **Why it exists.** The feed engine composes a page out of `PoolItem` projections (db/feed.ts) —
+ * five columns per row, so that reading ten thousand candidates costs kilobytes rather than tens
+ * of megabytes. The twelve that win still have to be *rendered*, and this is the one query that
+ * fetches them whole.
+ *
+ * Returns a **Map**, not an array: the caller has its own order (the order `composePage` drew the
+ * cards in) and must not inherit whatever order Postgres felt like returning. An id that isn't in
+ * the map was deleted between the two queries — the caller drops that card rather than throwing.
+ */
+export async function getItemsByIds(ids: string[]): Promise<Map<string, Item>> {
+  const byId = new Map<string, Item>();
+  // `inArray(id, [])` is invalid SQL (an empty IN-list) — the same footgun `drawFromTopic` and
+  // `getTopicPools` already guard against.
+  if (ids.length === 0) return byId;
+
+  const { db } = await import("./client");
+  const rows = await db.select().from(item).where(inArray(item.id, ids));
+  for (const row of rows) byId.set(row.id, row);
+  return byId;
+}
+
+/**
  * The feed's item-pick weight (SPEC §9.2): scores near the floor barely outweigh each other,
  * scores well above it dominate, and `power` is the knob that controls how sharply — `power = 0`
  * flattens every in-range score to weight 1 (pure random within the topic pool), while higher

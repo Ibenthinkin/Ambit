@@ -8,6 +8,7 @@ import { PillToolbar } from "~/components/ui/pill-toolbar";
 import { Toast } from "~/components/ui/toast";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
 import { useSwipeBack } from "~/hooks/use-swipe-back";
+import { imageFileName } from "~/lib/image-filename";
 import { saveToastText } from "~/lib/save-toast";
 import { api } from "~/trpc/react";
 
@@ -70,7 +71,10 @@ export function ItemShell({
       const res = await fetch(`/api/img/${itemId}`);
       if (!res.ok) throw new Error(`image ${res.status}`);
       const blob = await res.blob();
-      const file = new File([blob], `${itemId}.jpg`, { type: blob.type });
+      // The extension follows what the proxy actually served (WebP since 7.3) rather than a
+      // hardcoded `.jpg` — see lib/image-filename.ts for why that matters to the OS.
+      const name = imageFileName(itemId, blob.type);
+      const file = new File([blob], name, { type: blob.type });
 
       if (navigator.canShare?.({ files: [file] })) {
         try {
@@ -85,7 +89,7 @@ export function ItemShell({
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
-      a.download = `${itemId}.jpg`;
+      a.download = name;
       a.click();
       URL.revokeObjectURL(href);
       setToast("Image saved");

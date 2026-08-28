@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { preload } from "react-dom";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -100,6 +101,18 @@ export default async function ItemPage({
 
   const sharedBy = sharedByName((await searchParams).from);
   const variant = item.type === "image" ? "image" : "article";
+
+  // **Starts the hero's request before the browser has parsed the markup that needs it**
+  // (Phase 7.3, T5). This is the LCP element of the app's one public page — the thing a stranger
+  // following a shared link waits for — and `preload` puts a `<link rel="preload" as="image">` in
+  // the document head, so the fetch begins with the HTML rather than after it. Paired with
+  // `fetchPriority="high"` on the `<img>` itself (image-item-body.tsx).
+  //
+  // Only for a real proxied image: `data:` URLs are inline already (the e2e corpus), and
+  // preloading something the page won't request is a wasted connection plus a console warning.
+  if (item.imageUrl && !item.imageUrl.startsWith("data:")) {
+    preload(`/api/img/${item.id}`, { as: "image", fetchPriority: "high" });
+  }
 
   return (
     <ItemShell
