@@ -165,9 +165,17 @@ twice clean before pushing. Four minutes, with a readable transcript.
 counted: `121 users · 2,634 seen_item · 381 user_topic · 165 collection · 17 saved_item`. One
 evening's work put 81 users and 2,206 seen rows straight back.
 
+**Merged to `main` the same night** — `--no-ff`, [PR #18](https://github.com/Ibenthinkin/Ambit/pull/18)
+merged, both jobs green on the push to `main` too. The merged tree threw one red on the way in:
+`gallery.spec:248` ("a gallery session spends none of the reader's corpus") came back 11 tiles
+instead of 12, then passed 5/5 in isolation and on a clean full run. Same class as the
+`gallery.spec:193` note in CLAUDE.md and the same cause — the dev DB had put **81 users and 2,206
+`seen_item` rows** back in a single evening. Not a regression, and CI (fresh database every run)
+has never shown it.
+
 **Open / next:** 7.2 (security pass) — and it inherits a concrete first item: give Better Auth a
 real per-client IP behind Coolify's proxy, or the rate limiter is either useless or an outage. Then
-7.3, the image decision.
+7.3, the image decision. Housekeeping: the dev DB is due a `bun run e2e:clean --confirm`.
 
 *Session spend: 26.05M tok (in 30.2k · out 264.0k · cache r 24.52M / w 1.23M) · ~≥$50.61 · fable-5 + opus-4-7 + <synthetic> · 12:10→13:09*
 *Session spend: 5.95M tok (in 5.0k · out 68.5k · cache r 5.49M / w 389.5k) · ~$16.76 · fable-5 · 15:28→15:35*
@@ -176,6 +184,7 @@ real per-client IP behind Coolify's proxy, or the rate limiter is either useless
 *Session spend: 5.91M tok (in 1.5k · out 130.8k · cache r 5.74M / w 33.5k) · ~$12.96 · fable-5 · 19:26→19:33*
 *Session spend: 9.09M tok (in 5.7k · out 151.6k · cache r 8.48M / w 452.7k) · ~$25.17 · fable-5 · 19:52→20:13*
 *Session spend: 63.22M tok (in 821 · out 348.6k · cache r 61.75M / w 1.12M) · ~$48.60 · opus-5 + opus-4-7 · 20:16→22:14*
+*Session spend: 10.79M tok (in 68 · out 17.3k · cache r 10.73M / w 38.5k) · ~$6.18 · opus-5 · 22:14→22:41*
 
 ### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.** Then: 6.3's design session opened.
 
