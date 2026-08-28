@@ -157,6 +157,32 @@ describe("fillCache", () => {
     );
   });
 
+  // **The bug the first real `img:warm` run found.** `AbortSignal.timeout` covers the whole
+  // exchange, so a host that answers its headers promptly and then stalls on the body rejects
+  // *after* the fetch call has already returned. Unwrapped, that rejection escaped `fillCache`
+  // entirely — as a `DOMException`, which under Bun is not an `instanceof Error` — and took the
+  // warm script down with it. In the route it would have been a 500 instead of a 502.
+  it("turns a body-read failure into an ImageFillError rather than letting it escape", async () => {
+    const stalled = new Response(
+      new ReadableStream({
+        start(controller) {
+          const timeout = new DOMException(
+            "The operation timed out.",
+            "TimeoutError",
+          );
+          controller.error(timeout);
+        },
+      }),
+      { status: 200 },
+    );
+    const fetchImpl = vi.fn(async () => stalled) as unknown as typeof fetch;
+
+    await expect(fillCache(item, { dir, fetchImpl })).rejects.toMatchObject({
+      kind: "timeout",
+    });
+    expect(await readdir(dir)).toEqual([]);
+  });
+
   it("throws an ImageFillError, so the route can tell it from a programming mistake", async () => {
     const fetchImpl = fetchReturning(Buffer.from("garbage"));
     await expect(fillCache(item, { dir, fetchImpl })).rejects.toBeInstanceOf(

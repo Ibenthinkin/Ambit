@@ -63,6 +63,23 @@ export class ImageFillError extends Error {
   }
 }
 
+/**
+ * Whether a thrown value is an aborted-by-timeout.
+ *
+ * **Deliberately duck-typed, not `instanceof Error`.** `AbortSignal.timeout` rejects with a
+ * `DOMException`, and under Bun a `DOMException` is *not* an instance of `Error` — so the obvious
+ * `err instanceof Error && err.name === "TimeoutError"` silently mislabels every timeout as a
+ * generic upstream failure. (Under Node it happens to pass. The first real `img:warm` run is what
+ * showed the difference.)
+ */
+function isTimeout(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { name?: unknown }).name === "TimeoutError"
+  );
+}
+
 /** The cache directory, resolved against the project root when the env var is relative. */
 function cacheDir(dir = env.IMAGE_CACHE_DIR): string {
   return isAbsolute(dir) ? dir : resolve(process.cwd(), dir);
@@ -146,9 +163,8 @@ export async function fillCache(
       redirect: "follow",
     });
   } catch (err) {
-    const timedOut = err instanceof Error && err.name === "TimeoutError";
     throw new ImageFillError(
-      timedOut ? "timeout" : "upstream",
+      isTimeout(err) ? "timeout" : "upstream",
       `fetch failed for item ${item.id}: ${String(err)}`,
     );
   }
@@ -170,7 +186,21 @@ export async function fillCache(
     );
   }
 
-  const raw = Buffer.from(await upstream.arrayBuffer());
+  // **Wrapped, and that is not belt-and-braces.** `AbortSignal.timeout` covers the *whole*
+  // exchange, headers and body alike, so a museum that answers instantly and then trickles the
+  // bytes rejects here rather than at the `fetch` above. Found by the first real `img:warm` run
+  // against LoC (08-28-26): unwrapped, it escaped `fillCache` as a raw DOMException and took the
+  // script down with it — and would have made the route answer 500 instead of 502.
+  let raw: Buffer;
+  try {
+    raw = Buffer.from(await upstream.arrayBuffer());
+  } catch (err) {
+    throw new ImageFillError(
+      isTimeout(err) ? "timeout" : "upstream",
+      `item ${item.id}: reading the body failed: ${String(err)}`,
+    );
+  }
+
   if (raw.byteLength > MAX_UPSTREAM_BYTES) {
     throw new ImageFillError(
       "too-large",

@@ -60,3 +60,7 @@ Ambit Redesign.zip
 
 # Morning report written by the unattended Phase 7 run (docs/PHASE7_OVERNIGHT.md) — untracked so it survives branch switches
 /OVERNIGHT_STATUS.md
+
+# Lighthouse HTML reports (Phase 7.3) — the JSON summaries beside them are committed as
+# evidence; the HTML is a megabyte of inlined report viewer per run and reproducible from it.
+docs/phase7.3-evidence/*.html

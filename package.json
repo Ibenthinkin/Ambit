@@ -15,6 +15,7 @@
     "dev": "bun run --bun next dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
+    "img:warm": "bun run scripts/warm-images.ts",
     "ingest": "bun run scripts/ingest.ts",
     "retire": "bun run scripts/retire-source-rows.ts",
     "invite": "bun run scripts/invite.ts",

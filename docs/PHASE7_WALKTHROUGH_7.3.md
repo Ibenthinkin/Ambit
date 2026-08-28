@@ -138,3 +138,73 @@ the original.
 - **Nothing about a failure is remembered, at any layer** (D4): no file is written, the response is
   `no-store`, *and* the in-flight entry is cleared on rejection — so a museum having a bad minute
   doesn't poison the item until a restart. There is a test for each of those three.
+
+## T4 — the LoC warm, and what it says about the 6.2 finding
+
+`bun run img:warm --source loc --rate 1`, the one piece of outbound traffic this run was allowed:
+
+```
+warm: 376 candidate images from loc · 1/s per host
+
+──────────────────────────────────────────────────────────────────────────────
+Warm totals
+──────────────────────────────────────────────────────────────────────────────
+source            filled  cached  upstream  decode  too-big  timeout
+loc                  295      77         0       0        0        4
+
+elapsed: 427.5s
+```
+
+**No 429. Not one.** Phase 6.2 recorded `tile.loc.gov` answering a sustained 429 to a 334-image
+ingest from every User-Agent it tried, and the plan's script carries a give-up rule (three
+consecutive 429s from one host and that host is abandoned) that never had to fire. The difference
+is the rate: 6.2's failure was a *burst*, and one request per second is apparently inside whatever
+LoC's unpublished budget is. That is a useful thing to know about a limit nobody documents — and it
+is now a one-time cost regardless, because these 372 images never need fetching again.
+
+Four timeouts out of 299 attempts, all `kind: "timeout"` and none cached (D4), so they retry on
+whatever asks for them next.
+
+**The full warm is Ben's to start**, deliberately not run overnight:
+
+```bash
+bun run img:warm --rate 2            # every live source; --dry-run first to see the count
+```
+
+**Disk, measured rather than estimated.** The plan projected ~120 KB per item and ~1.3 GB for the
+corpus. The real cache, 560 files in (372 LoC plus whatever the e2e runs and manual curls filled):
+
+```
+files 560 · total 34.0 MB · mean 62 KB · median 52 KB · max 375 KB
+projected for 11,366 items: 0.67 GB
+```
+
+**Half the plan's estimate** — 62 KB a file rather than 120, because WebP at quality 82 is that
+much better than the JPEGs upstream. D3's "no eviction in 7.3, and 8.1 mounts the directory as a
+volume" is comfortable at that size.
+
+## The bug the warm run found
+
+The first attempt died 50 images in:
+
+```
+TimeoutError: The operation timed out.
+DOMException { code: 23, name: "TimeoutError", … }
+error: script "img:warm" exited with code 1
+```
+
+Two mistakes, one symptom, both fixed and both now covered by tests:
+
+1. **`AbortSignal.timeout` covers the whole exchange, headers *and* body** — so a host that answers
+   its headers promptly and then trickles the bytes rejects at `await upstream.arrayBuffer()`,
+   which was *outside* the try/catch around the fetch. The rejection escaped `fillCache` entirely.
+   In the warm script that was a crash; through the route it would have been a **500 instead of a
+   502**, on exactly the kind of slow museum morning this cache exists for.
+2. **A `DOMException` is not an `instanceof Error` under Bun.** The obvious
+   `err instanceof Error && err.name === "TimeoutError"` therefore mislabelled every timeout as a
+   generic upstream failure — and it passes under Node, which is where the unit tests run, so no
+   test would ever have caught it. The check is duck-typed on `.name` now, with the reason written
+   down.
+
+Neither is the kind of thing reading the code finds. Running it against a real museum for seven
+minutes is.
