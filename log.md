@@ -101,6 +101,55 @@ the first ingest, the image warm and the restore drill; the done-bar needs one *
 
 *Session spend: 5.99M tok (in 3.6k · out 139.6k · cache r 5.34M / w 509.2k) · ~$22.54 · fable-5 · 12:33→12:55*
 
+**Executed (afternoon/evening): Phase 8.1 T1–T2**, the two agent-only tasks. Merged to `main`
+(`59c76e5`) with both CI jobs green; **T3 onward is 🖐️ Ben's**, so the phase pauses there by design.
+
+**main's CI had been red since the 7.3 merge, and nobody had looked.** The pre-flight caught it:
+7.3's `image-cache.ts` is the first unit-tested module to import `~/env`, which validates the
+*whole* schema the moment it is imported — and the `check` job has no `.env` and, deliberately, no
+`DATABASE_URL`, because that absence is what makes the five DB-backed suites skip themselves. So
+`createEnv` threw at import time and took `image-cache.test.ts` and the img route's test down with
+it, green locally the entire time because a real `.env` is loaded there. Handing the job a
+placeholder `DATABASE_URL` would have fixed the import and silently un-skipped five suites against
+a database that isn't there; the fix instead says *no `DATABASE_URL` means no environment to
+validate* and uses env.js's own `SKIP_ENV_VALIDATION` hatch, with the schema defaults set by hand.
+Reproduced before and after by moving `.env` aside: 2 failed → 73 passed | 4 skipped.
+
+**T1** landed the four production-readiness changes. `/api/health` (D10) runs `select 1` and proves
+the image cache's *resolved* directory is writable, always both checks so two simultaneous failures
+are both named, and answers in fixed vocabulary — the route is public through the tunnel, so it can
+describe an outcome but never the machine. `MAIL_FROM` replaced the hardcoded `noreply@ambit.app`.
+Production now reads `cf-connecting-ip` (D11); `trustedProxies` stays unset, and the D4 comment
+block in `auth.ts` was rewritten rather than left contradicting itself — 7.2 reasoned about
+Coolify's Traefik, and the deploy that actually happens has a CDN in front instead. The serwist
+precache revision takes the first *non-empty* candidate now (`SOURCE_COMMIT` → git → uuid).
+
+**T2's container was proven locally, and proved more than the plan asked.** Build 1.55 GB; migrate
+applied the journal to an empty database, seed wrote 16 topics, Ready in 45 ms; `/api/health` 200
+and the container reaches `healthy` on the Dockerfile's own `bun -e fetch` check (no curl in
+`oven/bun`); `GET /` carries HSTS and a per-request CSP nonce **because the build arg was https**,
+which is the whole reason `BETTER_AUTH_URL` is a build variable; `docker exec … bun run ingest
+--quota 2 --skip-llm --source met` ingested 16 items, so `scripts/`, `src/`, `drizzle/` and the
+`~/*` alias all resolve inside the image. Then the extra: the image proxy filled `/app/.cache/img`
+on the mounted volume, the container was **stopped and replaced on that same volume**, and the same
+request came back `x-ambit-cache: hit` — a free rehearsal of T7.5, the step the volume exists for.
+`SOURCE_COMMIT` set on the container comes back as `/api/health`'s `commit`, so T6.6 already has
+its mechanism confirmed.
+
+**Two things the plan said that turned out otherwise.** Pushing a feature branch triggers no CI at
+all — the workflow runs on `main` pushes and `pull_request`, so T2.6's "push and wait for green"
+needed a PR (#19, both jobs green, merged). And the first `docker build` failed on
+`DeadlineExceeded` loading metadata for `oven/bun:1.4.0-debian` — a transient registry timeout, not
+a wrong tag: `docker pull` of the same tag succeeded and the rebuild went straight through. Worth
+knowing before diagnosing a Coolify build failure as a Dockerfile problem.
+
+**Open / next:** 🖐️ **T3** — the Coolify database + application on VM 202 (secrets minted by Ben,
+`Ports Mappings 3000:3000` with Domains empty, the `/app/.cache` volume, `BETTER_AUTH_URL` as the
+only Build Variable), then T4's tunnel ingress and T5's Resend domain. Everything from T3 to T9 is
+untouched.
+
+*Session spend: 28.77M tok (in 469 · out 167.7k · cache r 27.93M / w 667.9k) · ~$23.67 · opus-5 + opus-4-7 · 14:14→15:01*
+
 ### [[08-28-26 Fri]] — Phase 7.2 executed unattended: the security pass, and 41 rows of markup nobody had looked for
 
 **Shipped:** `feat/7.2-security`, T1–T7, six commits, run start-to-finish by the overnight Ralph
