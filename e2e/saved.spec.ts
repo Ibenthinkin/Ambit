@@ -1,13 +1,21 @@
-import { execFileSync } from "node:child_process";
+import { expect, test, type Cookie, type Page } from "@playwright/test";
+import { and, eq, inArray } from "drizzle-orm";
 
-import { expect, test, type Page } from "@playwright/test";
-import { and, eq, inArray, like } from "drizzle-orm";
+import {
+  cleanupSeeded,
+  connect,
+  inviteUser,
+  openAuthSheet,
+  PIXEL,
+  restoreSession,
+  saveSession,
+  type Connection,
+} from "./support";
 
-import { openAuthSheet, signIn } from "./support";
-
-// The Saved screen (5.9) against a real dev server and Postgres — same local-only caveat and
-// same "leaves a real user row behind by design" arrangement as `feed.spec.ts`, whose scaffolding
-// this copies wholesale. Deliberately NOT modeled on `gallery.spec.ts`'s multi-screen doorway
+// The Saved screen (5.9) against a real server and Postgres — locally the dev server, and since
+// Phase 7.1 a production build with a fresh database in CI, which the seeded corpus below makes
+// possible. Same "leaves a real user row behind by design" arrangement as `feed.spec.ts`, whose
+// scaffolding this shares (./support). Deliberately NOT modeled on `gallery.spec.ts`'s multi-screen doorway
 // test (its long navigation chains are the environment-flaky part of that suite); each test here
 // keeps its chain short.
 //
@@ -20,24 +28,21 @@ const PASSWORD = "correcthorse123";
 /** The topics this spec's user picks in onboarding, and where its seeded items live. */
 const TOPICS = ["astronomy", "botany", "music"] as const;
 
-/** A 1×1 transparent GIF. Inline, so the image tiles never depend on a network hop. */
-const PIXEL =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+// Enough for the whole file, not for one page. Each test that opens /feed or /saved costs this
+// reader a page (12) of corpus it can never be served again; twelve rows only ever covered the
+// first. That was invisible until CI's empty database (Phase 7.1) removed the development corpus
+// standing behind them. See support.ts's seedFeedCorpus().
+const SEED_COUNT = 120;
 
-const SEED_COUNT = 12;
-
-/** See feed.spec.ts's `connect` for why this is dynamic: `~/env` throws without DATABASE_URL. */
-async function connect() {
-  process.loadEnvFile(new URL("../.env", import.meta.url));
-  const [{ db }, schema] = await Promise.all([
-    import("../src/server/db/client"),
-    import("../src/server/db/schema"),
-  ]);
-  return { db, ...schema };
-}
-
-type Connection = Awaited<ReturnType<typeof connect>>;
+// See support.ts's connect() for why the DB handle is loaded in `beforeAll`, not imported statically.
 let conn: Connection;
+
+/**
+ * The signed-in session the sign-up test below captures, reused by every test after it instead of
+ * signing in again — see support.ts's saveSession() for why (the production build rate-limits
+ * `/sign-in` to 3 requests per 10s, and this file used to make one per test).
+ */
+let session: Cookie[] = [];
 
 test.describe.serial("saved", () => {
   test.beforeAll(async () => {
@@ -50,7 +55,7 @@ test.describe.serial("saved", () => {
           source: "e2e",
           // The spec-specific prefix is what the afterAll cleanup is scoped to — deleting by
           // `source: "e2e"` would pull other specs' fixtures out from under their parallel
-          // workers (see feed.spec.ts's afterAll for the incident that taught this).
+          // workers (see support.ts's cleanupSeeded() for the incident that taught this).
           sourceId: `e2e-saved-${i}`,
           type: i % 3 === 0 ? ("article" as const) : ("image" as const),
           title: `Saved E2E fixture ${i}`,
@@ -63,31 +68,21 @@ test.describe.serial("saved", () => {
       )
       .onConflictDoNothing();
 
-    execFileSync("bun", ["run", "invite", EMAIL], { stdio: "pipe" });
+    inviteUser(EMAIL);
   });
 
   test.afterAll(async () => {
-    const { db, item, seenItem, savedItem } = conn;
-
-    const seeded = await db
-      .select({ id: item.id })
-      .from(item)
-      .where(like(item.sourceId, "e2e-saved-%"));
-    const ids = seeded.map((row) => row.id);
-    if (ids.length > 0) {
-      // Children first — both tables carry a foreign key onto `item`.
-      await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
-      await db.delete(savedItem).where(inArray(savedItem.itemId, ids));
-      await db.delete(item).where(inArray(item.id, ids));
-    }
+    // Scoped to this spec's own prefix, never to `source: "e2e"` as a whole — see
+    // support.ts's cleanupSeeded() for the 5.8 incident that taught this.
+    await cleanupSeeded(conn, "e2e-saved-");
   });
 
   /** Gets the shared user onto a populated /feed (storage is per-test, so sign in each time). */
   async function onFeed(page: Page) {
+    // Storage is per-test, so the session the sign-up test captured is put back by hand rather
+    // than signed in for again — see support.ts's saveSession().
+    await restoreSession(page, session);
     await page.goto("/feed");
-    if (!new URL(page.url()).pathname.startsWith("/feed")) {
-      await signIn(page, EMAIL, PASSWORD);
-    }
     // 15s for the same reason as every server-bound wait in this file: a feed compose under five
     // parallel workers has repeatedly outlived the 5s default (08-23-26).
     await expect(page.locator("[data-feed-id]").first()).toBeVisible({
@@ -95,13 +90,10 @@ test.describe.serial("saved", () => {
     });
   }
 
-  /** Gets the shared user onto /saved, via the session guard's redirect if signed out. */
+  /** Gets the shared user onto /saved. Same session reuse as `onFeed`. */
   async function onSaved(page: Page) {
+    await restoreSession(page, session);
     await page.goto("/saved");
-    if (!new URL(page.url()).pathname.startsWith("/saved")) {
-      await signIn(page, EMAIL, PASSWORD);
-      await page.goto("/saved");
-    }
   }
 
   test("a new user signs up and finds the quiet empty state", async ({
@@ -136,6 +128,9 @@ test.describe.serial("saved", () => {
     // this test spent its budget on someone else's page (seen on 08-23-26's suite runs).
     await page.getByRole("button", { name: "Back to exploring" }).click();
     await page.waitForURL(/\/feed/, { waitUntil: "commit" });
+
+    // Every test below reuses this session rather than signing in again.
+    session = await saveSession(page);
   });
 
   // BUILD_PLAN's done bar, end to end: save on the feed → find it on Saved → unsave → gone.

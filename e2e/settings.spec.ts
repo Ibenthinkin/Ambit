@@ -1,17 +1,27 @@
-import { execFileSync } from "node:child_process";
-
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Cookie, type Page } from "@playwright/test";
 import { eq, inArray } from "drizzle-orm";
 
-import { openAuthSheet, signIn } from "./support";
+import {
+  cleanupSeeded,
+  connect,
+  inviteUser,
+  openAuthSheet,
+  restoreSession,
+  saveSession,
+  seedFeedCorpus,
+  type Connection,
+} from "./support";
 
 // Phase 5.10's three screens — Profile, Profile Edit, Settings — against a real dev server and
-// Postgres. Same local-only caveat and "leaves a real user row behind by design" arrangement as
-// `feed.spec.ts` and `saved.spec.ts`, whose scaffolding this copies.
+// Postgres — locally the dev server, and since Phase 7.1 a production build with a fresh database
+// in CI. Same "leaves a real user row behind by design" arrangement as `feed.spec.ts` and
+// `saved.spec.ts`, whose scaffolding this shares (./support).
 //
-// **No seeded corpus here**, unlike saved.spec: nothing this file asserts depends on which items
-// exist. The collection tiles are about names and counts, and every count starts at zero. That
-// keeps the afterAll to one table.
+// **Nothing here depends on *which* items exist** — the collection tiles are about names and
+// counts, and every count starts at zero. It does need the feed to have *something* in it, though:
+// the first test walks the sign-up journey through onboarding to a populated feed. That used to
+// come free from the development database; on CI's empty one (Phase 7.1) the file seeds its own
+// small corpus, like every other spec. See support.ts's seedFeedCorpus().
 //
 // Every server-bound wait carries an explicit 15s. The 5s default became the suite's consistent
 // loser once 5.9 brought the parallel worker count to five (08-23-26), and this file makes six spec
@@ -31,23 +41,26 @@ const PASSWORD = "correcthorse123";
  */
 const HANDLE = `e2e${RUN}`;
 
-/** See feed.spec.ts's `connect` for why this is dynamic: `~/env` throws without DATABASE_URL. */
-async function connect() {
-  process.loadEnvFile(new URL("../.env", import.meta.url));
-  const [{ db }, schema] = await Promise.all([
-    import("../src/server/db/client"),
-    import("../src/server/db/schema"),
-  ]);
-  return { db, ...schema };
-}
+/** The topics this spec's user picks in onboarding, and where its seeded items live. */
+const TOPICS = ["astronomy", "botany", "music"] as const;
 
-type Connection = Awaited<ReturnType<typeof connect>>;
+// See support.ts's connect() for why the DB handle is loaded in `beforeAll`, not imported statically.
 let conn: Connection;
+
+/**
+ * The signed-in session the sign-up test below captures, reused by every test after it instead of
+ * signing in again — see support.ts's saveSession() for why (the production build rate-limits
+ * `/sign-in` to 3 requests per 10s, and this file used to make one per test).
+ */
+let session: Cookie[] = [];
 
 test.describe.serial("settings", () => {
   test.beforeAll(async () => {
     conn = await connect();
-    execFileSync("bun", ["run", "invite", EMAIL], { stdio: "pipe" });
+    // Six tests, most of which pass through /feed at least once, and each visit costs this reader
+    // a page (12) it can never be served again — see support.ts's seedFeedCorpus().
+    await seedFeedCorpus(conn, "e2e-settings-", 90, TOPICS);
+    inviteUser(EMAIL);
   });
 
   test.afterAll(async () => {
@@ -67,15 +80,17 @@ test.describe.serial("settings", () => {
     // row itself stays, like every other spec's — the timestamped email means reruns never collide.
     await db.delete(savedItem).where(inArray(savedItem.userId, [row.id]));
     await db.delete(collection).where(eq(collection.userId, row.id));
+
+    // And the corpus, children-first, scoped to this file's own prefix.
+    await cleanupSeeded(conn, "e2e-settings-");
   });
 
-  /** Gets the shared user onto a path, signing in through the landing page if the guard bounces. */
+  /** Gets the shared user onto a path. Storage is per-test, so the session the sign-up test
+   *  captured is put back by hand rather than signed in for again — see support.ts's
+   *  saveSession() for why this file no longer signs in six times in two minutes. */
   async function goTo(page: Page, path: string) {
+    await restoreSession(page, session);
     await page.goto(path);
-    if (!new URL(page.url()).pathname.startsWith(path)) {
-      await signIn(page, EMAIL, PASSWORD);
-      await page.goto(path);
-    }
   }
 
   test("a new user signs up and reaches Profile from the feed's pill", async ({
@@ -119,6 +134,9 @@ test.describe.serial("settings", () => {
     // And back out. The pill's Feed button pops, because arriving here wrote the marker.
     await page.getByRole("button", { name: "Feed" }).click();
     await page.waitForURL(/\/feed/, { waitUntil: "commit" });
+
+    // Every test below reuses this session rather than signing in again.
+    session = await saveSession(page);
   });
 
   test("a collection can be made once, and its tile opens the filtered Saved list", async ({
@@ -136,6 +154,14 @@ test.describe.serial("settings", () => {
     await expect(page.locator("[data-collection-id]")).toHaveCount(4, {
       timeout: 15_000,
     });
+    // The sheet closes itself on success — an assertion worth making in its own right, and the one
+    // this test was missing. `BottomSheet` keeps the panel mounted for a 260ms exit animation, and
+    // against a production build the new tile lands well before that finishes: for those few
+    // frames "New collection" matches the sheet's own <h2> as well as the dashed tile, and the
+    // reopen below fails on strict mode rather than on anything being wrong.
+    await expect(
+      page.getByRole("heading", { name: "New collection" }),
+    ).toBeHidden({ timeout: 15_000 });
 
     // The duplicate path: the sheet stays open with the name intact, error under the field.
     await page.getByText("New collection").click();

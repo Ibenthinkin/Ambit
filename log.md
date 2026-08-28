@@ -113,12 +113,69 @@ user/seen-row accumulation behind the `gallery.spec:193` flake — CI never sees
 **Open / next:** execute 7.1 in a cheaper session; then plan 7.2 (security pass) and 7.3 (the image
 decision, with 6.2's LoC evidence in hand).
 
+**7.1 executed the same night, and it was not the wiring job the plan expected.** All seven tasks
+landed — `e2e/support.ts` holds the one `connect()`, the `E2E_PROD` switch, `e2e:clean`, the CI
+job with Postgres + Mailpit service containers — and both jobs are green on
+[PR #18](https://github.com/Ibenthinkin/Ambit/pull/18) (`check` 1m18s, `e2e` 2m49s, **42 passed**).
+The migration journal applied cleanly to an empty database, and the five `skipIf(!DATABASE_URL)`
+Vitest suites ran in CI for the first time since 3.3. Walkthrough:
+`docs/PHASE7_WALKTHROUGH_7.1.md`.
+
+**The production build found two real bugs, in an app nobody thought was broken.** This is the
+phase's actual value, and neither is a CI artefact:
+
+1. **Better Auth rate-limits sign-in — in production only.** Its limiter is disabled in dev and
+   enabled under `NODE_ENV=production`, at **3 requests / 10s per IP** on `/sign-in` and
+   `/sign-up`, counted per path (probed directly: three 401s, then a 429). Two consequences, and
+   both halves needed fixing. The suite was unrealistic — Playwright isolates storage per test, so
+   three specs signed in *per test*, ~20 sign-ins in 2.5 minutes; they now capture one session per
+   file and restore it (`saveSession`/`restoreSession`), which took the failures 5 → 2. And the
+   default is wrong for this app: `auth.spec.ts` can't be fixed that way because its auth requests
+   *are* its assertions (the reset test signs in twice, seconds apart, on purpose), and — the part
+   that matters beyond tests — the limiter keys on client IP while Ambit sits behind Coolify's
+   proxy with **no trusted-proxy IP source**, so the whole beta may share one bucket. `auth.ts` now
+   states the policy explicitly (20/10s on the two credential paths); the proxy half is 7.2's.
+2. **The accent knob doesn't survive a reload.** Pick Amber in Settings, reload, get Indigo — with
+   `"amber"` still in localStorage. The per-frame trace: `2ms loading amber` (the pre-paint script
+   does its job), `15ms complete indigo` — React reconciles `<html data-accent>` back to the
+   literal `layout.tsx` renders. Hidden for a phase and a half because dev builds *warn* about the
+   mismatch instead of patching it, and `suppressHydrationWarning` meant the warning nobody was
+   reading wasn't printed either. Only bites on `/settings`, the one screen that re-renders.
+   `AccentSync` repairs it after every commit. A tried-and-reverted fix worth remembering: dropping
+   `data-accent` from `layout.tsx` so React never renders it — React then *removed* the script's
+   attribute instead of resetting it.
+
+**And CI found the thing no local run could.** First CI run: four tests red, all
+`[data-feed-id]` never appearing. Every local run had 8.5k dev items standing behind the fixtures.
+Two specs seeded nothing (`auth`, `settings` — their feed assertions are incidental, so they never
+needed to) and two seeded about a page (`feed` 30, `saved` 12), while the engine excludes each
+reader's `seen_item` rows — so every feed load costs that user 12 items and a file burns roughly
+`12 × tests`. Sizes are now 150/120/90/40/40 through a shared `seedFeedCorpus()`. The same run
+exposed a race in `cleanupSeeded`: a feed request still in flight can insert a `seen_item` row
+between the child delete and the item delete, so a file ends red on its cleanup rather than on
+anything it asserted. One transaction now. **The plan fixed corpus sizing for exactly one spec
+(`pwa.prod`) and didn't ask the same question of the other five** — its own predicted symptom, with
+the wrong cause attached.
+
+**Worth keeping as method:** rather than iterate through CI at six minutes a go, the job was
+reproduced locally — fresh database, `.env` moved aside, variables from the environment — and run
+twice clean before pushing. Four minutes, with a readable transcript.
+
+**`e2e:clean`'s first measurement**, the accumulation behind the `gallery.spec:193` note, finally
+counted: `121 users · 2,634 seen_item · 381 user_topic · 165 collection · 17 saved_item`. One
+evening's work put 81 users and 2,206 seen rows straight back.
+
+**Open / next:** 7.2 (security pass) — and it inherits a concrete first item: give Better Auth a
+real per-client IP behind Coolify's proxy, or the rate limiter is either useless or an outage. Then
+7.3, the image decision.
+
 *Session spend: 26.05M tok (in 30.2k · out 264.0k · cache r 24.52M / w 1.23M) · ~≥$50.61 · fable-5 + opus-4-7 + <synthetic> · 12:10→13:09*
 *Session spend: 5.95M tok (in 5.0k · out 68.5k · cache r 5.49M / w 389.5k) · ~$16.76 · fable-5 · 15:28→15:35*
 *Session spend: 5.84M tok (in 2.4k · out 69.5k · cache r 5.67M / w 99.0k) · ~$11.15 · fable-5 · 15:35→15:41*
 *Session spend: 5.51M tok (in 1.8k · out 28.5k · cache r 5.15M / w 326.8k) · ~$13.13 · fable-5 · 15:41→19:26*
 *Session spend: 5.91M tok (in 1.5k · out 130.8k · cache r 5.74M / w 33.5k) · ~$12.96 · fable-5 · 19:26→19:33*
 *Session spend: 9.09M tok (in 5.7k · out 151.6k · cache r 8.48M / w 452.7k) · ~$25.17 · fable-5 · 19:52→20:13*
+*Session spend: 63.22M tok (in 821 · out 348.6k · cache r 61.75M / w 1.12M) · ~$48.60 · opus-5 + opus-4-7 · 20:16→22:14*
 
 ### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.** Then: 6.3's design session opened.
 

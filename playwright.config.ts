@@ -3,18 +3,31 @@ import { defineConfig, devices } from "@playwright/test";
 // Playwright drives a real Chromium instance against the actual rendered app — the "does this
 // genuinely work in a browser" layer above Vitest's function-level unit tests (SPEC §12).
 // `bun run e2e` runs this config; see e2e/home.spec.ts for the one smoke test Phase 1.2 adds.
+
+/**
+ * `E2E_PROD=1` runs the suite against a **production build** instead of the dev server, which is
+ * what CI does (Phase 7.1, decision D1) and what `bun run e2e:prod` reproduces locally. Three
+ * things change under it, all below: the server command, the `*.prod.spec.ts` exclusion (a
+ * production server is the one place those specs *can* pass), and whether an already-running
+ * server on :3000 is trusted — under `E2E_PROD` it is not, because the thing squatting the port is
+ * far more likely to be a stale `next dev` than the build you just made.
+ *
+ * The build itself is NOT started here: `webServer` has a 60s budget and a build can take longer.
+ * `bun run e2e:prod` builds first; CI builds in its own step.
+ */
+const PROD = process.env.E2E_PROD === "1";
+
 export default defineConfig({
   testDir: "./e2e",
-  // `*.prod.spec.ts` is excluded from the ordinary suite because it cannot pass against it: the
+  // `*.prod.spec.ts` is excluded from the **dev-server** run because it cannot pass there: the
   // service worker is registered in production builds only (see `app/layout.tsx`), and `webServer`
-  // below runs `next dev`. Run it deliberately, against a real build:
+  // below runs `next dev` unless `E2E_PROD` says otherwise. Under `E2E_PROD=1` — `bun run e2e:prod`
+  // locally, and every CI run since Phase 7.1 — the server is a real build and these specs are an
+  // ordinary part of the suite.
   //
-  //   lsof -ti:3000 | xargs kill; bun run build && bun run start &
-  //   bunx playwright test pwa.prod.spec.ts --workers=1
-  //
-  // It is the only automated check of the caching strategy — offline feed, offline fallback, and
-  // the invariant that no personalized tRPC response is ever stored.
-  testIgnore: /\.prod\.spec\.ts$/,
+  // pwa.prod.spec.ts is the only automated check of the caching strategy — offline feed, offline
+  // fallback, and the invariant that no personalized tRPC response is ever stored.
+  testIgnore: PROD ? [] : /\.prod\.spec\.ts$/,
   // **A dot-directory on purpose, and load-bearing.** Playwright's default `test-results/` sits in
   // the project root, where it writes traces, screenshots and error-context files *while the tests
   // are still running*. Next's dev-server watcher sees those writes as project changes and fires
@@ -38,8 +51,9 @@ export default defineConfig({
   // per-assertion 15s allowances already in the specs stay as they are — they're honest about a
   // dynamic feed being slow, and they're what makes three workers enough.
   //
-  // CI gets one worker: it has no Postgres until Phase 7.1, and when it does it'll be a smaller box
-  // than this one.
+  // CI gets one worker. Since Phase 7.1 it does have a Postgres of its own (a service container),
+  // so the cap is no longer about that — it is that a GitHub runner is a much smaller box than this
+  // one, and the contention above bites harder there.
   workers: process.env.CI ? 1 : 3,
   // `test.only` is handy locally to focus one spec while iterating, but it's exactly the kind of
   // thing that should never silently ship — CI fails the run outright if one slips into a commit.
@@ -62,13 +76,17 @@ export default defineConfig({
   ],
   // `webServer` makes Playwright boot the app itself and poll `url` until it responds, so
   // `bun run e2e` works standalone — no need to have `bun run dev` already running in another
-  // terminal. Not wired into CI yet: the app needs a reachable Postgres to render anything past a
-  // clean 500 (see e2e/home.spec.ts's comment), and CI doesn't get one until Phase 7.1 adds
-  // docker-compose Postgres to the workflow — until then this is a local-only check.
+  // terminal. Since Phase 7.1 CI boots the server here too: `next start` over the build its own
+  // step made, against the job's Postgres and Mailpit service containers (the app needs a reachable
+  // Postgres to render anything past a clean 500 — see e2e/home.spec.ts's comment).
+  //
+  // `reuseExistingServer` is off under `E2E_PROD` as well as in CI: whatever is already on :3000 is
+  // far more likely to be a stale `next dev` than the build you just made, and silently testing the
+  // wrong server is the worst outcome available here.
   webServer: {
-    command: "bun run --bun next dev",
+    command: PROD ? "bun run --bun next start" : "bun run --bun next dev",
     url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !process.env.CI && !PROD,
     timeout: 60_000,
   },
 });

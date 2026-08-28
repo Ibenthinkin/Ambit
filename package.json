@@ -26,6 +26,8 @@
     "probe:walk": "bun run scripts/probe-walk.ts",
     "start": "bun run --bun next start",
     "e2e": "playwright test",
+    "e2e:clean": "bun run scripts/e2e-clean.ts",
+    "e2e:prod": "bun run build && E2E_PROD=1 playwright test",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

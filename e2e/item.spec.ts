@@ -1,15 +1,23 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test } from "@playwright/test";
 
-import { openAuthSheet, signIn, waitForHydration } from "./support";
+import {
+  cleanupSeeded,
+  connect,
+  inviteUser,
+  openAuthSheet,
+  PIXEL,
+  signIn,
+  waitForHydration,
+  type Connection,
+} from "./support";
 
 // The item pages (`/i/[itemId]`) against a real dev server and real Postgres — the app's one
 // public surface, so most of what follows runs in a context that is **never signed in**. That is
 // the point: a stranger with a link must get the whole page, and nothing about anyone else.
 //
-// Same local-only caveat as the other specs (CI has no Postgres until 7.1) and the same seeded
-// `source: "e2e"` corpus, cleaned up children-first in `afterAll`.
+// Runs locally against the dev server and, since Phase 7.1, in CI against a production build with
+// a fresh database — the seeded `source: "e2e"` corpus below is what makes the latter possible.
+// It is cleaned up children-first in `afterAll`.
 //
 // **The swipe gesture is not tested here.** Playwright's mouse API doesn't compose the pointerdown
 // / pointermove / pointerup sequence the hook listens for reliably enough to assert on; it's
@@ -17,10 +25,6 @@ import { openAuthSheet, signIn, waitForHydration } from "./support";
 // a rubber-band follow can actually be judged anyway.
 const EMAIL = `ambit-item-e2e-${Date.now()}@example.com`;
 const PASSWORD = "correcthorse123";
-
-/** A 1×1 transparent GIF. Inline, so nothing here depends on a network hop or on the image proxy. */
-const PIXEL =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 /** Wiki-format section markers — what `exsectionformat=wiki` stores and the reader parses. */
 const BODY = [
@@ -32,18 +36,7 @@ const BODY = [
   "Someone, A. (1999). A citation nobody wants to read.",
 ].join("\n");
 
-async function connect() {
-  // Playwright runs under plain Node, which doesn't auto-load `.env` — and `~/server/db/client`
-  // validates env at import time. Hence the dynamic import; see feed.spec.ts for the full note.
-  process.loadEnvFile(new URL("../.env", import.meta.url));
-  const [{ db }, schema] = await Promise.all([
-    import("../src/server/db/client"),
-    import("../src/server/db/schema"),
-  ]);
-  return { db, ...schema };
-}
-
-type Connection = Awaited<ReturnType<typeof connect>>;
+// See support.ts's connect() for why the DB handle is loaded in `beforeAll`, not imported statically.
 let conn: Connection;
 
 let imageId: string;
@@ -137,29 +130,13 @@ test.describe.serial("item pages", () => {
     httpImageId = httpImage!.id;
     blogId = blog!.id;
 
-    execFileSync("bun", ["run", "invite", EMAIL], { stdio: "pipe" });
+    inviteUser(EMAIL);
   });
 
   test.afterAll(async () => {
-    const { db, item, seenItem, savedItem } = conn;
-    const { inArray, like } = await import("drizzle-orm");
-
-    // **Scoped to this spec's own `sourceId` prefix, not to `source: "e2e"`.** Every spec seeds
-    // under that same source, and `fullyParallel` runs the spec files in separate workers — so a
-    // cleanup that deleted the whole source would pull another spec's fixtures out from under it
-    // mid-run. That is exactly what happened when 5.8 added a third such spec: the feed came back
-    // empty and an item page 404'd, in two different files, for no reason visible in either.
-    const seeded = await db
-      .select({ id: item.id })
-      .from(item)
-      .where(like(item.sourceId, "e2e-item-%"));
-    const ids = seeded.map((row) => row.id);
-    if (ids.length > 0) {
-      // Children first — both tables carry a foreign key onto `item`.
-      await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
-      await db.delete(savedItem).where(inArray(savedItem.itemId, ids));
-      await db.delete(item).where(inArray(item.id, ids));
-    }
+    // Scoped to this spec's own prefix, never to `source: "e2e"` as a whole — see
+    // support.ts's cleanupSeeded() for the 5.8 incident that taught this.
+    await cleanupSeeded(conn, "e2e-item-");
   });
 
   // ── incognito ─────────────────────────────────────────────────────────────────────────────────

@@ -3,6 +3,9 @@
 # Postgres (the curated item pool + Better Auth's session store) and Mailpit (a fake SMTP server
 # that catches outgoing mail in a web UI, so password-reset emails don't need a real provider in
 # dev — SPEC §13 swaps this for Resend in prod).
+#
+# CI defines the same two services as GitHub service containers in `.github/workflows/ci.yml`
+# (Phase 7.1) — change credentials, images or ports in both places.
 
 services:
   postgres:

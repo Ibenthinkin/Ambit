@@ -1,8 +1,9 @@
 // Integration tests for drawFromTopic (SPEC §9.2) and upsertItem (SPEC §6.4) against a real
 // Postgres — the weighted-draw query, the excludeIds/scoreFloor filters, the actual score-skewed
 // distribution, and upsertItem's conflict-update behavior can't be verified against fixtures the
-// way adapter toItem() tests are. Self-skips whenever DATABASE_URL isn't set (CI has no Postgres
-// until Phase 7.1 — see .github/workflows/ci.yml); run locally with `docker compose up -d` then
+// way adapter toItem() tests are. Self-skips whenever DATABASE_URL isn't set — which since Phase
+// 7.1 means the `check` job only: CI's `e2e` job gives `bun run test` a Postgres service container
+// and this suite runs there (see .github/workflows/ci.yml). Locally: `docker compose up -d`, then
 // `bun run test`.
 import { and, eq, inArray, like } from "drizzle-orm";
 import { nanoid } from "nanoid";

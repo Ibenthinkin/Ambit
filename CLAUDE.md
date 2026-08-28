@@ -21,7 +21,12 @@ screen by screen, per `docs/BUILD_PLAN.md`'s Phase 5 ordering. **All of 5.1–5.
 landing slideshow + install flow + PWA caching). The app has no internal 404s, sign-out lives on
 `/settings`, and it is installable with the last feed page available offline. **6.3 shipped
 08-27-26** (blog adapters: the `CorpusWalkAdapter` contract, doorofperception live as link
-cards). **Next: Phase 7.** See `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
+cards). **7.1 shipped 08-27-26** — the Playwright suite (8 specs, 42 tests) runs in CI against a
+**production build** with Postgres + Mailpit service containers, and the five DB-backed Vitest
+suites run there too; `bun run e2e:prod` reproduces that configuration locally. Running against a
+production build is what found two bugs `next dev` had been hiding (Better Auth's production-only
+rate limiter, and the accent knob not surviving a reload) — both fixed in 7.1.
+**Next: 7.2.** See `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
 `log.md` for the narrative of what's landed and why.
 
 ## Authoritative documents
@@ -67,8 +72,11 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   suites, on top of a corpus that grew 30% the same day. Both failure signatures are the same class
   — clicking something mid-animation (`element is not stable`, or a `waitForURL` that never
   resolves). **So: a red gallery.spec:193 is not evidence about your branch.** Check `main` at the
-  same moment before believing it, and consider clearing accumulated e2e users/seen rows. Delete
-  this note if the test is ever made robust.
+  same moment before believing it, then clear the accumulation: **`bun run e2e:clean --confirm`**
+  (Phase 7.1) retires every `ambit-%@example.com` user and the rows hanging off them; run it
+  without the flag first for a dry-run count. CI never sees any of this — its database is fresh
+  every run — so a green CI and a red local `gallery.spec:193` are consistent, and the local one is
+  the accumulation. Delete this note if the test is ever made robust.
 - **A red Postgres-touching integration test usually means the machine is busy, not that the code broke.** Overlapping `bun run test` runs, or a dev server under load, balloon vitest setup from ~7s to ~650s and then fail *unrelated* integration tests — three times in one session on 2026-08-20, a different test each time. Check what else is running before debugging the test. Delete this note if test isolation is ever fixed; don't leave it as folklore.
 - **A valid API key that still 401s is probably being shadowed by the shell.** Bun resolves real
   environment variables *ahead* of `.env`, so an `export OPENROUTER_API_KEY=…` left in `~/.zshrc`

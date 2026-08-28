@@ -8,10 +8,17 @@ import { defineConfig } from "vitest/config";
 // and forked workers inherit process.env as it stands at fork time. Silently a no-op in CI, which
 // has no .env file at all (see .github/workflows/ci.yml) — integration tests are written to
 // self-skip via describe.skipIf(!process.env.DATABASE_URL) rather than depend on this succeeding.
+//
+// Both CI jobs still reach the right outcome without the file. The `check` job has no database, so
+// the five DB-backed suites skip themselves there, as they always have. The `e2e` job (Phase 7.1)
+// puts DATABASE_URL straight into the job environment, which `~/env` reads identically — so those
+// five run there, on a Postgres service container. e2e/support.ts's connect() makes the same
+// accommodation, for the same reason.
 try {
   process.loadEnvFile(new URL("./.env", import.meta.url));
 } catch {
-  // no .env present (CI) — DB-backed tests skip themselves instead of failing
+  // no .env present (CI) — the job environment supplies DATABASE_URL or it genuinely isn't there,
+  // and DB-backed tests skip themselves rather than failing
 }
 
 // Vitest owns fast, isolated unit tests against plain functions (SPEC §12: adapter `toItem`

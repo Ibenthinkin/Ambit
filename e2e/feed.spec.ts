@@ -1,21 +1,29 @@
-import { execFileSync } from "node:child_process";
+import { expect, test, type Cookie, type Page } from "@playwright/test";
 
-import { expect, test, type Page } from "@playwright/test";
-
-import { openAuthSheet, signIn } from "./support";
+import {
+  cleanupSeeded,
+  connect,
+  inviteUser,
+  openAuthSheet,
+  PIXEL,
+  restoreSession,
+  saveSession,
+  type Connection,
+} from "./support";
 
 // The feed masonry against a real dev server, real Postgres and the real feed engine (SPEC §12,
-// PHASE5_PLAN_5.6.md Step 8). Same local-only caveat as `auth.spec.ts` — CI has no Postgres until
-// Phase 7.1 — and the same "leaves a real user row behind by design" arrangement, with a
-// timestamped address so reruns never collide.
+// PHASE5_PLAN_5.6.md Step 8). Runs locally against the dev server and, since Phase 7.1, in CI
+// against a production build with a fresh database — the seeded corpus below is what makes the
+// latter possible. Same "leaves a real user row behind by design" arrangement as `auth.spec.ts`,
+// with a timestamped address so reruns never collide.
 //
 // **Serial, sharing one signed-up user.** Playwright isolates storage per test, so each test
 // signs in again through `onFeed()` rather than assuming a cookie carried over.
 //
 // **What the seeded corpus is and isn't for.** `beforeAll` inserts ~30 `source: "e2e"` items
 // directly through Drizzle — never `bun run ingest`, which would hit five live APIs and an LLM.
-// It guarantees the feed has *something* to draw (which is what will keep this spec meaningful
-// once Phase 7.1 gives CI an empty database), but it deliberately does NOT try to make the feed
+// It guarantees the feed has *something* to draw (which is what keeps this spec meaningful on
+// CI's empty database), but it deliberately does NOT try to make the feed
 // deterministic: the dev DB holds 8.5k real items, the tier draw reaches across all sixteen
 // topics, and thirty rows cannot dominate that. So every assertion below is about behavior —
 // tiles render, the count grows, a gesture does what it should — never about which item appears.
@@ -25,32 +33,22 @@ const PASSWORD = "correcthorse123";
 /** The topics this spec's user picks in onboarding, and where its seeded items live. */
 const TOPICS = ["astronomy", "botany", "music"] as const;
 
-/** A 1×1 transparent GIF. Inline, so the happy image path never depends on a network hop. */
-const PIXEL =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+// Eight tests, and every one of them opens the feed — which costs this reader a page (12) it can
+// never be served again, because the engine excludes their `seen_item` rows. Thirty rows was
+// plenty while the development corpus stood behind them; on CI's empty database (Phase 7.1) the
+// pool ran dry mid-file and the remaining tests waited out their timeouts on a feed with no tiles.
+// 150 is roughly the file's consumption plus headroom. See support.ts's seedFeedCorpus().
+const SEED_COUNT = 150;
 
-const SEED_COUNT = 30;
+// See support.ts's connect() for why the DB handle is loaded here rather than imported statically.
+let conn: Connection;
 
 /**
- * The DB handle, loaded in `beforeAll`.
- *
- * Two reasons this is a dynamic import rather than a top-level one. Playwright runs under plain
- * Node, which — unlike Bun — does not auto-load `.env`, and `~/server/db/client` pulls in `~/env`,
- * whose Zod validation throws at *import* time without `DATABASE_URL`. So the env file has to be
- * loaded first, and a static import would be hoisted above that. (`vitest.config.ts` solves the
- * same problem the same way, for the same reason.)
+ * The signed-in session the sign-up test below captures, reused by every test after it instead of
+ * signing in again — see support.ts's saveSession() for why (the production build rate-limits
+ * `/sign-in` to 3 requests per 10s, and this file used to make one per test).
  */
-async function connect() {
-  process.loadEnvFile(new URL("../.env", import.meta.url));
-  const [{ db }, schema] = await Promise.all([
-    import("../src/server/db/client"),
-    import("../src/server/db/schema"),
-  ]);
-  return { db, ...schema };
-}
-
-type Connection = Awaited<ReturnType<typeof connect>>;
-let conn: Connection;
+let session: Cookie[] = [];
 
 test.describe.serial("feed", () => {
   test.beforeAll(async () => {
@@ -80,38 +78,20 @@ test.describe.serial("feed", () => {
       )
       .onConflictDoNothing();
 
-    execFileSync("bun", ["run", "invite", EMAIL], { stdio: "pipe" });
+    inviteUser(EMAIL);
   });
 
   test.afterAll(async () => {
-    const { db, item, seenItem, savedItem } = conn;
-    const { inArray, like } = await import("drizzle-orm");
-
-    // **Scoped to this spec's own `sourceId` prefix, not to `source: "e2e"`.** Every spec seeds
-    // under that same source, and `fullyParallel` runs the spec files in separate workers — so a
-    // cleanup that deleted the whole source would pull another spec's fixtures out from under it
-    // mid-run. That is exactly what happened when 5.8 added a third such spec: the feed came back
-    // empty and an item page 404'd, in two different files, for no reason visible in either.
-    const seeded = await db
-      .select({ id: item.id })
-      .from(item)
-      .where(like(item.sourceId, "e2e-feed-%"));
-    const ids = seeded.map((row) => row.id);
-    if (ids.length > 0) {
-      // Children first — both tables carry a foreign key onto `item`.
-      await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
-      await db.delete(savedItem).where(inArray(savedItem.itemId, ids));
-      await db.delete(item).where(inArray(item.id, ids));
-    }
+    // Scoped to this spec's own prefix, never to `source: "e2e"` as a whole — see
+    // support.ts's cleanupSeeded() for the 5.8 incident that taught this.
+    await cleanupSeeded(conn, "e2e-feed-");
   });
 
-  /** Gets the shared user onto a populated /feed. Playwright isolates storage per test, so this
-   *  signs in again every time rather than assuming the previous test's cookie carried over. */
+  /** Gets the shared user onto a populated /feed. Playwright isolates storage per test, so the
+   *  session the sign-up test captured has to be put back into each fresh context by hand. */
   async function onFeed(page: Page) {
+    await restoreSession(page, session);
     await page.goto("/feed");
-    if (!new URL(page.url()).pathname.startsWith("/feed")) {
-      await signIn(page, EMAIL, PASSWORD);
-    }
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();
   }
 
@@ -148,6 +128,9 @@ test.describe.serial("feed", () => {
     );
     expect(perColumn).toHaveLength(2);
     expect(Math.min(...perColumn)).toBeGreaterThan(0);
+
+    // Every test below reuses this session rather than signing in again.
+    session = await saveSession(page);
   });
 
   test("renders without console errors", async ({ page }) => {
