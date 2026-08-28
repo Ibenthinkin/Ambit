@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Cookie, type Page } from "@playwright/test";
 
 import {
   cleanupSeeded,
@@ -6,7 +6,8 @@ import {
   inviteUser,
   openAuthSheet,
   PIXEL,
-  signIn,
+  restoreSession,
+  saveSession,
   type Connection,
 } from "./support";
 
@@ -36,6 +37,13 @@ const SEED_COUNT = 30;
 
 // See support.ts's connect() for why the DB handle is loaded here rather than imported statically.
 let conn: Connection;
+
+/**
+ * The signed-in session the sign-up test below captures, reused by every test after it instead of
+ * signing in again — see support.ts's saveSession() for why (the production build rate-limits
+ * `/sign-in` to 3 requests per 10s, and this file used to make one per test).
+ */
+let session: Cookie[] = [];
 
 test.describe.serial("feed", () => {
   test.beforeAll(async () => {
@@ -74,13 +82,11 @@ test.describe.serial("feed", () => {
     await cleanupSeeded(conn, "e2e-feed-");
   });
 
-  /** Gets the shared user onto a populated /feed. Playwright isolates storage per test, so this
-   *  signs in again every time rather than assuming the previous test's cookie carried over. */
+  /** Gets the shared user onto a populated /feed. Playwright isolates storage per test, so the
+   *  session the sign-up test captured has to be put back into each fresh context by hand. */
   async function onFeed(page: Page) {
+    await restoreSession(page, session);
     await page.goto("/feed");
-    if (!new URL(page.url()).pathname.startsWith("/feed")) {
-      await signIn(page, EMAIL, PASSWORD);
-    }
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();
   }
 
@@ -117,6 +123,9 @@ test.describe.serial("feed", () => {
     );
     expect(perColumn).toHaveLength(2);
     expect(Math.min(...perColumn)).toBeGreaterThan(0);
+
+    // Every test below reuses this session rather than signing in again.
+    session = await saveSession(page);
   });
 
   test("renders without console errors", async ({ page }) => {

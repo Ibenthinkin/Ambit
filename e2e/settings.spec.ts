@@ -1,11 +1,12 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Cookie, type Page } from "@playwright/test";
 import { eq, inArray } from "drizzle-orm";
 
 import {
   connect,
   inviteUser,
   openAuthSheet,
-  signIn,
+  restoreSession,
+  saveSession,
   type Connection,
 } from "./support";
 
@@ -39,6 +40,13 @@ const HANDLE = `e2e${RUN}`;
 // See support.ts's connect() for why the DB handle is loaded in `beforeAll`, not imported statically.
 let conn: Connection;
 
+/**
+ * The signed-in session the sign-up test below captures, reused by every test after it instead of
+ * signing in again — see support.ts's saveSession() for why (the production build rate-limits
+ * `/sign-in` to 3 requests per 10s, and this file used to make one per test).
+ */
+let session: Cookie[] = [];
+
 test.describe.serial("settings", () => {
   test.beforeAll(async () => {
     conn = await connect();
@@ -64,13 +72,12 @@ test.describe.serial("settings", () => {
     await db.delete(collection).where(eq(collection.userId, row.id));
   });
 
-  /** Gets the shared user onto a path, signing in through the landing page if the guard bounces. */
+  /** Gets the shared user onto a path. Storage is per-test, so the session the sign-up test
+   *  captured is put back by hand rather than signed in for again — see support.ts's
+   *  saveSession() for why this file no longer signs in six times in two minutes. */
   async function goTo(page: Page, path: string) {
+    await restoreSession(page, session);
     await page.goto(path);
-    if (!new URL(page.url()).pathname.startsWith(path)) {
-      await signIn(page, EMAIL, PASSWORD);
-      await page.goto(path);
-    }
   }
 
   test("a new user signs up and reaches Profile from the feed's pill", async ({
@@ -114,6 +121,9 @@ test.describe.serial("settings", () => {
     // And back out. The pill's Feed button pops, because arriving here wrote the marker.
     await page.getByRole("button", { name: "Feed" }).click();
     await page.waitForURL(/\/feed/, { waitUntil: "commit" });
+
+    // Every test below reuses this session rather than signing in again.
+    session = await saveSession(page);
   });
 
   test("a collection can be made once, and its tile opens the filtered Saved list", async ({
@@ -131,6 +141,14 @@ test.describe.serial("settings", () => {
     await expect(page.locator("[data-collection-id]")).toHaveCount(4, {
       timeout: 15_000,
     });
+    // The sheet closes itself on success — an assertion worth making in its own right, and the one
+    // this test was missing. `BottomSheet` keeps the panel mounted for a 260ms exit animation, and
+    // against a production build the new tile lands well before that finishes: for those few
+    // frames "New collection" matches the sheet's own <h2> as well as the dashed tile, and the
+    // reopen below fails on strict mode rather than on anything being wrong.
+    await expect(
+      page.getByRole("heading", { name: "New collection" }),
+    ).toBeHidden({ timeout: 15_000 });
 
     // The duplicate path: the sheet stays open with the name intact, error under the field.
     await page.getByText("New collection").click();

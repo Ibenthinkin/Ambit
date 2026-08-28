@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-import { expect, type Page } from "@playwright/test";
+import { expect, type Cookie, type Page } from "@playwright/test";
 import { inArray, like } from "drizzle-orm";
 
 /**
@@ -135,4 +135,46 @@ export async function cleanupSeeded(
   await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
   await db.delete(savedItem).where(inArray(savedItem.itemId, ids));
   await db.delete(item).where(inArray(item.id, ids));
+}
+
+/**
+ * Captures the signed-in session out of the context that created it, so the rest of a spec file can
+ * reuse it — `restoreSession` puts it into each subsequent test's fresh context.
+ *
+ * **Why this exists: the production build rate-limits sign-in.** Better Auth ships a rate limiter
+ * that is *disabled in development and enabled under `NODE_ENV=production`*, and its default rule
+ * for `/sign-in/*` and `/sign-up/*` is **3 requests per 10 seconds per IP**. Playwright isolates
+ * storage per test, so a helper that signs in again for every test made the suite fire ~20 sign-ins
+ * from one address inside two and a half minutes. Against `next dev` nobody noticed. Against the
+ * production build the CI job runs (Phase 7.1, decision D1) the fourth one comes back
+ * `429 Too many requests`, and whichever test happened to be holding it fails — a different one on
+ * every run, which is the worst kind of red.
+ *
+ * The limiter is right and stays exactly as it is; it is the suite that was unrealistic. Signing in
+ * is *setup* for these tests, not the thing under test — `auth.spec.ts` owns the sign-in flow, and
+ * `item.spec.ts`'s "can sign in again" test deliberately still goes through the form. Everywhere
+ * else one sign-up per spec file now yields a cookie the file's remaining tests carry, which is
+ * both faster and closer to what a real reader's browser does.
+ *
+ * (Related, and left for 7.2: `src/lib/auth.ts` configures no `rateLimit` and no trusted-proxy IP
+ * source, so behind a reverse proxy every reader may share one bucket.)
+ */
+export async function saveSession(page: Page): Promise<Cookie[]> {
+  return page.context().cookies();
+}
+
+/**
+ * Puts a session captured by `saveSession` into this test's fresh context. Call it *before* the
+ * first `goto` — the cookie is what stops `/feed`'s guard bouncing to the landing page.
+ *
+ * Throws rather than falling back to a sign-in: an empty session means the spec's sign-up test
+ * never ran, and quietly authenticating another way would hide that.
+ */
+export async function restoreSession(page: Page, cookies: Cookie[]) {
+  if (cookies.length === 0) {
+    throw new Error(
+      "No saved session — the spec's sign-up test must run first and call saveSession().",
+    );
+  }
+  await page.context().addCookies(cookies);
 }

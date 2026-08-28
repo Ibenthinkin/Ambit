@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Cookie, type Page } from "@playwright/test";
 import { and, eq, inArray } from "drizzle-orm";
 
 import {
@@ -7,7 +7,8 @@ import {
   inviteUser,
   openAuthSheet,
   PIXEL,
-  signIn,
+  restoreSession,
+  saveSession,
   type Connection,
 } from "./support";
 
@@ -31,6 +32,13 @@ const SEED_COUNT = 12;
 
 // See support.ts's connect() for why the DB handle is loaded in `beforeAll`, not imported statically.
 let conn: Connection;
+
+/**
+ * The signed-in session the sign-up test below captures, reused by every test after it instead of
+ * signing in again — see support.ts's saveSession() for why (the production build rate-limits
+ * `/sign-in` to 3 requests per 10s, and this file used to make one per test).
+ */
+let session: Cookie[] = [];
 
 test.describe.serial("saved", () => {
   test.beforeAll(async () => {
@@ -67,10 +75,10 @@ test.describe.serial("saved", () => {
 
   /** Gets the shared user onto a populated /feed (storage is per-test, so sign in each time). */
   async function onFeed(page: Page) {
+    // Storage is per-test, so the session the sign-up test captured is put back by hand rather
+    // than signed in for again — see support.ts's saveSession().
+    await restoreSession(page, session);
     await page.goto("/feed");
-    if (!new URL(page.url()).pathname.startsWith("/feed")) {
-      await signIn(page, EMAIL, PASSWORD);
-    }
     // 15s for the same reason as every server-bound wait in this file: a feed compose under five
     // parallel workers has repeatedly outlived the 5s default (08-23-26).
     await expect(page.locator("[data-feed-id]").first()).toBeVisible({
@@ -78,13 +86,10 @@ test.describe.serial("saved", () => {
     });
   }
 
-  /** Gets the shared user onto /saved, via the session guard's redirect if signed out. */
+  /** Gets the shared user onto /saved. Same session reuse as `onFeed`. */
   async function onSaved(page: Page) {
+    await restoreSession(page, session);
     await page.goto("/saved");
-    if (!new URL(page.url()).pathname.startsWith("/saved")) {
-      await signIn(page, EMAIL, PASSWORD);
-      await page.goto("/saved");
-    }
   }
 
   test("a new user signs up and finds the quiet empty state", async ({
@@ -119,6 +124,9 @@ test.describe.serial("saved", () => {
     // this test spent its budget on someone else's page (seen on 08-23-26's suite runs).
     await page.getByRole("button", { name: "Back to exploring" }).click();
     await page.waitForURL(/\/feed/, { waitUntil: "commit" });
+
+    // Every test below reuses this session rather than signing in again.
+    session = await saveSession(page);
   });
 
   // BUILD_PLAN's done bar, end to end: save on the feed → find it on Saved → unsave → gone.
