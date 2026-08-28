@@ -1,8 +1,12 @@
 name: CI
 
-# Runs on every push and PR. Playwright/e2e stays out of this workflow until
-# Phase 7.1 wires up docker-compose Postgres in CI — until then it's a
-# local-only check (see e2e/home.spec.ts, package.json's `e2e` script).
+# Runs on every push and PR, as two jobs in parallel:
+#
+#   check — typecheck, lint, format, the unit suite, and a build. No database, so the five
+#           `describe.skipIf(!process.env.DATABASE_URL)` suites skip themselves here.
+#   e2e   — Postgres + Mailpit service containers, the real migration journal, a seed, the unit
+#           suite *with* a database (so those five run), a production build, and the Playwright
+#           suite against `next start` (Phase 7.1).
 on:
   push:
     branches: [main]
@@ -40,3 +44,82 @@ jobs:
           DATABASE_URL: postgres://ambit:ambit@localhost:5432/ambit
           BETTER_AUTH_SECRET: ci-placeholder-secret-not-used-for-anything-real
           BETTER_AUTH_URL: http://localhost:3000
+
+  # End-to-end: the Playwright suite against a PRODUCTION build (Phase 7.1, decision D1), a fresh
+  # Postgres and a Mailpit — the two services docker-compose.yml provides locally, here as GitHub
+  # service containers. The job runs directly on the runner, so both services must map their ports
+  # to localhost (they are unreachable by service name from the host). The runner waits on each
+  # container's --health-cmd before the first step runs.
+  #
+  # Runs alongside `check`, not after it (decision D7): a typecheck failure costs a few wasted
+  # runner minutes here, while `needs: check` would add them to every green run.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ambit
+          POSTGRES_PASSWORD: ambit
+          POSTGRES_DB: ambit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ambit -d ambit"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+      mailpit:
+        # The image's own HEALTHCHECK is `/mailpit readyz`; spelled out so the runner gates on it.
+        image: axllent/mailpit
+        ports:
+          - 1025:1025
+          - 8025:8025
+        options: >-
+          --health-cmd "/mailpit readyz"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      # The same values .env.example documents. `~/env` reads them from the process environment;
+      # there is no .env file in CI and the specs' connect() tolerates that.
+      DATABASE_URL: postgres://ambit:ambit@localhost:5432/ambit
+      BETTER_AUTH_SECRET: ci-e2e-placeholder-secret-never-used-for-anything-real
+      BETTER_AUTH_URL: http://localhost:3000
+      # No RESEND_API_KEY on purpose: getMailer() then targets Mailpit on localhost:1025 even
+      # under NODE_ENV=production, which `next start` sets.
+      E2E_PROD: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+
+      # Chromium is ~150 MB; cache the download between runs. `--with-deps` still runs on a cache
+      # hit — it is what installs the OS libraries, which the cache does not cover — but skips the
+      # download itself. Keyed on the lockfile so a Playwright bump refreshes the browser.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bunx playwright install --with-deps chromium
+
+      # The real migration journal (drizzle/), not `db:push` — decision D4: this is the first
+      # automated proof it applies cleanly to an empty database, the path 8.1's deploy will take.
+      - run: bun run db:migrate
+      - run: bun run db:seed
+
+      # With DATABASE_URL present the five `describe.skipIf(!process.env.DATABASE_URL)` suites run
+      # here for the first time in CI (decision D5). The `check` job still runs the rest without one.
+      - run: bun run test
+
+      - run: bun run build
+      - run: bun run e2e
+
+      # Traces are recorded on first retry (playwright.config.ts) — so a failing test leaves one.
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-traces
+          path: .playwright/test-results/
+          retention-days: 7
