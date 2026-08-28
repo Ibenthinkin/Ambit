@@ -173,9 +173,44 @@ instead of 12, then passed 5/5 in isolation and on a clean full run. Same class 
 `seen_item` rows** back in a single evening. Not a regression, and CI (fresh database every run)
 has never shown it.
 
-**Open / next:** 7.2 (security pass) — and it inherits a concrete first item: give Better Auth a
-real per-client IP behind Coolify's proxy, or the rate limiter is either useless or an outage. Then
-7.3, the image decision. Housekeeping: the dev DB is due a `bun run e2e:clean --confirm`.
+**7.2 and 7.3 planned the same night, for an unattended run** — `docs/PHASE7_PLAN_7.2.md`,
+`docs/PHASE7_PLAN_7.3.md`, and the runner contract `docs/PHASE7_OVERNIGHT.md` (Ralph loop, gates,
+stop rules, a morning report in an untracked `OVERNIGHT_STATUS.md`). Three things the planning
+read found, each of which changed a plan:
+
+1. **7.2 is mostly verification.** No `dangerouslySetInnerHTML` touches source data anywhere;
+   blogs pass `htmlToText()` at ingest; every user-scoped DB function filters `userId`; three
+   limiters already exist. What the app has *never* had is a single security header — so the
+   phase is CSP (per-request nonce + `'strict-dynamic'`, with a written fallback to
+   `'unsafe-inline'` because nobody will be watching), HSTS/nosniff/frame-ancestors/referrer/
+   permissions from one pure module, a two-user authz test, a no-HTML guard, and an audit table.
+   And 7.1's "give Better Auth a real IP" item dissolved into a version fact: **better-auth 1.6.21
+   stopped trusting multi-hop `X-Forwarded-For`** (1.6.25 is installed), single-valued headers —
+   what Coolify's Traefik sends — just work, and `trustedClientIp()` already takes the last hop.
+   No code; 8.1 confirms it with one request.
+2. **The feed bar is already met — p50 143 ms over 11,366 items** — but `getTopicPools` fetches
+   essentially the whole eligible corpus as full rows (bodies included: 28.7 MB of Wikipedia) on
+   every page and picks 24 in JS. 7.3 makes it a projection + hydrate, gated by a new
+   `bench:feed`, revertable if the integration suite objects.
+3. **The image gate is settled: proxy-with-cache, inside `/api/img`.** `sharp` 0.34.5 was
+   already in the tree (Next's dependency) and works under Bun — 3000×2000 → 1600 px WebP in
+   46 ms. One file per item under `IMAGE_CACHE_DIR`, one upstream fetch per image ever, an
+   in-flight map so a page's 24 tiles don't double-fetch, failures never cached, and a per-host
+   rate-limited `img:warm` that turns `tile.loc.gov`'s budget into a one-time slow fill (the run
+   warms `loc` only). `next/image` was considered and rejected: each width variant would re-fetch
+   through the proxy, and every `<img>`, the SW rule and the share sheet would move.
+
+A CSP nonce needs every HTML route dynamic; the production build had three static ones
+(`/~offline`, `/_not-found`, `/dev/tokens`) — reading `headers()` in the root layout takes care of
+all three, and the plan re-reads the route table to prove it.
+
+**Decisions (Ben, 08-27-26):** cache + resize in `/api/img` over `next/image`; nonce CSP with the
+fallback rule; each phase merges to `main` and pushes when its local gate is green, and a red gate
+leaves the branch unmerged with the failing test named in the report.
+
+**Open / next:** the overnight run itself. Morning: read `OVERNIGHT_STATUS.md`, then the two
+walkthroughs. Housekeeping unchanged: the dev DB is due a `bun run e2e:clean --confirm` (the run
+is allowed to do it).
 
 *Session spend: 26.05M tok (in 30.2k · out 264.0k · cache r 24.52M / w 1.23M) · ~≥$50.61 · fable-5 + opus-4-7 + <synthetic> · 12:10→13:09*
 *Session spend: 5.95M tok (in 5.0k · out 68.5k · cache r 5.49M / w 389.5k) · ~$16.76 · fable-5 · 15:28→15:35*
@@ -185,6 +220,7 @@ real per-client IP behind Coolify's proxy, or the rate limiter is either useless
 *Session spend: 9.09M tok (in 5.7k · out 151.6k · cache r 8.48M / w 452.7k) · ~$25.17 · fable-5 · 19:52→20:13*
 *Session spend: 63.22M tok (in 821 · out 348.6k · cache r 61.75M / w 1.12M) · ~$48.60 · opus-5 + opus-4-7 · 20:16→22:14*
 *Session spend: 10.79M tok (in 68 · out 17.3k · cache r 10.73M / w 38.5k) · ~$6.18 · opus-5 · 22:14→22:41*
+*Session spend: 7.41M tok (in 7.8k · out 226.6k · cache r 6.61M / w 559.9k) · ~$29.22 · fable-5 · 22:48→23:14*
 
 ### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.** Then: 6.3's design session opened.
 
