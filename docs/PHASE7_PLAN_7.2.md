@@ -148,13 +148,13 @@ async headers() {
 
 ### T4 — `e2e/security.spec.ts`: the headers and zero CSP violations, on the real routes
 
-- [ ] **4.1** New spec, `test.describe("security headers")`, seeding a small corpus with `seedFeedCorpus(conn, "ambit-security-e2e-", 12, topics)` and one invited user `ambit-security-e2e-<stamp>@example.com` (see `e2e/feed.spec.ts` for the invite + sign-in shape; clean up children-first, scoped to the prefix, like every other spec).
-- [ ] **4.2** Before each navigation, `page.addInitScript(() => { window.__csp = []; document.addEventListener("securitypolicyviolation", e => window.__csp.push(e.violatedDirective + " " + e.blockedURI)); })`, plus the `page.on("console")` collector from `feed.spec.ts:136` (keep its image-load exclusion).
-- [ ] **4.3** For each of `/`, `/i/<seeded id>`, `/feed` (signed in), `/settings`, `/saved`: `const res = await page.goto(...)`; assert `res.headers()` has `content-security-policy` containing `frame-ancestors 'none'` and (unless D2 applied) `'strict-dynamic'` and `nonce-`; `x-content-type-options: nosniff`; `referrer-policy`; `permissions-policy`; `x-frame-options: DENY`. `waitForHydration` where the page has a form; then assert `await page.evaluate(() => window.__csp)` is `[]` and the console collector is `[]`.
-- [ ] **4.4** Two API responses carry `nosniff` too: `request.get("/api/img/<seeded id with a same-origin http imageUrl>")` (seed one row with `imageUrl: "http://localhost:3000/icon-192.png"` as `pwa.prod.spec.ts` does) and a tRPC GET (`/api/trpc/items.byId?input=…` — copy the encoding from any existing spec or from the browser's own request in a trace).
-- [ ] **4.5** Assert HSTS is **absent** (http) — a deliberate assertion that D5's gate works.
-- [ ] **4.6** `bun run e2e:prod` green with the new spec included (count becomes 42 + N). `bun run e2e` green.
-- [ ] **4.7** Commit: `test(e2e): security headers and zero CSP violations across the real routes`.
+- [x] **4.1** New spec, `test.describe("security headers")`, seeding a small corpus with `seedFeedCorpus(conn, "ambit-security-e2e-", 12, topics)` and one invited user `ambit-security-e2e-<stamp>@example.com` (see `e2e/feed.spec.ts` for the invite + sign-in shape; clean up children-first, scoped to the prefix, like every other spec).
+- [x] **4.2** Before each navigation, `page.addInitScript(() => { window.__csp = []; document.addEventListener("securitypolicyviolation", e => window.__csp.push(e.violatedDirective + " " + e.blockedURI)); })`, plus the `page.on("console")` collector from `feed.spec.ts:136` (keep its image-load exclusion).
+- [x] **4.3** For each of `/`, `/i/<seeded id>`, `/feed` (signed in), `/settings`, `/saved`: `const res = await page.goto(...)`; assert `res.headers()` has `content-security-policy` containing `frame-ancestors 'none'` and (unless D2 applied) `'strict-dynamic'` and `nonce-`; `x-content-type-options: nosniff`; `referrer-policy`; `permissions-policy`; `x-frame-options: DENY`. `waitForHydration` where the page has a form; then assert `await page.evaluate(() => window.__csp)` is `[]` and the console collector is `[]`.
+- [x] **4.4** Two API responses carry `nosniff` too: `request.get("/api/img/<seeded id with a same-origin http imageUrl>")` (seed one row with `imageUrl: "http://localhost:3000/icon-192.png"` as `pwa.prod.spec.ts` does) and a tRPC GET (`/api/trpc/items.byId?input=…` — copy the encoding from any existing spec or from the browser's own request in a trace).
+- [x] **4.5** Assert HSTS is **absent** (http) — a deliberate assertion that D5's gate works.
+- [x] **4.6** `bun run e2e:prod` green with the new spec included (count becomes 42 + N). `bun run e2e` green.
+- [x] **4.7** Commit: `test(e2e): security headers and zero CSP violations across the real routes`.
 
 *Done = the spec passes under both servers; deleting the CSP line from `proxy.ts` makes it fail (try it once, then restore — record that you did).*
 
