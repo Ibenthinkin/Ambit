@@ -3,6 +3,7 @@ import "~/styles/globals.css";
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { type Metadata, type Viewport } from "next";
 
+import { AccentSync } from "~/components/accent-sync";
 import { SwCleanup } from "~/components/dev/sw-cleanup";
 import { InstallListener } from "~/components/install/install-listener";
 import { sora } from "~/lib/fonts";
@@ -88,6 +89,9 @@ export default function RootLayout({
             production branch on purpose: the install *flow* has nothing to do with the service
             worker, and a reader testing on a dev build should still see it behave. */}
         <InstallListener />
+        {/* Puts the reader's stored accent back on <html> after React's hydration pass reconciles
+            it away — see the component for the whole story. Renders nothing. */}
+        <AccentSync />
         {process.env.NODE_ENV === "production" ? (
           <SerwistProvider swUrl="/serwist/sw.js">
             <TRPCReactProvider>{children}</TRPCReactProvider>
