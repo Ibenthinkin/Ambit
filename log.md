@@ -5,6 +5,57 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-29-26 Sat]] — Phase 8.1 T3: Ambit is deployed on VM 202, and the plan was wrong about GitHub twice
+
+**Shipped:** **T3 complete** — Ambit runs on `192.168.1.202:3000` as Coolify's second tenant beside
+the archive. Postgres 17 (`ambit-db`, internal network only), the `ambit-cache` volume on
+`/app/.cache`, nightly backups at `0 4 * * *`, and a container Docker itself calls healthy on the
+Dockerfile's `bun -e fetch` probe. Not public yet — that is T4. Coolify v4.3.12; resource UUID
+`mxo9s7hkdbtbfk2ilbvgnmfr`. Full deployed-facts table in `docs/PHASE8_WALKTHROUGH_8.1.md`, started
+today rather than at T9 so the values were written down while they were on screen.
+
+**The health route earned itself on the first request.** `/api/health` came back
+`{"ok":true,"db":"ok","imageCache":"ok","commit":"4a4c428b999c…"}` — three independent proofs in one
+line that the old "does `/` return 200" signal could not have given: the migration journal applied
+against a real database, the persistent volume mounted *and writable by the container user*, and the
+image being this commit rather than a stale build. The `imageCache` half is the one worth keeping:
+had the volume silently not mounted, the app would have served pages perfectly while re-fetching the
+entire corpus from the museums, and **nothing else in the system would have said so**.
+
+**HSTS's presence is the only evidence the Build Variable tick worked.** `next.config.js` decides
+whether to emit HSTS inside `headers()`, which Next evaluates at *build* time — so the deployed
+answer is baked into the image and no runtime variable can undo it. The Dockerfile's
+`test -n "$BETTER_AUTH_URL"` guard fails loudly on a *missing* value, but a wrong-scheme one would
+pass quietly and ship an image with HSTS off forever. Seeing
+`Strict-Transport-Security: max-age=31536000` on the deployed origin is what closes that gap.
+Also confirmed in production: two requests, two different CSP nonces, so `proxy.ts` is minting per
+request and not reusing a build-time constant.
+
+**Two corrections to the plan, both about GitHub, both written back into it.** The plan said to use
+whatever git source the archive uses — but that instruction was built on an assumption nobody had
+checked: `ambit-archive` is *private* and uses a Deploy Key, while **`Ibenthinkin/Ambit` is public**,
+so Coolify's plain Public Repository source is right and neither private path was needed. And
+**Auto Deploy had to go off**: only Coolify's *GitHub App* source registers a push webhook itself,
+the other two need one configured by hand in GitHub, and GitHub cannot reach a Coolify that listens
+on `192.168.1.202:8000`. A deploy is the UI's Deploy button — which is what the archive does in
+practice anyway. Whether to put Coolify behind the tunnel is 8.2's question, and putting a Coolify
+login on the public internet is not a trade 8.1 makes.
+
+**Decisions:** reuse the standing `ARCHIVE_API_KEY` rather than mint a new one — a **conscious
+override** of the 08-24 trip-wire's "or the key is reused" clause. The reasoning that made leaving it
+acceptable still holds (read-only `/search`, LAN-only host, no public route, and `ARCHIVE_URL` never
+leaves VM 202); what the third copy changes is the rotation cost, and rotating fewer than all three
+recreates the Immich drift exactly. Recorded in the walkthrough, and due in the Ambit-Admin vault at
+T9.4 — nothing in either repo can see that coupling.
+
+**Open / next:** T4, the cloudflared ingress on VM 200, which is what makes
+`https://ambit.benreilly.io` real. Its commands are 150-character one-liners in the plan, which is
+the paste-wrap failure A.6 already paid for once — they go through a heredoc'd script instead. Then
+T5 (Resend) and T6. The backup on-disk path is the one T3 item still blank: it does not exist until
+tonight's 04:00 run, and T8's restore drill collects it.
+
+*Session spend: 8.56M tok (in 168 · out 76.5k · cache r 8.22M / w 263.4k) · ~$8.65 · opus-5 · 21:44→00:11*
+
 ### [[08-28-26 Fri]] — Phase 7.3 executed unattended: proxy-with-cache settled, and 35 MB the feed had been dragging per page
 
 **Shipped:** `feat/7.3-images-perf`, T1–T6, six commits, second half of the overnight Ralph run.
