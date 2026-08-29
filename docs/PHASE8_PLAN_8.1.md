@@ -171,7 +171,7 @@ Four small, independently testable changes. Commit as one.
 
 *Done = a container built from `main` boots from an empty database to `healthy` on the Mac; HSTS is present because the build arg was https; `docker exec … bun run ingest` works inside the image.*
 
-> **Execution state (08-28-26):** T1 and T2 are complete and merged to `main` (`59c76e5`), both CI jobs green. A pre-flight finding not in the plan: `main`'s `check` job had been red since the 7.3 merge (unit tests importing `~/env`, which validates at import time, in a job with no environment) — fixed in `4f1af6a` before T1. Two corrections to the plan's text: a feature-branch push triggers no CI (the workflow runs on `main` pushes and pull requests), so T2.6 needed PR #19; and `docker build` can fail with `DeadlineExceeded` loading the base image's metadata, which is a transient registry timeout, not a wrong tag. **T3 executed 08-29-26** — deployed, `/api/health` green on `192.168.1.202:3000`; two corrections to T3.4 are written into it (the repo is public, so Coolify's Public Repository source is right; and Auto Deploy has to be off because GitHub cannot reach a LAN-only Coolify). **Execution resumes at T4, which needs Ben.**
+> **Execution state (08-28-26):** T1 and T2 are complete and merged to `main` (`59c76e5`), both CI jobs green. A pre-flight finding not in the plan: `main`'s `check` job had been red since the 7.3 merge (unit tests importing `~/env`, which validates at import time, in a job with no environment) — fixed in `4f1af6a` before T1. Two corrections to the plan's text: a feature-branch push triggers no CI (the workflow runs on `main` pushes and pull requests), so T2.6 needed PR #19; and `docker build` can fail with `DeadlineExceeded` loading the base image's metadata, which is a transient registry timeout, not a wrong tag. **T3 executed 08-29-26** — deployed, `/api/health` green on `192.168.1.202:3000`; two corrections to T3.4 are written into it (the repo is public, so Coolify's Public Repository source is right; and Auto Deploy has to be off because GitHub cannot reach a LAN-only Coolify). **T4.1–4.4 and T6.1/6.6 executed 08-29-26** — Ambit is public at `https://ambit.benreilly.io` with the first account signed up, and `/api/health` reports the deployed commit. **Execution resumes at T4.5–4.6** (two Cloudflare dashboard steps), then **T5 (Resend)** — best started fresh, since domain verification waits on DNS. T6.2's phone/cellular sign-up and PWA install are still outstanding (the desktop sign-up is done), as are 6.3–6.5's cookie and per-client rate-limit proofs.
 
 ### T3 — 🖐️ Coolify: database + application on VM 202 (Ben with the agent; ~1 h)
 
@@ -201,15 +201,15 @@ Coolify UI: `http://192.168.1.202:8000`. The agent prepares every value below in
 
 Runbook: vault `05 Projects/homelab/runbooks/cloudflared-tunnel.md`, "Adding more services later". On VM 200 (`ssh reef@192.168.1.200`):
 
-- [ ] **4.1** Append to `/opt/docker/mediastack/cloudflared/config.yml`'s `ingress:` list, **above** the trailing `http_status:404` catch-all:
+- [x] **4.1** Append to `/opt/docker/mediastack/cloudflared/config.yml`'s `ingress:` list, **above** the trailing `http_status:404` catch-all:
   ```yaml
     - hostname: ambit.benreilly.io
       service: http://192.168.1.202:3000
   ```
   Validate before restarting: `docker run --rm -v /opt/docker/mediastack/cloudflared:/etc/cloudflared cloudflare/cloudflared:latest tunnel --config /etc/cloudflared/config.yml ingress validate`.
-- [ ] **4.2** `docker run -it --rm -v /opt/docker/mediastack/cloudflared:/home/nonroot/.cloudflared cloudflare/cloudflared:latest tunnel route dns homelab ambit.benreilly.io` → creates the proxied CNAME → `<UUID>.cfargotunnel.com`.
-- [ ] **4.3** `cd /opt/docker/mediastack && docker compose restart cloudflared && docker logs --tail 20 cloudflared` — four "Registered tunnel connection" lines.
-- [ ] **4.4** From the Mac **and** from the phone on cellular:
+- [x] **4.2** `docker run -it --rm -v /opt/docker/mediastack/cloudflared:/home/nonroot/.cloudflared cloudflare/cloudflared:latest tunnel route dns homelab ambit.benreilly.io` → creates the proxied CNAME → `<UUID>.cfargotunnel.com`.
+- [x] **4.3** `cd /opt/docker/mediastack && docker compose restart cloudflared && docker logs --tail 20 cloudflared` — four "Registered tunnel connection" lines.
+- [x] **4.4** From the Mac **and** from the phone on cellular:
   ```bash
   dig +short ambit.benreilly.io                          # CNAME → *.cfargotunnel.com
   curl -sI https://ambit.benreilly.io/ | grep -i 'HTTP/\|strict-transport\|cf-ray\|content-security'
@@ -218,7 +218,7 @@ Runbook: vault `05 Projects/homelab/runbooks/cloudflared-tunnel.md`, "Adding mor
   Landing page renders in a browser; slideshow images load (`/landing/*` is static); `/i/<any itemId>` will 404 until T7 — expected.
 - [ ] **4.5 Cache Rule (D13)** — Cloudflare dashboard → `benreilly.io` → *Caching → Cache Rules → Create*: name `ambit image proxy`, expression `(http.host eq "ambit.benreilly.io" and starts_with(http.request.uri.path, "/api/img/"))`, action *Eligible for cache*, Edge TTL *Use cache-control header from origin*. Verify after T7: two requests for the same image, the second's `cf-cache-status: HIT`.
 - [ ] **4.6** Cloudflare → *Security → Bots*: confirm **Bot Fight Mode is off** for the zone (it challenges non-browser clients; the PWA's service worker and `fetch` calls must not be challenged). If it is on and was on for the other four hostnames, leave it and note it; test the install flow in T6 regardless.
-- [ ] **4.7 Vault:** add the row to the runbook's "What to publish" table and to `homelab-reference.md`'s *Public hostnames (Cloudflare Tunnel)* table (`ambit.benreilly.io` → `192.168.1.202:3000`, "Ambit — has its own auth + invite gate"); add Ambit to the *Archive VM (VM 202)* section (it now hosts two tenants; port 3000 alongside 3001). Commit the vault.
+- [x] **4.7 Vault:** add the row to the runbook's "What to publish" table and to `homelab-reference.md`'s *Public hostnames (Cloudflare Tunnel)* table (`ambit.benreilly.io` → `192.168.1.202:3000`, "Ambit — has its own auth + invite gate"); add Ambit to the *Archive VM (VM 202)* section (it now hosts two tenants; port 3000 alongside 3001). Commit the vault.
   **Fallback:** a Cloudflare **502/530** with T3's health green = the tunnel can't reach `192.168.1.202:3000` from VM 200 — `curl -s http://192.168.1.202:3000/api/health` *from VM 200* is the discriminating test (LAN reachability vs. ingress typo). Cloudflare **403 / challenge page** on API calls = Bot Fight Mode or a WAF managed rule — turn the rule off for this hostname rather than fighting it in the app.
 
 *Done = `https://ambit.benreilly.io/api/health` is 200 from off the LAN with a valid certificate and `strict-transport-security` present; vault updated.*
@@ -235,7 +235,7 @@ Runbook: vault `05 Projects/homelab/runbooks/cloudflared-tunnel.md`, "Adding mor
 
 ### T6 — First account, cookies, and the proxy proofs (agent + Ben; ~45 min)
 
-- [ ] **6.1 Invite** — 🖐️ on VM 202: `C=$(docker ps -q --filter publish=3000); docker exec "$C" bun run invite benjamin.reilly@gmail.com` (the filter, not the container name — the name changes every deploy; A.6 trap #4). Prints the invite created.
+- [x] **6.1 Invite** — 🖐️ on VM 202: `C=$(docker ps -q --filter publish=3000); docker exec "$C" bun run invite benjamin.reilly@gmail.com` (the filter, not the container name — the name changes every deploy; A.6 trap #4). Prints the invite created.
 - [ ] **6.2 Sign-up on the phone (cellular), through onboarding, to an empty feed** — expected pre-T7 (the feed is empty, not broken; `/api/health` is the discriminator). Then **install the PWA** (5.11's flow) and confirm the service worker registers under the CSP (Safari → Develop, or Chrome `chrome://serviceworker-internals`).
 - [ ] **6.3 Cookie flags (carried item 4)** — from the Mac:
   ```bash
@@ -251,7 +251,7 @@ Runbook: vault `05 Projects/homelab/runbooks/cloudflared-tunnel.md`, "Adding mor
   ```
   Expect twenty `401`s then `429` on the 21st–22nd from the Mac, **while the phone can still sign in** during the same 10-second window. Then the same loop against `/api/img/<id>` is unnecessary — Ambit's own limiter uses the last XFF hop, which T6.5 checks directly.
 - [ ] **6.5 Spoof test (the behavioural proof D11 needs)** — wait 10 s for the bucket to clear, then rerun 6.4's loop from the Mac with `-H 'x-forwarded-for: 1.2.3.4'` added to the curl. Still 429 at the 21st request: Cloudflare appended the real address after the spoofed one, Better Auth keyed on `cf-connecting-ip`, and Ambit's own limiter took the last hop. (The header shapes themselves are documented Cloudflare behaviour; nothing in the image can echo them without leaking, so the behaviour is the check.)
-- [ ] **6.6 `SOURCE_COMMIT`** — `curl -s https://ambit.benreilly.io/api/health | jq .commit` equals `git rev-parse main`. If `null`, 🖐️ `docker exec "$C" printenv SOURCE_COMMIT` says whether Coolify passes it at runtime at all; record either way. (The UUID fallback is acceptable — it only churns the offline-page precache per boot. *Include Source Commit in Build* is the build-time switch and is not what this needs.)
+- [x] **6.6 `SOURCE_COMMIT`** — `curl -s https://ambit.benreilly.io/api/health | jq .commit` equals `git rev-parse main`. If `null`, 🖐️ `docker exec "$C" printenv SOURCE_COMMIT` says whether Coolify passes it at runtime at all; record either way. (The UUID fallback is acceptable — it only churns the offline-page precache per boot. *Include Source Commit in Build* is the build-time switch and is not what this needs.)
   **Fallback (D11):** if the phone *also* gets 429 during the Mac's loop, every client is sharing one bucket. First `docker exec "$C" printenv NODE_ENV` — anything but `production` means `ipAddressHeaders` was never applied, and the fix is the env, not code. If it *is* production, the header isn't arriving as expected: file it as a finding with the evidence, leave the raised 20/10 s limit doing its job (7.1's reason for raising it was exactly this case), and do not reach for `trustedProxies` — cloudflared is the peer, not an addressable proxy hop.
 
 *Done = Ben's account exists via invite; PWA installed from the public origin; `__Secure-` cookie with `Secure`; 429 per client, not per proxy; a spoofed XFF changes nothing.*
