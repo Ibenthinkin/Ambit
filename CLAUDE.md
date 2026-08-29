@@ -41,7 +41,13 @@ proxy-with-cache**. `/api/img/[itemId]` now fills a disk cache (`IMAGE_CACHE_DIR
 politely, per host). And the feed's page compose went from **138 ms to 22 ms** — `getTopicPools`
 had been dragging 9,848 full rows / 35.8 MB out of Postgres to pick twelve cards; it now returns a
 five-column projection and `getFeedPage` hydrates the winners by id. `bun run bench:feed` is the
-before/after. **Next: 8.1.** See `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
+before/after. **8.1 is in progress and paused mid-phase**: T1–T2 shipped 08-28-26 (`/api/health`,
+`MAIL_FROM`, `cf-connecting-ip` for Better Auth in production, a `SOURCE_COMMIT`-first precache
+revision, and the `Dockerfile`/`.dockerignore` whose boot path — migrate, seed, `next start` — was
+proven locally against an empty database, cache volume and all). **Everything from T3 on needs
+Ben's hands** (Coolify on VM 202, the cloudflared ingress on VM 200, Resend), so resume from
+`docs/PHASE8_PLAN_8.1.md` — its execution-state banner above T3 says exactly where. See
+`docs/BUILD_PLAN.md` for the full phase-by-phase build order and
 `log.md` for the narrative of what's landed and why.
 
 ## Authoritative documents

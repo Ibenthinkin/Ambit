@@ -150,6 +150,8 @@ untouched.
 
 *Session spend: 28.77M tok (in 469 · out 167.7k · cache r 27.93M / w 667.9k) · ~$23.67 · opus-5 + opus-4-7 · 14:14→15:01*
 
+*Session spend: 4.83M tok (in 46 · out 17.8k · cache r 4.12M / w 691.3k) · ~$9.42 · opus-5 · 15:01→21:31* (same session, second write: the CLAUDE.md status paragraph now records the mid-phase pause so a cleared context resumes at T3 without reading the log.)
+
 ### [[08-28-26 Fri]] — Phase 7.2 executed unattended: the security pass, and 41 rows of markup nobody had looked for
 
 **Shipped:** `feat/7.2-security`, T1–T7, six commits, run start-to-finish by the overnight Ralph
