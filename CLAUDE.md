@@ -45,9 +45,13 @@ before/after. **8.1 is in progress and paused mid-phase**: T1–T2 shipped 08-28
 `MAIL_FROM`, `cf-connecting-ip` for Better Auth in production, a `SOURCE_COMMIT`-first precache
 revision, and the `Dockerfile`/`.dockerignore` whose boot path — migrate, seed, `next start` — was
 proven locally against an empty database, cache volume and all). **T3 shipped 08-29-26** — Ambit is
-deployed on VM 202 as Coolify's second tenant, answering on `192.168.1.202:3000` with `/api/health`
-green (db, volume, and the deployed commit), but **not public yet**. **T4 onward still needs Ben's
-hands** (the cloudflared ingress on VM 200, Resend, the first ingest), so resume from
+deployed on VM 202 as Coolify's second tenant. **T4 shipped the same night** — Ambit is **public at
+`https://ambit.benreilly.io`** through the VM 200 tunnel, all seven security headers surviving the
+edge, and the first account is signed up against an empty corpus (correct: D3 fills it in T7). Two
+Coolify traps cost the evening and are written up in the walkthrough — the Postgres image field
+defaults to 18 rather than the pinned 17, and `POSTGRES_USER`/`POSTGRES_DB` are silently ignored
+after a resource's first start. **T4.5–4.6, T5 (Resend) and T7 onward still need Ben's hands**, so
+resume from
 `docs/PHASE8_PLAN_8.1.md` — its execution-state banner says exactly where — and read
 `docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed facts (resource UUID, volume name, DB hostname)
 rather than re-deriving them from the Coolify UI. See

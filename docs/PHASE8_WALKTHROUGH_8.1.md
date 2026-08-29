@@ -4,7 +4,8 @@ Companion to `docs/PHASE8_PLAN_8.1.md`. The plan says what to do; this says what
 happened, what it proved, and every trap hit along the way. Written during execution, not after —
 the numbers below are the ones observed at the time, not reconstructed.
 
-**Status: in progress.** T1–T2 shipped 08-28-26. T3 executed 08-29-26. T4 onward pending.
+**Status: in progress.** T1–T2 shipped 08-28-26. T3 and T4.1–4.4 executed 08-29-26 — Ambit is
+public at `https://ambit.benreilly.io`. T4.5–4.7 and T5 onward pending.
 
 ## Deployed facts (T3.6)
 
@@ -88,3 +89,117 @@ What the third copy actually changes is the rotation cost: **rotating fewer than
 recreates the Immich failure exactly** (two copies drifting to two different dead values, diagnosed
 only by comparing sha256 fingerprints). Recorded here and, at T9.4, in the Ambit-Admin vault log,
 because nothing in either repo can see this coupling.
+
+## T4 — the tunnel, and the test that belonged in the plan rather than its fallback
+
+Ambit is the **first ingress rule on the `homelab` tunnel that points at an IP** rather than a
+sibling container name — the four that preceded it are all `service: http://<container>:<port>` on
+`mediastack_default` (`audiobookshelf`, `immich-server`, `jellyseerr`, `nextcloud`). The plan cited
+a `glance` precedent for an off-host target, but that precedent is Caddy's, not this tunnel's.
+
+So the question "can cloudflared actually reach `192.168.1.202:3000`?" was genuinely open, and the
+plan only asked it in T4's *fallback*, after a 502. It is much cheaper before the change:
+
+```
+docker run --rm --network mediastack_default curlimages/curl:latest \
+  -s http://192.168.1.202:3000/api/health
+→ {"ok":true,"db":"ok","imageCache":"ok","commit":"4a4c428b999c…"}
+```
+
+Run **first**, that one command turns a possible post-restart 502 from an open-ended hunt into a
+single known cause (an ingress typo), because LAN reachability is already excluded. Worth promoting
+into the pre-flight of any future ingress addition.
+
+**Two steps were replaced with simpler ones.** `cloudflared`'s own config directory is mounted at
+`/etc/cloudflared` in the running container, so validation is `docker exec cloudflared cloudflared
+tunnel ingress validate` — no `docker run`, no volume flags, 59 characters. And the DNS record was
+created in the Cloudflare dashboard as a proxied `CNAME ambit →
+63b87310-f166-4174-9d03-55027c77264f.cfargotunnel.com`, which is byte-identical to what `tunnel
+route dns homelab ambit.benreilly.io` would have written and avoids a 120-character command. The
+tunnel UUID is readable from `credentials-file` in `config.yml`.
+
+**Verified through the edge** (4.4): proxied DNS (`172.67.222.39` / `104.21.62.89`), `cf-ray`
+present (EWR), Google Trust Services cert for `CN=benreilly.io`, `/api/health` 200, and all seven of
+7.2's security headers arriving unmodified — HSTS included. Two requests returned two different CSP
+nonces and `cf-cache-status: DYNAMIC`, which is D13 confirmed from both sides: the edge is not
+caching HTML. Cloudflare added `server`, `cf-ray` and `cf-cache-status`, and stripped nothing.
+
+### A note on the 🖐️ convention
+
+T4 was marked 🖐️ Ben on the assumption the agent has no shell on VM 200. That assumption was wrong
+— the Mac's key authenticates to `reef@192.168.1.200` fine, and every read-only step (reading
+`config.yml`, inspecting mounts and networks, the reachability probe above) was done by the agent.
+What actually gated the work was different and narrower: **writes to remote infrastructure config
+are blocked**, so the `config.yml` edit, the restart, and the dashboard steps stayed Ben's. The
+convention is still right; the reason attached to it was not. Future plans should mark steps 🖐️ for
+*mutation* and *dashboards*, not for "the agent can't get there".
+
+## Two ways a Coolify Postgres resource looks right and is wrong
+
+Both were hit on 08-29-26, back to back, and neither is visible from the Coolify UI or from the
+app. They belong together because the tell for both is in the *database* container, never in the
+application's logs.
+
+### 1. Coolify's image field defaulted to Postgres 18, not the 17 the plan specified
+
+D4 pinned `postgres:17-alpine` for one reason — it is what dev (`docker-compose.yml:12`) and CI
+(`.github/workflows/ci.yml:66`) run, so the boot path CI proves green is the boot path production
+executes. The resource came up on **18.6** instead. Nothing failed: migrations applied, `/api/health`
+was green, and the app was demonstrably working.
+
+That is exactly what made it worth fixing immediately rather than later. The invariant was broken
+silently, and the cost of restoring it scales with the corpus: with **0 items in the table** it was a
+ten-minute recreate, and after T7's first ingest it would have been a major-version `pg_dump`/restore
+of a corpus that takes two hours to build. Found while checking why the feed was empty — the feed
+being empty was correct (D3), the version underneath it was not.
+
+**Set the image field explicitly when creating the resource, and verify after:**
+`docker exec <pg> psql -U postgres -tAc "select version()"`.
+
+### 2. `POSTGRES_USER` / `POSTGRES_DB` are ignored after the first start
+
+Recreating the database produced a cluster with `POSTGRES_DB=ambit` and `POSTGRES_USER=ambit` in the
+container's environment — and only the `postgres` role and `postgres` database in the cluster.
+Postgres's entrypoint honours those variables **only when it initialises an empty data directory**.
+The resource had been started once before those fields were filled in, so `initdb` ran with defaults
+and every boot since has ignored them. The UI kept displaying the intended values; the container kept
+carrying them; nothing anywhere reported a conflict.
+
+**The symptoms pointed at the two innocent parties.** The app's `CMD` is
+`db:migrate && db:seed && next start`, so a database it cannot authenticate against fails at the
+first `&&` — and Coolify *removes* the container of a failed deploy. What was actually visible:
+
+- `502` from Cloudflare (reads as a tunnel problem)
+- the application container **absent** from `docker ps -a` (reads as a Coolify problem)
+- the Postgres container reporting `Up 13 minutes` (reads as fine)
+
+The database was the only thing broken, and it was the only thing that looked healthy in
+`docker ps`. `docker inspect <pg> --format "{{json .State.Health}}"` had the answer the whole time —
+`FailingStreak: 55` and `FATAL: role "ambit" does not exist`, repeating every 15 seconds for fourteen
+minutes before anyone looked.
+
+**Diagnostic order for any "the app is 502 and the container is gone" on this host:**
+
+```
+docker ps -a --format "{{.Names}}\t{{.Status}}"          # absent vs. exited
+docker inspect <pg> --format "{{json .State.Health}}"    # unhealthy, with the reason
+docker logs --tail 25 <pg>                               # the underlying error
+```
+
+**The fix, without either party seeing the password** — the container already holds it, so it can
+quote itself. Inside the Postgres container (`docker exec -it <pg> sh`):
+
+```sh
+psql -U postgres -c "CREATE ROLE ambit LOGIN PASSWORD '$POSTGRES_PASSWORD'"
+psql -U postgres -c "CREATE DATABASE ambit OWNER ambit"
+```
+
+Shell expansion, not psql's `:'var'` interpolation — psql does **not** interpolate variables in a
+`-c` string (only in stdin or a file), which is a real error message on the way here. Using
+`$POSTGRES_PASSWORD` also guarantees the role's password matches `DATABASE_URL`, since both come
+from the value Coolify generated; typing it by hand risks an authentication failure that presents as
+the same 502 with a different cause.
+
+**A recreated database is a new database.** The `user` and `invite` rows do not survive it —
+`db:migrate` and `db:seed` restore the schema and the 16 topics automatically, but the account has to
+be re-invited (`bun run invite <email>`, idempotent) and re-registered.

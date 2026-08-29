@@ -56,6 +56,58 @@ tonight's 04:00 run, and T8's restore drill collects it.
 
 *Session spend: 8.56M tok (in 168 · out 76.5k · cache r 8.22M / w 263.4k) · ~$8.65 · opus-5 · 21:44→00:11*
 
+**Executed (overnight): T4 complete, T6.1–6.2 done.** Ambit is **public at
+`https://ambit.benreilly.io`** — proxied DNS, Google Trust Services cert, `cf-ray` present, and all
+seven of 7.2's security headers arriving through the edge unmodified, HSTS included. Two requests
+returned two different CSP nonces and `cf-cache-status: DYNAMIC`, so D13 is confirmed from both
+sides: Cloudflare is not caching HTML. First account created and signed up; invite `accepted`.
+Remaining in T4 are the two dashboard steps (4.5's `/api/img/` Cache Rule, 4.6's Bot Fight Mode
+check).
+
+**The test that belonged in the pre-flight rather than the fallback.** Ambit is the first ingress
+rule on the `homelab` tunnel pointing at an **IP** rather than a sibling container — the four before
+it are all `http://<container>:<port>` on `mediastack_default`. So "can cloudflared actually reach
+`192.168.1.202:3000`?" was genuinely open, and the plan only asked it *after* a hypothetical 502. Run
+first, one `docker run --rm --network mediastack_default curlimages/curl` answered it in seconds and
+turned any post-restart 502 into a single known cause. Promoted into the vault runbook's row for
+this hostname. Two of T4's steps also got simpler: validation is `docker exec cloudflared cloudflared
+tunnel ingress validate` (the config is already mounted at `/etc/cloudflared`), and the DNS record
+was a proxied CNAME added in the dashboard — byte-identical to `tunnel route dns`, without a
+120-character command.
+
+**Two ways a Coolify Postgres resource looks right and is wrong, hit back to back.** First, the image
+field had defaulted to **Postgres 18.6** while D4 pinned 17 to match dev and CI — nothing failed,
+which is what made it worth fixing on the spot: with **0 items** it was a ten-minute recreate, and
+after T7's ingest it would have been a major-version dump/restore of a two-hour corpus. Found while
+checking why the feed was empty (the empty feed was correct — D3).
+
+Then the recreate produced a cluster carrying `POSTGRES_USER=ambit` in its environment and holding
+only the `postgres` role, because **those variables are honoured only when `initdb` runs on an empty
+data directory** — the resource had been started once before the fields were filled in, and every
+boot since ignored them silently. **The symptoms accused the two innocent parties:** a 502 from
+Cloudflare, and the application container *absent* from `docker ps -a` (Coolify removes a failed
+deploy's container, and `db:migrate` is the first link in the `&&` chain). The only thing reporting
+`Up` was the only thing broken. `docker inspect <pg> --format "{{json .State.Health}}"` had it the
+whole time — `FailingStreak: 55`, `FATAL: role "ambit" does not exist`, every 15 seconds for
+fourteen minutes. Fixed from inside the container so neither party saw the password
+(`psql -c "CREATE ROLE ambit LOGIN PASSWORD '$POSTGRES_PASSWORD'"` — shell expansion, because psql
+does **not** interpolate `:'var'` in a `-c` string). A recreated database is a new database: schema
+and the 16 topics come back on their own, the account does not.
+
+**Also learned, and worth undoing a stale note for:** the Mac's key authenticates to **both**
+`reef@192.168.1.200` and `ben@192.168.1.202` — the 08-24 entry saying VM 202 refuses it is out of
+date. What actually gates agent work on those hosts is narrower than the plan's 🖐️ convention
+assumed: every *read* (config, mounts, networks, logs, `psql` selects) went fine, and only
+**mutations** to remote infrastructure were blocked. Future plans should mark steps 🖐️ for mutation
+and dashboards, not for "the agent can't get there".
+
+**Open / next:** T4.5–4.6 (dashboard), then **T5 (Resend)** — worth being tomorrow's first task
+rather than tonight's last, since domain verification has a DNS wait in the middle. Then T7's
+1.5–2 h first ingest and image warm; 8.1 cannot close until the morning after, because the done-bar
+needs one *unattended* 01:30 cron run.
+
+*Session spend: 23.56M tok (in 266 · out 124.8k · cache r 22.60M / w 834.1k) · ~$22.76 · opus-5 · 00:11→14:25*
+
 ### [[08-28-26 Fri]] — Phase 7.3 executed unattended: proxy-with-cache settled, and 35 MB the feed had been dragging per page
 
 **Shipped:** `feat/7.3-images-perf`, T1–T6, six commits, second half of the overnight Ralph run.
