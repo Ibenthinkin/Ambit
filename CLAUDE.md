@@ -44,9 +44,13 @@ five-column projection and `getFeedPage` hydrates the winners by id. `bun run be
 before/after. **8.1 is in progress and paused mid-phase**: T1–T2 shipped 08-28-26 (`/api/health`,
 `MAIL_FROM`, `cf-connecting-ip` for Better Auth in production, a `SOURCE_COMMIT`-first precache
 revision, and the `Dockerfile`/`.dockerignore` whose boot path — migrate, seed, `next start` — was
-proven locally against an empty database, cache volume and all). **Everything from T3 on needs
-Ben's hands** (Coolify on VM 202, the cloudflared ingress on VM 200, Resend), so resume from
-`docs/PHASE8_PLAN_8.1.md` — its execution-state banner above T3 says exactly where. See
+proven locally against an empty database, cache volume and all). **T3 shipped 08-29-26** — Ambit is
+deployed on VM 202 as Coolify's second tenant, answering on `192.168.1.202:3000` with `/api/health`
+green (db, volume, and the deployed commit), but **not public yet**. **T4 onward still needs Ben's
+hands** (the cloudflared ingress on VM 200, Resend, the first ingest), so resume from
+`docs/PHASE8_PLAN_8.1.md` — its execution-state banner says exactly where — and read
+`docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed facts (resource UUID, volume name, DB hostname)
+rather than re-deriving them from the Coolify UI. See
 `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
 `log.md` for the narrative of what's landed and why.
 
