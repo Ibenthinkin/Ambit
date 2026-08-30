@@ -5,6 +5,62 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-30-26 Sun]] — Phase 8.1 T7 underway: the first server-side ingest runs, and two fixes land around it
+
+**Shipped:** Morning: the 7.1 smoke re-run was clean after Ben's two Coolify env fixes
+(smithsonian 34 searched / 54 offered / 0 errors in 72.7 s, was 534 s; archive 29/29 curated
+live, no 401s), the `ingest` scheduled task exists at `30 1 * * *`, and a one-minute `tz-probe`
+running `date` settled the undocumented question — **Coolify's cron clock is UTC**, so the nightly
+run fires at 21:30 EDT the evening before, ahead of the archive's 03:00 chain and the 04:00 UTC
+backup. Recorded in SPEC §13 and the walkthrough. Then Ben launched **7.3, the first full ingest**,
+and while it ran (a Restart or Redeploy would kill the `docker exec` it lives in, so nothing could
+touch the container) two fixes went to `main` *undeployed*: (1) **`redactUrl()` in
+`fetchJson` errors** — the 08-29 smoke had printed the Smithsonian key into Coolify's task output
+34 times, once per failing call; both error paths now print `api_key=[redacted]`. (2) **The 7.2
+markup finding is fixed**: smithsonian/met/wellcome/nasa-images run `title` and `summary` through
+`htmlToText()`, `stripHtml()` now removes *inline* tags without a trace (`(<i>Tsuba</i>)` →
+`(Tsuba)`, not `( Tsuba )`) while block tags still become a space, and a new
+`bun run renormalize [--confirm]` repairs rows ingested before the fix — on the Mac it found
+**exactly the 41 rows** 7.2 had counted and rewrote them; the invariant test's four-source
+exclusion is gone. 841 tests green. Eight tests written red-first. Finally, **`docs/PHASE8_PLAN_8.2.md`**
+— the ops-guardrails + beta plan, written against current Coolify/Beszel/Next docs, with its
+decisions marked *proposed* for Ben to confirm.
+
+**Decisions:**
+- **Inline vs block tags in `stripHtml()`.** The old "every tag becomes a space" rule was right
+  for CMA's `<br><br>` and wrong for a title's `<i>`; a 16-name inline list settles it rather than
+  a smarter parser. Precedent for the fix's placement: doorofperception already called
+  `htmlToText()` in its own `toItem()`, so the four adapters do the same — the adapter is where
+  the plain-text promise is made, and the DB invariant test is the belt for future adapters.
+- **Repair by script, not by SQL.** `renormalize` selects with the invariant test's narrow tag
+  regex and applies the *same* `htmlToText()` the adapters use, so a repaired row is byte-for-byte
+  what a fresh ingest would produce; report by default, `--confirm` to write, idempotent.
+- **Deploy order.** The fixes wait for 7.5's *no-code-change* redeploy to prove the volume first,
+  then deploy as 7.4b, then `renormalize --confirm` in production (the first ingest ran the old
+  adapters, so production has its own count), then rotate the Smithsonian key.
+- **8.2's shape (proposed).** Coolify's own notifications over Resend as the alert bus — they
+  already know about deployments, backups, scheduled tasks and container status, and Resend is
+  the one outbound channel proven end to end; the ingest gets a *verdict* exit code (today it exits
+  0 even when every source is dead — the 08-29 smoke would have read as success to Coolify); an
+  `ingest_run` row surfaces as `/api/health`'s `ingest: ok|stale|never` so a run that *never
+  happened* is visible to an external keyword monitor; `instrumentation.ts` + a throttled Resend
+  mail instead of GlitchTip/Sentry (512 MB + Postgres for five users — recorded as the upgrade
+  path); Beszel on VM 202 for visibility only, since the homelab has no push channel until #34.
+
+**Findings:** Beszel's alerts deliver only through Shoutrrr providers — no SMTP — which is why
+8.2 cannot lean on it for anything that must reach an inbox. Next 16's `onRequestError` runs in
+both Node and Edge runtimes, so the mailer import has to be guarded on `NEXT_RUNTIME`. Two Coolify
+details the docs do not state (whether *Container Status Changes* distinguishes unhealthy from
+stopped; whether the Resend channel has a from-address field) are left for T3 to read off the UI.
+
+**Open / next:** 7.3 is running — record items, per-source counts, spend and wall time on its
+line; then 7.4 (image warm), 7.5 (redeploy survival), **7.4b** (deploy `cbd6ad5`+, renormalize in
+production, rotate the Smithsonian key), T8 after the first 04:00 UTC backup, T9 the morning after
+an unattended run, and 6.2's phone sign-up + PWA install once the feed has cards. Then confirm
+8.2's D1–D7 and hand the plan to a cheaper session.
+
+*Session spend: 9.63M tok (in 8.1k · out 128.4k · cache r 8.90M / w 593.2k) · ~$24.07 · fable-5 + opus-4-7 · 14:17→14:41*
+
 ### [[08-29-26 Sat]] — Phase 8.1 T3: Ambit is deployed on VM 202, and the plan was wrong about GitHub twice
 
 **Shipped:** **T3 complete** — Ambit runs on `192.168.1.202:3000` as Coolify's second tenant beside

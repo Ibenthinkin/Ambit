@@ -1,0 +1,170 @@
+# Phase 8.2 — Ops guardrails + beta invites: detailed execution plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task, in **pairing mode** — T3–T6 need Ben's hands. Steps use checkbox (`- [ ]`) syntax for tracking. Companion to `docs/BUILD_PLAN.md` Phase 8.2 — same format and conventions as `PHASE8_PLAN_8.1.md`: a step marked 🖐️ **Ben** needs a Coolify/Resend/monitor UI, a shell on a homelab host, or a secret the agent must never see. The agent prepares the exact values and commands, Ben runs them, the agent verifies from the Mac. Every task has a checkable done-bar and a written fallback.
+
+**Goal:** Ambit in production can no longer fail silently. When the nightly ingest fails, a backup fails, the container stops, or the site is unreachable from the internet, **Ben gets an email within minutes** — and when a request throws on the server, it is written down where it can be read. Then the first friends are invited, use it for a week, and what they say is captured in the repo and triaged into Phase 9.
+
+**Architecture:** no new service in the request path and no new infrastructure to babysit. Three existing things carry every alert: **Coolify's own notifications** (team-level, email via Resend — deployments, backups, scheduled tasks, container status), a **hosted external uptime monitor** polling `/api/health` from outside the home network, and **Ambit's proven Resend mailer** for server errors. Two small code changes make those signals honest: the ingest script gains a *verdict* (it currently exits 0 even when every source died) and writes an `ingest_run` row that `/api/health` reports as `ingest: ok | stale | never`, so a run that *never happened* is as visible as one that failed. A Beszel agent on VM 202 adds the host/container dashboard the rest of the homelab already has — visibility only, since the homelab has no push-notification channel yet (homelab backlog #34).
+
+**Tech Stack:** unchanged from 8.1 — Next.js 16.2 / Bun 1.4.0 / Drizzle 0.45 / Better Auth 1.6.25 / Postgres 17 / Coolify v4.3.12 on VM 202 / `cloudflared` on VM 200 / Resend. Adds: Next.js `instrumentation.ts` (`onRequestError`, stable since Next 15 — no config flag), one Drizzle migration, a Beszel agent container on VM 202, one hosted monitor account.
+
+**Status: proposed 08-30-26, written while 8.1's first ingest ran — confirm the decisions below with Ben before executing.** Everything was checked against the repo at `main` = `cbd6ad5`, `docs/PHASE8_PLAN_8.1.md` + `PHASE8_WALKTHROUGH_8.1.md`, the vault's `homelab-reference.md` (Beszel section, #22/#34/#74), and the current Coolify / Beszel / Next.js / Uptime Kuma / GlitchTip / Healthchecks docs (URLs in the facts table). Expect two agent sessions for T1–T2 (each ~1.5 h, TDD), one short sitting of Ben's for T3–T5 (~1 h total), then **a week of soak** for T6 before T7 closes the phase.
+
+## Prerequisites (8.1's done-bar, not this plan's)
+
+8.2 starts only when 8.1's Verification list is fully ticked — in particular **T9.1 (one unattended ingest run on record)** and **7.4b (the `cbd6ad5` fixes deployed, `bun run renormalize --confirm` run in production, Smithsonian key rotated)**. T1 below changes the same script and the same health route; stacking it on an unproven nightly run would make a failure impossible to attribute.
+
+## Global Constraints
+
+- **Secrets never touch the repo, the plan, the walkthrough, the log, or a transcript.** Coolify's Resend key is a *new* Sending-access key (T3), never the app's — one key per consumer, so either can be rotated without touching the other. The Beszel token/key are Ben's own hand (the vault's #22 rule). Compare fingerprints, never values.
+- **Alerts must be rare enough to be read.** Every notification event is opt-in, and *success* events stay off (a nightly "ingest succeeded" mail is the fastest way to stop reading the failures). The server-error mailer is throttled to one mail per error signature per hour (D4).
+- **Nothing in this phase may restart the container while an ingest or warm is running** (the 8.1 lesson: a Coolify task is a `docker exec`, and a Restart kills it). Deploys land in the daytime, never between 21:00 and 23:00 EDT.
+- **`/api/health` must keep meaning "the container is fine".** It is the Docker `HEALTHCHECK`; a stale ingest is reported *in the body* and never changes the status code, or Docker would restart a healthy app because a cron job was late.
+- **No test is weakened to pass.** T1 and T2 are TDD, like everything since 7.1.
+- **One instance.** The error-mail throttle is an in-process map, like both rate limiters and the image cache's in-flight map — "one app instance is the deploy shape" still holds.
+- **Comment generously** in the new files — this repo teaches. `src/app/api/health/route.ts` and `scripts/renormalize-text.ts` are the tone.
+
+## Before you start
+
+```bash
+cd ~/Dev/ambit
+git status                                  # clean, on main
+git log --oneline -3                        # cbd6ad5 or later
+gh run list --branch main --limit 3         # both CI jobs green on the last push
+curl -s https://ambit.benreilly.io/api/health   # {"ok":true,...,"commit":"cbd6ad5…"} — 7.4b deployed
+docker compose up -d                        # dev Postgres + Mailpit, for T2's local proof
+lsof -ti:3000 | xargs kill 2>/dev/null      # port 3000 must be free (CLAUDE.md)
+git checkout -b feat/8.2-ops
+```
+
+**Decisions (proposed 08-30-26 — lock with Ben, then do not relitigate):**
+
+- **D1 — Coolify's own notifications are the alert bus, over email via Resend.** They already know about the four things 8.1 built — deployments, database backups, scheduled tasks, container status — and Resend is the one outbound channel this stack has proven end to end (8.1 T5). Nothing to host. Events enabled: *Deployments → Failure* and *Container Status Changes*, *Backups → Failure*, *Scheduled Tasks → Failure*, *Server → Unreachable* and *Disk Usage*. Every *Success* toggle stays off. Recipient: Ben's address. Rejected: Discord/Telegram/Pushover (no such channel exists in the homelab; #34 will add ntfy, and this plan should not pre-empt that choice), and a self-hosted GlitchTip (512 MB RAM + Postgres for five users — recorded as the upgrade path in "Out of scope").
+- **D2 — The ingest gets a verdict, and Coolify sees it as the exit code.** Today `scripts/ingest.ts` prints its table and `process.exit(0)` whatever the table says — 8.1's 08-29 smoke, with 34 failing Smithsonian calls, would have been a *success* to Coolify. New rule, `runVerdict()` in `src/server/services/ingest-plan.ts` (pure, tested): **exit 2 when any enabled source is dead** — it searched at least once and every search errored (`searched > 0 && errors >= searched && offered === 0`), or a walk source errored on its first page — and exit 1 on a throw (already the case). A source that simply had nothing new is *not* a failure. Coolify's *Scheduled Tasks → Failure* fires on non-zero exit, so D1 + D2 = "ingest-failure notification, even just email-on-error" from BUILD_PLAN, with zero new plumbing.
+- **D3 — A run that never happened is detected by the health endpoint, not by Coolify.** Coolify can say "the task failed"; it cannot say "the task never ran" (scheduler stopped, container mid-restart at 01:30, the #6566 output flake). So the ingest writes one **`ingest_run`** row per run (started/finished, exit code, inserted count, per-source JSON), and `/api/health` gains `"ingest": "ok" | "stale" | "never"` — `stale` when the last *successful* run is more than **30 h** old (the nightly cadence plus slack for one long run), `never` when the table is empty (a fresh database). The external monitor (D5) keyword-matches `"ingest":"ok"`. The status code never changes for this field (Global Constraints). Rejected: Healthchecks.io / Uptime Kuma *push* monitors — a correct dead-man's switch, but a second account or a second service to express something the app can say about itself in one column.
+- **D4 — Server errors: `instrumentation.ts` → one structured log line + a throttled email. Not Sentry, not GlitchTip.** Next 16's `onRequestError` (stable, no config flag; runs for `render`/`route`/`action`/`proxy`) is the hook. It calls a pure, tested `reportServerError()` in `src/server/services/error-report.ts` that (a) writes **one JSON line** to stderr — `{level:"error", at, path, method, routeType, routePath, digest, message, stack (first 8 frames)}` — so `docker logs` and Coolify's log view are greppable, and (b) when **`OPS_EMAIL`** (new optional env) is set, mails the same line through the existing `getMailer()`, **at most once per hour per (routePath + message) signature**. Unset in dev, CI and the Mac's `.env`, so nothing mails but the log line still appears. It never throws (an error reporter that errors is the classic way to turn one 500 into two). Rejected for now: client-side error reporting (`window.onerror` → a POST route) — that belongs with 9.5's empty/error states, when the app has an `error.tsx` at all (it has none today).
+- **D5 — The uptime ping is a hosted monitor outside the house.** The failure this exists to catch is D1-of-8.1's accepted trade — *reader traffic depends on the home WAN* — and a monitor inside the LAN (Uptime Kuma on VM 200) cannot report the WAN being down because it is behind the same WAN. Two HTTP monitors on `https://ambit.benreilly.io/api/health`, 5-minute interval, email alerts: **(a) status 200** and **(b) keyword `"ingest":"ok"`** (D3). Provider: a free hosted tier — **UptimeRobot's free plan was not verified against its docs for this plan; confirm the limits at signup** (fallbacks: Better Stack's free tier, or Uptime Kuma on VM 200 as an *inside* view only, accepting the blind spot).
+- **D6 — Beszel agent on VM 202: dashboard, not alerts.** The hub on VM 200 already watches four hosts; VM 202 (the Coolify host — Ambit *and* the archive) is the missing one. Beszel alerts deliver only through Shoutrrr providers (ntfy, Pushover, Telegram, Discord, … — **no SMTP**), and the homelab has none of those yet (#34). So this phase adds the agent for CPU/memory/disk/per-container visibility and defers Beszel alerting to #34 explicitly. Ambit's container already declares a `HEALTHCHECK` (8.1 D10), so it will be one of the few with a health column (homelab #74).
+- **D7 — Invites are the CLI, and the feedback file is the product of the week.** `docker exec "$C" bun run invite <email>` per friend (the 9.9 admin page stays in Phase 9). What friends say goes into **`docs/BETA_FEEDBACK.md`** — one line per impression (date · who, by role · screen · the words · triage) — and the phase closes by moving the triaged items into BUILD_PLAN Phase 9. Friends install the PWA from the public origin using a short note the agent writes (T6.1); nobody is invited until T3–T5 are live, so the first week of real traffic is a watched one.
+
+**Verified facts (08-30-26) the plan is built on:**
+
+| Fact | Where verified | Consequence |
+|---|---|---|
+| `scripts/ingest.ts` ends `printSummary(...)` then `process.exit(0)` on every path except a throw; per-source `stats` carry `searched`, `offered`, `errors`; walk stats carry `errors` and page-level failures | `scripts/ingest.ts:541-561, 705-708`; stats shapes at `:118, :195` | D2's verdict has the numbers it needs without touching the adapters |
+| `src/server/services/ingest-plan.ts` is the pure, tested home for ingest logic (`ingest-plan.test.ts`) | file listing | `runVerdict()` lives there, tested the same way |
+| `/api/health` = `db select 1` + cache-dir writable, `force-dynamic`, returns `{ok, db, imageCache, commit}` with 200/503; has unit and integration tests | `src/app/api/health/route.ts:37-88`, `route.test.ts`, `route.integration.test.ts` | D3 adds one field and extends both tests; status code logic untouched |
+| No `src/instrumentation.ts`, `error.tsx` or `global-error.tsx` exists; the tRPC route's `onError` logs in development only | `ls`, `src/app/api/trpc/[trpc]/route.ts:24-31` | D4 is the first server-side error path; the tRPC hook stays as is (`onRequestError` sees the same throws) |
+| Next 16 `onRequestError(error, {path, method, headers}, {routerKind, routePath, routeType: 'render'\|'route'\|'action'\|'proxy', …})`; `instrumentation.ts` is stable, no `experimental.instrumentationHook`; runs in Node **and** Edge (`process.env.NEXT_RUNTIME`) | nextjs.org/docs/app/api-reference/file-conventions/instrumentation (doc version 16.3.3) | D4; guard the Node-only mailer import behind `NEXT_RUNTIME === "nodejs"` |
+| `getMailer()` returns Resend in production when `RESEND_API_KEY` is set, Mailpit otherwise; `MAIL_FROM` defaults to `Ambit <noreply@ambit.benreilly.io>` | `src/server/services/mailer.ts:48-81`, `src/env.js:28-34` | D4 reuses it verbatim; the local proof is a mail in Mailpit |
+| Coolify notifications are **team-level**; channels: Email (SMTP or **Resend**), Telegram, Discord, Slack, Pushover, Webhook; events: Deployments (Success/Failure/Container Status Changes), Backups (Success/Failure), **Scheduled Tasks (Success/Failure)**, Server (Docker cleanup, Disk Usage, Reachable/Unreachable, Patching, Traefik outdated) | coolify.io/docs/knowledge-base/notifications | D1. **Unconfirmed from docs:** whether *Container Status Changes* distinguishes *unhealthy* from *stopped*, and whether the Resend channel has its own from-address field — T3 reads both off the UI and records them |
+| Beszel alerts: CPU, memory, disk, bandwidth, temperature, load, **status/offline**, container stop; delivery via Shoutrrr URLs only (ntfy, Pushover, Telegram, Discord, Gotify, Matrix, Slack, … — no SMTP). Agent: `henrygd/beszel-agent`, host network, `docker.sock:ro`, env `LISTEN=45876`, `KEY`, `TOKEN`, `HUB_URL` | beszel.dev/guide/notifications, beszel.dev/guide/agent-installation; vault `homelab-reference.md` §Beszel (`KEY` is mandatory even with the universal token; `HUB_URL` must be `http://192.168.1.200:8090`, not localhost) | D6; T5's `docker run` is the VM 201 precedent |
+| Uptime Kuma: `louislam/uptime-kuma:2`; HTTP/keyword/JSON-query/**push** monitors; SMTP native, Resend not | github.com/louislam/uptime-kuma (README, wiki) | Fallback for D5 only |
+| GlitchTip: Postgres 14+ mandatory, Redis optional, 512 MB recommended; speaks the Sentry protocol so `@sentry/nextjs` works with a DSN swap | glitchtip.com/documentation/install, glitchtip.com/sdkdocs/javascript-nextjs | Rejected for this phase; the recorded upgrade path |
+| Healthchecks.io: 20 free hosted checks; self-host needs Postgres + SMTP | healthchecks.io, /docs/self_hosted | Rejected for D3 (the app reports its own last run) |
+| The homelab has **no push-notification channel** (ntfy/Pushover/Telegram) — #34 is the backlog item; Beszel covers VM 200, traverse, sibyl-pve, VM 201, **not VM 202** | vault `homelab-reference.md` §Beszel agent inventory; `plan.md` #34 | D1 uses email; D6 is visibility only |
+| Coolify runs scheduled tasks as `docker exec` into the app container and captures output per run (sometimes flaky, #6566); the container name carries a per-deploy suffix — find it with `docker ps --filter publish=3000` | `PHASE8_WALKTHROUGH_8.1.md` deployed-facts table | T3's failure probe is a scheduled task; every `docker exec` below uses `C=$(docker ps -q --filter publish=3000)` |
+
+## Tasks
+
+### T1 — Code: the ingest verdict and the run record (agent; ~1.5 h, TDD)
+
+- [ ] **1.1 `runVerdict()`** in `src/server/services/ingest-plan.ts`. Input: the per-source search stats and walk stats `printSummary()` already receives (type them from `scripts/ingest.ts:118, :195` — move the two stat interfaces into `ingest-plan.ts` if they are not exported). Output: `{ exitCode: 0 | 2; deadSources: string[] }`. A source is **dead** when `searched > 0 && errors >= searched && offered === 0` (search-shaped) or when a walk errored before its first page returned. Tests first, in `ingest-plan.test.ts`: all-clean → 0; one source with `searched 34 / errors 34 / offered 0` → 2 with `["smithsonian"]` (the 08-29 smoke, exactly); a source with `searched 34 / errors 3 / offered 54` → 0 (partial errors are the Met's normal); a source with `searched 0` (parked poetrydb) → 0; a walk with a first-page failure → 2.
+- [ ] **1.2 Wire it.** In `main()`, after `printSummary(...)`: `const verdict = runVerdict(...)`; if `exitCode !== 0`, print one line `ingest verdict: FAILED — dead sources: smithsonian` *after* the table (the table is the diagnosis; the verdict line is what Coolify's failure mail will quote), then `process.exit(verdict.exitCode)`. `--dry-run` runs still get a verdict (the smoke is where a dead key shows first). Re-run `bun run ingest --quota 1 --skip-llm --dry-run` locally: exit 0, verdict line absent.
+- [ ] **1.3 `ingest_run` table.** Schema in `src/server/db/schema.ts`, with the same comment density as `invite`: `id` (nanoid), `startedAt`, `finishedAt`, `exitCode` (int), `inserted` (int), `dryRun` (bool), `perSource` (jsonb — the summary table as data), `error` (text, null unless the run threw). `bun run db:generate` → one new file in `drizzle/`; read it before committing. The ingest inserts the row at the end of `main()` and in the `catch` (exit 1 path, `error` = the message) — **not** for `--dry-run`, which never writes anything, by contract. The insert is wrapped so a failure to record never changes the exit code (log and continue).
+- [ ] **1.4 `/api/health` reports `ingest`.** `"ok"` when the newest row with `exitCode = 0 and dryRun = false` finished < 30 h ago; `"stale"` when older; `"never"` when there is no such row. Add `lastIngestAt` (ISO or null) beside it — the monitor wants the keyword, a human wants the time. Status code unchanged for any value of this field: extend `route.test.ts` with the three cases *and* one asserting that `stale` still yields 200 when db and cache are ok; extend `route.integration.test.ts` to insert a row and read `ok`. The DB read is one indexed query (`order by finished_at desc limit 1`) — add the index in 1.3.
+- [ ] **1.5** `bun run check` green; open a PR (a branch push runs no CI — the 8.1 lesson); merge to `main`. **Do not deploy yet** — T2 rides the same deploy.
+
+*Done = the 08-29 smoke would now exit 2 with its dead source named; a real run writes one `ingest_run` row; `/api/health` says `ingest: never` on a fresh database and `ok` after a run; all green.*
+
+**Fallback:** if the verdict rule misfires on a real source (a museum that legitimately returns nothing for every query at a small quota), the rule is wrong, not the source — tighten it to `searched >= 3` and add the case to the tests; do not special-case a source by name.
+
+### T2 — Code: server errors written down and mailed, throttled (agent; ~1.5 h, TDD)
+
+- [ ] **2.1 `src/server/services/error-report.ts`** — pure and tested (`error-report.test.ts`): `formatServerError(error, request, context, now)` → the one-line JSON object of D4 (message from `Error` or `String(error)`; `digest` when present; stack cut to 8 frames; **no headers** — cookies live there); `ErrorThrottle` — `shouldSend(signature, now)` true at most once per `signature` per 3 600 000 ms, with a cap of 200 remembered signatures (oldest evicted) so a pathological error storm cannot grow the map without bound; `reportServerError(deps)` composes them: always `deps.log(line)`, mail only when `deps.opsEmail` is set and the throttle allows, and **never throws** (wrap the mail in a try/catch that logs). Tests: format shape; throttle first/second/after-an-hour; a mailer that rejects does not propagate; no mail when `opsEmail` undefined.
+- [ ] **2.2 `OPS_EMAIL`** in `src/env.js` — `z.string().email().optional()`, documented next to `MAIL_FROM`: "where server errors are mailed; unset = log only". Not in `.env.example`'s required set. *Mac `.env` stays untouched.*
+- [ ] **2.3 `src/instrumentation.ts`** — the thin shell: `export async function onRequestError(err, request, context) { if (process.env.NEXT_RUNTIME !== "nodejs") return; const { reportServerError } = await import("~/server/services/error-report"); … }` with `getMailer()` and `env.OPS_EMAIL` as the deps, and a module-level `ErrorThrottle` (one instance — Global Constraints). The dynamic import keeps the Node-only mailer out of the Edge bundle (the Next docs' own pattern). Comment block explains why this is not Sentry (D4) and where to go when it should be (GlitchTip, "Out of scope").
+- [ ] **2.4 Local proof, then remove the probe.** On the branch, add a temporary route `src/app/api/_boom/route.ts` that throws; `OPS_EMAIL=ben@example.test bun run dev`; `curl localhost:3000/api/_boom` twice → one JSON line on the terminal per hit, **one** mail in Mailpit (`http://localhost:8025`), the second hit throttled. Delete the probe route before committing; note the observed line in the walkthrough.
+- [ ] **2.5** `bun run check`, PR, merge. **Deploy** (daytime; not during an ingest/warm) and set `OPS_EMAIL` in Coolify first 🖐️ (Ben's address — not a secret, but it is Ben's to type). After the deploy: `/api/health` → `commit` is the merge, `ingest: "never"` until the next nightly run, then `"ok"` the following morning.
+
+*Done = a thrown server error produces exactly one log line and at most one mail per hour per signature, proven locally against Mailpit; production carries `OPS_EMAIL`; no probe route survives.*
+
+**Fallback:** if `onRequestError` does not fire for a class of error (the docs say render/route/action/proxy; a `notFound()` or redirect is *not* an error and must not report), that is expected — record which, and rely on the tRPC `onError` extension for API-shaped failures if a real gap appears.
+
+### T3 — 🖐️ Coolify notifications → email via Resend (Ben; ~20 min)
+
+- [ ] **3.1 Second Resend key.** Resend dashboard → API Keys → *Create*: name `coolify`, permission **Sending access**, domain **restricted to `ambit.benreilly.io`**. Into the password manager first, then Coolify. The app's key is never reused here (Global Constraints).
+- [ ] **3.2 Coolify → (team) Settings → Notifications → Email → Resend**: API key, recipient Ben's address. **Read off the UI and record in the walkthrough** the two things the docs left open: whether the Resend channel asks for a from-address (if it does: `Ambit Ops <ops@ambit.benreilly.io>` — same verified domain, so DKIM passes), and the exact toggles under *Container Status Changes*. *Send test notification* → the mail arrives with `dkim=pass` (view headers, as in 8.1 T5).
+- [ ] **3.3 Events:** enable *Deployments → Failure*, *Deployments → Container Status Changes*, *Backups → Failure*, *Scheduled Tasks → Failure*, *Server → Unreachable*, *Server → Disk Usage* (threshold: Coolify's default, note it). **Every Success toggle off.**
+- [ ] **3.4 Prove the one that matters.** Application → Scheduled Tasks → *Add*: name `fail-probe`, command `false`, frequency anything, *disabled*; *Execute now*. Within a few minutes: one mail, naming the task and the non-zero exit. Then **delete the task**. (This is exactly the path a dead-source ingest will take after T1.)
+- [ ] **3.5 Backups → Failure** cannot be safely forced; the `pg_dump` success path was proven in 8.1 T8, and the toggle is on — record that this event is *configured, not exercised*.
+
+*Done = a failing scheduled task produced an email through Resend; every enabled event is listed in the walkthrough with the from-address and container-status wording as observed.*
+
+**Fallback:** Coolify's Resend channel refuses the domain-restricted key → mint a second key without the restriction but still Sending-only; note it. No mail at all → check Resend's Logs page for the attempt (an attempt with an error is a key/domain problem; no attempt is a Coolify config problem).
+
+### T4 — 🖐️ External uptime monitor (Ben; ~15 min, after T2 is deployed)
+
+- [ ] **4.1** Sign up for the hosted monitor (D5: UptimeRobot free tier, **verify the limits on the pricing page at signup** — needed: ≥2 HTTP monitors, keyword matching, 5-min interval, email alerts). If the free tier no longer has keyword monitors, Better Stack; if neither, Uptime Kuma on VM 200 with the LAN blind spot recorded.
+- [ ] **4.2 Monitor A — `ambit / health`:** HTTP(s), `https://ambit.benreilly.io/api/health`, interval 5 min, alert on non-200, email Ben. Record the monitor's check-from locations (they must be *outside* the house — that is the point).
+- [ ] **4.3 Monitor B — `ambit / ingest`:** keyword monitor on the same URL, keyword `"ingest":"ok"`, **alert when the keyword is absent**, interval 30 min (it only changes once a day). Note: it will alert until the first nightly run after T2's deploy — create it the morning *after* that run, or accept one known alert.
+- [ ] **4.4 Prove it without breaking anything:** temporarily edit Monitor B's keyword to `"ingest":"nope"` → an alert mail arrives at the next check → restore the keyword → a recovery mail arrives. Record both timestamps.
+
+*Done = two monitors green from outside the LAN; a deliberately wrong keyword alerted and recovered by email.*
+
+### T5 — 🖐️ Beszel agent on VM 202 + container log rotation check (Ben; ~15 min)
+
+- [ ] **5.1 Hub:** `https://beszel.home.benreilly.io` → *Add system*: name `archive-host`, host `192.168.1.202`, port `45876` → copy the `docker run` it shows (it embeds the hub's public **KEY**; the **TOKEN** is the universal one from Settings → Tokens & Fingerprints — Ben's hand, as in #22).
+- [ ] **5.2 VM 202** (the VM 201 precedent — a standalone `docker run`, *not* a Coolify resource, so a Coolify reset never takes the monitor with it):
+  ```bash
+  docker run -d --name beszel-agent --restart unless-stopped --network host \
+    -v /var/run/docker.sock:/var/run/docker.sock:ro \
+    -v beszel_agent_data:/var/lib/beszel-agent \
+    -e LISTEN=45876 -e HUB_URL=http://192.168.1.200:8090 \
+    -e KEY='<key from 5.1>' -e TOKEN='<token>' \
+    henrygd/beszel-agent
+  ```
+  Write it to a file and run the file (the paste-wrap rule). `HUB_URL` is the LAN IP, never `localhost` (vault #22). Hub shows `archive-host` green with CPU/mem/disk and a container list on which **`ambit-*` has a health column** (its `HEALTHCHECK`), the archive's does not (#74).
+- [ ] **5.3 Log rotation — read, don't assume.** `C=$(docker ps -q --filter publish=3000); docker inspect -f '{{json .HostConfig.LogConfig}}' "$C"`. If `max-size` is unset, the app's stdout/stderr (now carrying T2's error lines and every ingest table) grows without bound on the VM's disk. Coolify exposes custom Docker options per application (*Advanced → Custom Docker Options*, the field name as observed) — set `--log-opt max-size=20m --log-opt max-file=5` there, redeploy in the daytime, inspect again. Record the before/after in the walkthrough and add the setting to SPEC §13's deployed facts.
+- [ ] **5.4 Vault:** `homelab-reference.md` Beszel inventory gets the `archive-host` row; `plan.md` #34's note gains "Ambit 8.2 wants Beszel alerts once a channel exists — CPU/disk on `archive-host`, container-stop on `ambit-*`".
+
+*Done = VM 202 is in Beszel; the Ambit container's log driver is bounded; the vault knows both.*
+
+### T6 — Beta: the first friends, one watched week (Ben + agent; ~1 h of hands, 7 days of soak)
+
+- [ ] **6.1 The install note** (agent) — `docs/BETA_INSTALL.md`, ≤ 20 lines, written to be pasted into a text message: the URL, "sign up with the address I invited", the iOS *Share → Add to Home Screen* path and the Android/desktop install prompt (the 5.11 flow), what to expect (a calm feed, saves reweight topics, no social anything), and a one-line ask: "tell me the first thing that felt wrong". No screenshots (they date instantly).
+- [ ] **6.2 Invites** 🖐️ — per friend: `docker exec "$C" bun run invite <email>` (idempotent; a re-run reports, never duplicates). Start with **two or three** people, not a list — a thin corpus reads differently to the fifth friend than to the first. Record who (by role — "a colleague", "a sibling") and when in the walkthrough; never the addresses.
+- [ ] **6.3 `docs/BETA_FEEDBACK.md`** (agent) — the header and the table: `date · who (role) · screen · what they said (their words) · triage (9.x / fix now / no)`. Appended through the week from conversations, texts, and anything Ben notices over their shoulder; a screen name uses the app's own route names (`/feed`, `/i/[id]`, `/g/[id]`, `/saved`, `/settings`).
+- [ ] **6.4 The watched week** — each morning, one glance at four things and one line in the walkthrough if any moved: the monitor's status page; the inbox (any Coolify/ops mail = a finding); OpenRouter's usage page (the nightly spend should be flat once the corpus stops growing fast); and, on VM 202, `docker exec "$C" sh -c 'du -sh .cache/img; ls .cache/img | wc -l'` plus `select count(*) from item` — both should grow *slowly* now. One `ingest_run` row per night, all `exit_code = 0`. Anything that pages Ben during the week is triaged into 6.5, not fixed at the moment unless it blocks a friend.
+- [ ] **6.5 Triage** (agent, end of week) — every `BETA_FEEDBACK.md` row gets a verdict; the "9.x" ones are written into `docs/BUILD_PLAN.md` Phase 9 under the matching item (or a new 9.12+), with the feedback row's date as provenance; "fix now" ones become a short list at the top of the 8.2 walkthrough for the next session; "no" ones stay in the file with a one-clause reason.
+
+*Done = ≥ 2 friends signed up and used it across the week; every ops signal that fired is on record; the feedback file has real rows and every row has a triage; Phase 9 reflects it.*
+
+**Fallback:** a friend cannot sign up → the invite row is missing or the email differs by case/alias — `select email, status from invite` via the db container tells which; the sign-up error copy is 5.2's and says "invite" when that is the reason. A friend's install fails on iOS → it is almost always Safari-not-Chrome (the PWA install path is Safari's share sheet); the install note says so.
+
+### T7 — Docs, log, close (agent; ~45 min)
+
+- [ ] **7.1 `docs/BUILD_PLAN.md`** 8.2 ✅ with: the alert map (which event → which channel → who), `ingest_run` + the health field, `OPS_EMAIL`, the monitor, Beszel on VM 202, the number of beta users, and the two decisions that differ from the plan text as written in BUILD_PLAN ("self-hosted Sentry/GlitchTip" → not yet, D4; "email-on-error" → Coolify's failure notification + D2's exit code).
+- [ ] **7.2 `SPEC.md` §13** gains an *Operations* subsection: the alert map, the health contract (`ingest` never changes the status code), `OPS_EMAIL` in the env table, the log-rotation setting, and the standing rule that success notifications stay off. §15 (open questions) gets "error tracking: GlitchTip when >5 users or the first error the email throttle hides".
+- [ ] **7.3 `CLAUDE.md`** status paragraph: "**8.2 shipped <date>** — …, next 9.x from the beta triage". *Local dev* gains one note: `OPS_EMAIL` unset = log only, so a dev-server error never mails anyone.
+- [ ] **7.4 `docs/PHASE8_WALKTHROUGH_8.2.md`** — the A.6 shape: what the week proved, every alert that fired and why, the observed Coolify wording from T3, the monitor's check locations, the beta numbers (users, saves, ingest rows, spend), and what 8.2 deliberately does not do.
+- [ ] **7.5 Vault** — Ambit-Admin `log.md`: one entry (alerts exist; friends are in; Beszel covers VM 202; #34 is now wanted by two projects). **7.6 `log.md`** entry per CLAUDE.md's format with the spend line. Commit, merge `feat/8.2-ops` if anything remains on it, push.
+
+## Verification (the done-bar, end to end)
+
+1. A scheduled task that exits non-zero produced an email through Resend within minutes (T3.4), and the ingest exits non-zero when a source is dead (T1 tests + the verdict line).
+2. `/api/health` from outside the LAN returns 200 with `"ingest":"ok"` the morning after a nightly run, and `"stale"` would not change the status code (T1.4 test).
+3. A server-side throw writes one JSON line and mails `OPS_EMAIL` at most once per hour per signature (T2.4, Mailpit) — and production carries `OPS_EMAIL`.
+4. Two external monitors are green; a deliberately wrong keyword alerted and recovered by email (T4.4).
+5. Beszel shows `archive-host` with a health column on the Ambit container; the container's log driver has `max-size` set (T5).
+6. ≥ 2 friends used Ambit for a week from the public origin; `docs/BETA_FEEDBACK.md` has rows and every row has a triage; Phase 9 in BUILD_PLAN reflects them.
+7. `bun run check` and CI green on `main`; SPEC §13 / BUILD_PLAN / CLAUDE.md / walkthrough / vault updated.
+
+## Out of scope (resist)
+
+- **Sentry / GlitchTip.** Recorded as the upgrade path — the trigger is either more than ~5 active users or the first time the one-mail-per-hour throttle is what hid a real problem. GlitchTip: Postgres 14+, 512 MB, `@sentry/nextjs` with a DSN swap (facts table).
+- **Beszel alerting, ntfy, Pushover** — homelab #34, which now has two projects asking for it.
+- **Client-side error reporting and `error.tsx` / `global-error.tsx`** — 9.5.
+- **Invite admin page** — 9.9. **Native app; moving the front end to a free host** — Ambit-Admin roadmap ideas, not this phase.
+- **Log shipping / a log drain** — `docker logs` with rotation is the 8.2 answer; nothing reads logs but a human, yet.
+- **A status page for friends** — they text Ben.

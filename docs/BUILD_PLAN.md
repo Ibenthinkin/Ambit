@@ -327,6 +327,7 @@ Steps within a phase are ordered; phases 3–5 can partially interleave (noted).
 
 - [ ] **8.2 — Ops guardrails + beta invites.** Minimal error visibility (server log drain or self-hosted Sentry/GlitchTip), uptime ping, ingestion-failure notification (even just email-on-error). Invite Ben + first friends; collect impressions for a week; triage into Phase 9.
   *Done = friends actively using it; feedback list captured in the repo.*
+  Plan: [`PHASE8_PLAN_8.2.md`](PHASE8_PLAN_8.2.md) — **proposed 08-30-26**, decisions D1–D7 to confirm before executing (Coolify notifications over Resend as the alert bus; an ingest *verdict* exit code; an `ingest_run` row surfaced as `/api/health`'s `ingest: ok|stale|never`; `instrumentation.ts` + a throttled Resend mail instead of Sentry; a hosted external monitor; Beszel on VM 202 for visibility only).
 
 ---
 
