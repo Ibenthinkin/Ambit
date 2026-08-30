@@ -56,8 +56,9 @@ stopped; whether the Resend channel has a from-address field) are left for T3 to
 **Open / next:** 7.3 is running — record items, per-source counts, spend and wall time on its
 line; then 7.4 (image warm), 7.5 (redeploy survival), **7.4b** (deploy `cbd6ad5`+, renormalize in
 production, rotate the Smithsonian key), T8 after the first 04:00 UTC backup, T9 the morning after
-an unattended run, and 6.2's phone sign-up + PWA install once the feed has cards. Then confirm
-8.2's D1–D7 and hand the plan to a cheaper session.
+an unattended run, and 6.2's phone sign-up + PWA install once the feed has cards. 8.2's D1–D7 were
+confirmed the same afternoon (each as recommended); the plan is ready to hand to a cheaper
+session once 8.1 closes.
 
 *Session spend: 9.63M tok (in 8.1k · out 128.4k · cache r 8.90M / w 593.2k) · ~$24.07 · fable-5 + opus-4-7 · 14:17→14:41*
 

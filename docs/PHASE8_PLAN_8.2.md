@@ -8,7 +8,7 @@
 
 **Tech Stack:** unchanged from 8.1 — Next.js 16.2 / Bun 1.4.0 / Drizzle 0.45 / Better Auth 1.6.25 / Postgres 17 / Coolify v4.3.12 on VM 202 / `cloudflared` on VM 200 / Resend. Adds: Next.js `instrumentation.ts` (`onRequestError`, stable since Next 15 — no config flag), one Drizzle migration, a Beszel agent container on VM 202, one hosted monitor account.
 
-**Status: proposed 08-30-26, written while 8.1's first ingest ran — confirm the decisions below with Ben before executing.** Everything was checked against the repo at `main` = `cbd6ad5`, `docs/PHASE8_PLAN_8.1.md` + `PHASE8_WALKTHROUGH_8.1.md`, the vault's `homelab-reference.md` (Beszel section, #22/#34/#74), and the current Coolify / Beszel / Next.js / Uptime Kuma / GlitchTip / Healthchecks docs (URLs in the facts table). Expect two agent sessions for T1–T2 (each ~1.5 h, TDD), one short sitting of Ben's for T3–T5 (~1 h total), then **a week of soak** for T6 before T7 closes the phase.
+**Status: ready to execute cold — attended (T3–T6 need Ben's hands). Decisions D1–D7 confirmed with Ben 08-30-26, each as recommended.** Written while 8.1's first ingest ran; Everything was checked against the repo at `main` = `cbd6ad5`, `docs/PHASE8_PLAN_8.1.md` + `PHASE8_WALKTHROUGH_8.1.md`, the vault's `homelab-reference.md` (Beszel section, #22/#34/#74), and the current Coolify / Beszel / Next.js / Uptime Kuma / GlitchTip / Healthchecks docs (URLs in the facts table). Expect two agent sessions for T1–T2 (each ~1.5 h, TDD), one short sitting of Ben's for T3–T5 (~1 h total), then **a week of soak** for T6 before T7 closes the phase.
 
 ## Prerequisites (8.1's done-bar, not this plan's)
 
@@ -37,7 +37,7 @@ lsof -ti:3000 | xargs kill 2>/dev/null      # port 3000 must be free (CLAUDE.md)
 git checkout -b feat/8.2-ops
 ```
 
-**Decisions (proposed 08-30-26 — lock with Ben, then do not relitigate):**
+**Decisions locked (do not relitigate — each confirmed with Ben one by one, 08-30-26):**
 
 - **D1 — Coolify's own notifications are the alert bus, over email via Resend.** They already know about the four things 8.1 built — deployments, database backups, scheduled tasks, container status — and Resend is the one outbound channel this stack has proven end to end (8.1 T5). Nothing to host. Events enabled: *Deployments → Failure* and *Container Status Changes*, *Backups → Failure*, *Scheduled Tasks → Failure*, *Server → Unreachable* and *Disk Usage*. Every *Success* toggle stays off. Recipient: Ben's address. Rejected: Discord/Telegram/Pushover (no such channel exists in the homelab; #34 will add ntfy, and this plan should not pre-empt that choice), and a self-hosted GlitchTip (512 MB RAM + Postgres for five users — recorded as the upgrade path in "Out of scope").
 - **D2 — The ingest gets a verdict, and Coolify sees it as the exit code.** Today `scripts/ingest.ts` prints its table and `process.exit(0)` whatever the table says — 8.1's 08-29 smoke, with 34 failing Smithsonian calls, would have been a *success* to Coolify. New rule, `runVerdict()` in `src/server/services/ingest-plan.ts` (pure, tested): **exit 2 when any enabled source is dead** — it searched at least once and every search errored (`searched > 0 && errors >= searched && offered === 0`), or a walk source errored on its first page — and exit 1 on a throw (already the case). A source that simply had nothing new is *not* a failure. Coolify's *Scheduled Tasks → Failure* fires on non-zero exit, so D1 + D2 = "ingest-failure notification, even just email-on-error" from BUILD_PLAN, with zero new plumbing.
