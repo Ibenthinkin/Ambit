@@ -5,7 +5,7 @@ happened, what it proved, and every trap hit along the way. Written during execu
 the numbers below are the ones observed at the time, not reconstructed.
 
 **Status: in progress.** T1–T2 shipped 08-28-26. T3 and T4.1–4.4 executed 08-29-26 — Ambit is
-public at `https://ambit.benreilly.io`. T4.5–4.6, T5 and T6 (bar 6.2) done 08-29-26. **T7 in progress 08-30-26** — 7.1 smoke re-run clean, 7.2 tasks created, first full ingest next.
+public at `https://ambit.benreilly.io`. T4.5–4.6, T5 and T6 (bar 6.2) done 08-29-26. **T7 in progress 08-30-26** — 7.1 smoke re-run clean, 7.2 tasks created, 7.3's first full ingest launched (running as of the last session close; numbers TBD).
 
 ## Deployed facts (T3.6)
 
