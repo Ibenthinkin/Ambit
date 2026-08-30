@@ -203,3 +203,56 @@ the same 502 with a different cause.
 **A recreated database is a new database.** The `user` and `invite` rows do not survive it —
 `db:migrate` and `db:seed` restore the schema and the 16 topics automatically, but the account has to
 be re-invited (`bun run invite <email>`, idempotent) and re-registered.
+
+## T5 + T6 — mail, cookies, and the spoof test that had to be rewritten to prove anything
+
+**T4.5 and 4.6 were done without being ticked**, and both were verifiable from the Mac after the
+fact: `/api/img/<any-id>` answers `cf-cache-status: BYPASS` while `/api/health` answers `DYNAMIC`.
+Cloudflare only reports BYPASS/MISS/HIT on a path a Cache Rule has made eligible, so the rule
+exists and matches — BYPASS rather than MISS only because the empty corpus 404s with `no-store`.
+The `HIT` half waits for T7. And a bare-`curl` UA gets `200` on `/` with no `cf-mitigated`, so Bot
+Fight Mode is not challenging non-browser clients. Worth remembering: **a dashboard step leaves a
+fingerprint in the response headers**; check the headers before re-doing the step.
+
+**Resend, two corrections and one trap.** The plan's DNS list was written from the older Resend
+shape — one DKIM TXT at `resend._domainkey` — and Resend's current docs describe three DKIM
+CNAMEs (`<hash>._domainkey → <hash>.dkim.amazonses.com`) plus a tracking CNAME. This account got
+the *older* shape, so the plan's text was right by luck; the instruction that actually matters is
+Resend's own — paste what the dashboard shows. The trap is Cloudflare's: the zone is
+`benreilly.io`, so every name Resend shows relative to `ambit.benreilly.io` has to be typed with
+`.ambit` appended (`send.ambit`, `resend._domainkey.ambit`), or the record lands on the bare zone
+and verification never completes. Checked with `dig @1.1.1.1` — direct to Cloudflare, so Pi-hole's
+cache cannot show a stale answer — all three records resolved on the first try and nothing sat on
+the under-qualified names. The tracking CNAME was skipped on purpose: a password-reset link
+rewritten through a click-tracking redirect is not something Ambit sends.
+
+The key went into Coolify as a runtime variable and the two copies were compared by
+**sha256 prefix, never value** (`1568c93682aa` on both sides — the Global Constraints rule, and the
+only representation of the key that appears anywhere outside Coolify and the password manager).
+Ben used *Redeploy* rather than *Restart*, which showed as `/api/health` reporting `b661442` instead
+of `c99bdc1`; harmless (a docs-only delta), and `imageCache: ok` after it is a free preview of
+T7.5's volume-survival check. The proof was the real one: forgot-password from the phone, the mail
+from the verified domain, the link on `ambit.benreilly.io/reset-password`, the reset applied,
+Resend's log showing *delivered*.
+
+**The cookie line, observed:** `__Secure-better-auth.session_token; HttpOnly; Secure; SameSite=Lax;
+Path=/`, host-only. Nothing was configured for `Secure` or the `__Secure-` prefix — both follow from
+`BETTER_AUTH_URL` being https. Recorded in SPEC §11.
+
+**Per-client rate limiting** behaved exactly as the auth config says: 20 × `401` then `429` on
+requests 21–22 of a 22-request loop against `/api/auth/sign-in/email` (`window: 10, max: 20`).
+
+**The spoof test in the plan could not have failed, so it was rewritten.** As written, 6.5 said:
+wait 10 s for the bucket to clear, rerun the loop with `x-forwarded-for: 1.2.3.4`, expect `429` at
+the 21st. But that is also exactly what a *fresh* bucket keyed on `1.2.3.4` would produce — the
+test passes whether the spoof is honoured or ignored. The discriminating version: exhaust the real
+bucket to `429`, then **immediately** send with the spoofed header. A honoured spoof gets twenty
+fresh `401`s; an ignored one is `429` from the first request. Result: `429 429 429 429` for
+`1.2.3.4` and `429 429` for a chained `9.9.9.9, 8.8.8.8`. That is D11 proven behaviourally — the
+edge's appended hop wins for Ambit's own limiter, and Better Auth is keying on `cf-connecting-ip`.
+The lesson generalises: **a rate-limit spoof test must run inside an already-exhausted window**,
+or it measures nothing.
+
+**Not done in T6:** 6.2's phone/cellular sign-up and PWA install. The feed is still empty until
+T7, and an install test against an empty feed proves less than one against a full one, so it folds
+into T7's tail.

@@ -108,6 +108,31 @@ needs one *unattended* 01:30 cron run.
 
 *Session spend: 23.56M tok (in 266 · out 124.8k · cache r 22.60M / w 834.1k) · ~$22.76 · opus-5 · 00:11→14:25*
 
+**Executed (afternoon): T4.5–4.6 confirmed, T5 complete, T6 complete except 6.2.** The two
+Cloudflare dashboard steps had been done the night before without being ticked, and both were
+verifiable from the Mac by their response-header fingerprints (`cf-cache-status: BYPASS` on
+`/api/img/*` vs `DYNAMIC` elsewhere; no `cf-mitigated` for a bare-curl UA). Resend's domain
+verified on the first `dig` — this account got the older single-TXT DKIM, not the three CNAMEs the
+current docs describe — and password reset is proven end to end from the phone through the verified
+domain. The production cookie line is recorded in SPEC §11: `__Secure-better-auth.session_token;
+HttpOnly; Secure; SameSite=Lax; Path=/`, host-only, with nothing configured for it.
+
+**Finding: the plan's XFF-spoof test could not fail.** "Wait for the bucket to clear, rerun with a
+spoofed `x-forwarded-for`, expect 429 at the 21st" is what a fresh bucket keyed on the *spoofed*
+address produces too. Rewritten to run inside an already-exhausted window — `429` from the very
+first spoofed request, for a single hop and a chain — which is the first behavioural proof of D11.
+A rate-limit spoof test that starts from an empty bucket measures nothing.
+
+**Decisions:** Resend's tracking CNAME skipped (no click tracking on reset links). The Resend key
+exists as a value in exactly two places (Coolify, password manager) and as a sha256 prefix in the
+docs.
+
+**Open / next:** **T7** — first ingest and image warm (Ben launches the Coolify tasks, agent
+watches), with 6.2's phone sign-up + PWA install folded into its tail once the feed has cards. Then
+T8's restore drill after the first 04:00 backup, and T9 the morning after an unattended 01:30 run.
+
+*Session spend: 8.55M tok (in 4.9k · out 80.6k · cache r 7.66M / w 800.8k) · ~$27.76 · fable-5 · 14:31→20:43*
+
 ### [[08-28-26 Fri]] — Phase 7.3 executed unattended: proxy-with-cache settled, and 35 MB the feed had been dragging per page
 
 **Shipped:** `feat/7.3-images-perf`, T1–T6, six commits, second half of the overnight Ralph run.
