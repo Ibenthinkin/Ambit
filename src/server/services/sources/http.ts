@@ -21,9 +21,36 @@ export class HttpRefusedError extends Error {
     public readonly status: number,
     url: string,
   ) {
-    super(`HTTP ${status} for ${url} — refused; not retried`);
+    super(`HTTP ${status} for ${redactUrl(url)} — refused; not retried`);
     this.name = "HttpRefusedError";
   }
+}
+
+/**
+ * Query parameters whose value is a credential. Matched against the parameter *name*, case-
+ * insensitively, so `api_key`, `apiKey`, `key`, `token`, `access_token` all count. Deliberately
+ * a name list rather than "anything long and random": a false negative here leaks a secret,
+ * a false positive costs a URL some legibility in a log line.
+ */
+const SECRET_PARAMS =
+  /^(api[_-]?key|key|token|access[_-]?token|secret|password)$/i;
+
+/**
+ * The URL as it may appear in an error message: every secret-looking query value replaced by
+ * `[redacted]`. Exists because every adapter's failure path is `throw new Error(\`… ${url}\`)`
+ * and that message ends up wherever the run's output does — Coolify's task log, a transcript, a
+ * pasted bug report. Phase 8.1's first server-side smoke printed the Smithsonian key into the
+ * Coolify UI 34 times this way (one per failing call). Works on the raw string rather than
+ * `new URL()` so a malformed URL still produces a usable message.
+ */
+export function redactUrl(url: string): string {
+  return url.replace(
+    /([?&])([^=&#]+)=([^&#]*)/g,
+    (whole, sep: string, name: string, _value: string) =>
+      SECRET_PARAMS.test(decodeURIComponent(name))
+        ? `${sep}${name}=[redacted]`
+        : whole,
+  );
 }
 
 export interface FetchJsonOpts {
@@ -72,7 +99,7 @@ export async function fetchJsonResponse(
       if (!res.ok) {
         if (opts?.noRetryOn?.includes(res.status))
           throw new HttpRefusedError(res.status, url);
-        throw new Error(`HTTP ${res.status} for ${url}`);
+        throw new Error(`HTTP ${res.status} for ${redactUrl(url)}`);
       }
       return { data: await res.json(), headers: res.headers };
     } catch (err) {

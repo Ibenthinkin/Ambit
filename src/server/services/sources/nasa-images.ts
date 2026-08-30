@@ -21,7 +21,13 @@
 // every item here ships its renditions as explicit `links[]` entries with widths attached, so the
 // adapter picks from the ladder the API already published instead of guessing at a URL shape.
 import { fetchJson } from "./http";
-import { decodeEntities, stripHtml, toLede, uniqueTags } from "./normalize";
+import {
+  decodeEntities,
+  htmlToText,
+  stripHtml,
+  toLede,
+  uniqueTags,
+} from "./normalize";
 import type { NormalizedItem, SourceAdapter } from "./types";
 
 const NASA_API = "https://images-api.nasa.gov/search";
@@ -155,8 +161,10 @@ function toItem(raw: NasaRaw): NormalizedItem {
     // NASA's own permanent asset identifier — the key every images.nasa.gov URL is built from.
     sourceId: nasaId,
     type: "image",
-    title: data.title ?? "",
-    summary: nasaSummary(raw, attribution),
+    // The description is already stripped inside nasaSummary(); the title was not, and a
+    // summary synthesized *from* the title inherited its markup (Phase 7.2: 1 row).
+    title: htmlToText(data.title ?? ""),
+    summary: htmlToText(nasaSummary(raw, attribution)),
     body: null,
     imageUrl: nasaImageUrl(raw),
     sourceUrl: `https://images.nasa.gov/details/${encodeURIComponent(nasaId)}`,

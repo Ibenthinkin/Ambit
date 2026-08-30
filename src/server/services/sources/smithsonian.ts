@@ -16,7 +16,7 @@
 // **Keyed, like archive.ts.** A free api.data.gov key raises the rate limit from DEMO_KEY's 10/hr
 // to 1,000/hr (confirmed live via the `x-ratelimit-limit` response header).
 import { fetchJson } from "./http";
-import { stripHtml, toLede, uniqueTags } from "./normalize";
+import { htmlToText, stripHtml, toLede, uniqueTags } from "./normalize";
 import type { NormalizedItem, SourceAdapter } from "./types";
 
 const SI_API = "https://api.si.edu/openaccess/api/v1.0/search";
@@ -229,8 +229,9 @@ function toItem(raw: SmithsonianRaw): NormalizedItem {
       // corpus with it, since (source, sourceId) is the idempotency key.
       dnr?.record_ID ?? raw.id,
     type: "image",
-    title: raw.title,
-    summary: smithsonianSummary(raw, attribution),
+    // Through htmlToText(): the API puts `<i>`/`<em>` in titles (35 rows by Phase 7.2's count).
+    title: htmlToText(raw.title),
+    summary: htmlToText(smithsonianSummary(raw, attribution)),
     body: null,
     // Non-null by construction: search() only ever returns rows isSmithsonianServable() passed,
     // and that requires a media entry with `content`. The `?? null` is the type system's due,

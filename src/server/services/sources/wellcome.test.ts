@@ -92,6 +92,24 @@ describe("wellcome.toItem", () => {
     expect(item.body).toBeNull();
   });
 
+  it("strips the <i> markup Wellcome puts in titles and notes (Phase 7.2: 3 rows)", () => {
+    const raw = structuredClone(byId("r32p4n5s"));
+    raw.title =
+      "<i>Journal of proceedings of the Linnean Society</i>: contents";
+    raw.notes = [
+      {
+        noteType: { label: "Description" },
+        contents: ["Figure 1 from Head <i>et al</i>., <i>Science</i>, 2009."],
+      },
+    ];
+    const item = wellcome.toItem(raw);
+    expect(item.title).toBe(
+      "Journal of proceedings of the Linnean Society: contents",
+    );
+    expect(item.summary).toContain("Head et al., Science, 2009.");
+    expect(item.summary).not.toMatch(/<[a-z/]/i);
+  });
+
   it("normalizes a sparse work (empty production/contributors/subjects/notes) without stray artifacts", () => {
     const item = wellcome.toItem(byId("uk9hd5q7"));
     expect(item.summary).toBe("Digital Images"); // only workType.label survives

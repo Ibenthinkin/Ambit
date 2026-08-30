@@ -55,6 +55,25 @@ describe("fetchJson", () => {
     expect(calls).toHaveLength(4);
   });
 
+  it("redacts a secret-looking query param from a refusal's message", async () => {
+    stub([{ ok: false, status: 403 }]);
+    const p = fetchJson("https://example.test/a?q=x&api_key=SECRET123&rows=5", {
+      noRetryOn: [403],
+    });
+    await expect(p).rejects.toThrow("api_key=[redacted]");
+    await expect(p).rejects.not.toThrow("SECRET123");
+  });
+
+  it("redacts the same param from a retried failure's message", async () => {
+    stub([{ ok: false, status: 503 }]);
+    const p = fetchJson("https://example.test/a?api_key=SECRET123");
+    const outcome = expect(p).rejects.toThrow(
+      "HTTP 503 for https://example.test/a?api_key=[redacted]",
+    );
+    await vi.runAllTimersAsync();
+    await outcome;
+  });
+
   it("fetchJsonResponse hands back the headers alongside the parsed body", async () => {
     stub([{ ok: true, status: 200, body: [{ id: 1 }] }]);
     const { data, headers } = await fetchJsonResponse("https://example.test/a");

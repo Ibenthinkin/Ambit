@@ -62,17 +62,18 @@ describe.skipIf(!process.env.DATABASE_URL)(
     // `~ '<[a-zA-Z/][^>]*>'` is deliberately narrow: it wants `<p>`, `<a href=…>`, `</div>` — not
     // a bare `<` in "a < b", and not the `<3` in a caption.
     //
-    // **This test ran on 08-28-26 and found 55 rows. Both exclusions below are that finding**
-    // (D7: record it, exclude it, do not rewrite adapters overnight):
+    // **This test ran on 08-28-26 and found 55 rows** (D7: record it, exclude it, do not rewrite
+    // adapters overnight). One of the two findings is now fixed, the other is a permanent exclusion:
     //
-    //  * **`title`/`summary` — 41 rows of genuinely stored markup**, all of it `<i>`/`<em>`
-    //    italics that the source APIs put in the field and the adapters passed through verbatim:
-    //    smithsonian 35 titles, met 2 titles, wellcome 2 titles + 1 summary, nasa-images 1
-    //    summary. Not a security bug — nothing renders them as HTML, which is the point of the
-    //    other test — but a *reader-visible* one: the item page shows the literal characters, e.g.
-    //    `Sword Guard (<i>Tsuba</i>) With the Motif of Sunrise Over the Ocean`. The fix is one
-    //    `htmlToText()` call in `normalize.ts` plus a re-normalise of the existing rows, which is
-    //    an adapter change and therefore not 7.2's. See docs/PHASE7_WALKTHROUGH_7.2.md.
+    //  * **`title`/`summary` — 41 rows of genuinely stored markup** (smithsonian 35 titles, met 2
+    //    titles, wellcome 2 titles + 1 summary, nasa-images 1 summary), all `<i>`/`<em>` italics
+    //    the source APIs put in the field and the adapters passed through verbatim. Not a security
+    //    bug — nothing renders them as HTML — but a reader-visible one: the item page showed the
+    //    literal `Sword Guard (<i>Tsuba</i>) …`. **Fixed in Phase 8.1:** those four adapters now
+    //    run both fields through `htmlToText()`, and `bun run renormalize --confirm` rewrote the
+    //    41 existing rows (it is the repair tool for any database that ingested before the fix —
+    //    production runs it once after that deploy). The exclusion that used to sit here is gone,
+    //    so a regression in any adapter fails this test. See docs/PHASE7_WALKTHROUGH_7.2.md.
     //  * **`body` — 14 wikipedia rows that are false positives.** Wikipedia has articles *about*
     //    markup, and their plain-text extracts legitimately contain the strings `<section>`,
     //    `<ref>`, `<b>` and `<ul>` as prose. Nothing is stored as HTML there; the regex simply
@@ -85,14 +86,6 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const { db } = await import("~/server/db/client");
       const { sql } = await import("drizzle-orm");
 
-      /** Sources whose stored italics are the 08-28-26 finding above, not a new regression. */
-      const KNOWN_MARKUP_IN_TITLES = [
-        "smithsonian",
-        "met",
-        "wellcome",
-        "nasa-images",
-      ];
-
       const offenders = await db.execute<{
         source: string;
         id: string;
@@ -100,11 +93,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
       }>(sql`
         select source, id, 'title' as field from item
           where title ~ '<[a-zA-Z/][^>]*>'
-            and source not in ${KNOWN_MARKUP_IN_TITLES}
         union all
         select source, id, 'summary' as field from item
           where summary ~ '<[a-zA-Z/][^>]*>'
-            and source not in ${KNOWN_MARKUP_IN_TITLES}
         union all
         select source, id, 'body' as field from item
           where body ~ '<[a-zA-Z/][^>]*>'

@@ -316,3 +316,20 @@ actually spent 29 calls from inside the container. The Smithsonian line's 11 str
 `Sun Aug 30 18:08:03 UTC 2026`, so `ingest` at `30 1 * * *` runs at 21:30 EDT the previous evening
 (20:30 once DST ends). Recorded in SPEC §13. Probe deleted after one read.
 
+**While the first ingest ran (08-30-26)** — two code fixes that could not touch the container
+(a Redeploy or Restart kills the `docker exec` the task is running in) but had to land before
+the nightly run matters, merged to `main` and left undeployed until 7.5's no-code-change
+redeploy has had its turn:
+
+- **`fetchJson` errors no longer carry the key.** `redactUrl()` in `http.ts` replaces the value
+  of any `api_key`/`key`/`token`/`secret`-named query parameter with `[redacted]` in both error
+  paths (the retried failure and the `noRetryOn` refusal). The 08-29 smoke had printed the
+  Smithsonian key into Coolify's task output 34 times; the key still has to be rotated (7.4b).
+- **The 7.2 markup finding is fixed.** `smithsonian`, `met`, `wellcome` and `nasa-images` now run
+  `title` and `summary` through `htmlToText()`, and `stripHtml()` learned the difference between an
+  inline tag (`<i>`, `<em>` — removed without a trace, so `(<i>Tsuba</i>)` is `(Tsuba)`) and a
+  block one (`<br>`, `<p>` — still a space). `bun run renormalize` is the repair for rows that
+  arrived before the fix: on the Mac it found exactly the 41 rows 7.2 counted and rewrote them;
+  production will have its own count from the first ingest, since that ran the old adapters.
+  The invariant test's four-source exclusion is gone. 841 tests green.
+

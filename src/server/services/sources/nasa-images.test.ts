@@ -107,6 +107,14 @@ describe("nasaImages.toItem", () => {
     expect(item.summary).not.toMatch(/<[a-z/]/i);
   });
 
+  it("keeps markup out of the title, and out of a summary synthesized from it (Phase 7.2: 1 row)", () => {
+    const raw = structuredClone(byId("synthetic_no_description"));
+    raw.data![0]!.title = "Hubble views <i>Messier 51</i>";
+    const item = nasaImages.toItem(raw);
+    expect(item.title).toBe("Hubble views Messier 51");
+    expect(item.summary).not.toMatch(/<[a-z/]/i);
+  });
+
   it("synthesizes a summary when the description is empty", () => {
     const item = nasaImages.toItem(byId("synthetic_no_description"));
     expect(item.summary.length).toBeGreaterThan(20);
