@@ -31,8 +31,9 @@ rate limiter, and the accent knob not surviving a reload) — both fixed in 7.1.
 `BETTER_AUTH_URL`, and an **enforced Content-Security-Policy with a per-request nonce**
 (`src/config/security-headers.js` builds every value; `next.config.js` sends the static ones and
 `src/proxy.ts` mints the nonce). SPEC §11 now ends every bullet in the test that proves it. Two
-findings: 41 corpus rows carry `<i>`/`<em>` markup in `title`/`summary` from four adapters
-(reader-visible, fix is one `htmlToText()` in `normalize.ts` — recorded, not made), and the CSP
+findings: 41 corpus rows carried `<i>`/`<em>` markup in `title`/`summary` from four adapters
+(reader-visible; recorded then, **fixed in 8.1** — the adapters run both fields through
+`htmlToText()` and `bun run renormalize --confirm` repairs rows ingested before that), and the CSP
 surfaced a dev-only hydration error from the way browsers blank a `<script nonce>` attribute.
 **7.3 shipped 08-28-26** — performance + images. The **image-delivery gate is settled:
 proxy-with-cache**. `/api/img/[itemId]` now fills a disk cache (`IMAGE_CACHE_DIR`, default

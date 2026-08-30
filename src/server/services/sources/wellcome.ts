@@ -4,7 +4,7 @@
 // the search is pre-filtered to open licenses AND every hit's own thumbnail.license is re-checked
 // (same trust-nothing rule as every other adapter — a request filter is never sufficient alone).
 import { fetchJson } from "./http";
-import { toLede, uniqueTags } from "./normalize";
+import { htmlToText, toLede, uniqueTags } from "./normalize";
 import type { NormalizedItem, SourceAdapter } from "./types";
 
 const WELLCOME_API = "https://api.wellcomecollection.org/catalogue/v2/works";
@@ -127,8 +127,9 @@ function toItem(raw: WellcomeRaw): NormalizedItem {
     source: "wellcome",
     sourceId: raw.id,
     type: "image",
-    title: raw.title,
-    summary: wellcomeSummary(raw),
+    // Through htmlToText(): Wellcome italicises journal names with `<i>` in titles and notes.
+    title: htmlToText(raw.title),
+    summary: htmlToText(wellcomeSummary(raw)),
     body: null,
     imageUrl: raw.thumbnail ? wellcomeImageUrl(raw.thumbnail.url) : null,
     sourceUrl: `https://wellcomecollection.org/works/${raw.id}`,

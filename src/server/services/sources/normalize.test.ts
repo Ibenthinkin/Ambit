@@ -73,9 +73,23 @@ describe("uniqueTags", () => {
 });
 
 describe("stripHtml", () => {
-  it("removes simple inline tags", () => {
+  it("removes inline tags without leaving a gap where they stood", () => {
     expect(stripHtml("legend. <em>Erato</em> belongs")).toBe(
-      "legend.  Erato  belongs",
+      "legend. Erato belongs",
+    );
+  });
+
+  it("drops an italic tag inside parentheses cleanly — the Smithsonian title case", () => {
+    // 35 Smithsonian titles arrived like this (Phase 7.2 finding). An inline tag replaced by
+    // a *space* would read "( Tsuba )", which is nearly as wrong as the tag itself.
+    expect(
+      stripHtml("Sword Guard (<i>Tsuba</i>) With the Motif of Sunrise"),
+    ).toBe("Sword Guard (Tsuba) With the Motif of Sunrise");
+  });
+
+  it("still turns a block-level tag into whitespace", () => {
+    expect(stripHtml("Atlas<br>of the Moon<p>Second")).toBe(
+      "Atlas of the Moon Second",
     );
   });
 

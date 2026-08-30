@@ -9,7 +9,7 @@
 // images. `isMetServable()` is that re-check, exported separately from toItem() so the ingestion
 // job (Phase 3.4) can filter before paying for a curation call on something that'll be dropped.
 import { fetchJson } from "./http";
-import { toLede, uniqueTags } from "./normalize";
+import { htmlToText, toLede, uniqueTags } from "./normalize";
 import type { NormalizedItem, SourceAdapter } from "./types";
 
 const MET_API = "https://collectionapi.metmuseum.org/public/collection/v1";
@@ -107,8 +107,9 @@ function toItem(raw: MetRaw): NormalizedItem {
     source: "met",
     sourceId: String(raw.objectID),
     type: "image",
-    title: raw.title,
-    summary: metSummary(raw),
+    // Through htmlToText(): the Met's titles occasionally carry `<em>` (Phase 7.2 finding).
+    title: htmlToText(raw.title),
+    summary: htmlToText(metSummary(raw)),
     body: null,
     // Some Met image URLs contain literal spaces (phase0/NOTES.md) — stored as-is here; the
     // curator's own fetch (Phase 3.3) tries encodeURI as a fallback when a raw fetch 400s.

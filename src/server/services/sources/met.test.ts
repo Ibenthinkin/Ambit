@@ -64,6 +64,12 @@ describe("met.toItem", () => {
     expect(item.body).toBeNull();
   });
 
+  it("strips the <em> markup the Met puts in titles (Phase 7.2: 2 rows)", () => {
+    const raw = structuredClone(byId(203938));
+    raw.title = "Forked blade (<em>zhang</em> 璋)";
+    expect(met.toItem(raw).title).toBe("Forked blade (zhang 璋)");
+  });
+
   it("handles a missing artist name without a stray leading comma", () => {
     const item = met.toItem(byId(189304));
     expect(item.summary.startsWith("ca. 1775")).toBe(true); // no "who" segment prepended

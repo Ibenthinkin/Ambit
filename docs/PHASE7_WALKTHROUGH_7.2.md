@@ -273,4 +273,6 @@ Three things, all small:
   on a phone without failing a single other test, which is why `security-headers.test.ts` asserts
   their absence from the policy.
 - **The 41 stored-markup rows are still there.** They are a reader-visible defect with a known
-  one-line fix in the wrong file for this phase.
+  one-line fix in the wrong file for this phase. *(Fixed in 8.1, 08-30-26: `htmlToText()` in the
+  four adapters, `bun run renormalize --confirm` for existing rows, exclusion removed from the
+  invariant test.)*

@@ -126,6 +126,14 @@ describe("smithsonian.toItem", () => {
     expect(item.summary).not.toBe("");
   });
 
+  it("strips the <i>/<em> markup Smithsonian puts in titles (Phase 7.2: 35 rows)", () => {
+    const raw = structuredClone(byRecordId("fsg_F1929.15"));
+    raw.title = "Sword Guard (<i>Tsuba</i>) With the Motif of Sunrise";
+    const item = smithsonian.toItem(raw);
+    expect(item.title).toBe("Sword Guard (Tsuba) With the Motif of Sunrise");
+    expect(item.summary).not.toMatch(/<[a-z/]/i);
+  });
+
   it("falls back to '<title> — <attribution>' when a record says nothing at all", () => {
     const raw = structuredClone(byRecordId("nmnhmineralsciences_17124213"));
     raw.content!.freetext = {};
