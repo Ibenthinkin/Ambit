@@ -565,6 +565,7 @@ Production-grade from the start (portfolio / work-transferable practice — non-
 - Invite-only (Ben + friends) → shareable tier with a persistent backend + Postgres + ingestion pipeline (awkward on pure serverless).
 - **`IMAGE_CACHE_DIR` must be a persistent volume** (Phase 7.3, decision D3). The image proxy keeps one `<itemId>.webp` per item there — ~0.67 GB for the current corpus, at 62 KB a file. On an ephemeral filesystem every deploy would send the whole corpus back to the museums, which is precisely the traffic the cache exists to prevent. **8.1 mounts it.** `bun run img:warm --rate 2` fills it deliberately after the first deploy.
 - **Target: self-host via [Coolify](https://coolify.io)** on a small VPS or the homelab — git-push deploys of the Next.js app + self-hosted Postgres; cron-scheduled ingestion job; zero vendor lock-in; fits the ~$0–15/mo budget. (Vercel free tier is a fallback only if a serverless split proves simpler.)
+- **Nightly ingest is a Coolify Scheduled Task, `bun run ingest` at `30 1 * * *` — and Coolify's cron clock is UTC** (probed 08-30-26 with a `date` task: `Sun Aug 30 18:08:03 UTC 2026`). So the run fires at **21:30 EDT / 20:30 EST the previous evening**, ahead of the archive's 03:00 local ingest and the `0 4 * * *` UTC database backup, which is the order 8.1 wants: ingest, then back up what it wrote.
 - Bun scripts use the `--bun` flag so the Bun runtime is used in dev and prod:
   ```json
   "scripts": {

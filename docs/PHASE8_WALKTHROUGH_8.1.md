@@ -5,7 +5,7 @@ happened, what it proved, and every trap hit along the way. Written during execu
 the numbers below are the ones observed at the time, not reconstructed.
 
 **Status: in progress.** T1–T2 shipped 08-28-26. T3 and T4.1–4.4 executed 08-29-26 — Ambit is
-public at `https://ambit.benreilly.io`. T4.5–4.7 and T5 onward pending.
+public at `https://ambit.benreilly.io`. T4.5–4.6, T5 and T6 (bar 6.2) done 08-29-26. **T7 in progress 08-30-26** — 7.1 smoke re-run clean, 7.2 tasks created, first full ingest next.
 
 ## Deployed facts (T3.6)
 
@@ -21,6 +21,7 @@ Recorded as they were confirmed, so later phases don't have to go re-derive them
 | Database | `ambit-db`, `postgres:17-alpine`, internal network only, no public port | `/api/health` → `db:"ok"` |
 | Internal DB hostname | `rabwcgrcztxzngrrxaienfsm` (Coolify-generated, internal network only) | Coolify → `ambit-db` → internal URL |
 | Coolify version | v4.3.12 | Coolify sidebar |
+| Scheduled-task cron clock | **UTC** — `30 1 * * *` = 21:30 EDT / 20:30 EST the evening before | `tz-probe` task running `date`, 08-30-26: `Sun Aug 30 18:08:03 UTC 2026` |
 | Backup on-disk path | _(TODO — does not exist until the first `0 4 * * *` run)_ | Coolify → `ambit-db` → Backups |
 
 **The container name carries a per-deploy numeric suffix**, so anything that has to find this
@@ -288,3 +289,30 @@ Two numbers for the record: the "10-second" smoke took **534 s**, because 34 fai
 calls each paid their retry backoff — a failing source makes the *whole* run slow, not just its
 column, which is worth knowing before reading a long first ingest as "healthy but big". And
 `poetrydb searched 0` is expected: the source is parked with zero topic cells (`topics.ts:41`).
+
+## T7 — the first server-side ingest
+
+**7.1 smoke, two rounds.** The first round (08-29-26 evening) is what found both bad env values —
+a stray leading `=` on `SMITHSONIAN_API_KEY` (every call 403, and the URL showed `api_key=%3D…`,
+which is `encodeURIComponent("=")` — the tell that the character was *in the value*, not in the
+adapter), and a dead `OPENROUTER_API_KEY` (`401 "User not found."`, the account-level signature).
+That run took 534 s because 34 failing Smithsonian calls each paid the retry backoff. Second round,
+08-30-26, after Ben fixed both in Coolify and restarted (fingerprints from inside the container:
+Smithsonian key first byte `5`, 40 bytes; OpenRouter `auth/key` → 200):
+
+```
+smithsonian  --quota 3 --skip-llm --dry-run   34 searched · 54 offered · 0 errors · 72.7 s
+archive      --quota 1 --dry-run              29 searched · 29 offered · 0 errors · 7.0 s · 29 live curator calls, no 401
+```
+
+The archive line is the OpenRouter proof — `--skip-llm` was deliberately left off so the curator
+actually spent 29 calls from inside the container. The Smithsonian line's 11 structural-floor drops
+(7 bare-title, 4 thin-summary) are the normal quality floor, not errors.
+
+**Side finding carried to 8.2:** the Smithsonian adapter's HTTP error prints the full request URL
+*with the key* into task output. Redact `api_key` in `fetchJson` errors and rotate the key.
+
+**7.2 — the cron clock is UTC.** A one-minute `tz-probe` task running `date` printed
+`Sun Aug 30 18:08:03 UTC 2026`, so `ingest` at `30 1 * * *` runs at 21:30 EDT the previous evening
+(20:30 once DST ends). Recorded in SPEC §13. Probe deleted after one read.
+
