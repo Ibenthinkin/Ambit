@@ -61,6 +61,7 @@ confirmed the same afternoon (each as recommended); the plan is ready to hand to
 session once 8.1 closes.
 
 *Session spend: 9.63M tok (in 8.1k · out 128.4k · cache r 8.90M / w 593.2k) · ~$24.07 · fable-5 + opus-4-7 · 14:17→14:41*
+*Session spend: 5.63M tok (in 1.0k · out 31.6k · cache r 4.58M / w 1.01M) · ~$26.46 · fable-5 · 14:41→16:50*
 
 ### [[08-29-26 Sat]] — Phase 8.1 T3: Ambit is deployed on VM 202, and the plan was wrong about GitHub twice
 
