@@ -133,6 +133,22 @@ T8's restore drill after the first 04:00 backup, and T9 the morning after an una
 
 *Session spend: 8.55M tok (in 4.9k · out 80.6k · cache r 7.66M / w 800.8k) · ~$27.76 · fable-5 · 14:31→20:43*
 
+**Evening: T7.1's smoke found two wrong env values, neither on the plan's watch-list.** The archive
+integration — the one the plan flagged as most likely wrong — was clean first try. What failed:
+`SMITHSONIAN_API_KEY` carries a stray leading `=` (every call 403; the tell is `api_key=%3D…` in the
+failing URL, since the adapter `encodeURIComponent`s the key), and `OPENROUTER_API_KEY` is the
+08-22 dead key again (`401 "User not found."`, the account-level signature; the Mac's `.env` copy is
+the live one). Both are one-field Coolify edits plus a Restart. **Finding for 8.2:** the Smithsonian
+adapter's error prints the full URL *with the key* into task output — redact in `fetchJson`, rotate
+the key. And a failing source makes the whole run slow (534 s for a "10 s" smoke: 34 failures × retry
+backoff), not just its own column.
+
+**Open / next (morning):** fix the two Coolify values → re-run 7.1 targeted (`--source smithsonian`
+skip-llm, `--source archive --quota 1` with the curator) → 7.2 scheduled tasks + tz-probe → 7.3 first
+full ingest (1.5–2 h). Exact commands are on the plan's 7.1 line.
+
+*Session spend: 3.74M tok (in 2.3k · out 32.0k · cache r 3.51M / w 196.6k) · ~$9.07 · fable-5 · 20:43→22:11*
+
 ### [[08-28-26 Fri]] — Phase 7.3 executed unattended: proxy-with-cache settled, and 35 MB the feed had been dragging per page
 
 **Shipped:** `feat/7.3-images-perf`, T1–T6, six commits, second half of the overnight Ralph run.

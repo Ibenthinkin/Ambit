@@ -256,3 +256,35 @@ or it measures nothing.
 **Not done in T6:** 6.2's phone/cellular sign-up and PWA install. The feed is still empty until
 T7, and an install test against an empty feed proves less than one against a full one, so it folds
 into T7's tail.
+
+## T7.1 — the smoke test paid for itself twice before the first real ingest
+
+Two dry runs from inside the container, no writes, and the archive half was clean on the first
+try — 29 searches, 61 items offered, zero errors, so `ARCHIVE_API_KEY` and `http://192.168.1.202:3001`
+(the two values the plan flagged as most likely wrong) are right. The two that *were* wrong were
+not on the list.
+
+**`SMITHSONIAN_API_KEY` had a stray leading `=`.** Every Smithsonian call was `HTTP 403`, and the
+diagnosis was in the failing URL: `api_key=%3D5Wid…`. The adapter runs the key through
+`encodeURIComponent`, and `%3D` is `=` — so the value Coolify holds literally begins with one, the
+kind of thing that happens when a `KEY=value` line is pasted and trimmed one character short. Not a
+bad key, not a revoked key; one character. Worth adding to the family of "the secret is right and
+still 401s/403s" cases in CLAUDE.md: **look at the encoded form of the value in the failing
+request** before assuming the credential itself is the problem.
+
+**`OPENROUTER_API_KEY` was a dead key.** Fifty-eight curator calls, fifty-eight
+`401 {"message":"User not found."}` — the *account*-level signature CLAUDE.md already records from
+08-22 (a malformed key reads `"No auth credentials found"` instead). Same account, same drift:
+the password manager still held the old value, and the plan's "may be the Mac's — it is the same
+account" was true of the account and false of the key. The live one is the Mac's `.env` copy.
+
+**A leak, recorded for 8.2.** The Smithsonian adapter's error message prints the full request URL,
+key included, into whatever captures stdout — here Coolify's task output, and then a chat
+transcript. `fetchJson`'s error path should redact `api_key` (and any `?key=` shape) before
+throwing, and the Smithsonian key gets rotated regardless (a free api.data.gov key; the form
+takes thirty seconds).
+
+Two numbers for the record: the "10-second" smoke took **534 s**, because 34 failing Smithsonian
+calls each paid their retry backoff — a failing source makes the *whole* run slow, not just its
+column, which is worth knowing before reading a long first ingest as "healthy but big". And
+`poetrydb searched 0` is expected: the source is parked with zero topic cells (`topics.ts:41`).
