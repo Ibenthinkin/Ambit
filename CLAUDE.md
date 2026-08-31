@@ -51,7 +51,17 @@ deployed on VM 202 as Coolify's second tenant. **T4 shipped the same night** —
 edge, and the first account is signed up against an empty corpus (correct: D3 fills it in T7). Two
 Coolify traps cost the evening and are written up in the walkthrough — the Postgres image field
 defaults to 18 rather than the pinned 17, and `POSTGRES_USER`/`POSTGRES_DB` are silently ignored
-after a resource's first start. **T4.5–4.6, T5 (Resend) and T7 onward still need Ben's hands**, so
+after a resource's first start. **T7.3 shipped 08-31-26** — the first full ingest landed
+**11,313 items** across nine sources, all 16 topics filled, from the *nightly cron* run (Ben's
+manual run was killed mid-flight by a NUC host problem, but its curation cache on the volume made
+the cron run 70 min instead of two hours). One trap from that worth knowing before you debug
+anything scheduled on this host: **Coolify records every healthy ingest as `failed`** — its
+`ScheduledTaskJob` times out at 5 minutes, discards the task output, and lets the `docker exec`
+run on to completion regardless, so **the task status is not evidence in either direction and the
+database is the only honest witness** (the diagnostic query is in `PHASE8_PLAN_8.1.md` 7.3's
+fallback). Raising `scheduled_tasks.timeout` is 8.2's T3.0. **7.4 (image warm) is the next thing
+that matters** — `.cache/img` is still empty, so reader traffic is fetching from the museums live.
+**T4.5–4.6, T5 (Resend) and the rest of T7 onward still need Ben's hands**, so
 resume from
 `docs/PHASE8_PLAN_8.1.md` — its execution-state banner says exactly where — and read
 `docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed facts (resource UUID, volume name, DB hostname)

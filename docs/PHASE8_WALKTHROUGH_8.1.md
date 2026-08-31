@@ -333,3 +333,91 @@ redeploy has had its turn:
   production will have its own count from the first ingest, since that ran the old adapters.
   The invariant test's four-source exclusion is gone. 841 tests green.
 
+
+### 7.3 — the corpus landed, and Coolify said it failed
+
+**Both ingest runs are recorded in Coolify as `failed`. Neither failure is real.**
+
+`ScheduledTaskJob` in Coolify v4.3.12 carries `public $timeout = 300` — five minutes. A full
+Ambit ingest takes about seventy. So the Laravel job is killed at 5:00, the execution row is
+written `failed` with the message `Job permanently failed after 1 attempts:
+App\Jobs\ScheduledTaskJob has timed out.`, and **the captured task output is discarded** — while
+the `docker exec` it launched carries on to completion, unaware and unsupervised.
+
+What actually happened, all times UTC (EDT = UTC−4):
+
+| When | What |
+|---|---|
+| 08-30 16:30:51 | app container created (deploy) |
+| 08-30 18:10:56 | **run #13** — Ben's manual *Execute now* (7.3) |
+| 08-30 18:15:56 | Coolify marks it `failed` at exactly 5:00. The exec keeps running. |
+| 08-30 19:16:33 | container restarted — a **host problem on the NUC**, fixed separately — which killed run #13 about 65 min in, before its write pass |
+| 08-31 01:30:01 | **run #14** — the nightly cron, exactly on schedule |
+| 08-31 01:35:01 | Coolify marks it `failed` at exactly 5:00. The exec keeps running. |
+| 08-31 02:40:07 → 02:40:42 | run #14's write pass — **11,313 items**, ~70 min wall |
+
+**Run #13 was not wasted.** It had curated 2,223 items into `.cache/curation` before it died, and
+because that cache is on the persistent volume (D6, and the reason `curator.ts`'s hardcoded
+`cwd/.cache/curation` was worth mounting) run #14 reused every one of them. That is why #14 came
+in at ~70 min against the plan's 1.5–2 h budget: 9,160 fresh curations, 2,223 free ones.
+
+**How you can tell it was one write pass and not two.** The ingest upserts in a single loop at the
+very end of `main()`, after all curation, and rows already in the DB are filtered out *before*
+curation (`existingKeys`, `scripts/ingest.ts:391`) — so a second run cannot rewrite an existing
+row's `fetched_at`. Every one of the 11,313 rows carries a timestamp inside a single 35-second
+window, in source order (archive → cma → loc → met → nasa-images → smithsonian → wellcome →
+wikipedia, then doorofperception from the walk lane). One pass, one run.
+
+**The corpus after the first ingest:**
+
+| source | type | items | avg curation score |
+|---|---|---|---|
+| wikipedia | article | 2,185 | 5.20 |
+| wellcome | image | 1,941 | 7.50 |
+| cma | image | 1,519 | 8.49 |
+| smithsonian | image | 1,508 | 7.75 |
+| met | image | 1,503 | 8.18 |
+| archive | image | 1,451 | 8.66 |
+| nasa-images | image | 513 | 7.98 |
+| loc | image | 376 | 7.70 |
+| doorofperception | image | 317 | 8.63 |
+| **total** | | **11,313** | 10,448 with an image · 16/16 topics |
+
+Topics are evenly filled, 507 (textiles) to 846 (architecture) — no starved topic, which is what
+the feed's per-slot topic draw needs. The scores vary rather than sitting flat at 5.0, which is
+the proof that the LLM curator really ran (`--skip-llm` scores every item 5): 11,383 envelopes,
+46 MB, in `.cache/curation`.
+
+**The image path was verified from the public origin at the same time**, which closes the half of
+T4.5's Cache Rule proof that had been deferred to 7.4: `/api/img/<id>` returns `200 image/webp`,
+143 KB, `cache-control: public, max-age=31536000, immutable`, `x-ambit-cache: fill` on a cold
+item — and the *second* request comes back `cf-cache-status: HIT`. The Cloudflare rule works.
+
+**Diagnostic order for "did the ingest run?" on this host.** Coolify's task status is not evidence
+either way; the database is the only honest witness.
+
+```bash
+ssh ben@192.168.1.202
+docker exec coolify-db psql -U coolify -d coolify -At -F'|' \
+  -c "select id,status,created_at,updated_at from scheduled_task_executions where scheduled_task_id=3 order by id"
+C=$(docker ps -q --filter publish=3000)
+docker exec "$C" bun -e '
+const {db}=await import("./src/server/db/client.ts");const {sql}=await import("drizzle-orm");
+console.log((await db.execute(sql`select source,count(*)::int n,max(fetched_at) last from item group by 1 order by 2 desc`)).rows);
+process.exit(0)'
+```
+
+A run that landed shows a fresh `last` clustered in one narrow window; a run that died shows the
+previous run's. A `failed` row whose `updated_at` is exactly 5:00 after its `created_at` is the
+timeout, not the ingest.
+
+**The fix, and why it belongs to 8.2.** `$this->timeout = $this->task->timeout ?? 300` — the
+timeout is a **per-task column**, `scheduled_tasks.timeout`, so it is raisable without patching
+Coolify. It is currently 300 for all three tasks on this host. Until it is raised for `ingest`,
+8.2's *Scheduled Tasks → Failure* notification would mail a false alarm after every single
+nightly run, and the verdict exit code 8.2 T1 is about to add **can never be observed** — the job
+is killed long before the process exits. Recorded as 8.2's T3.0.
+
+This is also the second time in one phase that a signal from the orchestration layer was worth
+less than a signal from the application: `/api/health` earned itself in T3, and here the database's
+own timestamps were the only thing that could distinguish "ran and worked" from "never ran".
