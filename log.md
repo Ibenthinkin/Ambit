@@ -5,6 +5,70 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-08
 
+### [[08-31-26 Mon]] — The first ingest worked. Coolify said it failed, and will keep saying so.
+
+**Findings:** 8.1's 7.3 is done — **11,313 items** — and the whole morning went to establishing
+that, because **both ingest runs are recorded in Coolify as `failed` and neither failure is real**.
+`ScheduledTaskJob` in Coolify v4.3.12 carries `public $timeout = 300`; a full Ambit ingest takes
+~70 minutes. So the Laravel job is killed at exactly 5:00, the execution row reads
+`App\Jobs\ScheduledTaskJob has timed out`, and **the captured task output is thrown away** — while
+the `docker exec` it launched runs on to completion, unsupervised and invisible. The status field
+is not evidence in either direction, which is the single most important thing to know about this
+host now.
+
+What actually happened (UTC): the container was deployed 08-30 16:30; Ben's manual *Execute now*
+started 18:10:56 and Coolify gave up on it at 18:15:56; at **19:16:33 the container restarted — a
+host problem on the NUC, fixed in another session** — which killed that run ~65 min in, before its
+write pass. Then the **nightly cron fired on schedule at 08-31 01:30:01**, Coolify gave up on it at
+01:35:01, and it ran to completion anyway: write pass 02:40:07→02:40:42, ~70 min wall. The manual
+run was not wasted — it had curated 2,223 items into `.cache/curation` on the persistent volume,
+and the cron run reused every one (9,160 fresh + 2,223 free), which is why 70 min beat the 1.5–2 h
+budget. That is D6 paying for itself in a way the decision never anticipated.
+
+**The corpus:** wikipedia 2,185 · wellcome 1,941 · cma 1,519 · smithsonian 1,508 · met 1,503 ·
+archive 1,451 · nasa-images 513 · loc 376 · doorofperception 317. 10,448 with an image, all 16
+topics filled 507 (textiles) to 846 (architecture) — no starved topic, which is what the feed's
+per-slot draw needs. Average curation scores run 5.20 (wikipedia) to 8.66 (archive); they *vary*,
+which is the proof the LLM curator really ran, since `--skip-llm` scores everything a flat 5.
+46 MB / 11,383 envelopes in the curation cache. Only the OpenRouter spend is still unrecorded —
+it needs the dashboard.
+
+Two things fell out along the way. **T4.5's Cache Rule is now fully proven** — with real item ids
+to test against, `/api/img/<id>` returns `200 image/webp` (143 KB, immutable) with
+`x-ambit-cache: fill`, and the second request comes back `cf-cache-status: HIT`; that was the half
+of the proof deferred to 7.4, and 7.4 now only has to prove the *disk* cache. And **7.4b's repair
+count is known in advance: 62 rows** — smithsonian 34, wellcome 23, met 4, nasa-images 1 — the same
+four sources as the Mac's 41, measured with the same narrow tag regex `renormalize` uses.
+
+**Decisions:**
+- **Verify a nightly ingest against the database, never against Coolify's task status.** The
+  ingest upserts in one loop at the end of `main()` and filters out rows already in the DB *before*
+  curation, so a run that landed leaves every new row's `fetched_at` inside one narrow window in
+  source order — and a run that died leaves the previous window untouched. That signature is what
+  distinguishes "ran and worked" from "never ran", and it is now written into 7.3's fallback,
+  9.1, and the walkthrough as the diagnostic order for this host. Corrected while there: the
+  fallback's `psql -U ambit -d ambit` could never have worked — the 08-29 Coolify trap means the
+  cluster has only the `postgres` role and `postgres` database.
+- **Raise the per-task timeout rather than work around it.** `$this->timeout = $this->task->timeout ?? 300`
+  — it is the `timeout` column on `scheduled_tasks`, so `ingest` gets `10800` and this stops being
+  a trap. Filed as **8.2 T3.0**, ahead of everything else in that task, because *Scheduled Tasks →
+  Failure* would otherwise mail a false alarm every single night — precisely the noise 8.2's own
+  Global Constraints forbid — and because **T1.2's verdict exit code can never be observed** while
+  the job is killed before the process exits.
+- **This vindicates the half of 8.2's D3 that lives in Ambit's database.** `ingest_run` +
+  `/api/health`'s `ingest: ok | stale | never` would have reported this run's true state on the
+  first look while Coolify was still lying about it. Second time in one phase that a signal from
+  the application beat a signal from the orchestration layer — `/api/health` earned itself the same
+  way in T3.
+
+**Open / next:** **7.4** (image warm — `.cache/img` is still empty, so every reader scroll is
+pulling from the museums live; this is the most urgent thing left), then 7.5 (no-code-change
+redeploy proof) → 7.4b (deploy `cbd6ad5`+, `renormalize --confirm` for the 62 rows, rotate the
+Smithsonian key) → T8 → T9. 9.1's unattended-run clause is already satisfied by the 01:30 cron run.
+Add the OpenRouter spend to 7.3's line when the dashboard is to hand.
+
+*Session spend: 10.16M tok (in 204 · out 72.9k · cache r 9.78M / w 309.4k) · ~$9.81 · opus-5 · 09:44→10:03*
+
 ### [[08-30-26 Sun]] — Phase 8.1 T7 underway: the first server-side ingest runs, and two fixes land around it
 
 **Shipped:** Morning: the 7.1 smoke re-run was clean after Ben's two Coolify env fixes
