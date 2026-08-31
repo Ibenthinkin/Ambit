@@ -69,6 +69,57 @@ Add the OpenRouter spend to 7.3's line when the dashboard is to hand.
 
 *Session spend: 10.16M tok (in 204 · out 72.9k · cache r 9.78M / w 309.4k) · ~$9.81 · opus-5 · 09:44→10:03*
 
+**Findings (second session):** 7.4's warm is **done for eight of the nine sources** — 9,578 images
+/ 909 MB on the volume, and both of 7.4's curl proofs pass on a warmed item (`x-ambit-cache: hit`
+with `cf-cache-status: MISS`, then `HIT`). Disk cache, persistent volume and T4.5's Cache Rule are
+all now proven against real traffic. The ninth source is wikipedia, and **it stopped for a reason
+that lives in the adapter, not in the warm script**.
+
+The presenting symptom was a plateau: 9,135 files, no growth for an hour. The job was not stalled —
+it had *exited*. What had actually happened, established in this order: `docker top` showed only
+`next start`, so no warm process; the script's own `--dry-run` (free, no upstream requests) put
+1,299 of the 1,320 missing images on wikipedia alone and everything else within 14; a raw `curl`
+from the host to `upload.wikimedia.org` returned `200 image/jpeg` and a five-image probe filled
+four, so the host was **not blocked**. That left the script's `RATE_LIMIT_GIVE_UP` as the
+hypothesis — and rerunning it detached at `--rate 1` confirmed it verbatim:
+`!! upload.wikimedia.org answered 429 3 times in a row after 463 requests — abandoning it for this
+run.`
+
+**Why wikipedia and nothing else.** `wikipedia.ts:118` asks PageImages for `piprop=original` and
+line 205 stores `page.original?.source` — the **full-resolution** file. A probe measured one at
+**11.9 MB**, against museum IIIF derivatives in the low hundreds of KB. So 463 requests dragged
+multiple GB out of Wikimedia, and this is the only source that produces `too-big` rejections at
+all (9, over the 40 MB `MAX_UPSTREAM_BYTES`). Wikimedia's ceiling reads as **~450–500 originals per
+burst**, and turning `--rate` down doesn't move it, because the budget is bytes rather than
+requests.
+
+**Decision:** stop warming wikipedia, and fix the URL instead — new **7.4c** in the plan. Ask for
+`piprop=thumbnail|name&pithumbsize=1600` and store `page.thumbnail?.source`, which is a `/thumb/`
+derivative at exactly the size `image-cache.ts` resizes to anyway (`MAX_EDGE = 1600`): ~20× fewer
+bytes, no `too-big` losses, and the 429 ceiling stops being reachable. The 1,320 existing rows
+don't need a re-ingest — `/commons/4/41/Name.jpg` → `/commons/thumb/4/41/Name.jpg/1600px-Name.jpg`
+is mechanical, so a `renormalize`-shaped script rewrites them in place. Warming ~846 more originals
+tonight would have spent Wikimedia's budget on bytes the resize discards; those items degrade to
+live proxy fetches meanwhile, which is just the pre-7.4 status quo for one source in nine.
+
+Two smaller things worth keeping. **Coolify cost this one an hour, in a new way** — task #16 is
+recorded `failed` at exactly 5:00 after start (the 7.3 `ScheduledTaskJob` timeout again), the exec
+ran on for another 75 minutes, and **the output it discarded was the abandon message that would
+have diagnosed the whole thing in one look**. The rule now is: run warms as a detached
+`docker exec -d … > .cache/img-warm.log 2>&1`, never as a Coolify task — reparented to the
+container's init, survives the session, and leaves its tally on the volume. And **the script's
+`cached` column lies a little**: it increments the same `tallyRow.skipped` for *already on disk* and
+for *skipped because the host was abandoned*, so the run's `wikipedia … cached 871` is really ~25
+cached plus ~846 never attempted. Two counters would be worth it if the script is ever touched.
+
+**Open / next:** **7.5** (no-code-change redeploy proof — the volume's whole point) → 7.4b (deploy
+`cbd6ad5`+, `renormalize --confirm` for the 62 rows, rotate the Smithsonian key) → **7.4c** (the
+wikipedia URL fix above; may slip past 8.1's done-bar, nothing depends on it) → T8 → T9. 7.3's
+OpenRouter spend is still the one number missing from that step.
+
+*Session spend: 6.82M tok (in 166 · out 61.0k · cache r 6.44M / w 319.5k) · ~$7.94 · opus-5 · 12:36→13:30*
+
+
 ### [[08-30-26 Sun]] — Phase 8.1 T7 underway: the first server-side ingest runs, and two fixes land around it
 
 **Shipped:** Morning: the 7.1 smoke re-run was clean after Ben's two Coolify env fixes
