@@ -38,17 +38,22 @@ files already narrower than the request, and tags everything with a `utm_content
 script re-asks the API, 50 pages a call, and writes exactly what a fresh ingest would. Two other
 deviations, both deliberate: the "delete the cached wikipedia entries so they refill" step was
 skipped (the cache is keyed by item id and already holds ≤1600 px WebP — a refill would have spent
-~459 requests for identical bytes), and **the warm ran at `--rate 1`, not 2**. At 2/s it 429'd
-three times inside 17 seconds even on ~300 KB thumbnails; re-measured rather than retried, six
-fresh renders at 1/s from the VM all came back 200, so the ceiling is Wikimedia's on-demand
-thumbnail *renderer*, not the byte budget 7.4 diagnosed and not a lingering IP block. One large
-file: 4.2 MB original → 287 KB derivative.
+~459 requests for identical bytes), and **the warm could not run at any flat rate**. At 2/s it
+429'd three times inside 17 seconds even on ~300 KB thumbnails; re-measured rather than retried,
+six fresh renders at 1/s from the VM all came back 200 — so not a lingering IP block — but a
+sustained 1/s run was abandoned too, 66 in. Every abandonment fits a **token bucket of ~60
+on-demand renders refilling at ~20/min**: Wikimedia's thumbnail *renderer*, not the byte budget
+7.4 diagnosed. Repaced to 20-image chunks with 75 s pauses, the remaining 663 filled in 34
+chunks over ~53 min with zero 429s; 924 wikipedia fills for the day, exactly the starting
+backlog. Cache: **10,503 files / 1.1 GB, every source warm** (52 leftovers from 7.4's upstream
+errors aside). One large file: 4.2 MB original → 287 KB derivative.
 
 **Open / next:** T8's restore drill (Ben, on VM 202), T9.2–9.5 (BUILD_PLAN, SPEC §13,
 walkthrough close-out, vault, this log), 6.2's phone sign-up + PWA install, and the OpenRouter
 spend number for 7.3. 8.2 stays parked behind 8.1's done-bar.
 
 *Session spend: 10.90M tok (in 224 · out 74.3k · cache r 10.33M / w 494.5k) · ~$23.94 · fable-5 · 13:49→14:44*
+*Session spend: 22.15M tok (in 15.6k · out 183.1k · cache r 21.43M / w 522.1k) · ~≥$1.94 · fable-5-1 + opus-4-7 · 15:28→16:51*
 
 **Findings, later session:** Ran `docs/source-candidates.md`'s trial loop's step 0 — a live
 pre-trial probe, no adapter written, nothing ingested — against every remaining 🔵 untried API

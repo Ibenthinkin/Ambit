@@ -479,3 +479,79 @@ one.
 was simply the first http-first client to sign in. And it is the third time this phase that the
 app's own signal beat the orchestration layer's: the Better Auth log line named the bad origin
 exactly, where the browser UI said only "invalid origin".
+
+## 7.4c — the wikipedia URLs, and why the "mechanical" rewrite had to ask the API (09-01)
+
+**The plan's transform did not survive one probe.** It read `/a/ab/Name.jpg` →
+`/thumb/a/ab/Name.jpg/1600px-Name.jpg`, and the first `prop=pageimages&pithumbsize=1600` call
+against real pages showed four ways that is wrong: Wikimedia renames derivatives by format
+(`Margins.svg` → `1920px-Margins.svg.png`, `.tif` → `lossless-page1-…tif.png`, `.pdf` →
+`page1-…pdf.jpg`, `.webp` → `….webp.png`); it snaps a 1600 request to its standard 1920 bucket;
+it returns the *unscaled original* for any file already narrower than the request; and every URL
+the adapter had stored carried a `?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original`
+query the pattern would first have had to strip. Only the API knows which case a file is, so
+`scripts/rethumb-wikipedia.ts` asks it — 50 pages a call, ~28 calls for the whole corpus, all
+to `en.wikipedia.org` rather than the budgeted `upload.wikimedia.org` — and writes exactly what a
+fresh ingest would now store.
+
+**A licence guard the plan did not ask for.** Ingest resolves each lead image's licence per
+*file* (`imageinfo&iiprop=extmetadata`) and stores an image only when it is free. An article's
+lead image can change between ingest and now, and the new file's licence was never checked — so
+the script rewrites only when `pageimage` still names the file the stored URL points at
+(`leadImageFileName()` in `wikipedia.ts`, tested against original, thumbnail and percent-encoded
+forms). In production that held back exactly one row of 1,383 (page 37622 swapped its Venus for
+an Aphrodite); locally it held 10 of 1,331, because the Mac's corpus is three weeks older.
+`--confirm` rewrote **1,382 rows** and the re-report read `0` rewritable. One more shape found
+by the re-report: video stills (`.webm`/`.ogv` → `/thumb/…/1920px--Name.webm.jpg`) come back
+with **no utm tag at all**, so "already a thumbnail" is keyed on the `/thumb/` path as well as the
+tag.
+
+**The delete-and-refill step was skipped on purpose.** The plan said to delete the wikipedia
+entries already cached from originals "so they refill at the new size". But the cache is keyed
+by item id, not URL, and `image-cache.ts` already resized every one of those originals to
+≤1600 px WebP on the way in — a refill would have spent ~459 more Wikimedia requests for
+byte-identical files. Census before touching anything: 1,383 wikipedia rows with an image, 459
+cached on disk, 924 waiting.
+
+**The warm still 429'd, and this time the measurement was the point.** At `--rate 2` the
+detached run filled 22, took three consecutive 429s, and abandoned the host inside 17 seconds —
+with thumbnails in the low hundreds of KB, so 7.4's byte-budget explanation could not be the
+whole story. Per 7.4c's own instruction ("stop and re-measure rather than retrying"): six
+uncached thumbnail URLs fetched from the VM at 1/s all answered 200, four of them fresh
+`x-cache-status: miss` renders, and the same six from the Mac matched byte for byte — so there
+was no lingering per-IP block. The ceiling is Wikimedia's **on-demand thumbnail rendering**: a
+derivative nobody has requested before is rendered on first request, and the renderer throttles
+per client. A bounded `--rate 1 --limit 60` run filled 60/60 with 0 errors — and then the full
+detached run at `--rate 1` was abandoned as well, 66 images in at 68 s. That was the useful
+data point: 22 (at 2/s) + 60 + 66 ≈ 150 fresh renders inside ~4.5 minutes, then a wall; a
+first chunked loop (40 per chunk, 90 s pauses) got 40 + 40 + 33 before its own 429. Every one of
+those fits a **token bucket of roughly 60 renders that refills at about 20 per minute** — the
+per-second rate barely matters, the sustained rate does. Repaced to **20-image chunks at 1/s
+with 75 s pauses (~13/min)**, the remaining 663 images filled in 34 chunks over ~53 minutes with
+**zero 429s**. Total wikipedia fills for the day: 924, exactly the uncached count at the start.
+The cache stands at **10,503 files / 1.1 GB**; wikipedia has 0 uncached. (The 52 images still
+uncached corpus-wide — met 19, wellcome 25, cma 7, smithsonian 1 — are 7.4's own upstream-error
+leftovers, untouched here.) Size check on one large file: original 4,233,398 bytes, derivative
+287,257 — ~15×, in line with the plan's estimate.
+
+The loop, for the next time a source needs feeding under a render budget (run detached inside
+the container; the warm re-selects uncached rows each pass, so an abandoned chunk simply
+resumes after the pause):
+
+```sh
+for i in $(seq 1 60); do
+  bun run img:warm --source wikipedia --rate 1 --limit 20 > .cache/img-warm-chunk.log 2>&1
+  grep -E "^wikipedia |abandoned|elapsed" .cache/img-warm-chunk.log >> .cache/img-warm-loop.log
+  grep -q abandoned .cache/img-warm-chunk.log || grep -qE "^wikipedia +0 " .cache/img-warm-chunk.log && break
+  sleep 75
+done
+```
+
+Two small things learned killing the first loop: the production image has neither `pkill` nor
+`pgrep`, so a stray loop is found by reading `/proc/*/cmdline` — and a finder script that
+greps for its own marker string will match *itself* and `kill` its own shell (exit 143). Exclude
+`$$`.
+
+**Ops note that makes the rest of this cheaper:** `ssh ben@192.168.1.202` works non-interactively
+from the Mac, so a detached warm and its log (`.cache/img-warm-7.4c.log`) are one command away —
+the Coolify task runner was never in the path this time.
