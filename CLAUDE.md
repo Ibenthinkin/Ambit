@@ -59,9 +59,11 @@ anything scheduled on this host: **Coolify records every healthy ingest as `fail
 `ScheduledTaskJob` times out at 5 minutes, discards the task output, and lets the `docker exec`
 run on to completion regardless, so **the task status is not evidence in either direction and the
 database is the only honest witness** (the diagnostic query is in `PHASE8_PLAN_8.1.md` 7.3's
-fallback). Raising `scheduled_tasks.timeout` is 8.2's T3.0. **7.4 (image warm) is the next thing
-that matters** — `.cache/img` is still empty, so reader traffic is fetching from the museums live.
-**T4.5–4.6, T5 (Resend) and the rest of T7 onward still need Ben's hands**, so
+fallback). Raising `scheduled_tasks.timeout` is 8.2's T3.0. **7.4 and 7.4c shipped
+08-31/09-01-26** — the image cache is warm for all nine sources; the wikipedia adapter now asks for 1600 px thumbnails instead of originals, and `bun run rethumb` is
+the row repair. Wikimedia throttles on-demand thumbnail *rendering* on a budget of roughly 60
+renders refilling at ~20/min — a sustained `--rate 1` still 429s; warm it as 20-image chunks with
+75 s pauses (loop in the 8.1 walkthrough). **T8 (restore drill) and T9.2–9.5 (closing docs) remain**, so
 resume from
 `docs/PHASE8_PLAN_8.1.md` — its execution-state banner says exactly where — and read
 `docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed facts (resource UUID, volume name, DB hostname)
