@@ -35,6 +35,31 @@ number for 7.3.
 
 ## 2026-08
 
+**Decisions, later session — backlog triage.** The vault's Ambit-Admin backlog (twelve "Ideas /
+future directions") evaluated with Ben and folded into `docs/BUILD_PLAN.md`; the cross-project
+reasoning is in the vault's Ambit-Admin log. What changed in this repo's plan: **two product steps
+now gate 8.2's invites** — **8.3 Landing redo** (feel, imagery, copy and runtime all in scope, a
+knowing reversal of 5.11's `SLIDE_MS` "not an attraction" call; licensing gate, reduced-motion and
+7.3's 1.6 MB LCP finding carried in) and **8.4 Onboarding interview v1** (free text → LLM →
+initial topic weights, reusing the curator's classify mode and Phase 0's `--favorites` mode; chips
+stay as the fallback, and an OpenRouter outage must degrade to them rather than block sign-up).
+Both get a design session first; 8.2's T1–T5 can run alongside, only T6 waits. **Phase 9 gained
+four items:** 9.12 announcement cards (CLI-authored v1 — there is no admin role in the schema —
+with survey cards as v2, built only when there is a question), 9.13 transparency ("why this" is
+the `FEED_DEBUG` payload in plain language; "what Ambit knows about me" is `topics.mine` +
+taste keywords; sequenced ahead of 9.7 because it makes beta feed-feel feedback legible), 9.14
+**topic-graph recompute + topic-expansion procedure** (the graph is a Phase 0 artifact over 8k
+items and five sources; production is 11.3k over nine — 2.3's "recompute, then expand toward 32"
+never had an owner; also owns the 08-31 keyword-list fork), and 9.15 a Wikipedia lead-image
+predicate spike. **Cut:** the free-host idea (not separable) and the Wikipedia link-card posture
+change (third-party non-free images can't be made honest by a link to Wikipedia; the spike is what
+survives). **Parked with pointers:** native app, user-submitted blogs (behind blog #2), Explorer
+(reframed as tag-tap over `aesthetic_tags`, under 9.7), gallery dissolve (one option in 9.1).
+Ben re-confirmed the archive's personal items may reach beta readers. **Open / next** now reads:
+T8 → T9.2–9.5 → 8.3 design session → 8.4 → 8.2 (T6 last).
+
+*Session spend: 7.36M tok (in 7.3k · out 163.2k · cache r 6.67M / w 517.0k) · fable-5-1 · 15:43→16:03*
+
 ### [[08-31-26 Mon]] — The first ingest worked. Coolify said it failed, and will keep saying so.
 
 **Findings:** 8.1's 7.3 is done — **11,313 items** — and the whole morning went to establishing
