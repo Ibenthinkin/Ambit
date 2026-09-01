@@ -3,6 +3,36 @@
 Narrative record of decisions, findings, and dead-ends that don't live in commit
 messages. `/brief` reads this. Newest on top.
 
+## 2026-09
+
+### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
+
+**Shipped:** 8.1's **7.5 and 7.4b in one stroke**. The plan's "no-code-change redeploy" premise
+didn't survive contact with Coolify — Redeploy pulls branch HEAD — but the 14-commit delta since
+the deployed `8326983` held exactly one code commit, and it was 7.4b's fixes (nothing near the
+Dockerfile, boot CMD, or `image-cache.ts`), so with Ben's sign-off one Redeploy served as both the
+volume-survival proof and the fixes deploy. The volume held: 9,578 files / 909 MB byte-identical
+across a full rebuild, curation cache included. One proof technique worth keeping: a bare `curl`
+on a warmed item answers from Cloudflare's edge copy — `x-ambit-cache: hit` baked in — even if the
+volume were gone; **bust the query string when the question is about the origin**. Then
+`renormalize` printed exactly its predicted 62 rows, `--confirm` rewrote them to a `0 row(s)`
+re-report, and the burned Smithsonian key was rotated (shape-verified as `len=40 lead=ok` — the
+value never left the container) with the smoke back at 34/54/0 errors.
+
+**Findings:** Ben's phone couldn't sign in — "Invalid origin" — and the container log named the
+culprit in one line: `Origin: http://ambit.benreilly.io`. The Cloudflare zone had **no http→https
+redirect**, so the whole site served fine over plain http to any http-first client (mobile Safari
+on a bare typed domain), and Better Auth then correctly refused the http origin per D2. Not a
+regression — the gap existed since T4; desktop browsers are https-first and never tripped it, and
+HSTS can't help a client that has never completed an https visit. Fix was one edge toggle
+(*Always Use HTTPS*), verified: http GET and POST both 301 before reaching the app.
+
+**Open / next:** 7.4c (wikipedia 1600px-thumbnail rewrite + finish the ~846-image warm), T8's
+restore drill, T9, 6.2's phone sign-up + PWA install (now unblocked), and the OpenRouter spend
+number for 7.3.
+
+*Session spend: 10.90M tok (in 224 · out 74.3k · cache r 10.33M / w 494.5k) · ~$23.94 · fable-5 · 13:49→14:44*
+
 ## 2026-08
 
 ### [[08-31-26 Mon]] — The first ingest worked. Coolify said it failed, and will keep saying so.

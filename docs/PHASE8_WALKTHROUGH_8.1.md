@@ -421,3 +421,61 @@ is killed long before the process exits. Recorded as 8.2's T3.0.
 This is also the second time in one phase that a signal from the orchestration layer was worth
 less than a signal from the application: `/api/health` earned itself in T3, and here the database's
 own timestamps were the only thing that could distinguish "ran and worked" from "never ran".
+
+## 7.5 + 7.4b — one Redeploy proved the volume and carried the fixes (09-01)
+
+**The plan's "no-code-change redeploy" turned out not to exist.** A Coolify Redeploy checks out
+the configured branch's HEAD, and `main` had moved 14 commits past the deployed `8326983`. The
+step's isolation instinct was still honoured, just by inspection instead of by sequencing:
+exactly one of those commits touched code (`56c9176` — the adapter `htmlToText()` fixes, key
+redaction, and `scripts/renormalize-text.ts`), and none of it goes near the `Dockerfile`, the
+boot `CMD`, or `image-cache.ts`, so a volume that failed to survive *this* redeploy could not
+have been failed by the code delta. With that established, Ben signed off on one Redeploy doing
+double duty: 7.5's survival proof and 7.4b's deploy. Deploy #17 built in ~3 minutes and came up
+healthy on `2dd0a7e`.
+
+**The volume survived, and the proof had to route around Cloudflare to mean anything.** The trap:
+7.4's warmed proof item was already in the edge cache, so a bare `curl -sI` would have answered
+`200` + `x-ambit-cache: hit` *from Cloudflare's copy* even with the volume gone — the header is
+baked into the cached response. A cache-busting query string (`?bust=…`) forces
+`cf-cache-status: MISS`, which makes the origin answer for itself. Before and after the
+redeploy: **9,578 files / 909 MB**, `x-ambit-cache: hit`, `content-length: 94152` — byte-identical.
+The curation cache rode the same volume through (11,534 envelopes). Any future "is the origin
+cache alive?" check should bust the query string first.
+
+**`renormalize` landed exactly on its prediction.** The dry-run report printed 62 rows —
+smithsonian 34 · wellcome 23 · met 4 · nasa-images 1, the same split measured against the corpus
+on 08-31 — `--confirm` rewrote them, and the re-report printed `0 row(s)`. The production corpus
+no longer carries markup in any `title` or `summary`.
+
+**The Smithsonian key was rotated without the new value ever reaching an agent.** Ben minted a
+fresh key at api.data.gov and set it in Coolify (Restart, runtime-only var). Verification stayed
+shape-only on purpose: the auto-mode classifier refused a `cut -c1` probe of the env var — one
+character of a secret is still secret — and the better pattern is a boolean:
+`case $SMITHSONIAN_API_KEY in =*)` for the paste trap, `wc -c` for the length. `len=40 lead=ok`,
+and the re-run smoke came back **34 searched / 54 offered / 0 errors** in ~76 s, matching the
+08-30 baseline. The burned key (leaked into the 08-29 task output before `redactUrl()` existed)
+is dead.
+
+## The phone found the missing edge redirect (09-01)
+
+**Symptom:** sign-in on the phone failed with "Invalid origin"; desktop had worked since 08-29.
+**Root cause:** the Cloudflare zone had no http→https redirect, so `http://ambit.benreilly.io`
+served the entire site with a 200 over plain http. Mobile Safari tries http first for a bare
+typed domain, the page rendered, and the sign-in POST then carried
+`Origin: http://ambit.benreilly.io` — which Better Auth in production correctly refuses (D2:
+exactly one trusted origin, and it is `https://`). The container log made the diagnosis in one
+line: `ERROR [Better Auth]: Invalid origin: http://ambit.benreilly.io`. Desktop never hit it
+because desktop browsers are https-first; HSTS could not save the phone because browsers ignore
+an HSTS header delivered over http, and the phone had never completed an https visit to receive
+one.
+
+**Fix (edge, zero code):** Cloudflare → `benreilly.io` → SSL/TLS → Edge Certificates →
+**Always Use HTTPS: On**. Verified from the Mac: `http://` GET and POST both answer
+`301 → https://ambit.benreilly.io/`, so an http origin can no longer reach the app at all, and
+`/api/health` stays 200 on `2dd0a7e`.
+
+**Two notes for the record.** This was never a regression — the gap existed since T4; the phone
+was simply the first http-first client to sign in. And it is the third time this phase that the
+app's own signal beat the orchestration layer's: the Better Auth log line named the bad origin
+exactly, where the browser UI said only "invalid origin".
