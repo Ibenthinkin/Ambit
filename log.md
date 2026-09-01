@@ -27,11 +27,101 @@ regression — the gap existed since T4; desktop browsers are https-first and ne
 HSTS can't help a client that has never completed an https visit. Fix was one edge toggle
 (*Always Use HTTPS*), verified: http GET and POST both 301 before reaching the app.
 
-**Open / next:** 7.4c (wikipedia 1600px-thumbnail rewrite + finish the ~846-image warm), T8's
-restore drill, T9, 6.2's phone sign-up + PWA install (now unblocked), and the OpenRouter spend
-number for 7.3.
+**Shipped, later session:** **7.4c.** The wikipedia adapter asks PageImages for
+`pithumbsize=1600` instead of `piprop=original` (`a2be201`), and `bun run rethumb` repaired the
+rows ingested before the flip — **1,382 of 1,383 production rows rewritten**, one held because the
+article's lead image changed since ingest and the new file's licence was never checked (a guard the
+plan didn't ask for, but ingest resolves licences per *file*, so it had to exist). The plan's
+"mechanical" URL transform died on the first probe: Wikimedia renames derivatives by format
+(svg→png, tif→png, pdf→jpg, webp→png), snaps 1600 to 1920, hands back the unscaled original for
+files already narrower than the request, and tags everything with a `utm_content` query — so the
+script re-asks the API, 50 pages a call, and writes exactly what a fresh ingest would. Two other
+deviations, both deliberate: the "delete the cached wikipedia entries so they refill" step was
+skipped (the cache is keyed by item id and already holds ≤1600 px WebP — a refill would have spent
+~459 requests for identical bytes), and **the warm ran at `--rate 1`, not 2**. At 2/s it 429'd
+three times inside 17 seconds even on ~300 KB thumbnails; re-measured rather than retried, six
+fresh renders at 1/s from the VM all came back 200, so the ceiling is Wikimedia's on-demand
+thumbnail *renderer*, not the byte budget 7.4 diagnosed and not a lingering IP block. One large
+file: 4.2 MB original → 287 KB derivative.
+
+**Open / next:** T8's restore drill (Ben, on VM 202), T9.2–9.5 (BUILD_PLAN, SPEC §13,
+walkthrough close-out, vault, this log), 6.2's phone sign-up + PWA install, and the OpenRouter
+spend number for 7.3. 8.2 stays parked behind 8.1's done-bar.
 
 *Session spend: 10.90M tok (in 224 · out 74.3k · cache r 10.33M / w 494.5k) · ~$23.94 · fable-5 · 13:49→14:44*
+
+**Findings, later session:** Ran `docs/source-candidates.md`'s trial loop's step 0 — a live
+pre-trial probe, no adapter written, nothing ingested — against every remaining 🔵 untried API
+candidate plus the untried blog leads, four in parallel. Two came back genuinely trial-ready:
+**Europeana**'s historical demo key (`wskey=api2demo`) still works with no signup, and
+`reusability=open` is a real query-time license filter, verified against live data (an unfiltered
+`sunflowers` search pulled in an In-Copyright item; filtered `flowers` didn't) — single-call
+filtering, no per-item second lookup, the good pattern Openverse also cleared (`license=cc0,pdm`
+verified the same way, feed-ready shape, watch for uploader flooding). **Chronicling America**
+extends the already-kept LoC pattern — real endpoint has moved (`chroniclingamerica.loc.gov` now
+redirects), PD needs a hard `date` cutoff since the per-result `rights` field is entirely absent
+(worse than pictures' empty-string gap), and OCR wants metadata-synthesized summaries, not raw
+text. **thisiscolossal.com** is a near drop-in for the shipped WP-REST blog adapter (8,817 posts,
+`_embed=wp:featuredmedia` ungated). Six candidates parked on structural blockers found empirically:
+Rijksmuseum and BHL both hit Getty's Linked-Art-graph shape problem; Harvard Art Museums has no
+license filter at all *and* a ToU 2-week cache cap that conflicts with the permanent-corpus
+architecture; Internet Archive's per-item license mix is real even within "CC," plus uploader
+flooding worse than Smithsonian's; DPLA is actually easier than assumed (instant self-serve key)
+but its docs site is WAF-blocked so response shape is unconfirmed; Open Library, Wikiquote, and
+Wikisource all hit the already-recorded "curator has no rubric for text" wall, each with its own
+compounding problem (sparse ledes needing a second call, wikitext quote-parsing, no unit smaller
+than a ~2,000-word chapter). Two cut: Gutendex is unreachable from a headless script (Cloudflare
+managed JS challenge, confirmed 403 even with a browser UA), and lastmuseum.com isn't a blog at
+all — a semantic search UI over other institutions' collections. One finding outside this file's
+scope, flagged there rather than fixed: `www.loc.gov/robots.txt` disallows `/pictures/search` for
+`*`, and the already-shipped `loc.ts` adapter's endpoint lives under that exact path. Nothing was
+promoted — that still needs an actual adapter + ingest + score-distribution pass and Ben's verdict,
+per the loop.
+
+**Findings, later session:** Ben asked about seven more blog leads by name plus Cooper Hewitt.
+Four more good candidates: **mossandfog.com** and **streetartnews.net** (cleanest robots.txt of
+anything probed yet — no bot-list at all) and **spoon-tamago.com** (already blurb-sized posts) are
+all near drop-ins for the shipped WP-REST scraper core; **thisisnthappiness.com** turned out to
+also be a Tumblr blog (custom domain, same legacy API as thingsorganizedneatly, 108,968 posts of
+curated street art). **juxtapoz.com** parked — not WordPress (Joomla + K2, a thin undocumented RSS
+feed instead of a real API), and its content splits between link-card-honest press releases and
+real authored interviews a link card would misrepresent. **hyperallergic.com** cut on a finding
+worth remembering: it's the single most AI-crawler-friendly site probed all session (Ghost, clean
+robots.txt, an `/llms.txt` that explicitly welcomes this) — cut anyway because its content is
+uniformly reported journalism, not an image round-up, so the link-card posture would misrepresent
+real reporting as a visual-feed item regardless of how easy access is. **Cooper Hewitt** cut for
+redundancy, not access: its standalone API 500s on every call and its docs are bot-walled, but the
+**already-kept Smithsonian Open Access API already returns all 58,198 Cooper Hewitt objects**
+under `unit_code:CHNDM`, filterable with the identical CC0 check the shipped adapter already runs
+— un-parking that texture later is a seed-query widening, not a new adapter.
+
+**Decisions, later session:** Ben then asked specifically for `thingsorganizedneatly.tumblr.com`
+and to "figure it out." Ran the brainstorming skill (bounded path) rather than jumping to code —
+this is a second blog-family member over a genuinely different API shape (Tumblr's legacy
+`/api/read/json`, not WP REST), with one real judgment call (its `robots.txt` names `ClaudeBot`
+and `anthropic-ai` explicitly — confirmed **platform-wide, not this blog's own policy**, since the
+identical list turned up verbatim on the unrelated thisisnthappiness.com) and one genuine open
+design question (what "title" means when most Tumblr posts have no headline field at all).
+Resolved both, and confirmed empirically that **no LLM-blurb-synthesis mechanism is needed** for
+the "nothing to blurb" edge case this blog was flagged for back on 08-25-26 — doorofperception's
+own shipped precedent ("floored ... never padded here") already answers it, and a 20-post live
+sample showed roughly half the corpus clears the existing 60-char thin-summary floor on its own,
+real yield with zero new machinery. Design approved by Ben, but **explicitly deferred rather than
+implemented this session** — written up instead as `docs/HANDOFF_tumblr-walk.md`, a self-contained
+pickup document (real API response shapes, the resolved judgment calls, a file-by-file
+implementation checklist, open items) for a fresh session to execute against.
+
+*Session spend: 1.53M tok (in 12 · out 20.2k · cache r 1.48M / w 27.7k) · ~$0.91 · sonnet-5 · 16:38→16:40*
+
+*Session spend: 8.37M tok (in 181 · out 141.4k · cache r 7.81M / w 419.9k) · ~$7.42 · sonnet-5 + opus-4-7 · 15:37→15:58*
+
+**Shipped, later session:** Committed and merged the round-2 findings into `docs/source-candidates.md`
+on `main` — branched first (`docs/source-candidates-round2`, `7bf8993`) rather than commit on the
+default branch, per convention, then a `--no-ff` merge (`5e893c3`). The rest of the tree's unrelated
+in-flight changes (`CLAUDE.md`, both PHASE8 docs, this log) were left untouched and uncommitted
+throughout — the branch switch carries dirty files across cleanly since nothing else was staged.
+
+*Session spend: 2.63M tok (in 36 · out 28.4k · cache r 2.58M / w 18.9k) · ~$1.31 · sonnet-5 · 15:58→16:01*
 
 ## 2026-08
 
