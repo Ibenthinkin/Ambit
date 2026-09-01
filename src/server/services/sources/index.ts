@@ -7,6 +7,7 @@ import { met } from "./met";
 import { nasaImages } from "./nasa-images";
 import { poetrydb } from "./poetrydb";
 import { smithsonian } from "./smithsonian";
+import { thingsorganizedneatly } from "./things-organized-neatly";
 import type { CorpusWalkAdapter, SourceAdapter, SourceId } from "./types";
 import { wellcome } from "./wellcome";
 import { wikipedia } from "./wikipedia";
@@ -33,6 +34,7 @@ export const adapters: Record<SearchSourceId, SourceAdapter<unknown>> = {
  *  compile error here rather than a runtime surprise in ingest. */
 export const walkers: Record<WalkSourceId, CorpusWalkAdapter<unknown>> = {
   doorofperception,
+  thingsorganizedneatly,
 };
 
 /** For CLIs that validate a `--source` flag: everything ingest knows how to reach. */

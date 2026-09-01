@@ -3,9 +3,16 @@
 // is twenty lines. Fake timers make the 1s → 3s → 9s backoff instantaneous.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchJson, fetchJsonResponse, HttpRefusedError } from "./http";
+import {
+  fetchJson,
+  fetchJsonResponse,
+  fetchTextResponse,
+  HttpRefusedError,
+} from "./http";
 
-function stub(responses: { ok: boolean; status: number; body?: unknown }[]) {
+function stub(
+  responses: { ok: boolean; status: number; body?: unknown; text?: string }[],
+) {
   const calls: string[] = [];
   let i = 0;
   vi.stubGlobal("fetch", (input: string | URL) => {
@@ -16,6 +23,7 @@ function stub(responses: { ok: boolean; status: number; body?: unknown }[]) {
       status: r.status,
       headers: new Headers({ "x-wp-totalpages": "4" }),
       json: () => Promise.resolve(r.body ?? {}),
+      text: () => Promise.resolve(r.text ?? ""),
     });
   });
   return calls;
@@ -79,5 +87,23 @@ describe("fetchJson", () => {
     const { data, headers } = await fetchJsonResponse("https://example.test/a");
     expect(data).toEqual([{ id: 1 }]);
     expect(headers.get("x-wp-totalpages")).toBe("4");
+  });
+
+  // Phase 6.3's second blog (Tumblr) is the first source whose "JSON" endpoint is not JSON on
+  // the wire — `var tumblr_api_read = {...};` — so the adapter needs the body as text, under the
+  // same retry/refusal policy as everything else. One policy, two readers.
+  it("fetchTextResponse hands back the raw body, unparsed, with the headers", async () => {
+    stub([{ ok: true, status: 200, text: "var x = {};" }]);
+    const { text, headers } = await fetchTextResponse("https://example.test/a");
+    expect(text).toBe("var x = {};");
+    expect(headers.get("x-wp-totalpages")).toBe("4");
+  });
+
+  it("fetchTextResponse honours noRetryOn exactly like fetchJson", async () => {
+    const calls = stub([{ ok: false, status: 403 }]);
+    await expect(
+      fetchTextResponse("https://example.test/a", { noRetryOn: [403] }),
+    ).rejects.toBeInstanceOf(HttpRefusedError);
+    expect(calls).toHaveLength(1);
   });
 });

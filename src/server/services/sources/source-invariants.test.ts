@@ -7,10 +7,12 @@ import { describe, expect, it } from "vitest";
 
 import { WALK_SOURCES } from "~/server/config/topics";
 import dopFixtures from "./__fixtures__/doorofperception.json";
+import tonFixtures from "./__fixtures__/things-organized-neatly.json";
 import { walkers } from "./index";
 
 const fixturesByWalker: Record<string, unknown[]> = {
   doorofperception: dopFixtures,
+  thingsorganizedneatly: tonFixtures,
 };
 
 describe("walk-source invariants (unit)", () => {

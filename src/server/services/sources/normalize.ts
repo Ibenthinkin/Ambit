@@ -88,6 +88,11 @@ export function stripHtml(text: string): string {
  *
  * Numeric forms (decimal and hex) were added for WordPress (Phase 6.3), which renders curly
  * quotes and dashes as `&#8217;` / `&#x2014;` rather than as named entities.
+ *
+ * The NAMED typographic forms were added for Tumblr's legacy API (the second blog, 09-01-26),
+ * which writes the same punctuation as `&rsquo;` / `&ldquo;` / `&hellip;` / `&ndash;` — 30
+ * `&rsquo;` in 200 sampled captions. Each observed entity's obvious partner (`&lsquo;`,
+ * `&mdash;`) is included with it; the list is still a list, not a decoder.
  */
 export function decodeEntities(text: string): string {
   return text
@@ -96,6 +101,13 @@ export function decodeEntities(text: string): string {
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
+    .replace(/&lsquo;/g, "‘")
+    .replace(/&rsquo;/g, "’")
+    .replace(/&ldquo;/g, "“")
+    .replace(/&rdquo;/g, "”")
+    .replace(/&ndash;/g, "–")
+    .replace(/&mdash;/g, "—")
+    .replace(/&hellip;/g, "…")
     .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
     .replace(/&#x([0-9a-f]+);/gi, (_, h: string) =>
       String.fromCodePoint(parseInt(h, 16)),

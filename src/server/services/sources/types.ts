@@ -26,7 +26,9 @@ export type SourceId =
   // Phase 6.3: the first designated blog (docs/PHASE6_DESIGN_6.3.md). Blogs are corpus-WALK
   // sources — see CorpusWalkAdapter below — and are registered in server/config/blogs.ts, which
   // is also where their credit-line label and license string live.
-  | "doorofperception";
+  | "doorofperception"
+  // The second blog, and the first over Tumblr's legacy read API (docs/HANDOFF_tumblr-walk.md).
+  | "thingsorganizedneatly";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds

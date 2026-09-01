@@ -123,6 +123,16 @@ describe("decodeEntities", () => {
   it("leaves an unrecognized entity alone rather than mangling it", () => {
     expect(decodeEntities("caf&eacute;")).toBe("caf&eacute;");
   });
+
+  // Tumblr's legacy API (the second blog, 09-01-26) writes typographic punctuation as NAMED
+  // entities where WordPress writes numeric ones — 30 `&rsquo;` in 200 sampled posts.
+  it("decodes the named typographic entities Tumblr captions actually carry", () => {
+    expect(
+      decodeEntities(
+        "A Shoemaker&rsquo;s &ldquo;Essentials&rdquo; 2010&ndash;2011&hellip;",
+      ),
+    ).toBe("A Shoemaker’s “Essentials” 2010–2011…");
+  });
 });
 
 describe("htmlToText", () => {

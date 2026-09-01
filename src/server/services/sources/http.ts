@@ -67,19 +67,18 @@ export interface FetchJsonOpts {
 }
 
 /**
- * GET a JSON endpoint and return the parsed body *and* the response headers. Retry-with-backoff
- * on failure (see the module header): the retry exists chiefly for the Met, whose rate limit
- * surfaces as an HTTP 403 that looks exactly like a permanent denial but clears after a short
- * pause (phase0/NOTES.md) — so any non-ok response is treated as retryable, not just network
- * errors, unless `noRetryOn` says otherwise.
- *
- * Headers are returned because WordPress paginates by header (`x-wp-totalpages`), and a walker
- * that cannot read it has to guess when the corpus ends. Most callers want `fetchJson` below.
+ * The one retry loop, parameterized by how the body is read. Retry-with-backoff on failure (see
+ * the module header): the retry exists chiefly for the Met, whose rate limit surfaces as an HTTP
+ * 403 that looks exactly like a permanent denial but clears after a short pause (phase0/NOTES.md)
+ * — so any non-ok response is treated as retryable, not just network errors, unless `noRetryOn`
+ * says otherwise. Reading the body happens *inside* the attempt on purpose: a truncated or
+ * malformed body is a failed attempt like any other, and gets the same backoff.
  */
-export async function fetchJsonResponse(
+async function fetchWithRetry<T>(
   url: string,
-  opts?: FetchJsonOpts,
-): Promise<{ data: unknown; headers: Headers }> {
+  opts: FetchJsonOpts | undefined,
+  read: (res: Response) => Promise<T>,
+): Promise<{ data: T; headers: Headers }> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
@@ -101,7 +100,7 @@ export async function fetchJsonResponse(
           throw new HttpRefusedError(res.status, url);
         throw new Error(`HTTP ${res.status} for ${redactUrl(url)}`);
       }
-      return { data: await res.json(), headers: res.headers };
+      return { data: await read(res), headers: res.headers };
     } catch (err) {
       // A refusal is the caller's decision, not a transport failure: straight out, no backoff.
       if (err instanceof HttpRefusedError) throw err;
@@ -113,6 +112,36 @@ export async function fetchJsonResponse(
     }
   }
   throw lastErr;
+}
+
+/**
+ * GET a JSON endpoint and return the parsed body *and* the response headers, under
+ * fetchWithRetry's policy. Headers are returned because WordPress paginates by header
+ * (`x-wp-totalpages`), and a walker that cannot read it has to guess when the corpus ends. Most
+ * callers want `fetchJson` below.
+ */
+export function fetchJsonResponse(
+  url: string,
+  opts?: FetchJsonOpts,
+): Promise<{ data: unknown; headers: Headers }> {
+  return fetchWithRetry(url, opts, (res) => res.json() as Promise<unknown>);
+}
+
+/**
+ * The same policy, body handed back as text. Exists for the sources whose "JSON" endpoint is not
+ * JSON on the wire — Tumblr's legacy `/api/read/json` answers `var tumblr_api_read = {...};`
+ * (Phase 6.3's second blog) — so the adapter can unwrap it itself while still inheriting the
+ * retry, the refusal rule, and the User-Agent. `Accept: application/json` is still sent: it is
+ * what these endpoints expect, and it costs a text endpoint nothing.
+ */
+export async function fetchTextResponse(
+  url: string,
+  opts?: FetchJsonOpts,
+): Promise<{ text: string; headers: Headers }> {
+  const { data, headers } = await fetchWithRetry(url, opts, (res) =>
+    res.text(),
+  );
+  return { text: data, headers };
 }
 
 /** The common case: just the body. Identical policy to fetchJsonResponse. */
