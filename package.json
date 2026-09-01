@@ -24,6 +24,7 @@
     "preview": "next build && next start",
     "recurate": "bun run scripts/recurate.ts",
     "renormalize": "bun run scripts/renormalize-text.ts",
+    "rethumb": "bun run scripts/rethumb-wikipedia.ts",
     "probe": "bun run scripts/probe-adapter.ts",
     "probe:feed": "bun run scripts/probe-feed.ts",
     "probe:walk": "bun run scripts/probe-walk.ts",
