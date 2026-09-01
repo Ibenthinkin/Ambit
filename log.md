@@ -118,6 +118,32 @@ implementation checklist, open items) for a fresh session to execute against.
 
 *Session spend: 1.53M tok (in 12 · out 20.2k · cache r 1.48M / w 27.7k) · ~$0.91 · sonnet-5 · 16:38→16:40*
 
+**Shipped, later session:** Ben switched to Fable and said execute — so the Tumblr handoff went
+from document to adapter in one sitting, on `feat/tumblr-walk-thingsorganizedneatly` (`fce1d66`),
+TDD throughout: fifteen fixture tests on six real posts, the full suite green (81 files / 863
+tests), a live `probe:walk` at offsets 0 and 3000, then a 150-item dry-run through the real
+classify-mode curator. **The sample: 83 curated @ 8.02 avg, 78% ≥ 8; 55 classified (avg 8.18) into
+14 of 16 topics, zoology/machines/typography/architecture leading; 28 refused (avg 7.71) — Prada
+ads, an Easter still life, flat lays, good images with no home among the sixteen.** Three things
+the plan got wrong, all found by sampling 200 posts across the archive before writing code:
+`photo` is the dominant type (162:37), not `regular` as the newest page suggested; the floor rate
+climbs with depth (35% of the newest 150 under 60 chars, 60% across the archive — old Tumblr was
+wordless), so a full walk should land near 1,300–1,500 items, not 2,000; and an empty caption
+means an empty slug, so the humanized-slug title fallback is nearly dead code and a third fallback
+had to exist. Two shared helpers grew to make it fit: `http.ts` got `fetchTextResponse` (the
+legacy API answers `var tumblr_api_read = {…};`, a script, and `res.json()` throws), and
+`decodeEntities` learned the named typographic entities — `&rsquo;` and friends — which Tumblr
+writes where WordPress writes numeric ones; the adapter's own HTML-safety test is what caught
+that, which is the test doing its job. **One finding needs Ben, not a fix:** `structuralFloor`'s
+dup-title rule dropped nine real posts — "Andy Goldsworthy" ×3, the Peeps factory ×3 — because a
+blog posts in series and a caption-derived title collides where a WordPress title never did.
+Accept the 6%, or exempt walk sources from that one rule. Evidence and the diff-against-plan are
+in `docs/HANDOFF_tumblr-walk.md` §8; the source-candidates row and a SPEC §6.1 bullet carry the
+numbers, marked verdict-pending. Not done: the full walk and write, the rendered eyeball, the
+promotion.
+
+*Session spend: 43.39M tok (in 43.3k · out 485.8k · cache r 41.21M / w 1.65M) · ~≥$4.20 · fable-5-1 + sonnet-5 + opus-4-7 · 16:40→17:39*
+
 *Session spend: 8.37M tok (in 181 · out 141.4k · cache r 7.81M / w 419.9k) · ~$7.42 · sonnet-5 + opus-4-7 · 15:37→15:58*
 
 **Shipped, later session:** Committed and merged the round-2 findings into `docs/source-candidates.md`
