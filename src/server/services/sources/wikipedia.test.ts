@@ -2,12 +2,13 @@
 // recorded once against the real API on 08-07-26). Covers toItem()'s normalization and the two pure
 // predicates that gate what search()/toItem() are willing to keep: isLowValueTitle (search-result
 // filtering) and isFreeImageLicense (the per-image license resolution decided in docs/PHASE3_PLAN.md).
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import fixtures from "./__fixtures__/wikipedia.json";
 import {
   fetchBody,
   isFreeImageLicense,
   isLowValueTitle,
+  leadImageFileName,
   wikipedia,
   type WikipediaRaw,
 } from "./wikipedia";
@@ -20,6 +21,8 @@ vi.mock("./http", () => ({
   fetchJson,
   USER_AGENT: "test-agent",
 }));
+
+beforeEach(() => fetchJson.mockReset());
 
 const raws = fixtures as unknown as WikipediaRaw[];
 const byTitle = (title: string) => {
@@ -62,7 +65,7 @@ describe("wikipedia.toItem", () => {
     const item = wikipedia.toItem(
       byTitle("Abbey Road (fictional fair-use test)"),
     );
-    // `original.source` IS present on the raw page — the point of this case is that toItem()
+    // `thumbnail.source` IS present on the raw page — the point of this case is that toItem()
     // must still null it out because imageLicense came back null (non-free).
     expect(item.imageUrl).toBeNull();
     expect(item.license).toBe("CC BY-SA 4.0 (text)");
@@ -73,6 +76,82 @@ describe("wikipedia.toItem", () => {
     expect(item.type).toBe("article");
     expect(item.body).toContain("Edmond Halley understood");
     expect(item.body?.length).toBeGreaterThan(item.summary.length);
+  });
+});
+
+describe("wikipedia.search", () => {
+  const THUMB =
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Titan.jpg/1920px-Titan.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail";
+
+  // Phase 8.1 T7.4c: `piprop=original` handed the image proxy full-resolution files (one measured
+  // at 11.9 MB) and burned Wikimedia's per-burst budget after ~450 of them. The cache resizes to
+  // 1600 px anyway, so ask for a derivative at exactly that size and never fetch the original.
+  it("asks PageImages for a 1600px thumbnail, never the full-resolution original", async () => {
+    fetchJson
+      .mockResolvedValueOnce({
+        query: { search: [{ pageid: 50650, title: "Astronomy" }] },
+      })
+      .mockResolvedValueOnce({
+        query: {
+          pages: {
+            "50650": {
+              pageid: 50650,
+              title: "Astronomy",
+              extract: "Astronomy is a natural science. ".repeat(10),
+              pageimage: "Titan.jpg",
+              thumbnail: { source: THUMB, width: 1600, height: 1497 },
+            },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        query: {
+          pages: {
+            "1": {
+              title: "File:Titan.jpg",
+              imageinfo: [
+                {
+                  extmetadata: { LicenseShortName: { value: "Public domain" } },
+                },
+              ],
+            },
+          },
+        },
+      });
+
+    const raws = await wikipedia.search("astronomy", { limit: 1 });
+
+    const detailUrl = fetchJson.mock.calls[1]?.[0] as string;
+    expect(detailUrl).toContain("piprop=thumbnail|name");
+    expect(detailUrl).toContain("pithumbsize=1600");
+    expect(detailUrl).not.toContain("original");
+    expect(wikipedia.toItem(raws[0]!).imageUrl).toBe(THUMB);
+  });
+});
+
+describe("leadImageFileName", () => {
+  // The identity of a lead image, for T7.4c's row rewrite: a re-fetched thumbnail may only replace
+  // a stored original when it is the SAME file — the file whose license ingest resolved. Wikipedia
+  // reports the name as `pageimage` (underscores, no percent-encoding), so that is the form.
+  it("reads the file name off an original-form URL, decoding the path", () => {
+    expect(
+      leadImageFileName(
+        "https://upload.wikimedia.org/wikipedia/en/c/ce/Hassan_II_mosque%2C_Casablanca_2.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original",
+      ),
+    ).toBe("Hassan_II_mosque,_Casablanca_2.jpg");
+  });
+
+  it("reads the source file, not the derivative, off a thumbnail-form URL", () => {
+    expect(
+      leadImageFileName(
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Margins.svg/1920px-Margins.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      ),
+    ).toBe("Margins.svg");
+  });
+
+  it("returns null for anything that is not an upload.wikimedia.org file path", () => {
+    expect(leadImageFileName("https://example.com/a/b/c.jpg")).toBeNull();
+    expect(leadImageFileName("https://upload.wikimedia.org/")).toBeNull();
   });
 });
 

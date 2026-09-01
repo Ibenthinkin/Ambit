@@ -4,7 +4,7 @@
       "pageid": 50650,
       "title": "Astronomy",
       "extract": "Astronomy is a natural science that studies celestial objects and the phenomena that occur in the cosmos. It uses mathematics, physics, and chemistry to explain their origin and their overall evolution. Objects of interest include planets, moons, stars, nebulae, galaxies, meteoroids, asteroids, and comets.",
-      "original": {
+      "thumbnail": {
         "source": "https://upload.wikimedia.org/wikipedia/commons/0/06/Titan_in_front_of_the_ring_and_Saturn.jpg",
         "width": 1417,
         "height": 1326
@@ -23,7 +23,7 @@
       "pageid": 4183,
       "title": "Botany",
       "extract": "Botany, also called plant science, is the branch of natural science and biology that studies the growth, reproduction and evolution of plants over the last 3.5 billion years of life on earth.",
-      "original": {
+      "thumbnail": {
         "source": "https://upload.wikimedia.org/wikipedia/commons/6/6c/Myris_fragr_Fr_080112-3294_ltn.jpg",
         "width": 1300,
         "height": 1144
@@ -50,7 +50,7 @@
       "pageid": 46083,
       "title": "Halley's Comet",
       "extract": "Halley's Comet is the only known short-period comet that is consistently visible to the naked eye from Earth, appearing roughly every 74–79 years. It last appeared in the inner parts of the Solar System in 1986 and will next appear in mid-2061.",
-      "original": {
+      "thumbnail": {
         "source": "https://upload.wikimedia.org/wikipedia/commons/2/2a/Lspn_comet_halley.jpg",
         "width": 1492,
         "height": 1036
@@ -70,7 +70,7 @@
       "pageid": 999999,
       "title": "Abbey Road (fictional fair-use test)",
       "extract": "A hand-edited case standing in for a fair-use-licensed lead image, which the live sample of four real articles did not happen to produce. Exercises the reject-non-free-image path.",
-      "original": {
+      "thumbnail": {
         "source": "https://upload.wikimedia.org/wikipedia/en/hypothetical-fair-use-cover.jpg",
         "width": 500,
         "height": 500

@@ -7,7 +7,8 @@
 // choice:
 //   1. search()       — up to 20 titles/query, one call
 //   2. detail (intro) — up to 20 pages/call (TextExtracts' exintro cap); gets summary + lead image
-//                        + categories
+//                        + categories. The lead image is asked for as a **1600 px thumbnail**, never
+//                        the original — see the note above `search()`.
 //   3. imageinfo       — per-page license lookup, batched ~10 File titles/call (extmetadata is
 //                        documented as expensive server-side — keep batches small)
 //   4. detail (body)   — full-article extracts are capped at ONE page per request (unlike intro
@@ -52,7 +53,10 @@ export interface WikipediaRaw {
     pageid: number;
     title: string;
     extract: string;
-    original?: { source: string; width: number; height: number };
+    /** PageImages' `thumbnail` at `pithumbsize=1600`: a `/thumb/…/1920px-…` derivative for large
+     *  files (Wikimedia snaps to its standard widths), or the unscaled original when the file is
+     *  already narrower than that. Either way, never a multi-megabyte original. */
+    thumbnail?: { source: string; width: number; height: number };
     categories?: { title: string }[];
   };
   body: string | null;
@@ -67,7 +71,7 @@ interface WikiDetailPage {
   pageid: number;
   title?: string;
   extract?: string;
-  original?: { source: string; width: number; height: number };
+  thumbnail?: { source: string; width: number; height: number };
   pageimage?: string;
   categories?: { title: string }[];
 }
@@ -89,6 +93,47 @@ function chunk<T>(items: T[], size: number): T[][] {
   for (let i = 0; i < items.length; i += size)
     out.push(items.slice(i, i + size));
   return out;
+}
+
+/**
+ * The lead-image size asked of PageImages (`pithumbsize`). Through 8.1 T7.4 this adapter asked for
+ * `piprop=original` and stored the full-resolution file — one measured at 11.9 MB — which the image
+ * cache (`image-cache.ts`) then shrank to ≤1600 px anyway. Wikimedia budgets `upload.wikimedia.org`
+ * by *bytes*, so those originals tripped a 429 after ~450 of them and left ~846 images uncached
+ * (T7.4c). Asking for exactly the cache's `MAX_EDGE` gets a `/thumb/` derivative at roughly 20×
+ * fewer bytes, converted to PNG/JPEG for SVG, TIFF, PDF and WebP originals — the API does the
+ * format work, which is why the T7.4c row rewrite (`scripts/rethumb-wikipedia.ts`) re-asks the
+ * API rather than rewriting URLs by pattern.
+ */
+export const LEAD_IMAGE_WIDTH = 1600;
+
+/**
+ * The file name a Wikimedia upload URL points at — `Margins.svg` for both the original
+ * `…/commons/c/c8/Margins.svg` and the derivative `…/commons/thumb/c/c8/Margins.svg/1920px-Margins.svg.png`
+ * — decoded to the underscore form PageImages reports as `pageimage`. Null for anything that is
+ * not an upload path. This is how T7.4c's rewrite proves a fresh thumbnail is the SAME file whose
+ * license ingest resolved: a page whose lead image has changed since must keep its stored URL,
+ * because the new file's license was never checked.
+ */
+export function leadImageFileName(url: string): string | null {
+  let path: string;
+  try {
+    const u = new URL(url);
+    if (u.host !== "upload.wikimedia.org") return null;
+    path = u.pathname;
+  } catch {
+    return null;
+  }
+  const m =
+    /^\/wikipedia\/[^/]+\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^/]+)/.exec(
+      path,
+    );
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]!);
+  } catch {
+    return null;
+  }
 }
 
 async function search(
@@ -115,7 +160,8 @@ async function search(
     const ids = batch.map((h) => h.pageid);
     const detail = (await fetchJson(
       `${WIKI_API}?action=query&format=json&prop=extracts|pageimages|categories` +
-        `&exintro=1&explaintext=1&piprop=original|name&cllimit=max&clshow=!hidden` +
+        `&exintro=1&explaintext=1&piprop=thumbnail|name&pithumbsize=${LEAD_IMAGE_WIDTH}` +
+        `&cllimit=max&clshow=!hidden` +
         `&pageids=${ids.join("|")}`,
       { delayMs: 120 },
     )) as { query?: { pages?: Record<string, WikiDetailPage> } };
@@ -202,7 +248,7 @@ function toItem(raw: WikipediaRaw): NormalizedItem {
     title: page.title,
     summary: toLede(page.extract),
     body,
-    imageUrl: imageLicense ? (page.original?.source ?? null) : null,
+    imageUrl: imageLicense ? (page.thumbnail?.source ?? null) : null,
     sourceUrl: `https://en.wikipedia.org/?curid=${page.pageid}`,
     tags,
     attribution: `Wikipedia contributors, "${page.title}"`,
