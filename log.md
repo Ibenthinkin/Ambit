@@ -317,6 +317,62 @@ Coolify's task status is not evidence, the un-homed count in the database is.
 
 *Session spend: 39.90M tok (in 652 · out 192.4k · cache r 38.68M / w 1.03M) · ~$31.88 · opus-5 + opus-4-7 · 13:12→13:34*
 
+**Shipped (a later session, same day):** **The Public Domain Review is built, KEPT and merged** —
+`docs/PLAN_publicdomainreview.md` executed end to end, Tasks 1–7, on a plain branch off `main`.
+`pdr` is the **fourth walk source and the first that is not a designated blog**: a walk over
+Gatsby's `page-data` JSON (four one-shot indexes — 1,255 collections, 343 essays, Conjectures 21,
+Curator's Choice 29 — cursor `<phase>:<offset>`, per-record disk cache under `.cache/pdr/`),
+a rights policy in `walk()` that drops collections whose digital copy an institution marks
+Non-commercial, and two projections: a **collection is an image item that also carries its
+Preamble as `body`**, a CC BY-SA essay is an article, anything else a link card. The item page
+learned to typeset a body under a picture (`ReaderBlocks` extracted from `reader-item-body.tsx`,
+introduced by `ReuseNotice`); `LinkOutRow` learned `pdr`. **Full walk: 1,648 records → 19 excluded
+on rights → 2 `toItem` errors (the only two collections with no featured image) → 1,627 offered →
+3 floored → 1,624 rows @ 8.39 avg, 87% ≥ 8** (collections 1,231 @ 8.50 · essays-as-articles 318 @
+7.93 · essays-as-cards 75 @ 8.63), all sixteen topics filled, **186 (11%) un-homed** with
+`item_topic.origin = curator` on every one of the 2,208 memberships — the §1a hazard checked
+before the walk and confirmed after it.
+
+**Findings:** **One slug in 1,648 killed the first full walk.** PDR's Airtable carries a single
+essay slug with a trailing slash (`…make-lemonade/`), and it is the *record's own* `Slug` field —
+so it reached the cache path, the detail URL (`encodeURIComponent` → a 404-ing `%2F`) and the
+stored `sourceId` at once. The walk died at cursor `e:100`, which meant **neither series was
+walked**, and the run still exited 0 — the tell was `complete: no` in the walk-sources table, not
+the exit code. Worth knowing generally: *an ingest that fails mid-walk reports success*, and the
+completeness column is the only honest witness. The fix is `slugOf()` normalising at the wire
+boundary; `cachePath()`'s guard was deliberately **not** loosened to accept a slash, because it is
+a safety assertion about what may become a filesystem path and one site's typo is not a reason to
+soften it. No data repair was needed: the walk died before storing the bad row.
+— **The stored-HTML invariant caught a false positive worth keeping the check for.**
+`essay/the-primordial-gound` reproduces a forwarded email, addresses and all
+(`From: Ivars Skrastins <i** @du.lv >`), which the old `'<[a-zA-Z/][^>]*>'` read as a tag. Rather
+than exclude PDR the way wikipedia is excluded — and lose the check over its 1,547 bodies — the
+pattern now requires a real tag name after the `<`. It still matches every real tag shape and
+finds 0 offenders corpus-wide.
+— **The sampled link-card share was a sampling artefact.** The trial samples put it at 42%; the
+corpus figure is **19%** (75 of 393 essays). The 110 essays cached at sampling time were the newest
+60 plus *all* of both series, so Curator's Choice — which is 100% link cards, because PDR licenses
+none of its institutional guest posts — was 26% of the sample against 7% of the corpus.
+— Two `Custom License` essays carry a `License_Note` saying the text *is* CC BY-SA. `essayIsOpen`
+reads only the explicit label, so both become cards: a deliberate under-claim, never an over-claim.
+
+**Decisions:** Ben took **Keep, all four phases**, on the samples (collections 8.73 / 97% ≥ 8 — the
+best in the corpus, edging thisiscolossal's 8.70; essays 8.32; series 8.02). Curator's Choice was
+put to him separately, since all 29 are link cards with no readable text, and kept — dropping it is
+a one-line change to `PHASES` if the corpus ever feels card-heavy. The **axis question is left open
+for Cut 2, deliberately**: the collections' un-homed pile is dominated by *medium and epoch* terms
+(`20th century`, `images`, `engraving`) while the essays' is *subject* terms (`culture & history`,
+`literature`, `film`), and Ambit's sixteen topics are a subject axis — so growing the vocabulary
+along medium or period is a real choice to make on purpose rather than by histogram rank.
+
+**Open / next:** PDR is **local rows only** until the next deploy, like the two kept blogs; the
+nightly cron walks it then, and its first *server* walk is the 1.7 GB one (the §1a `item_topic`
+check applies again to that first production ingest). Still open from before: 8.1's T8 restore
+drill and T9.2–9.5, and sources round 2's streetartnews + spoon-tamago.
+
+*Session spend: 71.94M tok (in 844 · out 372.4k · cache r 70.01M / w 1.56M) · ~$56.86 · opus-5 + opus-4-7 · 14:22→15:26*
+
+
 
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
