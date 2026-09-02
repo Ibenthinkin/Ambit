@@ -28,6 +28,7 @@
     "probe": "bun run scripts/probe-adapter.ts",
     "probe:feed": "bun run scripts/probe-feed.ts",
     "probe:walk": "bun run scripts/probe-walk.ts",
+    "stats:walk": "bun run scripts/walk-stats.ts",
     "start": "bun run --bun next start",
     "e2e": "playwright test",
     "e2e:clean": "bun run scripts/e2e-clean.ts",
