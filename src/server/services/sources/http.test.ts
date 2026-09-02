@@ -54,6 +54,39 @@ describe("fetchJson", () => {
     expect(calls).toHaveLength(1);
   });
 
+  // 09-02-26: a thisiscolossal walk hung for good on a keep-alive socket the far end had dropped
+  // — 13.9 MB in, then zero bytes forever, no error, no timeout. A request that never answers
+  // must count as a failed attempt and get the same backoff-and-retry as a 503.
+  it("aborts a request that never answers after timeoutMs and retries it", async () => {
+    const calls: (AbortSignal | undefined)[] = [];
+    vi.stubGlobal("fetch", (_input: string | URL, init?: RequestInit) => {
+      const signal = init?.signal ?? undefined;
+      calls.push(signal);
+      if (calls.length === 1) {
+        // Hangs until aborted, the way a dead socket does.
+        return new Promise((_, reject) => {
+          signal?.addEventListener("abort", () =>
+            reject(
+              new DOMException("The operation was aborted.", "AbortError"),
+            ),
+          );
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: () => Promise.resolve({ fine: true }),
+        text: () => Promise.resolve(""),
+      });
+    });
+    const p = fetchJson("https://example.test/hang", { timeoutMs: 5_000 });
+    await vi.runAllTimersAsync();
+    await expect(p).resolves.toEqual({ fine: true });
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.aborted).toBe(true);
+  });
+
   it("still retries a 403 when noRetryOn is not given (the Met's rate limit looks like one)", async () => {
     const calls = stub([{ ok: false, status: 403 }]);
     const p = fetchJson("https://example.test/a");
