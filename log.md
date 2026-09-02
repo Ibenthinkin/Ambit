@@ -174,6 +174,44 @@ session didn't create.)
 
 *Session spend: 23.21M tok (in 367 · out 172.2k · cache r 22.13M / w 906.0k) · ~$24.01 · opus-5 + opus-4-7 · 10:59→11:56*
 
+**Planned (a later session, same day):** `docs/PLAN_publicdomainreview.md` — the PDR walker as a
+cold-executable plan for a cheaper session, seven tasks, stop at Ben's verdict. Planning
+re-probed the site harder than the morning's session had, and two facts changed the design: no
+index carries an **`Excerpt`/`Intro`** (the blurb needs the per-record fetch after all), and every
+detail response is **0.5–1.2 MB** because Gatsby embeds the whole index and the institution list
+in each one — 1.7 GB per uncached walk — so the adapter gets a slug-keyed disk cache
+(`.cache/pdr/<kind>/`, 8–30 KB a record) and a nightly walk is four index fetches plus the new
+pieces. A 40-collection rights sample settled the handoff's open question 3: the underlying work
+is PD on every row, but two sources (both BnF) mark the *digital copy* Non-commercial, so the
+walker excludes those (~5%) and keeps "Unclear". **Then Ben widened the scope** — "I want the
+essays, and all the other stuff too" — and took three calls in one AskUserQuestion: a collection
+is an **image item that also carries its Preamble as `body`**, rendered on the item page under
+the picture (so it keeps the gallery; feed and `/g/` unchanged — the one UI change of the plan,
+plus a `ReuseNotice` line PDR's CC BY-SA terms ask for); **essays are in**, including the
+Conjectures (21) and Curator's Choice (29) series the essays index omits — CC BY-SA ones (28 of
+32 sampled) as articles with the essay as body, "Custom License"/unlabelled ones as link cards;
+the PDR **Blog is out** (76 org-news posts, no images). Consequences: the walk-source body-null
+invariant is rescoped to *blogs* (it was only ever D5), `sourceId` gains a `collection/` /
+`essay/` namespace, the cursor is `<phase>:<offset>` over four indexes, and `stats:walk` grows a
+`--cursor` so a phase can be sampled alone.
+
+**Decisions:** **PDR is paused before execution, by Ben** — he is rewriting the tagging rules in
+a parallel session (`docs/topic-vocabulary-growth`), that rewrite reaches ingestion, and he wants
+it landed before any new source is walked. The plan carries a PAUSED banner saying which parts to
+re-read against the new rules (the `tags` arrays in both projections, the classify-mode
+assumptions); the rest is independent of tagging.
+
+**Open / next:** when the tagging change has merged, open a new session on
+`docs/PLAN_publicdomainreview.md`, reconcile Task 3's tag handling with the new rules, then
+execute from Task 1 in a cheaper session. Committed on its own branch, `docs/plan-pdr`, off
+`main` — the checkout was held by another live session the whole time (first on
+`feat/wp-rest-streetartnews`, then on `docs/topic-vocabulary-growth`), so the commit was made
+without touching that branch or the shared index, and the working tree was restored to match it.
+
+*Session spend: 13.13M tok (in 38.1k · out 391.5k · cache r 11.40M / w 1.30M) · ~≥$0.96 · fable-5-1 + opus-4-7 · 10:52→11:09*
+*Session spend: 17.38M tok (in 4.8k · out 307.9k · cache r 15.71M / w 1.36M) · fable-5-1 · 11:09→11:48*
+*Session spend: 3.93M tok (in 668 · out 18.0k · cache r 3.90M / w 12.0k) · fable-5-1 · 11:48→11:52*
+
 **Planned (Cut 1, a later session):** `docs/PLAN_topic-vocabulary-cut1.md` — ten tasks, cold-
 executable, from the design doc. The planning session **trialled the schema edit** (nullable
 `topic_id`) and reverted it, so the plan lists the typechecker's real worklist: **15 errors in 8
@@ -193,6 +231,43 @@ free from cache (~70 un-homed expected, memberships written 0). The two big re-w
 streetartnews verdict are offered after the merge, not started.
 
 *Session spend: 12.58M tok (in 7.6k · out 339.4k · cache r 11.08M / w 1.15M) · fable-5-1 · 12:16→12:33*
+
+**Shipped (a later session, same day):** the PDR plan re-read against Cut 1 and un-paused —
+`docs/PLAN_publicdomainreview.md` merged to `main` (`docs/plan-pdr`), with a new **§1a** carrying
+Cut 1's rules for a cold executor, an **execution gate** and amended Tasks 6–7. Tasks 1–5 need no
+change at all and can run **concurrently** with Cut 1's execution.
+
+**Findings:** the design's §12 "single biggest planning risk" — that the PDR plan rewrites the same
+`scripts/ingest.ts` walk lane Cut 1 rewrites — **does not hold.** The PDR plan never edits
+`scripts/ingest.ts`; it only asserts that lane's output in one dry-run step. The two plans share
+exactly one file, `scripts/walk-stats.ts`, in disjoint regions (Cut 1: the `classified`/`refused`
+counters; PDR: a `--cursor` flag). Nor does Cut 1 touch `types.ts`, `topics.ts`, `sources/index.ts`
+or `source-invariants.test.ts`, which is the rest of PDR's Task 4. What the re-read *did* turn up is
+one correctness hazard nobody had: Cut 1's migration backfills `item_topic.origin` from a **source
+list frozen in the SQL**, and `pdr` is correctly absent from it — so any PDR row written to a
+database *before* that migration runs is backfilled `origin='seed'` when it is curator-classified, a
+silent lie in the column Cut 2's promotion audits. Tasks 1–6 write no rows, so it bites only on a
+Keep full walk; Task 7 now opens with the check, and it applies again to the first *production*
+ingest after the next deploy.
+
+**Decisions:** PDR's verdict question changes the way streetartnews' did (design §13) — a high
+un-homed share is no longer an argument against a source, and the report now asks what the un-homed
+items are *about*. Recorded alongside it, because PDR is what will force it: PDR is the **strongest
+vocabulary source in the corpus** (controlled `Medium`/`Theme`/`Style`/`Epoch`/`Tags`, 4–12 per
+record on all 1,648 pieces, against blog tags that are often absent) and carries the matching trap —
+Task 3 lowercases all four taxonomies into one `tags` array, so the histogram will surface `film`,
+`book`, `18th century` beside subject terms, and **medium and epoch are a different axis** from the
+sixteen. Growing the vocabulary along one axis or several is Cut 2's call, to be made deliberately
+rather than by histogram rank; the verdict report now says so out loud.
+
+**Open / next:** Cut 1 is mid-execution in a parallel session (Task 5, `curator.test.ts` unstaged at
+13:25). PDR Tasks 1–5 can start whenever; Tasks 6–7 wait on Cut 1's merge and a rebase. A third
+session sharing this checkout is now the norm rather than the exception, so the plan's branch bullet
+was rewritten to hand a `git worktree add ../ambit-pdr` recipe to whoever finds `~/Dev/ambit` on
+someone else's branch — which is how this plan was edited and merged without touching the tree Cut 1
+is working in.
+
+*Session spend: 9.57M tok (in 289 · out 129.5k · cache r 8.62M / w 813.9k) · ~$13.56 · opus-5 + opus-4-7 · 13:11→13:30*
 
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
