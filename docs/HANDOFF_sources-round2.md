@@ -11,6 +11,59 @@ and §2 before touching anything; §4 is the recipe that worked.
 
 ---
 
+## 0. Start here — the next session's task: streetartnews and spoon-tamago
+
+Two WordPress blogs, each a config row on the `wp-rest` factory. Everything below is
+cold-executable in a cheaper session; the only stop is Ben's verdict on each sample. Read §3
+(conventions) once; §1 and §2 are background.
+
+**Model files** — copy, don't invent: `src/server/services/sources/mossandfog.ts` (the one-line
+adapter), `mossandfog.test.ts` (the fixture test, including the HTML-safety loop), the
+`mossandfog` row in `src/server/config/blogs.ts` (the robots comment's shape), and
+`__fixtures__/mossandfog.json` (what a trimmed fixture row contains — only the fields `toItem`
+reads, plus `tagNames`).
+
+**Per blog, in this order** (do streetartnews first, then spoon-tamago; stop for the verdict
+after each `stats:walk`):
+
+1. **Robots, by hand, today.** `curl -s -A "Ambit/0.1" https://<host>/robots.txt`. Record what
+   you saw and the date in the `blogs.ts` row comment. Probe facts from 09-01-26: streetartnews
+   had no named-bot section at all (just `/wp-admin/`); spoon-tamago sits behind a Sucuri WAF
+   that passed clean at 500 ms sequential. A `Disallow: /` for `*` is a Cut, never a workaround.
+2. **Host.** streetartnews: pin the **bare** host (`https://streetartnews.net`) — `www` and bare
+   are both live as separate canonicals; check which one `Location:` headers prefer before
+   choosing. spoon-tamago: `https://www.spoon-tamago.com` — verify the redirect direction too.
+3. **Fixture.** Fetch `/wp-json/wp/v2/posts?per_page=3&_embed=wp:featuredmedia` and the
+   matching `/wp-json/wp/v2/tags?include=<ids>&_fields=id,name`, trim to the mossandfog shape,
+   save as `__fixtures__/<id>.json`. Note `x-wp-total` / `x-wp-totalpages` from the posts
+   response for the row comment (spoon-tamago 4,075 posts, streetartnews 9,505 at probe time).
+4. **Registrations, five lines:** `SourceId` in `sources/types.ts`; `WALK_SOURCES` in
+   `config/topics.ts`; the `BLOGS` row; `walkers` in `sources/index.ts` (plus its import);
+   the fixture map in `source-invariants.test.ts`. Label: "StreetArtNews", "Spoon & Tamago".
+5. **TDD:** write `<id>.test.ts` from the mossandfog one (assert the real title, link, host,
+   attribution; keep the HTML-safety loop) — watch it fail on the missing module — then the
+   one-line `<id>.ts`. `bunx vitest run src/server/services/sources/` then `bun run typecheck`,
+   `bunx eslint <files>`, `bunx prettier --write <files>`.
+6. **Live, politely:** `bun run probe:walk <id> --limit 5`, then
+   `bun run ingest --source <id> --dry-run --quota 150` (cents), then
+   `bun run stats:walk <id>` (free — reads the cache). Paste the stats block into the blog's
+   `docs/source-candidates.md` row.
+7. **Stop. Ben's verdict.** Keep → full walk `bun run ingest --source <id>` (lid open, plugged
+   in, `nohup … & disown`; judge liveness by `netstat -anv -p tcp | grep bun:<pid>`, not the
+   log — §1's findings), SPEC §6.1 bullet, row to ✅. Park → add to `SUSPENDED_SOURCES` with a
+   comment like mossandfog's. Cut → delete the files, row to ❌ with the reason.
+
+**Watch for:** streetartnews' topic drift (skateboarding news at probe time — the classify mode
+refuses off-topic items; if the dry-run shows them classified anyway, say so at verdict time);
+spoon-tamago's small images (`full` as low as 640×480 — fine for tiles, not heroes; the
+`stats:walk` top/bottom titles won't show it, so open two `/i/` pages after a Keep). Both blogs
+are excerpt-style WordPress like doorofperception, so expect the thin-summary floor to take
+under 10%, not Tumblr's 60%.
+
+**Commit shape:** plain branch `feat/wp-rest-<id>`, one commit per blog, `--no-ff` merge after
+the verdict; `log.md` block with the spend line. Check `git branch --show-current` and
+`git status` immediately before staging — another session may be on this checkout.
+
 ## 1. Where things stand
 
 **Done, on `main`:** `docs/source-candidates.md` now carries a live probe result for every
