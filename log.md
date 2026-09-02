@@ -5,6 +5,35 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-02-26 Wed]] — A duplicate session, and what two sessions on one checkout look like
+
+**Findings:** This session opened on `feat/wp-rest-blogs` after a `/clear` and set out to finish
+the round-2 verdicts — commit the mossandfog park, watch the thisiscolossal walk, close the docs.
+It turned out the session that *took* those verdicts had never stopped: between my state check
+and my first commit it committed the park (`031fc59`), merged the branch (`f2821dc`), switched the
+shared checkout to a new `docs/sources-round2-verdicts` branch, and left four doc edits unstaged
+while it waits on the walk's totals. My commit ran on that branch against an already-committed
+file and did nothing — the harmless outcome, but only because the file was already in. The
+state as verified, for whoever reads this next: **thisiscolossal is Keep** (newest 150: 139
+curated @ 8.65, 97% ≥ 8, 13/16 topics — the strongest sample of any source so far),
+**mossandfog is Park** (6.60 avg, a 36-item cluster at 4, an advertorial tail) and lives in
+`SUSPENDED_SOURCES`, and **thingsorganizedneatly is in: 891 rows @ 7.90**. The colossal full
+walk is 8,735 offered; the first run was SIGTERMed at 874 curated and restarted at 08:08
+(curation cache makes the replay free).
+
+**Decisions:** Two sessions in one working tree cannot both execute the same plan. The tell was
+cheap and I nearly skipped it: `git branch --show-current` and `git status` *immediately* before
+staging, not at session start — the branch changed under me inside three minutes. Stage by
+name, commit nothing that another session's `git status` shows as its own, and if the other
+session is alive (transcript mtime under ten minutes), stop and say so rather than race it.
+
+**Open / next:** the walk's totals, then the other session's docs commit (SPEC §6.1 bullet,
+source-candidates rows for both blogs, handoff §1, CLAUDE.md) on `docs/sources-round2-verdicts`.
+Queue after that, unchanged: streetartnews and spoon-tamago as config rows, thisisnthappiness as
+Tumblr #2, Europeana (key from Ben), Openverse, Chronicling America.
+
+*Session spend: 3.68M tok (in 3.7k · out 26.3k · cache r 3.21M / w 433.5k) · ~≥$0.32 · fable-5-1 + opus-4-7 · 22:27→08:13*
+
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
 **Shipped:** 8.1's **7.5 and 7.4b in one stroke**. The plan's "no-code-change redeploy" premise
