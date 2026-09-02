@@ -68,3 +68,39 @@ src/server/db/feed.ts(126,37)
 src/server/services/gallery-rail.ts(228,32)  (294,34)  (313,5)
 src/server/services/wander.ts(109,39)  (131,45)  (132,38)  (141,16)  (141,46)
 ```
+
+## Task 7 — dry run
+
+`bun run ingest --source doorofperception --dry-run`, the whole run in **17.9 s** — the 318 rows
+already in the DB were skipped before curation, and the 69 that survived the floor were curated
+**from the on-disk cache**, which is the read-forward working. Nothing was re-billed.
+
+```
+Walk sources (Phase 6.3)
+source            pages   offered   errors  complete  no-image
+doorofperception  4       390       1       yes       0
+
+classification (memberships — an item filed under two topics counts in both):
+  architecture             1
+  portraiture              1
+  (un-homed — stored)      68
+
+Pipeline totals
+already in DB (skipped):  318
+would store un-homed (walk): 68
+  top tags among them:    art 49 · psychedelic 26 · consciousness 23 · photography 23 ·
+                          science 21 · colorful 18 · surreal 18 · nature 17 · perception 17 ·
+                          videos 17 · abstract 16 · books 14
+structural floor dropped: 3 (dup-title 0, bare-title 0, thin-summary 3)
+curated:                  69
+would insert: 69 (--dry-run, no writes made)
+memberships written:      0 (--dry-run)
+```
+
+68 un-homed against the plan's estimate of ~70; the two that *did* land a topic are posts the blog
+published since Phase 6.3's run, so they were the only real LLM calls in the batch.
+
+**The tag histogram is the point of the exercise** and it reads as a coherent cluster on the first
+try: `psychedelic 26 · consciousness 23 · perception 17 · surreal 18` is a candidate topic staring
+back — exactly the "evidence for a new topic, not against the source" the design predicted. Under
+6.3 all 68 of these were destroyed on the way in.
