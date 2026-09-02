@@ -86,6 +86,37 @@ the next step and close this session.
 
 *Session spend: 7.09M tok (in 1.9k · out 42.4k · cache r 7.00M / w 46.9k) · fable-5-1 · 09:08→10:43*
 
+**Findings (a second, parallel session):** Ben asked for a live evaluation of
+`publicdomainreview.org` as a source, unrelated to the wp-rest queue and run from a session that
+opened mid-thread on the shared checkout — its own findings recorded the collision above rather
+than repeat it. The probe found something outside every pattern this repo has built so far: the
+site is a static **Gatsby** build on Netlify (not WordPress — `/wp-json/` 404s), and Gatsby's own
+build output doubles as a free structured API — `/page-data/collections/page-data.json` returns
+**all 1,255 collections in one ~340KB request**, no pagination, the cleanest discovery mechanism
+of any source probed yet. Per-collection detail (the body text, per-institution rights metadata)
+needs a second fetch per item, which doesn't fit `toItem()`'s pure-synchronous contract — resolved
+as an index-then-hydrate `walk()` rather than a contract change. Licensing splits two ways: the
+images are genuinely public domain with **real structured per-source rights fields**
+(`Rights_Summary`, `Rights_License_URL`) unlike LoC's empty `rights` column, while PDR's own
+`Excerpt`/`Preamble` text is CC BY-SA 4.0 — a real share-alike license, not the "rights retained"
+shape every blog in `blogs.ts` uses.
+
+**Decisions:** Ben made three calls on the spot, recorded (with the reasoning) in the new handoff
+doc rather than here: treat the missing `robots.txt` as permission (no code change —
+`assertCrawlAllowed` already does this), reproduce PDR's text verbatim now and revisit if Ambit
+ever opens to the public, and ingest every collection medium (Images/Books/Film/Audio/Animated
+GIF/Class of.../Mixed — 1,255 total), not just the 560 tagged `Images`. Essays (343, long-form,
+no per-paragraph rights labels) were explicitly left **out** of that third decision — flagged as
+open, not assumed — since they hit the same "curator has no rubric for text" wall already on
+record against Wikisource and Open Library (SPEC §15).
+
+**Shipped:** `docs/HANDOFF_publicdomainreview.md` (`5b01c4a`) — the three decisions, the full
+probe evidence, the `toItem()`/`walk()` design resolution, and the open questions (Essays'
+in-or-out, the CC BY-SA boilerplate-notice UI question, a rights-strength sample beyond the one
+collection probed) for whoever builds the adapter next.
+
+*Session spend: 8.41M tok (in 463 · out 95.7k · cache r 7.65M / w 657.0k) · ~≥$7.79 · sonnet-5 + opus-4-7 + fable-5-1 · 08:13→10:45*
+
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
 **Shipped:** 8.1's **7.5 and 7.4b in one stroke**. The plan's "no-code-change redeploy" premise
