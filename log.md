@@ -117,6 +117,61 @@ collection probed) for whoever builds the adapter next.
 
 *Session spend: 8.41M tok (in 463 · out 95.7k · cache r 7.65M / w 657.0k) · ~≥$7.79 · sonnet-5 + opus-4-7 + fable-5-1 · 08:13→10:45*
 
+**Shipped (a later session, same day):** streetartnews.net built to the handoff's §0 recipe —
+`wp-rest` config row, fixture, five registration lines, TDD, all gates green, on
+`feat/wp-rest-streetartnews` (`027c993`, unmerged). Two facts checked by hand rather than
+inherited: robots is four lines with **no named-bot section at all** (the cleanest blog yet), and
+the canonical host is the **bare** domain — `www` 301s to it, the opposite of thisiscolossal.
+Sample of 150: 0 `toItem` errors, **0 floored** (excerpts run 355–382 chars), 150 curated @ **7.81
+avg, 71% ≥ 8**, 87 classified into 10 of 16 topics, 63 refused, 58% would insert. The predicted
+skateboarding drift appeared and the classifier refused it unaided, so no topic gate is needed.
+spoon-tamago was probed read-only in the same session: **§0's `www.` is stale** — `www` 301s to the
+bare host now — robots is equally clean, 4,075 posts, and the small-image warning is real (heroes
+of 900×600, 640×480, 1080×1080).
+
+**Decisions — a core principle, and the verdict it puts on hold.** The streetartnews sample is what
+forced it: its 63 refusals average **7.62** against the classified pile's 7.95 and include two 9s
+(Snik, Ai Weiwei). That is not a tail being correctly filtered, it is a genre with no shelf among
+the sixteen topics. Counting the other blogs, ingest has already discarded **~3,500 curated items**
+on subject fit alone (colossal 2,657, thingsorganizedneatly 829, doorofperception ~70). Ben's call,
+made in full: **walk sources ingest their whole corpus and the topic vocabulary grows to fit them,
+never the reverse** — search-shaped sources stay bound to the topic list, because a search source
+needs a query. Short form: *topics are the vocabulary Ambit asks with; tags are the vocabulary the
+world answers in.* Four structural decisions taken against stated alternatives: **two tiers** (tags
+unbounded, topics a curated drift axis that grows by promotion — a flat vocabulary would put
+`Ajuinlei` and `family mart` in the drift graph as dead ends); **many topics per item** (`item_topic`
+join table — the one-topic rule filed a 9-scoring mural under `poetry` and discarded `the-ocean`);
+**hybrid assignment** (classify returns an array; promotion backfills by SQL over tags +
+aesthetic_tags, free and retroactive — needed because two of streetartnews' three newest posts had
+*zero* tags while aesthetic_tags exist on every item); and **Cut 1 = principle + schema + ingest
+only**, feed and graph and onboarding untouched. Written up as
+`docs/DESIGN_topic-vocabulary-growth.md`, with SPEC §1/§6.2 and CLAUDE.md carrying the principle
+marked decided-not-built. It reverses half of 6.3's **D4**: "never force-fitted" stays and gets
+stronger, "no honest home → dropped" goes. It touches **no** embeddings — Phase 0.4's rejection of
+item-level NN stands, and there is still no vector anywhere in `src/`.
+
+**Findings:** three things the design had to be built around, each verified rather than assumed.
+`item.topic_id` is `notNull()` (`schema.ts:185`) and **that single constraint is the whole cause** —
+the curator's "or null" clause and ingest's drop path both exist because the schema won't take an
+item without a home. `item.tags` is already stored and GIN-indexed on every item, so harvesting blog
+tags is not new machinery, it is stopping a deletion. And `getTopicPools` filters with `inArray`,
+so a NULL topic matches nothing: **un-homed items are invisible to the feed with no guard at all**,
+while staying reachable at `/i/` for eyeballing. Also: `cacheKey` (`curator.ts:244`) does not hash
+the topic list, which would be a bug under a re-classify design and is exactly why the chosen one
+backfills by SQL instead — Cut 1 re-bills nothing.
+
+**Open / next:** Fable writes the Cut 1 execution plan from the design doc in a fresh session, then
+hands off to a cheaper session to execute. **streetartnews' verdict is deliberately on hold** — its
+42% refusal rate was the argument against Keep and now reads as 63 items seeding a `street-art`
+topic, so it should be judged after Cut 1 on re-read evidence. mossandfog's park is untouched (that
+was a quality verdict, not a subject one). One planning risk recorded in the design doc §12: the
+PDR plan rewrites the same ingest walk lane Cut 1 rewrites. And a checkout note — `docs/PLAN_
+publicdomainreview.md` plus an uncommitted log block were present at 11:52 and gone at 11:54 with
+no commit between; a branch switch cannot delete an untracked file, so that session removed them
+itself, but whoever owns that thread should check nothing was lost.
+
+*Session spend: 23.21M tok (in 367 · out 172.2k · cache r 22.13M / w 906.0k) · ~$24.01 · opus-5 + opus-4-7 · 10:59→11:56*
+
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
 **Shipped:** 8.1's **7.5 and 7.4b in one stroke**. The plan's "no-code-change redeploy" premise

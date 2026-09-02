@@ -20,6 +20,22 @@
 - Save + share on any item.
 - **Tiered topic-drift feed over a curated pool** (§9): topics connected by an offline embedding-derived adjacency graph decide *where* to look; curated-weighted random decides *what* to show. Validated in Phase 0.5.
 
+### Core principle — the vocabulary grows to fit the corpus
+
+> **Decided 09-02-26, NOT YET BUILT.** Design in `docs/DESIGN_topic-vocabulary-growth.md`; Cut 1
+> (schema + curator + ingest) is unimplemented as of this note. Everything else in this spec still
+> describes the shipped one-topic-per-item behaviour — read the two together, not either alone.
+
+**Walk sources ingest their whole corpus; the topic vocabulary grows to fit them, never the reverse.**
+
+A blog is designated because the *blog* was judged worth having. Every post that clears the structural floor and the curator's quality bar is stored, whether or not Ambit currently has a topic that fits it. An item's source tags and the curator's aesthetic tags are always stored, and are the raw material from which new topics are proposed.
+
+**Search-shaped sources are the exception and stay bound to the topic list** — a search source needs a query, and the topic list is where queries come from.
+
+The short form: **topics are the vocabulary Ambit *asks* with; tags are the vocabulary the world *answers* in.** Museums are pulled by topic; blogs push their own vocabulary in. "Everything" means everything that clears **quality** — the structural floor and the curation score are untouched; it is *subject* fit that stops being a reason to discard an item.
+
+The sixteen topics of §3.2 were always a floor, not a ceiling (`server/config/topics.ts`'s own header says so), and this is that plan catching up with itself. It reverses half of Phase 6.3's D4: "never force-fitted" stays and gets stronger, "a post with no honest home is dropped" does not.
+
 ### Tech
 
 - **Next.js (App Router)** + **Bun** (runtime + package manager), **TypeScript**, configured as a **PWA**.
@@ -252,6 +268,8 @@ The Phase 0.5 finding: **the corpus is the product, not the ranking.** Curation 
    - The curator persona prompt is a product artifact: Ben's taste calibration (reference blogs, labeled examples) lands there.
 
 **Embeddings still exist, but only offline.** `openai/text-embedding-3-small` × recipe A (title + summary), via OpenRouter — settled in Phase 0.4/0.5; `bge-m3` cut (≈10× slower through OpenRouter, no quality edge in the harness). Item vectors are pipeline artifacts used for: near-duplicate detection, distance-from-centroid quality checks, and **recomputing the topic graph** (mean-centered centroids — see §9) as the corpus grows. Nothing at request time touches them, and the DB never stores them. (The `dimensions` param is honored by OpenRouter if vector size ever matters; currently moot.)
+
+**Classify mode (walk sources) is changing** — decided 09-02-26, not yet built. It currently files a blog post under exactly one of the sixteen topics *or null*, and ingest **drops** the nulls (Phase 6.3 D4). Under §1's core principle it will return an *array* of honest topics, possibly empty, and nothing is dropped for subject fit. The quality floor and the score are unaffected, and no item is re-billed — old cache entries read forward as one-element arrays. See `docs/DESIGN_topic-vocabulary-growth.md` §6.
 
 **Parked experiment — visual embeddings** (Voyage `voyage-multimodal-3.5`, prototyped in `phase0/embed-images.ts`): image vectors capture *form/vibe* where text vectors capture *subject* — potentially a "more like this look" affordance on saves. Keep-or-cut verdict pending Ben's blind-harness browse (§15).
 

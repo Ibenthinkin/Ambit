@@ -103,6 +103,19 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 - **One Next.js app** serves frontend + tRPC API; a **decoupled Bun ingestion script** (`scripts/ingest.ts`) fetches from source APIs on a schedule, normalizes, **curates** (quality floor + LLM taste score — SPEC §6.2), and upserts into Postgres.
 - **Everything normalizes to one `item` schema** (SPEC §5.1). Each external API gets an isolated `SourceAdapter` (`server/services/sources/*`) with `search()` + `toItem()`; ingestion is idempotent via the `(source, source_id)` unique constraint. Museum image servers bot-block third-party fetchers — anything sending an item's image to an external service must pass bytes, never the URL.
 - **The corpus is the product.** The feed's quality comes from curation at ingest (every item carries a 1–10 LLM `curation_score` + `aesthetic_tags`), not from a ranking function. Embeddings choose **where** to look — a checked-in 16×16 topic-adjacency graph built offline from mean-centered topic centroids; curated-weighted **random** chooses what to show (never similarity — item-level NN was tested and rejected in Phase 0.4).
+- **The vocabulary grows to fit the corpus** — a **core principle**, decided 09-02-26, **not yet
+  built** (design: `docs/DESIGN_topic-vocabulary-growth.md`; Cut 1 = schema + curator + ingest).
+  **Walk sources ingest their whole corpus; the topic vocabulary grows to fit them, never the
+  reverse.** A blog is designated because the *blog* was judged worth having, so every post that
+  clears the structural floor and the curator's quality bar is stored whether or not a topic fits
+  it; its source tags and aesthetic tags are always kept, and are what new topics get proposed
+  from. **Search-shaped sources are the exception and stay bound to the topic list** — a search
+  source needs a query and topics are where queries come from. Short form: **topics are the
+  vocabulary Ambit *asks* with; tags are the vocabulary the world *answers* in.** "Everything"
+  means everything that clears *quality*, never a relaxation of the floor. This reverses half of
+  6.3's D4 ("never force-fitted" stays; "no honest home → dropped" goes) and is why ~3,500 already-
+  discarded items exist to re-walk. Until Cut 1 ships, `item.topic_id` is still a single NOT NULL
+  column and ingest still drops — don't read the principle as describing current behaviour.
 - **Feed composition** (SPEC §9) = per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25 — drift-heavy on purpose) → topic via the user's weights or a graph walk → item via curated-weighted random, under diversity constraints (no adjacent same-source; per-page topic caps). Saves reweight *topics*, visibly. Cursor-based pagination; the cursor encodes the page seed. Debug overlay + tuning knobs ship behind a dev flag throughout development.
 - **Auth boundary**: all user-scoped queries filter by `userId`; the only public surface is `items.byId` / `/i/[itemId]`.
 
