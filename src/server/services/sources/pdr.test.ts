@@ -28,6 +28,7 @@ import {
   parseCursor,
   passesRightsPolicy,
   pdr,
+  slugOf,
   plainText,
   readCached,
   writeCached,
@@ -173,6 +174,45 @@ describe("rights, attribution, license", () => {
     expect(
       essayAttribution({ ...essay("ars-notoria").essay, Contributors: null }),
     ).toBe("The Public Domain Review");
+  });
+});
+
+describe("slugOf", () => {
+  // PDR's Airtable carries exactly one slug with a trailing slash — the essay
+  // `…can-still-teach-us-to-make-lemonade/`, 1 of 1,648 records on 09-02-26. It is a data-entry
+  // typo, but it is the record's OWN Slug field, so untrimmed it reaches the cache path (which
+  // rightly refuses it), the detail URL (where it would encode to %2F) and the stored sourceId.
+  it("strips the slashes and whitespace a slug should never carry", () => {
+    expect(slugOf("get-thee-to-a-phalanstery/")).toBe(
+      "get-thee-to-a-phalanstery",
+    );
+    expect(slugOf("/leading")).toBe("leading");
+    expect(slugOf("  padded  ")).toBe("padded");
+    expect(slugOf("ars-notoria")).toBe("ars-notoria");
+    // A name is left completely alone, en-dash and all.
+    expect(slugOf("russian-lubki-18th–19th-century")).toBe(
+      "russian-lubki-18th–19th-century",
+    );
+  });
+
+  it("does not make cachePath's guard any weaker — an interior separator is still refused", () => {
+    // Normalising at the wire boundary is what lets the guard stay an absolute assertion.
+    expect(slugOf("a/b")).toBe("a/b");
+    expect(() => cachePath("/tmp/x", "essay", slugOf("a/b"))).toThrow(
+      /pdr: unsafe slug/,
+    );
+  });
+
+  it("gives a trailing-slash record a clean sourceId and sourceUrl", () => {
+    const raw = essay("stories-of-a-hollow-earth");
+    const item = pdr.toItem({
+      ...raw,
+      essay: { ...raw.essay, Slug: "get-thee-to-a-phalanstery/" },
+    });
+    expect(item.sourceId).toBe("essay/get-thee-to-a-phalanstery");
+    expect(item.sourceUrl).toBe(
+      "https://publicdomainreview.org/essay/get-thee-to-a-phalanstery/",
+    );
   });
 });
 

@@ -286,6 +286,22 @@ export function essayAttribution(e: PdrEssay): string {
 }
 
 /**
+ * Pure: one slug, as a key. PDR's Airtable carries exactly one slug with a trailing slash — the
+ * essay `…can-still-teach-us-to-make-lemonade/`, 1 of 1,648 records on 09-02-26 — and it is the
+ * record's OWN `Slug` field, not just the index's, so untrimmed it reaches three places at once:
+ * the cache path (refused outright), the detail URL (where `encodeURIComponent` turns it into a
+ * `%2F` that 404s) and the stored `sourceId`. It killed the first full walk at cursor `e:100`.
+ *
+ * **Normalising HERE, at the wire boundary, is what lets `cachePath`'s guard stay absolute.** The
+ * guard is a safety assertion about what may become a filesystem path; teaching it to *accept* a
+ * slash — to "handle" this record — would trade a real boundary for one site's typo. So the dirty
+ * value is cleaned once, where it comes off the wire, and the assertion never softens.
+ */
+export function slugOf(raw: string): string {
+  return raw.trim().replace(/^\/+|\/+$/g, "");
+}
+
+/**
  * Pure: the image URL. `new URL(path, base)` is the encoder: it percent-encodes what a URL
  * cannot carry (spaces) and leaves alone what it can (apostrophes, and escapes that are already
  * there — 21 of PDR's 1,253 collection paths arrive pre-encoded, and encodeURI would double
@@ -380,7 +396,9 @@ async function loadIndex(phase: (typeof PHASES)[number]): Promise<string[]> {
     noRetryOn: [401, 403],
   })) as PdrIndexPage;
   const edges = page.result.data[phase.list]?.edges ?? [];
-  return edges.map((e) => e.node.data.Slug);
+  // Normalised at the boundary (slugOf) so nothing downstream — cache path, detail URL, sourceId
+  // — ever sees a stray slash, and dropped entirely if a row carries no usable slug at all.
+  return edges.map((e) => slugOf(e.node.data.Slug)).filter(Boolean);
 }
 
 /** One record — from disk if it has ever been fetched, else from the site (and then to disk).
@@ -475,11 +493,13 @@ function collectionToItem(imageHost: string, c: PdrCollection): NormalizedItem {
     excerpt.length >= EXCERPT_MIN
       ? excerpt
       : (leadParagraph(c.Preamble ?? "") ?? excerpt);
+  const slug = slugOf(c.Slug);
   return {
     source: "pdr",
     // `collection/<slug>`: one source, two kinds, no collision. (source, sourceId) is the
-    // idempotency key, so this choice is permanent for the corpus.
-    sourceId: `collection/${c.Slug}`,
+    // idempotency key, so this choice is permanent for the corpus — which is exactly why the
+    // slug is normalised before it is used as one.
+    sourceId: `collection/${slug}`,
     // An IMAGE item that also carries text: the gallery and wander rail keep it, and the item
     // page renders the body under the picture (image-item-body.tsx).
     type: "image",
@@ -487,7 +507,7 @@ function collectionToItem(imageHost: string, c: PdrCollection): NormalizedItem {
     summary,
     body: bodyText(c.Preamble ?? "") || null,
     imageUrl,
-    sourceUrl: `${PDR.baseUrl}/collection/${encodeURIComponent(c.Slug)}/`,
+    sourceUrl: `${PDR.baseUrl}/collection/${encodeURIComponent(slug)}/`,
     attribution: collectionAttribution(c),
     license: collectionLicense(c),
     // Medium and the three taxonomies first (they tell the curator what a poster is *of* — a
@@ -509,9 +529,10 @@ function essayToItem(imageHost: string, e: PdrEssay): NormalizedItem {
   if (!imageUrl)
     throw new Error(`pdr: essay "${e.Slug}" has no featured image`);
   const open = essayIsOpen(e);
+  const slug = slugOf(e.Slug);
   return {
     source: "pdr",
-    sourceId: `essay/${e.Slug}`,
+    sourceId: `essay/${slug}`,
     // Open text reads in the reader view; anything else is a link card in the blog posture.
     type: open ? "article" : "image",
     title: plainText(e.Title),
@@ -519,7 +540,7 @@ function essayToItem(imageHost: string, e: PdrEssay): NormalizedItem {
     summary: plainText(e.Intro ?? ""),
     body: open ? bodyText(e.Body ?? "") || null : null,
     imageUrl,
-    sourceUrl: `${PDR.baseUrl}/essay/${encodeURIComponent(e.Slug)}/`,
+    sourceUrl: `${PDR.baseUrl}/essay/${encodeURIComponent(slug)}/`,
     attribution: essayAttribution(e),
     license: open ? PDR_ESSAY_LICENSE : PDR_CARD_LICENSE,
     tags: uniqueTags(
