@@ -67,7 +67,13 @@ renders refilling at ~20/min — a sustained `--rate 1` still 429s; warm it as 2
 resume from
 `docs/PHASE8_PLAN_8.1.md` — its execution-state banner says exactly where — and read
 `docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed facts (resource UUID, volume name, DB hostname)
-rather than re-deriving them from the Coolify UI. See
+rather than re-deriving them from the Coolify UI. **A second thread is mid-flight beside 8.1:
+source-candidates round 2** — every remaining candidate in `docs/source-candidates.md` was live-probed
+09-01-26, and the first of the trial-ready set (a Tumblr-walk adapter for thingsorganizedneatly) is
+built, tested and sampled on the **unmerged** branch `feat/tumblr-walk-thingsorganizedneatly`, with
+two decisions waiting on Ben (its Keep/Park/Cut, and whether the dup-title floor rule should apply
+to blogs). Pick that thread up from `docs/HANDOFF_sources-round2.md`, which carries the state, the
+queue (four WP-REST blogs, then Europeana / Openverse / Chronicling America), and the recipe. See
 `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
 `log.md` for the narrative of what's landed and why.
 

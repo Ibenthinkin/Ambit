@@ -1,0 +1,203 @@
+# Handoff — source-candidates round 2, mid-execution
+
+**Written:** 09-01-26, end of the session that probed every remaining candidate and built the
+first of them. **For:** a cold session continuing the work. **Status:** one adapter built and
+sampled on an **unmerged branch**, two decisions waiting on Ben, the rest of the queue not
+started. Read §1 and §2 before touching anything; §4 is the recipe that worked.
+
+---
+
+## 1. Where things stand
+
+**Done, on `main`:** `docs/source-candidates.md` now carries a live probe result for every
+candidate that was untried this morning — API sources and blog leads both, with a verdict
+recommendation per row (`Round 2 (09-01-26)` in that file's trial-loop section is the summary).
+Nothing was promoted to SPEC §6.1; the trial loop's own rule is adapter → sample → eyeball →
+Ben's verdict, and only the first candidate has reached the sample.
+
+**Done, on a branch — `feat/tumblr-walk-thingsorganizedneatly`, two commits, NOT merged:**
+- `fce1d66` — `src/server/services/sources/things-organized-neatly.ts`, the first Tumblr-walk
+  `CorpusWalkAdapter`, with fifteen fixture tests, registrations in `types.ts` / `topics.ts` /
+  `blogs.ts` / `index.ts` / `source-invariants.test.ts`, and two shared-helper changes:
+  `http.ts` gained `fetchTextResponse` (one retry loop, two body readers) and
+  `normalize.ts`'s `decodeEntities` learned the named typographic entities.
+- `3a4e7f0` — `docs/HANDOFF_tumblr-walk.md` §8 (what the plan got wrong, the sample's numbers),
+  the source-candidates row, a SPEC §6.1 bullet marked *verdict pending*, and `log.md`.
+- Full suite green on that tree: 81 files / 863 tests. Ben chose "keep the branch as-is."
+
+**Two decisions Ben has not made — do not make them for him:**
+1. **Keep / Park / Cut** for thingsorganizedneatly. The sample (newest 150 offered, dry-run):
+   83 curated @ 8.02 avg, 78% ≥ 8; 55 classified into 14 of 16 topics; 28 refused @ 7.71. If Keep:
+   merge the branch (`--no-ff`, the repo's convention), run the full walk and write
+   (`bun run ingest --source thingsorganizedneatly` — ~111 pages at 1 s, ~2,000 curator calls,
+   cents, ~15 min), eyeball `/i/` and `/feed`, then promote the SPEC bullet.
+2. **The dup-title floor rule drops a blog's series posts** — nine of 150, three Andy
+   Goldsworthys among them — because a title derived from a caption's first line collides where a
+   WordPress title never did. Accept the ~6%, or exempt walk sources from that one rule in
+   `curator.ts`'s `structuralFloor` (the other two rules still apply). Either answer is a
+   one-line change plus a test; the choice is a taste call.
+
+**Also flagged for Ben, unrelated to any adapter:** `www.loc.gov/robots.txt` disallows
+`/pictures/search` for `*`, and the *shipped* `loc.ts` adapter's endpoint lives under that path.
+Recorded in the Chronicling America row of source-candidates.md; nobody has acted on it.
+
+## 2. The queue, in the order Ben agreed to
+
+Each entry: what is known (the evidence lives in the source-candidates row — this does not repeat
+it), and the design question the entry carries. Every one of these is **bounded** work in the
+brainstorming skill's sense — the flow exists in the repo already — so: read the sibling adapter,
+ask the one or two questions that matter, present a short design in chat, get a yes, then TDD.
+
+### 2.1 Four WordPress blogs — one design question, then four config rows
+
+**thisiscolossal.com** (canonical host is `www.`; 8,817 posts; robots.txt names `ClaudeBot` in a
+Cloudflare-templated list — Ben has seen this and it did not stop thingsorganizedneatly, whose
+list was worse), **mossandfog.com** (7,537, daily, cleanest fit), **streetartnews.net** (9,505;
+pin the *bare* host — `www` and bare are both live as separate canonicals; the top post at probe
+time was skateboarding, so watch topic drift), **spoon-tamago.com** (4,075; already blurb-sized;
+behind a Sucuri WAF that passed clean at a polite pace, so keep the 500 ms/sequential rule strict;
+source images top out around 900×600).
+
+**The design question:** `doorofperception.ts` is a bespoke file — `blogConfig("doorofperception")`
+hard-coded, a per-process tag-name cache, the walk and `toItem` inline. It was written that way
+on purpose ("YAGNI until blog #2", `blogs.ts`'s header). Four more WP blogs are blog #3–#6 of the
+same shape. The obvious move is a `wp-rest.ts` factory — `wpRestWalker(blog: BlogConfig):
+CorpusWalkAdapter<WpRaw>` — that doorofperception becomes the first caller of, with each new blog
+one `blogs.ts` row plus one registration line. Things the factory has to keep from the
+doorofperception file, each verified there: `_embed=wp:featuredmedia` with **no** `_fields=` (the
+filtered form returns an empty embed); `x-wp-totalpages` as the walk length; the tag-name lookup
+per blog (WordPress exposes tag ids on posts, names on a separate endpoint); the missing-featured-
+image throw; `htmlToText` on `title.rendered` and `excerpt.rendered`. Per-blog: `baseUrl`,
+`label`, `sourceId` (its own `SourceId` union member), and possibly the canonical-host rule.
+Present that as the design and get a yes before touching doorofperception.ts — it is shipped code
+with 318 rows behind it, and its fixture test must keep passing unchanged.
+
+Then per blog: a `blogs.ts` row (with the dated robots.txt comment, like the two rows there now),
+`SourceId` + `WALK_SOURCES` + `walkers` + `source-invariants.test.ts`'s fixture map, a recorded
+fixture of two or three real posts, a `probe:walk`, a `--dry-run --quota 150`, the score stats
+(§4), then stop for Ben's verdict — one or two blogs at a time, never all four unseen.
+
+### 2.2 thisisnthappiness.com — Tumblr #2
+
+Same legacy API as thingsorganizedneatly, on a custom domain (`baseUrl` is just different).
+108,968 posts — a full walk is ~2,180 pages at 1 s, and the probe found it *more* caption-less
+than thingsorganizedneatly, so most of it floors; sample with `--quota` first and expect to
+discuss whether a walk that keeps 10% of 109k posts is worth 36 minutes of polite requests per
+run. **The same factoring question as §2.1 applies to `things-organized-neatly.ts`**: its
+`parseTumblrJson`, `nextCursor`, `firstImageUrl`, `deriveTitle` are already exported and pure;
+a `tumblr.ts` factory over `BlogConfig` is the natural shape, and `BLOG_TAG` (the blog's own name
+tag, filtered out) becomes per-blog config. Wait for the thingsorganizedneatly verdict before
+building on it.
+
+### 2.3 Europeana — search-shaped, keyed
+
+The most trial-ready API source (its row has the evidence: live demo key `wskey=api2demo`,
+`reusability=open` verified as a real query-time filter, single-call item shape). It is a
+`SourceAdapter` (`search(q)` + `toItem`), and **`smithsonian.ts` is the file to mirror** — the
+other keyed, aggregator, query-time-license-filter source, with the "filter, then re-check the
+per-item rights field anyway" pattern that found 2 false positives in 400 there. Needs from Ben:
+a personal API key (`pro.europeana.eu`'s signup is Cloudflare-gated to curl — a browser job; the
+demo key's 1,000,000/hr is the shared pool, not a promise). Needs from the session: seed cells for
+the sixteen topics in `topics.ts` (every trial source's cell is optional — an absent cell costs
+nothing, a dishonest one costs taste), `attribution` built from `dataProvider`/`provider` rather
+than "Europeana", `license` from the literal `rights` URI, and a few-hundred-row sweep of
+`reusability=open` before trusting it at scale. `bun run probe <source> <query>` is the
+search-shaped eyeball tool.
+
+### 2.4 Openverse — search-shaped, no-auth, with a rate-limit catch
+
+`license=cc0,pdm` verified against an unfiltered baseline; feed-ready shape (its `thumbnail` is
+Openverse's own proxy, `attribution` is a ready-made string). Two things the row records that
+matter before an adapter: **anonymous is 20/min and 200/day** — a full run over sixteen topics at
+the usual quota is thousands of results, so either the free key (instant registration, but the
+higher tier needs an email verification click — Ben's inbox) or a quota that fits under 200 a
+day; and **uploader flooding** (two Flickr/Commons uploaders were 13 of the top 20 for one query).
+There is no per-uploader diversity mechanism anywhere in ingest today — the feed has
+no-adjacent-same-*source*, ingest has nothing — so that is a genuine design question, not a
+config knob. `attribution` must name the uploader and the upstream (Flickr, Commons), not
+"Openverse".
+
+### 2.5 Chronicling America — extends the shipped LoC adapter
+
+`loc.ts` is the model, same `fo=json` convention, but the differences are the design: there is no
+`CLEARED_COLLECTIONS` equivalent because the per-result `rights` field is *absent*, so PD is a
+hard `date` cutoff (the rolling 95-year line, ~1931 today) and it does real work — 71% of one
+sample fell after it; OCR (`description[]`, inline in the hit) is garbled and the summary should be
+synthesized from title/date/paper/place the way `locSummary()` already does for pictures; images
+go through the same `tile.loc.gov` per-IP budget the LoC row already warns about, and
+`full/full` 503s where `full/pct:50` works. The old `chroniclingamerica.loc.gov` host redirects;
+the endpoint is `www.loc.gov/collections/chronicling-america/?q=<query>&fo=json`.
+
+### 2.6 Not in the queue, recorded so nobody re-probes them
+
+Parked with reasons in their rows: Rijksmuseum and BHL (Getty's Linked-Art-graph shape problem),
+Harvard (no license filter, a ToU 2-week cache cap), Internet Archive (license mix, uploader
+flood), DPLA (instant self-serve key, docs WAF-blocked — un-parking is one email and two
+searches), Open Library / Wikiquote / Wikisource (the "curator has no rubric for text" wall,
+SPEC §15), juxtapoz (Joomla, and interview journalism a link card would misrepresent). Cut:
+Gutendex (Cloudflare JS challenge), lastmuseum.com (a search UI, not a blog), hyperallergic
+(journalism — the most crawler-friendly site probed, cut on content fit regardless), Cooper
+Hewitt (its own API 500s; the kept Smithsonian API already serves all 58,198 of its objects under
+`unit_code:CHNDM` — a seed-query widening, not an adapter).
+
+## 3. Conventions this thread followed — keep following them
+
+- **Plain branch off `main`, merged back with `--no-ff`** (Ben's stated preference; every merge in
+  this repo's history is a merge commit with a message). Never commit on `main` directly. Other
+  sessions work in this same checkout — check `git status` before staging and stage files by
+  name, never `git add -A`; `CLAUDE.md` and the PHASE8 docs have been another session's in-flight
+  edits all day.
+- **The trial loop is one or a few at a time**, with a stop for Ben's verdict before promotion —
+  `docs/source-candidates.md`'s own rule, and the reason nothing here is marked ✅.
+- **TDD, and the adapter's HTML-safety loop test** (`never lets HTML through in title or summary,
+  on any fixture row`) — copy it into every new adapter test; it is what caught `&rsquo;`.
+- **`toItem` stays pure and synchronous.** No LLM call inside an adapter, for any reason,
+  including thin captions — thin captions floor. `docs/HANDOFF_tumblr-walk.md` §5.
+- **Robots.txt is checked by the walker on every run** (`assertCrawlAllowed`), and recorded by a
+  human in `blogs.ts` before designation (`robotsCheckedOn` plus a comment saying what was seen).
+  A named-AI-bot list that does not name Ambit passes mechanically; a `Disallow: /` for `*` does
+  not, ever (the artvee/50watts rule).
+- **`log.md` gets a narrative block per session** with a spend line from
+  `python3 ~/.claude/scripts/session-spend.py --session <uuid>`, never estimated (CLAUDE.md).
+
+## 4. The recipe that worked (per adapter)
+
+```sh
+# 1. sample the real API before designing toItem — the newest page lies about the archive
+#    (thingsorganizedneatly's first 20 posts were 80% `regular`; 200 across the archive were 81% `photo`)
+# 2. record a fixture of real rows, trimmed of what toItem never reads; write the test; watch it fail
+bunx vitest run src/server/services/sources/<adapter>.test.ts
+# 3. implement; then every touched test file, then the gates
+bun run typecheck && bunx eslint <files> && bunx prettier --check <files>
+bun run test                      # ~35 s, 81 files; a red Postgres test usually means the machine is busy (CLAUDE.md)
+# 4. live, politely
+bun run scripts/probe-walk.ts <walker> --limit 5 [--cursor N]     # walk sources
+bun run probe <source> <query>                                     # search sources
+# 5. the trial sample — bills cents, writes nothing, and the curation cache makes a re-run free
+bun run ingest --source <source> --dry-run --quota 150
+```
+
+**The ingest summary prints the topic histogram and the floor breakdown but NOT the score
+distribution.** The 6.3 numbers came from DB rows after a real write. For a dry-run, the way that
+worked: a throwaway script that re-walks the same items, floors them, calls
+`curateItems(kept, { classify: true })` (cached, so free), and prints avg / min / max / ≥8 /
+histogram, plus classified-vs-refused averages and the top and bottom titles with their aesthetic
+tags — those last two are what make the eyeball possible without a UI. It was ~40 lines against
+`walkers` (from `~/server/services/sources`) and `structuralFloor` / `curateItems` (from
+`~/server/services/curator`); it lived in a scratch directory and is gone. If a third source needs
+it, it belongs in `scripts/` as a `--stats` cousin of `probe-walk.ts` — a small, separate task.
+
+## 5. Files
+
+| path | why it matters |
+|---|---|
+| `docs/source-candidates.md` | every candidate's evidence and status — the source of truth for what is trial-ready |
+| `docs/HANDOFF_tumblr-walk.md` | the built adapter's design and its §8 record; the model for how to write these |
+| `src/server/services/sources/things-organized-neatly.ts` | the Tumblr walker (branch only until merged) |
+| `src/server/services/sources/doorofperception.ts` | the WP-REST walker the four blogs generalize |
+| `src/server/services/sources/smithsonian.ts` | the keyed, license-filtered search adapter Europeana mirrors |
+| `src/server/services/sources/loc.ts` | the cleared-collections search adapter Chronicling America extends |
+| `src/server/config/blogs.ts` | the designated-blog registry; one row per blog, robots.txt dated |
+| `src/server/config/topics.ts` | `WALK_SOURCES`, `TRIAL_SOURCES`, and the seed cells a search source needs |
+| `src/server/services/curator.ts` | `structuralFloor` (the dup-title decision lives here), `curateItems` |
+| `scripts/probe-walk.ts`, `scripts/probe-adapter.ts`, `scripts/ingest.ts` | the three eyeball tools, in the order §4 uses them |
