@@ -7,10 +7,12 @@
 > the only file both plans touch is `scripts/walk-stats.ts`, in disjoint regions. What changed is the **evidence and the verdict**
 > (Tasks 6–7), plus one hard ordering rule. **Read §1a before starting; it is the whole delta.**
 
-> **Execution gate.** **Tasks 1–5 may run now, concurrently with Cut 1's own execution** — they
-> share no file with it. **Tasks 6–7 must not begin until Cut 1 is merged to `main`** and this
-> branch is rebased onto it. **No PDR row may be written to any database before Cut 1's
-> `item_topic` migration has run there** (§1a says why that one is correctness, not preference).
+> **Cut 1 shipped and merged the same afternoon (`acd1437`), so this plan is runnable end to end.**
+> Branch off today's `main` and Cut 1 comes with it — confirm in ten seconds with
+> `grep -n "item_topic" src/server/db/schema.ts` and `ls drizzle/0004_item_topic.sql`. The one
+> thing that survives as a rule rather than a gate: **no PDR row may be written to a database whose
+> `item_topic` migration has not run** (§1a — correctness, not preference; it applies again to the
+> first *production* ingest after the next deploy).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -62,24 +64,16 @@ conventions: `docs/HANDOFF_sources-round2.md` §3–§4. Ingestion rules this pl
   understands.
 - Politeness: 500 ms sequential, `noRetryOn: [401, 403]`, robots checked at the start of every
   walk. Never run a full walk from a laptop on battery with the lid closed.
-- Plain branch off `main` (`feat/pdr-walk`), `--no-ff` merge after the verdict. **Several sessions
-  are live on this checkout** — Cut 1's execution, and the round-2 blogs in `types.ts`,
-  `topics.ts`, `index.ts`, `source-invariants.test.ts`. **Two sessions cannot execute two plans in
-  one working tree**: a `git checkout -b` in either moves the files under the other (log.md
-  09-02-26). So run `git branch --show-current && git status` in `~/Dev/ambit` **first** — if it is
-  on anything but a clean `main`, do **not** check out a branch there. Give yourself an isolated
-  tree instead:
-
-  ```bash
-  git -C ~/Dev/ambit worktree add ../ambit-pdr -b feat/pdr-walk main
-  cd ~/Dev/ambit-pdr && bun install        # a worktree has its own node_modules
-  ```
-
-  Either way: `git branch --show-current && git status` immediately before every `git add`; stage
-  by name; never `git add -A`; if `git status` shows edits you did not make, stop and say so.
-  `.cache/` and the local Postgres are **shared** whichever tree you work in — harmless for Tasks
-  1–6 (they write no rows, and `.cache/pdr` and `.cache/curation` are keyed per source), and the
-  reason the execution gate forbids DB writes until Cut 1's migration has run.
+- **Plain branch off `main`** (`feat/pdr-walk`), `--no-ff` merge after the verdict. No worktrees.
+  **Other sessions share this checkout**, and two sessions cannot execute two plans in one working
+  tree — a `git checkout -b` in either moves the files under the other (log.md 09-02-26). So
+  **before you create the branch**, run `git branch --show-current && git status` in `~/Dev/ambit`:
+  it must be a clean `main`. If it is on someone else's branch or carries edits you did not make,
+  **stop and say so** — wait for that session rather than working around it. Then, throughout:
+  `git branch --show-current && git status` immediately before every `git add`; stage by name;
+  never `git add -A`. `.cache/` and the local Postgres are shared with whoever else is working —
+  harmless for Tasks 1–6, which write no rows (and `.cache/pdr` and `.cache/curation` are keyed per
+  source).
 - Gates before every commit: `bunx eslint <files> && bunx prettier --check <files>`, plus
   `bun run typecheck` wherever the task says it is expected to pass (see Task 1's note), and
   `bun run test` at task ends (~35 s; a red Postgres test on a busy machine is not your change).
@@ -284,7 +278,8 @@ rendering are all independent of topics. Both projections' `tags` arrays are unc
 worth *more* (below). The design's §12 warned that this plan "rewrites the same walk lane in
 `scripts/ingest.ts`" — **it does not.** This plan never edits `scripts/ingest.ts`; it only asserts
 that lane's output in a dry run. The one file both plans touch is `scripts/walk-stats.ts`, in
-disjoint regions. That is why Tasks 1–5 are safe to execute alongside Cut 1.
+disjoint regions. (That is why Tasks 1–5 were cleared to run alongside Cut 1's execution while it
+was still in flight; it merged the same afternoon, so the question is now moot.)
 
 **The one hard ordering rule.** Cut 1's migration backfills `item_topic.origin` from a **source
 list frozen in the SQL**, and `pdr` is not in it — correctly, because no PDR rows existed when it
@@ -327,11 +322,19 @@ step 8)** so it is decided deliberately rather than by whichever term happens to
 an unscored, unclassified row would be skipped as "already in DB" by every later real run and so
 block its own curation forever. It is not a cheap sample; `--dry-run` is.
 
-**Rebasing onto Cut 1.** On `feat/pdr-walk`, after Cut 1 merges: `git fetch && git rebase main`
-(or `git merge main`). The only file that can conflict is `scripts/walk-stats.ts` — Cut 1 rewrote
-its counters (`classified`/`refused` → `classified`/`unhomed`, around lines 70–72 and 106–121)
-while this plan's Task 6 step 1 adds a `--cursor` flag at the `let cursor` declaration and in the
-usage block. Both edits are wanted; keep both.
+**Cut 1 is already in `main`** (merged `acd1437`, 09-02-26 afternoon — `docs/WALKTHROUGH_topic-
+vocabulary-cut1.md` has the run numbers), so a branch cut from today's `main` has it and there is
+nothing to rebase. Confirm before Task 6 anyway, since every expected output below assumes it:
+
+```bash
+grep -n "item_topic" src/server/db/schema.ts     # the table and its origin type
+ls drizzle/0004_item_topic.sql                   # the migration, backfill included
+grep -n "unhomed" scripts/walk-stats.ts          # the counter, renamed from `refused`
+```
+
+If you ever *do* rebase this branch, the only file that can conflict is `scripts/walk-stats.ts` —
+Cut 1 rewrote its counters (around lines 70–72 and 106–121) while Task 6 step 1 adds a `--cursor`
+flag at the `let cursor` declaration and in the usage block. Both edits are wanted; keep both.
 
 ---
 
@@ -1922,11 +1925,10 @@ git commit -m "feat(item): image items may carry a body — PDR collections read
 
 ### Task 6: Live checks, the trial samples, and the evidence
 
-> **Gate (§1a): Cut 1 must be merged to `main` and this branch rebased onto it before this task.**
-> If it is not, stop at the end of Task 5 and report — Tasks 1–5 are a complete, committable unit
-> (adapter, tests, registration, item page), and every expected output below assumes Cut 1's
-> vocabulary. Check with `git log --oneline main | head -5` (look for the Cut 1 merge) and
-> `grep -n "item_topic" src/server/db/schema.ts`.
+> **Every expected output below assumes Cut 1** (merged `acd1437`; §1a). It is in `main`, so a
+> branch cut from `main` has it — but run §1a's three-command check first, because if this branch
+> somehow predates it, the numbers here will not match what you see and the fix is a rebase, not a
+> re-probe of the site.
 
 Everything here is polite and writes nothing to the DB. Lid open, power attached.
 
