@@ -3,9 +3,13 @@ import type { Item } from "~/server/db/items";
 import { CreditLine } from "./credit-line";
 import { HeroGalleryLink } from "./hero-gallery-link";
 import { LinkOutRow } from "./link-out-row";
+import { ReaderBlocks } from "./reader-blocks";
+import { ReuseNotice } from "./reuse-notice";
 
 // The image variant of `/i/[itemId]`: the picture, big, then the least text that makes it
-// legible — title, who made it, where it came from, and the summary.
+// legible — title, who made it, where it came from, and the summary. Since 09-02-26 an image
+// item may also carry a stored `body` — a Public Domain Review collection's own essay — which
+// renders under the summary; see the block below.
 //
 // **The hero is the doorway into the gallery** as of 5.8: a tap opens `/g/[itemId]`. It stayed a
 // plain picture through 5.7 on purpose — an affordance that invites a tap and then does nothing is
@@ -84,6 +88,20 @@ export function ImageItemBody({ item }: ImageItemBodyProps) {
         <p className="text-ink/72 mt-[18px] text-[17px] leading-[1.6]">
           {item.summary}
         </p>
+      ) : null}
+
+      {/* An image item that also carries text — a Public Domain Review collection's own essay
+          (docs/PLAN_publicdomainreview.md §1). Everything else has `body` null and renders exactly
+          as before. The reader variant's parser and type ramp are reused so the two pages read as
+          one app; the notice above it is what PDR's CC BY-SA terms ask for. */}
+      {item.body ? (
+        <>
+          <ReuseNotice item={item} />
+          <div className="bg-ink/10 mt-[14px] h-[0.5px] w-full" />
+          <div className="mt-[20px]">
+            <ReaderBlocks body={item.body} />
+          </div>
+        </>
       ) : null}
 
       {/* Blog items only (renders null otherwise): the link-out that makes the card a preview. */}

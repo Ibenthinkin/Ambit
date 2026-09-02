@@ -1,11 +1,13 @@
 # Handoff — publicdomainreview.org as a source
 
-> **Planned 09-02-26:** the build is specified task-by-task in `docs/PLAN_publicdomainreview.md`
-> — start there. **Ben widened the scope the same afternoon:** Essays (and the Conjectures and
-> Curator's Choice series) are **in**, so §3's "only one is in scope" and §6.1 are superseded;
-> collections keep their body essay and show it under the picture; the reuse notice (§6.2) is
-> rendered. The plan's §0 also supersedes §5 on one fact (no index carries `Excerpt`) and answers
-> §6.3 with a 40-collection rights sample.
+> **Status 09-02-26:** built to `docs/PLAN_publicdomainreview.md` on `feat/pdr-walk` — adapter
+> `src/server/services/sources/pdr.ts`, sampled (numbers in `docs/source-candidates.md`'s row).
+> Scope widened by Ben on 09-02-26: Essays and both series are IN; §6.1 is closed; §6.2 is
+> answered by `ReuseNotice`; §6.3 by the plan's §0.4 rights table. Verdict pending.
+>
+> The rest of this document is the original step-0 probe, kept as evidence. Where it disagrees with
+> the plan's §0, the plan wins: §3's "only one is in scope" and §5's claim that an index carries
+> `Excerpt` are both superseded.
 
 **Written:** 09-02-26, from a live step-0 probe (no adapter written, nothing ingested — the same
 "step 0" the round-2 candidates went through, `docs/source-candidates.md`'s trial loop). **For:** a

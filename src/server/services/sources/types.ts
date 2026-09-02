@@ -32,7 +32,12 @@ export type SourceId =
   // Sources round 2 (docs/HANDOFF_sources-round2.md §2.1): WordPress blogs on the wp-rest
   // factory, in trial — promoted into SPEC §6.1 or cut after Ben's verdict on each sample.
   | "mossandfog"
-  | "thisiscolossal";
+  | "thisiscolossal"
+  // The Public Domain Review (docs/PLAN_publicdomainreview.md): a walk source over Gatsby
+  // page-data JSON, and the first walk source that is NOT a designated blog — its images are
+  // public domain and its text is CC BY-SA 4.0 (config/pdr.ts). Also the first walk source whose
+  // rows may carry a `body`.
+  | "pdr";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds
@@ -46,7 +51,9 @@ export interface NormalizedItem {
   type: "image" | "article";
   title: string;
   summary: string;
-  /** Full article text. Articles only — image items leave this null. */
+  /** Full article text. Articles carry it; so does the one image-item case that has its own text
+   *  to show — a Public Domain Review collection's CC BY-SA preamble, rendered under the picture
+   *  (09-02-26). Every other image item leaves this null. */
   body: string | null;
   imageUrl: string | null;
   sourceUrl: string;

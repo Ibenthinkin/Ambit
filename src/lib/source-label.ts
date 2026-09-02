@@ -12,6 +12,7 @@
 // slug that predates it. Rendering `"archive"` as "Archive" is a perfectly good outcome;
 // rendering it as `undefined` is not.
 import { BLOGS } from "~/server/config/blogs";
+import { PDR } from "~/server/config/pdr";
 
 const SOURCE_LABELS: Record<string, string> = {
   wikipedia: "Wikipedia",
@@ -30,6 +31,9 @@ const SOURCE_LABELS: Record<string, string> = {
   // Phase 6.3: blogs name themselves in the registry — one source of truth for the credit line,
   // the attribution column, and the link-out row's copy.
   ...Object.fromEntries(BLOGS.map((b) => [b.id, b.label])),
+  // Sources round 2 (09-02-26): a walk source that is not a blog — its label lives in its own
+  // config row for the same reason the blogs' do (one source of truth for the credit line).
+  [PDR.id]: PDR.label,
 };
 
 export function sourceLabel(source: string): string {

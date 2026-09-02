@@ -23,6 +23,21 @@ describe("LinkOutRow", () => {
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
 
+  it("renders the link-out for a Public Domain Review item with its own copy", () => {
+    render(
+      <LinkOutRow
+        source="pdr"
+        sourceUrl="https://publicdomainreview.org/collection/atlantic-city-sand-sculpture/"
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: /See it on The Public Domain Review/ }),
+    ).toHaveAttribute(
+      "href",
+      "https://publicdomainreview.org/collection/atlantic-city-sand-sculpture/",
+    );
+  });
+
   it("renders nothing for a museum source — the credit line is their link-out", () => {
     const { container } = render(
       <LinkOutRow

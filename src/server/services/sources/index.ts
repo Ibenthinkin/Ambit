@@ -6,6 +6,7 @@ import { loc } from "./loc";
 import { met } from "./met";
 import { mossandfog } from "./mossandfog";
 import { nasaImages } from "./nasa-images";
+import { pdr } from "./pdr";
 import { poetrydb } from "./poetrydb";
 import { smithsonian } from "./smithsonian";
 import { thingsorganizedneatly } from "./things-organized-neatly";
@@ -39,6 +40,7 @@ export const walkers: Record<WalkSourceId, CorpusWalkAdapter<unknown>> = {
   thingsorganizedneatly,
   mossandfog,
   thisiscolossal,
+  pdr,
 };
 
 /** For CLIs that validate a `--source` flag: everything ingest knows how to reach. */

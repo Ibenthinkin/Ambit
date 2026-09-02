@@ -1,13 +1,16 @@
-// D5, as something CI refuses (docs/PHASE6_DESIGN_6.3.md §7): a blog item is an image item with
+// D5, as something CI refuses (docs/PHASE6_DESIGN_6.3.md §7): a BLOG item is an image item with
 // NO body, always — which is what makes "Ambit never renders blog article text" an invariant
-// rather than a policy. Two halves: every registered walker's fixture normalizes that way, and no
-// row in the DB says otherwise.
+// rather than a policy. Two halves: every designated blog's walker normalizes that way, and no
+// blog row in the DB says otherwise. Walk sources that are not blogs (`pdr`, whose text is
+// CC BY-SA and whose collections carry their body essay by design) are outside D5 and are
+// deliberately not iterated here — their contract is their own adapter test.
 import { and, inArray, isNotNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { WALK_SOURCES } from "~/server/config/topics";
+import { BLOGS, isBlogSource } from "~/server/config/blogs";
 import dopFixtures from "./__fixtures__/doorofperception.json";
 import mafFixtures from "./__fixtures__/mossandfog.json";
+import pdrFixtures from "./__fixtures__/pdr.json";
 import tonFixtures from "./__fixtures__/things-organized-neatly.json";
 import ticFixtures from "./__fixtures__/thisiscolossal.json";
 import { walkers } from "./index";
@@ -17,6 +20,7 @@ const fixturesByWalker: Record<string, unknown[]> = {
   thingsorganizedneatly: tonFixtures,
   mossandfog: mafFixtures,
   thisiscolossal: ticFixtures,
+  pdr: pdrFixtures,
 };
 
 describe("walk-source invariants (unit)", () => {
@@ -26,8 +30,9 @@ describe("walk-source invariants (unit)", () => {
     }
   });
 
-  it("every walker normalizes to type image with body null", () => {
+  it("every blog walker normalizes to type image with body null", () => {
     for (const [id, walker] of Object.entries(walkers)) {
+      if (!isBlogSource(id)) continue;
       for (const raw of fixturesByWalker[id] ?? []) {
         let item;
         try {
@@ -52,7 +57,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
         .select({ id: item.id })
         .from(item)
         .where(
-          and(inArray(item.source, [...WALK_SOURCES]), isNotNull(item.body)),
+          and(
+            inArray(
+              item.source,
+              BLOGS.map((b) => b.id),
+            ),
+            isNotNull(item.body),
+          ),
         );
       expect(rows).toEqual([]);
     });
@@ -65,8 +76,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
     // `htmlToText()` at ingest — normalize.ts), and a regression there would be silent, because a
     // tag rendered as a text node looks like an oddly-punctuated caption rather than a bug.
     //
-    // `~ '<[a-zA-Z/][^>]*>'` is deliberately narrow: it wants `<p>`, `<a href=…>`, `</div>` — not
-    // a bare `<` in "a < b", and not the `<3` in a caption.
+    // The pattern wants `<p>`, `<a href=…>`, `</div>`, `<br/>` — a real tag NAME after the `<`,
+    // then either `>` or an attribute run. It deliberately does not fire on a bare `<` in "a < b",
+    // on the `<3` in a caption, or on an **email address in angle brackets** — see the PDR finding
+    // below, which is what tightened it from the original `'<[a-zA-Z/][^>]*>'` on 09-02-26.
     //
     // **This test ran on 08-28-26 and found 55 rows** (D7: record it, exclude it, do not rewrite
     // adapters overnight). One of the two findings is now fixed, the other is a permanent exclusion:
@@ -80,11 +93,20 @@ describe.skipIf(!process.env.DATABASE_URL)(
     //    41 existing rows (it is the repair tool for any database that ingested before the fix —
     //    production runs it once after that deploy). The exclusion that used to sit here is gone,
     //    so a regression in any adapter fails this test. See docs/PHASE7_WALKTHROUGH_7.2.md.
+    //  * **`body` — one PDR row that is a false positive, and the reason the pattern is now
+    //    stricter (09-02-26).** `essay/the-primordial-gound` reproduces a forwarded email, headers
+    //    and all, and PDR writes the addresses the way email does: `From: Ivars Skrastins
+    //    <i** @du.lv >`. The old pattern read `<i** @du.lv >` as a tag. Nothing is stored as HTML
+    //    there — `bodyText()` had no tag to strip — so the honest fix was to require a valid tag
+    //    name rather than to exclude PDR and lose the check over its 1,547 bodies. The stricter
+    //    pattern still matches every real tag shape and finds 0 offenders corpus-wide.
     //  * **`body` — 14 wikipedia rows that are false positives.** Wikipedia has articles *about*
     //    markup, and their plain-text extracts legitimately contain the strings `<section>`,
     //    `<ref>`, `<b>` and `<ul>` as prose. Nothing is stored as HTML there; the regex simply
-    //    cannot tell an article about a tag from a tag. Wikipedia is also the only source that
-    //    carries a `body` at all, and blog bodies are covered by the test above.
+    //    cannot tell an article about a tag from a tag. Blog bodies are covered by the test above
+    //    (there are none, by D5). Since 09-02-26 wikipedia is no longer the only source carrying a
+    //    `body`: PDR's collections and CC BY-SA essays do too, and they are deliberately NOT
+    //    excluded here — `bodyText()` is supposed to leave no tag standing, and this is what says so.
     //
     // What is left is still worth running: every *other* source — aic, cma, loc, and any source a
     // later phase adds — must keep all three fields tag-free, and this is what says so.
@@ -98,13 +120,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
         field: string;
       }>(sql`
         select source, id, 'title' as field from item
-          where title ~ '<[a-zA-Z/][^>]*>'
+          where title ~ '<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^>]*)?\/?>'
         union all
         select source, id, 'summary' as field from item
-          where summary ~ '<[a-zA-Z/][^>]*>'
+          where summary ~ '<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^>]*)?\/?>'
         union all
         select source, id, 'body' as field from item
-          where body ~ '<[a-zA-Z/][^>]*>'
+          where body ~ '<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^>]*)?\/?>'
             and source <> 'wikipedia'
       `);
 
