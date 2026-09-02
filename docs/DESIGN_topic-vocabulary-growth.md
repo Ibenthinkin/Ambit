@@ -2,8 +2,8 @@
 
 **Written:** 09-02-26, in the session that built the streetartnews adapter and stopped when its
 42% refusal rate stopped looking like a defect.
-**Status:** **design approved by Ben, nothing built.** Four structural decisions taken (§3), each
-by an explicit choice between stated alternatives. No code, schema or migration exists yet.
+**Status:** **Cut 1 built 09-02-26** — plan `docs/PLAN_topic-vocabulary-cut1.md`, walkthrough `docs/WALKTHROUGH_topic-vocabulary-cut1.md`; Cuts 2–3 (§11) unbuilt. Four structural decisions taken (§3), each
+by an explicit choice between stated alternatives.
 **For:** Fable, writing the execution plan for Cut 1 in a fresh session, and the cheaper session
 that executes that plan afterwards. Both should be able to work from this file alone — it names
 files and line numbers rather than describing them, and §11 lists what it deliberately leaves out.

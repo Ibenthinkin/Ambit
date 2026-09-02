@@ -35,7 +35,7 @@ link-out is to drive readers *to* the blog. Tenable because Ambit is invite-only
 |---|---|---|
 | D1 | Items per post; flooding | **One item per post, the blog's own featured image.** 390 items from doorofperception (~3% of the corpus). The other images of a post never become items. |
 | D3 | Adapter interface | **Corpus-walk, as a sibling contract.** `CorpusWalkAdapter { walk(cursor), toItem }` next to `SourceAdapter`, which stays byte-identical. Ambit-Admin's *Ecosystem Architecture* already defines this shape for loupe; this is its first implementation, and loupe inherits it. |
-| D4 | Topic without seed queries | **LLM classification with an honest reject**, folded into the curator's existing per-item call as a mode. `null` → dropped, counted, printed. Never force-fitted. The yield is **measured over all 390 before any write**. |
+| D4 | Topic without seed queries | **LLM classification with an honest reject**, folded into the curator's existing per-item call as a mode. `null` → dropped, counted, printed. Never force-fitted. The yield is **measured over all 390 before any write**. **Reversed in part 09-02-26** (`docs/DESIGN_topic-vocabulary-growth.md` §4, Cut 1): *never force-fitted* stands and got cheaper — classify returns an **array** of honest topics, possibly empty; *null → dropped* is gone — an un-homed item is **stored** with zero topic rows and its tags intact. |
 | D5 | Where the blurb lives | **One text, in `summary`; `body` is always `null` for blog items.** Blog items are `type: "image"`, so the reader view is unreachable by construction; a test asserts the invariant. No migration, no new column, no new type. |
 | Q5 | Image hosting | **Already answered by Phase 5's image proxy** (`/api/img/[itemId]`, server-side fetch by item id, no referer). Only the cache layer is open, and it belongs to 7.3. |
 | Q6 | Scrape etiquette | **A policy, enforced in code** — §8. robots.txt checked before designation and on every run; a machine-readable refusal aborts the walk. |
@@ -164,6 +164,8 @@ and `PROMPT_VERSION` are untouched. `parseCuratorResponse` validates `topic` aga
 set — an invented id becomes `null`, never a foreign-key error 300 items in. `CuratedItem` gains
 `topicId: string | null`; the upsert loop takes a walk item's classified topic; a null is
 **dropped, counted, and printed**.
+
+> **Revised 09-02-26 (Cut 1).** `topic` became `topics: string[]`, "null" became "an empty list", and the drop became a store. `CuratedItem.topics`, `item_topic`, and the un-homed tag histogram replaced the sentence "a null is dropped, counted, and printed" — see the vocabulary-growth design §6–§7. The measurement run (`--dry-run`) still exists and now also prints what the un-homed items are about.
 
 **Summary output gains** a per-walker row (`walked · offered · errors · no-topic`) and a per-topic
 histogram of the walk's classifications including the null bucket. Therefore

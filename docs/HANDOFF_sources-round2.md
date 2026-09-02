@@ -13,6 +13,8 @@ and §2 before touching anything; §4 is the recipe that worked.
 
 ## 0. Start here — the next session's task: streetartnews and spoon-tamago
 
+> **09-02-26:** Cut 1 of the vocabulary-growth design has merged. streetartnews' 42% "refusal" is now 63 *stored* items with a tag histogram; take its verdict on re-read evidence (`bun run ingest --source streetartnews --dry-run` on its branch after rebasing onto main), per the design's §13.
+
 Two WordPress blogs, each a config row on the `wp-rest` factory. Everything below is
 cold-executable in a cheaper session; the only stop is Ben's verdict on each sample. Read §3
 (conventions) once; §1 and §2 are background.

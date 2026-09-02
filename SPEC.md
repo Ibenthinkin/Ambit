@@ -22,9 +22,11 @@
 
 ### Core principle — the vocabulary grows to fit the corpus
 
-> **Decided 09-02-26, NOT YET BUILT.** Design in `docs/DESIGN_topic-vocabulary-growth.md`; Cut 1
-> (schema + curator + ingest) is unimplemented as of this note. Everything else in this spec still
-> describes the shipped one-topic-per-item behaviour — read the two together, not either alone.
+> **Decided 09-02-26. Cut 1 (schema + curator + ingest) shipped 09-02-26** — design
+> `docs/DESIGN_topic-vocabulary-growth.md`, plan `docs/PLAN_topic-vocabulary-cut1.md`. The feed,
+> the topic graph and onboarding still operate on the sixteen topics and still read
+> `item.topic_id`; an un-homed item is stored, and reachable by direct link and the gallery's
+> wildcard slots only, until Cut 2's promotion path gives it a topic.
 
 **Walk sources ingest their whole corpus; the topic vocabulary grows to fit them, never the reverse.**
 
@@ -127,7 +129,7 @@ CREATE TABLE item (
   attribution    TEXT,                       -- required by some sources
   license        TEXT,
   tags           TEXT[] NOT NULL DEFAULT '{}',-- native source tags (secondary signal)
-  topic_id       TEXT NOT NULL REFERENCES topic(id), -- which topic seed surfaced it
+  topic_id       TEXT REFERENCES topic(id),  -- nullable (Cut 1): the DISPLAY topic; NULL = un-homed walk item
   curation_score REAL NOT NULL,              -- 1-10 from the ingest LLM curator (§6.2)
   aesthetic_tags TEXT[] NOT NULL DEFAULT '{}',-- curator's look/appeal keywords
   fetched_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -139,13 +141,32 @@ CREATE TABLE item (
 |---|---|
 | `curation_score` | the taste layer (Phase 0.5): within-topic sampling weight, and a floor below which items never serve. Set at ingest by the LLM curator; re-scoreable corpus-wide for ~$1 when the curator prompt version bumps. |
 | `aesthetic_tags` | curator-written look/appeal keywords ("botanical plate", "hand-lettered"); overlap with a user's taste keywords boosts an item's draw weight (§9). |
-| `topic_id` | the topic whose seed queries surfaced the item — the feed's unit of drift. |
+| `topic_id` | the item's **display** topic — the seed query that surfaced a museum item, or the first honest topic the curator named for a walk item; `NULL` for an un-homed walk item (Cut 1). Full membership is `item_topic` (§5.1a). The feed draws on this column until Cut 2 moves it onto the join; `NULL` matches neither `inArray` nor `eq`, so un-homed items are invisible to it with no guard. |
 | `tags` | native categories (Wikipedia categories, Met department/medium/culture, …); secondary signal only. |
 | `attribution` | for a **blog** item (planned, §6.1) this is the blog's name, rendered as the `from: <blog>` credit beside the title and linked to `source_url`. That credit line is **not blog-specific** — museum and Wikipedia items get it too (BUILD_PLAN 5.7). |
 | `license` | always an honest, non-empty string. For blogs the constant is truthful rather than permissive — *"Rights retained by original authors — displayed with credit and link"*. Never a fair-use claim. |
 | `body` | **Settled 08-25-26 (6.3): `body` is `null` for every blog item, always.** The blurb is `summary` (the blog's own excerpt). Blog items are `type: "image"`, so the reader view is unreachable for them by construction; `source-invariants.test.ts` asserts it — both halves: every registered walker's fixture normalizes that way, and no row in the DB says otherwise. Full article text is used at ingest only and never stored. |
 | `(source, source_id)` | unique → ingestion upserts idempotently. |
 | *(no `embedding` column)* | per-item vectors exist only in the **offline pipeline** (dedupe, quality checks, topic-graph recomputes); the serving DB never stores or queries vectors. This is the Phase 0.4 pivot. |
+
+### 5.1a `item_topic` (Cut 1, 09-2026)
+Topic membership, many-to-many. One row per (item, topic) the item honestly belongs to.
+
+```sql
+CREATE TABLE item_topic (
+  item_id   TEXT NOT NULL REFERENCES item(id) ON DELETE CASCADE,
+  topic_id  TEXT NOT NULL REFERENCES topic(id),
+  origin    TEXT NOT NULL,          -- 'seed' | 'curator' | 'tag'
+  PRIMARY KEY (item_id, topic_id)
+);
+```
+
+| Field | Notes |
+|---|---|
+| `origin` | how membership was decided: `seed` — a search source's seed query surfaced it under this topic; `curator` — classify mode named it; `tag` — a Cut 2 promotion backfilled it from tag overlap. No `confidence` column, deliberately: an LLM's self-reported confidence is uncalibrated; weighting, if wanted, derives from `origin` + `curation_score`. |
+| additivity | **Membership is additive.** Every write is `INSERT … ON CONFLICT DO NOTHING` (`addItemTopics`, `db/items.ts`); no automated process deletes a row. Removal is human-triggered and not yet built. |
+| cascade | `ON DELETE CASCADE` on `item_id` (`--prune`, `bun run retire`); **none** on `topic_id` — deleting a referenced topic fails loudly. |
+| backfill | migration `0004_item_topic` wrote exactly one row per pre-existing item from `item.topic_id`, `origin` = `curator` for walk sources, `seed` otherwise. |
 
 ### 5.2 `topic`
 ```sql
@@ -225,6 +246,7 @@ CREATE INDEX idx_item_type        ON item(type);
 CREATE INDEX idx_item_source      ON item(source);
 CREATE INDEX idx_item_topic_score ON item(topic_id, curation_score); -- the feed's draw path
 CREATE INDEX idx_item_tags_gin    ON item USING GIN (tags);
+CREATE INDEX idx_item_topic_topic ON item_topic(topic_id); -- Cut 2's promotion reads by topic
 CREATE INDEX idx_saved_item_user  ON saved_item(user_id);
 CREATE INDEX idx_collection_user  ON collection(user_id);
 ```
@@ -269,7 +291,7 @@ The Phase 0.5 finding: **the corpus is the product, not the ranking.** Curation 
 
 **Embeddings still exist, but only offline.** `openai/text-embedding-3-small` × recipe A (title + summary), via OpenRouter — settled in Phase 0.4/0.5; `bge-m3` cut (≈10× slower through OpenRouter, no quality edge in the harness). Item vectors are pipeline artifacts used for: near-duplicate detection, distance-from-centroid quality checks, and **recomputing the topic graph** (mean-centered centroids — see §9) as the corpus grows. Nothing at request time touches them, and the DB never stores them. (The `dimensions` param is honored by OpenRouter if vector size ever matters; currently moot.)
 
-**Classify mode (walk sources) is changing** — decided 09-02-26, not yet built. It currently files a blog post under exactly one of the sixteen topics *or null*, and ingest **drops** the nulls (Phase 6.3 D4). Under §1's core principle it will return an *array* of honest topics, possibly empty, and nothing is dropped for subject fit. The quality floor and the score are unaffected, and no item is re-billed — old cache entries read forward as one-element arrays. See `docs/DESIGN_topic-vocabulary-growth.md` §6.
+**Classify mode (walk sources) — Cut 1, 09-02-26.** Returns an **array** of honest topics, best fit first, "usually one or two, never more than three", possibly **empty**; only ids in `TOPIC_IDS` survive parsing. Nothing is dropped for subject fit — ingest stores every curated walk item (§6.4). No item was re-billed: `PROMPT_VERSION` stayed at 1, the `classify|` cache namespace was reused, and a Phase 6.3 entry reads forward (`topicId: "botany"` → `["botany"]`, `null` → `[]`); items curated before Cut 1 keep their single topic until a Cut 2 promotion widens them. The cache key is deliberately not a function of the topic list. `docs/DESIGN_topic-vocabulary-growth.md` §6.
 
 **Parked experiment — visual embeddings** (Voyage `voyage-multimodal-3.5`, prototyped in `phase0/embed-images.ts`): image vectors capture *form/vibe* where text vectors capture *subject* — potentially a "more like this look" affordance on saves. Keep-or-cut verdict pending Ben's blind-harness browse (§15).
 
@@ -287,7 +309,7 @@ All user-scoped queries filter by `userId`.
 ### 6.4 Ingestion job — `scripts/ingest.ts`
 - Bun script, cron-triggered. For each active topic's seed queries → run adapters → normalize → **quality floor → LLM curation score** → `upsertItem`.
 - Idempotent via the `(source, source_id)` unique constraint; curation cache means re-runs only pay for genuinely new items.
-- **Two lanes since 6.3.** Search sources run as above. Walk sources (`walkers`) are each walked to exhaustion by `processWalker` — sequential per host, a failed page stops the walk — and their items **bypass collision resolution** (nothing to collide on: no seed cells) and join the search winners at the already-in-DB skip; the floor is shared; the curator runs in **classify mode** for them (`{ classify: true }`, its own cache namespace) and a null topic is dropped and counted (`topicHistogram`), never force-fit. `--quota` on a walker is a total-item bound, and any bound makes the walk *incomplete*.
+- **Two lanes since 6.3.** Search sources run as above. Walk sources (`walkers`) are each walked to exhaustion by `processWalker` — sequential per host, a failed page stops the walk — and their items **bypass collision resolution** (nothing to collide on: no seed cells) and join the search winners at the already-in-DB skip; the floor is shared; the curator runs in **classify mode** for them (`{ classify: true }`, its own cache namespace) and — Cut 1 — **every curated walk item is stored**: `topics[0]` becomes the display `topic_id`, every topic an `origin='curator'` `item_topic` row, and an item the curator named no topic for is stored un-homed, counted, and characterised by a tag histogram over its `tags` + `aesthetic_tags` (`tagHistogram`) — the evidence Cut 2's promotion runs on. Search items get one `origin='seed'` row. `--skip-llm` writes no walk rows (an unscored, unclassified row would block its real curation forever). `--quota` on a walker is a total-item bound, and any bound makes the walk *incomplete*.
 - **`--prune`** (remove-on-request): for a **complete** walk — reached the end, no failed *page*, no `--quota` — `planPrune` names this source's DB rows the walk did not see; ingest prints them every run and deletes them only under `--prune`, children first (`seen_item`, `saved_item`) in one transaction. Never the default. A single post the adapter rejects (no featured image) does not void completeness, or doorofperception could never be pruned.
 
 ## 7. API design (tRPC)
@@ -454,6 +476,8 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
    - **DRIFT** — start from one of the user's topics, walk its adjacency row: softmax-sample among **positive-similarity neighbours only** (temperature ≈ 0.15; no positive bridge → fall back to CORE), then a **second hop with p ≈ 0.5** (Poetry → Typography → Machines is the signature move).
    - **JUMP** — uniform draw from the **bottom half** of a user topic's row. Deliberately not the strict antipode: tail ordering in a 16-point mean-centered space is noise, and false precision there adds nothing.
 2. **Item pick** — within the chosen topic, weighted random over unseen items above the **curation-score floor** (default 4): `weight = (score − floor + 1)^power × (1 + boost per aesthetic_tag shared with the user's taste keywords)`. Never similarity-ranked — that was the 0.4 failure.
+   > **Cut 1 note (09-02-26).** The item pick and `getTopicPools` still read `item.topic_id`, not `item_topic` — moving the feed onto the join is Cut 2, with its own `bench:feed` run. Consequences until then: an **un-homed** item (`topic_id IS NULL`) never enters a pool and is never drawn; saving one bumps no topic (the toast reads only "Saved to X"); its `/i/` page has no wander teaser and its `/g/` rail is all-wildcard. The gallery's wildcard draw (`drawImageAnywhere`) has no topic filter, so an un-homed *image* can surface in a wildcard slot — deliberate: it is curated-weighted like every draw, and ignoring the graph is the wildcard's job.
+
 3. **Diversity constraints** — no two adjacent cards from the same source; per-page cap per topic (default 3). Constraints are soft: relax rather than starve.
 4. **Seen tracking** — served items are excluded per user (the "almost never repeating" promise) via the `seen_item` table (§5.4b); cursor encodes the page seed. Items are marked seen **on receipt** as of Phase 5.7: `getFeedPage` composes the page and writes nothing, and the client acks the page it actually received through the `feed.markSeen` mutation. Only the items that made it into a page are ever acked — never the ones a slot considered and discarded along the way.
 
