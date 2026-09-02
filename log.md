@@ -317,6 +317,65 @@ Coolify's task status is not evidence, the un-homed count in the database is.
 
 *Session spend: 39.90M tok (in 652 · out 192.4k · cache r 38.68M / w 1.03M) · ~$31.88 · opus-5 + opus-4-7 · 13:12→13:34*
 
+**Shipped (Cut 1, the first re-walk):** `bun run ingest --source thingsorganizedneatly` — 142 s,
+111 pages, 5,267 offered, **829 items stored un-homed**, `memberships written: 0`, zero tokens
+billed. Every one came back from the curation cache as `topics: []`, which is exactly right: these
+are precisely the posts 6.3 dropped, so not one of them landed a topic and the classification block
+is a single line. The source is now **complete at 1,720 rows** — 891 already there plus these 829,
+which is exactly the number that clears the structural floor. Corpus 18,401 → 19,230; un-homed 897;
+the `missing` integrity check still 0.
+
+**Findings — two things the un-homed tag histogram taught on its first real test.** The histogram
+read `submission 344 · minimalist 157 · still life 125 · flat lay 123 · found objects 100 · food 91
+· art 48 · sculpture 47 · photography 43 · color 41 · graphic design 40 · geometric 39`.
+
+1. **`minimalist / still life / flat lay / found objects / geometric` is a coherent candidate
+   topic** — and it is essentially the blog's own identity, which is the vocabulary-growth
+   principle working as designed: the source proposed a topic the sixteen never had.
+2. **`submission 344` is process noise, not subject** — a Tumblr workflow tag meaning a reader sent
+   the post in, and the single most common tag among the un-homed. **Cut 2's promotion must filter
+   this class of tag or it will propose "submission" as a topic.** First evidence that the tag
+   vocabulary is not uniformly about subject matter; belongs in the Cut 2 design before any
+   frequency mining is written.
+
+Also newly visible, though not a Cut 1 effect: for this source the **structural floor is by far the
+dominant filter** — 3,547 of 5,267 offered dropped (227 bare-title, 3,320 thin-summary), because
+Tumblr posts frequently carry no usable title or blurb. The topic vocabulary was never what was
+costing this source its corpus.
+
+**Shipped (Cut 1, the second re-walk — both now done):** `bun run ingest --source thisiscolossal`
+— 586 s, 89 pages, 8,820 offered, **2,658 stored un-homed**, `memberships written: 4`. Corpus
+19,230 → **21,892**; un-homed **3,555** in all, which lands almost exactly on the "~3,500
+already-discarded items exist to re-walk" figure recorded when the principle was decided. `missing`
+and `stray` both still 0 across both walks.
+
+**Findings — the vocabulary gap is now measured, not asserted.** Of 2,662 curated colossal items
+**only 4 landed a topic** (architecture 2, zoology 1, machines 1). The strongest source in the
+corpus — 97.5% ≥ 8 — is very nearly invisible to the sixteen topics, because the sixteen have no
+word for contemporary art. The histogram: `sculpture 695 · installation 391 · video 351 ·
+painting 287 · surreal 228 · whimsical 205 · paper 192 · street art 184 · humor 180 · wood 165 ·
+food 149 · light 144`. `sculpture` + `installation` alone are 1,086 items with nowhere to go.
+
+Three things to carry into Cut 2:
+
+1. **`street art 184` independently corroborates the streetartnews verdict.** A different source,
+   walked separately, produces the same cluster — evidence that verdict did not have before.
+2. **`surreal / whimsical / humor` is an AFFECT cluster, not a subject one**, and it recurs across
+   sources (doorofperception's un-homed gave `surreal 18 · psychedelic 26`). Cut 2 has to decide
+   whether tone can be a topic or only subject can; the tag data will not settle that on its own.
+3. **The two sources fail in opposite ways, and the distinction is diagnostic.** Colossal's
+   structural floor barely bit (83 of 8,820); Tumblr's dominated (3,547 of 5,267). So a source's
+   **un-homed share is a fact about the vocabulary**, while its **floored share is a fact about the
+   source** — keep them apart when reading a trial verdict, or a well-formed source with no topic
+   looks like a bad one.
+
+**Open / next:** both re-walks are done; nothing further is queued locally. Production still needs
+the redeploy before any of this reaches it (its DB has no `item_topic` and its image runs the old
+drop-on-null ingest), and the two kept blogs are not registered there yet either — the first
+post-deploy nightly walk will therefore be a big one. Then: streetartnews' verdict on the re-read
+evidence, and Cut 2 (promotion + moving the feed onto the join).
+
+*Session spend: 26.02M tok (in 408 · out 184.2k · cache r 24.79M / w 1.05M) · ~$23.78 · opus-5 + opus-4-7 · 13:34→15:20*
 **Shipped (a later session, same day):** **The Public Domain Review is built, KEPT and merged** —
 `docs/PLAN_publicdomainreview.md` executed end to end, Tasks 1–7, on a plain branch off `main`.
 `pdr` is the **fourth walk source and the first that is not a designated blog**: a walk over
