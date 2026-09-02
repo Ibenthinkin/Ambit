@@ -117,6 +117,44 @@ collection probed) for whoever builds the adapter next.
 
 *Session spend: 8.41M tok (in 463 · out 95.7k · cache r 7.65M / w 657.0k) · ~≥$7.79 · sonnet-5 + opus-4-7 + fable-5-1 · 08:13→10:45*
 
+**Planned (a later session, same day):** `docs/PLAN_publicdomainreview.md` — the PDR walker as a
+cold-executable plan for a cheaper session, seven tasks, stop at Ben's verdict. Planning
+re-probed the site harder than the morning's session had, and two facts changed the design: no
+index carries an **`Excerpt`/`Intro`** (the blurb needs the per-record fetch after all), and every
+detail response is **0.5–1.2 MB** because Gatsby embeds the whole index and the institution list
+in each one — 1.7 GB per uncached walk — so the adapter gets a slug-keyed disk cache
+(`.cache/pdr/<kind>/`, 8–30 KB a record) and a nightly walk is four index fetches plus the new
+pieces. A 40-collection rights sample settled the handoff's open question 3: the underlying work
+is PD on every row, but two sources (both BnF) mark the *digital copy* Non-commercial, so the
+walker excludes those (~5%) and keeps "Unclear". **Then Ben widened the scope** — "I want the
+essays, and all the other stuff too" — and took three calls in one AskUserQuestion: a collection
+is an **image item that also carries its Preamble as `body`**, rendered on the item page under
+the picture (so it keeps the gallery; feed and `/g/` unchanged — the one UI change of the plan,
+plus a `ReuseNotice` line PDR's CC BY-SA terms ask for); **essays are in**, including the
+Conjectures (21) and Curator's Choice (29) series the essays index omits — CC BY-SA ones (28 of
+32 sampled) as articles with the essay as body, "Custom License"/unlabelled ones as link cards;
+the PDR **Blog is out** (76 org-news posts, no images). Consequences: the walk-source body-null
+invariant is rescoped to *blogs* (it was only ever D5), `sourceId` gains a `collection/` /
+`essay/` namespace, the cursor is `<phase>:<offset>` over four indexes, and `stats:walk` grows a
+`--cursor` so a phase can be sampled alone.
+
+**Decisions:** **PDR is paused before execution, by Ben** — he is rewriting the tagging rules in
+a parallel session (`docs/topic-vocabulary-growth`), that rewrite reaches ingestion, and he wants
+it landed before any new source is walked. The plan carries a PAUSED banner saying which parts to
+re-read against the new rules (the `tags` arrays in both projections, the classify-mode
+assumptions); the rest is independent of tagging.
+
+**Open / next:** when the tagging change has merged, open a new session on
+`docs/PLAN_publicdomainreview.md`, reconcile Task 3's tag handling with the new rules, then
+execute from Task 1 in a cheaper session. Committed on its own branch, `docs/plan-pdr`, off
+`main` — the checkout was held by another live session the whole time (first on
+`feat/wp-rest-streetartnews`, then on `docs/topic-vocabulary-growth`), so the commit was made
+without touching that branch or the shared index, and the working tree was restored to match it.
+
+*Session spend: 13.13M tok (in 38.1k · out 391.5k · cache r 11.40M / w 1.30M) · ~≥$0.96 · fable-5-1 + opus-4-7 · 10:52→11:09*
+*Session spend: 17.38M tok (in 4.8k · out 307.9k · cache r 15.71M / w 1.36M) · fable-5-1 · 11:09→11:48*
+*Session spend: 3.93M tok (in 668 · out 18.0k · cache r 3.90M / w 12.0k) · fable-5-1 · 11:48→11:52*
+
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
 **Shipped:** 8.1's **7.5 and 7.4b in one stroke**. The plan's "no-code-change redeploy" premise

@@ -1,5 +1,12 @@
 # Handoff — publicdomainreview.org as a source
 
+> **Planned 09-02-26:** the build is specified task-by-task in `docs/PLAN_publicdomainreview.md`
+> — start there. **Ben widened the scope the same afternoon:** Essays (and the Conjectures and
+> Curator's Choice series) are **in**, so §3's "only one is in scope" and §6.1 are superseded;
+> collections keep their body essay and show it under the picture; the reuse notice (§6.2) is
+> rendered. The plan's §0 also supersedes §5 on one fact (no index carries `Excerpt`) and answers
+> §6.3 with a 40-collection rights sample.
+
 **Written:** 09-02-26, from a live step-0 probe (no adapter written, nothing ingested — the same
 "step 0" the round-2 candidates went through, `docs/source-candidates.md`'s trial loop). **For:** a
 cold session (or a different model) picking this up to have the design conversation and build.
