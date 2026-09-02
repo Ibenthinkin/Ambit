@@ -165,6 +165,28 @@ describe("GalleryScreen", () => {
       expect(screen.getByTestId("bottom-sheet-panel")).toBeInTheDocument();
     });
 
+    it("renders an un-homed entry item and its details sheet omits the Topic row (Cut 1)", () => {
+      // The screen renders the rail, and the rail leads with the entry — so the un-homed cell has
+      // to be in BOTH, or the sheet would open on the default (homed) ENTRY behind it.
+      const unhomed = railItem("entry", { topicId: null });
+      renderScreen({
+        entryItem: unhomed,
+        initialRail: [unhomed, ...RAIL.slice(1)],
+      });
+      // The caption still shows the title; nothing threw on the null.
+      expect(screen.getAllByText("Plate entry").length).toBeGreaterThan(0);
+
+      // Same interaction as "tapping the title block opens details directly" above.
+      tap(); // bring the chrome up so the block is on screen
+      fireEvent.click(screen.getByTestId("gallery-title-block"));
+      expect(screen.getByTestId("bottom-sheet-panel")).toBeInTheDocument();
+
+      // The facts table keeps its unconditional row ("From", the source link) and omits Topic
+      // (null) — the file's own rule that a fact with nothing to say renders no row at all.
+      expect(screen.getByText("From")).toBeInTheDocument();
+      expect(screen.queryByText("Topic")).toBeNull();
+    });
+
     it("hides again on every advance — a new picture, a fresh look at it", () => {
       renderScreen();
 

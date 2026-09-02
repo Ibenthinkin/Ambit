@@ -106,14 +106,18 @@ export function GalleryDetailsSheet({
 
           {item.license ? <Fact label="License">{item.license}</Fact> : null}
 
-          <Fact label="Topic">{topicLabel(item.topicId)}</Fact>
+          {/* Omitted entirely when null, like every other fact here: an un-homed picture (Cut 1)
+              has no topic yet, and a blank row would read as broken rather than as true. */}
+          {item.topicId !== null ? (
+            <Fact label="Topic">{topicLabel(item.topicId)}</Fact>
+          ) : null}
 
           {/* SPEC §9's standing dev-overlay rule, the gallery's slice of it: how the rail's walk
               reached this picture. Present only when the server's FEED_DEBUG gate is on, so this
               row simply doesn't exist in production. */}
           {item.debug ? (
             <Fact label="Debug">
-              {item.debug.via} · {item.debug.topic}
+              {item.debug.via} · {item.debug.topic ?? "—"}
             </Fact>
           ) : null}
         </dl>

@@ -39,9 +39,19 @@ export const IMAGE_ASPECTS = [
   { className: "aspect-square", ratio: 1.0 },
 ] as const;
 
-/** A JUMP whose walk actually has a from→to pair to name. See `buildTiles`. */
-function qualifiesForBecause(card: FeedCard): boolean {
-  return card.tier === "JUMP" && (card.driftPath?.length ?? 0) >= 2;
+/**
+ * A JUMP whose walk actually has a from→to pair to name. See `buildTiles`. Written as a type
+ * predicate so the caller gets `driftPath` and `topicId` narrowed for free — a JUMP always has
+ * both, and saying so in the type is what lets the Because branch below read them without `!`.
+ */
+function qualifiesForBecause(
+  card: FeedCard,
+): card is FeedCard & { topicId: string; driftPath: [string, ...string[]] } {
+  return (
+    card.tier === "JUMP" &&
+    card.topicId !== null &&
+    (card.driftPath?.length ?? 0) >= 2
+  );
 }
 
 /**
@@ -74,16 +84,16 @@ export function buildTiles(
     const becauseCard = page.cards.find(qualifiesForBecause);
 
     for (const card of page.cards) {
-      if (card === becauseCard) {
-        const from = card.driftPath![0]!;
+      if (becauseCard && card === becauseCard) {
+        const from = becauseCard.driftPath[0];
         tiles.push({
           kind: "because",
-          key: `because-${card.item.id}`,
+          key: `because-${becauseCard.item.id}`,
           // Fall back to the raw topic id rather than dropping the tile: an id that isn't in
           // TOPICS means config and corpus have drifted apart, and showing "ancient-history" is
           // both readable and a visible signal that something needs fixing.
           from: topicLabels[from] ?? from,
-          to: topicLabels[card.topicId] ?? card.topicId,
+          to: topicLabels[becauseCard.topicId] ?? becauseCard.topicId,
         });
       }
 

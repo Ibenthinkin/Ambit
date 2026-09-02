@@ -99,14 +99,18 @@ for (let p = 0; p < pages; p++) {
   let lastSource: string | null = null;
   for (const card of page.cards) {
     tierCounts[card.tier]++;
-    topicCounts.set(card.topicId, (topicCounts.get(card.topicId) ?? 0) + 1);
+    // The feed never serves an un-homed card (pools exclude them, db/feed.ts), but `FeedCard`'s
+    // topic is `string | null` since Cut 1, so the probe stays honest about the type rather than
+    // asserting past it — a `(none)` row here would be a real finding.
+    const t = card.topicId ?? "(none)";
+    topicCounts.set(t, (topicCounts.get(t) ?? 0) + 1);
     if (lastSource && card.item.source === lastSource) adjacencyViolations++;
     lastSource = card.item.source;
 
     console.log(
       [
         card.tier.padEnd(6),
-        card.topicId.padEnd(16),
+        (card.topicId ?? "(none)").padEnd(16),
         card.item.source.padEnd(10),
         String(card.item.curationScore).padEnd(6),
         card.item.title.slice(0, 38).padEnd(40),

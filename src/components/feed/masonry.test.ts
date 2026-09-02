@@ -32,7 +32,9 @@ function card(
   opts: {
     type?: "image" | "article";
     tier?: Tier;
-    topicId?: string;
+    // `null` is a real value here, not "unset": a saved un-homed item (Cut 1) is dressed as a CORE
+    // card by saved-screen.tsx, so `?? "botany"` would hide exactly the case under test below.
+    topicId?: string | null;
     driftPath?: string[];
     title?: string;
     summary?: string | null;
@@ -44,10 +46,10 @@ function card(
       type: opts.type ?? "image",
       title: opts.title ?? `Item ${id}`,
       summary: opts.summary ?? null,
-      topicId: opts.topicId ?? "botany",
+      topicId: opts.topicId === undefined ? "botany" : opts.topicId,
     }),
     tier: opts.tier ?? "CORE",
-    topicId: opts.topicId ?? "botany",
+    topicId: opts.topicId === undefined ? "botany" : opts.topicId,
     ...(opts.driftPath ? { driftPath: opts.driftPath } : {}),
   };
 }
@@ -67,6 +69,12 @@ describe("buildTiles", () => {
       LABELS,
     );
     expect(tiles.map((t) => t.kind)).toEqual(["image", "article", "image"]);
+  });
+
+  it("lays out a CORE card with no topic (a saved un-homed item) and synthesizes no Because tile", () => {
+    const tiles = buildTiles([page([card("u", { topicId: null })])], {});
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0]).toMatchObject({ kind: "image", card: { topicId: null } });
   });
 
   // The seam infinite scroll exists to hide is the fetch boundary — so the height rotation has to
