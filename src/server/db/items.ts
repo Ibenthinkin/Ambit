@@ -4,10 +4,11 @@
 import { and, eq, gte, inArray, notInArray } from "drizzle-orm";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
-import { item } from "./schema";
+import { item, itemTopic, type ItemTopicOrigin } from "./schema";
 
 export type NewItem = typeof item.$inferInsert;
 export type Item = typeof item.$inferSelect;
+export type { ItemTopicOrigin } from "./schema";
 
 /**
  * Idempotent by (source, sourceId) — the same constraint scripts/ingest.ts's skip-existing check
@@ -17,7 +18,9 @@ export type Item = typeof item.$inferSelect;
  *   - `id` — untouched by definition (onConflictDoUpdate never rewrites the conflict target's row
  *     identity; every other join in the schema, e.g. saved_item.item_id, keeps pointing at it).
  *   - `topicId` — reassigning an existing item's topic on a later ingest run would reshuffle which
- *     users' feeds it can appear in, out from under them, for no product reason.
+ *     users' feeds it can appear in, out from under them, for no product reason. Since Cut 1 it is
+ *     the *display* topic and may be null; membership lives in `item_topic`, written by
+ *     `addItemTopics` below under the same never-retract rule.
  *   - `curationScore` / `aestheticTags` — these were PAID FOR (an LLM call). Re-scoring on every
  *     ingest would burn tokens for (almost always) the same verdict; a genuine re-score only
  *     happens deliberately, by bumping curator.ts's PROMPT_VERSION, which the curation cache keys
@@ -57,6 +60,36 @@ export async function upsertItem(values: NewItem): Promise<Item> {
     );
   }
   return row;
+}
+
+/**
+ * Record that `itemId` belongs to each of `topicIds` (Cut 1, design §5). **Additive, always**:
+ * `ON CONFLICT DO NOTHING` on the (item_id, topic_id) primary key, so a repeat write is a no-op
+ * and — the property that matters — an existing row's `origin` is never rewritten. Adding a topic
+ * can only widen an item's reach; nothing automated ever narrows it. This inherits `upsertItem`'s
+ * reason for not touching `topicId` on conflict, with a sharper rule.
+ *
+ * Returns how many rows were actually inserted — the ingest summary's "memberships written",
+ * and `0` when every pair already existed. Deduplicates the input (the curator may repeat itself)
+ * and short-circuits on an empty list, because `VALUES ()` with no rows is invalid SQL.
+ */
+export async function addItemTopics(
+  itemId: string,
+  topicIds: readonly string[],
+  origin: ItemTopicOrigin,
+): Promise<number> {
+  const unique = [...new Set(topicIds)];
+  if (unique.length === 0) return 0;
+
+  // Dynamic import — see upsertItem's comment above for why "./client" is never imported at
+  // module scope in this file.
+  const { db } = await import("./client");
+  const rows = await db
+    .insert(itemTopic)
+    .values(unique.map((topicId) => ({ itemId, topicId, origin })))
+    .onConflictDoNothing()
+    .returning({ topicId: itemTopic.topicId });
+  return rows.length;
 }
 
 /**
