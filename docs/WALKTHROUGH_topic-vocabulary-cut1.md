@@ -104,3 +104,56 @@ published since Phase 6.3's run, so they were the only real LLM calls in the bat
 try: `psychedelic 26 · consciousness 23 · perception 17 · surreal 18` is a candidate topic staring
 back — exactly the "evidence for a new topic, not against the source" the design predicted. Under
 6.3 all 68 of these were destroyed on the way in.
+
+## Task 8 — first real run
+
+`bun run ingest --source doorofperception` (14.8 s):
+
+```
+already in DB (skipped):  318
+stored un-homed (walk): 68
+  top tags among them:    art 49 · psychedelic 26 · consciousness 23 · photography 23 · …
+curated:                  69
+inserted:               69
+memberships written:      2
+```
+
+`memberships written: 2` is the read-forward proving itself: 67 of the 69 came back from the
+curation cache as `topics: []` (they were Phase 6.3's null-topic drops), so they wrote a row and
+no membership. The two that *did* get a topic — one `architecture`, one `portraiture` — are posts
+published since 6.3 and were the only LLM calls the run made.
+
+Database after:
+
+```
+unhomed: 68
+totals: {"items":18401,"memberships":18334}     (18,332 + 69 rows, 18,332 + 2 memberships)
+missing: 0
+```
+
+Top un-homed by score, and why the tag histogram is the interesting artifact:
+
+```
+10 image  Santiago Ramón y Cajal The Beautiful Brain   ["scientific illustration","organic abstraction","vintage diagram"]
+ 9 image  Sophy Hollington Carving New Realities       ["linocut","surreal folk art","cosmic and terrestrial"]
+ 9 image  Lachlan Turczan Synesthetic Resonance        ["surreal landscape","light sculpture","ethereal"]
+ 9 image  Nick Brandt The Day May Break Chapter I & II ["surreal","evocative","stark","symbolic"]
+ 9 image  Micah Ofstedahl The Invisible Force          ["surreal landscape","bare trees","golden hour"]
+```
+
+A score-10 Cajal plate was among the items 6.3 threw away.
+
+**Eyeballed against the running dev server** (`/i/CAmeSvmqHN8pzcpBUds4q` and `/g/…`, both HTTP 200,
+no error markers in either response):
+
+- The item page renders title and summary, and the **wander teaser is simply absent** — none of
+  `a drift from` / `a longer leap` / `more from` appears in the HTML.
+- The gallery rail came back **all-wildcard against the live app, not just in the unit test**: the
+  anchor serializes as `topicId: null` and all eight cells carry `via: "wildcard"`, landing in
+  mythology, botany, ceramics, architecture, astronomy, zoology, ceramics, machines — eight
+  unrelated topics, which is exactly what "no walk to start" looks like.
+
+**The feed did not move.** `bun run probe:feed --uniform --pages 3`: 16 distinct topics across 36
+cards, **zero `(none)` topic columns**, 0 source-adjacency violations, tier mix 36/47/17. No
+un-homed item reached a card. `items.integration.test.ts`'s "an un-homed item is never drawn"
+passes.
