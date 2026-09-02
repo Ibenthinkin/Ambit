@@ -105,6 +105,12 @@ export async function getWanderNext(
   const item = await getItemById(itemId);
   if (!item) return [];
 
+  // An un-homed item (Cut 1) has no topic to drift from, so there is no honest "a drift from X
+  // into Y" to write. An empty teaser is what the item page already renders for an exhausted
+  // corpus. Cut 2's promotion gives these items a neighbourhood; until then the page is the picture
+  // and its link-out, which is the whole of what a direct link promised.
+  if (item.topicId === null) return [];
+
   const from = item.topicId;
   const neighbours = pickWanderTopics(from, TOPIC_GRAPH, rng);
   const rows: WanderRow[] = [];

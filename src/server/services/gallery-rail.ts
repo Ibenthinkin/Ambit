@@ -58,12 +58,17 @@ export const RAIL_KNOBS: GalleryKnobs = {
 /** How a given rail slot's topic was chosen — the gallery's slice of SPEC §9's debug overlay. */
 export type RailVia = "stay" | "drift" | "jump" | "wildcard";
 
-/** One step of the walk, before any item has been drawn for it. */
-export interface RailStep {
-  /** The topic to draw from. Meaningless (and ignored) when `via` is `"wildcard"`. */
-  topic: string;
-  via: RailVia;
-}
+/**
+ * One step of the walk, before any item has been drawn for it. A discriminated union on `via`:
+ * a graph step always stands on a topic, while a wildcard step leaves the graph and merely
+ * *remembers* where the walk stood — which is `null` for the one rail that never stood anywhere,
+ * the all-wildcard rail an un-homed anchor gets (Cut 1: an item no topic fits has no walk to
+ * start). Narrowing on `via` is what lets `drawForStep` use `step.topic` as a string after the
+ * wildcard branch returns.
+ */
+export type RailStep =
+  | { via: "stay" | "drift" | "jump"; topic: string }
+  | { via: "wildcard"; topic: string | null };
 
 /** One rail cell: everything the gallery renders, and nothing else. All of it public item data. */
 export interface RailItem {
@@ -75,9 +80,11 @@ export interface RailItem {
   source: string;
   sourceUrl: string;
   license: string | null;
-  topicId: string;
+  /** The display topic (Cut 1: nullable — an un-homed picture opened by link, or drawn by a
+   *  wildcard slot, has none). The details sheet omits its Topic row rather than inventing one. */
+  topicId: string | null;
   /** Only populated when the server's debug flag is on (see `getGalleryRail`). */
-  debug?: { via: RailVia; topic: string };
+  debug?: { via: RailVia; topic: string | null };
 }
 
 // ── the pure walk ───────────────────────────────────────────────────────────────────────────────
@@ -225,7 +232,15 @@ export async function getGalleryRail(
     ...(debugEnabled ? knobOverrides : undefined),
   };
 
-  const steps = pickRailTopics(anchor.topicId, TOPIC_GRAPH, rng, count, knobs);
+  // An un-homed anchor (Cut 1) has no topic to walk from. Rather than invent a start, every slot
+  // is a wildcard: the rail still goes somewhere, and `debug.via` says honestly how.
+  const steps: RailStep[] =
+    anchor.topicId === null
+      ? Array.from({ length: count }, (): RailStep => ({
+          via: "wildcard",
+          topic: null,
+        }))
+      : pickRailTopics(anchor.topicId, TOPIC_GRAPH, rng, count, knobs);
 
   const rows: RailItem[] = [];
   // Grows as the batch is drawn, so one rail batch never shows the same image twice. The anchor
@@ -289,8 +304,9 @@ async function drawForStep(
   if (own) return own;
 
   // Second link: the anchor's own topic. "More from here" is always a true statement, and it's the
-  // link the e2e corpus (one or two topics, a handful of items) actually exercises.
-  if (step.topic !== anchor.topicId) {
+  // link the e2e corpus (one or two topics, a handful of items) actually exercises. Skipped for an
+  // un-homed anchor, which has no "here".
+  if (anchor.topicId !== null && step.topic !== anchor.topicId) {
     const home = await fromTopic(anchor.topicId);
     if (home) return home;
   }

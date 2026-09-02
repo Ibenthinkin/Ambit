@@ -12,13 +12,18 @@
  *      adapter (server/services/sources/) — `search()` then `toItem()` — collecting the result as
  *      a "claim": this topic, at this rank, on this normalized item.
  *   3. The SAME object often answers more than one topic's seed queries (a Wellcome anatomical
- *      plate can satisfy both "anatomy" and "art" searches). `item.topic_id` is single-valued and
- *      NOT NULL, so exactly one claim has to win — resolveCollisions() (server/services/
- *      ingest-plan.ts) picks the highest-ranked claim, order-independently (SPEC §15).
- *   3b. (Phase 6.3) Corpus-WALK sources — blogs — have no seed cells and no topics yet. Each is
- *       walked to exhaustion (processWalker), its items skip collision resolution (nothing to
- *       collide on), and they join the search winners at step 4 below. Their topic comes from the
- *       curator's classify mode; a null topic is dropped and counted, never force-fitted.
+ *      plate can satisfy both "anatomy" and "art" searches). A search item gets exactly one seed
+ *      topic — resolveCollisions() (server/services/ingest-plan.ts) picks the highest-ranked claim,
+ *      order-independently (SPEC §15) — written to `item.topic_id` (the display topic) and as one
+ *      `origin='seed'` row in `item_topic`.
+ *   3b. (Phase 6.3 / Cut 1) Corpus-WALK sources — blogs — have no seed cells. Each is walked to
+ *       exhaustion (processWalker), its items skip collision resolution (nothing to collide on),
+ *       and they join the search winners at step 4 below. The curator's classify mode names EVERY
+ *       honest topic for each — possibly none. **Every curated walk item is stored** (the
+ *       vocabulary-growth principle, docs/DESIGN_topic-vocabulary-growth.md): the first topic
+ *       becomes the display `topic_id`, each topic an `origin='curator'` membership row, and an
+ *       item with none is stored un-homed — counted, its tags printed, never dropped and never
+ *       force-fitted. Un-homed items are invisible to the feed until Cut 2 promotes a topic for them.
  *   4. Winners already sitting in the DB (by the same (source, sourceId) key the UNIQUE
  *      constraint enforces) are skipped — this is what makes a second run of this script cheap
  *      and idempotent: nothing gets re-normalized, re-floored, or re-curated for free.
@@ -33,9 +38,13 @@
  *   bun run ingest                              # full run, all 16 topics × 6 sources, quota 150
  *   bun run ingest --quota 10 --dry-run          # cheap structure check, no writes, no LLM cost*
  *   bun run ingest --quota 10 --skip-llm         # writes with neutral score 5 — free but real rows
+ *                                                # (walk sources: nothing written — an unscored,
+ *                                                # unclassified walk row would block its real
+ *                                                # curation forever)
  *   bun run ingest --topic astronomy --source met --quota 20
- *   bun run ingest --source doorofperception --dry-run   # walk + classify, print the topic
- *                                                         # histogram, write nothing (bills)
+ *   bun run ingest --source doorofperception --dry-run   # walk + classify, print the topic +
+ *                                                         # un-homed tag histograms, write nothing
+ *                                                         # (bills only for uncached items)
  *   bun run ingest --source doorofperception --prune     # also delete rows for posts the blog
  *                                                         # has removed (complete walks only)
  *   (* --dry-run alone still calls the curator unless paired with --skip-llm; combine both for a
@@ -44,12 +53,13 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "~/server/db/client";
-import { upsertItem } from "~/server/db/items";
+import { addItemTopics, upsertItem } from "~/server/db/items";
 import { item, savedItem, seenItem, topic } from "~/server/db/schema";
 import type { Claim } from "~/server/services/ingest-plan";
 import {
   planPrune,
   resolveCollisions,
+  tagHistogram,
   topicHistogram,
 } from "~/server/services/ingest-plan";
 import type {
@@ -456,13 +466,13 @@ async function main() {
     ...it,
     curationScore: 5,
     aestheticTags: [],
-    topicId: null,
+    topics: [],
   });
   const curatedSearch: CuratedItem[] = skipLlm
     ? keptSearch.map(neutral)
     : await curateItems(keptSearch, curateOpts);
-  // Walk items get the classify mode. Under --skip-llm they cannot be classified at all, so every
-  // one is a null-topic drop: a structural check of the walk, nothing more — and the summary says so.
+  // Walk items get the classify mode. Under --skip-llm they cannot be classified at all, so the
+  // walk lane writes nothing: a structural check of the walk, nothing more — see the write loop.
   const curatedWalk: CuratedItem[] = skipLlm
     ? keptWalk.map(neutral)
     : await curateItems(keptWalk, { ...curateOpts, classify: true });
@@ -470,14 +480,23 @@ async function main() {
 
   // Step 6: upsert. Under --dry-run this loop still computes exactly what WOULD be written (so
   // the summary reflects reality) but never calls upsertItem — the "no DB writes" guarantee.
+  // Every write is two statements: the row, then its memberships (additive — db/items.ts).
   let inserted = 0;
+  let membershipsWritten = 0;
   const insertedByTopic = new Map<string, number>();
   for (const curatedItem of curatedSearch) {
     const winner = winnerByKey.get(
       `${curatedItem.source}:${curatedItem.sourceId}`,
     );
     if (!winner) continue; // unreachable in practice — every curated item came from winnerByKey's own keys
-    if (!dryRun) await upsertItem({ ...curatedItem, topicId: winner.topicId });
+    if (!dryRun) {
+      const row = await upsertItem({ ...curatedItem, topicId: winner.topicId });
+      membershipsWritten += await addItemTopics(
+        row.id,
+        [winner.topicId],
+        "seed",
+      );
+    }
     inserted++;
     insertedByTopic.set(
       winner.topicId,
@@ -485,21 +504,41 @@ async function main() {
     );
   }
 
-  // Walk items: the classified topic, or the honest reject.
-  let noTopic = 0;
+  // Walk items (Cut 1): every curated item is stored. The first topic the curator listed is the
+  // display topic; every topic it listed is a membership; an item it listed none for is stored
+  // un-homed and characterised below — that tag histogram is what Cut 2's promotion runs on.
+  //
+  // Under --skip-llm nothing is written for the walk lane: such an item has neither a real score
+  // nor a topic decision, and a score-5 un-homed row would be skipped as "already in DB" by every
+  // later real run — blocking its curation forever. (The search lane's score-5 rows under
+  // --skip-llm at least carry a real seed topic; the asymmetry is deliberate and pre-dates Cut 1.)
+  let unhomed = 0;
+  let walkUnwritten = 0;
+  const unhomedItems: CuratedItem[] = [];
   for (const curatedItem of curatedWalk) {
-    if (curatedItem.topicId === null) {
-      noTopic++;
+    if (skipLlm) {
+      walkUnwritten++;
       continue;
     }
-    if (!dryRun)
-      await upsertItem({ ...curatedItem, topicId: curatedItem.topicId });
+    const primary = curatedItem.topics[0] ?? null;
+    if (!dryRun) {
+      const row = await upsertItem({ ...curatedItem, topicId: primary });
+      membershipsWritten += await addItemTopics(
+        row.id,
+        curatedItem.topics,
+        "curator",
+      );
+    }
     inserted++;
-    insertedByTopic.set(
-      curatedItem.topicId,
-      (insertedByTopic.get(curatedItem.topicId) ?? 0) + 1,
-    );
+    if (primary === null) {
+      unhomed++;
+      unhomedItems.push(curatedItem);
+    }
+    for (const t of curatedItem.topics) {
+      insertedByTopic.set(t, (insertedByTopic.get(t) ?? 0) + 1);
+    }
   }
+  const unhomedTags = tagHistogram(unhomedItems);
 
   // Phase 6.3: --prune. Only a COMPLETE walk may say a row is gone; and even then only delete
   // when asked. Children first — seen_item and saved_item both carry a foreign key onto item.
@@ -551,7 +590,10 @@ async function main() {
     insertedByTopic,
     walkStatsBySource,
     histogram,
-    noTopic,
+    membershipsWritten,
+    unhomed,
+    unhomedTags,
+    walkUnwritten,
     pruned,
     elapsedSec: (performance.now() - t0) / 1000,
     dryRun,
@@ -578,8 +620,14 @@ function printSummary(args: {
   insertedByTopic: Map<string, number>;
   /** Phase 6.3: the walk lane's own table, D4's histogram, and what --prune did (or would do). */
   walkStatsBySource: Map<WalkSourceId, WalkRunStats>;
-  histogram: { byTopic: Record<string, number>; noTopic: number };
-  noTopic: number;
+  histogram: { byTopic: Record<string, number>; unhomed: number };
+  /** Cut 1: item_topic rows actually inserted this run (0 under --dry-run). */
+  membershipsWritten: number;
+  /** Cut 1: walk items stored with no topic — counted, never dropped — and what they are about. */
+  unhomed: number;
+  unhomedTags: { tag: string; n: number }[];
+  /** Walk items NOT written because --skip-llm could neither score nor classify them. */
+  walkUnwritten: number;
   pruned: Record<string, number>;
   elapsedSec: number;
   dryRun: boolean;
@@ -598,7 +646,10 @@ function printSummary(args: {
     insertedByTopic,
     walkStatsBySource,
     histogram,
-    noTopic,
+    membershipsWritten,
+    unhomed,
+    unhomedTags,
+    walkUnwritten,
     pruned,
     elapsedSec,
     dryRun,
@@ -663,16 +714,14 @@ function printSummary(args: {
       );
     }
     console.log(
-      `\nclassification${skipLlm ? " (--skip-llm: nothing can be classified; every walk item is a no-topic drop)" : ""}:`,
+      `\nclassification (memberships — an item filed under two topics counts in both)${skipLlm ? " — --skip-llm: nothing classified, nothing written for walk sources" : ""}:`,
     );
     for (const [topicId, n] of Object.entries(histogram.byTopic).sort(
       (a, b) => b[1] - a[1],
     )) {
       console.log(`  ${topicId.padEnd(24)} ${n}`);
     }
-    console.log(
-      `  ${"(no honest topic — dropped)".padEnd(24)} ${histogram.noTopic}`,
-    );
+    console.log(`  ${"(un-homed — stored)".padEnd(24)} ${histogram.unhomed}`);
     for (const [id, n] of Object.entries(pruned)) {
       console.log(`pruned from ${id}: ${n}`);
     }
@@ -680,7 +729,21 @@ function printSummary(args: {
 
   console.log(`\n${line}\nPipeline totals\n${line}`);
   console.log(`already in DB (skipped):  ${alreadyInDb}`);
-  console.log(`no-topic dropped (walk):  ${noTopic}`);
+  console.log(
+    `${dryRun ? "would store" : "stored"} un-homed (walk): ${unhomed}`,
+  );
+  if (unhomedTags.length > 0) {
+    // The promotion evidence (design §7): what the items no topic fits are ABOUT. Read this before
+    // a source verdict, and before proposing a topic.
+    console.log(
+      `  top tags among them:    ${unhomedTags.map(({ tag, n }) => `${tag} ${n}`).join(" · ")}`,
+    );
+  }
+  if (walkUnwritten > 0) {
+    console.log(
+      `walk items not written:   ${walkUnwritten} (--skip-llm cannot score or classify them)`,
+    );
+  }
   console.log(
     `structural floor dropped: ${Object.values(flooredByRule).reduce((a, b) => a + b, 0)}` +
       ` (dup-title ${flooredByRule["dup-title"]}, bare-title ${flooredByRule["bare-title"]}, thin-summary ${flooredByRule["thin-summary"]})`,
@@ -691,9 +754,12 @@ function printSummary(args: {
   console.log(
     `${dryRun ? "would insert" : "inserted"}:${dryRun ? "" : "              "} ${inserted}${dryRun ? " (--dry-run, no writes made)" : ""}`,
   );
+  console.log(
+    `memberships written:      ${dryRun ? "0 (--dry-run)" : membershipsWritten}`,
+  );
 
   console.log(
-    `\n${line}\nPer-topic ${dryRun ? "would-insert" : "inserted"}\n${line}`,
+    `\n${line}\nPer-topic ${dryRun ? "would-insert" : "inserted"} (memberships)\n${line}`,
   );
   for (const t of topics) {
     console.log(`  ${t.id.padEnd(24)} ${insertedByTopic.get(t.id) ?? 0}`);

@@ -182,9 +182,17 @@ export const item = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
-    topicId: text("topic_id")
-      .notNull()
-      .references(() => topic.id), // which topic's seed query surfaced this item — the feed's unit of drift
+    // The item's DISPLAY topic — nullable since Cut 1 of the vocabulary-growth design (09-2026,
+    // docs/DESIGN_topic-vocabulary-growth.md §5). For a search-shaped source it is still the topic
+    // whose seed query surfaced the item; for a walk source it is the first honest topic the
+    // curator named; for a walk item no current topic fits it is NULL ("un-homed"). Full
+    // membership — an item can honestly belong to several topics — lives in `item_topic` below.
+    //
+    // The feed still draws on THIS column until Cut 2 moves it onto the join (db/feed.ts
+    // `getTopicPools`, db/items.ts `drawFromTopic`). Both filter with `inArray`/`eq`, and SQL NULL
+    // matches neither, so an un-homed item is invisible to every feed draw with no guard at all.
+    // It stays reachable by direct link (`/i/[itemId]`) and by the gallery's wildcard slots.
+    topicId: text("topic_id").references(() => topic.id),
     curationScore: real("curation_score").notNull(), // 1–10 from the ingest-time LLM curator (SPEC §6.2)
     // The curator's own look/appeal keywords ("botanical plate", "hand-lettered") — overlap with a
     // user's taste keywords boosts an item's draw weight within its topic (SPEC §9).
@@ -208,6 +216,47 @@ export const item = pgTable(
     // GIN (Generalized Inverted Index) is the index type Postgres needs for containment queries
     // (`tags @> ARRAY['x']`) on an array column — a plain btree index can't do that efficiently.
     index("idx_item_tags_gin").using("gin", table.tags),
+  ],
+);
+
+/** How an `item_topic` row came to exist — the fact Cut 2's promotion audits on. Deliberately no
+ *  `confidence` column: an LLM's self-reported confidence is uncalibrated, and Phase 0's lesson was
+ *  to stop trusting similarity numbers. Weighting, if ever wanted, derives from this plus
+ *  `curation_score`, both of which are real. */
+export type ItemTopicOrigin =
+  /** A search source's seed query surfaced the item under this topic (the museum path). */
+  | "seed"
+  /** The curator's classify mode named it (walk sources). */
+  | "curator"
+  /** A Cut 2 promotion backfilled it from tag overlap. Unused until then. */
+  | "tag";
+
+/**
+ * Topic membership, many-to-many (Cut 1, design §5). One row per (item, topic) an item honestly
+ * belongs to. **Membership is additive**: every writer uses `ON CONFLICT DO NOTHING`, and no
+ * automated process ever deletes a row — adding a topic can only widen an item's reach, removing
+ * one silently takes it out of feeds. Removal is a deliberate, human-triggered act that Cut 1
+ * does not build.
+ *
+ * `onDelete: "cascade"` on `item_id` because `--prune` and `bun run retire` delete items, and a
+ * membership without its item is meaningless. **No cascade on `topic_id`**: deleting a topic
+ * while items still reference it should fail loudly.
+ */
+export const itemTopic = pgTable(
+  "item_topic",
+  {
+    itemId: text("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "cascade" }),
+    topicId: text("topic_id")
+      .notNull()
+      .references(() => topic.id),
+    origin: text("origin").$type<ItemTopicOrigin>().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.itemId, table.topicId] }),
+    // Cut 2's promotion and "everything in topic X" both read by topic; the PK serves by item.
+    index("idx_item_topic_topic").on(table.topicId),
   ],
 );
 

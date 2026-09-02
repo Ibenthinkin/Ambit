@@ -10,7 +10,10 @@
  * made permanent.
  *
  * What it does: walks the source exactly the way ingest's walk lane does (newest first, up to
- * `--quota` offered), runs structuralFloor, then curateItems in classify mode. Run it AFTER the
+ * `--quota` offered), runs structuralFloor, then curateItems in classify mode. Since Cut 1 the
+ * split is classified / **un-homed** rather than classified / refused — every curated item is
+ * stored either way, so the un-homed share is a fact about the *vocabulary*, not about the
+ * source, and the `un-homed tags` line is what a new topic gets proposed from. Run it AFTER the
  * dry-run of the same source and quota and every curator call answers from the on-disk
  * curation cache, so the report is free; run it first and it bills the same cents the dry-run
  * would. Writes nothing to the DB either way.
@@ -24,6 +27,7 @@ import {
   curateItems,
   structuralFloor,
 } from "~/server/services/curator";
+import { tagHistogram } from "~/server/services/ingest-plan";
 import { type NormalizedItem, walkers } from "~/server/services/sources";
 
 const known = Object.keys(walkers) as WalkSourceId[];
@@ -68,8 +72,8 @@ const byRule = new Map<string, number>();
 for (const d of dropped) byRule.set(d.rule, (byRule.get(d.rule) ?? 0) + 1);
 
 const curated = await curateItems(kept, { classify: true });
-const classified = curated.filter((c) => c.topicId !== null);
-const refused = curated.filter((c) => c.topicId === null);
+const classified = curated.filter((c) => c.topics.length > 0);
+const unhomed = curated.filter((c) => c.topics.length === 0);
 
 // ── report ───────────────────────────────────────────────────────────────────────────────────
 const avg = (xs: CuratedItem[]) =>
@@ -100,13 +104,13 @@ console.log(
       .join("  "),
 );
 console.log(
-  `  classified ${classified.length} (avg ${avg(classified)}) · refused ${refused.length} (avg ${avg(refused)}) · ` +
-    `would insert ${pct(classified.length, offered.length)} of offered`,
+  `  classified ${classified.length} (avg ${avg(classified)}) · un-homed ${unhomed.length} (avg ${avg(unhomed)}) · ` +
+    `stored ${pct(curated.length, offered.length)} of offered · un-homed ${pct(unhomed.length, curated.length)} of stored`,
 );
 
 const topics = new Map<string, number>();
 for (const c of classified)
-  topics.set(c.topicId!, (topics.get(c.topicId!) ?? 0) + 1);
+  for (const t of c.topics) topics.set(t, (topics.get(t) ?? 0) + 1);
 console.log(
   `  topics (${topics.size}/16): ` +
     [...topics]
@@ -114,16 +118,22 @@ console.log(
       .map(([t, n]) => `${t} ${n}`)
       .join(", "),
 );
+console.log(
+  `  un-homed tags: ` +
+    tagHistogram(unhomed, 10)
+      .map(({ tag, n }) => `${tag} ${n}`)
+      .join(" · "),
+);
 
 const line = (c: CuratedItem) =>
-  `    ${c.curationScore}  ${c.topicId ?? "(refused)"}`.padEnd(24) +
+  `    ${c.curationScore}  ${c.topics.join("+") || "(un-homed)"}`.padEnd(24) +
   `${c.title.slice(0, 58).padEnd(60)} [${c.aestheticTags.join(", ")}]`;
 const byScore = [...curated].sort((a, b) => b.curationScore - a.curationScore);
 console.log(`\n  top:`);
 for (const c of byScore.slice(0, 8)) console.log(line(c));
 console.log(`  bottom:`);
 for (const c of byScore.slice(-5)) console.log(line(c));
-console.log(`\n  refused, a sample:`);
-for (const c of refused.slice(0, 6)) console.log(line(c));
+console.log(`\n  un-homed, a sample:`);
+for (const c of unhomed.slice(0, 6)) console.log(line(c));
 console.log();
 process.exit(0);

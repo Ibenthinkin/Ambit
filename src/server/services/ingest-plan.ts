@@ -3,8 +3,11 @@
 // network-free unit-test surface. Everything else about ingestion (fetching, curating, upserting)
 // is orchestration around this one decision.
 //
-// THE PROBLEM: `item` is UNIQUE on `(source, source_id)` but `topic_id` is single-valued and
-// NOT NULL (schema.ts) — so when the same museum object answers two different topics' seed
+// THE PROBLEM: `item` is UNIQUE on `(source, source_id)` and `item.topic_id` — the *display*
+// topic, nullable since Cut 1 — is single-valued, and a search-shaped item gets exactly one seed
+// topic: the winning claim. (Membership beyond that lives in `item_topic`; a losing claim is a
+// lower-ranked query hit, not a verified home, and Cut 1 does not write it — design §3 D2, plan
+// decision D-g.) So when the same museum object answers two different topics' seed
 // queries, ingestion has to pick exactly one topic to file it under. Phase 0's harvester picked
 // by scan order ("last topic wins"), which silently starved whichever topic came *first* in its
 // topic list: measured on AIC, `astronomy` found 419 usable items and kept 4 (SPEC §15). A rule
@@ -86,20 +89,47 @@ export function resolveCollisions(claims: Claim[]): {
 
 // ── Phase 6.3: the walk lane's two pure decisions ───────────────────────────────────────────
 
-/** The per-topic yield of a classified batch, with the honest-reject bucket kept separate. This
- *  is D4's measurement (docs/PHASE6_DESIGN_6.3.md §6): `--dry-run` on a walker prints it, and the
- *  first executable step of 6.3 was to read it before writing a row. */
-export function topicHistogram(items: { topicId: string | null }[]): {
+/** The per-topic yield of a classified batch, counted as MEMBERSHIPS (Cut 1: an item may name
+ *  several topics and counts once under each), with the un-homed bucket kept separate. Printed by
+ *  ingest under `--dry-run` and real runs alike; `--dry-run` on a walker is how a blog is sampled
+ *  before a verdict (docs/source-candidates.md, trial loop). */
+export function topicHistogram(items: { topics: readonly string[] }[]): {
   byTopic: Record<string, number>;
-  noTopic: number;
+  unhomed: number;
 } {
   const byTopic: Record<string, number> = {};
-  let noTopic = 0;
+  let unhomed = 0;
   for (const it of items) {
-    if (it.topicId === null) noTopic++;
-    else byTopic[it.topicId] = (byTopic[it.topicId] ?? 0) + 1;
+    if (it.topics.length === 0) unhomed++;
+    for (const t of it.topics) byTopic[t] = (byTopic[t] ?? 0) + 1;
   }
-  return { byTopic, noTopic };
+  return { byTopic, unhomed };
+}
+
+/**
+ * What a set of items is *about*, from both tag fields — the line in the ingest summary that turns
+ * "stored un-homed: 63" from the end of a thought into the start of one (design §7). Each tag
+ * counts once per item however many fields carry it, compared lowercase; most common first, ties
+ * alphabetical so the output is stable across runs. Cut 2's promotion reads this by eye first
+ * and by query later.
+ */
+export function tagHistogram(
+  items: { tags: readonly string[]; aestheticTags: readonly string[] }[],
+  top = 12,
+): { tag: string; n: number }[] {
+  const counts = new Map<string, number>();
+  for (const it of items) {
+    const perItem = new Set(
+      [...it.tags, ...it.aestheticTags]
+        .map((t) => t.trim().toLowerCase())
+        .filter((t) => t.length > 0),
+    );
+    for (const t of perItem) counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([tag, n]) => ({ tag, n }))
+    .sort((a, b) => b.n - a.n || a.tag.localeCompare(b.tag))
+    .slice(0, top);
 }
 
 /**

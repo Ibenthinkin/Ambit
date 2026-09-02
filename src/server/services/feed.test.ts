@@ -81,7 +81,13 @@ import {
 } from "./feed";
 
 let nextId = 0;
-function makeItem(overrides: Partial<Item> = {}): Item {
+// Returns `Item & { topicId: string }`, not plain `Item`: since Cut 1 `Item.topicId` is
+// `string | null`, but this helper's `?? "topic-a"` default catches null as well as undefined, so
+// every fixture it builds really does carry a topic. Saying so in the type is what lets these
+// fixtures go straight into a `Map<string, PoolItem[]>` — `PoolItem` pins `topicId` to `string`
+// because no un-homed item can enter a pool (db/feed.ts). The engine is never handed a null here,
+// and if a future fixture wants one it has to say so and face the same question everywhere else.
+function makeItem(overrides: Partial<Item> = {}): Item & { topicId: string } {
   nextId++;
   const built = {
     id: overrides.id ?? `item-${nextId}`,

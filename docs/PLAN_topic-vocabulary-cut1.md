@@ -1,6 +1,6 @@
 # Topic vocabulary growth — Cut 1 Implementation Plan
 
-> **Execution state:** not started. The executing session updates this line per task
+> **Execution state:** all tasks done — merged into main 09-02-26. The executing session updates this line per task
 > (`Task N done — <commit>`), so a cold resume knows where it is without reading git.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

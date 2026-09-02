@@ -9,8 +9,8 @@ import { and, eq, inArray, like } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { drawFromTopic, upsertItem } from "./items";
-import { item, topic } from "./schema";
+import { addItemTopics, drawFromTopic, upsertItem } from "./items";
+import { item, itemTopic, topic } from "./schema";
 
 describe.skipIf(!process.env.DATABASE_URL)(
   "drawFromTopic (integration)",
@@ -159,7 +159,8 @@ describe.skipIf(!process.env.DATABASE_URL)("upsertItem (integration)", () => {
   // A second, genuinely valid topic — used to prove a re-upsert's *different* topicId is
   // discarded rather than applied. Real (not a dangling id): item.topic_id is a NOT NULL FK, so a
   // nonexistent id would only prove the update never happened for the wrong reason (a constraint
-  // violation), not that upsertItem's own `set` clause deliberately omits topicId.
+  // violation), not that upsertItem's own `set` clause deliberately omits topicId. (item.topic_id
+  // is a FK — nullable since Cut 1 — so the constraint still bites on a bogus id.)
   const otherTopicId = `test-upsert-item-other-${nanoid(8)}`;
   const sourceId = `test-${nanoid(8)}`;
 
@@ -245,3 +246,121 @@ describe.skipIf(!process.env.DATABASE_URL)("upsertItem (integration)", () => {
     expect(second.aestheticTags).toEqual(["quiet portrait"]); // preserved, not cleared
   });
 });
+
+describe.skipIf(!process.env.DATABASE_URL)(
+  "addItemTopics (integration)",
+  () => {
+    const topicA = `test-membership-a-${nanoid(8)}`;
+    const topicB = `test-membership-b-${nanoid(8)}`;
+    const sourceId = `test-membership-${nanoid(8)}`;
+    let itemId: string;
+
+    beforeAll(async () => {
+      const { db } = await import("./client");
+      await db.insert(topic).values(
+        [topicA, topicB].map((id) => ({
+          id,
+          label: `Test membership ${id}`,
+          seedQueries: {
+            wikipedia: [],
+            met: [],
+            aic: [],
+            cma: [],
+            wellcome: [],
+          },
+        })),
+      );
+      // An un-homed row: legal since Cut 1, and the shape the walk lane writes before it adds
+      // memberships.
+      const [row] = await db
+        .insert(item)
+        .values({
+          source: "doorofperception",
+          sourceId,
+          type: "image" as const,
+          title: "Integration test membership item",
+          summary: "A summary long enough to be unremarkable.",
+          sourceUrl: `https://example.com/${sourceId}`,
+          topicId: null,
+          curationScore: 8,
+          aestheticTags: [],
+        })
+        .returning({ id: item.id });
+      itemId = row!.id;
+    });
+
+    afterAll(async () => {
+      const { db } = await import("./client");
+      // item_topic rows go with the item (ON DELETE CASCADE) — that cascade is itself under test
+      // in the last case below.
+      await db.delete(item).where(eq(item.id, itemId));
+      await db.delete(topic).where(inArray(topic.id, [topicA, topicB]));
+    });
+
+    it("inserts one row per distinct topic and reports how many landed", async () => {
+      const n = await addItemTopics(
+        itemId,
+        [topicA, topicB, topicA],
+        "curator",
+      );
+      expect(n).toBe(2);
+      const { db } = await import("./client");
+      const rows = await db
+        .select()
+        .from(itemTopic)
+        .where(eq(itemTopic.itemId, itemId));
+      expect(rows.map((r) => [r.topicId, r.origin]).sort()).toEqual([
+        [topicA, "curator"],
+        [topicB, "curator"],
+      ]);
+    });
+
+    it("is additive: a repeat write inserts nothing and never rewrites origin", async () => {
+      const n = await addItemTopics(itemId, [topicA], "tag");
+      expect(n).toBe(0);
+      const { db } = await import("./client");
+      const [row] = await db
+        .select({ origin: itemTopic.origin })
+        .from(itemTopic)
+        .where(
+          and(eq(itemTopic.itemId, itemId), eq(itemTopic.topicId, topicA)),
+        );
+      expect(row?.origin).toBe("curator"); // the first writer's fact stands
+    });
+
+    it("does nothing for an empty list (no invalid empty INSERT)", async () => {
+      expect(await addItemTopics(itemId, [], "seed")).toBe(0);
+    });
+
+    it("an un-homed item is never drawn: drawFromTopic and getTopicPools both skip it", async () => {
+      // Membership rows exist for topicA now, but the FEED reads item.topic_id (still null) until
+      // Cut 2 — design §5's "invisible with no guard at all", pinned here so Cut 2 has to flip this
+      // test on purpose.
+      const drawn = await drawFromTopic(topicA, {
+        scoreFloor: 1,
+        excludeIds: [],
+        limit: 50,
+      });
+      expect(drawn.some((r) => r.id === itemId)).toBe(false);
+
+      const { getTopicPools } = await import("./feed");
+      const pools = await getTopicPools([topicA], {
+        userId: `nobody-${nanoid(6)}`,
+        anchor: new Date(),
+        scoreFloor: 1,
+        excludeIds: [],
+      });
+      expect(pools.get(topicA)?.some((r) => r.id === itemId)).toBe(false);
+    });
+
+    it("membership rows cascade away with the item", async () => {
+      const { db } = await import("./client");
+      await db.delete(item).where(eq(item.id, itemId));
+      const rows = await db
+        .select()
+        .from(itemTopic)
+        .where(eq(itemTopic.itemId, itemId));
+      expect(rows).toHaveLength(0);
+    });
+  },
+);

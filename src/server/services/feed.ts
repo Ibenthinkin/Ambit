@@ -71,8 +71,11 @@ export type Tier = "CORE" | "DRIFT" | "JUMP";
  * rather than the full row (Phase 7.3). `getFeedPage` swaps in the real `Item` before returning;
  * see `FeedCard` below for why two types exist.
  */
-export interface ComposedCard extends Omit<FeedCard, "item"> {
+export interface ComposedCard extends Omit<FeedCard, "item" | "topicId"> {
   item: PoolItem;
+  /** Always a real topic here: `composePage` serves every card from a topic pool. The client-side
+   *  `FeedCard` widens this to `string | null` (see there); the engine never does. */
+  topicId: string;
 }
 
 /**
@@ -87,7 +90,13 @@ export interface ComposedCard extends Omit<FeedCard, "item"> {
 export interface FeedCard {
   item: Item;
   tier: Tier;
-  topicId: string;
+  /**
+   * The topic this card was served under. `null` only when a screen *dresses* an item as a card
+   * without serving it — `saved-screen.tsx` does that to reuse the masonry, and a saved item can
+   * be un-homed (Cut 1). The feed itself never produces a null here (`ComposedCard` pins it), and
+   * the only reader of this field for layout is the Because tile, which only a JUMP produces.
+   */
+  topicId: string | null;
   // Topic ids walked to reach this card (DRIFT: [start, hop1, hop2?]; JUMP: [start, landing]) —
   // real product data (not gated by the dev flag), powering SPEC §5.4's connective UI rows that
   // explain *why* a card showed up. Absent for CORE (no walk happened).

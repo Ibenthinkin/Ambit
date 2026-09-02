@@ -104,6 +104,13 @@ export const savesRouter = createTRPCRouter({
       if (wasSaved) {
         return { collectionName: collection.name, drift: null } as const;
       }
+      // An un-homed item — a walk post no current topic fits (Cut 1, design §5) — has no topic to
+      // bump. The save itself is recorded above; the toast just reads "Saved to X", the same
+      // `drift: null` shape a move between collections produces. Cut 2's promotion is what gives
+      // such an item a topic, and from then on its saves bump like any other.
+      if (item.topicId === null) {
+        return { collectionName: collection.name, drift: null } as const;
+      }
       // Accepted race: two concurrent first-saves of the same item can both see `wasSaved ===
       // false` and double-bump. The client's in-flight guard makes that rare, and WEIGHT_CAP
       // bounds the damage — not worth a serializable transaction.

@@ -268,6 +268,44 @@ someone else's branch — which is how this plan was edited and merged without t
 is working in.
 
 *Session spend: 9.57M tok (in 289 · out 129.5k · cache r 8.62M / w 813.9k) · ~$13.56 · opus-5 + opus-4-7 · 13:11→13:30*
+**Shipped (Cut 1 — the vocabulary grows to fit the corpus):** all ten tasks of
+`docs/PLAN_topic-vocabulary-cut1.md`, executed in order on `feat/topic-vocabulary-cut1`. The
+migration made `item.topic_id` nullable and added `item_topic (item_id, topic_id, origin)`, with
+the backfill hand-appended to the generated `0004_item_topic.sql`: **18,332 memberships for 18,332
+items** — 7,284 `curator` (the three walk sources exactly), 11,048 `seed`, and both integrity
+checks zero. The typechecker's worklist was **the same 15 sites** the planning session captured, so
+Tasks 2–3 applied verbatim. Classify now returns an array; **nothing was re-billed** — the
+doorofperception run curated 69 items in 14.8 s and wrote `memberships written: 2`, because 67 came
+back from the cache as Phase 6.3 nulls read forward to `[]` and only two posts published since 6.3
+were real LLM calls. 68 items 6.3 would have destroyed are now stored un-homed, including a
+**score-10 Cajal plate**.
+
+**Findings:** the tag histogram earns its place on the first run. doorofperception's 68 un-homed
+items read `art 49 · psychedelic 26 · consciousness 23 · photography 23 · science 21 · surreal 18 ·
+perception 17` — a coherent cluster, not noise, which is precisely the "evidence *for* a new topic"
+the design predicted and the thing 6.3 was throwing away unmeasured. Two plan divergences, both
+small and both because the plan trialled only the *schema* edit: narrowing `PoolItem.topicId` to
+`string` broke 11 `feed.test.ts` fixtures (fixed by typing the `makeItem` helper's return as
+`Item & { topicId: string }` — true, since its `?? "botany"` default catches null, and no `!`
+anywhere), and the gallery details sheet's source row is labelled **From**, not "Source", so that
+assertion was corrected against the real component. The all-wildcard rail was verified **against
+the running app**, not just the unit test: the un-homed anchor serializes `topicId: null` and all
+eight cells carry `via: "wildcard"`, landing in eight unrelated topics.
+
+**Decisions:** as recorded in the plan's §0 and unchanged in execution — backfill `origin` frozen
+in SQL by source list; the three-topic cap lives in the prompt, not the parser, so an over-filing
+model stays visible; `--skip-llm` writes no walk rows; `topics[0]` is the display topic; the
+gallery's wildcard draw may surface an un-homed image, deliberately; an un-homed save reports
+`drift: null`; losing `collidedWith` claims are not written as seed memberships.
+
+**Open / next:** the two big re-walks are **offered, not started** — `--source thisiscolossal`
+(≈2,657 un-homed expected) and `--source thingsorganizedneatly` (≈829), free on tokens but long.
+Then streetartnews' verdict on re-read evidence, and the PDR plan (now un-paused and on `main`),
+whose Tasks 6–7 gated on exactly this merge. Production picks the migration up on the next deploy;
+Coolify's task status is not evidence, the un-homed count in the database is.
+
+*Session spend: 39.90M tok (in 652 · out 192.4k · cache r 38.68M / w 1.03M) · ~$31.88 · opus-5 + opus-4-7 · 13:12→13:34*
+
 
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
