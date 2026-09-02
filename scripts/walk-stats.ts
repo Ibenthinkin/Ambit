@@ -20,6 +20,7 @@
  *
  *   bun run stats:walk mossandfog                 # newest 150 offered (the trial-loop default)
  *   bun run stats:walk mossandfog --quota 300
+ *   bun run stats:walk pdr --cursor e:0 --quota 60   # the essays phase on its own
  */
 import type { WalkSourceId } from "~/server/config/topics";
 import {
@@ -44,7 +45,7 @@ if (
   !Number.isFinite(quota) ||
   quota <= 0
 ) {
-  console.error(`usage: bun run stats:walk <source> [--quota N]`);
+  console.error(`usage: bun run stats:walk <source> [--quota N] [--cursor C]`);
   console.error(`known walk sources: ${known.join(", ")}`);
   process.exit(1);
 }
@@ -53,7 +54,7 @@ const walker = walkers[source as WalkSourceId];
 // ── walk, the way ingest does (scripts/ingest.ts processWalker, minus the bookkeeping) ────────
 const offered: NormalizedItem[] = [];
 let toItemErrors = 0;
-let cursor: string | undefined;
+let cursor: string | undefined = flag("cursor");
 do {
   const page = await walker.walk(cursor, { limit: quota - offered.length });
   for (const raw of page.raw) {
