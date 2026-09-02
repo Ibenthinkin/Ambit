@@ -165,10 +165,12 @@ hands off to a cheaper session to execute. **streetartnews' verdict is deliberat
 42% refusal rate was the argument against Keep and now reads as 63 items seeding a `street-art`
 topic, so it should be judged after Cut 1 on re-read evidence. mossandfog's park is untouched (that
 was a quality verdict, not a subject one). One planning risk recorded in the design doc §12: the
-PDR plan rewrites the same ingest walk lane Cut 1 rewrites. And a checkout note — `docs/PLAN_
-publicdomainreview.md` plus an uncommitted log block were present at 11:52 and gone at 11:54 with
-no commit between; a branch switch cannot delete an untracked file, so that session removed them
-itself, but whoever owns that thread should check nothing was lost.
+PDR plan rewrites the same ingest walk lane Cut 1 rewrites — sequence the two or merge their ingest
+tasks, don't execute either blind of the other. (A checkout note, resolved: `docs/PLAN_publicdomain
+review.md` and an uncommitted log block vanished from the tree at 11:54 while another session was
+live, which looked like lost work. It wasn't — that session committed both to its own
+`docs/plan-pdr` branch, `d23030d`. Two sessions on one checkout again; the tell was a branch this
+session didn't create.)
 
 *Session spend: 23.21M tok (in 367 · out 172.2k · cache r 22.13M / w 906.0k) · ~$24.01 · opus-5 + opus-4-7 · 10:59→11:56*
 
