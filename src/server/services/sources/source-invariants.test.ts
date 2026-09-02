@@ -76,8 +76,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
     // `htmlToText()` at ingest — normalize.ts), and a regression there would be silent, because a
     // tag rendered as a text node looks like an oddly-punctuated caption rather than a bug.
     //
-    // `~ '<[a-zA-Z/][^>]*>'` is deliberately narrow: it wants `<p>`, `<a href=…>`, `</div>` — not
-    // a bare `<` in "a < b", and not the `<3` in a caption.
+    // The pattern wants `<p>`, `<a href=…>`, `</div>`, `<br/>` — a real tag NAME after the `<`,
+    // then either `>` or an attribute run. It deliberately does not fire on a bare `<` in "a < b",
+    // on the `<3` in a caption, or on an **email address in angle brackets** — see the PDR finding
+    // below, which is what tightened it from the original `'<[a-zA-Z/][^>]*>'` on 09-02-26.
     //
     // **This test ran on 08-28-26 and found 55 rows** (D7: record it, exclude it, do not rewrite
     // adapters overnight). One of the two findings is now fixed, the other is a permanent exclusion:
@@ -91,6 +93,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
     //    41 existing rows (it is the repair tool for any database that ingested before the fix —
     //    production runs it once after that deploy). The exclusion that used to sit here is gone,
     //    so a regression in any adapter fails this test. See docs/PHASE7_WALKTHROUGH_7.2.md.
+    //  * **`body` — one PDR row that is a false positive, and the reason the pattern is now
+    //    stricter (09-02-26).** `essay/the-primordial-gound` reproduces a forwarded email, headers
+    //    and all, and PDR writes the addresses the way email does: `From: Ivars Skrastins
+    //    <i** @du.lv >`. The old pattern read `<i** @du.lv >` as a tag. Nothing is stored as HTML
+    //    there — `bodyText()` had no tag to strip — so the honest fix was to require a valid tag
+    //    name rather than to exclude PDR and lose the check over its 1,547 bodies. The stricter
+    //    pattern still matches every real tag shape and finds 0 offenders corpus-wide.
     //  * **`body` — 14 wikipedia rows that are false positives.** Wikipedia has articles *about*
     //    markup, and their plain-text extracts legitimately contain the strings `<section>`,
     //    `<ref>`, `<b>` and `<ul>` as prose. Nothing is stored as HTML there; the regex simply
@@ -111,13 +120,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
         field: string;
       }>(sql`
         select source, id, 'title' as field from item
-          where title ~ '<[a-zA-Z/][^>]*>'
+          where title ~ '<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^>]*)?\/?>'
         union all
         select source, id, 'summary' as field from item
-          where summary ~ '<[a-zA-Z/][^>]*>'
+          where summary ~ '<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^>]*)?\/?>'
         union all
         select source, id, 'body' as field from item
-          where body ~ '<[a-zA-Z/][^>]*>'
+          where body ~ '<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^>]*)?\/?>'
             and source <> 'wikipedia'
       `);
 

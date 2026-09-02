@@ -75,7 +75,13 @@ rows locally @ 8.70, 97.5% ≥ 8, all 16 topics — the strongest source in the 
 parked** (`SUSPENDED_SOURCES`, the only switch that keeps a
 registered walker out of the nightly ingest). Walk sources are now exempt from the dup-title floor
 rule, and `bun run stats:walk` prints the score distribution a verdict needs. Neither kept blog is
-on production yet — the nightly ingest walks them after the next deploy. Pick the thread up from
+on production yet — the nightly ingest walks them after the next deploy. **The Public Domain Review
+(`pdr`) was built and KEPT 09-02-26** — the fourth walk source and the first that is *not* a designated
+blog (its images are public domain, its own text CC BY-SA 4.0), a walk over Gatsby `page-data` JSON
+with a per-record disk cache; **1,624 local rows @ 8.39, 87% ≥ 8**, of which 186 are un-homed under
+Cut 1. Local only until the next deploy, like the two blogs. It is also the first source whose
+*image* items carry a `body` — a collection's own CC BY-SA preamble, rendered under the picture —
+which is why the "walk rows carry no body" invariant is now scoped to blogs. Pick the thread up from
 `docs/HANDOFF_sources-round2.md` **§0** — streetartnews and spoon-tamago as a cold-executable
 seven-step task (config rows on the factory, verdict after each) — then Europeana / Openverse /
 Chronicling America. See
