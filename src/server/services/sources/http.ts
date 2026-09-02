@@ -64,7 +64,18 @@ export interface FetchJsonOpts {
    * response is retryable — the Met's rate limit surfaces as a 403 that clears after a pause.
    */
   noRetryOn?: number[];
+  /**
+   * Per-attempt deadline, headers-to-body-read inclusive; default DEFAULT_TIMEOUT_MS. Added
+   * 09-02-26 after a thisiscolossal walk hung for good: 13.9 MB in over one keep-alive socket,
+   * then zero bytes forever — the far end had dropped the connection and `fetch` has no timeout
+   * of its own. A request that never answers is now a failed attempt like a 503, with the same
+   * backoff and retry (a retry opens a fresh socket). Generous by default because the slowest
+   * honest answers this code sees are museum searches in the tens of seconds.
+   */
+  timeoutMs?: number;
 }
+
+export const DEFAULT_TIMEOUT_MS = 60_000;
 
 /**
  * The one retry loop, parameterized by how the body is read. Retry-with-backoff on failure (see
@@ -80,7 +91,12 @@ async function fetchWithRetry<T>(
   read: (res: Response) => Promise<T>,
 ): Promise<{ data: T; headers: Headers }> {
   let lastErr: unknown;
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   for (let attempt = 1; attempt <= 4; attempt++) {
+    // One controller per attempt, armed with a plain setTimeout rather than AbortSignal.timeout
+    // so the unit tests' fake timers can drive it. Cleared on every exit path below.
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), timeoutMs);
     try {
       if (opts?.delayMs) await sleep(opts.delayMs);
       const res = await fetch(url, {
@@ -94,6 +110,7 @@ async function fetchWithRetry<T>(
           Accept: "application/json",
           ...opts?.headers,
         },
+        signal: controller.signal,
       });
       if (!res.ok) {
         if (opts?.noRetryOn?.includes(res.status))
@@ -104,11 +121,17 @@ async function fetchWithRetry<T>(
     } catch (err) {
       // A refusal is the caller's decision, not a transport failure: straight out, no backoff.
       if (err instanceof HttpRefusedError) throw err;
-      lastErr = err;
+      lastErr = controller.signal.aborted
+        ? new Error(
+            `timed out after ${timeoutMs}ms for ${redactUrl(url)} (attempt ${attempt})`,
+          )
+        : err;
       // Exponential backoff (1s → 3s → 9s) plus up to 500ms of jitter so concurrent adapters
       // don't all retry in lockstep — same shape phase0/harvest.ts and phase0/curate.ts both use.
       if (attempt < 4)
         await sleep(1000 * 3 ** (attempt - 1) + Math.random() * 500);
+    } finally {
+      clearTimeout(deadline);
     }
   }
   throw lastErr;
