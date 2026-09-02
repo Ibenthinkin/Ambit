@@ -1,10 +1,16 @@
 # publicdomainreview.org walk adapter — Implementation Plan
 
-> **PAUSED 09-02-26 (Ben):** the tagging rules are being rewritten in a parallel session
-> (`docs/topic-vocabulary-growth`) and that change reaches ingestion. **Do not execute this plan
-> until that lands**, then re-read it against the new rules before Task 1 — the `tags` arrays in
-> both projections (Task 3) and the curator's classify-mode assumptions are the parts most
-> likely to need a touch. Everything else here is independent of tagging.
+> **Re-read against Cut 1 — done 09-02-26, this plan is live again.** The tagging rewrite that
+> paused it is `docs/DESIGN_topic-vocabulary-growth.md` plus `docs/PLAN_topic-vocabulary-cut1.md`
+> ("Cut 1"), both merged to `main`. The re-read found **no change needed in Tasks 1–5** — both
+> projections' `tags` arrays (Task 3) are right as written and worth more under the new rules, and
+> the only file both plans touch is `scripts/walk-stats.ts`, in disjoint regions. What changed is the **evidence and the verdict**
+> (Tasks 6–7), plus one hard ordering rule. **Read §1a before starting; it is the whole delta.**
+
+> **Execution gate.** **Tasks 1–5 may run now, concurrently with Cut 1's own execution** — they
+> share no file with it. **Tasks 6–7 must not begin until Cut 1 is merged to `main`** and this
+> branch is rebased onto it. **No PDR row may be written to any database before Cut 1's
+> `item_topic` migration has run there** (§1a says why that one is correctness, not preference).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -15,6 +21,8 @@ public-domain works — Collections **and** Essays (with the Conjectures and Cur
 series) — with each collection's body text shown under its image. **For:** a cold session on a
 cheaper model. Every number, field name and string here was verified against the live site on
 09-02-26 — re-probe only if a step's expected output disagrees with what you see.
+**Re-read and revised 09-02-26 afternoon** against Cut 1 of the topic-vocabulary work: §1a is new,
+Tasks 1–5 are unchanged, Tasks 6–7 and the Verification bar are amended.
 
 **Goal:** One `CorpusWalkAdapter` (`pdr`) that walks The Public Domain Review's 1,255
 Collections and 393 essay-route pieces from Gatsby's page-data JSON with a per-record disk
@@ -37,7 +45,8 @@ tests), the repo's own `fetchJson` / `htmlToText` / `toLede` / `uniqueTags` /
 
 **Spec:** `docs/HANDOFF_publicdomainreview.md` §1 (Ben's three decisions — settled) and this
 document's §1 (the four decisions Ben took on 09-02-26 afternoon — also settled). Recipe and
-conventions: `docs/HANDOFF_sources-round2.md` §3–§4.
+conventions: `docs/HANDOFF_sources-round2.md` §3–§4. Ingestion rules this plan runs under:
+`docs/DESIGN_topic-vocabulary-growth.md` and `docs/PLAN_topic-vocabulary-cut1.md`, distilled in §1a.
 
 ## Global Constraints
 
@@ -53,11 +62,24 @@ conventions: `docs/HANDOFF_sources-round2.md` §3–§4.
   understands.
 - Politeness: 500 ms sequential, `noRetryOn: [401, 403]`, robots checked at the start of every
   walk. Never run a full walk from a laptop on battery with the lid closed.
-- Plain branch off `main` (`feat/pdr-walk`), `--no-ff` merge after the verdict. **Another session
-  has been live on this checkout all day** (streetartnews, possibly spoon-tamago, in `types.ts`,
-  `topics.ts`, `index.ts`, `source-invariants.test.ts`). Run `git branch --show-current && git
-  status` immediately before every `git add`; stage by name; never `git add -A`; if `git status`
-  shows edits you did not make, stop and say so.
+- Plain branch off `main` (`feat/pdr-walk`), `--no-ff` merge after the verdict. **Several sessions
+  are live on this checkout** — Cut 1's execution, and the round-2 blogs in `types.ts`,
+  `topics.ts`, `index.ts`, `source-invariants.test.ts`. **Two sessions cannot execute two plans in
+  one working tree**: a `git checkout -b` in either moves the files under the other (log.md
+  09-02-26). So run `git branch --show-current && git status` in `~/Dev/ambit` **first** — if it is
+  on anything but a clean `main`, do **not** check out a branch there. Give yourself an isolated
+  tree instead:
+
+  ```bash
+  git -C ~/Dev/ambit worktree add ../ambit-pdr -b feat/pdr-walk main
+  cd ~/Dev/ambit-pdr && bun install        # a worktree has its own node_modules
+  ```
+
+  Either way: `git branch --show-current && git status` immediately before every `git add`; stage
+  by name; never `git add -A`; if `git status` shows edits you did not make, stop and say so.
+  `.cache/` and the local Postgres are **shared** whichever tree you work in — harmless for Tasks
+  1–6 (they write no rows, and `.cache/pdr` and `.cache/curation` are keyed per source), and the
+  reason the execution gate forbids DB writes until Cut 1's migration has run.
 - Gates before every commit: `bunx eslint <files> && bunx prettier --check <files>`, plus
   `bun run typecheck` wherever the task says it is expected to pass (see Task 1's note), and
   `bun run test` at task ends (~35 s; a red Postgres test on a busy machine is not your change).
@@ -238,6 +260,78 @@ headings rewritten to `== … ==`, renders correctly with no parser change.
   removed from bodies — the pictures cannot be shown inline, and the link-out reaches them.
 - **`pdr` is a walk source but not a designated blog.** Its own `config/pdr.ts`, no `BLOGS`
   row; `blogs.test.ts`'s "every walk source is a blog" names `pdr` as the exception.
+
+---
+
+## 1a. Cut 1 (topic vocabulary growth) — what it changes here
+
+Written 09-02-26 afternoon, re-reading this plan against the two documents that paused it:
+`docs/DESIGN_topic-vocabulary-growth.md` (the principle and its evidence) and
+`docs/PLAN_topic-vocabulary-cut1.md` (what was built). Read the design's §1–§2 for the why if you
+want it; **this section is the operational delta and is sufficient on its own.**
+
+**The principle, in one line.** Walk sources ingest their whole corpus and the topic vocabulary
+grows to fit them. Ingest no longer drops a walk item because none of the sixteen topics is an
+honest home: it stores it **un-homed** (`item.topic_id` NULL, no `item_topic` membership rows) and
+prints a tag histogram over what those items are about. The quality bar is untouched —
+`structuralFloor` and the curation score still decide what is stored at all. "Everything" means
+everything that clears *quality*, never a relaxed floor.
+
+**What that does not change in this plan.** Tasks 1–5 stand exactly as written. `toItem` is still
+pure and synchronous; `NormalizedItem` is unchanged; the `CorpusWalkAdapter` contract is unchanged;
+the rights policy, the disk cache, the phased cursor, the body / link-card split and the item-page
+rendering are all independent of topics. Both projections' `tags` arrays are unchanged and are now
+worth *more* (below). The design's §12 warned that this plan "rewrites the same walk lane in
+`scripts/ingest.ts`" — **it does not.** This plan never edits `scripts/ingest.ts`; it only asserts
+that lane's output in a dry run. The one file both plans touch is `scripts/walk-stats.ts`, in
+disjoint regions. That is why Tasks 1–5 are safe to execute alongside Cut 1.
+
+**The one hard ordering rule.** Cut 1's migration backfills `item_topic.origin` from a **source
+list frozen in the SQL**, and `pdr` is not in it — correctly, because no PDR rows existed when it
+was written. Any PDR row written to a database *before* that migration runs would therefore be
+backfilled `origin='seed'` when it is in fact curator-classified: a silent lie in the one column
+Cut 2's promotion audits. Tasks 1–6 write no rows, so this bites only on a Keep full walk.
+**Never full-walk PDR into a database whose `item_topic` migration has not run.** Task 7 opens with
+the check.
+
+**What changes in the evidence (Tasks 6–7).** The number that was going to decide this source has
+changed meaning.
+
+- `stats:walk` now reports `stored X of offered · un-homed Y of stored` plus an `un-homed tags:`
+  line. The word *refused* is gone from the script; it should be gone from your report too.
+- `bun run ingest --dry-run` now prints `(un-homed — stored)` in the classification block,
+  `would store un-homed (walk): N` with a `top tags among them: …` line, and
+  `memberships written: 0 (--dry-run)`. Nothing is dropped for topic fit.
+- **A high un-homed share is not an argument against PDR.** It was the argument against
+  streetartnews, and the design (§13) explicitly retired it: un-homed items are stored, and their
+  tags are the raw material for new topics. The verdict question is now *"is what this source
+  publishes worth having, and what vocabulary does it bring?"* — not *"does it fit the sixteen?"*
+- Un-homed items are **invisible to the feed** (SQL `NULL` matches neither `inArray` nor `eq`) and
+  reachable only by direct link `/i/<id>` and the gallery rail's wildcard slots, until Cut 2's
+  promotion path exists. Intended, not a defect to fix here.
+
+**Why PDR is the strongest vocabulary source in the corpus — and the trap that comes with it.**
+Every other walk source brings free-text blog tags, unreliably (two of streetartnews' three newest
+posts had none at all). PDR brings **controlled vocabularies**: `Medium`, `Theme`, `Style`, `Epoch`
+and curated `Tags`, 4–12 per record, across all 1,648 pieces. That is the best promotion material
+Cut 2 will ever see, and it is a real argument in this source's favour.
+
+The trap is in the same fact. Task 3 lowercases all four taxonomies into one `tags` array, so the
+un-homed histogram will surface `film`, `book`, `18th century` alongside subject terms — but
+**medium and epoch are different axes** from the sixteen subject topics, and promoting them would
+give the drift graph nodes that are not *about* anything. Whether Ambit's vocabulary grows along
+one axis or several is a Cut 2 decision, not this plan's. **Say so in the verdict report (Task 6
+step 8)** so it is decided deliberately rather than by whichever term happens to top a histogram.
+
+**Never `--skip-llm` on a walk source.** Under Cut 1 it writes nothing for the walk lane at all —
+an unscored, unclassified row would be skipped as "already in DB" by every later real run and so
+block its own curation forever. It is not a cheap sample; `--dry-run` is.
+
+**Rebasing onto Cut 1.** On `feat/pdr-walk`, after Cut 1 merges: `git fetch && git rebase main`
+(or `git merge main`). The only file that can conflict is `scripts/walk-stats.ts` — Cut 1 rewrote
+its counters (`classified`/`refused` → `classified`/`unhomed`, around lines 70–72 and 106–121)
+while this plan's Task 6 step 1 adds a `--cursor` flag at the `let cursor` declaration and in the
+usage block. Both edits are wanted; keep both.
 
 ---
 
@@ -1828,9 +1922,15 @@ git commit -m "feat(item): image items may carry a body — PDR collections read
 
 ### Task 6: Live checks, the trial samples, and the evidence
 
+> **Gate (§1a): Cut 1 must be merged to `main` and this branch rebased onto it before this task.**
+> If it is not, stop at the end of Task 5 and report — Tasks 1–5 are a complete, committable unit
+> (adapter, tests, registration, item page), and every expected output below assumes Cut 1's
+> vocabulary. Check with `git log --oneline main | head -5` (look for the Cut 1 merge) and
+> `grep -n "item_topic" src/server/db/schema.ts`.
+
 Everything here is polite and writes nothing to the DB. Lid open, power attached.
 
-- [ ] **Step 1: A `--cursor` flag for `stats:walk`** — the walk runs collections first, so a `--quota 150` sample never reaches an essay. In `scripts/walk-stats.ts`: change `let cursor: string | undefined;` to `let cursor: string | undefined = flag("cursor");`, extend the usage lines to `bun run stats:walk <source> [--quota N] [--cursor C]`, and add a usage example `bun run stats:walk pdr --cursor e:0 --quota 60   # the essays phase on its own`. Run `bunx eslint scripts/walk-stats.ts && bunx prettier --check scripts/walk-stats.ts`, then commit:
+- [ ] **Step 1: A `--cursor` flag for `stats:walk`** — the walk runs collections first, so a `--quota 150` sample never reaches an essay. In `scripts/walk-stats.ts`: change `let cursor: string | undefined;` to `let cursor: string | undefined = flag("cursor");`, extend the usage lines to `bun run stats:walk <source> [--quota N] [--cursor C]`, and add a usage example `bun run stats:walk pdr --cursor e:0 --quota 60   # the essays phase on its own`. Cut 1 rewrote this file's counters (`refused` is now `unhomed`, and it prints an `un-homed tags:` line), so **locate the `let cursor` declaration and the usage block by name, not by line number** — your edit is in a different region and both are wanted. Run `bunx eslint scripts/walk-stats.ts && bunx prettier --check scripts/walk-stats.ts`, then commit:
 
 ```bash
 git add scripts/walk-stats.ts && git commit -m "feat(scripts): stats:walk takes a --cursor start so a phased walker can be sampled per phase"
@@ -1854,7 +1954,7 @@ bun -e 'const r=await (await fetch("https://publicdomainreview.org/page-data/col
 - [ ] **Step 4: Structural dry-run through ingest** (cheap, ~20 records)
 
 Run: `bun run ingest --source pdr --dry-run --quota 20`
-Expected: the walk lane runs, the floor breakdown prints, classify-mode curation of ~20 items, a topic histogram, `0` writes. This proves the adapter fits the ingest loop (the cursor round-trips through it opaquely).
+Expected: the walk lane runs, the floor breakdown prints, classify-mode curation of ~20 items, then the Cut 1 summary — a classification block ending in `(un-homed — stored)`, a `would store un-homed (walk): N` line with `top tags among them: …` beneath it, `memberships written: 0 (--dry-run)`, and `0` writes. **Nothing is dropped for topic fit** (§1a). This proves the adapter fits the ingest loop (the cursor round-trips through it opaquely). Note the un-homed count and its tags: over ~20 collections that is your first read on what PDR brings to the vocabulary.
 
 - [ ] **Step 5: The trial samples** (bill cents; write nothing)
 
@@ -1862,11 +1962,11 @@ Run: `bun run stats:walk pdr --quota 150` — the newest 150 collections.
 Run: `bun run stats:walk pdr --cursor e:0 --quota 60` — the newest 60 essays (expect ~6 link cards among them).
 Run: `bun run stats:walk pdr --cursor x:0 --quota 50` — all 21 Conjectures then the first 29 of Curator's Choice (the phase rolls over).
 
-**Paste all three stats blocks into the evidence below.** Note in particular: whether Film/Audio posters score like images; whether essays (articles, hero as bytes) score near the collections or near Wikipedia's 5.27; the refused share per kind.
+**Paste all three stats blocks into the evidence below.** Note in particular: whether Film/Audio posters score like images; whether essays (articles, hero as bytes) score near the collections or near Wikipedia's 5.27; the **un-homed share per kind and which tags dominate the un-homed pile** — under Cut 1 that pile is stored and is this source's contribution to the vocabulary, not waste (§1a).
 
 - [ ] **Step 6: Record the evidence**
 
-In `docs/source-candidates.md`, the `**Public Domain Review**` row of the "Designated blogs" table: status cell → `🔵 **Adapter built + sampled 09-0X-26** (`pdr` on `feat/pdr-walk`; verdict pending)`; notes cell → the shape (Gatsby page-data walk over four indexes, 1,255 collections + 393 essays, cache-aside hydration, rights policy excluding Non-commercial copies, CC BY-SA essays as articles / others as cards, collections' preamble under the picture), the three stats blocks verbatim, and one line noting the Blog is deliberately out.
+In `docs/source-candidates.md`, the `**Public Domain Review**` row of the "Designated blogs" table: status cell → `🔵 **Adapter built + sampled 09-0X-26** (`pdr` on `feat/pdr-walk`; verdict pending)`; notes cell → the shape (Gatsby page-data walk over four indexes, 1,255 collections + 393 essays, cache-aside hydration, rights policy excluding Non-commercial copies, CC BY-SA essays as articles / others as cards, collections' preamble under the picture), the three stats blocks verbatim, one line noting the Blog is deliberately out, and — the trial loop's post-Cut-1 eyeball question — one line on **what the un-homed items are about**, taken from the three blocks' `un-homed tags:` lines.
 
 In `docs/HANDOFF_publicdomainreview.md`, replace the status blockquote under the title with:
 
@@ -1887,15 +1987,29 @@ git add docs/source-candidates.md docs/HANDOFF_publicdomainreview.md CLAUDE.md
 git commit -m "docs(sources): pdr adapter sampled — collections and essays, evidence recorded, verdict pending"
 ```
 
-- [ ] **Step 8: STOP. Ben's verdict.** Report the three stats blocks, the excluded-on-rights count, the two no-image throws, the link-card share among essays, and anything odd in the top/bottom titles. Ask for Keep / Park / Cut. Do not merge, do not full-walk.
+- [ ] **Step 8: STOP. Ben's verdict.** Report the three stats blocks, the excluded-on-rights count, the two no-image throws, the link-card share among essays, and anything odd in the top/bottom titles. Then the two Cut 1 additions (§1a):
+
+  - **The un-homed share per kind, and the top tags among the un-homed.** Frame it as the source's vocabulary contribution, not a refusal rate — a high share is not an argument against PDR, and saying so is part of the report.
+  - **The axis question.** Say whether `Medium` / `Epoch` terms (`film`, `book`, `18th century`) dominate the un-homed histogram over subject terms. Ambit's sixteen topics are a *subject* axis; growing the vocabulary along medium or period instead is a real choice, and it is Cut 2's to make deliberately rather than by histogram rank.
+
+  Ask for Keep / Park / Cut. Do not merge, do not full-walk.
 
 ---
 
 ### Task 7: After the verdict
 
 **Keep:**
-- [ ] Full walk, detached, lid open: `nohup bun run ingest --source pdr > .cache/pdr-walk.log 2>&1 & disown`. Expect ~15 min of hydration (1.7 GB; silence between pages is normal — judge liveness by `netstat -anv -p tcp | grep bun:<pid>`), then curation of ~1,640 thumbs. Then `bun run stats:walk pdr --quota 1700` is free and gives the corpus numbers per phase.
+- [ ] **Precondition (§1a) — the migration first, always.** This is the first step of the first PDR run against any database, local or production:
+
+```bash
+bun -e 'import postgres from "postgres"; const sql = postgres(process.env.DATABASE_URL!);
+console.log(await sql`select count(*)::int as memberships from item_topic`); await sql.end()'
+```
+
+  Expected: a count (the table exists). If it errors with `relation "item_topic" does not exist`, **stop** — PDR rows written before Cut 1's migration are backfilled `origin='seed'` when they are curator-classified, and that is a lie Cut 2's promotion audits. Run the migration, then continue. The same check belongs in the first *production* ingest of `pdr` after the next deploy.
+- [ ] Full walk, detached, lid open: `nohup bun run ingest --source pdr > .cache/pdr-walk.log 2>&1 & disown`. Expect ~15 min of hydration (1.7 GB; silence between pages is normal — judge liveness by `netstat -anv -p tcp | grep bun:<pid>`), then curation of ~1,640 thumbs. **Every curated item is stored** under Cut 1, so expect the row count to be the curated count — not curated-minus-refused — with the un-homed among them counted and characterised in the summary. Then `bun run stats:walk pdr --quota 1700` is free and gives the corpus numbers per phase.
 - [ ] **Eyeball three real rows** in `bun run dev`: a collection `/i/<id>` (picture, blurb, notice, paragraphs, "See it on The Public Domain Review" row; the hero still opens `/g/`), a CC BY-SA essay `/i/<id>` (reader view with the notice), a Custom License essay `/i/<id>` (card: picture, Intro, link-out, no text). Find ids with `psql`/`bun run probe:feed` or `select id, source_id, type from item where source='pdr' limit 20`.
+- [ ] **Eyeball one un-homed row** (new under Cut 1): `select id, title, tags from item where source='pdr' and topic_id is null order by curation_score desc limit 5;` — open the best one at `/i/<id>`. It renders fully and is **absent from the feed**; that is Cut 1 working, not a bug. Put its title and tags in the log entry — a strong un-homed piece is the clearest evidence for what PDR adds to the vocabulary.
 - [ ] `SPEC.md` §6.1: a `pdr` bullet in the walk-sources list, in the shape of the `thisiscolossal` bullet (what it is, the four indexes, the cache, the rights policy, the two projections, the item-page change, the sample and full-walk numbers, what is deliberately out: the Blog, footnotes, inline images).
 - [ ] `docs/source-candidates.md` row → ✅ with the full-walk numbers; `CLAUDE.md` status paragraph gains one sentence naming `pdr` as kept (local rows only until the next deploy — the nightly cron walks it then, and its first server walk is the 1.7 GB one).
 - [ ] `log.md`: a block in today's entry (**Shipped / Findings / Decisions / Open**) ending with the spend line from `python3 ~/.claude/scripts/session-spend.py --session <uuid>` — never estimated.
@@ -1911,9 +2025,20 @@ git commit -m "docs(sources): pdr adapter sampled — collections and essays, ev
 - `bun run probe:walk pdr --limit 5` twice: the second run answers from disk. All four phases probed; the phase roll-over and the end-of-walk both seen.
 - The rights exclusion and the non-ASCII slug proven live (Task 6 step 3).
 - Three `stats:walk` blocks pasted into `docs/source-candidates.md`.
-- Nothing written to the DB; `git log --oneline main..feat/pdr-walk` shows seven commits.
+- Nothing written to the DB before the verdict; `git log --oneline main..feat/pdr-walk` shows seven commits.
+- §1a's gate honoured: Tasks 6–7 ran only after Cut 1 merged and this branch was rebased onto it, and `item_topic` existed before any PDR row was written.
+- The verdict report carries the un-homed share, the un-homed tag histogram, and the axis question.
 
 ## Self-review (done by the planner, 09-02-26)
+
+- **Re-read against Cut 1 (09-02-26 afternoon, a second session).** Every file this plan touches
+  was checked against `docs/PLAN_topic-vocabulary-cut1.md`'s file map: the overlap is
+  `scripts/walk-stats.ts` alone, in disjoint regions. This plan does not edit `scripts/ingest.ts`,
+  so the design's §12 "biggest planning risk" (both plans rewriting the walk lane) does not hold —
+  recorded in §1a so nobody re-derives it. Tasks 1–5 needed no change; Tasks 6–7's expected outputs,
+  the verdict question and one ordering precondition did. The `item_topic.origin` hazard in §1a was
+  found by reading Cut 1's Q1 (the frozen source list in the migration SQL) against Task 7's full
+  walk; it is the only correctness issue the re-read turned up.
 
 - **Spec coverage:** handoff §1 decisions → Task 2 header, `passesRightsPolicy`, no medium filter; Ben's afternoon decisions → collections carry `body` + Task 5's image variant; essays in with both series → `PHASES` and `essayToItem`; Custom License → `essayIsOpen` + `PDR_CARD_LICENSE`; Blog out → not a phase, recorded in the row. Handoff §5's index-then-hydrate → Task 3; §6.2 → `ReuseNotice`; §6.3 → §0.4 + policy; §6.4 → `DELAY_MS`; §6.5 → Tasks 1 and 4; §7 recipe → Task 6.
 - **Placeholders:** none — every code step is complete, every expected value comes from the live samples.
