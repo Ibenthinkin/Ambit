@@ -20,6 +20,11 @@ describe("sourceLabel", () => {
     expect(sourceLabel("poetrydb")).toBe("PoetryDB");
   });
 
+  it("names The Public Domain Review the way its masthead does", () => {
+    // Without the table entry the fallback prints "Pdr" — a wrong claim on the credit line.
+    expect(sourceLabel("pdr")).toBe("The Public Domain Review");
+  });
+
   // `item.source` is an open set — future adapters and the private ambit-archive/loupe sources
   // will all reach this function before anyone thinks to add them to the table.
   it("title-cases an unknown source rather than rendering nothing", () => {
