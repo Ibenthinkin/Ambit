@@ -86,6 +86,20 @@ export const BLOGS: readonly BlogConfig[] = [
     robotsCheckedOn: "2026-09-01",
     walk: "wp-rest",
   },
+  {
+    id: "streetartnews",
+    label: "StreetArtNews",
+    // The **bare** host is canonical: `www.streetartnews.net` 301s here (checked 09-02-26), so
+    // pinning `www` would put a redirect in front of every walk request.
+    baseUrl: "https://streetartnews.net",
+    license: BLOG_LICENSE,
+    // Verified 09-02-26: four lines total — `User-agent: *`, `Disallow: /wp-admin/`,
+    // `Allow: /wp-admin/admin-ajax.php`, and a sitemap. No named-bot section of any kind, so no
+    // AI block list to weigh. 9,509 posts at probe time (`x-wp-total`), tags sparse — two of the
+    // three newest posts carry none at all, which is fine: tags are a hint, not a floor input.
+    robotsCheckedOn: "2026-09-02",
+    walk: "wp-rest",
+  },
 ];
 
 export function blogConfig(id: string): BlogConfig | undefined {

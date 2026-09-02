@@ -67,6 +67,7 @@ export const WALK_SOURCES = [
   "thingsorganizedneatly",
   "mossandfog",
   "thisiscolossal",
+  "streetartnews",
   "pdr",
 ] as const;
 
