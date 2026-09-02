@@ -317,6 +317,34 @@ Coolify's task status is not evidence, the un-homed count in the database is.
 
 *Session spend: 39.90M tok (in 652 · out 192.4k · cache r 38.68M / w 1.03M) · ~$31.88 · opus-5 + opus-4-7 · 13:12→13:34*
 
+**Shipped (Cut 1, the first re-walk):** `bun run ingest --source thingsorganizedneatly` — 142 s,
+111 pages, 5,267 offered, **829 items stored un-homed**, `memberships written: 0`, zero tokens
+billed. Every one came back from the curation cache as `topics: []`, which is exactly right: these
+are precisely the posts 6.3 dropped, so not one of them landed a topic and the classification block
+is a single line. The source is now **complete at 1,720 rows** — 891 already there plus these 829,
+which is exactly the number that clears the structural floor. Corpus 18,401 → 19,230; un-homed 897;
+the `missing` integrity check still 0.
+
+**Findings — two things the un-homed tag histogram taught on its first real test.** The histogram
+read `submission 344 · minimalist 157 · still life 125 · flat lay 123 · found objects 100 · food 91
+· art 48 · sculpture 47 · photography 43 · color 41 · graphic design 40 · geometric 39`.
+
+1. **`minimalist / still life / flat lay / found objects / geometric` is a coherent candidate
+   topic** — and it is essentially the blog's own identity, which is the vocabulary-growth
+   principle working as designed: the source proposed a topic the sixteen never had.
+2. **`submission 344` is process noise, not subject** — a Tumblr workflow tag meaning a reader sent
+   the post in, and the single most common tag among the un-homed. **Cut 2's promotion must filter
+   this class of tag or it will propose "submission" as a topic.** First evidence that the tag
+   vocabulary is not uniformly about subject matter; belongs in the Cut 2 design before any
+   frequency mining is written.
+
+Also newly visible, though not a Cut 1 effect: for this source the **structural floor is by far the
+dominant filter** — 3,547 of 5,267 offered dropped (227 bare-title, 3,320 thin-summary), because
+Tumblr posts frequently carry no usable title or blurb. The topic vocabulary was never what was
+costing this source its corpus.
+
+**Open / next:** `--source thisiscolossal` (≈2,657 un-homed expected) is the remaining re-walk.
+
 
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
