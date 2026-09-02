@@ -17,7 +17,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { TOPICS } from "~/server/config/topics";
+import { TOPICS, WALK_SOURCES } from "~/server/config/topics";
 import { USER_AGENT } from "./sources/http";
 import type { NormalizedItem } from "./sources/types";
 
@@ -84,6 +84,10 @@ export type StructuralDropRule = "dup-title" | "bare-title" | "thin-summary";
 
 /** Titles are compared in a normalized form so "Textile", "textile " and "Textile." all count
  *  as the same title — the 0.4 duplicates were exact-after-normalization, not fuzzy. */
+function isWalkSource(source: string): boolean {
+  return (WALK_SOURCES as readonly string[]).includes(source);
+}
+
 function normTitle(t: string): string {
   return t
     .toLowerCase()
@@ -97,7 +101,10 @@ function normTitle(t: string): string {
  * within the given `items` array only). Three rules, each a Phase 0.4 finding:
  *  - dup-title: items sharing a normalized title with >2 others are interchangeable catalog
  *    stubs (580 of 3168 Phase 0 items sat on a literally duplicated title) — picking one to
- *    keep would be arbitrary, so all of them go.
+ *    keep would be arbitrary, so all of them go. **Walk sources are exempt** (sources round 2,
+ *    09-01-26): a blog's series posts share a caption-derived title on purpose — nine of 150
+ *    thingsorganizedneatly posts, three Andy Goldsworthys among them, floored under the museum
+ *    rule — and `(source, source_id)` still catches true repeats. The other two rules apply.
  *  - bare-title: a museum image titled with a single noun ("Bowl", "Fragment") has nothing to
  *    say for itself. Scoped to image items — a one-word Wikipedia title ("Astronomy") fronts a
  *    rich article and is fine.
@@ -120,7 +127,7 @@ export function structuralFloor(items: NormalizedItem[]): {
   for (const item of items) {
     const norm = normTitle(item.title);
     const rule: StructuralDropRule | null =
-      (titleCounts.get(norm) ?? 0) > 2
+      (titleCounts.get(norm) ?? 0) > 2 && !isWalkSource(item.source)
         ? "dup-title"
         : item.type === "image" && norm.split(" ").length <= 1
           ? "bare-title"
