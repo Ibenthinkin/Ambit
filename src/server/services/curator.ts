@@ -59,24 +59,32 @@ export const TOPIC_IDS: ReadonlySet<string> = new Set(TOPICS.map((t) => t.id));
  * rather than editing CURATOR_PROMPT, because that string is a product artifact carrying Ben's
  * taste calibration (SPEC §15) and is not implementation detail to be reworded.
  *
- * "or null" is the important clause (D4): a post with no honest home among the sixteen is dropped
- * by ingest, never force-fitted — topic_id is the feed's unit of drift, and a psychedelia post
- * filed under botany teaches the drift graph something false.
+ * **D4, revised (Cut 1, 09-2026 — docs/DESIGN_topic-vocabulary-growth.md §4).** 6.3's D4 read:
+ * "'or null' is the important clause: a post with no honest home among the sixteen is dropped by
+ * ingest, never force-fitted — topic_id is the feed's unit of drift, and a psychedelia post filed
+ * under botany teaches the drift graph something false." Half of that survives and is
+ * strengthened, half reverses. *Never force-fitted* stands, and is now cheaper: the answer is an
+ * ARRAY of honest homes, possibly empty, so refusing a topic costs the item nothing. *Dropped by
+ * ingest* is gone: the item is stored with zero topic rows, its tags intact, and Cut 2's
+ * promotion is what gives it a home. Walk sources ingest their whole corpus; the vocabulary grows
+ * to fit them, never the reverse.
  */
 export const CLASSIFY_PROMPT =
   CURATOR_PROMPT.slice(0, CURATOR_PROMPT.lastIndexOf("Reply with ONLY")) +
-  `Also file this item under exactly ONE of these topics — the one a reader who chose that topic would be glad to find it in — or null if none is an honest home. Never force a fit.
+  `Also list which of these topics are an honest home for this item — a topic a reader who chose it would be glad to find this in. Best fit first. Usually one or two, never more than three; an empty list is a correct answer. Never force a fit: if none of them is honest, answer [].
 ${TOPICS.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
 
-Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "topic": <topic id or null>}`;
+Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "topics": [<topic ids, best fit first, or empty>]}`;
 
 export type CuratedItem = NormalizedItem & {
   curationScore: number;
   aestheticTags: string[];
-  /** Phase 6.3: the classify mode's answer for corpus-walk items; always null outside it. Ingest
-   *  drops a walk item whose topicId is null and counts it. Search-shaped items ignore this field
-   *  — their topic comes from the seed query that surfaced them. */
-  topicId: string | null;
+  /** Cut 1: the classify mode's answer for corpus-walk items — every honest topic, best fit
+   *  first, possibly none. Ingest stores the item either way: `topics[0] ?? null` becomes the
+   *  display `topic_id`, every entry becomes an `item_topic` row, and an empty list is counted as
+   *  un-homed. Always `[]` outside classify mode — a search-shaped item's topic comes from the
+   *  seed query that surfaced it. */
+  topics: string[];
 };
 
 /** Structural-floor drop reasons, each mapped to a Phase 0.4 finding (see phase0/NOTES.md). */
@@ -198,7 +206,7 @@ export function parseCuratorResponse(
 ): {
   score: number;
   tags: string[];
-  topicId: string | null;
+  topics: string[];
 } {
   const parsed: unknown = JSON.parse(content);
   const record =
@@ -221,29 +229,56 @@ export function parseCuratorResponse(
     .map((t: string) => t.trim().toLowerCase())
     .slice(0, 4);
 
-  // Only meaningful in classify mode, and even then only a KNOWN id passes — the model is capable
-  // of inventing "psychedelia", and a foreign-key error deep into an ingest run is the worst place
-  // to learn that. Anything else is the honest reject: null.
-  const topicId =
-    opts?.topicIds &&
-    typeof record.topic === "string" &&
-    opts.topicIds.has(record.topic)
-      ? record.topic
-      : null;
+  // Classify mode only (Cut 1: an ARRAY — the model may name several honest homes, or none). Two
+  // defences, both cheap: only ids in `topicIds` survive, because the model is capable of
+  // inventing "psychedelia" and a foreign-key error deep into an ingest run is the worst place to
+  // learn that; and duplicates collapse. A legacy single `"topic"` key is read as a one-element
+  // list so an old-style answer still lands. The PROMPT caps the list at three, not this parser:
+  // truncating here would hide a model that over-files, and the whole point is honesty.
+  const known = opts?.topicIds;
+  const rawTopics: unknown[] = Array.isArray(record.topics)
+    ? record.topics
+    : typeof record.topic === "string"
+      ? [record.topic]
+      : [];
+  const topics = known
+    ? [
+        ...new Set(
+          rawTopics.filter(
+            (t): t is string => typeof t === "string" && known.has(t),
+          ),
+        ),
+      ]
+    : [];
 
-  return { score, tags, topicId };
+  return { score, tags, topics };
 }
 
-// Cache dir lives at the repo root (not under src/), same cache-aside pattern as phase0's
-// scripts — a second ingest run of an item already scored bills zero tokens. Resolved from
-// process.cwd() rather than import.meta.url because, unlike phase0's fixed-location scripts,
-// this module is imported both by scripts/ingest.ts and by tests; cwd is always the repo root
-// for `bun run` invocations either way.
-const CACHE_DIR = path.join(process.cwd(), ".cache", "curation");
+/** Cache dir at the repo root (not under src/), same cache-aside pattern as phase0's scripts — a
+ *  second ingest run of an item already scored bills zero tokens. Resolved from process.cwd()
+ *  rather than import.meta.url because this module is imported by scripts/ingest.ts and by tests;
+ *  cwd is always the repo root for `bun run` invocations either way. Exported for the read-forward
+ *  test in curator.test.ts, which seeds a pre-Cut-1 entry by hand. */
+export const CURATION_CACHE_DIR = path.join(
+  process.cwd(),
+  ".cache",
+  "curation",
+);
 
-function cacheKey(item: NormalizedItem, classify: boolean): string {
-  // The default-mode key is byte-identical to Phase 3's so no museum item is ever re-billed;
-  // classify mode gets its own namespace because its answer carries one more field.
+/**
+ * The cache key: `model | promptVersion | mode | source:sourceId`. The default-mode key is
+ * byte-identical to Phase 3's so no museum item is ever re-billed; classify mode has its own
+ * namespace because its answer carries one more field.
+ *
+ * **Deliberately NOT keyed on the topic list.** That would be a bug if classification had to be
+ * re-run whenever the vocabulary changed — but under design §3 D3 it does not: tag backfill (Cut
+ * 2) is what widens old items, for free. Items curated before Cut 1 keep their single topic until
+ * a promotion reaches them. That is correct and intended, not a migration gap.
+ */
+export function curationCacheKey(
+  item: Pick<NormalizedItem, "source" | "sourceId">,
+  classify: boolean,
+): string {
   const mode = classify ? "classify|" : "";
   return createHash("sha256")
     .update(
@@ -272,24 +307,32 @@ async function scoreItem(
 ): Promise<{
   score: number;
   tags: string[];
-  topicId: string | null;
+  topics: string[];
   tokens: number;
   imageFetchFailed: boolean;
 }> {
   const classify = opts.classify ?? false;
-  const cacheFile = path.join(CACHE_DIR, `${cacheKey(item, classify)}.json`);
+  const cacheFile = path.join(
+    CURATION_CACHE_DIR,
+    `${curationCacheKey(item, classify)}.json`,
+  );
 
   if (!opts.force) {
     try {
       const cached = JSON.parse(await readFile(cacheFile, "utf-8")) as {
         score: number;
         tags: string[];
+        /** Phase 6.3 entries (pre-Cut-1): one topic or null. Read forward, never invalidated. */
         topicId?: string | null;
+        /** Cut 1 entries: the array. */
+        topics?: string[];
       };
       return {
         score: cached.score,
         tags: cached.tags,
-        topicId: cached.topicId ?? null,
+        // `topicId: "botany"` → ["botany"]; `topicId: null` → []. This one line is why Cut 1
+        // re-bills zero items — see curationCacheKey's comment before "fixing" it.
+        topics: cached.topics ?? (cached.topicId ? [cached.topicId] : []),
         tokens: 0,
         imageFetchFailed: false,
       };
@@ -365,7 +408,7 @@ async function scoreItem(
         classify ? { topicIds: TOPIC_IDS } : undefined,
       );
 
-      await mkdir(CACHE_DIR, { recursive: true });
+      await mkdir(CURATION_CACHE_DIR, { recursive: true });
       await writeFile(cacheFile, JSON.stringify(result));
       return {
         ...result,
@@ -402,8 +445,8 @@ export async function curateItems(
   items: NormalizedItem[],
   opts?: {
     force?: boolean;
-    /** Phase 6.3: switches to CLASSIFY_PROMPT and fills `topicId`. Used by ingest's walk lane
-     *  only — corpus-walk items have no seed query to inherit a topic from. */
+    /** Phase 6.3 / Cut 1: switches to CLASSIFY_PROMPT and fills `topics`. Used by ingest's walk
+     *  lane only — corpus-walk items have no seed query to inherit a topic from. */
     classify?: boolean;
     onProgress?: (done: number, total: number) => void;
     onImageFetchFailure?: (item: NormalizedItem) => void;
@@ -419,16 +462,19 @@ export async function curateItems(
       const item = items[i];
       if (!item) continue;
       try {
-        const { score, tags, topicId, imageFetchFailed } = await scoreItem(
+        const { score, tags, topics, imageFetchFailed } = await scoreItem(
           item,
-          { force: opts?.force ?? false, classify: opts?.classify ?? false },
+          {
+            force: opts?.force ?? false,
+            classify: opts?.classify ?? false,
+          },
         );
         if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
         out[i] = {
           ...item,
           curationScore: score,
           aestheticTags: tags,
-          topicId,
+          topics,
         };
       } catch (err) {
         console.warn(
@@ -438,7 +484,7 @@ export async function curateItems(
           ...item,
           curationScore: 5,
           aestheticTags: [],
-          topicId: null,
+          topics: [],
         };
       }
       done++;

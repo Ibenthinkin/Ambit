@@ -2,13 +2,18 @@
 // parsing are both deterministic and network-free, so they're covered here on literals; the
 // live LLM call path (curateItems' network branch) is exercised by the Phase 3.3 curator smoke
 // script instead — no live HTTP in unit tests (CLAUDE.md / PHASE3_PLAN.md convention).
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CLASSIFY_PROMPT,
+  CURATION_CACHE_DIR,
+  curationCacheKey,
   CURATOR_PROMPT,
   curateItems,
   parseCuratorResponse,
+  PROMPT_VERSION,
   structuralFloor,
   TOPIC_IDS,
 } from "./curator";
@@ -123,9 +128,9 @@ describe("parseCuratorResponse", () => {
     expect(result).toEqual({
       score: 8,
       tags: ["botanical plate", "hand-lettered"],
-      // Phase 6.3: parseCuratorResponse always reports a topic, and outside classify mode the
-      // honest answer is null — a museum item's topic comes from the seed query that found it.
-      topicId: null,
+      // Phase 6.3 / Cut 1: parseCuratorResponse always reports topics, and outside classify mode
+      // the honest answer is none — a museum item's topic comes from the seed query that found it.
+      topics: [],
     });
   });
 
@@ -263,7 +268,11 @@ describe("CLASSIFY_PROMPT", () => {
     );
     expect(CLASSIFY_PROMPT.startsWith(rubric)).toBe(true);
     for (const id of TOPIC_IDS) expect(CLASSIFY_PROMPT).toContain(`  ${id} —`);
-    expect(CLASSIFY_PROMPT).toMatch(/"topic": <topic id or null>\}$/);
+    expect(CLASSIFY_PROMPT).toMatch(
+      /"topics": \[<topic ids, best fit first, or empty>\]\}$/,
+    );
+    // The cap is in the prompt, not the parser (design §14 Q2).
+    expect(CLASSIFY_PROMPT).toContain("never more than three");
     // The product artifact is untouched: it still ends with its original reply line.
     expect(CURATOR_PROMPT).toMatch(
       /\{"score": <1-10>, "tags": \["\.\.\.", "\.\.\."\]\}$/,
@@ -279,31 +288,57 @@ describe("parseCuratorResponse — classify mode", () => {
       parseCuratorResponse('{"score": 8, "tags": ["a"], "topic": "botany"}', {
         topicIds: ids,
       }),
-    ).toEqual({ score: 8, tags: ["a"], topicId: "botany" });
+    ).toEqual({ score: 8, tags: ["a"], topics: ["botany"] });
   });
 
   it("turns an invented topic id into null — never a foreign-key error 300 items in", () => {
     expect(
       parseCuratorResponse('{"score": 8, "tags": [], "topic": "psychedelia"}', {
         topicIds: ids,
-      }).topicId,
-    ).toBeNull();
+      }).topics,
+    ).toEqual([]);
   });
 
   it("returns null for an explicit null, a missing field, and outside classify mode", () => {
     expect(
       parseCuratorResponse('{"score": 8, "tags": [], "topic": null}', {
         topicIds: ids,
-      }).topicId,
-    ).toBeNull();
+      }).topics,
+    ).toEqual([]);
     expect(
       parseCuratorResponse('{"score": 8, "tags": []}', { topicIds: ids })
-        .topicId,
-    ).toBeNull();
+        .topics,
+    ).toEqual([]);
     expect(
       parseCuratorResponse('{"score": 8, "tags": [], "topic": "botany"}')
-        .topicId,
-    ).toBeNull();
+        .topics,
+    ).toEqual([]);
+  });
+
+  it("returns every KNOWN id in the array, deduplicated, in the model's order", () => {
+    expect(
+      parseCuratorResponse(
+        '{"score": 9, "tags": [], "topics": ["zoology", "psychedelia", "botany", "zoology"]}',
+        { topicIds: ids },
+      ).topics,
+    ).toEqual(["zoology", "botany"]);
+  });
+
+  it("treats an empty array as a legal, non-error answer — the honest refusal", () => {
+    const out = parseCuratorResponse(
+      '{"score": 9, "tags": ["a"], "topics": []}',
+      { topicIds: ids },
+    );
+    expect(out.topics).toEqual([]);
+    expect(out.score).toBe(9); // a refusal costs the item nothing
+  });
+
+  it('reads a legacy single "topic" key as a one-element list', () => {
+    expect(
+      parseCuratorResponse('{"score": 8, "tags": [], "topic": "botany"}', {
+        topicIds: ids,
+      }).topics,
+    ).toEqual(["botany"]);
   });
 });
 
@@ -325,7 +360,8 @@ describe("curateItems classify mode", () => {
               choices: [
                 {
                   message: {
-                    content: '{"score": 7, "tags": ["a"], "topic": "botany"}',
+                    content:
+                      '{"score": 7, "tags": ["a"], "topics": ["botany"]}',
                   },
                 },
               ],
@@ -346,7 +382,7 @@ describe("curateItems classify mode", () => {
       [makeItem({ sourceId: `classify-${Date.now()}` })],
       { classify: true, force: true },
     );
-    expect(out?.topicId).toBe("botany");
+    expect(out?.topics).toEqual(["botany"]);
     expect(bodies[0]?.messages[0]?.content).toBe(CLASSIFY_PROMPT);
   });
 
@@ -355,7 +391,68 @@ describe("curateItems classify mode", () => {
       [makeItem({ sourceId: `score-${Date.now()}` })],
       { force: true },
     );
-    expect(out?.topicId).toBeNull();
+    expect(out?.topics).toEqual([]);
     expect(bodies[0]?.messages[0]?.content).toBe(CURATOR_PROMPT);
+  });
+});
+
+// The property that makes Cut 1 free: a walk item scored under Phase 6.3's single-topic prompt is
+// NOT re-billed. Its cache entry is read forward — `topicId: "botany"` → `topics: ["botany"]`,
+// `topicId: null` → `topics: []`. `fetch` is stubbed to THROW so a cache miss fails loudly.
+describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", () => {
+  const files: string[] = [];
+  async function seedCache(item: NormalizedItem, body: unknown) {
+    const file = path.join(
+      CURATION_CACHE_DIR,
+      `${curationCacheKey(item, true)}.json`,
+    );
+    await mkdir(CURATION_CACHE_DIR, { recursive: true });
+    await writeFile(file, JSON.stringify(body));
+    files.push(file);
+  }
+  beforeEach(() => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubGlobal("fetch", () => {
+      throw new Error("a cache hit must not call the LLM");
+    });
+  });
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    await Promise.all(files.splice(0).map((f) => rm(f, { force: true })));
+  });
+
+  it("a cached single topic becomes a one-element array", async () => {
+    const it = makeItem({
+      source: "doorofperception",
+      sourceId: `cache-fwd-${Date.now()}-a`,
+    });
+    await seedCache(it, { score: 7, tags: ["a"], topicId: "botany" });
+    const [out] = await curateItems([it], { classify: true });
+    expect(out).toMatchObject({ curationScore: 7, topics: ["botany"] });
+  });
+
+  it("a cached null topic becomes an empty array — stored un-homed, not dropped", async () => {
+    const it = makeItem({
+      source: "doorofperception",
+      sourceId: `cache-fwd-${Date.now()}-b`,
+    });
+    await seedCache(it, { score: 9, tags: ["mural"], topicId: null });
+    const [out] = await curateItems([it], { classify: true });
+    expect(out).toMatchObject({ curationScore: 9, topics: [] });
+  });
+
+  it("a Cut 1 entry round-trips its array", async () => {
+    const it = makeItem({
+      source: "doorofperception",
+      sourceId: `cache-fwd-${Date.now()}-c`,
+    });
+    await seedCache(it, { score: 8, tags: [], topics: ["botany", "zoology"] });
+    const [out] = await curateItems([it], { classify: true });
+    expect(out?.topics).toEqual(["botany", "zoology"]);
+  });
+
+  it("PROMPT_VERSION is still 1 — bumping it would re-bill every walk item for nothing", () => {
+    expect(PROMPT_VERSION).toBe(1);
   });
 });
