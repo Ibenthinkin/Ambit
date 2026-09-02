@@ -268,6 +268,17 @@ someone else's branch — which is how this plan was edited and merged without t
 is working in.
 
 *Session spend: 9.57M tok (in 289 · out 129.5k · cache r 8.62M / w 813.9k) · ~$13.56 · opus-5 + opus-4-7 · 13:11→13:30*
+
+**Update, same session (13:45):** **Cut 1 merged** (`acd1437`) while that write was being made, so
+the PDR plan's execution gate lasted about twenty minutes and is gone — the plan is runnable end to
+end from a branch off today's `main`, and the "rebase onto Cut 1" instruction is replaced by a
+three-command check that it is present. The **worktree** recipe is out too, at Ben's word ("I hate
+worktrees"): the plan now says plain branch off `main`, and if `~/Dev/ambit` is on someone else's
+branch, **stop and wait for that session** rather than working around it. What survives from the
+re-read is the part that was never about scheduling: **no PDR row may be written to a database whose
+`item_topic` migration has not run**, or curator-classified rows get backfilled `origin='seed'`.
+
+*Session spend: 4.93M tok (in 91 · out 43.5k · cache r 4.58M / w 309.9k) · ~$5.40 · opus-5 + opus-4-7 · 13:30→14:20*
 **Shipped (Cut 1 — the vocabulary grows to fit the corpus):** all ten tasks of
 `docs/PLAN_topic-vocabulary-cut1.md`, executed in order on `feat/topic-vocabulary-cut1`. The
 migration made `item.topic_id` nullable and added `item_topic (item_id, topic_id, origin)`, with
