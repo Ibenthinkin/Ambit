@@ -4,10 +4,12 @@ import { cma } from "./cma";
 import { doorofperception } from "./doorofperception";
 import { loc } from "./loc";
 import { met } from "./met";
+import { mossandfog } from "./mossandfog";
 import { nasaImages } from "./nasa-images";
 import { poetrydb } from "./poetrydb";
 import { smithsonian } from "./smithsonian";
 import { thingsorganizedneatly } from "./things-organized-neatly";
+import { thisiscolossal } from "./thisiscolossal";
 import type { CorpusWalkAdapter, SourceAdapter, SourceId } from "./types";
 import { wellcome } from "./wellcome";
 import { wikipedia } from "./wikipedia";
@@ -35,6 +37,8 @@ export const adapters: Record<SearchSourceId, SourceAdapter<unknown>> = {
 export const walkers: Record<WalkSourceId, CorpusWalkAdapter<unknown>> = {
   doorofperception,
   thingsorganizedneatly,
+  mossandfog,
+  thisiscolossal,
 };
 
 /** For CLIs that validate a `--source` flag: everything ingest knows how to reach. */

@@ -64,6 +64,8 @@ export const SEED_SOURCES = [...V1_SOURCES, ...TRIAL_SOURCES] as const;
 export const WALK_SOURCES = [
   "doorofperception",
   "thingsorganizedneatly",
+  "mossandfog",
+  "thisiscolossal",
 ] as const;
 
 export type WalkSourceId = (typeof WALK_SOURCES)[number];

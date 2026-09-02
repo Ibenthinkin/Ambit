@@ -33,7 +33,15 @@ import type { SourceId } from "~/server/services/sources/types";
 // unknown; it is one line to reverse once `curl https://www.artic.edu/` returns 200 again.
 //
 // Both measurements, in full: `docs/HANDOFF_aic-images.md` (§2.2 and its postscript).
-export const SUSPENDED_SOURCES: SourceId[] = ["aic"];
+//
+// **mossandfog** (Moss & Fog, **parked** 09-01-26 — not broken). A walk source has no seed cells
+// to withhold, which is how `poetrydb` was parked, so this list is the only switch that keeps a
+// registered walker out of the nightly full ingest. Ben's Park verdict on the trial sample: the
+// newest 150 curated at 6.60 avg, 41% ≥ 8, a cluster of 36 at score 4, and an advertorial tail
+// (tyre shops, artificial turf) that the curator refuses at 1–2 — sound adapter, soft corpus.
+// The adapter, fixtures and tests stay; no rows were ever written. Un-parking is removing it
+// from this list (docs/source-candidates.md has the sample).
+export const SUSPENDED_SOURCES: SourceId[] = ["aic", "mossandfog"];
 
 /** Whether `source` is currently switched off. Accepts a plain string for DB rows. */
 export function isSuspendedSource(source: string): boolean {

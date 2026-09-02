@@ -57,6 +57,35 @@ export const BLOGS: readonly BlogConfig[] = [
     robotsCheckedOn: "2026-09-01",
     walk: "tumblr",
   },
+  {
+    id: "mossandfog",
+    label: "Moss & Fog",
+    baseUrl: "https://mossandfog.com",
+    license: BLOG_LICENSE,
+    // Verified 09-01-26: `*` is disallowed only /wp-admin/ (admin-ajax allowed back); the one
+    // named block is `ias_crawler` (an ad-verification bot). No AI block list, three sitemaps.
+    // WordPress.com-hosted: 7,538 posts and 27,567 tags at probe time — the reason wp-rest.ts
+    // resolves tag names lazily rather than up front.
+    robotsCheckedOn: "2026-09-01",
+    walk: "wp-rest",
+  },
+  {
+    id: "thisiscolossal",
+    label: "Colossal",
+    // The canonical host is `www.`; the bare domain 301s there. Pinning the bare one would put a
+    // redirect in front of every walk request.
+    baseUrl: "https://www.thisiscolossal.com",
+    license: BLOG_LICENSE,
+    // Verified 09-01-26: `*` is `Allow: /` with a Cloudflare Content-Signal line
+    // (`search=yes, ai-train=no, use=reference`) — Ambit trains nothing and a link card is
+    // reference use. The named-bot section (`Amazonbot`, `Applebot-Extended`, `Bytespider`,
+    // `CCBot`, `ClaudeBot`, `Google-Extended`, `GPTBot`, `meta-externalagent`, each
+    // `Disallow: /`) is Cloudflare's managed template, and the Yoast block repeats CCBot / GPTBot
+    // and adds `ia_archiver`. Ambit's own agent name is not on either list; Ben saw the ClaudeBot
+    // entry before this row was written (docs/source-candidates.md, thisiscolossal row).
+    robotsCheckedOn: "2026-09-01",
+    walk: "wp-rest",
+  },
 ];
 
 export function blogConfig(id: string): BlogConfig | undefined {

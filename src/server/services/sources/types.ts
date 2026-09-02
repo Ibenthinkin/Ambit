@@ -28,7 +28,11 @@ export type SourceId =
   // is also where their credit-line label and license string live.
   | "doorofperception"
   // The second blog, and the first over Tumblr's legacy read API (docs/HANDOFF_tumblr-walk.md).
-  | "thingsorganizedneatly";
+  | "thingsorganizedneatly"
+  // Sources round 2 (docs/HANDOFF_sources-round2.md §2.1): WordPress blogs on the wp-rest
+  // factory, in trial — promoted into SPEC §6.1 or cut after Ben's verdict on each sample.
+  | "mossandfog"
+  | "thisiscolossal";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds

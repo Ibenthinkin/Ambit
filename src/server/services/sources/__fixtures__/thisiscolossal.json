@@ -1,0 +1,108 @@
+[
+  {
+    "id": 477307,
+    "slug": "ashley-percival-animal-illustrations",
+    "link": "https://www.thisiscolossal.com/2026/09/ashley-percival-animal-illustrations/",
+    "date": "2026-09-01T15:21:26",
+    "title": {
+      "rendered": "Playful Patterns Adorn Ashley Percival&#8217;s Collections of Creatures"
+    },
+    "excerpt": {
+      "rendered": "<p>Ashley Percival imagines fanciful menagerie in which poodles, rotund birds, and boot-wearing insects try on a vast array of vibrant costumes.</p>\n",
+      "protected": false
+    },
+    "tags": [176, 4288, 85, 266, 87, 204],
+    "categories": [1327],
+    "featured_media": 477308,
+    "_embedded": {
+      "wp:featuredmedia": [
+        {
+          "source_url": "https://www.thisiscolossal.com/wp-content/uploads/2026/09/percival-1.jpg",
+          "media_details": {
+            "width": 1588,
+            "height": 2245
+          }
+        }
+      ]
+    },
+    "tagNames": [
+      "animals",
+      "Ashley Percival",
+      "birds",
+      "cats",
+      "dogs",
+      "insects"
+    ]
+  },
+  {
+    "id": 477290,
+    "slug": "world-unfolding-book-human-knowledge-history-the-huntington",
+    "link": "https://www.thisiscolossal.com/2026/09/world-unfolding-book-human-knowledge-history-the-huntington/",
+    "date": "2026-09-01T12:11:54",
+    "title": {
+      "rendered": "Twelve Centuries of Documents Illuminate Humans&#8217; Quest for Knowledge in &#8216;World Unfolding&#8217;"
+    },
+    "excerpt": {
+      "rendered": "<p>The five-volume tome features more than 625 illustrations from The Huntington&#8217;s vast collection.</p>\n",
+      "protected": false
+    },
+    "tags": [61, 209, 176, 236, 586, 529],
+    "categories": [3059, 494, 1320, 1327, 496, 1314],
+    "featured_media": 477293,
+    "_embedded": {
+      "wp:featuredmedia": [
+        {
+          "source_url": "https://www.thisiscolossal.com/wp-content/uploads/2026/09/world-5.jpg",
+          "media_details": {
+            "width": 2000,
+            "height": 1282
+          }
+        }
+      ]
+    },
+    "tagNames": [
+      "airplanes",
+      "anatomy",
+      "animals",
+      "astronomy",
+      "biology",
+      "technology"
+    ]
+  },
+  {
+    "id": 477272,
+    "slug": "kelogsloops-watercolors-fantasy-memento-mori-paintings",
+    "link": "https://www.thisiscolossal.com/2026/09/kelogsloops-watercolors-fantasy-memento-mori-paintings/",
+    "date": "2026-09-01T09:48:32",
+    "title": {
+      "rendered": "Watercolors by kelogsloops Traverse the Emotional Terrain of Love and Loss"
+    },
+    "excerpt": {
+      "rendered": "<p>For Hieu Thien Nguyen, who works as kelogsloops, death is a constant reminder, but not something to fear.</p>\n",
+      "protected": false
+    },
+    "tags": [176, 1662, 738, 974, 4287, 110, 384],
+    "categories": [493],
+    "featured_media": 477274,
+    "_embedded": {
+      "wp:featuredmedia": [
+        {
+          "source_url": "https://www.thisiscolossal.com/wp-content/uploads/2026/09/kelogsloops-6.jpg",
+          "media_details": {
+            "width": 2000,
+            "height": 1590
+          }
+        }
+      ]
+    },
+    "tagNames": [
+      "animals",
+      "dreams",
+      "emotions",
+      "fantasy",
+      "kelogsloops",
+      "painting",
+      "watercolor"
+    ]
+  }
+]
