@@ -162,7 +162,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 - **Deleting `.cache/img` forces the image proxy to refetch from the museums.** It is one
   `<itemId>.webp` per item (Phase 7.3) and safe to delete, but it is also the only thing standing
   between a scroll and `tile.loc.gov`'s per-IP budget — refill it with `bun run img:warm --rate 2`
-  rather than letting readers do it. `bun run img:warm --dry-run` counts what a run would fetch.
+  rather than letting readers do it. `bun run img:warm --dry-run` counts what a run would fetch. **`.cache/pdr`** (one JSON per Public Domain Review record) is the same kind of thing: safe to delete, but refilling it is a 1.7 GB polite walk, so don't.
 - **A valid API key that still 401s is probably being shadowed by the shell.** Bun resolves real
   environment variables *ahead* of `.env`, so an `export OPENROUTER_API_KEY=…` left in `~/.zshrc`
   wins over the file and editing `.env` changes nothing the process ever sees. This cost most of
