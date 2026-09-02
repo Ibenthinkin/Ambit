@@ -8,7 +8,12 @@ import { describe, expect, it } from "vitest";
 
 import type { NormalizedItem } from "./sources/types";
 import type { Claim } from "./ingest-plan";
-import { planPrune, resolveCollisions, topicHistogram } from "./ingest-plan";
+import {
+  planPrune,
+  resolveCollisions,
+  tagHistogram,
+  topicHistogram,
+} from "./ingest-plan";
 
 /** A minimal, valid NormalizedItem — only `source`/`sourceId` vary across the fixtures below,
  *  since those two fields are the collision key (an item is "the same object" iff both match). */
@@ -126,15 +131,46 @@ describe("resolveCollisions", () => {
 // ── Phase 6.3: the walk lane's two pure decisions ───────────────────────────────────────────
 
 describe("topicHistogram", () => {
-  it("counts classified items per topic and the null bucket separately", () => {
+  it("counts memberships per topic — an item under two topics counts in both — and the un-homed separately", () => {
     const h = topicHistogram([
-      { topicId: "botany" },
-      { topicId: "botany" },
-      { topicId: "zoology" },
-      { topicId: null },
+      { topics: ["botany", "zoology"] },
+      { topics: ["botany"] },
+      { topics: [] },
     ]);
     expect(h.byTopic).toEqual({ botany: 2, zoology: 1 });
-    expect(h.noTopic).toBe(1);
+    expect(h.unhomed).toBe(1);
+  });
+});
+
+describe("tagHistogram", () => {
+  // Cut 1's promotion evidence (design §7): what the un-homed items are ABOUT, from both tag
+  // fields. `aesthetic_tags` matter because blog tags are unreliable — two of streetartnews' three
+  // newest posts had none — while the curator writes 2-4 descriptors on every item.
+  it("counts each tag once per item across both fields, case-insensitively, most common first", () => {
+    const h = tagHistogram([
+      { tags: ["Mural", "Ghent"], aestheticTags: ["mural", "silhouette art"] },
+      { tags: [], aestheticTags: ["monochromatic", "mural"] },
+      { tags: ["street art"], aestheticTags: [] },
+    ]);
+    expect(h).toEqual([
+      { tag: "mural", n: 2 },
+      { tag: "ghent", n: 1 },
+      { tag: "monochromatic", n: 1 },
+      { tag: "silhouette art", n: 1 },
+      { tag: "street art", n: 1 },
+    ]);
+  });
+
+  it("truncates to `top`", () => {
+    const items = ["a", "b", "c"].map((t) => ({
+      tags: [t],
+      aestheticTags: [],
+    }));
+    expect(tagHistogram(items, 2)).toHaveLength(2);
+  });
+
+  it("is empty for no items", () => {
+    expect(tagHistogram([])).toEqual([]);
   });
 });
 
