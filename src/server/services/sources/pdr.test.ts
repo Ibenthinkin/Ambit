@@ -39,13 +39,15 @@ const collection = (slug: string) => {
   const found = raws.find(
     (r) => r.kind === "collection" && r.collection.Slug === slug,
   );
-  if (!found || found.kind !== "collection")
+  // `found?.kind` covers both failures at once: an absent row (undefined) and a row of the wrong
+  // kind. Narrowing to the collection variant afterwards is what lets `.collection` be read below.
+  if (found?.kind !== "collection")
     throw new Error(`fixture missing: collection/${slug}`);
   return found;
 };
 const essay = (slug: string) => {
   const found = raws.find((r) => r.kind === "essay" && r.essay.Slug === slug);
-  if (!found || found.kind !== "essay")
+  if (found?.kind !== "essay")
     throw new Error(`fixture missing: essay/${slug}`);
   return found;
 };

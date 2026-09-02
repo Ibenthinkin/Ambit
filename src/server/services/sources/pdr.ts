@@ -324,3 +324,219 @@ export function nextCursor(
   const following = PHASES[phase + 1];
   return following ? `${following.key}:0` : undefined;
 }
+
+// ── the disk cache (cache-aside: look, miss, fetch, write, return) ───────────────────────────
+
+/**
+ * Where a record's hydrated copy lives. **The slug is the whole key, and this is the boundary**:
+ * it comes off the wire, so it is checked before it can become a path. PDR's slugs are names
+ * (one carries an en-dash), not paths — anything with a separator, or a bare `.`/`..`, is refused
+ * rather than joined. Same rule as image-cache.ts, for the same reason. Kinds get their own
+ * subdirectory so a collection and an essay with the same slug never share a file.
+ */
+export function cachePath(dir: string, kind: PdrKind, slug: string): string {
+  if (!slug || slug === "." || slug === ".." || /[/\\\0]/.test(slug)) {
+    throw new Error(`pdr: unsafe slug "${slug}"`);
+  }
+  return path.join(dir, kind, `${slug}.json`);
+}
+
+/** The cached record, or null on absence — and on a torn or unparseable file, which is a miss
+ *  worth one refetch rather than a crash worth a night. */
+export async function readCached(
+  dir: string,
+  kind: PdrKind,
+  slug: string,
+): Promise<PdrRaw | null> {
+  try {
+    return JSON.parse(
+      await readFile(cachePath(dir, kind, slug), "utf8"),
+    ) as PdrRaw;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeCached(
+  dir: string,
+  kind: PdrKind,
+  slug: string,
+  raw: PdrRaw,
+): Promise<void> {
+  const file = cachePath(dir, kind, slug);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, JSON.stringify(raw));
+}
+
+// ── the walk ─────────────────────────────────────────────────────────────────────────────────
+
+/** Each phase's slugs, fetched the first time the walk reaches the phase and paged from memory
+ *  for the rest of it. Cleared at the start of every walk so a new walk sees new pieces. */
+const indexes = new Map<string, string[]>();
+
+async function loadIndex(phase: (typeof PHASES)[number]): Promise<string[]> {
+  const page = (await fetchJson(`${PDR.baseUrl}${phase.url}`, {
+    delayMs: DELAY_MS,
+    noRetryOn: [401, 403],
+  })) as PdrIndexPage;
+  const edges = page.result.data[phase.list]?.edges ?? [];
+  return edges.map((e) => e.node.data.Slug);
+}
+
+/** One record — from disk if it has ever been fetched, else from the site (and then to disk).
+ *  The slug is encoded for the URL because one of them is not ASCII. */
+async function hydrate(
+  kind: PdrKind,
+  slug: string,
+  dir = PDR_CACHE_DIR,
+): Promise<PdrRaw> {
+  const cached = await readCached(dir, kind, slug);
+  if (cached) return cached;
+  const page = (await fetchJson(
+    `${PDR.baseUrl}/page-data/${kind}/${encodeURIComponent(slug)}/page-data.json`,
+    { delayMs: DELAY_MS, noRetryOn: [401, 403] },
+  )) as PdrDetailPage;
+  const imageHost =
+    page.result.data.site.siteMetadata.imageHost ?? PDR.imageHost;
+  const record =
+    kind === "collection"
+      ? page.result.data.collection
+      : page.result.data.essay;
+  if (!record)
+    throw new Error(`pdr: ${kind}/${slug} has no record in its page-data`);
+  const raw: PdrRaw =
+    kind === "collection"
+      ? { kind, imageHost, collection: record.data as PdrCollection }
+      : { kind, imageHost, essay: record.data as PdrEssay };
+  await writeCached(dir, kind, slug, raw);
+  return raw;
+}
+
+async function walk(
+  cursor?: string,
+  opts?: FetchOpts,
+): Promise<WalkPage<PdrRaw>> {
+  const { phase, offset } = parseCursor(cursor);
+  const current = PHASES[phase]!;
+  // The very start of a walk: check the policy file, and forget the indexes a previous walk in
+  // this process left behind.
+  if (phase === 0 && offset === 0) {
+    await assertCrawlAllowed(PDR.baseUrl);
+    indexes.clear();
+  }
+  // "Load it if we haven't": a Map has no `??=`, so this is the two-line spelling of the same idea.
+  let slugs = indexes.get(current.key);
+  if (!slugs) {
+    slugs = await loadIndex(current);
+    indexes.set(current.key, slugs);
+  }
+
+  // `limit` bounds this page's size so `--quota N` hydrates N records, not fifty.
+  const size = Math.max(1, Math.min(PAGE_SIZE, opts?.limit ?? PAGE_SIZE));
+  const slice = slugs.slice(offset, offset + size);
+
+  const raw: PdrRaw[] = [];
+  let excluded = 0;
+  for (const slug of slice) {
+    const record = await hydrate(current.kind, slug);
+    if (
+      record.kind === "collection" &&
+      !passesRightsPolicy(record.collection)
+    ) {
+      excluded++;
+      continue;
+    }
+    raw.push(record);
+  }
+  if (excluded > 0) {
+    console.warn(
+      `  pdr: ${excluded} collection(s) excluded on rights (a source marks the digital copy Non-commercial)`,
+    );
+  }
+  return { raw, next: nextCursor(phase, offset, slice.length, slugs.length) };
+}
+
+// ── the projections ──────────────────────────────────────────────────────────────────────────
+
+function collectionToItem(imageHost: string, c: PdrCollection): NormalizedItem {
+  const imageUrl = imageUrlFor(imageHost, c.Featured_Image_Path);
+  if (!imageUrl) {
+    // Thrown, not null: ingest counts a toItem failure per item and prints it. Two collections
+    // in 1,255 (an audio piece and a film) have no featured image, and a silent skip would hide
+    // the count.
+    throw new Error(`pdr: collection "${c.Slug}" has no featured image`);
+  }
+  // PDR's own one-sentence Excerpt is the blurb. When it is empty (12% of the sample) or would
+  // floor as thin (another 15%), the Preamble's first substantial paragraph stands in — PDR's own
+  // text under the same CC BY-SA grant, never a synthesis. If neither reaches the floor, the item
+  // floors like any museum stub.
+  const excerpt = plainText(c.Excerpt ?? "");
+  const summary =
+    excerpt.length >= EXCERPT_MIN
+      ? excerpt
+      : (leadParagraph(c.Preamble ?? "") ?? excerpt);
+  return {
+    source: "pdr",
+    // `collection/<slug>`: one source, two kinds, no collision. (source, sourceId) is the
+    // idempotency key, so this choice is permanent for the corpus.
+    sourceId: `collection/${c.Slug}`,
+    // An IMAGE item that also carries text: the gallery and wander rail keep it, and the item
+    // page renders the body under the picture (image-item-body.tsx).
+    type: "image",
+    title: plainText(c.Title),
+    summary,
+    body: bodyText(c.Preamble ?? "") || null,
+    imageUrl,
+    sourceUrl: `${PDR.baseUrl}/collection/${encodeURIComponent(c.Slug)}/`,
+    attribution: collectionAttribution(c),
+    license: collectionLicense(c),
+    // Medium and the three taxonomies first (they tell the curator what a poster is *of* — a
+    // film, a book), then the collection's own tags. uniqueTags trims and dedupes.
+    tags: uniqueTags(
+      [
+        c.Medium,
+        ...(c.Theme ?? []),
+        ...(c.Style ?? []),
+        ...(c.Epoch ?? []),
+        ...(c.Tags ?? []).map((t) => t.data.Label),
+      ].map((t) => t?.toLowerCase()),
+    ),
+  };
+}
+
+function essayToItem(imageHost: string, e: PdrEssay): NormalizedItem {
+  const imageUrl = imageUrlFor(imageHost, e.Featured_Image_Path);
+  if (!imageUrl)
+    throw new Error(`pdr: essay "${e.Slug}" has no featured image`);
+  const open = essayIsOpen(e);
+  return {
+    source: "pdr",
+    sourceId: `essay/${e.Slug}`,
+    // Open text reads in the reader view; anything else is a link card in the blog posture.
+    type: open ? "article" : "image",
+    title: plainText(e.Title),
+    // The Intro is PDR's own teaser — 135–590 chars, never empty in the sampled index.
+    summary: plainText(e.Intro ?? ""),
+    body: open ? bodyText(e.Body ?? "") || null : null,
+    imageUrl,
+    sourceUrl: `${PDR.baseUrl}/essay/${encodeURIComponent(e.Slug)}/`,
+    attribution: essayAttribution(e),
+    license: open ? PDR_ESSAY_LICENSE : PDR_CARD_LICENSE,
+    tags: uniqueTags(
+      [
+        e.Series,
+        ...(e.Categories ?? []),
+        ...(e.Tags ?? []).map((t) => t.data.Label),
+      ].map((t) => t?.toLowerCase()),
+    ),
+  };
+}
+
+function toItem(raw: PdrRaw): NormalizedItem {
+  // Narrowing on the discriminant: inside each branch TypeScript knows which record is present.
+  return raw.kind === "collection"
+    ? collectionToItem(raw.imageHost, raw.collection)
+    : essayToItem(raw.imageHost, raw.essay);
+}
+
+export const pdr: CorpusWalkAdapter<PdrRaw> = { source: "pdr", walk, toItem };
