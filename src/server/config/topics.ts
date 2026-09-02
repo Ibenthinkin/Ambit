@@ -60,12 +60,14 @@ export const SEED_SOURCES = [...V1_SOURCES, ...TRIAL_SOURCES] as const;
 /** Phase 6.3's third tier: sources ingested by WALKING their whole corpus rather than searching
  *  it per topic (docs/PHASE6_DESIGN_6.3.md §4). They have NO seed cells — each item gets its
  *  topic from the curator's classify mode at ingest — so they are deliberately absent from
- *  SEED_SOURCES and SeedQueries. Blogs live here; loupe will too. */
+ *  SEED_SOURCES and SeedQueries. Blogs live here; loupe will too. `pdr` (09-02-26) is the first
+ *  walk source that is not a blog — see config/pdr.ts. */
 export const WALK_SOURCES = [
   "doorofperception",
   "thingsorganizedneatly",
   "mossandfog",
   "thisiscolossal",
+  "pdr",
 ] as const;
 
 export type WalkSourceId = (typeof WALK_SOURCES)[number];

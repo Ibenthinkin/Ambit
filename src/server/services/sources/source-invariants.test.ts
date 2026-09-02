@@ -1,13 +1,16 @@
-// D5, as something CI refuses (docs/PHASE6_DESIGN_6.3.md §7): a blog item is an image item with
+// D5, as something CI refuses (docs/PHASE6_DESIGN_6.3.md §7): a BLOG item is an image item with
 // NO body, always — which is what makes "Ambit never renders blog article text" an invariant
-// rather than a policy. Two halves: every registered walker's fixture normalizes that way, and no
-// row in the DB says otherwise.
+// rather than a policy. Two halves: every designated blog's walker normalizes that way, and no
+// blog row in the DB says otherwise. Walk sources that are not blogs (`pdr`, whose text is
+// CC BY-SA and whose collections carry their body essay by design) are outside D5 and are
+// deliberately not iterated here — their contract is their own adapter test.
 import { and, inArray, isNotNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { WALK_SOURCES } from "~/server/config/topics";
+import { BLOGS, isBlogSource } from "~/server/config/blogs";
 import dopFixtures from "./__fixtures__/doorofperception.json";
 import mafFixtures from "./__fixtures__/mossandfog.json";
+import pdrFixtures from "./__fixtures__/pdr.json";
 import tonFixtures from "./__fixtures__/things-organized-neatly.json";
 import ticFixtures from "./__fixtures__/thisiscolossal.json";
 import { walkers } from "./index";
@@ -17,6 +20,7 @@ const fixturesByWalker: Record<string, unknown[]> = {
   thingsorganizedneatly: tonFixtures,
   mossandfog: mafFixtures,
   thisiscolossal: ticFixtures,
+  pdr: pdrFixtures,
 };
 
 describe("walk-source invariants (unit)", () => {
@@ -26,8 +30,9 @@ describe("walk-source invariants (unit)", () => {
     }
   });
 
-  it("every walker normalizes to type image with body null", () => {
+  it("every blog walker normalizes to type image with body null", () => {
     for (const [id, walker] of Object.entries(walkers)) {
+      if (!isBlogSource(id)) continue;
       for (const raw of fixturesByWalker[id] ?? []) {
         let item;
         try {
@@ -52,7 +57,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
         .select({ id: item.id })
         .from(item)
         .where(
-          and(inArray(item.source, [...WALK_SOURCES]), isNotNull(item.body)),
+          and(
+            inArray(
+              item.source,
+              BLOGS.map((b) => b.id),
+            ),
+            isNotNull(item.body),
+          ),
         );
       expect(rows).toEqual([]);
     });
@@ -83,8 +94,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
     //  * **`body` — 14 wikipedia rows that are false positives.** Wikipedia has articles *about*
     //    markup, and their plain-text extracts legitimately contain the strings `<section>`,
     //    `<ref>`, `<b>` and `<ul>` as prose. Nothing is stored as HTML there; the regex simply
-    //    cannot tell an article about a tag from a tag. Wikipedia is also the only source that
-    //    carries a `body` at all, and blog bodies are covered by the test above.
+    //    cannot tell an article about a tag from a tag. Blog bodies are covered by the test above
+    //    (there are none, by D5). Since 09-02-26 wikipedia is no longer the only source carrying a
+    //    `body`: PDR's collections and CC BY-SA essays do too, and they are deliberately NOT
+    //    excluded here — `bodyText()` is supposed to leave no tag standing, and this is what says so.
     //
     // What is left is still worth running: every *other* source — aic, cma, loc, and any source a
     // later phase adds — must keep all three fields tag-free, and this is what says so.
