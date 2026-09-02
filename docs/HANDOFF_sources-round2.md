@@ -1,9 +1,13 @@
 # Handoff — source-candidates round 2, mid-execution
 
 **Written:** 09-01-26, end of the session that probed every remaining candidate and built the
-first of them. **For:** a cold session continuing the work. **Status:** one adapter built and
-sampled on an **unmerged branch**, two decisions waiting on Ben, the rest of the queue not
-started. Read §1 and §2 before touching anything; §4 is the recipe that worked.
+first of them. **Updated the same night** by the session that took the verdicts and built the
+WordPress factory — §1 and §2.1 are current as of that update; the rest of §2 is untouched.
+**For:** a cold session continuing the work. **Status:** three blog adapters on `main`
+(thingsorganizedneatly kept and walked, thisiscolossal kept and walked, mossandfog parked), the
+`wp-rest` factory built, `bun run stats:walk` in `scripts/`; **no decisions outstanding**. Next
+in the queue: streetartnews and spoon-tamago (§2.1, config rows now), then §2.2 onward. Read §1
+and §2 before touching anything; §4 is the recipe that worked.
 
 ---
 
@@ -15,27 +19,50 @@ recommendation per row (`Round 2 (09-01-26)` in that file's trial-loop section i
 Nothing was promoted to SPEC §6.1; the trial loop's own rule is adapter → sample → eyeball →
 Ben's verdict, and only the first candidate has reached the sample.
 
-**Done, on a branch — `feat/tumblr-walk-thingsorganizedneatly`, two commits, NOT merged:**
-- `fce1d66` — `src/server/services/sources/things-organized-neatly.ts`, the first Tumblr-walk
-  `CorpusWalkAdapter`, with fifteen fixture tests, registrations in `types.ts` / `topics.ts` /
-  `blogs.ts` / `index.ts` / `source-invariants.test.ts`, and two shared-helper changes:
-  `http.ts` gained `fetchTextResponse` (one retry loop, two body readers) and
-  `normalize.ts`'s `decodeEntities` learned the named typographic entities.
-- `3a4e7f0` — `docs/HANDOFF_tumblr-walk.md` §8 (what the plan got wrong, the sample's numbers),
-  the source-candidates row, a SPEC §6.1 bullet marked *verdict pending*, and `log.md`.
-- Full suite green on that tree: 81 files / 863 tests. Ben chose "keep the branch as-is."
+**Done, on `main` (09-01-26, second session) — both decisions taken by Ben, both built:**
+- **thingsorganizedneatly: Keep.** Branch merged `--no-ff` (`7bdac6e`), full walk written
+  locally: 5,267 offered → 891 rows @ 7.90 avg, 71.8% ≥ 8 (SPEC §6.1 has the breakdown). Below
+  the sample's projection because the archive thins with depth. Not yet on production — the
+  nightly ingest there will walk it after the next deploy.
+- **Walk sources are exempt from dup-title** (`d919ba0`, `structuralFloor` in `curator.ts`, two
+  tests). The full walk dropped 0 on that rule.
+- **`wp-rest.ts` factory** (`f7dd5dd`): `wpRestWalker(blog: BlogConfig)`. **doorofperception.ts
+  is untouched by Ben's choice** — the factory's test proves it byte-identical to the bespoke
+  adapter on that adapter's own fixture, so the two copies cannot drift silently. One deliberate
+  difference: tag names resolve **lazily per page** (`include=`, 100 ids a request, memoized)
+  because mossandfog has 27,567 tags and an up-front fetch is 276 requests before the first post.
+- **thisiscolossal: Keep** (sample: 139 curated @ 8.65, 97% ≥ 8, 77% would insert — the strongest
+  of any source). **mossandfog: Park** (136 @ 6.60, 41% ≥ 8, advertorial tail) — parked by adding
+  it to `SUSPENDED_SOURCES`, the only switch that keeps a registered walker out of the nightly
+  full ingest; an explicit `--source mossandfog` still runs, with a warning.
+- **`bun run stats:walk <source> [--quota N]`** (`scripts/walk-stats.ts`) — the score-distribution
+  report §4 asked for, permanent. Run it after the same source's `--dry-run` and it is free.
 
-**Two decisions Ben has not made — do not make them for him:**
-1. **Keep / Park / Cut** for thingsorganizedneatly. The sample (newest 150 offered, dry-run):
-   83 curated @ 8.02 avg, 78% ≥ 8; 55 classified into 14 of 16 topics; 28 refused @ 7.71. If Keep:
-   merge the branch (`--no-ff`, the repo's convention), run the full walk and write
-   (`bun run ingest --source thingsorganizedneatly` — ~111 pages at 1 s, ~2,000 curator calls,
-   cents, ~15 min), eyeball `/i/` and `/feed`, then promote the SPEC bullet.
-2. **The dup-title floor rule drops a blog's series posts** — nine of 150, three Andy
-   Goldsworthys among them — because a title derived from a caption's first line collides where a
-   WordPress title never did. Accept the ~6%, or exempt walk sources from that one rule in
-   `curator.ts`'s `structuralFloor` (the other two rules still apply). Either answer is a
-   one-line change plus a test; the choice is a taste call.
+**Nothing is waiting on Ben.** The eyeball of thingsorganizedneatly rows in `/feed` and `/i/` was
+left to him (a dev server was started for it); one cosmetic finding from the DB: derived titles
+keep Tumblr prefixes such as `ed:` and `SUBMISSION:`.
+
+**Findings from the thisiscolossal full walk (eight launches, one finish — read before running
+another long ingest on the Mac):**
+1. **A sleeping laptop freezes the run and kills its sockets on wake.** Every overnight attempt
+   stalled the same way: hours with no progress, sockets to OpenRouter or Colossal established
+   but silent. `pmset -g log` showed deep sleep on battery with dark wakes every few minutes;
+   `caffeinate -i` does not hold a closed lid. Run long ingests with the lid open and power
+   attached, or on the server.
+2. **`fetchWithRetry` now has a per-attempt timeout** (`652e352`, default 60 s, `timeoutMs`
+   to override) so a socket the far end has silently dropped is a failed attempt with backoff
+   and a fresh connection, not a hang. **Still without one:** the curator's own image fetch and
+   its OpenRouter call in `curator.ts` (`imageAsDataUrl`, `scoreItem`) — the sockets that
+   actually hung overnight. Same fix, same shape; filed for 8.2 beside the other guardrails.
+3. **The walk phase is silent for ~8.5 minutes on Colossal** (89 pages of 3.3 MB each at 4 s,
+   plus tag lookups) and curation of 2000 px originals moves ~3 GB, so a healthy run prints
+   nothing for a long time. Two runs were killed as "stalled" on that silence alone. Judge a run
+   by `netstat -anv -p tcp | grep bun:<pid>` (rx/tx growing) or `nettop`, not by the log's
+   mtime.
+4. **Two Colossal heroes exceeded OpenRouter's 30 MB image limit** (animated GIFs; HTTP 413) and
+   one call 502'd — three per-item curator errors in 8,732, counted and skipped. Whether the
+   adapter should prefer a `media_details.sizes.large` rendition is a question for the next WP
+   blog, not a defect.
 
 **Also flagged for Ben, unrelated to any adapter:** `www.loc.gov/robots.txt` disallows
 `/pictures/search` for `*`, and the *shipped* `loc.ts` adapter's endpoint lives under that path.
@@ -49,6 +76,14 @@ brainstorming skill's sense — the flow exists in the repo already — so: read
 ask the one or two questions that matter, present a short design in chat, get a yes, then TDD.
 
 ### 2.1 Four WordPress blogs — one design question, then four config rows
+
+> **Status 09-01-26 (second session):** the design question is answered and built —
+> `wp-rest.ts`, with doorofperception left bespoke by Ben's choice. **thisiscolossal** and
+> **mossandfog** are done (Keep / Park, above). **streetartnews** and **spoon-tamago** remain:
+> each is a `blogs.ts` row, a `SourceId` + `WALK_SOURCES` + `walkers` + invariants-fixture line,
+> a one-line adapter file (copy `mossandfog.ts`), a recorded fixture and a test file (copy
+> `mossandfog.test.ts`), then `probe:walk` → `--dry-run --quota 150` → `stats:walk` → verdict.
+> The paragraphs below are the original brief, kept for the per-blog facts.
 
 **thisiscolossal.com** (canonical host is `www.`; 8,817 posts; robots.txt names `ClaudeBot` in a
 Cloudflare-templated list — Ben has seen this and it did not stop thingsorganizedneatly, whose

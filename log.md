@@ -34,6 +34,50 @@ Tumblr #2, Europeana (key from Ben), Openverse, Chronicling America.
 
 *Session spend: 3.68M tok (in 3.7k · out 26.3k · cache r 3.21M / w 433.5k) · ~≥$0.32 · fable-5-1 + opus-4-7 · 22:27→08:13*
 
+**Shipped (the session the entry above saw from outside — it started 09-01 21:42 and ran to
+09-02 mid-morning):** Ben took every open call in one sitting — **Keep** thingsorganizedneatly,
+**exempt walk sources from the dup-title floor** (`d919ba0`, two tests; the full walk then
+dropped 0 on that rule), continue round 2 — and the Tumblr branch merged `--no-ff` (`7bdac6e`)
+with **891 rows written @ 7.90, 71.8% ≥ 8**, under the 1,300–1,500 the sample projected because
+the archive thins with depth. Then the **`wp-rest` factory** (`f7dd5dd`): `wpRestWalker(blog)`,
+with **doorofperception.ts left bespoke by Ben's choice** — "build the factory but keep DoP as
+is" — held honest by a test that feeds the factory DoP's own config and fixture and demands
+byte-identical items. Tag names resolve lazily per page (`include=`, 100 ids a request) because
+mossandfog is WordPress.com-hosted with **27,567 tags** and the up-front fetch DoP does would be
+276 requests before the first post. **thisiscolossal: Keep** — full walk **6,075 rows @ 8.70,
+97.5% ≥ 8, all sixteen topics filled**, the strongest source in the corpus. **mossandfog: Park**
+(6.60, 41% ≥ 8, tyre-shop advertorials at 1–2) via `SUSPENDED_SOURCES` — a walk source has no
+seed cells to withhold, so that list is its only parking switch; an explicit `--source` still
+runs it, with a warning. `bun run stats:walk` (`b9c4c78`) is the score-distribution report the
+handoff asked for, permanent. `fetchWithRetry` gained a **60 s per-attempt timeout** (`652e352`).
+
+**Findings:** the colossal walk took **eight launches to finish once**, and almost none of that
+was the code. Overnight, the Mac slept on battery (`pmset -g log`: deep sleep from 23:39, dark
+wakes every few minutes) — a run freezes, its sockets die on wake, and neither `fetch` nor the
+curator has a timeout, so each morning-after run sat on twelve silent OpenRouter sockets at 50%.
+`caffeinate -i` does not hold a closed lid; Ben opened it and plugged in. Then I killed two
+*healthy* runs myself: Colossal pages are 3.3 MB and take 4 s each, so the walk is silent for
+~8.5 minutes, and curation moves ~3 GB of 2000 px originals — a log-mtime stall detector reads
+that as a hang. What settled it was the kernel, not the log: `netstat -anv -p tcp | grep
+bun:<pid>` showing rx/tx growing on eight OpenRouter sockets. Also: the harness SIGTERMed every
+background Bash task that night (a second session was alive on the same checkout — see above);
+`nohup … & disown` plus a Monitor is what survived. Three curator errors in 8,732: two animated
+GIFs over OpenRouter's 30 MB image limit, one 502. Colossal's robots.txt now carries a Cloudflare
+Content-Signal line (`ai-train=no, use=reference`); recorded in `blogs.ts`.
+
+**Decisions:** doorofperception stays a second copy of the walk logic on purpose — don't "fix"
+it unasked. Parking = `SUSPENDED_SOURCES`, not deregistration. Neither kept blog is on production
+until the next deploy; the nightly ingest walks them then (Colossal's ~3 GB of heroes and ~40
+minutes on the server are worth knowing before that night).
+
+**Open / next:** streetartnews and spoon-tamago as config rows on the factory (one or two at a
+time, verdict each), thisisnthappiness as Tumblr #2, Europeana (key from Ben), Openverse,
+Chronicling America. Guardrail for 8.2: the curator's image fetch and OpenRouter call still have
+no timeout — the sockets that actually hung. Cosmetic: Tumblr titles keep `ed:` / `SUBMISSION:`
+prefixes. Ben still owes himself the `/feed` eyeball of the 891 + 6,075 new rows (dev server up).
+
+*Session spend: 76.70M tok (in 53.8k · out 525.0k · cache r 74.13M / w 1.99M) · ~≥$4.32 · fable-5-1 + opus-4-7 + <synthetic> · 21:42→09:08*
+
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
 **Shipped:** 8.1's **7.5 and 7.4b in one stroke**. The plan's "no-code-change redeploy" premise

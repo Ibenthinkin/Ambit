@@ -69,11 +69,15 @@ resume from
 `docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed facts (resource UUID, volume name, DB hostname)
 rather than re-deriving them from the Coolify UI. **A second thread is mid-flight beside 8.1:
 source-candidates round 2** — every remaining candidate in `docs/source-candidates.md` was live-probed
-09-01-26, and the first of the trial-ready set (a Tumblr-walk adapter for thingsorganizedneatly) is
-built, tested and sampled on the **unmerged** branch `feat/tumblr-walk-thingsorganizedneatly`, with
-two decisions waiting on Ben (its Keep/Park/Cut, and whether the dup-title floor rule should apply
-to blogs). Pick that thread up from `docs/HANDOFF_sources-round2.md`, which carries the state, the
-queue (four WP-REST blogs, then Europeana / Openverse / Chronicling America), and the recipe. See
+09-01-26, and the same night Ben verdicted the first three: **thingsorganizedneatly kept** (Tumblr
+walk, 891 rows locally @ 7.90), **thisiscolossal kept** (on the new `wp-rest.ts` factory; 6,075
+rows locally @ 8.70, 97.5% ≥ 8, all 16 topics — the strongest source in the corpus), **mossandfog
+parked** (`SUSPENDED_SOURCES`, the only switch that keeps a
+registered walker out of the nightly ingest). Walk sources are now exempt from the dup-title floor
+rule, and `bun run stats:walk` prints the score distribution a verdict needs. Neither kept blog is
+on production yet — the nightly ingest walks them after the next deploy. Pick the thread up from
+`docs/HANDOFF_sources-round2.md`: next are streetartnews and spoon-tamago (config rows on the
+factory), then Europeana / Openverse / Chronicling America. See
 `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
 `log.md` for the narrative of what's landed and why.
 
