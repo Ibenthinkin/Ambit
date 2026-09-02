@@ -78,6 +78,14 @@ prefixes. Ben still owes himself the `/feed` eyeball of the 891 + 6,075 new rows
 
 *Session spend: 76.70M tok (in 53.8k · out 525.0k · cache r 74.13M / w 1.99M) · ~≥$4.32 · fable-5-1 + opus-4-7 + <synthetic> · 21:42→09:08*
 
+**Handoff written (same session, later):** `docs/HANDOFF_sources-round2.md` gained a **§0 "Start
+here"** — streetartnews and spoon-tamago as a seven-step, cold-executable task for a cheaper
+session (model files to copy, the five registration lines, the probe → dry-run → `stats:walk` →
+verdict loop, and the night's liveness rule for a full walk). Ben's ask: hand those two off as
+the next step and close this session.
+
+*Session spend: 7.09M tok (in 1.9k · out 42.4k · cache r 7.00M / w 46.9k) · fable-5-1 · 09:08→10:43*
+
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
 **Shipped:** 8.1's **7.5 and 7.4b in one stroke**. The plan's "no-code-change redeploy" premise

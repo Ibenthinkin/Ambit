@@ -76,8 +76,9 @@ parked** (`SUSPENDED_SOURCES`, the only switch that keeps a
 registered walker out of the nightly ingest). Walk sources are now exempt from the dup-title floor
 rule, and `bun run stats:walk` prints the score distribution a verdict needs. Neither kept blog is
 on production yet — the nightly ingest walks them after the next deploy. Pick the thread up from
-`docs/HANDOFF_sources-round2.md`: next are streetartnews and spoon-tamago (config rows on the
-factory), then Europeana / Openverse / Chronicling America. See
+`docs/HANDOFF_sources-round2.md` **§0** — streetartnews and spoon-tamago as a cold-executable
+seven-step task (config rows on the factory, verdict after each) — then Europeana / Openverse /
+Chronicling America. See
 `docs/BUILD_PLAN.md` for the full phase-by-phase build order and
 `log.md` for the narrative of what's landed and why.
 
