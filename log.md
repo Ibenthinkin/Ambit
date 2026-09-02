@@ -174,6 +174,26 @@ session didn't create.)
 
 *Session spend: 23.21M tok (in 367 · out 172.2k · cache r 22.13M / w 906.0k) · ~$24.01 · opus-5 + opus-4-7 · 10:59→11:56*
 
+**Planned (Cut 1, a later session):** `docs/PLAN_topic-vocabulary-cut1.md` — ten tasks, cold-
+executable, from the design doc. The planning session **trialled the schema edit** (nullable
+`topic_id`) and reverted it, so the plan lists the typechecker's real worklist: **15 errors in 8
+files**, not the four the design named — `wander.ts`, `gallery-rail.ts` and the saves router all
+assume an item has a topic. Each site gets a decision in the plan rather than a `!`: pools skip a
+null (unreachable, documented), an un-homed save bumps nothing (`drift: null`), wander returns
+`[]`, an un-homed gallery anchor gets an all-wildcard rail (`RailStep` becomes a discriminated
+union), `FeedCard.topicId` widens to `string | null` at the client boundary only while
+`ComposedCard` pins it back to `string`. Three more calls the code forced: `--skip-llm` still
+writes no walk rows (a score-5 un-homed row would block its real curation forever); the gallery's
+wildcard draw *can* surface an un-homed image, left deliberately; losing `collidedWith` claims are
+not written as extra seed memberships (Cut 2 candidate). The migration's backfill rides in the
+generated `0004_item_topic.sql` with the walk-source list frozen in SQL (streetartnews included —
+its trial branch wrote 87 local rows). Verified against Drizzle's docs that `migrate` runs hand-
+appended statements split on `--> statement-breakpoint`. The first real run is doorofperception,
+free from cache (~70 un-homed expected, memberships written 0). The two big re-walks and the
+streetartnews verdict are offered after the merge, not started.
+
+*Session spend: 12.58M tok (in 7.6k · out 339.4k · cache r 11.08M / w 1.15M) · fable-5-1 · 12:16→12:33*
+
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
 **Shipped:** 8.1's **7.5 and 7.4b in one stroke**. The plan's "no-code-change redeploy" premise
