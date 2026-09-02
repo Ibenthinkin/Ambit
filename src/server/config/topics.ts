@@ -61,7 +61,10 @@ export const SEED_SOURCES = [...V1_SOURCES, ...TRIAL_SOURCES] as const;
  *  it per topic (docs/PHASE6_DESIGN_6.3.md §4). They have NO seed cells — each item gets its
  *  topic from the curator's classify mode at ingest — so they are deliberately absent from
  *  SEED_SOURCES and SeedQueries. Blogs live here; loupe will too. */
-export const WALK_SOURCES = ["doorofperception"] as const;
+export const WALK_SOURCES = [
+  "doorofperception",
+  "thingsorganizedneatly",
+] as const;
 
 export type WalkSourceId = (typeof WALK_SOURCES)[number];
 

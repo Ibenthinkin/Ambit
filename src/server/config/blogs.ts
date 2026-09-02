@@ -27,7 +27,9 @@ export interface BlogConfig {
   /** ISO date of the last human check of `/robots.txt` — the etiquette rule made into data. The
    *  walker re-checks on every run; this records that a person also looked before designating. */
   robotsCheckedOn: string;
-  walk: "wp-rest";
+  /** Which walker shape reads this blog. Descriptive — the walker file is wired by id in
+   *  services/sources/index.ts, nothing dispatches on this at runtime. */
+  walk: "wp-rest" | "tumblr";
 }
 
 export const BLOGS: readonly BlogConfig[] = [
@@ -40,6 +42,20 @@ export const BLOGS: readonly BlogConfig[] = [
     // No AI block list. See docs/PHASE6_DESIGN_HANDOFF_6.3.md F1.
     robotsCheckedOn: "2026-08-25",
     walk: "wp-rest",
+  },
+  {
+    id: "thingsorganizedneatly",
+    label: "Things Organized Neatly",
+    baseUrl: "https://thingsorganizedneatly.tumblr.com",
+    license: BLOG_LICENSE,
+    // Verified 09-01-26: `*` is disallowed only /random, /day, an ad iframe and the consent path,
+    // with `Crawl-delay: 1` (the walker honours it). The named-bot section — ClaudeBot,
+    // anthropic-ai, CCBot, Google-Extended, … each `Disallow: /` — is Tumblr's platform default,
+    // not this blog's own policy: the identical list appears verbatim on thisisnthappiness.com, a
+    // different blog on a different domain. Ambit's own agent name is not on it. Ben's call, made
+    // with that in front of him — docs/HANDOFF_tumblr-walk.md §3.4.
+    robotsCheckedOn: "2026-09-01",
+    walk: "tumblr",
   },
 ];
 

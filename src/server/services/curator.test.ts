@@ -77,6 +77,42 @@ describe("structuralFloor", () => {
     expect(dropped).toHaveLength(0);
     expect(kept).toEqual([item]);
   });
+
+  // Sources round 2 (09-01-26): a blog's series posts ("Andy Goldsworthy" ×3) share a
+  // caption-derived title on purpose, where a museum's duplicated titles were interchangeable
+  // catalog stubs. Walk sources are exempt from dup-title only — Ben's call.
+  it("exempts walk sources from dup-title — a blog series shares a title on purpose", () => {
+    const series = ["1", "2", "3", "4"].map((sourceId) =>
+      makeItem({
+        source: "thingsorganizedneatly",
+        sourceId,
+        type: "image",
+        title: "Andy Goldsworthy",
+      }),
+    );
+    const { kept, dropped } = structuralFloor(series);
+    expect(dropped).toHaveLength(0);
+    expect(kept).toHaveLength(4);
+  });
+
+  it("still applies bare-title and thin-summary to walk sources", () => {
+    const bare = makeItem({
+      source: "doorofperception",
+      type: "image",
+      title: "Bowl",
+    });
+    const thin = makeItem({
+      source: "doorofperception",
+      type: "image",
+      summary: "short",
+    });
+    const { kept, dropped } = structuralFloor([bare, thin]);
+    expect(kept).toHaveLength(0);
+    expect(dropped).toEqual([
+      { item: bare, rule: "bare-title" },
+      { item: thin, rule: "thin-summary" },
+    ]);
+  });
 });
 
 describe("parseCuratorResponse", () => {

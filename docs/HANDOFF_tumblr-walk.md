@@ -1,9 +1,11 @@
 # Handoff — a Tumblr-walk `CorpusWalkAdapter` for thingsorganizedneatly.tumblr.com
 
-**Written:** 09-01-26, a source-candidates trial-loop session. **For:** a cold session picking
-this up to implement. **Status:** design approved by Ben (09-01-26) — **nothing built yet, no
-code written**. This document is the design + evidence; the next session should go straight to
-TDD from §4.
+**Written:** 09-01-26, a source-candidates trial-loop session. **For:** originally a cold session
+picking this up to implement; now the record of the build. **Status:** design approved by Ben
+(09-01-26), then **built the same evening** on `feat/tumblr-walk-thingsorganizedneatly`
+(`fce1d66`) — adapter, tests, live probe, and a 150-item trial-loop dry-run. **§8 records what
+differed from the plan and the sample's numbers**; the Keep/Park/Cut verdict and the full walk are
+still Ben's. §§1–7 are the design as approved, kept as written.
 
 ---
 
@@ -313,3 +315,62 @@ Fixture should include, at minimum:
 | `src/server/services/sources/index.ts` | `walkers` map — register the new adapter |
 | `src/server/services/sources/source-invariants.test.ts` | should pick up the new walker generically — confirm |
 | `docs/source-candidates.md` | the two blog rows (thingsorganizedneatly, thisisnthappiness) this task is scoped against |
+
+---
+
+## 8. Postscript — 09-01-26: built, and what the plan got wrong
+
+Built to §4 with TDD, in one session, on `feat/tumblr-walk-thingsorganizedneatly`. Fifteen fixture
+tests on six real posts, the full suite green (81 files / 863 tests), a live `probe:walk` at
+offsets 0 and 3000, then a `--dry-run --quota 150` through the real classify-mode curator. What
+the 200-post archive sample and the build changed, against §§3–6:
+
+- **`photo` is the dominant type, not `regular`.** §3.2's 16:4 was the newest page; across offsets
+  0/1000/3000/5400 it is **162 `photo` : 37 `regular` : 1 `answer`**. Both shapes still have to be
+  handled — the newest posts are all `regular` — but the archive is mostly the structured kind.
+- **The floor rate is higher deep in the archive.** 121/200 under 60 chars and 52/200 empty across
+  the archive, versus 52/150 under and far fewer empty on the newest 150. Older Tumblr was
+  wordless. Expect a full walk to keep ~40% at the floor, not the ~55% §3.3 guessed.
+- **`photo-url-1280` is on every photo post** (162/162) — no fallback chain (§6.2 closed). On the
+  oldest posts the field's URL is a `_500` rendition; the key is still there.
+- **Empty caption ⇒ empty slug**, almost always (51 of 53 slugless posts had no caption). §3.5's
+  humanized-slug fallback is real but nearly dead code; a third fallback — `Untitled post <id>` —
+  exists so `toItem` always returns a valid item, and can never reach a reader (empty summary
+  floors).
+- **Reblogs put an attribution line first** — `<p><a class="tumblr_blog">name</a>:</p>` — which
+  would have been the title. `deriveTitle` skips a first line matching `^\S+:$`; the summary keeps
+  it (it is the blog's own text, and honest attribution of the reblog).
+- **`regular` posts' `<img>` carries a `srcset`** up to the 1280 rendition, with `src` at 640. The
+  adapter takes the largest srcset candidate, else `src` — a three-line improvement over §4.2's
+  "take `src`".
+- **`fetchJsonResponse` could not be used** (§6.4 confirmed): `res.json()` on a `var …;` body
+  throws. `http.ts` now has one generic retry loop and two readers — `fetchJsonResponse` and a new
+  `fetchTextResponse` — and the adapter unwraps with `parseTumblrJson`.
+- **`decodeEntities` did not know `&rsquo;`.** Tumblr writes typographic punctuation as named
+  entities (30 `&rsquo;`, 8 `&ldquo;`, 7 `&rdquo;`, 4 `&hellip;`, 2 `&ndash;` in 200 posts) where
+  WordPress writes numeric ones. The adapter's own HTML-safety test caught it; `normalize.ts` grew
+  the named list, test-first.
+- **`DELAY_MS` is 1000** (§6.3 closed): the file asks `Crawl-delay: 1`, and a stated delay wins.
+- **Tags come straight off the post** — no name-lookup call — minus the blog's own name, which is
+  on every post and would take one of the twelve slots the curator reads.
+
+**The sample (newest 150 offered, dry-run, no writes):** 1 `toItem` error (the `answer` post) ·
+floored 67 — thin-summary 52, dup-title 9, bare-title 6 · **83 curated: avg 8.02, min 4, max 9,
+65 ≥ 8 (78%)** · **55 classified (avg 8.18)** into 14 of 16 topics — zoology 10, machines 9,
+typography 8, architecture 6, ancient-history 4, textiles 4, ceramics 3, the-ocean / portraiture /
+mythology / botany 2, astronomy / music / cartography 1, poetry and geology 0 · **28 refused (avg
+7.71)** — Prada Linea Rossa ads (a 9), a Hoppy Easter still life (the 4), flat lays, a fortune-cookie
+archive: good images with no honest home among the sixteen, the same null bucket doorofperception
+feeds. Would insert 55 of 150.
+
+**One finding that needs a decision, not a fix:** `structuralFloor`'s dup-title rule dropped nine
+real posts — "Andy Goldsworthy" ×3 (as `andy goldsworthy`, `Andy Goldsworthy.`, `Andy Goldsworthy`)
+and "A Look Inside the Peeps Factory" ×3, "Present & Correct" ×3. The rule was written for museum
+stubs sharing a catalog title; a blog posts in *series*, and a title derived from the caption's
+first line collides where a WordPress title never did. Six percent of the sample, and Goldsworthy
+is exactly the texture wanted. Either accept the loss, or exempt walk sources from that one rule
+(the other two still apply) — Ben's call.
+
+**Not done here:** the full walk and the write (`bun run ingest --source thingsorganizedneatly`,
+~111 pages at 1 s, then ~2,000 curator calls — cents, ~15 min), the rendered `/i/` and `/feed`
+eyeball, and the SPEC §6.1 promotion — steps 2–4 of the trial loop past the sample, and the verdict.
