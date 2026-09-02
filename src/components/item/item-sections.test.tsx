@@ -274,3 +274,90 @@ describe("ImageItemBody — blog items and the maker line", () => {
     expect(screen.getByText("An engraver")).toBeInTheDocument();
   });
 });
+
+describe("ImageItemBody with a stored body (Public Domain Review collections)", () => {
+  it("typesets the body under the blurb and introduces it with the CC BY-SA notice", () => {
+    render(
+      <ImageItemBody
+        item={makeItem({
+          source: "pdr",
+          type: "image",
+          title: "Photographs of Atlantic City Sand Sculpture",
+          summary:
+            "Photographs from when Atlantic City beaches featured sand sculptors.",
+          body: "New Jersey’s Atlantic City emerged as a seaside destination.\n\nTheir medium was ephemeral.",
+          imageUrl: "https://pdr-assets.b-cdn.net/collections/x/thumb.jpg",
+          sourceUrl:
+            "https://publicdomainreview.org/collection/atlantic-city-sand-sculpture/",
+        })}
+      />,
+    );
+    expect(
+      screen.getByText(
+        "New Jersey’s Atlantic City emerged as a seaside destination.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Their medium was ephemeral.")).toBeInTheDocument();
+    const notice = screen.getByText(/Text originally published on/);
+    expect(notice).toHaveTextContent(/under CC BY-SA 4\.0/);
+    // Two links carry the publication's name: the credit line's and the notice's. Both point at
+    // the piece, which is the assertion — not which one comes first.
+    const links = screen.getAllByRole("link", {
+      name: "The Public Domain Review",
+    });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute(
+        "href",
+        "https://publicdomainreview.org/collection/atlantic-city-sand-sculpture/",
+      );
+    }
+  });
+
+  it("renders neither text nor notice when the item has no body — every museum object, every blog card", () => {
+    render(
+      <ImageItemBody
+        item={makeItem({
+          source: "met",
+          type: "image",
+          body: null,
+          imageUrl: "https://images.metmuseum.org/x.jpg",
+        })}
+      />,
+    );
+    expect(
+      screen.queryByText(/Text originally published on/),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("ReaderItemBody for a Public Domain Review essay", () => {
+  it("introduces the essay with the CC BY-SA notice", () => {
+    render(
+      <ReaderItemBody
+        item={makeItem({
+          source: "pdr",
+          type: "article",
+          title: "Stories of a Hollow Earth",
+          summary: "In 1741 Ludvig Holberg published a satirical novel.",
+          body: "In 1818 John Cleves Symmes issued his circular.",
+          sourceUrl:
+            "https://publicdomainreview.org/essay/stories-of-a-hollow-earth/",
+        })}
+      />,
+    );
+    expect(
+      screen.getByText(/Text originally published on/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("In 1818 John Cleves Symmes issued his circular."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows no notice on a Wikipedia article", () => {
+    render(<ReaderItemBody item={makeItem({ body: "Found in 1846." })} />);
+    expect(
+      screen.queryByText(/Text originally published on/),
+    ).not.toBeInTheDocument();
+  });
+});

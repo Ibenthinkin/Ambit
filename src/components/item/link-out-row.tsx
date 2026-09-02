@@ -1,6 +1,7 @@
 import { ChevronRight } from "~/components/icons";
 import { sourceLabel } from "~/lib/source-label";
 import { isBlogSource } from "~/server/config/blogs";
+import { PDR } from "~/server/config/pdr";
 
 // The prominent link-out that makes a blog item read as a link preview rather than a
 // republication (Phase 6.3, docs/PHASE6_DESIGN_6.3.md §7). The credit line already links every
@@ -12,7 +13,8 @@ import { isBlogSource } from "~/server/config/blogs";
 // `stopPropagation` the gallery sheet needs lives on a wrapper in the sheet, not here).
 //
 // No prototype in the handoff shows this element; it borrows the pill's row idiom (a rounded,
-// ink-tinted, ≥44px target) rather than inventing a new one.
+// ink-tinted, ≥44px target) rather than inventing a new one. (09-02-26: also rendered for `pdr`
+// — see the guard.)
 export interface LinkOutRowProps {
   source: string;
   sourceUrl: string;
@@ -20,7 +22,13 @@ export interface LinkOutRowProps {
 }
 
 export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
-  if (!isBlogSource(source)) return null;
+  // Blogs, and the one publication that earns the same prominent row without being a blog: a
+  // PDR collection's page holds the full gallery, an essay card's page holds the essay.
+  const isPdr = source === PDR.id;
+  if (!isBlogSource(source) && !isPdr) return null;
+  const copy = isPdr
+    ? `See it on ${PDR.label}`
+    : `Read the post on ${sourceLabel(source)}`;
   return (
     <a
       href={sourceUrl}
@@ -33,7 +41,7 @@ export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
         (className ?? "")
       }
     >
-      <span>Read the post on {sourceLabel(source)}</span>
+      <span>{copy}</span>
       <ChevronRight className="text-ink/50" />
     </a>
   );
