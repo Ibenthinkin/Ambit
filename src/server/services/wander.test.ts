@@ -79,6 +79,13 @@ describe("getWanderNext", () => {
     expect(mockDrawFromTopic).not.toHaveBeenCalled();
   });
 
+  it("returns nothing for an un-homed item — no topic, no walk (Cut 1)", async () => {
+    mockDrawFromTopic.mockClear();
+    mockGetItemById.mockResolvedValue(makeItem({ id: "x", topicId: null }));
+    expect(await getWanderNext("x", rng)).toEqual([]);
+    expect(mockDrawFromTopic).not.toHaveBeenCalled();
+  });
+
   it("returns three rows with topic-anchored reasons and nothing else", async () => {
     mockGetItemById.mockResolvedValue(makeItem({ id: "start" }));
     let n = 0;

@@ -315,6 +315,39 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       expect(withCounts.find((c) => c.name === "Art")?.itemCount).toBe(0);
     });
 
+    it("saving an un-homed item records the save and reports no drift (Cut 1)", async () => {
+      const { db } = await import("~/server/db/client");
+      const { item } = await import("~/server/db/schema");
+      // A walk post no topic fits: `topicId: null` is legal since Cut 1. Inserted here rather than
+      // in beforeAll so the fixture's cleanup-by-topic never has to know about it.
+      const [unhomed] = await db
+        .insert(item)
+        .values({
+          source: "doorofperception",
+          sourceId: `test-router-unhomed-${nanoid(8)}`,
+          type: "image" as const,
+          title: "Integration test un-homed item",
+          summary: "A walk post that no current topic fits.",
+          sourceUrl: "https://example.com/unhomed",
+          imageUrl: "https://example.com/unhomed.jpg",
+          topicId: null,
+          curationScore: 8,
+          aestheticTags: ["mural"],
+        })
+        .returning({ id: item.id });
+
+      const caller = createCaller(authedContext(userId));
+      const [, art] = await caller.saves.collections();
+      const saved = await caller.saves.saveToCollection({
+        itemId: unhomed!.id,
+        collectionId: art!.id,
+      });
+      expect(saved).toEqual({ collectionName: "Art", drift: null });
+
+      await caller.saves.unsave({ itemId: unhomed!.id });
+      await db.delete(item).where(eq(item.id, unhomed!.id));
+    });
+
     it("re-filing an item MOVES it rather than adding a second membership", async () => {
       const caller = createCaller(authedContext(userId));
       const collections = await caller.saves.collections();

@@ -211,6 +211,35 @@ describe("getGalleryRail", () => {
     expect(mockDrawImageAnywhere).not.toHaveBeenCalled();
   });
 
+  it("gives an un-homed anchor an all-wildcard rail — no topic, no walk (Cut 1)", async () => {
+    mockEnv.FEED_DEBUG = true;
+    mockDrawFromTopic.mockClear();
+    // The mocks are untyped `vi.fn()`s, so these partial rows go in as-is — no cast needed, and
+    // eslint rejects one as unnecessary. Only the fields the rail actually reads are set.
+    mockGetItemById.mockResolvedValue({
+      id: "anchor",
+      type: "image",
+      topicId: null,
+    });
+    let n = 0;
+    mockDrawImageAnywhere.mockImplementation(async () => [
+      { id: `w${n++}`, title: "wild", source: "met", topicId: null },
+    ]);
+
+    const rows = await getGalleryRail("anchor", {
+      count: 3,
+      rng: mulberry32(hashSeed("unhomed")),
+    });
+
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.debug)).toEqual([
+      { via: "wildcard", topic: null },
+      { via: "wildcard", topic: null },
+      { via: "wildcard", topic: null },
+    ]);
+    expect(mockDrawFromTopic).not.toHaveBeenCalled();
+  });
+
   it("asks only for images, above the feed's score floor", async () => {
     mockGetItemById.mockResolvedValue(makeItem({ id: "anchor" }));
     drawsAlwaysWork();

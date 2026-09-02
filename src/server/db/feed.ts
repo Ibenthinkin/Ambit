@@ -30,8 +30,13 @@ import { item, seenItem } from "./schema";
  */
 export type PoolItem = Pick<
   Item,
-  "id" | "topicId" | "source" | "curationScore" | "aestheticTags"
->;
+  "id" | "source" | "curationScore" | "aestheticTags"
+> & {
+  /** Never null here: `getTopicPools` filters with `inArray(item.topicId, …)`, which no NULL row
+   *  matches, so an un-homed item (Cut 1) cannot enter a pool. The column is `string | null` on
+   *  `Item`; this is the one place the narrowing is written down. */
+  topicId: string;
+};
 
 /**
  * One SELECT per page, not one per topic (SPEC §9's "slot plan first, pools second" — see
@@ -123,7 +128,12 @@ export async function getTopicPools(
     .where(and(...conditions))
     .orderBy(asc(item.id));
 
-  for (const row of rows) pools.get(row.topicId)?.push(row);
+  for (const row of rows) {
+    // Unreachable in practice — see PoolItem's comment — but the projection is typed
+    // `string | null` because the column is, and a `!` here would hide the day this ever changes.
+    if (row.topicId === null) continue;
+    pools.get(row.topicId)?.push({ ...row, topicId: row.topicId });
+  }
   return pools;
 }
 
