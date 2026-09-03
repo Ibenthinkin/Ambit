@@ -420,12 +420,34 @@ Non-negotiable per SPEC §12. New or changed:
 
 ## 11. Explicitly out of scope
 
-**Cut 2 — promotion, and making un-homed items reachable.** Tag-frequency mining over the corpus;
-a proposed-topic list for Ben to verdict; a `topic_edge` table replacing the dense
-`topic-graph.json` (16 topics = 240 cells; 1,000 topics ≈ 1M cells and ~100 MB of JSON imported at
-module load in `feed.ts:16` — it stops being a checked-in artifact); a graph rebuild job computing
-truncated top-K drift / bottom-K jump rows; the SQL backfill; moving the feed onto `item_topic` and
-dropping `item.topic_id`.
+**Cut 2 — promotion, and making un-homed items reachable.** Split into 2a and 2b when it was
+planned, on the line where the product value stops and the refactor starts.
+
+**Cut 2a — SHIPPED 09-02-26** (`docs/PLAN_topic-vocabulary-cut2.md`). Delivered:
+- ~~tag-frequency mining over the corpus~~ — `src/server/services/topic-mining.ts` + `bun run mine:topics`.
+- ~~a proposed-topic list for Ben to verdict~~ — `docs/topic-proposals.md`, a Markdown checkbox per
+  candidate; his edit to the file is the decision, and `bun run promote:topics` reads it back.
+- ~~the SQL backfill~~ — `bun run promote:topics --confirm`. **83 topics promoted, 20,020
+  memberships at `origin: "tag"`, and the un-homed backlog went 3,741 → 1,027.**
+- a graph rebuild job — `bun run graph:rebuild`, delivered against the JSON artifact rather than a
+  table (below). Hybrid: the sixteen tuned rows are preserved byte-for-byte and only edges touching
+  a promoted topic are computed, rescaled per row to the embedding graph's spread.
+- one requirement this section did not list, found while planning: `topics.list` backs the
+  onboarding chip grid and returned every topic, so promotion would have put ~100 chips on that
+  screen. `topic.tier` exists entirely for that.
+
+**Cut 2b — still out of scope.** A `topic_edge` table replacing the dense `topic-graph.json` (16
+topics = 240 cells; 1,000 topics ≈ 1M cells and ~100 MB of JSON imported at module load in
+`feed.ts:16` — it stops being a checked-in artifact); a graph rebuild computing truncated top-K
+drift / bottom-K jump rows; moving the feed onto `item_topic` and dropping `item.topic_id`, so an
+item can be drawn under *any* of its topics rather than only its display one. **Neither is urgent
+at the size Cut 2a produced**: 99 topics is 9,702 edges and 647 KB, and the table becomes necessary
+around 300 topics. `rebuild-topic-graph.ts` was written so 2b changes its sink, not its arithmetic.
+
+**And one feel question 2b inherits**: with 83 grown topics against 16 core, a sampled 96 cards came
+back 59 grown / 37 core. CORE still draws only core topics (weights come from chips), but DRIFT and
+JUMP now have 83 more places to go, so a drift-heavy mix spends most of the page outside what the
+reader picked. Intended in direction, unmeasured in degree against the Phase 0.5 tuning.
 
 **Cut 3 — scale surfaces.** Topic hierarchy; onboarding for hundreds of topics (a chip grid does
 not scale, though a curated top tier of chips probably remains the answer); `topicCap` redesign —

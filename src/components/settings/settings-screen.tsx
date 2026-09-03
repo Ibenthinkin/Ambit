@@ -388,12 +388,14 @@ function saveCountLabel(n: number): string {
  * The "What you see" row's value: the first three picked labels alphabetically, then "+N" for the
  * rest.
  *
- * **Sorted here, deliberately**, because neither input is ordered: `topics.mine` returns rows in
- * whatever order Postgres hands them back, and `listTopics()` carries no `ORDER BY` either — so
- * "the catalog's order" is not a stable thing to defer to. (That the *onboarding grid* is likewise
- * at the mercy of unordered rows is a real if minor latent bug, flagged rather than fixed here:
- * adding an ORDER BY to `listTopics` would change a screen this phase doesn't own.) Alphabetical is
- * the one ordering that reads the same on every visit and needs nothing from the query.
+ * **Sorted here, deliberately**, because `topics.mine` returns rows in whatever order Postgres
+ * hands them back — "the catalog's order" is not a stable thing to defer to. Alphabetical is the
+ * one ordering that reads the same on every visit and needs nothing from the query.
+ *
+ * (This comment used to also flag the *onboarding grid* as unordered, and to note that fixing it
+ * would mean adding an `ORDER BY` to `listTopics` — a change the phase that wrote this didn't own.
+ * Cut 2a made it, 09-02-26: `listTopics` orders by label now, so both screens agree. The local
+ * sort stays, because `topics.mine` still doesn't.)
  */
 function formatTopicValue(
   catalog: { id: string; label: string }[],

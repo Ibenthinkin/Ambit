@@ -127,6 +127,23 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   it did not:** the feed still reads `topic_id`, so un-homed items are invisible to it until Cut 2
   (promotion + moving the feed onto the join); the ~3,500 items 6.3 dropped come back with a
   re-walk of each blog, free from the curation cache.
+  **Cut 2a shipped 09-02-26** (plan `docs/PLAN_topic-vocabulary-cut2.md`): the vocabulary is now
+  **99 topics — 16 `core` + 83 `grown`** mined from the corpus's own tags, and the un-homed backlog
+  is **3,741 → 1,027**. Three scripts: `bun run mine:topics` proposes into `docs/topic-proposals.md`
+  (Ben ticks it; that file **is** the verdict), `bun run promote:topics --confirm` applies it
+  (`topic` rows at tier `grown`, `item_topic` at `origin: "tag"`, and `item.topic_id` set **only
+  where NULL** — which is what makes a stored-but-invisible item drawable with `feed.ts` untouched),
+  and `bun run graph:rebuild --confirm` regenerates `topic-graph.json` as a **hybrid**: the sixteen
+  tuned rows byte-for-byte, every edge touching a promoted topic from IDF-weighted tag
+  co-occurrence **rescaled to the embedding graph's spread** (raw co-occurrence is ~4× flatter and
+  would soften DRIFT to a near-uniform draw — the subtlest thing in the cut). `topic.tier` keeps
+  onboarding at 16 chips: `listTopics()` is core only, `listAllTopics()` is everything. **Two
+  things to know before building on it.** The feed now spends most of a page outside the reader's
+  own picks (a sampled 96 cards: 59 grown / 37 core) — intended in direction, untuned in degree,
+  and the open feel question for **Cut 2b** (the `topic_edge` table + moving the feed onto the
+  join; not urgent until ~300 topics). And `bun run promote:topics`'s **dry run over-counts** — it
+  measures each topic's un-homed set against the untouched database, so an item carrying three
+  ticked tags is counted three times; the write's number is the honest one.
 - **Feed composition** (SPEC §9) = per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25 — drift-heavy on purpose) → topic via the user's weights or a graph walk → item via curated-weighted random, under diversity constraints (no adjacent same-source; per-page topic caps). Saves reweight *topics*, visibly. Cursor-based pagination; the cursor encodes the page seed. Debug overlay + tuning knobs ship behind a dev flag throughout development.
 - **Auth boundary**: all user-scoped queries filter by `userId`; the only public surface is `items.byId` / `/i/[itemId]`.
 
