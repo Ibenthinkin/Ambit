@@ -65,6 +65,10 @@ async function main() {
         id: t.id,
         label: t.label,
         seedQueries: t.seedQueries,
+        // The sixteen config-defined topics are the `core` tier by definition — they ARE the
+        // onboarding chip grid (Cut 2a, 09-02-26). Written on the update branch too, so a re-seed
+        // can never silently demote one of them to `grown` if something else has touched the row.
+        tier: "core" as const,
       })),
     )
     .onConflictDoUpdate({
@@ -72,6 +76,7 @@ async function main() {
       set: {
         label: sql`excluded.label`,
         seedQueries: sql`excluded.seed_queries`,
+        tier: sql`excluded.tier`,
       },
     });
 

@@ -1,0 +1,1 @@
+ALTER TABLE "topic" ADD COLUMN "tier" text DEFAULT 'core' NOT NULL;

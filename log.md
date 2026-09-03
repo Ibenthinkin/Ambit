@@ -544,6 +544,59 @@ Cut 1 + PDR + the kept blogs to production.
 
 *Session spend: 47.71M tok (in 292 · out 149.8k · cache r 45.35M / w 2.21M) · ~$48.12 · opus-5 + opus-4-7 · 15:26→21:17*
 
+**Shipped (Cut 2a, a later session the same evening):** the whole plan, Tasks 1–7, on
+`feat/topic-vocab-cut2`. **The vocabulary is 99 topics — 16 `core` + 83 `grown` — and the un-homed
+backlog is 3,741 → 1,027.** `topic.tier` landed first and exists for one reason the design never
+listed: `topics.list` backs the onboarding chip grid and returned *every* topic, so the first
+promotion would have put a hundred chips on that screen. Then `bun run mine:topics` (83 candidates,
+24 single-source, ranked by how many invisible items a tag would rescue), Ben's verdict — **every
+candidate, none of the single-source** — `bun run promote:topics --confirm` (20,020 memberships at
+`origin: "tag"`; `seed` and `curator` counts identical afterwards, as promotion never rewrites
+them), and `bun run graph:rebuild --confirm` (99 rows, 9,702 edges, 647 KB, all 240 original edges
+byte-identical). A promoted item renders at `/i/` and the feed draws the new vocabulary: a sampled
+96 cards came back 59 grown / 37 core across 39 distinct promoted topics.
+
+**Findings:** four things the plan did not see, none of them fatal and all of them the same shape —
+*the plan was written against what the repo looked like from a distance*.
+1. `src/server/db/topics.test.ts`, which Task 1 says to modify, **does not exist**. DB-backed tests
+   here are `*.integration.test.ts` behind a `DATABASE_URL` skipIf. Created that instead — and the
+   plan's assertions pass trivially while every row is still `core`, so the test now inserts a
+   throwaway `grown` row and checks it is *excluded*.
+2. **`vitest.config.ts`'s include is `src/**/*.test.ts`**, so the plan's
+   `scripts/rebuild-topic-graph.test.ts` would never have been collected. `bun run test` would have
+   gone green having never run the check the plan itself calls its riskiest. The maths moved to
+   `src/server/services/topic-graph-build.ts`, mirroring the `topic-mining.ts` / `mine-topics.ts`
+   split the plan had already made one task earlier.
+3. `src/server/config/topics.test.ts` asserted the graph's keys **equal** the sixteen config ids —
+   an invariant Cut 2a deliberately falsifies. Rewritten as an inclusion (every config topic has a
+   row; every neighbour id has a row of its own) plus two assertions covering what the equality
+   used to imply for free: rows are full width, and the sixteen keep edges on the tuned scale.
+4. **`promote:topics`'s dry run over-counts, badly.** It predicted 5,338 items would gain a display
+   topic; the write reported 2,714. Both are right — the dry run measures each topic's un-homed set
+   against the untouched database, so an item carrying three ticked tags is counted three times,
+   while the write fills a NULL once and later topics find it filled (`chicago` went 20 → 4 as the
+   loop ran). 2,714 is the miner's own prediction, to the item. The plan's sanity check ("close to
+   the rescue figure") would have read as alarming; it isn't.
+
+**Decisions:** the rescaling was verified independently of the script's own assertion, because a
+script checking its own invariant proves less than a second measurement does — promoted rows have a
+mean per-row spread of **0.1345** against the tuned rows' 0.1239, so DRIFT keeps its shape rather
+than softening to a near-uniform draw. That was the plan's stated riskiest step and it is the one
+thing here worth re-checking if the feed ever feels flat.
+
+**Open / next:** **the feel question Cut 2a opened and did not answer.** CORE still draws only core
+topics — weights come from chips, and chips are `listTopics()` — but DRIFT and JUMP now have 83 more
+places to go, so most of a page lands outside what the reader picked (59/96 in the sample). That is
+the backlog becoming reachable working exactly as designed, and it is also a real change to the mix
+Ben tuned in Phase 0.5, unmeasured in degree. Tune it before, not after, the production deploy.
+Cut 2b (the `topic_edge` table; moving the feed onto the `item_topic` join so an item is drawable
+under *any* of its topics) is **not urgent** — 99 topics is 647 KB and the table matters around 300.
+Also unchanged: 8.1's T8 restore drill and T9.2–9.5, spoon-tamago's verdict, streetartnews'
+re-look now that Cut 2 has written the vocabulary it would have collided with, and the deploy
+carrying Cut 1 + PDR + the kept blogs + this to production.
+
+*Session spend: 31.54M tok (in 547 · out 176.0k · cache r 30.60M / w 764.9k) · ~$25.72 · opus-5 + opus-4-7 · 21:47→22:41*
+
 
 
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect

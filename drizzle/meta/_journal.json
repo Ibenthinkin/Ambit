@@ -36,6 +36,13 @@
       "when": 1788369282878,
       "tag": "0004_item_topic",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788400223673,
+      "tag": "0005_topic_tier",
+      "breakpoints": true
     }
   ]
 }
