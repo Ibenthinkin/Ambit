@@ -30,6 +30,7 @@
     "probe:walk": "bun run scripts/probe-walk.ts",
     "stats:walk": "bun run scripts/walk-stats.ts",
     "mine:topics": "bun run scripts/mine-topics.ts",
+    "promote:topics": "bun run scripts/promote-topics.ts",
     "start": "bun run --bun next start",
     "e2e": "playwright test",
     "e2e:clean": "bun run scripts/e2e-clean.ts",
