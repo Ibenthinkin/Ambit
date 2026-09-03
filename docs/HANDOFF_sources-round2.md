@@ -13,7 +13,12 @@ and §2 before touching anything; §4 is the recipe that worked.
 
 ## 0. Start here — the next session's task: streetartnews and spoon-tamago
 
-> **09-02-26:** Cut 1 of the vocabulary-growth design has merged. streetartnews' 42% "refusal" is now 63 *stored* items with a tag histogram; take its verdict on re-read evidence (`bun run ingest --source streetartnews --dry-run` on its branch after rebasing onto main), per the design's §13.
+> **09-02-26, later:** done for streetartnews — rebased onto Cut 1, re-read, and **Ben parked it**
+> (`SUSPENDED_SOURCES`; see the reasoning in `config/suspended-sources.ts` and the row in
+> `docs/source-candidates.md`). It is parked on **sequencing, not quality** — the sample is level
+> with thingsorganizedneatly — because a full walk would take ~43% of `mythology` and its ~4,120
+> un-homed rows would dominate the tag histogram Cut 2's promotion reads. **Revisit after Cut 2.**
+> **So the remaining task in this section is spoon-tamago alone**, steps 1–7 below, untouched.
 
 Two WordPress blogs, each a config row on the `wp-rest` factory. Everything below is
 cold-executable in a cheaper session; the only stop is Ben's verdict on each sample. Read §3
