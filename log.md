@@ -376,6 +376,54 @@ post-deploy nightly walk will therefore be a big one. Then: streetartnews' verdi
 evidence, and Cut 2 (promotion + moving the feed onto the join).
 
 *Session spend: 26.02M tok (in 408 · out 184.2k · cache r 24.79M / w 1.05M) · ~$23.78 · opus-5 + opus-4-7 · 13:34→15:20*
+
+**Shipped (sources round 2): streetartnews rebased onto Cut 1, re-read, and PARKED** — Ben's
+verdict, on **sequencing, not quality**. The branch (35 commits behind) rebased with conflicts only
+in the four registration files PDR had also touched; the re-read then cost nothing, because every
+item was already in the curation cache. The sample barely moved from its pre-Cut-1 form — **150
+curated @ 7.81 avg, 71% ≥ 8, 0 floored, 85 classified / 65 un-homed** — but its *meaning* did: the
+blog now stores 100% of what it offers, and the 43% is a fact about the vocabulary rather than a
+loss. Adapter, fixture and tests are on `main`; no rows were ever written.
+
+**Findings — why a strong sample still got parked.** Two numbers decided it, both measured against
+the live corpus rather than guessed. (1) **Topic capture:** 9,509 posts scale the homed items to
+roughly +1,394 mythology, +1,204 architecture, +824 typography, which would make this one blog 43%
+of `mythology` and put the two contemporary-art blogs together at ~75% of it. The feed draws
+topic-first and has **no per-source cap inside a topic**, so "mythology" would stop meaning
+classical art and start meaning murals for anyone who picked it at onboarding. (2) **It would write
+the vocabulary Cut 2 is about to read:** since Cut 1, off-topic posts are stored rather than
+dropped, so a full walk adds ~4,120 un-homed rows — more than the entire un-homed population
+(3,555) — and its `street art` tag scales to ~1,500, which would make "street art" the top topic
+proposal on one source's strength. thisiscolossal's independent `street art 184` corroborates the
+*cluster*; it would not corroborate the *magnitude*. Revisit after Cut 2: if `street art` becomes a
+topic, this source stops being a capture risk and becomes the obvious way to fill it.
+
+Three smaller things the re-read surfaced. **The classifier is not force-fitting** — the
+skateboarding drift the handoff predicted (`BRICS Skate Cup`) landed un-homed, as did both
+`Artist Interview:` posts, and the `mythology 22` that looked suspicious is mostly murals of Greek
+myth. **A real duplicate now survives**: `Artist Interview: Dan The Automator Nakamura` appears
+twice at score 6 and both copies store, because walk sources are exempt from the dup-title floor —
+an exemption added for thingsorganizedneatly's caption-derived titles, too broad for WordPress
+titles that never collide. ~127 such rows in a full walk; worth narrowing the rule. And **two new
+classes of tag noise for Cut 2's promotion**, on top of Tumblr's `submission`: photographer handles
+(`elleresqphoto`) and geography — where `dubai` / `uae` / `united arab emirates` are three synonyms
+for one place that any naive frequency ranking would triple-count.
+
+**A checkout hazard worth recording, because it cost a confusing ten minutes.** A parallel session
+committed its Cut 2a plan (`f811a65`) **onto this session's feature branch** while the shared
+checkout happened to be sitting on it, then switched the checkout to `main` mid-command — so a
+`git rebase main` silently ran against `main` instead of the intended branch and reported a no-op.
+The recovery was cheap only because the duplicate had an **identical patch-id** to `main`'s own
+copy (`7494831`), so a real rebase dropped it automatically. Tell: `git rebase` printing "Current
+branch **main** is up to date" when you believed you were on a feature branch. **Check
+`git branch --show-current` inside the same command as the operation, not before it.**
+
+**Open / next:** spoon-tamago is the only remaining task in `HANDOFF_sources-round2.md` §0, still
+untouched (steps 1–7). Production is now three changes behind — Cut 1, the PDR walker, and the two
+kept blogs that have never been registered there — so the first post-deploy nightly will be large.
+Cut 2a is planned and running in a parallel session.
+
+*Session spend: 27.02M tok (in 204 · out 77.7k · cache r 24.98M / w 1.96M) · ~$33.68 · opus-5 + opus-4-7 · 15:20→21:17*
 **Shipped (a later session, same day):** **The Public Domain Review is built, KEPT and merged** —
 `docs/PLAN_publicdomainreview.md` executed end to end, Tasks 1–7, on a plain branch off `main`.
 `pdr` is the **fourth walk source and the first that is not a designated blog**: a walk over
