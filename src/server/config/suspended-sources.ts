@@ -41,7 +41,33 @@ import type { SourceId } from "~/server/services/sources/types";
 // (tyre shops, artificial turf) that the curator refuses at 1–2 — sound adapter, soft corpus.
 // The adapter, fixtures and tests stay; no rows were ever written. Un-parking is removing it
 // from this list (docs/source-candidates.md has the sample).
-export const SUSPENDED_SOURCES: SourceId[] = ["aic", "mossandfog"];
+//
+// **streetartnews** (StreetArtNews, **parked** 09-02-26 — not broken, and not a quality verdict).
+// The trial sample is *strong*: 150 curated at 7.81 avg, 71% ≥ 8, 0 floored — level with
+// thingsorganizedneatly, which was kept. It is parked on **sequencing**, and the reason is
+// specific enough to be worth writing down, because a future session will otherwise read the
+// sample and wonder why it was not kept.
+//
+// Two numbers. (1) **Topic capture.** 9,509 posts scale the sample's homed items to roughly
+// +1,394 mythology, +1,204 architecture, +824 typography — which would put this one blog at 43%
+// of mythology and, with thisiscolossal, the two contemporary-art blogs at ~75% of it. "Mythology"
+// would stop meaning classical art and start meaning murals, for every reader who picked it at
+// onboarding; the feed draws topic-first and has no per-source cap inside a topic. (2) **It would
+// write the vocabulary Cut 2 is about to read.** Since Cut 1, off-topic posts are stored un-homed
+// rather than dropped, so a full walk adds ~4,120 un-homed rows — more than the entire un-homed
+// population at the time (3,555) — and its `street art` tag alone would scale to ~1,500, making
+// "street art" the top topic proposal on the strength of a single source. thisiscolossal's
+// independent `street art 184` corroborates the cluster; the magnitude would not be independent.
+//
+// So: revisit **after Cut 2** has decided whether `street art` becomes a topic. If it does, this
+// source stops being a topic-capture risk and becomes the obvious way to fill it. Un-parking is
+// removing it from this list; a bounded first walk (`--quota`) is the middle option, at the cost
+// of `--prune` (a quota makes a walk incomplete). Nothing was ever written for it.
+export const SUSPENDED_SOURCES: SourceId[] = [
+  "aic",
+  "mossandfog",
+  "streetartnews",
+];
 
 /** Whether `source` is currently switched off. Accepts a plain string for DB rows. */
 export function isSuspendedSource(source: string): boolean {

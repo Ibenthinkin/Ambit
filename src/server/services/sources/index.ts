@@ -9,6 +9,7 @@ import { nasaImages } from "./nasa-images";
 import { pdr } from "./pdr";
 import { poetrydb } from "./poetrydb";
 import { smithsonian } from "./smithsonian";
+import { streetartnews } from "./streetartnews";
 import { thingsorganizedneatly } from "./things-organized-neatly";
 import { thisiscolossal } from "./thisiscolossal";
 import type { CorpusWalkAdapter, SourceAdapter, SourceId } from "./types";
@@ -40,6 +41,7 @@ export const walkers: Record<WalkSourceId, CorpusWalkAdapter<unknown>> = {
   thingsorganizedneatly,
   mossandfog,
   thisiscolossal,
+  streetartnews,
   pdr,
 };
 

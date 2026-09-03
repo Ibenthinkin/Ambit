@@ -33,6 +33,7 @@ export type SourceId =
   // factory, in trial — promoted into SPEC §6.1 or cut after Ben's verdict on each sample.
   | "mossandfog"
   | "thisiscolossal"
+  | "streetartnews"
   // The Public Domain Review (docs/PLAN_publicdomainreview.md): a walk source over Gatsby
   // page-data JSON, and the first walk source that is NOT a designated blog — its images are
   // public domain and its text is CC BY-SA 4.0 (config/pdr.ts). Also the first walk source whose

@@ -11,6 +11,7 @@ import { BLOGS, isBlogSource } from "~/server/config/blogs";
 import dopFixtures from "./__fixtures__/doorofperception.json";
 import mafFixtures from "./__fixtures__/mossandfog.json";
 import pdrFixtures from "./__fixtures__/pdr.json";
+import sanFixtures from "./__fixtures__/streetartnews.json";
 import tonFixtures from "./__fixtures__/things-organized-neatly.json";
 import ticFixtures from "./__fixtures__/thisiscolossal.json";
 import { walkers } from "./index";
@@ -20,6 +21,7 @@ const fixturesByWalker: Record<string, unknown[]> = {
   thingsorganizedneatly: tonFixtures,
   mossandfog: mafFixtures,
   thisiscolossal: ticFixtures,
+  streetartnews: sanFixtures,
   pdr: pdrFixtures,
 };
 
