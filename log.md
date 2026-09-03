@@ -479,6 +479,71 @@ drill and T9.2–9.5, and sources round 2's streetartnews + spoon-tamago.
 
 *Session spend: 71.94M tok (in 844 · out 372.4k · cache r 70.01M / w 1.56M) · ~$56.86 · opus-5 + opus-4-7 · 14:22→15:26*
 
+**Planned (same session, evening):** `docs/PLAN_topic-vocabulary-cut2.md` — **Cut 2a**, the half of
+Cut 2 that makes the un-homed backlog reachable. **The plan splits the design's §11 Cut 2 in two,
+and that split is its main judgment:** 2a mines the corpus's tags, Ben verdicts the proposal list,
+and promotion writes `item_topic` (`origin: "tag"`) plus `item.topic_id` **only where it was NULL**
+— which makes the invisible items drawable **with no change to `feed.ts` at all**. 2b keeps the
+`topic_edge` table and moving the feed onto the join, and is not needed until the vocabulary passes
+~300 topics (at 116 the JSON artifact is ~530 KB, not the ~100 MB the design was worried about).
+Seven tasks, cold-executable.
+
+**Findings (all measured, none estimated):**
+— **The backlog is 3,741 items, 16% of the corpus** — thisiscolossal 2,658 · thingsorganizedneatly
+829 · pdr 186 · doorofperception 68 · every search source 0. They are not low quality (PDR's
+un-homed average 7.88 against 8.39 homed); they are items no existing topic honestly fits.
+— **Sharp diminishing returns on the candidate list.** 36 topics (minUnhomed≥40, 2+ sources)
+rescue 70% of the backlog; 86 topics rescue 76%; 177 rescue 81%. The extra fifty are low-yield.
+— **The axis worry from this morning was wrong, and the plan says so.** The concern was that
+promoting `sculpture`/`painting` would grow a *medium* axis while the sixteen are a *subject* axis.
+Checking the actual sixteen retired it: `ceramics`, `textiles`, `typography`, `cartography` and
+`portraiture` are already media or forms. The real test is **"does this name a kind of thing a
+person could be curious about"** — which `sculpture` (738 un-homed, 4 sources — the clearest
+missing topic in the corpus) passes and `20th century` fails.
+— **`minSources>=2` is a junk filter that also rejects good topics.** It correctly kills
+`submission` (344) and `sponsor` (52), which are administrative and which no threshold excludes,
+but it also kills `street art` (178) and `public art` (114). Hence a stopword list *plus* an
+allow-list, and single-source candidates are shown in their own section to be rescued by hand.
+— **Co-occurrence was validated against the shipped embedding graph before being trusted:** mean
+Spearman ρ 0.502, top-3 neighbour overlap 50% (strong on `astronomy` 0.81 / `the-ocean` 0.80, weak
+on `botany` −0.24 / `music` 0/3). Real signal, not a drop-in replacement — hence Ben's **hybrid**:
+the sixteen tuned rows are preserved byte-for-byte and co-occurrence supplies only edges touching a
+new topic. **And the trap inside it:** the two scales differ ~4× (−0.03…0.09 against −0.38…0.35),
+and `pickDrift` softmaxes over them, so raw values would silently flatten DRIFT into a near-uniform
+draw. The rebuild script rescales per row, is the only script in the plan with a unit test, and
+refuses to write if a tuned edge ever changes.
+— **One requirement neither the design nor the brief had:** `topics.list` backs the onboarding chip
+grid and returns *every* topic, so promotion would have put ~100 chips on that screen. `topic.tier`
+(`core` | `grown`) is Task 1 and must land before any topic is inserted.
+
+**Decisions:** Ben took **mine broadly and verdict the list** over a hand-picked handful, and
+**hybrid graph** over both all-co-occurrence and reviving the Phase 0 embedding pipeline.
+
+**Findings — process, and this one cost real time.** A commit landed **on another session's
+branch**. The shared checkout was verified clean on `main`, and between that check and `git commit`
+— about two minutes — the other session switched it to `feat/wp-rest-streetartnews`. CLAUDE.md's
+rule is already "run `git branch --show-current && git status` immediately before every `git add`";
+what this adds is that **immediately before is not close enough when another session is mid-task —
+the branch must be re-checked between `git add` and `git commit`, or the commit must be built
+without the shared tree at all.** No damage: the commit held only the new file and their index was
+clean, verified both before and after. The recovery is worth keeping: `git branch <safety> <sha>`
+first (purely additive, loses nothing), then `hash-object` + `read-tree` + `write-tree` +
+`commit-tree` against `main` to build a correctly-parented commit **without checking `main` out** —
+which is how a third session can commit while two others hold the tree. Ben ran the final
+fast-forward; `update-ref` on `main` is refused by the permission classifier, correctly.
+
+**Open / next:** Cut 2a is planned, **not started** — Task 1 (`topic.tier`) is the first step, and
+the plan is written to run cold in a cheaper session. **Re-run `bun run mine:topics` rather than
+trusting §0's counts:** they were measured before `feat/wp-rest-streetartnews` merges, and that
+source will grow the backlog and shift the thresholds (the thresholds are flags for exactly this
+reason). Two redundant refs to delete once convenient — `docs/plan-cut2a` and
+`docs/plan-cut2a-clean` — and a duplicate of the plan commit still sits on the streetartnews
+branch, harmless because it is the identical blob and merges as a no-op. Also still open: 8.1's T8
+restore drill and T9.2–9.5, streetartnews' and spoon-tamago's verdicts, and the deploy that carries
+Cut 1 + PDR + the kept blogs to production.
+
+*Session spend: 47.71M tok (in 292 · out 149.8k · cache r 45.35M / w 2.21M) · ~$48.12 · opus-5 + opus-4-7 · 15:26→21:17*
+
 
 
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
