@@ -11,8 +11,19 @@ import { topic, userTopic } from "~/server/db/schema";
 export type Topic = typeof topic.$inferSelect;
 
 /**
- * All sixteen v1 topics (SPEC §3.2), unfiltered — backs the onboarding chip grid and
- * `topics.list`. Small, checked-in-config-sized table; no pagination needed.
+ * The topics the onboarding chip grid offers — the `core` tier only (SPEC §3.2, and `topics.list`).
+ * Small, checked-in-config-sized table; no pagination needed.
+ *
+ * **This deliberately does not return every topic.** Cut 2a (09-02-26) grew the vocabulary from
+ * sixteen to roughly a hundred by mining the corpus's own tags, and a hundred-chip onboarding grid
+ * is a broken screen. The grown tier is still fully live in the feed: DRIFT and JUMP reach it
+ * through the adjacency graph, and a promoted topic's items are drawn exactly like any other's.
+ * What the grown tier is not is a thing we ask a new user to pick from. See
+ * docs/DESIGN_topic-vocabulary-growth.md §11 — onboarding at scale is Cut 3's problem.
+ *
+ * The `ORDER BY label` is new in Cut 2a too: without it the chip grid sat at the mercy of whatever
+ * order Postgres happened to return, a latent bug settings-screen.tsx had flagged and worked around
+ * by sorting client-side.
  */
 export async function listTopics(): Promise<Topic[]> {
   // Dynamic import — same CI-has-no-env-vars reason as every other repo file in this codebase
@@ -20,7 +31,18 @@ export async function listTopics(): Promise<Topic[]> {
   // import would crash `bun run test` in CI the moment any test file imports this module, even
   // one that never calls a DB-backed function.
   const { db } = await import("./client");
-  return db.select().from(topic);
+  return db
+    .select()
+    .from(topic)
+    .where(eq(topic.tier, "core"))
+    .orderBy(topic.label);
+}
+
+/** Every topic, both tiers — for the graph rebuild, the mining report, and anything auditing the
+ *  whole vocabulary. Never wire this to the onboarding grid; that is what listTopics is for. */
+export async function listAllTopics(): Promise<Topic[]> {
+  const { db } = await import("./client");
+  return db.select().from(topic).orderBy(topic.label);
 }
 
 /**

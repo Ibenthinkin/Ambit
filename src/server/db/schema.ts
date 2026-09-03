@@ -147,6 +147,18 @@ export const accountRelations = relations(account, ({ one }) => ({
 // column itself is settled now, but nailing the exact per-source query shape is that step's job.
 type SeedQueries = Record<string, string[]>;
 
+/** Which tier of the vocabulary a topic belongs to (Cut 2a, 09-02-26).
+ *
+ *  `core` — the sixteen Ambit shipped with. These are the onboarding chip grid, and they are the
+ *  rows whose adjacency was tuned by hand in Phase 0.5.
+ *  `grown` — promoted from corpus tags by scripts/promote-topics.ts. Real topics the feed draws
+ *  from through DRIFT and JUMP, deliberately NOT offered as onboarding chips: a hundred-chip grid
+ *  is a broken screen, and Cut 3 is where onboarding learns to scale (DESIGN §11).
+ *
+ *  A string union rather than a boolean because Cut 3 wants a third value (a curated middle tier),
+ *  and a boolean would have to be migrated again to get one. */
+export type TopicTier = "core" | "grown";
+
 export const topic = pgTable("topic", {
   // Not a nanoid: topic ids are slugs Ambit assigns by hand (`ancient-history`, `the-ocean`, ...),
   // one per row in the checked-in topic-adjacency graph (server/config/topic-graph.json). They're
@@ -154,6 +166,9 @@ export const topic = pgTable("topic", {
   id: text("id").primaryKey(),
   label: text("label").notNull(),
   seedQueries: jsonb("seed_queries").$type<SeedQueries>().notNull(),
+  // Defaulted in SQL so the migration backfills every existing row to `core` — which is exactly
+  // right, since every row that exists when this lands IS one of the sixteen.
+  tier: text("tier").$type<TopicTier>().notNull().default("core"),
 });
 
 export const item = pgTable(
