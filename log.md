@@ -49,6 +49,41 @@ still queued.
 
 *Session spend: 11.57M tok (in 246 · out 70.3k · cache r 10.68M / w 818.4k) · ~≥$3.05 · fable-5-1 + opus-4-7 · 11:45→14:40*
 
+**Planned (same day, second half):** the **dev knob panel** — `docs/PLAN_dev-knob-panel.md`,
+eight tasks, cold-executable. Ben's calls: local only (`FEED_DEBUG`, never production); tuning must
+not eat the corpus; **both** new levers (`grownEdgeScale` multiplies every graph edge touching a
+grown topic on a per-request copy of the graph, `grownHopPenalty` scales a DRIFT hop's softmax
+weight onto a grown topic — identities at 1, so `/feed` is unchanged); copy-as-JSON + localStorage
+to capture a setting. The panel is a `/dev/feed` route rendering the real `FeedScreen` with a
+`dev` prop, a fixed right drawer of commit-on-release sliders (the Phase 0.5 bench's control set
+plus the two levers), and readouts the bench never had: per-page and session tier counts, the
+**core/grown split**, topic and source histograms, and the last page's drift paths.
+
+**Findings:**
+- **"Skip the ack while tuning" would have been wrong**, though it is what Ben picked and what I
+  first proposed. `getFeedPage` advances the cursor's anchor to each page's `servedAt`, and the
+  pool query excludes `served_at < anchor` — so within a session the *previous page's ack* is what
+  keeps its items out of the next page; `prev` in the cursor covers one page. Skip acks and items
+  repeat from page 2 and every readout lies. The plan acks like production and **forgets on apply**
+  via a dev-gated `feed.forgetSince({ since })` — same zero-rows outcome, honest dedupe. Flagged
+  to Ben as the one deviation from his choice.
+- **`scripts/rebuild-topic-graph.ts` cannot safely be re-run today**: it detects "tuned" rows as
+  the keys of the current JSON, which meant the sixteen exactly once — the artifact has 99 keys
+  now, so a re-run would freeze every grown value as if Ben had tuned it. Task 7 reads the core
+  set from `TOPICS` and adds `--grown-scale <s>` so a tuned lever can be baked.
+- `/feed`'s query key `{}` is the sharpest edge in the whole plan: the RSC prefetch and the client
+  hook must match byte-for-byte or every load burns a page. A separate route (D1) is what keeps
+  the panel off that contract; the first test in Task 5 is the tripwire.
+- The UI kit has no slider; CSP allows inline styles (D1 in security-headers) so a native range
+  with `accent-color` is fine. CI runs the production build, where the dev gate is off, so the
+  panel's e2e self-skips there — coverage is the local `bun run e2e`.
+
+**Open / next:** execute the plan in a cheaper session; Ben tunes and pastes the JSON; then the
+desktop-UI polish session; 8.1 T8/T9 and spoon-tamago still queued. Tomorrow's
+`.cache/promote-prod.sh` re-run after the first nightly walk stands.
+
+*Session spend: 9.35M tok (in 112 · out 141.2k · cache r 8.68M / w 531.4k) · fable-5-1 · 14:40→17:35*
+
 ### [[09-02-26 Wed]] — A duplicate session, and what two sessions on one checkout look like
 
 **Findings:** This session opened on `feat/wp-rest-blogs` after a `/clear` and set out to finish
