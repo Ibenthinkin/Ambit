@@ -3,8 +3,12 @@
 // sixteen and everything promoted — has an adjacency row. Every topic the feed can land on needs
 // one, or DRIFT and JUMP have nowhere to go from it.
 //
-//   bun run graph:rebuild              # dry run: prints the shape and the invariant, writes nothing
-//   bun run graph:rebuild --confirm    # rewrites the artifact
+//   bun run graph:rebuild                          # dry run: prints the shape and the invariant
+//   bun run graph:rebuild --confirm                # rewrites the artifact
+//   bun run graph:rebuild --grown-scale 0.7 --confirm
+//                                                  # …with the feed's `grownEdgeScale` lever baked
+//                                                  # into every co-occurrence cell (dev knob panel,
+//                                                  # 09-05-26) so the knob can go back to 1
 //
 // **This is a HYBRID, by Ben's decision (09-02-26).** The maths and the reasoning live in
 // src/server/services/topic-graph-build.ts (which is where the tests are); the rule it applies:
@@ -20,8 +24,10 @@
 import { writeFile } from "node:fs/promises";
 
 import graphData from "~/server/config/topic-graph.json";
+import { TOPICS } from "~/server/config/topics";
 import { listAllTopics } from "~/server/db/topics";
 import {
+  applyGrownScale,
   cooccurrenceSims,
   rescaleTo,
   stdDev,
@@ -29,8 +35,20 @@ import {
 } from "~/server/services/topic-graph-build";
 
 const confirm = process.argv.includes("--confirm");
+const scaleArg = process.argv.indexOf("--grown-scale");
+const grownScale = scaleArg === -1 ? 1 : Number(process.argv[scaleArg + 1]);
+if (!Number.isFinite(grownScale) || grownScale < 0) {
+  console.error("--grown-scale needs a non-negative number");
+  process.exit(2);
+}
+
+// **Core = the config, not the JSON's keys.** The first version of this script read "tuned rows"
+// off the artifact's own key set, which meant the sixteen exactly once — after its first run the
+// artifact had 99 keys, and a re-run would have frozen every grown value as if Ben had tuned it.
+// TOPICS is the contract (config/topics.ts's header; CORE_TOPIC_IDS in services/feed.ts is the
+// same set), so the embedding values are taken from the artifact only for pairs inside it.
 const embedded = graphData.graph as Record<string, Neighbor[]>;
-const original = new Set(Object.keys(embedded));
+const original = new Set(TOPICS.map((t) => t.id));
 
 const { db } = await import("~/server/db/client");
 const { item, itemTopic } = await import("~/server/db/schema");
@@ -55,15 +73,25 @@ for (const r of rows) {
 }
 
 const cooc = cooccurrenceSims(profiles);
-// The spread to match: the mean per-row standard deviation of the tuned embedding rows.
+// The spread to match: the mean per-row standard deviation of the tuned embedding rows — and only
+// their core×core cells, for the same reason as `original` above. Measured over the whole artifact
+// this would drift with every rebuild (the rescaled rows are in there too); measured over the
+// sixteen rows' fifteen embedding cells it is the same 0.1345 the first run saw, every time.
 const target =
-  Object.values(embedded).reduce(
-    (a, row) => a + stdDev(row.map((n) => n.sim)),
+  [...original].reduce(
+    (a, id) =>
+      a +
+      stdDev(
+        (embedded[id] ?? [])
+          .filter((n) => original.has(n.topic))
+          .map((n) => n.sim),
+      ),
     0,
-  ) / Object.keys(embedded).length;
+  ) / original.size;
 console.log(
   `target per-row sim spread (from the embedding graph): ${target.toFixed(4)}`,
 );
+console.log(`grown-edge scale baked into co-occurrence cells: ${grownScale}`);
 
 // An original topic missing from the DB would mean someone deleted a seeded row; the hybrid has
 // no defined answer for that, so say so rather than write a graph with a hole in it.
@@ -79,17 +107,21 @@ const graph: Record<string, Neighbor[]> = {};
 for (const t of topics) {
   const isOriginal = original.has(t.id);
   // Rescale this topic's co-occurrence row ONCE, then read the values we need out of it, so a
-  // new topic's edges are on the same scale whichever row they are read from.
-  const scaled = new Map(
-    rescaleTo(
-      [...(cooc.get(t.id) ?? new Map<string, number>())].map(
-        ([topic, sim]) => ({
-          topic,
-          sim,
-        }),
-      ),
-      target,
-    ).map((n) => [n.topic, n.sim]),
+  // new topic's edges are on the same scale whichever row they are read from. `--grown-scale`
+  // applies last, after the rescale, which is exactly where the feed's own lever multiplies.
+  const scaled = applyGrownScale(
+    new Map(
+      rescaleTo(
+        [...(cooc.get(t.id) ?? new Map<string, number>())].map(
+          ([topic, sim]) => ({
+            topic,
+            sim,
+          }),
+        ),
+        target,
+      ).map((n) => [n.topic, n.sim]),
+    ),
+    grownScale,
   );
   const kept = isOriginal
     ? new Map(embedded[t.id]!.map((n) => [n.topic, n.sim]))
@@ -126,6 +158,25 @@ if (!preserved) {
 console.log(
   `${topics.length} topics · ${topics.length * (topics.length - 1)} edges`,
 );
+// What a re-run would actually change, so a dry run says more than "the invariant held". Core×core
+// must be zero by construction; the rest moves when the corpus has (or `--grown-scale` did).
+let changedCore = 0;
+let changedOther = 0;
+let newCells = 0;
+for (const [from, row] of Object.entries(graph)) {
+  const before = new Map((embedded[from] ?? []).map((n) => [n.topic, n.sim]));
+  for (const n of row) {
+    const prev = before.get(n.topic);
+    if (prev === undefined) newCells++;
+    else if (prev !== n.sim) {
+      if (original.has(from) && original.has(n.topic)) changedCore++;
+      else changedOther++;
+    }
+  }
+}
+console.log(
+  `vs the current artifact: ${changedCore} core×core cells changed · ${changedOther} other cells changed · ${newCells} new cells`,
+);
 
 if (!confirm) {
   console.log("dry run — re-run with --confirm to write");
@@ -139,7 +190,8 @@ await writeFile(
       recipe:
         "Hybrid (Cut 2a, 09-02-26): the original sixteen keep their Phase 0 embedding sims; " +
         "every edge touching a promoted topic is IDF-weighted tag co-occurrence, rescaled per " +
-        "row to the embedding graph's mean spread. See scripts/rebuild-topic-graph.ts.",
+        `row to the embedding graph's mean spread, then × grownScale: ${grownScale}. ` +
+        "See scripts/rebuild-topic-graph.ts.",
       rebuiltAt: new Date().toISOString(),
       graph,
     },
