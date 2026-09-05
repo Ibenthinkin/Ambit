@@ -235,3 +235,22 @@ export async function seedFeedCorpus(
     )
     .onConflictDoNothing();
 }
+
+/**
+ * How many `seen_item` rows the user with this email currently has — the dev knob panel's
+ * un-burn (`feed.forgetSince`, plan 09-05-26) is only provable against the table itself, and this
+ * is the one query that proves it.
+ */
+export async function countSeenFor(
+  conn: Connection,
+  email: string,
+): Promise<number> {
+  const { db, seenItem, user } = conn;
+  const { eq } = await import("drizzle-orm");
+  const rows = await db
+    .select({ itemId: seenItem.itemId })
+    .from(seenItem)
+    .innerJoin(user, eq(user.id, seenItem.userId))
+    .where(eq(user.email, email));
+  return rows.length;
+}

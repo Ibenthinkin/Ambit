@@ -326,6 +326,7 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 | `topics.setMine` | mutation | `{ topicIds: string[] }` | `{ ok: true }` |
 | `feed.page` | query | `{ cursor?: string, knobs?: Partial<FeedKnobs> }` | `{ cards: FeedCard[], nextCursor?: string }` |
 | `feed.markSeen` | mutation | `{ itemIds: string[] }` (max 64) | `{ ok: true }` |
+| `feed.forgetSince` | mutation | `{ since: Date }` | `{ forgotten: number }` — **dev-only**: `FORBIDDEN` unless the dev gate is on; deletes the caller's `seen_item` rows served at or after `since` |
 | `items.byId` | query | `{ id: string }` | `Item` (public; read-only) |
 | `items.wanderNext` | query | `{ itemId: string }` | `{ id, title, reason }[]` (public; read-only) |
 | `items.galleryRail` | query | `{ itemId: string, count?: number (1-16, default 8), exclude?: string[] (max 200), knobs?: Partial<GalleryKnobs> }` | `RailItem[]` (public; read-only, **no `seen_item` writes**) |
@@ -348,7 +349,20 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
   `FeedKnobs`) but only actually forwarded to `getFeedPage`'s knob overrides when the server's
   `FEED_DEBUG` env var is on; off, a supplied `knobs` object is validated (still 400s on an
   out-of-range value) but then silently ignored, never applied. This keeps a debug-tooling client
-  safe to point at a non-dev deployment without special-casing itself.
+  safe to point at a non-dev deployment without special-casing itself. The gate is one function,
+  `feedDebugEnabled()` in `services/feed-debug.ts` (`FEED_DEBUG` when set, else
+  `NODE_ENV === "development"`), shared by `feed.page`, `items.galleryRail`, `feed.forgetSince`
+  and the `/dev/feed` route so none of them can disagree. Two knobs were added 09-05-26 for the
+  Cut 2a feel question, both identities at their default of `1`: `grownEdgeScale` (0–4) multiplies
+  every graph edge touching a grown topic on a per-request copy of the graph, moving DRIFT and
+  JUMP together; `grownHopPenalty` (0–1) multiplies a DRIFT hop's softmax weight when the landing
+  topic is grown, and nothing else.
+- **`feed.forgetSince` (dev knob panel, 09-05-26)** is the un-burn behind `/dev/feed`: it deletes
+  the caller's `seen_item` rows with `served_at >= since` and returns the count. It exists because
+  a tuning session must *ack* like production — the cursor's `anchor` moves to each page's
+  `servedAt` and the pool query excludes `served_at < anchor`, so within a session the previous
+  page's ack is what keeps its items out of the next page — and then forget, so the readouts stay
+  honest and the corpus stays whole. `FORBIDDEN` (never a silent no-op) when the gate is off.
 - **Three public (unauthenticated-allowed) procedures**, backing the app's two public routes
   `/i/{itemId}` and `/g/{itemId}`: `items.byId`; `items.wanderNext` (Phase 5.7), the item page's
   "where Ambit would wander next" teaser; and `items.galleryRail` (Phase 5.8), the immersive
@@ -475,7 +489,7 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
 
 **Per page, each card slot:**
 
-1. **Tier draw** — default mix **CORE 40 / DRIFT 35 / JUMP 25** (drift-heavy per Ben's 0.5 verdict: "what I enjoy most is the higher, further drift").
+1. **Tier draw** — default mix **CORE 40 / DRIFT 35 / JUMP 25** (drift-heavy per Ben's 0.5 verdict: "what I enjoy most is the higher, further drift"). Two levers on how far the walk reaches into the grown tier, both `1` by default: `grownEdgeScale` (a per-request copy of the graph with every grown-touching edge multiplied; core×core cells never move) and `grownHopPenalty` (a DRIFT hop's softmax weight onto a grown topic; `0` keeps drift inside the sixteen, JUMP unaffected).
    - **CORE** — weighted draw over the user's own topics (`user_topic.weight`).
    - **DRIFT** — start from one of the user's topics, walk its adjacency row: softmax-sample among **positive-similarity neighbours only** (temperature ≈ 0.15; no positive bridge → fall back to CORE), then a **second hop with p ≈ 0.5** (Poetry → Typography → Machines is the signature move).
    - **JUMP** — uniform draw from the **bottom half** of a user topic's row. Deliberately not the strict antipode: tail ordering in a 16-point mean-centered space is noise, and false precision there adds nothing.
@@ -497,6 +511,8 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
 **Which tier each draw can reach (Cut 2a, 09-02-26).** **CORE only ever names `core` topics**, and not by a filter: CORE draws from `user_topic.weight`, whose rows come from a user picking chips, and the chips are `listTopics()` — the core tier. A cold-start user gets `coldStartWeights()` over the sixteen config ids for the same reason. **DRIFT and JUMP reach the grown tier**, because they walk the adjacency graph and every row now carries every other topic. That asymmetry is the design: a person picks from a curated sixteen and the corpus's own vocabulary is what they drift *into*. One measured consequence to keep an eye on — with 83 grown topics against 16 core, a sampled 96 cards came back **59 grown / 37 core**, so a drift-heavy mix over a 6× vocabulary now spends most of the page outside the topics the reader chose. That is the backlog becoming reachable working as intended, but it is a real change to the feel Ben tuned in Phase 0.5 and it is the open feel question for Cut 2b.
 
 **Dev affordances stay in.** The debug overlay (why each card: tier, drift path with sims, curator score) and the tuning knobs (tier mix, score floor, temperature, hop chance, caps) ship in the app behind a dev flag for the whole development period — feel-tuning is ongoing product work, not a Phase 0 artifact.
+
+**The affordance is `/dev/feed` (shipped 09-05-26; plan `docs/PLAN_dev-knob-panel.md`).** The real `FeedScreen` with a `dev` prop, gated on `feedDebugEnabled()` — the same single gate that decides whether `feed.page` honours knobs, so the route exists exactly when the sliders do something (a 404 otherwise, which is what a production build gives). A fixed right drawer carries a commit-on-release slider for every knob — the Phase 0.5 bench's control set (tier mix, score floor and power, tag boost, drift temperature, second-hop chance, topic cap, page size) plus the two Cut 2a levers `grownEdgeScale` and `grownHopPenalty` (defaults `1`, identities) — and readouts the bench never had: per-page and per-session tier counts, the **core/grown split**, topic and source histograms, and the last page's drift paths with curator scores. Knobs persist in `localStorage` and copy out as JSON. **Tuning leaves no `seen_item` rows behind, without skipping the ack**: every apply forgets the pages served since the session mark (`feed.forgetSince`), moves the mark, and refetches with a fresh seed. The reason it forgets rather than not acking is in §7 — the cursor's anchor arithmetic depends on the previous page having been acked. A tuned `grownEdgeScale` is baked with `bun run graph:rebuild --grown-scale <s> --confirm`; every other knob becomes a `DEFAULT_KNOBS` edit.
 
 **The gallery rail (Phase 5.8)** is this same machinery, extended into a sequence with no end and
 run for a reader looking at one picture rather than scrolling a page (`server/services/gallery-rail.ts`,

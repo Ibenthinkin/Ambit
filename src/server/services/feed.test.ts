@@ -66,6 +66,7 @@ vi.mock("~/server/db/items", async (importActual) => ({
 }));
 
 import {
+  CORE_TOPIC_IDS,
   DEFAULT_KNOBS,
   coldStartWeights,
   composePage,
@@ -75,6 +76,7 @@ import {
   pickCore,
   pickDrift,
   pickJump,
+  scaleGrownEdges,
   type FeedCursor,
   type FeedKnobs,
   type TopicGraph,
@@ -141,7 +143,7 @@ describe("pickCore", () => {
 });
 
 describe("pickDrift", () => {
-  const knobs = { temp: 0.15, hop2: 0.5 };
+  const knobs = { temp: 0.15, hop2: 0.5, grownHopPenalty: 1 };
 
   it("walks positive-similarity bridges only — never a negative-sim first hop", () => {
     const graph: TopicGraph = {
@@ -196,7 +198,7 @@ describe("pickDrift", () => {
       const pick = pickDrift(
         weights,
         graph,
-        { temp: 0.15, hop2: 0.5 },
+        { temp: 0.15, hop2: 0.5, grownHopPenalty: 1 },
         Math.random,
       );
       if (pick?.driftPath?.length === 3) secondHopCount++;
@@ -220,7 +222,7 @@ describe("pickDrift", () => {
       const pick = pickDrift(
         weights,
         graph,
-        { temp: 0.15, hop2: 1 },
+        { temp: 0.15, hop2: 1, grownHopPenalty: 1 },
         Math.random,
       );
       expect(pick?.topicId).not.toBe("a");
@@ -586,6 +588,167 @@ describe("cursor codec", () => {
 // each with a 10-item pool comfortably above the default topicCap (3) × 5 topics = 15 achievable
 // cards — enough headroom that `pageSize` (12 default, 3 in the override below), not `topicCap`,
 // is always the binding constraint on how many cards come back.
+// ── Cut 2a's feel levers (dev knob panel plan, 09-05-26) ─────────────────────────────────────
+// Two knobs that exist to answer "how much of a page should land outside the reader's picks now
+// that the graph has 99 nodes." Both default to 1 = today's behaviour; the tests below pin that
+// identity first, because a lever that moves the feed at its default would silently retune
+// production.
+describe("scaleGrownEdges", () => {
+  const core = new Set(["poetry", "machines"]);
+  const graph: TopicGraph = {
+    poetry: [
+      { topic: "machines", sim: 0.4 }, // core×core — must never move
+      { topic: "birds", sim: 0.3 }, // core→grown
+      { topic: "clay", sim: -0.1 },
+    ],
+    machines: [
+      { topic: "clay", sim: 0.5 },
+      { topic: "poetry", sim: 0.4 },
+      { topic: "birds", sim: -0.2 },
+    ],
+    birds: [
+      { topic: "poetry", sim: 0.6 }, // grown→core
+      { topic: "clay", sim: 0.2 }, // grown→grown
+      { topic: "machines", sim: -0.3 },
+    ],
+    clay: [
+      { topic: "machines", sim: 0.5 },
+      { topic: "birds", sim: 0.2 },
+      { topic: "poetry", sim: -0.1 },
+    ],
+  };
+
+  it("scale 1 returns an equal graph (the identity the default relies on)", () => {
+    expect(scaleGrownEdges(graph, core, 1)).toEqual(graph);
+  });
+
+  it("leaves core×core cells untouched and multiplies every other cell", () => {
+    const out = scaleGrownEdges(graph, core, 0.5);
+    const sim = (row: string, t: string) =>
+      out[row]!.find((n) => n.topic === t)!.sim;
+    expect(sim("poetry", "machines")).toBe(0.4); // tuned, kept
+    expect(sim("poetry", "birds")).toBeCloseTo(0.15); // core→grown
+    expect(sim("birds", "poetry")).toBeCloseTo(0.3); // grown→core
+    expect(sim("birds", "clay")).toBeCloseTo(0.1); // grown→grown
+    expect(sim("machines", "birds")).toBeCloseTo(-0.1); // negatives scale too
+  });
+
+  it("preserves every row's key set and length, and re-sorts descending", () => {
+    // At scale 0 every grown-touching cell collapses to 0, so `poetry`'s row must re-order:
+    // machines (0.4) first, then the two zeros. pickDrift reads a descending row and pickJump
+    // slices its bottom half — an unsorted or shortened row breaks both silently.
+    const out = scaleGrownEdges(graph, core, 0);
+    for (const key of Object.keys(graph)) {
+      expect(out[key]!.map((n) => n.topic).sort()).toEqual(
+        graph[key]!.map((n) => n.topic).sort(),
+      );
+      const sims = out[key]!.map((n) => n.sim);
+      expect(sims).toEqual([...sims].sort((a, b) => b - a));
+    }
+    expect(out.poetry![0]).toEqual({ topic: "machines", sim: 0.4 });
+  });
+
+  it("does not mutate its input", () => {
+    const before = JSON.stringify(graph);
+    scaleGrownEdges(graph, core, 2);
+    expect(JSON.stringify(graph)).toBe(before);
+  });
+});
+
+describe("pickDrift — grownHopPenalty", () => {
+  // One start topic with two equally strong bridges: one core, one grown. With no penalty the
+  // first hop splits ~50/50; with penalty 0 it can never land on the grown one.
+  const core = new Set(["poetry", "machines"]);
+  const graph: TopicGraph = {
+    poetry: [
+      { topic: "machines", sim: 0.5 },
+      { topic: "birds", sim: 0.5 },
+    ],
+    machines: [],
+    birds: [],
+  };
+  const weights = new Map([["poetry", 1]]);
+  const sample = (penalty: number, seed: string) => {
+    const rng = mulberry32(hashSeed(seed));
+    const landed = { machines: 0, birds: 0 };
+    for (let i = 0; i < 400; i++) {
+      const pick = pickDrift(
+        weights,
+        graph,
+        { temp: 0.15, hop2: 0, grownHopPenalty: penalty },
+        rng,
+        core,
+      );
+      if (pick?.topicId === "machines" || pick?.topicId === "birds")
+        landed[pick.topicId]++;
+    }
+    return landed;
+  };
+
+  it("penalty 1 is a coin flip between an equal core and grown bridge", () => {
+    const { machines, birds } = sample(1, "penalty:1");
+    expect(birds / (machines + birds)).toBeGreaterThan(0.4);
+    expect(birds / (machines + birds)).toBeLessThan(0.6);
+  });
+
+  it("penalty 0 never hops onto a grown topic", () => {
+    const { machines, birds } = sample(0, "penalty:0");
+    expect(birds).toBe(0);
+    expect(machines).toBe(400);
+  });
+
+  it("penalty 0.25 lands on the grown bridge about a fifth of the time", () => {
+    // Weights 1 : 0.25 → grown share 0.2. Eight seeds pooled, same as the tier-mix tests.
+    let machines = 0;
+    let birds = 0;
+    for (let s = 0; s < 8; s++) {
+      const r = sample(0.25, `penalty:0.25:${s}`);
+      machines += r.machines;
+      birds += r.birds;
+    }
+    expect(birds / (machines + birds)).toBeGreaterThan(0.15);
+    expect(birds / (machines + birds)).toBeLessThan(0.25);
+  });
+
+  it("composePage threads coreTopicIds and the knob through to the hop", () => {
+    const pools = new Map(
+      ["poetry", "machines", "birds"].map((t) => [
+        t,
+        Array.from({ length: 10 }, (_, i) =>
+          makeItem({ id: `penalty-${t}-${i}`, topicId: t, curationScore: 7 }),
+        ),
+      ]),
+    );
+    const cards = composePage({
+      weights,
+      graph,
+      pools,
+      rng: mulberry32(hashSeed("compose:penalty")),
+      knobs: {
+        ...DEFAULT_KNOBS,
+        tierCore: 0,
+        tierDrift: 1,
+        tierJump: 0,
+        hop2: 0,
+        topicCap: 99,
+        grownHopPenalty: 0,
+      },
+      coreTopicIds: core,
+    });
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards.every((c) => c.topicId !== "birds")).toBe(true);
+  });
+});
+
+describe("CORE_TOPIC_IDS", () => {
+  it("is the sixteen config topics, and DEFAULT_KNOBS' levers are identities", () => {
+    expect(CORE_TOPIC_IDS.size).toBe(16);
+    expect(CORE_TOPIC_IDS.has("poetry")).toBe(true);
+    expect(DEFAULT_KNOBS.grownEdgeScale).toBe(1);
+    expect(DEFAULT_KNOBS.grownHopPenalty).toBe(1);
+  });
+});
+
 describe("getFeedPage — FEED_DEBUG knob gating", () => {
   const GATE_TOPICS = Array.from({ length: 5 }, (_, i) => `gate-topic-${i}`);
 

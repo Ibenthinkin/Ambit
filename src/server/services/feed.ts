@@ -18,6 +18,7 @@ import { drawWeight, getItemsByIds } from "~/server/db/items";
 import { getTasteKeywords } from "~/server/db/saves";
 import { getUserTopicWeights } from "~/server/db/topics";
 import { getTopicPools, type PoolItem } from "~/server/db/feed";
+import { feedDebugEnabled } from "./feed-debug";
 import { hashSeed, mulberry32, weightedPick } from "./random";
 
 // ── the topic adjacency graph (SPEC §5.2, §9) ──────────────────────────────────────────────────
@@ -34,35 +35,48 @@ export type TopicGraph = Record<string, GraphNeighbor[]>;
 // here needs — narrowing to `.graph` keeps every consumer's type surface to just what it draws.
 export const TOPIC_GRAPH: TopicGraph = topicGraphData.graph;
 
-// ── knobs (SPEC §9, prototype defaults at phase0/feed.template.html:219-224) ───────────────────
-export interface FeedKnobs {
-  tierCore: number;
-  tierDrift: number;
-  tierJump: number;
-  scoreFloor: number;
-  scorePower: number;
-  tagBoost: number;
-  temp: number;
-  hop2: number;
-  topicCap: number;
-  pageSize: number;
+/**
+ * A copy of `graph` with every edge that touches a grown topic multiplied by `scale`. Core×core
+ * cells — the embedding values Ben tuned in Phase 0.5 — are returned exactly as given. Rows keep
+ * their key set and length (topics.test.ts's shape contract; pickJump slices the bottom half)
+ * and are re-sorted descending (pickDrift reads the positive head in order).
+ *
+ * Cheap enough for a per-request call: 99 rows × 98 cells. `scale === 1` short-circuits to the
+ * same object, so the default path allocates nothing.
+ */
+export function scaleGrownEdges(
+  graph: TopicGraph,
+  coreIds: ReadonlySet<string>,
+  scale: number,
+): TopicGraph {
+  if (scale === 1) return graph;
+  const out: TopicGraph = {};
+  for (const [from, row] of Object.entries(graph)) {
+    const fromCore = coreIds.has(from);
+    out[from] = row
+      .map((n) =>
+        fromCore && coreIds.has(n.topic)
+          ? n
+          : { topic: n.topic, sim: n.sim * scale },
+      )
+      .sort((a, b) => b.sim - a.sim);
+  }
+  return out;
 }
 
-// Drift-heavy on purpose — Ben's Phase 0.5 verdict was "what I enjoy the most is the higher
-// further drift," so DRIFT+JUMP outweigh CORE and second hops are a coin flip. These are the
-// shipped defaults per SPEC §9.
-export const DEFAULT_KNOBS: FeedKnobs = {
-  tierCore: 40,
-  tierDrift: 35,
-  tierJump: 25,
-  scoreFloor: 4,
-  scorePower: 1.5,
-  tagBoost: 0.5,
-  temp: 0.15,
-  hop2: 0.5,
-  topicCap: 3,
-  pageSize: 12,
-};
+// ── knobs (SPEC §9) ────────────────────────────────────────────────────────────────────────────
+// `FeedKnobs` and `DEFAULT_KNOBS` live in feed-knobs.ts (a leaf with no imports, so the dev knob
+// panel can read the defaults client-side without bundling this module's DB layer). Re-exported
+// here so the engine's public surface is unchanged.
+export { DEFAULT_KNOBS, type FeedKnobs } from "./feed-knobs";
+import { DEFAULT_KNOBS, type FeedKnobs } from "./feed-knobs";
+
+/** The core sixteen, as a set — the levers above need "is this topic grown?" on the hot path and
+ *  a DB read per hop is not the answer. `TOPICS` is the contract (config/topics.ts's header);
+ *  config/topics.test.ts pins that it matches the `core` tier in the database. */
+export const CORE_TOPIC_IDS: ReadonlySet<string> = new Set(
+  TOPICS.map((t) => t.id),
+);
 
 export type Tier = "CORE" | "DRIFT" | "JUMP";
 
@@ -220,19 +234,31 @@ export function pickCore(
 
 /** One adjacency-row hop: softmax-sample among positive-similarity neighbours only, temperature
  * `temp` controlling how much the strongest bridge dominates. Shared by pickDrift's first and
- * (conditional) second hop. */
+ * (conditional) second hop. `grown` scales the weight of any neighbour outside `coreIds` — the
+ * `grownHopPenalty` lever; at 1 this is the Phase 0.5 hop, byte for byte. */
 function hop(
   graph: TopicGraph,
   from: string,
   temp: number,
   rng: () => number,
+  grown: { coreIds: ReadonlySet<string>; penalty: number } = {
+    coreIds: CORE_TOPIC_IDS,
+    penalty: 1,
+  },
 ): GraphNeighbor | null {
   // Only positive-sim neighbours count as bridges — a weak row must not let "drift" walk a
   // near-zero or negative edge and call it a connection. No bridge → the caller falls back to
   // staying on `from`, which is honest: some topics genuinely have no doorway yet.
+  //
+  // With `penalty: 0` and a row whose only positive bridges are grown, every weight is 0 and
+  // weightedPick returns null — the same "no doorway" fallback. That is what "drift stays inside
+  // the core sixteen" means mechanically.
   const row = (graph[from] ?? []).filter((n) => n.sim > 0);
   return weightedPick(
-    row.map((n): [GraphNeighbor, number] => [n, Math.exp(n.sim / temp)]),
+    row.map((n): [GraphNeighbor, number] => [
+      n,
+      Math.exp(n.sim / temp) * (grown.coreIds.has(n.topic) ? 1 : grown.penalty),
+    ]),
     rng,
   );
 }
@@ -249,13 +275,15 @@ function hop(
 export function pickDrift(
   weights: Map<string, number>,
   graph: TopicGraph,
-  knobs: Pick<FeedKnobs, "temp" | "hop2">,
+  knobs: Pick<FeedKnobs, "temp" | "hop2" | "grownHopPenalty">,
   rng: () => number,
+  coreIds: ReadonlySet<string> = CORE_TOPIC_IDS,
 ): TopicPick | null {
   const start = weightedPick([...weights.entries()], rng);
   if (!start) return null;
 
-  const first = hop(graph, start, knobs.temp, rng);
+  const grown = { coreIds, penalty: knobs.grownHopPenalty };
+  const first = hop(graph, start, knobs.temp, rng, grown);
   if (!first) {
     return {
       topicId: start,
@@ -269,7 +297,7 @@ export function pickDrift(
   let driftPath = [start, first.topic];
 
   if (rng() < knobs.hop2) {
-    const second = hop(graph, first.topic, knobs.temp, rng);
+    const second = hop(graph, first.topic, knobs.temp, rng, grown);
     if (second && second.topic !== start) {
       topicId = second.topic;
       why = `DRIFT · ${start} → ${first.topic} → ${second.topic} (${first.sim.toFixed(2)}, ${second.sim.toFixed(2)})`;
@@ -367,6 +395,9 @@ export interface ComposePageOpts {
   // argument (not an env read) so this function stays pure and DB/env-free — getFeedPage is the
   // one place that decides this from FEED_DEBUG.
   debug?: boolean;
+  /** Which topics count as core for the `grownHopPenalty` lever. Injected (like everything
+   *  else here) so tests can use a toy graph; getFeedPage passes nothing and gets the sixteen. */
+  coreTopicIds?: ReadonlySet<string>;
 }
 
 /**
@@ -387,6 +418,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
     knobs,
     tasteKeywords = [],
     debug = false,
+    coreTopicIds = CORE_TOPIC_IDS,
   } = opts;
 
   // Working copies of each topic's pool: an item drawn this page is spliced out immediately, so
@@ -418,7 +450,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
       tierName === "CORE"
         ? pickCore(weights, rng)
         : tierName === "DRIFT"
-          ? pickDrift(weights, graph, knobs, rng)
+          ? pickDrift(weights, graph, knobs, rng, coreTopicIds)
           : pickJump(weights, graph, rng);
     if (!pick) continue; // no topics to draw from at all (e.g. an empty weights map)
 
@@ -522,12 +554,9 @@ export async function getFeedPage(
 
   const rng = mulberry32(hashSeed(`${seed}:${page}`));
 
-  // Dynamic import: FEED_DEBUG lives on `~/env`, which fails Zod validation the moment it's
-  // imported anywhere env vars aren't set (CI's `bun run test` step — see items.ts's identical
-  // pattern for db/client.ts). A static top-of-file import would break every pure test in
-  // feed.test.ts that only imports composePage/pickCore/etc., not this function.
-  const { env } = await import("~/env");
-  const debugEnabled = env.FEED_DEBUG ?? env.NODE_ENV === "development";
+  // The dev gate, shared with the gallery rail, the forget mutation and the /dev/feed route —
+  // see feed-debug.ts for the rule and for why it is a dynamic import underneath.
+  const debugEnabled = await feedDebugEnabled();
 
   // Two independent single-user reads — weights for the topic draws, taste keywords for the
   // item-draw boost (Phase 6.1) — fetched in parallel since neither depends on the other.
@@ -542,7 +571,15 @@ export async function getFeedPage(
     ...(debugEnabled ? knobOverrides : undefined),
   };
 
-  const distinctTopics = [...reachableTopics(weights, TOPIC_GRAPH)];
+  // The grownEdgeScale lever: a per-request copy of the graph, never a mutation of TOPIC_GRAPH.
+  // Identity at 1 (the default) returns the shared object, so /feed pays nothing for this line.
+  const graph = scaleGrownEdges(
+    TOPIC_GRAPH,
+    CORE_TOPIC_IDS,
+    knobs.grownEdgeScale,
+  );
+
+  const distinctTopics = [...reachableTopics(weights, graph)];
   const pools = await getTopicPools(distinctTopics, {
     userId,
     anchor,
@@ -552,7 +589,7 @@ export async function getFeedPage(
 
   const composed = composePage({
     weights,
-    graph: TOPIC_GRAPH,
+    graph,
     pools,
     rng,
     knobs,

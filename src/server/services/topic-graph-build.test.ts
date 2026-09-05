@@ -4,7 +4,12 @@
 // the graph would quietly flatten DRIFT into a near-uniform pick and nobody would see it fail.
 import { describe, expect, it } from "vitest";
 
-import { cooccurrenceSims, rescaleTo, stdDev } from "./topic-graph-build";
+import {
+  applyGrownScale,
+  cooccurrenceSims,
+  rescaleTo,
+  stdDev,
+} from "./topic-graph-build";
 
 describe("rescaleTo", () => {
   it("stretches a flat row to the target spread while preserving order and centre", () => {
@@ -98,5 +103,19 @@ describe("cooccurrenceSims", () => {
       ["b", new Map([["y", 1]])],
     ]);
     expect(cooccurrenceSims(profiles).get("a")!.has("a")).toBe(false);
+  });
+});
+
+describe("applyGrownScale", () => {
+  it("multiplies every value; 1 is the identity", () => {
+    const m = new Map([
+      ["a", 0.2],
+      ["b", -0.1],
+    ]);
+    expect([...applyGrownScale(m, 0.5)]).toEqual([
+      ["a", 0.1],
+      ["b", -0.05],
+    ]);
+    expect(applyGrownScale(m, 1)).toBe(m);
   });
 });

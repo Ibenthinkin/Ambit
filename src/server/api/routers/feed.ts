@@ -5,8 +5,9 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { markSeen } from "~/server/db/feed";
+import { forgetSeenSince, markSeen } from "~/server/db/feed";
 import { decodeCursor, getFeedPage } from "~/server/services/feed";
+import { feedDebugEnabled } from "~/server/services/feed-debug";
 
 // Zod-bounded mirror of `Partial<FeedKnobs>` (services/feed.ts) — every field optional (a caller
 // overrides only the knobs they're tuning), but each one bounded to a range that can't turn a
@@ -29,6 +30,10 @@ const feedKnobsSchema = z
     hop2: z.number().min(0).max(1),
     topicCap: z.number().int().min(1),
     pageSize: z.number().int().min(1).max(50),
+    // Cut 2a's feel levers (09-05-26). 4× is already "the mined vocabulary dominates"; a penalty
+    // above 1 would be a bonus, which is a different knob with a different name.
+    grownEdgeScale: z.number().min(0).max(4),
+    grownHopPenalty: z.number().min(0).max(1),
   })
   .partial();
 
@@ -87,5 +92,21 @@ export const feedRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       await markSeen(ctx.user.id, input.itemIds, new Date());
       return { ok: true } as const;
+    }),
+
+  // The dev knob panel's un-burn (plan 09-05-26). `FORBIDDEN`, not a silent no-op, when the gate
+  // is off: a client that thinks it is tuning must find out it is not. Input is a Date (SuperJSON
+  // carries it intact); the client sends its session mark, the instant it last applied knobs.
+  forgetSince: protectedProcedure
+    .input(z.object({ since: z.date() }))
+    .mutation(async ({ ctx, input }) => {
+      if (!(await feedDebugEnabled())) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "feed.forgetSince is a dev affordance (FEED_DEBUG is off)",
+        });
+      }
+      const forgotten = await forgetSeenSince(ctx.user.id, input.since);
+      return { forgotten } as const;
     }),
 });

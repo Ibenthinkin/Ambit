@@ -50,6 +50,16 @@ describe("TOPICS config", () => {
   });
 });
 
+describe("TOPICS ↔ the feed engine's core set", () => {
+  it("TOPICS is exactly the set the feed treats as core (CORE_TOPIC_IDS)", async () => {
+    // The feel levers decide "is this topic grown?" from config, not the DB, because a hop must
+    // not cost a query. This keeps that shortcut honest: if a topic is ever added to config it
+    // becomes core here too, and the seed script must give it a `core` tier row.
+    const { CORE_TOPIC_IDS } = await import("~/server/services/feed");
+    expect([...CORE_TOPIC_IDS].sort()).toEqual(TOPICS.map((t) => t.id).sort());
+  });
+});
+
 describe("TOPICS ↔ topic-graph.json", () => {
   // The load-bearing assertion. DRIFT walks the graph to pick a neighbouring topic and JUMP draws
   // from the bottom half of a row (SPEC §9), both by id — so a config topic the graph has never

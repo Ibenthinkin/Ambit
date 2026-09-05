@@ -144,6 +144,17 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   join; not urgent until ~300 topics). And `bun run promote:topics`'s **dry run over-counts** — it
   measures each topic's un-homed set against the untouched database, so an item carrying three
   ticked tags is counted three times; the write's number is the honest one.
+- **The dev knob panel shipped 09-05-26** — `/dev/feed` (local, `FEED_DEBUG`; a 404 under a
+  production build), every feed knob live including the two Cut 2a levers
+  `grownEdgeScale`/`grownHopPenalty` (identities at `1`, so `/feed` composes exactly as before),
+  per-page and session readouts with the **core/grown split**, and `feed.forgetSince` so tuning
+  leaves no `seen_item` rows; plan `docs/PLAN_dev-knob-panel.md`. The gate is one function,
+  `feedDebugEnabled()`, shared by both engines, the mutation and the route. The 59/96 question is
+  now answerable; the answer, when Ben has it, goes into `DEFAULT_KNOBS` (and
+  `bun run graph:rebuild --grown-scale <s> --confirm` if the graph lever is the one that moved —
+  the rebuild now reads its core set from `TOPICS` rather than the artifact's own keys, which is
+  what makes re-running it safe). `FeedKnobs`/`DEFAULT_KNOBS` live in `services/feed-knobs.ts`,
+  a no-import leaf, so the client can read the defaults without bundling the DB layer.
 - **Feed composition** (SPEC §9) = per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25 — drift-heavy on purpose) → topic via the user's weights or a graph walk → item via curated-weighted random, under diversity constraints (no adjacent same-source; per-page topic caps). Saves reweight *topics*, visibly. Cursor-based pagination; the cursor encodes the page seed. Debug overlay + tuning knobs ship behind a dev flag throughout development.
 - **Auth boundary**: all user-scoped queries filter by `userId`; the only public surface is `items.byId` / `/i/[itemId]`.
 
@@ -186,6 +197,13 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `<itemId>.webp` per item (Phase 7.3) and safe to delete, but it is also the only thing standing
   between a scroll and `tile.loc.gov`'s per-IP budget — refill it with `bun run img:warm --rate 2`
   rather than letting readers do it. `bun run img:warm --dry-run` counts what a run would fetch. **`.cache/pdr`** (one JSON per Public Domain Review record) is the same kind of thing: safe to delete, but refilling it is a 1.7 GB polite walk, so don't.
+- **The `/dev/feed` panel forgets its pages on every apply and on unmount**, but a closed tab
+  runs neither: if you tune and then close the tab, the last cycle's rows stay in `seen_item` for
+  that user until the panel is opened again. The session mark is persisted in localStorage
+  (`ambit.devKnobs.mark`), so the next `/dev/feed` mount forgets from where the closed one
+  stopped on its first apply — press **Restart feed** to do it immediately. The panel's "served
+  this session" counter is the reminder. One consequence to know: anything that user was served
+  on `/feed` *between* the two dev sessions is forgotten too (the mark predates it). Local only.
 - **A valid API key that still 401s is probably being shadowed by the shell.** Bun resolves real
   environment variables *ahead* of `.env`, so an `export OPENROUTER_API_KEY=…` left in `~/.zshrc`
   wins over the file and editing `.env` changes nothing the process ever sees. This cost most of

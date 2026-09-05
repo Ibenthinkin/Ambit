@@ -12,9 +12,13 @@ import { Rise } from "~/components/ui/rise";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
 import { saveToastText } from "~/lib/save-toast";
+import type { FeedKnobs } from "~/server/services/feed-knobs";
 import { api } from "~/trpc/react";
 import { ArticleCard } from "./article-card";
 import { BecauseTile } from "./because-tile";
+import { pageStats } from "./dev/feed-stats";
+import { KnobPanel } from "./dev/knob-panel";
+import { useDevKnobs } from "./dev/use-dev-knobs";
 import { markFeedOrigin } from "./feed-origin";
 import { ImageTile } from "./image-tile";
 import { buildTiles, packColumns, type FeedTile } from "./masonry";
@@ -30,13 +34,76 @@ import { useFeedScroll } from "./use-feed-scroll";
 // `absolute`-vs-`fixed`, and here it has a second face: the IntersectionObserver's root must be
 // the viewport (its default), never a ref'd element.
 
+// The dev panel's session mark, persisted so it outlives the tab (see `sessionMark` below).
+// Plain functions, not a hook: they read and write localStorage on demand, never during render.
+const DEV_MARK_KEY = "ambit.devKnobs.mark";
+function readDevMark(): Date | null {
+  try {
+    const raw = localStorage.getItem(DEV_MARK_KEY);
+    const d = raw ? new Date(raw) : null;
+    return d && Number.isFinite(d.getTime()) ? d : null;
+  } catch {
+    return null;
+  }
+}
+/** Writes "now" as the mark and returns it. */
+function moveMark(): Date {
+  const now = new Date();
+  try {
+    localStorage.setItem(DEV_MARK_KEY, now.toISOString());
+  } catch {
+    /* private mode etc. — the mark just won't outlive the tab */
+  }
+  return now;
+}
+
+export interface FeedDevProps {
+  /** The core-tier topic ids, from the DB via the /dev/feed shell — the readout's
+   *  core-vs-grown test. */
+  coreTopicIds: string[];
+}
+
 export interface FeedScreenProps {
   /** topic id → chip label, passed from the RSC shell so the Because tiles can name their walk. */
   topicLabels: Record<string, string>;
+  /** Present only on /dev/feed (plan 09-05-26). Mounts the knob panel, sends knobs in the query
+   *  input and runs the forget cycle. **Absent on /feed, and must stay absent** — see the
+   *  query-key note below. */
+  dev?: FeedDevProps;
 }
 
-export function FeedScreen({ topicLabels }: FeedScreenProps) {
+export function FeedScreen({ topicLabels, dev }: FeedScreenProps) {
   const router = useRouter();
+  const isDev = dev !== undefined;
+
+  // ── dev knobs (plan 09-05-26) ─────────────────────────────────────────────────────────────────
+  // Hooks are unconditional (rules of hooks); what `dev` gates is the *input* below. Without
+  // `dev` the input is the literal `{}` and none of this state is ever read.
+  const devKnobs = useDevKnobs();
+  // A number that changes on every apply/restart, so React Query treats the result as a new
+  // feed (new key → page 0 with a fresh server seed) rather than a page appended to the old one.
+  const [nonce, setNonce] = React.useState(0);
+  // The session mark: `feed.forgetSince` deletes everything served at or after it. Moves
+  // forward on every apply, so each cycle forgets exactly the pages the previous knobs served.
+  // Persisted (see `moveMark`) because a *closed* tab runs no unmount cleanup: the next mount
+  // reads the mark the last one left and forgets from there, so a tuning session that ended by
+  // closing the tab still leaves nothing behind once the panel is opened again.
+  const sessionMark = React.useRef(new Date());
+  React.useEffect(() => {
+    if (!isDev) return;
+    const stored = readDevMark();
+    if (stored && stored.getTime() < sessionMark.current.getTime())
+      sessionMark.current = stored;
+  }, [isDev]);
+  const [forgotten, setForgotten] = React.useState(0);
+  const [forgetError, setForgetError] = React.useState<string | null>(null);
+  const { mutateAsync: forgetSince } = api.feed.forgetSince.useMutation();
+
+  // **Without `dev` this MUST be `{}`** — byte-identical to /feed/page.tsx's prefetch input (see
+  // the long comment below). With `dev`, `knobs` is the full FeedKnobs object (so every slider is
+  // authoritative) and `nonce` exists purely to vary the query key: tRPC's input is a `z.object`,
+  // which strips unknown keys, so the server never sees it. feed-screen.test.tsx pins the `{}`.
+  const feedInput = isDev ? { knobs: devKnobs.knobs, nonce } : {};
 
   const feed = api.feed.page.useInfiniteQuery(
     // **`{}`, not `undefined`.** This object is half of a hydration contract: /feed's RSC shell
@@ -47,7 +114,7 @@ export function FeedScreen({ topicLabels }: FeedScreenProps) {
     // effect below) — so a broken key silently costs a page of this user's corpus every mount.
     // `knobs` stays absent because it's dev tooling (only honored under the server's FEED_DEBUG
     // flag) and sending it would be a second way to break the match.
-    {},
+    feedInput,
     {
       getNextPageParam: (last) => last.nextCursor,
       // Load-bearing for the same reason, and the precedent /dev/tokens set: every page the
@@ -98,6 +165,73 @@ export function FeedScreen({ topicLabels }: FeedScreenProps) {
       ackSeen({ itemIds: page.cards.map((c) => c.item.id) });
     }
   }, [pages, ackSeen]);
+
+  // ── the dev apply cycle (plan 09-05-26, Decision D2) ─────────────────────────────────────────
+  // Forget first, so the pages the *old* knobs served are gone before the new feed's page 0 is
+  // composed — otherwise they'd be excluded from it by the seen filter, and the next apply would
+  // un-exclude them: a feed that changes under you for reasons unrelated to the slider you moved.
+  // Never reads the knobs: it only forgets, bumps the nonce, and lets the next render's
+  // `feedInput` carry whatever the store now holds.
+  const applyDev = React.useCallback(async () => {
+    if (!isDev) return;
+    try {
+      const { forgotten: n } = await forgetSince({
+        since: sessionMark.current,
+      });
+      setForgotten((f) => f + n);
+      setForgetError(null);
+    } catch (err) {
+      // Loud, not silent: a failed forget means rows are accumulating. The panel shows it and
+      // the feed still refetches, so tuning can continue while the cause is looked at.
+      setForgetError(err instanceof Error ? err.message : "forgetSince failed");
+    }
+    sessionMark.current = moveMark();
+    ackedPages.current.clear();
+    setNonce((n) => n + 1); // a counter, not Date.now(): two applies in one ms must still differ
+    window.scrollTo({ top: 0 });
+  }, [isDev, forgetSince]);
+
+  const onDevSet = React.useCallback(
+    (k: keyof FeedKnobs, v: number) => {
+      devKnobs.set(k, v);
+      void applyDev();
+    },
+    [devKnobs, applyDev],
+  );
+  const onDevReset = React.useCallback(() => {
+    devKnobs.reset();
+    void applyDev();
+  }, [devKnobs, applyDev]);
+  const onDevCopy = React.useCallback(() => {
+    const json = devKnobs.toJson();
+    // No clipboard on an http origin (and none in jsdom): show the JSON instead of failing.
+    const written = navigator.clipboard?.writeText(json);
+    if (written === undefined) setToast(json);
+    else
+      written.then(
+        () => setToast("Knobs copied as JSON"),
+        () => setToast(json),
+      );
+  }, [devKnobs]);
+
+  // Leaving the dev route forgets the last cycle too. Best effort — a closed tab never runs
+  // this, which is why the panel also shows "served this session" as a reminder.
+  React.useEffect(() => {
+    if (!isDev) return;
+    return () => {
+      void forgetSince({ since: sessionMark.current }).catch(() => undefined);
+      moveMark();
+    };
+  }, [isDev, forgetSince]);
+
+  const coreIds = React.useMemo(
+    () => new Set(dev?.coreTopicIds ?? []),
+    [dev?.coreTopicIds],
+  );
+  const devPageStats = React.useMemo(
+    () => (isDev ? pages.map((p) => pageStats(p.cards, coreIds)) : []),
+    [isDev, pages, coreIds],
+  );
 
   const { columns, firstPageTiles, cardCount } = React.useMemo(() => {
     const tiles = buildTiles(pages, topicLabels);
@@ -190,7 +324,13 @@ export function FeedScreen({ topicLabels }: FeedScreenProps) {
     !isPending && !feed.isError && !hasNextPage && cardCount === 0;
 
   return (
-    <main className="bg-bg text-ink min-h-dvh">
+    <main
+      // Decision D8: the dev drawer is 340px wide and fixed right; at `lg:` the feed clears it
+      // rather than sliding under it. Below `lg:` the drawer overlays — dev tool, desktop first.
+      className={["bg-bg text-ink min-h-dvh", isDev ? "lg:pr-[340px]" : ""]
+        .join(" ")
+        .trim()}
+    >
       {/* `items-start` so a short column doesn't stretch to match a tall one — the two columns are
           independent stacks that happen to sit side by side, which is the whole idea of a masonry. */}
       <div className="grid grid-cols-2 items-start gap-1 px-1 pt-[58px]">
@@ -270,6 +410,22 @@ export function FeedScreen({ topicLabels }: FeedScreenProps) {
 
       {/* Clears the floating pill, so the last row of tiles isn't parked underneath it. */}
       <div className="h-24" />
+
+      {isDev ? (
+        <KnobPanel
+          knobs={devKnobs.knobs}
+          onSet={onDevSet}
+          onReset={onDevReset}
+          onCopy={onDevCopy}
+          onRestart={() => void applyDev()}
+          pageStats={devPageStats}
+          topicLabels={topicLabels}
+          lastPage={pages.at(-1)?.cards ?? []}
+          served={cardCount}
+          forgotten={forgotten}
+          forgetError={forgetError}
+        />
+      ) : null}
 
       <PillToolbar
         bookmark="idle"

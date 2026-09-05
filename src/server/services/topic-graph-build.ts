@@ -91,3 +91,14 @@ export function cooccurrenceSims(
   }
   return out;
 }
+
+/** The baked form of the feed's `grownEdgeScale` lever (dev knob panel, 09-05-26): once a scale
+ *  has been tuned in the panel, the rebuild applies it to every co-occurrence-derived cell so the
+ *  artifact ships it and the knob can go back to 1. Identity at 1 returns the same Map. */
+export function applyGrownScale(
+  sims: Map<string, number>,
+  scale: number,
+): Map<string, number> {
+  if (scale === 1) return sims;
+  return new Map([...sims].map(([k, v]) => [k, +(v * scale).toFixed(4)]));
+}
