@@ -159,3 +159,25 @@ export async function markSeen(
     .values(itemIds.map((itemId) => ({ userId, itemId, servedAt })))
     .onConflictDoNothing();
 }
+
+/**
+ * The dev knob panel's un-burn (plan 09-05-26). Deletes this user's `seen_item` rows with
+ * `served_at >= since` and returns how many went. Exposed only through `feed.forgetSince`, which
+ * is gated on `feedDebugEnabled()` — in production nothing can reach this.
+ *
+ * Why it exists rather than "just don't ack while tuning": the cursor's anchor moves to each
+ * page's `servedAt`, and the pool query excludes `served_at < anchor`. Within a session, the
+ * previous page's ack is what keeps its items out of the next page. Tuning therefore acks like
+ * production and forgets afterwards — the readouts stay honest and the corpus stays whole.
+ */
+export async function forgetSeenSince(
+  userId: string,
+  since: Date,
+): Promise<number> {
+  const { db } = await import("./client");
+  const deleted = await db
+    .delete(seenItem)
+    .where(and(eq(seenItem.userId, userId), gte(seenItem.servedAt, since)))
+    .returning({ itemId: seenItem.itemId });
+  return deleted.length;
+}

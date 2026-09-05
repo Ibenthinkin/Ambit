@@ -14,6 +14,7 @@ import { appRouter, createCaller } from "~/server/api/root";
 import type { Context } from "~/server/api/trpc";
 import type * as FeedRepo from "~/server/db/feed";
 import type * as FeedService from "~/server/services/feed";
+import type * as FeedDebug from "~/server/services/feed-debug";
 
 // Mock services/feed.ts's `getFeedPage` (keeping `decodeCursor`/everything else real via
 // `importOriginal`) so the feed router's own tests never touch Postgres — the actual tier/topic/
@@ -36,12 +37,24 @@ vi.mock("~/server/services/gallery-rail", () => ({ getGalleryRail: vi.fn() }));
 
 vi.mock("~/server/db/feed", async (importOriginal) => {
   const actual = await importOriginal<typeof FeedRepo>();
-  return { ...actual, markSeen: vi.fn() };
+  return { ...actual, markSeen: vi.fn(), forgetSeenSince: vi.fn() };
+});
+
+// The dev gate behind `feed.forgetSince` (dev knob panel, 09-05-26). Mocked as a function rather
+// than by flipping `~/env`, because what this file pins is the router's *reaction* to the answer
+// — FORBIDDEN vs forward — not the rule that produces it (feed-debug.ts is one line; feed.test.ts
+// covers the rule through `getFeedPage`).
+vi.mock("~/server/services/feed-debug", async (importOriginal) => {
+  const actual = await importOriginal<typeof FeedDebug>();
+  return { ...actual, feedDebugEnabled: vi.fn(actual.feedDebugEnabled) };
 });
 
 const { getFeedPage: mockedGetFeedPage } =
   await import("~/server/services/feed");
-const { markSeen: mockedMarkSeen } = await import("~/server/db/feed");
+const { markSeen: mockedMarkSeen, forgetSeenSince: mockedForgetSeenSince } =
+  await import("~/server/db/feed");
+const { feedDebugEnabled: mockedFeedDebugEnabled } =
+  await import("~/server/services/feed-debug");
 
 // `items.wanderNext` reaches Postgres through services/wander.ts; mocked here for the same reason
 // as `getFeedPage` — this file's subject is the auth boundary and argument forwarding, not the
@@ -118,6 +131,12 @@ describe("protected procedures reject a null session", () => {
   it("feed.markSeen throws UNAUTHORIZED", async () => {
     await expect(
       caller.feed.markSeen({ itemIds: ["some-item"] }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("feed.forgetSince throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.feed.forgetSince({ since: new Date() }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
@@ -453,8 +472,9 @@ describe("appRouter shape", () => {
   // Settings' topic row), plus the whole `user` router. This assertion is deliberately exhaustive
   // rather than a subset check: it's the
   // one thing that makes an accidentally-exported procedure, or one that quietly outlives its
-  // last caller, show up as a failing test instead of shipping.
-  it("exposes exactly the seventeen SPEC §7 procedures, no leftover post router", () => {
+  // last caller, show up as a failing test instead of shipping. The dev knob panel (09-05-26) adds
+  // the eighteenth, `feed.forgetSince` — registered in every build, FORBIDDEN outside the dev gate.
+  it("exposes exactly the eighteen SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -462,6 +482,7 @@ describe("appRouter shape", () => {
         "topics.setMine",
         "feed.page",
         "feed.markSeen",
+        "feed.forgetSince",
         "items.byId",
         "items.wanderNext",
         "items.galleryRail",
@@ -542,5 +563,31 @@ describe("the tRPC rate limiter rejects past its per-key allowance", () => {
     // The rejection happened in the middleware, not the resolver: the service was called exactly
     // as many times as the limiter allowed.
     expect(vi.mocked(mockedGetGalleryRail)).toHaveBeenCalledTimes(LIMIT);
+  });
+});
+
+describe("feed.forgetSince is dev-only", () => {
+  beforeEach(() => {
+    vi.mocked(mockedFeedDebugEnabled).mockReset();
+    vi.mocked(mockedForgetSeenSince).mockReset().mockResolvedValue(3);
+  });
+
+  it("throws FORBIDDEN when the dev gate is off — production can never reach the delete", async () => {
+    vi.mocked(mockedFeedDebugEnabled).mockResolvedValue(false);
+    const caller = createCaller(authedContext("user-42"));
+    await expect(
+      caller.feed.forgetSince({ since: new Date() }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(mockedForgetSeenSince).not.toHaveBeenCalled();
+  });
+
+  it("forwards the caller's id and the instant, and returns the count", async () => {
+    vi.mocked(mockedFeedDebugEnabled).mockResolvedValue(true);
+    const since = new Date("2026-09-05T12:00:00Z");
+    const caller = createCaller(authedContext("user-42"));
+    await expect(caller.feed.forgetSince({ since })).resolves.toEqual({
+      forgotten: 3,
+    });
+    expect(mockedForgetSeenSince).toHaveBeenCalledWith("user-42", since);
   });
 });

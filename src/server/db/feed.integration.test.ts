@@ -15,7 +15,7 @@ import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
-import { getTopicPools } from "./feed";
+import { forgetSeenSince, getTopicPools } from "./feed";
 import { drawFromTopic } from "./items";
 
 describe.skipIf(!process.env.DATABASE_URL)(
@@ -111,6 +111,107 @@ describe.skipIf(!process.env.DATABASE_URL)(
       for (const suspended of SUSPENDED_SOURCES) {
         expect(sources).not.toContain(suspended);
       }
+    });
+  },
+);
+
+// The dev knob panel's un-burn (plan 09-05-26). The contract worth a real Postgres: only *this*
+// user's rows go, only those served at or after the mark (inclusive — the mark is the instant the
+// panel last applied knobs, and the page served in that same instant belongs to the cycle being
+// forgotten), and the count comes back honest.
+describe.skipIf(!process.env.DATABASE_URL)(
+  "forgetSeenSince (integration)",
+  () => {
+    const userA = `test-forget-a-${nanoid(8)}`;
+    const userB = `test-forget-b-${nanoid(8)}`;
+    const topicId = `test-forget-topic-${nanoid(8)}`;
+    const prefix = `test-forget-${nanoid(8)}-`;
+    const itemIds: string[] = [];
+    const mark = new Date("2026-09-05T12:00:00Z");
+
+    beforeAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { item, seenItem, topic, user } =
+        await import("~/server/db/schema");
+      await db.insert(topic).values({
+        id: topicId,
+        label: "Test forget topic",
+        seedQueries: { wikipedia: [], met: [], aic: [], cma: [], wellcome: [] },
+      });
+      await db.insert(user).values(
+        [userA, userB].map((id) => ({
+          id,
+          name: id,
+          email: `${id}@example.com`,
+          emailVerified: false,
+        })),
+      );
+      const rows = await db
+        .insert(item)
+        .values(
+          [0, 1, 2].map((i) => ({
+            source: "met",
+            sourceId: `${prefix}${i}`,
+            type: "image" as const,
+            title: `Forget item ${i}`,
+            sourceUrl: `https://example.com/${prefix}${i}`,
+            imageUrl: `https://example.com/${prefix}${i}.jpg`,
+            topicId,
+            curationScore: 9,
+            aestheticTags: [],
+          })),
+        )
+        .returning({ id: item.id });
+      itemIds.push(...rows.map((r) => r.id));
+      // User A: one row before the mark, one at it, one after. User B: one after the mark.
+      await db.insert(seenItem).values([
+        {
+          userId: userA,
+          itemId: itemIds[0]!,
+          servedAt: new Date(mark.getTime() - 60_000),
+        },
+        { userId: userA, itemId: itemIds[1]!, servedAt: mark },
+        {
+          userId: userA,
+          itemId: itemIds[2]!,
+          servedAt: new Date(mark.getTime() + 60_000),
+        },
+        {
+          userId: userB,
+          itemId: itemIds[2]!,
+          servedAt: new Date(mark.getTime() + 60_000),
+        },
+      ]);
+    });
+
+    afterAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { item, seenItem, topic, user } =
+        await import("~/server/db/schema");
+      await db.delete(seenItem).where(inArray(seenItem.userId, [userA, userB]));
+      await db.delete(item).where(inArray(item.id, itemIds));
+      await db.delete(user).where(inArray(user.id, [userA, userB]));
+      await db.delete(topic).where(inArray(topic.id, [topicId]));
+    });
+
+    it("deletes only this user's rows served at or after `since`, and reports the count", async () => {
+      const { db } = await import("~/server/db/client");
+      const { seenItem } = await import("~/server/db/schema");
+      const { eq } = await import("drizzle-orm");
+
+      const forgotten = await forgetSeenSince(userA, mark);
+      expect(forgotten).toBe(2);
+
+      const aLeft = await db
+        .select()
+        .from(seenItem)
+        .where(eq(seenItem.userId, userA));
+      expect(aLeft.map((r) => r.itemId)).toEqual([itemIds[0]]);
+      const bLeft = await db
+        .select()
+        .from(seenItem)
+        .where(eq(seenItem.userId, userB));
+      expect(bLeft).toHaveLength(1);
     });
   },
 );
