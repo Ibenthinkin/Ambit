@@ -387,6 +387,17 @@ describe("zod input validation", () => {
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
+  it("rejects a grownHopPenalty above 1 and a grownEdgeScale above 4", async () => {
+    const caller = createCaller(authedContext("user-42"));
+    await expect(
+      caller.feed.page({ knobs: { grownHopPenalty: 1.5 } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      caller.feed.page({ knobs: { grownEdgeScale: 5 } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(mockedGetFeedPage).not.toHaveBeenCalled();
+  });
+
   it("feed.page rejects a malformed cursor with BAD_REQUEST, not a 500", async () => {
     const caller = createCaller(authedContext());
     await expect(

@@ -29,6 +29,10 @@ const feedKnobsSchema = z
     hop2: z.number().min(0).max(1),
     topicCap: z.number().int().min(1),
     pageSize: z.number().int().min(1).max(50),
+    // Cut 2a's feel levers (09-05-26). 4× is already "the mined vocabulary dominates"; a penalty
+    // above 1 would be a bonus, which is a different knob with a different name.
+    grownEdgeScale: z.number().min(0).max(4),
+    grownHopPenalty: z.number().min(0).max(1),
   })
   .partial();
 

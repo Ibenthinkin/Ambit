@@ -59,4 +59,18 @@ describe.skipIf(!process.env.DATABASE_URL)("listTopics / listAllTopics", () => {
     const seeded = await db.select().from(topic).where(eq(topic.tier, "core"));
     expect(seeded.length).toBeGreaterThanOrEqual(16);
   });
+
+  it("gives every config topic a `core` tier row — the feed's CORE_TOPIC_IDS shortcut relies on it", async () => {
+    // The feel levers (dev knob panel, 09-05-26) decide "is this topic grown?" from `TOPICS`,
+    // not from this column, because a hop must not cost a query. Inclusion, not equality: `tier`
+    // defaults to "core", so other suites' throwaway topics can legitimately sit here too.
+    const { db } = await import("./client");
+    const { TOPICS } = await import("~/server/config/topics");
+    const coreIds = new Set(
+      (await db.select().from(topic).where(eq(topic.tier, "core"))).map(
+        (t) => t.id,
+      ),
+    );
+    for (const t of TOPICS) expect(coreIds.has(t.id)).toBe(true);
+  });
 });
