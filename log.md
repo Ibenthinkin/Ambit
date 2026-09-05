@@ -196,6 +196,9 @@ un-homed) are structurally poor and read as Cuts.
 un-park the Keeps one at a time and walk them (`docs/HANDOFF_tumblr-round3.md` §0). Separately:
 whether `things-organized-neatly.ts` should take the two-line alt-badge fix.
 
+*Session spend: 20.69M tok (in 400 · out 195.4k · cache r 19.67M / w 822.7k) · ~≥$19.98 · opus-5 + opus-4-7 + fable-5-1 · 17:55→18:22*
+*Session spend: 1.47M tok (in 16 · out 10.2k · cache r 1.45M / w 11.6k) · ~$1.10 · opus-5 · 18:22→18:23*
+
 ### [[09-02-26 Wed]] — A duplicate session, and what two sessions on one checkout look like
 
 **Findings:** This session opened on `feat/wp-rest-blogs` after a `/clear` and set out to finish
