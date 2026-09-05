@@ -18,6 +18,8 @@ const {
   saveMutateMock,
   ackSeenMock,
   invalidateMock,
+  queryInputs,
+  forgetMock,
 } = vi.hoisted(() => ({
   feedState: {
     current: {},
@@ -29,6 +31,10 @@ const {
   saveMutateMock: vi.fn(),
   ackSeenMock: vi.fn(),
   invalidateMock: vi.fn().mockResolvedValue(undefined),
+  // Every input `feed.page.useInfiniteQuery` was called with, in render order — the dev knob
+  // panel (09-05-26) made the input vary, and /feed's `{}` contract is pinned by reading it.
+  queryInputs: [] as unknown[],
+  forgetMock: vi.fn(),
 }));
 
 vi.mock("~/trpc/react", () => ({
@@ -41,8 +47,16 @@ vi.mock("~/trpc/react", () => ({
       },
     }),
     feed: {
-      page: { useInfiniteQuery: () => feedState.current },
+      page: {
+        useInfiniteQuery: (input: unknown) => {
+          queryInputs.push(input);
+          return feedState.current;
+        },
+      },
       markSeen: { useMutation: () => ({ mutate: ackSeenMock }) },
+      forgetSince: {
+        useMutation: () => ({ mutateAsync: forgetMock, isPending: false }),
+      },
     },
     saves: {
       collections: {
@@ -177,6 +191,8 @@ beforeEach(() => {
   pushMock.mockClear();
   saveMutateMock.mockClear();
   ackSeenMock.mockClear();
+  queryInputs.length = 0;
+  forgetMock.mockReset().mockResolvedValue({ forgotten: 0 });
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -442,5 +458,89 @@ describe("FeedScreen — returning to the feed", () => {
   it("stays put when nothing was remembered", () => {
     render(<FeedScreen topicLabels={LABELS} />);
     expect(scrollToMock).not.toHaveBeenCalled();
+  });
+});
+
+// ── the dev knob panel (plan 09-05-26) ──────────────────────────────────────────────────────────
+describe("FeedScreen without `dev` — the /feed contract", () => {
+  it("queries with the literal input {} so the RSC prefetch key matches", () => {
+    render(<FeedScreen topicLabels={LABELS} />);
+    expect(queryInputs[0]).toEqual({});
+    // Not `{ knobs: undefined }` — React Query hashes that differently from `{}`.
+    expect(Object.keys(queryInputs[0] as object)).toEqual([]);
+  });
+
+  it("renders no knob panel", () => {
+    render(<FeedScreen topicLabels={LABELS} />);
+    expect(screen.queryByTestId("knob-panel")).not.toBeInTheDocument();
+  });
+});
+
+describe("FeedScreen with `dev`", () => {
+  // Botany is core, astronomy is grown, as far as this fixture is concerned — the split is decided
+  // by the ids the shell passes, not by anything the screen knows on its own.
+  const dev = { coreTopicIds: ["botany"] };
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("mounts the panel and sends the default knobs in the query input", () => {
+    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    expect(screen.getByTestId("knob-panel")).toBeInTheDocument();
+    const input = queryInputs[0] as {
+      knobs: Record<string, number>;
+      nonce: number;
+    };
+    expect(input.knobs.tierCore).toBe(40);
+    expect(input.knobs.grownEdgeScale).toBe(1);
+    expect(input.nonce).toBe(0);
+  });
+
+  it("still acks pages (tuning must exercise the real seen filter)", () => {
+    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    expect(ackSeenMock).toHaveBeenCalledWith({
+      itemIds: PAGE_ONE.cards.map((c) => c.item.id),
+    });
+  });
+
+  it("committing a slider forgets the session, then queries again with the new knob and a new nonce", async () => {
+    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    const before = queryInputs.at(-1) as { nonce: number };
+    const slider = screen.getByRole("slider", { name: /CORE/ });
+    fireEvent.change(slider, { target: { value: "70" } });
+    await act(async () => {
+      fireEvent.pointerUp(slider);
+    });
+    expect(forgetMock).toHaveBeenCalledTimes(1);
+    expect(forgetMock.mock.calls[0]![0]).toHaveProperty("since");
+    const after = queryInputs.at(-1) as {
+      knobs: Record<string, number>;
+      nonce: number;
+    };
+    expect(after.knobs.tierCore).toBe(70);
+    expect(after.nonce).not.toBe(before.nonce);
+  });
+
+  it("shows per-page and session tier counts, and the core/grown split", () => {
+    // The fixture: PAGE_TWO (the last page) is two CORE cards; the session is five CORE and one
+    // JUMP, five on botany (core here) and one on astronomy (grown here).
+    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    const panel = screen.getByTestId("knob-panel");
+    expect(panel).toHaveTextContent("CORE 2 · DRIFT 0 · JUMP 0");
+    expect(panel).toHaveTextContent("CORE 5 · DRIFT 0 · JUMP 1");
+    expect(panel).toHaveTextContent("5 (83%) / 1 (17%)");
+  });
+
+  it("persists knobs to localStorage under the versioned key", async () => {
+    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    const slider = screen.getByRole("slider", { name: /Page size/ });
+    fireEvent.change(slider, { target: { value: "8" } });
+    await act(async () => {
+      fireEvent.pointerUp(slider);
+    });
+    expect(
+      JSON.parse(localStorage.getItem("ambit.devKnobs.v1") ?? "{}"),
+    ).toMatchObject({ pageSize: 8 });
   });
 });
