@@ -5,6 +5,50 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-05-26 Sat]] — Production catches up: Cut 1, Cut 2a and four walk sources in two deploys
+
+**Shipped:** production went `a2be201` → `f604651` → `55bdf5d` in two Deploy presses. The first
+landed Cut 1 (migration `0004` backfilled all 11,989 items into `item_topic`), the PDR walker, both
+kept blogs and the streetartnews park; the second landed Cut 2a (`0005`, `topic.tier`). Then
+`promote:topics --confirm` ran *inside the container* — **16 core + 83 grown topics, 2,334 tag
+memberships, 0 items gained a display topic**. That zero is correct: every production item was a
+museum item already homed; the un-homed walk items don't exist there until tonight's ingest, and
+the script is idempotent, so **re-run `.cache/promote-prod.sh` tomorrow** after the walks land.
+
+**Before either deploy, the local caches went up to the volume**: `.cache/curation` merged
+12,058 → 26,454 envelopes and `.cache/pdr` all 1,648 records, so tonight's first walk of
+thingsorganizedneatly, thisiscolossal and PDR bills zero tokens and skips PDR's 1.7 GB crawl.
+
+**Findings:**
+- **Cut 2a had never been pushed.** Local `main` was nine commits ahead of GitHub, and Coolify
+  clones from GitHub — so the first Deploy built the commit *before* Cut 2a. `/api/health`'s
+  `commit` field caught it; a `git status -sb` showing `[ahead N]` is the pre-deploy check that
+  should have run first.
+- **`docs/` is excluded from the image**, so `promote:topics` (which reads
+  `docs/topic-proposals.md`) needs the file `docker cp`'d into the container first. It's a
+  per-deploy copy since the container is replaced each time.
+- **Copying from a Mac into a Linux volume has three traps** in one pipe: BusyBox `tar -k` aborts
+  at the first existing file (only one envelope landed; GNU tar's `--skip-old-files` is the fix),
+  macOS tar ships `._*` AppleDouble sidecars unless `COPYFILE_DISABLE=1 --no-mac-metadata`, and
+  `docker cp` rejects `com.apple.provenance` xattrs unless `--no-xattrs`. Extracting as root also
+  restores the Mac's uid 501 onto the directory (`--no-same-owner`). And a typo in a `-v` volume
+  name silently *creates* a new volume rather than erroring — one stray, deleted the same hour.
+- The terminal wraps long `!` commands and breaks them; anything with a pipe over ssh now goes in
+  a script under `.cache/` (gitignored). `push-caches.sh` and `promote-prod.sh` are there.
+
+**Decisions:** the Cut 2a feel question (59/96 cards from grown topics) ships as-is — Ben's call:
+"not enough information in there to really make this call." The answer is a **dev/debug mode with
+live knob controls** in the app, then a **desktop UI polish session**, both queued next. The knob
+plumbing already exists server-side (`feed.page` accepts bounded `knobs` under `FEED_DEBUG`);
+every feed knob is real-time per page, the graph rescale is a seconds-long rebuild, and only the
+vocabulary itself needs a script run.
+
+**Open / next:** tomorrow, confirm the ingest by the database (never the Coolify task status) and
+re-run `promote-prod.sh`; then the dev knob panel; then desktop polish; 8.1 T8/T9 and spoon-tamago
+still queued.
+
+*Session spend: 11.57M tok (in 246 · out 70.3k · cache r 10.68M / w 818.4k) · ~≥$3.05 · fable-5-1 + opus-4-7 · 11:45→14:40*
+
 ### [[09-02-26 Wed]] — A duplicate session, and what two sessions on one checkout look like
 
 **Findings:** This session opened on `feat/wp-rest-blogs` after a `/clear` and set out to finish
