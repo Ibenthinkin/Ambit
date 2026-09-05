@@ -34,6 +34,29 @@ import { useFeedScroll } from "./use-feed-scroll";
 // `absolute`-vs-`fixed`, and here it has a second face: the IntersectionObserver's root must be
 // the viewport (its default), never a ref'd element.
 
+// The dev panel's session mark, persisted so it outlives the tab (see `sessionMark` below).
+// Plain functions, not a hook: they read and write localStorage on demand, never during render.
+const DEV_MARK_KEY = "ambit.devKnobs.mark";
+function readDevMark(): Date | null {
+  try {
+    const raw = localStorage.getItem(DEV_MARK_KEY);
+    const d = raw ? new Date(raw) : null;
+    return d && Number.isFinite(d.getTime()) ? d : null;
+  } catch {
+    return null;
+  }
+}
+/** Writes "now" as the mark and returns it. */
+function moveMark(): Date {
+  const now = new Date();
+  try {
+    localStorage.setItem(DEV_MARK_KEY, now.toISOString());
+  } catch {
+    /* private mode etc. — the mark just won't outlive the tab */
+  }
+  return now;
+}
+
 export interface FeedDevProps {
   /** The core-tier topic ids, from the DB via the /dev/feed shell — the readout's
    *  core-vs-grown test. */
@@ -62,7 +85,16 @@ export function FeedScreen({ topicLabels, dev }: FeedScreenProps) {
   const [nonce, setNonce] = React.useState(0);
   // The session mark: `feed.forgetSince` deletes everything served at or after it. Moves
   // forward on every apply, so each cycle forgets exactly the pages the previous knobs served.
+  // Persisted (see `moveMark`) because a *closed* tab runs no unmount cleanup: the next mount
+  // reads the mark the last one left and forgets from there, so a tuning session that ended by
+  // closing the tab still leaves nothing behind once the panel is opened again.
   const sessionMark = React.useRef(new Date());
+  React.useEffect(() => {
+    if (!isDev) return;
+    const stored = readDevMark();
+    if (stored && stored.getTime() < sessionMark.current.getTime())
+      sessionMark.current = stored;
+  }, [isDev]);
   const [forgotten, setForgotten] = React.useState(0);
   const [forgetError, setForgetError] = React.useState<string | null>(null);
   const { mutateAsync: forgetSince } = api.feed.forgetSince.useMutation();
@@ -153,7 +185,7 @@ export function FeedScreen({ topicLabels, dev }: FeedScreenProps) {
       // the feed still refetches, so tuning can continue while the cause is looked at.
       setForgetError(err instanceof Error ? err.message : "forgetSince failed");
     }
-    sessionMark.current = new Date();
+    sessionMark.current = moveMark();
     ackedPages.current.clear();
     setNonce((n) => n + 1); // a counter, not Date.now(): two applies in one ms must still differ
     window.scrollTo({ top: 0 });
@@ -188,6 +220,7 @@ export function FeedScreen({ topicLabels, dev }: FeedScreenProps) {
     if (!isDev) return;
     return () => {
       void forgetSince({ since: sessionMark.current }).catch(() => undefined);
+      moveMark();
     };
   }, [isDev, forgetSince]);
 

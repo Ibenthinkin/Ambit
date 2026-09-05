@@ -532,6 +532,22 @@ describe("FeedScreen with `dev`", () => {
     expect(panel).toHaveTextContent("5 (83%) / 1 (17%)");
   });
 
+  it("picks up a persisted session mark, so a reopened tab forgets the cycle a closed one left behind", async () => {
+    // A closed tab never runs the unmount forget. The mark it last set is in localStorage, and
+    // the next mount must forget from *there*, not from its own `new Date()`.
+    const earlier = "2026-09-05T10:00:00.000Z";
+    localStorage.setItem("ambit.devKnobs.mark", earlier);
+    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    const slider = screen.getByRole("slider", { name: /Page size/ });
+    fireEvent.change(slider, { target: { value: "8" } });
+    await act(async () => {
+      fireEvent.pointerUp(slider);
+    });
+    expect(forgetMock).toHaveBeenCalledWith({ since: new Date(earlier) });
+    // …and the mark moved forward, so the next mount does not forget this cycle twice over.
+    expect(localStorage.getItem("ambit.devKnobs.mark")).not.toBe(earlier);
+  });
+
   it("persists knobs to localStorage under the versioned key", async () => {
     render(<FeedScreen topicLabels={LABELS} dev={dev} />);
     const slider = screen.getByRole("slider", { name: /Page size/ });
