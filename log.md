@@ -146,6 +146,31 @@ merged in. Not pushed — Ben's call, as the plan says.
 
 *Session spend: 37.22M tok (in 546 · out 243.1k · cache r 35.63M / w 1.34M) · ~≥$7.33 · fable-5-1 + opus-4-7 · 17:42→18:09*
 
+**Pickup (written 19:45 for a cold session):**
+- **`main` is at `1afda7e`** (the knob-panel merge) and is **10 commits ahead of `origin/main`,
+  unpushed** — Ben pushes. Nothing on it changes production behaviour (levers default to 1, the
+  route 404s there), so the redeploy is separate from the push.
+- **The `~/Dev/ambit` checkout is on `feat/tumblr-blogs-round3`** (another session's, based on
+  `49299a0` = pre-merge main) with **uncommitted** work: `tumblr.ts`, `tumblr-blogs.ts`,
+  `tumblr.test.ts`, nine `__fixtures__/*.json`, and edits to `blogs.ts`, `suspended-sources.ts`,
+  `topics.ts`, `sources/index.ts`, `sources/types.ts` — the round-3 Tumblr candidates from
+  `docs/source-candidates.md` (70sscifiart, vintagegeekculture, dreamsrecurring,
+  thevaultoftheatomicspaceage, nemfrog, humanoidhistory, sovietpostcards, toiich,
+  thisisnthappiness). That branch needs `git merge main` before it lands; expect `types.ts` and
+  `index.ts` to merge cleanly (the knob work touched neither).
+- **No worktrees remain.** The two used tonight (`~/Dev/ambit-knobs`, `~/Dev/ambit-log`) were
+  removed after use; `git worktree list` should show only the checkout.
+- **To tune:** `bun run dev` (a `next dev` is on :3000 as of 19:40), sign in, open
+  `http://localhost:3000/dev/feed`. Sliders commit on release; "Copy JSON" gives the diff against
+  `DEFAULT_KNOBS`. Paste it into `src/server/services/feed-knobs.ts`; if `grownEdgeScale` is what
+  moved, run `bun run graph:rebuild --grown-scale <s> --confirm` and reset the knob to 1.
+- **Coverage note:** the dev-feed e2e passes 3/3 on `bun run e2e` and 1/2-skipped on
+  `bun run e2e:prod`; CI never exercises the panel. Known and recorded in the plan.
+- Still queued behind this: the desktop-UI polish session, 8.1 T8 (restore drill) → T9.2–9.5,
+  spoon-tamago, and tomorrow's `.cache/promote-prod.sh` re-run after the first nightly walk.
+
+*Session spend: 6.17M tok (in 57 · out 27.5k · cache r 5.20M / w 941.4k) · ~≥$1.26 · fable-5-1 + opus-4-7 · 18:09→19:41*
+
 ### [[09-02-26 Wed]] — A duplicate session, and what two sessions on one checkout look like
 
 **Findings:** This session opened on `feat/wp-rest-blogs` after a `/clear` and set out to finish
