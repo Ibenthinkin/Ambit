@@ -84,6 +84,68 @@ desktop-UI polish session; 8.1 T8/T9 and spoon-tamago still queued. Tomorrow's
 
 *Session spend: 9.35M tok (in 112 · out 141.2k · cache r 8.68M / w 531.4k) · fable-5-1 · 14:40→17:35*
 
+**Shipped (same day, third stretch): the dev knob panel** — `docs/PLAN_dev-knob-panel.md` executed
+end to end, eight commits on `feat/dev-knob-panel`, merged to `main`. The four moves landed as
+planned: (1) `grownEdgeScale` and `grownHopPenalty` in the engine, identities at `1` — `bun run
+probe:feed --uniform --knob grownHopPenalty=0` composes a page where every DRIFT card lands on a
+core topic and JUMP still reaches the grown tier; (2) `feed.forgetSince`, dev-gated, `FORBIDDEN`
+otherwise, with `feedDebugEnabled()` as the one gate the two engines, the mutation and the route
+all call; (3) `FeedScreen`'s `dev` prop — the without-`dev` input is pinned as the literal `{}` by
+a test; (4) `/dev/feed`, which 404s under a production build. The hand test: one slider release
+produced exactly `POST feed.forgetSince → GET feed.page → POST feed.markSeen` in the Network log,
+and "forgotten so far" read 12 after the first cycle's 12 cards. The e2e spec passes 3/3 against
+`next dev` and 1 passed / 2 skipped against the production build, and its last test checks
+`seen_item` itself: ≤ 24 rows for the tuning user after Restart. The rebuild script's dry run at
+scale 1 now reports **0 changed cells** against the current artifact; at `--grown-scale 0.5` it
+reports 0 core×core and 9,452 other cells changed.
+
+**Findings:**
+- **The plan's client import would have bundled Postgres.** `useDevKnobs` needed `DEFAULT_KNOBS`,
+  and importing that value from `services/feed.ts` into a `"use client"` module pulls `db/items`
+  and, through it, the Postgres client into the browser bundle — nothing client-side had ever
+  imported a *value* from that module, only types. `FeedKnobs`/`DEFAULT_KNOBS` now live in
+  `services/feed-knobs.ts`, a leaf with no imports, re-exported from `feed.ts` so every server
+  import site reads as before.
+- **`react-hooks/set-state-in-effect` shaped two components.** The plan's `Slider` synced a draft
+  from props in an effect and its hook loaded localStorage in one; the repo's idiom is
+  `useSyncExternalStore` (landing-screen, install-flow). The Slider keeps a *nullable* draft (null =
+  show the committed value, so a parent reset wins with nothing to reconcile) and the knob store
+  reads localStorage through `useSyncExternalStore` with `DEFAULT_KNOBS` as the server snapshot.
+- **The rebuild script had two self-references, not one.** The plan named the core set (read off
+  the artifact's own keys). The rescale `target` was the second: the mean per-row spread of *every*
+  row in the artifact, which would have drifted with each rebuild. Both now derive from `TOPICS`;
+  the target reproduces the first run's 0.1345 exactly.
+- **A closed tab leaves the last cycle's rows behind — and "Restart" would not have cleared them**,
+  because the mark started at mount. Caught while writing the CLAUDE.md note that claimed otherwise.
+  The mark is now persisted (`ambit.devKnobs.mark`), so the next mount forgets from where the last
+  one stopped. The cost: anything served on `/feed` between two dev sessions is forgotten too.
+- **tRPC queries travel as GETs under `httpBatchStreamLink`**, so the e2e reads the knobs off the
+  URL's `input` parameter, not a POST body.
+- **Two sessions on one checkout, again.** Mid-Task 8 the working tree switched to
+  `feat/tumblr-blogs-round3` under me (a `tumblr.ts` and a `blogs.ts` edit appeared, and `tsc`
+  failed in code I had never touched). The seven commits were safe on the branch; the uncommitted
+  doc edits were saved as a patch, the other session's files restored untouched, and the rest of the
+  work — the mark fix, the docs, the merge — happened in a worktree at `~/Dev/ambit-knobs`. The
+  full Vitest suite ran green (977) in the main checkout before the switch; in the worktree the five
+  DB-backed suites self-skip because `.env` is not copied there.
+
+**Decisions (the planner's D1–D9, as executed):** a separate `/dev/feed` route, never a toggle on
+`/feed` (D1); ack like production, forget on apply — and now on the next mount after a closed tab
+(D2); one gate function (D3); levers as plain knobs with identity defaults, applied to a
+per-request graph copy (D4); commit-on-release sliders, no Apply button (D5); readouts per page
+and per session (D6); grown labels from the DB on the dev route only (D7); a fixed 340 px right
+drawer with the feed padded at `lg:` (D8); `graph:rebuild --grown-scale` with core from config (D9).
+Zod strips `nonce` from the query input, as the plan predicted — `routers.test.ts` has no test
+asserting unknown keys reject, and none was added.
+
+**Open / next:** Ben tunes on `/dev/feed` and pastes the JSON — the answer goes into
+`DEFAULT_KNOBS`, or `bun run graph:rebuild --grown-scale <s> --confirm` if the graph lever moved.
+Then the desktop-UI polish session; 8.1 T8/T9 and spoon-tamago still queued. The
+`feat/tumblr-blogs-round3` branch in the main checkout is based on `49299a0` and will need `main`
+merged in. Not pushed — Ben's call, as the plan says.
+
+*Session spend: 37.22M tok (in 546 · out 243.1k · cache r 35.63M / w 1.34M) · ~≥$7.33 · fable-5-1 + opus-4-7 · 17:42→18:09*
+
 ### [[09-02-26 Wed]] — A duplicate session, and what two sessions on one checkout look like
 
 **Findings:** This session opened on `feat/wp-rest-blogs` after a `/clear` and set out to finish
