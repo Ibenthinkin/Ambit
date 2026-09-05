@@ -33,6 +33,7 @@ import {
   TOPIC_GRAPH,
   type TopicGraph,
 } from "~/server/services/feed";
+import { feedDebugEnabled } from "~/server/services/feed-debug";
 import { weightedPick } from "~/server/services/random";
 
 // ── knobs ───────────────────────────────────────────────────────────────────────────────────────
@@ -221,11 +222,9 @@ export async function getGalleryRail(
   const anchor = await getItemById(anchorItemId);
   if (!anchor) return [];
 
-  // Dynamic import: FEED_DEBUG lives on `~/env`, which fails Zod validation the moment it's
-  // imported anywhere env vars aren't set (CI's `bun run test` step). Same pattern, same reason, as
-  // `getFeedPage` — and it's why `pickRailTopics` above stays importable on its own.
-  const { env } = await import("~/env");
-  const debugEnabled = env.FEED_DEBUG ?? env.NODE_ENV === "development";
+  // The dev gate, shared with the gallery rail, the forget mutation and the /dev/feed route —
+  // see feed-debug.ts for the rule and for why it is a dynamic import underneath.
+  const debugEnabled = await feedDebugEnabled();
 
   const knobs: GalleryKnobs = {
     ...RAIL_KNOBS,

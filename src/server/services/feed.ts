@@ -18,6 +18,7 @@ import { drawWeight, getItemsByIds } from "~/server/db/items";
 import { getTasteKeywords } from "~/server/db/saves";
 import { getUserTopicWeights } from "~/server/db/topics";
 import { getTopicPools, type PoolItem } from "~/server/db/feed";
+import { feedDebugEnabled } from "./feed-debug";
 import { hashSeed, mulberry32, weightedPick } from "./random";
 
 // ── the topic adjacency graph (SPEC §5.2, §9) ──────────────────────────────────────────────────
@@ -522,12 +523,9 @@ export async function getFeedPage(
 
   const rng = mulberry32(hashSeed(`${seed}:${page}`));
 
-  // Dynamic import: FEED_DEBUG lives on `~/env`, which fails Zod validation the moment it's
-  // imported anywhere env vars aren't set (CI's `bun run test` step — see items.ts's identical
-  // pattern for db/client.ts). A static top-of-file import would break every pure test in
-  // feed.test.ts that only imports composePage/pickCore/etc., not this function.
-  const { env } = await import("~/env");
-  const debugEnabled = env.FEED_DEBUG ?? env.NODE_ENV === "development";
+  // The dev gate, shared with the gallery rail, the forget mutation and the /dev/feed route —
+  // see feed-debug.ts for the rule and for why it is a dynamic import underneath.
+  const debugEnabled = await feedDebugEnabled();
 
   // Two independent single-user reads — weights for the topic draws, taste keywords for the
   // item-draw boost (Phase 6.1) — fetched in parallel since neither depends on the other.
