@@ -63,10 +63,38 @@ import type { SourceId } from "~/server/services/sources/types";
 // source stops being a topic-capture risk and becomes the obvious way to fill it. Un-parking is
 // removing it from this list; a bounded first walk (`--quota`) is the middle option, at the cost
 // of `--prune` (a quota makes a walk incomplete). Nothing was ever written for it.
+// **Sources round 3, 09-05-26 — all nine Tumblr blogs ship parked, and this is the default
+// rather than a verdict.** They are registered, tested and walkable, but NOT verdicted: Ben has
+// seen no sample yet. Parking them is what makes merging this branch safe, because the nightly
+// ingest walks every registered walker that is not on this list, and these nine total ~351,500
+// posts (~115,000 clearing structuralFloor) against a corpus of 21,892 — a 6× corpus in one
+// unattended cron run, at a measured ~$0.000235/item of curation, ~76 GB of image downloads, and
+// a topic-capture risk far past the one that parked streetartnews above.
+//
+// Un-parking is per blog and is Ben's call on that blog's sample (`bun run stats:walk`). The
+// evidence for each is in its server/config/blogs.ts row; the short version, best first:
+//   nemfrog                      89% of a sample clears the floor, 6.9 tags/post — the strongest
+//   humanoidhistory              74%, 5.7 tags/post
+//   sovietpostcards              52%, 6.8 tags/post — the most specific tags of the nine
+//   70sscifiart                  34%, 3.6 tags/post, every sampled post tagged
+//   dreamsrecurring              26%, but 0.2 tags/post — little for topic mining to read
+//   vintagegeekculture           22%, 2.2 tags/post
+//   toiich                       16%, 1.5 tags/post
+//   thevaultoftheatomicspaceage   7%, ZERO tags on 200 sampled posts
+//   thisisnthappiness             4% of 108,982 posts, 0.5 tags/post
 export const SUSPENDED_SOURCES: SourceId[] = [
   "aic",
   "mossandfog",
   "streetartnews",
+  "nemfrog",
+  "humanoidhistory",
+  "sovietpostcards",
+  "70sscifiart",
+  "vintagegeekculture",
+  "dreamsrecurring",
+  "toiich",
+  "thevaultoftheatomicspaceage",
+  "thisisnthappiness",
 ];
 
 /** Whether `source` is currently switched off. Accepts a plain string for DB rows. */
