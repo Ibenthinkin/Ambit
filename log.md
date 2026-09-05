@@ -146,6 +146,56 @@ merged in. Not pushed — Ben's call, as the plan says.
 
 *Session spend: 37.22M tok (in 546 · out 243.1k · cache r 35.63M / w 1.34M) · ~≥$7.33 · fable-5-1 + opus-4-7 · 17:42→18:09*
 
+---
+
+**Sources round 3 — nine Tumblr blogs, built and sampled, all nine parked pending verdict.**
+Ben handed over nine Tumblr URLs and said to scrape them. All nine were probed live before any
+code was written, which is the only reason the rest of this entry is short.
+
+**Shipped:** `tumblr.ts`, the Tumblr-walk factory — the same extraction `wp-rest.ts` got in round
+2, for the same reason, with `things-organized-neatly.ts` left bespoke and byte-identity to it
+asserted as a test. Nine blogs as config rows carrying their own probe evidence, nine live-
+recorded fixtures, 56 new tests (966 unit tests green, lint clean). Merged `main` in on the way
+past, so the branch is no longer stranded on `49299a0`.
+
+**Findings — two real bugs, both found by looking at live output rather than by a test.**
+- **Tumblr's newer editor puts its alt-text UI badge inside the caption**
+  (`<span class="tmblr-alt-text-helper">ALT</span>`), so `htmlToText()` rendered the literal word
+  "ALT" and `deriveTitle()` made it the card's **title**. 24% of sampled 70sscifiart captions.
+  No stored row carries it — thingsorganizedneatly's 1,720 were queried and are clean — so this
+  is new-blog-only, and the frozen bespoke walker was left frozen with the gap **written down**
+  rather than silently edited.
+- **A blog answering an ask writes an essay in the caption field.** vintagegeekculture's caption
+  p99 is 5,582 characters, its longest sampled 12,268. Storing that as `summary` is republishing
+  the article, whatever the field is called, and the 08-20-26 rights posture forbids exactly that.
+  Capped to a 600-char excerpt — chosen as the corpus's own norm (the three ingested blogs sit at
+  a summary p95 of 199 / 410 / 506), not invented.
+
+**Also recorded for the first time: what curation actually costs.** `$0.000235/item`, measured
+through OpenRouter's usage accounting on nine live classify calls with real images (~2,300 prompt
+tokens, mean image 649 KB). Every prior log entry left this as "still unrecorded".
+
+**Decisions:** all nine ship in `SUSPENDED_SOURCES`, and that is a **default, not a verdict** —
+the nightly ingest walks every registered walker not on that list, and nine unattended full walks
+would be ~351,500 posts and ~125,700 stored rows against a corpus of 21,892. A **6× corpus, 85% of
+it Tumblr**, is a product decision about what Ambit is, not a scraping task, so nothing was
+un-parked. The money is not the constraint (~$30 for all nine); the balance is.
+
+**The verdict evidence** (`stats:walk --quota 150` each, writes nothing, cache now warm so
+re-runs are free) is the table in `docs/HANDOFF_tumblr-round3.md` §2. Short version: **nemfrog**
+keeps **91% of everything offered** at 8.15 — nothing in the corpus comes close — and is the
+obvious first Keep at ~41,000 rows. **dreamsrecurring 8.72 / 96% ≥8** and **70sscifiart 8.65 /
+96%** score level with thisiscolossal, the strongest source in the corpus. **sovietpostcards** is
+the most coherent rather than the highest-scoring, and the one with a real (mild) Cut 2 angle —
+its un-homed tags are a clean `ussr · russia · soviet union` cluster that would make a good grown
+topic. **thevaultoftheatomicspaceage** (zero tags on 200 sampled posts, median caption 0 chars,
+keeps 8%) and **thisisnthappiness** (keeps 7% of the largest archive probed, 40% of that
+un-homed) are structurally poor and read as Cuts.
+
+**Open / next:** Ben's Keep/Park/Cut on each of the nine — the only thing outstanding. Then
+un-park the Keeps one at a time and walk them (`docs/HANDOFF_tumblr-round3.md` §0). Separately:
+whether `things-organized-neatly.ts` should take the two-line alt-badge fix.
+
 ### [[09-02-26 Wed]] — A duplicate session, and what two sessions on one checkout look like
 
 **Findings:** This session opened on `feat/wp-rest-blogs` after a `/clear` and set out to finish
