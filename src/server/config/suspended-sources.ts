@@ -63,38 +63,51 @@ import type { SourceId } from "~/server/services/sources/types";
 // source stops being a topic-capture risk and becomes the obvious way to fill it. Un-parking is
 // removing it from this list; a bounded first walk (`--quota`) is the middle option, at the cost
 // of `--prune` (a quota makes a walk incomplete). Nothing was ever written for it.
-// **Sources round 3, 09-05-26 — all nine Tumblr blogs ship parked, and this is the default
-// rather than a verdict.** They are registered, tested and walkable, but NOT verdicted: Ben has
-// seen no sample yet. Parking them is what makes merging this branch safe, because the nightly
-// ingest walks every registered walker that is not on this list, and these nine total ~351,500
-// posts (~115,000 clearing structuralFloor) against a corpus of 21,892 — a 6× corpus in one
-// unattended cron run, at a measured ~$0.000235/item of curation, ~76 GB of image downloads, and
-// a topic-capture risk far past the one that parked streetartnews above.
+// **Sources round 3, 09-05-26 — nine Tumblr blogs, all parked, for two different reasons.**
+// The distinction matters when reading this list: four of them are parked because Ben looked at
+// their sample and said so, and five are parked because nobody has ruled on them yet. Neither
+// group is walked by the nightly ingest — that is what this list does — but only the second
+// group is still an open question.
 //
-// Un-parking is per blog and is Ben's call on that blog's sample (`bun run stats:walk`). The
-// evidence for each is in its server/config/blogs.ts row; the short version, best first:
-//   nemfrog                      89% of a sample clears the floor, 6.9 tags/post — the strongest
-//   humanoidhistory              74%, 5.7 tags/post
-//   sovietpostcards              52%, 6.8 tags/post — the most specific tags of the nine
-//   70sscifiart                  34%, 3.6 tags/post, every sampled post tagged
-//   dreamsrecurring              26%, but 0.2 tags/post — little for topic mining to read
-//   vintagegeekculture           22%, 2.2 tags/post
-//   toiich                       16%, 1.5 tags/post
-//   thevaultoftheatomicspaceage   7%, ZERO tags on 200 sampled posts
-//   thisisnthappiness             4% of 108,982 posts, 0.5 tags/post
+// **Parked by Ben's verdict, 09-05-26.** Sampled, judged, and not wanted for now. Un-parking any
+// of these is a reversal of a decision, not the completion of one:
+//   nemfrog             91% of offered stored · avg 8.15 · 87% ≥8 · ~41,000 rows
+//   humanoidhistory     56% · avg 8.29 · 82% ≥8 · ~27,100 rows
+//   dreamsrecurring     38% · avg 8.72 · 96% ≥8 · ~7,800 rows · but only 0.2 tags/post
+//   vintagegeekculture  33% · avg 7.44 · 56% ≥8 · ~6,200 rows · the weakest scores of the nine
+// Recorded as arithmetic rather than as anyone's reasoning: these four are ~82,100 of the
+// round's ~125,700 estimated rows, so parking them removes about **two thirds** of what round 3
+// would have added to a 21,892-item corpus. nemfrog and humanoidhistory are also its two largest
+// single contributors.
+//
+// **Parked pending a verdict.** Registered, tested, sampled and walkable; nobody has ruled:
+//   70sscifiart                 55% · avg 8.65 · 96% ≥8 · ~19,200 rows · level with thisiscolossal
+//   sovietpostcards             44% · avg 7.79 · 70% ≥8 · ~11,300 rows · clean `ussr`/`soviet
+//                               union` un-homed cluster, the one real Cut 2 topic angle here
+//   thisisnthappiness            7% · avg 8.10 · 90% ≥8 · ~7,600 rows · keeps 7% of a
+//                               108,982-post archive, 40% of that un-homed
+//   thevaultoftheatomicspaceage  8% · avg 8.00 · 83% ≥8 · ~3,000 rows · ZERO tags on 200
+//                               sampled posts, median caption 0 chars
+//   toiich                      22% · avg 7.58 · 70% ≥8 · ~2,500 rows
+//
+// Numbers are from `bun run stats:walk <id> --quota 150` (09-05-26), which writes nothing to the
+// DB; its curation cache is warm for all nine, so re-running any of them is free. The full table,
+// with the estimated cost and wall-clock of each walk, is docs/HANDOFF_tumblr-round3.md §2.
 export const SUSPENDED_SOURCES: SourceId[] = [
   "aic",
   "mossandfog",
   "streetartnews",
+  // Round 3, parked by Ben's verdict (09-05-26):
   "nemfrog",
   "humanoidhistory",
-  "sovietpostcards",
-  "70sscifiart",
-  "vintagegeekculture",
   "dreamsrecurring",
-  "toiich",
-  "thevaultoftheatomicspaceage",
+  "vintagegeekculture",
+  // Round 3, parked pending a verdict:
+  "70sscifiart",
+  "sovietpostcards",
   "thisisnthappiness",
+  "thevaultoftheatomicspaceage",
+  "toiich",
 ];
 
 /** Whether `source` is currently switched off. Accepts a plain string for DB rows. */

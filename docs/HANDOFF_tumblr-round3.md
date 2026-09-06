@@ -1,23 +1,33 @@
 # Handoff — sources round 3: nine Tumblr blogs on a `tumblr.ts` factory
 
 **Written:** 09-05-26, by the session that probed, built and sampled all nine.
+**Updated:** 09-05-26 (same day) with Ben's first four verdicts.
 **Status:** code on `feat/tumblr-blogs-round3`, all tests green, **all nine parked in
-`SUSPENDED_SOURCES`**. Nothing has been written to any database. **Every one of the nine is
-waiting on Ben's Keep / Park / Cut verdict** — that is the only thing outstanding, and §2 is the
-table it needs.
+`SUSPENDED_SOURCES`** — but now for two different reasons. Nothing has been written to any
+database. **Four are parked by Ben's verdict and are settled; five are still awaiting one.**
+§2 is the table, and it is the only thing outstanding.
 
 ---
 
 ## 0. Start here — what a next session does
 
-1. Read §2 and take Ben's verdict per blog.
-2. For each **Keep**: remove its id from `src/server/config/suspended-sources.ts`, then run the
-   full walk — `bun run ingest --source <id>` (no `--quota`, so `--prune` stays meaningful).
-   §3 has the per-blog cost and wall-clock, and §4 the traps.
-3. Anything Ben does not Keep stays exactly as it is. A parked row costs nothing and is already
-   documented; there is no cleanup to do.
+**Ben has ruled on four of the nine (09-05-26). Do not re-open those four.**
 
-**Do not run a full walk on all nine as a batch.** §3 says why in numbers.
+> **Parked by verdict — settled, leave alone:** `nemfrog`, `humanoidhistory`, `dreamsrecurring`,
+> `vintagegeekculture`. These were sampled, judged and set aside. Un-parking one is reversing a
+> decision, not finishing one, so it needs Ben to say so again.
+>
+> **Parked pending a verdict — the open five:** `70sscifiart`, `sovietpostcards`,
+> `thisisnthappiness`, `thevaultoftheatomicspaceage`, `toiich`.
+
+1. Take Ben's verdict on **the five**, using the table in §2. Nothing else is outstanding.
+2. For each **Keep**: remove its id from `src/server/config/suspended-sources.ts` (from the
+   *pending* group), then run the full walk — `bun run ingest --source <id>` (no `--quota`, so
+   `--prune` stays meaningful). §3 has the per-blog cost and wall-clock, §4 the traps.
+3. Anything not kept stays exactly as it is. A parked row costs nothing and is already
+   documented; there is no cleanup to do, and no rows were ever written.
+
+**Do not run a full walk on several blogs as a batch.** §3 says why in numbers.
 
 ---
 
@@ -63,29 +73,48 @@ All nine were probed live 09-05-26 (200 posts per archive, at 0/25/50/75% depth)
 with `bun run stats:walk <id> --quota 150`, which walks and curates exactly as ingest would and
 **writes nothing**. The curation cache is warm, so re-running any of these is free.
 
-| blog | archive | stored % of offered | curated avg | ≥8 | un-homed | est. full-walk rows |
-|---|---:|---:|---:|---:|---:|---:|
-| **nemfrog** | 45,094 | **91%** | 8.15 | 87% | 7% | ~41,000 |
-| **70sscifiart** | 34,836 | 55% | **8.65** | **96%** | 2% | ~19,200 |
-| **humanoidhistory** | 48,466 | 56% | 8.29 | 82% | 11% | ~27,100 |
-| **dreamsrecurring** | 20,636 | 38% | **8.72** | **96%** | 7% | ~7,800 |
-| **sovietpostcards** | 25,784 | 44% | 7.79 | 70% | 17% | ~11,300 |
-| **vintagegeekculture** | 18,930 | 33% | 7.44 | 56% | 14% | ~6,200 |
-| **thevaultoftheatomicspaceage** | 37,494 | 8% | 8.00 | 83% | 17% | ~3,000 |
-| **thisisnthappiness** | 108,982 | 7% | 8.10 | 90% | 40% | ~7,600 |
-| **toiich** | 11,308 | 22% | 7.58 | 70% | 24% | ~2,500 |
+| blog | verdict | archive | stored % of offered | curated avg | ≥8 | un-homed | est. full-walk rows |
+|---|---|---:|---:|---:|---:|---:|---:|
+| **nemfrog** | **Parked** | 45,094 | **91%** | 8.15 | 87% | 7% | ~41,000 |
+| **humanoidhistory** | **Parked** | 48,466 | 56% | 8.29 | 82% | 11% | ~27,100 |
+| **dreamsrecurring** | **Parked** | 20,636 | 38% | **8.72** | **96%** | 7% | ~7,800 |
+| **vintagegeekculture** | **Parked** | 18,930 | 33% | 7.44 | 56% | 14% | ~6,200 |
+| **70sscifiart** | *open* | 34,836 | 55% | **8.65** | **96%** | 2% | ~19,200 |
+| **sovietpostcards** | *open* | 25,784 | 44% | 7.79 | 70% | 17% | ~11,300 |
+| **thisisnthappiness** | *open* | 108,982 | 7% | 8.10 | 90% | 40% | ~7,600 |
+| **thevaultoftheatomicspaceage** | *open* | 37,494 | 8% | 8.00 | 83% | 17% | ~3,000 |
+| **toiich** | *open* | 11,308 | 22% | 7.58 | 70% | 24% | ~2,500 |
 
 **Read against the corpus's own benchmarks:** thisiscolossal 8.70 / 97.5% ≥8 (the strongest source
 in the corpus), pdr 8.39 / 87%, thingsorganizedneatly 7.90.
 
-**What the table says.**
+### 2.1 The four Ben parked (09-05-26)
 
-- **dreamsrecurring (8.72) and 70sscifiart (8.65) score level with thisiscolossal** — the best
-  material of the nine. Both throw most of the archive away at the floor, which is the floor
-  working: what survives is the captioned minority.
-- **nemfrog is the outlier and the obvious first Keep.** 91% of everything offered clears the
-  floor — nothing else in the corpus comes close — at pdr-class quality, with 6.9 tags/post of
-  real scanned-plate vocabulary. It is also the single biggest contributor, ~41,000 rows.
+Settled. Kept here because a parked source still needs its evidence on record — if one is ever
+revisited, this is what it was judged on, and nothing needs re-sampling.
+
+- **nemfrog** — the highest keep-rate ever measured in this corpus: **91% of everything offered**
+  clears the floor, at 8.15 with 6.9 tags/post of real scanned-plate vocabulary. Also the round's
+  single biggest contributor at ~41,000 rows.
+- **humanoidhistory** — 8.29 and 82% ≥8, the second biggest at ~27,100 rows. The widest post-type
+  spread of the nine, so it also had the highest `toItem` error count (6 of 150), all of them
+  picture-less post types being counted rather than skipped.
+- **dreamsrecurring** — the highest average of the nine at **8.72 / 96% ≥8**, level with
+  thisiscolossal. Its weakness is metadata, not pictures: **0.2 tags/post**, so it arrives with
+  almost nothing for topic mining to propose from.
+- **vintagegeekculture** — the **weakest scores of the nine**, 7.44 with only 56% ≥8, and the blog
+  whose essay-length caption answers forced `capSummary()` into existence (§1).
+
+Stated as arithmetic and not as anyone's reasoning: these four are **~82,100 of the round's
+~125,700 estimated rows**, so parking them removes about **two thirds** of what round 3 would
+have added to a 21,892-item corpus.
+
+### 2.2 The five still open
+
+- **70sscifiart (8.65 / 96% ≥8)** is now the strongest open candidate and the highest scorer
+  left — level with thisiscolossal, the strongest source in the corpus — at ~19,200 rows. It
+  throws most of its archive away at the floor, which is the floor working: what survives is the
+  captioned minority. Only **2%** of what it keeps is un-homed, the lowest of the nine.
 - **sovietpostcards is the most *coherent*** rather than the highest-scoring: its un-homed tags
   are `ussr 8 · russia 6 · 1960s 5 · soviet union 4`, a clean cluster that would make a good
   grown topic. It is the one blog here with a real Cut 2 topic-capture angle, and a mild one.
@@ -103,7 +132,7 @@ than one source-defining term.
 
 ---
 
-## 3. What a full walk costs — the reason all nine are parked
+## 3. What a full walk costs
 
 Curation cost was **measured, not estimated**: nine live calls with the classify prompt and real
 Tumblr images, through OpenRouter's own usage accounting. **$0.000235/item**, ~2,300 prompt tokens,
@@ -111,14 +140,21 @@ mean image 649 KB. (This is the first time that number has been recorded anywher
 
 | | posts walked | rows stored | curation | image download | walk wall-clock |
 |---|---:|---:|---:|---:|---:|
-| all nine | ~351,500 | ~125,700 | **~$30** | ~76 GB | ~2 h of requests |
-| the top three only | ~128,400 | ~87,300 | ~$21 | ~53 GB | ~43 min |
-| nemfrog alone | 45,094 | ~41,000 | ~$9.60 | ~26 GB | ~15 min |
+| all nine, as originally scoped | ~351,500 | ~125,700 | **~$30** | ~76 GB | ~2 h of requests |
+| **the five still open** | ~218,400 | ~43,600 | **~$10** | ~28 GB | ~73 min |
+| 70sscifiart alone | 34,836 | ~19,200 | ~$4.50 | ~12 GB | ~12 min |
+| sovietpostcards alone | 25,784 | ~11,300 | ~$2.70 | ~7 GB | ~9 min |
+
+The five open blogs walk **more than half the posts** of the original nine to store **about a
+third of the rows** — thisisnthappiness alone is 108,982 posts for ~7,600 of them. That is the
+shape of what is left: the high-yield archives are the ones now parked.
 
 **The money is not the problem; the corpus balance is.** The corpus is **21,892 items**. All nine
-would add ~125,700 — a **6× corpus in one run, 85% of it these nine Tumblr blogs** — which
-changes what Ambit *is* far more than any feed knob does. That is a product decision, which is
-why nothing was un-parked here.
+would have added ~125,700 — a **6× corpus in one run, 85% of it these nine Tumblr blogs** — which
+changes what Ambit *is* far more than any feed knob does. That is a product decision, which is why
+nothing was un-parked before Ben saw the samples. After his four verdicts the open five would add
+~43,600, roughly **tripling** the corpus rather than sextupling it; keeping only 70sscifiart and
+sovietpostcards would add ~30,500.
 
 Also worth pricing in: every stored item eventually needs a `.cache/img` entry (~150 KB each, so
 ~19 GB for all nine), and `bun run img:warm` pays that politely, per host.

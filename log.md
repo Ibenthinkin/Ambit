@@ -192,12 +192,25 @@ topic. **thevaultoftheatomicspaceage** (zero tags on 200 sampled posts, median c
 keeps 8%) and **thisisnthappiness** (keeps 7% of the largest archive probed, 40% of that
 un-homed) are structurally poor and read as Cuts.
 
-**Open / next:** Ben's Keep/Park/Cut on each of the nine — the only thing outstanding. Then
-un-park the Keeps one at a time and walk them (`docs/HANDOFF_tumblr-round3.md` §0). Separately:
-whether `things-organized-neatly.ts` should take the two-line alt-badge fix.
+**Verdicts, same evening — Ben parked four of the nine:** `nemfrog`, `humanoidhistory`,
+`dreamsrecurring`, `vintagegeekculture`. Everything was already parked as a default, so nothing
+moved in the ingest's behaviour; what changed is *why* each row is on that list, and the docs now
+say which. `SUSPENDED_SOURCES` is split into "parked by verdict" and "parked pending a verdict",
+the four config rows carry their verdict and the numbers behind it, and the handoff's §0 warns a
+cold session off re-opening them. The arithmetic worth keeping: those four are **~82,100 of the
+round's ~125,700 estimated rows**, so the verdict removes about **two thirds** of what round 3
+would have added — and it removes the two biggest single contributors. The five still open would
+add ~43,600, tripling the corpus rather than sextupling it.
+
+**Open / next:** Ben's verdict on the **five** that remain — `70sscifiart` (now the strongest
+open candidate at 8.65 / 96% ≥8 and the lowest un-homed share of the nine), `sovietpostcards`,
+`thisisnthappiness`, `thevaultoftheatomicspaceage`, `toiich`. Then un-park any Keeps one at a
+time and walk them (`docs/HANDOFF_tumblr-round3.md` §0). Separately: whether
+`things-organized-neatly.ts` should take the two-line alt-badge fix.
 
 *Session spend: 20.69M tok (in 400 · out 195.4k · cache r 19.67M / w 822.7k) · ~≥$19.98 · opus-5 + opus-4-7 + fable-5-1 · 17:55→18:22*
 *Session spend: 1.47M tok (in 16 · out 10.2k · cache r 1.45M / w 11.6k) · ~$1.10 · opus-5 · 18:22→18:23*
+*Session spend: 5.57M tok (in 56 · out 29.9k · cache r 5.01M / w 529.2k) · ~$8.54 · opus-5 · 18:23→21:56*
 
 ### [[09-02-26 Wed]] — A duplicate session, and what two sessions on one checkout look like
 

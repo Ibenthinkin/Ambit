@@ -132,6 +132,8 @@ export const BLOGS: readonly BlogConfig[] = [
     // 45,094 posts. The richest archive probed: median caption 93 chars, only 11% under the
     // 60-char floor, none empty, and 6.9 tags/post on 188 of 200 posts — scanned-plate captions
     // ("Fig. 4. Nocturnal moths. 1922.") rather than reblog chatter.
+    // PARKED by Ben's verdict 09-05-26 — see SUSPENDED_SOURCES. Sampled at 91% stored / 8.15
+    // avg / 87% ≥8, the highest keep-rate in the corpus, and its single biggest contributor.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
     // Tags 48 of 50 sampled posts with its own name.
@@ -145,6 +147,8 @@ export const BLOGS: readonly BlogConfig[] = [
     // 48,466 posts. Median caption 90 chars, 26% under the floor, 5.7 tags/post on 155 of 200.
     // The widest post-type spread sampled (photo, regular, answer, video, link, quote): 94% of
     // the sample carries a picture, and the other 6% is thrown and counted, never skipped.
+    // PARKED by Ben's verdict 09-05-26 — see SUSPENDED_SOURCES. Sampled at 56% stored / 8.29
+    // avg / 82% ≥8; the round's second biggest contributor at ~27,100 rows.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
   },
@@ -178,6 +182,8 @@ export const BLOGS: readonly BlogConfig[] = [
     license: BLOG_LICENSE,
     // 18,930 posts. Median caption 21 chars, 78% under the floor, 56 of 198 image posts with no
     // caption at all; 2.2 tags/post on 159 of 200.
+    // PARKED by Ben's verdict 09-05-26 — see SUSPENDED_SOURCES. The weakest scores of the nine
+    // (7.44 avg, 56% ≥8), and the blog whose essay-length answers motivated capSummary().
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
   },
@@ -190,6 +196,8 @@ export const BLOGS: readonly BlogConfig[] = [
     // But 95 of 200 captions are empty and only 34 of 200 posts are tagged at all (0.2
     // tags/post): a fine-looking archive that arrives with almost nothing for the curator to
     // read or for topic mining to propose from.
+    // PARKED by Ben's verdict 09-05-26 — see SUSPENDED_SOURCES. The highest average of the nine
+    // (8.72 / 96% ≥8) held back by its metadata: 0.2 tags/post is little for topic mining.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
   },
