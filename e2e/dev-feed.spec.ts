@@ -19,9 +19,9 @@ const EMAIL = `ambit-devfeed-${Date.now()}@example.com`;
 const PASSWORD = "correcthorse123";
 const PREFIX = "e2e-devfeed-";
 const TOPICS = ["astronomy", "botany", "music"] as const;
-// Three feed loads plus one slider commit (a fresh page each), with headroom — see
+// Four feed loads plus two slider commits (a fresh page each), with headroom — see
 // support.ts's seedFeedCorpus() for why CI's empty database makes this matter.
-const SEED_COUNT = 90;
+const SEED_COUNT = 120;
 
 let conn: Connection;
 let session: Cookie[] = [];
@@ -74,7 +74,9 @@ test.describe.serial("dev knob panel", () => {
     const panel = page.getByTestId("knob-panel");
     await expect(panel).toBeVisible();
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();
-    await expect(panel).toContainText(/CORE \d+ · DRIFT \d+ · JUMP \d+/);
+    await expect(panel).toContainText(
+      /CORE \d+ · DRIFT \d+ · JUMP \d+ · WILD \d+/,
+    );
 
     // Queries go out as GETs even under httpBatchStreamLink, so the SuperJSON input — knobs
     // included — is in the URL's `input` parameter, URL-encoded. Mutations would be POST bodies.
@@ -96,6 +98,38 @@ test.describe.serial("dev knob panel", () => {
       .toBeGreaterThan(0);
     expect(feedUrls.at(-1)).toContain('"tierCore":100');
     await expect(panel).toContainText(/served this session/);
+  });
+
+  // The WILD tier's slider (09-06-26). The e2e database is seeded with homed items only, so this
+  // asserts the control surface rather than the draw — that the slider exists, that its value
+  // reaches the server, and that the readout has a bucket for it. The tier's own behaviour is
+  // covered by feed.test.ts and the two integration suites.
+  test("the WILD slider is on the panel and its value reaches the server", async ({
+    page,
+  }) => {
+    test.skip(!(await onDevFeed(page)), "dev gate is off");
+
+    const panel = page.getByTestId("knob-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("core / grown / wild");
+
+    const feedUrls: string[] = [];
+    page.on("request", (r) => {
+      if (r.url().includes("feed.page"))
+        feedUrls.push(decodeURIComponent(r.url()));
+    });
+
+    const slider = panel.getByRole("slider", { name: /WILD — un-homed pool/ });
+    await expect(slider).toBeVisible();
+    await slider.focus();
+    await slider.press("Home"); // min → 0, which switches the tier off entirely
+    await expect
+      .poll(() => feedUrls.length, { timeout: 10_000 })
+      .toBeGreaterThan(0);
+    expect(feedUrls.at(-1)).toContain('"tierWild":0');
+    // With the tier off, no card on the page can be a WILD one.
+    await expect(page.locator("[data-feed-id]").first()).toBeVisible();
+    await expect(panel).toContainText(/WILD 0/);
   });
 
   test("the seen rows served while tuning are gone after a restart", async ({

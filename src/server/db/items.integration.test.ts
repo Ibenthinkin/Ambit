@@ -332,10 +332,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(await addItemTopics(itemId, [], "seed")).toBe(0);
     });
 
-    it("an un-homed item is never drawn: drawFromTopic and getTopicPools both skip it", async () => {
-      // Membership rows exist for topicA now, but the FEED reads item.topic_id (still null) until
-      // Cut 2 — design §5's "invisible with no guard at all", pinned here so Cut 2 has to flip this
-      // test on purpose.
+    it("an un-homed item is drawn by getWildPool and by nothing else", async () => {
+      // Membership rows exist for topicA now, but every TOPIC draw reads item.topic_id, which is
+      // still null — design §5's "invisible with no guard at all". That half is unchanged and is
+      // what Cut 2b has to flip on purpose when the feed moves onto the item_topic join.
       const drawn = await drawFromTopic(topicA, {
         scoreFloor: 1,
         excludeIds: [],
@@ -343,14 +343,28 @@ describe.skipIf(!process.env.DATABASE_URL)(
       });
       expect(drawn.some((r) => r.id === itemId)).toBe(false);
 
-      const { getTopicPools } = await import("./feed");
+      const { getTopicPools, getWildPool } = await import("./feed");
+      const userId = `nobody-${nanoid(6)}`;
       const pools = await getTopicPools([topicA], {
-        userId: `nobody-${nanoid(6)}`,
+        userId,
         anchor: new Date(),
         scoreFloor: 1,
         excludeIds: [],
       });
       expect(pools.get(topicA)?.some((r) => r.id === itemId)).toBe(false);
+
+      // …and getWildPool is the one draw that DOES return it (plan 09-06-26). That is the whole
+      // of the WILD tier's reachability: an item no topic fits is invisible to the three topic
+      // tiers and visible to the fourth.
+      const wild = await getWildPool({
+        userId,
+        anchor: new Date(),
+        scoreFloor: 1,
+        excludeIds: [],
+        sampleKey: "items-integration:0",
+        limit: 100_000,
+      });
+      expect(wild.some((r) => r.id === itemId)).toBe(true);
     });
 
     it("membership rows cascade away with the item", async () => {

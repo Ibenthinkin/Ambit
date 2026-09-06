@@ -76,11 +76,11 @@ function StatsBlock({
       <Stat label="cards" value={stats.cards} />
       <Stat
         label="tiers"
-        value={`CORE ${stats.tiers.CORE} · DRIFT ${stats.tiers.DRIFT} · JUMP ${stats.tiers.JUMP}`}
+        value={`CORE ${stats.tiers.CORE} · DRIFT ${stats.tiers.DRIFT} · JUMP ${stats.tiers.JUMP} · WILD ${stats.tiers.WILD}`}
       />
       <Stat
-        label="core / grown"
-        value={`${stats.core} (${pct(stats.core)}%) / ${stats.grown} (${pct(stats.grown)}%)`}
+        label="core / grown / wild"
+        value={`${stats.core} (${pct(stats.core)}%) / ${stats.grown} (${pct(stats.grown)}%) / ${stats.wild} (${pct(stats.wild)}%)`}
       />
       <Stat
         label="topics"
@@ -112,7 +112,8 @@ export function KnobPanel({
   forgetError,
 }: KnobPanelProps) {
   const [open, setOpen] = React.useState(true);
-  const tierTotal = knobs.tierCore + knobs.tierDrift + knobs.tierJump;
+  const tierTotal =
+    knobs.tierCore + knobs.tierDrift + knobs.tierJump + knobs.tierWild;
   const share = (n: number) =>
     tierTotal ? Math.round((100 * n) / tierTotal) : 0;
   const session = sumStats(pageStats);
@@ -175,7 +176,7 @@ export function KnobPanel({
             <SectionLabel>
               {section}
               {section === "Tier mix"
-                ? ` · ${share(knobs.tierCore)} / ${share(knobs.tierDrift)} / ${share(knobs.tierJump)}`
+                ? ` · ${share(knobs.tierCore)} / ${share(knobs.tierDrift)} / ${share(knobs.tierJump)} / ${share(knobs.tierWild)}`
                 : null}
             </SectionLabel>
             {KNOB_SPECS.filter((s) => s.section === section).map((s) => (

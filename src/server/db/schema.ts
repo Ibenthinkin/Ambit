@@ -231,6 +231,18 @@ export const item = pgTable(
     // GIN (Generalized Inverted Index) is the index type Postgres needs for containment queries
     // (`tags @> ARRAY['x']`) on an array column — a plain btree index can't do that efficiently.
     index("idx_item_tags_gin").using("gin", table.tags),
+    // The WILD tier's pool (09-06-26): "un-homed items above the score floor". A PARTIAL index —
+    // only the NULL-topic rows are in it — because that is the entire query and the un-homed set
+    // is a small, growing minority of the table (1,027 of 21,892 after Cut 2a, and a walk of a
+    // tagless picture blog adds thousands at a time). getWildPool then orders by an md5 the index
+    // cannot help with, but the rows it sorts are only the ones this narrows it to.
+    index("idx_item_unhomed_score")
+      .on(table.curationScore)
+      .where(sql`${table.topicId} is null`),
+    // T3's mining, promotion and graph rebuild all match `aesthetic_tags @> ARRAY['x']` now that
+    // the curator's vocabulary is mined alongside the sources' own. Same containment query as
+    // idx_item_tags_gin above, same index type, different column.
+    index("idx_item_aesthetic_tags_gin").using("gin", table.aestheticTags),
   ],
 );
 
