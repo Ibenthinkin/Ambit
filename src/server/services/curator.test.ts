@@ -257,7 +257,7 @@ describe("curateItems image-fetch reporting", () => {
     await curateItems(
       [
         makeItem({
-          source: "loupe" as never,
+          source: "loupe",
           sourceId: "walka00unse:1:0",
           type: "image",
           imageUrl: "http://localhost:3100/media/walka00unse/a.jpg",

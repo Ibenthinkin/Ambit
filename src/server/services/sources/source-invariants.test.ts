@@ -2,13 +2,15 @@
 // NO body, always — which is what makes "Ambit never renders blog article text" an invariant
 // rather than a policy. Two halves: every designated blog's walker normalizes that way, and no
 // blog row in the DB says otherwise. Walk sources that are not blogs (`pdr`, whose text is
-// CC BY-SA and whose collections carry their body essay by design) are outside D5 and are
-// deliberately not iterated here — their contract is their own adapter test.
+// CC BY-SA and whose collections carry their body essay by design; `loupe`, whose articles carry
+// their OCR text as body by design) are outside D5 and are deliberately not iterated here —
+// their contract is their own adapter test.
 import { and, inArray, isNotNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { BLOGS, isBlogSource } from "~/server/config/blogs";
 import dopFixtures from "./__fixtures__/doorofperception.json";
+import loupeFixtures from "./__fixtures__/loupe.json";
 import mafFixtures from "./__fixtures__/mossandfog.json";
 import pdrFixtures from "./__fixtures__/pdr.json";
 import sanFixtures from "./__fixtures__/streetartnews.json";
@@ -34,6 +36,7 @@ const fixturesByWalker: Record<string, unknown[]> = {
   thisiscolossal: ticFixtures,
   streetartnews: sanFixtures,
   pdr: pdrFixtures,
+  loupe: loupeFixtures,
   nemfrog: nemfrogFixtures,
   humanoidhistory: humhistFixtures,
   sovietpostcards: sovpostFixtures,

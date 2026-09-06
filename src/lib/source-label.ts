@@ -12,6 +12,7 @@
 // slug that predates it. Rendering `"archive"` as "Archive" is a perfectly good outcome;
 // rendering it as `undefined` is not.
 import { BLOGS } from "~/server/config/blogs";
+import { LOUPE } from "~/server/config/loupe";
 import { PDR } from "~/server/config/pdr";
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -34,6 +35,8 @@ const SOURCE_LABELS: Record<string, string> = {
   // Sources round 2 (09-02-26): a walk source that is not a blog — its label lives in its own
   // config row for the same reason the blogs' do (one source of truth for the credit line).
   [PDR.id]: PDR.label,
+  // Loupe (09-06-26), the second: same reason.
+  [LOUPE.id]: LOUPE.label,
 };
 
 export function sourceLabel(source: string): string {

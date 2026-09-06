@@ -3,6 +3,7 @@ import { archive } from "./archive";
 import { cma } from "./cma";
 import { doorofperception } from "./doorofperception";
 import { loc } from "./loc";
+import { loupe } from "./loupe";
 import { met } from "./met";
 import { mossandfog } from "./mossandfog";
 import { nasaImages } from "./nasa-images";
@@ -54,6 +55,8 @@ export const walkers: Record<WalkSourceId, CorpusWalkAdapter<unknown>> = {
   thisiscolossal,
   streetartnews,
   pdr,
+  // Loupe (docs/PLAN_loupe-hookup.md): Ben's clipping bench, the second non-blog walker.
+  loupe,
   // Sources round 3 (09-05-26) — the nine Tumblr blogs. `70sscifiart` is quoted because a source
   // id may start with a digit; `item.source` is a free-text column, so nothing downstream cares.
   nemfrog,
