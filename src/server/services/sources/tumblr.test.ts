@@ -143,6 +143,8 @@ describe.each(FIXTURES)("tumblrWalker — %s", (id, raws) => {
       const item = walker.toItem(raw);
       expect(item.title).not.toMatch(/<[^>]+>|&[#a-z0-9]+;/i);
       expect(item.summary).not.toMatch(/<[^>]+>|&[#a-z0-9]+;/i);
+      // Every title says something — no bare punctuation left over from stripped markup.
+      expect(item.title).toMatch(/[\p{L}\p{N}]/u);
     }
   });
 
@@ -292,6 +294,17 @@ describe("deriveTitle", () => {
     expect(
       deriveTitle("<p>nemfrog:</p><p>Fig. 4. Nocturnal moths.</p>", "s", "Blog"),
     ).toBe("Fig. 4. Nocturnal moths.");
+  });
+
+  // Found in the 09-06-26 sovietpostcards sample: a reblog of a PRIVATE blog leaves a caption
+  // line of exactly ":" where the blog's name would be, and that became the card's title. The
+  // floor used to drop such a post; it does not any more.
+  it("skips a caption line with no letters or digits in it", () => {
+    expect(
+      deriveTitle('<p><a class="tumblr_blog" href="x"></a>:</p><p>Kyiv, 1974.</p>', "", "Blog"),
+    ).toBe("Kyiv, 1974.");
+    // …and falls through to the label when the punctuation is all there is.
+    expect(deriveTitle("<p>:</p>", "", "Blog")).toBe("Blog");
   });
 
   it("falls back to the humanized slug, then to the blog's label", () => {

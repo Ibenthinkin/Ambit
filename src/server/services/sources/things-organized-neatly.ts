@@ -22,7 +22,9 @@
 // doorofperception's 3-in-390, and accepted on purpose — a thin caption floors like any museum
 // stub and is never padded here (HANDOFF §2). robots.txt asks `Crawl-delay: 1`, so DELAY_MS is 1 s.
 //
-// **Two notes from 09-06-26, when tumblr.ts grew past this file.** (1) The factory now fans a
+// **Two notes from 09-06-26, when tumblr.ts grew past this file.** (The file also took two small
+// fixes that day, both to deriveTitle and both forced by the floor change — see there. Neither
+// moves a stored row: all 1,720 were queried first.) (1) The factory now fans a
 // multi-picture post out into one item per picture and ids them `<post>:<n>`; this file still
 // takes the first picture only and ids by bare post id. That is not a flag to flip — the 1,720
 // stored rows are keyed on those ids, so moving this blog onto the factory would be a row
@@ -127,6 +129,13 @@ export function firstImageUrl(html: string): string | undefined {
 const TITLE_MAX = 80;
 /** A reblog's first line is the reblogged blog's name and a colon — attribution, not a title. */
 const ATTRIBUTION_LINE = /^\S+:$/;
+/** A title has to say something. Anything with no letter and no digit in it cannot: the case
+ *  that made this necessary is a reblog of a PRIVATE blog, whose `<a class="tumblr_blog">` has
+ *  empty text and leaves a caption line of exactly ":" (sovietpostcards post 825370343695958016,
+ *  found in the 09-06-26 sample). ATTRIBUTION_LINE catches `nemfrog:` but needs a name to catch.
+ *  Before the floor was lifted for walk images such a post was dropped on its thin summary; now
+ *  it is a card, and a card titled ":" is the same reader-visible junk as "ALT" was. */
+const HAS_WORD = /[\p{L}\p{N}]/u;
 
 /**
  * Pure: a title for a source that has none. The caption's first line — first sentence of it,
@@ -149,7 +158,9 @@ export function deriveTitle(
   slug: string,
   fallback: string,
 ): string {
-  const line = captionLines(captionHtml).find((l) => !ATTRIBUTION_LINE.test(l));
+  const line = captionLines(captionHtml).find(
+    (l) => !ATTRIBUTION_LINE.test(l) && HAS_WORD.test(l),
+  );
   if (line) return firstSentence(line);
   if (slug) {
     return slug

@@ -80,19 +80,29 @@ import type { SourceId } from "~/server/services/sources/types";
 // would have added to a 21,892-item corpus. nemfrog and humanoidhistory are also its two largest
 // single contributors.
 //
-// **Parked pending a verdict.** Registered, tested, sampled and walkable; nobody has ruled:
-//   70sscifiart                 55% · avg 8.65 · 96% ≥8 · ~19,200 rows · level with thisiscolossal
-//   sovietpostcards             44% · avg 7.79 · 70% ≥8 · ~11,300 rows · clean `ussr`/`soviet
-//                               union` un-homed cluster, the one real Cut 2 topic angle here
-//   thisisnthappiness            7% · avg 8.10 · 90% ≥8 · ~7,600 rows · keeps 7% of a
-//                               108,982-post archive, 40% of that un-homed
-//   thevaultoftheatomicspaceage  8% · avg 8.00 · 83% ≥8 · ~3,000 rows · ZERO tags on 200
-//                               sampled posts, median caption 0 chars
-//   toiich                      22% · avg 7.58 · 70% ≥8 · ~2,500 rows
+// **KEPT 09-06-26 — the other four, and what the numbers above were actually measuring.**
+// Ben kept `70sscifiart`, `sovietpostcards`, `thevaultoftheatomicspaceage` and
+// `thisisnthappiness`. The "% stored" figures in the parked list above were the **floor's**
+// verdict on their captions, not the blogs': structuralFloor dropped any item with a summary
+// under 60 characters, a rule written for museum catalogue rows, and these are picture blogs
+// whose caption medians run 0-70 chars. docs/PLAN_caption-less-and-wild.md lifted that rule for
+// walk images and put the whole quality bar on the curator, which sees the picture. Re-sampled
+// the same day, at 150 items each, with the same warm cache and the 99-topic classifier:
 //
-// Numbers are from `bun run stats:walk <id> --quota 150` (09-05-26), which writes nothing to the
-// DB; its curation cache is warm for all nine, so re-running any of them is free. The full table,
-// with the estimated cost and wall-clock of each walk, is docs/HANDOFF_tumblr-round3.md §2.
+//                                 old →  new stored · avg  · ≥8   · un-homed
+//   70sscifiart                    55% → 100%        · 8.49 · 94%  · 3%
+//   sovietpostcards                44% → 100%        · 7.63 · 61%  · 0%   (95 of 99 topics)
+//   thevaultoftheatomicspaceage     8% → 100%        · 8.45 · 91%  · 0%
+//   thisisnthappiness               7% → 100%        · 8.11 · 87%  · 0%
+//
+// Each carries a `walkQuota` in blogs.ts — Ben's budget, the newest half or quarter of the
+// archive — so un-parking one cannot walk it whole, and the rest is a `--cursor` run later.
+// **`sovietpostcards` is walked and no longer suspended; the other three are quota'd and stay
+// here until their walk's turn** (one blog at a time, with a readout between, is the plan's rule).
+//
+// Numbers for the parked four are from `bun run stats:walk <id> --quota 150` (09-05-26), which
+// writes nothing to the DB; its curation cache is warm for all nine, so re-running any of them is
+// free. The full table is docs/HANDOFF_tumblr-round3.md §2.
 export const SUSPENDED_SOURCES: SourceId[] = [
   "aic",
   "mossandfog",
@@ -105,12 +115,13 @@ export const SUSPENDED_SOURCES: SourceId[] = [
   "dreamsrecurring",
   "vintagegeekculture",
   "toiich",
-  // Round 3, KEPT 09-06-26 but still parked until docs/PLAN_caption-less-and-wild.md ships: the
-  // structural floor drops their captions today (medians 28-70 chars against a 60-char rule), so
-  // un-parking them before T1 of that plan would store a fraction of each and mis-title the rest.
-  // Each row's `walkQuota` in blogs.ts (T1b) is what makes un-parking safe on a self-hosted disk.
+  // Round 3, KEPT 09-06-26 and quota'd, awaiting their walk. That plan shipped, so the floor no
+  // longer drops their captions and each has a `walkQuota` in blogs.ts; what keeps them here is
+  // sequencing, not doubt — the blogs are walked ONE AT A TIME with a readout between, because a
+  // walk is the only place a topic-capture problem shows up (see `streetartnews` above), and
+  // because between them they are ~72,000 items and ~11 GB of image cache on a self-hosted VM.
+  // `sovietpostcards` went first and is gone from this list.
   "70sscifiart",
-  "sovietpostcards",
   "thisisnthappiness",
   "thevaultoftheatomicspaceage",
 ];

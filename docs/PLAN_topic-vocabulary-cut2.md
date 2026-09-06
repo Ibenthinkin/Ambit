@@ -45,6 +45,14 @@ user-visible effect.
 `topic-graph.json`, and **moving the feed onto the `item_topic` join** so an item can be drawn under
 *any* of its topics rather than only its display topic, then dropping `item.topic_id`.
 
+> **Superseded in two places, 09-06-26** (`docs/PLAN_caption-less-and-wild.md`). This plan's
+> mining, promotion and graph steps read `item.tags` only; all three now read the **union** of
+> `tags` and `aesthetic_tags`, because a blog that tags nothing had no route out of un-homed and
+> those are exactly the blogs sitting in the backlog. And this plan's premise that grown topics
+> are vocabulary for *promotion* only — never in the classifier's own list — is gone: ingest now
+> classifies against every topic in the database, so a new item homes into a promoted topic
+> directly. Neither change re-bills anything; the cache key still has no topic-list input.
+
 **Why the deferral is safe.** The design's reason for `topic_edge` is scale: 16 topics = 240 cells,
 1,000 topics ≈ 1M cells and ~100 MB of JSON imported at module load in `feed.ts:16`. At the size
 this plan produces the JSON is still small — **116 topics ≈ 13,340 entries ≈ 530 KB** — so the
