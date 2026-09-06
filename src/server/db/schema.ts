@@ -231,6 +231,13 @@ export const item = pgTable(
     // GIN (Generalized Inverted Index) is the index type Postgres needs for containment queries
     // (`tags @> ARRAY['x']`) on an array column — a plain btree index can't do that efficiently.
     index("idx_item_tags_gin").using("gin", table.tags),
+    // **Measured redundant on 09-06-26, kept pending a decision.** `EXPLAIN (analyze)` on a
+    // 41k-row corpus shows the planner picking `idx_item_topic_score` above for this query and
+    // never this index: `(topic_id, curation_score)` already answers
+    // `topic_id IS NULL AND curation_score >= n` directly, in 3.7 ms. Dropping this one is a
+    // migration and a small write-path saving; it was written before the query was measured, and
+    // is recorded here rather than quietly removed.
+    //
     // The WILD tier's pool (09-06-26): "un-homed items above the score floor". A PARTIAL index —
     // only the NULL-topic rows are in it — because that is the entire query and the un-homed set
     // is a small, growing minority of the table (1,027 of 21,892 after Cut 2a, and a walk of a

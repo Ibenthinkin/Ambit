@@ -269,9 +269,24 @@ behaved on a real walk exactly as the 150-item samples said they would.
 - Un-homed is **1,064** corpus-wide, up just 37 — so T4 works well enough that the WILD tier's
   pool is small and roughly static. WILD is doing its job (nothing else can reach those 1,064),
   but "the residue" is now a much smaller thing than the plan assumed.
-- Still unrun, deliberately, while the DB was busy: `bun run bench:feed`, the `EXPLAIN` on
-  `getWildPool`, and `ingest --source thingsorganizedneatly --dry-run` (the retroactive floor
-  count, needed before any deploy).
+
+*Session spend: 117.40M tok (in 1.1k · out 424.7k · cache r 114.96M / w 2.01M) · ~$83.25 · opus-5 + opus-4-7 · 15:12→17:42*
+**The three deferred checks, run once the walk was done:**
+- **`getWildPool` costs 3.7 ms** and adds nothing to a page (`EXPLAIN (analyze)`, 41k rows). But
+  the planner picks the **existing** `idx_item_topic_score` for it and never the partial index the
+  plan specified — `(topic_id, curation_score)` already answers `topic_id IS NULL AND
+  curation_score >= n` directly. `idx_item_unhomed_score` is measured dead weight; the finding is
+  a comment on the index rather than a quiet drop, since removing it is a migration.
+- **`bench:feed` p50 is 58 ms**, against the ~22 ms band 7.3 left. That is the corpus, not the new
+  tier: `getTopicPools` alone is **47 ms over 38,358 rows / 6.1 MB**, and the corpus went 23,456 →
+  40,956 in one walk. Worth a look before three more blogs land — 7.3's fix was a projection, and
+  what is growing now is the row *count*.
+- **The retroactive floor change costs `thingsorganizedneatly` exactly 3,547 items**
+  (`--dry-run --skip-llm`, free): 5,267 offered, 1,720 already in DB, **floor drops 0**. That
+  3,547 is precisely the number its 09-01 walk floored, which is the cleanest confirmation the
+  change does what it claims. At $0.000235 that is **~$0.83** on its next walk. The other three
+  already-walked sources floored 83 / 3 / ~3, so the whole retroactive bill is under $1 — but it
+  lands on the first nightly ingest after deploy, so it should be expected rather than discovered.
 
 ### [[09-05-26 Sat]] — Production catches up: Cut 1, Cut 2a and four walk sources in two deploys
 
