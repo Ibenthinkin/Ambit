@@ -180,6 +180,13 @@ export const BLOGS: readonly BlogConfig[] = [
     // T4's 99-topic classifier): floored 0, curated 150, avg 7.63, 61% ≥8, un-homed 0%, 95 of
     // 99 topics used, 7 toItem errors. Before those two changes: 44% stored, 44% un-homed.
     // Budget: newest 50% = 12,900 posts × 1.34 pictures/post ⇒ walkQuota 17,500 items.
+    // WALKED 09-06-26 (73 min): 17,500 items from **10,446 posts** · 0 floored · 37 un-homed
+    // (0.2%) · 65,593 memberships. The real multiplier is **1.68 pictures/post**, not the 1.34
+    // the 50-post probe measured, so the item budget bought 40% of the archive rather than the
+    // intended 50% — a quota in items is a quota in items, and the post count is what it *means*.
+    // Resume from `--cursor 10400` for the rest (rounded down to a page boundary; overlap is
+    // free, since (source, source_id) makes a re-walk idempotent). Raising this to ~21,700 would
+    // reach Ben's original half.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
     walkQuota: 17_500,

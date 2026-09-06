@@ -216,6 +216,63 @@ Loupe are unaffected and neither is asked to set it. `sovietpostcards` walks fir
 other three keep their `walkQuota` and stay in `SUSPENDED_SOURCES` until their turn, because a
 walk is the only place topic capture shows up and one readout at a time is the plan's rule.
 
+**T6 blog 1 walked, and it hit the stop condition the plan wrote for exactly this.**
+`sovietpostcards`, 73 minutes, no `--quota` flag (the config bound applied): **17,500 items from
+10,446 posts · 0 floored · 37 un-homed (0.2%) · 65,593 memberships · 0 errors reported**. Corpus
+23,456 → **40,956**. The floor dropped nothing and T4 homed all but 37 items — both changes
+behaved on a real walk exactly as the 150-item samples said they would.
+
+**Two findings, and the second is a stop.**
+
+- **The pictures-per-post multiplier was wrong, and a quota in items is a quota in items.** The
+  50-post probe measured 1.34 pictures/post; the real figure over 10,446 posts is **1.68**. So a
+  17,500-item budget bought **40% of the archive, not the 50% Ben asked for**. Nothing is broken —
+  `--cursor 10400` picks the rest up and re-walking is idempotent — but the other three blogs'
+  quotas were derived the same way and will land short by the same kind of margin. The post count
+  is what a budget *means*; the item count is what it *is*.
+
+- **Topic capture, and it is worse than the streetartnews case in share though milder in kind.**
+  Four topics are now essentially this one blog:
+
+  | topic | tier | before | sovietpostcards | share |
+  |---|---|---:|---:|---:|
+  | `illustration` | grown | 9 | 5,172 | **100%** |
+  | `photography` | grown | 52 | 2,707 | **98%** |
+  | `19th-century` | grown | 6 | 1,881 | **100%** |
+  | `books` | grown | 61 | 1,314 | **96%** |
+  | `painting` | grown | 243 | 875 | 78% |
+  | `architecture` | **core** | 1,947 | 675 | 26% |
+  | `machines` | **core** | 1,593 | 377 | 19% |
+
+  **The core sixteen are fine** — 19-26% is a healthy contribution. What filled up are **grown**
+  topics, and the reason is structural rather than about this blog: Cut 2a's `promote:topics` sets
+  `item.topic_id` **only where it is NULL**, so a promoted topic gained thousands of *memberships*
+  but almost no *display* items — `illustration` had **nine**. The feed still draws on
+  `topic_id` (Cut 2b moves it onto the join), so those topics were nearly empty pools, and the
+  first large blog to classify into them fills them outright. This is not sovietpostcards taking a
+  topic over; it is a topic that had nothing in it. The reader-facing effect is the same either
+  way: drift into `illustration` and every card is a Soviet postcard.
+
+  **So blogs 2-4 are not started.** Three more blogs at ~72,000 items will do the same to whatever
+  they classify into, and each one makes the fix more expensive to apply retroactively. The plan
+  names the remedy — a per-source share cap inside `pickItem` — and puts it out of scope with its
+  own decision to make; this walk is the evidence that it is needed rather than hypothetical.
+  Worth weighing against it: **Cut 2b** would dissolve most of the problem on its own, since
+  drawing through `item_topic` gives `illustration` its 5,181 memberships *plus* everything else
+  that is a member without being displayed there.
+
+**Open / next:**
+- **Ben's call: per-source cap, Cut 2b, or accept it** — and whether blogs 2-4 wait for it. Nothing
+  is committed to production; this is all local.
+- If the walks continue as budgeted, raise each `walkQuota` by ~25% to buy the posts Ben actually
+  chose (sovietpostcards would need ~21,700 for its half; `--cursor 10400` for the remainder).
+- Un-homed is **1,064** corpus-wide, up just 37 — so T4 works well enough that the WILD tier's
+  pool is small and roughly static. WILD is doing its job (nothing else can reach those 1,064),
+  but "the residue" is now a much smaller thing than the plan assumed.
+- Still unrun, deliberately, while the DB was busy: `bun run bench:feed`, the `EXPLAIN` on
+  `getWildPool`, and `ingest --source thingsorganizedneatly --dry-run` (the retroactive floor
+  count, needed before any deploy).
+
 ### [[09-05-26 Sat]] — Production catches up: Cut 1, Cut 2a and four walk sources in two deploys
 
 **Shipped:** production went `a2be201` → `f604651` → `55bdf5d` in two Deploy presses. The first
