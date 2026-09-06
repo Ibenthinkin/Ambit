@@ -47,6 +47,8 @@ four Park verdicts are yesterday's entry.
   filling with wordless cards. Nobody has decided.
 - Raise the quota before treating either blog's post-floor numbers as measured.
 
+*Session spend: 3.82M tok (in 49 · out 31.2k · cache r 3.14M / w 643.7k) · ~$8.57 · opus-5 + opus-4-7 · 21:56→12:32*
+
 ### [[09-05-26 Sat]] — Production catches up: Cut 1, Cut 2a and four walk sources in two deploys
 
 **Shipped:** production went `a2be201` → `f604651` → `55bdf5d` in two Deploy presses. The first
