@@ -18,6 +18,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { TOPICS, WALK_SOURCES } from "~/server/config/topics";
+import { imageFetchHeaders } from "./image-auth";
 import { USER_AGENT } from "./sources/http";
 import type { NormalizedItem } from "./sources/types";
 
@@ -173,12 +174,20 @@ function itemAsText(item: NormalizedItem): string {
  * blocking, fine in a browser) and some Met URLs contain literal spaces a provider rejects as
  * malformed — fetching ourselves sidesteps every source's fetcher quirk at the cost of local
  * bandwidth, which is free. Ported from phase0/curate.ts's imageAsDataUrl.
+ *
+ * `headers` exists for the one source whose images are bearer-gated (Loupe; `image-auth.ts`
+ * decides).
  */
-async function imageAsDataUrl(url: string): Promise<string | null> {
+async function imageAsDataUrl(
+  url: string,
+  headers: Record<string, string> = {},
+): Promise<string | null> {
   for (const candidate of [url, encodeURI(url)]) {
     try {
       const res = await fetch(candidate, {
-        headers: { "User-Agent": USER_AGENT },
+        // Spread last: a source that authenticates (Loupe, via image-auth.ts) adds to the
+        // defaults, never replaces them.
+        headers: { "User-Agent": USER_AGENT, ...headers },
       });
       if (!res.ok) continue;
       const mime =
@@ -355,7 +364,10 @@ async function scoreItem(
   )[] = [textPart];
   let imageFetchFailed = false;
   if (item.type === "image" && item.imageUrl) {
-    const dataUrl = await imageAsDataUrl(item.imageUrl);
+    const dataUrl = await imageAsDataUrl(
+      item.imageUrl,
+      imageFetchHeaders(item.source),
+    );
     if (dataUrl)
       content.push({ type: "image_url", image_url: { url: dataUrl } });
     else {

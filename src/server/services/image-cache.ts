@@ -30,6 +30,7 @@ import sharp from "sharp";
 
 import { env } from "~/env";
 import type { Item } from "~/server/db/items";
+import { imageFetchHeaders } from "~/server/services/image-auth";
 import { USER_AGENT } from "~/server/services/sources/http";
 
 /** Longest edge, in pixels (D2). Nothing is ever enlarged to reach it. */
@@ -144,7 +145,8 @@ export interface FillOpts {
  * caching a failure (D4).
  *
  * **No `Referer`, ever** — that omission is the entire reason this route exists (see the header,
- * and `route.ts`'s). The upstream sees a plain server-side GET with our User-Agent.
+ * and `route.ts`'s). The upstream sees a plain server-side GET with our User-Agent. The one header a
+ * source may add is a bearer (Loupe; `image-auth.ts`), merged after the defaults.
  *
  * **The request's own abort signal is deliberately not plumbed through.** A reader who scrolls
  * past an image mid-fetch cancels their *response*, and if that cancelled the upstream fetch too
@@ -153,7 +155,7 @@ export interface FillOpts {
  * waiting for it any more.
  */
 export async function fillCache(
-  item: Pick<Item, "id" | "imageUrl">,
+  item: Pick<Item, "id" | "imageUrl" | "source">,
   opts: FillOpts = {},
 ): Promise<CachedImage> {
   const doFetch = opts.fetchImpl ?? fetch;
@@ -164,7 +166,13 @@ export async function fillCache(
   let upstream: Response;
   try {
     upstream = await doFetch(url, {
-      headers: { "User-Agent": USER_AGENT, Accept: "image/*" },
+      // Spread last so a source that authenticates (only Loupe, today — image-auth.ts) adds its
+      // header without ever dropping the defaults. Still no Referer: see the doc comment above.
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "image/*",
+        ...imageFetchHeaders(item.source),
+      },
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       redirect: "follow",
     });
@@ -270,7 +278,7 @@ const inFlight = new Map<string, Promise<CachedImage>>();
 
 /** What the route calls: cached bytes if there are any, otherwise one shared fill. */
 export async function getOrFill(
-  item: Pick<Item, "id" | "imageUrl">,
+  item: Pick<Item, "id" | "imageUrl" | "source">,
   opts: FillOpts = {},
 ): Promise<CachedImage & { hit: boolean }> {
   const cached = await readCached(item.id, opts.dir);

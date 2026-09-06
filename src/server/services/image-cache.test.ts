@@ -56,9 +56,46 @@ function fetchReturning(bytes: Buffer, headers: Record<string, string> = {}) {
   ) as unknown as typeof fetch & { mock: { calls: unknown[] } };
 }
 
-const item = { id: "item-abc", imageUrl: "https://museum.test/plate.png" };
+const item = {
+  id: "item-abc",
+  imageUrl: "https://museum.test/plate.png",
+  source: "met",
+};
 
 describe("fillCache", () => {
+  it("sends the Loupe bearer for a loupe item and no Authorization for a museum", async () => {
+    vi.stubEnv("LOUPE_API_TOKEN", "tok-123");
+    try {
+      const calls: RequestInit[] = [];
+      const bytes = await png();
+      const fetchImpl: typeof fetch = async (_url, init) => {
+        calls.push(init ?? {});
+        return new Response(new Uint8Array(bytes), {
+          headers: { "content-type": "image/png" },
+        });
+      };
+
+      await fillCache(
+        { ...item, id: "loupe-1", source: "loupe" },
+        { dir, fetchImpl },
+      );
+      await fillCache(
+        { ...item, id: "met-1", source: "met" },
+        { dir, fetchImpl },
+      );
+
+      const headersOf = (init: RequestInit) =>
+        init.headers as Record<string, string>;
+      expect(headersOf(calls[0]!).Authorization).toBe("Bearer tok-123");
+      expect(headersOf(calls[1]!).Authorization).toBeUndefined();
+      // The defaults survive the merge on both.
+      expect(headersOf(calls[0]!)["User-Agent"]).toBeTruthy();
+      expect(headersOf(calls[1]!).Accept).toBe("image/*");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("writes exactly one .webp and leaves no temp file behind", async () => {
     const fetchImpl = fetchReturning(await png());
 
@@ -143,7 +180,10 @@ describe("fillCache", () => {
     const fetchImpl = fetchReturning(await png(64, 64));
     const url = "https://www.artic.edu/iiif/2/abc/full/843,/0/default.jpg";
 
-    await fillCache({ id: "aic-item", imageUrl: url }, { dir, fetchImpl });
+    await fillCache(
+      { ...item, id: "aic-item", imageUrl: url },
+      { dir, fetchImpl },
+    );
 
     const [calledUrl, init] = vi.mocked(fetchImpl).mock.calls[0] as [
       string,
@@ -216,18 +256,9 @@ describe("getOrFill", () => {
     }) as unknown as typeof fetch;
 
     const [a, b, c] = await Promise.all([
-      getOrFill(
-        { id: "shared-item", imageUrl: item.imageUrl },
-        { dir, fetchImpl },
-      ),
-      getOrFill(
-        { id: "shared-item", imageUrl: item.imageUrl },
-        { dir, fetchImpl },
-      ),
-      getOrFill(
-        { id: "shared-item", imageUrl: item.imageUrl },
-        { dir, fetchImpl },
-      ),
+      getOrFill({ ...item, id: "shared-item" }, { dir, fetchImpl }),
+      getOrFill({ ...item, id: "shared-item" }, { dir, fetchImpl }),
+      getOrFill({ ...item, id: "shared-item" }, { dir, fetchImpl }),
     ]);
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -247,7 +278,7 @@ describe("getOrFill", () => {
         : new Response(new Uint8Array(good), { status: 200 });
     }) as unknown as typeof fetch;
 
-    const target = { id: "retry-item", imageUrl: item.imageUrl };
+    const target = { ...item, id: "retry-item" };
     await expect(getOrFill(target, { dir, fetchImpl })).rejects.toBeInstanceOf(
       ImageFillError,
     );
