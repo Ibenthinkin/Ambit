@@ -18,6 +18,13 @@
  * curation cache, so the report is free; run it first and it bills the same cents the dry-run
  * would. Writes nothing to the DB either way.
  *
+ * **`--quota` counts ITEMS, and since 09-06-26 a Tumblr post can be several of them** — the
+ * walker fans a multi-picture post out into one item per picture (tumblr.ts expandPictures), so
+ * `--quota 150` on a blog averaging 1.4 pictures a post samples ~107 posts, not 150. That is the
+ * right unit: an item is what gets curated, floored, stored and shown. The same change means the
+ * floored count on a picture blog should now be near zero — structuralFloor stopped applying its
+ * two text rules to walk images (curator.ts).
+ *
  *   bun run stats:walk mossandfog                 # newest 150 offered (the trial-loop default)
  *   bun run stats:walk mossandfog --quota 300
  *   bun run stats:walk pdr --cursor e:0 --quota 60   # the essays phase on its own

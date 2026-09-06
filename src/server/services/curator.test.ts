@@ -100,15 +100,53 @@ describe("structuralFloor", () => {
     expect(kept).toHaveLength(4);
   });
 
-  it("still applies bare-title and thin-summary to walk sources", () => {
+  // 09-06-26 (docs/PLAN_caption-less-and-wild.md T1): this test used to assert that walk sources
+  // kept bare-title and thin-summary. They no longer apply to a walk source's IMAGES — both rules
+  // are about museum records, where the text is all there is, and applying them to a picture blog
+  // meant a rule about museums deciding which of Ben's designated blogs could be ingested at all
+  // (137 of 150 thevaultoftheatomicspaceage posts floored on thin-summary alone). For a walk
+  // image the curator, which sees the picture, is the whole quality bar. The asymmetry is what
+  // this now pins.
+  it("exempts a walk source's IMAGES from bare-title and thin-summary", () => {
     const bare = makeItem({
       source: "doorofperception",
       type: "image",
-      title: "Bowl",
+      title: "Colossal",
+      summary: "A caption long enough to clear the sixty-character museum rule easily.",
     });
-    const thin = makeItem({
-      source: "doorofperception",
+    // The caption-less picture-blog card: a one-word blog-label title AND an empty summary,
+    // which is both rules at once and the exact shape T1 exists to keep.
+    const captionless = makeItem({
+      source: "thevaultoftheatomicspaceage",
+      sourceId: "2",
       type: "image",
+      title: "The Vault of the Atomic Space Age",
+      summary: "",
+    });
+    const { kept, dropped } = structuralFloor([bare, captionless]);
+    expect(dropped).toHaveLength(0);
+    expect(kept).toHaveLength(2);
+  });
+
+  it("still applies thin-summary to a walk source's ARTICLES — they are read, not looked at", () => {
+    const article = makeItem({
+      source: "pdr",
+      type: "article",
+      title: "A Sea of Ink",
+      summary: "A short note.",
+    });
+    const { kept, dropped } = structuralFloor([article]);
+    expect(kept).toHaveLength(0);
+    expect(dropped).toEqual([{ item: article, rule: "thin-summary" }]);
+  });
+
+  it("leaves search-shaped sources under both rules — the museums they were written for", () => {
+    const bare = makeItem({ source: "met", type: "image", title: "Bowl" });
+    const thin = makeItem({
+      source: "met",
+      sourceId: "2",
+      type: "image",
+      title: "A Bowl of Fruit",
       summary: "short",
     });
     const { kept, dropped } = structuralFloor([bare, thin]);
@@ -241,6 +279,61 @@ describe("curateItems image-fetch reporting", () => {
       onImageFetchFailure: (it) => failures.push(it.sourceId),
     });
     expect(failures).toEqual([]);
+  });
+
+  // 09-06-26 (plan T1c): a source may name a smaller rendition of the same picture purely for
+  // scoring. What must be true is that scoreItem asks for THAT url and nothing else changes.
+  it("fetches curationImageUrl when the source named one, and imageUrl when it did not", async () => {
+    const asked: string[] = [];
+    vi.stubGlobal("fetch", (input: string | URL) => {
+      const url = String(input);
+      if (url.includes("openrouter.ai")) return Promise.resolve(okCompletion);
+      asked.push(url);
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    await curateItems(
+      [
+        makeItem({
+          sourceId: "curator-test-small",
+          type: "image",
+          imageUrl: "https://media.example.com/a_1280.jpg",
+          curationImageUrl: "https://media.example.com/a_500.jpg",
+        }),
+        makeItem({
+          sourceId: "curator-test-plain",
+          type: "image",
+          imageUrl: "https://media.example.com/b_1280.jpg",
+        }),
+      ],
+      { force: true },
+    );
+    // A Set: imageAsDataUrl retries a failed fetch, so each URL is asked for more than once.
+    expect([...new Set(asked)].sort()).toEqual([
+      "https://media.example.com/a_500.jpg",
+      "https://media.example.com/b_1280.jpg",
+    ]);
+  });
+
+  it("still stores and shows the full-size imageUrl when a curation rendition was used", async () => {
+    vi.stubGlobal("fetch", (input: string | URL) =>
+      Promise.resolve(
+        String(input).includes("openrouter.ai")
+          ? okCompletion
+          : { ok: false, status: 404 },
+      ),
+    );
+    const [curated] = await curateItems(
+      [
+        makeItem({
+          sourceId: "curator-test-keeps-large",
+          type: "image",
+          imageUrl: "https://media.example.com/c_1280.jpg",
+          curationImageUrl: "https://media.example.com/c_500.jpg",
+        }),
+      ],
+      { force: true },
+    );
+    expect(curated?.imageUrl).toBe("https://media.example.com/c_1280.jpg");
   });
 
   it("still scores the item rather than dropping it", async () => {

@@ -68,6 +68,15 @@ export interface NormalizedItem {
    *  (09-02-26). Every other image item leaves this null. */
   body: string | null;
   imageUrl: string | null;
+  /** OPTIONAL: a smaller rendition of the same picture for the curator to score, when the source
+   *  can name one cheaply (09-06-26, docs/PLAN_caption-less-and-wild.md T1c). It is never stored,
+   *  never rendered and never a fallback for `imageUrl` — scoreItem() reads it in place of
+   *  `imageUrl` when fetching the bytes it shows the model, and nothing else in the app knows it
+   *  exists. Additive and optional on purpose: this interface is a cross-service agreement
+   *  (CLAUDE.md, "Ecosystem coordination"), so no adapter is required to set it and ambit-archive
+   *  and loupe are unaffected by its arrival. Only set it when the source *publishes* the smaller
+   *  URL; a guessed one trades a real picture for a 404. */
+  curationImageUrl?: string;
   sourceUrl: string;
   attribution: string;
   license: string;

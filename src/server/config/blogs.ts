@@ -8,9 +8,15 @@
 // article (CLAUDE.md's 08-20-26 rights decision). `license` below is the honest statement of that.
 // There is no fair-use claim anywhere, and removal on request is the standing policy.
 //
-// **What is NOT here, on purpose (YAGNI until blog #2):** per-blog rate limits, per-blog walk
-// options, tag→topic maps. `walk` names the flavour only so the next blog — which will be RSS or
-// Tumblr, not WordPress (docs/PHASE6_DESIGN_HANDOFF_6.3.md F7) — has a place to say so.
+// **What is NOT here, on purpose (YAGNI until blog #2):** per-blog rate limits, tag→topic maps.
+// `walk` names the flavour only so the next blog — which will be RSS or Tumblr, not WordPress
+// (docs/PHASE6_DESIGN_HANDOFF_6.3.md F7) — has a place to say so.
+//
+// **`walkQuota` arrived 09-06-26** — the "per-blog walk options" that note said to wait for, and
+// here is what it was waiting for: Ambit is self-hosted on a VM with a finite volume, and the
+// four Tumblr blogs Ben kept in round 3 hold 207,000 posts between them. He set a budget per blog
+// (the newest half, a quarter for the largest) rather than a full archive each, so the bound has
+// to live where the blog lives — otherwise un-parking one in the nightly ingest walks all of it.
 import type { WalkSourceId } from "./topics";
 
 /** The one license string every blog shares. Truthful rather than permissive. */
@@ -35,6 +41,16 @@ export interface BlogConfig {
    *  tumblr walker drops them. Lowercase, because that is what it compares against. Observed
    *  per blog, never guessed: absent means "this blog does not tag itself". */
   selfTags?: readonly string[];
+  /** Newest-first bound on a DEFAULT walk, in items offered — pictures after the tumblr walker's
+   *  fan-out, not posts. Present ⇒ the nightly ingest walks only this many, the run is never
+   *  `complete`, and `--prune` can therefore never act on this blog. Absent ⇒ walk to exhaustion,
+   *  which is what every blog did before 09-06-26 and what the three small ones still do.
+   *
+   *  It is deliberately the same lever `--quota` pulls (scripts/ingest.ts), so a budgeted walk
+   *  needs no new concept and `WalkPage`/`CorpusWalkAdapter` — cross-service contracts — did not
+   *  change. `--quota` on the command line still overrides it. The rest of an archive is one
+   *  `bun run ingest --source <id> --cursor <n>` later, with the cursor the bounded run printed. */
+  walkQuota?: number;
 }
 
 export const BLOGS: readonly BlogConfig[] = [

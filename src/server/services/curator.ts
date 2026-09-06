@@ -118,6 +118,24 @@ function normTitle(t: string): string {
  *    rich article and is fine.
  *  - thin-summary: below ~60 chars a museum summary is just a department name; no signal for
  *    the curator LLM or the reader.
+ *
+ * **Walk-source IMAGES are exempt from the last two rules** (09-06-26,
+ * docs/PLAN_caption-less-and-wild.md T1). Both were written about museum *records*, where the
+ * text is all there is: a catalogue row titled "Bowl" with a department name for a summary has
+ * genuinely told us nothing. A picture blog is the opposite case — the picture IS the content
+ * and the caption is an aside. Two of the four blogs Ben kept in round 3 have a median caption
+ * of 0 and 28 characters, and thin-summary alone floored 137 of 150 thevaultoftheatomicspaceage
+ * posts and 140 of 140 thisisnthappiness posts: a rule about museums deciding that a blog Ben
+ * designated may not be ingested. bare-title has to go with it, not instead of it — a
+ * caption-less card is titled with its blog's label (tumblr.ts deriveTitle) and two of those
+ * labels are one word (`nemfrog`, `Colossal`), so it would floor them the moment thin-summary
+ * stopped. For a walk image the curator — which SEES the picture — is the whole quality bar,
+ * which is what docs/DESIGN_topic-vocabulary-growth.md §1 asks for: a walk source ingests
+ * everything that clears *quality*, and quality is the curator's job, not the floor's.
+ *
+ * A walk source's ARTICLES keep both rules: pdr's articles are read, not looked at, and a
+ * 40-char article summary is still nothing to read. Search-shaped sources are untouched — these
+ * rules were written for them and still fit them.
  */
 export function structuralFloor(items: NormalizedItem[]): {
   kept: NormalizedItem[];
@@ -134,12 +152,15 @@ export function structuralFloor(items: NormalizedItem[]): {
 
   for (const item of items) {
     const norm = normTitle(item.title);
+    // The exemption above, computed once per item: a picture from a designated blog or any
+    // other walk source. Only the last two rules read it; dup-title has its own walk clause.
+    const walkImage = isWalkSource(item.source) && item.type === "image";
     const rule: StructuralDropRule | null =
       (titleCounts.get(norm) ?? 0) > 2 && !isWalkSource(item.source)
         ? "dup-title"
-        : item.type === "image" && norm.split(" ").length <= 1
+        : item.type === "image" && norm.split(" ").length <= 1 && !walkImage
           ? "bare-title"
-          : item.summary.trim().length < 60
+          : item.summary.trim().length < 60 && !walkImage
             ? "thin-summary"
             : null;
 
@@ -161,7 +182,10 @@ function itemAsText(item: NormalizedItem): string {
     `Type: ${item.type}`,
     `Title: ${item.title}`,
     item.tags.length ? `Tags: ${item.tags.slice(0, 12).join(", ")}` : null,
-    `Text: ${item.summary}`,
+    // Omitted when empty, the same way `Tags:` is. Since the floor stopped dropping caption-less
+    // walk images (09-06-26) a bare `Text: ` with nothing after it reaches the model regularly,
+    // and a labelled empty field reads as a missing answer rather than as an absent question.
+    item.summary.trim() ? `Text: ${item.summary}` : null,
   ]
     .filter(Boolean)
     .join("\n");
@@ -355,7 +379,14 @@ async function scoreItem(
   )[] = [textPart];
   let imageFetchFailed = false;
   if (item.type === "image" && item.imageUrl) {
-    const dataUrl = await imageAsDataUrl(item.imageUrl);
+    // `curationImageUrl` when the source offered one (types.ts, 09-06-26): a smaller rendition
+    // of the SAME picture, fetched only to be looked at here. A 1-10 score and four aesthetic
+    // tags do not get better at 1280 px than at 500 — the model downsamples anyway — and the
+    // Tumblr walks are the case that made it worth wiring: ~90,000 pictures at a mean 649 KB is
+    // ~58 GB of somebody else's bandwidth spent on a judgement 500 px would have reached, and
+    // every byte of it is time the walk spends not walking. `imageUrl` stays what is stored and
+    // shown; this is never a substitute for it.
+    const dataUrl = await imageAsDataUrl(item.curationImageUrl ?? item.imageUrl);
     if (dataUrl)
       content.push({ type: "image_url", image_url: { url: dataUrl } });
     else {

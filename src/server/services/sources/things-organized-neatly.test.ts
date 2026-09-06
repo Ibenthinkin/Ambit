@@ -86,9 +86,11 @@ describe("thingsorganizedneatly.toItem", () => {
     expect(item.summary.length).toBeLessThan(60);
   });
 
-  it("gives a captionless, slugless post a placeholder title and an empty summary", () => {
+  // Was "a placeholder title" until 09-06-26. The floor now keeps caption-less walk images, so
+  // this title reaches readers and is the blog's label — see deriveTitle. No stored row moved.
+  it("gives a captionless, slugless post the blog's label and an empty summary", () => {
     const item = thingsorganizedneatly.toItem(byId("91980754329"));
-    expect(item.title).toBe("Untitled post 91980754329");
+    expect(item.title).toBe("Things Organized Neatly");
     expect(item.summary).toBe("");
     expect(item.imageUrl).toMatch(/^https:\/\/64\.media\.tumblr\.com\//);
     expect(item.tags).toEqual([]);
@@ -136,8 +138,10 @@ describe("deriveTitle", () => {
     );
   });
 
-  it("falls back to a placeholder when caption and slug are both empty", () => {
-    expect(deriveTitle("", "", "42")).toBe("Untitled post 42");
+  it("falls back to the caller's label when caption and slug are both empty", () => {
+    expect(deriveTitle("", "", "Things Organized Neatly")).toBe(
+      "Things Organized Neatly",
+    );
   });
 });
 
