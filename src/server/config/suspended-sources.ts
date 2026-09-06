@@ -97,17 +97,22 @@ export const SUSPENDED_SOURCES: SourceId[] = [
   "aic",
   "mossandfog",
   "streetartnews",
-  // Round 3, parked by Ben's verdict (09-05-26):
+  // Round 3, parked by Ben's verdict (09-05-26; toiich 09-06-26, after the live probe in
+  // docs/PLAN_caption-less-and-wild.md showed it two pictures a post with film-title captions —
+  // Ben's call, on taste, not on the numbers):
   "nemfrog",
   "humanoidhistory",
   "dreamsrecurring",
   "vintagegeekculture",
-  // Round 3, parked pending a verdict:
+  "toiich",
+  // Round 3, KEPT 09-06-26 but still parked until docs/PLAN_caption-less-and-wild.md ships: the
+  // structural floor drops their captions today (medians 28-70 chars against a 60-char rule), so
+  // un-parking them before T1 of that plan would store a fraction of each and mis-title the rest.
+  // Each row's `walkQuota` in blogs.ts (T1b) is what makes un-parking safe on a self-hosted disk.
   "70sscifiart",
   "sovietpostcards",
   "thisisnthappiness",
   "thevaultoftheatomicspaceage",
-  "toiich",
 ];
 
 /** Whether `source` is currently switched off. Accepts a plain string for DB rows. */

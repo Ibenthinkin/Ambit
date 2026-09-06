@@ -49,6 +49,59 @@ four Park verdicts are yesterday's entry.
 
 *Session spend: 3.82M tok (in 49 · out 31.2k · cache r 3.14M / w 643.7k) · ~$8.57 · opus-5 + opus-4-7 · 21:56→12:32*
 
+**Later the same day — the five verdicts, and the plan that came out of them.** Ben ruled: **`toiich`
+parked** (on taste, after a live probe; the numbers were never the reason), the other four **kept
+to budgets** — newest 50% of `70sscifiart`, `sovietpostcards`, `thevaultoftheatomicspaceage`, newest
+25% of `thisisnthappiness`. None is un-parked yet: the plan below has to ship first.
+
+**Planned:** `docs/PLAN_caption-less-and-wild.md` — self-contained for a cheaper-model session.
+Six tasks: (T1) the structural floor's thin-summary and bare-title rules no longer apply to
+walk-source *images* (the curator is their bar), the Tumblr factory **fans a multi-picture post out
+to one item per picture** (`sourceId` = `post:n`, all sharing the caption), a truly caption-less
+post is titled with the blog label, and a per-blog `walkQuota` plus an ingest `--cursor` and a
+printed resume cursor make newest-first partial walks safe on a self-hosted disk; (T2) a **WILD
+feed tier** at 10 against 40/35/25 that draws un-homed items from a deterministic per-page sample,
+boosted by the reader's recent saves' aesthetic tags; (T3) `mine:topics` / `promote:topics` /
+`graph:rebuild` read **aesthetic tags** as well as source tags; (T4) the classify prompt lists every
+topic in the DB, not the compile-time sixteen, with the cache key unchanged so nothing is
+re-billed; (T5) two panel sliders and a `wild` readout; (T6) the four walks, one at a time.
+
+**Findings (the ones that changed the plan mid-write):**
+- **The floor was the gate, not the topic step.** The vault, thisisnthappiness and toiich were
+  losing 84–100% of posts to the 60-char thin-summary rule *before any LLM call*; no feed change
+  could have surfaced them. Yesterday's open question is answered: the floor was the thing.
+- **The captions exist and were being thrown away.** A live 50-post probe per blog: toiich's
+  median caption is 49 chars ("Eros + Massacre (1969), dir. Yoshishige Yoshida"), sovietpostcards'
+  56, thisisnthappiness's 28 — all under 60. Only the vault is caption-less (44 of 50 empty).
+- **Multi-picture posts are common and share one caption**, and `toItem` took only the first
+  picture: toiich 100 pictures in 50 posts, sovietpostcards 67, 70sscifiart 73. Ben's requirement
+  that the shared caption reach every picture is what T1's fan-out is.
+- **The vibe hook already exists.** Every curated item carries 2–4 free-text aesthetic tags written
+  from the image; they fed only a small draw-weight boost, and **the mining scripts never read
+  them** (`mine:topics` selects `item.tags` alone, while the ingest summary's un-homed histogram
+  unions both — the report and the tooling disagreed). A tag-less picture blog therefore had no
+  route out of un-homed by any existing tool.
+- **Un-suspending a walker without a quota means a full-archive nightly walk** — ingest skips
+  stored rows but does not stop at them. Hence `walkQuota` in config rather than a CLI flag.
+
+**Decisions:** Ben's — learn from a WILD save's aesthetic tags (not "this blog", not nothing);
+blog label as the caption-less title, no curator-written titles; both grow-the-vocabulary *and* a
+small wild slot, not either alone; the four budgets above; toiich parked. Recorded in the plan as
+D1–D13, including that this amends design D4 of `DESIGN_topic-vocabulary-growth.md` (the feed now
+*does* move for un-homed items) and flips its §9 property test on purpose.
+
+**Open / next:**
+- Execute the plan (cheaper session), one task per checkpoint; T6 stops after every blog.
+- The honest size: ~89,500 items for ~$21 and ~13 GB of image cache, a 5× corpus. Check the VM's
+  free disk before T6 blog 1.
+- Optional and not assumed: a `curationImageUrl` (Tumblr's 500-px rendition) would cut the
+  curator's download from ~58 GB to ~12 GB; it touches `NormalizedItem`, so Ambit-Admin's log
+  first, and only if Ben says so.
+- Known follow-ups if the readouts show them: a per-source share cap inside a topic; a same-post
+  guard per page for photoset near-duplicates.
+
+*Session spend: 15.20M tok (in 182 · out 192.5k · cache r 14.05M / w 960.3k) · fable-5-1 · 12:36→15:10*
+
 ### [[09-05-26 Sat]] — Production catches up: Cut 1, Cut 2a and four walk sources in two deploys
 
 **Shipped:** production went `a2be201` → `f604651` → `55bdf5d` in two Deploy presses. The first

@@ -11,25 +11,26 @@ database. **Four are parked by Ben's verdict and are settled; five are still awa
 
 ## 0. Start here — what a next session does
 
-**Ben has ruled on four of the nine (09-05-26). Do not re-open those four.**
+**Superseded 09-06-26 by `docs/PLAN_caption-less-and-wild.md`.** Ben ruled on all nine. The
+five open verdicts, and why the numbers below were measuring the wrong thing, are there; this
+section is kept for the record and the rest of the file for the evidence.
 
 > **Parked by verdict — settled, leave alone:** `nemfrog`, `humanoidhistory`, `dreamsrecurring`,
-> `vintagegeekculture`. These were sampled, judged and set aside. Un-parking one is reversing a
-> decision, not finishing one, so it needs Ben to say so again.
+> `vintagegeekculture` (09-05-26) and **`toiich`** (09-06-26 — parked on taste after a live probe
+> showed it at two pictures a post with film-title captions; the numbers were never the reason).
 >
-> **Parked pending a verdict — the open five:** `70sscifiart`, `sovietpostcards`,
-> `thisisnthappiness`, `thevaultoftheatomicspaceage`, `toiich`.
+> **Kept 09-06-26, walked under the new floor to Ben's budgets — the four:** `70sscifiart` (newest
+> 50%), `sovietpostcards` (50%), `thevaultoftheatomicspaceage` (50%), `thisisnthappiness` (25%).
+> They stay in `SUSPENDED_SOURCES` until that plan's T1 ships, because today's floor drops their
+> captions (§2.3 was right that the floor was the thing to revisit — it has been, for walk-source
+> images), and because a per-blog `walkQuota` is what makes un-parking safe on a self-hosted disk.
 
-1. Take Ben's verdict on **the five**, using the table in §2. Nothing else is outstanding.
-   Read **§2.3 first** — the two weakest of the five are mostly measuring the thin-summary floor
-   rather than themselves, and their post-floor numbers rest on 10–12 curated items.
-2. For each **Keep**: remove its id from `src/server/config/suspended-sources.ts` (from the
-   *pending* group), then run the full walk — `bun run ingest --source <id>` (no `--quota`, so
-   `--prune` stays meaningful). §3 has the per-blog cost and wall-clock, §4 the traps.
-3. Anything not kept stays exactly as it is. A parked row costs nothing and is already
-   documented; there is no cleanup to do, and no rows were ever written.
-
-**Do not run a full walk on several blogs as a batch.** §3 says why in numbers.
+**What §2's table got wrong, found by a live 50-post probe on 09-06-26:** the "stored % of
+offered" column was the *floor's* verdict, not the blog's — toiich's median caption is 49 chars,
+sovietpostcards' 56, thisisnthappiness's 28, all under the 60-char museum rule — and multi-picture
+posts (21 of toiich's 50, 7 of sovietpostcards') were being counted as one picture each. The
+plan's own table has the corrected numbers, the pictures-per-post multipliers, and the honest
+cost of each walk. Do not un-park anything from this file; follow the plan.
 
 ---
 
