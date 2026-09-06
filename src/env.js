@@ -45,6 +45,15 @@ export const env = createEnv({
     // for validation and because this file is where the app's env surface is documented.
     ARCHIVE_URL: z.string().url().optional(),
     ARCHIVE_API_KEY: z.string().min(1).optional(),
+
+    // Loupe, Ben's magazine-clipping bench (the loupe repo; docs/PLAN_loupe-hookup.md). Optional
+    // for exactly the archive's reasons: ingest-only, and a clone without Loupe running must
+    // still boot and ingest everything else. sources/loupe.ts reads both at walk() time and
+    // throws its own "not configured" error; services/image-auth.ts reads the token for the two
+    // server-side image fetches (Loupe's /media/* is bearer-gated).
+    LOUPE_URL: z.string().url().optional(),
+    LOUPE_API_TOKEN: z.string().min(1).optional(),
+
     // Smithsonian Open Access (Phase 6.2 trial) — a free api.data.gov key. Optional for exactly
     // the reasons above: ingest-only, and a clone without one must still boot and ingest every
     // other source. sources/smithsonian.ts reads process.env at search() time and throws its own
@@ -93,6 +102,8 @@ export const env = createEnv({
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     ARCHIVE_URL: process.env.ARCHIVE_URL,
     ARCHIVE_API_KEY: process.env.ARCHIVE_API_KEY,
+    LOUPE_URL: process.env.LOUPE_URL,
+    LOUPE_API_TOKEN: process.env.LOUPE_API_TOKEN,
     SMITHSONIAN_API_KEY: process.env.SMITHSONIAN_API_KEY,
     IMAGE_CACHE_DIR: process.env.IMAGE_CACHE_DIR,
     FEED_DEBUG: process.env.FEED_DEBUG,
