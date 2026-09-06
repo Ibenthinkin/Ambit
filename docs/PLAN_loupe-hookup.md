@@ -1012,11 +1012,13 @@ Extend today's entry (or create `### [[09-06-26 Sat]] — …` under `## 2026-09
 
 - [ ] **Step 4: The vault**
 
-`Roadmap & Backlog.md` line 14: tick the item `- [x] 2026-09-06 —` and append one sentence at its end: *"**Built 2026-09-06, both halves:** Loupe honours the bearer on `/media/*` (5ea68b2) and exposes `readingOrder`; Ambit attaches the bearer on both image fetches and walks `/api/v1/articles` keyed on `<ia>:<page>:<order>` (Ambit `docs/PLAN_loupe-hookup.md`). **No per-user gate, by decision** — see the log entry."*
+The no-gate decision, the position key, and the `readingOrder` contract change are **already recorded** in the vault (09-06-26, from the planning session): `Roadmap & Backlog.md` line 14 carries an "Update 2026-09-06" paragraph, `Ecosystem Architecture.md` has an "Amended 2026-09-06" sentence in the pools section and a rewritten `Ambit ← Loupe` status row, and `log.md` has the 09-06 entry. Do not restate any of it. What remains is marking the work built:
 
-`Ecosystem Architecture.md`, in "Planned: per-user content pools", after the sentence ending *"(initially: Ben)"*, add: *"**Amended 2026-09-06:** Loupe content entered the general feed without a gate — Ambit is invite-only and every reader is known to Ben; the gate is deferred until that stops being true. `item.source` is the column it will filter on; nothing about the ingest forecloses it."* In the status table, change the `Ambit ← Loupe` row to **Built 2026-09-06** with a pointer to the Ambit plan.
+`Roadmap & Backlog.md` line 14: change the leading `- [ ]` to `- [x] 2026-09-06 —` and append one sentence at the very end of the item: *"**Built <date>** on both sides — Loupe exposes `readingOrder`; Ambit's `services/image-auth.ts` + `sources/loupe.ts`; N rows locally (Task 6 numbers). Production still needs a reachable Loupe."*
 
-`log.md` (vault): a dated entry in its house style: what shipped on each side, the three decisions, the Task 6 numbers, and the production caveat from Step 3.
+`Ecosystem Architecture.md` status table, `Ambit ← Loupe` row: replace the leading **Planned in full 09-06-26, not yet built on Ambit's side** with **Built <date>** and keep the rest.
+
+`log.md` (vault): a short dated entry in the file's house style — one paragraph: built on both sides, the Task 6 numbers, and that production still needs a reachable Loupe (`loupe` suspended until then).
 
 - [ ] **Step 5: Commit**
 
