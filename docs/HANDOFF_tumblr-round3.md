@@ -21,6 +21,8 @@ database. **Four are parked by Ben's verdict and are settled; five are still awa
 > `thisisnthappiness`, `thevaultoftheatomicspaceage`, `toiich`.
 
 1. Take Ben's verdict on **the five**, using the table in §2. Nothing else is outstanding.
+   Read **§2.3 first** — the two weakest of the five are mostly measuring the thin-summary floor
+   rather than themselves, and their post-floor numbers rest on 10–12 curated items.
 2. For each **Keep**: remove its id from `src/server/config/suspended-sources.ts` (from the
    *pending* group), then run the full walk — `bun run ingest --source <id>` (no `--quota`, so
    `--prune` stays meaningful). §3 has the per-blog cost and wall-clock, §4 the traps.
@@ -118,10 +120,10 @@ have added to a 21,892-item corpus.
 - **sovietpostcards is the most *coherent*** rather than the highest-scoring: its un-homed tags
   are `ussr 8 · russia 6 · 1960s 5 · soviet union 4`, a clean cluster that would make a good
   grown topic. It is the one blog here with a real Cut 2 topic-capture angle, and a mild one.
-- **thevaultoftheatomicspaceage and thisisnthappiness are structurally poor**, not badly curated.
-  The vault has **zero tags on 200 sampled posts** and a median caption of 0 characters;
-  thisisnthappiness keeps ~7% of the largest archive probed, and 40% of what it keeps is
-  un-homed. Both are ~2,000 polite requests to gain a few thousand thin rows. Cut candidates.
+- **thevaultoftheatomicspaceage and thisisnthappiness are structurally poor**, not badly curated —
+  and the two are *not* equally weak, which §2.3 unpacks. The vault has **zero tags on 200 sampled
+  posts** and a median caption of 0 characters. thisisnthappiness keeps ~7% of the largest archive
+  probed. The vault is the stronger Cut; thisisnthappiness is genuinely arguable.
 - **toiich** is 197-of-200 `regular` posts, keeps 22%, and 24% of that is un-homed. Its captions
   are film titles ("Au Hasard Balthazar (1966), dir."). Marginal.
 
@@ -129,6 +131,41 @@ have added to a 21,892-item corpus.
 2–24%, not the near-total miss that parked streetartnews; the un-homed histograms are in
 `stats:walk`'s output and are dominated by decade tags (`1970s`, `19th century`, `1960s`) rather
 than one source-defining term.
+
+**A caveat on the two weakest rows, recorded because it was initially missed.** A `--quota 150`
+sample curates only what clears the floor, so the vault's numbers rest on **12 curated items** and
+thisisnthappiness's on **10**. Their averages (8.00, 8.10) and especially their un-homed shares
+(17%, 40% — that is 2-of-12 and 4-of-10) are **too thin to lean on**, unlike nemfrog's 137 or
+70sscifiart's 82. Raise the quota before treating either as measured. The floor rates behind them
+come from the 200-post probes and are solid; it is the post-floor numbers that are noisy.
+
+### 2.3 What these two blogs are actually measuring — the floor, not themselves
+
+The reason the vault and thisisnthappiness look bad is **one rule firing almost every time**: the
+vault floored 138 of 150 with **137 on thin-summary**, and thisisnthappiness floored **140 of 140,
+all thin-summary**. Nothing else contributed. Neither blog is being judged badly by the curator —
+it likes what survives (83% and 90% ≥8, both above thingsorganizedneatly, a kept source).
+
+The thin-summary rule exists because "below ~60 chars a museum summary is just a department name"
+(`curator.ts`). **A picture blog with a 40-character caption is a different case**, and it is worth
+naming that these two blogs are largely a measurement of how that museum-shaped rule fits
+caption-less picture blogs.
+
+What it costs, as walk efficiency — the sharpest way to see it:
+
+| blog | requests to walk | rows kept | rows per request |
+|---|---:|---:|---:|
+| nemfrog | 902 | ~41,000 | **45** |
+| 70sscifiart | 697 | ~19,200 | 28 |
+| thevaultoftheatomicspaceage | 750 | ~3,000 | 4 |
+| thisisnthappiness | 2,180 | ~7,600 | **3.5** |
+
+**The open design question, for a session that wants it:** if a link card can stand on image +
+title + credit without a long caption, then the thin-summary floor is the thing to revisit, not
+these blogs. Doing so would also unlock **toiich** (84% floored) and a further chunk of
+**70sscifiart**. Doing nothing is also defensible — the floor is what keeps the corpus from
+filling with wordless cards. Nobody has decided; it is not a blocker for the five verdicts, and
+it is deliberately **not** bundled into them.
 
 ---
 

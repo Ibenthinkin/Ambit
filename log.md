@@ -5,6 +5,48 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
+
+Short session, no code. Ben asked why `thevaultoftheatomicspaceage` and `thisisnthappiness` read
+as Cuts in yesterday's round-3 handoff. Answering it properly turned up a correction and a design
+question, both now in `docs/HANDOFF_tumblr-round3.md` §2.2–2.3. Round 3's build and Ben's first
+four Park verdicts are yesterday's entry.
+
+**Findings:**
+- **It was never a quality judgement, and the write-up implied one.** The curator *likes* what
+  survives from both: 8.00 / 83% ≥8 and 8.10 / 90% ≥8, each above `thingsorganizedneatly` (7.90),
+  a source already kept. What is bad is the yield.
+- **The yield is one rule firing almost every time.** The vault floored 138 of 150 with **137 on
+  thin-summary**; thisisnthappiness floored **140 of 140, all thin-summary**. Nothing else
+  contributed. Both blogs post pictures with almost no words — the vault's median caption across
+  200 sampled posts is **0 characters**, 161 of them empty.
+- **Walk efficiency is the sharpest way to see the cost**, and is a better frame than any score:
+  nemfrog returns **45 rows per request**, 70sscifiart 28, the vault 4, thisisnthappiness **3.5**.
+  thisisnthappiness is 2,180 polite requests to keep ~7,600 rows.
+- **A correction to yesterday's own evidence.** The un-homed shares quoted for those two (17% and
+  40%) are computed on **12 and 10 curated items** — 2-of-12 and 4-of-10. That is noise presented
+  with the same confidence as nemfrog's 137-item sample, and it should have been flagged. Their
+  averages rest on the same thin denominators. The *floor* rates behind them come from the
+  200-post probes and are solid; it is the post-floor numbers that are not.
+- **So the two are not equally weak.** The vault is the stronger Cut: zero tags on 200 sampled
+  posts, worst caption density of the nine, ~3,000 rows to gain. **thisisnthappiness is genuinely
+  arguable** — ~7,600 rows at 8.10 is about a third of the current corpus, at quality above a kept
+  source, for ~$1.79 and half an hour of walking. Yesterday's "reads as cuts" was too confident
+  about it.
+
+**Open / next (unchanged, plus one new question):**
+- Still Ben's verdict on the **five** open blogs — `70sscifiart` (strongest, 8.65 / 96% ≥8),
+  `sovietpostcards`, `thisisnthappiness`, `thevaultoftheatomicspaceage`, `toiich`. The four he
+  parked on 09-05 are settled and should not be re-opened.
+- **New, and deliberately not bundled into those verdicts:** these two blogs are really measuring
+  how well the **thin-summary floor** fits caption-less picture blogs. It exists because "below
+  ~60 chars a museum summary is just a department name" (`curator.ts`), which is a museum-shaped
+  reason. If a link card can stand on image + title + credit, the floor is the thing to revisit
+  rather than the blogs — and doing so would also unlock `toiich` (84% floored) and more of
+  `70sscifiart`. Doing nothing is equally defensible: the floor is what keeps the corpus from
+  filling with wordless cards. Nobody has decided.
+- Raise the quota before treating either blog's post-floor numbers as measured.
+
 ### [[09-05-26 Sat]] — Production catches up: Cut 1, Cut 2a and four walk sources in two deploys
 
 **Shipped:** production went `a2be201` → `f604651` → `55bdf5d` in two Deploy presses. The first
