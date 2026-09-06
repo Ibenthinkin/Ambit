@@ -149,6 +149,73 @@ Loupe Phase 5 a reason to exist; cheap enough to do.
 
 *Session spend: 13.19M tok (in 197 · out 153.8k · cache r 12.40M / w 634.7k) · ~≥$2.24 · fable-5-1 + opus-4-7 · 15:12→15:47*
 
+**Then, same day, the plan executed — T1–T5, and blog 1 walking.** Ben chose to run it here rather
+than hand it to a cheaper session, and answered the plan's one open question — **wire
+`curationImageUrl`, yes** — before anything started. Branch `feat/wild-tier-and-captionless` off
+`main`, after merging `feat/tumblr-blogs-round3` in (one `log.md` conflict, both entries kept).
+
+**Shipped:** T1 (the floor exemption, the photoset fan-out, the blog-label title, `walkQuota` +
+`--cursor`), T1c (`curationImageUrl`), T2 (the WILD tier), T3 (mining reads aesthetic tags), T4
+(classify sees all 99 topics), T5 (two sliders and a `wild` readout), and the docs. 1,084 unit
+tests and 49 e2e green, production build clean. Five commits, none pushed.
+
+**The numbers that justify the whole plan.** The four kept blogs, re-sampled at 150 items each
+after T1 and T4, against the same figures from 09-05:
+
+| blog | stored | avg | ≥8 | un-homed |
+|---|---:|---:|---:|---:|
+| `70sscifiart` | 55% → **100%** | 8.49 | 94% | 3% |
+| `sovietpostcards` | 44% → **100%** | 7.63 | 61% | **0%** (95 of 99 topics) |
+| `thevaultoftheatomicspaceage` | 8% → **100%** | 8.45 | 91% | **0%** |
+| `thisisnthappiness` | 7% → **100%** | 8.11 | 87% | **0%** |
+
+The *stored* column is T1's doing and the *un-homed* column is T4's, and they are separable: the
+floor was never letting the items through, and the classifier was never able to home the ones that
+did. `thevaultoftheatomicspaceage` is the sharpest case in the round — the blog with the worst
+metadata evidence of the nine (zero tags on 200 posts, median caption 0 chars) samples at **8.45
+average, 91% ≥ 8** once the picture is what gets judged. Yesterday's open question is answered in
+`HANDOFF_tumblr-round3.md` §2.3, where it was asked.
+
+**Findings, in the order they cost something:**
+- **The floor change is retroactive, and it broke a promise the frozen walker was relying on.**
+  `things-organized-neatly.ts` titled a caption-less post `Untitled post 91980754329`, with a
+  comment saying the placeholder could never reach a reader *because the floor drops it*. That
+  sentence stopped being true, and its next walk stores the 52-in-200 caption-less posts it used to
+  drop. All 1,720 stored rows were queried first — **none carries the placeholder**, precisely
+  because the floor had dropped them — so the one-line fix (fall back to the blog's label) moves no
+  row. The freeze held everywhere else.
+- **A second title bug, found only because the sample was read.** A sovietpostcards card came back
+  titled `:` — a reblog of a **private** blog, whose `<a class="tumblr_blog">` has empty text and
+  leaves a caption line of exactly ":". `ATTRIBUTION_LINE` catches `nemfrog:` but needs a name to
+  catch. Same class as the `ALT` badge in round 3, and same reason it surfaced now: the floor used
+  to drop these. A candidate title line must now contain a letter or a digit.
+- **`graph:rebuild` had been giving adjacency rows to leftover integration-test topics.** Three
+  were sitting in this laptop's database (a killed suite's `afterAll` never ran), and it filtered
+  one hard-coded prefix. Harmless in a JSON artifact; *not* harmless one commit later, when T4
+  started putting the topic list into a billed prompt on every classify call. Now `isRealTopic` in
+  `config/topics.ts`, used by both.
+- **`mine:topics`' new `via curator N/M` column earns itself immediately:** of nine candidates,
+  four are 100% curator-written (`whimsical` 601/601, `color-study` 74/74, `monochromatic` 273/273,
+  `organized` 55/55). That is exactly the "different kind of claim" the column exists to show, and
+  three of those four are look-descriptors rather than subjects. Eighteen such words are now
+  stopworded; Ben's tick stays the verdict for the rest.
+- **The WILD tier has a consequence the plan didn't name: the feed no longer exhausts.** A reader
+  whose own topics are used up keeps being served while anything un-homed remains. It surfaced as
+  a broken integration test ("then an empty page"), which is now scoped to the fixture's own topic.
+  Correct, and worth knowing.
+- **`ingest.ts` calls `main()` on import**, so nothing in it was reachable from a test. The walk
+  loop moved to `services/walk-run.ts` to make the quota and cursor testable at all.
+- **Score-1 items are stored and that is fine.** 5 of 150 70sscifiart items scored 1 (the curator's
+  genuine verdict — a failure scores 5). There is no ingest-time score floor; the feed's
+  `scoreFloor: 4` is what keeps them off a page. So "the floor is what stops the corpus filling
+  with wordless cards" is now the curator's job, and on these samples it does it.
+
+**Decisions:** `curationImageUrl` is additive and optional on the cross-service `SourceAdapter`
+contract — recorded in the Ambit-Admin log before it landed, per CLAUDE.md — so ambit-archive and
+Loupe are unaffected and neither is asked to set it. `sovietpostcards` walks first and alone; the
+other three keep their `walkQuota` and stay in `SUSPENDED_SOURCES` until their turn, because a
+walk is the only place topic capture shows up and one readout at a time is the plan's rule.
+
 ### [[09-05-26 Sat]] — Production catches up: Cut 1, Cut 2a and four walk sources in two deploys
 
 **Shipped:** production went `a2be201` → `f604651` → `55bdf5d` in two Deploy presses. The first
