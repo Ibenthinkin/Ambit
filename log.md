@@ -102,6 +102,53 @@ D1–D13, including that this amends design D4 of `DESIGN_topic-vocabulary-growt
 
 *Session spend: 15.20M tok (in 182 · out 192.5k · cache r 14.05M / w 960.3k) · fable-5-1 · 12:36→15:10*
 
+**Then, same day, the Loupe hookup — assessed, decided, and planned.** Ben brought over Loupe's
+own next-step note ("Phase 4, the Ambit hookup — two pieces remain, both in the Ambit repo") and
+asked whether it was worth doing and whether it could run beside the caption-less plan. Reading
+both repos and the vault before answering changed the count: Loupe's half of the bearer is
+**already merged** (loupe `5ea68b2`, `/media/*` honours the static token), Ambit's two fetch sites
+are exactly two (`curator.ts` `imageAsDataUrl` and `image-cache.ts` `fillCache`, both a bare
+User-Agent today), and the walk contract was written with Loupe named as its next user — but the
+vault's Ecosystem doc also says Loupe material is visible "only to users granted those pools", and
+no such gate exists in Ambit. So the honest count was three pieces, and the third was the blocker.
+
+**Decisions (Ben's, 09-06-26):**
+- **No per-user gate, indefinitely.** Ambit is invite-only and every reader is someone Ben knows;
+  Loupe items go in the general feed. `item.source` is a not-null column and `getTopicPools`
+  already filters on it (`SUSPENDED_SOURCES`), so gating later is a filter, not a migration — three
+  filters, to be exact: the feed pool, the public `items.byId`/`/i/[id]` resolver, and
+  `/api/img/[id]`. Recorded in the plan so the future task is scoped honestly; the plan's last
+  task amends the vault so the old line stops reading as a blocker.
+- **Identity is position, never Loupe's article `id`** — `<iaIdentifier>:<pageNumber>:<readingOrder>`.
+  Loupe deletes and re-inserts a page's articles on every correction, so `id` would duplicate every
+  corrected clipping; under the position key a correction upserts in place and `--prune` removes
+  vanished positions. `readingOrder` is not on the wire today, so the plan's first task is a
+  one-field addition to Loupe's `/api/v1/articles` (a contract change; SPEC §8.2 + the vault).
+  Accepted cost: a corrected clipping keeps its old score until a `PROMPT_VERSION` bump.
+- **The bearer is decided by source, not by URL host** — one leaf helper, `imageFetchHeaders(source)`,
+  merged into both fetch sites; every non-Loupe source merges `{}`.
+- **Registered like `pdr`, not like a blog**: `config/loupe.ts`, a named exception in
+  `blogs.test.ts`, `body` stored for articles (OCR text as paragraphs), null for illustrations,
+  Loupe's license string verbatim, Loupe's tags only.
+
+**Shipped:** `docs/PLAN_loupe-hookup.md` (`4ad3a0d`, this branch) — seven tasks, two parts.
+Part A (bearer) has no overlap with any other plan and can run now. Part B (adapter + measured
+walk + docs) is best run after the caption-less plan's Task 4 merges, so the verdict is against the
+vocabulary Loupe will live with; earlier costs only a free re-walk. Worth doing on value? The
+corpus is ~135 kept articles — small — but it closes the third ecosystem edge end to end and gives
+Loupe Phase 5 a reason to exist; cheap enough to do.
+
+**Open / next:**
+- Execute the plan in a cheaper session (Part A any time; Part B after caption-less T4).
+- **Before the next production deploy, `loupe` must be added to `SUSPENDED_SOURCES`:** Loupe has
+  no production host, so a deployed Ambit cannot reach it and the nightly ingest would print a
+  "not configured" error every night. Not in the plan's code tasks because it belongs on whichever
+  branch deploys next.
+- Local trap for the executor: Loupe's dev server and its `imageUrl`s default to :3000, which
+  Ambit owns — run it `MEDIA_BASE_URL=http://localhost:3100/media bunx next dev -p 3100`.
+
+*Session spend: 13.19M tok (in 197 · out 153.8k · cache r 12.40M / w 634.7k) · ~≥$2.24 · fable-5-1 + opus-4-7 · 15:12→15:47*
+
 ### [[09-05-26 Sat]] — Production catches up: Cut 1, Cut 2a and four walk sources in two deploys
 
 **Shipped:** production went `a2be201` → `f604651` → `55bdf5d` in two Deploy presses. The first
