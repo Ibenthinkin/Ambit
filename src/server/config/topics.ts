@@ -69,6 +69,16 @@ export const WALK_SOURCES = [
   "thisiscolossal",
   "streetartnews",
   "pdr",
+  // Sources round 3 (09-05-26): nine Tumblr blogs, all on the tumblr.ts factory.
+  "nemfrog",
+  "humanoidhistory",
+  "sovietpostcards",
+  "70sscifiart",
+  "vintagegeekculture",
+  "dreamsrecurring",
+  "toiich",
+  "thevaultoftheatomicspaceage",
+  "thisisnthappiness",
 ] as const;
 
 export type WalkSourceId = (typeof WALK_SOURCES)[number];

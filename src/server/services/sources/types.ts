@@ -38,7 +38,18 @@ export type SourceId =
   // page-data JSON, and the first walk source that is NOT a designated blog — its images are
   // public domain and its text is CC BY-SA 4.0 (config/pdr.ts). Also the first walk source whose
   // rows may carry a `body`.
-  | "pdr";
+  | "pdr"
+  // Sources round 3 (09-05-26): nine Tumblr blogs on the tumblr.ts factory, registered in
+  // server/config/blogs.ts. Two of them ship parked (config/suspended-sources.ts).
+  | "nemfrog"
+  | "humanoidhistory"
+  | "sovietpostcards"
+  | "70sscifiart"
+  | "vintagegeekculture"
+  | "dreamsrecurring"
+  | "toiich"
+  | "thevaultoftheatomicspaceage"
+  | "thisisnthappiness";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds

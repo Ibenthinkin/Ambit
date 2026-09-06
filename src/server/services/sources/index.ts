@@ -12,6 +12,17 @@ import { smithsonian } from "./smithsonian";
 import { streetartnews } from "./streetartnews";
 import { thingsorganizedneatly } from "./things-organized-neatly";
 import { thisiscolossal } from "./thisiscolossal";
+import {
+  dreamsrecurring,
+  humanoidhistory,
+  nemfrog,
+  scifiart70s,
+  sovietpostcards,
+  thevaultoftheatomicspaceage,
+  thisisnthappiness,
+  toiich,
+  vintagegeekculture,
+} from "./tumblr-blogs";
 import type { CorpusWalkAdapter, SourceAdapter, SourceId } from "./types";
 import { wellcome } from "./wellcome";
 import { wikipedia } from "./wikipedia";
@@ -43,6 +54,17 @@ export const walkers: Record<WalkSourceId, CorpusWalkAdapter<unknown>> = {
   thisiscolossal,
   streetartnews,
   pdr,
+  // Sources round 3 (09-05-26) — the nine Tumblr blogs. `70sscifiart` is quoted because a source
+  // id may start with a digit; `item.source` is a free-text column, so nothing downstream cares.
+  nemfrog,
+  humanoidhistory,
+  sovietpostcards,
+  "70sscifiart": scifiart70s,
+  vintagegeekculture,
+  dreamsrecurring,
+  toiich,
+  thevaultoftheatomicspaceage,
+  thisisnthappiness,
 };
 
 /** For CLIs that validate a `--source` flag: everything ingest knows how to reach. */

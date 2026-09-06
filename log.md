@@ -5,6 +5,103 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
+
+Short session, no code. Ben asked why `thevaultoftheatomicspaceage` and `thisisnthappiness` read
+as Cuts in yesterday's round-3 handoff. Answering it properly turned up a correction and a design
+question, both now in `docs/HANDOFF_tumblr-round3.md` §2.2–2.3. Round 3's build and Ben's first
+four Park verdicts are yesterday's entry.
+
+**Findings:**
+- **It was never a quality judgement, and the write-up implied one.** The curator *likes* what
+  survives from both: 8.00 / 83% ≥8 and 8.10 / 90% ≥8, each above `thingsorganizedneatly` (7.90),
+  a source already kept. What is bad is the yield.
+- **The yield is one rule firing almost every time.** The vault floored 138 of 150 with **137 on
+  thin-summary**; thisisnthappiness floored **140 of 140, all thin-summary**. Nothing else
+  contributed. Both blogs post pictures with almost no words — the vault's median caption across
+  200 sampled posts is **0 characters**, 161 of them empty.
+- **Walk efficiency is the sharpest way to see the cost**, and is a better frame than any score:
+  nemfrog returns **45 rows per request**, 70sscifiart 28, the vault 4, thisisnthappiness **3.5**.
+  thisisnthappiness is 2,180 polite requests to keep ~7,600 rows.
+- **A correction to yesterday's own evidence.** The un-homed shares quoted for those two (17% and
+  40%) are computed on **12 and 10 curated items** — 2-of-12 and 4-of-10. That is noise presented
+  with the same confidence as nemfrog's 137-item sample, and it should have been flagged. Their
+  averages rest on the same thin denominators. The *floor* rates behind them come from the
+  200-post probes and are solid; it is the post-floor numbers that are not.
+- **So the two are not equally weak.** The vault is the stronger Cut: zero tags on 200 sampled
+  posts, worst caption density of the nine, ~3,000 rows to gain. **thisisnthappiness is genuinely
+  arguable** — ~7,600 rows at 8.10 is about a third of the current corpus, at quality above a kept
+  source, for ~$1.79 and half an hour of walking. Yesterday's "reads as cuts" was too confident
+  about it.
+
+**Open / next (unchanged, plus one new question):**
+- Still Ben's verdict on the **five** open blogs — `70sscifiart` (strongest, 8.65 / 96% ≥8),
+  `sovietpostcards`, `thisisnthappiness`, `thevaultoftheatomicspaceage`, `toiich`. The four he
+  parked on 09-05 are settled and should not be re-opened.
+- **New, and deliberately not bundled into those verdicts:** these two blogs are really measuring
+  how well the **thin-summary floor** fits caption-less picture blogs. It exists because "below
+  ~60 chars a museum summary is just a department name" (`curator.ts`), which is a museum-shaped
+  reason. If a link card can stand on image + title + credit, the floor is the thing to revisit
+  rather than the blogs — and doing so would also unlock `toiich` (84% floored) and more of
+  `70sscifiart`. Doing nothing is equally defensible: the floor is what keeps the corpus from
+  filling with wordless cards. Nobody has decided.
+- Raise the quota before treating either blog's post-floor numbers as measured.
+
+*Session spend: 3.82M tok (in 49 · out 31.2k · cache r 3.14M / w 643.7k) · ~$8.57 · opus-5 + opus-4-7 · 21:56→12:32*
+
+**Later the same day — the five verdicts, and the plan that came out of them.** Ben ruled: **`toiich`
+parked** (on taste, after a live probe; the numbers were never the reason), the other four **kept
+to budgets** — newest 50% of `70sscifiart`, `sovietpostcards`, `thevaultoftheatomicspaceage`, newest
+25% of `thisisnthappiness`. None is un-parked yet: the plan below has to ship first.
+
+**Planned:** `docs/PLAN_caption-less-and-wild.md` — self-contained for a cheaper-model session.
+Six tasks: (T1) the structural floor's thin-summary and bare-title rules no longer apply to
+walk-source *images* (the curator is their bar), the Tumblr factory **fans a multi-picture post out
+to one item per picture** (`sourceId` = `post:n`, all sharing the caption), a truly caption-less
+post is titled with the blog label, and a per-blog `walkQuota` plus an ingest `--cursor` and a
+printed resume cursor make newest-first partial walks safe on a self-hosted disk; (T2) a **WILD
+feed tier** at 10 against 40/35/25 that draws un-homed items from a deterministic per-page sample,
+boosted by the reader's recent saves' aesthetic tags; (T3) `mine:topics` / `promote:topics` /
+`graph:rebuild` read **aesthetic tags** as well as source tags; (T4) the classify prompt lists every
+topic in the DB, not the compile-time sixteen, with the cache key unchanged so nothing is
+re-billed; (T5) two panel sliders and a `wild` readout; (T6) the four walks, one at a time.
+
+**Findings (the ones that changed the plan mid-write):**
+- **The floor was the gate, not the topic step.** The vault, thisisnthappiness and toiich were
+  losing 84–100% of posts to the 60-char thin-summary rule *before any LLM call*; no feed change
+  could have surfaced them. Yesterday's open question is answered: the floor was the thing.
+- **The captions exist and were being thrown away.** A live 50-post probe per blog: toiich's
+  median caption is 49 chars ("Eros + Massacre (1969), dir. Yoshishige Yoshida"), sovietpostcards'
+  56, thisisnthappiness's 28 — all under 60. Only the vault is caption-less (44 of 50 empty).
+- **Multi-picture posts are common and share one caption**, and `toItem` took only the first
+  picture: toiich 100 pictures in 50 posts, sovietpostcards 67, 70sscifiart 73. Ben's requirement
+  that the shared caption reach every picture is what T1's fan-out is.
+- **The vibe hook already exists.** Every curated item carries 2–4 free-text aesthetic tags written
+  from the image; they fed only a small draw-weight boost, and **the mining scripts never read
+  them** (`mine:topics` selects `item.tags` alone, while the ingest summary's un-homed histogram
+  unions both — the report and the tooling disagreed). A tag-less picture blog therefore had no
+  route out of un-homed by any existing tool.
+- **Un-suspending a walker without a quota means a full-archive nightly walk** — ingest skips
+  stored rows but does not stop at them. Hence `walkQuota` in config rather than a CLI flag.
+
+**Decisions:** Ben's — learn from a WILD save's aesthetic tags (not "this blog", not nothing);
+blog label as the caption-less title, no curator-written titles; both grow-the-vocabulary *and* a
+small wild slot, not either alone; the four budgets above; toiich parked. Recorded in the plan as
+D1–D13, including that this amends design D4 of `DESIGN_topic-vocabulary-growth.md` (the feed now
+*does* move for un-homed items) and flips its §9 property test on purpose.
+
+**Open / next:**
+- Execute the plan (cheaper session), one task per checkpoint; T6 stops after every blog.
+- The honest size: ~89,500 items for ~$21 and ~13 GB of image cache, a 5× corpus. Check the VM's
+  free disk before T6 blog 1.
+- Optional and not assumed: a `curationImageUrl` (Tumblr's 500-px rendition) would cut the
+  curator's download from ~58 GB to ~12 GB; it touches `NormalizedItem`, so Ambit-Admin's log
+  first, and only if Ben says so.
+- Known follow-ups if the readouts show them: a per-source share cap inside a topic; a same-post
+  guard per page for photoset near-duplicates.
+
+*Session spend: 15.20M tok (in 182 · out 192.5k · cache r 14.05M / w 960.3k) · fable-5-1 · 12:36→15:10*
+
 ### [[09-05-26 Sat]] — Production catches up: Cut 1, Cut 2a and four walk sources in two deploys
 
 **Shipped:** production went `a2be201` → `f604651` → `55bdf5d` in two Deploy presses. The first
@@ -170,6 +267,72 @@ merged in. Not pushed — Ben's call, as the plan says.
   spoon-tamago, and tomorrow's `.cache/promote-prod.sh` re-run after the first nightly walk.
 
 *Session spend: 6.17M tok (in 57 · out 27.5k · cache r 5.20M / w 941.4k) · ~≥$1.26 · fable-5-1 + opus-4-7 · 18:09→19:41*
+
+---
+
+**Sources round 3 — nine Tumblr blogs, built and sampled, all nine parked pending verdict.**
+Ben handed over nine Tumblr URLs and said to scrape them. All nine were probed live before any
+code was written, which is the only reason the rest of this entry is short.
+
+**Shipped:** `tumblr.ts`, the Tumblr-walk factory — the same extraction `wp-rest.ts` got in round
+2, for the same reason, with `things-organized-neatly.ts` left bespoke and byte-identity to it
+asserted as a test. Nine blogs as config rows carrying their own probe evidence, nine live-
+recorded fixtures, 56 new tests (966 unit tests green, lint clean). Merged `main` in on the way
+past, so the branch is no longer stranded on `49299a0`.
+
+**Findings — two real bugs, both found by looking at live output rather than by a test.**
+- **Tumblr's newer editor puts its alt-text UI badge inside the caption**
+  (`<span class="tmblr-alt-text-helper">ALT</span>`), so `htmlToText()` rendered the literal word
+  "ALT" and `deriveTitle()` made it the card's **title**. 24% of sampled 70sscifiart captions.
+  No stored row carries it — thingsorganizedneatly's 1,720 were queried and are clean — so this
+  is new-blog-only, and the frozen bespoke walker was left frozen with the gap **written down**
+  rather than silently edited.
+- **A blog answering an ask writes an essay in the caption field.** vintagegeekculture's caption
+  p99 is 5,582 characters, its longest sampled 12,268. Storing that as `summary` is republishing
+  the article, whatever the field is called, and the 08-20-26 rights posture forbids exactly that.
+  Capped to a 600-char excerpt — chosen as the corpus's own norm (the three ingested blogs sit at
+  a summary p95 of 199 / 410 / 506), not invented.
+
+**Also recorded for the first time: what curation actually costs.** `$0.000235/item`, measured
+through OpenRouter's usage accounting on nine live classify calls with real images (~2,300 prompt
+tokens, mean image 649 KB). Every prior log entry left this as "still unrecorded".
+
+**Decisions:** all nine ship in `SUSPENDED_SOURCES`, and that is a **default, not a verdict** —
+the nightly ingest walks every registered walker not on that list, and nine unattended full walks
+would be ~351,500 posts and ~125,700 stored rows against a corpus of 21,892. A **6× corpus, 85% of
+it Tumblr**, is a product decision about what Ambit is, not a scraping task, so nothing was
+un-parked. The money is not the constraint (~$30 for all nine); the balance is.
+
+**The verdict evidence** (`stats:walk --quota 150` each, writes nothing, cache now warm so
+re-runs are free) is the table in `docs/HANDOFF_tumblr-round3.md` §2. Short version: **nemfrog**
+keeps **91% of everything offered** at 8.15 — nothing in the corpus comes close — and is the
+obvious first Keep at ~41,000 rows. **dreamsrecurring 8.72 / 96% ≥8** and **70sscifiart 8.65 /
+96%** score level with thisiscolossal, the strongest source in the corpus. **sovietpostcards** is
+the most coherent rather than the highest-scoring, and the one with a real (mild) Cut 2 angle —
+its un-homed tags are a clean `ussr · russia · soviet union` cluster that would make a good grown
+topic. **thevaultoftheatomicspaceage** (zero tags on 200 sampled posts, median caption 0 chars,
+keeps 8%) and **thisisnthappiness** (keeps 7% of the largest archive probed, 40% of that
+un-homed) are structurally poor and read as Cuts.
+
+**Verdicts, same evening — Ben parked four of the nine:** `nemfrog`, `humanoidhistory`,
+`dreamsrecurring`, `vintagegeekculture`. Everything was already parked as a default, so nothing
+moved in the ingest's behaviour; what changed is *why* each row is on that list, and the docs now
+say which. `SUSPENDED_SOURCES` is split into "parked by verdict" and "parked pending a verdict",
+the four config rows carry their verdict and the numbers behind it, and the handoff's §0 warns a
+cold session off re-opening them. The arithmetic worth keeping: those four are **~82,100 of the
+round's ~125,700 estimated rows**, so the verdict removes about **two thirds** of what round 3
+would have added — and it removes the two biggest single contributors. The five still open would
+add ~43,600, tripling the corpus rather than sextupling it.
+
+**Open / next:** Ben's verdict on the **five** that remain — `70sscifiart` (now the strongest
+open candidate at 8.65 / 96% ≥8 and the lowest un-homed share of the nine), `sovietpostcards`,
+`thisisnthappiness`, `thevaultoftheatomicspaceage`, `toiich`. Then un-park any Keeps one at a
+time and walk them (`docs/HANDOFF_tumblr-round3.md` §0). Separately: whether
+`things-organized-neatly.ts` should take the two-line alt-badge fix.
+
+*Session spend: 20.69M tok (in 400 · out 195.4k · cache r 19.67M / w 822.7k) · ~≥$19.98 · opus-5 + opus-4-7 + fable-5-1 · 17:55→18:22*
+*Session spend: 1.47M tok (in 16 · out 10.2k · cache r 1.45M / w 11.6k) · ~$1.10 · opus-5 · 18:22→18:23*
+*Session spend: 5.57M tok (in 56 · out 29.9k · cache r 5.01M / w 529.2k) · ~$8.54 · opus-5 · 18:23→21:56*
 
 ### [[09-02-26 Wed]] — A duplicate session, and what two sessions on one checkout look like
 

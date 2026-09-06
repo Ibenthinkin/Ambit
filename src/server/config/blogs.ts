@@ -30,6 +30,11 @@ export interface BlogConfig {
   /** Which walker shape reads this blog. Descriptive — the walker file is wired by id in
    *  services/sources/index.ts, nothing dispatches on this at runtime. */
   walk: "wp-rest" | "tumblr";
+  /** Tags the blog puts on its OWN posts — its name, or its author's handle. They say nothing
+   *  about the item and would each take one of the twelve tag slots the curator reads, so the
+   *  tumblr walker drops them. Lowercase, because that is what it compares against. Observed
+   *  per blog, never guessed: absent means "this blog does not tag itself". */
+  selfTags?: readonly string[];
 }
 
 export const BLOGS: readonly BlogConfig[] = [
@@ -56,6 +61,9 @@ export const BLOGS: readonly BlogConfig[] = [
     // with that in front of him — docs/HANDOFF_tumblr-walk.md §3.4.
     robotsCheckedOn: "2026-09-01",
     walk: "tumblr",
+    // things-organized-neatly.ts carries this as its own BLOG_TAG constant and does not read
+    // this field; it is recorded here so every Tumblr row states the same fact in one place.
+    selfTags: ["things organized neatly"],
   },
   {
     id: "mossandfog",
@@ -99,6 +107,139 @@ export const BLOGS: readonly BlogConfig[] = [
     // three newest posts carry none at all, which is fine: tags are a hint, not a floor input.
     robotsCheckedOn: "2026-09-02",
     walk: "wp-rest",
+  },
+  // ── Sources round 3, 09-05-26: nine Tumblr blogs on the tumblr.ts factory ────────────────────
+  // All nine were probed live on 09-05-26 (200 posts sampled across each archive, at 0/25/50/75%
+  // depth). Every one answers the legacy read API unauthenticated and serves the SAME file at
+  // /robots.txt — Tumblr's platform default: `*` is disallowed only /random, /day, an ad iframe
+  // and the consent path, with `Crawl-delay: 1` (the walker honours it), followed by fourteen
+  // named-bot sections (CCBot, Google-Extended, FacebookBot, anthropic-ai, ClaudeBot, …) each
+  // `Disallow: /`. That list is Tumblr's platform default rather than any one blog's policy —
+  // byte-identical across all nine hosts, including thisisnthappiness.com on its own domain —
+  // and Ambit's own agent name is not on it. This is Ben's standing call, first made for
+  // thingsorganizedneatly with the file in front of him (docs/HANDOFF_tumblr-walk.md §3.4); it is
+  // not re-litigated per row, and each row below records only what is specific to that blog.
+  //
+  // The per-row numbers are `posts-total` at probe time and the share of the 200-post sample that
+  // carries a picture and clears structuralFloor's 60-character summary rule. That second number
+  // is the one that matters: it is what the blog would actually contribute, and it ranges from
+  // 89% (nemfrog) to 4% (thisisnthappiness).
+  {
+    id: "nemfrog",
+    label: "nemfrog",
+    baseUrl: "https://nemfrog.tumblr.com",
+    license: BLOG_LICENSE,
+    // 45,094 posts. The richest archive probed: median caption 93 chars, only 11% under the
+    // 60-char floor, none empty, and 6.9 tags/post on 188 of 200 posts — scanned-plate captions
+    // ("Fig. 4. Nocturnal moths. 1922.") rather than reblog chatter.
+    // PARKED by Ben's verdict 09-05-26 — see SUSPENDED_SOURCES. Sampled at 91% stored / 8.15
+    // avg / 87% ≥8, the highest keep-rate in the corpus, and its single biggest contributor.
+    robotsCheckedOn: "2026-09-05",
+    walk: "tumblr",
+    // Tags 48 of 50 sampled posts with its own name.
+    selfTags: ["nemfrog"],
+  },
+  {
+    id: "humanoidhistory",
+    label: "Humanoid History",
+    baseUrl: "https://humanoidhistory.tumblr.com",
+    license: BLOG_LICENSE,
+    // 48,466 posts. Median caption 90 chars, 26% under the floor, 5.7 tags/post on 155 of 200.
+    // The widest post-type spread sampled (photo, regular, answer, video, link, quote): 94% of
+    // the sample carries a picture, and the other 6% is thrown and counted, never skipped.
+    // PARKED by Ben's verdict 09-05-26 — see SUSPENDED_SOURCES. Sampled at 56% stored / 8.29
+    // avg / 82% ≥8; the round's second biggest contributor at ~27,100 rows.
+    robotsCheckedOn: "2026-09-05",
+    walk: "tumblr",
+  },
+  {
+    id: "sovietpostcards",
+    label: "Soviet Postcards",
+    baseUrl: "https://sovietpostcards.tumblr.com",
+    license: BLOG_LICENSE,
+    // 25,784 posts. Median caption 61 chars — right on the floor, so 48% of the sample falls
+    // below it — but the tagging is the strongest of the nine after nemfrog: 6.8 tags/post on
+    // 180 of 200, and specific rather than generic (`ussr`, `1970s`, `soviet school uniform`).
+    robotsCheckedOn: "2026-09-05",
+    walk: "tumblr",
+  },
+  {
+    id: "70sscifiart",
+    label: "70s Sci-Fi Art",
+    baseUrl: "https://70sscifiart.tumblr.com",
+    license: BLOG_LICENSE,
+    // 34,836 posts. Median caption 30 chars and 66% under the floor — captions are usually just
+    // an artist credit — but every one of the 200 sampled posts is tagged, 3.6 tags/post, often
+    // with the artist's name (`wayne barlowe`). A leading digit in the id is legal everywhere it
+    // is used: `item.source` is a free-text column and the TS unions quote their members.
+    robotsCheckedOn: "2026-09-05",
+    walk: "tumblr",
+  },
+  {
+    id: "vintagegeekculture",
+    label: "Vintage Geek Culture",
+    baseUrl: "https://vintagegeekculture.tumblr.com",
+    license: BLOG_LICENSE,
+    // 18,930 posts. Median caption 21 chars, 78% under the floor, 56 of 198 image posts with no
+    // caption at all; 2.2 tags/post on 159 of 200.
+    // PARKED by Ben's verdict 09-05-26 — see SUSPENDED_SOURCES. The weakest scores of the nine
+    // (7.44 avg, 56% ≥8), and the blog whose essay-length answers motivated capSummary().
+    robotsCheckedOn: "2026-09-05",
+    walk: "tumblr",
+  },
+  {
+    id: "dreamsrecurring",
+    label: "Dreams Recurring",
+    baseUrl: "https://dreamsrecurring.tumblr.com",
+    license: BLOG_LICENSE,
+    // 20,636 posts, 100% of the sample carrying a picture — the cleanest post-type mix probed.
+    // But 95 of 200 captions are empty and only 34 of 200 posts are tagged at all (0.2
+    // tags/post): a fine-looking archive that arrives with almost nothing for the curator to
+    // read or for topic mining to propose from.
+    // PARKED by Ben's verdict 09-05-26 — see SUSPENDED_SOURCES. The highest average of the nine
+    // (8.72 / 96% ≥8) held back by its metadata: 0.2 tags/post is little for topic mining.
+    robotsCheckedOn: "2026-09-05",
+    walk: "tumblr",
+  },
+  {
+    id: "toiich",
+    label: "Questi giorni quando vieni il bel sole",
+    baseUrl: "https://toiich.tumblr.com",
+    license: BLOG_LICENSE,
+    // 11,308 posts, the smallest of the nine, and 197 of 200 sampled posts are `regular` — the
+    // one archive here that is essentially all newer-editor posts, so its pictures come from
+    // firstImageUrl() rather than a structured field. Median caption 44 chars, 84% under the
+    // floor, 1.5 tags/post.
+    robotsCheckedOn: "2026-09-05",
+    walk: "tumblr",
+  },
+  {
+    id: "thevaultoftheatomicspaceage",
+    label: "The Vault of the Atomic Space Age",
+    baseUrl: "https://thevaultoftheatomicspaceage.tumblr.com",
+    license: BLOG_LICENSE,
+    // 37,494 posts and the weakest metadata of the nine by a distance: median caption 0 chars,
+    // 161 of 200 empty, 93% under the floor, and ZERO tags on all 200 sampled posts. Registered
+    // for completeness and parked on that evidence — see SUSPENDED_SOURCES.
+    robotsCheckedOn: "2026-09-05",
+    walk: "tumblr",
+  },
+  {
+    id: "thisisnthappiness",
+    label: "this isn't happiness",
+    // A Tumblr blog on its own domain — the legacy API answers here exactly as on a
+    // *.tumblr.com host, and the robots.txt is the same platform default (which is how
+    // blogs.ts's thingsorganizedneatly row was able to cite this host as the proof that the
+    // named-bot list is Tumblr's and not the blog's).
+    baseUrl: "https://thisisnthappiness.com",
+    license: BLOG_LICENSE,
+    // 108,982 posts — by far the largest archive probed, and the least usable: 96% of captions
+    // fall under the 60-char floor and only 73 of 200 posts carry any tag (0.5/post). A full
+    // walk is ~2,180 requests to keep roughly 4% of them. Parked on that — see SUSPENDED_SOURCES.
+    robotsCheckedOn: "2026-09-05",
+    walk: "tumblr",
+    // `nevver` is the author's own handle, the most frequent tag in the sample.
+    selfTags: ["nevver"],
   },
 ];
 

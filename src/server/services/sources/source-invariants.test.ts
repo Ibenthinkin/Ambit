@@ -12,6 +12,17 @@ import dopFixtures from "./__fixtures__/doorofperception.json";
 import mafFixtures from "./__fixtures__/mossandfog.json";
 import pdrFixtures from "./__fixtures__/pdr.json";
 import sanFixtures from "./__fixtures__/streetartnews.json";
+// Sources round 3 (09-05-26) — the nine Tumblr blogs. Every one is a designated blog, so D5
+// applies to all nine and each is iterated by the body-null invariant below.
+import scifiart70sFixtures from "./__fixtures__/70sscifiart.json";
+import drecFixtures from "./__fixtures__/dreamsrecurring.json";
+import humhistFixtures from "./__fixtures__/humanoidhistory.json";
+import nemfrogFixtures from "./__fixtures__/nemfrog.json";
+import sovpostFixtures from "./__fixtures__/sovietpostcards.json";
+import vaultFixtures from "./__fixtures__/thevaultoftheatomicspaceage.json";
+import tihFixtures from "./__fixtures__/thisisnthappiness.json";
+import toiichFixtures from "./__fixtures__/toiich.json";
+import vgcFixtures from "./__fixtures__/vintagegeekculture.json";
 import tonFixtures from "./__fixtures__/things-organized-neatly.json";
 import ticFixtures from "./__fixtures__/thisiscolossal.json";
 import { walkers } from "./index";
@@ -23,6 +34,15 @@ const fixturesByWalker: Record<string, unknown[]> = {
   thisiscolossal: ticFixtures,
   streetartnews: sanFixtures,
   pdr: pdrFixtures,
+  nemfrog: nemfrogFixtures,
+  humanoidhistory: humhistFixtures,
+  sovietpostcards: sovpostFixtures,
+  "70sscifiart": scifiart70sFixtures,
+  vintagegeekculture: vgcFixtures,
+  dreamsrecurring: drecFixtures,
+  toiich: toiichFixtures,
+  thevaultoftheatomicspaceage: vaultFixtures,
+  thisisnthappiness: tihFixtures,
 };
 
 describe("walk-source invariants (unit)", () => {
