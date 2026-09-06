@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CLASSIFY_PROMPT,
+  classifyPrompt,
   CURATION_CACHE_DIR,
   curationCacheKey,
   CURATOR_PROMPT,
@@ -17,6 +18,7 @@ import {
   structuralFloor,
   TOPIC_IDS,
 } from "./curator";
+import { TOPICS } from "~/server/config/topics";
 import type { NormalizedItem } from "./sources/types";
 
 /** A minimal, valid NormalizedItem literal — tests override just the fields they care about. */
@@ -370,6 +372,52 @@ describe("CLASSIFY_PROMPT", () => {
     expect(CURATOR_PROMPT).toMatch(
       /\{"score": <1-10>, "tags": \["\.\.\.", "\.\.\."\]\}$/,
     );
+  });
+});
+
+// 09-06-26 (docs/PLAN_caption-less-and-wild.md T4). The vocabulary became a parameter so a walk
+// item can home into one of Cut 2a's grown topics at ingest instead of waiting for the next
+// manual promote:topics. Two things have to be true for that to be safe.
+describe("classifyPrompt — the vocabulary is a parameter", () => {
+  const vocab = [
+    { id: "soviet-postcards", label: "Soviet Postcards" },
+    { id: "space-age", label: "Space Age" },
+  ];
+
+  it("lists exactly the topics it was given, and none of the compile-time sixteen", () => {
+    const prompt = classifyPrompt(vocab);
+    expect(prompt).toContain("  soviet-postcards — Soviet Postcards");
+    expect(prompt).toContain("  space-age — Space Age");
+    for (const id of TOPIC_IDS) expect(prompt).not.toContain(`  ${id} —`);
+  });
+
+  it("keeps the rubric, the cap and the reply shape whatever the list is", () => {
+    const prompt = classifyPrompt(vocab);
+    expect(
+      prompt.startsWith(
+        CURATOR_PROMPT.slice(0, CURATOR_PROMPT.lastIndexOf("Reply with ONLY")),
+      ),
+    ).toBe(true);
+    expect(prompt).toContain("never more than three");
+    expect(prompt).toMatch(
+      /"topics": \[<topic ids, best fit first, or empty>\]\}$/,
+    );
+    // The one sentence added for a 99-item list, so it does not read as a menu to fill.
+    expect(prompt).toContain("The list is long");
+  });
+
+  it("CLASSIFY_PROMPT is still exactly the sixteen-topic prompt", () => {
+    expect(CLASSIFY_PROMPT).toBe(classifyPrompt(TOPICS));
+  });
+
+  // D10, pinned: the cache key has no topic-list input, so growing the vocabulary re-bills
+  // nothing. If someone ever adds one, this is what says the whole corpus is about to be
+  // re-curated.
+  it("the cache key does not depend on the topic list", () => {
+    const item = { source: "70sscifiart" as const, sourceId: "1:1" };
+    expect(curationCacheKey(item, true)).toBe(curationCacheKey(item, true));
+    expect(curationCacheKey.length).toBe(2); // (item, classify) — no third argument
+    expect(PROMPT_VERSION).toBe(1);
   });
 });
 

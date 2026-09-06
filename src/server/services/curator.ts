@@ -48,8 +48,11 @@ Also give 2-4 short lowercase aesthetic tags describing its look or appeal (e.g.
 
 Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."]}`;
 
-/** The sixteen ids the classify mode may answer with. Built from config so a topic added to
- *  TOPICS is automatically a legal answer, and anything else the model says is not. */
+/** The sixteen COMPILE-TIME topic ids — the classify mode's FALLBACK vocabulary, and what it
+ *  validates against when a caller names no other. Since 09-06-26 both ingest and stats:walk
+ *  pass the live vocabulary instead (`listAllTopics()`, 99 topics today), so this is the floor
+ *  rather than the ceiling: it is what a caller gets for free, and it is still the set the
+ *  exported `CLASSIFY_PROMPT` below is built from. */
 export const TOPIC_IDS: ReadonlySet<string> = new Set(TOPICS.map((t) => t.id));
 
 /**
@@ -69,12 +72,37 @@ export const TOPIC_IDS: ReadonlySet<string> = new Set(TOPICS.map((t) => t.id));
  * promotion is what gives it a home. Walk sources ingest their whole corpus; the vocabulary grows
  * to fit them, never the reverse.
  */
-export const CLASSIFY_PROMPT =
-  CURATOR_PROMPT.slice(0, CURATOR_PROMPT.lastIndexOf("Reply with ONLY")) +
-  `Also list which of these topics are an honest home for this item — a topic a reader who chose it would be glad to find this in. Best fit first. Usually one or two, never more than three; an empty list is a correct answer. Never force a fit: if none of them is honest, answer [].
-${TOPICS.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
+/**
+ * **The vocabulary is a parameter, not a constant (09-06-26, plan T4).** It used to be the
+ * sixteen compile-time TOPICS, which meant a walk item could only ever home into a core topic —
+ * so every post whose real subject was one of Cut 2a's 83 GROWN topics came back un-homed and
+ * waited for the next manual `promote:topics` run to rescue it. The list is now whatever the
+ * caller passes (ingest and stats:walk pass every topic in the database), so a new post homes at
+ * ingest into a topic that actually exists.
+ *
+ * **This re-bills nothing** (D10). `curationCacheKey` deliberately does not include the topic
+ * list — see its comment — so an item classified under sixteen topics keeps that cached answer
+ * and `promote:topics` remains the backfill for those. `PROMPT_VERSION` stays 1: bumping it would
+ * re-bill the whole corpus for a change to a *list*, which is the exact thing the cache was
+ * designed not to key on.
+ */
+export function classifyPrompt(
+  topics: readonly { id: string; label: string }[],
+): string {
+  return (
+    CURATOR_PROMPT.slice(0, CURATOR_PROMPT.lastIndexOf("Reply with ONLY")) +
+    `Also list which of these topics are an honest home for this item — a topic a reader who chose it would be glad to find this in. Best fit first. Usually one or two, never more than three; an empty list is a correct answer. Never force a fit: if none of them is honest, answer [].
+${topics.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
 
-Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "topics": [<topic ids, best fit first, or empty>]}`;
+The list is long; most of it will not apply — pick only honest homes.
+
+Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "topics": [<topic ids, best fit first, or empty>]}`
+  );
+}
+
+/** The prompt over the sixteen compile-time topics — the default when a caller names no
+ *  vocabulary, and what the prompt-slicing comment above is about. */
+export const CLASSIFY_PROMPT = classifyPrompt(TOPICS);
 
 export type CuratedItem = NormalizedItem & {
   curationScore: number;
@@ -298,6 +326,12 @@ export const CURATION_CACHE_DIR = path.join(
  * re-run whenever the vocabulary changed — but under design §3 D3 it does not: tag backfill (Cut
  * 2) is what widens old items, for free. Items curated before Cut 1 keep their single topic until
  * a promotion reaches them. That is correct and intended, not a migration gap.
+ *
+ * This became load-bearing on 09-06-26, when the classify vocabulary went from a compile-time
+ * sixteen to whatever is in the database (D10): the list now changes every time a topic is
+ * promoted, and keying on it would re-bill the entire corpus for a change to a *list*. An item
+ * classified under the sixteen keeps that answer, and `promote:topics` is its backfill. That is
+ * the whole reason `PROMPT_VERSION` did not move.
  */
 export function curationCacheKey(
   item: Pick<NormalizedItem, "source" | "sourceId">,
@@ -327,7 +361,12 @@ export function curationCacheKey(
  */
 async function scoreItem(
   item: NormalizedItem,
-  opts: { force?: boolean; classify?: boolean },
+  opts: {
+    force?: boolean;
+    classify?: boolean;
+    /** The classify vocabulary. Absent ⇒ the sixteen compile-time TOPICS. */
+    topics?: readonly { id: string; label: string }[];
+  },
 ): Promise<{
   score: number;
   tags: string[];
@@ -336,6 +375,7 @@ async function scoreItem(
   imageFetchFailed: boolean;
 }> {
   const classify = opts.classify ?? false;
+  const vocabulary = opts.topics ?? TOPICS;
   const cacheFile = path.join(
     CURATION_CACHE_DIR,
     `${curationCacheKey(item, classify)}.json`,
@@ -417,7 +457,7 @@ async function scoreItem(
           messages: [
             {
               role: "system",
-              content: classify ? CLASSIFY_PROMPT : CURATOR_PROMPT,
+              content: classify ? classifyPrompt(vocabulary) : CURATOR_PROMPT,
             },
             { role: "user", content },
           ],
@@ -436,7 +476,11 @@ async function scoreItem(
       };
       const result = parseCuratorResponse(
         json.choices?.[0]?.message?.content ?? "{}",
-        classify ? { topicIds: TOPIC_IDS } : undefined,
+        // Validated against the vocabulary actually offered, so an id the model invented — or
+        // one from a different run's list — is dropped rather than stored.
+        classify
+          ? { topicIds: new Set(vocabulary.map((t) => t.id)) }
+          : undefined,
       );
 
       await mkdir(CURATION_CACHE_DIR, { recursive: true });
@@ -476,9 +520,12 @@ export async function curateItems(
   items: NormalizedItem[],
   opts?: {
     force?: boolean;
-    /** Phase 6.3 / Cut 1: switches to CLASSIFY_PROMPT and fills `topics`. Used by ingest's walk
-     *  lane only — corpus-walk items have no seed query to inherit a topic from. */
+    /** Phase 6.3 / Cut 1: switches to the classify prompt and fills `topics`. Used by ingest's
+     *  walk lane only — corpus-walk items have no seed query to inherit a topic from. */
     classify?: boolean;
+    /** The vocabulary classify may answer with (09-06-26). Absent ⇒ the sixteen compile-time
+     *  TOPICS; ingest and stats:walk pass every topic in the database. */
+    topics?: readonly { id: string; label: string }[];
     onProgress?: (done: number, total: number) => void;
     onImageFetchFailure?: (item: NormalizedItem) => void;
   },
@@ -498,6 +545,7 @@ export async function curateItems(
           {
             force: opts?.force ?? false,
             classify: opts?.classify ?? false,
+            ...(opts?.topics ? { topics: opts.topics } : {}),
           },
         );
         if (imageFetchFailed) opts?.onImageFetchFailure?.(item);

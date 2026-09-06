@@ -81,7 +81,7 @@ import type {
   SourceId,
   WalkPage,
 } from "~/server/services/sources";
-import type { WalkSourceId } from "~/server/config/topics";
+import { isRealTopic, type WalkSourceId } from "~/server/config/topics";
 
 // ── CLI flags ──────────────────────────────────────────────────────────────
 
@@ -293,10 +293,19 @@ async function main() {
     }
   }
 
+  // The vocabulary the walk lane's classifier may answer with (09-06-26). Every topic in the
+  // database, not the sixteen compile-time ones — so a post whose subject is one of Cut 2a's
+  // grown topics homes at ingest instead of waiting for the next manual promote:topics. Test
+  // leftovers are filtered: they would otherwise go into a billed prompt (config/topics.ts).
+  const classifyVocabulary = allTopics.filter(isRealTopic);
+
   console.log(
     `Ingesting ${topics.length} topic(s) × ${searchIds.length} search source(s) + ${walkIds.length} walk source(s), quota ${quota}/cell` +
       `${skipLlm ? " [skip-llm]" : ""}${dryRun ? " [dry-run]" : ""}…\n`,
   );
+  if (walkIds.length > 0) {
+    console.log(`classify vocabulary: ${classifyVocabulary.length} topics\n`);
+  }
 
   // Step 1: search + normalize, one source's worth of work per settled promise. allSettled (not
   // all) so a single source crashing outright doesn't take the other four down with it — the same
@@ -438,7 +447,11 @@ async function main() {
   // walk lane writes nothing: a structural check of the walk, nothing more — see the write loop.
   const curatedWalk: CuratedItem[] = skipLlm
     ? keptWalk.map(neutral)
-    : await curateItems(keptWalk, { ...curateOpts, classify: true });
+    : await curateItems(keptWalk, {
+        ...curateOpts,
+        classify: true,
+        topics: classifyVocabulary,
+      });
   const histogram = topicHistogram(curatedWalk);
 
   // Step 6: upsert. Under --dry-run this loop still computes exactly what WOULD be written (so

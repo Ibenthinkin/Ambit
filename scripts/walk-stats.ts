@@ -79,7 +79,15 @@ const { kept, dropped } = structuralFloor(offered);
 const byRule = new Map<string, number>();
 for (const d of dropped) byRule.set(d.rule, (byRule.get(d.rule) ?? 0) + 1);
 
-const curated = await curateItems(kept, { classify: true });
+// Every topic in the database, exactly as ingest classifies (09-06-26) — so a sample's `topics
+// (k/N)` line measures the vocabulary a real walk would home into, not the compile-time sixteen.
+const { listAllTopics } = await import("~/server/db/topics");
+const { isRealTopic } = await import("~/server/config/topics");
+const classifyVocabulary = (await listAllTopics()).filter(isRealTopic);
+const curated = await curateItems(kept, {
+  classify: true,
+  topics: classifyVocabulary,
+});
 const classified = curated.filter((c) => c.topics.length > 0);
 const unhomed = curated.filter((c) => c.topics.length === 0);
 
@@ -120,7 +128,7 @@ const topics = new Map<string, number>();
 for (const c of classified)
   for (const t of c.topics) topics.set(t, (topics.get(t) ?? 0) + 1);
 console.log(
-  `  topics (${topics.size}/16): ` +
+  `  topics (${topics.size}/${classifyVocabulary.length}): ` +
     [...topics]
       .sort((a, b) => b[1] - a[1])
       .map(([t, n]) => `${t} ${n}`)
