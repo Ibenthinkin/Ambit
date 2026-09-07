@@ -83,6 +83,27 @@ repo.
 
 *Session spend: 34.20M tok (in 460 · out 144.5k · cache r 33.42M / w 639.2k) · ~≥$2.35 · fable-5-1 + opus-4-7 · 09:05→09:37*
 
+**Handoff for a cold session (written 13:22, same day).** Everything above is committed on
+`feat/wild-tier-and-captionless` (`b088393` sourceCap · `890cfbb` MAX_TOPICS + trim ·
+`9765a41` docs); the tree is clean and **nothing is pushed or merged**. Local Postgres is the
+Docker Compose service (`docker compose up -d`; Docker Desktop had to be started first today).
+The trim has been run locally and is idempotent; it has **not** been run on production, and
+must be — inside the app container, where the volume mounts `.cache/curation` — after the next
+deploy, or the deployed corpus keeps its runaway rows. Pick up in this order:
+1. **Ben's `19th-century` decision** (Open / next above). If (a): a `topic` flag or config set
+   that keeps period topics out of `listAllTopics()`-derived classify vocabularies, plus a
+   tag-based repair variant of `scripts/trim-memberships.ts`; both need a dry-run count first.
+2. **Merge order with `feat/loupe-hookup`** (a worktree, `~/Dev/ambit-loupe`, built today
+   *before* these commits): merge this branch into `main` first, then that one — expect a
+   trivial conflict in `feed-knobs.ts` and `curator.ts`. `loupe` must be in `SUSPENDED_SOURCES`
+   before any deploy.
+3. **Walks 2–4**: raise each `walkQuota` in `blogs.ts` ~25% (posts-vs-items gap, 09-06 entry),
+   un-suspend one blog, walk, read the `over-filed` and un-homed lines in the summary, verdict,
+   repeat. `sovietpostcards --cursor 10400` buys its remaining half.
+4. Then the older queue: `bench:feed` p50 58 ms, 8.1 T8/T9, spoon-tamago, desktop-UI polish.
+
+*Session spend: 1.42M tok (in 12 · out 5.2k · cache r 780.1k / w 637.5k) · fable-5-1 · 09:37→13:22*
+
 ### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
 
 Short session, no code. Ben asked why `thevaultoftheatomicspaceage` and `thisisnthappiness` read
