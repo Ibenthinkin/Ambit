@@ -82,8 +82,9 @@ for (const d of dropped) byRule.set(d.rule, (byRule.get(d.rule) ?? 0) + 1);
 // Every topic in the database, exactly as ingest classifies (09-06-26) — so a sample's `topics
 // (k/N)` line measures the vocabulary a real walk would home into, not the compile-time sixteen.
 const { listAllTopics } = await import("~/server/db/topics");
-const { isRealTopic } = await import("~/server/config/topics");
-const classifyVocabulary = (await listAllTopics()).filter(isRealTopic);
+// Same filter ingest uses: no test leftovers, no period topics (config/topics.ts, 09-07-26).
+const { isClassifiable } = await import("~/server/config/topics");
+const classifyVocabulary = (await listAllTopics()).filter(isClassifiable);
 // Answers that named more than MAX_TOPICS topics — capped to three by the parser, counted here
 // because a blog that makes the model list the vocabulary back is a fact worth seeing in the
 // verdict (sovietpostcards did it 89 times in 17,463; 09-07-26).

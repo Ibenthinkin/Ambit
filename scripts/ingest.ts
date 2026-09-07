@@ -85,7 +85,7 @@ import type {
   SourceId,
   WalkPage,
 } from "~/server/services/sources";
-import { isRealTopic, type WalkSourceId } from "~/server/config/topics";
+import { isClassifiable, type WalkSourceId } from "~/server/config/topics";
 
 // ── CLI flags ──────────────────────────────────────────────────────────────
 
@@ -301,7 +301,9 @@ async function main() {
   // database, not the sixteen compile-time ones — so a post whose subject is one of Cut 2a's
   // grown topics homes at ingest instead of waiting for the next manual promote:topics. Test
   // leftovers are filtered: they would otherwise go into a billed prompt (config/topics.ts).
-  const classifyVocabulary = allTopics.filter(isRealTopic);
+  // So are PERIOD topics (09-07-26): `19th-century` is tag-only, because the model files
+  // anything old-looking under it whatever the label says — see PERIOD_TOPICS for the numbers.
+  const classifyVocabulary = allTopics.filter(isClassifiable);
 
   console.log(
     `Ingesting ${topics.length} topic(s) × ${searchIds.length} search source(s) + ${walkIds.length} walk source(s), quota ${quota}/cell` +

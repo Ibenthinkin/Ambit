@@ -296,8 +296,15 @@ deliberate, human-triggered operation, and Cut 1 does not build one.
 > by the cached answer's own best-fit-first order — `origin: "curator"` rows only, the display
 > topic always kept, nothing removed for an item with no cache entry (`services/membership-trim.ts`
 > and its test are the rules). Run locally the same day: 5,829 items, 14,682 rows. It was
-> human-triggered, it is idempotent, and it is the whole of what "deliberate removal" has meant
-> so far.
+> human-triggered, it is idempotent. **And a second, the same day — `bun run repair:periods`.**
+> Wording could not stop the model filing 1950s-80s Soviet material under `19th-century` (52 → 41
+> → 31 of 100 across three labels), so period topics are now **tag-only** (`PERIOD_TOPICS`,
+> `isClassifiable` in `config/topics.ts`): out of every classify vocabulary, and their existing
+> curator-origin rows kept only where the item's own title, summary or tags carry the period.
+> Locally: 11,024 rows checked, **51 kept, 10,973 removed**, 1,842 display topics moved to the
+> next honest membership and 27 set to NULL (`services/period-repair.ts`). Those two scripts are
+> the whole of what "deliberate removal" has meant so far; both run on production after the next
+> deploy.
 
 ---
 

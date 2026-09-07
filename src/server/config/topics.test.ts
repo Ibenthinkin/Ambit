@@ -196,3 +196,41 @@ describe("seed queries", () => {
     }
   });
 });
+
+// Period topics (09-07-26). `19th-century` is a real topic — tags promote into it honestly — but
+// the classifier cannot be trusted with it: given a 99-line list it files a 1988 street photo
+// under it in 52 of 100 tries, and the bluntest label wording only brings that to 31. A period
+// is metadata, and tags carry it; the model does not weigh a date against a label. So period
+// topics are tag-only: out of every classify vocabulary, and their existing curator-origin rows
+// kept only where the item's own text carries the period.
+describe("period topics are tag-only", () => {
+  it("isClassifiable drops a period topic and keeps everything else real", async () => {
+    const { isClassifiable } = await import("./topics");
+    expect(isClassifiable({ id: "19th-century" })).toBe(false);
+    expect(isClassifiable({ id: "illustration" })).toBe(true);
+    expect(isClassifiable({ id: "test-leftover" })).toBe(false); // still a test topic
+  });
+
+  it("periodEvidence finds an 1800s date or the century's name in title, summary or tags", async () => {
+    const { periodEvidence } = await import("./topics");
+    const has = (title: string, tags: string[] = [], summary = "") =>
+      periodEvidence("19th-century", { title, summary, tags });
+    expect(has("Skating enthusiasts (1887)")).toBe(true);
+    expect(has("Postcard", ["19th century", "russian empire"])).toBe(true);
+    expect(has("Print", [], "A lithograph from the 1800s.")).toBe(true);
+    expect(has("Kozytskogo Street in Vinnytsya, 1988")).toBe(false);
+    expect(has("Vintage Gagarin pins", ["1960s", "vintage"])).toBe(false);
+    expect(has("Members of the skating society (1900s)")).toBe(false); // 1900s is the 20th
+  });
+
+  it("periodEvidence is false for a topic that is not a period", async () => {
+    const { periodEvidence } = await import("./topics");
+    expect(
+      periodEvidence("illustration", {
+        title: "1850 print",
+        summary: "",
+        tags: [],
+      }),
+    ).toBe(false);
+  });
+});
