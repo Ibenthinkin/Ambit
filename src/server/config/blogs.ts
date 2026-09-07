@@ -187,9 +187,12 @@ export const BLOGS: readonly BlogConfig[] = [
     // Resume from `--cursor 10400` for the rest (rounded down to a page boundary; overlap is
     // free, since (source, source_id) makes a re-walk idempotent). Raising this to ~21,700 would
     // reach Ben's original half.
+    // RAISED 09-07-26 to 21,700 with the other three (+~25%, the posts-vs-items gap above). The
+    // walk already spent 17,500 of it, so the rest is `--cursor 10400 --quota 4500`, NOT a bare
+    // `--cursor` run — the quota bounds *that run*, not the archive total.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
-    walkQuota: 17_500,
+    walkQuota: 21_700,
   },
   {
     id: "70sscifiart",
@@ -203,9 +206,11 @@ export const BLOGS: readonly BlogConfig[] = [
     // KEPT 09-06-26. Post-floor sample: floored 0, curated 150, avg 8.49, 94% ≥8, un-homed 3%,
     // 3 toItem errors. The strongest of the four on score.
     // Budget: newest 50% = 17,400 posts × 1.46 pictures/post ⇒ walkQuota 25,500 items.
+    // RAISED 09-07-26 to 32,000 (+25%): sovietpostcards' probe under-measured its pictures/post
+    // by a quarter (1.34 → 1.68 real), and a quota in items buys posts. Walk 2 of round 3.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
-    walkQuota: 25_500,
+    walkQuota: 32_000,
   },
   {
     id: "vintagegeekculture",
@@ -260,9 +265,10 @@ export const BLOGS: readonly BlogConfig[] = [
     // 26 of 99 topics. Under the old floor 8% of it was storable. Every caption-less card is
     // titled "The Vault of the Atomic Space Age" with an empty summary — Ben's call (plan D2).
     // Budget: newest 50% = 18,750 posts × 1.0 pictures/post ⇒ walkQuota 19,000 items.
+    // RAISED 09-07-26 to 24,000 (+26%), same reason as 70sscifiart's line.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
-    walkQuota: 19_000,
+    walkQuota: 24_000,
   },
   {
     id: "thisisnthappiness",
@@ -280,9 +286,10 @@ export const BLOGS: readonly BlogConfig[] = [
     // 0 toItem errors — a blog whose pictures were always good and whose captions were never
     // the point. It gets the smallest budget of the four because the archive is the largest.
     // Budget: newest 25% = 27,250 posts × 1.0 pictures/post ⇒ walkQuota 27,500 items.
+    // RAISED 09-07-26 to 34,500 (+25%), same reason as 70sscifiart's line.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
-    walkQuota: 27_500,
+    walkQuota: 34_500,
     // `nevver` is the author's own handle, the most frequent tag in the sample.
     selfTags: ["nevver"],
   },

@@ -120,8 +120,8 @@ export const SUSPENDED_SOURCES: SourceId[] = [
   // sequencing, not doubt — the blogs are walked ONE AT A TIME with a readout between, because a
   // walk is the only place a topic-capture problem shows up (see `streetartnews` above), and
   // because between them they are ~72,000 items and ~11 GB of image cache on a self-hosted VM.
-  // `sovietpostcards` went first and is gone from this list.
-  "70sscifiart",
+  // `sovietpostcards` went first and is gone from this list; `70sscifiart` second (09-07-26,
+  // after the quotas were raised ~25% for the posts-vs-items gap sovietpostcards measured).
   "thisisnthappiness",
   "thevaultoftheatomicspaceage",
 ];
