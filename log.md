@@ -220,6 +220,60 @@ Corpus 41,187.
 
 *Session spend: 4.65M tok (in 75 · out 31.1k · cache r 4.07M / w 549.9k) · ~≥$1.11 · fable-5-1 + opus-4-7 · 09:33→13:24*
 
+**Evening, same day — Loupe merged, quotas raised, walk 2 (70sscifiart) done.** Item 2 of the
+handoff first: `feat/loupe-hookup` merged into `main` as `5c52a58` (`--no-ff`; `curator.ts` keeps
+both the caption-less rendition and the Loupe bearer, and the worktree session's entry sits above
+under this heading). The worktree's 147 curation entries and 133 images were copied into the main
+checkout's `.cache` before `git worktree remove` — the re-walk the pickup block priced at $0.03 is
+now free instead. 1,117 tests green. `loupe` is **still not** in `SUSPENDED_SOURCES`: suspension
+also hides rows from the local feed, and the line belongs with the deploy.
+
+**Shipped:** quotas +25% (`3cd3046`: sovietpostcards 21,700 · 70sscifiart 32,000 ·
+thevaultoftheatomicspaceage 24,000 · thisisnthappiness 34,500) and **70sscifiart walked** —
+`bun run ingest --source 70sscifiart`, 120 min, log in `.cache/70sscifiart-walk.log`:
+**32,000 items from 24,000 posts** (480 pages) · 0 floored · **18 un-homed** (0.06%; horror,
+newsletter promo, gore) · 430 toItem errors (260 `answer`, 73 `link`, 33 `video`, 7 `quote`, 57
+no image) · **avg 8.72, 97.1% ≥8** (9: 23,755 · 8: 7,119 · 7: 882 · ≤6: 62) — the strongest source
+in the corpus, above colossal's 8.70 · **11,300 over-filed** (35%; the cap at three held, 2.96
+memberships/item, max 3). Corpus **73,187**; this blog is 44% of it by rows, and with
+sovietpostcards two Tumblr blogs are 68%. `sourceCap` is what makes that a non-event on a page.
+
+**Findings:**
+- **The vocabulary has no word for science fiction.** `science` had 1,226 members before this
+  walk and 20,815 after — **94% of it is now a sci-fi art blog**, and `surreal` (94%) and
+  `illustration` (77% by membership, 79% by display) went the same way. The source's own tags say
+  what it is (`spaceship` 2,139 · `space art` 1,082 · `science fiction art` 616 · `sci-fi art` 580 ·
+  `concept art` 666 · `comics` 910 · `fantasy art` 804), and so do the curator's (`retro sci-fi`
+  5,768 · `sci-fi illustration` 4,952 · `retrofuturism` 1,971 · `space opera` 1,241). This is the
+  19th-century shape again: handed no honest home, the model reaches for the nearest label rather
+  than none. **The miner cannot see it** — `mine:topics` ranks tags by *un-homed* count, and this
+  source is 99.9% homed; a mis-homing costs nothing the un-homed line measures.
+- **The +25% over-bought here.** The raise was calibrated on sovietpostcards' 1.34 → 1.68
+  pictures/post gap; 70sscifiart's real multiplier is **1.33**, *below* its probe's 1.46, so the
+  quota bought 69% of the archive rather than Ben's half. Not a problem for the best source in the
+  corpus, but the two remaining blogs are 1.0 pictures/post by probe and their raises may overshoot
+  the same way — worth deciding before walk 3 rather than after.
+- `stats:walk`'s image-fetch tally is still missing (the Loupe session's note); the walk summary
+  has no image-fetch failure line either. 57 posts with no image were toItem errors, not fetches.
+
+**Decisions:** none — the verdict on 70sscifiart is Ben's, and so is `science-fiction`.
+
+**Open / next:**
+- **Ben's verdict on 70sscifiart** (the numbers say keep; the question is `science`).
+- **`science-fiction` as a grown topic** — and `retrofuturism`, `comics`, `concept art`, `fantasy
+  art` are all candidates the histogram supports. Mechanically: `mine:topics --allow` cannot
+  surface them (un-homed 18), so either a `--source` flag that mines a *source's* tags regardless
+  of homing, or hand-written proposal lines; then `promote:topics` (which sets display topic only
+  where NULL — these are all homed, so the display topic would stay `science` without a repair
+  variant, the `repair:periods` shape with tag evidence). Design question, not tonight's.
+- Walks 3–4 (thevaultoftheatomicspaceage, thisisnthappiness) wait on the verdict and on whether
+  their raised quotas stand. `70sscifiart --cursor 24000` is the rest of that archive.
+- Local `.cache/img` is not warmed for the walks (1,872 files); prod warms after deploy.
+- Deploy checklist unchanged: `loupe` into `SUSPENDED_SOURCES`, then `trim:memberships` and
+  `repair:periods` in the container. `main` is 47 ahead of origin, nothing pushed.
+
+*Session spend: 9.55M tok (in 209 · out 54.1k · cache r 9.07M / w 431.4k) · ~≥$0.82 · fable-5-1 + opus-4-7 · 13:38→15:46*
+
 ### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
 
 Short session, no code. Ben asked why `thevaultoftheatomicspaceage` and `thisisnthappiness` read

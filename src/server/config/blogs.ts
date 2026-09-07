@@ -208,6 +208,15 @@ export const BLOGS: readonly BlogConfig[] = [
     // Budget: newest 50% = 17,400 posts × 1.46 pictures/post ⇒ walkQuota 25,500 items.
     // RAISED 09-07-26 to 32,000 (+25%): sovietpostcards' probe under-measured its pictures/post
     // by a quarter (1.34 → 1.68 real), and a quota in items buys posts. Walk 2 of round 3.
+    // WALKED 09-07-26 (120 min): 32,000 items from **24,000 posts** (480 pages) · 0 floored ·
+    // 18 un-homed (0.06%) · 430 toItem errors (260 answer, 73 link, 33 video, 7 quote, 57 no
+    // image) · avg **8.72, 97.1% ≥8** — the strongest source in the corpus · 11,300 over-filed
+    // (capped at 3; 2.96 memberships/item). The real multiplier here is **1.33**, not the probe's
+    // 1.46, so the raised quota bought 69% of the archive rather than the intended half — the
+    // +25% was calibrated on sovietpostcards' gap and this blog did not have one. Resume from
+    // `--cursor 24000` for the rest. **Finding:** the vocabulary has no `science-fiction`, so the
+    // classifier filed 19,589 of these under `science` (1,226 members before this walk) — a
+    // mis-homing the un-homed count cannot see. Ben's call; see log.md 09-07.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
     walkQuota: 32_000,
