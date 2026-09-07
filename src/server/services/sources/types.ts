@@ -39,6 +39,10 @@ export type SourceId =
   // public domain and its text is CC BY-SA 4.0 (config/pdr.ts). Also the first walk source whose
   // rows may carry a `body`.
   | "pdr"
+  // Loupe (docs/PLAN_loupe-hookup.md, 09-06-26): Ben's magazine-clipping bench, the fifth walk
+  // source and the second that is not a blog (config/loupe.ts). The only source whose IMAGES
+  // are bearer-gated — services/image-auth.ts.
+  | "loupe"
   // Sources round 3 (09-05-26): nine Tumblr blogs on the tumblr.ts factory, registered in
   // server/config/blogs.ts. Two of them ship parked (config/suspended-sources.ts).
   | "nemfrog"

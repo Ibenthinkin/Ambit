@@ -285,6 +285,45 @@ describe("curateItems image-fetch reporting", () => {
     expect(failures).toEqual([]);
   });
 
+  it("attaches the Loupe bearer to a loupe image download and nothing to a museum's", async () => {
+    vi.stubEnv("LOUPE_API_TOKEN", "tok-123");
+    const seen = new Map<string, Record<string, string>>();
+    vi.stubGlobal("fetch", (input: string | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("openrouter.ai")) return Promise.resolve(okCompletion);
+      seen.set(url, (init?.headers ?? {}) as Record<string, string>);
+      // A 404 keeps the item on the "judge from text" path — this test is about the request,
+      // not the response, and it must not need a real image.
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    await curateItems(
+      [
+        makeItem({
+          source: "loupe",
+          sourceId: "walka00unse:1:0",
+          type: "image",
+          imageUrl: "http://localhost:3100/media/walka00unse/a.jpg",
+        }),
+        makeItem({
+          source: "met",
+          sourceId: "curator-test-met",
+          type: "image",
+          imageUrl: "https://images.metmuseum.org/b.jpg",
+        }),
+      ],
+      { force: true },
+    );
+    expect(
+      seen.get("http://localhost:3100/media/walka00unse/a.jpg")?.Authorization,
+    ).toBe("Bearer tok-123");
+    expect(
+      seen.get("https://images.metmuseum.org/b.jpg")?.Authorization,
+    ).toBeUndefined();
+    expect(
+      seen.get("https://images.metmuseum.org/b.jpg")?.["User-Agent"],
+    ).toBeTruthy();
+  });
+
   // 09-06-26 (plan T1c): a source may name a smaller rendition of the same picture purely for
   // scoring. What must be true is that scoreItem asks for THAT url and nothing else changes.
   it("fetches curationImageUrl when the source named one, and imageUrl when it did not", async () => {

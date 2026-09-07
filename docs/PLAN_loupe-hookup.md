@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Execution state (09-07-26): all seven tasks done.** Tasks 2–5 on `feat/loupe-hookup` 09-06; Task 1 in Loupe (`dc55380`) the same evening; Tasks 6–7 09-07 in the `~/Dev/ambit-loupe` worktree after merging `feat/wild-tier-and-captionless` in (so the walk ran against the 99-topic classifier, as preferred below). Numbers and findings: `log.md` 09-07 and SPEC §6.1's `loupe` bullet. One correction to Task 6 Step 1: `stats:walk` prints no image-fetch tally — the bearer was proven with a forced single-item curate plus a 401/200 curl pair instead. And Step 4's "hero" does not exist on the public article page for any source; the proxy was proven by curl.
+
 **Goal:** Ambit ingests Loupe's kept magazine clippings as a fifth corpus-walk source, with the two server-side image fetches carrying Loupe's bearer so every clip image is fetchable, and no per-user gate (Ben's decision, 09-06-26).
 
 **Architecture:** Two halves that ship in order. **Part A (Tasks 1–3)** is the bearer: a tiny leaf helper `imageFetchHeaders(source)` that both server-side image fetches (the curator's ingest download and the image proxy's cache fill) merge into their request headers, plus one field Loupe's REST payload was missing. **Part B (Tasks 4–7)** is the adapter: a `CorpusWalkAdapter` over `GET /api/v1/articles` on the existing walk contract, registered like `pdr` (a walk source that is not a blog), then a measured local walk and the docs that record the verdict and the gate decision.
@@ -62,7 +64,7 @@ The position key (decision 2) needs `readingOrder`, and `ArticleListItem` does n
 **Interfaces:**
 - Produces: `ArticleListItem.readingOrder: number` — `article.reading_order`, the 0-based position of the clipping within its page in reading order. Ambit's Task 5 consumes it.
 
-- [ ] **Step 1: Write the failing assertion**
+- [x] **Step 1: Write the failing assertion**
 
 In `articles.test.ts`, inside the test `"walks every article exactly once across multiple issues, in the documented order"`, the loop collects `seenTitles`. Add a sibling collector and assertion. Change the loop body and add one expectation after the `EXPECTED_ORDER` assertion:
 
@@ -80,7 +82,7 @@ In `articles.test.ts`, inside the test `"walks every article exactly once across
     expect(seenOrders).toEqual([0, 1, 0, 0, 1]);
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run (Loupe's Postgres must be up; `TEST_DATABASE_URL` as in `web/README.md`):
 ```sh
@@ -88,7 +90,7 @@ cd ~/Dev/loupe/web && TEST_DATABASE_URL=postgres://loupe:loupe@localhost:5433/lo
 ```
 Expected: FAIL — TypeScript error `Property 'readingOrder' does not exist on type 'ArticleListItem'` (Vitest surfaces it as a failed transform), or at runtime `expected [ undefined, … ] to equal [ 0, 1, 0, 0, 1 ]`.
 
-- [ ] **Step 3: Add the field**
+- [x] **Step 3: Add the field**
 
 In `articles.ts`, in `ArticleListItem` after `pageNumber: number;`:
 ```ts
@@ -103,11 +105,11 @@ In the `data` map after `pageNumber: row.pageNumber,`:
 ```
 (`row.readingOrder` is already selected — it seeds the cursor.)
 
-- [ ] **Step 4: Run the test again**
+- [x] **Step 4: Run the test again**
 
 Same command. Expected: PASS. Then run the whole Loupe suite the same way (`bunx vitest run`) and `bunx tsc --noEmit`; both clean.
 
-- [ ] **Step 5: SPEC + log**
+- [x] **Step 5: SPEC + log**
 
 In `SPEC.md` §8.2, the bullet beginning **Item shape** lists "three fields Ambit's `Item` needs". Add a fourth sub-bullet after `license`:
 ```
@@ -115,7 +117,7 @@ In `SPEC.md` §8.2, the bullet beginning **Item shape** lists "three fields Ambi
 ```
 In `log.md`, add a dated entry at the top of the current month in the file's house style (one paragraph: what changed, why, that Ambit's adapter is the consumer). No session-spend line is needed for a Loupe entry written from an Ambit session.
 
-- [ ] **Step 6: Commit (Loupe repo)**
+- [x] **Step 6: Commit (Loupe repo)**
 
 ```sh
 cd ~/Dev/loupe && git add web/server/rest/articles.ts web/server/rest/articles.test.ts SPEC.md log.md
@@ -135,7 +137,7 @@ git commit -m "feat(rest): articles carry readingOrder — the third leg of Ambi
 **Interfaces:**
 - Produces: `imageFetchHeaders(source: string): Record<string, string>` — `{ Authorization: "Bearer <LOUPE_API_TOKEN>" }` when `source === "loupe"` and the token is set; `{}` otherwise. Reads `process.env` at call time (never imports `~/env`) for the same reason `sources/archive.ts` and `curator.ts` do: importing `~/env` runs full Zod validation and would fail unit tests.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `src/server/services/image-auth.test.ts`:
 ```ts
@@ -169,14 +171,14 @@ describe("imageFetchHeaders", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 ```sh
 bunx vitest run src/server/services/image-auth.test.ts
 ```
 Expected: FAIL — `Cannot find module './image-auth'`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/server/services/image-auth.ts`:
 ```ts
@@ -212,11 +214,11 @@ export function imageFetchHeaders(source: string): Record<string, string> {
 }
 ```
 
-- [ ] **Step 4: Run the test again**
+- [x] **Step 4: Run the test again**
 
 Same command. Expected: PASS (3 tests).
 
-- [ ] **Step 5: Register the env vars**
+- [x] **Step 5: Register the env vars**
 
 `src/env.js`, in the server schema directly after the `ARCHIVE_API_KEY` line:
 ```js
@@ -248,7 +250,7 @@ LOUPE_URL=
 LOUPE_API_TOKEN=
 ```
 
-- [ ] **Step 6: Typecheck and commit**
+- [x] **Step 6: Typecheck and commit**
 
 ```sh
 bun run typecheck && bun run lint
@@ -271,7 +273,7 @@ git commit -m "feat(images): imageFetchHeaders() — the Loupe bearer, decided i
 - Produces: `fillCache(item: Pick<Item, "id" | "imageUrl" | "source">, opts?)` and `getOrFill(item: Pick<Item, "id" | "imageUrl" | "source">, opts?)`. Both existing callers already pass rows that carry `source` (`src/app/api/img/[itemId]/route.ts` passes the full item from `getItemById`; `scripts/warm-images.ts` reads `row.source` already), so no caller changes.
 - Produces: `imageAsDataUrl(url: string, headers: Record<string, string> = {})` (module-private in curator.ts).
 
-- [ ] **Step 1: Write the failing image-cache test**
+- [x] **Step 1: Write the failing image-cache test**
 
 In `image-cache.test.ts`, change the shared fixture at line 40 to carry a source:
 ```ts
@@ -309,14 +311,14 @@ Add inside `describe("fillCache", …)`:
 ```
 (`png()` and `dir` already exist in that file — `png()` returns a real PNG Buffer via sharp, `dir` is a per-test `mkdtemp`; `vi` is already imported.)
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 ```sh
 bunx vitest run src/server/services/image-cache.test.ts
 ```
 Expected: FAIL — `expected undefined to be 'Bearer tok-123'` (and a type error on `source` if the pick is enforced).
 
-- [ ] **Step 3: Implement in image-cache.ts**
+- [x] **Step 3: Implement in image-cache.ts**
 
 Add the import next to the `USER_AGENT` import:
 ```ts
@@ -338,11 +340,11 @@ Change both signatures from `Pick<Item, "id" | "imageUrl">` to `Pick<Item, "id" 
 ```
 Amend the `fillCache` doc comment's "**No `Referer`, ever**" paragraph with one sentence: *"The one header a source may add is a bearer (Loupe; `image-auth.ts`), merged after the defaults."*
 
-- [ ] **Step 4: Run the image-cache tests**
+- [x] **Step 4: Run the image-cache tests**
 
 Same command. Expected: PASS, including every pre-existing test (the fixture gained a field; nothing else changed).
 
-- [ ] **Step 5: Write the failing curator test**
+- [x] **Step 5: Write the failing curator test**
 
 In `curator.test.ts`, inside `describe("curateItems image-fetch reporting", …)` (which already stubs `OPENROUTER_API_KEY` and restores globals/envs in `afterEach`), add:
 ```ts
@@ -383,14 +385,14 @@ In `curator.test.ts`, inside `describe("curateItems image-fetch reporting", …)
 ```
 (`source: "loupe" as never` is needed only until Task 5 adds `"loupe"` to `SourceId`; Task 5 Step 8 removes the cast.)
 
-- [ ] **Step 6: Run it to verify it fails**
+- [x] **Step 6: Run it to verify it fails**
 
 ```sh
 bunx vitest run src/server/services/curator.test.ts
 ```
 Expected: FAIL — `expected undefined to be 'Bearer tok-123'`.
 
-- [ ] **Step 7: Implement in curator.ts**
+- [x] **Step 7: Implement in curator.ts**
 
 Add the import next to `USER_AGENT`'s:
 ```ts
@@ -419,14 +421,14 @@ and the call at ~358:
 ```
 Add one sentence to `imageAsDataUrl`'s doc comment: *"`headers` exists for the one source whose images are bearer-gated (Loupe; `image-auth.ts` decides)."*
 
-- [ ] **Step 8: Run the full suite, typecheck, lint**
+- [x] **Step 8: Run the full suite, typecheck, lint**
 
 ```sh
 bun run test && bun run typecheck && bun run lint
 ```
 Expected: all green. `src/app/api/img/[itemId]/route.test.ts` still passes (it mocks `getOrFill` and passes the whole item).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```sh
 git add src/server/services/image-cache.ts src/server/services/image-cache.test.ts src/server/services/curator.ts src/server/services/curator.test.ts
@@ -453,7 +455,7 @@ The id has to exist in four type-level places before an adapter can compile agai
 **Interfaces:**
 - Produces: `LOUPE = { id: "loupe", label: "Loupe", defaultUrl: "http://localhost:3100", pageSize: 200 } as const` from `src/server/config/loupe.ts`. Import-safe for client components (plain data, no I/O), like `config/pdr.ts`.
 
-- [ ] **Step 1: Make the `blogs.test.ts` exception fail first**
+- [x] **Step 1: Make the `blogs.test.ts` exception fail first**
 
 Change the test at lines 17–21 to name Loupe as the second non-blog walker:
 ```ts
@@ -468,14 +470,14 @@ Change the test at lines 17–21 to name Loupe as the second non-blog walker:
 ```
 with `import { LOUPE } from "./loupe";` next to the `PDR` import.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 ```sh
 bunx vitest run src/server/config/blogs.test.ts
 ```
 Expected: FAIL — `Cannot find module './loupe'`.
 
-- [ ] **Step 3: Create `config/loupe.ts`**
+- [x] **Step 3: Create `config/loupe.ts`**
 
 ```ts
 // Loupe as a source (Loupe Phase 4, built 09-06-26; docs/PLAN_loupe-hookup.md). Plain data, no
@@ -509,7 +511,7 @@ export const LOUPE = {
 } as const;
 ```
 
-- [ ] **Step 4: Add the id to the two unions**
+- [x] **Step 4: Add the id to the two unions**
 
 `types.ts`, in `SourceId` after the `| "pdr"` line:
 ```ts
@@ -524,7 +526,7 @@ export const LOUPE = {
 ```
 and in the doc comment above it change `Blogs live here; loupe will too.` to `Blogs live here; so does loupe (config/loupe.ts).`
 
-- [ ] **Step 5: Credit-line label**
+- [x] **Step 5: Credit-line label**
 
 `src/lib/source-label.ts`: add `import { LOUPE } from "~/server/config/loupe";` and, after the `[PDR.id]: PDR.label,` line:
 ```ts
@@ -532,7 +534,7 @@ and in the doc comment above it change `Blogs live here; loupe will too.` to `Bl
 ```
 (The fallback would render "Loupe" anyway; naming it keeps the rule that every walk source has a real label, which `blogs.test.ts` enforces for blogs and this line extends by convention.)
 
-- [ ] **Step 6: Do not run typecheck yet**
+- [x] **Step 6: Do not run typecheck yet**
 
 `walkers` in `sources/index.ts` is `Record<WalkSourceId, …>` and now lacks a `loupe` key, so `bun run typecheck` fails until Task 5 Step 6. Go straight to Task 5.
 
@@ -552,7 +554,7 @@ and in the doc comment above it change `Blogs live here; loupe will too.` to `Bl
 - Consumes: `CorpusWalkAdapter`, `WalkPage`, `FetchOpts`, `NormalizedItem` from `./types`; `fetchJson` from `./http`; `htmlToText`, `toLede`, `uniqueTags` from `./normalize`; `LOUPE` from `~/server/config/loupe`; `ArticleListItem` shape from Loupe (`readingOrder` from Task 1).
 - Produces: `export const loupe: CorpusWalkAdapter<LoupeRaw>`; `export interface LoupeRaw` (the wire item, verbatim); `export function loupeSourceId(raw): string`; `export function bodyText(s: string): string`.
 
-- [ ] **Step 1: The fixture**
+- [x] **Step 1: The fixture**
 
 Preferred: record three real records from the running Loupe (Global Constraints) and **scrub nothing** — the payload contains no secrets, and real OCR text is what the tests should see:
 ```sh
@@ -627,7 +629,7 @@ Fallback if Loupe is not running: write this file by hand. It is the shape of `A
 ]
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `src/server/services/sources/loupe.test.ts`:
 ```ts
@@ -727,14 +729,14 @@ describe("loupe helpers", () => {
 });
 ```
 
-- [ ] **Step 3: Run them to verify they fail**
+- [x] **Step 3: Run them to verify they fail**
 
 ```sh
 bunx vitest run src/server/services/sources/loupe.test.ts
 ```
 Expected: FAIL — `Cannot find module './loupe'`.
 
-- [ ] **Step 4: Implement the adapter**
+- [x] **Step 4: Implement the adapter**
 
 `src/server/services/sources/loupe.ts`:
 ```ts
@@ -905,11 +907,11 @@ export const loupe: CorpusWalkAdapter<LoupeRaw> = {
 
 `uniqueTags` (`normalize.ts:27`) trims and dedupes without changing case, and Loupe already stores tags trimmed and lowercase (Loupe SPEC §5.4), so the `tags` equality test in Step 2 holds for any fixture.
 
-- [ ] **Step 5: Run the adapter tests**
+- [x] **Step 5: Run the adapter tests**
 
 Same command as Step 3. Expected: PASS (8 tests, or 7 if the recorded fixture lacks a null-summary article — that test returns early).
 
-- [ ] **Step 6: Register the walker and its fixture**
+- [x] **Step 6: Register the walker and its fixture**
 
 `src/server/services/sources/index.ts`: add `import { loupe } from "./loupe";` (alphabetical, after `loc`) and in `walkers` after `pdr,`:
 ```ts
@@ -918,18 +920,18 @@ Same command as Step 3. Expected: PASS (8 tests, or 7 if the recorded fixture la
 ```
 `source-invariants.test.ts`: add `import loupeFixtures from "./__fixtures__/loupe.json";` beside the pdr import and `loupe: loupeFixtures,` in `fixturesByWalker` after `pdr: pdrFixtures,`. Also extend the header comment's parenthetical: *"Walk sources that are not blogs (`pdr`, …; `loupe`, whose articles carry their OCR text as body by design) are outside D5"*.
 
-- [ ] **Step 7: Remove the cast from Task 3's curator test**
+- [x] **Step 7: Remove the cast from Task 3's curator test**
 
 In `curator.test.ts`, change `source: "loupe" as never,` to `source: "loupe",`.
 
-- [ ] **Step 8: Full suite, typecheck, lint**
+- [x] **Step 8: Full suite, typecheck, lint**
 
 ```sh
 bun run test && bun run typecheck && bun run lint
 ```
 Expected: all green. Pay attention to: `blogs.test.ts` (Task 4 Step 1 now passes), `source-invariants.test.ts` ("every registered walker has a fixture here"), `source-label.test.ts`.
 
-- [ ] **Step 9: Commit (Tasks 4 + 5 together)**
+- [x] **Step 9: Commit (Tasks 4 + 5 together)**
 
 ```sh
 git add src/server/config/loupe.ts src/server/config/topics.ts src/server/config/blogs.test.ts \
@@ -946,7 +948,7 @@ git commit -m "feat(sources): loupe — corpus-walk adapter over /api/v1/article
 
 Nothing here is code. It is the verdict every source gets before rows land (`docs/source-candidates.md`'s trial loop), scaled to a corpus of ~135. Requires Loupe running (Global Constraints) and Ambit's `.env` carrying `LOUPE_URL` + `LOUPE_API_TOKEN`. Ambit's Postgres must be up (`docker compose up -d` in `~/Dev/ambit`; note Loupe's Postgres is a different container on 5433 — do not stop either).
 
-- [ ] **Step 1: Prove the walk reaches Loupe and the images come back**
+- [x] **Step 1: Prove the walk reaches Loupe and the images come back**
 
 ```sh
 bun run stats:walk loupe --quota 200
@@ -955,14 +957,14 @@ Expected output shape (numbers will differ): `offered ~135 · floored N (by rule
 
 Record the whole summary block verbatim; Task 7 pastes it.
 
-- [ ] **Step 2: Dry-run the ingest lane**
+- [x] **Step 2: Dry-run the ingest lane**
 
 ```sh
 bun run ingest --source loupe --dry-run
 ```
 Expected: the walk + classify path runs end to end, prints what it *would* write, writes nothing. Check the "walk items not written" line is 0 and that the un-homed count matches Step 1.
 
-- [ ] **Step 3: Write the rows**
+- [x] **Step 3: Write the rows**
 
 ```sh
 bun run ingest --source loupe
@@ -973,18 +975,18 @@ psql "$DATABASE_URL" -c "select type, count(*), round(avg(curation_score),2) avg
 ```
 Expected: two rows (`image`, `article`); `with_body` equals the article count; `homed` + un-homed equals the total.
 
-- [ ] **Step 4: See one on screen**
+- [x] **Step 4: See one on screen**
 
 Start Ambit (`bun run dev`, port 3000 free — `lsof -ti:3000`), sign in, open `/i/<id>` for one loupe article and one loupe image (ids from `select id, type, title from item where source='loupe' limit 5`). Check: the hero image renders (that is the proxy fill with the bearer — the first request fills `.cache/img/<id>.webp`, the second is a hit); the credit eyebrow reads **LOUPE** and links to the archive.org page; the article's body renders as paragraphs; no HTML shows as text. Then open `/feed` and scroll until a loupe card appears (or use `/dev/feed` with the source readout) — it should draw like any other walk source.
 
-- [ ] **Step 5: Warm the rest**
+- [x] **Step 5: Warm the rest**
 
 ```sh
 bun run img:warm --source loupe --rate 4
 ```
 Expected: every loupe image fetched once, 0 failures in the per-host tally for `localhost:3100`. (Loupe is local; the rate is only there to keep the command's shape.)
 
-- [ ] **Step 6: Commit nothing; note the numbers**
+- [x] **Step 6: Commit nothing; note the numbers**
 
 No files changed in this task. Keep the Step 1 summary and the Step 3 query result for Task 7.
 
@@ -998,19 +1000,19 @@ No files changed in this task. Keep the Step 1 summary and the Step 3 query resu
 - Modify: `log.md` (extend today's entry, or create it; session-spend line per CLAUDE.md)
 - Modify: `~/vaults/Memory-Palace/05 Projects/Ambit-Admin/Roadmap & Backlog.md` line 14, `Ecosystem Architecture.md` (line 92 area and the status table ~line 121), `log.md` (new entry)
 
-- [ ] **Step 1: SPEC §6.1 bullet**
+- [x] **Step 1: SPEC §6.1 bullet**
 
 After the `pdr` bullet, in the same voice, one bullet: **`loupe` — Loupe**, the fifth walk source and second non-blog; mechanism (`GET /api/v1/articles?limit=200&cursor=`, bearer, keyset cursor passed back opaque, one request for today's corpus); the position key and why (`id` re-issued on correction; `--prune` removes vanished positions; a corrected clipping keeps its old score until a `PROMPT_VERSION` bump); the bearer on the two image fetches (`services/image-auth.ts`, decided by source); the rights posture (license string verbatim, personal use only, **no per-user gate by Ben's 09-06-26 decision**, `item.source` is the future gate's column); and the Task 6 numbers verbatim (offered / floored / curated avg / homed / un-homed, rows written by type).
 
-- [ ] **Step 2: CLAUDE.md**
+- [x] **Step 2: CLAUDE.md**
 
 In the Repository status paragraph, after the PDR sentence, add one sentence: *"**Loupe is hooked up as of 09-06-26** (`docs/PLAN_loupe-hookup.md`): the fifth walk source, keyed on `<ia>:<page>:<order>` never Loupe's `id`, with the Loupe bearer on both server-side image fetches (`services/image-auth.ts`); N rows locally, no per-user gate by Ben's decision — `item.source` is where a future gate filters."* In the Ecosystem section's corpus-walk bullet, change *"loupe's adapter uses it"* to *"loupe's adapter (`sources/loupe.ts`) uses it"*, and in the Two-rights-postures bullet nothing changes.
 
-- [ ] **Step 3: `log.md`**
+- [x] **Step 3: `log.md`**
 
 Extend today's entry (or create `### [[09-06-26 Sat]] — …` under `## 2026-09`): **Shipped** (Part A + Part B in one line each), **Decisions** (no gate; position key; bearer by source; Loupe gained `readingOrder`), **Findings** (the Task 6 numbers; anything the walk surfaced — floor hits, un-homed tags, any mojibake seen in a body), **Open / next** (the gate is deferred indefinitely; production needs `LOUPE_URL`/`LOUPE_API_TOKEN` in Coolify **and** a reachable Loupe, which does not exist yet — Loupe has no production host, so `loupe` must be added to `SUSPENDED_SOURCES` **before the next production deploy** or the nightly ingest will print a "not configured" error for it every night. Say which of those two Ben chose, or that it is his to choose). End with the session-spend line from `python3 ~/.claude/scripts/session-spend.py --session <uuid>`; omit it if the script exits non-zero.
 
-- [ ] **Step 4: The vault**
+- [x] **Step 4: The vault**
 
 The no-gate decision, the position key, and the `readingOrder` contract change are **already recorded** in the vault (09-06-26, from the planning session): `Roadmap & Backlog.md` line 14 carries an "Update 2026-09-06" paragraph, `Ecosystem Architecture.md` has an "Amended 2026-09-06" sentence in the pools section and a rewritten `Ambit ← Loupe` status row, and `log.md` has the 09-06 entry. Do not restate any of it. What remains is marking the work built:
 
@@ -1020,7 +1022,7 @@ The no-gate decision, the position key, and the `readingOrder` contract change a
 
 `log.md` (vault): a short dated entry in the file's house style — one paragraph: built on both sides, the Task 6 numbers, and that production still needs a reachable Loupe (`loupe` suspended until then).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```sh
 cd ~/Dev/ambit && git add SPEC.md CLAUDE.md log.md docs/PLAN_loupe-hookup.md

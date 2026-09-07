@@ -7,15 +7,16 @@ import { describe, expect, it } from "vitest";
 
 import { sourceLabel } from "~/lib/source-label";
 import { BLOG_LICENSE, BLOGS, blogConfig, isBlogSource } from "./blogs";
+import { LOUPE } from "./loupe";
 import { PDR } from "./pdr";
 import { WALK_SOURCES } from "./topics";
 
 describe("designated-blog registry", () => {
-  // Every blog is a walk source, and every walk source is a blog — except the one publication
-  // that walks without being a blog (config/pdr.ts says why). Named here so a second non-blog
-  // walker is a deliberate edit to this list, not a silent hole in the registry.
-  it("lists every walk source that is not the Public Domain Review", () => {
-    expect([...BLOGS.map((b) => b.id), PDR.id].sort()).toEqual(
+  // Every blog is a walk source, and every walk source is a blog — except the two that walk
+  // without being blogs: the Public Domain Review (config/pdr.ts) and Loupe (config/loupe.ts).
+  // Named here so a third non-blog walker is a deliberate edit to this list, not a silent hole.
+  it("lists every walk source that is not PDR or Loupe", () => {
+    expect([...BLOGS.map((b) => b.id), PDR.id, LOUPE.id].sort()).toEqual(
       [...WALK_SOURCES].sort(),
     );
   });

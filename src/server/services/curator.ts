@@ -18,6 +18,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { TOPICS, WALK_SOURCES } from "~/server/config/topics";
+import { imageFetchHeaders } from "./image-auth";
 import { USER_AGENT } from "./sources/http";
 import type { NormalizedItem } from "./sources/types";
 
@@ -225,12 +226,20 @@ function itemAsText(item: NormalizedItem): string {
  * blocking, fine in a browser) and some Met URLs contain literal spaces a provider rejects as
  * malformed — fetching ourselves sidesteps every source's fetcher quirk at the cost of local
  * bandwidth, which is free. Ported from phase0/curate.ts's imageAsDataUrl.
+ *
+ * `headers` exists for the one source whose images are bearer-gated (Loupe; `image-auth.ts`
+ * decides).
  */
-async function imageAsDataUrl(url: string): Promise<string | null> {
+async function imageAsDataUrl(
+  url: string,
+  headers: Record<string, string> = {},
+): Promise<string | null> {
   for (const candidate of [url, encodeURI(url)]) {
     try {
       const res = await fetch(candidate, {
-        headers: { "User-Agent": USER_AGENT },
+        // Spread last: a source that authenticates (Loupe, via image-auth.ts) adds to the
+        // defaults, never replaces them.
+        headers: { "User-Agent": USER_AGENT, ...headers },
       });
       if (!res.ok) continue;
       const mime =
@@ -458,9 +467,11 @@ async function scoreItem(
     // Tumblr walks are the case that made it worth wiring: ~90,000 pictures at a mean 649 KB is
     // ~58 GB of somebody else's bandwidth spent on a judgement 500 px would have reached, and
     // every byte of it is time the walk spends not walking. `imageUrl` stays what is stored and
-    // shown; this is never a substitute for it.
+    // shown; this is never a substitute for it. The headers are decided by source (image-auth.ts):
+    // Loupe's bearer rides along on either URL, every other source sends none.
     const dataUrl = await imageAsDataUrl(
       item.curationImageUrl ?? item.imageUrl,
+      imageFetchHeaders(item.source),
     );
     if (dataUrl)
       content.push({ type: "image_url", image_url: { url: dataUrl } });

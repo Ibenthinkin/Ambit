@@ -81,7 +81,13 @@ blog (its images are public domain, its own text CC BY-SA 4.0), a walk over Gats
 with a per-record disk cache; **1,624 local rows @ 8.39, 87% ≥ 8**, of which 186 are un-homed under
 Cut 1. Local only until the next deploy, like the two blogs. It is also the first source whose
 *image* items carry a `body` — a collection's own CC BY-SA preamble, rendered under the picture —
-which is why the "walk rows carry no body" invariant is now scoped to blogs. Pick the thread up from
+which is why the "walk rows carry no body" invariant is now scoped to blogs. **Loupe is hooked up
+as of 09-07-26** (`docs/PLAN_loupe-hookup.md`): the fifth walk source, keyed on `<ia>:<page>:<order>`
+never Loupe's `id`, with the Loupe bearer on both server-side image fetches
+(`services/image-auth.ts`); **132 rows locally @ 4.52** (131 OCR articles + 1 image — the low
+average is the clippings' fragmentary OCR, judged as text), no per-user gate by Ben's decision —
+`item.source` is where a future gate filters. Loupe has no production host, so **`loupe` goes into
+`SUSPENDED_SOURCES` before the next deploy** or the nightly ingest errors on it. Pick the thread up from
 `docs/HANDOFF_sources-round2.md` **§0** — streetartnews and spoon-tamago as a cold-executable
 seven-step task (config rows on the factory, verdict after each) — then Europeana / Openverse /
 Chronicling America. See
@@ -273,5 +279,5 @@ Ambit is one of three cooperating services — with **ambit-archive** (`~/Dev/am
 
 - **The boundary is rights/visibility**: Ambit houses public, public-domain and openly-licensed sources every user may see (new *public* sources land here, in `server/services/sources/`); personal/experimental/unattributed content stays in ambit-archive; personal-use archive material stays in loupe. Ambit is the ecosystem's **only user-facing surface** and the sole gate for the planned per-user content-pool privileges.
 - **Two rights postures live under Ambit's roof as of 08-20-26** (Ambit-Admin decision). Alongside owned display of open material, Ambit does **link-card display of designated blogs**: a single image or short excerpt + a visible `from: <blog>` credit + a **prominent link to the original**, in the shape of a social link preview and **never a republished article**. **No fair-use claim** — license strings stay honest ("Rights retained by original authors"), removal on request is the standing policy, and the point of the link-out is to drive readers *to* the blog. Full article text is used at ingest only, never stored for display. Tenable because Ambit is invite-only and non-monetized. Designed and built 08-25/27-26 — SPEC §6.1, `docs/PHASE6_DESIGN_6.3.md`, `docs/PHASE6_WALKTHROUGH_6.3.md`.
-- **Two blessed source-integration patterns**: search-shaped (`search(q)`, ranked order — the museums, ambit-archive) and corpus-walk (cursor-paginated full ingest — loupe, whose adapter must fail fast on 401/403 and never dedupe on loupe article `id`). Don't invent a third shape. *Corpus-walk is now implemented in-repo (`CorpusWalkAdapter` in `server/services/sources/types.ts`, Phase 6.3) — loupe's adapter uses it. Designated blogs are registered in `src/server/config/blogs.ts`; a blog's `body` is always null.*
+- **Two blessed source-integration patterns**: search-shaped (`search(q)`, ranked order — the museums, ambit-archive) and corpus-walk (cursor-paginated full ingest — loupe, whose adapter must fail fast on 401/403 and never dedupe on loupe article `id`). Don't invent a third shape. *Corpus-walk is now implemented in-repo (`CorpusWalkAdapter` in `server/services/sources/types.ts`, Phase 6.3) — loupe's adapter (`sources/loupe.ts`) uses it. Designated blogs are registered in `src/server/config/blogs.ts`; a blog's `body` is always null.*
 - The `SourceAdapter` contract (`server/services/sources/types.ts`) is a **cross-service agreement** — ambit-archive built to it verbatim. Before changing it (or either private-source integration), read the Ambit-Admin doc and record the decision in its log.
