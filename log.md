@@ -279,6 +279,60 @@ sovietpostcards two Tumblr blogs are 68%. `sourceCap` is what makes that a non-e
 
 *Session spend: 9.55M tok (in 209 · out 54.1k · cache r 9.07M / w 431.4k) · ~≥$0.82 · fable-5-1 + opus-4-7 · 13:38→15:46*
 
+**Later — Ben's decision, executed: `science-fiction` exists, `science` is repaired, walk 3
+running.** He took the recommendation whole: keep 70sscifiart; promote `science-fiction` and
+`retrofuturism` *before* walk 3 (the vault is atomic-age material and would have landed under
+`science` too, and the classify cache ignores the topic list, so anything classified before the
+topic exists costs a re-bill to fix); repair `science` on tag evidence; put the two remaining
+quotas back to Ben's originals; then walk. All on `main`, `3cbf6ac` + the un-park commit.
+
+**Shipped:**
+- **Two hand-written proposal lines** in `docs/topic-proposals.md` under a heading that says why
+  they are hand-written: the miner ranks by un-homed count and a mis-homed source is 99.9% homed.
+  `promote:topics --confirm` created both at tier `grown` (1,661 + 2,022 tag memberships) and,
+  idempotently, gave the other 83 their memberships from tonight's rows (309 un-homed items
+  gained a display topic in passing — un-homed is now 907).
+- **`bun run repair:rehome`** — `REHOME_RULES` in `config/topics.ts` (`from`, `to`, an evidence
+  regex, and `exceptSources`), the pure planner `services/rehome-repair.ts` with seven pinned
+  rules, and the script. For an item whose title, source tags or aesthetic tags carry the
+  evidence: add the `to` membership at origin `tag`, remove the curator-origin `from` row (tag
+  and seed rows are evidence and stay), move the display to `to` if it was `from` or NULL. The
+  third dated exception to additivity, argued in the file header. Local write: **22,960
+  memberships added, 17,760 curator rows removed, 988 display topics moved**; a second run finds
+  nothing. `science` went from 94% one blog to **66%** (3,072 members, 2,041 the blog); what is
+  left under it from 70sscifiart is `space art` and `nasa`-tagged work, which is science.
+- `graph:rebuild --confirm`: 101 topics, core rows byte-identical, 398 new cells.
+- Quotas: vault back to 19,000, thisisnthappiness back to 27,500 (both probe at 1.0
+  pictures/post, so the originals already are Ben's half and quarter). sovietpostcards keeps
+  21,700 — its raise was the measured one.
+- **Walk 3 started ~17:56**: `bun run ingest --source thevaultoftheatomicspaceage`, log in
+  `.cache/thevault-walk.log`, classify vocabulary 100 topics.
+
+**Findings, both from the dry runs — which is what dry runs are for:**
+- **Aesthetic tags describe a look, not a subject.** The first regex carried `futuristic` and
+  `space station`, and the per-source table showed 35 NASA photographs gaining `science-fiction`:
+  "futuristic fashion" on a SpaceX suit, "retro sci-fi" on a 1983 shuttle crew portrait, "alien
+  landscapes" on the Galilean moons. Both words came out and `exceptSources: ["nasa-images"]` went
+  in — a NASA photograph is never fiction whatever it resembles. The pdr, Wikipedia and archive
+  matches were all genuine (Verne, Wells, Robida, *Le Voyage dans la Lune*), so the rule is
+  right for text-first sources and only the look-words were wrong.
+- **Postgres reads `\b` as a backspace.** The SQL candidate net used the JS regex source
+  verbatim and its tag side silently matched nothing — the curator-row side masked it. `\y` is
+  the ARE word boundary and `(?:` is not ARE at all; the script translates both. Caught because
+  the candidate count was identical for two different rules.
+- The evidence line is deliberately not source-wide: 2,041 of the blog's rows keep `science`
+  because nothing on them says fiction. A blunter rule would have been simpler and less honest.
+
+**Open / next:**
+- Walk 3 verdict when the monitor fires; then thisisnthappiness (walk 4), then
+  `70sscifiart --cursor 24000` and `sovietpostcards --cursor 10400 --quota 4500` for the rests.
+- **The prod container now runs three scripts after the deploy**, in order: `trim:memberships`,
+  `repair:periods`, `repair:rehome` — and `promote-prod.sh` first, with the updated
+  `topic-proposals.md` copied in, or `repair:rehome` refuses (the `to` topic must exist).
+- `loupe` into `SUSPENDED_SOURCES` before that deploy. `main` is 50 ahead of origin.
+
+*Session spend: 12.25M tok (in 178 · out 86.9k · cache r 11.58M / w 577.3k) · ~≥$1.90 · fable-5-1 + opus-4-7 · 15:46→17:57*
+
 ### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
 
 Short session, no code. Ben asked why `thevaultoftheatomicspaceage` and `thisisnthappiness` read
