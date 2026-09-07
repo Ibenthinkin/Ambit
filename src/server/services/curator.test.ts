@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CLASSIFY_PROMPT,
+  classifyPrompt,
   CURATION_CACHE_DIR,
   curationCacheKey,
   CURATOR_PROMPT,
@@ -17,6 +18,7 @@ import {
   structuralFloor,
   TOPIC_IDS,
 } from "./curator";
+import { TOPICS } from "~/server/config/topics";
 import type { NormalizedItem } from "./sources/types";
 
 /** A minimal, valid NormalizedItem literal — tests override just the fields they care about. */
@@ -100,15 +102,54 @@ describe("structuralFloor", () => {
     expect(kept).toHaveLength(4);
   });
 
-  it("still applies bare-title and thin-summary to walk sources", () => {
+  // 09-06-26 (docs/PLAN_caption-less-and-wild.md T1): this test used to assert that walk sources
+  // kept bare-title and thin-summary. They no longer apply to a walk source's IMAGES — both rules
+  // are about museum records, where the text is all there is, and applying them to a picture blog
+  // meant a rule about museums deciding which of Ben's designated blogs could be ingested at all
+  // (137 of 150 thevaultoftheatomicspaceage posts floored on thin-summary alone). For a walk
+  // image the curator, which sees the picture, is the whole quality bar. The asymmetry is what
+  // this now pins.
+  it("exempts a walk source's IMAGES from bare-title and thin-summary", () => {
     const bare = makeItem({
       source: "doorofperception",
       type: "image",
-      title: "Bowl",
+      title: "Colossal",
+      summary:
+        "A caption long enough to clear the sixty-character museum rule easily.",
     });
-    const thin = makeItem({
-      source: "doorofperception",
+    // The caption-less picture-blog card: a one-word blog-label title AND an empty summary,
+    // which is both rules at once and the exact shape T1 exists to keep.
+    const captionless = makeItem({
+      source: "thevaultoftheatomicspaceage",
+      sourceId: "2",
       type: "image",
+      title: "The Vault of the Atomic Space Age",
+      summary: "",
+    });
+    const { kept, dropped } = structuralFloor([bare, captionless]);
+    expect(dropped).toHaveLength(0);
+    expect(kept).toHaveLength(2);
+  });
+
+  it("still applies thin-summary to a walk source's ARTICLES — they are read, not looked at", () => {
+    const article = makeItem({
+      source: "pdr",
+      type: "article",
+      title: "A Sea of Ink",
+      summary: "A short note.",
+    });
+    const { kept, dropped } = structuralFloor([article]);
+    expect(kept).toHaveLength(0);
+    expect(dropped).toEqual([{ item: article, rule: "thin-summary" }]);
+  });
+
+  it("leaves search-shaped sources under both rules — the museums they were written for", () => {
+    const bare = makeItem({ source: "met", type: "image", title: "Bowl" });
+    const thin = makeItem({
+      source: "met",
+      sourceId: "2",
+      type: "image",
+      title: "A Bowl of Fruit",
       summary: "short",
     });
     const { kept, dropped } = structuralFloor([bare, thin]);
@@ -131,6 +172,7 @@ describe("parseCuratorResponse", () => {
       // Phase 6.3 / Cut 1: parseCuratorResponse always reports topics, and outside classify mode
       // the honest answer is none — a museum item's topic comes from the seed query that found it.
       topics: [],
+      overFiled: 0,
     });
   });
 
@@ -243,6 +285,61 @@ describe("curateItems image-fetch reporting", () => {
     expect(failures).toEqual([]);
   });
 
+  // 09-06-26 (plan T1c): a source may name a smaller rendition of the same picture purely for
+  // scoring. What must be true is that scoreItem asks for THAT url and nothing else changes.
+  it("fetches curationImageUrl when the source named one, and imageUrl when it did not", async () => {
+    const asked: string[] = [];
+    vi.stubGlobal("fetch", (input: string | URL) => {
+      const url = String(input);
+      if (url.includes("openrouter.ai")) return Promise.resolve(okCompletion);
+      asked.push(url);
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    await curateItems(
+      [
+        makeItem({
+          sourceId: "curator-test-small",
+          type: "image",
+          imageUrl: "https://media.example.com/a_1280.jpg",
+          curationImageUrl: "https://media.example.com/a_500.jpg",
+        }),
+        makeItem({
+          sourceId: "curator-test-plain",
+          type: "image",
+          imageUrl: "https://media.example.com/b_1280.jpg",
+        }),
+      ],
+      { force: true },
+    );
+    // A Set: imageAsDataUrl retries a failed fetch, so each URL is asked for more than once.
+    expect([...new Set(asked)].sort()).toEqual([
+      "https://media.example.com/a_500.jpg",
+      "https://media.example.com/b_1280.jpg",
+    ]);
+  });
+
+  it("still stores and shows the full-size imageUrl when a curation rendition was used", async () => {
+    vi.stubGlobal("fetch", (input: string | URL) =>
+      Promise.resolve(
+        String(input).includes("openrouter.ai")
+          ? okCompletion
+          : { ok: false, status: 404 },
+      ),
+    );
+    const [curated] = await curateItems(
+      [
+        makeItem({
+          sourceId: "curator-test-keeps-large",
+          type: "image",
+          imageUrl: "https://media.example.com/c_1280.jpg",
+          curationImageUrl: "https://media.example.com/c_500.jpg",
+        }),
+      ],
+      { force: true },
+    );
+    expect(curated?.imageUrl).toBe("https://media.example.com/c_1280.jpg");
+  });
+
   it("still scores the item rather than dropping it", async () => {
     stubFetch(404);
     const [curated] = await curateItems(
@@ -280,6 +377,52 @@ describe("CLASSIFY_PROMPT", () => {
   });
 });
 
+// 09-06-26 (docs/PLAN_caption-less-and-wild.md T4). The vocabulary became a parameter so a walk
+// item can home into one of Cut 2a's grown topics at ingest instead of waiting for the next
+// manual promote:topics. Two things have to be true for that to be safe.
+describe("classifyPrompt — the vocabulary is a parameter", () => {
+  const vocab = [
+    { id: "soviet-postcards", label: "Soviet Postcards" },
+    { id: "space-age", label: "Space Age" },
+  ];
+
+  it("lists exactly the topics it was given, and none of the compile-time sixteen", () => {
+    const prompt = classifyPrompt(vocab);
+    expect(prompt).toContain("  soviet-postcards — Soviet Postcards");
+    expect(prompt).toContain("  space-age — Space Age");
+    for (const id of TOPIC_IDS) expect(prompt).not.toContain(`  ${id} —`);
+  });
+
+  it("keeps the rubric, the cap and the reply shape whatever the list is", () => {
+    const prompt = classifyPrompt(vocab);
+    expect(
+      prompt.startsWith(
+        CURATOR_PROMPT.slice(0, CURATOR_PROMPT.lastIndexOf("Reply with ONLY")),
+      ),
+    ).toBe(true);
+    expect(prompt).toContain("never more than three");
+    expect(prompt).toMatch(
+      /"topics": \[<topic ids, best fit first, or empty>\]\}$/,
+    );
+    // The one sentence added for a 99-item list, so it does not read as a menu to fill.
+    expect(prompt).toContain("The list is long");
+  });
+
+  it("CLASSIFY_PROMPT is still exactly the sixteen-topic prompt", () => {
+    expect(CLASSIFY_PROMPT).toBe(classifyPrompt(TOPICS));
+  });
+
+  // D10, pinned: the cache key has no topic-list input, so growing the vocabulary re-bills
+  // nothing. If someone ever adds one, this is what says the whole corpus is about to be
+  // re-curated.
+  it("the cache key does not depend on the topic list", () => {
+    const item = { source: "70sscifiart" as const, sourceId: "1:1" };
+    expect(curationCacheKey(item, true)).toBe(curationCacheKey(item, true));
+    expect(curationCacheKey.length).toBe(2); // (item, classify) — no third argument
+    expect(PROMPT_VERSION).toBe(1);
+  });
+});
+
 describe("parseCuratorResponse — classify mode", () => {
   const ids = new Set(["botany", "zoology"]);
 
@@ -288,7 +431,7 @@ describe("parseCuratorResponse — classify mode", () => {
       parseCuratorResponse('{"score": 8, "tags": ["a"], "topic": "botany"}', {
         topicIds: ids,
       }),
-    ).toEqual({ score: 8, tags: ["a"], topics: ["botany"] });
+    ).toEqual({ score: 8, tags: ["a"], topics: ["botany"], overFiled: 0 });
   });
 
   it("turns an invented topic id into null — never a foreign-key error 300 items in", () => {
@@ -331,6 +474,30 @@ describe("parseCuratorResponse — classify mode", () => {
     );
     expect(out.topics).toEqual([]);
     expect(out.score).toBe(9); // a refusal costs the item nothing
+  });
+
+  // MAX_TOPICS (09-07-26). The prompt has always said "never more than three", and the parser
+  // deliberately kept everything, on the argument that truncating would hide an over-filing
+  // model. Then the first sovietpostcards walk stored 89 items with 20+ memberships and nine
+  // filed under all 99 topics — the model listing the vocabulary back, in order. Hiding it was
+  // the wrong worry; STORING it was the harm. So: keep the first three (best fit first is the
+  // prompt's own order), and report how many were dropped so over-filing stays visible.
+  it("keeps only the first MAX_TOPICS known ids, and counts what it dropped", () => {
+    const many = new Set(["a", "b", "c", "d", "e"]);
+    const out = parseCuratorResponse(
+      '{"score": 8, "tags": [], "topics": ["e", "junk", "d", "c", "b", "a"]}',
+      { topicIds: many },
+    );
+    expect(out.topics).toEqual(["e", "d", "c"]);
+    expect(out.overFiled).toBe(2); // b and a — the invented "junk" was never a topic to drop
+  });
+
+  it("reports overFiled 0 for an answer inside the cap", () => {
+    expect(
+      parseCuratorResponse('{"score": 8, "tags": [], "topics": ["botany"]}', {
+        topicIds: ids,
+      }).overFiled,
+    ).toBe(0);
   });
 
   it('reads a legacy single "topic" key as a one-element list', () => {
@@ -450,6 +617,27 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
     await seedCache(it, { score: 8, tags: [], topics: ["botany", "zoology"] });
     const [out] = await curateItems([it], { classify: true });
     expect(out?.topics).toEqual(["botany", "zoology"]);
+  });
+
+  it("caps an over-long cached array on read, and reports it — no re-bill", async () => {
+    // The 09-06/07 walks wrote runaway lists into the cache before MAX_TOPICS existed. Those
+    // entries are read forward like every other one: capped to three, counted, never re-billed.
+    const it = makeItem({
+      source: "doorofperception",
+      sourceId: `cache-fwd-${Date.now()}-d`,
+    });
+    await seedCache(it, {
+      score: 8,
+      tags: [],
+      topics: ["botany", "zoology", "poetry", "machines", "clay"],
+    });
+    const overFiled: number[] = [];
+    const [out] = await curateItems([it], {
+      classify: true,
+      onOverFiled: (_item, n) => overFiled.push(n),
+    });
+    expect(out?.topics).toEqual(["botany", "zoology", "poetry"]);
+    expect(overFiled).toEqual([2]);
   });
 
   it("PROMPT_VERSION is still 1 — bumping it would re-bill every walk item for nothing", () => {

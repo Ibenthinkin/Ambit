@@ -5,6 +5,105 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-07-26 Mon]] — Cut 2b sized, found wanting; sourceCap and MAX_TOPICS instead
+
+Ben's call on the sovietpostcards topic-capture finding was **Cut 2b**. Sizing it against the
+local database before planning it reversed the recommendation, and he switched to the three-step
+version below. Branch `feat/wild-tier-and-captionless`, two commits, not pushed.
+
+**Findings, the ones that changed the plan:**
+- **The join move does not dissolve the capture.** Yesterday's entry said `illustration` would
+  draw its 5,181 memberships *plus* everything else that is a member. The "everything else" is
+  180 items. By membership the captured topics look exactly as they do by display topic —
+  `19th-century` 95% sovietpostcards, `illustration` 98%, `photography` 92%, `books` ~90%. A
+  17,500-item blog about illustration *is* most of the corpus's illustration under any query;
+  no pool change touches that arithmetic.
+- **The classifier over-files, sometimes catastrophically.** The prompt says "never more than
+  three" and the parser kept everything on purpose ("truncating would hide over-filing").
+  sovietpostcards averaged 3.76 memberships; 89 items carried 20+, and nine carried **all 99** —
+  two cache entries opened: the model listing the vocabulary back in order. Colossal, under the
+  same prompt, maxes at 9. Thin captions plus a 99-line list is the trigger. The join would have
+  made every one of those rows drawable.
+- **`19th-century` is wrong for most of what is in it.** 12,253 sovietpostcards memberships, 70%
+  of the blog: a 1961 Titov spaceflight book, a 1980s "Space" lamp, a 1970s sports poster.
+- **Wording does not fix that.** A 100-item probe, fresh classify into a scratch cache (~6¢ for
+  three runs): labels as-is **52** in `19th-century`; label "made in the 1800s — NOT 20th-century
+  vintage" **41**; label "ONLY for work dated 1801-1900. Anything dated 19xx is NEVER this topic"
+  **31** — and *Kozytskogo Street in Vinnytsya, 1988* stays under it through all three. The model
+  reads "old-looking" and reaches for the only period in the list; it does not weigh a date it
+  was handed against a label. First trap of the probe, worth knowing: the cache key deliberately
+  ignores the topic list, so a variant run from the same cwd silently returns the control's
+  answers — one scratch directory per variant.
+- **One of my own.** The first `sourceCap` cut passed its unit test and then let five colossal
+  cards through on a real page: the cap filtered candidates, and the adjacency filter below it
+  rebuilt candidates from the whole pool. A single-draw test hid it by luck of order; the test now
+  runs the draw fifty times and the live probe is what caught it.
+
+**Shipped:**
+- **`sourceCap`** (`b088393`) — per-page, per-source cap across every tier including WILD,
+  `topicCap`'s sibling, default 3 of 12, slider on `/dev/feed`. Enforced *before* the draw:
+  `pickItem` filters a capped source out, so a topic whose other sources are a 2% minority spends
+  that minority rather than skipping the slot. Six real pages after: no source above three, all
+  twelve slots filled. The feed test fixture now gives every item its own source (they were all
+  `wikipedia`, which the cap would have tripped on), and the `getWildPool` integration teardown
+  clears `seen_item` rows that other suites' WILD draws leave pointing at its fixtures — a
+  pre-existing cross-suite flake found by running the feed suites together.
+- **`MAX_TOPICS`** (`890cfbb`) — the parser keeps the first three known ids in the model's own
+  best-fit order and returns `overFiled`; the cache-read path applies the same cap so pre-cap
+  entries read forward with no re-bill; ingest prints a per-source over-filed line under the
+  classification block, `stats:walk` adds it to the verdict line. **`bun run trim:memberships
+  --confirm`** applied the cap retroactively by the cached order — the one dated exception to
+  Cut 1's additivity rule, argued in `services/membership-trim.ts` and now in the design doc §5:
+  **5,829 items, 14,682 rows** (sovietpostcards 14,513, pdr 169), curator-origin rows now max 3,
+  avg 2.31, idempotent. Larger than the 89 runaways because 5,000 items carried a fourth or fifth
+  membership; that is the cap at three applied evenly, which is what Ben approved.
+- 94 files / 1,095 tests green; design doc §11 records why 2b was re-evaluated and stays
+  scale-triggered.
+
+**Decisions:** Cut 2b deferred with evidence (Ben, on the numbers above); the cap at three
+rather than the runaways alone; the probe was read-only and its scratch caches are not in the
+repo.
+
+**Open / next:**
+- **`19th-century` is Ben's call, and no prompt wording will make it.** The honest options:
+  (a) take period topics out of the classify vocabulary — a period is metadata, and source tags
+  (`1900s`, `1960s`, `19th century`) carry it reliably where the model does not — then repair the
+  ~11,000 curator-origin sovietpostcards rows under it (keep only where title/tags carry an 18xx
+  date or "19th century"); (b) accept it. (a) is a `topic` column or a config set, plus a
+  variant of the trim script. Not done: the probe was scoped to measure, and the repair rule
+  needs his eye on what "19th century" should mean for a blog that spans 1880-1990.
+- **The other three walks are still gated on Ben**: raise each `walkQuota` ~25% for the
+  posts-vs-items gap, then un-suspend blog 2. With `sourceCap` shipped the capture is a page-level
+  non-event; the classifier fix above is the remaining reason to wait or not.
+- **A second session built the Loupe hookup today** on `feat/loupe-hookup` in a worktree with the
+  wild-tier branch merged in — *before* these two commits. Whichever merges second picks up a
+  trivial `feed-knobs.ts`/`curator.ts` merge.
+- `bench:feed` p50 at 58 ms (yesterday's note) is untouched by any of this and still worth a look
+  before three more blogs land.
+
+*Session spend: 34.20M tok (in 460 · out 144.5k · cache r 33.42M / w 639.2k) · ~≥$2.35 · fable-5-1 + opus-4-7 · 09:05→09:37*
+
+**Handoff for a cold session (written 13:22, same day).** Everything above is committed on
+`feat/wild-tier-and-captionless` (`b088393` sourceCap · `890cfbb` MAX_TOPICS + trim ·
+`9765a41` docs); the tree is clean and **nothing is pushed or merged**. Local Postgres is the
+Docker Compose service (`docker compose up -d`; Docker Desktop had to be started first today).
+The trim has been run locally and is idempotent; it has **not** been run on production, and
+must be — inside the app container, where the volume mounts `.cache/curation` — after the next
+deploy, or the deployed corpus keeps its runaway rows. Pick up in this order:
+1. **Ben's `19th-century` decision** (Open / next above). If (a): a `topic` flag or config set
+   that keeps period topics out of `listAllTopics()`-derived classify vocabularies, plus a
+   tag-based repair variant of `scripts/trim-memberships.ts`; both need a dry-run count first.
+2. **Merge order with `feat/loupe-hookup`** (a worktree, `~/Dev/ambit-loupe`, built today
+   *before* these commits): merge this branch into `main` first, then that one — expect a
+   trivial conflict in `feed-knobs.ts` and `curator.ts`. `loupe` must be in `SUSPENDED_SOURCES`
+   before any deploy.
+3. **Walks 2–4**: raise each `walkQuota` in `blogs.ts` ~25% (posts-vs-items gap, 09-06 entry),
+   un-suspend one blog, walk, read the `over-filed` and un-homed lines in the summary, verdict,
+   repeat. `sovietpostcards --cursor 10400` buys its remaining half.
+4. Then the older queue: `bench:feed` p50 58 ms, 8.1 T8/T9, spoon-tamago, desktop-UI polish.
+
+*Session spend: 1.42M tok (in 12 · out 5.2k · cache r 780.1k / w 637.5k) · fable-5-1 · 09:37→13:22*
+
 ### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
 
 Short session, no code. Ben asked why `thevaultoftheatomicspaceage` and `thisisnthappiness` read
@@ -101,6 +200,192 @@ D1–D13, including that this amends design D4 of `DESIGN_topic-vocabulary-growt
   guard per page for photoset near-duplicates.
 
 *Session spend: 15.20M tok (in 182 · out 192.5k · cache r 14.05M / w 960.3k) · fable-5-1 · 12:36→15:10*
+
+**Then, same day, the Loupe hookup — assessed, decided, and planned.** Ben brought over Loupe's
+own next-step note ("Phase 4, the Ambit hookup — two pieces remain, both in the Ambit repo") and
+asked whether it was worth doing and whether it could run beside the caption-less plan. Reading
+both repos and the vault before answering changed the count: Loupe's half of the bearer is
+**already merged** (loupe `5ea68b2`, `/media/*` honours the static token), Ambit's two fetch sites
+are exactly two (`curator.ts` `imageAsDataUrl` and `image-cache.ts` `fillCache`, both a bare
+User-Agent today), and the walk contract was written with Loupe named as its next user — but the
+vault's Ecosystem doc also says Loupe material is visible "only to users granted those pools", and
+no such gate exists in Ambit. So the honest count was three pieces, and the third was the blocker.
+
+**Decisions (Ben's, 09-06-26):**
+- **No per-user gate, indefinitely.** Ambit is invite-only and every reader is someone Ben knows;
+  Loupe items go in the general feed. `item.source` is a not-null column and `getTopicPools`
+  already filters on it (`SUSPENDED_SOURCES`), so gating later is a filter, not a migration — three
+  filters, to be exact: the feed pool, the public `items.byId`/`/i/[id]` resolver, and
+  `/api/img/[id]`. Recorded in the plan so the future task is scoped honestly; the plan's last
+  task amends the vault so the old line stops reading as a blocker.
+- **Identity is position, never Loupe's article `id`** — `<iaIdentifier>:<pageNumber>:<readingOrder>`.
+  Loupe deletes and re-inserts a page's articles on every correction, so `id` would duplicate every
+  corrected clipping; under the position key a correction upserts in place and `--prune` removes
+  vanished positions. `readingOrder` is not on the wire today, so the plan's first task is a
+  one-field addition to Loupe's `/api/v1/articles` (a contract change; SPEC §8.2 + the vault).
+  Accepted cost: a corrected clipping keeps its old score until a `PROMPT_VERSION` bump.
+- **The bearer is decided by source, not by URL host** — one leaf helper, `imageFetchHeaders(source)`,
+  merged into both fetch sites; every non-Loupe source merges `{}`.
+- **Registered like `pdr`, not like a blog**: `config/loupe.ts`, a named exception in
+  `blogs.test.ts`, `body` stored for articles (OCR text as paragraphs), null for illustrations,
+  Loupe's license string verbatim, Loupe's tags only.
+
+**Shipped:** `docs/PLAN_loupe-hookup.md` (`4ad3a0d`, this branch) — seven tasks, two parts.
+Part A (bearer) has no overlap with any other plan and can run now. Part B (adapter + measured
+walk + docs) is best run after the caption-less plan's Task 4 merges, so the verdict is against the
+vocabulary Loupe will live with; earlier costs only a free re-walk. Worth doing on value? The
+corpus is ~135 kept articles — small — but it closes the third ecosystem edge end to end and gives
+Loupe Phase 5 a reason to exist; cheap enough to do.
+
+**Open / next:**
+- Execute the plan in a cheaper session (Part A any time; Part B after caption-less T4).
+- **Before the next production deploy, `loupe` must be added to `SUSPENDED_SOURCES`:** Loupe has
+  no production host, so a deployed Ambit cannot reach it and the nightly ingest would print a
+  "not configured" error every night. Not in the plan's code tasks because it belongs on whichever
+  branch deploys next.
+- Local trap for the executor: Loupe's dev server and its `imageUrl`s default to :3000, which
+  Ambit owns — run it `MEDIA_BASE_URL=http://localhost:3100/media bunx next dev -p 3100`.
+
+*Session spend: 13.19M tok (in 197 · out 153.8k · cache r 12.40M / w 634.7k) · ~≥$2.24 · fable-5-1 + opus-4-7 · 15:12→15:47*
+
+**Then, same day, the plan executed — T1–T5, and blog 1 walking.** Ben chose to run it here rather
+than hand it to a cheaper session, and answered the plan's one open question — **wire
+`curationImageUrl`, yes** — before anything started. Branch `feat/wild-tier-and-captionless` off
+`main`, after merging `feat/tumblr-blogs-round3` in (one `log.md` conflict, both entries kept).
+
+**Shipped:** T1 (the floor exemption, the photoset fan-out, the blog-label title, `walkQuota` +
+`--cursor`), T1c (`curationImageUrl`), T2 (the WILD tier), T3 (mining reads aesthetic tags), T4
+(classify sees all 99 topics), T5 (two sliders and a `wild` readout), and the docs. 1,084 unit
+tests and 49 e2e green, production build clean. Five commits, none pushed.
+
+**The numbers that justify the whole plan.** The four kept blogs, re-sampled at 150 items each
+after T1 and T4, against the same figures from 09-05:
+
+| blog | stored | avg | ≥8 | un-homed |
+|---|---:|---:|---:|---:|
+| `70sscifiart` | 55% → **100%** | 8.49 | 94% | 3% |
+| `sovietpostcards` | 44% → **100%** | 7.63 | 61% | **0%** (95 of 99 topics) |
+| `thevaultoftheatomicspaceage` | 8% → **100%** | 8.45 | 91% | **0%** |
+| `thisisnthappiness` | 7% → **100%** | 8.11 | 87% | **0%** |
+
+The *stored* column is T1's doing and the *un-homed* column is T4's, and they are separable: the
+floor was never letting the items through, and the classifier was never able to home the ones that
+did. `thevaultoftheatomicspaceage` is the sharpest case in the round — the blog with the worst
+metadata evidence of the nine (zero tags on 200 posts, median caption 0 chars) samples at **8.45
+average, 91% ≥ 8** once the picture is what gets judged. Yesterday's open question is answered in
+`HANDOFF_tumblr-round3.md` §2.3, where it was asked.
+
+**Findings, in the order they cost something:**
+- **The floor change is retroactive, and it broke a promise the frozen walker was relying on.**
+  `things-organized-neatly.ts` titled a caption-less post `Untitled post 91980754329`, with a
+  comment saying the placeholder could never reach a reader *because the floor drops it*. That
+  sentence stopped being true, and its next walk stores the 52-in-200 caption-less posts it used to
+  drop. All 1,720 stored rows were queried first — **none carries the placeholder**, precisely
+  because the floor had dropped them — so the one-line fix (fall back to the blog's label) moves no
+  row. The freeze held everywhere else.
+- **A second title bug, found only because the sample was read.** A sovietpostcards card came back
+  titled `:` — a reblog of a **private** blog, whose `<a class="tumblr_blog">` has empty text and
+  leaves a caption line of exactly ":". `ATTRIBUTION_LINE` catches `nemfrog:` but needs a name to
+  catch. Same class as the `ALT` badge in round 3, and same reason it surfaced now: the floor used
+  to drop these. A candidate title line must now contain a letter or a digit.
+- **`graph:rebuild` had been giving adjacency rows to leftover integration-test topics.** Three
+  were sitting in this laptop's database (a killed suite's `afterAll` never ran), and it filtered
+  one hard-coded prefix. Harmless in a JSON artifact; *not* harmless one commit later, when T4
+  started putting the topic list into a billed prompt on every classify call. Now `isRealTopic` in
+  `config/topics.ts`, used by both.
+- **`mine:topics`' new `via curator N/M` column earns itself immediately:** of nine candidates,
+  four are 100% curator-written (`whimsical` 601/601, `color-study` 74/74, `monochromatic` 273/273,
+  `organized` 55/55). That is exactly the "different kind of claim" the column exists to show, and
+  three of those four are look-descriptors rather than subjects. Eighteen such words are now
+  stopworded; Ben's tick stays the verdict for the rest.
+- **The WILD tier has a consequence the plan didn't name: the feed no longer exhausts.** A reader
+  whose own topics are used up keeps being served while anything un-homed remains. It surfaced as
+  a broken integration test ("then an empty page"), which is now scoped to the fixture's own topic.
+  Correct, and worth knowing.
+- **`ingest.ts` calls `main()` on import**, so nothing in it was reachable from a test. The walk
+  loop moved to `services/walk-run.ts` to make the quota and cursor testable at all.
+- **Score-1 items are stored and that is fine.** 5 of 150 70sscifiart items scored 1 (the curator's
+  genuine verdict — a failure scores 5). There is no ingest-time score floor; the feed's
+  `scoreFloor: 4` is what keeps them off a page. So "the floor is what stops the corpus filling
+  with wordless cards" is now the curator's job, and on these samples it does it.
+
+**Decisions:** `curationImageUrl` is additive and optional on the cross-service `SourceAdapter`
+contract — recorded in the Ambit-Admin log before it landed, per CLAUDE.md — so ambit-archive and
+Loupe are unaffected and neither is asked to set it. `sovietpostcards` walks first and alone; the
+other three keep their `walkQuota` and stay in `SUSPENDED_SOURCES` until their turn, because a
+walk is the only place topic capture shows up and one readout at a time is the plan's rule.
+
+**T6 blog 1 walked, and it hit the stop condition the plan wrote for exactly this.**
+`sovietpostcards`, 73 minutes, no `--quota` flag (the config bound applied): **17,500 items from
+10,446 posts · 0 floored · 37 un-homed (0.2%) · 65,593 memberships · 0 errors reported**. Corpus
+23,456 → **40,956**. The floor dropped nothing and T4 homed all but 37 items — both changes
+behaved on a real walk exactly as the 150-item samples said they would.
+
+**Two findings, and the second is a stop.**
+
+- **The pictures-per-post multiplier was wrong, and a quota in items is a quota in items.** The
+  50-post probe measured 1.34 pictures/post; the real figure over 10,446 posts is **1.68**. So a
+  17,500-item budget bought **40% of the archive, not the 50% Ben asked for**. Nothing is broken —
+  `--cursor 10400` picks the rest up and re-walking is idempotent — but the other three blogs'
+  quotas were derived the same way and will land short by the same kind of margin. The post count
+  is what a budget *means*; the item count is what it *is*.
+
+- **Topic capture, and it is worse than the streetartnews case in share though milder in kind.**
+  Four topics are now essentially this one blog:
+
+  | topic | tier | before | sovietpostcards | share |
+  |---|---|---:|---:|---:|
+  | `illustration` | grown | 9 | 5,172 | **100%** |
+  | `photography` | grown | 52 | 2,707 | **98%** |
+  | `19th-century` | grown | 6 | 1,881 | **100%** |
+  | `books` | grown | 61 | 1,314 | **96%** |
+  | `painting` | grown | 243 | 875 | 78% |
+  | `architecture` | **core** | 1,947 | 675 | 26% |
+  | `machines` | **core** | 1,593 | 377 | 19% |
+
+  **The core sixteen are fine** — 19-26% is a healthy contribution. What filled up are **grown**
+  topics, and the reason is structural rather than about this blog: Cut 2a's `promote:topics` sets
+  `item.topic_id` **only where it is NULL**, so a promoted topic gained thousands of *memberships*
+  but almost no *display* items — `illustration` had **nine**. The feed still draws on
+  `topic_id` (Cut 2b moves it onto the join), so those topics were nearly empty pools, and the
+  first large blog to classify into them fills them outright. This is not sovietpostcards taking a
+  topic over; it is a topic that had nothing in it. The reader-facing effect is the same either
+  way: drift into `illustration` and every card is a Soviet postcard.
+
+  **So blogs 2-4 are not started.** Three more blogs at ~72,000 items will do the same to whatever
+  they classify into, and each one makes the fix more expensive to apply retroactively. The plan
+  names the remedy — a per-source share cap inside `pickItem` — and puts it out of scope with its
+  own decision to make; this walk is the evidence that it is needed rather than hypothetical.
+  Worth weighing against it: **Cut 2b** would dissolve most of the problem on its own, since
+  drawing through `item_topic` gives `illustration` its 5,181 memberships *plus* everything else
+  that is a member without being displayed there.
+
+**Open / next:**
+- **Ben's call: per-source cap, Cut 2b, or accept it** — and whether blogs 2-4 wait for it. Nothing
+  is committed to production; this is all local.
+- If the walks continue as budgeted, raise each `walkQuota` by ~25% to buy the posts Ben actually
+  chose (sovietpostcards would need ~21,700 for its half; `--cursor 10400` for the remainder).
+- Un-homed is **1,064** corpus-wide, up just 37 — so T4 works well enough that the WILD tier's
+  pool is small and roughly static. WILD is doing its job (nothing else can reach those 1,064),
+  but "the residue" is now a much smaller thing than the plan assumed.
+
+*Session spend: 117.40M tok (in 1.1k · out 424.7k · cache r 114.96M / w 2.01M) · ~$83.25 · opus-5 + opus-4-7 · 15:12→17:42*
+**The three deferred checks, run once the walk was done:**
+- **`getWildPool` costs 3.7 ms** and adds nothing to a page (`EXPLAIN (analyze)`, 41k rows). But
+  the planner picks the **existing** `idx_item_topic_score` for it and never the partial index the
+  plan specified — `(topic_id, curation_score)` already answers `topic_id IS NULL AND
+  curation_score >= n` directly. `idx_item_unhomed_score` is measured dead weight; the finding is
+  a comment on the index rather than a quiet drop, since removing it is a migration.
+- **`bench:feed` p50 is 58 ms**, against the ~22 ms band 7.3 left. That is the corpus, not the new
+  tier: `getTopicPools` alone is **47 ms over 38,358 rows / 6.1 MB**, and the corpus went 23,456 →
+  40,956 in one walk. Worth a look before three more blogs land — 7.3's fix was a projection, and
+  what is growing now is the row *count*.
+- **The retroactive floor change costs `thingsorganizedneatly` exactly 3,547 items**
+  (`--dry-run --skip-llm`, free): 5,267 offered, 1,720 already in DB, **floor drops 0**. That
+  3,547 is precisely the number its 09-01 walk floored, which is the cleanest confirmation the
+  change does what it claims. At $0.000235 that is **~$0.83** on its next walk. The other three
+  already-walked sources floored 83 / 3 / ~3, so the whole retroactive bill is under $1 — but it
+  lands on the first nightly ingest after deploy, so it should be expected rather than discovered.
 
 ### [[09-05-26 Sat]] — Production catches up: Cut 1, Cut 2a and four walk sources in two deploys
 

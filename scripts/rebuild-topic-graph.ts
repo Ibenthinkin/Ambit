@@ -19,9 +19,18 @@
 //   * every co-occurrence row is RESCALED to the embedding graph's per-row spread, because the raw
 //     values are ~4x flatter and pickDrift's softmax would turn that into a near-uniform draw.
 //
+// **Both tag columns since 09-06-26** (docs/PLAN_caption-less-and-wild.md T3): a topic's profile
+// is the union of each member item's source tags and the curator's `aesthetic_tags`. Grown-topic
+// edges therefore reflect the curator's vocabulary too — necessarily, since a topic mined FROM
+// aesthetic tags would otherwise have an almost empty profile and land in the graph with almost
+// no edges. If drift softens as a result, `--grown-scale` is still the lever, and it is still
+// baked into the artifact rather than left on the knob.
+//
 // Cut 2b replaces the JSON with a `topic_edge` table; the computation is unchanged by that move,
 // only the sink is.
 import { writeFile } from "node:fs/promises";
+
+import { isRealTopic } from "~/server/config/topics";
 
 import graphData from "~/server/config/topic-graph.json";
 import { TOPICS } from "~/server/config/topics";
@@ -54,14 +63,16 @@ const { db } = await import("~/server/db/client");
 const { item, itemTopic } = await import("~/server/db/schema");
 const { eq } = await import("drizzle-orm");
 
-const topics = (await listAllTopics()).filter(
-  (t) => !t.id.startsWith("test-feed-topic"),
-);
+const topics = (await listAllTopics()).filter(isRealTopic);
 // Each topic's tag profile, from every item that is a member of it. Read through `item_topic`
 // rather than `item.topic_id` on purpose: membership is the honest picture of what a topic
 // contains, and it is what Cut 2b will draw from too.
 const rows = await db
-  .select({ topicId: itemTopic.topicId, tags: item.tags })
+  .select({
+    topicId: itemTopic.topicId,
+    tags: item.tags,
+    aestheticTags: item.aestheticTags,
+  })
   .from(itemTopic)
   .innerJoin(item, eq(item.id, itemTopic.itemId));
 const profiles = new Map<string, Map<string, number>>();
@@ -69,7 +80,15 @@ for (const t of topics) profiles.set(t.id, new Map());
 for (const r of rows) {
   const m = profiles.get(r.topicId);
   if (!m) continue;
-  for (const tag of r.tags ?? []) m.set(tag, (m.get(tag) ?? 0) + 1);
+  // The UNION of both tag columns, deduped and normalized per item (09-06-26, T3) — the same
+  // fold topic-mining.ts's tallyTags does, for the same reason: a topic grown from the curator's
+  // vocabulary would otherwise have a near-empty profile and land with almost no edges.
+  const tags = new Set(
+    [...(r.tags ?? []), ...(r.aestheticTags ?? [])]
+      .map((t) => t.toLowerCase().trim())
+      .filter(Boolean),
+  );
+  for (const tag of tags) m.set(tag, (m.get(tag) ?? 0) + 1);
 }
 
 const cooc = cooccurrenceSims(profiles);

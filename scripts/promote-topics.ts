@@ -8,8 +8,9 @@
 // backlog visible:
 //   1. INSERT the topic row at tier `grown` with empty seed queries (a promoted topic is
 //      vocabulary for classifying walk sources, not a query to send five museum APIs).
-//   2. INSERT an `item_topic` row, origin `tag`, for EVERY item carrying that tag — homed or not.
-//      Membership is additive and never retracted (Cut 1's rule).
+//   2. INSERT an `item_topic` row, origin `tag`, for EVERY item carrying that tag — homed or not,
+//      and in EITHER tag column (the source's own `tags` or the curator's `aesthetic_tags`, since
+//      09-06-26; see `carriesTag` below). Membership is additive and never retracted (Cut 1).
 //   3. SET `item.topic_id` to the new topic ONLY where it is currently NULL. `topic_id` is the
 //      *display* topic; an item already displaying under `mythology` keeps doing so and merely
 //      gains a membership. Because the feed still reads `topic_id` (Cut 2b moves it onto the
@@ -19,6 +20,14 @@
 // because step 3 only ever fills a NULL. The proposal file is ranked by un-homed count, so that
 // first one is the more broadly-attested of the two — which is the right tie-break, and it is
 // deterministic given the same file.
+//
+// **The dry run OVER-COUNTS, and 09-06-26 made it worse.** Each candidate is measured against the
+// untouched database, so an item carrying three ticked tags is counted three times in the
+// "become visible" column — the write's own number, printed at the end of a --confirm run, is the
+// honest one. Since this now matches `aesthetic_tags` as well as `tags` (T3), an item can carry a
+// candidate in two vocabularies and more items carry more candidates, so the gap between the dry
+// run's total and the real one is wider than it was in Cut 2a. Read the dry run as "which
+// candidates have evidence", never as "how much backlog this clears".
 import { readFile } from "node:fs/promises";
 
 import { topicIdFor } from "~/server/services/topic-mining";
@@ -83,12 +92,19 @@ console.log(
 let totalMemberships = 0;
 let totalDisplay = 0;
 
+/** "Does this item carry that tag, in EITHER vocabulary?" — the source's own `tags` or the
+ *  curator's `aesthetic_tags` (09-06-26, docs/PLAN_caption-less-and-wild.md T3). Both are text[]
+ *  and `@>` asks "does this array contain that element"; both are GIN-indexed. Mining proposes
+ *  from the union of the two columns, so promotion has to apply to the union or a ticked
+ *  candidate would rescue a fraction of the items it was proposed on the strength of. */
+const carriesTag = (tag: string) =>
+  sql`(${item.tags} @> ARRAY[${tag}]::text[] OR ${item.aestheticTags} @> ARRAY[${tag}]::text[])`;
+
 for (const p of picks) {
-  // `tags` is a text[]; `@>` asks "does this array contain that element".
   const carrying = await db
     .select({ id: item.id, topicId: item.topicId })
     .from(item)
-    .where(sql`${item.tags} @> ARRAY[${p.tag}]::text[]`);
+    .where(carriesTag(p.tag));
   const unhomed = carrying.filter((r) => r.topicId === null);
   totalMemberships += carrying.length;
   totalDisplay += unhomed.length;
@@ -123,9 +139,7 @@ for (const p of picks) {
   await db
     .update(item)
     .set({ topicId: p.id })
-    .where(
-      and(isNull(item.topicId), sql`${item.tags} @> ARRAY[${p.tag}]::text[]`),
-    );
+    .where(and(isNull(item.topicId), carriesTag(p.tag)));
 }
 
 console.log(

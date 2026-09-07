@@ -445,3 +445,55 @@ export const TOPICS: readonly TopicConfig[] = [
     },
   },
 ];
+
+/**
+ * Whether a topic row is part of Ambit's actual vocabulary, rather than a leftover from an
+ * integration test. Every DB-touching test suite builds throwaway topics under a `test-` prefix
+ * and deletes them in `afterAll` — but a killed run, or a suite that fails in `beforeAll`, leaves
+ * them behind, and three of them were sitting in this laptop's database on 09-06-26.
+ *
+ * Anything reading the vocabulary OUT of the database has to filter, because the consequences are
+ * real: `graph:rebuild` gave a test topic an adjacency row in a checked-in artifact, and the
+ * classify prompt (curator.ts, 09-06-26) would put `test-wild-topic-Ibz_tC-9` in front of the
+ * model on every billed call. The prefix is the convention every suite already follows.
+ */
+export function isRealTopic(t: { id: string }): boolean {
+  return !t.id.startsWith("test-");
+}
+
+/**
+ * Period topics — real vocabulary, but **tag-only** (09-07-26). A period is metadata: the
+ * source's tags (`19th century`, `1880s`) and the title's own date carry it reliably, and
+ * `promote:topics` files by those. The classifier does not. Handed the 99-topic list it filed
+ * a 1988 Vinnytsya street photo under `19th-century` in 52 of 100 fresh tries; a label saying
+ * "made in the 1800s — NOT 20th-century vintage" brought that to 41, and "ONLY work dated
+ * 1801-1900; anything dated 19xx is NEVER this topic" to 31 — with the same 1988 photo still
+ * under it. The model reads "old-looking" and reaches for the only period in the list; it does
+ * not weigh a date it was handed against a label. No wording fixes that, so the topic leaves the
+ * list instead.
+ *
+ * Each entry's regex is what counts as **evidence** that an item really belongs to the period —
+ * used by `scripts/repair-period-topics.ts` to decide which curator-origin rows survive. Deliberately
+ * narrow: an 18xx year, or the century named. "1900s" is the twentieth century and does not match.
+ */
+export const PERIOD_TOPICS: Readonly<Record<string, RegExp>> = {
+  "19th-century": /\b18\d\d\b|\b19th[\s-]century\b|\b1800s\b/i,
+};
+
+/** A real topic the classifier may be offered: not a test leftover, not a period. This is the
+ *  filter for every classify vocabulary built from the database (ingest, stats:walk). */
+export function isClassifiable(t: { id: string }): boolean {
+  return isRealTopic(t) && !(t.id in PERIOD_TOPICS);
+}
+
+/** Whether an item's own text carries the period `topicId` names. False for a non-period topic. */
+export function periodEvidence(
+  topicId: string,
+  item: { title: string; summary: string | null; tags: readonly string[] },
+): boolean {
+  const re = PERIOD_TOPICS[topicId];
+  if (!re) return false;
+  return [item.title, item.summary ?? "", ...item.tags].some((s) =>
+    re.test(s),
+  );
+}

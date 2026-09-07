@@ -48,6 +48,15 @@ export const KNOB_SPECS: readonly KnobSpec[] = [
     step: 1,
   },
   {
+    key: "tierWild",
+    label: "WILD — un-homed pool",
+    section: "Tier mix",
+    min: 0,
+    max: 100,
+    step: 1,
+    note: "Draws items no topic fits, weighted by your recent saves' aesthetic tags. 0 turns the tier off entirely.",
+  },
+  {
     key: "scoreFloor",
     label: "Curation score floor",
     section: "Taste",
@@ -73,6 +82,15 @@ export const KNOB_SPECS: readonly KnobSpec[] = [
     max: 2,
     step: 0.1,
     note: "Multiplier per keyword an item shares with your profile.",
+  },
+  {
+    key: "wildTagBoost",
+    label: "WILD taste boost",
+    section: "Taste",
+    min: 0,
+    max: 3,
+    step: 0.1,
+    note: "The same, for WILD cards only — where it is the slot's one personalization signal.",
   },
   {
     key: "temp",
@@ -117,6 +135,15 @@ export const KNOB_SPECS: readonly KnobSpec[] = [
     min: 1,
     max: 8,
     step: 1,
+  },
+  {
+    key: "sourceCap",
+    label: "Per-page source cap",
+    section: "Diversity",
+    min: 1,
+    max: 12,
+    step: 1,
+    note: "Most cards one source may have on a page, across every tier. The 'sources' readout below is what this moves.",
   },
   {
     key: "pageSize",

@@ -22,6 +22,17 @@
 // doorofperception's 3-in-390, and accepted on purpose — a thin caption floors like any museum
 // stub and is never padded here (HANDOFF §2). robots.txt asks `Crawl-delay: 1`, so DELAY_MS is 1 s.
 //
+// **Two notes from 09-06-26, when tumblr.ts grew past this file.** (The file also took two small
+// fixes that day, both to deriveTitle and both forced by the floor change — see there. Neither
+// moves a stored row: all 1,720 were queried first.) (1) The factory now fans a
+// multi-picture post out into one item per picture and ids them `<post>:<n>`; this file still
+// takes the first picture only and ids by bare post id. That is not a flag to flip — the 1,720
+// stored rows are keyed on those ids, so moving this blog onto the factory would be a row
+// migration, and the archive is single-picture by construction anyway (162 of 200 sampled posts
+// are `photo`, and none sampled was a photoset). (2) The factory can hand the curator a smaller
+// rendition (`curationImageUrl`); this file does not, which costs bandwidth and nothing else.
+// tumblr.test.ts asserts the two adapters still agree on every other field.
+//
 // **Etiquette.** robots.txt is checked at the start of every walk (robots.ts). This host's
 // named-bot block list is Tumblr's platform default, not this blog's own policy, and does not
 // name Ambit (HANDOFF §3.4). Requests are 1 s apart and sequential; a 401/403 ends the walk on
@@ -118,19 +129,38 @@ export function firstImageUrl(html: string): string | undefined {
 const TITLE_MAX = 80;
 /** A reblog's first line is the reblogged blog's name and a colon — attribution, not a title. */
 const ATTRIBUTION_LINE = /^\S+:$/;
+/** A title has to say something. Anything with no letter and no digit in it cannot: the case
+ *  that made this necessary is a reblog of a PRIVATE blog, whose `<a class="tumblr_blog">` has
+ *  empty text and leaves a caption line of exactly ":" (sovietpostcards post 825370343695958016,
+ *  found in the 09-06-26 sample). ATTRIBUTION_LINE catches `nemfrog:` but needs a name to catch.
+ *  Before the floor was lifted for walk images such a post was dropped on its thin summary; now
+ *  it is a card, and a card titled ":" is the same reader-visible junk as "ALT" was. */
+const HAS_WORD = /[\p{L}\p{N}]/u;
 
 /**
  * Pure: a title for a source that has none. The caption's first line — first sentence of it,
  * when one ends within TITLE_MAX — skipping a reblog attribution line; else the slug, humanized;
- * else a placeholder. The placeholder can never reach a reader: a post with no caption has an
- * empty `summary`, which structuralFloor drops. It exists so toItem always returns a valid item.
+ * else the blog's own label.
+ *
+ * **The one change this frozen file has taken since it shipped (09-06-26.)** That last step used
+ * to be `Untitled post <id>`, and the comment here used to say it could never reach a reader
+ * because a caption-less post has an empty summary and structuralFloor dropped it. That stopped
+ * being true when the floor was lifted for walk images (curator.ts,
+ * docs/PLAN_caption-less-and-wild.md T1): this blog's next walk stores the caption-less posts the
+ * floor used to drop — 52 of 200 sampled were empty — and every one of them would have been
+ * titled `Untitled post 91980754329` on a real card. **It changes no stored row**: all 1,720 were
+ * queried on 09-06-26 and none carries the placeholder, precisely because the floor had dropped
+ * them. The rest of the file stays frozen (Ben's standing call for shipped code with real rows);
+ * this is the same fallback tumblr.ts uses, for the same reason.
  */
 export function deriveTitle(
   captionHtml: string,
   slug: string,
-  id: string,
+  fallback: string,
 ): string {
-  const line = captionLines(captionHtml).find((l) => !ATTRIBUTION_LINE.test(l));
+  const line = captionLines(captionHtml).find(
+    (l) => !ATTRIBUTION_LINE.test(l) && HAS_WORD.test(l),
+  );
   if (line) return firstSentence(line);
   if (slug) {
     return slug
@@ -139,7 +169,7 @@ export function deriveTitle(
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
   }
-  return `Untitled post ${id}`;
+  return fallback;
 }
 
 /** The caption cut where its HTML cuts it — block closers and `<br>` — each line as plain text. */
@@ -229,7 +259,7 @@ function toItem(raw: TonRaw): NormalizedItem {
     // the idempotency key, so this choice is permanent for the corpus.
     sourceId: raw.id,
     type: "image",
-    title: deriveTitle(captionHtml, raw.slug ?? "", raw.id),
+    title: deriveTitle(captionHtml, raw.slug ?? "", BLOG.label),
     // The blog's own caption IS the blurb (D5), however short. A thin one is floored by
     // structuralFloor's thin-summary rule like any museum stub — never padded here.
     summary: htmlToText(captionHtml),

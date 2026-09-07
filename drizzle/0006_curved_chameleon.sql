@@ -1,0 +1,2 @@
+CREATE INDEX "idx_item_unhomed_score" ON "item" USING btree ("curation_score") WHERE "item"."topic_id" is null;--> statement-breakpoint
+CREATE INDEX "idx_item_aesthetic_tags_gin" ON "item" USING gin ("aesthetic_tags");

@@ -1,11 +1,13 @@
 # Handoff — sources round 3: nine Tumblr blogs on a `tumblr.ts` factory
 
 **Written:** 09-05-26, by the session that probed, built and sampled all nine.
-**Updated:** 09-05-26 (same day) with Ben's first four verdicts.
-**Status:** code on `feat/tumblr-blogs-round3`, all tests green, **all nine parked in
-`SUSPENDED_SOURCES`** — but now for two different reasons. Nothing has been written to any
-database. **Four are parked by Ben's verdict and are settled; five are still awaiting one.**
-§2 is the table, and it is the only thing outstanding.
+**Updated:** 09-05-26 with Ben's first four verdicts; **09-06-26 with the other five and the
+post-floor numbers.**
+**Status: all nine are verdicted and this round is closed.** Five parked (`nemfrog`,
+`humanoidhistory`, `dreamsrecurring`, `vintagegeekculture` 09-05; `toiich` 09-06, on taste).
+Four kept: `sovietpostcards`, `70sscifiart`, `thevaultoftheatomicspaceage`, `thisisnthappiness`.
+`sovietpostcards` is walked; the other three carry a `walkQuota` and are walked one at a time in
+later sessions. §2's table has a **post-floor** column, and §2.3's open question is answered.
 
 ---
 
@@ -21,9 +23,23 @@ section is kept for the record and the rest of the file for the evidence.
 >
 > **Kept 09-06-26, walked under the new floor to Ben's budgets — the four:** `70sscifiart` (newest
 > 50%), `sovietpostcards` (50%), `thevaultoftheatomicspaceage` (50%), `thisisnthappiness` (25%).
-> They stay in `SUSPENDED_SOURCES` until that plan's T1 ships, because today's floor drops their
-> captions (§2.3 was right that the floor was the thing to revisit — it has been, for walk-source
-> images), and because a per-blog `walkQuota` is what makes un-parking safe on a self-hosted disk.
+>
+> **That plan shipped the same day.** The floor no longer applies its two text rules to walk
+> images, each blog carries its `walkQuota` in `blogs.ts`, and ingest prints a resume cursor. The
+> post-floor re-samples (150 items each, same warm cache, plus the 99-topic classifier from the
+> same plan's T4) are the honest numbers for these four, and they are not close to the old ones:
+>
+> | blog | stored | avg | ≥8 | un-homed | note |
+> |---|---:|---:|---:|---:|---|
+> | `70sscifiart` | 55% → **100%** | 8.49 | 94% | 3% | 3 toItem errors |
+> | `sovietpostcards` | 44% → **100%** | 7.63 | 61% | **0%** | 95 of 99 topics used |
+> | `thevaultoftheatomicspaceage` | 8% → **100%** | 8.45 | 91% | **0%** | zero tags, zero captions |
+> | `thisisnthappiness` | 7% → **100%** | 8.11 | 87% | **0%** | 0 toItem errors |
+>
+> The un-homed column is T4's doing (classify sees all 99 topics, not 16); the stored column is
+> T1's. `thevaultoftheatomicspaceage` is the clearest case in the round: the blog whose evidence
+> read worst on every metadata measure samples at **8.45 average, 91% ≥ 8** once the pictures are
+> what gets judged.
 
 **What §2's table got wrong, found by a live 50-post probe on 09-06-26:** the "stored % of
 offered" column was the *floor's* verdict, not the blog's — toiich's median caption is 49 chars,
@@ -161,12 +177,26 @@ What it costs, as walk efficiency — the sharpest way to see it:
 | thevaultoftheatomicspaceage | 750 | ~3,000 | 4 |
 | thisisnthappiness | 2,180 | ~7,600 | **3.5** |
 
-**The open design question, for a session that wants it:** if a link card can stand on image +
-title + credit without a long caption, then the thin-summary floor is the thing to revisit, not
-these blogs. Doing so would also unlock **toiich** (84% floored) and a further chunk of
-**70sscifiart**. Doing nothing is also defensible — the floor is what keeps the corpus from
-filling with wordless cards. Nobody has decided; it is not a blocker for the five verdicts, and
-it is deliberately **not** bundled into them.
+~~**The open design question, for a session that wants it:**~~ **ANSWERED 09-06-26** —
+`docs/PLAN_caption-less-and-wild.md`, designed and shipped the same day this question was written.
+A link card *can* stand on image + credit + link without a caption, so the floor was the thing to
+revisit, and it was: `bare-title` and `thin-summary` no longer apply to a **walk source's images**,
+and the curator — which sees the picture — is their whole quality bar. Walk *articles* keep both
+rules and search-shaped sources are untouched.
+
+The table above is the argument for it and the numbers vindicate it: the two blogs at **4 and 3.5
+rows per request** now keep everything they offer, and sample at 8.45 and 8.11 average with 91%
+and 87% ≥ 8. A caption-less card is titled with the blog's own label ("The Vault of the Atomic
+Space Age") and carries an empty summary — Ben's call, plan D2, the alternative being to pay the
+curator to write a title.
+
+The "doing nothing is also defensible — the floor is what keeps the corpus from filling with
+wordless cards" half was the real risk, and the honest answer is that it is now the curator's job
+to refuse them. On these four samples it does: 5 of 150 70sscifiart items scored 1, and the feed's
+`scoreFloor` of 4 means they are stored but never drawn.
+
+It did **not** unlock **toiich** — Ben parked that one on taste the same day, after a probe rather
+than on the numbers.
 
 ---
 

@@ -151,6 +151,21 @@ follows in Cut 2 via promotion.
 *Rejected: through to reachable content* (Cut 1 + promotion + a first vocabulary expansion + graph
 rebuild) and *full expansion* (+ onboarding hierarchy, `topicCap` redesign) — both sketched in §11.
 
+> **Amendment, 09-06-26 — `docs/PLAN_caption-less-and-wild.md`.** "The feed does not move" was
+> right for Cut 1 and is no longer true. The feed now has a fourth tier, **WILD**, weight 10
+> against 40/35/25, which draws *only* from the un-homed pool. Promotion is still the primary
+> route and the one that gives an item a topic; WILD is the residue's way in **between**
+> promotion rounds — and the answer to a case this design did not anticipate, which the round-3
+> Tumblr blogs made concrete: **a source that carries no tags has no route out of un-homed by any
+> promotion tooling at all**, because promotion matches on tags. (Cut 2's other half of that
+> answer, in the same plan: mining, promotion and the graph now read the curator's
+> `aesthetic_tags` as well as the source's own, so a tagless blog *does* have a vocabulary to be
+> mined from. The two fixes are deliberate belt and braces — see the plan's D3.)
+>
+> What has NOT changed: an item is still never force-fitted into a topic, `item.topic_id` still
+> means the display topic, and the three TOPIC tiers still cannot see an un-homed item. A WILD
+> card carries `topicId: null`, and null now means WILD and only WILD.
+
 ---
 
 ## 4. What this overturns, and what it explicitly does not
@@ -273,6 +288,24 @@ retracted by an automated process.** Every write is `INSERT ... ON CONFLICT DO N
 topic can only widen an item's reach; removing one silently takes items out of feeds. Removal is a
 deliberate, human-triggered operation, and Cut 1 does not build one.
 
+> **The one dated exception — 09-07-26, `bun run trim:memberships`.** The rule assumed the rows
+> were honest. Handed all 99 topics (09-06), the classifier sometimes listed the vocabulary
+> straight back: 89 sovietpostcards items landed 20+ memberships, nine landed all 99, and the
+> parser stored every id it recognised. `MAX_TOPICS` (curator.ts) now caps a classify answer at
+> three at the parser, and the script applied the same cap to rows written before it existed,
+> by the cached answer's own best-fit-first order — `origin: "curator"` rows only, the display
+> topic always kept, nothing removed for an item with no cache entry (`services/membership-trim.ts`
+> and its test are the rules). Run locally the same day: 5,829 items, 14,682 rows. It was
+> human-triggered, it is idempotent. **And a second, the same day — `bun run repair:periods`.**
+> Wording could not stop the model filing 1950s-80s Soviet material under `19th-century` (52 → 41
+> → 31 of 100 across three labels), so period topics are now **tag-only** (`PERIOD_TOPICS`,
+> `isClassifiable` in `config/topics.ts`): out of every classify vocabulary, and their existing
+> curator-origin rows kept only where the item's own title, summary or tags carry the period.
+> Locally: 11,024 rows checked, **51 kept, 10,973 removed**, 1,842 display topics moved to the
+> next honest membership and 27 set to NULL (`services/period-repair.ts`). Those two scripts are
+> the whole of what "deliberate removal" has meant so far; both run on production after the next
+> deploy.
+
 ---
 
 ## 6. Curator changes — `src/server/services/curator.ts`
@@ -390,8 +423,11 @@ Non-negotiable per SPEC §12. New or changed:
   property from a later well-meaning `PROMPT_VERSION` bump.
 - **Ingest:** a walk item whose topic array is empty is **inserted** and counted as un-homed, not
   dropped. (Directly inverts the current behaviour — find and rewrite the existing test.)
-- **Feed, property:** over a corpus containing un-homed items, `composePage` never returns one.
-  Cheap to write and it is the guard on D4's "the feed does not move".
+- **Feed, property:** ~~over a corpus containing un-homed items, `composePage` never returns one.~~
+  **Flipped 09-06-26 (see D4's amendment):** `composePage` returns an un-homed item **only** as a
+  `WILD` card — and `topicId === null` iff `tier === "WILD"`. `feed.test.ts` pins both directions,
+  and `items.integration.test.ts` pins the SQL half: `drawFromTopic` and `getTopicPools` still
+  skip an un-homed item, and `getWildPool` is the one draw that returns it.
 - **UI:** the gallery sheet and masonry render an item with a null topic without crashing
   (`gallery-details-sheet.tsx:35`, `masonry.ts:83` both do `?? id`, which is null-unsafe if the id
   itself is null).
@@ -435,6 +471,15 @@ planned, on the line where the product value stops and the refactor starts.
 - one requirement this section did not list, found while planning: `topics.list` backs the
   onboarding chip grid and returned every topic, so promotion would have put ~100 chips on that
   screen. `topic.tier` exists entirely for that.
+- **09-06-26, added to this cut after the fact** (`docs/PLAN_caption-less-and-wild.md` T3/T4): all
+  three scripts now mine, match and profile on the **union of `tags` and `aesthetic_tags`**, so a
+  source that tags nothing can still contribute vocabulary — the curator's tags are the only words
+  such an item has. The proposal row prints `via curator N/M` so a candidate that exists only
+  because the curator keeps writing it is visibly a different kind of claim, and eighteen
+  look-descriptors it writes constantly are stopworded. Separately, the classifier's vocabulary is
+  now every topic in the database rather than the compile-time sixteen, so a new walk item homes
+  into a *promoted* topic at ingest instead of waiting for the next promotion round — which is
+  what took the four round-3 Tumblr blogs from 40-44% un-homed to 0-3%.
 
 **Cut 2b — still out of scope.** A `topic_edge` table replacing the dense `topic-graph.json` (16
 topics = 240 cells; 1,000 topics ≈ 1M cells and ~100 MB of JSON imported at module load in
@@ -443,6 +488,14 @@ drift / bottom-K jump rows; moving the feed onto `item_topic` and dropping `item
 item can be drawn under *any* of its topics rather than only its display one. **Neither is urgent
 at the size Cut 2a produced**: 99 topics is 9,702 edges and 647 KB, and the table becomes necessary
 around 300 topics. `rebuild-topic-graph.ts` was written so 2b changes its sink, not its arithmetic.
+
+> **09-07-26 — re-evaluated against the first big walk, and deferred with evidence.** After
+> sovietpostcards (17,500 items) became 92-100% of four grown topics, the join move was sized as
+> the remedy — and does not remedy it: by *membership* those topics are 90-98% the same blog, so
+> drawing through `item_topic` changes nothing about the arithmetic, and it would have exposed the
+> over-filed memberships above to the feed. What shipped instead: `sourceCap` (a per-page,
+> per-source cap in `composePage`, sibling of `topicCap`) and `MAX_TOPICS` (above). 2b stays
+> scale-triggered, as this section says; it is not a diversity tool.
 
 **And one feel question 2b inherits**: with 83 grown topics against 16 core, a sampled 96 cards came
 back 59 grown / 37 core. CORE still draws only core topics (weights come from chips), but DRIFT and

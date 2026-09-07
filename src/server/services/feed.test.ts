@@ -24,6 +24,7 @@ const {
   mockGetUserTopicWeights,
   mockGetTasteKeywords,
   mockGetTopicPools,
+  mockGetWildPool,
   mockMarkSeen,
   mockGetItemsByIds,
   itemRegistry,
@@ -32,6 +33,7 @@ const {
   mockGetUserTopicWeights: vi.fn(),
   mockGetTasteKeywords: vi.fn(),
   mockGetTopicPools: vi.fn(),
+  mockGetWildPool: vi.fn(),
   mockMarkSeen: vi.fn(),
   mockGetItemsByIds: vi.fn(),
   // Every fixture `makeItem` ever built, by id — the stand-in for the `item` table that
@@ -55,6 +57,7 @@ vi.mock("~/server/db/saves", async (importActual) => ({
 }));
 vi.mock("~/server/db/feed", () => ({
   getTopicPools: mockGetTopicPools,
+  getWildPool: mockGetWildPool,
   markSeen: mockMarkSeen,
 }));
 // `drawWeight` is a pure export of this module and the taste formula these tests pin, so it stays
@@ -79,21 +82,25 @@ import {
   scaleGrownEdges,
   type FeedCursor,
   type FeedKnobs,
+  type Tier,
   type TopicGraph,
 } from "./feed";
 
 let nextId = 0;
 // Returns `Item & { topicId: string }`, not plain `Item`: since Cut 1 `Item.topicId` is
 // `string | null`, but this helper's `?? "topic-a"` default catches null as well as undefined, so
-// every fixture it builds really does carry a topic. Saying so in the type is what lets these
-// fixtures go straight into a `Map<string, PoolItem[]>` — `PoolItem` pins `topicId` to `string`
-// because no un-homed item can enter a pool (db/feed.ts). The engine is never handed a null here,
-// and if a future fixture wants one it has to say so and face the same question everywhere else.
+// every fixture it builds really does carry a topic. Saying so in the type is what keeps a
+// topic-pool fixture from silently becoming an un-homed one; a fixture that WANTS to be un-homed
+// says so through `makeUnhomed` below, which is the WILD tier's input and nothing else's.
 function makeItem(overrides: Partial<Item> = {}): Item & { topicId: string } {
   nextId++;
   const built = {
     id: overrides.id ?? `item-${nextId}`,
-    source: overrides.source ?? "wikipedia",
+    // One source per fixture item unless a test says otherwise. Every item used to be "wikipedia",
+    // which was fine until `sourceCap` (09-07-26) made three same-source cards the most a page
+    // will carry — under that default, half this file's pages would have capped at three. A test
+    // that is ABOUT sources sets them explicitly, so the default is only ever "unremarkable".
+    source: overrides.source ?? `source-${nextId}`,
     sourceId: overrides.sourceId ?? `src-${nextId}`,
     type: overrides.type ?? "article",
     title: overrides.title ?? `Item ${nextId}`,
@@ -110,6 +117,14 @@ function makeItem(overrides: Partial<Item> = {}): Item & { topicId: string } {
     fetchedAt: overrides.fetchedAt ?? new Date(),
   };
   // Registered so the mocked `getItemsByIds` can hand it back when the engine hydrates.
+  itemRegistry.set(built.id, built);
+  return built;
+}
+
+/** An UN-HOMED fixture: `topicId: null`, which since 09-06-26 the engine reads as "this can only
+ *  be a WILD card". Registered like every other fixture so `getFeedPage` can hydrate it. */
+function makeUnhomed(overrides: Partial<Item> = {}): Item & { topicId: null } {
+  const built = { ...makeItem(overrides), topicId: null };
   itemRegistry.set(built.id, built);
   return built;
 }
@@ -283,7 +298,10 @@ describe("composePage", () => {
   //    it replaces, so this is a sharper regression detector than the flaky version, not a
   //    weakened one. (Checked against 40 different seed-block choices: worst deviation from
   //    target across all of them was 0.0146.)
-  it("mixes tiers at roughly the configured CORE/DRIFT/JUMP ratio", () => {
+  // 09-06-26: WILD joined the draw at weight 10 against 40/35/25, so the target is now a share of
+  // 110, not of 100. The fourth tier draws from its own flat pool (no topic, no cap), which is why
+  // it needs a `wildPool` fixture as generous as the topic pools.
+  it("mixes tiers at roughly the configured CORE/DRIFT/JUMP/WILD ratio", () => {
     // A dense little graph so DRIFT/JUMP always resolve to *some* topic, and a generous topicCap
     // so the cap never blocks a draw — isolates the tier-mix signal from diversity constraints.
     const topics = ["a", "b", "c", "d"];
@@ -296,7 +314,10 @@ describe("composePage", () => {
     const weights = new Map(topics.map((t) => [t, 1]));
     const knobs: FeedKnobs = { ...baseKnobs, topicCap: 1000, pageSize: 1000 };
 
-    const counts = { CORE: 0, DRIFT: 0, JUMP: 0 };
+    const counts = { CORE: 0, DRIFT: 0, JUMP: 0, WILD: 0 } satisfies Record<
+      Tier,
+      number
+    >;
     let total = 0;
     for (let seed = 0; seed < 8; seed++) {
       // Fresh pools per seed: composePage splices drawn items out of its own working copy, but
@@ -311,6 +332,7 @@ describe("composePage", () => {
         weights,
         graph,
         pools,
+        wildPool: Array.from({ length: 400 }, () => makeUnhomed()),
         rng: mulberry32(hashSeed(`tier-mix:${seed}`)),
         knobs,
       });
@@ -320,12 +342,205 @@ describe("composePage", () => {
     }
 
     const TOLERANCE = 0.02;
-    expect(counts.CORE / total).toBeGreaterThan(0.4 - TOLERANCE);
-    expect(counts.CORE / total).toBeLessThan(0.4 + TOLERANCE);
-    expect(counts.DRIFT / total).toBeGreaterThan(0.35 - TOLERANCE);
-    expect(counts.DRIFT / total).toBeLessThan(0.35 + TOLERANCE);
-    expect(counts.JUMP / total).toBeGreaterThan(0.25 - TOLERANCE);
-    expect(counts.JUMP / total).toBeLessThan(0.25 + TOLERANCE);
+    const share = (w: number) => w / 110;
+    expect(counts.CORE / total).toBeGreaterThan(share(40) - TOLERANCE);
+    expect(counts.CORE / total).toBeLessThan(share(40) + TOLERANCE);
+    expect(counts.DRIFT / total).toBeGreaterThan(share(35) - TOLERANCE);
+    expect(counts.DRIFT / total).toBeLessThan(share(35) + TOLERANCE);
+    expect(counts.JUMP / total).toBeGreaterThan(share(25) - TOLERANCE);
+    expect(counts.JUMP / total).toBeLessThan(share(25) + TOLERANCE);
+    expect(counts.WILD / total).toBeGreaterThan(share(10) - TOLERANCE);
+    expect(counts.WILD / total).toBeLessThan(share(10) + TOLERANCE);
+  });
+
+  // ── the WILD tier (09-06-26, docs/PLAN_caption-less-and-wild.md T2) ──────────────────────────
+  // The tier that draws items no topic fits. What must hold: it is the ONLY producer of a null
+  // topicId; it is skipped rather than fatal when there is nothing un-homed; it costs nothing at
+  // all when switched off; and it obeys the two page-level rules every tier obeys (no item twice,
+  // same inputs ⇒ same page) while being exempt from the one that is about topics.
+  describe("the WILD tier", () => {
+    const wildKnobs: FeedKnobs = { ...baseKnobs, pageSize: 12 };
+    const oneTopic = () =>
+      new Map([
+        [
+          "only",
+          Array.from({ length: 60 }, () => makeItem({ topicId: "only" })),
+        ],
+      ]);
+
+    it("draws from wildPool, with a null topicId and no driftPath", () => {
+      const wildPool = Array.from({ length: 40 }, () => makeUnhomed());
+      const wildIds = new Set(wildPool.map((i) => i.id));
+      const cards = composePage({
+        weights: new Map([["only", 1]]),
+        graph: {},
+        pools: oneTopic(),
+        wildPool,
+        rng: mulberry32(hashSeed("wild:1")),
+        knobs: { ...wildKnobs, topicCap: 1000 },
+      });
+      const wild = cards.filter((c) => c.tier === "WILD");
+      expect(wild.length).toBeGreaterThan(0);
+      for (const c of wild) {
+        expect(c.topicId).toBeNull();
+        expect(c.driftPath).toBeUndefined();
+        expect(wildIds.has(c.item.id)).toBe(true);
+      }
+      // …and the converse: a null topicId means WILD and nothing else.
+      for (const c of cards) {
+        expect(c.topicId === null).toBe(c.tier === "WILD");
+      }
+    });
+
+    it("skips the slot when nothing is un-homed, and the page still fills", () => {
+      const cards = composePage({
+        weights: new Map([["only", 1]]),
+        graph: {},
+        pools: oneTopic(),
+        wildPool: [],
+        rng: mulberry32(hashSeed("wild:2")),
+        knobs: { ...wildKnobs, topicCap: 1000 },
+      });
+      expect(cards).toHaveLength(12);
+      expect(cards.some((c) => c.tier === "WILD")).toBe(false);
+    });
+
+    it("at tierWild: 0 composes exactly the page it composed before the tier existed", () => {
+      const args = {
+        weights: new Map([["only", 1]]),
+        graph: {} as TopicGraph,
+        pools: oneTopic(),
+        knobs: { ...wildKnobs, tierWild: 0, topicCap: 1000 },
+      };
+      const withoutPool = composePage({
+        ...args,
+        pools: oneTopic(),
+        rng: mulberry32(hashSeed("wild:3")),
+      });
+      // Same rng, same topic pool, but a full wild pool it is not allowed to touch.
+      const withPool = composePage({
+        ...args,
+        pools: oneTopic(),
+        wildPool: Array.from({ length: 40 }, () => makeUnhomed()),
+        rng: mulberry32(hashSeed("wild:3")),
+      });
+      expect(withPool.map((c) => c.tier)).toEqual(
+        withoutPool.map((c) => c.tier),
+      );
+      expect(withPool.some((c) => c.tier === "WILD")).toBe(false);
+    });
+
+    it("never draws the same wild item twice on a page", () => {
+      // A wild pool smaller than the page, so the slot is forced to run it down.
+      const cards = composePage({
+        weights: new Map([["only", 1]]),
+        graph: {},
+        pools: oneTopic(),
+        wildPool: Array.from({ length: 3 }, () => makeUnhomed()),
+        rng: mulberry32(hashSeed("wild:4")),
+        knobs: { ...wildKnobs, tierWild: 500, topicCap: 1000 },
+      });
+      const wildIds = cards
+        .filter((c) => c.tier === "WILD")
+        .map((c) => c.item.id);
+      expect(new Set(wildIds).size).toBe(wildIds.length);
+      expect(wildIds.length).toBeLessThanOrEqual(3);
+    });
+
+    it("is reproducible: same rng, same pools, same wildPool ⇒ the same page", () => {
+      const wildPool = Array.from({ length: 40 }, () => makeUnhomed());
+      // The SAME pool object both times — composePage works from its own copy, so reusing it is
+      // safe, and building a fresh one would change the fixture ids and test nothing.
+      const pools = oneTopic();
+      const compose = () =>
+        composePage({
+          weights: new Map([["only", 1]]),
+          graph: {},
+          pools,
+          wildPool,
+          rng: mulberry32(hashSeed("wild:5")),
+          knobs: { ...wildKnobs, topicCap: 1000 },
+        });
+      expect(compose().map((c) => [c.tier, c.item.id])).toEqual(
+        compose().map((c) => [c.tier, c.item.id]),
+      );
+    });
+
+    it("does not count WILD cards against topicCap", () => {
+      // topicCap 1 with a single topic: without WILD the page would be one card long.
+      const cards = composePage({
+        weights: new Map([["only", 1]]),
+        graph: {},
+        pools: oneTopic(),
+        wildPool: Array.from({ length: 40 }, () => makeUnhomed()),
+        rng: mulberry32(hashSeed("wild:6")),
+        knobs: { ...wildKnobs, topicCap: 1 },
+      });
+      expect(cards.filter((c) => c.tier === "WILD").length).toBeGreaterThan(1);
+      expect(cards.filter((c) => c.topicId === "only")).toHaveLength(1);
+    });
+
+    it("wildTagBoost moves the draw toward the reader's recent saves' aesthetic tags", () => {
+      // One wild item shares the taste keyword; the other 39 share nothing. With the boost off it
+      // should win about 1 time in 40; with it on, measurably more often.
+      const wins = (wildTagBoost: number) => {
+        let hits = 0;
+        for (let seed = 0; seed < 200; seed++) {
+          const favoured = makeUnhomed({ aestheticTags: ["botanical plate"] });
+          const wildPool = [
+            favoured,
+            ...Array.from({ length: 39 }, () =>
+              makeUnhomed({ aestheticTags: ["x"] }),
+            ),
+          ];
+          const cards = composePage({
+            weights: new Map([["only", 1]]),
+            graph: {},
+            pools: oneTopic(),
+            wildPool,
+            rng: mulberry32(hashSeed(`boost:${wildTagBoost}:${seed}`)),
+            knobs: {
+              ...wildKnobs,
+              tierWild: 1000,
+              topicCap: 1000,
+              pageSize: 1,
+            },
+            tasteKeywords: ["botanical plate"],
+          });
+          if (cards[0]?.item.id === favoured.id) hits++;
+        }
+        return hits;
+      };
+      expect(wins(1)).toBeGreaterThan(wins(0));
+    });
+
+    it("uses wildTagBoost, not tagBoost, for the wild slot", () => {
+      // tagBoost is turned off entirely; only wildTagBoost can be producing the lift.
+      const favoured = makeUnhomed({ aestheticTags: ["botanical plate"] });
+      const wildPool = [
+        favoured,
+        ...Array.from({ length: 3 }, () =>
+          makeUnhomed({ aestheticTags: ["x"] }),
+        ),
+      ];
+      const cards = composePage({
+        weights: new Map([["only", 1]]),
+        graph: {},
+        pools: oneTopic(),
+        wildPool,
+        rng: mulberry32(hashSeed("wild:8")),
+        knobs: {
+          ...wildKnobs,
+          tagBoost: 0,
+          wildTagBoost: 50,
+          tierWild: 1000,
+          topicCap: 1000,
+          pageSize: 1,
+        },
+        tasteKeywords: ["botanical plate"],
+      });
+      expect(cards[0]!.item.id).toBe(favoured.id);
+    });
   });
 
   it("respects the per-page topic cap", () => {
@@ -343,6 +558,73 @@ describe("composePage", () => {
     });
     expect(cards).toHaveLength(3);
     expect(cards.every((c) => c.topicId === "only")).toBe(true);
+  });
+
+  // ── sourceCap (09-07-26) ──────────────────────────────────────────────────────────────────
+  // Born from the first sovietpostcards walk: a 17,500-item blog became 92-100% of four grown
+  // topics, so drifting into `illustration` meant a page of nothing but Soviet postcards. The cap
+  // is the page-level answer — the sibling of topicCap, counted per SOURCE — and its one subtlety
+  // is that it must filter *before* the draw, so a topic whose other sources are a 2% minority
+  // still spends that minority rather than skipping the slot.
+  it("respects the per-page source cap, spending the topic's other sources first", () => {
+    const weights = new Map([["only", 1]]);
+    const pool = [
+      ...Array.from({ length: 20 }, (_, i) =>
+        makeItem({ id: `big-${i}`, topicId: "only", source: "big" }),
+      ),
+      ...Array.from({ length: 2 }, (_, i) =>
+        makeItem({ id: `small-${i}`, topicId: "only", source: "small" }),
+      ),
+    ];
+    const knobs: FeedKnobs = {
+      ...baseKnobs,
+      topicCap: 100,
+      sourceCap: 3,
+      pageSize: 10,
+    };
+    // Repeated, because a single draw once passed with the cap broken: the adjacency filter was
+    // rebuilding its candidates from the whole pool, and a lucky big/small/big/small order hid it.
+    for (let run = 0; run < 50; run++) {
+      const cards = composePage({
+        weights,
+        graph: {},
+        pools: new Map([["only", pool]]),
+        rng: Math.random,
+        knobs,
+      });
+      const bySource = (s: string) => cards.filter((c) => c.item.source === s);
+      // 3 from the capped source plus every one of the minority — 5 cards, never 10. (The
+      // minority is kept under the cap on purpose: the cap is per source, not per majority.)
+      expect(bySource("big")).toHaveLength(3);
+      expect(bySource("small")).toHaveLength(2);
+      expect(cards).toHaveLength(5);
+    }
+  });
+
+  it("counts WILD cards against the source cap too", () => {
+    // A wall of un-homed cards from one blog is the same reader problem as a wall of topic
+    // cards from one blog — the cap is per page, whichever tier drew the card.
+    const wildPool = Array.from({ length: 10 }, (_, i) =>
+      makeUnhomed({ id: `w-${i}`, source: "blog" }),
+    );
+    const knobs: FeedKnobs = {
+      ...baseKnobs,
+      tierCore: 0,
+      tierDrift: 0,
+      tierJump: 0,
+      tierWild: 1,
+      sourceCap: 2,
+      pageSize: 10,
+    };
+    const cards = composePage({
+      weights: new Map(),
+      graph: {},
+      pools: new Map(),
+      wildPool,
+      rng: Math.random,
+      knobs,
+    });
+    expect(cards).toHaveLength(2);
   });
 
   it("never repeats an item within the same page (in-page exclusion)", () => {
@@ -761,6 +1043,9 @@ describe("getFeedPage — FEED_DEBUG knob gating", () => {
       .mockResolvedValue(new Map(GATE_TOPICS.map((id) => [id, 1])));
     // An empty taste profile — these tests exercise the FEED_DEBUG gate, not the tag boost.
     mockGetTasteKeywords.mockReset().mockResolvedValue([]);
+    // No un-homed corpus by default: these tests are about the gate, and an empty wild pool means
+    // the WILD slot is skipped and the page fills from the topic pools exactly as it always did.
+    mockGetWildPool.mockReset().mockResolvedValue([]);
     mockGetTopicPools
       .mockReset()
       .mockImplementation(async (topicIds: string[]) => {

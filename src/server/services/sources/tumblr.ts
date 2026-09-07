@@ -68,6 +68,19 @@ export interface TumblrRaw {
   // type === "photo"
   "photo-caption"?: string;
   "photo-url-1280"?: string;
+  /** The smaller rendition every photo post also carries — handed to the curator, never stored
+   *  (NormalizedItem.curationImageUrl). */
+  "photo-url-500"?: string;
+  /** A PHOTOSET's pictures. Present with 2+ entries when the post is a set; a single-picture
+   *  photo post carries the picture in the post-level `photo-url-*` fields and this array either
+   *  absent or holding that one picture. Each entry repeats the same rendition ladder and carries
+   *  a per-photo `caption` which every blog sampled leaves empty — the set's one caption is the
+   *  post-level `photo-caption`, which is why fan-out copies it to every picture. */
+  photos?: {
+    "photo-url-1280"?: string;
+    "photo-url-500"?: string;
+    caption?: string;
+  }[];
   // type === "regular"
   "regular-title"?: string;
   "regular-body"?: string;
@@ -105,22 +118,76 @@ export function nextCursor(
 }
 
 /**
- * Pure: the first `<img>` in a body — its largest `srcset` rendition when it lists any (the
- * newer editor lists 75w…1280w), else its `src` (the 640 px rendition). One picture per post,
- * the same D1 rule as every blog: the rest of a multi-image post never becomes an item.
+ * One picture, in the two sizes Ambit wants from it: `url` is what gets stored and shown,
+ * `curationUrl` is the smaller rendition the curator is shown instead when the source publishes
+ * one (09-06-26). Absent when the picture has only one size, which is honest — scoreItem falls
+ * back to `url` and nothing guesses a URL that may not exist.
  */
-export function firstImageUrl(html: string): string | undefined {
-  const tag = /<img\b[^>]*>/i.exec(html)?.[0];
-  if (!tag) return undefined;
+export interface TumblrRendition {
+  url: string;
+  curationUrl?: string;
+}
+
+/** The width the curation rendition aims at. A 1-10 score and four aesthetic tags do not improve
+ *  above it, and every ladder Tumblr serves has a candidate within a factor of two of it. */
+const CURATION_WIDTH = 500;
+
+/**
+ * Pure: the renditions one `<img>` tag offers. The stored URL is its largest `srcset` candidate
+ * when it lists any (the newer editor lists 75w…1280w) — the LAST one, which is how this has
+ * always picked and what thingsorganizedneatly's rows were built with — else its `src` (the
+ * 640 px rendition). The curation URL is the candidate whose declared width is nearest
+ * CURATION_WIDTH, dropped when that turns out to be the stored one anyway.
+ */
+function tagRenditions(tag: string): TumblrRendition | undefined {
   const srcset = /\bsrcset="([^"]*)"/i.exec(tag)?.[1];
   // Each candidate is "url 851w"; trimmed and non-empty, so its first token is a real URL.
   const candidates =
     srcset
       ?.split(",")
       .map((s) => s.trim())
-      .filter(Boolean) ?? [];
-  const largest = candidates[candidates.length - 1]?.split(/\s+/)[0];
-  return largest ?? /\bsrc="([^"]+)"/i.exec(tag)?.[1];
+      .filter(Boolean)
+      .map((c) => {
+        const [url, size] = c.split(/\s+/);
+        return { url: url!, width: Number(/^(\d+)w$/.exec(size ?? "")?.[1] ?? NaN) };
+      }) ?? [];
+  const url =
+    candidates[candidates.length - 1]?.url ??
+    /\bsrc="([^"]+)"/i.exec(tag)?.[1];
+  if (!url) return undefined;
+
+  const sized = candidates.filter((c) => Number.isFinite(c.width));
+  const nearest = sized.length
+    ? sized.reduce((best, c) =>
+        Math.abs(c.width - CURATION_WIDTH) < Math.abs(best.width - CURATION_WIDTH)
+          ? c
+          : best,
+      )
+    : undefined;
+  return nearest && nearest.url !== url
+    ? { url, curationUrl: nearest.url }
+    : { url };
+}
+
+/**
+ * Pure: the first `<img>` in a body, at its largest rendition. Kept as the narrow public helper
+ * `allImageUrls` and the tests were written against; the resolution rule lives in tagRenditions.
+ */
+export function firstImageUrl(html: string): string | undefined {
+  return allImageRenditions(html)[0]?.url;
+}
+
+/**
+ * Pure: EVERY `<img>` in a body, in document order, each at its largest rendition. A `regular`
+ * post from the newer editor puts its pictures inline in `regular-body`, and multi-picture posts
+ * are common — 7 of sovietpostcards' first 50, 21 of toiich's, two pictures a post on average —
+ * all sharing the one caption that is the body's text. Before 09-06-26 only the first became an
+ * item and the rest of the post was silently dropped; see expandPictures.
+ */
+export function allImageRenditions(html: string): TumblrRendition[] {
+  return (html.match(/<img\b[^>]*>/gi) ?? [])
+    .map(tagRenditions)
+    .filter((r): r is TumblrRendition => r !== undefined);
 }
 
 /**
@@ -162,19 +229,39 @@ export function capSummary(text: string): string {
 const TITLE_MAX = 80;
 /** A reblog's first line is the reblogged blog's name and a colon — attribution, not a title. */
 const ATTRIBUTION_LINE = /^\S+:$/;
+/** A title has to say something. Anything with no letter and no digit in it cannot: the case
+ *  that made this necessary is a reblog of a PRIVATE blog, whose `<a class="tumblr_blog">` has
+ *  empty text and leaves a caption line of exactly ":" (sovietpostcards post 825370343695958016,
+ *  found in the 09-06-26 sample). ATTRIBUTION_LINE catches `nemfrog:` but needs a name to catch.
+ *  Before the floor was lifted for walk images such a post was dropped on its thin summary; now
+ *  it is a card, and a card titled ":" is the same reader-visible junk as "ALT" was. */
+const HAS_WORD = /[\p{L}\p{N}]/u;
 
 /**
  * Pure: a title for a source that has none. The caption's first line — first sentence of it,
  * when one ends within TITLE_MAX — skipping a reblog attribution line; else the slug, humanized;
- * else a placeholder. The placeholder can never reach a reader: a post with no caption has an
- * empty `summary`, which structuralFloor drops.  It exists so toItem always returns a valid item.
+ * else `fallback`, which callers pass as the blog's own label.
+ *
+ * That last step used to be `Untitled post <id>` and used to be unreachable, because a post with
+ * no caption has an empty summary and structuralFloor dropped it. As of 09-06-26 the floor keeps
+ * caption-less walk images (curator.ts, docs/PLAN_caption-less-and-wild.md T1), so the fallback
+ * now DOES reach readers and a placeholder would have been the wrong thing to show them. The
+ * blog's label is Ben's call: the card that results is a picture, `from: The Vault of the Atomic
+ * Space Age`, and a link to the post — exactly the link-card shape the 08-20-26 rights posture
+ * describes, with no caption to excerpt. `summary` stays empty and every renderer already guards
+ * on `item.summary ?`.
+ *
+ * The slug fallback in between still fires, for a captioned post whose only line is a reblog
+ * attribution.
  */
 export function deriveTitle(
   captionHtml: string,
   slug: string,
-  id: string,
+  fallback: string,
 ): string {
-  const line = captionLines(captionHtml).find((l) => !ATTRIBUTION_LINE.test(l));
+  const line = captionLines(captionHtml).find(
+    (l) => !ATTRIBUTION_LINE.test(l) && HAS_WORD.test(l),
+  );
   if (line) return firstSentence(line);
   if (slug) {
     return slug
@@ -183,7 +270,7 @@ export function deriveTitle(
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
   }
-  return `Untitled post ${id}`;
+  return fallback;
 }
 
 /** The caption cut where its HTML cuts it — block closers and `<br>` — each line as plain text. */
@@ -203,32 +290,19 @@ function firstSentence(line: string): string {
   return sentence.slice(0, TITLE_MAX - 1).replace(/\s+\S*$/, "") + "…";
 }
 
-/** The picture and the caption HTML, by post type — the one place the two shapes differ. */
-function picture(
-  raw: TumblrRaw,
-  blogId: string,
-): { imageUrl: string; captionHtml: string } {
+/** The caption HTML, by post type — half of what the two shapes differ in. Pure, and called
+ *  from toItem on a picture that expandPictures already accepted, so the `default` arm is
+ *  unreachable there; it stays because this function is exported reasoning, not a private trick. */
+function captionHtmlFor(raw: TumblrRaw, blogId: string): string {
   switch (raw.type) {
-    case "photo": {
-      const imageUrl = raw["photo-url-1280"];
-      if (!imageUrl) {
-        throw new Error(`${blogId}: photo post ${raw.id} has no photo-url-1280`);
-      }
-      return {
-        imageUrl,
-        captionHtml: stripCaptionChrome(raw["photo-caption"] ?? ""),
-      };
-    }
+    case "photo":
+      return stripCaptionChrome(raw["photo-caption"] ?? "");
     case "regular": {
       const body = stripCaptionChrome(raw["regular-body"] ?? "");
-      const imageUrl = firstImageUrl(body);
-      if (!imageUrl) {
-        throw new Error(`${blogId}: regular post ${raw.id} has no image`);
-      }
       // Usually empty; when a title IS set it is the caption's natural first line, so it goes in
       // front of the body for both deriveTitle and the summary.
       const title = raw["regular-title"];
-      return { imageUrl, captionHtml: title ? `<p>${title}</p>${body}` : body };
+      return title ? `<p>${title}</p>${body}` : body;
     }
     default:
       throw new Error(
@@ -237,7 +311,106 @@ function picture(
   }
 }
 
-export function tumblrWalker(blog: BlogConfig): CorpusWalkAdapter<TumblrRaw> {
+/** Every picture a post carries, in document order — the other half of the two shapes. Throws
+ *  the same errors the old single-picture `picture()` threw, for the same reasons. */
+function pictureRenditions(raw: TumblrRaw, blogId: string): TumblrRendition[] {
+  switch (raw.type) {
+    case "photo": {
+      // A photoset lists its pictures in `photos[]`; a single-picture photo post carries the
+      // picture in the post-level fields (and sometimes repeats it as a one-entry array, which
+      // is why the array is only trusted when it holds more than one).
+      const set = raw.photos ?? [];
+      const ladders =
+        set.length > 1
+          ? set
+          : [{ "photo-url-1280": raw["photo-url-1280"], "photo-url-500": raw["photo-url-500"] }];
+      const out: TumblrRendition[] = [];
+      for (const p of ladders) {
+        const url = p["photo-url-1280"];
+        if (!url) continue;
+        const small = p["photo-url-500"];
+        out.push(small && small !== url ? { url, curationUrl: small } : { url });
+      }
+      if (!out.length) {
+        throw new Error(`${blogId}: photo post ${raw.id} has no photo-url-1280`);
+      }
+      return out;
+    }
+    case "regular": {
+      const pictures = allImageRenditions(
+        stripCaptionChrome(raw["regular-body"] ?? ""),
+      );
+      if (!pictures.length) {
+        throw new Error(`${blogId}: regular post ${raw.id} has no image`);
+      }
+      return pictures;
+    }
+    default:
+      throw new Error(
+        `${blogId}: unsupported post type "${raw.type}" (post ${raw.id})`,
+      );
+  }
+}
+
+/**
+ * One raw record per PICTURE, not per post — the fan-out (09-06-26, plan D11).
+ *
+ * A Tumblr post routinely carries several pictures under one caption: 7 of sovietpostcards' first
+ * 50 posts, 21 of toiich's, and any `photo` post that is a photoset. Until now `picture()` took
+ * the first and the rest of the post was never stored at all. Every picture is now its own item,
+ * carrying the post's caption, title, tags and permalink — the caption describes the set, so
+ * repeating it on each picture is what it means, not a duplication.
+ *
+ * The expansion lives HERE, in the walker, rather than in toItem, because `CorpusWalkAdapter.toItem`
+ * is a cross-service agreement with a one-raw-in / one-item-out shape (types.ts) and is the pure
+ * fixture-tested surface. Keeping that means the walker yields more raws instead.
+ *
+ * `pictureIndex` is 1-based for every picture INCLUDING the first, so `sourceId` is `<post>:1`
+ * uniformly and no caller ever has to know whether a post was a set. (things-organized-neatly.ts
+ * keeps bare post ids — its 1,720 rows are single-picture by construction and stay as they are.)
+ */
+export interface TumblrPicture extends TumblrRaw {
+  pictureUrl: string;
+  curationUrl?: string;
+  /** 1-based. `0` marks the sentinel below, which is not a picture at all. */
+  pictureIndex: number;
+  pictureCount: number;
+  /** Set only on the sentinel: the message toItem must throw. */
+  expandError?: string;
+}
+
+export function expandPictures(
+  post: TumblrRaw,
+  blogId: string,
+): TumblrPicture[] {
+  let renditions: TumblrRendition[];
+  try {
+    renditions = pictureRenditions(post, blogId);
+  } catch (err) {
+    // A page of 50 posts routinely contains one `answer` or `video`, and before the fan-out that
+    // cost exactly one toItem error, which ingest counts and prints. Throwing out of a flatMap
+    // would instead lose the other 49. So the failure is carried forward as a single sentinel raw
+    // that toItem rejects with the original message: the count stays honest and the page survives.
+    return [
+      {
+        ...post,
+        pictureUrl: "",
+        pictureIndex: 0,
+        pictureCount: 0,
+        expandError: err instanceof Error ? err.message : String(err),
+      },
+    ];
+  }
+  return renditions.map((r, i) => ({
+    ...post,
+    pictureUrl: r.url,
+    ...(r.curationUrl ? { curationUrl: r.curationUrl } : {}),
+    pictureIndex: i + 1,
+    pictureCount: renditions.length,
+  }));
+}
+
+export function tumblrWalker(blog: BlogConfig): CorpusWalkAdapter<TumblrPicture> {
   // A blog that tags every post with its own name says nothing about the item that way, and it
   // would take one of the twelve tag slots the curator reads. Config, not a guess: `selfTags` is
   // the blog's own row, already lowercased there.
@@ -246,7 +419,7 @@ export function tumblrWalker(blog: BlogConfig): CorpusWalkAdapter<TumblrRaw> {
   async function walk(
     cursor?: string,
     opts?: FetchOpts,
-  ): Promise<WalkPage<TumblrRaw>> {
+  ): Promise<WalkPage<TumblrPicture>> {
     const start = cursor === undefined ? 0 : Number(cursor);
     if (!Number.isInteger(start) || start < 0) {
       throw new Error(`${blog.id}: bad cursor "${cursor}"`);
@@ -266,29 +439,43 @@ export function tumblrWalker(blog: BlogConfig): CorpusWalkAdapter<TumblrRaw> {
       posts: TumblrRaw[];
     };
     return {
-      raw: page.posts,
+      // One raw per PICTURE (expandPictures). `next` still counts POSTS, because the cursor is
+      // Tumblr's own `start` offset and the API paginates posts — a page of 50 posts can offer
+      // 100 items, which is why ingest's quota is in items and the cursor is not.
+      raw: page.posts.flatMap((post) => expandPictures(post, blog.id)),
       next: nextCursor(start, page.posts.length, page["posts-total"]),
     };
   }
 
-  function toItem(raw: TumblrRaw): NormalizedItem {
-    const { imageUrl, captionHtml } = picture(raw, blog.id);
+  function toItem(raw: TumblrPicture): NormalizedItem {
+    // The sentinel expandPictures yields for a post it could not read: re-thrown here so the
+    // failure lands where ingest already counts and prints toItem errors.
+    if (raw.expandError) throw new Error(raw.expandError);
+    const captionHtml = captionHtmlFor(raw, blog.id);
     return {
       source: blog.id,
-      // The numeric post id, not the slug: it is present and permanent on every post type, where
-      // the slug is empty on any post without caption text. (source, sourceId) is the
-      // idempotency key, so this choice is permanent for the corpus.
-      sourceId: raw.id,
+      // The numeric post id and the 1-based picture index — the post id because it is present and
+      // permanent on every post type where the slug is empty on any post without caption text,
+      // the index because a post can carry several pictures and each is its own item.
+      // (source, sourceId) is the idempotency key, so this choice is permanent for the corpus.
+      sourceId: `${raw.id}:${raw.pictureIndex}`,
       type: "image",
-      title: deriveTitle(captionHtml, raw.slug ?? "", raw.id),
+      // The blog's label is the last resort, and on a caption-less blog it is the usual outcome —
+      // see deriveTitle.
+      title: deriveTitle(captionHtml, raw.slug ?? "", blog.label),
       // The blog's own caption IS the blurb (6.3 D5), however short. A thin one is floored by
       // structuralFloor's thin-summary rule like any museum stub — never padded here — and a
       // very long one is cut to an excerpt by capSummary, which is the rights posture in code.
       summary: capSummary(htmlToText(captionHtml)),
       // Always null for a blog item — the invariant source-invariants.test.ts asserts.
       body: null,
-      imageUrl,
-      // The readable permalink. On a captionless post there is no slug and the API sends the
+      imageUrl: raw.pictureUrl,
+      // Scored instead of the stored picture when this blog's ladder offered a smaller rendition
+      // (types.ts). Omitted, never guessed, when it did not.
+      ...(raw.curationUrl ? { curationImageUrl: raw.curationUrl } : {}),
+      // The readable permalink — the POST's, for every picture of it: the link card links a
+      // reader to the original post, which is where the whole set lives.
+      // On a captionless post there is no slug and the API sends the
       // bare `url` in this field too — present, never empty — so `??` is exact.
       sourceUrl: raw["url-with-slug"] ?? raw.url,
       attribution: blog.label,

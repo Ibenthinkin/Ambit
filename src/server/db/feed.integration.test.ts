@@ -15,7 +15,7 @@ import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
-import { forgetSeenSince, getTopicPools } from "./feed";
+import { forgetSeenSince, getTopicPools, getWildPool } from "./feed";
 import { drawFromTopic } from "./items";
 
 describe.skipIf(!process.env.DATABASE_URL)(
@@ -215,3 +215,149 @@ describe.skipIf(!process.env.DATABASE_URL)(
     });
   },
 );
+
+// The WILD tier's pool (09-06-26, docs/PLAN_caption-less-and-wild.md T2). Every property here is
+// SQL — a NULL predicate, an md5 ordering, and the same eligibility clauses getTopicPools uses —
+// so a mocked test would be checking a mock. What matters: it returns un-homed rows and ONLY
+// un-homed rows, it refuses everything a topic pool would refuse, and the sample it draws is a
+// pure function of `sampleKey`, because a cursor's promise of an identical page depends on it.
+describe.skipIf(!process.env.DATABASE_URL)("getWildPool (integration)", () => {
+  const userId = `test-wild-user-${nanoid(8)}`;
+  const topicId = `test-wild-topic-${nanoid(8)}`;
+  const prefix = `test-wild-${nanoid(8)}-`;
+  const unhomedIds: string[] = [];
+  let homedId: string;
+  let lowScoreId: string;
+  let suspendedId: string;
+  const anchor = new Date();
+
+  beforeAll(async () => {
+    const { db } = await import("~/server/db/client");
+    const { item, topic, user } = await import("~/server/db/schema");
+    await db.insert(topic).values({
+      id: topicId,
+      label: "Test wild topic",
+      seedQueries: { wikipedia: [], met: [], aic: [], cma: [], wellcome: [] },
+    });
+    await db.insert(user).values({
+      id: userId,
+      name: "Test wild user",
+      email: `${userId}@example.com`,
+      emailVerified: false,
+    });
+
+    const row = (i: number, over: Record<string, unknown>) => ({
+      source: "met",
+      sourceId: `${prefix}${i}`,
+      type: "image" as const,
+      title: `Wild item ${i}`,
+      sourceUrl: `https://example.com/${prefix}${i}`,
+      imageUrl: `https://example.com/${prefix}${i}.jpg`,
+      topicId: null,
+      curationScore: 9,
+      aestheticTags: [],
+      ...over,
+    });
+
+    // 30 un-homed rows to sample from, plus one of each thing the pool must refuse.
+    const inserted = await db
+      .insert(item)
+      .values([
+        ...Array.from({ length: 30 }, (_, i) => row(i, {})),
+        row(30, { topicId }), // homed
+        row(31, { curationScore: 2 }), // below the floor
+        // A suspended source, if there is one to test with — SUSPENDED_SOURCES can be empty.
+        ...(SUSPENDED_SOURCES.length > 0
+          ? [row(32, { source: SUSPENDED_SOURCES[0]! })]
+          : []),
+      ])
+      .returning({ id: item.id, sourceId: item.sourceId });
+
+    const byIndex = (i: number) =>
+      inserted.find((r) => r.sourceId === `${prefix}${i}`)!.id;
+    unhomedIds.push(...Array.from({ length: 30 }, (_, i) => byIndex(i)));
+    homedId = byIndex(30);
+    lowScoreId = byIndex(31);
+    suspendedId = SUSPENDED_SOURCES.length > 0 ? byIndex(32) : "";
+  });
+
+  afterAll(async () => {
+    const { db } = await import("~/server/db/client");
+    const { item, seenItem, topic, user } = await import("~/server/db/schema");
+    await db.delete(seenItem).where(inArray(seenItem.userId, [userId]));
+    const rows = await db.query.item.findMany({
+      where: (t, { like }) => like(t.sourceId, `${prefix}%`),
+      columns: { id: true },
+    });
+    if (rows.length > 0) {
+      const ids = rows.map((r) => r.id);
+      // These fixtures are UN-HOMED, so any other suite running a real `getFeedPage` at the same
+      // time can draw them through WILD and write `seen_item` rows for ITS user — rows this
+      // suite never made and the FK would otherwise trip on (seen 09-07-26 running the feed
+      // suites together). Clear them by item id, not by this suite's user id.
+      await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
+      await db.delete(item).where(inArray(item.id, ids));
+    }
+    await db.delete(user).where(inArray(user.id, [userId]));
+    await db.delete(topic).where(inArray(topic.id, [topicId]));
+  });
+
+  // A limit far above the corpus's own un-homed count (~1,000 on this laptop, 0 on CI's fresh
+  // database), so these assertions are about the pool's PREDICATES rather than about which rows
+  // an md5 sample happened to pick. `limit` gets its own test below.
+  const draw = (over: Partial<Parameters<typeof getWildPool>[0]> = {}) =>
+    getWildPool({
+      userId,
+      anchor,
+      scoreFloor: 4,
+      excludeIds: [],
+      sampleKey: "seed:0",
+      limit: 100_000,
+      ...over,
+    });
+
+  it("returns un-homed rows, and never a homed one", async () => {
+    const pool = await draw();
+    const ids = new Set(pool.map((r) => r.id));
+    expect(pool.every((r) => r.topicId === null)).toBe(true);
+    expect(ids.has(homedId)).toBe(false);
+    // All 30 of ours are in there; the corpus's own un-homed rows are too, which is correct —
+    // the pool is corpus-wide by design, since a WILD card belongs to no reader's topics.
+    for (const id of unhomedIds) expect(ids.has(id)).toBe(true);
+  });
+
+  it("refuses everything a topic pool refuses: below the floor, excluded, suspended", async () => {
+    const pool = await draw({ excludeIds: [unhomedIds[0]!] });
+    const ids = new Set(pool.map((r) => r.id));
+    expect(ids.has(lowScoreId)).toBe(false);
+    expect(ids.has(unhomedIds[0]!)).toBe(false);
+    if (suspendedId) expect(ids.has(suspendedId)).toBe(false);
+  });
+
+  it("refuses an item this user was served before the anchor", async () => {
+    const { db } = await import("~/server/db/client");
+    const { seenItem } = await import("~/server/db/schema");
+    await db.insert(seenItem).values({
+      userId,
+      itemId: unhomedIds[1]!,
+      servedAt: new Date(anchor.getTime() - 60_000),
+    });
+    const ids = new Set((await draw()).map((r) => r.id));
+    expect(ids.has(unhomedIds[1]!)).toBe(false);
+  });
+
+  it("orders by sampleKey: the same key twice is identical, a different key is not", async () => {
+    const a = (await draw({ sampleKey: "seed-a:0" })).map((r) => r.id);
+    const again = (await draw({ sampleKey: "seed-a:0" })).map((r) => r.id);
+    const b = (await draw({ sampleKey: "seed-b:3" })).map((r) => r.id);
+    expect(again).toEqual(a);
+    // Same membership, different order — which is what makes `limit` a *sample* rather than
+    // always the same 200 rows.
+    expect(b).not.toEqual(a);
+    expect([...b].sort()).toEqual([...a].sort());
+  });
+
+  it("respects limit", async () => {
+    expect(await draw({ limit: 5 })).toHaveLength(5);
+  });
+});

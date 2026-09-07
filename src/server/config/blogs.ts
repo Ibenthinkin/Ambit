@@ -8,9 +8,15 @@
 // article (CLAUDE.md's 08-20-26 rights decision). `license` below is the honest statement of that.
 // There is no fair-use claim anywhere, and removal on request is the standing policy.
 //
-// **What is NOT here, on purpose (YAGNI until blog #2):** per-blog rate limits, per-blog walk
-// options, tag→topic maps. `walk` names the flavour only so the next blog — which will be RSS or
-// Tumblr, not WordPress (docs/PHASE6_DESIGN_HANDOFF_6.3.md F7) — has a place to say so.
+// **What is NOT here, on purpose (YAGNI until blog #2):** per-blog rate limits, tag→topic maps.
+// `walk` names the flavour only so the next blog — which will be RSS or Tumblr, not WordPress
+// (docs/PHASE6_DESIGN_HANDOFF_6.3.md F7) — has a place to say so.
+//
+// **`walkQuota` arrived 09-06-26** — the "per-blog walk options" that note said to wait for, and
+// here is what it was waiting for: Ambit is self-hosted on a VM with a finite volume, and the
+// four Tumblr blogs Ben kept in round 3 hold 207,000 posts between them. He set a budget per blog
+// (the newest half, a quarter for the largest) rather than a full archive each, so the bound has
+// to live where the blog lives — otherwise un-parking one in the nightly ingest walks all of it.
 import type { WalkSourceId } from "./topics";
 
 /** The one license string every blog shares. Truthful rather than permissive. */
@@ -35,6 +41,16 @@ export interface BlogConfig {
    *  tumblr walker drops them. Lowercase, because that is what it compares against. Observed
    *  per blog, never guessed: absent means "this blog does not tag itself". */
   selfTags?: readonly string[];
+  /** Newest-first bound on a DEFAULT walk, in items offered — pictures after the tumblr walker's
+   *  fan-out, not posts. Present ⇒ the nightly ingest walks only this many, the run is never
+   *  `complete`, and `--prune` can therefore never act on this blog. Absent ⇒ walk to exhaustion,
+   *  which is what every blog did before 09-06-26 and what the three small ones still do.
+   *
+   *  It is deliberately the same lever `--quota` pulls (scripts/ingest.ts), so a budgeted walk
+   *  needs no new concept and `WalkPage`/`CorpusWalkAdapter` — cross-service contracts — did not
+   *  change. `--quota` on the command line still overrides it. The rest of an archive is one
+   *  `bun run ingest --source <id> --cursor <n>` later, with the cursor the bounded run printed. */
+  walkQuota?: number;
 }
 
 export const BLOGS: readonly BlogConfig[] = [
@@ -157,11 +173,23 @@ export const BLOGS: readonly BlogConfig[] = [
     label: "Soviet Postcards",
     baseUrl: "https://sovietpostcards.tumblr.com",
     license: BLOG_LICENSE,
-    // 25,784 posts. Median caption 61 chars — right on the floor, so 48% of the sample falls
+    // 25,784 posts. Median caption 61 chars — right on the floor, so 48% of the sample fell
     // below it — but the tagging is the strongest of the nine after nemfrog: 6.8 tags/post on
     // 180 of 200, and specific rather than generic (`ussr`, `1970s`, `soviet school uniform`).
+    // KEPT 09-06-26. Post-floor sample (`stats:walk --quota 150`, after T1's floor change and
+    // T4's 99-topic classifier): floored 0, curated 150, avg 7.63, 61% ≥8, un-homed 0%, 95 of
+    // 99 topics used, 7 toItem errors. Before those two changes: 44% stored, 44% un-homed.
+    // Budget: newest 50% = 12,900 posts × 1.34 pictures/post ⇒ walkQuota 17,500 items.
+    // WALKED 09-06-26 (73 min): 17,500 items from **10,446 posts** · 0 floored · 37 un-homed
+    // (0.2%) · 65,593 memberships. The real multiplier is **1.68 pictures/post**, not the 1.34
+    // the 50-post probe measured, so the item budget bought 40% of the archive rather than the
+    // intended 50% — a quota in items is a quota in items, and the post count is what it *means*.
+    // Resume from `--cursor 10400` for the rest (rounded down to a page boundary; overlap is
+    // free, since (source, source_id) makes a re-walk idempotent). Raising this to ~21,700 would
+    // reach Ben's original half.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
+    walkQuota: 17_500,
   },
   {
     id: "70sscifiart",
@@ -172,8 +200,12 @@ export const BLOGS: readonly BlogConfig[] = [
     // an artist credit — but every one of the 200 sampled posts is tagged, 3.6 tags/post, often
     // with the artist's name (`wayne barlowe`). A leading digit in the id is legal everywhere it
     // is used: `item.source` is a free-text column and the TS unions quote their members.
+    // KEPT 09-06-26. Post-floor sample: floored 0, curated 150, avg 8.49, 94% ≥8, un-homed 3%,
+    // 3 toItem errors. The strongest of the four on score.
+    // Budget: newest 50% = 17,400 posts × 1.46 pictures/post ⇒ walkQuota 25,500 items.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
+    walkQuota: 25_500,
   },
   {
     id: "vintagegeekculture",
@@ -207,9 +239,12 @@ export const BLOGS: readonly BlogConfig[] = [
     baseUrl: "https://toiich.tumblr.com",
     license: BLOG_LICENSE,
     // 11,308 posts, the smallest of the nine, and 197 of 200 sampled posts are `regular` — the
-    // one archive here that is essentially all newer-editor posts, so its pictures come from
-    // firstImageUrl() rather than a structured field. Median caption 44 chars, 84% under the
-    // floor, 1.5 tags/post.
+    // one archive here that is essentially all newer-editor posts, so its pictures come from the
+    // body's <img> tags rather than a structured field. Median caption 44 chars, 84% under the
+    // old floor, 1.5 tags/post; 21 of its first 50 posts carry more than one picture, two per
+    // post on average — the densest photoset blog of the nine.
+    // PARKED by Ben's verdict 09-06-26, on taste rather than on numbers, after a live probe
+    // showed it to be mostly film stills with film-title captions. Settled; do not re-open.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
   },
@@ -219,10 +254,15 @@ export const BLOGS: readonly BlogConfig[] = [
     baseUrl: "https://thevaultoftheatomicspaceage.tumblr.com",
     license: BLOG_LICENSE,
     // 37,494 posts and the weakest metadata of the nine by a distance: median caption 0 chars,
-    // 161 of 200 empty, 93% under the floor, and ZERO tags on all 200 sampled posts. Registered
-    // for completeness and parked on that evidence — see SUSPENDED_SOURCES.
+    // 161 of 200 empty, 93% under the floor, and ZERO tags on all 200 sampled posts.
+    // KEPT 09-06-26, and the clearest case that the floor was measuring the wrong thing: the
+    // post-floor sample is floored 0, curated 150, avg **8.45**, **91% ≥8**, un-homed 0%,
+    // 26 of 99 topics. Under the old floor 8% of it was storable. Every caption-less card is
+    // titled "The Vault of the Atomic Space Age" with an empty summary — Ben's call (plan D2).
+    // Budget: newest 50% = 18,750 posts × 1.0 pictures/post ⇒ walkQuota 19,000 items.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
+    walkQuota: 19_000,
   },
   {
     id: "thisisnthappiness",
@@ -233,11 +273,16 @@ export const BLOGS: readonly BlogConfig[] = [
     // named-bot list is Tumblr's and not the blog's).
     baseUrl: "https://thisisnthappiness.com",
     license: BLOG_LICENSE,
-    // 108,982 posts — by far the largest archive probed, and the least usable: 96% of captions
-    // fall under the 60-char floor and only 73 of 200 posts carry any tag (0.5/post). A full
-    // walk is ~2,180 requests to keep roughly 4% of them. Parked on that — see SUSPENDED_SOURCES.
+    // 108,982 posts — by far the largest archive probed. 96% of captions fall under the old
+    // 60-char floor and only 73 of 200 posts carry any tag (0.5/post), which under that floor
+    // meant keeping roughly 4% of a 2,180-request walk.
+    // KEPT 09-06-26. Post-floor sample: floored 0, curated 150, avg 8.11, 87% ≥8, un-homed 0%,
+    // 0 toItem errors — a blog whose pictures were always good and whose captions were never
+    // the point. It gets the smallest budget of the four because the archive is the largest.
+    // Budget: newest 25% = 27,250 posts × 1.0 pictures/post ⇒ walkQuota 27,500 items.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
+    walkQuota: 27_500,
     // `nevver` is the author's own handle, the most frequent tag in the sample.
     selfTags: ["nevver"],
   },

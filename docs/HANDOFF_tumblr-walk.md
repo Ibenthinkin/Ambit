@@ -7,6 +7,25 @@ picking this up to implement; now the record of the build. **Status:** design ap
 differed from the plan and the sample's numbers**; the Keep/Park/Cut verdict and the full walk are
 still Ben's. §§1–7 are the design as approved, kept as written.
 
+> **Three things changed in the factory on 09-06-26** (`docs/PLAN_caption-less-and-wild.md`).
+> They apply to `tumblr.ts`, the factory the other blogs use; `things-organized-neatly.ts` is
+> frozen and took only the title fix below, which moves no stored row.
+>
+> 1. **A post is one item per PICTURE, not one item per post.** `expandPictures` yields a raw for
+>    every `<img>` in a `regular` body and every entry of a `photo` post's `photos[]` array, and
+>    `sourceId` is now `<postId>:<n>`, 1-based for every picture including the first. Multi-picture
+>    posts are common — 7 of sovietpostcards' first 50 — and until now only the first picture of
+>    one ever became an item. The frozen bespoke walker still ids by bare post id; its 1,720 rows
+>    are keyed on those, so moving it onto the factory is a row migration, not a flag.
+> 2. **A `walkQuota` in `blogs.ts` bounds a default walk**, in items offered. A budgeted run is
+>    never `complete` (so `--prune` cannot act on it) and prints `resume with --cursor N`;
+>    `bun run ingest --source <id> --cursor N` continues the archive later.
+> 3. **The last-resort title is the blog's label**, not `Untitled post <id>`, and a caption line
+>    with no letters or digits in it is skipped. Both are forced by the floor change in the same
+>    plan: a caption-less post used to be dropped and is now a card, so its title is something a
+>    reader sees. The factory also sets `curationImageUrl` (`photo-url-500`, or the ~500 srcset
+>    candidate) so the curator scores a smaller rendition than the one that gets stored.
+
 ---
 
 ## 1. What this is and why

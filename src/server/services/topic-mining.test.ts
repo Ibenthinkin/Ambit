@@ -30,6 +30,54 @@ describe("tallyTags", () => {
     expect(s.sources.sort()).toEqual(["pdr", "thisiscolossal"]);
     expect(stats.find((x) => x.tag === "bronze")!.unhomed).toBe(0);
   });
+
+  // 09-06-26 (docs/PLAN_caption-less-and-wild.md T3). A caption-less picture blog's items carry
+  // no source tags at all, so before this the mining had nothing to read from them — and they are
+  // precisely the items that are un-homed. The curator's aesthetic tags are the only vocabulary
+  // those items have.
+  it("folds the union of source tags and the curator's aesthetic tags", () => {
+    const stats = tallyTags([
+      { source: "pdr", homed: false, tags: ["sculpture"], aestheticTags: ["bronze"] },
+      { source: "70sscifiart", homed: false, tags: [], aestheticTags: ["bronze"] },
+    ]);
+    expect(stats.find((x) => x.tag === "sculpture")!.total).toBe(1);
+    const bronze = stats.find((x) => x.tag === "bronze")!;
+    expect(bronze.total).toBe(2);
+    expect(bronze.sources).toEqual(["70sscifiart", "pdr"]);
+  });
+
+  it("counts a tag present in both columns once for that item, normalized", () => {
+    const stats = tallyTags([
+      {
+        source: "pdr",
+        homed: false,
+        tags: ["Botanical Plate"],
+        aestheticTags: ["botanical plate"],
+      },
+    ]);
+    // One candidate, not two, and it counts once — the item said it twice, in two vocabularies.
+    expect(stats).toHaveLength(1);
+    expect(stats[0]!.tag).toBe("botanical plate");
+    expect(stats[0]!.total).toBe(1);
+    // The source did say it, so it is not curator-only.
+    expect(stats[0]!.aestheticOnly).toBe(0);
+  });
+
+  it("counts how much of a candidate exists only because the curator wrote it", () => {
+    const stats = tallyTags([
+      { source: "pdr", homed: false, tags: ["woodcut"], aestheticTags: [] },
+      { source: "70sscifiart", homed: false, tags: [], aestheticTags: ["woodcut"] },
+      { source: "sovietpostcards", homed: false, tags: [], aestheticTags: ["woodcut"] },
+    ]);
+    const s = stats.find((x) => x.tag === "woodcut")!;
+    expect(s.total).toBe(3);
+    expect(s.aestheticOnly).toBe(2);
+  });
+
+  it("still works for a corpus read that carries no aesthetic tags at all", () => {
+    const stats = tallyTags([item("pdr", false, "sculpture")]);
+    expect(stats[0]!.aestheticOnly).toBe(0);
+  });
 });
 
 describe("rankCandidates", () => {
@@ -38,22 +86,22 @@ describe("rankCandidates", () => {
       tag: "sculpture",
       total: 900,
       unhomed: 738,
-      sources: ["pdr", "thisiscolossal", "met", "aic"],
+      sources: ["pdr", "thisiscolossal", "met", "aic"], aestheticOnly: 0,
     },
     {
       tag: "submission",
       total: 344,
       unhomed: 344,
-      sources: ["thisiscolossal"],
+      sources: ["thisiscolossal"], aestheticOnly: 0,
     },
     {
       tag: "street art",
       total: 200,
       unhomed: 178,
-      sources: ["thisiscolossal"],
+      sources: ["thisiscolossal"], aestheticOnly: 0,
     },
-    { tag: "mythology", total: 500, unhomed: 40, sources: ["pdr", "met"] },
-    { tag: "rare", total: 8, unhomed: 6, sources: ["pdr", "met"] },
+    { tag: "mythology", total: 500, unhomed: 40, sources: ["pdr", "met"], aestheticOnly: 0 },
+    { tag: "rare", total: 8, unhomed: 6, sources: ["pdr", "met"], aestheticOnly: 0 },
   ];
 
   it("promotes a multi-source tag that clears the un-homed floor", () => {
@@ -106,7 +154,7 @@ describe("rankCandidates", () => {
     // ("ancient history"). Comparing only the raw strings would re-propose a topic Ambit already
     // has under a slightly different spelling.
     const withSpaces: TagStat[] = [
-      { tag: "street art", total: 300, unhomed: 178, sources: ["a", "b"] },
+      { tag: "street art", total: 300, unhomed: 178, sources: ["a", "b"], aestheticOnly: 0 },
     ];
     const { promoted } = rankCandidates(
       withSpaces,
@@ -124,5 +172,38 @@ describe("topicIdFor / topicLabelFor", () => {
     expect(topicIdFor("art & illustration")).toBe("art-illustration");
     expect(topicLabelFor("street art")).toBe("Street Art");
     expect(topicLabelFor("art & illustration")).toBe("Art & Illustration");
+  });
+});
+
+describe("the stopwords that arrived with aesthetic-tag mining", () => {
+  const stat = (tag: string): TagStat => ({
+    tag,
+    total: 900,
+    unhomed: 738,
+    sources: ["pdr", "thisiscolossal"],
+    aestheticOnly: 700,
+  });
+
+  it("excludes look-descriptors the curator writes constantly", () => {
+    const looks = [
+      "muted palette",
+      "monochrome",
+      "vintage",
+      "grainy",
+      "moody",
+      "high contrast",
+    ];
+    const { promoted, singleSource } = rankCandidates(
+      looks.map(stat),
+      [],
+      DEFAULT_MINING,
+    );
+    expect([...promoted, ...singleSource]).toHaveLength(0);
+  });
+
+  it("keeps descriptors that name a kind of thing a person could be curious about", () => {
+    const kinds = ["hand-lettered", "brutalist", "botanical plate", "woodcut"];
+    const { promoted } = rankCandidates(kinds.map(stat), [], DEFAULT_MINING);
+    expect(promoted.map((p) => p.tag).sort()).toEqual([...kinds].sort());
   });
 });

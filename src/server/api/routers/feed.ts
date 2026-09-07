@@ -23,12 +23,19 @@ const feedKnobsSchema = z
     tierCore: z.number().min(0),
     tierDrift: z.number().min(0),
     tierJump: z.number().min(0),
+    // The WILD tier (09-06-26). Unbounded above like the other three — the four are relative
+    // weights, so a ceiling here would mean something different from a ceiling on tierCore.
+    tierWild: z.number().min(0),
     scoreFloor: z.number().min(1).max(10),
     scorePower: z.number().min(0),
     tagBoost: z.number().min(0),
+    /** WILD's own tagBoost — the slot's only personalization axis. */
+    wildTagBoost: z.number().min(0),
     temp: z.number().min(0.01),
     hop2: z.number().min(0).max(1),
     topicCap: z.number().int().min(1),
+    /** Per-page cap on one source's cards (09-07-26) — topicCap's sibling. */
+    sourceCap: z.number().int().min(1),
     pageSize: z.number().int().min(1).max(50),
     // Cut 2a's feel levers (09-05-26). 4× is already "the mined vocabulary dominates"; a penalty
     // above 1 would be a bonus, which is a different knob with a different name.

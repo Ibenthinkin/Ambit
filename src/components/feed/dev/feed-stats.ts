@@ -12,11 +12,19 @@ export interface PageStats {
   tiers: Record<Tier, number>;
   core: number;
   grown: number;
+  /** Cards the WILD tier drew — un-homed items, which belong to neither `core` nor `grown`
+   *  because they belong to no topic at all. The three add up to `cards`. */
+  wild: number;
   topics: Map<string, number>;
   sources: Map<string, number>;
 }
 
-const emptyTiers = (): Record<Tier, number> => ({ CORE: 0, DRIFT: 0, JUMP: 0 });
+const emptyTiers = (): Record<Tier, number> => ({
+  CORE: 0,
+  DRIFT: 0,
+  JUMP: 0,
+  WILD: 0,
+});
 
 export function pageStats(
   cards: FeedCard[],
@@ -27,15 +35,19 @@ export function pageStats(
     tiers: emptyTiers(),
     core: 0,
     grown: 0,
+    wild: 0,
     topics: new Map(),
     sources: new Map(),
   };
   for (const c of cards) {
     s.tiers[c.tier]++;
-    // `topicId` is the card's *display* topic (Cut 1); null means the item is stored but
-    // un-homed, which the feed cannot draw today — so a null here is a bug worth seeing, and
-    // it is counted in neither bucket rather than hidden in one.
-    if (c.topicId !== null) {
+    // `topicId` is the card's *display* topic (Cut 1). Null is no longer a bug to be seen: as of
+    // 09-06-26 it means, and only means, a WILD card — an un-homed item the new tier drew. It
+    // gets its own bucket rather than being folded into core or grown, because "no topic fits
+    // this yet" is the fact the readout exists to show.
+    if (c.topicId === null) {
+      s.wild++;
+    } else {
       if (coreIds.has(c.topicId)) s.core++;
       else s.grown++;
       s.topics.set(c.topicId, (s.topics.get(c.topicId) ?? 0) + 1);
@@ -51,6 +63,7 @@ export function sumStats(pages: PageStats[]): PageStats {
     tiers: emptyTiers(),
     core: 0,
     grown: 0,
+    wild: 0,
     topics: new Map(),
     sources: new Map(),
   };
@@ -59,6 +72,7 @@ export function sumStats(pages: PageStats[]): PageStats {
     for (const k of Object.keys(t.tiers) as Tier[]) t.tiers[k] += p.tiers[k];
     t.core += p.core;
     t.grown += p.grown;
+    t.wild += p.wild;
     for (const [k, n] of p.topics) t.topics.set(k, (t.topics.get(k) ?? 0) + n);
     for (const [k, n] of p.sources)
       t.sources.set(k, (t.sources.get(k) ?? 0) + n);

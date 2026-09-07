@@ -15,10 +15,12 @@ import { describe, expect, it } from "vitest";
 
 import { BLOGS, blogConfig, BLOG_LICENSE } from "~/server/config/blogs";
 import scifiart70s from "./__fixtures__/70sscifiart.json";
+import scifiart70sMulti from "./__fixtures__/70sscifiart-multi.json";
 import dreamsrecurring from "./__fixtures__/dreamsrecurring.json";
 import humanoidhistory from "./__fixtures__/humanoidhistory.json";
 import nemfrog from "./__fixtures__/nemfrog.json";
 import sovietpostcards from "./__fixtures__/sovietpostcards.json";
+import sovietpostcardsMulti from "./__fixtures__/sovietpostcards-multi.json";
 import tonFixtures from "./__fixtures__/things-organized-neatly.json";
 import thevault from "./__fixtures__/thevaultoftheatomicspaceage.json";
 import thisisnthappiness from "./__fixtures__/thisisnthappiness.json";
@@ -26,7 +28,9 @@ import toiich from "./__fixtures__/toiich.json";
 import vintagegeekculture from "./__fixtures__/vintagegeekculture.json";
 import { thingsorganizedneatly } from "./things-organized-neatly";
 import {
+  allImageRenditions,
   deriveTitle,
+  expandPictures,
   firstImageUrl,
   nextCursor,
   capSummary,
@@ -35,6 +39,14 @@ import {
   tumblrWalker,
   type TumblrRaw,
 } from "./tumblr";
+
+/** Every picture of every supported post in `raws`, the way walk() yields them. The fan-out
+ *  (09-06-26) means a fixture row is no longer one item, so no test may call toItem on a raw. */
+function pictures(raws: TumblrRaw[], blogId: string) {
+  return raws
+    .filter((r) => SUPPORTED.has(r.type))
+    .flatMap((r) => expandPictures(r, blogId));
+}
 
 /** The nine round-3 blogs and the fixture recorded from each. */
 const FIXTURES: [string, TumblrRaw[]][] = [
@@ -60,14 +72,26 @@ describe("tumblrWalker — equivalence with the bespoke adapter", () => {
     expect(walker.source).toBe("thingsorganizedneatly");
   });
 
-  // Equivalence holds everywhere the two adapters agree, which is every fixture row: the factory
-  // adds exactly two deliberate divergences (the ALT badge strip and the 600-char summary cap),
-  // and neither fires on this blog's fixture — nor on its 1,720 stored rows, which were checked.
-  // If a future fixture row does trip one, this assertion is the thing that will say so.
-  it("produces exactly what things-organized-neatly.ts does, on every fixture row", () => {
+  // `sourceId` is the one field that diverges by design as of 09-06-26: the factory fans a post
+  // out into one item per picture and ids them `<post>:<n>`, where the bespoke adapter — frozen,
+  // with 1,720 single-picture rows behind it — keeps the bare post id. So equivalence is asserted
+  // on every OTHER field, and on the id's relationship to the bespoke one, for the post's first
+  // picture. Its two other deliberate divergences (the ALT badge strip and the 600-char cap) fire
+  // on neither this fixture nor those rows; if a future fixture row trips one, this says so.
+  it("produces what things-organized-neatly.ts does on every field but the fanned-out id", () => {
     for (const raw of raws) {
       if (!SUPPORTED.has(raw.type)) continue;
-      expect(walker.toItem(raw)).toEqual(thingsorganizedneatly.toItem(raw));
+      const first = expandPictures(raw, "thingsorganizedneatly")[0]!;
+      const { sourceId, curationImageUrl, ...mine } = walker.toItem(first);
+      const { sourceId: bespokeId, ...theirs } = thingsorganizedneatly.toItem(raw);
+      expect(mine).toEqual(theirs);
+      expect(sourceId).toBe(`${bespokeId}:1`);
+      // The other by-design divergence: the factory may name a curation rendition where the
+      // bespoke adapter has no such field. It is never stored and never replaces `imageUrl`,
+      // which is why it is excluded from the equivalence above rather than breaking it.
+      if (curationImageUrl !== undefined) {
+        expect(curationImageUrl).not.toBe(theirs.imageUrl);
+      }
     }
   });
 
@@ -76,9 +100,9 @@ describe("tumblrWalker — equivalence with the bespoke adapter", () => {
       (r.tags ?? []).some((t) => t.toLowerCase() === "things organized neatly"),
     );
     expect(tagged, "fixture should contain a self-tagged post").toBeDefined();
-    expect(walker.toItem(tagged!).tags).not.toContain(
-      "things organized neatly",
-    );
+    expect(
+      walker.toItem(expandPictures(tagged!, "thingsorganizedneatly")[0]!).tags,
+    ).not.toContain("things organized neatly");
   });
 });
 
@@ -92,13 +116,13 @@ describe.each(FIXTURES)("tumblrWalker — %s", (id, raws) => {
     expect(walker.source).toBe(id);
   });
 
-  it("maps every supported fixture row to a valid link-card item", () => {
-    const supported = raws.filter((r) => SUPPORTED.has(r.type));
+  it("maps every picture of every supported fixture row to a valid link-card item", () => {
+    const supported = pictures(raws, id);
     expect(supported.length).toBeGreaterThan(0);
     for (const raw of supported) {
       const item = walker.toItem(raw);
       expect(item.source).toBe(id);
-      expect(item.sourceId).toBe(raw.id);
+      expect(item.sourceId).toBe(`${raw.id}:${raw.pictureIndex}`);
       expect(item.type).toBe("image");
       // 6.3 D5: a blog item is a link card. Never a stored article.
       expect(item.body).toBeNull();
@@ -115,17 +139,22 @@ describe.each(FIXTURES)("tumblrWalker — %s", (id, raws) => {
   });
 
   it("never lets HTML or entities through in title or summary", () => {
-    for (const raw of raws.filter((r) => SUPPORTED.has(r.type))) {
+    for (const raw of pictures(raws, id)) {
       const item = walker.toItem(raw);
       expect(item.title).not.toMatch(/<[^>]+>|&[#a-z0-9]+;/i);
       expect(item.summary).not.toMatch(/<[^>]+>|&[#a-z0-9]+;/i);
+      // Every title says something — no bare punctuation left over from stripped markup.
+      expect(item.title).toMatch(/[\p{L}\p{N}]/u);
     }
   });
 
   it("throws on a post type that carries no picture, naming the blog", () => {
     const other = raws.find((r) => !SUPPORTED.has(r.type));
     if (!other) return; // not every archive had one within the sampled depths
-    expect(() => walker.toItem(other)).toThrow(
+    // The failure survives the fan-out as one sentinel raw, so it stays exactly one toItem error.
+    const expanded = expandPictures(other, id);
+    expect(expanded).toHaveLength(1);
+    expect(() => walker.toItem(expanded[0]!)).toThrow(
       new RegExp(`^${id}: unsupported post type "${other.type}"`),
     );
   });
@@ -189,17 +218,22 @@ describe("the two fixes, through toItem", () => {
   const walker = tumblrWalker(blogConfig("70sscifiart")!);
 
   it("never titles a card 'ALT' and never stores an essay", () => {
-    const item = walker.toItem({
-      id: "1",
-      type: "photo",
-      slug: "s",
-      url: "https://70sscifiart.tumblr.com/post/1",
-      "photo-url-1280": "https://x/a_1280.jpg",
-      "photo-caption":
-        '<span class="tmblr-alt-text-helper">ALT</span><p>' +
-        "Esteban Maroto. ".repeat(80) +
-        "</p>",
-    });
+    const item = walker.toItem(
+      expandPictures(
+        {
+          id: "1",
+          type: "photo",
+          slug: "s",
+          url: "https://70sscifiart.tumblr.com/post/1",
+          "photo-url-1280": "https://x/a_1280.jpg",
+          "photo-caption":
+            '<span class="tmblr-alt-text-helper">ALT</span><p>' +
+            "Esteban Maroto. ".repeat(80) +
+            "</p>",
+        },
+        "70sscifiart",
+      )[0]!,
+    );
     expect(item.title).not.toBe("ALT");
     expect(item.title).toBe("Esteban Maroto.");
     expect(item.summary.length).toBeLessThanOrEqual(600);
@@ -251,21 +285,202 @@ describe("firstImageUrl", () => {
 
 describe("deriveTitle", () => {
   it("takes the caption's first sentence", () => {
-    expect(deriveTitle("<p>A shoemaker's bench. Shot in 1972.</p>", "s", "1")).toBe(
-      "A shoemaker's bench.",
-    );
+    expect(
+      deriveTitle("<p>A shoemaker's bench. Shot in 1972.</p>", "s", "Blog"),
+    ).toBe("A shoemaker's bench.");
   });
 
   it("skips a reblog attribution line", () => {
-    expect(deriveTitle("<p>nemfrog:</p><p>Fig. 4. Nocturnal moths.</p>", "s", "1")).toBe(
-      "Fig. 4. Nocturnal moths.",
+    expect(
+      deriveTitle("<p>nemfrog:</p><p>Fig. 4. Nocturnal moths.</p>", "s", "Blog"),
+    ).toBe("Fig. 4. Nocturnal moths.");
+  });
+
+  // Found in the 09-06-26 sovietpostcards sample: a reblog of a PRIVATE blog leaves a caption
+  // line of exactly ":" where the blog's name would be, and that became the card's title. The
+  // floor used to drop such a post; it does not any more.
+  it("skips a caption line with no letters or digits in it", () => {
+    expect(
+      deriveTitle('<p><a class="tumblr_blog" href="x"></a>:</p><p>Kyiv, 1974.</p>', "", "Blog"),
+    ).toBe("Kyiv, 1974.");
+    // …and falls through to the label when the punctuation is all there is.
+    expect(deriveTitle("<p>:</p>", "", "Blog")).toBe("Blog");
+  });
+
+  it("falls back to the humanized slug, then to the blog's label", () => {
+    expect(deriveTitle("", "a-shoemakers-bench", "Blog")).toBe(
+      "A Shoemakers Bench",
+    );
+    // The caption-less case, which is the usual one on two of the four blogs and which the floor
+    // now keeps (09-06-26). The label is what a reader sees, so it must be the label.
+    expect(deriveTitle("", "", "The Vault of the Atomic Space Age")).toBe(
+      "The Vault of the Atomic Space Age",
+    );
+  });
+});
+
+// ── the fan-out (09-06-26, docs/PLAN_caption-less-and-wild.md T1) ────────────
+// Two fixtures recorded live the same day for exactly these shapes: a sovietpostcards `regular`
+// post whose body carries six inline <img> tags, and a 70sscifiart `photo` post whose `photos[]`
+// array holds three. Before the fan-out each of those was ONE item and the rest of the post was
+// never stored at all.
+describe("expandPictures — a post is one item per picture", () => {
+  const soviet = sovietpostcardsMulti as unknown as TumblrRaw[];
+  const scifi = scifiart70sMulti as unknown as TumblrRaw[];
+  const sovietWalker = tumblrWalker(blogConfig("sovietpostcards")!);
+  const scifiWalker = tumblrWalker(blogConfig("70sscifiart")!);
+
+  it("a 6-image regular post yields 6 items, ids :1..:6, one caption, distinct pictures", () => {
+    const post = soviet.find(
+      (r) => (r["regular-body"]?.match(/<img\b/gi) ?? []).length === 6,
+    )!;
+    expect(post, "fixture should hold a 6-image post").toBeDefined();
+    const expanded = expandPictures(post, "sovietpostcards");
+    expect(expanded).toHaveLength(6);
+    const items = expanded.map((p) => sovietWalker.toItem(p));
+
+    expect(items.map((i) => i.sourceId)).toEqual(
+      [1, 2, 3, 4, 5, 6].map((n) => `${post.id}:${n}`),
+    );
+    // The caption describes the set, so every picture of it carries the same one.
+    expect(new Set(items.map((i) => i.title)).size).toBe(1);
+    expect(new Set(items.map((i) => i.summary)).size).toBe(1);
+    expect(new Set(items.map((i) => JSON.stringify(i.tags))).size).toBe(1);
+    // …and the link card links to the post, not to a picture.
+    expect(new Set(items.map((i) => i.sourceUrl)).size).toBe(1);
+    // Six different pictures, in the order the body lists them.
+    expect(new Set(items.map((i) => i.imageUrl)).size).toBe(6);
+    expect(items.map((i) => i.imageUrl)).toEqual(
+      allImageRenditions(post["regular-body"]!).map((r) => r.url),
+    );
+    expect(expanded.every((p) => p.pictureCount === 6)).toBe(true);
+  });
+
+  it("a photoset yields one item per photos[] entry", () => {
+    const post = scifi.find((r) => (r.photos?.length ?? 0) > 1)!;
+    expect(post, "fixture should hold a photoset").toBeDefined();
+    const expanded = expandPictures(post, "70sscifiart");
+    expect(expanded).toHaveLength(post.photos!.length);
+    expect(expanded.map((p) => p.pictureUrl)).toEqual(
+      post.photos!.map((ph) => ph["photo-url-1280"]),
+    );
+    const items = expanded.map((p) => scifiWalker.toItem(p));
+    expect(items.map((i) => i.sourceId)).toEqual(
+      post.photos!.map((_, n) => `${post.id}:${n + 1}`),
     );
   });
 
-  it("falls back to the humanized slug, then to a placeholder", () => {
-    expect(deriveTitle("", "a-shoemakers-bench", "1")).toBe(
-      "A Shoemakers Bench",
+  it("a single-picture post is still fanned out, to :1", () => {
+    const single: TumblrRaw = {
+      id: "77",
+      type: "photo",
+      slug: "",
+      url: "https://70sscifiart.tumblr.com/post/77",
+      "photo-url-1280": "https://x/a_1280.jpg",
+      "photo-caption": "<p>Chris Foss, 1978.</p>",
+    };
+    const expanded = expandPictures(single, "70sscifiart");
+    expect(expanded).toHaveLength(1);
+    expect(expanded[0]!.pictureIndex).toBe(1);
+    expect(expanded[0]!.pictureCount).toBe(1);
+    expect(scifiWalker.toItem(expanded[0]!).sourceId).toBe("77:1");
+  });
+
+  it("a picture-less post costs one toItem error and the rest of the page survives", () => {
+    const page = [
+      { id: "1", type: "answer", url: "https://70sscifiart.tumblr.com/post/1" },
+      {
+        id: "2",
+        type: "photo",
+        slug: "",
+        url: "https://70sscifiart.tumblr.com/post/2",
+        "photo-url-1280": "https://x/b_1280.jpg",
+        "photo-caption": "<p>Angus McKie.</p>",
+      },
+    ] as TumblrRaw[];
+    const expanded = page.flatMap((p) => expandPictures(p, "70sscifiart"));
+    expect(expanded).toHaveLength(2);
+    // The sentinel carries the original message forward rather than killing the page.
+    expect(() => scifiWalker.toItem(expanded[0]!)).toThrow(
+      /^70sscifiart: unsupported post type "answer"/,
     );
-    expect(deriveTitle("", "", "42")).toBe("Untitled post 42");
+    expect(scifiWalker.toItem(expanded[1]!).sourceId).toBe("2:1");
+  });
+
+  it("a photo post with no photo-url-1280 yields one sentinel, not zero items", () => {
+    const expanded = expandPictures(
+      { id: "3", type: "photo", url: "https://70sscifiart.tumblr.com/post/3" },
+      "70sscifiart",
+    );
+    expect(expanded).toHaveLength(1);
+    expect(() => scifiWalker.toItem(expanded[0]!)).toThrow(
+      /^70sscifiart: photo post 3 has no photo-url-1280/,
+    );
+  });
+
+  it("titles a caption-less post with the blog's label and leaves the summary empty", () => {
+    const vault = tumblrWalker(blogConfig("thevaultoftheatomicspaceage")!);
+    const item = vault.toItem(
+      expandPictures(
+        {
+          id: "9",
+          type: "regular",
+          slug: "",
+          url: "https://thevaultoftheatomicspaceage.tumblr.com/post/9",
+          "regular-body": '<figure><img src="https://x/c.jpg"></figure>',
+        },
+        "thevaultoftheatomicspaceage",
+      )[0]!,
+    );
+    expect(item.title).toBe("The Vault of the Atomic Space Age");
+    expect(item.summary).toBe("");
+  });
+});
+
+describe("allImageRenditions — the stored picture and the one the curator is shown", () => {
+  it("returns every img in document order, each at its largest rendition", () => {
+    const html =
+      '<img src="https://x/a_640.jpg" srcset="https://x/a_75.jpg 75w, https://x/a_1280.jpg 1280w">' +
+      '<p>and</p><img src="https://x/b.jpg">';
+    expect(allImageRenditions(html).map((r) => r.url)).toEqual([
+      "https://x/a_1280.jpg",
+      "https://x/b.jpg",
+    ]);
+  });
+
+  it("names the srcset candidate nearest 500px as the curation rendition", () => {
+    const [r] = allImageRenditions(
+      '<img src="https://x/a_640.jpg" srcset="https://x/a_75.jpg 75w, ' +
+        "https://x/a_500.jpg 500w, https://x/a_1280.jpg 1280w\">",
+    );
+    expect(r!.url).toBe("https://x/a_1280.jpg");
+    expect(r!.curationUrl).toBe("https://x/a_500.jpg");
+  });
+
+  it("names none when the picture has only one size", () => {
+    const [r] = allImageRenditions('<img src="https://x/b.jpg">');
+    expect(r!.url).toBe("https://x/b.jpg");
+    expect(r!.curationUrl).toBeUndefined();
+  });
+
+  it("carries a photoset's photo-url-500 through to curationImageUrl", () => {
+    const scifi = scifiart70sMulti as unknown as TumblrRaw[];
+    const post = scifi.find((r) => (r.photos?.length ?? 0) > 1)!;
+    const items = expandPictures(post, "70sscifiart").map((p) =>
+      tumblrWalker(blogConfig("70sscifiart")!).toItem(p),
+    );
+    expect(items[0]!.imageUrl).toBe(post.photos![0]!["photo-url-1280"]);
+    expect(items[0]!.curationImageUrl).toBe(post.photos![0]!["photo-url-500"]);
+    // Never a substitute for the stored picture.
+    expect(items[0]!.curationImageUrl).not.toBe(items[0]!.imageUrl);
+  });
+
+  it("carries an inline post's ~500 srcset candidate through to curationImageUrl", () => {
+    const soviet = sovietpostcardsMulti as unknown as TumblrRaw[];
+    const items = expandPictures(soviet[0]!, "sovietpostcards").map((p) =>
+      tumblrWalker(blogConfig("sovietpostcards")!).toItem(p),
+    );
+    expect(items[0]!.curationImageUrl).toMatch(/s500x/);
+    expect(items[0]!.imageUrl).not.toBe(items[0]!.curationImageUrl);
   });
 });

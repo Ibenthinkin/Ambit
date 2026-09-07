@@ -48,8 +48,11 @@ Also give 2-4 short lowercase aesthetic tags describing its look or appeal (e.g.
 
 Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."]}`;
 
-/** The sixteen ids the classify mode may answer with. Built from config so a topic added to
- *  TOPICS is automatically a legal answer, and anything else the model says is not. */
+/** The sixteen COMPILE-TIME topic ids — the classify mode's FALLBACK vocabulary, and what it
+ *  validates against when a caller names no other. Since 09-06-26 both ingest and stats:walk
+ *  pass the live vocabulary instead (`listAllTopics()`, 99 topics today), so this is the floor
+ *  rather than the ceiling: it is what a caller gets for free, and it is still the set the
+ *  exported `CLASSIFY_PROMPT` below is built from. */
 export const TOPIC_IDS: ReadonlySet<string> = new Set(TOPICS.map((t) => t.id));
 
 /**
@@ -69,12 +72,37 @@ export const TOPIC_IDS: ReadonlySet<string> = new Set(TOPICS.map((t) => t.id));
  * promotion is what gives it a home. Walk sources ingest their whole corpus; the vocabulary grows
  * to fit them, never the reverse.
  */
-export const CLASSIFY_PROMPT =
-  CURATOR_PROMPT.slice(0, CURATOR_PROMPT.lastIndexOf("Reply with ONLY")) +
-  `Also list which of these topics are an honest home for this item — a topic a reader who chose it would be glad to find this in. Best fit first. Usually one or two, never more than three; an empty list is a correct answer. Never force a fit: if none of them is honest, answer [].
-${TOPICS.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
+/**
+ * **The vocabulary is a parameter, not a constant (09-06-26, plan T4).** It used to be the
+ * sixteen compile-time TOPICS, which meant a walk item could only ever home into a core topic —
+ * so every post whose real subject was one of Cut 2a's 83 GROWN topics came back un-homed and
+ * waited for the next manual `promote:topics` run to rescue it. The list is now whatever the
+ * caller passes (ingest and stats:walk pass every topic in the database), so a new post homes at
+ * ingest into a topic that actually exists.
+ *
+ * **This re-bills nothing** (D10). `curationCacheKey` deliberately does not include the topic
+ * list — see its comment — so an item classified under sixteen topics keeps that cached answer
+ * and `promote:topics` remains the backfill for those. `PROMPT_VERSION` stays 1: bumping it would
+ * re-bill the whole corpus for a change to a *list*, which is the exact thing the cache was
+ * designed not to key on.
+ */
+export function classifyPrompt(
+  topics: readonly { id: string; label: string }[],
+): string {
+  return (
+    CURATOR_PROMPT.slice(0, CURATOR_PROMPT.lastIndexOf("Reply with ONLY")) +
+    `Also list which of these topics are an honest home for this item — a topic a reader who chose it would be glad to find this in. Best fit first. Usually one or two, never more than three; an empty list is a correct answer. Never force a fit: if none of them is honest, answer [].
+${topics.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
 
-Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "topics": [<topic ids, best fit first, or empty>]}`;
+The list is long; most of it will not apply — pick only honest homes.
+
+Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "topics": [<topic ids, best fit first, or empty>]}`
+  );
+}
+
+/** The prompt over the sixteen compile-time topics — the default when a caller names no
+ *  vocabulary, and what the prompt-slicing comment above is about. */
+export const CLASSIFY_PROMPT = classifyPrompt(TOPICS);
 
 export type CuratedItem = NormalizedItem & {
   curationScore: number;
@@ -118,6 +146,24 @@ function normTitle(t: string): string {
  *    rich article and is fine.
  *  - thin-summary: below ~60 chars a museum summary is just a department name; no signal for
  *    the curator LLM or the reader.
+ *
+ * **Walk-source IMAGES are exempt from the last two rules** (09-06-26,
+ * docs/PLAN_caption-less-and-wild.md T1). Both were written about museum *records*, where the
+ * text is all there is: a catalogue row titled "Bowl" with a department name for a summary has
+ * genuinely told us nothing. A picture blog is the opposite case — the picture IS the content
+ * and the caption is an aside. Two of the four blogs Ben kept in round 3 have a median caption
+ * of 0 and 28 characters, and thin-summary alone floored 137 of 150 thevaultoftheatomicspaceage
+ * posts and 140 of 140 thisisnthappiness posts: a rule about museums deciding that a blog Ben
+ * designated may not be ingested. bare-title has to go with it, not instead of it — a
+ * caption-less card is titled with its blog's label (tumblr.ts deriveTitle) and two of those
+ * labels are one word (`nemfrog`, `Colossal`), so it would floor them the moment thin-summary
+ * stopped. For a walk image the curator — which SEES the picture — is the whole quality bar,
+ * which is what docs/DESIGN_topic-vocabulary-growth.md §1 asks for: a walk source ingests
+ * everything that clears *quality*, and quality is the curator's job, not the floor's.
+ *
+ * A walk source's ARTICLES keep both rules: pdr's articles are read, not looked at, and a
+ * 40-char article summary is still nothing to read. Search-shaped sources are untouched — these
+ * rules were written for them and still fit them.
  */
 export function structuralFloor(items: NormalizedItem[]): {
   kept: NormalizedItem[];
@@ -134,12 +180,15 @@ export function structuralFloor(items: NormalizedItem[]): {
 
   for (const item of items) {
     const norm = normTitle(item.title);
+    // The exemption above, computed once per item: a picture from a designated blog or any
+    // other walk source. Only the last two rules read it; dup-title has its own walk clause.
+    const walkImage = isWalkSource(item.source) && item.type === "image";
     const rule: StructuralDropRule | null =
       (titleCounts.get(norm) ?? 0) > 2 && !isWalkSource(item.source)
         ? "dup-title"
-        : item.type === "image" && norm.split(" ").length <= 1
+        : item.type === "image" && norm.split(" ").length <= 1 && !walkImage
           ? "bare-title"
-          : item.summary.trim().length < 60
+          : item.summary.trim().length < 60 && !walkImage
             ? "thin-summary"
             : null;
 
@@ -161,7 +210,10 @@ function itemAsText(item: NormalizedItem): string {
     `Type: ${item.type}`,
     `Title: ${item.title}`,
     item.tags.length ? `Tags: ${item.tags.slice(0, 12).join(", ")}` : null,
-    `Text: ${item.summary}`,
+    // Omitted when empty, the same way `Tags:` is. Since the floor stopped dropping caption-less
+    // walk images (09-06-26) a bare `Text: ` with nothing after it reaches the model regularly,
+    // and a labelled empty field reads as a missing answer rather than as an absent question.
+    item.summary.trim() ? `Text: ${item.summary}` : null,
   ]
     .filter(Boolean)
     .join("\n");
@@ -194,6 +246,32 @@ async function imageAsDataUrl(url: string): Promise<string | null> {
 }
 
 /**
+ * The most topics one classify answer may carry (09-07-26). The prompt has said "never more than
+ * three" since 6.3, and until this constant existed the parser kept everything on purpose — the
+ * argument being that truncating would hide a model that over-files. Then the first
+ * sovietpostcards walk stored 89 items with 20+ memberships and nine filed under all 99 topics:
+ * the model listing the vocabulary straight back, in order. Hiding over-filing was the wrong
+ * worry; STORING it was the harm — every one of those rows was a wrong answer the feed could
+ * draw. So the cap is enforced here, on the model's own best-fit-first order, and the number
+ * dropped is reported (`overFiled`) rather than swallowed, which keeps the honesty the old
+ * comment was after. `scripts/trim-memberships.ts` is the one-off that applied it to rows
+ * written before this date.
+ */
+export const MAX_TOPICS = 3;
+
+/** Apply MAX_TOPICS to an already-validated, deduplicated topic list. Used on both the parse
+ *  path and the cache-read path, so an entry written before the cap is capped the same way. */
+export function capTopics(topics: readonly string[]): {
+  topics: string[];
+  overFiled: number;
+} {
+  return {
+    topics: topics.slice(0, MAX_TOPICS),
+    overFiled: Math.max(0, topics.length - MAX_TOPICS),
+  };
+}
+
+/**
  * Parse + validate one curator chat response. Split out from scoreItem() so the untrusted-JSON
  * handling is unit-testable without a network call: trust nothing the model says past "it's
  * valid JSON" — clamp the score into 1-10, coerce tags to a short list of lowercase strings, and
@@ -207,6 +285,8 @@ export function parseCuratorResponse(
   score: number;
   tags: string[];
   topics: string[];
+  /** How many KNOWN topic ids past MAX_TOPICS the model named. 0 outside classify mode. */
+  overFiled: number;
 } {
   const parsed: unknown = JSON.parse(content);
   const record =
@@ -233,25 +313,27 @@ export function parseCuratorResponse(
   // defences, both cheap: only ids in `topicIds` survive, because the model is capable of
   // inventing "psychedelia" and a foreign-key error deep into an ingest run is the worst place to
   // learn that; and duplicates collapse. A legacy single `"topic"` key is read as a one-element
-  // list so an old-style answer still lands. The PROMPT caps the list at three, not this parser:
-  // truncating here would hide a model that over-files, and the whole point is honesty.
+  // list so an old-style answer still lands. Then MAX_TOPICS: the first three survive and the
+  // rest are counted, not kept — see the constant for why that reversed.
   const known = opts?.topicIds;
   const rawTopics: unknown[] = Array.isArray(record.topics)
     ? record.topics
     : typeof record.topic === "string"
       ? [record.topic]
       : [];
-  const topics = known
-    ? [
-        ...new Set(
-          rawTopics.filter(
-            (t): t is string => typeof t === "string" && known.has(t),
+  const { topics, overFiled } = capTopics(
+    known
+      ? [
+          ...new Set(
+            rawTopics.filter(
+              (t): t is string => typeof t === "string" && known.has(t),
+            ),
           ),
-        ),
-      ]
-    : [];
+        ]
+      : [],
+  );
 
-  return { score, tags, topics };
+  return { score, tags, topics, overFiled };
 }
 
 /** Cache dir at the repo root (not under src/), same cache-aside pattern as phase0's scripts — a
@@ -274,6 +356,12 @@ export const CURATION_CACHE_DIR = path.join(
  * re-run whenever the vocabulary changed — but under design §3 D3 it does not: tag backfill (Cut
  * 2) is what widens old items, for free. Items curated before Cut 1 keep their single topic until
  * a promotion reaches them. That is correct and intended, not a migration gap.
+ *
+ * This became load-bearing on 09-06-26, when the classify vocabulary went from a compile-time
+ * sixteen to whatever is in the database (D10): the list now changes every time a topic is
+ * promoted, and keying on it would re-bill the entire corpus for a change to a *list*. An item
+ * classified under the sixteen keeps that answer, and `promote:topics` is its backfill. That is
+ * the whole reason `PROMPT_VERSION` did not move.
  */
 export function curationCacheKey(
   item: Pick<NormalizedItem, "source" | "sourceId">,
@@ -303,15 +391,22 @@ export function curationCacheKey(
  */
 async function scoreItem(
   item: NormalizedItem,
-  opts: { force?: boolean; classify?: boolean },
+  opts: {
+    force?: boolean;
+    classify?: boolean;
+    /** The classify vocabulary. Absent ⇒ the sixteen compile-time TOPICS. */
+    topics?: readonly { id: string; label: string }[];
+  },
 ): Promise<{
   score: number;
   tags: string[];
+  overFiled: number;
   topics: string[];
   tokens: number;
   imageFetchFailed: boolean;
 }> {
   const classify = opts.classify ?? false;
+  const vocabulary = opts.topics ?? TOPICS;
   const cacheFile = path.join(
     CURATION_CACHE_DIR,
     `${curationCacheKey(item, classify)}.json`,
@@ -331,8 +426,10 @@ async function scoreItem(
         score: cached.score,
         tags: cached.tags,
         // `topicId: "botany"` → ["botany"]; `topicId: null` → []. This one line is why Cut 1
-        // re-bills zero items — see curationCacheKey's comment before "fixing" it.
-        topics: cached.topics ?? (cached.topicId ? [cached.topicId] : []),
+        // re-bills zero items — see curationCacheKey's comment before "fixing" it. Capped on the
+        // way out (MAX_TOPICS) so a runaway list written before the cap is read forward the same
+        // way a fresh answer is parsed — and reported, not re-billed.
+        ...capTopics(cached.topics ?? (cached.topicId ? [cached.topicId] : [])),
         tokens: 0,
         imageFetchFailed: false,
       };
@@ -355,7 +452,16 @@ async function scoreItem(
   )[] = [textPart];
   let imageFetchFailed = false;
   if (item.type === "image" && item.imageUrl) {
-    const dataUrl = await imageAsDataUrl(item.imageUrl);
+    // `curationImageUrl` when the source offered one (types.ts, 09-06-26): a smaller rendition
+    // of the SAME picture, fetched only to be looked at here. A 1-10 score and four aesthetic
+    // tags do not get better at 1280 px than at 500 — the model downsamples anyway — and the
+    // Tumblr walks are the case that made it worth wiring: ~90,000 pictures at a mean 649 KB is
+    // ~58 GB of somebody else's bandwidth spent on a judgement 500 px would have reached, and
+    // every byte of it is time the walk spends not walking. `imageUrl` stays what is stored and
+    // shown; this is never a substitute for it.
+    const dataUrl = await imageAsDataUrl(
+      item.curationImageUrl ?? item.imageUrl,
+    );
     if (dataUrl)
       content.push({ type: "image_url", image_url: { url: dataUrl } });
     else {
@@ -386,7 +492,7 @@ async function scoreItem(
           messages: [
             {
               role: "system",
-              content: classify ? CLASSIFY_PROMPT : CURATOR_PROMPT,
+              content: classify ? classifyPrompt(vocabulary) : CURATOR_PROMPT,
             },
             { role: "user", content },
           ],
@@ -405,7 +511,11 @@ async function scoreItem(
       };
       const result = parseCuratorResponse(
         json.choices?.[0]?.message?.content ?? "{}",
-        classify ? { topicIds: TOPIC_IDS } : undefined,
+        // Validated against the vocabulary actually offered, so an id the model invented — or
+        // one from a different run's list — is dropped rather than stored.
+        classify
+          ? { topicIds: new Set(vocabulary.map((t) => t.id)) }
+          : undefined,
       );
 
       await mkdir(CURATION_CACHE_DIR, { recursive: true });
@@ -445,11 +555,19 @@ export async function curateItems(
   items: NormalizedItem[],
   opts?: {
     force?: boolean;
-    /** Phase 6.3 / Cut 1: switches to CLASSIFY_PROMPT and fills `topics`. Used by ingest's walk
-     *  lane only — corpus-walk items have no seed query to inherit a topic from. */
+    /** Phase 6.3 / Cut 1: switches to the classify prompt and fills `topics`. Used by ingest's
+     *  walk lane only — corpus-walk items have no seed query to inherit a topic from. */
     classify?: boolean;
+    /** The vocabulary classify may answer with (09-06-26). Absent ⇒ the sixteen compile-time
+     *  TOPICS; ingest and stats:walk pass every topic in the database. */
+    topics?: readonly { id: string; label: string }[];
     onProgress?: (done: number, total: number) => void;
     onImageFetchFailure?: (item: NormalizedItem) => void;
+    /** Called once per item whose classify answer named more than MAX_TOPICS known topics, with
+     *  how many were dropped. Ingest counts these per source and prints them: an over-filing
+     *  model is a fact about the prompt-and-blog pairing, and it should show up in the summary
+     *  rather than in a topic's membership count months later. */
+    onOverFiled?: (item: NormalizedItem, dropped: number) => void;
   },
 ): Promise<CuratedItem[]> {
   const out: CuratedItem[] = new Array<CuratedItem>(items.length);
@@ -462,14 +580,14 @@ export async function curateItems(
       const item = items[i];
       if (!item) continue;
       try {
-        const { score, tags, topics, imageFetchFailed } = await scoreItem(
-          item,
-          {
+        const { score, tags, topics, overFiled, imageFetchFailed } =
+          await scoreItem(item, {
             force: opts?.force ?? false,
             classify: opts?.classify ?? false,
-          },
-        );
+            ...(opts?.topics ? { topics: opts.topics } : {}),
+          });
         if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
+        if (overFiled > 0) opts?.onOverFiled?.(item, overFiled);
         out[i] = {
           ...item,
           curationScore: score,
