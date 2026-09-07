@@ -157,6 +157,17 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   a no-import leaf, so the client can read the defaults without bundling the DB layer. Two more
   sliders since 09-06-26 — `tierWild` and `wildTagBoost` — and the readout's split is now
   **core / grown / wild**.
+- **The first big walk's three lessons (09-07-26)**, all on `main`: **`sourceCap`** (no source
+  gets more than three cards a page, across every tier, filtered *before* the draw — a
+  17,500-item blog about illustration *is* most of the corpus's illustration, and no pool query
+  changes that arithmetic, so the page refuses to be a wall of it); **`MAX_TOPICS`** (the
+  classifier keeps its first three homes — handed 99 topics it sometimes listed the vocabulary
+  back, nine items under all 99); and **period topics are tag-only** (`PERIOD_TOPICS` in
+  `config/topics.ts` — no label wording stops the model filing a 1988 photo under
+  `19th-century`, measured 52 → 41 → 31 of 100). `bun run trim:memberships` and
+  `bun run repair:periods` are the two dated exceptions to the additivity rule and **must run in
+  the production container after the next deploy**. Cut 2b was sized against this and deferred:
+  the join move does not dissolve a blog's topic capture (90-98% by membership too).
 - **Feed composition** (SPEC §9) = per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25 — drift-heavy on purpose) → topic via the user's weights or a graph walk → item via curated-weighted random, under diversity constraints (no adjacent same-source; per-page topic caps). Saves reweight *topics*, visibly. Cursor-based pagination; the cursor encodes the page seed. Debug overlay + tuning knobs ship behind a dev flag throughout development.
 - **Auth boundary**: all user-scoped queries filter by `userId`; the only public surface is `items.byId` / `/i/[itemId]`.
 

@@ -104,6 +104,22 @@ deploy, or the deployed corpus keeps its runaway rows. Pick up in this order:
 
 *Session spend: 1.42M tok (in 12 · out 5.2k · cache r 780.1k / w 637.5k) · fable-5-1 · 09:37→13:22*
 
+**Later, same day — item 1 done and the branch merged.** Ben chose option (a): **period topics are
+tag-only** (`132f58e`). `PERIOD_TOPICS` + `isClassifiable` in `config/topics.ts`; ingest and
+`stats:walk` build their vocabularies with it; `periodEvidence` is an 18xx year, "19th century" or
+"1800s" in title/summary/tags ("1900s" is the twentieth and does not match). **`bun run
+repair:periods --confirm`** ran locally: 11,024 curator-origin `19th-century` rows checked, **51
+kept, 10,973 removed**, 1,842 display topics moved to the next honest membership by cached order,
+27 set to NULL. `19th-century` is now 707 memberships (656 tag-promoted + 51 with evidence) and
+19 display items, which is what the topic honestly is. One `loupe` row was in the set — the other
+session's worktree shares this database — and got the same treatment. **Merged to `main` as
+`5d0ad84`** (`--no-ff`, 17 commits, 1,104 tests green, no conflicts); **not pushed** (`main` is 37
+ahead of origin). The pickup list above is now items 2-4, with one addition to item 2: **both
+scripts — `trim:memberships` and `repair:periods` — must run inside the production container
+after the deploy**, in that order, or prod keeps the runaway and mis-filed rows.
+
+*Session spend: 9.17M tok (in 92 · out 37.3k · cache r 8.99M / w 136.1k) · ~≥$0.71 · fable-5-1 + opus-4-7 · 13:22→13:30*
+
 ### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
 
 Short session, no code. Ben asked why `thevaultoftheatomicspaceage` and `thisisnthappiness` read
