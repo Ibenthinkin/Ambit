@@ -73,6 +73,36 @@ Corpus 41,187.
 
 *Session spend: 13.97M tok (in 247 · out 73.0k · cache r 13.45M / w 453.0k) · ~≥$1.24 · fable-5-1 + opus-4-7 · 09:05→09:33*
 
+**Pickup for the next session — where everything is, cold:**
+- **Branch:** `feat/loupe-hookup`, checked out in the worktree **`~/Dev/ambit-loupe`** (not
+  `~/Dev/ambit`, which Cut 2b holds). Seven commits over `main` including the merge of
+  `feat/wild-tier-and-captionless`; typecheck clean, 1,097 unit tests green, lint's 13 warnings all
+  pre-existing in untouched files. Clean tree. **Not pushed.** Loupe's `main` is ahead of origin by
+  one (`dc55380`, `readingOrder`), also not pushed.
+- **Merge order:** Cut 2b first (it is on the main checkout, no branch of its own as of this
+  morning), then `feat/wild-tier-and-captionless`, then this branch — it already contains the
+  wild-tier branch, so the only conflict to expect is two 09-07 headings in `log.md`; keep both
+  under one. After merging, `git worktree remove ~/Dev/ambit-loupe` (its `.env` is a copy, not a
+  link — nothing is lost).
+- **Before the next production deploy:** add `loupe` to `SUSPENDED_SOURCES` in
+  `src/server/config/suspended-sources.ts` on the deploying branch, with a paragraph in that file's house
+  style (no production Loupe host). Not done on this branch on purpose — it belongs with the deploy.
+- **Local environment:** the worktree's `.env` carries `LOUPE_URL=http://localhost:3100` and
+  `LOUPE_API_TOKEN` (Ben copied them; the assistant's deny rule blocks `.env` files entirely, so
+  ask him rather than trying). Loupe runs as
+  `MEDIA_BASE_URL=http://localhost:3100/media bunx next dev -p 3100` from `~/Dev/loupe/web` with
+  `docker compose up -d` there first (its Postgres, `web-postgres-1`, exits when the machine
+  sleeps). Both were left running.
+- **The 132 loupe rows are in the local database** and their 132 images in the worktree's
+  `.cache/img` — a *different* directory from `~/Dev/ambit/.cache/img`, as is the curation cache;
+  the main checkout's caches do not know about loupe. A re-walk from the main checkout after the
+  merge costs ~$0.03 and 30 s. `--prune` after any Loupe triage session.
+- **Small follow-ups, none blocking:** `walk-stats.ts` should print the curator's image-fetch
+  tally (the plan assumed it did); Loupe-side, 13 short clippings have a summary identical to
+  their body and the item page shows both.
+
+*Session spend: 4.65M tok (in 75 · out 31.1k · cache r 4.07M / w 549.9k) · ~≥$1.11 · fable-5-1 + opus-4-7 · 09:33→13:24*
+
 ### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
 
 Short session, no code. Ben asked why `thevaultoftheatomicspaceage` and `thisisnthappiness` read
