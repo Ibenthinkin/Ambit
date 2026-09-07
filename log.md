@@ -5,6 +5,74 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-07-26 Mon]] — Loupe is a source: the walk, the numbers, and why the average is low
+
+Ben started Cut 2b in another session on the main checkout, so this one ran in the
+`~/Dev/ambit-loupe` worktree and picked `docs/PLAN_loupe-hookup.md` up at Task 6. Part A and the
+adapter (Tasks 2–5) were already committed there from 09-06, and Loupe's half (`readingOrder` on
+the wire, Task 1) was committed in the Loupe repo the same evening. First move: merge
+`feat/wild-tier-and-captionless` into the loupe branch, because the plan wanted the verdict measured
+against the 99-topic classifier rather than the sixteen. Two conflicts, both in the curator, both
+"keep both sides" — `imageAsDataUrl` now takes the caption-less branch's `curationImageUrl` *and*
+the loupe branch's per-source headers, and the test file keeps all three tests that landed at the
+same spot.
+
+**Shipped:** the measured walk and the first write (Task 6), and the docs (Task 7): SPEC §6.1's
+`loupe` bullet, CLAUDE.md's status sentence, the vault's roadmap item and status row marked built.
+Six commits on `feat/loupe-hookup` over `main` including the merge; nothing pushed.
+
+**The numbers** (`bun run stats:walk loupe --quota 200`, then `ingest --source loupe`):
+133 offered → 1 floored (thin-summary; an article, since the 09-06 exemption is for walk *images*)
+→ 132 curated @ **4.52 avg, 5% ≥ 8** (1:11 · 2:11 · 4:69 · 6:8 · 7:26 · 8:6 · 9:1) → 112 classified
+into 29 of 99 topics (science 45, technology 42, machines 34, illustration 30, advertising 17,
+typography 13), 20 un-homed with a tag histogram that is all diagrams and directories. Written:
+**131 articles + 1 image**, every article with a body, 110 of 132 above the feed's floor of 4.
+Image-fetch failures **0** at ingest, and `img:warm` filled 130 + 2 already cached, 0 failures.
+Corpus 41,187.
+
+**Findings:**
+- **`stats:walk` does not print the image-fetch tally the plan told the executor to read**, and
+  the curation cache does not record fetch failures either, so a cached re-run always reports zero.
+  The bearer was proven a different way: one loupe image curated with `force: true` and an
+  `onImageFetchFailure` counter (0 failures, score 9, image-derived tags), plus the negative
+  control — the same `/media/…` URL is 401 without the header and 200 with it. Worth adding the
+  tally to `walk-stats.ts` some day; it is the one number a new source's bearer needs.
+- **The average is honest and Loupe-shaped, not a fault.** A clipping is a region of a catalog
+  page, so its OCR starts and ends mid-sentence ("Nift had Tools ustry", "eral quality levels on
+  almost."), and the curator judges an *article* from its text. Every one of the 11 score-1 items
+  is a fragment; the one *image* item scored 9 with `[minimalist, philosophical, earthrise]`. This
+  is the lowest-scoring source in the corpus by a wide margin (pdr is 8.39) and the feed's floor
+  will keep 22 of them off a page. It says more about OCR than about the Whole Earth Catalog.
+- **The public article page has no hero, for any source** — the plan's Step 4 expected one. A pdr
+  article renders the same way, so the design is text-first on `/i/` and the proxy was proven
+  by curl instead: first request 200 `image/webp` in 0.55 s (the bearer fill), second in 0.017 s
+  (the cache). The one loupe *image* page renders the clip with the archive.org credit.
+- **Thirteen short clippings show their text twice** on the item page: Loupe supplies a summary on
+  all 132 articles (none null, so the adapter's lede fallback never fired), and for the shortest
+  ones that summary *is* the body. A Loupe-side nit; noted, not fixed.
+- **Three `test-wild-topic-*` rows are sitting in the local database** from a killed suite — the
+  ingest summary lists them at 0, and the 09-06 `isRealTopic` guard keeps them out of the billed
+  prompt ("classify vocabulary: 99 topics"). Harmless; a reminder that the guard earns its keep.
+- Playwright's screenshots land in the *main* checkout's cwd, not the worktree's; three PNGs
+  deleted from `~/Dev/ambit` afterwards.
+
+**Decisions:** none new — the no-gate, position-key and bearer-by-source decisions are 09-06's.
+`loupe` walks against the 99-topic vocabulary from its first row, as the plan preferred.
+
+**Open / next:**
+- **Loupe has no production host.** `loupe` must go into `SUSPENDED_SOURCES` on whichever branch
+  next deploys, or the nightly ingest prints a "not configured" error every night — Ben's to
+  choose which branch carries the line; nothing on this one touches it.
+- The gate stays deferred indefinitely; `item.source` is the column, three filters when the day
+  comes.
+- Merge order: Cut 2b is in flight on the main checkout. This branch already contains
+  `feat/wild-tier-and-captionless`, so it merges cleanly after that one; today's `log.md` entry
+  will conflict with Cut 2b's in the trivial way (both add a 09-07 heading — keep both under one).
+- The dev server this session started on 3000 from the worktree is stopped; the Sept 5 `next start`
+  that had been squatting the port is gone too.
+
+*Session spend: 13.97M tok (in 247 · out 73.0k · cache r 13.45M / w 453.0k) · ~≥$1.24 · fable-5-1 + opus-4-7 · 09:05→09:33*
+
 ### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
 
 Short session, no code. Ben asked why `thevaultoftheatomicspaceage` and `thisisnthappiness` read
