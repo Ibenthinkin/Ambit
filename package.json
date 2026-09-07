@@ -33,6 +33,7 @@
     "promote:topics": "bun run scripts/promote-topics.ts",
     "trim:memberships": "bun run scripts/trim-memberships.ts",
     "repair:periods": "bun run scripts/repair-period-topics.ts",
+    "repair:rehome": "bun run scripts/repair-rehome.ts",
     "graph:rebuild": "bun run scripts/rebuild-topic-graph.ts",
     "start": "bun run --bun next start",
     "e2e": "playwright test",

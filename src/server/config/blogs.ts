@@ -216,7 +216,9 @@ export const BLOGS: readonly BlogConfig[] = [
     // +25% was calibrated on sovietpostcards' gap and this blog did not have one. Resume from
     // `--cursor 24000` for the rest. **Finding:** the vocabulary has no `science-fiction`, so the
     // classifier filed 19,589 of these under `science` (1,226 members before this walk) — a
-    // mis-homing the un-homed count cannot see. Ben's call; see log.md 09-07.
+    // mis-homing the un-homed count cannot see. KEPT by Ben's verdict the same evening, with
+    // `science-fiction` + `retrofuturism` promoted and `bun run repair:rehome` moving the
+    // sci-fi rows off `science` on tag evidence (config/topics.ts REHOME_RULES).
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
     walkQuota: 32_000,
@@ -274,10 +276,13 @@ export const BLOGS: readonly BlogConfig[] = [
     // 26 of 99 topics. Under the old floor 8% of it was storable. Every caption-less card is
     // titled "The Vault of the Atomic Space Age" with an empty summary — Ben's call (plan D2).
     // Budget: newest 50% = 18,750 posts × 1.0 pictures/post ⇒ walkQuota 19,000 items.
-    // RAISED 09-07-26 to 24,000 (+26%), same reason as 70sscifiart's line.
+    // Raised to 24,000 for an hour on 09-07-26 and put back: the +25% was sovietpostcards'
+    // correction (a probe that under-measured pictures/post), and this blog probes at 1.0 —
+    // 19,000 items already IS the newest half. 70sscifiart's raise over-bought for the same
+    // reason (its real multiplier was 1.33, under its probe). Walk 3 of round 3.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
-    walkQuota: 24_000,
+    walkQuota: 19_000,
   },
   {
     id: "thisisnthappiness",
@@ -295,10 +300,11 @@ export const BLOGS: readonly BlogConfig[] = [
     // 0 toItem errors — a blog whose pictures were always good and whose captions were never
     // the point. It gets the smallest budget of the four because the archive is the largest.
     // Budget: newest 25% = 27,250 posts × 1.0 pictures/post ⇒ walkQuota 27,500 items.
-    // RAISED 09-07-26 to 34,500 (+25%), same reason as 70sscifiart's line.
+    // Raised to 34,500 for an hour on 09-07-26 and put back — see thevaultoftheatomicspaceage's
+    // line; this one probes at 1.0 pictures/post too, so 27,500 is the quarter Ben chose.
     robotsCheckedOn: "2026-09-05",
     walk: "tumblr",
-    walkQuota: 34_500,
+    walkQuota: 27_500,
     // `nevver` is the author's own handle, the most frequent tag in the sample.
     selfTags: ["nevver"],
   },

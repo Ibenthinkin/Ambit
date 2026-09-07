@@ -134,3 +134,18 @@ those up into Candidates, or pass `--allow` to make it permanent.
 - [ ] `nyc` — **Nyc** <!-- tag: nyc --> · 24 un-homed / 48 total · 1 sources (thingsorganizedneatly)
 - [ ] `fiber-art` — **Fiber Art** <!-- tag: fiber art --> · 23 un-homed / 93 total · 1 sources (thisiscolossal)
 - [ ] `rainbows` — **Rainbows** <!-- tag: rainbows --> · 20 un-homed / 30 total · 1 sources (thisiscolossal)
+
+## Hand-written, 09-07-26 — the mining cannot see a mis-homing
+
+`bun run mine:topics` ranks tags by *un-homed* count. 70sscifiart walked 32,000 items with 18
+un-homed, and 19,589 of them filed under `science` — a topic that had 1,226 members the day before.
+The vocabulary had no word for what the blog is, so the classifier reached for the nearest one;
+the un-homed line measures nothing about that. These two lines are written by hand from the
+source's own tags (`science fiction` 600 · `sci-fi art` 580 · `science fiction art` 616) and the
+curator's (`retro sci-fi` 5,768 · `sci-fi illustration` 4,952 · `retrofuturism` 1,971). Promotion
+matches the one tag each names; `bun run repair:rehome` (config/topics.ts `REHOME_RULES`) does
+the rest on the wider evidence and moves the display topic off `science`, which promotion never
+touches for a homed item. Ben's verdict, same evening.
+
+- [x] `science-fiction` — **Science Fiction** <!-- tag: science fiction --> · hand-written · 70sscifiart (600 source tags, 1,220 aesthetic `sci-fi`)
+- [x] `retrofuturism` — **Retrofuturism** <!-- tag: retrofuturism --> · hand-written · 70sscifiart (1,971 aesthetic tags; `retro-futurism` 1,882 more the repair catches)

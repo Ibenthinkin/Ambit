@@ -487,6 +487,68 @@ export function isClassifiable(t: { id: string }): boolean {
   return isRealTopic(t) && !(t.id in PERIOD_TOPICS);
 }
 
+/**
+ * Re-homing rules — a topic the vocabulary lacked when a source was classified, and the word
+ * the classifier reached for instead (09-07-26). 70sscifiart walked 32,000 items with 18 un-homed
+ * and 19,589 filed under `science`, a topic with 1,226 members the day before; `surreal` and
+ * `illustration` were honest, `science` was not — the model was handed no `science-fiction` and
+ * took the nearest label rather than none, the same failure as PERIOD_TOPICS. A mis-homing costs
+ * nothing the un-homed line measures, so `mine:topics` cannot propose the fix; the two topics
+ * were hand-written into docs/topic-proposals.md, and `scripts/repair-rehome.ts` applies these.
+ *
+ * Each rule: for an item carrying `evidence` in its title, source tags or aesthetic tags, add a
+ * `to` membership (origin `tag`), remove a curator-origin `from` row, and move the display off
+ * `from` (services/rehome-repair.ts has the rules). The regexes match what the source and the
+ * curator actually wrote — `sci-fi` / `science fiction` / `space opera` / `spaceship` /
+ * the blog's own `sf city` and `sf landscape` / `alien` / `star wars`, and the two spellings of
+ * retrofuturism — and nothing looser. "space art" and "nasa" are left out on purpose, because a
+ * Robert McCall painting for NASA is space art and is science; `futuristic` and `space station`
+ * were tried and dropped, because the curator writes "futuristic fashion" on a SpaceX suit and
+ * "retro sci-fi" on a 1983 shuttle crew portrait — aesthetic tags describe a LOOK, and a look is
+ * not evidence of fiction. `exceptSources` closes the rest of that hole: NASA's photographs are
+ * never fiction whatever they resemble. The first cut of the regex left 2,692 of the blog's
+ * 19,589 `science` rows in place; this one leaves the space-art residue, the honest remainder. The dry run prints per-source counts so
+ * the blast radius is read before it is written. Idempotent; runs in the production container
+ * after a deploy like the other two repairs.
+ */
+export const REHOME_RULES: readonly {
+  from: string;
+  to: string;
+  evidence: RegExp;
+  /** Sources the rule never touches, whatever their tags say. */
+  exceptSources: readonly string[];
+}[] = [
+  {
+    from: "science",
+    to: "science-fiction",
+    evidence:
+      /\bsci[\s-]?fi\b|\bscience[\s-]fiction\b|\bspace[\s-]?opera\b|\bspace[\s-]?ships?\b|\bsf\s(?:landscape|city|art)\b|\baliens?\b|\bstar\s?wars\b|\bcosmic horror\b/i,
+    exceptSources: ["nasa-images"],
+  },
+  {
+    from: "science",
+    to: "retrofuturism",
+    evidence: /\bretro[\s-]?futur/i,
+    exceptSources: ["nasa-images"],
+  },
+];
+
+/** Whether an item's own title or tags carry a re-homing rule's evidence. */
+export function rehomeEvidence(
+  rule: { evidence: RegExp; exceptSources: readonly string[] },
+  item: {
+    source: string;
+    title: string;
+    tags: readonly string[];
+    aestheticTags: readonly string[] | null;
+  },
+): boolean {
+  if (rule.exceptSources.includes(item.source)) return false;
+  return [item.title, ...item.tags, ...(item.aestheticTags ?? [])].some((s) =>
+    rule.evidence.test(s),
+  );
+}
+
 /** Whether an item's own text carries the period `topicId` names. False for a non-period topic. */
 export function periodEvidence(
   topicId: string,
@@ -494,7 +556,5 @@ export function periodEvidence(
 ): boolean {
   const re = PERIOD_TOPICS[topicId];
   if (!re) return false;
-  return [item.title, item.summary ?? "", ...item.tags].some((s) =>
-    re.test(s),
-  );
+  return [item.title, item.summary ?? "", ...item.tags].some((s) => re.test(s));
 }
