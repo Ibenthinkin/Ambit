@@ -30,14 +30,18 @@ describe("pageStats", () => {
         card("DRIFT", "birds", "thisiscolossal"),
         card("DRIFT", "machines", "met"),
         card("JUMP", "clay", "pdr"),
-        card("CORE", null, "loc"), // an un-homed card: neither core nor grown
+        card("WILD", null, "loc"), // an un-homed card: neither core nor grown
       ],
       core,
     );
     expect(s.cards).toBe(5);
-    expect(s.tiers).toEqual({ CORE: 2, DRIFT: 2, JUMP: 1 });
-    expect(s.core).toBe(2);
+    expect(s.tiers).toEqual({ CORE: 1, DRIFT: 2, JUMP: 1, WILD: 1 });
+    expect(s.core).toBe(2); // poetry (CORE) + machines (DRIFT, but a core topic)
     expect(s.grown).toBe(2);
+    // The third bucket: an item no topic fits is counted, and counted separately, so the readout
+    // says how much of a page is the un-homed residue rather than hiding it in "grown".
+    expect(s.wild).toBe(1);
+    expect(s.core + s.grown + s.wild).toBe(s.cards);
     expect([...s.topics.entries()]).toEqual([
       ["poetry", 1],
       ["birds", 1],
@@ -55,15 +59,34 @@ describe("pageStats", () => {
     );
     const t = sumStats([a, b]);
     expect(t.cards).toBe(3);
-    expect(t.tiers).toEqual({ CORE: 2, DRIFT: 0, JUMP: 1 });
+    expect(t.tiers).toEqual({ CORE: 2, DRIFT: 0, JUMP: 1, WILD: 0 });
     expect(t.core).toBe(2);
     expect(t.grown).toBe(1);
+    expect(t.wild).toBe(0);
     expect([...t.topics.keys()]).toEqual(["poetry", "clay"]);
   });
 
   it("an empty page is all zeros, not NaN", () => {
     const s = pageStats([], core);
-    expect(s).toMatchObject({ cards: 0, core: 0, grown: 0 });
-    expect(sumStats([]).tiers).toEqual({ CORE: 0, DRIFT: 0, JUMP: 0 });
+    expect(s).toMatchObject({ cards: 0, core: 0, grown: 0, wild: 0 });
+    expect(sumStats([]).tiers).toEqual({
+      CORE: 0,
+      DRIFT: 0,
+      JUMP: 0,
+      WILD: 0,
+    });
+  });
+
+  it("sums the wild bucket across pages", () => {
+    const a = pageStats([card("WILD", null, "loc")], core);
+    const b = pageStats(
+      [card("WILD", null, "met"), card("CORE", "poetry", "met")],
+      core,
+    );
+    const t = sumStats([a, b]);
+    expect(t.wild).toBe(2);
+    expect(t.tiers.WILD).toBe(2);
+    // A wild card contributes to no topic histogram — it has no topic to contribute to.
+    expect([...t.topics.keys()]).toEqual(["poetry"]);
   });
 });

@@ -43,12 +43,20 @@ const opts = {
 const { db } = await import("~/server/db/client");
 const { item } = await import("~/server/db/schema");
 const rows = await db
-  .select({ tags: item.tags, source: item.source, topicId: item.topicId })
+  .select({
+    tags: item.tags,
+    // Since 09-06-26 the curator's vocabulary is mined alongside the sources' own — see
+    // topic-mining.ts's header. On a caption-less picture blog it is the ONLY vocabulary.
+    aestheticTags: item.aestheticTags,
+    source: item.source,
+    topicId: item.topicId,
+  })
   .from(item);
 
 const stats = tallyTags(
   rows.map((r) => ({
     tags: r.tags ?? [],
+    aestheticTags: r.aestheticTags ?? [],
     source: r.source,
     homed: r.topicId !== null,
   })),
@@ -59,13 +67,22 @@ const { promoted, singleSource } = rankCandidates(stats, existing, opts);
 const unhomedTotal = rows.filter((r) => r.topicId === null).length;
 const keep = new Set(promoted.map((p) => p.tag));
 const rescued = rows.filter(
-  (r) => r.topicId === null && (r.tags ?? []).some((t) => keep.has(t)),
+  (r) =>
+    r.topicId === null &&
+    [...(r.tags ?? []), ...(r.aestheticTags ?? [])].some((t) =>
+      keep.has(t.toLowerCase().trim()),
+    ),
 ).length;
 
 const row = (s: TagStat) =>
   `- [ ] \`${topicIdFor(s.tag)}\` — **${topicLabelFor(s.tag)}** ` +
   `<!-- tag: ${s.tag} --> · ${s.unhomed} un-homed / ${s.total} total · ` +
-  `${s.sources.length} sources (${s.sources.join(", ")})`;
+  `${s.sources.length} sources (${s.sources.join(", ")})` +
+  // Only when it is actually a factor: a candidate nobody's source ever named is a different
+  // kind of claim from one several blogs tag by hand, and the number says which this is.
+  (s.aestheticOnly > 0
+    ? ` · via curator ${s.aestheticOnly}/${s.total}`
+    : "");
 
 const doc = `# Topic proposals — Cut 2a
 
@@ -78,6 +95,14 @@ const doc = `# Topic proposals — Cut 2a
 Tick \`- [x]\` for every candidate that should become a topic. Leave \`- [ ]\` to reject.
 Edit the **bold label** freely; it is what the chip and the credit line will say.
 Move a line from *Single-source* up into *Candidates* to rescue it.
+
+**\`via curator N/M\` means N of the M items carrying this tag never had it from their SOURCE** —
+the curator wrote it, looking at the picture (09-06-26). That is not a reason to reject: on a
+caption-less picture blog the curator's words are the only words the item has, and those blogs are
+exactly the ones sitting in the un-homed pile. It is a reason to look twice, because the curator's
+vocabulary leans toward how a thing *looks* where a source's leans toward what it *is*. The
+obvious look-descriptors (\`muted palette\`, \`monochrome\`, \`grainy\`, …) are stopworded and never
+reach this list; the judgement call is the rest.
 
 **The test is not subject-vs-medium.** Ambit's original sixteen already mix them — \`ceramics\`,
 \`textiles\`, \`typography\`, \`cartography\` and \`portraiture\` are media or forms. The test is

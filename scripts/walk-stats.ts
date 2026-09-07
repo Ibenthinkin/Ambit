@@ -18,6 +18,13 @@
  * curation cache, so the report is free; run it first and it bills the same cents the dry-run
  * would. Writes nothing to the DB either way.
  *
+ * **`--quota` counts ITEMS, and since 09-06-26 a Tumblr post can be several of them** — the
+ * walker fans a multi-picture post out into one item per picture (tumblr.ts expandPictures), so
+ * `--quota 150` on a blog averaging 1.4 pictures a post samples ~107 posts, not 150. That is the
+ * right unit: an item is what gets curated, floored, stored and shown. The same change means the
+ * floored count on a picture blog should now be near zero — structuralFloor stopped applying its
+ * two text rules to walk images (curator.ts).
+ *
  *   bun run stats:walk mossandfog                 # newest 150 offered (the trial-loop default)
  *   bun run stats:walk mossandfog --quota 300
  *   bun run stats:walk pdr --cursor e:0 --quota 60   # the essays phase on its own
@@ -72,7 +79,15 @@ const { kept, dropped } = structuralFloor(offered);
 const byRule = new Map<string, number>();
 for (const d of dropped) byRule.set(d.rule, (byRule.get(d.rule) ?? 0) + 1);
 
-const curated = await curateItems(kept, { classify: true });
+// Every topic in the database, exactly as ingest classifies (09-06-26) — so a sample's `topics
+// (k/N)` line measures the vocabulary a real walk would home into, not the compile-time sixteen.
+const { listAllTopics } = await import("~/server/db/topics");
+const { isRealTopic } = await import("~/server/config/topics");
+const classifyVocabulary = (await listAllTopics()).filter(isRealTopic);
+const curated = await curateItems(kept, {
+  classify: true,
+  topics: classifyVocabulary,
+});
 const classified = curated.filter((c) => c.topics.length > 0);
 const unhomed = curated.filter((c) => c.topics.length === 0);
 
@@ -113,7 +128,7 @@ const topics = new Map<string, number>();
 for (const c of classified)
   for (const t of c.topics) topics.set(t, (topics.get(t) ?? 0) + 1);
 console.log(
-  `  topics (${topics.size}/16): ` +
+  `  topics (${topics.size}/${classifyVocabulary.length}): ` +
     [...topics]
       .sort((a, b) => b[1] - a[1])
       .map(([t, n]) => `${t} ${n}`)

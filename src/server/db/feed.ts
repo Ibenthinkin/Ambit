@@ -12,9 +12,11 @@ import {
   eq,
   gte,
   inArray,
+  isNull,
   lt,
   notExists,
   notInArray,
+  sql,
 } from "drizzle-orm";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
@@ -32,10 +34,11 @@ export type PoolItem = Pick<
   Item,
   "id" | "source" | "curationScore" | "aestheticTags"
 > & {
-  /** Never null here: `getTopicPools` filters with `inArray(item.topicId, …)`, which no NULL row
-   *  matches, so an un-homed item (Cut 1) cannot enter a pool. The column is `string | null` on
-   *  `Item`; this is the one place the narrowing is written down. */
-  topicId: string;
+  /** Null ONLY for a row from `getWildPool` (09-06-26) — an un-homed item, which is the entire
+   *  point of that pool. `getTopicPools` filters with `inArray(item.topicId, …)`, which no NULL
+   *  row matches, so a topic pool still cannot contain one. Downstream, `composePage` turns a
+   *  null here into exactly one thing: a WILD card. */
+  topicId: string | null;
 };
 
 /**
@@ -84,6 +87,41 @@ export async function getTopicPools(
 
   const { db } = await import("./client");
 
+  const conditions = [
+    inArray(item.topicId, topicIds),
+    ...eligibilityConditions(db, opts),
+  ];
+
+  const rows = await db
+    .select({
+      id: item.id,
+      topicId: item.topicId,
+      source: item.source,
+      curationScore: item.curationScore,
+      aestheticTags: item.aestheticTags,
+    })
+    .from(item)
+    .where(and(...conditions))
+    .orderBy(asc(item.id));
+
+  for (const row of rows) {
+    // Unreachable in practice — the `inArray(topicId, …)` above cannot match a NULL — but the
+    // projection is typed `string | null` because the column is, and a `!` here would hide the
+    // day this ever changes.
+    if (row.topicId === null) continue;
+    pools.get(row.topicId)?.push({ ...row, topicId: row.topicId });
+  }
+  return pools;
+}
+
+/** What makes an item eligible for ANY pool, topic or wild: above the floor, not served to this
+ *  user before the page anchor, not from a suspended source, not on the previous page. Factored
+ *  out when getWildPool arrived (09-06-26) so the two pools cannot drift apart — an item that a
+ *  topic pool would refuse must not reach a reader through the wild one. */
+function eligibilityConditions(
+  db: Awaited<typeof import("./client")>["db"],
+  opts: { userId: string; anchor: Date; scoreFloor: number; excludeIds: string[] },
+) {
   const notSeenBeforeAnchor = notExists(
     db
       .select()
@@ -98,7 +136,6 @@ export async function getTopicPools(
   );
 
   const conditions = [
-    inArray(item.topicId, topicIds),
     gte(item.curationScore, opts.scoreFloor),
     notSeenBeforeAnchor,
   ];
@@ -115,8 +152,45 @@ export async function getTopicPools(
   if (opts.excludeIds.length > 0) {
     conditions.push(notInArray(item.id, opts.excludeIds));
   }
+  return conditions;
+}
 
-  const rows = await db
+/** How many un-homed rows one page's WILD slots draw from. Big enough that a page's one-or-two
+ *  wild cards are a real choice, small enough to stay a projection of a few hundred rows. */
+export const WILD_POOL_SIZE = 200;
+
+/**
+ * The WILD tier's pool (09-06-26, docs/PLAN_caption-less-and-wild.md T2 / D6): a deterministic
+ * sample of eligible **un-homed** items — `topic_id IS NULL`, which since Cut 1 means "stored,
+ * curated, and no topic in the vocabulary fits it". Nothing else in the feed can return one.
+ *
+ * **Sampled in SQL, deterministically.** `ORDER BY md5(id || '<seed>:<page>') LIMIT 200`:
+ *  - not the whole set, because loading every un-homed row per request is exactly the 9,848-rows-
+ *    and-35.8-MB-per-page problem Phase 7.3 fixed in getTopicPools above, and a walk of a tagless
+ *    picture blog can add tens of thousands of un-homed rows in one night;
+ *  - not `random()`, because SPEC §7 promises that refetching a cursor returns the same page, and
+ *    feed.integration.test.ts pins it. `sampleKey` is `${seed}:${page}` from the cursor, so the
+ *    sample is a pure function of the cursor exactly like every other part of a page.
+ * md5 over tens of thousands of rows is milliseconds, and `idx_item_unhomed_score` (a partial
+ * index on the NULL-topic rows) is what keeps the set being hashed small as the corpus grows.
+ *
+ * **No `type` filter** (D7). Ben asked for pictures and the un-homed pool is overwhelmingly
+ * pictures, but excluding an un-homed pdr essay would be a rule with no reason behind it. If a
+ * wild article card reads wrong on real pages, add `eq(item.type, "image")` here — one line,
+ * written down so nobody has to rediscover that it was a choice.
+ */
+export async function getWildPool(opts: {
+  userId: string;
+  anchor: Date;
+  scoreFloor: number;
+  excludeIds: string[];
+  /** `${seed}:${page}` — what makes the sample a pure function of the cursor. */
+  sampleKey: string;
+  limit?: number;
+}): Promise<PoolItem[]> {
+  const { db } = await import("./client");
+
+  return db
     .select({
       id: item.id,
       topicId: item.topicId,
@@ -125,16 +199,9 @@ export async function getTopicPools(
       aestheticTags: item.aestheticTags,
     })
     .from(item)
-    .where(and(...conditions))
-    .orderBy(asc(item.id));
-
-  for (const row of rows) {
-    // Unreachable in practice — see PoolItem's comment — but the projection is typed
-    // `string | null` because the column is, and a `!` here would hide the day this ever changes.
-    if (row.topicId === null) continue;
-    pools.get(row.topicId)?.push({ ...row, topicId: row.topicId });
-  }
-  return pools;
+    .where(and(isNull(item.topicId), ...eligibilityConditions(db, opts)))
+    .orderBy(sql`md5(${item.id} || ${opts.sampleKey})`)
+    .limit(opts.limit ?? WILD_POOL_SIZE);
 }
 
 /**

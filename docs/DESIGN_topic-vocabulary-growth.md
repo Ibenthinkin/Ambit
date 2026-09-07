@@ -151,6 +151,21 @@ follows in Cut 2 via promotion.
 *Rejected: through to reachable content* (Cut 1 + promotion + a first vocabulary expansion + graph
 rebuild) and *full expansion* (+ onboarding hierarchy, `topicCap` redesign) — both sketched in §11.
 
+> **Amendment, 09-06-26 — `docs/PLAN_caption-less-and-wild.md`.** "The feed does not move" was
+> right for Cut 1 and is no longer true. The feed now has a fourth tier, **WILD**, weight 10
+> against 40/35/25, which draws *only* from the un-homed pool. Promotion is still the primary
+> route and the one that gives an item a topic; WILD is the residue's way in **between**
+> promotion rounds — and the answer to a case this design did not anticipate, which the round-3
+> Tumblr blogs made concrete: **a source that carries no tags has no route out of un-homed by any
+> promotion tooling at all**, because promotion matches on tags. (Cut 2's other half of that
+> answer, in the same plan: mining, promotion and the graph now read the curator's
+> `aesthetic_tags` as well as the source's own, so a tagless blog *does* have a vocabulary to be
+> mined from. The two fixes are deliberate belt and braces — see the plan's D3.)
+>
+> What has NOT changed: an item is still never force-fitted into a topic, `item.topic_id` still
+> means the display topic, and the three TOPIC tiers still cannot see an un-homed item. A WILD
+> card carries `topicId: null`, and null now means WILD and only WILD.
+
 ---
 
 ## 4. What this overturns, and what it explicitly does not
@@ -390,8 +405,11 @@ Non-negotiable per SPEC §12. New or changed:
   property from a later well-meaning `PROMPT_VERSION` bump.
 - **Ingest:** a walk item whose topic array is empty is **inserted** and counted as un-homed, not
   dropped. (Directly inverts the current behaviour — find and rewrite the existing test.)
-- **Feed, property:** over a corpus containing un-homed items, `composePage` never returns one.
-  Cheap to write and it is the guard on D4's "the feed does not move".
+- **Feed, property:** ~~over a corpus containing un-homed items, `composePage` never returns one.~~
+  **Flipped 09-06-26 (see D4's amendment):** `composePage` returns an un-homed item **only** as a
+  `WILD` card — and `topicId === null` iff `tier === "WILD"`. `feed.test.ts` pins both directions,
+  and `items.integration.test.ts` pins the SQL half: `drawFromTopic` and `getTopicPools` still
+  skip an un-homed item, and `getWildPool` is the one draw that returns it.
 - **UI:** the gallery sheet and masonry render an item with a null topic without crashing
   (`gallery-details-sheet.tsx:35`, `masonry.ts:83` both do `?? id`, which is null-unsafe if the id
   itself is null).
@@ -435,6 +453,15 @@ planned, on the line where the product value stops and the refactor starts.
 - one requirement this section did not list, found while planning: `topics.list` backs the
   onboarding chip grid and returned every topic, so promotion would have put ~100 chips on that
   screen. `topic.tier` exists entirely for that.
+- **09-06-26, added to this cut after the fact** (`docs/PLAN_caption-less-and-wild.md` T3/T4): all
+  three scripts now mine, match and profile on the **union of `tags` and `aesthetic_tags`**, so a
+  source that tags nothing can still contribute vocabulary — the curator's tags are the only words
+  such an item has. The proposal row prints `via curator N/M` so a candidate that exists only
+  because the curator keeps writing it is visibly a different kind of claim, and eighteen
+  look-descriptors it writes constantly are stopworded. Separately, the classifier's vocabulary is
+  now every topic in the database rather than the compile-time sixteen, so a new walk item homes
+  into a *promoted* topic at ingest instead of waiting for the next promotion round — which is
+  what took the four round-3 Tumblr blogs from 40-44% un-homed to 0-3%.
 
 **Cut 2b — still out of scope.** A `topic_edge` table replacing the dense `topic-graph.json` (16
 topics = 240 cells; 1,000 topics ≈ 1M cells and ~100 MB of JSON imported at module load in

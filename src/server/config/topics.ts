@@ -446,3 +446,18 @@ export const TOPICS: readonly TopicConfig[] = [
     },
   },
 ];
+
+/**
+ * Whether a topic row is part of Ambit's actual vocabulary, rather than a leftover from an
+ * integration test. Every DB-touching test suite builds throwaway topics under a `test-` prefix
+ * and deletes them in `afterAll` — but a killed run, or a suite that fails in `beforeAll`, leaves
+ * them behind, and three of them were sitting in this laptop's database on 09-06-26.
+ *
+ * Anything reading the vocabulary OUT of the database has to filter, because the consequences are
+ * real: `graph:rebuild` gave a test topic an adjacency row in a checked-in artifact, and the
+ * classify prompt (curator.ts, 09-06-26) would put `test-wild-topic-Ibz_tC-9` in front of the
+ * model on every billed call. The prefix is the convention every suite already follows.
+ */
+export function isRealTopic(t: { id: string }): boolean {
+  return !t.id.startsWith("test-");
+}

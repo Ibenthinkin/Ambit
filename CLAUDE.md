@@ -154,7 +154,9 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `bun run graph:rebuild --grown-scale <s> --confirm` if the graph lever is the one that moved —
   the rebuild now reads its core set from `TOPICS` rather than the artifact's own keys, which is
   what makes re-running it safe). `FeedKnobs`/`DEFAULT_KNOBS` live in `services/feed-knobs.ts`,
-  a no-import leaf, so the client can read the defaults without bundling the DB layer.
+  a no-import leaf, so the client can read the defaults without bundling the DB layer. Two more
+  sliders since 09-06-26 — `tierWild` and `wildTagBoost` — and the readout's split is now
+  **core / grown / wild**.
 - **Feed composition** (SPEC §9) = per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25 — drift-heavy on purpose) → topic via the user's weights or a graph walk → item via curated-weighted random, under diversity constraints (no adjacent same-source; per-page topic caps). Saves reweight *topics*, visibly. Cursor-based pagination; the cursor encodes the page seed. Debug overlay + tuning knobs ship behind a dev flag throughout development.
 - **Auth boundary**: all user-scoped queries filter by `userId`; the only public surface is `items.byId` / `/i/[itemId]`.
 
@@ -193,6 +195,14 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   below and isn't. **`rm -rf node_modules/.vite node_modules/.cache/vite`** put it back to 35 s /
   820 tests immediately. Suspect this whenever the *whole* suite degrades right after a dependency
   change; the busy-machine note below is for when it degrades without one.
+- **The Tumblr walks are what makes `.cache/img` big.** Ben's budgets for the four kept round-3
+  blogs are ~89,500 items, ~150 KB each on the cache volume — **~13 GB** on top of the nine
+  existing sources — so check the volume's free space before starting one (`df -h` on the cache
+  mount; the volume name is in `PHASE8_WALKTHROUGH_8.1.md`). Lowering a budget is one number in
+  `blogs.ts`, and the resume cursor makes raising one later free. The *curator's* download is a
+  separate and much larger number, but it is transient and now ~5× smaller than it would have
+  been: the walker points `curationImageUrl` at Tumblr's 500 px rendition, so scoring 89,500
+  pictures pulls ~12 GB rather than ~58 GB.
 - **Deleting `.cache/img` forces the image proxy to refetch from the museums.** It is one
   `<itemId>.webp` per item (Phase 7.3) and safe to delete, but it is also the only thing standing
   between a scroll and `tile.loc.gov`'s per-IP budget — refill it with `bun run img:warm --rate 2`

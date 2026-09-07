@@ -10,6 +10,26 @@ export interface FeedKnobs {
   tierCore: number;
   tierDrift: number;
   tierJump: number;
+  // ── WILD (09-06-26, docs/PLAN_caption-less-and-wild.md T2) ───────────────────────────────────
+  // A fourth tier, drawing from the UN-HOMED pool: curated items no topic fits. Cut 1 made the
+  // corpus store them and Cut 2a promoted 2,714 of them into grown topics, but between promotion
+  // rounds whatever walked last is invisible to the feed entirely — and a picture blog with no
+  // tags has no route out of un-homed by any current tooling. This tier is the residue's way in.
+  //
+  // **It is NOT the gallery rail's "wildcard"** (gallery-rail.ts drawImageAnywhere), and the
+  // names differ on purpose: that one is public, unpersonalized, ignores topics *and* the
+  // un-homed distinction, and writes no seen_item rows. WILD is personalized through
+  // wildTagBoost, draws only un-homed items, and burns seen rows like every other feed tier.
+  /** Weight against tierCore/Drift/Jump — 10 against 40/35/25 is about one card in twelve. It
+   *  ships at 10 rather than 0 because the point is that these pictures show up now; the slider
+   *  on /dev/feed is for tuning the rate, not for switching the tier on. 0 skips the pool query
+   *  entirely and composes exactly as before. */
+  tierWild: number;
+  /** `tagBoost` for the WILD slot only. 1.0 — double the ordinary 0.5 — because a WILD card has
+   *  no topic, so overlap with the reader's recent saves' aesthetic tags is the ONLY
+   *  personalization axis the slot has. This is D1: a save on a WILD card teaches the feed the
+   *  item's vibe, through the existing last-24-saves taste window, with no new table. */
+  wildTagBoost: number;
   scoreFloor: number;
   scorePower: number;
   tagBoost: number;
@@ -37,6 +57,8 @@ export const DEFAULT_KNOBS: FeedKnobs = {
   tierCore: 40,
   tierDrift: 35,
   tierJump: 25,
+  tierWild: 10,
+  wildTagBoost: 1,
   scoreFloor: 4,
   scorePower: 1.5,
   tagBoost: 0.5,

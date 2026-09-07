@@ -47,6 +47,10 @@
  *                                                         # (bills only for uncached items)
  *   bun run ingest --source doorofperception --prune     # also delete rows for posts the blog
  *                                                         # has removed (complete walks only)
+ *   bun run ingest --source sovietpostcards              # bounded by that blog's walkQuota
+ *                                                         # (blogs.ts); prints a resume cursor
+ *   bun run ingest --source sovietpostcards --cursor 12900   # the rest of the archive, from where
+ *                                                             # the budgeted walk stopped
  *   (* --dry-run alone still calls the curator unless paired with --skip-llm; combine both for a
  *      genuinely free structural dry run.)
  */
@@ -67,6 +71,8 @@ import type {
   StructuralDropRule,
 } from "~/server/services/curator";
 import { curateItems, structuralFloor } from "~/server/services/curator";
+import { runWalk, type WalkRunStats } from "~/server/services/walk-run";
+import { blogConfig } from "~/server/config/blogs";
 import { isSuspendedSource } from "~/server/config/suspended-sources";
 import { adapters, ALL_SOURCE_IDS, walkers } from "~/server/services/sources";
 import type {
@@ -75,7 +81,7 @@ import type {
   SourceId,
   WalkPage,
 } from "~/server/services/sources";
-import type { WalkSourceId } from "~/server/config/topics";
+import { isRealTopic, type WalkSourceId } from "~/server/config/topics";
 
 // ── CLI flags ──────────────────────────────────────────────────────────────
 
@@ -93,11 +99,22 @@ const dryRun = args.includes("--dry-run");
 // Phase 6.3: delete rows of a walk source that a COMPLETE walk did not see (planPrune). Never
 // the default: deletion is the one thing an ingest run must not do by accident.
 const prune = args.includes("--prune");
+// Where a walk starts. Adapter-defined and opaque (types.ts): a WP page number, a Tumblr `start`
+// offset. Its use is resuming an archive a walkQuota-bounded run stopped part-way through, so it
+// only makes sense for exactly one walk source at a time — and, like --quota, it makes the run
+// incomplete, because a walk that did not start at the beginning cannot say a row is gone.
+const cursorFlag = flagValue("cursor");
 
 if (!Number.isFinite(quota) || quota <= 0) {
   console.error(
     `--quota must be a positive number, got "${flagValue("quota")}"`,
   );
+  process.exit(1);
+}
+
+// One cursor cannot mean anything to two different archives, so refuse rather than guess.
+if (cursorFlag !== undefined && !sourceFlag) {
+  console.error("--cursor requires --source <walk source>");
   process.exit(1);
 }
 
@@ -199,84 +216,25 @@ async function processSource(
 
 // ── Phase 6.3: per-walker walk + normalize ───────────────────────────────────
 
-interface WalkRunStats {
-  walked: number; // walk() pages attempted
-  offered: number; // raws normalized into items
-  errors: number; // failed pages or toItem throws — never folded into "offered: 0"
-  /** Of `errors`, the ones that were whole pages — the only kind that voids completeness. */
-  pageErrors: number;
-  /** Every sourceId the walk normalized — planPrune's input. A raw that toItem rejects (no
-   *  featured image, say) is not here, which is right: it was never a row, so planPrune cannot
-   *  name it; and if it once WAS a row and has since lost its image, it should go. */
-  seenSourceIds: string[];
-  /** True iff the walk reached the end with no failed PAGE and no --quota bound: only then may
-   *  the absence of a row mean the post is gone. A single rejected post does not void this —
-   *  doorofperception has one permanently, and a walk that can never be complete is a --prune
-   *  that can never run. (Found on the first real run, 08-27-26.) */
-  complete: boolean;
-  items: NormalizedItem[];
-}
-
 /**
- * Walk one corpus-walk source to exhaustion (or to `quotaItems` under --quota). Sequential by
- * construction — one host, one cursor — and the adapter owns its own politeness delay. A failed
- * page is an error and stops the walk (a cursor past a failure is not something we can trust),
- * which also marks the run incomplete so --prune cannot act on it.
+ * Walk one corpus-walk source. The loop itself lives in services/walk-run.ts so it can be tested
+ * against a fake walker (this file calls main() on import and cannot be imported by a test).
+ *
+ * The bound is `--quota` when given and otherwise the blog's own `walkQuota` (blogs.ts,
+ * 09-06-26) — which is what keeps un-parking a 108,982-post archive in the nightly ingest from
+ * walking all of it.
  */
 async function processWalker(
   sourceId: WalkSourceId,
   quotaItems: number | undefined,
+  startCursor?: string,
 ): Promise<WalkRunStats> {
-  const walker = walkers[sourceId];
-  const stats: WalkRunStats = {
-    walked: 0,
-    offered: 0,
-    errors: 0,
-    pageErrors: 0,
-    seenSourceIds: [],
-    complete: false,
-    items: [],
-  };
-  let cursor: string | undefined;
-  let reachedEnd = false;
-  do {
-    stats.walked++;
-    let page: WalkPage<unknown>;
-    try {
-      page = await walker.walk(
-        cursor,
-        quotaItems ? { limit: quotaItems - stats.offered } : undefined,
-      );
-    } catch (err) {
-      stats.errors++;
-      stats.pageErrors++;
-      console.warn(
-        `  ${sourceId}: walk FAILED at cursor ${cursor ?? "(start)"} — ${String(err)}`,
-      );
-      break;
-    }
-    for (const raw of page.raw) {
-      try {
-        const normalized = walker.toItem(raw);
-        stats.seenSourceIds.push(normalized.sourceId);
-        stats.items.push(normalized);
-        stats.offered++;
-      } catch (err) {
-        stats.errors++;
-        console.warn(`  ${sourceId}: toItem failed — ${String(err)}`);
-      }
-      if (quotaItems && stats.offered >= quotaItems) break;
-    }
-    cursor = page.next;
-    reachedEnd = cursor === undefined;
-  } while (
-    cursor !== undefined &&
-    !(quotaItems && stats.offered >= quotaItems)
-  );
-
-  stats.complete =
-    reachedEnd && stats.pageErrors === 0 && quotaItems === undefined;
-  return stats;
+  return runWalk(walkers[sourceId], {
+    quotaItems,
+    startCursor,
+    onWarn: (msg) => console.warn(`  ${sourceId}: ${msg}`),
+    onNote: (msg) => console.log(`  ${sourceId}: ${msg}`),
+  });
 }
 
 // ── main ─────────────────────────────────────────────────────────────────
@@ -310,9 +268,12 @@ async function main() {
     (id) => id in adapters,
   ) as SearchSourceId[];
   const walkIds = sourceIds.filter((id) => id in walkers) as WalkSourceId[];
-  // For a walker, --quota is a TOTAL item bound (there are no cells to be "per" of); absent, the
-  // walk runs to exhaustion, which is the only kind of walk --prune may trust.
-  const walkQuota = args.includes("--quota") ? quota : undefined;
+  // For a walker, --quota is a TOTAL item bound (there are no cells to be "per" of). Absent, the
+  // blog's own `walkQuota` applies (blogs.ts, 09-06-26) — which is what keeps un-parking a
+  // 108,982-post archive in the nightly ingest from walking all of it. Absent from both, the walk
+  // runs to exhaustion, which is the only kind of walk --prune may trust.
+  const walkBound = (id: WalkSourceId): number | undefined =>
+    args.includes("--quota") ? quota : blogConfig(id)?.walkQuota;
 
   if (topicFlag && sourceFlag && sourceFlag in walkers) {
     console.log(
@@ -332,10 +293,19 @@ async function main() {
     }
   }
 
+  // The vocabulary the walk lane's classifier may answer with (09-06-26). Every topic in the
+  // database, not the sixteen compile-time ones — so a post whose subject is one of Cut 2a's
+  // grown topics homes at ingest instead of waiting for the next manual promote:topics. Test
+  // leftovers are filtered: they would otherwise go into a billed prompt (config/topics.ts).
+  const classifyVocabulary = allTopics.filter(isRealTopic);
+
   console.log(
     `Ingesting ${topics.length} topic(s) × ${searchIds.length} search source(s) + ${walkIds.length} walk source(s), quota ${quota}/cell` +
       `${skipLlm ? " [skip-llm]" : ""}${dryRun ? " [dry-run]" : ""}…\n`,
   );
+  if (walkIds.length > 0) {
+    console.log(`classify vocabulary: ${classifyVocabulary.length} topics\n`);
+  }
 
   // Step 1: search + normalize, one source's worth of work per settled promise. allSettled (not
   // all) so a single source crashing outright doesn't take the other four down with it — the same
@@ -346,7 +316,9 @@ async function main() {
     Promise.allSettled(
       searchIds.map((sourceId) => processSource(sourceId, topics, quota)),
     ),
-    Promise.allSettled(walkIds.map((id) => processWalker(id, walkQuota))),
+    Promise.allSettled(
+      walkIds.map((id) => processWalker(id, walkBound(id), cursorFlag)),
+    ),
   ]);
 
   const statsBySource = new Map<SourceId, SourceRunStats>();
@@ -475,7 +447,11 @@ async function main() {
   // walk lane writes nothing: a structural check of the walk, nothing more — see the write loop.
   const curatedWalk: CuratedItem[] = skipLlm
     ? keptWalk.map(neutral)
-    : await curateItems(keptWalk, { ...curateOpts, classify: true });
+    : await curateItems(keptWalk, {
+        ...curateOpts,
+        classify: true,
+        topics: classifyVocabulary,
+      });
   const histogram = topicHistogram(curatedWalk);
 
   // Step 6: upsert. Under --dry-run this loop still computes exactly what WOULD be written (so

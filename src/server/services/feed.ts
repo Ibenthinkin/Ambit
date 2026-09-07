@@ -17,7 +17,7 @@ import topicGraphData from "~/server/config/topic-graph.json";
 import { drawWeight, getItemsByIds } from "~/server/db/items";
 import { getTasteKeywords } from "~/server/db/saves";
 import { getUserTopicWeights } from "~/server/db/topics";
-import { getTopicPools, type PoolItem } from "~/server/db/feed";
+import { getTopicPools, getWildPool, type PoolItem } from "~/server/db/feed";
 import { feedDebugEnabled } from "./feed-debug";
 import { hashSeed, mulberry32, weightedPick } from "./random";
 
@@ -78,18 +78,17 @@ export const CORE_TOPIC_IDS: ReadonlySet<string> = new Set(
   TOPICS.map((t) => t.id),
 );
 
-export type Tier = "CORE" | "DRIFT" | "JUMP";
+/** WILD (09-06-26) is the fourth tier and the only one with no topic behind it — see
+ *  FeedKnobs.tierWild for what it draws and why it is not the gallery rail's "wildcard". */
+export type Tier = "CORE" | "DRIFT" | "JUMP" | "WILD";
 
 /**
  * A composed card, as it leaves `composePage` — with the **projection** the engine composed from
  * rather than the full row (Phase 7.3). `getFeedPage` swaps in the real `Item` before returning;
  * see `FeedCard` below for why two types exist.
  */
-export interface ComposedCard extends Omit<FeedCard, "item" | "topicId"> {
+export interface ComposedCard extends Omit<FeedCard, "item"> {
   item: PoolItem;
-  /** Always a real topic here: `composePage` serves every card from a topic pool. The client-side
-   *  `FeedCard` widens this to `string | null` (see there); the engine never does. */
-  topicId: string;
 }
 
 /**
@@ -105,10 +104,12 @@ export interface FeedCard {
   item: Item;
   tier: Tier;
   /**
-   * The topic this card was served under. `null` only when a screen *dresses* an item as a card
-   * without serving it — `saved-screen.tsx` does that to reuse the masonry, and a saved item can
-   * be un-homed (Cut 1). The feed itself never produces a null here (`ComposedCard` pins it), and
-   * the only reader of this field for layout is the Because tile, which only a JUMP produces.
+   * The topic this card was served under. `null` in exactly two cases, and no others:
+   *  - a **WILD** card (09-06-26) — the tier draws from the un-homed pool, so there is no topic
+   *    to name. Null here means WILD and WILD means null; nothing else in the engine produces it;
+   *  - a screen that *dresses* an item as a card without serving it — `saved-screen.tsx` does
+   *    that to reuse the masonry, and a saved item can be un-homed (Cut 1).
+   * The only reader of this field for layout is the Because tile, which only a JUMP produces.
    */
   topicId: string | null;
   // Topic ids walked to reach this card (DRIFT: [start, hop1, hop2?]; JUMP: [start, landing]) —
@@ -388,6 +389,10 @@ export interface ComposePageOpts {
   // getFeedPage below for why this is a Map handed in, not a per-slot DB call the way the
   // prototype's interleaved loop did it.
   pools: Map<string, PoolItem[]>;
+  /** The WILD tier's draw: a sample of eligible un-homed items (db/feed.ts's `getWildPool`).
+   *  Empty or absent ⇒ the slot is skipped and the guard loop fills it from another tier, so a
+   *  corpus with nothing un-homed composes exactly as it did before this tier existed. */
+  wildPool?: PoolItem[];
   rng: () => number;
   knobs: FeedKnobs;
   tasteKeywords?: string[];
@@ -414,6 +419,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
     weights,
     graph,
     pools,
+    wildPool = [],
     rng,
     knobs,
     tasteKeywords = [],
@@ -426,6 +432,9 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
   // tracking — seen_item covers everything *before* this page, this covers *within* it).
   const working = new Map<string, PoolItem[]>();
   for (const [topicId, items] of pools) working.set(topicId, [...items]);
+  // The wild pool gets the same treatment, as one flat list: a wild item drawn this page is
+  // spliced out so it cannot be drawn twice.
+  const workingWild = [...wildPool];
 
   const cards: ComposedCard[] = [];
   const topicCounts = new Map<string, number>();
@@ -441,10 +450,45 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
         ["CORE", knobs.tierCore],
         ["DRIFT", knobs.tierDrift],
         ["JUMP", knobs.tierJump],
+        ["WILD", knobs.tierWild],
       ],
       rng,
     );
     if (!tierName) continue; // all tier weights <= 0 — degenerate knobs; guard bounds the retry
+
+    // WILD short-circuits the topic step entirely: there is no topic to pick, no graph to walk,
+    // no driftPath to record, and topicCap — which bounds how much of a page one TOPIC may be —
+    // has nothing to count. Its only personalization is the taste boost, turned up to
+    // wildTagBoost because in this slot it is the sole signal (knobs, D1).
+    if (tierName === "WILD") {
+      const drawn = pickItem(
+        workingWild,
+        lastSource,
+        { ...knobs, tagBoost: knobs.wildTagBoost },
+        tasteKeywords,
+        rng,
+      );
+      if (!drawn) continue; // nothing un-homed left to show — soft, like every other constraint
+      workingWild.splice(
+        workingWild.findIndex((it) => it.id === drawn.id),
+        1,
+      );
+      lastSource = drawn.source;
+      cards.push({
+        item: drawn,
+        tier: "WILD",
+        topicId: null,
+        ...(debug
+          ? {
+              debug: {
+                why: `WILD · un-homed (${workingWild.length} left in sample)`,
+                curationScore: drawn.curationScore,
+              },
+            }
+          : {}),
+      });
+      continue;
+    }
 
     const pick =
       tierName === "CORE"
@@ -580,17 +624,29 @@ export async function getFeedPage(
   );
 
   const distinctTopics = [...reachableTopics(weights, graph)];
-  const pools = await getTopicPools(distinctTopics, {
+  const eligibility = {
     userId,
     anchor,
     scoreFloor: knobs.scoreFloor,
     excludeIds: prev,
-  });
+  };
+  // Two pools, one round trip: the topic pools the first three tiers draw from, and the WILD
+  // tier's sample of un-homed items. `sampleKey` is the cursor's own `${seed}:${page}`, which is
+  // what makes the wild sample reproduce byte-for-byte on a refetch (db/feed.ts, D6). At
+  // `tierWild: 0` the tier can never be drawn, so the query is skipped entirely and /feed costs
+  // exactly what it did before this tier existed.
+  const [pools, wildPool] = await Promise.all([
+    getTopicPools(distinctTopics, eligibility),
+    knobs.tierWild > 0
+      ? getWildPool({ ...eligibility, sampleKey: `${seed}:${page}` })
+      : Promise.resolve([]),
+  ]);
 
   const composed = composePage({
     weights,
     graph,
     pools,
+    wildPool,
     rng,
     knobs,
     tasteKeywords,
