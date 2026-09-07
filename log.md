@@ -329,7 +329,8 @@ quotas back to Ben's originals; then walk. All on `main`, `3cbf6ac` + the un-par
 - **The prod container now runs three scripts after the deploy**, in order: `trim:memberships`,
   `repair:periods`, `repair:rehome` — and `promote-prod.sh` first, with the updated
   `topic-proposals.md` copied in, or `repair:rehome` refuses (the `to` topic must exist).
-- `loupe` into `SUSPENDED_SOURCES` before that deploy. `main` is 50 ahead of origin.
+- `loupe` into `SUSPENDED_SOURCES` before that deploy. **Pushed to origin 18:05** — the first
+  push since Cut 2a; 54 commits, everything from sourceCap through walk 3's un-park.
 
 *Session spend: 12.25M tok (in 178 · out 86.9k · cache r 11.58M / w 577.3k) · ~≥$1.90 · fable-5-1 + opus-4-7 · 15:46→17:57*
 
