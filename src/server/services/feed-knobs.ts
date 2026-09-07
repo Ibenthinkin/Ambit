@@ -36,6 +36,16 @@ export interface FeedKnobs {
   temp: number;
   hop2: number;
   topicCap: number;
+  /** Per-page cap on cards from one SOURCE, counted across every tier including WILD (09-07-26).
+   *  topicCap's sibling, born from the first big Tumblr walk: `sovietpostcards` landed 17,500
+   *  items and became 92-100% of four grown topics by membership as well as by display topic, so
+   *  drifting into `illustration` meant twelve Soviet postcards in a row. No pool query can fix
+   *  that — a 17,500-item blog about illustration *is* most of the corpus's illustration — but a
+   *  page can refuse to be a wall of it. Enforced before the draw (`pickItem` filters a capped
+   *  source out of its candidates), so a topic whose other sources are a 2% minority spends that
+   *  minority instead of skipping the slot. 3 of 12 matches topicCap; the /dev/feed slider is
+   *  where a different number gets argued. */
+  sourceCap: number;
   pageSize: number;
   // ── Cut 2a's feel levers (09-05-26) ──────────────────────────────────────────────────────────
   // The vocabulary went 16 → 99 topics and a sampled page came back 59 grown / 37 core. These
@@ -65,6 +75,7 @@ export const DEFAULT_KNOBS: FeedKnobs = {
   temp: 0.15,
   hop2: 0.5,
   topicCap: 3,
+  sourceCap: 3,
   pageSize: 12,
   grownEdgeScale: 1,
   grownHopPenalty: 1,

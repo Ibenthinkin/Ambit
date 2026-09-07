@@ -340,6 +340,8 @@ export function pickJump(
   };
 }
 
+const EMPTY_SOURCES: ReadonlySet<string> = new Set();
+
 // ── item pick (SPEC §9.2) ───────────────────────────────────────────────────────────────────────
 /**
  * WHAT to show, given WHERE to look: weighted random inside the topic's already-fetched pool,
@@ -353,12 +355,23 @@ function pickItem(
   knobs: Pick<FeedKnobs, "scoreFloor" | "scorePower" | "tagBoost">,
   tasteKeywords: string[],
   rng: () => number,
+  /** Sources that have already hit `sourceCap` on this page. A HARD filter, unlike `lastSource`:
+   *  if nothing else is left in the pool the slot is skipped, never relaxed — that is the cap
+   *  doing its job. Filtering here rather than rejecting after the draw is what lets a topic's
+   *  minority sources win the slot once the majority is capped. */
+  cappedSources: ReadonlySet<string> = EMPTY_SOURCES,
 ): PoolItem | null {
   if (!pool || pool.length === 0) return null;
 
   let candidates = pool;
+  if (cappedSources.size > 0) {
+    candidates = candidates.filter((it) => !cappedSources.has(it.source));
+    if (candidates.length === 0) return null;
+  }
   if (lastSource) {
-    const varied = pool.filter((it) => it.source !== lastSource);
+    // From `candidates`, not `pool` — the cap filter above must survive this one. (It didn't, for
+    // about ten minutes on 09-07-26; the live probe caught what a single-draw unit test missed.)
+    const varied = candidates.filter((it) => it.source !== lastSource);
     if (varied.length > 0) candidates = varied; // relax rather than starve
   }
 
@@ -438,7 +451,17 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
 
   const cards: ComposedCard[] = [];
   const topicCounts = new Map<string, number>();
+  // Per-source count across EVERY tier, and the set of sources that have reached `sourceCap`.
+  // Kept as a set (rebuilt on each cap hit, which is at most a few times a page) so `pickItem`
+  // can filter by membership without knowing the knob.
+  const sourceCounts = new Map<string, number>();
+  const cappedSources = new Set<string>();
   let lastSource: string | null = null;
+  const countSource = (source: string) => {
+    const n = (sourceCounts.get(source) ?? 0) + 1;
+    sourceCounts.set(source, n);
+    if (n >= knobs.sourceCap) cappedSources.add(source);
+  };
 
   for (
     let guard = 0;
@@ -467,6 +490,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
         { ...knobs, tagBoost: knobs.wildTagBoost },
         tasteKeywords,
         rng,
+        cappedSources,
       );
       if (!drawn) continue; // nothing un-homed left to show — soft, like every other constraint
       workingWild.splice(
@@ -474,6 +498,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
         1,
       );
       lastSource = drawn.source;
+      countSource(drawn.source);
       cards.push({
         item: drawn,
         tier: "WILD",
@@ -507,6 +532,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
       knobs,
       tasteKeywords,
       rng,
+      cappedSources,
     );
     if (!drawn) continue; // this topic's pool is empty/exhausted — soft constraint, try again
 
@@ -515,6 +541,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
 
     topicCounts.set(topicId, (topicCounts.get(topicId) ?? 0) + 1);
     lastSource = drawn.source;
+    countSource(drawn.source);
 
     cards.push({
       item: drawn,

@@ -290,12 +290,13 @@ describe.skipIf(!process.env.DATABASE_URL)("getWildPool (integration)", () => {
       columns: { id: true },
     });
     if (rows.length > 0) {
-      await db.delete(item).where(
-        inArray(
-          item.id,
-          rows.map((r) => r.id),
-        ),
-      );
+      const ids = rows.map((r) => r.id);
+      // These fixtures are UN-HOMED, so any other suite running a real `getFeedPage` at the same
+      // time can draw them through WILD and write `seen_item` rows for ITS user — rows this
+      // suite never made and the FK would otherwise trip on (seen 09-07-26 running the feed
+      // suites together). Clear them by item id, not by this suite's user id.
+      await db.delete(seenItem).where(inArray(seenItem.itemId, ids));
+      await db.delete(item).where(inArray(item.id, ids));
     }
     await db.delete(user).where(inArray(user.id, [userId]));
     await db.delete(topic).where(inArray(topic.id, [topicId]));

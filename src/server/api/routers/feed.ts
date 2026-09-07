@@ -34,6 +34,8 @@ const feedKnobsSchema = z
     temp: z.number().min(0.01),
     hop2: z.number().min(0).max(1),
     topicCap: z.number().int().min(1),
+    /** Per-page cap on one source's cards (09-07-26) — topicCap's sibling. */
+    sourceCap: z.number().int().min(1),
     pageSize: z.number().int().min(1).max(50),
     // Cut 2a's feel levers (09-05-26). 4× is already "the mined vocabulary dominates"; a penalty
     // above 1 would be a bonus, which is a different knob with a different name.

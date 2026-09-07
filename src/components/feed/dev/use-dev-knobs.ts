@@ -137,6 +137,15 @@ export const KNOB_SPECS: readonly KnobSpec[] = [
     step: 1,
   },
   {
+    key: "sourceCap",
+    label: "Per-page source cap",
+    section: "Diversity",
+    min: 1,
+    max: 12,
+    step: 1,
+    note: "Most cards one source may have on a page, across every tier. The 'sources' readout below is what this moves.",
+  },
+  {
     key: "pageSize",
     label: "Page size",
     section: "Diversity",

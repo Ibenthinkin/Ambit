@@ -96,7 +96,11 @@ function makeItem(overrides: Partial<Item> = {}): Item & { topicId: string } {
   nextId++;
   const built = {
     id: overrides.id ?? `item-${nextId}`,
-    source: overrides.source ?? "wikipedia",
+    // One source per fixture item unless a test says otherwise. Every item used to be "wikipedia",
+    // which was fine until `sourceCap` (09-07-26) made three same-source cards the most a page
+    // will carry — under that default, half this file's pages would have capped at three. A test
+    // that is ABOUT sources sets them explicitly, so the default is only ever "unremarkable".
+    source: overrides.source ?? `source-${nextId}`,
     sourceId: overrides.sourceId ?? `src-${nextId}`,
     type: overrides.type ?? "article",
     title: overrides.title ?? `Item ${nextId}`,
@@ -357,7 +361,12 @@ describe("composePage", () => {
   describe("the WILD tier", () => {
     const wildKnobs: FeedKnobs = { ...baseKnobs, pageSize: 12 };
     const oneTopic = () =>
-      new Map([["only", Array.from({ length: 60 }, () => makeItem({ topicId: "only" }))]]);
+      new Map([
+        [
+          "only",
+          Array.from({ length: 60 }, () => makeItem({ topicId: "only" })),
+        ],
+      ]);
 
     it("draws from wildPool, with a null topicId and no driftPath", () => {
       const wildPool = Array.from({ length: 40 }, () => makeUnhomed());
@@ -415,7 +424,9 @@ describe("composePage", () => {
         wildPool: Array.from({ length: 40 }, () => makeUnhomed()),
         rng: mulberry32(hashSeed("wild:3")),
       });
-      expect(withPool.map((c) => c.tier)).toEqual(withoutPool.map((c) => c.tier));
+      expect(withPool.map((c) => c.tier)).toEqual(
+        withoutPool.map((c) => c.tier),
+      );
       expect(withPool.some((c) => c.tier === "WILD")).toBe(false);
     });
 
@@ -429,7 +440,9 @@ describe("composePage", () => {
         rng: mulberry32(hashSeed("wild:4")),
         knobs: { ...wildKnobs, tierWild: 500, topicCap: 1000 },
       });
-      const wildIds = cards.filter((c) => c.tier === "WILD").map((c) => c.item.id);
+      const wildIds = cards
+        .filter((c) => c.tier === "WILD")
+        .map((c) => c.item.id);
       expect(new Set(wildIds).size).toBe(wildIds.length);
       expect(wildIds.length).toBeLessThanOrEqual(3);
     });
@@ -476,7 +489,9 @@ describe("composePage", () => {
           const favoured = makeUnhomed({ aestheticTags: ["botanical plate"] });
           const wildPool = [
             favoured,
-            ...Array.from({ length: 39 }, () => makeUnhomed({ aestheticTags: ["x"] })),
+            ...Array.from({ length: 39 }, () =>
+              makeUnhomed({ aestheticTags: ["x"] }),
+            ),
           ];
           const cards = composePage({
             weights: new Map([["only", 1]]),
@@ -484,7 +499,12 @@ describe("composePage", () => {
             pools: oneTopic(),
             wildPool,
             rng: mulberry32(hashSeed(`boost:${wildTagBoost}:${seed}`)),
-            knobs: { ...wildKnobs, tierWild: 1000, topicCap: 1000, pageSize: 1 },
+            knobs: {
+              ...wildKnobs,
+              tierWild: 1000,
+              topicCap: 1000,
+              pageSize: 1,
+            },
             tasteKeywords: ["botanical plate"],
           });
           if (cards[0]?.item.id === favoured.id) hits++;
@@ -499,7 +519,9 @@ describe("composePage", () => {
       const favoured = makeUnhomed({ aestheticTags: ["botanical plate"] });
       const wildPool = [
         favoured,
-        ...Array.from({ length: 3 }, () => makeUnhomed({ aestheticTags: ["x"] })),
+        ...Array.from({ length: 3 }, () =>
+          makeUnhomed({ aestheticTags: ["x"] }),
+        ),
       ];
       const cards = composePage({
         weights: new Map([["only", 1]]),
@@ -536,6 +558,73 @@ describe("composePage", () => {
     });
     expect(cards).toHaveLength(3);
     expect(cards.every((c) => c.topicId === "only")).toBe(true);
+  });
+
+  // ── sourceCap (09-07-26) ──────────────────────────────────────────────────────────────────
+  // Born from the first sovietpostcards walk: a 17,500-item blog became 92-100% of four grown
+  // topics, so drifting into `illustration` meant a page of nothing but Soviet postcards. The cap
+  // is the page-level answer — the sibling of topicCap, counted per SOURCE — and its one subtlety
+  // is that it must filter *before* the draw, so a topic whose other sources are a 2% minority
+  // still spends that minority rather than skipping the slot.
+  it("respects the per-page source cap, spending the topic's other sources first", () => {
+    const weights = new Map([["only", 1]]);
+    const pool = [
+      ...Array.from({ length: 20 }, (_, i) =>
+        makeItem({ id: `big-${i}`, topicId: "only", source: "big" }),
+      ),
+      ...Array.from({ length: 2 }, (_, i) =>
+        makeItem({ id: `small-${i}`, topicId: "only", source: "small" }),
+      ),
+    ];
+    const knobs: FeedKnobs = {
+      ...baseKnobs,
+      topicCap: 100,
+      sourceCap: 3,
+      pageSize: 10,
+    };
+    // Repeated, because a single draw once passed with the cap broken: the adjacency filter was
+    // rebuilding its candidates from the whole pool, and a lucky big/small/big/small order hid it.
+    for (let run = 0; run < 50; run++) {
+      const cards = composePage({
+        weights,
+        graph: {},
+        pools: new Map([["only", pool]]),
+        rng: Math.random,
+        knobs,
+      });
+      const bySource = (s: string) => cards.filter((c) => c.item.source === s);
+      // 3 from the capped source plus every one of the minority — 5 cards, never 10. (The
+      // minority is kept under the cap on purpose: the cap is per source, not per majority.)
+      expect(bySource("big")).toHaveLength(3);
+      expect(bySource("small")).toHaveLength(2);
+      expect(cards).toHaveLength(5);
+    }
+  });
+
+  it("counts WILD cards against the source cap too", () => {
+    // A wall of un-homed cards from one blog is the same reader problem as a wall of topic
+    // cards from one blog — the cap is per page, whichever tier drew the card.
+    const wildPool = Array.from({ length: 10 }, (_, i) =>
+      makeUnhomed({ id: `w-${i}`, source: "blog" }),
+    );
+    const knobs: FeedKnobs = {
+      ...baseKnobs,
+      tierCore: 0,
+      tierDrift: 0,
+      tierJump: 0,
+      tierWild: 1,
+      sourceCap: 2,
+      pageSize: 10,
+    };
+    const cards = composePage({
+      weights: new Map(),
+      graph: {},
+      pools: new Map(),
+      wildPool,
+      rng: Math.random,
+      knobs,
+    });
+    expect(cards).toHaveLength(2);
   });
 
   it("never repeats an item within the same page (in-page exclusion)", () => {
