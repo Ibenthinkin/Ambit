@@ -114,7 +114,8 @@ describe("structuralFloor", () => {
       source: "doorofperception",
       type: "image",
       title: "Colossal",
-      summary: "A caption long enough to clear the sixty-character museum rule easily.",
+      summary:
+        "A caption long enough to clear the sixty-character museum rule easily.",
     });
     // The caption-less picture-blog card: a one-word blog-label title AND an empty summary,
     // which is both rules at once and the exact shape T1 exists to keep.
@@ -171,6 +172,7 @@ describe("parseCuratorResponse", () => {
       // Phase 6.3 / Cut 1: parseCuratorResponse always reports topics, and outside classify mode
       // the honest answer is none — a museum item's topic comes from the seed query that found it.
       topics: [],
+      overFiled: 0,
     });
   });
 
@@ -429,7 +431,7 @@ describe("parseCuratorResponse — classify mode", () => {
       parseCuratorResponse('{"score": 8, "tags": ["a"], "topic": "botany"}', {
         topicIds: ids,
       }),
-    ).toEqual({ score: 8, tags: ["a"], topics: ["botany"] });
+    ).toEqual({ score: 8, tags: ["a"], topics: ["botany"], overFiled: 0 });
   });
 
   it("turns an invented topic id into null — never a foreign-key error 300 items in", () => {
@@ -472,6 +474,30 @@ describe("parseCuratorResponse — classify mode", () => {
     );
     expect(out.topics).toEqual([]);
     expect(out.score).toBe(9); // a refusal costs the item nothing
+  });
+
+  // MAX_TOPICS (09-07-26). The prompt has always said "never more than three", and the parser
+  // deliberately kept everything, on the argument that truncating would hide an over-filing
+  // model. Then the first sovietpostcards walk stored 89 items with 20+ memberships and nine
+  // filed under all 99 topics — the model listing the vocabulary back, in order. Hiding it was
+  // the wrong worry; STORING it was the harm. So: keep the first three (best fit first is the
+  // prompt's own order), and report how many were dropped so over-filing stays visible.
+  it("keeps only the first MAX_TOPICS known ids, and counts what it dropped", () => {
+    const many = new Set(["a", "b", "c", "d", "e"]);
+    const out = parseCuratorResponse(
+      '{"score": 8, "tags": [], "topics": ["e", "junk", "d", "c", "b", "a"]}',
+      { topicIds: many },
+    );
+    expect(out.topics).toEqual(["e", "d", "c"]);
+    expect(out.overFiled).toBe(2); // b and a — the invented "junk" was never a topic to drop
+  });
+
+  it("reports overFiled 0 for an answer inside the cap", () => {
+    expect(
+      parseCuratorResponse('{"score": 8, "tags": [], "topics": ["botany"]}', {
+        topicIds: ids,
+      }).overFiled,
+    ).toBe(0);
   });
 
   it('reads a legacy single "topic" key as a one-element list', () => {
@@ -591,6 +617,27 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
     await seedCache(it, { score: 8, tags: [], topics: ["botany", "zoology"] });
     const [out] = await curateItems([it], { classify: true });
     expect(out?.topics).toEqual(["botany", "zoology"]);
+  });
+
+  it("caps an over-long cached array on read, and reports it — no re-bill", async () => {
+    // The 09-06/07 walks wrote runaway lists into the cache before MAX_TOPICS existed. Those
+    // entries are read forward like every other one: capped to three, counted, never re-billed.
+    const it = makeItem({
+      source: "doorofperception",
+      sourceId: `cache-fwd-${Date.now()}-d`,
+    });
+    await seedCache(it, {
+      score: 8,
+      tags: [],
+      topics: ["botany", "zoology", "poetry", "machines", "clay"],
+    });
+    const overFiled: number[] = [];
+    const [out] = await curateItems([it], {
+      classify: true,
+      onOverFiled: (_item, n) => overFiled.push(n),
+    });
+    expect(out?.topics).toEqual(["botany", "zoology", "poetry"]);
+    expect(overFiled).toEqual([2]);
   });
 
   it("PROMPT_VERSION is still 1 — bumping it would re-bill every walk item for nothing", () => {

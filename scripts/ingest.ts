@@ -70,7 +70,11 @@ import type {
   CuratedItem,
   StructuralDropRule,
 } from "~/server/services/curator";
-import { curateItems, structuralFloor } from "~/server/services/curator";
+import {
+  curateItems,
+  MAX_TOPICS,
+  structuralFloor,
+} from "~/server/services/curator";
 import { runWalk, type WalkRunStats } from "~/server/services/walk-run";
 import { blogConfig } from "~/server/config/blogs";
 import { isSuspendedSource } from "~/server/config/suspended-sources";
@@ -421,6 +425,7 @@ async function main() {
   // feed can't show what the curator couldn't fetch" is the AIC lesson; this is the counter that
   // makes it visible at the moment it happens rather than months later.
   const imageFetchFailures: Record<string, number> = {};
+  const overFiled: Record<string, number> = {};
   let lastPrintedPct = -1;
   const curateOpts = {
     onProgress: (done: number, total: number) => {
@@ -432,6 +437,12 @@ async function main() {
     },
     onImageFetchFailure: (it: NormalizedItem) => {
       imageFetchFailures[it.source] = (imageFetchFailures[it.source] ?? 0) + 1;
+    },
+    // Classify answers that named more than MAX_TOPICS known topics (09-07-26): kept to three,
+    // and counted here per source so an over-filing model shows up in THIS summary rather than
+    // as a topic's membership count next month. Zero is the expected reading.
+    onOverFiled: (it: NormalizedItem) => {
+      overFiled[it.source] = (overFiled[it.source] ?? 0) + 1;
     },
   };
   const neutral = (it: NormalizedItem): CuratedItem => ({
@@ -559,6 +570,7 @@ async function main() {
     statsBySource,
     collisionCountBySource,
     imageFetchFailures,
+    overFiled,
     alreadyInDb: alreadyInDb + alreadyInDbWalk,
     flooredByRule,
     curatedCount: curatedSearch.length + curatedWalk.length,
@@ -589,6 +601,8 @@ function printSummary(args: {
   /** Per source, how many items the curator scored from text alone because their image would not
    *  fetch. Zero is the expected reading; anything else is the AIC failure mode showing up. */
   imageFetchFailures: Record<string, number>;
+  /** Per source, classify answers that named more than MAX_TOPICS topics and were capped. */
+  overFiled: Record<string, number>;
   alreadyInDb: number;
   flooredByRule: Record<StructuralDropRule, number>;
   curatedCount: number;
@@ -615,6 +629,7 @@ function printSummary(args: {
     statsBySource,
     collisionCountBySource,
     imageFetchFailures,
+    overFiled,
     alreadyInDb,
     flooredByRule,
     curatedCount,
@@ -698,6 +713,16 @@ function printSummary(args: {
       console.log(`  ${topicId.padEnd(24)} ${n}`);
     }
     console.log(`  ${"(un-homed — stored)".padEnd(24)} ${histogram.unhomed}`);
+    const overFiledTotal = Object.values(overFiled).reduce((a, b) => a + b, 0);
+    if (overFiledTotal > 0) {
+      console.log(
+        `  over-filed answers (kept first ${MAX_TOPICS}): ${Object.entries(
+          overFiled,
+        )
+          .map(([id, n]) => `${id} ${n}`)
+          .join(" · ")}`,
+      );
+    }
     for (const [id, n] of Object.entries(pruned)) {
       console.log(`pruned from ${id}: ${n}`);
     }

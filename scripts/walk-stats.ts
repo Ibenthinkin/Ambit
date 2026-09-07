@@ -84,9 +84,14 @@ for (const d of dropped) byRule.set(d.rule, (byRule.get(d.rule) ?? 0) + 1);
 const { listAllTopics } = await import("~/server/db/topics");
 const { isRealTopic } = await import("~/server/config/topics");
 const classifyVocabulary = (await listAllTopics()).filter(isRealTopic);
+// Answers that named more than MAX_TOPICS topics — capped to three by the parser, counted here
+// because a blog that makes the model list the vocabulary back is a fact worth seeing in the
+// verdict (sovietpostcards did it 89 times in 17,463; 09-07-26).
+let overFiled = 0;
 const curated = await curateItems(kept, {
   classify: true,
   topics: classifyVocabulary,
+  onOverFiled: () => overFiled++,
 });
 const classified = curated.filter((c) => c.topics.length > 0);
 const unhomed = curated.filter((c) => c.topics.length === 0);
@@ -121,7 +126,8 @@ console.log(
 );
 console.log(
   `  classified ${classified.length} (avg ${avg(classified)}) · un-homed ${unhomed.length} (avg ${avg(unhomed)}) · ` +
-    `stored ${pct(curated.length, offered.length)} of offered · un-homed ${pct(unhomed.length, curated.length)} of stored`,
+    `stored ${pct(curated.length, offered.length)} of offered · un-homed ${pct(unhomed.length, curated.length)} of stored` +
+    (overFiled > 0 ? ` · over-filed ${overFiled} (kept first 3)` : ""),
 );
 
 const topics = new Map<string, number>();

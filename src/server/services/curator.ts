@@ -246,6 +246,32 @@ async function imageAsDataUrl(url: string): Promise<string | null> {
 }
 
 /**
+ * The most topics one classify answer may carry (09-07-26). The prompt has said "never more than
+ * three" since 6.3, and until this constant existed the parser kept everything on purpose — the
+ * argument being that truncating would hide a model that over-files. Then the first
+ * sovietpostcards walk stored 89 items with 20+ memberships and nine filed under all 99 topics:
+ * the model listing the vocabulary straight back, in order. Hiding over-filing was the wrong
+ * worry; STORING it was the harm — every one of those rows was a wrong answer the feed could
+ * draw. So the cap is enforced here, on the model's own best-fit-first order, and the number
+ * dropped is reported (`overFiled`) rather than swallowed, which keeps the honesty the old
+ * comment was after. `scripts/trim-memberships.ts` is the one-off that applied it to rows
+ * written before this date.
+ */
+export const MAX_TOPICS = 3;
+
+/** Apply MAX_TOPICS to an already-validated, deduplicated topic list. Used on both the parse
+ *  path and the cache-read path, so an entry written before the cap is capped the same way. */
+export function capTopics(topics: readonly string[]): {
+  topics: string[];
+  overFiled: number;
+} {
+  return {
+    topics: topics.slice(0, MAX_TOPICS),
+    overFiled: Math.max(0, topics.length - MAX_TOPICS),
+  };
+}
+
+/**
  * Parse + validate one curator chat response. Split out from scoreItem() so the untrusted-JSON
  * handling is unit-testable without a network call: trust nothing the model says past "it's
  * valid JSON" — clamp the score into 1-10, coerce tags to a short list of lowercase strings, and
@@ -259,6 +285,8 @@ export function parseCuratorResponse(
   score: number;
   tags: string[];
   topics: string[];
+  /** How many KNOWN topic ids past MAX_TOPICS the model named. 0 outside classify mode. */
+  overFiled: number;
 } {
   const parsed: unknown = JSON.parse(content);
   const record =
@@ -285,25 +313,27 @@ export function parseCuratorResponse(
   // defences, both cheap: only ids in `topicIds` survive, because the model is capable of
   // inventing "psychedelia" and a foreign-key error deep into an ingest run is the worst place to
   // learn that; and duplicates collapse. A legacy single `"topic"` key is read as a one-element
-  // list so an old-style answer still lands. The PROMPT caps the list at three, not this parser:
-  // truncating here would hide a model that over-files, and the whole point is honesty.
+  // list so an old-style answer still lands. Then MAX_TOPICS: the first three survive and the
+  // rest are counted, not kept — see the constant for why that reversed.
   const known = opts?.topicIds;
   const rawTopics: unknown[] = Array.isArray(record.topics)
     ? record.topics
     : typeof record.topic === "string"
       ? [record.topic]
       : [];
-  const topics = known
-    ? [
-        ...new Set(
-          rawTopics.filter(
-            (t): t is string => typeof t === "string" && known.has(t),
+  const { topics, overFiled } = capTopics(
+    known
+      ? [
+          ...new Set(
+            rawTopics.filter(
+              (t): t is string => typeof t === "string" && known.has(t),
+            ),
           ),
-        ),
-      ]
-    : [];
+        ]
+      : [],
+  );
 
-  return { score, tags, topics };
+  return { score, tags, topics, overFiled };
 }
 
 /** Cache dir at the repo root (not under src/), same cache-aside pattern as phase0's scripts — a
@@ -370,6 +400,7 @@ async function scoreItem(
 ): Promise<{
   score: number;
   tags: string[];
+  overFiled: number;
   topics: string[];
   tokens: number;
   imageFetchFailed: boolean;
@@ -395,8 +426,10 @@ async function scoreItem(
         score: cached.score,
         tags: cached.tags,
         // `topicId: "botany"` → ["botany"]; `topicId: null` → []. This one line is why Cut 1
-        // re-bills zero items — see curationCacheKey's comment before "fixing" it.
-        topics: cached.topics ?? (cached.topicId ? [cached.topicId] : []),
+        // re-bills zero items — see curationCacheKey's comment before "fixing" it. Capped on the
+        // way out (MAX_TOPICS) so a runaway list written before the cap is read forward the same
+        // way a fresh answer is parsed — and reported, not re-billed.
+        ...capTopics(cached.topics ?? (cached.topicId ? [cached.topicId] : [])),
         tokens: 0,
         imageFetchFailed: false,
       };
@@ -426,7 +459,9 @@ async function scoreItem(
     // ~58 GB of somebody else's bandwidth spent on a judgement 500 px would have reached, and
     // every byte of it is time the walk spends not walking. `imageUrl` stays what is stored and
     // shown; this is never a substitute for it.
-    const dataUrl = await imageAsDataUrl(item.curationImageUrl ?? item.imageUrl);
+    const dataUrl = await imageAsDataUrl(
+      item.curationImageUrl ?? item.imageUrl,
+    );
     if (dataUrl)
       content.push({ type: "image_url", image_url: { url: dataUrl } });
     else {
@@ -528,6 +563,11 @@ export async function curateItems(
     topics?: readonly { id: string; label: string }[];
     onProgress?: (done: number, total: number) => void;
     onImageFetchFailure?: (item: NormalizedItem) => void;
+    /** Called once per item whose classify answer named more than MAX_TOPICS known topics, with
+     *  how many were dropped. Ingest counts these per source and prints them: an over-filing
+     *  model is a fact about the prompt-and-blog pairing, and it should show up in the summary
+     *  rather than in a topic's membership count months later. */
+    onOverFiled?: (item: NormalizedItem, dropped: number) => void;
   },
 ): Promise<CuratedItem[]> {
   const out: CuratedItem[] = new Array<CuratedItem>(items.length);
@@ -540,15 +580,14 @@ export async function curateItems(
       const item = items[i];
       if (!item) continue;
       try {
-        const { score, tags, topics, imageFetchFailed } = await scoreItem(
-          item,
-          {
+        const { score, tags, topics, overFiled, imageFetchFailed } =
+          await scoreItem(item, {
             force: opts?.force ?? false,
             classify: opts?.classify ?? false,
             ...(opts?.topics ? { topics: opts.topics } : {}),
-          },
-        );
+          });
         if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
+        if (overFiled > 0) opts?.onOverFiled?.(item, overFiled);
         out[i] = {
           ...item,
           curationScore: score,

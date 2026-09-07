@@ -31,6 +31,7 @@
     "stats:walk": "bun run scripts/walk-stats.ts",
     "mine:topics": "bun run scripts/mine-topics.ts",
     "promote:topics": "bun run scripts/promote-topics.ts",
+    "trim:memberships": "bun run scripts/trim-memberships.ts",
     "graph:rebuild": "bun run scripts/rebuild-topic-graph.ts",
     "start": "bun run --bun next start",
     "e2e": "playwright test",
