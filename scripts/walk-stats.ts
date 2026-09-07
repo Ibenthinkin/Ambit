@@ -16,7 +16,9 @@
  * source, and the `un-homed tags` line is what a new topic gets proposed from. Run it AFTER the
  * dry-run of the same source and quota and every curator call answers from the on-disk
  * curation cache, so the report is free; run it first and it bills the same cents the dry-run
- * would. Writes nothing to the DB either way.
+ * would. Writes nothing to the DB either way. The `image fetch` line is the one number that
+ * differs between those two runs: only a fresh call fetches an image, so read the failure count
+ * against the fresh-call count beside it, not against the sample size.
  *
  * **`--quota` counts ITEMS, and since 09-06-26 a Tumblr post can be several of them** — the
  * walker fans a multi-picture post out into one item per picture (tumblr.ts expandPictures), so
@@ -89,11 +91,23 @@ const classifyVocabulary = (await listAllTopics()).filter(isClassifiable);
 // because a blog that makes the model list the vocabulary back is a fact worth seeing in the
 // verdict (sovietpostcards did it 89 times in 17,463; 09-07-26).
 let overFiled = 0;
+// The curator's image-fetch tally (09-07-26). An image the curator cannot pull is scored from
+// its text alone — a different measurement, half a point lower on average when it happened to
+// LoC in 6.2 — and ingest has printed the count per source since then; this report assumed it
+// did too (the Loupe plan read it here) and never had. Two numbers, because one is not honest
+// on its own: a cache hit reports no failure since it made no fetch, so on the documented
+// "run it after the dry-run and it's free" path every call is a hit and the failure count is
+// zero whether or not the images are reachable. The line says how many calls actually fetched.
+let imageFetchFailed = 0;
+let cacheHits = 0;
 const curated = await curateItems(kept, {
   classify: true,
   topics: classifyVocabulary,
   onOverFiled: () => overFiled++,
+  onImageFetchFailure: () => imageFetchFailed++,
+  onCacheHit: () => cacheHits++,
 });
+const freshCalls = curated.length - cacheHits;
 const classified = curated.filter((c) => c.topics.length > 0);
 const unhomed = curated.filter((c) => c.topics.length === 0);
 
@@ -117,6 +131,12 @@ console.log(
 console.log(
   `  curated: avg ${avg(curated)} · min ${Math.min(...scores)} · max ${Math.max(...scores)} · ` +
     `≥8 ${pct(scores.filter((s) => s >= 8).length, scores.length)}`,
+);
+console.log(
+  `  image fetch: ${imageFetchFailed} failed of ${freshCalls} fresh call${freshCalls === 1 ? "" : "s"}` +
+    (cacheHits > 0
+      ? ` · ${cacheHits} from cache (a cache hit fetches nothing, so it can report no failure)`
+      : ""),
 );
 console.log(
   `  histogram: ` +

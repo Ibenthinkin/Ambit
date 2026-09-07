@@ -275,6 +275,16 @@ describe("curateItems image-fetch reporting", () => {
     expect(failures.sort()).toEqual(["curator-test-a", "curator-test-b"]);
   });
 
+  it("does not report a cache hit for a fresh call", async () => {
+    stubFetch(404);
+    const hits: string[] = [];
+    await curateItems(
+      [makeItem({ sourceId: `curator-test-fresh-${Date.now()}` })],
+      { force: true, onCacheHit: (it) => hits.push(it.sourceId) },
+    );
+    expect(hits).toEqual([]);
+  });
+
   it("says nothing for an article item, which has no image to fetch", async () => {
     stubFetch(429);
     const failures: string[] = [];
@@ -646,6 +656,24 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
     await seedCache(it, { score: 9, tags: ["mural"], topicId: null });
     const [out] = await curateItems([it], { classify: true });
     expect(out).toMatchObject({ curationScore: 9, topics: [] });
+  });
+
+  // Why a hook and not a return field (09-07-26): the walk-stats report prints the curator's
+  // image-fetch failures, and a cache hit reports none — it made no fetch. So "0 failed" on a
+  // run answered from cache is not a clean run, it is an unmeasured one, and the report can only
+  // say which if it knows how many calls were fresh.
+  it("reports a cache hit through onCacheHit, so a caller can tell a free run from a clean one", async () => {
+    const it = makeItem({
+      source: "doorofperception",
+      sourceId: `cache-fwd-${Date.now()}-d`,
+    });
+    await seedCache(it, { score: 7, tags: [], topics: ["botany"] });
+    const hits: string[] = [];
+    await curateItems([it], {
+      classify: true,
+      onCacheHit: (item) => hits.push(item.sourceId),
+    });
+    expect(hits).toEqual([it.sourceId]);
   });
 
   it("a Cut 1 entry round-trips its array", async () => {

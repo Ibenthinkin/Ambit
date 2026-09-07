@@ -215,7 +215,12 @@ Corpus 41,187.
   the main checkout's caches do not know about loupe. A re-walk from the main checkout after the
   merge costs ~$0.03 and 30 s. `--prune` after any Loupe triage session.
 - **Small follow-ups, none blocking:** `walk-stats.ts` should print the curator's image-fetch
-  tally (the plan assumed it did); Loupe-side, 13 short clippings have a summary identical to
+  tally (the plan assumed it did) — **done the same evening** on `feat/walk-stats-fetch-tally`,
+  built in a worktree while walk 2 held the main checkout: the report now prints `image fetch:
+  N failed of M fresh calls · K from cache`, two numbers because a cache hit fetches nothing and
+  so reports no failure, which made a bare "0 failed" on the documented free second run an
+  unmeasured number rather than a clean one (`curateItems` gained `onCacheHit`). Not merged;
+  merge after the walk finishes. Loupe-side, 13 short clippings have a summary identical to
   their body and the item page shows both.
 
 *Session spend: 4.65M tok (in 75 · out 31.1k · cache r 4.07M / w 549.9k) · ~≥$1.11 · fable-5-1 + opus-4-7 · 09:33→13:24*

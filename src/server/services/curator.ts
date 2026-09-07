@@ -413,6 +413,8 @@ async function scoreItem(
   topics: string[];
   tokens: number;
   imageFetchFailed: boolean;
+  /** True when the answer came from the on-disk cache and no fetch of any kind was made. */
+  cached: boolean;
 }> {
   const classify = opts.classify ?? false;
   const vocabulary = opts.topics ?? TOPICS;
@@ -441,6 +443,7 @@ async function scoreItem(
         ...capTopics(cached.topics ?? (cached.topicId ? [cached.topicId] : [])),
         tokens: 0,
         imageFetchFailed: false,
+        cached: true,
       };
     } catch {
       // no cache entry yet — fall through and call the LLM
@@ -535,6 +538,7 @@ async function scoreItem(
         ...result,
         tokens: json.usage?.total_tokens ?? 0,
         imageFetchFailed,
+        cached: false,
       };
     } catch (err) {
       lastErr = err;
@@ -574,6 +578,12 @@ export async function curateItems(
     topics?: readonly { id: string; label: string }[];
     onProgress?: (done: number, total: number) => void;
     onImageFetchFailure?: (item: NormalizedItem) => void;
+    /** Called once per item answered from the on-disk cache (09-07-26). The companion to
+     *  `onImageFetchFailure`: a cache hit reports no failure because it made no fetch, so a
+     *  caller that prints "N images failed" can only call zero a *clean* number rather than an
+     *  *unmeasured* one if it also knows how many calls were fresh. `stats:walk` is the caller;
+     *  its report is documented as free on a second run, and this is what lets it say so. */
+    onCacheHit?: (item: NormalizedItem) => void;
     /** Called once per item whose classify answer named more than MAX_TOPICS known topics, with
      *  how many were dropped. Ingest counts these per source and prints them: an over-filing
      *  model is a fact about the prompt-and-blog pairing, and it should show up in the summary
@@ -591,12 +601,13 @@ export async function curateItems(
       const item = items[i];
       if (!item) continue;
       try {
-        const { score, tags, topics, overFiled, imageFetchFailed } =
+        const { score, tags, topics, overFiled, imageFetchFailed, cached } =
           await scoreItem(item, {
             force: opts?.force ?? false,
             classify: opts?.classify ?? false,
             ...(opts?.topics ? { topics: opts.topics } : {}),
           });
+        if (cached) opts?.onCacheHit?.(item);
         if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
         if (overFiled > 0) opts?.onOverFiled?.(item, overFiled);
         out[i] = {
