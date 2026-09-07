@@ -288,6 +288,17 @@ retracted by an automated process.** Every write is `INSERT ... ON CONFLICT DO N
 topic can only widen an item's reach; removing one silently takes items out of feeds. Removal is a
 deliberate, human-triggered operation, and Cut 1 does not build one.
 
+> **The one dated exception — 09-07-26, `bun run trim:memberships`.** The rule assumed the rows
+> were honest. Handed all 99 topics (09-06), the classifier sometimes listed the vocabulary
+> straight back: 89 sovietpostcards items landed 20+ memberships, nine landed all 99, and the
+> parser stored every id it recognised. `MAX_TOPICS` (curator.ts) now caps a classify answer at
+> three at the parser, and the script applied the same cap to rows written before it existed,
+> by the cached answer's own best-fit-first order — `origin: "curator"` rows only, the display
+> topic always kept, nothing removed for an item with no cache entry (`services/membership-trim.ts`
+> and its test are the rules). Run locally the same day: 5,829 items, 14,682 rows. It was
+> human-triggered, it is idempotent, and it is the whole of what "deliberate removal" has meant
+> so far.
+
 ---
 
 ## 6. Curator changes — `src/server/services/curator.ts`
@@ -470,6 +481,14 @@ drift / bottom-K jump rows; moving the feed onto `item_topic` and dropping `item
 item can be drawn under *any* of its topics rather than only its display one. **Neither is urgent
 at the size Cut 2a produced**: 99 topics is 9,702 edges and 647 KB, and the table becomes necessary
 around 300 topics. `rebuild-topic-graph.ts` was written so 2b changes its sink, not its arithmetic.
+
+> **09-07-26 — re-evaluated against the first big walk, and deferred with evidence.** After
+> sovietpostcards (17,500 items) became 92-100% of four grown topics, the join move was sized as
+> the remedy — and does not remedy it: by *membership* those topics are 90-98% the same blog, so
+> drawing through `item_topic` changes nothing about the arithmetic, and it would have exposed the
+> over-filed memberships above to the feed. What shipped instead: `sourceCap` (a per-page,
+> per-source cap in `composePage`, sibling of `topicCap`) and `MAX_TOPICS` (above). 2b stays
+> scale-triggered, as this section says; it is not a diversity tool.
 
 **And one feel question 2b inherits**: with 83 grown topics against 16 core, a sampled 96 cards came
 back 59 grown / 37 core. CORE still draws only core topics (weights come from chips), but DRIFT and

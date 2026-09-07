@@ -5,6 +5,84 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-07-26 Mon]] — Cut 2b sized, found wanting; sourceCap and MAX_TOPICS instead
+
+Ben's call on the sovietpostcards topic-capture finding was **Cut 2b**. Sizing it against the
+local database before planning it reversed the recommendation, and he switched to the three-step
+version below. Branch `feat/wild-tier-and-captionless`, two commits, not pushed.
+
+**Findings, the ones that changed the plan:**
+- **The join move does not dissolve the capture.** Yesterday's entry said `illustration` would
+  draw its 5,181 memberships *plus* everything else that is a member. The "everything else" is
+  180 items. By membership the captured topics look exactly as they do by display topic —
+  `19th-century` 95% sovietpostcards, `illustration` 98%, `photography` 92%, `books` ~90%. A
+  17,500-item blog about illustration *is* most of the corpus's illustration under any query;
+  no pool change touches that arithmetic.
+- **The classifier over-files, sometimes catastrophically.** The prompt says "never more than
+  three" and the parser kept everything on purpose ("truncating would hide over-filing").
+  sovietpostcards averaged 3.76 memberships; 89 items carried 20+, and nine carried **all 99** —
+  two cache entries opened: the model listing the vocabulary back in order. Colossal, under the
+  same prompt, maxes at 9. Thin captions plus a 99-line list is the trigger. The join would have
+  made every one of those rows drawable.
+- **`19th-century` is wrong for most of what is in it.** 12,253 sovietpostcards memberships, 70%
+  of the blog: a 1961 Titov spaceflight book, a 1980s "Space" lamp, a 1970s sports poster.
+- **Wording does not fix that.** A 100-item probe, fresh classify into a scratch cache (~6¢ for
+  three runs): labels as-is **52** in `19th-century`; label "made in the 1800s — NOT 20th-century
+  vintage" **41**; label "ONLY for work dated 1801-1900. Anything dated 19xx is NEVER this topic"
+  **31** — and *Kozytskogo Street in Vinnytsya, 1988* stays under it through all three. The model
+  reads "old-looking" and reaches for the only period in the list; it does not weigh a date it
+  was handed against a label. First trap of the probe, worth knowing: the cache key deliberately
+  ignores the topic list, so a variant run from the same cwd silently returns the control's
+  answers — one scratch directory per variant.
+- **One of my own.** The first `sourceCap` cut passed its unit test and then let five colossal
+  cards through on a real page: the cap filtered candidates, and the adjacency filter below it
+  rebuilt candidates from the whole pool. A single-draw test hid it by luck of order; the test now
+  runs the draw fifty times and the live probe is what caught it.
+
+**Shipped:**
+- **`sourceCap`** (`b088393`) — per-page, per-source cap across every tier including WILD,
+  `topicCap`'s sibling, default 3 of 12, slider on `/dev/feed`. Enforced *before* the draw:
+  `pickItem` filters a capped source out, so a topic whose other sources are a 2% minority spends
+  that minority rather than skipping the slot. Six real pages after: no source above three, all
+  twelve slots filled. The feed test fixture now gives every item its own source (they were all
+  `wikipedia`, which the cap would have tripped on), and the `getWildPool` integration teardown
+  clears `seen_item` rows that other suites' WILD draws leave pointing at its fixtures — a
+  pre-existing cross-suite flake found by running the feed suites together.
+- **`MAX_TOPICS`** (`890cfbb`) — the parser keeps the first three known ids in the model's own
+  best-fit order and returns `overFiled`; the cache-read path applies the same cap so pre-cap
+  entries read forward with no re-bill; ingest prints a per-source over-filed line under the
+  classification block, `stats:walk` adds it to the verdict line. **`bun run trim:memberships
+  --confirm`** applied the cap retroactively by the cached order — the one dated exception to
+  Cut 1's additivity rule, argued in `services/membership-trim.ts` and now in the design doc §5:
+  **5,829 items, 14,682 rows** (sovietpostcards 14,513, pdr 169), curator-origin rows now max 3,
+  avg 2.31, idempotent. Larger than the 89 runaways because 5,000 items carried a fourth or fifth
+  membership; that is the cap at three applied evenly, which is what Ben approved.
+- 94 files / 1,095 tests green; design doc §11 records why 2b was re-evaluated and stays
+  scale-triggered.
+
+**Decisions:** Cut 2b deferred with evidence (Ben, on the numbers above); the cap at three
+rather than the runaways alone; the probe was read-only and its scratch caches are not in the
+repo.
+
+**Open / next:**
+- **`19th-century` is Ben's call, and no prompt wording will make it.** The honest options:
+  (a) take period topics out of the classify vocabulary — a period is metadata, and source tags
+  (`1900s`, `1960s`, `19th century`) carry it reliably where the model does not — then repair the
+  ~11,000 curator-origin sovietpostcards rows under it (keep only where title/tags carry an 18xx
+  date or "19th century"); (b) accept it. (a) is a `topic` column or a config set, plus a
+  variant of the trim script. Not done: the probe was scoped to measure, and the repair rule
+  needs his eye on what "19th century" should mean for a blog that spans 1880-1990.
+- **The other three walks are still gated on Ben**: raise each `walkQuota` ~25% for the
+  posts-vs-items gap, then un-suspend blog 2. With `sourceCap` shipped the capture is a page-level
+  non-event; the classifier fix above is the remaining reason to wait or not.
+- **A second session built the Loupe hookup today** on `feat/loupe-hookup` in a worktree with the
+  wild-tier branch merged in — *before* these two commits. Whichever merges second picks up a
+  trivial `feed-knobs.ts`/`curator.ts` merge.
+- `bench:feed` p50 at 58 ms (yesterday's note) is untouched by any of this and still worth a look
+  before three more blogs land.
+
+*Session spend: 34.20M tok (in 460 · out 144.5k · cache r 33.42M / w 639.2k) · ~≥$2.35 · fable-5-1 + opus-4-7 · 09:05→09:37*
+
 ### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
 
 Short session, no code. Ben asked why `thevaultoftheatomicspaceage` and `thisisnthappiness` read
