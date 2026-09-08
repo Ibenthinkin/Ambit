@@ -127,6 +127,12 @@
                                                       an exit animation before unmounting (see that
                                                       component's EXIT_MS), so the menu variant
                                                       needs a symmetric — and fast — way out */
+  --animate-dialog-in: dialog-in 0.2s ease both; /* a bottom sheet above `md` (the desktop pass):
+                                  the same panel, centered, arriving as a dialog does — a short
+                                  fade-and-settle rather than a slide from an edge that is
+                                  nowhere near it. */
+  --animate-dialog-out: dialog-out 0.15s ease both; /* the exit half; `BottomSheet`'s fallback
+                                  timer is longer than this, as it must be. */
   --animate-scrim-in: scrim-in 0.3s ease both;
   --animate-scrim-out: scrim-out 0.26s ease both; /* matched to sheet-down so the scrim and the
                                                       panel leave together */
@@ -242,6 +248,30 @@
     to {
       opacity: 0;
       transform: translateY(-6px);
+    }
+  }
+  /* The keyframes carry the centering translate themselves because an animation's `transform`
+     replaces the element's own, and the desktop panel is centered by `-translate-x-1/2
+     -translate-y-1/2`. Without it the panel would jump to the top-left corner for the length of
+     the animation. */
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+  @keyframes dialog-out {
+    from {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.97);
     }
   }
   @keyframes scrim-in {

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { DESKTOP_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { cn } from "~/lib/utils";
 
 // The shared bottom-sheet shell: a 22px-top-radius panel sliding up from the bottom over a blurred
@@ -130,6 +131,9 @@ const ANIMATIONS = {
   // The gallery pair. Longer and further than the pill sheets (see globals.css) — this one arrives
   // over a photograph, and a snappy 260ms would read as an interruption rather than an unfolding.
   gallery: { in: "animate-sheet-gallery", out: "animate-sheet-gallery-out" },
+  // Above `md` every variant uses this one (docs/DESIGN_desktop-polish.md §3): the panel is
+  // centered, so a slide from the bottom edge would travel half a screen to get there.
+  dialog: { in: "animate-dialog-in", out: "animate-dialog-out" },
 } as const;
 
 // Per-variant panel styling. The gallery values are the prototype's own, inlined here rather than
@@ -140,6 +144,13 @@ const PANEL = {
   gallery:
     "rounded-t-[26px] border-ink/12 shadow-[0_-12px_50px_rgba(0,0,0,0.5)] overscroll-contain",
 } as const;
+
+// Above `md` the panel stops being a sheet: 520px, centered both ways, every corner rounded at
+// the sheet radius, a full hairline border rather than a top one. `md:inset-auto` clears the
+// phone's `inset-x-0 bottom-0` before the `left/top` pair re-anchors it. `overscroll-contain`
+// so a wheel at the end of the rows doesn't scroll the page underneath.
+const PANEL_DESKTOP =
+  "md:inset-auto md:left-1/2 md:top-1/2 md:w-[520px] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-sheet md:border md:overscroll-contain";
 
 /**
  * There's no point animating a sheet out for someone who asked the OS for less motion — globals.css
@@ -171,6 +182,9 @@ export function BottomSheet({
   // and the sheet is on screen whenever either is true.
   const [leaving, setLeaving] = React.useState(false);
   const [prevOpen, setPrevOpen] = React.useState(open);
+  // One read, shared by the animation pair, the panel skin and the gesture gate below. Sheets
+  // only ever render on the client (they open from a tap), so the server snapshot never paints.
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const panelRef = React.useRef<HTMLDivElement>(null);
   // Whatever had focus before the sheet opened, so it can be handed back on close — otherwise a
   // keyboard user is dumped at the top of the document every time a sheet dismisses.
@@ -295,8 +309,13 @@ export function BottomSheet({
   }, [open]);
 
   // `variant` wins over `animation` when it's the gallery: that pair *is* the variant, and no call
-  // site has any reason to mix the gallery's skin with the menu's lift.
-  const pair = variant === "gallery" ? "gallery" : animation;
+  // site has any reason to mix the gallery's skin with the menu's lift. Above `md` the dialog pair
+  // wins over both, because the panel is centered there and has no edge to slide from.
+  const pair = isDesktop
+    ? "dialog"
+    : variant === "gallery"
+      ? "gallery"
+      : animation;
 
   // ── the drag gesture (5.8) ────────────────────────────────────────────────────────────────────
   // Refs, not state, throughout the gesture itself: the panel is moved by writing to its own
@@ -324,7 +343,9 @@ export function BottomSheet({
     onSwipeSideRef.current = onSwipeSide;
   });
 
-  const gestureEnabled = dragToClose || Boolean(onSwipeSide);
+  // No drag-to-close and no sideways cycling on a desktop: there is no finger, the grabber is
+  // hidden, and a mouse wheel over the rows must never be mistaken for a pull.
+  const gestureEnabled = !isDesktop && (dragToClose || Boolean(onSwipeSide));
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const el = panelRef.current;
@@ -474,6 +495,7 @@ export function BottomSheet({
           // the cap would otherwise spill out of the rounded panel and paint over the scrim.
           "border-hairline bg-surface absolute inset-x-0 bottom-0 flex flex-col overflow-y-auto border-t pt-2 pb-[26px] outline-none",
           PANEL[variant],
+          PANEL_DESKTOP,
           leaving ? ANIMATIONS[pair].out : ANIMATIONS[pair].in,
         )}
       >
@@ -482,7 +504,7 @@ export function BottomSheet({
             every sheet but the gallery's, which passes `dragToClose` and makes it mean what it
             looks like — the whole top {@link GRAB_ZONE_PX}px of the panel is the handle, not just
             these four pixels. */}
-        <div className="flex shrink-0 flex-col items-center py-4">
+        <div className="flex shrink-0 flex-col items-center py-4 md:hidden">
           <div className="rounded-pill bg-ink/18 h-1 w-9" />
         </div>
         {title ? (
