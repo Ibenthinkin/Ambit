@@ -11,6 +11,9 @@ import { PillToolbar } from "~/components/ui/pill-toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
+import { Column } from "~/components/ui/column";
+import { useColumnCount } from "~/hooks/use-media-query";
+import { cn } from "~/lib/utils";
 import { saveToastText } from "~/lib/save-toast";
 import type { FeedKnobs } from "~/server/services/feed-knobs";
 import { api } from "~/trpc/react";
@@ -33,6 +36,14 @@ import { useFeedScroll } from "./use-feed-scroll";
 // Getting this wrong is the same class of bug 5.5 hit three separate times with
 // `absolute`-vs-`fixed`, and here it has a second face: the IntersectionObserver's root must be
 // the viewport (its default), never a ref'd element.
+
+// Literal, never computed — Tailwind's scanner reads source text (see masonry.ts on
+// `IMAGE_ASPECTS`). One entry per value `useColumnCount` can return.
+const GRID_COLS = {
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-4",
+} as const;
 
 // The dev panel's session mark, persisted so it outlives the tab (see `sessionMark` below).
 // Plain functions, not a hook: they read and write localStorage on demand, never during render.
@@ -233,20 +244,23 @@ export function FeedScreen({ topicLabels, dev }: FeedScreenProps) {
     [isDev, pages, coreIds],
   );
 
+  // 2 / 3 / 4 by viewport, hydration-safe — see `useMediaQuery` on why it isn't an effect.
+  const columnCount = useColumnCount();
+
   const { columns, firstPageTiles, cardCount } = React.useMemo(() => {
     const tiles = buildTiles(pages, topicLabels);
     // Only the first page gets an entrance animation, so the set of tiles that belong to it has to
-    // be identifiable after packing has interleaved them into two columns. Rebuilding page one on
+    // be identifiable after packing has interleaved them into its columns. Rebuilding page one on
     // its own is a dozen cards' worth of work and unambiguously correct, where re-deriving the
     // count from the tier rules would duplicate `buildTiles`' cadence logic in a second place.
     const firstPage =
       pages.length > 0 ? buildTiles([pages[0]!], topicLabels) : [];
     return {
-      columns: packColumns(tiles),
+      columns: packColumns(tiles, columnCount),
       firstPageTiles: new Set(tiles.slice(0, firstPage.length)),
       cardCount: pages.reduce((n, p) => n + p.cards.length, 0),
     };
-  }, [pages, topicLabels]);
+  }, [pages, topicLabels, columnCount]);
 
   // ── infinite scroll ───────────────────────────────────────────────────────────────────────────
   // The observer is created ONCE and never rebuilt, because tearing it down and re-observing on
@@ -331,34 +345,44 @@ export function FeedScreen({ topicLabels, dev }: FeedScreenProps) {
         .join(" ")
         .trim()}
     >
-      {/* `items-start` so a short column doesn't stretch to match a tall one — the two columns are
-          independent stacks that happen to sit side by side, which is the whole idea of a masonry. */}
-      <div className="grid grid-cols-2 items-start gap-1 px-1 pt-[58px]">
-        {columns.map((column, columnIndex) => (
-          <div key={columnIndex} className="flex flex-col gap-1">
-            {column.map((tile, tileIndex) => {
-              // Because tiles carry no `data-feed-id`: they're inert, and `?focus=` resolves an
-              // *item*, so giving them an id would only create a second thing to scroll to.
-              const key =
-                tile.kind === "because" ? tile.key : tile.card.item.id;
-              const body = (
-                <div data-feed-id={tile.kind === "because" ? undefined : key}>
-                  {renderTile(tile)}
-                </div>
-              );
-              // Only page one rises in. An appended page arriving mid-scroll with a staggered
-              // fade cascade doesn't read as "arriving" — it reads as flicker.
-              return firstPageTiles.has(tile) ? (
-                <Rise key={key} delayMs={tileIndex * 40}>
-                  {body}
-                </Rise>
-              ) : (
-                <React.Fragment key={key}>{body}</React.Fragment>
-              );
-            })}
-          </div>
-        ))}
-      </div>
+      {/* `items-start` so a short column doesn't stretch to match a tall one — the columns are
+          independent stacks that happen to sit side by side, which is the whole idea of a masonry.
+          The `Column` is the desktop cap (docs/DESIGN_desktop-polish.md §2): 1120px, centered in
+          whatever the dev drawer leaves. */}
+      <Column width="wide">
+        <div
+          data-testid="feed-columns"
+          className={cn(
+            "grid items-start gap-1 px-1 pt-[58px]",
+            GRID_COLS[columnCount],
+          )}
+        >
+          {columns.map((column, columnIndex) => (
+            <div key={columnIndex} className="flex flex-col gap-1">
+              {column.map((tile, tileIndex) => {
+                // Because tiles carry no `data-feed-id`: they're inert, and `?focus=` resolves an
+                // *item*, so giving them an id would only create a second thing to scroll to.
+                const key =
+                  tile.kind === "because" ? tile.key : tile.card.item.id;
+                const body = (
+                  <div data-feed-id={tile.kind === "because" ? undefined : key}>
+                    {renderTile(tile)}
+                  </div>
+                );
+                // Only page one rises in. An appended page arriving mid-scroll with a staggered
+                // fade cascade doesn't read as "arriving" — it reads as flicker.
+                return firstPageTiles.has(tile) ? (
+                  <Rise key={key} delayMs={tileIndex * 40}>
+                    {body}
+                  </Rise>
+                ) : (
+                  <React.Fragment key={key}>{body}</React.Fragment>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </Column>
 
       {/* The infinite-scroll trip wire. Always rendered — an observer with nothing to observe is
           an observer that never fires again once the list grows. */}
