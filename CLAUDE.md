@@ -52,7 +52,7 @@ edge, and the first account is signed up against an empty corpus (correct: D3 fi
 Coolify traps cost the evening and are written up in the walkthrough — the Postgres image field
 defaults to 18 rather than the pinned 17, and `POSTGRES_USER`/`POSTGRES_DB` are silently ignored
 after a resource's first start. **T7.3 shipped 08-31-26** — the first full ingest landed
-**11,313 items** across nine sources, all 16 topics filled, from the *nightly cron* run (Ben's
+**11,313 items** across nine sources, all 16 topics filled, from the _nightly cron_ run (Ben's
 manual run was killed mid-flight by a NUC host problem, but its curation cache on the volume made
 the cron run 70 min instead of two hours). One trap from that worth knowing before you debug
 anything scheduled on this host: **Coolify records every healthy ingest as `failed`** — its
@@ -61,7 +61,7 @@ run on to completion regardless, so **the task status is not evidence in either 
 database is the only honest witness** (the diagnostic query is in `PHASE8_PLAN_8.1.md` 7.3's
 fallback). Raising `scheduled_tasks.timeout` is 8.2's T3.0. **7.4 and 7.4c shipped
 08-31/09-01-26** — the image cache is warm for all nine sources; the wikipedia adapter now asks for 1600 px thumbnails instead of originals, and `bun run rethumb` is
-the row repair. Wikimedia throttles on-demand thumbnail *rendering* on a budget of roughly 60
+the row repair. Wikimedia throttles on-demand thumbnail _rendering_ on a budget of roughly 60
 renders refilling at ~20/min — a sustained `--rate 1` still 429s; warm it as 20-image chunks with
 75 s pauses (loop in the 8.1 walkthrough). **T8 (restore drill) and T9.2–9.5 (closing docs) remain**, so
 resume from
@@ -76,18 +76,32 @@ parked** (`SUSPENDED_SOURCES`, the only switch that keeps a
 registered walker out of the nightly ingest). Walk sources are now exempt from the dup-title floor
 rule, and `bun run stats:walk` prints the score distribution a verdict needs. Neither kept blog is
 on production yet — the nightly ingest walks them after the next deploy. **The Public Domain Review
-(`pdr`) was built and KEPT 09-02-26** — the fourth walk source and the first that is *not* a designated
+(`pdr`) was built and KEPT 09-02-26** — the fourth walk source and the first that is _not_ a designated
 blog (its images are public domain, its own text CC BY-SA 4.0), a walk over Gatsby `page-data` JSON
 with a per-record disk cache; **1,624 local rows @ 8.39, 87% ≥ 8**, of which 186 are un-homed under
 Cut 1. Local only until the next deploy, like the two blogs. It is also the first source whose
-*image* items carry a `body` — a collection's own CC BY-SA preamble, rendered under the picture —
+_image_ items carry a `body` — a collection's own CC BY-SA preamble, rendered under the picture —
 which is why the "walk rows carry no body" invariant is now scoped to blogs. **Loupe is hooked up
 as of 09-07-26** (`docs/PLAN_loupe-hookup.md`): the fifth walk source, keyed on `<ia>:<page>:<order>`
 never Loupe's `id`, with the Loupe bearer on both server-side image fetches
 (`services/image-auth.ts`); **132 rows locally @ 4.52** (131 OCR articles + 1 image — the low
 average is the clippings' fragmentary OCR, judged as text), no per-user gate by Ben's decision —
 `item.source` is where a future gate filters. Loupe has no production host, so **`loupe` goes into
-`SUSPENDED_SOURCES` before the next deploy** or the nightly ingest errors on it. Pick the thread up from
+`SUSPENDED_SOURCES` before the next deploy** or the nightly ingest errors on it.
+**The desktop pass shipped 09-08-26** (`docs/DESIGN_desktop-polish.md`, plan
+`docs/PLAN_desktop-polish.md`): one breakpoint (`md`, 768 px), one `Column` primitive
+(600 / 720 / 1120), `useMediaQuery` on `useSyncExternalStore` so the server-rendered feed
+hydrates straight into three or four columns, `BottomSheet` as a centered 520 px dialog above
+`md`, tiles focusable with a fine-pointer right-click for the item sheet, and a `desktop`
+Playwright project at 1440 × 900. Below 768 px nothing changed. Two things it turned up that
+outlive it: **Tailwind v4's `translate-*` utilities write the standalone `translate` property,
+not `transform`**, so a keyframe that also states a centering translate _composes_ with them and
+moves the element twice (a 520 px dialog landed 260 px left of centre); and **the `chromium`
+Playwright project now declares a 402 × 874 viewport** rather than inheriting `Desktop Chrome`'s
+1280 × 720 — 1280 is exactly `xl`, so the phone suite had silently begun exercising the desktop
+layout. That suite is green under `bun run e2e:prod` (49 passed); under `next dev` at a phone
+width the **Next.js dev-overlay portal sits on top of the pill toolbar** and eats the clicks, so
+`bun run e2e` alone reports failures that a production build does not. Pick the thread up from
 `docs/HANDOFF_sources-round2.md` **§0** — streetartnews and spoon-tamago as a cold-executable
 seven-step task (config rows on the factory, verdict after each) — then Europeana / Openverse /
 Chronicling America. See
@@ -98,7 +112,7 @@ Chronicling America. See
 
 - **`SPEC.md`** — the build-ready technical spec: architecture, DB schema, tRPC API surface, feed algorithm, build order (§14), and open questions (§15). Treat it as the source of truth when scaffolding or implementing; it's a living doc — update it as decisions land.
 - **`docs/design_handoff_ambit_pwa_redesign/`** — the authoritative design handoff since 08-16-26 (11 `.dc.html` prototypes + README). **Where the prototypes and the README conflict, the prototypes win** — a recorded Phase 5 convention. The bundle's `PROGRESS.md` describes an earlier session and is superseded. The older `docs/design_handoff_ambit_pwa/` is kept as history only. The `.dc.html` files are self-contained interactive prototypes (open directly in a browser), one per screen, with a detailed README covering design tokens, motion specs, and per-screen interaction notes. Recreate these designs in the app's own components — do not copy the prototype code, and do not port `ios-frame.jsx`/`image-slot.js` (presentation scaffolding only).
-- **`docs/source-candidates.md`** — post-MVP backlog of candidate content APIs with a per-source trial loop. These are *not* v1 sources; the committed v1 set lives in SPEC §6.1. Promote a candidate into the SPEC only after it passes the trial.
+- **`docs/source-candidates.md`** — post-MVP backlog of candidate content APIs with a per-source trial loop. These are _not_ v1 sources; the committed v1 set lives in SPEC §6.1. Promote a candidate into the SPEC only after it passes the trial.
 
 ## Planned stack & commands (from SPEC)
 
@@ -118,15 +132,15 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 - **The vocabulary grows to fit the corpus** — a **core principle**, decided 09-02-26; **Cut 1
   shipped 09-02-26** (design: `docs/DESIGN_topic-vocabulary-growth.md`; plan
   `docs/PLAN_topic-vocabulary-cut1.md`). **Walk sources ingest their whole corpus; the topic
-  vocabulary grows to fit them, never the reverse.** A blog is designated because the *blog* was
+  vocabulary grows to fit them, never the reverse.** A blog is designated because the _blog_ was
   judged worth having, so every post that clears the structural floor and the curator's quality
   bar is stored whether or not a topic fits it; its source tags and aesthetic tags are always kept,
   and are what new topics get proposed from. **Search-shaped sources are the exception and stay
   bound to the topic list** — a search source needs a query and topics are where queries come
-  from. Short form: **topics are the vocabulary Ambit *asks* with; tags are the vocabulary the
-  world *answers* in.** "Everything" means everything that clears *quality*, never a relaxation of
+  from. Short form: **topics are the vocabulary Ambit _asks_ with; tags are the vocabulary the
+  world _answers_ in.** "Everything" means everything that clears _quality_, never a relaxation of
   the floor. This reversed half of 6.3's D4 ("never force-fitted" stays; "no honest home → dropped"
-  went). **What Cut 1 built:** `item.topic_id` is nullable and means the *display* topic;
+  went). **What Cut 1 built:** `item.topic_id` is nullable and means the _display_ topic;
   `item_topic (item_id, topic_id, origin)` holds membership, additive, never retracted by code;
   classify returns an array (possibly empty) and nothing was re-billed; the ingest summary prints
   the un-homed count **and their tag histogram** — read that line before any source verdict. **What
@@ -164,8 +178,8 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   sliders since 09-06-26 — `tierWild` and `wildTagBoost` — and the readout's split is now
   **core / grown / wild**.
 - **The first big walk's three lessons (09-07-26)**, all on `main`: **`sourceCap`** (no source
-  gets more than three cards a page, across every tier, filtered *before* the draw — a
-  17,500-item blog about illustration *is* most of the corpus's illustration, and no pool query
+  gets more than three cards a page, across every tier, filtered _before_ the draw — a
+  17,500-item blog about illustration _is_ most of the corpus's illustration, and no pool query
   changes that arithmetic, so the page refuses to be a wall of it); **`MAX_TOPICS`** (the
   classifier keeps its first three homes — handed 99 topics it sometimes listed the vocabulary
   back, nine items under all 99); and **period topics are tag-only** (`PERIOD_TOPICS` in
@@ -174,7 +188,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `bun run repair:periods` are the two dated exceptions to the additivity rule and **must run in
   the production container after the next deploy**. Cut 2b was sized against this and deferred:
   the join move does not dissolve a blog's topic capture (90-98% by membership too).
-- **Feed composition** (SPEC §9) = per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25 — drift-heavy on purpose) → topic via the user's weights or a graph walk → item via curated-weighted random, under diversity constraints (no adjacent same-source; per-page topic caps). Saves reweight *topics*, visibly. Cursor-based pagination; the cursor encodes the page seed. Debug overlay + tuning knobs ship behind a dev flag throughout development.
+- **Feed composition** (SPEC §9) = per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25 — drift-heavy on purpose) → topic via the user's weights or a graph walk → item via curated-weighted random, under diversity constraints (no adjacent same-source; per-page topic caps). Saves reweight _topics_, visibly. Cursor-based pagination; the cursor encodes the page seed. Debug overlay + tuning knobs ship behind a dev flag throughout development.
 - **Auth boundary**: all user-scoped queries filter by `userId`; the only public surface is `items.byId` / `/i/[itemId]`.
 
 ## Conventions
@@ -189,7 +203,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 - **Run device passes over HTTPS, not `http://` on the LAN.** The Web Share API is secure-context only, so on plain HTTP `navigator.share` is `undefined` rather than broken — share, clipboard and service workers silently can't be tested at all. Use the tailnet origin (`https://macbook-air-m5.halley-morpho.ts.net`); it and every other dev origin must be listed in `src/config/dev-origins.js`.
 - **`e2e/gallery.spec.ts:193` ("tile → item → hero → gallery, and back") goes flaky as the dev DB
   accumulates e2e state.** Distinct from the note below, and don't confuse them: that one is CPU
-  load and hits a *different* test each time; this is the **same test every time**, it passes 10/10
+  load and hits a _different_ test each time; this is the **same test every time**, it passes 10/10
   in isolation, and it only fails inside a full `bun run e2e`. Verified on `main` 08-21-26 — clean
   3/3 early in the evening, then 2 failures in 3 runs a couple of hours later with no code change
   between. What accumulated in between: **274 `user` rows and 6,709 `seen_item` rows** from repeated
@@ -201,22 +215,22 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   without the flag first for a dry-run count. CI never sees any of this — its database is fresh
   every run — so a green CI and a red local `gallery.spec:193` are consistent, and the local one is
   the accumulation. Delete this note if the test is ever made robust.
-- **A red Postgres-touching integration test usually means the machine is busy, not that the code broke.** Overlapping `bun run test` runs, or a dev server under load, balloon vitest setup from ~7s to ~650s and then fail *unrelated* integration tests — three times in one session on 2026-08-20, a different test each time. Check what else is running before debugging the test. Delete this note if test isolation is ever fixed; don't leave it as folklore.
+- **A red Postgres-touching integration test usually means the machine is busy, not that the code broke.** Overlapping `bun run test` runs, or a dev server under load, balloon vitest setup from ~7s to ~650s and then fail _unrelated_ integration tests — three times in one session on 2026-08-20, a different test each time. Check what else is running before debugging the test. Delete this note if test isolation is ever fixed; don't leave it as folklore.
 - **After `bun add`/`bun remove`, clear Vite's dep cache before trusting a red test run.** Adding
   `sharp` in 7.3 invalidated `node_modules/.vite`, and the symptom was nothing like a dependency
   problem: `bun run test` went from **34 s to 486–1,218 s**, `import` alone taking 700–3,200 s, with
-  *different* tests failing every run — including pure unit tests that cannot fail for logic reasons
+  _different_ tests failing every run — including pure unit tests that cannot fail for logic reasons
   (`routers.test.ts`'s "throws UNAUTHORIZED"), test-file counts varying run to run (77 → 71 → 72),
   and one `saves.list` call taking **826 seconds**. Postgres was provably idle and sub-millisecond
   throughout, and no stray processes were running, so it reads exactly like the busy-machine class
   below and isn't. **`rm -rf node_modules/.vite node_modules/.cache/vite`** put it back to 35 s /
-  820 tests immediately. Suspect this whenever the *whole* suite degrades right after a dependency
+  820 tests immediately. Suspect this whenever the _whole_ suite degrades right after a dependency
   change; the busy-machine note below is for when it degrades without one.
 - **The Tumblr walks are what makes `.cache/img` big.** Ben's budgets for the four kept round-3
   blogs are ~89,500 items, ~150 KB each on the cache volume — **~13 GB** on top of the nine
   existing sources — so check the volume's free space before starting one (`df -h` on the cache
   mount; the volume name is in `PHASE8_WALKTHROUGH_8.1.md`). Lowering a budget is one number in
-  `blogs.ts`, and the resume cursor makes raising one later free. The *curator's* download is a
+  `blogs.ts`, and the resume cursor makes raising one later free. The _curator's_ download is a
   separate and much larger number, but it is transient and now ~5× smaller than it would have
   been: the walker points `curationImageUrl` at Tumblr's 500 px rendition, so scoring 89,500
   pictures pulls ~12 GB rather than ~58 GB.
@@ -230,25 +244,25 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   (`ambit.devKnobs.mark`), so the next `/dev/feed` mount forgets from where the closed one
   stopped on its first apply — press **Restart feed** to do it immediately. The panel's "served
   this session" counter is the reminder. One consequence to know: anything that user was served
-  on `/feed` *between* the two dev sessions is forgotten too (the mark predates it). Local only.
+  on `/feed` _between_ the two dev sessions is forgotten too (the mark predates it). Local only.
 - **A valid API key that still 401s is probably being shadowed by the shell.** Bun resolves real
-  environment variables *ahead* of `.env`, so an `export OPENROUTER_API_KEY=…` left in `~/.zshrc`
+  environment variables _ahead_ of `.env`, so an `export OPENROUTER_API_KEY=…` left in `~/.zshrc`
   wins over the file and editing `.env` changes nothing the process ever sees. This cost most of
   08-22-26: the stale and fresh keys were both 73 chars (`sk-or-v1-` + 64 hex), so length, prefix,
   format and a password-manager comparison all agreed the key was correct. Diagnose with
   `env -u OPENROUTER_API_KEY bun -e '…'` — if that succeeds where a bare run 401s, it's the shadow,
-  not the key. (Related tell: OpenRouter's `"User not found."` is an *account*-level error; a
+  not the key. (Related tell: OpenRouter's `"User not found."` is an _account_-level error; a
   malformed key reads `"No auth credentials found"`.) The zshrc exports are gone as of 08-22-26,
   but any new machine or re-added export brings it straight back.
 
-
 ## Project log (`log.md`)
 
-Keep a narrative log at repo root in `log.md` — the decisions, findings, and dead-ends that don't live in commit messages. It **complements** commits (which record *what changed in code*); the planning vault's `/brief` skill reads it directly for the Daily Brief. Don't duplicate what a commit already says.
+Keep a narrative log at repo root in `log.md` — the decisions, findings, and dead-ends that don't live in commit messages. It **complements** commits (which record _what changed in code_); the planning vault's `/brief` skill reads it directly for the Daily Brief. Don't duplicate what a commit already says.
 
 **Format** — append-only, newest on top:
+
 - `## YYYY-MM` month groupers (newest month first).
-- `### [[MM-DD-YY ddd]] — <title>` day headings (wikilink form; one entry per day — a second write the same day *extends* that entry, never adds a duplicate heading).
+- `### [[MM-DD-YY ddd]] — <title>` day headings (wikilink form; one entry per day — a second write the same day _extends_ that entry, never adds a duplicate heading).
 - Default skeleton `**Shipped:** / **Decisions:** / **Open / next:**`, but flexible — include only what's relevant (an on-demand "log the findings above" might be just a `**Findings:**` block).
 
 **Session spend** — every entry ends with a line recording the token spend of the work it covers. **Never estimate it**; get it from the shared script:
@@ -269,15 +283,16 @@ The session UUID is the second-to-last component of the scratchpad path in your 
 - **If the script exits non-zero** (no transcript, or nothing new since the last entry), **omit the line entirely** — don't substitute a guess.
 
 **Write triggers:**
+
 1. **On-demand** — "log this" / "summarize the above and log it".
-2. **At commit checkpoints** — when you commit at the user's request, update `log.md` if the work since the last entry is narrative-worthy. A considered update at a natural boundary, *not* a line per commit.
+2. **At commit checkpoints** — when you commit at the user's request, update `log.md` if the work since the last entry is narrative-worthy. A considered update at a natural boundary, _not_ a line per commit.
 3. **End of session** — backstop for sessions that end without a commit. Only on genuine progress; skip trivial sessions.
 
 ## Ecosystem coordination (Ambit-Admin)
 
 Ambit is one of three cooperating services — with **ambit-archive** (`~/Dev/ambit-archive`, Ben's private personal-image source) and **loupe** (`~/Dev/loupe`, his personal magazine-clipping bench). The cross-project map lives in Ben's private vault at `~/vaults/Memory-Palace/05 Projects/Ambit-Admin/` (`Ecosystem Architecture.md` + `Roadmap & Backlog.md`). The parts that bind this repo:
 
-- **The boundary is rights/visibility**: Ambit houses public, public-domain and openly-licensed sources every user may see (new *public* sources land here, in `server/services/sources/`); personal/experimental/unattributed content stays in ambit-archive; personal-use archive material stays in loupe. Ambit is the ecosystem's **only user-facing surface** and the sole gate for the planned per-user content-pool privileges.
-- **Two rights postures live under Ambit's roof as of 08-20-26** (Ambit-Admin decision). Alongside owned display of open material, Ambit does **link-card display of designated blogs**: a single image or short excerpt + a visible `from: <blog>` credit + a **prominent link to the original**, in the shape of a social link preview and **never a republished article**. **No fair-use claim** — license strings stay honest ("Rights retained by original authors"), removal on request is the standing policy, and the point of the link-out is to drive readers *to* the blog. Full article text is used at ingest only, never stored for display. Tenable because Ambit is invite-only and non-monetized. Designed and built 08-25/27-26 — SPEC §6.1, `docs/PHASE6_DESIGN_6.3.md`, `docs/PHASE6_WALKTHROUGH_6.3.md`.
-- **Two blessed source-integration patterns**: search-shaped (`search(q)`, ranked order — the museums, ambit-archive) and corpus-walk (cursor-paginated full ingest — loupe, whose adapter must fail fast on 401/403 and never dedupe on loupe article `id`). Don't invent a third shape. *Corpus-walk is now implemented in-repo (`CorpusWalkAdapter` in `server/services/sources/types.ts`, Phase 6.3) — loupe's adapter (`sources/loupe.ts`) uses it. Designated blogs are registered in `src/server/config/blogs.ts`; a blog's `body` is always null.*
+- **The boundary is rights/visibility**: Ambit houses public, public-domain and openly-licensed sources every user may see (new _public_ sources land here, in `server/services/sources/`); personal/experimental/unattributed content stays in ambit-archive; personal-use archive material stays in loupe. Ambit is the ecosystem's **only user-facing surface** and the sole gate for the planned per-user content-pool privileges.
+- **Two rights postures live under Ambit's roof as of 08-20-26** (Ambit-Admin decision). Alongside owned display of open material, Ambit does **link-card display of designated blogs**: a single image or short excerpt + a visible `from: <blog>` credit + a **prominent link to the original**, in the shape of a social link preview and **never a republished article**. **No fair-use claim** — license strings stay honest ("Rights retained by original authors"), removal on request is the standing policy, and the point of the link-out is to drive readers _to_ the blog. Full article text is used at ingest only, never stored for display. Tenable because Ambit is invite-only and non-monetized. Designed and built 08-25/27-26 — SPEC §6.1, `docs/PHASE6_DESIGN_6.3.md`, `docs/PHASE6_WALKTHROUGH_6.3.md`.
+- **Two blessed source-integration patterns**: search-shaped (`search(q)`, ranked order — the museums, ambit-archive) and corpus-walk (cursor-paginated full ingest — loupe, whose adapter must fail fast on 401/403 and never dedupe on loupe article `id`). Don't invent a third shape. _Corpus-walk is now implemented in-repo (`CorpusWalkAdapter` in `server/services/sources/types.ts`, Phase 6.3) — loupe's adapter (`sources/loupe.ts`) uses it. Designated blogs are registered in `src/server/config/blogs.ts`; a blog's `body` is always null._
 - The `SourceAdapter` contract (`server/services/sources/types.ts`) is a **cross-service agreement** — ambit-archive built to it verbatim. Before changing it (or either private-source integration), read the Ambit-Admin doc and record the decision in its log.

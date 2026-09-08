@@ -48,8 +48,10 @@ plausible but not researched — real attributions must be supplied before launc
 ## Global design system
 
 ### Frame and canvas
-- Design viewport: **402 × 874** (iPhone 14/15 Pro logical size). Everything is mobile-only;
-  there is no tablet or desktop layout.
+- Design viewport: **402 × 874** (iPhone 14/15 Pro logical size). The prototypes are
+  mobile-only. **Above 768 px the app follows `docs/DESIGN_desktop-polish.md`** (09-08-26):
+  the same compositions, capped and centered; sheets become dialogs. The prototypes remain the
+  authority for everything below that width.
 - App background: `#161411` (warm near-black). Immersive gallery background: `#0B0A08`.
   Mockup page background outside the device: `#0C0B09`.
 - Safe-area top padding used throughout: **56–68px** from the top of the viewport for first
