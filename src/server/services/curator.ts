@@ -35,6 +35,46 @@ export const PROMPT_VERSION = 1;
  *  throughput comes from a small concurrency pool instead. */
 const CONCURRENCY = 8;
 
+/**
+ * OpenRouter statuses that describe the *account*, not the item (09-08-26). 401 is a bad key;
+ * 402 is an empty wallet. Neither is transient and neither is per-item, so the retry loop does
+ * not retry them and the batch does not absorb them into the score-5 fallback: it aborts, and the
+ * ingest exits non-zero with the message. Walk 3 is why. It hit 402 at 18:28 and the curator
+ * kept going for eighteen hours — four backoff retries per item, then a neutral score, no tags,
+ * no topics — and would have stored 11,500 unscored, un-homed rows under a clean summary if it
+ * had reached the write. The same fail-fast rule the Loupe adapter follows for its own 401/403.
+ */
+export const CURATOR_ABORT_STATUSES: ReadonlySet<number> = new Set([401, 402]);
+
+/**
+ * The softer guard behind the same lesson: how many curations may fall back *in a row* — no
+ * success anywhere between them — before the batch is declared dead for a reason the status
+ * code did not name (a provider down for the night, a 429 that never clears, a key revoked
+ * mid-run answering 403). A success resets the count, so a source whose records fail
+ * sporadically never trips it; only "every request is failing" does. Twenty is well above what
+ * eight concurrent workers can produce by bad luck and well below the point where a run has
+ * wasted an hour of retries.
+ */
+export const MAX_CONSECUTIVE_FAILURES = 20;
+
+/**
+ * Thrown by curateItems when the batch cannot continue — an account-level HTTP status
+ * (CURATOR_ABORT_STATUSES) or MAX_CONSECUTIVE_FAILURES fallbacks in a row. Deliberately not a
+ * plain Error: the per-item fallback in curateItems catches everything else, and this is the one
+ * kind of failure it must let through. Ingest's top-level catch turns it into exit 1; nothing has
+ * been written, so the re-run resumes free through the curation cache.
+ */
+export class CuratorAbortError extends Error {
+  constructor(
+    message: string,
+    /** The HTTP status that caused the abort, when one did. */
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = "CuratorAbortError";
+  }
+}
+
 /** Copied verbatim from phase0/curate.ts — this prompt is a product artifact (Ben's taste
  *  calibration lands here, SPEC §15), not implementation detail to be casually reworded. */
 export const CURATOR_PROMPT = `You are the curator of a beloved, long-running art and ideas blog — the kind people used to follow on old Tumblr because every single post was worth stopping for. Your taste: visually striking or quietly beautiful images (strong composition, texture, color, oddness, wit); ideas and stories with a genuine spark of "huh, I never knew that". You post museum objects, illustrations, diagrams, photographs, and short articles. You are highly selective: most things a museum digitizes are catalog filler — fragments, routine studio shots, objects with no visual or intellectual hook — and you skip them without guilt. You never post anything sensational, gory, or engagement-baity.
@@ -515,10 +555,17 @@ async function scoreItem(
           temperature: 0.2,
         }),
       });
-      if (!res.ok)
-        throw new Error(
-          `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`,
-        );
+      if (!res.ok) {
+        const detail = `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
+        // Account-level, not item-level: thrown past the retry below and past the fallback in
+        // curateItems. Retrying a 402 four times per item is how walk 3 ran for eighteen hours.
+        if (CURATOR_ABORT_STATUSES.has(res.status))
+          throw new CuratorAbortError(
+            `OpenRouter ${detail} — ${res.status === 402 ? "the account is out of credits" : "the API key was rejected"}; nothing written, re-run after fixing the account`,
+            res.status,
+          );
+        throw new Error(detail);
+      }
       const json = (await res.json()) as {
         choices?: { message?: { content?: string } }[];
         usage?: { total_tokens?: number };
@@ -541,6 +588,7 @@ async function scoreItem(
         cached: false,
       };
     } catch (err) {
+      if (err instanceof CuratorAbortError) throw err;
       lastErr = err;
       if (attempt < 4)
         await sleep(1000 * 3 ** (attempt - 1) + Math.random() * 500);
@@ -560,6 +608,11 @@ export type ImageFetchFailures = Record<string, number>;
  * out — the zero-dependency stand-in for p-limit (safe because JS is single-threaded; "parallel"
  * here means overlapping network waits, not threads). A judgment that fails after 4 retries gets
  * a neutral score rather than vanishing from the corpus, logged so a systemic failure is visible.
+ *
+ * Two failures are not absorbed that way (09-08-26): an account-level status (401/402 — see
+ * CURATOR_ABORT_STATUSES) and MAX_CONSECUTIVE_FAILURES fallbacks in a row. Both throw
+ * CuratorAbortError out of this function, every worker stops, and the caller writes nothing.
+ * "Logged so a systemic failure is visible" turned out to need a reader; the abort does not.
  *
  * `opts.onImageFetchFailure` is the hook for the *quieter* degradation described on scoreItem: an
  * item whose image couldn't be fetched still gets a score, but from text alone. Ingest counts
@@ -594,9 +647,15 @@ export async function curateItems(
   const out: CuratedItem[] = new Array<CuratedItem>(items.length);
   let next = 0;
   let done = 0;
+  // Fallbacks since the last success, across all workers. Reset by any success.
+  let consecutiveFailures = 0;
+  // Set by the first worker to abort. Promise.all rejects on that worker's throw, but the other
+  // seven would otherwise keep pulling items — and keep billing, or keep 402ing — until the
+  // process exits. Checked at the top of every loop so they stop within one item.
+  let aborted = false;
 
   async function worker() {
-    while (next < items.length) {
+    while (!aborted && next < items.length) {
       const i = next++;
       const item = items[i];
       if (!item) continue;
@@ -610,6 +669,7 @@ export async function curateItems(
         if (cached) opts?.onCacheHit?.(item);
         if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
         if (overFiled > 0) opts?.onOverFiled?.(item, overFiled);
+        consecutiveFailures = 0;
         out[i] = {
           ...item,
           curationScore: score,
@@ -617,9 +677,19 @@ export async function curateItems(
           topics,
         };
       } catch (err) {
+        if (err instanceof CuratorAbortError) {
+          aborted = true;
+          throw err;
+        }
         console.warn(
           `  curator: ${item.source}:${item.sourceId} "${item.title.slice(0, 40)}" — ${String(err)}`,
         );
+        if (++consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          aborted = true;
+          throw new CuratorAbortError(
+            `curator: ${consecutiveFailures} consecutive curations failed with no success between them (last: ${String(err)}) — aborting the batch; nothing written`,
+          );
+        }
         out[i] = {
           ...item,
           curationScore: 5,

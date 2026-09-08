@@ -72,6 +72,7 @@ import type {
 } from "~/server/services/curator";
 import {
   curateItems,
+  CuratorAbortError,
   MAX_TOPICS,
   structuralFloor,
 } from "~/server/services/curator";
@@ -772,6 +773,11 @@ function printSummary(args: {
 }
 
 main().catch((err: unknown) => {
-  console.error("ingest script failed:", err);
+  // A curator abort (09-08-26: 401/402, or twenty fallbacks in a row) is an account problem,
+  // not a bug: its message says so, and a stack trace would only bury it. Nothing was written —
+  // the abort happens before the upsert loop — so the re-run resumes free through the cache.
+  if (err instanceof CuratorAbortError)
+    console.error(`\ningest aborted: ${err.message}`);
+  else console.error("ingest script failed:", err);
   process.exit(1);
 });

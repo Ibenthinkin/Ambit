@@ -13,6 +13,8 @@ import {
   curationCacheKey,
   CURATOR_PROMPT,
   curateItems,
+  CuratorAbortError,
+  MAX_CONSECUTIVE_FAILURES,
   parseCuratorResponse,
   PROMPT_VERSION,
   structuralFloor,
@@ -709,5 +711,142 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
 
   it("PROMPT_VERSION is still 1 — bumping it would re-bill every walk item for nothing", () => {
     expect(PROMPT_VERSION).toBe(1);
+  });
+});
+
+// The wallet failure (09-08-26). Walk 3 hit HTTP 402 at 18:28 and the curator kept going for 18
+// hours: each item retried four times with backoff, then fell back to score 5 / no tags / no
+// topics — the right answer for one flaky request, the wrong one for "the account is out of
+// credits", where every remaining item would have been stored as unscored, un-homed junk under a
+// clean summary. So 401/402 are neither transient nor per-item: no retry, and the batch aborts
+// with nothing written. The same fail-fast rule the Loupe adapter follows for 401/403.
+describe("curateItems fails fast on an account-level error", () => {
+  let calls: number;
+  function stubOpenRouter(status: number, body = "out of credits") {
+    calls = 0;
+    vi.stubGlobal("fetch", (input: string | URL) => {
+      if (String(input).includes("openrouter.ai")) {
+        calls++;
+        return Promise.resolve({
+          ok: false,
+          status,
+          text: () => Promise.resolve(body),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+  }
+  beforeEach(() => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  /** Runs curateItems under fake timers so the retry backoff (1s · 3s · 9s) costs nothing. */
+  async function run(items: NormalizedItem[]) {
+    const p = curateItems(items, { force: true });
+    // Attach a handler before advancing so a rejection is never briefly unhandled.
+    const settled = p.then(
+      (v) => ({ ok: true as const, v }),
+      (e: unknown) => ({ ok: false as const, e }),
+    );
+    await vi.runAllTimersAsync();
+    return settled;
+  }
+
+  it("402 on the first item aborts the batch without retrying — nothing scored", async () => {
+    stubOpenRouter(
+      402,
+      "You requested up to 65535 tokens, but can only afford 44161",
+    );
+    const r = await run([
+      makeItem({ sourceId: "abort-1" }),
+      makeItem({ sourceId: "abort-2" }),
+    ]);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.e).toBeInstanceOf(CuratorAbortError);
+    expect((r.e as CuratorAbortError).status).toBe(402);
+    expect(String(r.e)).toContain("402");
+    // No retry: the two workers each asked once and stopped. Never 4× per item.
+    expect(calls).toBeLessThanOrEqual(2);
+  });
+
+  it("401 (bad key) aborts the same way", async () => {
+    stubOpenRouter(401, "No auth credentials found");
+    const r = await run([makeItem({ sourceId: "abort-3" })]);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.e).toBeInstanceOf(CuratorAbortError);
+    expect(calls).toBe(1);
+  });
+
+  it("a 500 still retries and falls back to the neutral score — that is what the fallback is for", async () => {
+    stubOpenRouter(500, "upstream hiccup");
+    const r = await run([makeItem({ sourceId: "flaky-1" })]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.v[0]?.curationScore).toBe(5);
+    expect(calls).toBe(4);
+  });
+
+  // The softer guard: a failure the status code does not name (a provider down for the night,
+  // a key revoked mid-run answering 403, a 429 that never clears) must not crawl to the end
+  // either. After MAX_CONSECUTIVE_FAILURES fallbacks in a row with no success between them,
+  // the batch aborts. A success anywhere resets the count, so ordinary sporadic failures never
+  // trip it.
+  it(`aborts after ${MAX_CONSECUTIVE_FAILURES} consecutive fallbacks for any reason`, async () => {
+    stubOpenRouter(503, "provider down");
+    const items = Array.from({ length: MAX_CONSECUTIVE_FAILURES + 5 }, (_, i) =>
+      makeItem({ sourceId: `down-${i}` }),
+    );
+    const r = await run(items);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.e).toBeInstanceOf(CuratorAbortError);
+    expect(String(r.e)).toContain("consecutive");
+  });
+
+  it("a success between failures resets the consecutive count", async () => {
+    // Every other item fails all four attempts and falls back; the rest answer first time.
+    // With eight workers interleaving, the longest run of fallbacks with no success between
+    // stays far under the guard — so a source whose half-broken records fail sporadically is
+    // never mistaken for a dead provider.
+    vi.stubGlobal("fetch", (input: string | URL, init?: { body?: string }) => {
+      if (!String(input).includes("openrouter.ai"))
+        return Promise.resolve({ ok: false, status: 404 });
+      if ((init?.body ?? "").includes("FAILS"))
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+          text: () => Promise.resolve("flaky"),
+        });
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: '{"score": 7, "tags": ["a"]}' } }],
+            usage: { total_tokens: 1 },
+          }),
+      });
+    });
+    const items = Array.from(
+      { length: MAX_CONSECUTIVE_FAILURES * 2 + 2 },
+      (_, i) =>
+        makeItem({
+          sourceId: `reset-${i}`,
+          title: i % 2 === 0 ? "This one FAILS every time" : "This one is fine",
+        }),
+    );
+    const r = await run(items);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.v.filter((it) => it.curationScore === 5)).toHaveLength(
+      MAX_CONSECUTIVE_FAILURES + 1,
+    );
   });
 });
