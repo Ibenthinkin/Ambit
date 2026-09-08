@@ -80,9 +80,7 @@ const row = (s: TagStat) =>
   `${s.sources.length} sources (${s.sources.join(", ")})` +
   // Only when it is actually a factor: a candidate nobody's source ever named is a different
   // kind of claim from one several blogs tag by hand, and the number says which this is.
-  (s.aestheticOnly > 0
-    ? ` · via curator ${s.aestheticOnly}/${s.total}`
-    : "");
+  (s.aestheticOnly > 0 ? ` · via curator ${s.aestheticOnly}/${s.total}` : "");
 
 const doc = `# Topic proposals — Cut 2a
 

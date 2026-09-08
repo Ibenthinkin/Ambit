@@ -37,8 +37,18 @@ describe("tallyTags", () => {
   // those items have.
   it("folds the union of source tags and the curator's aesthetic tags", () => {
     const stats = tallyTags([
-      { source: "pdr", homed: false, tags: ["sculpture"], aestheticTags: ["bronze"] },
-      { source: "70sscifiart", homed: false, tags: [], aestheticTags: ["bronze"] },
+      {
+        source: "pdr",
+        homed: false,
+        tags: ["sculpture"],
+        aestheticTags: ["bronze"],
+      },
+      {
+        source: "70sscifiart",
+        homed: false,
+        tags: [],
+        aestheticTags: ["bronze"],
+      },
     ]);
     expect(stats.find((x) => x.tag === "sculpture")!.total).toBe(1);
     const bronze = stats.find((x) => x.tag === "bronze")!;
@@ -66,8 +76,18 @@ describe("tallyTags", () => {
   it("counts how much of a candidate exists only because the curator wrote it", () => {
     const stats = tallyTags([
       { source: "pdr", homed: false, tags: ["woodcut"], aestheticTags: [] },
-      { source: "70sscifiart", homed: false, tags: [], aestheticTags: ["woodcut"] },
-      { source: "sovietpostcards", homed: false, tags: [], aestheticTags: ["woodcut"] },
+      {
+        source: "70sscifiart",
+        homed: false,
+        tags: [],
+        aestheticTags: ["woodcut"],
+      },
+      {
+        source: "sovietpostcards",
+        homed: false,
+        tags: [],
+        aestheticTags: ["woodcut"],
+      },
     ]);
     const s = stats.find((x) => x.tag === "woodcut")!;
     expect(s.total).toBe(3);
@@ -86,22 +106,37 @@ describe("rankCandidates", () => {
       tag: "sculpture",
       total: 900,
       unhomed: 738,
-      sources: ["pdr", "thisiscolossal", "met", "aic"], aestheticOnly: 0,
+      sources: ["pdr", "thisiscolossal", "met", "aic"],
+      aestheticOnly: 0,
     },
     {
       tag: "submission",
       total: 344,
       unhomed: 344,
-      sources: ["thisiscolossal"], aestheticOnly: 0,
+      sources: ["thisiscolossal"],
+      aestheticOnly: 0,
     },
     {
       tag: "street art",
       total: 200,
       unhomed: 178,
-      sources: ["thisiscolossal"], aestheticOnly: 0,
+      sources: ["thisiscolossal"],
+      aestheticOnly: 0,
     },
-    { tag: "mythology", total: 500, unhomed: 40, sources: ["pdr", "met"], aestheticOnly: 0 },
-    { tag: "rare", total: 8, unhomed: 6, sources: ["pdr", "met"], aestheticOnly: 0 },
+    {
+      tag: "mythology",
+      total: 500,
+      unhomed: 40,
+      sources: ["pdr", "met"],
+      aestheticOnly: 0,
+    },
+    {
+      tag: "rare",
+      total: 8,
+      unhomed: 6,
+      sources: ["pdr", "met"],
+      aestheticOnly: 0,
+    },
   ];
 
   it("promotes a multi-source tag that clears the un-homed floor", () => {
@@ -154,7 +189,13 @@ describe("rankCandidates", () => {
     // ("ancient history"). Comparing only the raw strings would re-propose a topic Ambit already
     // has under a slightly different spelling.
     const withSpaces: TagStat[] = [
-      { tag: "street art", total: 300, unhomed: 178, sources: ["a", "b"], aestheticOnly: 0 },
+      {
+        tag: "street art",
+        total: 300,
+        unhomed: 178,
+        sources: ["a", "b"],
+        aestheticOnly: 0,
+      },
     ];
     const { promoted } = rankCandidates(
       withSpaces,

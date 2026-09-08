@@ -83,7 +83,8 @@ describe("tumblrWalker — equivalence with the bespoke adapter", () => {
       if (!SUPPORTED.has(raw.type)) continue;
       const first = expandPictures(raw, "thingsorganizedneatly")[0]!;
       const { sourceId, curationImageUrl, ...mine } = walker.toItem(first);
-      const { sourceId: bespokeId, ...theirs } = thingsorganizedneatly.toItem(raw);
+      const { sourceId: bespokeId, ...theirs } =
+        thingsorganizedneatly.toItem(raw);
       expect(mine).toEqual(theirs);
       expect(sourceId).toBe(`${bespokeId}:1`);
       // The other by-design divergence: the factory may name a curation rendition where the
@@ -162,7 +163,9 @@ describe.each(FIXTURES)("tumblrWalker — %s", (id, raws) => {
 
 describe("every blog row declaring walk: tumblr has a fixture and a walker", () => {
   it("covers all of them", () => {
-    const tumblrRows = BLOGS.filter((b) => b.walk === "tumblr").map((b) => b.id);
+    const tumblrRows = BLOGS.filter((b) => b.walk === "tumblr").map(
+      (b) => b.id,
+    );
     const covered = new Set([
       "thingsorganizedneatly",
       ...FIXTURES.map(([id]) => id),
@@ -177,7 +180,9 @@ describe("stripCaptionChrome", () => {
     '<span class="tmblr-alt-text-helper">ALT</span></figure><p>Wayne Barlowe</p>';
 
   it("removes Tumblr's alt-text badge, span and all", () => {
-    expect(stripCaptionChrome(caption)).not.toMatch(/ALT|tmblr-alt-text-helper/);
+    expect(stripCaptionChrome(caption)).not.toMatch(
+      /ALT|tmblr-alt-text-helper/,
+    );
   });
 
   it("keeps the caption itself, and the picture the badge sat beside", () => {
@@ -292,7 +297,11 @@ describe("deriveTitle", () => {
 
   it("skips a reblog attribution line", () => {
     expect(
-      deriveTitle("<p>nemfrog:</p><p>Fig. 4. Nocturnal moths.</p>", "s", "Blog"),
+      deriveTitle(
+        "<p>nemfrog:</p><p>Fig. 4. Nocturnal moths.</p>",
+        "s",
+        "Blog",
+      ),
     ).toBe("Fig. 4. Nocturnal moths.");
   });
 
@@ -301,7 +310,11 @@ describe("deriveTitle", () => {
   // floor used to drop such a post; it does not any more.
   it("skips a caption line with no letters or digits in it", () => {
     expect(
-      deriveTitle('<p><a class="tumblr_blog" href="x"></a>:</p><p>Kyiv, 1974.</p>', "", "Blog"),
+      deriveTitle(
+        '<p><a class="tumblr_blog" href="x"></a>:</p><p>Kyiv, 1974.</p>',
+        "",
+        "Blog",
+      ),
     ).toBe("Kyiv, 1974.");
     // …and falls through to the label when the punctuation is all there is.
     expect(deriveTitle("<p>:</p>", "", "Blog")).toBe("Blog");
@@ -451,7 +464,7 @@ describe("allImageRenditions — the stored picture and the one the curator is s
   it("names the srcset candidate nearest 500px as the curation rendition", () => {
     const [r] = allImageRenditions(
       '<img src="https://x/a_640.jpg" srcset="https://x/a_75.jpg 75w, ' +
-        "https://x/a_500.jpg 500w, https://x/a_1280.jpg 1280w\">",
+        'https://x/a_500.jpg 500w, https://x/a_1280.jpg 1280w">',
     );
     expect(r!.url).toBe("https://x/a_1280.jpg");
     expect(r!.curationUrl).toBe("https://x/a_500.jpg");

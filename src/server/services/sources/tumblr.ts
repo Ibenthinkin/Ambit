@@ -149,17 +149,20 @@ function tagRenditions(tag: string): TumblrRendition | undefined {
       .filter(Boolean)
       .map((c) => {
         const [url, size] = c.split(/\s+/);
-        return { url: url!, width: Number(/^(\d+)w$/.exec(size ?? "")?.[1] ?? NaN) };
+        return {
+          url: url!,
+          width: Number(/^(\d+)w$/.exec(size ?? "")?.[1] ?? NaN),
+        };
       }) ?? [];
   const url =
-    candidates[candidates.length - 1]?.url ??
-    /\bsrc="([^"]+)"/i.exec(tag)?.[1];
+    candidates[candidates.length - 1]?.url ?? /\bsrc="([^"]+)"/i.exec(tag)?.[1];
   if (!url) return undefined;
 
   const sized = candidates.filter((c) => Number.isFinite(c.width));
   const nearest = sized.length
     ? sized.reduce((best, c) =>
-        Math.abs(c.width - CURATION_WIDTH) < Math.abs(best.width - CURATION_WIDTH)
+        Math.abs(c.width - CURATION_WIDTH) <
+        Math.abs(best.width - CURATION_WIDTH)
           ? c
           : best,
       )
@@ -201,7 +204,8 @@ export function allImageRenditions(html: string): TumblrRendition[] {
  * is why this lives here rather than in a repair script. things-organized-neatly.ts, the frozen
  * bespoke walker, has the same latent gap; see docs/HANDOFF_tumblr-round3.md.
  */
-const ALT_BADGE = /<span[^>]*\bclass="[^"]*\btmblr-alt-text-helper\b[^"]*"[^>]*>.*?<\/span>/gi;
+const ALT_BADGE =
+  /<span[^>]*\bclass="[^"]*\btmblr-alt-text-helper\b[^"]*"[^>]*>.*?<\/span>/gi;
 
 export function stripCaptionChrome(html: string): string {
   return html.replace(ALT_BADGE, "");
@@ -323,16 +327,25 @@ function pictureRenditions(raw: TumblrRaw, blogId: string): TumblrRendition[] {
       const ladders =
         set.length > 1
           ? set
-          : [{ "photo-url-1280": raw["photo-url-1280"], "photo-url-500": raw["photo-url-500"] }];
+          : [
+              {
+                "photo-url-1280": raw["photo-url-1280"],
+                "photo-url-500": raw["photo-url-500"],
+              },
+            ];
       const out: TumblrRendition[] = [];
       for (const p of ladders) {
         const url = p["photo-url-1280"];
         if (!url) continue;
         const small = p["photo-url-500"];
-        out.push(small && small !== url ? { url, curationUrl: small } : { url });
+        out.push(
+          small && small !== url ? { url, curationUrl: small } : { url },
+        );
       }
       if (!out.length) {
-        throw new Error(`${blogId}: photo post ${raw.id} has no photo-url-1280`);
+        throw new Error(
+          `${blogId}: photo post ${raw.id} has no photo-url-1280`,
+        );
       }
       return out;
     }
@@ -410,7 +423,9 @@ export function expandPictures(
   }));
 }
 
-export function tumblrWalker(blog: BlogConfig): CorpusWalkAdapter<TumblrPicture> {
+export function tumblrWalker(
+  blog: BlogConfig,
+): CorpusWalkAdapter<TumblrPicture> {
   // A blog that tags every post with its own name says nothing about the item that way, and it
   // would take one of the twelve tag slots the curator reads. Config, not a guess: `selfTags` is
   // the blog's own row, already lowercased there.

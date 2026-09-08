@@ -78,7 +78,12 @@ if (uniform) {
 }
 
 let cursor: string | undefined;
-const tierCounts: Record<Tier, number> = { CORE: 0, DRIFT: 0, JUMP: 0, WILD: 0 };
+const tierCounts: Record<Tier, number> = {
+  CORE: 0,
+  DRIFT: 0,
+  JUMP: 0,
+  WILD: 0,
+};
 const topicCounts = new Map<string, number>();
 let adjacencyViolations = 0;
 

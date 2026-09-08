@@ -120,7 +120,12 @@ export async function getTopicPools(
  *  topic pool would refuse must not reach a reader through the wild one. */
 function eligibilityConditions(
   db: Awaited<typeof import("./client")>["db"],
-  opts: { userId: string; anchor: Date; scoreFloor: number; excludeIds: string[] },
+  opts: {
+    userId: string;
+    anchor: Date;
+    scoreFloor: number;
+    excludeIds: string[];
+  },
 ) {
   const notSeenBeforeAnchor = notExists(
     db

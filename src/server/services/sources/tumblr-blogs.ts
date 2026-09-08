@@ -19,5 +19,7 @@ export const scifiart70s = walker("70sscifiart");
 export const vintagegeekculture = walker("vintagegeekculture");
 export const dreamsrecurring = walker("dreamsrecurring");
 export const toiich = walker("toiich");
-export const thevaultoftheatomicspaceage = walker("thevaultoftheatomicspaceage");
+export const thevaultoftheatomicspaceage = walker(
+  "thevaultoftheatomicspaceage",
+);
 export const thisisnthappiness = walker("thisisnthappiness");

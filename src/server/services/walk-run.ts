@@ -108,7 +108,9 @@ export async function runWalk(
   // flag takes, so "the rest of it" is a copy-paste rather than an arithmetic exercise.
   if (!reachedEnd && cursor !== undefined) {
     stats.resumeCursor = cursor;
-    onNote?.(`stopped at ${stats.offered} offered · resume with --cursor ${cursor}`);
+    onNote?.(
+      `stopped at ${stats.offered} offered · resume with --cursor ${cursor}`,
+    );
   }
   return stats;
 }

@@ -127,7 +127,8 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
     // And the only other thing a card can be is a WILD one, with no topic at all.
     expect(
       page.cards.every(
-        (c) => c.topicId === topicId || (c.tier === "WILD" && c.topicId === null),
+        (c) =>
+          c.topicId === topicId || (c.tier === "WILD" && c.topicId === null),
       ),
     ).toBe(true);
     expect(page.nextCursor).toBeDefined();
