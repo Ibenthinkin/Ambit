@@ -19,6 +19,20 @@ const config = {
   // bundling tries to trace into the client/edge graph and trips over under `--bun` — this tells
   // Next to leave the package as a real Node `require()` at runtime instead of bundling it.
   serverExternalPackages: ["better-auth"],
+  // **Off for Playwright's dev server only.** Next's dev-tools indicator renders into a
+  // `<nextjs-portal>` fixed to the bottom-left of the viewport. At the `chromium` project's
+  // 402x874 phone viewport (playwright.config.ts) that lands squarely on the floating pill
+  // toolbar, and Playwright refuses to click a control another element covers — five specs timed
+  // out on it the day the suite went phone-shaped, none of them for a reason the app had
+  // anything to do with. A production build has no indicator at all, which is why `e2e:prod` was
+  // green throughout.
+  //
+  // Gated on the env var rather than switched off outright: this is a genuinely useful dev
+  // affordance (build activity, static-vs-dynamic route), and an ordinary `bun run dev` keeps it.
+  // Playwright's `webServer` sets E2E_HIDE_DEV_INDICATOR=1; nothing else does.
+  ...(process.env.E2E_HIDE_DEV_INDICATOR === "1"
+    ? { devIndicators: /** @type {const} */ (false) }
+    : {}),
   // Next dev blocks its own /_next/* resources for any origin that isn't localhost, so a page
   // opened from a phone (`next dev`'s "Network:" line, or over the tailnet — and what the
   // 08-17-26 dead-buttons incident turned out to be) gets served HTML whose scripts can't

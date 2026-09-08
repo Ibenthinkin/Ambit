@@ -115,5 +115,12 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI && !PROD,
     timeout: 60_000,
+    // Next's dev-tools indicator is fixed to the bottom-left of the viewport, which at this
+    // suite's 402px phone width sits on top of the pill toolbar and eats the clicks meant for it.
+    // `next.config.js` reads this and drops the indicator for the server Playwright boots — and
+    // only that one, so an ordinary `bun run dev` still has it. Inert under PROD (a production
+    // build renders no indicator) and harmless when an existing server is reused, which is the one
+    // case it cannot fix: a dev server started by hand never saw this variable.
+    env: { E2E_HIDE_DEV_INDICATOR: "1" },
   },
 });
