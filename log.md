@@ -43,6 +43,28 @@ next **18 hours**, failing 5,682 items, until it was found and killed at 12:52 t
 
 *Session spend: 5.87M tok (in 103 · out 54.7k · cache r 4.77M / w 1.04M) · ~≥$3.60 · fable-5-1 + opus-4-7 · 17:57→12:55*
 
+**Shipped (afternoon, `2184427`):** the fail-fast TODO above, as specified. `curator.ts` now has
+`CURATOR_ABORT_STATUSES` (401, 402) — thrown as a `CuratorAbortError` straight past the retry
+loop *and* past the per-item score-5 fallback, with every worker stopping within one item — and
+the softer guard, `MAX_CONSECUTIVE_FAILURES = 20`: twenty fallbacks in a row with no success
+between them abort the batch whatever the reason (a provider down for the night, a 429 that never
+clears). Any success resets it, so sporadic failures never trip it. Ingest prints the abort
+message alone and exits 1; the abort lands before the upsert loop, so nothing is written and the
+re-run is free through the cache. Five tests under fake timers — a mocked 402 on item 1 aborts
+after one call, not four; 401 the same; a 500 still retries and falls back; 25 straight 503s
+abort; alternating fail/succeed items never trip the guard — and the three abort tests were
+checked red against the old curator before the fix went in.
+
+**Findings:** the OpenRouter *account* is the real ceiling, not the key. `/api/v1/credits` reads
+90 credited / 81.93 used — ~$8 left — after Ben raised the key limit from $20 to $50. Enough for
+the ~$2.70 remainder, but the next big walk (walk 4, ~$4+) wants a top-up first.
+
+**Open / next:** walk 3 restarted 13:04 with the same command; the log is `.cache/thevault-walk.log`
+(the 402 run's log kept beside it as `thevault-walk.run1-402.log`). Then the verdict via
+`bun run stats:walk`, then the rest of the 09-07 list.
+
+*Session spend: 4.20M tok (in 127 · out 38.7k · cache r 3.89M / w 272.6k) · ~≥$0.79 · fable-5-1 + opus-4-7 · 12:59→13:05*
+
 ---
 
 **Desktop pass, designed and planned** (a parallel session, 09-07 evening → 09-08 midday). Four
