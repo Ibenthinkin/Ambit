@@ -191,12 +191,41 @@ same specs passing only because it runs them at 1280 px.
   rather than bundled into a desktop diff; one `bun run format:write` on `main` clears it.
 - `bun run e2e` in dev mode wants either the dev indicator moved or the suite run as
   `e2e:prod` locally. CI is unaffected.
+  **Housekeeping, the same afternoon (Ben's call on both):**
+
+- **The nine drifted files are formatted** — one `bun run format:write` on `main` in its own
+  commit. Verified formatting-only: with whitespace and commas stripped every file hashes
+  identical to its parent, and the one remaining difference is a quote-style flip that drops an
+  escape. `bun run check` is green again.
+- **Next's dev indicator is off for Playwright's dev server only**, gated on
+  `E2E_HIDE_DEV_INDICATOR` which `webServer` sets — an ordinary `bun run dev` keeps it. That
+  fixed the deterministic half of the dev-mode failures (settings' pill click).
+- **It did not make `bun run e2e` green, and the reason is worth writing down.** Across four
+  full dev-mode runs the failing set was _different every time_ — 7, then 5, then 6, then 8
+  failures, with `saved:271`, `security:158`, `item:236`, `feed:156` and `settings:96` taking
+  turns. `bun run e2e:clean --confirm` (88 users, 1,621 `seen_item` rows) did not settle it. This
+  is the busy-machine / accumulation class CLAUDE.md already describes, and this time the busy
+  machine is _identified_: **walk 3's 19,000-item vault ingest was running the whole time** —
+  restarted 13:04, `elapsed: 2863.3s`, last write 14:32 — curating against an LLM and bulk-writing
+  to the same Postgres these tests read. `next dev` compiles on demand and is far more sensitive
+  to that than a prebuilt server, which is the asymmetry the results show. **`e2e:prod`
+  is the honest signal** — 49/49 green before the housekeeping, 47 + the one known
+  `gallery.spec` flake after, and that flake passed 5/5 in isolation on the same build, which is
+  its documented signature. Use `bun run e2e:prod` locally; CI already does.
+
+**Open / next:**
+
+- Nobody has _looked_ at this at 1440 px — the e2e asserts geometry (four populated stacks,
+  ≤ 1120 centered, a 520 px centered dialog, Escape) but not that the hover zoom, the focus
+  outline and the 70 vh hero read right. Ben is doing that pass himself.
 - **Merged to `main`** (`--no-ff`) once Ben called it, unpushed like the recent merges. The
   merge duplicated the morning's fail-fast block in `log.md` — the same 22 lines had been
   committed twice on two different bases (`3c4be1c` on main, `199dc21` on the branch), so git
   took both copies; the duplicate was removed in the merge commit.
 
 _Session spend: 41.42M tok (in 667 · out 166.2k · cache r 40.32M / w 927.8k) · ~$31.55 · opus-5 + opus-4-7 · 13:07→14:13_
+
+_Session spend: 20.75M tok (in 200 · out 57.8k · cache r 20.37M / w 325.5k) · ~$13.98 · opus-5 + opus-4-7 · 14:13→14:34_
 
 ### [[09-07-26 Mon]] — Cut 2b sized, found wanting; sourceCap and MAX_TOPICS instead
 
