@@ -250,28 +250,31 @@
       transform: translateY(-6px);
     }
   }
-  /* The keyframes carry the centering translate themselves because an animation's `transform`
-     replaces the element's own, and the desktop panel is centered by `-translate-x-1/2
-     -translate-y-1/2`. Without it the panel would jump to the top-left corner for the length of
-     the animation. */
+  /* Scale and opacity only — deliberately no translate. The desktop panel is centered by
+     `md:-translate-x-1/2 md:-translate-y-1/2`, and in Tailwind v4 those write the standalone
+     `translate` property rather than `transform`. The two compose (translate is applied before
+     transform), so a keyframe that re-stated the centering translate would move the panel a
+     second full half-width: measured at 1440px, a 520px dialog landed with its centre at 460
+     instead of 720. Animating `transform` alone leaves the centering to the property that owns
+     it. */
   @keyframes dialog-in {
     from {
       opacity: 0;
-      transform: translate(-50%, -50%) scale(0.97);
+      transform: scale(0.97);
     }
     to {
       opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
+      transform: scale(1);
     }
   }
   @keyframes dialog-out {
     from {
       opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
+      transform: scale(1);
     }
     to {
       opacity: 0;
-      transform: translate(-50%, -50%) scale(0.97);
+      transform: scale(0.97);
     }
   }
   @keyframes scrim-in {
