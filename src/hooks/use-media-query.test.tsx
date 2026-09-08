@@ -52,7 +52,7 @@ describe("useColumnCount", () => {
     [[DESKTOP_QUERY], 3],
     [[DESKTOP_QUERY, WIDE_QUERY], 4],
   ])("maps %j to %i columns", (matching, expected) => {
-    stubMatchMedia(matching as string[]);
+    stubMatchMedia(matching);
     render(<Columns />);
     expect(screen.getByTestId("cols")).toHaveTextContent(String(expected));
   });
