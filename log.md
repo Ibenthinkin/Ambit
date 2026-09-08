@@ -101,6 +101,41 @@ prod sequence after the deploy — unchanged from 09-07.
 
 _Session spend: 6.64M tok (in 315 · out 79.6k · cache r 5.66M / w 908.6k) · ~≥$7.18 · fable-5-1 + opus-4-7 · 13:05→14:33_
 
+**Walk 4 landed (18:30, `508ee00` un-parked it):** `thisisnthappiness` — **27,500 rows @ 8.13,
+86.3% ≥ 8, 1.4% ≤ 5**, all images, 119 un-homed, 3,784 over-filed (14%). 271 pages, 169
+walker errors (159 of them `unsupported post type "video"` — this blog posts video, the walker
+skips it), one curator fallback in 27,500 (an unterminated JSON string, the fallback's proper
+job), 101 min end to end, $7.02 billed ($25.05 → $18.03). Corpus **119,687**. Resume
+`--cursor 13550`. All four kept Tumblr blogs are now walked; `SUSPENDED_SOURCES`' round-3
+block is history. Ben topped up OpenRouter before this one.
+
+**Findings:**
+
+- **The probe under-measured pictures/post by 2×, again.** blogs.ts says 1.0 pictures/post, so
+  27,500 items was meant to be the newest 25% ≈ 27,250 posts. The walk fanned 13,359 posts out
+  to 27,500 items — **2.06 pictures/post** — so the quota bought the newest **12%** of the
+  archive, not the quarter. The same shape as sovietpostcards' 1.34 → 1.68 on 09-07, only
+  larger; the 200-post probe reads the _post_ count, the walk reads the _picture_ count.
+  Nothing to fix tonight: raising the quota and `--cursor 13550` buys the rest whenever Ben
+  wants it, and this blog's captions are still the thinnest in the corpus.
+- **Its captured topics are the aesthetic ones, not a subject.** `photography` 63% this blog
+  (5,715), `painting` 65%, `landscapes` 73%, `drawing` 71%, `collage` 84%, `japan` 86%,
+  `new-york` 82%. Different from the vault's science-fiction/technology capture: these are
+  medium and place topics a picture blog with no captions falls into by _look_. `illustration`
+  stays 16% (sovietpostcards still owns it). `sourceCap` is again the page's defence.
+- **Score shape is the 8-heavy one, not the vault's 9-heavy one** — 14,871 eights, 8,829 nines,
+  3,366 sevens. Matches the probe's 8.11 almost exactly, so the 150-item sample was honest
+  about _quality_ even while it was wrong about _fan-out_.
+
+**Open / next:** Ben's verdicts on walks 3 and 4 (the readouts are above; both blogs are in the
+DB and the feed). Then the two `--cursor` top-ups if wanted (sovietpostcards 10400,
+thisisnthappiness 13550), and the four-script prod sequence after the next deploy —
+`promote-prod.sh` → `trim:memberships` → `repair:periods` → `repair:rehome`. Local `.cache/img`
+is only 295 MB: the walks fill the _curation_ cache, not the image cache; `img:warm` is a
+separate, later step.
+
+_Session spend: 5.31M tok (in 130 · out 32.3k · cache r 4.82M / w 464.0k) · ~≥$2.48 · fable-5-1 + opus-4-7 · 14:33→18:32_
+
 ---
 
 **Desktop pass, designed and planned** (a parallel session, 09-07 evening → 09-08 midday). Four
