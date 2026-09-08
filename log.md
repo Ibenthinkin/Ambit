@@ -43,6 +43,30 @@ next **18 hours**, failing 5,682 items, until it was found and killed at 12:52 t
 
 *Session spend: 5.87M tok (in 103 · out 54.7k · cache r 4.77M / w 1.04M) · ~≥$3.60 · fable-5-1 + opus-4-7 · 17:57→12:55*
 
+---
+
+**Desktop pass, designed and planned** (a parallel session, 09-07 evening → 09-08 midday). Four
+1440 px Playwright screenshots of the running app settled what "desktop polish" meant: the phone
+layout stretched edge to edge — two 715 px feed columns, a 1400 px hero at 300 px tall, chips in
+one line and a half. The prior session's transcript was recovered from disk after a `/clear`, so
+the three decisions are Ben's from 09-07, not re-litigated.
+
+**Decisions (Ben, 09-07-26):**
+- **Grow to fit, per screen** — not a centered phone frame, not a sidebar app. Feed masonry to
+  3/4 columns in 1120 px, reader pages at 720 px, list screens at 600 px, phone untouched below
+  768 px.
+- **Sheets become centered 520 px dialogs above `md`**, same component, fade-and-scale, no grabber.
+- **Input: layout plus the basics** — focusable tiles, Enter/Space, hover, **right-click opens the
+  item sheet** (guarded on `(pointer: fine)` so Android's synthesized contextmenu doesn't
+  double-open), gallery Escape/arrows. No keyboard-first feed.
+
+**Shipped:** `docs/DESIGN_desktop-polish.md` and a cold-executable
+`docs/PLAN_desktop-polish.md` (11 tasks, TDD, one `useMediaQuery` on `useSyncExternalStore` so
+the server-rendered feed hydrates straight into four columns — the one non-obvious mechanism),
+on `feat/desktop-polish`. Execute in a cheaper session.
+
+*Session spend: 10.45M tok (in 156 · out 110.8k · cache r 9.94M / w 391.7k) · fable-5-1 · 12:52→13:04*
+
 ### [[09-07-26 Mon]] — Cut 2b sized, found wanting; sourceCap and MAX_TOPICS instead
 
 Ben's call on the sovietpostcards topic-capture finding was **Cut 2b**. Sizing it against the
