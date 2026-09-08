@@ -107,6 +107,37 @@ describe("LandingScreen — cycle mode", () => {
     ).not.toBeInTheDocument();
   });
 
+  // The desktop pass (docs/DESIGN_desktop-polish.md §3). `AuthSheet` is deliberately not a
+  // `BottomSheet` (see its header comment), so it gets the dialog treatment by hand — and the
+  // closed state above `md` is transparent and inert rather than off-screen, because a card that
+  // is merely translated down still covers the slideshow it was supposed to hand back.
+  it("is a centered 520px card above md, transparent and inert when closed", async () => {
+    await renderScreen();
+
+    expect(sheet()).toHaveAttribute("data-open", "false");
+    expect(sheet()).toHaveClass(
+      "md:inset-auto",
+      "md:left-1/2",
+      "md:top-1/2",
+      "md:w-[520px]",
+      "md:-translate-x-1/2",
+      "md:rounded-[28px]",
+    );
+    expect(sheet()).toHaveClass(
+      "translate-y-full",
+      "md:-translate-y-[45%]",
+      "md:opacity-0",
+      "md:pointer-events-none",
+    );
+
+    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
+    expect(sheet()).toHaveClass(
+      "translate-y-0",
+      "md:-translate-y-1/2",
+      "md:opacity-100",
+    );
+  });
+
   it("raises the sheet when the imagery itself is tapped", async () => {
     await renderScreen();
 

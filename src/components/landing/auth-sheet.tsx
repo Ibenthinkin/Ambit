@@ -65,8 +65,18 @@ export function AuthSheet({
           // max-height plus scroll is what stops sign-up mode (an extra field) from pushing the
           // submit button off a small screen once the keyboard is up.
           "pb-[calc(36px+env(safe-area-inset-bottom))]",
-          "transition-transform duration-[550ms] ease-[cubic-bezier(.2,.9,.25,1)]",
-          open ? "translate-y-0" : "translate-y-full",
+          // Above `md` (docs/DESIGN_desktop-polish.md §3): a 520px card centered both ways, every
+          // corner rounded, a full border. It fades and settles rather than sliding — hence the
+          // transition covers opacity too, and the closed state below is transparent rather than
+          // off-screen. `md:inset-auto` clears the phone anchoring before `left/top` re-anchor.
+          "md:inset-auto md:top-1/2 md:left-1/2 md:max-h-[80dvh] md:w-[520px] md:-translate-x-1/2 md:rounded-[28px] md:border md:pb-[36px]",
+          // `transition-[translate,opacity]`, not `transition-transform`: v4's translate utilities
+          // write the `translate` property rather than `transform`, and the fade needs `opacity`
+          // in the list for the desktop card to arrive at all.
+          "transition-[translate,opacity] duration-[550ms] ease-[cubic-bezier(.2,.9,.25,1)]",
+          open
+            ? "translate-y-0 md:-translate-y-1/2 md:opacity-100"
+            : "translate-y-full md:pointer-events-none md:-translate-y-[45%] md:opacity-0",
         ].join(" ")}
         style={{ boxShadow: "0 -20px 60px rgba(0,0,0,0.45)" }}
       >
