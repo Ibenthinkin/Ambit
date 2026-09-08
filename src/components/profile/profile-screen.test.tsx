@@ -291,4 +291,11 @@ describe("ProfileScreen", () => {
     expect(screen.getByText("Couldn't load your profile.")).toBeInTheDocument();
     expect(screen.queryByText("Ben Traverse")).not.toBeInTheDocument();
   });
+
+  // The desktop pass (docs/DESIGN_desktop-polish.md §1): list-shaped screens stop stretching at
+  // 600px. Below `md` the class is inert, which is the point — the phone layout is untouched.
+  it("centers in a narrow column above md", () => {
+    render(<ProfileScreen />);
+    expect(document.querySelector(".md\\:max-w-\\[600px\\]")).not.toBeNull();
+  });
 });

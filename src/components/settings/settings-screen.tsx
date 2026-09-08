@@ -23,6 +23,7 @@ import { markProfileEditOrigin } from "~/components/profile/edit-origin";
 import { cameToSettingsFromApp } from "~/components/settings/settings-origin";
 import { markSavedOrigin } from "~/components/saved/saved-origin";
 import { AvatarChip } from "~/components/ui/avatar-chip";
+import { Column } from "~/components/ui/column";
 import { GlassHeader } from "~/components/ui/glass-header";
 import { IconButton } from "~/components/ui/icon-button";
 import { Rise } from "~/components/ui/rise";
@@ -162,157 +163,161 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
         <span className="w-[34px] flex-none" aria-hidden />
       </GlassHeader>
 
-      <div className="px-5 pb-[120px]">
-        <Rise>
-          <div className="grid grid-cols-2 gap-3 pt-5">
-            <button
-              type="button"
+      {/* The desktop cap (docs/DESIGN_desktop-polish.md §1). The rows keep their own `px-5`
+          inside it, so above 768px the list simply stops widening. */}
+      <Column width="narrow">
+        <div className="px-5 pb-[120px]">
+          <Rise>
+            <div className="grid grid-cols-2 gap-3 pt-5">
+              <button
+                type="button"
+                onClick={goEdit}
+                className="border-hairline border-ink/8 bg-ink/4 rounded-[18px] p-4 text-left"
+              >
+                <AvatarChip
+                  size={44}
+                  gradient={me.data ? avatarGradient(me.data.id) : undefined}
+                />
+                <span className="text-ink-hi mt-[14px] block truncate text-[16px] font-semibold">
+                  {me.data?.name ?? ""}
+                </span>
+                <span className="text-ink/42 mt-[3px] block text-[13px]">
+                  Edit profile
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={goSaved}
+                className="border-hairline border-ink/8 bg-ink/4 rounded-[18px] p-4 text-left"
+              >
+                <span className="border-hairline border-ink/9 bg-ink/6 flex size-[44px] items-center justify-center rounded-[13px]">
+                  {/* Outline, not filled — this is a doorway, not a state. */}
+                  <Bookmark size={19} className="text-accent" />
+                </span>
+                <span className="text-ink-hi mt-[14px] block text-[16px] font-semibold">
+                  Everything kept
+                </span>
+                <span className="text-ink/42 mt-[3px] block text-[13px]">
+                  {saveCountLabel(savedCount.data ?? 0)}
+                </span>
+              </button>
+            </div>
+          </Rise>
+
+          <SettingsGroup title="Account">
+            <SettingsRow
+              icon={<Person size={17} />}
+              label="Account details"
               onClick={goEdit}
-              className="border-hairline border-ink/8 bg-ink/4 rounded-[18px] p-4 text-left"
-            >
-              <AvatarChip
-                size={44}
-                gradient={me.data ? avatarGradient(me.data.id) : undefined}
-              />
-              <span className="text-ink-hi mt-[14px] block truncate text-[16px] font-semibold">
-                {me.data?.name ?? ""}
-              </span>
-              <span className="text-ink/42 mt-[3px] block text-[13px]">
-                Edit profile
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={goSaved}
-              className="border-hairline border-ink/8 bg-ink/4 rounded-[18px] p-4 text-left"
-            >
-              <span className="border-hairline border-ink/9 bg-ink/6 flex size-[44px] items-center justify-center rounded-[13px]">
-                {/* Outline, not filled — this is a doorway, not a state. */}
-                <Bookmark size={19} className="text-accent" />
-              </span>
-              <span className="text-ink-hi mt-[14px] block text-[16px] font-semibold">
-                Everything kept
-              </span>
-              <span className="text-ink/42 mt-[3px] block text-[13px]">
-                {saveCountLabel(savedCount.data ?? 0)}
-              </span>
-            </button>
-          </div>
-        </Rise>
-
-        <SettingsGroup title="Account">
-          <SettingsRow
-            icon={<Person size={17} />}
-            label="Account details"
-            onClick={goEdit}
-          />
-          <SettingsRow
-            icon={<PersonPlus size={17} />}
-            label="Invite a friend"
-            // No value: invites exist, but only as an admin script (`bun run invite`). A count
-            // here would be fiction.
-            onClick={stub("Invite a friend")}
-          />
-          {/* Three states, because the honest answer differs by platform. Already installed: say
+            />
+            <SettingsRow
+              icon={<PersonPlus size={17} />}
+              label="Invite a friend"
+              // No value: invites exist, but only as an admin script (`bun run invite`). A count
+              // here would be fiction.
+              onClick={stub("Invite a friend")}
+            />
+            {/* Three states, because the honest answer differs by platform. Already installed: say
               so and offer nothing. A real `beforeinstallprompt` in hand (Chromium): fire it — one
               tap beats three steps of instructions. Otherwise, and that includes every iOS
               reader, the instruction sheet. */}
-          <SettingsRow
-            icon={<Download size={17} />}
-            label="Add to home screen"
-            value={standalone ? "Installed" : undefined}
-            action={standalone ? undefined : "Install"}
-            onClick={
-              standalone
-                ? undefined
-                : install.canPrompt
-                  ? () => void install.prompt()
-                  : () => setOpenSheet("install")
-            }
-          />
-        </SettingsGroup>
+            <SettingsRow
+              icon={<Download size={17} />}
+              label="Add to home screen"
+              value={standalone ? "Installed" : undefined}
+              action={standalone ? undefined : "Install"}
+              onClick={
+                standalone
+                  ? undefined
+                  : install.canPrompt
+                    ? () => void install.prompt()
+                    : () => setOpenSheet("install")
+              }
+            />
+          </SettingsGroup>
 
-        <SettingsGroup title="Your feed">
-          <SettingsRow
-            icon={<FeedLines size={17} />}
-            label="What you see"
-            value={topicValue}
-            onClick={() => setOpenSheet("topics")}
-          />
-          <SettingsRow
-            icon={<Mute size={17} />}
-            label="Muted sources"
-            // True today, and will stay true until muting is built: nothing anywhere in the app
-            // mutes a source.
-            value="None"
-            onClick={stub("Muted sources")}
-          />
-          <SettingsRow
-            icon={<Rays size={17} />}
-            label="Serendipity"
-            // The dial exists server-side (JUMP share, wildcardChance) but has no per-user value
-            // to report, so the row shows none.
-            onClick={stub("Serendipity")}
-          />
-        </SettingsGroup>
+          <SettingsGroup title="Your feed">
+            <SettingsRow
+              icon={<FeedLines size={17} />}
+              label="What you see"
+              value={topicValue}
+              onClick={() => setOpenSheet("topics")}
+            />
+            <SettingsRow
+              icon={<Mute size={17} />}
+              label="Muted sources"
+              // True today, and will stay true until muting is built: nothing anywhere in the app
+              // mutes a source.
+              value="None"
+              onClick={stub("Muted sources")}
+            />
+            <SettingsRow
+              icon={<Rays size={17} />}
+              label="Serendipity"
+              // The dial exists server-side (JUMP share, wildcardChance) but has no per-user value
+              // to report, so the row shows none.
+              onClick={stub("Serendipity")}
+            />
+          </SettingsGroup>
 
-        <SettingsGroup title="Permissions">
-          <SettingsRow
-            icon={<Photo size={17} />}
-            label="Camera roll"
-            onClick={stub("Camera roll")}
-          />
-          <SettingsRow
-            icon={<Bell size={17} />}
-            label="Notifications"
-            value={notificationValue(notifications.state)}
-            // Denied is the one state the reader has to leave the app to change — the warn tint
-            // marks it as a dead end rather than a setting.
-            warnValue={notifications.state === "denied"}
-            onClick={onNotificationsTap}
-          />
-        </SettingsGroup>
+          <SettingsGroup title="Permissions">
+            <SettingsRow
+              icon={<Photo size={17} />}
+              label="Camera roll"
+              onClick={stub("Camera roll")}
+            />
+            <SettingsRow
+              icon={<Bell size={17} />}
+              label="Notifications"
+              value={notificationValue(notifications.state)}
+              // Denied is the one state the reader has to leave the app to change — the warn tint
+              // marks it as a dead end rather than a setting.
+              warnValue={notifications.state === "denied"}
+              onClick={onNotificationsTap}
+            />
+          </SettingsGroup>
 
-        <SettingsGroup title="Other">
-          <SettingsRow
-            icon={<Contrast size={17} />}
-            label="Appearance"
-            value={accentLabel}
-            onClick={() => setOpenSheet("accent")}
-          />
-          <SettingsRow
-            icon={<Globe size={17} />}
-            label="Language"
-            // True: the app is English-only, with no translation layer anywhere.
-            value="English"
-            onClick={stub("Language")}
-          />
-          <SettingsRow
-            icon={<Info size={17} />}
-            label="About Ambit"
-            onClick={() => setOpenSheet("about")}
-          />
-          <SettingsRow
-            icon={<ChatBubble size={17} />}
-            label="Get in touch"
-            onClick={() => {
-              window.location.href = `mailto:${CONTACT_EMAIL}`;
-            }}
-          />
-        </SettingsGroup>
+          <SettingsGroup title="Other">
+            <SettingsRow
+              icon={<Contrast size={17} />}
+              label="Appearance"
+              value={accentLabel}
+              onClick={() => setOpenSheet("accent")}
+            />
+            <SettingsRow
+              icon={<Globe size={17} />}
+              label="Language"
+              // True: the app is English-only, with no translation layer anywhere.
+              value="English"
+              onClick={stub("Language")}
+            />
+            <SettingsRow
+              icon={<Info size={17} />}
+              label="About Ambit"
+              onClick={() => setOpenSheet("about")}
+            />
+            <SettingsRow
+              icon={<ChatBubble size={17} />}
+              label="Get in touch"
+              onClick={() => {
+                window.location.href = `mailto:${CONTACT_EMAIL}`;
+              }}
+            />
+          </SettingsGroup>
 
-        {/* Sign out's permanent home, and 5.10's own addition — the design handoff has no sign-out
+          {/* Sign out's permanent home, and 5.10's own addition — the design handoff has no sign-out
             affordance anywhere. A card of its own rather than a row in "Other": it's the one
             control here that ends the session, and it shouldn't sit next to the language picker. */}
-        <SettingsGroup>
-          <SignOutRow />
-        </SettingsGroup>
+          <SettingsGroup>
+            <SignOutRow />
+          </SettingsGroup>
 
-        <p className="text-ink/28 mt-[34px] text-center text-[12px]">
-          Ambit · invite-only · {versionLabel}
-        </p>
-      </div>
+          <p className="text-ink/28 mt-[34px] text-center text-[12px]">
+            Ambit · invite-only · {versionLabel}
+          </p>
+        </div>
+      </Column>
 
       <TopicsSheet
         open={openSheet === "topics"}

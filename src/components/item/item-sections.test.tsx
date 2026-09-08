@@ -192,6 +192,24 @@ describe("ImageItemBody's hero", () => {
     expect(sessionStorage.getItem("ambit.galleryOrigin.v1")).toBe("item-1");
   });
 
+  // The desktop pass (docs/DESIGN_desktop-polish.md §4). Below `md` the redesign's 300px cover
+  // crop is untouched — it is the LCP element of the one public page. Above it the plate is shown
+  // whole, capped at 70% of the viewport's height.
+  it("caps the hero at 70vh and shows it whole above md, cropped to 300px below", () => {
+    render(<ImageItemBody item={image()} />);
+
+    expect(screen.getByAltText("A plate")).toHaveClass(
+      "h-[300px]",
+      "object-cover",
+      "md:h-auto",
+      "md:w-auto",
+      "md:max-h-[70vh]",
+      "md:max-w-full",
+      "md:mx-auto",
+      "md:object-contain",
+    );
+  });
+
   it("does not fire on a press that travelled — a scroll is not a tap", () => {
     pushMock.mockClear();
     render(<ImageItemBody item={image()} />);

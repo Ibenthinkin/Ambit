@@ -151,4 +151,11 @@ describe("OnboardingScreen", () => {
     );
     expect(replaceMock).not.toHaveBeenCalled();
   });
+
+  // The desktop pass (docs/DESIGN_desktop-polish.md §1): list-shaped screens stop stretching at
+  // 600px. Below `md` the class is inert, which is the point — the phone layout is untouched.
+  it("centers in a narrow column above md", () => {
+    render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
+    expect(document.querySelector(".md\\:max-w-\\[600px\\]")).not.toBeNull();
+  });
 });

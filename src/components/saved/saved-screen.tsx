@@ -9,6 +9,7 @@ import { cameToSavedFromApp } from "~/components/saved/saved-origin";
 import { CollectionsSheet } from "~/components/sheets/collections-sheet";
 import { Bookmark, ChevronLeft } from "~/components/icons";
 import { Button } from "~/components/ui/button";
+import { Column } from "~/components/ui/column";
 import { GlassHeader } from "~/components/ui/glass-header";
 import { IconButton } from "~/components/ui/icon-button";
 import { PillToolbar } from "~/components/ui/pill-toolbar";
@@ -137,82 +138,89 @@ export function SavedScreen() {
         ) : null}
       </GlassHeader>
 
-      {list.isPending ? (
-        <div className="flex justify-center py-24">
-          <Spinner />
-        </div>
-      ) : null}
+      {/* The desktop cap (docs/DESIGN_desktop-polish.md §1). `narrow`, not the feed's `wide`:
+          Saved stays a two-column masonry — it is a list of things you already chose, and widening
+          it to four would make a modest collection look like a thin feed. */}
+      <Column width="narrow">
+        {list.isPending ? (
+          <div className="flex justify-center py-24">
+            <Spinner />
+          </div>
+        ) : null}
 
-      {/* A failed load must never read as an empty collection — same rule as the feed. */}
-      {list.isError ? (
-        <div className="flex flex-col items-center gap-4 px-8 py-24">
-          <span className="text-ink/40 text-center text-[14px]">
-            Couldn&apos;t load your saved things.
-          </span>
-          <Button
-            variant="ghost"
-            shape="pill"
-            onClick={() => void list.refetch()}
-          >
-            Try again
-          </Button>
-        </div>
-      ) : null}
-
-      {showEmpty ? (
-        <Rise>
-          <div className="flex flex-col items-center px-10 py-[90px]">
-            <div className="border-hairline bg-ink/5 border-ink/10 flex size-[66px] items-center justify-center rounded-full">
-              {/* Outline, not filled — nothing is kept yet, so the glyph shows the affordance
-                  rather than a state. */}
-              <Bookmark size={28} className="text-accent" />
-            </div>
-            <h2 className="text-ink-hi mt-[22px] text-[23px] font-semibold">
-              Nothing kept yet
-            </h2>
-            <p className="text-ink/55 mt-[9px] max-w-[250px] text-center text-[15px] leading-[1.5]">
-              Tap the bookmark on anything that catches you. It&apos;ll wait for
-              you here — no rush, no expiry.
-            </p>
-            <Button className="mt-[26px]" onClick={leaveSaved}>
-              Back to exploring
+        {/* A failed load must never read as an empty collection — same rule as the feed. */}
+        {list.isError ? (
+          <div className="flex flex-col items-center gap-4 px-8 py-24">
+            <span className="text-ink/40 text-center text-[14px]">
+              Couldn&apos;t load your saved things.
+            </span>
+            <Button
+              variant="ghost"
+              shape="pill"
+              onClick={() => void list.refetch()}
+            >
+              Try again
             </Button>
           </div>
-        </Rise>
-      ) : null}
+        ) : null}
 
-      {/* Reachable through a zero-count chip or a stale filtered URL — an addition over the
+        {showEmpty ? (
+          <Rise>
+            <div className="flex flex-col items-center px-10 py-[90px]">
+              <div className="border-hairline bg-ink/5 border-ink/10 flex size-[66px] items-center justify-center rounded-full">
+                {/* Outline, not filled — nothing is kept yet, so the glyph shows the affordance
+                  rather than a state. */}
+                <Bookmark size={28} className="text-accent" />
+              </div>
+              <h2 className="text-ink-hi mt-[22px] text-[23px] font-semibold">
+                Nothing kept yet
+              </h2>
+              <p className="text-ink/55 mt-[9px] max-w-[250px] text-center text-[15px] leading-[1.5]">
+                Tap the bookmark on anything that catches you. It&apos;ll wait
+                for you here — no rush, no expiry.
+              </p>
+              <Button className="mt-[26px]" onClick={leaveSaved}>
+                Back to exploring
+              </Button>
+            </div>
+          </Rise>
+        ) : null}
+
+        {/* Reachable through a zero-count chip or a stale filtered URL — an addition over the
           prototype, whose type filters could never land on an empty subset. */}
-      {showFilteredEmpty ? (
-        <div className="flex justify-center py-24">
-          <span className="text-ink/40 text-center text-[14px]">
-            Nothing in this collection yet.
-          </span>
-        </div>
-      ) : null}
-
-      {/* The feed's own masonry geometry, verbatim: two independent stacks, `items-start` so a
-          short column doesn't stretch. `pt-2` tucks the first row right under the sticky header. */}
-      <div className="grid grid-cols-2 items-start gap-1 px-1 pt-2">
-        {columns.map((column, columnIndex) => (
-          <div key={columnIndex} className="flex flex-col gap-1">
-            {column.map((tile) =>
-              // CORE-only input makes this branch unreachable (see the cards memo) — the check is
-              // here to narrow the type, not to handle a real case.
-              tile.kind === "because" ? null : (
-                <SavedTile
-                  key={tile.card.item.id}
-                  tile={tile}
-                  onUnsave={() => unsave.mutate({ itemId: tile.card.item.id })}
-                />
-              ),
-            )}
+        {showFilteredEmpty ? (
+          <div className="flex justify-center py-24">
+            <span className="text-ink/40 text-center text-[14px]">
+              Nothing in this collection yet.
+            </span>
           </div>
-        ))}
-      </div>
+        ) : null}
 
-      {/* Clears the floating pill, so the last row of tiles isn't parked underneath it. */}
-      <div className="h-24" />
+        {/* The feed's own masonry geometry, verbatim: two independent stacks, `items-start` so a
+          short column doesn't stretch. `pt-2` tucks the first row right under the sticky header. */}
+        <div className="grid grid-cols-2 items-start gap-1 px-1 pt-2">
+          {columns.map((column, columnIndex) => (
+            <div key={columnIndex} className="flex flex-col gap-1">
+              {column.map((tile) =>
+                // CORE-only input makes this branch unreachable (see the cards memo) — the check is
+                // here to narrow the type, not to handle a real case.
+                tile.kind === "because" ? null : (
+                  <SavedTile
+                    key={tile.card.item.id}
+                    tile={tile}
+                    onUnsave={() =>
+                      unsave.mutate({ itemId: tile.card.item.id })
+                    }
+                  />
+                ),
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Clears the floating pill, so the last row of tiles isn't parked underneath it. */}
+        <div className="h-24" />
+      </Column>
 
       <PillToolbar
         bookmark="on-saved"

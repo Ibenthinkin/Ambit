@@ -231,6 +231,17 @@ describe("SettingsScreen — rows", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(backMock).toHaveBeenCalledOnce();
   });
+
+  // The desktop pass (docs/DESIGN_desktop-polish.md §1): list-shaped screens stop stretching at
+  // 600px. Two columns, not one — `GlassHeader` centers its own content (so the back button lines
+  // up with the body's left edge) and the body below it centers separately. Below `md` both
+  // classes are inert, which is the point: the phone layout is untouched.
+  it("centers the header and the body in narrow columns above md", () => {
+    renderScreen();
+    expect(
+      document.querySelectorAll(".md\\:max-w-\\[600px\\]").length,
+    ).toBeGreaterThanOrEqual(2);
+  });
 });
 
 describe("SettingsScreen — What you see", () => {

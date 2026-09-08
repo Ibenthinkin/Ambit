@@ -7,6 +7,7 @@ import { ChevronLeft } from "~/components/icons";
 import { cameToEditFromApp } from "~/components/profile/edit-origin";
 import { AvatarChip } from "~/components/ui/avatar-chip";
 import { Button } from "~/components/ui/button";
+import { Column } from "~/components/ui/column";
 import { GlassHeader } from "~/components/ui/glass-header";
 import { IconButton } from "~/components/ui/icon-button";
 import { Rise } from "~/components/ui/rise";
@@ -40,14 +41,19 @@ export function ProfileEditScreen() {
 
   return (
     <main className="bg-bg text-ink min-h-dvh">
+      {/* The desktop cap (docs/DESIGN_desktop-polish.md §1) — on every branch, so a spinner and an
+          error land where the form will, rather than in the middle of a 1440px band. */}
       {me.isPending ? (
-        <div className="flex justify-center py-24">
+        <Column width="narrow" className="flex justify-center py-24">
           <Spinner />
-        </div>
+        </Column>
       ) : null}
 
       {me.isError ? (
-        <div className="flex flex-col items-center gap-4 px-8 py-24">
+        <Column
+          width="narrow"
+          className="flex flex-col items-center gap-4 px-8 py-24"
+        >
           <span className="text-ink/40 text-center text-[14px]">
             Couldn&apos;t load your profile.
           </span>
@@ -58,7 +64,7 @@ export function ProfileEditScreen() {
           >
             Try again
           </Button>
-        </div>
+        </Column>
       ) : null}
 
       {/* The form is a separate component mounted only once the profile has arrived, so its
@@ -146,92 +152,97 @@ function EditForm({ profile }: { profile: UserProfile }) {
         </button>
       </GlassHeader>
 
-      {/* No caption under it — see the file header on why the prototype's upload copy is gone. */}
-      <div className="flex justify-center pt-[34px]">
-        <Rise>
-          <AvatarChip size={104} gradient={avatarGradient(profile.id)} />
-        </Rise>
-      </div>
+      <Column width="narrow">
+        {/* No caption under it — see the file header on why the prototype's upload copy is gone. */}
+        <div className="flex justify-center pt-[34px]">
+          <Rise>
+            <AvatarChip size={104} gradient={avatarGradient(profile.id)} />
+          </Rise>
+        </div>
 
-      <div className="flex flex-col gap-5 px-5 pt-[34px] pb-[60px]">
-        <Field label="Name">
-          <Input
-            value={name}
-            maxLength={60}
-            placeholder="Your name"
-            aria-label="Name"
-            onChange={(e) => setName(e.target.value)}
-          />
-        </Field>
+        <div className="flex flex-col gap-5 px-5 pt-[34px] pb-[60px]">
+          <Field label="Name">
+            <Input
+              value={name}
+              maxLength={60}
+              placeholder="Your name"
+              aria-label="Name"
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
 
-        <Field label="Handle">
-          <Input
-            value={handle}
-            maxLength={25}
-            placeholder="@you"
-            aria-label="Handle"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            onChange={(e) => {
-              setHandle(e.target.value);
-              if (handleError) setHandleError(null);
-            }}
-          />
-          {/* The conflict's home. Under the field rather than in a toast, because the fix is to
+          <Field label="Handle">
+            <Input
+              value={handle}
+              maxLength={25}
+              placeholder="@you"
+              aria-label="Handle"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              onChange={(e) => {
+                setHandle(e.target.value);
+                if (handleError) setHandleError(null);
+              }}
+            />
+            {/* The conflict's home. Under the field rather than in a toast, because the fix is to
               edit the thing directly above it. */}
-          {handleError ? (
-            <span role="alert" className="text-error mt-2 block text-[12.5px]">
-              {handleError}
+            {handleError ? (
+              <span
+                role="alert"
+                className="text-error mt-2 block text-[12.5px]"
+              >
+                {handleError}
+              </span>
+            ) : null}
+          </Field>
+
+          <Field label="About">
+            <Textarea
+              value={bio}
+              rows={4}
+              maxLength={280}
+              placeholder="What are you curious about?"
+              aria-label="About"
+              onChange={(e) => setBio(e.target.value)}
+            />
+          </Field>
+
+          <Field label="Email">
+            <Input
+              readOnly
+              value={profile.email}
+              aria-label="Email"
+              className="text-ink/55"
+            />
+            <span className="text-ink/35 mt-2 block text-[12px]">
+              Only used for your invite and sign-in.
+            </span>
+          </Field>
+
+          <Button
+            className="mt-1 h-[50px] w-full"
+            onClick={submit}
+            aria-busy={submitting}
+          >
+            Save changes
+          </Button>
+
+          {formError ? (
+            <span role="alert" className="text-error text-center text-[12.5px]">
+              {formError}
             </span>
           ) : null}
-        </Field>
 
-        <Field label="About">
-          <Textarea
-            value={bio}
-            rows={4}
-            maxLength={280}
-            placeholder="What are you curious about?"
-            aria-label="About"
-            onChange={(e) => setBio(e.target.value)}
-          />
-        </Field>
-
-        <Field label="Email">
-          <Input
-            readOnly
-            value={profile.email}
-            aria-label="Email"
-            className="text-ink/55"
-          />
-          <span className="text-ink/35 mt-2 block text-[12px]">
-            Only used for your invite and sign-in.
-          </span>
-        </Field>
-
-        <Button
-          className="mt-1 h-[50px] w-full"
-          onClick={submit}
-          aria-busy={submitting}
-        >
-          Save changes
-        </Button>
-
-        {formError ? (
-          <span role="alert" className="text-error text-center text-[12.5px]">
-            {formError}
-          </span>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={leaveEdit}
-          className="text-ink/45 text-center text-[14px]"
-        >
-          Discard
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={leaveEdit}
+            className="text-ink/45 text-center text-[14px]"
+          >
+            Discard
+          </button>
+        </div>
+      </Column>
 
       {/* Unraised: there is no pill on this screen for a toast to clear. */}
       <Toast
