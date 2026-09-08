@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { usePress } from "~/hooks/use-press";
+import { useDesktopPress, usePress } from "~/hooks/use-press";
 import { sourceLabel } from "~/lib/source-label";
 import { cn } from "~/lib/utils";
 import type { FeedCard } from "~/server/services/feed";
@@ -31,6 +31,7 @@ export interface ArticleCardProps {
 
 export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
   const press = usePress({ onTap, onLongPress });
+  const desktop = useDesktopPress({ onTap, onLongPress });
   const [pressing, setPressing] = React.useState(false);
   const { item } = card;
 
@@ -59,9 +60,18 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
   return (
     <div
       {...handlers}
+      {...desktop}
+      role="button"
+      tabIndex={0}
+      // The `<h2>` below already gives this a heading for a screen reader; this names the *button*
+      // the wrapper has just become.
+      aria-label={item.title}
       data-pressing={pressing ? "" : undefined}
       className={cn(
-        "border-hairline bg-ink/[3.5%] border-ink/7 relative block w-full cursor-pointer touch-manipulation border px-[14px] pt-4 pb-[14px] transition-transform duration-200 select-none",
+        // The hover lift is one step up the fill ladder, not a transform: this card has a border,
+        // and scaling a hairline is how you get a blurry hairline. `hover:` and `focus-visible:`
+        // are both pointer/keyboard-gated, so a phone sees neither (see `image-tile.tsx`).
+        "border-hairline bg-ink/[3.5%] border-ink/7 focus-visible:outline-accent hover:bg-ink/[5%] relative block w-full cursor-pointer touch-manipulation border px-[14px] pt-4 pb-[14px] transition-transform duration-200 outline-none select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
         pressing && "scale-[0.985]",
       )}
       style={{ WebkitTouchCallout: "none" }}

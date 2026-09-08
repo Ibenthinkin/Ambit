@@ -283,7 +283,6 @@ describe("packColumns", () => {
     expect(right).toHaveLength(2);
   });
 
-
   it("packs into N columns, shortest first, lowest index on ties", () => {
     // Eight squares-ish tiles across four columns: the first four go one per column (all
     // level at 0), then each next tile lands on whichever column is shortest.
