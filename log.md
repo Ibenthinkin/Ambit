@@ -67,6 +67,40 @@ the ~$2.70 remainder, but the next big walk (walk 4, ~$4+) wants a top-up first.
 
 _Session spend: 4.20M tok (in 127 · out 38.7k · cache r 3.89M / w 272.6k) · ~≥$0.79 · fable-5-1 + opus-4-7 · 12:59→13:05_
 
+**Walk 3 landed (14:33):** `thevaultoftheatomicspaceage` — **19,000 rows @ 8.67, 96.4% ≥ 8,
+0.8% ≤ 5**, all images, 34 un-homed (their tags: graphic design, meme, text overlay — the blog's
+occasional crowdfunding graphic and joke post, correctly homeless). 380 pages, 45 walker
+errors (all "unsupported post type answer" / "regular post has no image" — skips, not
+failures), 47.7 min end to end, and the fail-fast never fired because nothing failed. Corpus
+is now **92,322**. Resume cursor for a later top-up: `--cursor 18959`.
+
+**Findings:**
+
+- **The topic capture is the sovietpostcards shape again, but on topics that were grown _for_
+  this blog.** By display topic: `science-fiction` 7,215 (90% of the topic), `retrofuturism`
+  5,079 (97%), `technology` 1,853 (91%), `furniture` 373 (91%). That is what 09-07's
+  `science-fiction`+`retrofuturism` promotion was for, so it reads as intended rather than as
+  the `19th-century` problem — but `sourceCap` (three cards a page) is the only thing between
+  a reader who picked `technology` and a wall of the vault, and `technology` is a _core_ topic.
+  Worth a look on `/dev/feed` before the verdict.
+- **Over-filing is worse here than anywhere measured: 3,205 of 19,000 answers (17%) named more
+  than three topics** and were cut to three. Thin one-line captions plus a 100-topic list, the
+  09-07 trigger, and this blog's captions are the thinnest yet. The cap did its job; the number
+  is the reason the cap exists.
+- **Score distribution is nearly binary** — 14,098 nines, 4,196 eights, 536 sevens, and only
+  147 rows at 4 or below. The curator likes this blog almost without reservation; the useful
+  verdict signal is the 91 twos (worth eyeballing — are they the "text" un-homed cousins that
+  did land a topic?).
+- **Credits: $5.05 left** (used 84.95 of 90). The walk billed ~$2.90. Walk 4 will not fit in
+  what remains — top up before starting it.
+
+**Open / next:** Ben's verdict on the vault (the numbers above; `stats:walk` would re-walk 380
+pages for the same answer, so read the DB instead — the query is a 30-line
+`postgres` script, nothing to keep). Then walk 4, the two `--cursor` runs, and the four-script
+prod sequence after the deploy — unchanged from 09-07.
+
+_Session spend: 6.64M tok (in 315 · out 79.6k · cache r 5.66M / w 908.6k) · ~≥$7.18 · fable-5-1 + opus-4-7 · 13:05→14:33_
+
 ---
 
 **Desktop pass, designed and planned** (a parallel session, 09-07 evening → 09-08 midday). Four
