@@ -117,3 +117,33 @@ export function usePress({
     onPointerLeave: reset,
   };
 }
+
+/**
+ * Desktop affordances for a pressable tile (docs/DESIGN_desktop-polish.md §4): a keyboard can
+ * "tap" it, and a right-click stands in for the long-press a mouse doesn't have.
+ *
+ * It lives here beside `usePress` rather than in either tile because both tiles need it and the
+ * guard below is the kind of thing that goes subtly wrong when it's written twice.
+ *
+ * The `(pointer: fine)` guard is load-bearing. Android fires a synthesized `contextmenu` at the
+ * end of a long-press — *after* `usePress` has already called `onLongPress` — so on a coarse
+ * pointer this handler must stay out of it or the item sheet opens twice. jsdom has no
+ * `matchMedia`; absent, the pointer is assumed coarse, which is the safe direction.
+ */
+export function useDesktopPress({ onTap, onLongPress }: UsePressOptions) {
+  return {
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault(); // Space would otherwise scroll the page
+      onTap?.();
+    },
+    onContextMenu: (e: React.MouseEvent) => {
+      // No sheet to open (Saved's tiles) means no reason to suppress the browser's own menu.
+      if (!onLongPress) return;
+      const fine = window.matchMedia?.("(pointer: fine)").matches === true;
+      if (!fine) return;
+      e.preventDefault();
+      onLongPress();
+    },
+  };
+}

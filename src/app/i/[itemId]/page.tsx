@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { ImageItemBody } from "~/components/item/image-item-body";
+import { Column } from "~/components/ui/column";
 import { ItemShell } from "~/components/item/item-shell";
 import { JoinCta } from "~/components/item/join-cta";
 import { ReaderItemBody } from "~/components/item/reader-item-body";
@@ -125,32 +126,38 @@ export default async function ItemPage({
       viewerName={session?.user.name?.trim().split(/\s+/)[0]}
     >
       {/* Bottom padding clears the floating pill; the column width and gutters are the redesign's. */}
-      <main className="bg-bg text-ink min-h-dvh px-[22px] pt-[68px] pb-[110px]">
-        {sharedBy ? (
-          <Rise>
-            <SharedByRow name={sharedBy} />
+      <main className="bg-bg text-ink min-h-dvh pt-[68px] pb-[110px]">
+        {/* A book-width measure above `md` (docs/DESIGN_desktop-polish.md §1, §4) — body text at a
+            1400px line length is unreadable. The `px-[22px]` moved off the `main` and onto the
+            column so the gutters are column-then-padding: left outside, they would inset the
+            content from a 720px band that is already centered with room to spare. */}
+        <Column width="reader" className="px-[22px]">
+          {sharedBy ? (
+            <Rise>
+              <SharedByRow name={sharedBy} />
+            </Rise>
+          ) : null}
+
+          <Rise delayMs={50}>
+            <div className="mt-[18px]">
+              {variant === "image" ? (
+                <ImageItemBody item={item} />
+              ) : (
+                <ReaderItemBody item={item} />
+              )}
+            </div>
           </Rise>
-        ) : null}
 
-        <Rise delayMs={50}>
-          <div className="mt-[18px]">
-            {variant === "image" ? (
-              <ImageItemBody item={item} />
-            ) : (
-              <ReaderItemBody item={item} />
-            )}
-          </div>
-        </Rise>
-
-        <Rise delayMs={120}>
-          <WanderNext rows={wander} />
-        </Rise>
-
-        {session ? null : (
-          <Rise delayMs={160}>
-            <JoinCta variant={variant} />
+          <Rise delayMs={120}>
+            <WanderNext rows={wander} />
           </Rise>
-        )}
+
+          {session ? null : (
+            <Rise delayMs={160}>
+              <JoinCta variant={variant} />
+            </Rise>
+          )}
+        </Column>
       </main>
     </ItemShell>
   );

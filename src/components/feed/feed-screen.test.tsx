@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Item } from "~/server/db/items";
 import type { FeedCard, FeedPage, Tier } from "~/server/services/feed";
+import { DESKTOP_QUERY, WIDE_QUERY } from "~/hooks/use-media-query";
+import { stubMatchMedia } from "~/test/match-media";
 import { FeedScreen } from "./feed-screen";
 
 // The screen's whole job is composition — infinite query in, two packed columns plus a pill, three
@@ -558,5 +560,36 @@ describe("FeedScreen with `dev`", () => {
     expect(
       JSON.parse(localStorage.getItem("ambit.devKnobs.v1") ?? "{}"),
     ).toMatchObject({ pageSize: 8 });
+  });
+});
+
+// The desktop pass (docs/DESIGN_desktop-polish.md §2). The count comes from `useColumnCount`,
+// which reads `matchMedia` — absent in jsdom, so every test above renders the phone's two
+// columns and only these stub it.
+describe("desktop columns", () => {
+  it("packs two columns where matchMedia is absent (the phone, and the server)", () => {
+    render(<FeedScreen topicLabels={LABELS} />);
+    const grid = screen.getByTestId("feed-columns");
+    expect(grid).toHaveClass("grid-cols-2");
+    expect(grid.children).toHaveLength(2);
+  });
+
+  it("packs four columns above xl, three above md", () => {
+    const media = stubMatchMedia([DESKTOP_QUERY, WIDE_QUERY]);
+    render(<FeedScreen topicLabels={LABELS} />);
+    const grid = screen.getByTestId("feed-columns");
+    expect(grid).toHaveClass("grid-cols-4");
+    expect(grid.children).toHaveLength(4);
+
+    media.fire(WIDE_QUERY, false);
+    expect(screen.getByTestId("feed-columns")).toHaveClass("grid-cols-3");
+    expect(screen.getByTestId("feed-columns").children).toHaveLength(3);
+  });
+
+  it("centers the masonry in the wide column", () => {
+    render(<FeedScreen topicLabels={LABELS} />);
+    expect(screen.getByTestId("feed-columns").parentElement).toHaveClass(
+      "md:max-w-[1120px]",
+    );
   });
 });

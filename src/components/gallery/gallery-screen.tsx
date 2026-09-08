@@ -170,6 +170,22 @@ export function GalleryScreen({
     }
   }, []);
 
+  // Keyboard (docs/DESIGN_desktop-polish.md §4): the two things a desktop reader will try. On
+  // `window`, because nothing in the gallery holds focus — the rail is a gesture surface, not a
+  // control. While the details sheet is up it owns Escape (BottomSheet's own listener closes it),
+  // and an arrow that changed the picture under an open sheet would be a surprise, so both are
+  // ignored until it's gone.
+  React.useEffect(() => {
+    if (detailsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") advance(1);
+      else if (e.key === "ArrowLeft") advance(-1);
+      else if (e.key === "Escape") exit();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [detailsOpen, advance, exit]);
+
   const { ref, dragPx, dragging } = useRailGestures({
     // Decision 8: tap-again, not double-tap. Chrome down → bring it up. Chrome up → you've already
     // seen the title, so the second tap is asking for the rest.

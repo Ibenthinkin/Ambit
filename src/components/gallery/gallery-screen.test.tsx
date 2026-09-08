@@ -90,6 +90,10 @@ const tap = () => {
   send("pointerup", 100, 100);
 };
 
+/** A key press on `window`, where the gallery's listener lives — nothing there holds focus. */
+const key = (k: string) =>
+  act(() => void fireEvent.keyDown(window, { key: k }));
+
 /** A committed horizontal swipe. The track is stubbed at 400px wide, so 120px clears the fifth. */
 const swipe = (dx: number) => {
   send("pointerdown", 200, 400);
@@ -214,6 +218,40 @@ describe("GalleryScreen", () => {
       expect(
         screen.getByRole("heading", { name: "Plate r0", level: 1 }),
       ).toBeInTheDocument();
+    });
+
+    // The desktop pass (docs/DESIGN_desktop-polish.md §4): the two things a desktop reader will
+    // try. On `window`, because nothing in the gallery holds focus.
+    it("ArrowRight advances, ArrowLeft goes back, Escape leaves", () => {
+      renderScreen();
+
+      key("ArrowRight");
+      tap(); // every advance resets the chrome, so bring the title back to assert on it
+      expect(
+        screen.getByRole("heading", { name: "Plate r0", level: 1 }),
+      ).toBeInTheDocument();
+
+      key("ArrowLeft");
+      tap();
+      expect(
+        screen.getByRole("heading", { name: "Plate entry", level: 1 }),
+      ).toBeInTheDocument();
+
+      key("Escape");
+      // `useExitGallery` pushes `/i/<entry>` when the reader didn't arrive from the app.
+      expect(pushMock).toHaveBeenCalledWith("/i/entry");
+    });
+
+    it("leaves the keys to the details sheet while it is open", () => {
+      renderScreen();
+      tap(); // chrome up
+      tap(); // ...and the second tap opens the details sheet
+      key("ArrowRight");
+
+      // Still on the entry: the sheet owns the keyboard while it's up.
+      expect(
+        screen.queryByRole("heading", { name: "Plate r0", level: 1 }),
+      ).not.toBeInTheDocument();
     });
 
     it("clamps at a loaded end rather than wrapping", () => {

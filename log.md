@@ -14,12 +14,13 @@ failed item retried four times with backoff, so it crawled from 40% to ~60% of 1
 next **18 hours**, failing 5,682 items, until it was found and killed at 12:52 today.
 
 **Findings:**
+
 - **Nothing reached the database** — the walk writes after curation, and it was killed at the
   60% mark. Zero vault rows. The **7,438 items it did score are in the curation cache**, so the
   re-run bills only the remainder.
 - **The curator's per-item fallback is wrong for a billing failure.** A failed curation becomes
   score 5, no tags, no topics (`curator.ts`, the `catch` around the worker). That is the right
-  answer for one flaky request; it is the wrong answer for 402, where *every* remaining item
+  answer for one flaky request; it is the wrong answer for 402, where _every_ remaining item
   would have been stored as an unscored, un-homed row — 11,500 of them — and the walk would have
   printed a clean summary over junk. The only reason it didn't is that someone asked "is this
   walk still running" first.
@@ -27,6 +28,7 @@ next **18 hours**, failing 5,682 items, until it was found and killed at 12:52 t
 **Decisions:** Ben — fix it in a fresh session, not this one. Note below.
 
 **Open / next:**
+
 - **TODO, next session: fail fast on 401/402 in the curator.** In `curateItem()`'s retry loop
   (`curator.ts` ~line 543), a 401 (bad key) or 402 (no credits) is neither transient nor
   per-item: throw a distinct error class immediately instead of retrying, and let `curateItems()`
@@ -41,11 +43,11 @@ next **18 hours**, failing 5,682 items, until it was found and killed at 12:52 t
 - The 09-07 pickup list is otherwise unchanged: walk 3 verdict, walk 4, the two `--cursor`
   runs, and the four-script prod sequence after the deploy.
 
-*Session spend: 5.87M tok (in 103 · out 54.7k · cache r 4.77M / w 1.04M) · ~≥$3.60 · fable-5-1 + opus-4-7 · 17:57→12:55*
+_Session spend: 5.87M tok (in 103 · out 54.7k · cache r 4.77M / w 1.04M) · ~≥$3.60 · fable-5-1 + opus-4-7 · 17:57→12:55_
 
 **Shipped (afternoon, `2184427`):** the fail-fast TODO above, as specified. `curator.ts` now has
 `CURATOR_ABORT_STATUSES` (401, 402) — thrown as a `CuratorAbortError` straight past the retry
-loop *and* past the per-item score-5 fallback, with every worker stopping within one item — and
+loop _and_ past the per-item score-5 fallback, with every worker stopping within one item — and
 the softer guard, `MAX_CONSECUTIVE_FAILURES = 20`: twenty fallbacks in a row with no success
 between them abort the batch whatever the reason (a provider down for the night, a 429 that never
 clears). Any success resets it, so sporadic failures never trip it. Ingest prints the abort
@@ -55,7 +57,7 @@ after one call, not four; 401 the same; a 500 still retries and falls back; 25 s
 abort; alternating fail/succeed items never trip the guard — and the three abort tests were
 checked red against the old curator before the fix went in.
 
-**Findings:** the OpenRouter *account* is the real ceiling, not the key. `/api/v1/credits` reads
+**Findings:** the OpenRouter _account_ is the real ceiling, not the key. `/api/v1/credits` reads
 90 credited / 81.93 used — ~$8 left — after Ben raised the key limit from $20 to $50. Enough for
 the ~$2.70 remainder, but the next big walk (walk 4, ~$4+) wants a top-up first.
 
@@ -63,7 +65,104 @@ the ~$2.70 remainder, but the next big walk (walk 4, ~$4+) wants a top-up first.
 (the 402 run's log kept beside it as `thevault-walk.run1-402.log`). Then the verdict via
 `bun run stats:walk`, then the rest of the 09-07 list.
 
-*Session spend: 4.20M tok (in 127 · out 38.7k · cache r 3.89M / w 272.6k) · ~≥$0.79 · fable-5-1 + opus-4-7 · 12:59→13:05*
+_Session spend: 4.20M tok (in 127 · out 38.7k · cache r 3.89M / w 272.6k) · ~≥$0.79 · fable-5-1 + opus-4-7 · 12:59→13:05_
+
+---
+
+**Desktop pass, designed and planned** (a parallel session, 09-07 evening → 09-08 midday). Four
+1440 px Playwright screenshots of the running app settled what "desktop polish" meant: the phone
+layout stretched edge to edge — two 715 px feed columns, a 1400 px hero at 300 px tall, chips in
+one line and a half. The prior session's transcript was recovered from disk after a `/clear`, so
+the three decisions are Ben's from 09-07, not re-litigated.
+
+**Decisions (Ben, 09-07-26):**
+
+- **Grow to fit, per screen** — not a centered phone frame, not a sidebar app. Feed masonry to
+  3/4 columns in 1120 px, reader pages at 720 px, list screens at 600 px, phone untouched below
+  768 px.
+- **Sheets become centered 520 px dialogs above `md`**, same component, fade-and-scale, no grabber.
+- **Input: layout plus the basics** — focusable tiles, Enter/Space, hover, **right-click opens the
+  item sheet** (guarded on `(pointer: fine)` so Android's synthesized contextmenu doesn't
+  double-open), gallery Escape/arrows. No keyboard-first feed.
+
+**Shipped:** `docs/DESIGN_desktop-polish.md` and a cold-executable
+`docs/PLAN_desktop-polish.md` (11 tasks, TDD, one `useMediaQuery` on `useSyncExternalStore` so
+the server-rendered feed hydrates straight into four columns — the one non-obvious mechanism),
+on `feat/desktop-polish`. Execute in a cheaper session.
+
+_Session spend: 10.45M tok (in 156 · out 110.8k · cache r 9.94M / w 391.7k) · fable-5-1 · 12:52→13:04_
+
+---
+
+**Desktop pass, built** (afternoon, same day as the plan — twelve commits on
+`feat/desktop-polish`, merged to `main` the same afternoon, not pushed). The plan ran task-by-task as written; the five sections of
+`docs/DESIGN_desktop-polish.md` are all in.
+
+**Shipped:**
+
+- **One breakpoint, one primitive.** `md` (768 px), plus `xl` for the feed's fourth column and
+  nothing else. `Column` (`ui/column.tsx`) carries the three widths as literal classes —
+  `narrow` 600, `reader` 720, `wide` 1120 — and is a plain full-width `div` below `md`.
+  `GlassHeader` keeps its blur full-width and moved its padding and flex layout onto an inner
+  `narrow` column, so a back button lines up with the body's left edge.
+- **The feed packs N columns.** `packColumns(tiles, columnCount = 2)` generalized from a
+  hard-coded pair; `useColumnCount()` maps 2/3/4 off `useMediaQuery`, which is
+  `useSyncExternalStore` over `matchMedia` so the server-rendered first page hydrates straight
+  into four columns instead of painting two and jumping.
+- **Sheets are dialogs above `md`.** `BottomSheet` reads the same hook once and swaps its
+  positioning classes, its animation pair (`dialog-in`/`dialog-out`) and its gesture gate;
+  the grabber is `md:hidden` and no drag is ever armed. The landing's `AuthSheet` — deliberately
+  not a `BottomSheet` — got the same treatment by hand.
+- **Screens stop stretching.** Onboarding, Saved, Profile, Edit and Settings in `narrow`; the
+  item page in `reader`, with the hero dropping its 300 px `object-cover` crop for
+  `max-h-[70vh] object-contain` above `md` (the crop below is untouched — it is the LCP element
+  of the one public page).
+- **Input basics.** Both tiles are `role="button" tabIndex={0}` named by the item title, Enter
+  and Space tap, and `useDesktopPress` (in `use-press.ts`) turns a right-click into the item
+  sheet — guarded on `(pointer: fine)` so Android's synthesized `contextmenu` can't open it
+  twice. Hover zooms the picture 3 % inside its clipped box. The gallery answers Escape and the
+  arrows, and stands down while the details sheet is up.
+- **A `desktop` Playwright project at 1440 × 900** running one new spec: four populated stacks
+  inside a ≤ 1120 px centered container, a 520 px centered auth card, right-click → a 520 px
+  centered dialog, Escape closes it.
+
+**Findings — both from the e2e, neither in the plan:**
+
+- **Tailwind v4's `translate-*` utilities write the standalone `translate` property, not
+  `transform`,** and the two _compose_ (translate is applied before transform) rather than one
+  replacing the other. The plan's `dialog-in` keyframes restated `translate(-50%, -50%)` on the
+  assumption that an animation's transform replaces the element's own; the result was a 520 px
+  dialog centred at 460 px instead of 720 — translated twice. The keyframes now animate scale and
+  opacity only and leave the centering to the property that owns it.
+- **The `chromium` Playwright project was inheriting `Desktop Chrome`'s 1280 × 720 viewport,
+  which is exactly `xl`.** Harmless while every screen was the phone layout at any width;
+  the moment the layout answered to width, the phone suite began exercising the four-column
+  desktop feed and failed on its own two-column assertions. It now declares 402 × 874 — the
+  redesign's design viewport, which is what every spec in it was written against.
+
+**Verification:** `bun run check` green apart from nine files that are _already_ unformatted on
+`main` (see below). Playwright **49 passed, 0 failed** under `bun run e2e:prod` — a production
+build, which is the configuration CI runs. Under `next dev` at the new phone viewport, five specs
+fail because the **Next.js dev-overlay portal now sits on top of the pill toolbar** and
+intercepts the clicks; that is a dev-only artifact of the narrow viewport, and `main` shows the
+same specs passing only because it runs them at 1280 px.
+
+**Open / next:**
+
+- **Nine files are unformatted on `main`** and have been since before this branch —
+  `scripts/mine-topics.ts`, `scripts/probe-feed.ts`, `src/server/db/feed.ts`,
+  `src/server/services/feed.integration.test.ts`, `sources/tumblr-blogs.ts`, `sources/tumblr.ts`,
+  `sources/tumblr.test.ts`, `services/topic-mining.test.ts`, `services/walk-run.ts` — so
+  `bun run format:check` (and therefore `bun run check`) is red on `main` too. Left alone here
+  rather than bundled into a desktop diff; one `bun run format:write` on `main` clears it.
+- `bun run e2e` in dev mode wants either the dev indicator moved or the suite run as
+  `e2e:prod` locally. CI is unaffected.
+- **Merged to `main`** (`--no-ff`) once Ben called it, unpushed like the recent merges. The
+  merge duplicated the morning's fail-fast block in `log.md` — the same 22 lines had been
+  committed twice on two different bases (`3c4be1c` on main, `199dc21` on the branch), so git
+  took both copies; the duplicate was removed in the merge commit.
+
+_Session spend: 41.42M tok (in 667 · out 166.2k · cache r 40.32M / w 927.8k) · ~$31.55 · opus-5 + opus-4-7 · 13:07→14:13_
 
 ### [[09-07-26 Mon]] — Cut 2b sized, found wanting; sourceCap and MAX_TOPICS instead
 
@@ -72,11 +171,12 @@ local database before planning it reversed the recommendation, and he switched t
 version below. Branch `feat/wild-tier-and-captionless`, two commits, not pushed.
 
 **Findings, the ones that changed the plan:**
+
 - **The join move does not dissolve the capture.** Yesterday's entry said `illustration` would
-  draw its 5,181 memberships *plus* everything else that is a member. The "everything else" is
+  draw its 5,181 memberships _plus_ everything else that is a member. The "everything else" is
   180 items. By membership the captured topics look exactly as they do by display topic —
   `19th-century` 95% sovietpostcards, `illustration` 98%, `photography` 92%, `books` ~90%. A
-  17,500-item blog about illustration *is* most of the corpus's illustration under any query;
+  17,500-item blog about illustration _is_ most of the corpus's illustration under any query;
   no pool change touches that arithmetic.
 - **The classifier over-files, sometimes catastrophically.** The prompt says "never more than
   three" and the parser kept everything on purpose ("truncating would hide over-filing").
@@ -89,7 +189,7 @@ version below. Branch `feat/wild-tier-and-captionless`, two commits, not pushed.
 - **Wording does not fix that.** A 100-item probe, fresh classify into a scratch cache (~6¢ for
   three runs): labels as-is **52** in `19th-century`; label "made in the 1800s — NOT 20th-century
   vintage" **41**; label "ONLY for work dated 1801-1900. Anything dated 19xx is NEVER this topic"
-  **31** — and *Kozytskogo Street in Vinnytsya, 1988* stays under it through all three. The model
+  **31** — and _Kozytskogo Street in Vinnytsya, 1988_ stays under it through all three. The model
   reads "old-looking" and reaches for the only period in the list; it does not weigh a date it
   was handed against a label. First trap of the probe, worth knowing: the cache key deliberately
   ignores the topic list, so a variant run from the same cwd silently returns the control's
@@ -100,8 +200,9 @@ version below. Branch `feat/wild-tier-and-captionless`, two commits, not pushed.
   runs the draw fifty times and the live probe is what caught it.
 
 **Shipped:**
+
 - **`sourceCap`** (`b088393`) — per-page, per-source cap across every tier including WILD,
-  `topicCap`'s sibling, default 3 of 12, slider on `/dev/feed`. Enforced *before* the draw:
+  `topicCap`'s sibling, default 3 of 12, slider on `/dev/feed`. Enforced _before_ the draw:
   `pickItem` filters a capped source out, so a topic whose other sources are a 2% minority spends
   that minority rather than skipping the slot. Six real pages after: no source above three, all
   twelve slots filled. The feed test fixture now gives every item its own source (they were all
@@ -112,7 +213,7 @@ version below. Branch `feat/wild-tier-and-captionless`, two commits, not pushed.
   best-fit order and returns `overFiled`; the cache-read path applies the same cap so pre-cap
   entries read forward with no re-bill; ingest prints a per-source over-filed line under the
   classification block, `stats:walk` adds it to the verdict line. **`bun run trim:memberships
-  --confirm`** applied the cap retroactively by the cached order — the one dated exception to
+--confirm`** applied the cap retroactively by the cached order — the one dated exception to
   Cut 1's additivity rule, argued in `services/membership-trim.ts` and now in the design doc §5:
   **5,829 items, 14,682 rows** (sovietpostcards 14,513, pdr 169), curator-origin rows now max 3,
   avg 2.31, idempotent. Larger than the 89 runaways because 5,000 items carried a fourth or fifth
@@ -125,6 +226,7 @@ rather than the runaways alone; the probe was read-only and its scratch caches a
 repo.
 
 **Open / next:**
+
 - **`19th-century` is Ben's call, and no prompt wording will make it.** The honest options:
   (a) take period topics out of the classify vocabulary — a period is metadata, and source tags
   (`1900s`, `1960s`, `19th century`) carry it reliably where the model does not — then repair the
@@ -136,12 +238,12 @@ repo.
   posts-vs-items gap, then un-suspend blog 2. With `sourceCap` shipped the capture is a page-level
   non-event; the classifier fix above is the remaining reason to wait or not.
 - **A second session built the Loupe hookup today** on `feat/loupe-hookup` in a worktree with the
-  wild-tier branch merged in — *before* these two commits. Whichever merges second picks up a
+  wild-tier branch merged in — _before_ these two commits. Whichever merges second picks up a
   trivial `feed-knobs.ts`/`curator.ts` merge.
 - `bench:feed` p50 at 58 ms (yesterday's note) is untouched by any of this and still worth a look
   before three more blogs land.
 
-*Session spend: 34.20M tok (in 460 · out 144.5k · cache r 33.42M / w 639.2k) · ~≥$2.35 · fable-5-1 + opus-4-7 · 09:05→09:37*
+_Session spend: 34.20M tok (in 460 · out 144.5k · cache r 33.42M / w 639.2k) · ~≥$2.35 · fable-5-1 + opus-4-7 · 09:05→09:37_
 
 **Handoff for a cold session (written 13:22, same day).** Everything above is committed on
 `feat/wild-tier-and-captionless` (`b088393` sourceCap · `890cfbb` MAX_TOPICS + trim ·
@@ -150,11 +252,12 @@ Docker Compose service (`docker compose up -d`; Docker Desktop had to be started
 The trim has been run locally and is idempotent; it has **not** been run on production, and
 must be — inside the app container, where the volume mounts `.cache/curation` — after the next
 deploy, or the deployed corpus keeps its runaway rows. Pick up in this order:
+
 1. **Ben's `19th-century` decision** (Open / next above). If (a): a `topic` flag or config set
    that keeps period topics out of `listAllTopics()`-derived classify vocabularies, plus a
    tag-based repair variant of `scripts/trim-memberships.ts`; both need a dry-run count first.
 2. **Merge order with `feat/loupe-hookup`** (a worktree, `~/Dev/ambit-loupe`, built today
-   *before* these commits): merge this branch into `main` first, then that one — expect a
+   _before_ these commits): merge this branch into `main` first, then that one — expect a
    trivial conflict in `feed-knobs.ts` and `curator.ts`. `loupe` must be in `SUSPENDED_SOURCES`
    before any deploy.
 3. **Walks 2–4**: raise each `walkQuota` in `blogs.ts` ~25% (posts-vs-items gap, 09-06 entry),
@@ -162,7 +265,7 @@ deploy, or the deployed corpus keeps its runaway rows. Pick up in this order:
    repeat. `sovietpostcards --cursor 10400` buys its remaining half.
 4. Then the older queue: `bench:feed` p50 58 ms, 8.1 T8/T9, spoon-tamago, desktop-UI polish.
 
-*Session spend: 1.42M tok (in 12 · out 5.2k · cache r 780.1k / w 637.5k) · fable-5-1 · 09:37→13:22*
+_Session spend: 1.42M tok (in 12 · out 5.2k · cache r 780.1k / w 637.5k) · fable-5-1 · 09:37→13:22_
 
 **Later, same day — item 1 done and the branch merged.** Ben chose option (a): **period topics are
 tag-only** (`132f58e`). `PERIOD_TOPICS` + `isClassifiable` in `config/topics.ts`; ingest and
@@ -178,7 +281,7 @@ ahead of origin). The pickup list above is now items 2-4, with one addition to i
 scripts — `trim:memberships` and `repair:periods` — must run inside the production container
 after the deploy**, in that order, or prod keeps the runaway and mis-filed rows.
 
-*Session spend: 9.17M tok (in 92 · out 37.3k · cache r 8.99M / w 136.1k) · ~≥$0.71 · fable-5-1 + opus-4-7 · 13:22→13:30*
+_Session spend: 9.17M tok (in 92 · out 37.3k · cache r 8.99M / w 136.1k) · ~≥$0.71 · fable-5-1 + opus-4-7 · 13:22→13:30_
 
 **Parallel session, same day — Loupe is a source: the walk, the numbers, and why the average
 is low.** (Merged under this heading on 09-07 evening; it ran in the `~/Dev/ambit-loupe`
@@ -190,7 +293,7 @@ adapter (Tasks 2–5) were already committed there from 09-06, and Loupe's half 
 the wire, Task 1) was committed in the Loupe repo the same evening. First move: merge
 `feat/wild-tier-and-captionless` into the loupe branch, because the plan wanted the verdict measured
 against the 99-topic classifier rather than the sixteen. Two conflicts, both in the curator, both
-"keep both sides" — `imageAsDataUrl` now takes the caption-less branch's `curationImageUrl` *and*
+"keep both sides" — `imageAsDataUrl` now takes the caption-less branch's `curationImageUrl` _and_
 the loupe branch's per-source headers, and the test file keeps all three tests that landed at the
 same spot.
 
@@ -199,7 +302,7 @@ same spot.
 Six commits on `feat/loupe-hookup` over `main` including the merge; nothing pushed.
 
 **The numbers** (`bun run stats:walk loupe --quota 200`, then `ingest --source loupe`):
-133 offered → 1 floored (thin-summary; an article, since the 09-06 exemption is for walk *images*)
+133 offered → 1 floored (thin-summary; an article, since the 09-06 exemption is for walk _images_)
 → 132 curated @ **4.52 avg, 5% ≥ 8** (1:11 · 2:11 · 4:69 · 6:8 · 7:26 · 8:6 · 9:1) → 112 classified
 into 29 of 99 topics (science 45, technology 42, machines 34, illustration 30, advertising 17,
 typography 13), 20 un-homed with a tag histogram that is all diagrams and directories. Written:
@@ -208,6 +311,7 @@ Image-fetch failures **0** at ingest, and `img:warm` filled 130 + 2 already cach
 Corpus 41,187.
 
 **Findings:**
+
 - **`stats:walk` does not print the image-fetch tally the plan told the executor to read**, and
   the curation cache does not record fetch failures either, so a cached re-run always reports zero.
   The bearer was proven a different way: one loupe image curated with `force: true` and an
@@ -216,27 +320,28 @@ Corpus 41,187.
   tally to `walk-stats.ts` some day; it is the one number a new source's bearer needs.
 - **The average is honest and Loupe-shaped, not a fault.** A clipping is a region of a catalog
   page, so its OCR starts and ends mid-sentence ("Nift had Tools ustry", "eral quality levels on
-  almost."), and the curator judges an *article* from its text. Every one of the 11 score-1 items
-  is a fragment; the one *image* item scored 9 with `[minimalist, philosophical, earthrise]`. This
+  almost."), and the curator judges an _article_ from its text. Every one of the 11 score-1 items
+  is a fragment; the one _image_ item scored 9 with `[minimalist, philosophical, earthrise]`. This
   is the lowest-scoring source in the corpus by a wide margin (pdr is 8.39) and the feed's floor
   will keep 22 of them off a page. It says more about OCR than about the Whole Earth Catalog.
 - **The public article page has no hero, for any source** — the plan's Step 4 expected one. A pdr
   article renders the same way, so the design is text-first on `/i/` and the proxy was proven
   by curl instead: first request 200 `image/webp` in 0.55 s (the bearer fill), second in 0.017 s
-  (the cache). The one loupe *image* page renders the clip with the archive.org credit.
+  (the cache). The one loupe _image_ page renders the clip with the archive.org credit.
 - **Thirteen short clippings show their text twice** on the item page: Loupe supplies a summary on
   all 132 articles (none null, so the adapter's lede fallback never fired), and for the shortest
-  ones that summary *is* the body. A Loupe-side nit; noted, not fixed.
+  ones that summary _is_ the body. A Loupe-side nit; noted, not fixed.
 - **Three `test-wild-topic-*` rows are sitting in the local database** from a killed suite — the
   ingest summary lists them at 0, and the 09-06 `isRealTopic` guard keeps them out of the billed
   prompt ("classify vocabulary: 99 topics"). Harmless; a reminder that the guard earns its keep.
-- Playwright's screenshots land in the *main* checkout's cwd, not the worktree's; three PNGs
+- Playwright's screenshots land in the _main_ checkout's cwd, not the worktree's; three PNGs
   deleted from `~/Dev/ambit` afterwards.
 
 **Decisions:** none new — the no-gate, position-key and bearer-by-source decisions are 09-06's.
 `loupe` walks against the 99-topic vocabulary from its first row, as the plan preferred.
 
 **Open / next:**
+
 - **Loupe has no production host.** `loupe` must go into `SUSPENDED_SOURCES` on whichever branch
   next deploys, or the nightly ingest prints a "not configured" error every night — Ben's to
   choose which branch carries the line; nothing on this one touches it.
@@ -248,9 +353,10 @@ Corpus 41,187.
 - The dev server this session started on 3000 from the worktree is stopped; the Sept 5 `next start`
   that had been squatting the port is gone too.
 
-*Session spend: 13.97M tok (in 247 · out 73.0k · cache r 13.45M / w 453.0k) · ~≥$1.24 · fable-5-1 + opus-4-7 · 09:05→09:33*
+_Session spend: 13.97M tok (in 247 · out 73.0k · cache r 13.45M / w 453.0k) · ~≥$1.24 · fable-5-1 + opus-4-7 · 09:05→09:33_
 
 **Pickup for the next session — where everything is, cold:**
+
 - **Branch:** `feat/loupe-hookup`, checked out in the worktree **`~/Dev/ambit-loupe`** (not
   `~/Dev/ambit`, which Cut 2b holds). Seven commits over `main` including the merge of
   `feat/wild-tier-and-captionless`; typecheck clean, 1,097 unit tests green, lint's 13 warnings all
@@ -271,19 +377,19 @@ Corpus 41,187.
   `docker compose up -d` there first (its Postgres, `web-postgres-1`, exits when the machine
   sleeps). Both were left running.
 - **The 132 loupe rows are in the local database** and their 132 images in the worktree's
-  `.cache/img` — a *different* directory from `~/Dev/ambit/.cache/img`, as is the curation cache;
+  `.cache/img` — a _different_ directory from `~/Dev/ambit/.cache/img`, as is the curation cache;
   the main checkout's caches do not know about loupe. A re-walk from the main checkout after the
   merge costs ~$0.03 and 30 s. `--prune` after any Loupe triage session.
 - **Small follow-ups, none blocking:** `walk-stats.ts` should print the curator's image-fetch
   tally (the plan assumed it did) — **done the same evening** on `feat/walk-stats-fetch-tally`,
   built in a worktree while walk 2 held the main checkout: the report now prints `image fetch:
-  N failed of M fresh calls · K from cache`, two numbers because a cache hit fetches nothing and
+N failed of M fresh calls · K from cache`, two numbers because a cache hit fetches nothing and
   so reports no failure, which made a bare "0 failed" on the documented free second run an
   unmeasured number rather than a clean one (`curateItems` gained `onCacheHit`). Not merged;
   merge after the walk finishes. Loupe-side, 13 short clippings have a summary identical to
   their body and the item page shows both.
 
-*Session spend: 4.65M tok (in 75 · out 31.1k · cache r 4.07M / w 549.9k) · ~≥$1.11 · fable-5-1 + opus-4-7 · 09:33→13:24*
+_Session spend: 4.65M tok (in 75 · out 31.1k · cache r 4.07M / w 549.9k) · ~≥$1.11 · fable-5-1 + opus-4-7 · 09:33→13:24_
 
 **Evening, same day — Loupe merged, quotas raised, walk 2 (70sscifiart) done.** Item 2 of the
 handoff first: `feat/loupe-hookup` merged into `main` as `5c52a58` (`--no-ff`; `curator.ts` keeps
@@ -304,6 +410,7 @@ memberships/item, max 3). Corpus **73,187**; this blog is 44% of it by rows, and
 sovietpostcards two Tumblr blogs are 68%. `sourceCap` is what makes that a non-event on a page.
 
 **Findings:**
+
 - **The vocabulary has no word for science fiction.** `science` had 1,226 members before this
   walk and 20,815 after — **94% of it is now a sci-fi art blog**, and `surreal` (94%) and
   `illustration` (77% by membership, 79% by display) went the same way. The source's own tags say
@@ -311,10 +418,10 @@ sovietpostcards two Tumblr blogs are 68%. `sourceCap` is what makes that a non-e
   `concept art` 666 · `comics` 910 · `fantasy art` 804), and so do the curator's (`retro sci-fi`
   5,768 · `sci-fi illustration` 4,952 · `retrofuturism` 1,971 · `space opera` 1,241). This is the
   19th-century shape again: handed no honest home, the model reaches for the nearest label rather
-  than none. **The miner cannot see it** — `mine:topics` ranks tags by *un-homed* count, and this
+  than none. **The miner cannot see it** — `mine:topics` ranks tags by _un-homed_ count, and this
   source is 99.9% homed; a mis-homing costs nothing the un-homed line measures.
 - **The +25% over-bought here.** The raise was calibrated on sovietpostcards' 1.34 → 1.68
-  pictures/post gap; 70sscifiart's real multiplier is **1.33**, *below* its probe's 1.46, so the
+  pictures/post gap; 70sscifiart's real multiplier is **1.33**, _below_ its probe's 1.46, so the
   quota bought 69% of the archive rather than Ben's half. Not a problem for the best source in the
   corpus, but the two remaining blogs are 1.0 pictures/post by probe and their raises may overshoot
   the same way — worth deciding before walk 3 rather than after.
@@ -324,10 +431,11 @@ sovietpostcards two Tumblr blogs are 68%. `sourceCap` is what makes that a non-e
 **Decisions:** none — the verdict on 70sscifiart is Ben's, and so is `science-fiction`.
 
 **Open / next:**
+
 - **Ben's verdict on 70sscifiart** (the numbers say keep; the question is `science`).
 - **`science-fiction` as a grown topic** — and `retrofuturism`, `comics`, `concept art`, `fantasy
-  art` are all candidates the histogram supports. Mechanically: `mine:topics --allow` cannot
-  surface them (un-homed 18), so either a `--source` flag that mines a *source's* tags regardless
+art` are all candidates the histogram supports. Mechanically: `mine:topics --allow` cannot
+  surface them (un-homed 18), so either a `--source` flag that mines a _source's_ tags regardless
   of homing, or hand-written proposal lines; then `promote:topics` (which sets display topic only
   where NULL — these are all homed, so the display topic would stay `science` without a repair
   variant, the `repair:periods` shape with tag evidence). Design question, not tonight's.
@@ -337,16 +445,17 @@ sovietpostcards two Tumblr blogs are 68%. `sourceCap` is what makes that a non-e
 - Deploy checklist unchanged: `loupe` into `SUSPENDED_SOURCES`, then `trim:memberships` and
   `repair:periods` in the container. `main` is 47 ahead of origin, nothing pushed.
 
-*Session spend: 9.55M tok (in 209 · out 54.1k · cache r 9.07M / w 431.4k) · ~≥$0.82 · fable-5-1 + opus-4-7 · 13:38→15:46*
+_Session spend: 9.55M tok (in 209 · out 54.1k · cache r 9.07M / w 431.4k) · ~≥$0.82 · fable-5-1 + opus-4-7 · 13:38→15:46_
 
 **Later — Ben's decision, executed: `science-fiction` exists, `science` is repaired, walk 3
 running.** He took the recommendation whole: keep 70sscifiart; promote `science-fiction` and
-`retrofuturism` *before* walk 3 (the vault is atomic-age material and would have landed under
+`retrofuturism` _before_ walk 3 (the vault is atomic-age material and would have landed under
 `science` too, and the classify cache ignores the topic list, so anything classified before the
 topic exists costs a re-bill to fix); repair `science` on tag evidence; put the two remaining
 quotas back to Ben's originals; then walk. All on `main`, `3cbf6ac` + the un-park commit.
 
 **Shipped:**
+
 - **Two hand-written proposal lines** in `docs/topic-proposals.md` under a heading that says why
   they are hand-written: the miner ranks by un-homed count and a mis-homed source is 99.9% homed.
   `promote:topics --confirm` created both at tier `grown` (1,661 + 2,022 tag memberships) and,
@@ -369,12 +478,13 @@ quotas back to Ben's originals; then walk. All on `main`, `3cbf6ac` + the un-par
   `.cache/thevault-walk.log`, classify vocabulary 100 topics.
 
 **Findings, both from the dry runs — which is what dry runs are for:**
+
 - **Aesthetic tags describe a look, not a subject.** The first regex carried `futuristic` and
   `space station`, and the per-source table showed 35 NASA photographs gaining `science-fiction`:
   "futuristic fashion" on a SpaceX suit, "retro sci-fi" on a 1983 shuttle crew portrait, "alien
   landscapes" on the Galilean moons. Both words came out and `exceptSources: ["nasa-images"]` went
   in — a NASA photograph is never fiction whatever it resembles. The pdr, Wikipedia and archive
-  matches were all genuine (Verne, Wells, Robida, *Le Voyage dans la Lune*), so the rule is
+  matches were all genuine (Verne, Wells, Robida, _Le Voyage dans la Lune_), so the rule is
   right for text-first sources and only the look-words were wrong.
 - **Postgres reads `\b` as a backspace.** The SQL candidate net used the JS regex source
   verbatim and its tag side silently matched nothing — the curator-row side masked it. `\y` is
@@ -384,6 +494,7 @@ quotas back to Ben's originals; then walk. All on `main`, `3cbf6ac` + the un-par
   because nothing on them says fiction. A blunter rule would have been simpler and less honest.
 
 **Open / next:**
+
 - Walk 3 verdict when the monitor fires; then thisisnthappiness (walk 4), then
   `70sscifiart --cursor 24000` and `sovietpostcards --cursor 10400 --quota 4500` for the rests.
 - **The prod container now runs three scripts after the deploy**, in order: `trim:memberships`,
@@ -392,7 +503,7 @@ quotas back to Ben's originals; then walk. All on `main`, `3cbf6ac` + the un-par
 - `loupe` into `SUSPENDED_SOURCES` before that deploy. **Pushed to origin 18:05** — the first
   push since Cut 2a; 54 commits, everything from sourceCap through walk 3's un-park.
 
-*Session spend: 12.25M tok (in 178 · out 86.9k · cache r 11.58M / w 577.3k) · ~≥$1.90 · fable-5-1 + opus-4-7 · 15:46→17:57*
+_Session spend: 12.25M tok (in 178 · out 86.9k · cache r 11.58M / w 577.3k) · ~≥$1.90 · fable-5-1 + opus-4-7 · 15:46→17:57_
 
 ### [[09-06-26 Sun]] — Why two Tumblr blogs "read as cuts", and the answer being about the floor
 
@@ -402,7 +513,8 @@ question, both now in `docs/HANDOFF_tumblr-round3.md` §2.2–2.3. Round 3's bui
 four Park verdicts are yesterday's entry.
 
 **Findings:**
-- **It was never a quality judgement, and the write-up implied one.** The curator *likes* what
+
+- **It was never a quality judgement, and the write-up implied one.** The curator _likes_ what
   survives from both: 8.00 / 83% ≥8 and 8.10 / 90% ≥8, each above `thingsorganizedneatly` (7.90),
   a source already kept. What is bad is the yield.
 - **The yield is one rule firing almost every time.** The vault floored 138 of 150 with **137 on
@@ -415,7 +527,7 @@ four Park verdicts are yesterday's entry.
 - **A correction to yesterday's own evidence.** The un-homed shares quoted for those two (17% and
   40%) are computed on **12 and 10 curated items** — 2-of-12 and 4-of-10. That is noise presented
   with the same confidence as nemfrog's 137-item sample, and it should have been flagged. Their
-  averages rest on the same thin denominators. The *floor* rates behind them come from the
+  averages rest on the same thin denominators. The _floor_ rates behind them come from the
   200-post probes and are solid; it is the post-floor numbers that are not.
 - **So the two are not equally weak.** The vault is the stronger Cut: zero tags on 200 sampled
   posts, worst caption density of the nine, ~3,000 rows to gain. **thisisnthappiness is genuinely
@@ -424,6 +536,7 @@ four Park verdicts are yesterday's entry.
   about it.
 
 **Open / next (unchanged, plus one new question):**
+
 - Still Ben's verdict on the **five** open blogs — `70sscifiart` (strongest, 8.65 / 96% ≥8),
   `sovietpostcards`, `thisisnthappiness`, `thevaultoftheatomicspaceage`, `toiich`. The four he
   parked on 09-05 are settled and should not be re-opened.
@@ -436,7 +549,7 @@ four Park verdicts are yesterday's entry.
   filling with wordless cards. Nobody has decided.
 - Raise the quota before treating either blog's post-floor numbers as measured.
 
-*Session spend: 3.82M tok (in 49 · out 31.2k · cache r 3.14M / w 643.7k) · ~$8.57 · opus-5 + opus-4-7 · 21:56→12:32*
+_Session spend: 3.82M tok (in 49 · out 31.2k · cache r 3.14M / w 643.7k) · ~$8.57 · opus-5 + opus-4-7 · 21:56→12:32_
 
 **Later the same day — the five verdicts, and the plan that came out of them.** Ben ruled: **`toiich`
 parked** (on taste, after a live probe; the numbers were never the reason), the other four **kept
@@ -445,7 +558,7 @@ to budgets** — newest 50% of `70sscifiart`, `sovietpostcards`, `thevaultofthea
 
 **Planned:** `docs/PLAN_caption-less-and-wild.md` — self-contained for a cheaper-model session.
 Six tasks: (T1) the structural floor's thin-summary and bare-title rules no longer apply to
-walk-source *images* (the curator is their bar), the Tumblr factory **fans a multi-picture post out
+walk-source _images_ (the curator is their bar), the Tumblr factory **fans a multi-picture post out
 to one item per picture** (`sourceId` = `post:n`, all sharing the caption), a truly caption-less
 post is titled with the blog label, and a per-blog `walkQuota` plus an ingest `--cursor` and a
 printed resume cursor make newest-first partial walks safe on a self-hosted disk; (T2) a **WILD
@@ -456,8 +569,9 @@ topic in the DB, not the compile-time sixteen, with the cache key unchanged so n
 re-billed; (T5) two panel sliders and a `wild` readout; (T6) the four walks, one at a time.
 
 **Findings (the ones that changed the plan mid-write):**
+
 - **The floor was the gate, not the topic step.** The vault, thisisnthappiness and toiich were
-  losing 84–100% of posts to the 60-char thin-summary rule *before any LLM call*; no feed change
+  losing 84–100% of posts to the 60-char thin-summary rule _before any LLM call_; no feed change
   could have surfaced them. Yesterday's open question is answered: the floor was the thing.
 - **The captions exist and were being thrown away.** A live 50-post probe per blog: toiich's
   median caption is 49 chars ("Eros + Massacre (1969), dir. Yoshishige Yoshida"), sovietpostcards'
@@ -474,12 +588,13 @@ re-billed; (T5) two panel sliders and a `wild` readout; (T6) the four walks, one
   stored rows but does not stop at them. Hence `walkQuota` in config rather than a CLI flag.
 
 **Decisions:** Ben's — learn from a WILD save's aesthetic tags (not "this blog", not nothing);
-blog label as the caption-less title, no curator-written titles; both grow-the-vocabulary *and* a
+blog label as the caption-less title, no curator-written titles; both grow-the-vocabulary _and_ a
 small wild slot, not either alone; the four budgets above; toiich parked. Recorded in the plan as
 D1–D13, including that this amends design D4 of `DESIGN_topic-vocabulary-growth.md` (the feed now
-*does* move for un-homed items) and flips its §9 property test on purpose.
+_does_ move for un-homed items) and flips its §9 property test on purpose.
 
 **Open / next:**
+
 - Execute the plan (cheaper session), one task per checkpoint; T6 stops after every blog.
 - The honest size: ~89,500 items for ~$21 and ~13 GB of image cache, a 5× corpus. Check the VM's
   free disk before T6 blog 1.
@@ -489,7 +604,7 @@ D1–D13, including that this amends design D4 of `DESIGN_topic-vocabulary-growt
 - Known follow-ups if the readouts show them: a per-source share cap inside a topic; a same-post
   guard per page for photoset near-duplicates.
 
-*Session spend: 15.20M tok (in 182 · out 192.5k · cache r 14.05M / w 960.3k) · fable-5-1 · 12:36→15:10*
+_Session spend: 15.20M tok (in 182 · out 192.5k · cache r 14.05M / w 960.3k) · fable-5-1 · 12:36→15:10_
 
 **Then, same day, the Loupe hookup — assessed, decided, and planned.** Ben brought over Loupe's
 own next-step note ("Phase 4, the Ambit hookup — two pieces remain, both in the Ambit repo") and
@@ -502,6 +617,7 @@ vault's Ecosystem doc also says Loupe material is visible "only to users granted
 no such gate exists in Ambit. So the honest count was three pieces, and the third was the blocker.
 
 **Decisions (Ben's, 09-06-26):**
+
 - **No per-user gate, indefinitely.** Ambit is invite-only and every reader is someone Ben knows;
   Loupe items go in the general feed. `item.source` is a not-null column and `getTopicPools`
   already filters on it (`SUSPENDED_SOURCES`), so gating later is a filter, not a migration — three
@@ -528,6 +644,7 @@ corpus is ~135 kept articles — small — but it closes the third ecosystem edg
 Loupe Phase 5 a reason to exist; cheap enough to do.
 
 **Open / next:**
+
 - Execute the plan in a cheaper session (Part A any time; Part B after caption-less T4).
 - **Before the next production deploy, `loupe` must be added to `SUSPENDED_SOURCES`:** Loupe has
   no production host, so a deployed Ambit cannot reach it and the nightly ingest would print a
@@ -536,7 +653,7 @@ Loupe Phase 5 a reason to exist; cheap enough to do.
 - Local trap for the executor: Loupe's dev server and its `imageUrl`s default to :3000, which
   Ambit owns — run it `MEDIA_BASE_URL=http://localhost:3100/media bunx next dev -p 3100`.
 
-*Session spend: 13.19M tok (in 197 · out 153.8k · cache r 12.40M / w 634.7k) · ~≥$2.24 · fable-5-1 + opus-4-7 · 15:12→15:47*
+_Session spend: 13.19M tok (in 197 · out 153.8k · cache r 12.40M / w 634.7k) · ~≥$2.24 · fable-5-1 + opus-4-7 · 15:12→15:47_
 
 **Then, same day, the plan executed — T1–T5, and blog 1 walking.** Ben chose to run it here rather
 than hand it to a cheaper session, and answered the plan's one open question — **wire
@@ -551,14 +668,14 @@ tests and 49 e2e green, production build clean. Five commits, none pushed.
 **The numbers that justify the whole plan.** The four kept blogs, re-sampled at 150 items each
 after T1 and T4, against the same figures from 09-05:
 
-| blog | stored | avg | ≥8 | un-homed |
-|---|---:|---:|---:|---:|
-| `70sscifiart` | 55% → **100%** | 8.49 | 94% | 3% |
-| `sovietpostcards` | 44% → **100%** | 7.63 | 61% | **0%** (95 of 99 topics) |
-| `thevaultoftheatomicspaceage` | 8% → **100%** | 8.45 | 91% | **0%** |
-| `thisisnthappiness` | 7% → **100%** | 8.11 | 87% | **0%** |
+| blog                          |         stored |  avg |  ≥8 |                 un-homed |
+| ----------------------------- | -------------: | ---: | --: | -----------------------: |
+| `70sscifiart`                 | 55% → **100%** | 8.49 | 94% |                       3% |
+| `sovietpostcards`             | 44% → **100%** | 7.63 | 61% | **0%** (95 of 99 topics) |
+| `thevaultoftheatomicspaceage` |  8% → **100%** | 8.45 | 91% |                   **0%** |
+| `thisisnthappiness`           |  7% → **100%** | 8.11 | 87% |                   **0%** |
 
-The *stored* column is T1's doing and the *un-homed* column is T4's, and they are separable: the
+The _stored_ column is T1's doing and the _un-homed_ column is T4's, and they are separable: the
 floor was never letting the items through, and the classifier was never able to home the ones that
 did. `thevaultoftheatomicspaceage` is the sharpest case in the round — the blog with the worst
 metadata evidence of the nine (zero tags on 200 posts, median caption 0 chars) samples at **8.45
@@ -566,9 +683,10 @@ average, 91% ≥ 8** once the picture is what gets judged. Yesterday's open ques
 `HANDOFF_tumblr-round3.md` §2.3, where it was asked.
 
 **Findings, in the order they cost something:**
+
 - **The floor change is retroactive, and it broke a promise the frozen walker was relying on.**
   `things-organized-neatly.ts` titled a caption-less post `Untitled post 91980754329`, with a
-  comment saying the placeholder could never reach a reader *because the floor drops it*. That
+  comment saying the placeholder could never reach a reader _because the floor drops it_. That
   sentence stopped being true, and its next walk stores the 52-in-200 caption-less posts it used to
   drop. All 1,720 stored rows were queried first — **none carries the placeholder**, precisely
   because the floor had dropped them — so the one-line fix (fall back to the blog's label) moves no
@@ -580,7 +698,7 @@ average, 91% ≥ 8** once the picture is what gets judged. Yesterday's open ques
   to drop these. A candidate title line must now contain a letter or a digit.
 - **`graph:rebuild` had been giving adjacency rows to leftover integration-test topics.** Three
   were sitting in this laptop's database (a killed suite's `afterAll` never ran), and it filtered
-  one hard-coded prefix. Harmless in a JSON artifact; *not* harmless one commit later, when T4
+  one hard-coded prefix. Harmless in a JSON artifact; _not_ harmless one commit later, when T4
   started putting the topic list into a billed prompt on every classify call. Now `isRealTopic` in
   `config/topics.ts`, used by both.
 - **`mine:topics`' new `via curator N/M` column earns itself immediately:** of nine candidates,
@@ -618,25 +736,25 @@ behaved on a real walk exactly as the 150-item samples said they would.
   17,500-item budget bought **40% of the archive, not the 50% Ben asked for**. Nothing is broken —
   `--cursor 10400` picks the rest up and re-walking is idempotent — but the other three blogs'
   quotas were derived the same way and will land short by the same kind of margin. The post count
-  is what a budget *means*; the item count is what it *is*.
+  is what a budget _means_; the item count is what it _is_.
 
 - **Topic capture, and it is worse than the streetartnews case in share though milder in kind.**
   Four topics are now essentially this one blog:
 
-  | topic | tier | before | sovietpostcards | share |
-  |---|---|---:|---:|---:|
-  | `illustration` | grown | 9 | 5,172 | **100%** |
-  | `photography` | grown | 52 | 2,707 | **98%** |
-  | `19th-century` | grown | 6 | 1,881 | **100%** |
-  | `books` | grown | 61 | 1,314 | **96%** |
-  | `painting` | grown | 243 | 875 | 78% |
-  | `architecture` | **core** | 1,947 | 675 | 26% |
-  | `machines` | **core** | 1,593 | 377 | 19% |
+  | topic          | tier     | before | sovietpostcards |    share |
+  | -------------- | -------- | -----: | --------------: | -------: |
+  | `illustration` | grown    |      9 |           5,172 | **100%** |
+  | `photography`  | grown    |     52 |           2,707 |  **98%** |
+  | `19th-century` | grown    |      6 |           1,881 | **100%** |
+  | `books`        | grown    |     61 |           1,314 |  **96%** |
+  | `painting`     | grown    |    243 |             875 |      78% |
+  | `architecture` | **core** |  1,947 |             675 |      26% |
+  | `machines`     | **core** |  1,593 |             377 |      19% |
 
   **The core sixteen are fine** — 19-26% is a healthy contribution. What filled up are **grown**
   topics, and the reason is structural rather than about this blog: Cut 2a's `promote:topics` sets
-  `item.topic_id` **only where it is NULL**, so a promoted topic gained thousands of *memberships*
-  but almost no *display* items — `illustration` had **nine**. The feed still draws on
+  `item.topic_id` **only where it is NULL**, so a promoted topic gained thousands of _memberships_
+  but almost no _display_ items — `illustration` had **nine**. The feed still draws on
   `topic_id` (Cut 2b moves it onto the join), so those topics were nearly empty pools, and the
   first large blog to classify into them fills them outright. This is not sovietpostcards taking a
   topic over; it is a topic that had nothing in it. The reader-facing effect is the same either
@@ -647,10 +765,11 @@ behaved on a real walk exactly as the 150-item samples said they would.
   names the remedy — a per-source share cap inside `pickItem` — and puts it out of scope with its
   own decision to make; this walk is the evidence that it is needed rather than hypothetical.
   Worth weighing against it: **Cut 2b** would dissolve most of the problem on its own, since
-  drawing through `item_topic` gives `illustration` its 5,181 memberships *plus* everything else
+  drawing through `item_topic` gives `illustration` its 5,181 memberships _plus_ everything else
   that is a member without being displayed there.
 
 **Open / next:**
+
 - **Ben's call: per-source cap, Cut 2b, or accept it** — and whether blogs 2-4 wait for it. Nothing
   is committed to production; this is all local.
 - If the walks continue as budgeted, raise each `walkQuota` by ~25% to buy the posts Ben actually
@@ -659,17 +778,18 @@ behaved on a real walk exactly as the 150-item samples said they would.
   pool is small and roughly static. WILD is doing its job (nothing else can reach those 1,064),
   but "the residue" is now a much smaller thing than the plan assumed.
 
-*Session spend: 117.40M tok (in 1.1k · out 424.7k · cache r 114.96M / w 2.01M) · ~$83.25 · opus-5 + opus-4-7 · 15:12→17:42*
+_Session spend: 117.40M tok (in 1.1k · out 424.7k · cache r 114.96M / w 2.01M) · ~$83.25 · opus-5 + opus-4-7 · 15:12→17:42_
 **The three deferred checks, run once the walk was done:**
+
 - **`getWildPool` costs 3.7 ms** and adds nothing to a page (`EXPLAIN (analyze)`, 41k rows). But
   the planner picks the **existing** `idx_item_topic_score` for it and never the partial index the
   plan specified — `(topic_id, curation_score)` already answers `topic_id IS NULL AND
-  curation_score >= n` directly. `idx_item_unhomed_score` is measured dead weight; the finding is
+curation_score >= n` directly. `idx_item_unhomed_score` is measured dead weight; the finding is
   a comment on the index rather than a quiet drop, since removing it is a migration.
 - **`bench:feed` p50 is 58 ms**, against the ~22 ms band 7.3 left. That is the corpus, not the new
   tier: `getTopicPools` alone is **47 ms over 38,358 rows / 6.1 MB**, and the corpus went 23,456 →
   40,956 in one walk. Worth a look before three more blogs land — 7.3's fix was a projection, and
-  what is growing now is the row *count*.
+  what is growing now is the row _count_.
 - **The retroactive floor change costs `thingsorganizedneatly` exactly 3,547 items**
   (`--dry-run --skip-llm`, free): 5,267 offered, 1,720 already in DB, **floor drops 0**. That
   3,547 is precisely the number its 09-01 walk floored, which is the cleanest confirmation the
@@ -682,7 +802,7 @@ behaved on a real walk exactly as the 150-item samples said they would.
 **Shipped:** production went `a2be201` → `f604651` → `55bdf5d` in two Deploy presses. The first
 landed Cut 1 (migration `0004` backfilled all 11,989 items into `item_topic`), the PDR walker, both
 kept blogs and the streetartnews park; the second landed Cut 2a (`0005`, `topic.tier`). Then
-`promote:topics --confirm` ran *inside the container* — **16 core + 83 grown topics, 2,334 tag
+`promote:topics --confirm` ran _inside the container_ — **16 core + 83 grown topics, 2,334 tag
 memberships, 0 items gained a display topic**. That zero is correct: every production item was a
 museum item already homed; the un-homed walk items don't exist there until tonight's ingest, and
 the script is idempotent, so **re-run `.cache/promote-prod.sh` tomorrow** after the walks land.
@@ -692,8 +812,9 @@ the script is idempotent, so **re-run `.cache/promote-prod.sh` tomorrow** after 
 thingsorganizedneatly, thisiscolossal and PDR bills zero tokens and skips PDR's 1.7 GB crawl.
 
 **Findings:**
+
 - **Cut 2a had never been pushed.** Local `main` was nine commits ahead of GitHub, and Coolify
-  clones from GitHub — so the first Deploy built the commit *before* Cut 2a. `/api/health`'s
+  clones from GitHub — so the first Deploy built the commit _before_ Cut 2a. `/api/health`'s
   `commit` field caught it; a `git status -sb` showing `[ahead N]` is the pre-deploy check that
   should have run first.
 - **`docs/` is excluded from the image**, so `promote:topics` (which reads
@@ -704,7 +825,7 @@ thingsorganizedneatly, thisiscolossal and PDR bills zero tokens and skips PDR's 
   macOS tar ships `._*` AppleDouble sidecars unless `COPYFILE_DISABLE=1 --no-mac-metadata`, and
   `docker cp` rejects `com.apple.provenance` xattrs unless `--no-xattrs`. Extracting as root also
   restores the Mac's uid 501 onto the directory (`--no-same-owner`). And a typo in a `-v` volume
-  name silently *creates* a new volume rather than erroring — one stray, deleted the same hour.
+  name silently _creates_ a new volume rather than erroring — one stray, deleted the same hour.
 - The terminal wraps long `!` commands and breaks them; anything with a pipe over ssh now goes in
   a script under `.cache/` (gitignored). `push-caches.sh` and `promote-prod.sh` are there.
 
@@ -719,7 +840,7 @@ vocabulary itself needs a script run.
 re-run `promote-prod.sh`; then the dev knob panel; then desktop polish; 8.1 T8/T9 and spoon-tamago
 still queued.
 
-*Session spend: 11.57M tok (in 246 · out 70.3k · cache r 10.68M / w 818.4k) · ~≥$3.05 · fable-5-1 + opus-4-7 · 11:45→14:40*
+_Session spend: 11.57M tok (in 246 · out 70.3k · cache r 10.68M / w 818.4k) · ~≥$3.05 · fable-5-1 + opus-4-7 · 11:45→14:40_
 
 **Planned (same day, second half):** the **dev knob panel** — `docs/PLAN_dev-knob-panel.md`,
 eight tasks, cold-executable. Ben's calls: local only (`FEED_DEBUG`, never production); tuning must
@@ -732,9 +853,10 @@ plus the two levers), and readouts the bench never had: per-page and session tie
 **core/grown split**, topic and source histograms, and the last page's drift paths.
 
 **Findings:**
+
 - **"Skip the ack while tuning" would have been wrong**, though it is what Ben picked and what I
   first proposed. `getFeedPage` advances the cursor's anchor to each page's `servedAt`, and the
-  pool query excludes `served_at < anchor` — so within a session the *previous page's ack* is what
+  pool query excludes `served_at < anchor` — so within a session the _previous page's ack_ is what
   keeps its items out of the next page; `prev` in the cursor covers one page. Skip acks and items
   repeat from page 2 and every readout lies. The plan acks like production and **forgets on apply**
   via a dev-gated `feed.forgetSince({ since })` — same zero-rows outcome, honest dedupe. Flagged
@@ -754,7 +876,7 @@ plus the two levers), and readouts the bench never had: per-page and session tie
 desktop-UI polish session; 8.1 T8/T9 and spoon-tamago still queued. Tomorrow's
 `.cache/promote-prod.sh` re-run after the first nightly walk stands.
 
-*Session spend: 9.35M tok (in 112 · out 141.2k · cache r 8.68M / w 531.4k) · fable-5-1 · 14:40→17:35*
+_Session spend: 9.35M tok (in 112 · out 141.2k · cache r 8.68M / w 531.4k) · fable-5-1 · 14:40→17:35_
 
 **Shipped (same day, third stretch): the dev knob panel** — `docs/PLAN_dev-knob-panel.md` executed
 end to end, eight commits on `feat/dev-knob-panel`, merged to `main`. The four moves landed as
@@ -772,19 +894,20 @@ scale 1 now reports **0 changed cells** against the current artifact; at `--grow
 reports 0 core×core and 9,452 other cells changed.
 
 **Findings:**
+
 - **The plan's client import would have bundled Postgres.** `useDevKnobs` needed `DEFAULT_KNOBS`,
   and importing that value from `services/feed.ts` into a `"use client"` module pulls `db/items`
   and, through it, the Postgres client into the browser bundle — nothing client-side had ever
-  imported a *value* from that module, only types. `FeedKnobs`/`DEFAULT_KNOBS` now live in
+  imported a _value_ from that module, only types. `FeedKnobs`/`DEFAULT_KNOBS` now live in
   `services/feed-knobs.ts`, a leaf with no imports, re-exported from `feed.ts` so every server
   import site reads as before.
 - **`react-hooks/set-state-in-effect` shaped two components.** The plan's `Slider` synced a draft
   from props in an effect and its hook loaded localStorage in one; the repo's idiom is
-  `useSyncExternalStore` (landing-screen, install-flow). The Slider keeps a *nullable* draft (null =
+  `useSyncExternalStore` (landing-screen, install-flow). The Slider keeps a _nullable_ draft (null =
   show the committed value, so a parent reset wins with nothing to reconcile) and the knob store
   reads localStorage through `useSyncExternalStore` with `DEFAULT_KNOBS` as the server snapshot.
 - **The rebuild script had two self-references, not one.** The plan named the core set (read off
-  the artifact's own keys). The rescale `target` was the second: the mean per-row spread of *every*
+  the artifact's own keys). The rescale `target` was the second: the mean per-row spread of _every_
   row in the artifact, which would have drifted with each rebuild. Both now derive from `TOPICS`;
   the target reproduces the first run's 0.1345 exactly.
 - **A closed tab leaves the last cycle's rows behind — and "Restart" would not have cleared them**,
@@ -816,9 +939,10 @@ Then the desktop-UI polish session; 8.1 T8/T9 and spoon-tamago still queued. The
 `feat/tumblr-blogs-round3` branch in the main checkout is based on `49299a0` and will need `main`
 merged in. Not pushed — Ben's call, as the plan says.
 
-*Session spend: 37.22M tok (in 546 · out 243.1k · cache r 35.63M / w 1.34M) · ~≥$7.33 · fable-5-1 + opus-4-7 · 17:42→18:09*
+_Session spend: 37.22M tok (in 546 · out 243.1k · cache r 35.63M / w 1.34M) · ~≥$7.33 · fable-5-1 + opus-4-7 · 17:42→18:09_
 
 **Pickup (written 19:45 for a cold session):**
+
 - **`main` is at `1afda7e`** (the knob-panel merge) and is **10 commits ahead of `origin/main`,
   unpushed** — Ben pushes. Nothing on it changes production behaviour (levers default to 1, the
   route 404s there), so the redeploy is separate from the push.
@@ -841,7 +965,7 @@ merged in. Not pushed — Ben's call, as the plan says.
 - Still queued behind this: the desktop-UI polish session, 8.1 T8 (restore drill) → T9.2–9.5,
   spoon-tamago, and tomorrow's `.cache/promote-prod.sh` re-run after the first nightly walk.
 
-*Session spend: 6.17M tok (in 57 · out 27.5k · cache r 5.20M / w 941.4k) · ~≥$1.26 · fable-5-1 + opus-4-7 · 18:09→19:41*
+_Session spend: 6.17M tok (in 57 · out 27.5k · cache r 5.20M / w 941.4k) · ~≥$1.26 · fable-5-1 + opus-4-7 · 18:09→19:41_
 
 ---
 
@@ -856,6 +980,7 @@ recorded fixtures, 56 new tests (966 unit tests green, lint clean). Merged `main
 past, so the branch is no longer stranded on `49299a0`.
 
 **Findings — two real bugs, both found by looking at live output rather than by a test.**
+
 - **Tumblr's newer editor puts its alt-text UI badge inside the caption**
   (`<span class="tmblr-alt-text-helper">ALT</span>`), so `htmlToText()` rendered the literal word
   "ALT" and `deriveTitle()` made it the card's **title**. 24% of sampled 70sscifiart captions.
@@ -874,9 +999,9 @@ tokens, mean image 649 KB). Every prior log entry left this as "still unrecorded
 
 **Decisions:** all nine ship in `SUSPENDED_SOURCES`, and that is a **default, not a verdict** —
 the nightly ingest walks every registered walker not on that list, and nine unattended full walks
-would be ~351,500 posts and ~125,700 stored rows against a corpus of 21,892. A **6× corpus, 85% of
+would be ~351,500 posts and ~~125,700 stored rows against a corpus of 21,892. A **6× corpus, 85% of
 it Tumblr**, is a product decision about what Ambit is, not a scraping task, so nothing was
-un-parked. The money is not the constraint (~$30 for all nine); the balance is.
+un-parked. The money is not the constraint (~~$30 for all nine); the balance is.
 
 **The verdict evidence** (`stats:walk --quota 150` each, writes nothing, cache now warm so
 re-runs are free) is the table in `docs/HANDOFF_tumblr-round3.md` §2. Short version: **nemfrog**
@@ -891,7 +1016,7 @@ un-homed) are structurally poor and read as Cuts.
 
 **Verdicts, same evening — Ben parked four of the nine:** `nemfrog`, `humanoidhistory`,
 `dreamsrecurring`, `vintagegeekculture`. Everything was already parked as a default, so nothing
-moved in the ingest's behaviour; what changed is *why* each row is on that list, and the docs now
+moved in the ingest's behaviour; what changed is _why_ each row is on that list, and the docs now
 say which. `SUSPENDED_SOURCES` is split into "parked by verdict" and "parked pending a verdict",
 the four config rows carry their verdict and the numbers behind it, and the handoff's §0 warns a
 cold session off re-opening them. The arithmetic worth keeping: those four are **~82,100 of the
@@ -905,15 +1030,15 @@ open candidate at 8.65 / 96% ≥8 and the lowest un-homed share of the nine), `s
 time and walk them (`docs/HANDOFF_tumblr-round3.md` §0). Separately: whether
 `things-organized-neatly.ts` should take the two-line alt-badge fix.
 
-*Session spend: 20.69M tok (in 400 · out 195.4k · cache r 19.67M / w 822.7k) · ~≥$19.98 · opus-5 + opus-4-7 + fable-5-1 · 17:55→18:22*
-*Session spend: 1.47M tok (in 16 · out 10.2k · cache r 1.45M / w 11.6k) · ~$1.10 · opus-5 · 18:22→18:23*
-*Session spend: 5.57M tok (in 56 · out 29.9k · cache r 5.01M / w 529.2k) · ~$8.54 · opus-5 · 18:23→21:56*
+_Session spend: 20.69M tok (in 400 · out 195.4k · cache r 19.67M / w 822.7k) · ~≥$19.98 · opus-5 + opus-4-7 + fable-5-1 · 17:55→18:22*
+*Session spend: 1.47M tok (in 16 · out 10.2k · cache r 1.45M / w 11.6k) · ~$1.10 · opus-5 · 18:22→18:23_
+_Session spend: 5.57M tok (in 56 · out 29.9k · cache r 5.01M / w 529.2k) · ~$8.54 · opus-5 · 18:23→21:56_
 
 ### [[09-02-26 Wed]] — A duplicate session, and what two sessions on one checkout look like
 
 **Findings:** This session opened on `feat/wp-rest-blogs` after a `/clear` and set out to finish
 the round-2 verdicts — commit the mossandfog park, watch the thisiscolossal walk, close the docs.
-It turned out the session that *took* those verdicts had never stopped: between my state check
+It turned out the session that _took_ those verdicts had never stopped: between my state check
 and my first commit it committed the park (`031fc59`), merged the branch (`f2821dc`), switched the
 shared checkout to a new `docs/sources-round2-verdicts` branch, and left four doc edits unstaged
 while it waits on the walk's totals. My commit ran on that branch against an already-committed
@@ -926,7 +1051,7 @@ walk is 8,735 offered; the first run was SIGTERMed at 874 curated and restarted 
 (curation cache makes the replay free).
 
 **Decisions:** Two sessions in one working tree cannot both execute the same plan. The tell was
-cheap and I nearly skipped it: `git branch --show-current` and `git status` *immediately* before
+cheap and I nearly skipped it: `git branch --show-current` and `git status` _immediately_ before
 staging, not at session start — the branch changed under me inside three minutes. Stage by
 name, commit nothing that another session's `git status` shows as its own, and if the other
 session is alive (transcript mtime under ten minutes), stop and say so rather than race it.
@@ -936,7 +1061,7 @@ source-candidates rows for both blogs, handoff §1, CLAUDE.md) on `docs/sources-
 Queue after that, unchanged: streetartnews and spoon-tamago as config rows, thisisnthappiness as
 Tumblr #2, Europeana (key from Ben), Openverse, Chronicling America.
 
-*Session spend: 3.68M tok (in 3.7k · out 26.3k · cache r 3.21M / w 433.5k) · ~≥$0.32 · fable-5-1 + opus-4-7 · 22:27→08:13*
+_Session spend: 3.68M tok (in 3.7k · out 26.3k · cache r 3.21M / w 433.5k) · ~≥$0.32 · fable-5-1 + opus-4-7 · 22:27→08:13_
 
 **Shipped (the session the entry above saw from outside — it started 09-01 21:42 and ran to
 09-02 mid-morning):** Ben took every open call in one sitting — **Keep** thingsorganizedneatly,
@@ -960,7 +1085,7 @@ was the code. Overnight, the Mac slept on battery (`pmset -g log`: deep sleep fr
 wakes every few minutes) — a run freezes, its sockets die on wake, and neither `fetch` nor the
 curator has a timeout, so each morning-after run sat on twelve silent OpenRouter sockets at 50%.
 `caffeinate -i` does not hold a closed lid; Ben opened it and plugged in. Then I killed two
-*healthy* runs myself: Colossal pages are 3.3 MB and take 4 s each, so the walk is silent for
+_healthy_ runs myself: Colossal pages are 3.3 MB and take 4 s each, so the walk is silent for
 ~8.5 minutes, and curation moves ~3 GB of 2000 px originals — a log-mtime stall detector reads
 that as a hang. What settled it was the kernel, not the log: `netstat -anv -p tcp | grep
 bun:<pid>` showing rx/tx growing on eight OpenRouter sockets. Also: the harness SIGTERMed every
@@ -980,7 +1105,7 @@ Chronicling America. Guardrail for 8.2: the curator's image fetch and OpenRouter
 no timeout — the sockets that actually hung. Cosmetic: Tumblr titles keep `ed:` / `SUBMISSION:`
 prefixes. Ben still owes himself the `/feed` eyeball of the 891 + 6,075 new rows (dev server up).
 
-*Session spend: 76.70M tok (in 53.8k · out 525.0k · cache r 74.13M / w 1.99M) · ~≥$4.32 · fable-5-1 + opus-4-7 + <synthetic> · 21:42→09:08*
+_Session spend: 76.70M tok (in 53.8k · out 525.0k · cache r 74.13M / w 1.99M) · ~≥$4.32 · fable-5-1 + opus-4-7 + <synthetic> · 21:42→09:08_
 
 **Handoff written (same session, later):** `docs/HANDOFF_sources-round2.md` gained a **§0 "Start
 here"** — streetartnews and spoon-tamago as a seven-step, cold-executable task for a cheaper
@@ -988,7 +1113,7 @@ session (model files to copy, the five registration lines, the probe → dry-run
 verdict loop, and the night's liveness rule for a full walk). Ben's ask: hand those two off as
 the next step and close this session.
 
-*Session spend: 7.09M tok (in 1.9k · out 42.4k · cache r 7.00M / w 46.9k) · fable-5-1 · 09:08→10:43*
+_Session spend: 7.09M tok (in 1.9k · out 42.4k · cache r 7.00M / w 46.9k) · fable-5-1 · 09:08→10:43_
 
 **Findings (a second, parallel session):** Ben asked for a live evaluation of
 `publicdomainreview.org` as a source, unrelated to the wp-rest queue and run from a session that
@@ -1019,7 +1144,7 @@ probe evidence, the `toItem()`/`walk()` design resolution, and the open question
 in-or-out, the CC BY-SA boilerplate-notice UI question, a rights-strength sample beyond the one
 collection probed) for whoever builds the adapter next.
 
-*Session spend: 8.41M tok (in 463 · out 95.7k · cache r 7.65M / w 657.0k) · ~≥$7.79 · sonnet-5 + opus-4-7 + fable-5-1 · 08:13→10:45*
+_Session spend: 8.41M tok (in 463 · out 95.7k · cache r 7.65M / w 657.0k) · ~≥$7.79 · sonnet-5 + opus-4-7 + fable-5-1 · 08:13→10:45_
 
 **Shipped (a later session, same day):** streetartnews.net built to the handoff's §0 recipe —
 `wp-rest` config row, fixture, five registration lines, TDD, all gates green, on
@@ -1040,14 +1165,14 @@ the sixteen topics. Counting the other blogs, ingest has already discarded **~3,
 on subject fit alone (colossal 2,657, thingsorganizedneatly 829, doorofperception ~70). Ben's call,
 made in full: **walk sources ingest their whole corpus and the topic vocabulary grows to fit them,
 never the reverse** — search-shaped sources stay bound to the topic list, because a search source
-needs a query. Short form: *topics are the vocabulary Ambit asks with; tags are the vocabulary the
-world answers in.* Four structural decisions taken against stated alternatives: **two tiers** (tags
+needs a query. Short form: _topics are the vocabulary Ambit asks with; tags are the vocabulary the
+world answers in._ Four structural decisions taken against stated alternatives: **two tiers** (tags
 unbounded, topics a curated drift axis that grows by promotion — a flat vocabulary would put
 `Ajuinlei` and `family mart` in the drift graph as dead ends); **many topics per item** (`item_topic`
 join table — the one-topic rule filed a 9-scoring mural under `poetry` and discarded `the-ocean`);
 **hybrid assignment** (classify returns an array; promotion backfills by SQL over tags +
 aesthetic_tags, free and retroactive — needed because two of streetartnews' three newest posts had
-*zero* tags while aesthetic_tags exist on every item); and **Cut 1 = principle + schema + ingest
+_zero_ tags while aesthetic_tags exist on every item); and **Cut 1 = principle + schema + ingest
 only**, feed and graph and onboarding untouched. Written up as
 `docs/DESIGN_topic-vocabulary-growth.md`, with SPEC §1/§6.2 and CLAUDE.md carrying the principle
 marked decided-not-built. It reverses half of 6.3's **D4**: "never force-fitted" stays and gets
@@ -1076,7 +1201,7 @@ live, which looked like lost work. It wasn't — that session committed both to 
 `docs/plan-pdr` branch, `d23030d`. Two sessions on one checkout again; the tell was a branch this
 session didn't create.)
 
-*Session spend: 23.21M tok (in 367 · out 172.2k · cache r 22.13M / w 906.0k) · ~$24.01 · opus-5 + opus-4-7 · 10:59→11:56*
+_Session spend: 23.21M tok (in 367 · out 172.2k · cache r 22.13M / w 906.0k) · ~$24.01 · opus-5 + opus-4-7 · 10:59→11:56_
 
 **Planned (a later session, same day):** `docs/PLAN_publicdomainreview.md` — the PDR walker as a
 cold-executable plan for a cheaper session, seven tasks, stop at Ben's verdict. Planning
@@ -1086,7 +1211,7 @@ detail response is **0.5–1.2 MB** because Gatsby embeds the whole index and th
 in each one — 1.7 GB per uncached walk — so the adapter gets a slug-keyed disk cache
 (`.cache/pdr/<kind>/`, 8–30 KB a record) and a nightly walk is four index fetches plus the new
 pieces. A 40-collection rights sample settled the handoff's open question 3: the underlying work
-is PD on every row, but two sources (both BnF) mark the *digital copy* Non-commercial, so the
+is PD on every row, but two sources (both BnF) mark the _digital copy_ Non-commercial, so the
 walker excludes those (~5%) and keeps "Unclear". **Then Ben widened the scope** — "I want the
 essays, and all the other stuff too" — and took three calls in one AskUserQuestion: a collection
 is an **image item that also carries its Preamble as `body`**, rendered on the item page under
@@ -1095,7 +1220,7 @@ plus a `ReuseNotice` line PDR's CC BY-SA terms ask for); **essays are in**, incl
 Conjectures (21) and Curator's Choice (29) series the essays index omits — CC BY-SA ones (28 of
 32 sampled) as articles with the essay as body, "Custom License"/unlabelled ones as link cards;
 the PDR **Blog is out** (76 org-news posts, no images). Consequences: the walk-source body-null
-invariant is rescoped to *blogs* (it was only ever D5), `sourceId` gains a `collection/` /
+invariant is rescoped to _blogs_ (it was only ever D5), `sourceId` gains a `collection/` /
 `essay/` namespace, the cursor is `<phase>:<offset>` over four indexes, and `stats:walk` grows a
 `--cursor` so a phase can be sampled alone.
 
@@ -1112,9 +1237,9 @@ execute from Task 1 in a cheaper session. Committed on its own branch, `docs/pla
 `feat/wp-rest-streetartnews`, then on `docs/topic-vocabulary-growth`), so the commit was made
 without touching that branch or the shared index, and the working tree was restored to match it.
 
-*Session spend: 13.13M tok (in 38.1k · out 391.5k · cache r 11.40M / w 1.30M) · ~≥$0.96 · fable-5-1 + opus-4-7 · 10:52→11:09*
-*Session spend: 17.38M tok (in 4.8k · out 307.9k · cache r 15.71M / w 1.36M) · fable-5-1 · 11:09→11:48*
-*Session spend: 3.93M tok (in 668 · out 18.0k · cache r 3.90M / w 12.0k) · fable-5-1 · 11:48→11:52*
+_Session spend: 13.13M tok (in 38.1k · out 391.5k · cache r 11.40M / w 1.30M) · ~≥$0.96 · fable-5-1 + opus-4-7 · 10:52→11:09_
+_Session spend: 17.38M tok (in 4.8k · out 307.9k · cache r 15.71M / w 1.36M) · fable-5-1 · 11:09→11:48_
+_Session spend: 3.93M tok (in 668 · out 18.0k · cache r 3.90M / w 12.0k) · fable-5-1 · 11:48→11:52_
 
 **Planned (Cut 1, a later session):** `docs/PLAN_topic-vocabulary-cut1.md` — ten tasks, cold-
 executable, from the design doc. The planning session **trialled the schema edit** (nullable
@@ -1126,7 +1251,7 @@ null (unreachable, documented), an un-homed save bumps nothing (`drift: null`), 
 union), `FeedCard.topicId` widens to `string | null` at the client boundary only while
 `ComposedCard` pins it back to `string`. Three more calls the code forced: `--skip-llm` still
 writes no walk rows (a score-5 un-homed row would block its real curation forever); the gallery's
-wildcard draw *can* surface an un-homed image, left deliberately; losing `collidedWith` claims are
+wildcard draw _can_ surface an un-homed image, left deliberately; losing `collidedWith` claims are
 not written as extra seed memberships (Cut 2 candidate). The migration's backfill rides in the
 generated `0004_item_topic.sql` with the walk-source list frozen in SQL (streetartnews included —
 its trial branch wrote 87 local rows). Verified against Drizzle's docs that `migrate` runs hand-
@@ -1134,7 +1259,7 @@ appended statements split on `--> statement-breakpoint`. The first real run is d
 free from cache (~70 un-homed expected, memberships written 0). The two big re-walks and the
 streetartnews verdict are offered after the merge, not started.
 
-*Session spend: 12.58M tok (in 7.6k · out 339.4k · cache r 11.08M / w 1.15M) · fable-5-1 · 12:16→12:33*
+_Session spend: 12.58M tok (in 7.6k · out 339.4k · cache r 11.08M / w 1.15M) · fable-5-1 · 12:16→12:33_
 
 **Shipped (a later session, same day):** the PDR plan re-read against Cut 1 and un-paused —
 `docs/PLAN_publicdomainreview.md` merged to `main` (`docs/plan-pdr`), with a new **§1a** carrying
@@ -1146,17 +1271,17 @@ change at all and can run **concurrently** with Cut 1's execution.
 `scripts/ingest.ts`; it only asserts that lane's output in one dry-run step. The two plans share
 exactly one file, `scripts/walk-stats.ts`, in disjoint regions (Cut 1: the `classified`/`refused`
 counters; PDR: a `--cursor` flag). Nor does Cut 1 touch `types.ts`, `topics.ts`, `sources/index.ts`
-or `source-invariants.test.ts`, which is the rest of PDR's Task 4. What the re-read *did* turn up is
+or `source-invariants.test.ts`, which is the rest of PDR's Task 4. What the re-read _did_ turn up is
 one correctness hazard nobody had: Cut 1's migration backfills `item_topic.origin` from a **source
 list frozen in the SQL**, and `pdr` is correctly absent from it — so any PDR row written to a
-database *before* that migration runs is backfilled `origin='seed'` when it is curator-classified, a
+database _before_ that migration runs is backfilled `origin='seed'` when it is curator-classified, a
 silent lie in the column Cut 2's promotion audits. Tasks 1–6 write no rows, so it bites only on a
-Keep full walk; Task 7 now opens with the check, and it applies again to the first *production*
+Keep full walk; Task 7 now opens with the check, and it applies again to the first _production_
 ingest after the next deploy.
 
 **Decisions:** PDR's verdict question changes the way streetartnews' did (design §13) — a high
 un-homed share is no longer an argument against a source, and the report now asks what the un-homed
-items are *about*. Recorded alongside it, because PDR is what will force it: PDR is the **strongest
+items are _about_. Recorded alongside it, because PDR is what will force it: PDR is the **strongest
 vocabulary source in the corpus** (controlled `Medium`/`Theme`/`Style`/`Epoch`/`Tags`, 4–12 per
 record on all 1,648 pieces, against blog tags that are often absent) and carries the matching trap —
 Task 3 lowercases all four taxonomies into one `tags` array, so the histogram will surface `film`,
@@ -1171,7 +1296,7 @@ was rewritten to hand a `git worktree add ../ambit-pdr` recipe to whoever finds 
 someone else's branch — which is how this plan was edited and merged without touching the tree Cut 1
 is working in.
 
-*Session spend: 9.57M tok (in 289 · out 129.5k · cache r 8.62M / w 813.9k) · ~$13.56 · opus-5 + opus-4-7 · 13:11→13:30*
+_Session spend: 9.57M tok (in 289 · out 129.5k · cache r 8.62M / w 813.9k) · ~$13.56 · opus-5 + opus-4-7 · 13:11→13:30_
 
 **Update, same session (13:45):** **Cut 1 merged** (`acd1437`) while that write was being made, so
 the PDR plan's execution gate lasted about twenty minutes and is gone — the plan is runnable end to
@@ -1182,7 +1307,7 @@ branch, **stop and wait for that session** rather than working around it. What s
 re-read is the part that was never about scheduling: **no PDR row may be written to a database whose
 `item_topic` migration has not run**, or curator-classified rows get backfilled `origin='seed'`.
 
-*Session spend: 4.93M tok (in 91 · out 43.5k · cache r 4.58M / w 309.9k) · ~$5.40 · opus-5 + opus-4-7 · 13:30→14:20*
+_Session spend: 4.93M tok (in 91 · out 43.5k · cache r 4.58M / w 309.9k) · ~$5.40 · opus-5 + opus-4-7 · 13:30→14:20_
 **Shipped (Cut 1 — the vocabulary grows to fit the corpus):** all ten tasks of
 `docs/PLAN_topic-vocabulary-cut1.md`, executed in order on `feat/topic-vocabulary-cut1`. The
 migration made `item.topic_id` nullable and added `item_topic (item_id, topic_id, origin)`, with
@@ -1197,9 +1322,9 @@ were real LLM calls. 68 items 6.3 would have destroyed are now stored un-homed, 
 
 **Findings:** the tag histogram earns its place on the first run. doorofperception's 68 un-homed
 items read `art 49 · psychedelic 26 · consciousness 23 · photography 23 · science 21 · surreal 18 ·
-perception 17` — a coherent cluster, not noise, which is precisely the "evidence *for* a new topic"
+perception 17` — a coherent cluster, not noise, which is precisely the "evidence _for_ a new topic"
 the design predicted and the thing 6.3 was throwing away unmeasured. Two plan divergences, both
-small and both because the plan trialled only the *schema* edit: narrowing `PoolItem.topicId` to
+small and both because the plan trialled only the _schema_ edit: narrowing `PoolItem.topicId` to
 `string` broke 11 `feed.test.ts` fixtures (fixed by typing the `makeItem` helper's return as
 `Item & { topicId: string }` — true, since its `?? "botany"` default catches null, and no `!`
 anywhere), and the gallery details sheet's source row is labelled **From**, not "Source", so that
@@ -1219,7 +1344,7 @@ Then streetartnews' verdict on re-read evidence, and the PDR plan (now un-paused
 whose Tasks 6–7 gated on exactly this merge. Production picks the migration up on the next deploy;
 Coolify's task status is not evidence, the un-homed count in the database is.
 
-*Session spend: 39.90M tok (in 652 · out 192.4k · cache r 38.68M / w 1.03M) · ~$31.88 · opus-5 + opus-4-7 · 13:12→13:34*
+_Session spend: 39.90M tok (in 652 · out 192.4k · cache r 38.68M / w 1.03M) · ~$31.88 · opus-5 + opus-4-7 · 13:12→13:34_
 
 **Shipped (Cut 1, the first re-walk):** `bun run ingest --source thingsorganizedneatly` — 142 s,
 111 pages, 5,267 offered, **829 items stored un-homed**, `memberships written: 0`, zero tokens
@@ -1279,13 +1404,13 @@ drop-on-null ingest), and the two kept blogs are not registered there yet either
 post-deploy nightly walk will therefore be a big one. Then: streetartnews' verdict on the re-read
 evidence, and Cut 2 (promotion + moving the feed onto the join).
 
-*Session spend: 26.02M tok (in 408 · out 184.2k · cache r 24.79M / w 1.05M) · ~$23.78 · opus-5 + opus-4-7 · 13:34→15:20*
+_Session spend: 26.02M tok (in 408 · out 184.2k · cache r 24.79M / w 1.05M) · ~$23.78 · opus-5 + opus-4-7 · 13:34→15:20_
 
 **Shipped (sources round 2): streetartnews rebased onto Cut 1, re-read, and PARKED** — Ben's
 verdict, on **sequencing, not quality**. The branch (35 commits behind) rebased with conflicts only
 in the four registration files PDR had also touched; the re-read then cost nothing, because every
 item was already in the curation cache. The sample barely moved from its pre-Cut-1 form — **150
-curated @ 7.81 avg, 71% ≥ 8, 0 floored, 85 classified / 65 un-homed** — but its *meaning* did: the
+curated @ 7.81 avg, 71% ≥ 8, 0 floored, 85 classified / 65 un-homed** — but its _meaning_ did: the
 blog now stores 100% of what it offers, and the 43% is a fact about the vocabulary rather than a
 loss. Adapter, fixture and tests are on `main`; no rows were ever written.
 
@@ -1299,7 +1424,7 @@ the vocabulary Cut 2 is about to read:** since Cut 1, off-topic posts are stored
 dropped, so a full walk adds ~4,120 un-homed rows — more than the entire un-homed population
 (3,555) — and its `street art` tag scales to ~1,500, which would make "street art" the top topic
 proposal on one source's strength. thisiscolossal's independent `street art 184` corroborates the
-*cluster*; it would not corroborate the *magnitude*. Revisit after Cut 2: if `street art` becomes a
+_cluster_; it would not corroborate the _magnitude_. Revisit after Cut 2: if `street art` becomes a
 topic, this source stops being a capture risk and becomes the obvious way to fill it.
 
 Three smaller things the re-read surfaced. **The classifier is not force-fitting** — the
@@ -1327,7 +1452,7 @@ untouched (steps 1–7). Production is now three changes behind — Cut 1, the P
 kept blogs that have never been registered there — so the first post-deploy nightly will be large.
 Cut 2a is planned and running in a parallel session.
 
-*Session spend: 27.02M tok (in 204 · out 77.7k · cache r 24.98M / w 1.96M) · ~$33.68 · opus-5 + opus-4-7 · 15:20→21:17*
+_Session spend: 27.02M tok (in 204 · out 77.7k · cache r 24.98M / w 1.96M) · ~$33.68 · opus-5 + opus-4-7 · 15:20→21:17_
 **Shipped (a later session, same day):** **The Public Domain Review is built, KEPT and merged** —
 `docs/PLAN_publicdomainreview.md` executed end to end, Tasks 1–7, on a plain branch off `main`.
 `pdr` is the **fourth walk source and the first that is not a designated blog**: a walk over
@@ -1345,11 +1470,11 @@ on rights → 2 `toItem` errors (the only two collections with no featured image
 before the walk and confirmed after it.
 
 **Findings:** **One slug in 1,648 killed the first full walk.** PDR's Airtable carries a single
-essay slug with a trailing slash (`…make-lemonade/`), and it is the *record's own* `Slug` field —
+essay slug with a trailing slash (`…make-lemonade/`), and it is the _record's own_ `Slug` field —
 so it reached the cache path, the detail URL (`encodeURIComponent` → a 404-ing `%2F`) and the
 stored `sourceId` at once. The walk died at cursor `e:100`, which meant **neither series was
 walked**, and the run still exited 0 — the tell was `complete: no` in the walk-sources table, not
-the exit code. Worth knowing generally: *an ingest that fails mid-walk reports success*, and the
+the exit code. Worth knowing generally: _an ingest that fails mid-walk reports success_, and the
 completeness column is the only honest witness. The fix is `slugOf()` normalising at the wire
 boundary; `cachePath()`'s guard was deliberately **not** loosened to accept a slash, because it is
 a safety assertion about what may become a filesystem path and one site's typo is not a reason to
@@ -1362,26 +1487,26 @@ pattern now requires a real tag name after the `<`. It still matches every real 
 finds 0 offenders corpus-wide.
 — **The sampled link-card share was a sampling artefact.** The trial samples put it at 42%; the
 corpus figure is **19%** (75 of 393 essays). The 110 essays cached at sampling time were the newest
-60 plus *all* of both series, so Curator's Choice — which is 100% link cards, because PDR licenses
+60 plus _all_ of both series, so Curator's Choice — which is 100% link cards, because PDR licenses
 none of its institutional guest posts — was 26% of the sample against 7% of the corpus.
-— Two `Custom License` essays carry a `License_Note` saying the text *is* CC BY-SA. `essayIsOpen`
+— Two `Custom License` essays carry a `License_Note` saying the text _is_ CC BY-SA. `essayIsOpen`
 reads only the explicit label, so both become cards: a deliberate under-claim, never an over-claim.
 
 **Decisions:** Ben took **Keep, all four phases**, on the samples (collections 8.73 / 97% ≥ 8 — the
 best in the corpus, edging thisiscolossal's 8.70; essays 8.32; series 8.02). Curator's Choice was
 put to him separately, since all 29 are link cards with no readable text, and kept — dropping it is
 a one-line change to `PHASES` if the corpus ever feels card-heavy. The **axis question is left open
-for Cut 2, deliberately**: the collections' un-homed pile is dominated by *medium and epoch* terms
-(`20th century`, `images`, `engraving`) while the essays' is *subject* terms (`culture & history`,
+for Cut 2, deliberately**: the collections' un-homed pile is dominated by _medium and epoch_ terms
+(`20th century`, `images`, `engraving`) while the essays' is _subject_ terms (`culture & history`,
 `literature`, `film`), and Ambit's sixteen topics are a subject axis — so growing the vocabulary
 along medium or period is a real choice to make on purpose rather than by histogram rank.
 
 **Open / next:** PDR is **local rows only** until the next deploy, like the two kept blogs; the
-nightly cron walks it then, and its first *server* walk is the 1.7 GB one (the §1a `item_topic`
+nightly cron walks it then, and its first _server_ walk is the 1.7 GB one (the §1a `item_topic`
 check applies again to that first production ingest). Still open from before: 8.1's T8 restore
 drill and T9.2–9.5, and sources round 2's streetartnews + spoon-tamago.
 
-*Session spend: 71.94M tok (in 844 · out 372.4k · cache r 70.01M / w 1.56M) · ~$56.86 · opus-5 + opus-4-7 · 14:22→15:26*
+_Session spend: 71.94M tok (in 844 · out 372.4k · cache r 70.01M / w 1.56M) · ~$56.86 · opus-5 + opus-4-7 · 14:22→15:26_
 
 **Planned (same session, evening):** `docs/PLAN_topic-vocabulary-cut2.md` — **Cut 2a**, the half of
 Cut 2 that makes the un-homed backlog reachable. **The plan splits the design's §11 Cut 2 in two,
@@ -1399,14 +1524,14 @@ un-homed average 7.88 against 8.39 homed); they are items no existing topic hone
 — **Sharp diminishing returns on the candidate list.** 36 topics (minUnhomed≥40, 2+ sources)
 rescue 70% of the backlog; 86 topics rescue 76%; 177 rescue 81%. The extra fifty are low-yield.
 — **The axis worry from this morning was wrong, and the plan says so.** The concern was that
-promoting `sculpture`/`painting` would grow a *medium* axis while the sixteen are a *subject* axis.
+promoting `sculpture`/`painting` would grow a _medium_ axis while the sixteen are a _subject_ axis.
 Checking the actual sixteen retired it: `ceramics`, `textiles`, `typography`, `cartography` and
 `portraiture` are already media or forms. The real test is **"does this name a kind of thing a
 person could be curious about"** — which `sculpture` (738 un-homed, 4 sources — the clearest
 missing topic in the corpus) passes and `20th century` fails.
 — **`minSources>=2` is a junk filter that also rejects good topics.** It correctly kills
 `submission` (344) and `sponsor` (52), which are administrative and which no threshold excludes,
-but it also kills `street art` (178) and `public art` (114). Hence a stopword list *plus* an
+but it also kills `street art` (178) and `public art` (114). Hence a stopword list _plus_ an
 allow-list, and single-source candidates are shown in their own section to be rescued by hand.
 — **Co-occurrence was validated against the shipped embedding graph before being trusted:** mean
 Spearman ρ 0.502, top-3 neighbour overlap 50% (strong on `astronomy` 0.81 / `the-ocean` 0.80, weak
@@ -1417,7 +1542,7 @@ and `pickDrift` softmaxes over them, so raw values would silently flatten DRIFT 
 draw. The rebuild script rescales per row, is the only script in the plan with a unit test, and
 refuses to write if a tuned edge ever changes.
 — **One requirement neither the design nor the brief had:** `topics.list` backs the onboarding chip
-grid and returns *every* topic, so promotion would have put ~100 chips on that screen. `topic.tier`
+grid and returns _every_ topic, so promotion would have put ~100 chips on that screen. `topic.tier`
 (`core` | `grown`) is Task 1 and must land before any topic is inserted.
 
 **Decisions:** Ben took **mine broadly and verdict the list** over a hand-picked handful, and
@@ -1446,12 +1571,12 @@ branch, harmless because it is the identical blob and merges as a no-op. Also st
 restore drill and T9.2–9.5, streetartnews' and spoon-tamago's verdicts, and the deploy that carries
 Cut 1 + PDR + the kept blogs to production.
 
-*Session spend: 47.71M tok (in 292 · out 149.8k · cache r 45.35M / w 2.21M) · ~$48.12 · opus-5 + opus-4-7 · 15:26→21:17*
+_Session spend: 47.71M tok (in 292 · out 149.8k · cache r 45.35M / w 2.21M) · ~$48.12 · opus-5 + opus-4-7 · 15:26→21:17_
 
 **Shipped (Cut 2a, a later session the same evening):** the whole plan, Tasks 1–7, on
 `feat/topic-vocab-cut2`. **The vocabulary is 99 topics — 16 `core` + 83 `grown` — and the un-homed
 backlog is 3,741 → 1,027.** `topic.tier` landed first and exists for one reason the design never
-listed: `topics.list` backs the onboarding chip grid and returned *every* topic, so the first
+listed: `topics.list` backs the onboarding chip grid and returned _every_ topic, so the first
 promotion would have put a hundred chips on that screen. Then `bun run mine:topics` (83 candidates,
 24 single-source, ranked by how many invisible items a tag would rescue), Ben's verdict — **every
 candidate, none of the single-source** — `bun run promote:topics --confirm` (20,020 memberships at
@@ -1461,11 +1586,12 @@ byte-identical). A promoted item renders at `/i/` and the feed draws the new voc
 96 cards came back 59 grown / 37 core across 39 distinct promoted topics.
 
 **Findings:** four things the plan did not see, none of them fatal and all of them the same shape —
-*the plan was written against what the repo looked like from a distance*.
+_the plan was written against what the repo looked like from a distance_.
+
 1. `src/server/db/topics.test.ts`, which Task 1 says to modify, **does not exist**. DB-backed tests
    here are `*.integration.test.ts` behind a `DATABASE_URL` skipIf. Created that instead — and the
    plan's assertions pass trivially while every row is still `core`, so the test now inserts a
-   throwaway `grown` row and checks it is *excluded*.
+   throwaway `grown` row and checks it is _excluded_.
 2. **`vitest.config.ts`'s include is `src/**/*.test.ts`**, so the plan's
    `scripts/rebuild-topic-graph.test.ts` would never have been collected. `bun run test` would have
    gone green having never run the check the plan itself calls its riskiest. The maths moved to
@@ -1494,14 +1620,12 @@ places to go, so most of a page lands outside what the reader picked (59/96 in t
 the backlog becoming reachable working exactly as designed, and it is also a real change to the mix
 Ben tuned in Phase 0.5, unmeasured in degree. Tune it before, not after, the production deploy.
 Cut 2b (the `topic_edge` table; moving the feed onto the `item_topic` join so an item is drawable
-under *any* of its topics) is **not urgent** — 99 topics is 647 KB and the table matters around 300.
+under _any_ of its topics) is **not urgent** — 99 topics is 647 KB and the table matters around 300.
 Also unchanged: 8.1's T8 restore drill and T9.2–9.5, spoon-tamago's verdict, streetartnews'
 re-look now that Cut 2 has written the vocabulary it would have collided with, and the deploy
 carrying Cut 1 + PDR + the kept blogs + this to production.
 
-*Session spend: 31.54M tok (in 547 · out 176.0k · cache r 30.60M / w 764.9k) · ~$25.72 · opus-5 + opus-4-7 · 21:47→22:41*
-
-
+_Session spend: 31.54M tok (in 547 · out 176.0k · cache r 30.60M / w 764.9k) · ~$25.72 · opus-5 + opus-4-7 · 21:47→22:41_
 
 ### [[09-01-26 Tue]] — One Redeploy closed two tasks, and the phone found the missing redirect
 
@@ -1523,13 +1647,13 @@ redirect**, so the whole site served fine over plain http to any http-first clie
 on a bare typed domain), and Better Auth then correctly refused the http origin per D2. Not a
 regression — the gap existed since T4; desktop browsers are https-first and never tripped it, and
 HSTS can't help a client that has never completed an https visit. Fix was one edge toggle
-(*Always Use HTTPS*), verified: http GET and POST both 301 before reaching the app.
+(_Always Use HTTPS_), verified: http GET and POST both 301 before reaching the app.
 
 **Shipped, later session:** **7.4c.** The wikipedia adapter asks PageImages for
 `pithumbsize=1600` instead of `piprop=original` (`a2be201`), and `bun run rethumb` repaired the
 rows ingested before the flip — **1,382 of 1,383 production rows rewritten**, one held because the
 article's lead image changed since ingest and the new file's licence was never checked (a guard the
-plan didn't ask for, but ingest resolves licences per *file*, so it had to exist). The plan's
+plan didn't ask for, but ingest resolves licences per _file_, so it had to exist). The plan's
 "mechanical" URL transform died on the first probe: Wikimedia renames derivatives by format
 (svg→png, tif→png, pdf→jpg, webp→png), snaps 1600 to 1920, hands back the unscaled original for
 files already narrower than the request, and tags everything with a `utm_content` query — so the
@@ -1540,7 +1664,7 @@ skipped (the cache is keyed by item id and already holds ≤1600 px WebP — a r
 429'd three times inside 17 seconds even on ~300 KB thumbnails; re-measured rather than retried,
 six fresh renders at 1/s from the VM all came back 200 — so not a lingering IP block — but a
 sustained 1/s run was abandoned too, 66 in. Every abandonment fits a **token bucket of ~60
-on-demand renders refilling at ~20/min**: Wikimedia's thumbnail *renderer*, not the byte budget
+on-demand renders refilling at ~20/min**: Wikimedia's thumbnail _renderer_, not the byte budget
 7.4 diagnosed. Repaced to 20-image chunks with 75 s pauses, the remaining 663 filled in 34
 chunks over ~53 min with zero 429s; 924 wikipedia fills for the day, exactly the starting
 backlog. Cache: **10,503 files / 1.1 GB, every source warm** (52 leftovers from 7.4's upstream
@@ -1550,8 +1674,8 @@ errors aside). One large file: 4.2 MB original → 287 KB derivative.
 walkthrough close-out, vault, this log), 6.2's phone sign-up + PWA install, and the OpenRouter
 spend number for 7.3. 8.2 stays parked behind 8.1's done-bar.
 
-*Session spend: 10.90M tok (in 224 · out 74.3k · cache r 10.33M / w 494.5k) · ~$23.94 · fable-5 · 13:49→14:44*
-*Session spend: 22.15M tok (in 15.6k · out 183.1k · cache r 21.43M / w 522.1k) · ~≥$1.94 · fable-5-1 + opus-4-7 · 15:28→16:51*
+_Session spend: 10.90M tok (in 224 · out 74.3k · cache r 10.33M / w 494.5k) · ~$23.94 · fable-5 · 13:49→14:44*
+*Session spend: 22.15M tok (in 15.6k · out 183.1k · cache r 21.43M / w 522.1k) · ~≥$1.94 · fable-5-1 + opus-4-7 · 15:28→16:51_
 
 **Findings, later session:** Ran `docs/source-candidates.md`'s trial loop's step 0 — a live
 pre-trial probe, no adapter written, nothing ingested — against every remaining 🔵 untried API
@@ -1567,7 +1691,7 @@ redirects), PD needs a hard `date` cutoff since the per-result `rights` field is
 text. **thisiscolossal.com** is a near drop-in for the shipped WP-REST blog adapter (8,817 posts,
 `_embed=wp:featuredmedia` ungated). Six candidates parked on structural blockers found empirically:
 Rijksmuseum and BHL both hit Getty's Linked-Art-graph shape problem; Harvard Art Museums has no
-license filter at all *and* a ToU 2-week cache cap that conflicts with the permanent-corpus
+license filter at all _and_ a ToU 2-week cache cap that conflicts with the permanent-corpus
 architecture; Internet Archive's per-item license mix is real even within "CC," plus uploader
 flooding worse than Smithsonian's; DPLA is actually easier than assumed (instant self-serve key)
 but its docs site is WAF-blocked so response shape is unconfirmed; Open Library, Wikiquote, and
@@ -1614,7 +1738,7 @@ implemented this session** — written up instead as `docs/HANDOFF_tumblr-walk.m
 pickup document (real API response shapes, the resolved judgment calls, a file-by-file
 implementation checklist, open items) for a fresh session to execute against.
 
-*Session spend: 1.53M tok (in 12 · out 20.2k · cache r 1.48M / w 27.7k) · ~$0.91 · sonnet-5 · 16:38→16:40*
+_Session spend: 1.53M tok (in 12 · out 20.2k · cache r 1.48M / w 27.7k) · ~$0.91 · sonnet-5 · 16:38→16:40_
 
 **Shipped, later session:** Ben switched to Fable and said execute — so the Tumblr handoff went
 from document to adapter in one sitting, on `feat/tumblr-walk-thingsorganizedneatly` (`fce1d66`),
@@ -1640,9 +1764,9 @@ in `docs/HANDOFF_tumblr-walk.md` §8; the source-candidates row and a SPEC §6.1
 numbers, marked verdict-pending. Not done: the full walk and write, the rendered eyeball, the
 promotion.
 
-*Session spend: 43.39M tok (in 43.3k · out 485.8k · cache r 41.21M / w 1.65M) · ~≥$4.20 · fable-5-1 + sonnet-5 + opus-4-7 · 16:40→17:39*
+_Session spend: 43.39M tok (in 43.3k · out 485.8k · cache r 41.21M / w 1.65M) · ~≥$4.20 · fable-5-1 + sonnet-5 + opus-4-7 · 16:40→17:39_
 
-*Session spend: 8.37M tok (in 181 · out 141.4k · cache r 7.81M / w 419.9k) · ~$7.42 · sonnet-5 + opus-4-7 · 15:37→15:58*
+_Session spend: 8.37M tok (in 181 · out 141.4k · cache r 7.81M / w 419.9k) · ~$7.42 · sonnet-5 + opus-4-7 · 15:37→15:58_
 
 **Shipped, later session:** Committed and merged the round-2 findings into `docs/source-candidates.md`
 on `main` — branched first (`docs/source-candidates-round2`, `7bf8993`) rather than commit on the
@@ -1650,7 +1774,7 @@ default branch, per convention, then a `--no-ff` merge (`5e893c3`). The rest of 
 in-flight changes (`CLAUDE.md`, both PHASE8 docs, this log) were left untouched and uncommitted
 throughout — the branch switch carries dirty files across cleanly since nothing else was staged.
 
-*Session spend: 2.63M tok (in 36 · out 28.4k · cache r 2.58M / w 18.9k) · ~$1.31 · sonnet-5 · 15:58→16:01*
+_Session spend: 2.63M tok (in 36 · out 28.4k · cache r 2.58M / w 18.9k) · ~$1.31 · sonnet-5 · 15:58→16:01_
 
 ## 2026-08
 
@@ -1677,7 +1801,7 @@ survives). **Parked with pointers:** native app, user-submitted blogs (behind bl
 Ben re-confirmed the archive's personal items may reach beta readers. **Open / next** now reads:
 T8 → T9.2–9.5 → 8.3 design session → 8.4 → 8.2 (T6 last).
 
-*Session spend: 7.36M tok (in 7.3k · out 163.2k · cache r 6.67M / w 517.0k) · fable-5-1 · 15:43→16:03*
+_Session spend: 7.36M tok (in 7.3k · out 163.2k · cache r 6.67M / w 517.0k) · fable-5-1 · 15:43→16:03_
 
 ### [[08-31-26 Mon]] — The first ingest worked. Coolify said it failed, and will keep saying so.
 
@@ -1690,7 +1814,7 @@ the `docker exec` it launched runs on to completion, unsupervised and invisible.
 is not evidence in either direction, which is the single most important thing to know about this
 host now.
 
-What actually happened (UTC): the container was deployed 08-30 16:30; Ben's manual *Execute now*
+What actually happened (UTC): the container was deployed 08-30 16:30; Ben's manual _Execute now_
 started 18:10:56 and Coolify gave up on it at 18:15:56; at **19:16:33 the container restarted — a
 host problem on the NUC, fixed in another session** — which killed that run ~65 min in, before its
 write pass. Then the **nightly cron fired on schedule at 08-31 01:30:01**, Coolify gave up on it at
@@ -1702,7 +1826,7 @@ budget. That is D6 paying for itself in a way the decision never anticipated.
 **The corpus:** wikipedia 2,185 · wellcome 1,941 · cma 1,519 · smithsonian 1,508 · met 1,503 ·
 archive 1,451 · nasa-images 513 · loc 376 · doorofperception 317. 10,448 with an image, all 16
 topics filled 507 (textiles) to 846 (architecture) — no starved topic, which is what the feed's
-per-slot draw needs. Average curation scores run 5.20 (wikipedia) to 8.66 (archive); they *vary*,
+per-slot draw needs. Average curation scores run 5.20 (wikipedia) to 8.66 (archive); they _vary_,
 which is the proof the LLM curator really ran, since `--skip-llm` scores everything a flat 5.
 46 MB / 11,383 envelopes in the curation cache. Only the OpenRouter spend is still unrecorded —
 it needs the dashboard.
@@ -1710,13 +1834,14 @@ it needs the dashboard.
 Two things fell out along the way. **T4.5's Cache Rule is now fully proven** — with real item ids
 to test against, `/api/img/<id>` returns `200 image/webp` (143 KB, immutable) with
 `x-ambit-cache: fill`, and the second request comes back `cf-cache-status: HIT`; that was the half
-of the proof deferred to 7.4, and 7.4 now only has to prove the *disk* cache. And **7.4b's repair
+of the proof deferred to 7.4, and 7.4 now only has to prove the _disk_ cache. And **7.4b's repair
 count is known in advance: 62 rows** — smithsonian 34, wellcome 23, met 4, nasa-images 1 — the same
 four sources as the Mac's 41, measured with the same narrow tag regex `renormalize` uses.
 
 **Decisions:**
+
 - **Verify a nightly ingest against the database, never against Coolify's task status.** The
-  ingest upserts in one loop at the end of `main()` and filters out rows already in the DB *before*
+  ingest upserts in one loop at the end of `main()` and filters out rows already in the DB _before_
   curation, so a run that landed leaves every new row's `fetched_at` inside one narrow window in
   source order — and a run that died leaves the previous window untouched. That signature is what
   distinguishes "ran and worked" from "never ran", and it is now written into 7.3's fallback,
@@ -1725,8 +1850,8 @@ four sources as the Mac's 41, measured with the same narrow tag regex `renormali
   cluster has only the `postgres` role and `postgres` database.
 - **Raise the per-task timeout rather than work around it.** `$this->timeout = $this->task->timeout ?? 300`
   — it is the `timeout` column on `scheduled_tasks`, so `ingest` gets `10800` and this stops being
-  a trap. Filed as **8.2 T3.0**, ahead of everything else in that task, because *Scheduled Tasks →
-  Failure* would otherwise mail a false alarm every single night — precisely the noise 8.2's own
+  a trap. Filed as **8.2 T3.0**, ahead of everything else in that task, because _Scheduled Tasks →
+  Failure_ would otherwise mail a false alarm every single night — precisely the noise 8.2's own
   Global Constraints forbid — and because **T1.2's verdict exit code can never be observed** while
   the job is killed before the process exits.
 - **This vindicates the half of 8.2's D3 that lives in Ambit's database.** `ingest_run` +
@@ -1741,7 +1866,7 @@ redeploy proof) → 7.4b (deploy `cbd6ad5`+, `renormalize --confirm` for the 62 
 Smithsonian key) → T8 → T9. 9.1's unattended-run clause is already satisfied by the 01:30 cron run.
 Add the OpenRouter spend to 7.3's line when the dashboard is to hand.
 
-*Session spend: 10.16M tok (in 204 · out 72.9k · cache r 9.78M / w 309.4k) · ~$9.81 · opus-5 · 09:44→10:03*
+_Session spend: 10.16M tok (in 204 · out 72.9k · cache r 9.78M / w 309.4k) · ~$9.81 · opus-5 · 09:44→10:03_
 
 **Findings (second session):** 7.4's warm is **done for eight of the nine sources** — 9,578 images
 / 909 MB on the volume, and both of 7.4's curl proofs pass on a warmed item (`x-ambit-cache: hit`
@@ -1750,7 +1875,7 @@ all now proven against real traffic. The ninth source is wikipedia, and **it sto
 that lives in the adapter, not in the warm script**.
 
 The presenting symptom was a plateau: 9,135 files, no growth for an hour. The job was not stalled —
-it had *exited*. What had actually happened, established in this order: `docker top` showed only
+it had _exited_. What had actually happened, established in this order: `docker top` showed only
 `next start`, so no warm process; the script's own `--dry-run` (free, no upstream requests) put
 1,299 of the 1,320 missing images on wikipedia alone and everything else within 14; a raw `curl`
 from the host to `upload.wikimedia.org` returned `200 image/jpeg` and a five-image probe filled
@@ -1782,8 +1907,8 @@ ran on for another 75 minutes, and **the output it discarded was the abandon mes
 have diagnosed the whole thing in one look**. The rule now is: run warms as a detached
 `docker exec -d … > .cache/img-warm.log 2>&1`, never as a Coolify task — reparented to the
 container's init, survives the session, and leaves its tally on the volume. And **the script's
-`cached` column lies a little**: it increments the same `tallyRow.skipped` for *already on disk* and
-for *skipped because the host was abandoned*, so the run's `wikipedia … cached 871` is really ~25
+`cached` column lies a little**: it increments the same `tallyRow.skipped` for _already on disk_ and
+for _skipped because the host was abandoned_, so the run's `wikipedia … cached 871` is really ~25
 cached plus ~846 never attempted. Two counters would be worth it if the script is ever touched.
 
 **Open / next:** **7.5** (no-code-change redeploy proof — the volume's whole point) → 7.4b (deploy
@@ -1791,8 +1916,7 @@ cached plus ~846 never attempted. Two counters would be worth it if the script i
 wikipedia URL fix above; may slip past 8.1's done-bar, nothing depends on it) → T8 → T9. 7.3's
 OpenRouter spend is still the one number missing from that step.
 
-*Session spend: 6.82M tok (in 166 · out 61.0k · cache r 6.44M / w 319.5k) · ~$7.94 · opus-5 · 12:36→13:30*
-
+_Session spend: 6.82M tok (in 166 · out 61.0k · cache r 6.44M / w 319.5k) · ~$7.94 · opus-5 · 12:36→13:30_
 
 ### [[08-30-26 Sun]] — Phase 8.1 T7 underway: the first server-side ingest runs, and two fixes land around it
 
@@ -1803,43 +1927,44 @@ running `date` settled the undocumented question — **Coolify's cron clock is U
 run fires at 21:30 EDT the evening before, ahead of the archive's 03:00 chain and the 04:00 UTC
 backup. Recorded in SPEC §13 and the walkthrough. Then Ben launched **7.3, the first full ingest**,
 and while it ran (a Restart or Redeploy would kill the `docker exec` it lives in, so nothing could
-touch the container) two fixes went to `main` *undeployed*: (1) **`redactUrl()` in
+touch the container) two fixes went to `main` _undeployed_: (1) **`redactUrl()` in
 `fetchJson` errors** — the 08-29 smoke had printed the Smithsonian key into Coolify's task output
 34 times, once per failing call; both error paths now print `api_key=[redacted]`. (2) **The 7.2
 markup finding is fixed**: smithsonian/met/wellcome/nasa-images run `title` and `summary` through
-`htmlToText()`, `stripHtml()` now removes *inline* tags without a trace (`(<i>Tsuba</i>)` →
+`htmlToText()`, `stripHtml()` now removes _inline_ tags without a trace (`(<i>Tsuba</i>)` →
 `(Tsuba)`, not `( Tsuba )`) while block tags still become a space, and a new
 `bun run renormalize [--confirm]` repairs rows ingested before the fix — on the Mac it found
 **exactly the 41 rows** 7.2 had counted and rewrote them; the invariant test's four-source
 exclusion is gone. 841 tests green. Eight tests written red-first. Finally, **`docs/PHASE8_PLAN_8.2.md`**
 — the ops-guardrails + beta plan, written against current Coolify/Beszel/Next docs, with its
-decisions marked *proposed* for Ben to confirm.
+decisions marked _proposed_ for Ben to confirm.
 
 **Decisions:**
+
 - **Inline vs block tags in `stripHtml()`.** The old "every tag becomes a space" rule was right
   for CMA's `<br><br>` and wrong for a title's `<i>`; a 16-name inline list settles it rather than
   a smarter parser. Precedent for the fix's placement: doorofperception already called
   `htmlToText()` in its own `toItem()`, so the four adapters do the same — the adapter is where
   the plain-text promise is made, and the DB invariant test is the belt for future adapters.
 - **Repair by script, not by SQL.** `renormalize` selects with the invariant test's narrow tag
-  regex and applies the *same* `htmlToText()` the adapters use, so a repaired row is byte-for-byte
+  regex and applies the _same_ `htmlToText()` the adapters use, so a repaired row is byte-for-byte
   what a fresh ingest would produce; report by default, `--confirm` to write, idempotent.
-- **Deploy order.** The fixes wait for 7.5's *no-code-change* redeploy to prove the volume first,
+- **Deploy order.** The fixes wait for 7.5's _no-code-change_ redeploy to prove the volume first,
   then deploy as 7.4b, then `renormalize --confirm` in production (the first ingest ran the old
   adapters, so production has its own count), then rotate the Smithsonian key.
 - **8.2's shape (proposed).** Coolify's own notifications over Resend as the alert bus — they
   already know about deployments, backups, scheduled tasks and container status, and Resend is
-  the one outbound channel proven end to end; the ingest gets a *verdict* exit code (today it exits
+  the one outbound channel proven end to end; the ingest gets a _verdict_ exit code (today it exits
   0 even when every source is dead — the 08-29 smoke would have read as success to Coolify); an
-  `ingest_run` row surfaces as `/api/health`'s `ingest: ok|stale|never` so a run that *never
-  happened* is visible to an external keyword monitor; `instrumentation.ts` + a throttled Resend
+  `ingest_run` row surfaces as `/api/health`'s `ingest: ok|stale|never` so a run that _never
+  happened_ is visible to an external keyword monitor; `instrumentation.ts` + a throttled Resend
   mail instead of GlitchTip/Sentry (512 MB + Postgres for five users — recorded as the upgrade
   path); Beszel on VM 202 for visibility only, since the homelab has no push channel until #34.
 
 **Findings:** Beszel's alerts deliver only through Shoutrrr providers — no SMTP — which is why
 8.2 cannot lean on it for anything that must reach an inbox. Next 16's `onRequestError` runs in
 both Node and Edge runtimes, so the mailer import has to be guarded on `NEXT_RUNTIME`. Two Coolify
-details the docs do not state (whether *Container Status Changes* distinguishes unhealthy from
+details the docs do not state (whether _Container Status Changes_ distinguishes unhealthy from
 stopped; whether the Resend channel has a from-address field) are left for T3 to read off the UI.
 
 **Open / next:** 7.3 is running — record items, per-source counts, spend and wall time on its
@@ -1849,8 +1974,8 @@ an unattended run, and 6.2's phone sign-up + PWA install once the feed has cards
 confirmed the same afternoon (each as recommended); the plan is ready to hand to a cheaper
 session once 8.1 closes.
 
-*Session spend: 9.63M tok (in 8.1k · out 128.4k · cache r 8.90M / w 593.2k) · ~$24.07 · fable-5 + opus-4-7 · 14:17→14:41*
-*Session spend: 5.63M tok (in 1.0k · out 31.6k · cache r 4.58M / w 1.01M) · ~$26.46 · fable-5 · 14:41→16:50*
+_Session spend: 9.63M tok (in 8.1k · out 128.4k · cache r 8.90M / w 593.2k) · ~$24.07 · fable-5 + opus-4-7 · 14:17→14:41*
+*Session spend: 5.63M tok (in 1.0k · out 31.6k · cache r 4.58M / w 1.01M) · ~$26.46 · fable-5 · 14:41→16:50_
 
 ### [[08-29-26 Sat]] — Phase 8.1 T3: Ambit is deployed on VM 202, and the plan was wrong about GitHub twice
 
@@ -1864,15 +1989,15 @@ today rather than at T9 so the values were written down while they were on scree
 **The health route earned itself on the first request.** `/api/health` came back
 `{"ok":true,"db":"ok","imageCache":"ok","commit":"4a4c428b999c…"}` — three independent proofs in one
 line that the old "does `/` return 200" signal could not have given: the migration journal applied
-against a real database, the persistent volume mounted *and writable by the container user*, and the
+against a real database, the persistent volume mounted _and writable by the container user_, and the
 image being this commit rather than a stale build. The `imageCache` half is the one worth keeping:
 had the volume silently not mounted, the app would have served pages perfectly while re-fetching the
 entire corpus from the museums, and **nothing else in the system would have said so**.
 
 **HSTS's presence is the only evidence the Build Variable tick worked.** `next.config.js` decides
-whether to emit HSTS inside `headers()`, which Next evaluates at *build* time — so the deployed
+whether to emit HSTS inside `headers()`, which Next evaluates at _build_ time — so the deployed
 answer is baked into the image and no runtime variable can undo it. The Dockerfile's
-`test -n "$BETTER_AUTH_URL"` guard fails loudly on a *missing* value, but a wrong-scheme one would
+`test -n "$BETTER_AUTH_URL"` guard fails loudly on a _missing_ value, but a wrong-scheme one would
 pass quietly and ship an image with HSTS off forever. Seeing
 `Strict-Transport-Security: max-age=31536000` on the deployed origin is what closes that gap.
 Also confirmed in production: two requests, two different CSP nonces, so `proxy.ts` is minting per
@@ -1880,9 +2005,9 @@ request and not reusing a build-time constant.
 
 **Two corrections to the plan, both about GitHub, both written back into it.** The plan said to use
 whatever git source the archive uses — but that instruction was built on an assumption nobody had
-checked: `ambit-archive` is *private* and uses a Deploy Key, while **`Ibenthinkin/Ambit` is public**,
+checked: `ambit-archive` is _private_ and uses a Deploy Key, while **`Ibenthinkin/Ambit` is public**,
 so Coolify's plain Public Repository source is right and neither private path was needed. And
-**Auto Deploy had to go off**: only Coolify's *GitHub App* source registers a push webhook itself,
+**Auto Deploy had to go off**: only Coolify's _GitHub App_ source registers a push webhook itself,
 the other two need one configured by hand in GitHub, and GitHub cannot reach a Coolify that listens
 on `192.168.1.202:8000`. A deploy is the UI's Deploy button — which is what the archive does in
 practice anyway. Whether to put Coolify behind the tunnel is 8.2's question, and putting a Coolify
@@ -1901,7 +2026,7 @@ the paste-wrap failure A.6 already paid for once — they go through a heredoc'd
 T5 (Resend) and T6. The backup on-disk path is the one T3 item still blank: it does not exist until
 tonight's 04:00 run, and T8's restore drill collects it.
 
-*Session spend: 8.56M tok (in 168 · out 76.5k · cache r 8.22M / w 263.4k) · ~$8.65 · opus-5 · 21:44→00:11*
+_Session spend: 8.56M tok (in 168 · out 76.5k · cache r 8.22M / w 263.4k) · ~$8.65 · opus-5 · 21:44→00:11_
 
 **Executed (overnight): T4 complete, T6.1–6.2 done.** Ambit is **public at
 `https://ambit.benreilly.io`** — proxied DNS, Google Trust Services cert, `cf-ray` present, and all
@@ -1914,7 +2039,7 @@ check).
 **The test that belonged in the pre-flight rather than the fallback.** Ambit is the first ingress
 rule on the `homelab` tunnel pointing at an **IP** rather than a sibling container — the four before
 it are all `http://<container>:<port>` on `mediastack_default`. So "can cloudflared actually reach
-`192.168.1.202:3000`?" was genuinely open, and the plan only asked it *after* a hypothetical 502. Run
+`192.168.1.202:3000`?" was genuinely open, and the plan only asked it _after_ a hypothetical 502. Run
 first, one `docker run --rm --network mediastack_default curlimages/curl` answered it in seconds and
 turned any post-restart 502 into a single known cause. Promoted into the vault runbook's row for
 this hostname. Two of T4's steps also got simpler: validation is `docker exec cloudflared cloudflared
@@ -1932,7 +2057,7 @@ Then the recreate produced a cluster carrying `POSTGRES_USER=ambit` in its envir
 only the `postgres` role, because **those variables are honoured only when `initdb` runs on an empty
 data directory** — the resource had been started once before the fields were filled in, and every
 boot since ignored them silently. **The symptoms accused the two innocent parties:** a 502 from
-Cloudflare, and the application container *absent* from `docker ps -a` (Coolify removes a failed
+Cloudflare, and the application container _absent_ from `docker ps -a` (Coolify removes a failed
 deploy's container, and `db:migrate` is the first link in the `&&` chain). The only thing reporting
 `Up` was the only thing broken. `docker inspect <pg> --format "{{json .State.Health}}"` had it the
 whole time — `FailingStreak: 55`, `FATAL: role "ambit" does not exist`, every 15 seconds for
@@ -1944,16 +2069,16 @@ and the 16 topics come back on their own, the account does not.
 **Also learned, and worth undoing a stale note for:** the Mac's key authenticates to **both**
 `reef@192.168.1.200` and `ben@192.168.1.202` — the 08-24 entry saying VM 202 refuses it is out of
 date. What actually gates agent work on those hosts is narrower than the plan's 🖐️ convention
-assumed: every *read* (config, mounts, networks, logs, `psql` selects) went fine, and only
+assumed: every _read_ (config, mounts, networks, logs, `psql` selects) went fine, and only
 **mutations** to remote infrastructure were blocked. Future plans should mark steps 🖐️ for mutation
 and dashboards, not for "the agent can't get there".
 
 **Open / next:** T4.5–4.6 (dashboard), then **T5 (Resend)** — worth being tomorrow's first task
 rather than tonight's last, since domain verification has a DNS wait in the middle. Then T7's
 1.5–2 h first ingest and image warm; 8.1 cannot close until the morning after, because the done-bar
-needs one *unattended* 01:30 cron run.
+needs one _unattended_ 01:30 cron run.
 
-*Session spend: 23.56M tok (in 266 · out 124.8k · cache r 22.60M / w 834.1k) · ~$22.76 · opus-5 · 00:11→14:25*
+_Session spend: 23.56M tok (in 266 · out 124.8k · cache r 22.60M / w 834.1k) · ~$22.76 · opus-5 · 00:11→14:25_
 
 **Executed (afternoon): T4.5–4.6 confirmed, T5 complete, T6 complete except 6.2.** The two
 Cloudflare dashboard steps had been done the night before without being ticked, and both were
@@ -1965,7 +2090,7 @@ domain. The production cookie line is recorded in SPEC §11: `__Secure-better-au
 HttpOnly; Secure; SameSite=Lax; Path=/`, host-only, with nothing configured for it.
 
 **Finding: the plan's XFF-spoof test could not fail.** "Wait for the bucket to clear, rerun with a
-spoofed `x-forwarded-for`, expect 429 at the 21st" is what a fresh bucket keyed on the *spoofed*
+spoofed `x-forwarded-for`, expect 429 at the 21st" is what a fresh bucket keyed on the _spoofed_
 address produces too. Rewritten to run inside an already-exhausted window — `429` from the very
 first spoofed request, for a single hop and a chain — which is the first behavioural proof of D11.
 A rate-limit spoof test that starts from an empty bucket measures nothing.
@@ -1978,7 +2103,7 @@ docs.
 watches), with 6.2's phone sign-up + PWA install folded into its tail once the feed has cards. Then
 T8's restore drill after the first 04:00 backup, and T9 the morning after an unattended 01:30 run.
 
-*Session spend: 8.55M tok (in 4.9k · out 80.6k · cache r 7.66M / w 800.8k) · ~$27.76 · fable-5 · 14:31→20:43*
+_Session spend: 8.55M tok (in 4.9k · out 80.6k · cache r 7.66M / w 800.8k) · ~$27.76 · fable-5 · 14:31→20:43_
 
 **Evening: T7.1's smoke found two wrong env values, neither on the plan's watch-list.** The archive
 integration — the one the plan flagged as most likely wrong — was clean first try. What failed:
@@ -1986,7 +2111,7 @@ integration — the one the plan flagged as most likely wrong — was clean firs
 failing URL, since the adapter `encodeURIComponent`s the key), and `OPENROUTER_API_KEY` is the
 08-22 dead key again (`401 "User not found."`, the account-level signature; the Mac's `.env` copy is
 the live one). Both are one-field Coolify edits plus a Restart. **Finding for 8.2:** the Smithsonian
-adapter's error prints the full URL *with the key* into task output — redact in `fetchJson`, rotate
+adapter's error prints the full URL _with the key_ into task output — redact in `fetchJson`, rotate
 the key. And a failing source makes the whole run slow (534 s for a "10 s" smoke: 34 failures × retry
 backoff), not just its own column.
 
@@ -1994,7 +2119,7 @@ backoff), not just its own column.
 skip-llm, `--source archive --quota 1` with the curator) → 7.2 scheduled tasks + tz-probe → 7.3 first
 full ingest (1.5–2 h). Exact commands are on the plan's 7.1 line.
 
-*Session spend: 3.74M tok (in 2.3k · out 32.0k · cache r 3.51M / w 196.6k) · ~$9.07 · fable-5 · 20:43→22:11*
+_Session spend: 3.74M tok (in 2.3k · out 32.0k · cache r 3.51M / w 196.6k) · ~$9.07 · fable-5 · 20:43→22:11_
 
 ### [[08-28-26 Fri]] — Phase 7.3 executed unattended: proxy-with-cache settled, and 35 MB the feed had been dragging per page
 
@@ -2024,7 +2149,7 @@ in-flight map was cleared in a `.finally()` whose derived promise nobody awaited
 would have raised an unhandled rejection; its own unit test caught that before it reached a log.
 
 **The warm run answered a 6.2 question.** 372 LoC images at 1/s: **zero 429s**, four timeouts. So
-`tile.loc.gov`'s unpublished budget tolerates a steady trickle and it was the *burst* that tripped
+`tile.loc.gov`'s unpublished budget tolerates a steady trickle and it was the _burst_ that tripped
 it in 6.2 — and it is a one-time cost now regardless. Cache measures 62 KB a file, ~0.67 GB
 projected for the whole corpus, half the plan's estimate.
 
@@ -2051,7 +2176,7 @@ the 160 ms `<Rise>` stagger.
 
 **The time sink was not code.** `bun add sharp` staled Vite's dep-optimizer cache, and the symptom
 looked nothing like a dependency problem: the suite went from 34 s to 486–1,218 s, `import` alone
-taking 700–3,200 s, with *different* tests failing every run — including pure unit tests that cannot
+taking 700–3,200 s, with _different_ tests failing every run — including pure unit tests that cannot
 fail for logic reasons — while Postgres sat idle and sub-millisecond. `rm -rf node_modules/.vite`
 put it back to 35 s. Written into CLAUDE.md so the next phase doesn't re-derive it.
 
@@ -2060,12 +2185,12 @@ put it back to 35 s. Written into CLAUDE.md so the next phase doesn't re-derive 
 limiting, `Secure` cookie); the landing JPEGs → WebP; the #418 hydration error; and 7.2's 41 rows of
 stored `<i>`/`<em>` markup. 8.1 is next.
 
-*Session spend: 99.02M tok (in 686 · out 261.5k · cache r 97.21M / w 1.55M) · ~≥$66.10 · opus-5 + opus-4-7 + <synthetic> · 00:44→07:06*
+_Session spend: 99.02M tok (in 686 · out 261.5k · cache r 97.21M / w 1.55M) · ~≥$66.10 · opus-5 + opus-4-7 + <synthetic> · 00:44→07:06_
 
 **Planned (afternoon): Phase 8.1** — `docs/PHASE8_PLAN_8.1.md`, cold-executable but **attended**
 (🖐️ Ben steps for the Coolify / Cloudflare / Resend UIs and the two host shells; the agent prepares
 values and verifies from the Mac). Decisions with Ben, don't relitigate: **homelab, not a VPS** —
-Ambit is VM 202's second Coolify tenant beside the archive, public through the *existing*
+Ambit is VM 202's second Coolify tenant beside the archive, public through the _existing_
 `homelab` Cloudflare Tunnel on VM 200 with one ingress rule → `192.168.1.202:3000` (the `glance`
 off-host precedent), no Caddy LAN name (Better Auth trusts only `baseURL` in production), no
 Cloudflare Access; hostname **`ambit.benreilly.io`**; **fresh ingest on the server**, nothing copied
@@ -2076,44 +2201,44 @@ pruned or standalone image would break both, and Bun + standalone is undocumente
 
 **Plan-time findings worth knowing before executing:** the repo has **no Dockerfile, no health
 route, no backup or cron config** at all. `next.config.js` bakes HSTS from `BETTER_AUTH_URL`'s
-scheme *at build time*, so `SKIP_ENV_VALIDATION` would throw on `.startsWith` — the real https
+scheme _at build time_, so `SKIP_ENV_VALIDATION` would throw on `.startsWith` — the real https
 origin must be a **build ARG** (Coolify "Build Variable"). The Resend from-address is a hardcoded
 `noreply@ambit.app` and a missing key fails **silently** (fire-and-forget send → Mailpit on
 `localhost:1025`) — the plan adds `MAIL_FROM` and makes a real reset mail the only proof. The
 serwist precache revision is `""` in a container without `.git` (`stdout ?? uuid` — empty string
 isn't null). And **Cloudflare appends to any client-supplied `X-Forwarded-For`**, which Better
-Auth ≥ 1.6.21 then treats as *no IP* — production keys on `cf-connecting-ip` (D11), proven by a
+Auth ≥ 1.6.21 then treats as _no IP_ — production keys on `cf-connecting-ip` (D11), proven by a
 two-client + spoofed-header test rather than by reading the headers back. Resend's DNS records sit
 on `send.` / `resend._domainkey.` subdomains, so they coexist with the tunnel's CNAME.
 
 **Open / next:** execute 8.1 in a cheaper session (one evening for T1–T6, a second sitting for
-the first ingest, the image warm and the restore drill; the done-bar needs one *unattended*
+the first ingest, the image warm and the restore drill; the done-bar needs one _unattended_
 01:30 ingest run, so it closes the morning after). Then 8.2.
 
-*Session spend: 5.99M tok (in 3.6k · out 139.6k · cache r 5.34M / w 509.2k) · ~$22.54 · fable-5 · 12:33→12:55*
+_Session spend: 5.99M tok (in 3.6k · out 139.6k · cache r 5.34M / w 509.2k) · ~$22.54 · fable-5 · 12:33→12:55_
 
 **Executed (afternoon/evening): Phase 8.1 T1–T2**, the two agent-only tasks. Merged to `main`
 (`59c76e5`) with both CI jobs green; **T3 onward is 🖐️ Ben's**, so the phase pauses there by design.
 
 **main's CI had been red since the 7.3 merge, and nobody had looked.** The pre-flight caught it:
 7.3's `image-cache.ts` is the first unit-tested module to import `~/env`, which validates the
-*whole* schema the moment it is imported — and the `check` job has no `.env` and, deliberately, no
+_whole_ schema the moment it is imported — and the `check` job has no `.env` and, deliberately, no
 `DATABASE_URL`, because that absence is what makes the five DB-backed suites skip themselves. So
 `createEnv` threw at import time and took `image-cache.test.ts` and the img route's test down with
 it, green locally the entire time because a real `.env` is loaded there. Handing the job a
 placeholder `DATABASE_URL` would have fixed the import and silently un-skipped five suites against
-a database that isn't there; the fix instead says *no `DATABASE_URL` means no environment to
-validate* and uses env.js's own `SKIP_ENV_VALIDATION` hatch, with the schema defaults set by hand.
+a database that isn't there; the fix instead says _no `DATABASE_URL` means no environment to
+validate_ and uses env.js's own `SKIP_ENV_VALIDATION` hatch, with the schema defaults set by hand.
 Reproduced before and after by moving `.env` aside: 2 failed → 73 passed | 4 skipped.
 
 **T1** landed the four production-readiness changes. `/api/health` (D10) runs `select 1` and proves
-the image cache's *resolved* directory is writable, always both checks so two simultaneous failures
+the image cache's _resolved_ directory is writable, always both checks so two simultaneous failures
 are both named, and answers in fixed vocabulary — the route is public through the tunnel, so it can
 describe an outcome but never the machine. `MAIL_FROM` replaced the hardcoded `noreply@ambit.app`.
 Production now reads `cf-connecting-ip` (D11); `trustedProxies` stays unset, and the D4 comment
 block in `auth.ts` was rewritten rather than left contradicting itself — 7.2 reasoned about
 Coolify's Traefik, and the deploy that actually happens has a CDN in front instead. The serwist
-precache revision takes the first *non-empty* candidate now (`SOURCE_COMMIT` → git → uuid).
+precache revision takes the first _non-empty_ candidate now (`SOURCE_COMMIT` → git → uuid).
 
 **T2's container was proven locally, and proved more than the plan asked.** Build 1.55 GB; migrate
 applied the journal to an empty database, seed wrote 16 topics, Ready in 45 ms; `/api/health` 200
@@ -2139,9 +2264,9 @@ knowing before diagnosing a Coolify build failure as a Dockerfile problem.
 only Build Variable), then T4's tunnel ingress and T5's Resend domain. Everything from T3 to T9 is
 untouched.
 
-*Session spend: 28.77M tok (in 469 · out 167.7k · cache r 27.93M / w 667.9k) · ~$23.67 · opus-5 + opus-4-7 · 14:14→15:01*
+_Session spend: 28.77M tok (in 469 · out 167.7k · cache r 27.93M / w 667.9k) · ~$23.67 · opus-5 + opus-4-7 · 14:14→15:01_
 
-*Session spend: 4.83M tok (in 46 · out 17.8k · cache r 4.12M / w 691.3k) · ~$9.42 · opus-5 · 15:01→21:31* (same session, second write: the CLAUDE.md status paragraph now records the mid-phase pause so a cleared context resumes at T3 without reading the log.)
+_Session spend: 4.83M tok (in 46 · out 17.8k · cache r 4.12M / w 691.3k) · ~$9.42 · opus-5 · 15:01→21:31_ (same session, second write: the CLAUDE.md status paragraph now records the mid-phase pause so a cleared context resumes at T3 without reading the log.)
 
 ### [[08-28-26 Fri]] — Phase 7.2 executed unattended: the security pass, and 41 rows of markup nobody had looked for
 
@@ -2167,11 +2292,11 @@ asked for was done and undone: deleting the CSP line from `proxy.ts` fails `secu
    `summary` or `body` contains an HTML tag. Four adapters pass their source's italics straight
    through: smithsonian 35 titles, met 2, wellcome 2 + 1 summary, nasa-images 1 summary. Not a
    security bug — nothing renders source text as HTML, which is what the new source-scan test
-   guarantees — but reader-visible right now: *Sword Guard (`<i>`Tsuba`</i>`) With the Motif of
-   Sunrise Over the Ocean*. The fix is one `htmlToText()` call in `normalize.ts` plus a
+   guarantees — but reader-visible right now: _Sword Guard (`<i>`Tsuba`</i>`) With the Motif of
+   Sunrise Over the Ocean_. The fix is one `htmlToText()` call in `normalize.ts` plus a
    re-normalise of existing rows, which is an adapter change and therefore not this phase's (D7:
    record it, don't rewrite adapters overnight). A further 14 wikipedia `body` hits are **false
-   positives** — articles *about* markup, whose prose contains `<section>`, `<ref>`, `<b>`, `<ul>`.
+   positives** — articles _about_ markup, whose prose contains `<section>`, `<ref>`, `<b>`, `<ul>`.
    The invariant excludes exactly those, per field, with both reasons in the test.
 2. **The CSP surfaced a dev-only hydration error.** Browsers blank a `<script nonce>` content
    attribute once parsed — that is the CSP spec, so a script on the page can never read a nonce
@@ -2181,7 +2306,7 @@ asked for was done and undone: deleting the CSP line from `proxy.ts` fails `secu
    `suppressHydrationWarning`, scoped to that one element, with the reason written down.
 
 **Decisions:** the CSP is enforced rather than report-only, with a nonce (D1); `style-src` keeps
-`'unsafe-inline'` deliberately — fifteen components set `style={{…}}` and blocking inline *styles*
+`'unsafe-inline'` deliberately — fifteen components set `style={{…}}` and blocking inline _styles_
 buys nothing against script injection; **no IP-trust code was needed** (D4) — Better Auth ≥ 1.6.21
 already refuses a multi-hop `X-Forwarded-For`, and Ambit's own `trustedClientIp()` takes the last
 hop for the same reason, so both limiters agree; HSTS is gated on the URL's scheme, never on
@@ -2201,7 +2326,7 @@ transaction deleted them — the transaction comment in `support.ts` says this w
 fixed, and it isn't. Roughly three failures across eight full runs tonight, never the same test
 twice, always green on a re-run. 7.3 is next.
 
-*Session spend: 28.74M tok (in 479 · out 174.9k · cache r 27.77M / w 789.8k) · ~$24.78 · opus-5 + opus-4-7 · 00:10→00:44*
+_Session spend: 28.74M tok (in 479 · out 174.9k · cache r 27.77M / w 789.8k) · ~$24.78 · opus-5 + opus-4-7 · 00:10→00:44_
 
 ### [[08-27-26 Thu]] — Phase 6.3 executed: corpus-walk lane, doorofperception live as 318 link cards; D2 staged to the attended step
 
@@ -2220,22 +2345,22 @@ CLAUDE.md) and the Ambit-Admin vault (log, roadmap, architecture) are updated. W
 1. **A walk that can never be complete is a `--prune` that can never run.** T6 as written made
    `complete` require `errors === 0`; doorofperception has one post with no featured image that
    `toItem` rejects on every walk, so the re-run reported `complete no` where the plan expected
-   `yes`. Split `pageErrors` from `errors`: a failed *page* voids completeness (the cursor past it
-   is untrustworthy), a rejected *post* does not. Related and kept: a rejected raw is not in
+   `yes`. Split `pageErrors` from `errors`: a failed _page_ voids completeness (the cursor past it
+   is untrustworthy), a rejected _post_ does not. Related and kept: a rejected raw is not in
    `seenSourceIds` — it was never a row, so `planPrune` can't name it, and if it once had a hero
-   and lost it, it *should* go.
+   and lost it, it _should_ go.
 2. **The walk table had no `no-image` column**, so the plan's "stop if heroes don't fetch"
    precondition was unreadable from the histogram run — and the curator cache hides the answer on
    any re-run. Added the column; checked the first run's heroes directly through the curator's own
-   fetch path (20/20 OK). Worth remembering: *a cached curator run can't tell you whether images
-   fetched* — the only honest reading is the first pass.
+   fetch path (20/20 OK). Worth remembering: _a cached curator run can't tell you whether images
+   fetched_ — the only honest reading is the first pass.
 3. **`onClick` on the plan's `LinkOutRow` would have broken `ImageItemBody` as a server
    component** (a function prop on a host element). Written handler-free from the start; the
    gallery sheet's close-on-tap is stopped by a wrapper `div` there instead. The 68 refused posts
    also pass through the curator on every run (68 cache hits, free) — the cost of "dropped, not
    stored", and the summary counts them so it never reads as a leak.
 
-**Decisions:** dry-run T12 numbers are recorded and the destructive half is *not* run unattended,
+**Decisions:** dry-run T12 numbers are recorded and the destructive half is _not_ run unattended,
 per the plan — **11,496 archive items carry doorofperception provenance; Ambit holds 251 archive
 rows from them (of 310), 0 saved by anyone.** Two e2e/test-state leaks noted, not fixed: two
 `test-feed-topic-*` rows sit in the dev `topic` table and print in every ingest summary.
@@ -2249,11 +2374,11 @@ gallery.spec:193 flake this time) — and the branch is merged to `main`. Two fi
 
 1. **`DISK_ROOTS` had no entry to remove.** It was the single root `./storage/sources` with the
    scrape as its only subfolder. A blank root is rejected at startup and a missing one is a
-   connector *problem* (blocks the sweep, no override), so the mechanism became *repoint at an
-   empty sibling* (`./storage/sources/personal`). That also changes which guard fires: the **zero
+   connector _problem_ (blocks the sweep, no override), so the mechanism became _repoint at an
+   empty sibling_ (`./storage/sources/personal`). That also changes which guard fires: the **zero
    guard**, not the 20% ratio guard the plan predicted — reached first once the walk sees nothing.
 2. **Every one of Ambit's archive rows points at VM 202** (`archive.home.benreilly.io`), not the
-   Mac copy the plan's step 3 edited. Checked by reading `image_url` hosts *before* the sweep —
+   Mac copy the plan's step 3 edited. Checked by reading `image_url` hosts _before_ the sweep —
    one query, and without it the Mac sweep would have read as "done". Production still reports
    13,380 items and ranks the scrape; SSH to `ben@192.168.1.202` refuses the Mac's key, so **the
    production sweep is the one step still open**, and it is Ben's to run.
@@ -2282,7 +2407,7 @@ Blog #2 is PDR (RSS walk) or thingsorganizedneatly (Tumblr walk), each its own a
 contract.
 
 **7.1 planned, later the same evening — and a numbering slip caught first.** Ben asked to "start
-planning phase 7 the blog adapter"; Phase 7 in the build plan is *hardening* (7.1 e2e in CI, 7.2
+planning phase 7 the blog adapter"; Phase 7 in the build plan is _hardening_ (7.1 e2e in CI, 7.2
 security, 7.3 image strategy) and the blog adapter was 6.3. Advice given and taken: run Phase 7 in
 plan order — 7.3 is the most load-bearing open decision in the repo (AIC still suspended, LoC's
 per-IP budget, blog heroes riding an uncached `/api/img`), but it changes how every image is served,
@@ -2296,7 +2421,7 @@ level); every spec seeds its own `source: "e2e"` corpus. The work is the wiring,
 when the file is missing — every DB-touching spec would have died in `beforeAll` on the first CI
 run; consolidated into `e2e/support.ts` with the tolerant idiom `vitest.config.ts` already uses.
 (2) `pwa.prod.spec.ts` seeds nothing and asserts `ambit-images` is non-empty — but tiles render
-`data:` URLs *without* the proxy, and the SW's image rule matches `/api/img/` only, so on an empty
+`data:` URLs _without_ the proxy, and the SW's image rule matches `/api/img/` only, so on an empty
 database the spec needs same-origin **http** fixtures (`/icon-192.png`). (3) With a Postgres in the
 job, the five `describe.skipIf(!DATABASE_URL)` Vitest suites un-skip for free — they have never run
 in CI since 3.3.
@@ -2326,21 +2451,21 @@ phase's actual value, and neither is a CI artefact:
    enabled under `NODE_ENV=production`, at **3 requests / 10s per IP** on `/sign-in` and
    `/sign-up`, counted per path (probed directly: three 401s, then a 429). Two consequences, and
    both halves needed fixing. The suite was unrealistic — Playwright isolates storage per test, so
-   three specs signed in *per test*, ~20 sign-ins in 2.5 minutes; they now capture one session per
+   three specs signed in _per test_, ~20 sign-ins in 2.5 minutes; they now capture one session per
    file and restore it (`saveSession`/`restoreSession`), which took the failures 5 → 2. And the
    default is wrong for this app: `auth.spec.ts` can't be fixed that way because its auth requests
-   *are* its assertions (the reset test signs in twice, seconds apart, on purpose), and — the part
+   _are_ its assertions (the reset test signs in twice, seconds apart, on purpose), and — the part
    that matters beyond tests — the limiter keys on client IP while Ambit sits behind Coolify's
    proxy with **no trusted-proxy IP source**, so the whole beta may share one bucket. `auth.ts` now
    states the policy explicitly (20/10s on the two credential paths); the proxy half is 7.2's.
 2. **The accent knob doesn't survive a reload.** Pick Amber in Settings, reload, get Indigo — with
    `"amber"` still in localStorage. The per-frame trace: `2ms loading amber` (the pre-paint script
    does its job), `15ms complete indigo` — React reconciles `<html data-accent>` back to the
-   literal `layout.tsx` renders. Hidden for a phase and a half because dev builds *warn* about the
+   literal `layout.tsx` renders. Hidden for a phase and a half because dev builds _warn_ about the
    mismatch instead of patching it, and `suppressHydrationWarning` meant the warning nobody was
    reading wasn't printed either. Only bites on `/settings`, the one screen that re-renders.
    `AccentSync` repairs it after every commit. A tried-and-reverted fix worth remembering: dropping
-   `data-accent` from `layout.tsx` so React never renders it — React then *removed* the script's
+   `data-accent` from `layout.tsx` so React never renders it — React then _removed_ the script's
    attribute instead of resetting it.
 
 **And CI found the thing no local run could.** First CI run: four tests red, all
@@ -2378,7 +2503,7 @@ read found, each of which changed a plan:
 
 1. **7.2 is mostly verification.** No `dangerouslySetInnerHTML` touches source data anywhere;
    blogs pass `htmlToText()` at ingest; every user-scoped DB function filters `userId`; three
-   limiters already exist. What the app has *never* had is a single security header — so the
+   limiters already exist. What the app has _never_ had is a single security header — so the
    phase is CSP (per-request nonce + `'strict-dynamic'`, with a written fallback to
    `'unsafe-inline'` because nobody will be watching), HSTS/nosniff/frame-ancestors/referrer/
    permissions from one pure module, a two-user authz test, a no-HTML guard, and an audit table.
@@ -2410,15 +2535,15 @@ leaves the branch unmerged with the failing test named in the report.
 walkthroughs. Housekeeping unchanged: the dev DB is due a `bun run e2e:clean --confirm` (the run
 is allowed to do it).
 
-*Session spend: 26.05M tok (in 30.2k · out 264.0k · cache r 24.52M / w 1.23M) · ~≥$50.61 · fable-5 + opus-4-7 + <synthetic> · 12:10→13:09*
-*Session spend: 5.95M tok (in 5.0k · out 68.5k · cache r 5.49M / w 389.5k) · ~$16.76 · fable-5 · 15:28→15:35*
-*Session spend: 5.84M tok (in 2.4k · out 69.5k · cache r 5.67M / w 99.0k) · ~$11.15 · fable-5 · 15:35→15:41*
-*Session spend: 5.51M tok (in 1.8k · out 28.5k · cache r 5.15M / w 326.8k) · ~$13.13 · fable-5 · 15:41→19:26*
-*Session spend: 5.91M tok (in 1.5k · out 130.8k · cache r 5.74M / w 33.5k) · ~$12.96 · fable-5 · 19:26→19:33*
-*Session spend: 9.09M tok (in 5.7k · out 151.6k · cache r 8.48M / w 452.7k) · ~$25.17 · fable-5 · 19:52→20:13*
-*Session spend: 63.22M tok (in 821 · out 348.6k · cache r 61.75M / w 1.12M) · ~$48.60 · opus-5 + opus-4-7 · 20:16→22:14*
-*Session spend: 10.79M tok (in 68 · out 17.3k · cache r 10.73M / w 38.5k) · ~$6.18 · opus-5 · 22:14→22:41*
-*Session spend: 7.41M tok (in 7.8k · out 226.6k · cache r 6.61M / w 559.9k) · ~$29.22 · fable-5 · 22:48→23:14*
+_Session spend: 26.05M tok (in 30.2k · out 264.0k · cache r 24.52M / w 1.23M) · ~≥$50.61 · fable-5 + opus-4-7 + <synthetic> · 12:10→13:09*
+*Session spend: 5.95M tok (in 5.0k · out 68.5k · cache r 5.49M / w 389.5k) · ~$16.76 · fable-5 · 15:28→15:35_
+_Session spend: 5.84M tok (in 2.4k · out 69.5k · cache r 5.67M / w 99.0k) · ~$11.15 · fable-5 · 15:35→15:41*
+*Session spend: 5.51M tok (in 1.8k · out 28.5k · cache r 5.15M / w 326.8k) · ~$13.13 · fable-5 · 15:41→19:26_
+_Session spend: 5.91M tok (in 1.5k · out 130.8k · cache r 5.74M / w 33.5k) · ~$12.96 · fable-5 · 19:26→19:33*
+*Session spend: 9.09M tok (in 5.7k · out 151.6k · cache r 8.48M / w 452.7k) · ~$25.17 · fable-5 · 19:52→20:13_
+_Session spend: 63.22M tok (in 821 · out 348.6k · cache r 61.75M / w 1.12M) · ~$48.60 · opus-5 + opus-4-7 · 20:16→22:14*
+*Session spend: 10.79M tok (in 68 · out 17.3k · cache r 10.73M / w 38.5k) · ~$6.18 · opus-5 · 22:14→22:41_
+_Session spend: 7.41M tok (in 7.8k · out 226.6k · cache r 6.61M / w 559.9k) · ~$29.22 · fable-5 · 22:48→23:14_
 
 ### [[08-25-26 Tue]] — Phase 5.11 executed: landing slideshow, install flow, PWA caching. **Phase 5 complete.** Then: 6.3's design session opened.
 
@@ -2458,7 +2583,7 @@ assignment. No file in the repo suppresses either, so the shape changed rather t
 lazy `useState` initializer containing reads only, and derived state instead of a second effect.**
 The "reads only" part is not pedantry — StrictMode double-invokes initializers, and `InstallFlow`'s
 would otherwise have counted every visit twice and brought the banner forward a whole session.
-Worth remembering: in this repo, *"read it in a mount effect and setState" is not available.*
+Worth remembering: in this repo, _"read it in a mount effect and setState" is not available._
 
 **Two smaller things.** `/reset-password` was showing the marketing pitch above "This link has
 expired" — the prototype never had to face that, since its sheet only ever held a sign-in form; the
@@ -2478,7 +2603,7 @@ icon. Ben's cleared landing images never arrived, so the run ships as the 8 Wiki
 more is one file plus one line, and the 8-slide cap keeps the pacing at ~5s however long the list
 grows. Then: the thrice-deferred **6.3 blog design session**, or Phase 7.
 
-*Session spend: 53.70M tok (in 8.7k · out 253.8k · cache r 52.23M / w 1.21M) · ~$43.42 · opus-5 + opus-4-7 + fable-5 · 23:46→00:33*
+_Session spend: 53.70M tok (in 8.7k · out 253.8k · cache r 52.23M / w 1.21M) · ~$43.42 · opus-5 + opus-4-7 + fable-5 · 23:46→00:33_
 
 **Later the same day — the 6.3 blog-adapter design session opened, and stopped four questions in**
 so the rest could be handed to another model. Everything needed to resume is in
@@ -2489,7 +2614,7 @@ proxy Phase 5 built already answers Q5 — `/api/img/[itemId]` fetches by item i
 blog images need no new hosting story and only the cache layer is left, which that route's own
 comment already gives to 7.3. (2) **doorofperception is WordPress and its REST API is live**:
 390 posts, `robots.txt` allow-all with no AI block list, `featured_media` on every post, and
-`excerpt.rendered` is a *written* paragraph rather than a truncation. So corpus #1 needs no HTML
+`excerpt.rendered` is a _written_ paragraph rather than a truncation. So corpus #1 needs no HTML
 scraping at all, and BUILD_PLAN's "shared scraper core" is more honestly a WP REST corpus-walk
 adapter — which also means the blog strategy's first test doesn't exercise the scraper it was
 sketched around. (3) The 310 `archive` rows carry **no post provenance**: `attribution: "Personal
@@ -2517,19 +2642,19 @@ designated-blog registry, and an explicit call on whether the archive retirement
 or splits out. Two things live outside this repo: the archive-side exclusion, and recording that
 decision in the Ambit-Admin vault doc, since it changes a private-source integration.
 
-*Session spend: 7.57M tok (in 170 · out 112.9k · cache r 6.76M / w 703.2k) · ~$12.34 · opus-5 + opus-4-7 · 08:19→22:09*
+_Session spend: 7.57M tok (in 170 · out 112.9k · cache r 6.76M / w 703.2k) · ~$12.34 · opus-5 + opus-4-7 · 08:19→22:09_
 
 **The design session then finished, under a different model.** The handoff doc was checked cold —
 every path, line number and count held, and two of its "confirm this" asks are now confirmed (the
-present-row skip runs *before* the curator; `upsertItem`'s refresh never touches topic or score, so
+present-row skip runs _before_ the curator; `upsertItem`'s refresh never touches topic or score, so
 a re-crawled post keeps both). Three probes changed the inputs: **none of the blog #2 candidates
 is WordPress, and 50watts is out** — `User-agent: * / Disallow: /`, REST 403 regardless of UA — so
 the "shared scraper core" is not a WP client but the walk contract + registry + card, with each
 blog its own adapter exactly as each museum is; **the curator already sends the hero as bytes and
-caches by item**, so classification is a prompt *variant* on the walk path with its own cache key
+caches by item**, so classification is a prompt _variant_ on the walk path with its own cache key
 rather than a change the museum corpus ever sees; and doorofperception's featured images are a
 purpose-made **~800 px crop** — fine for tile and hero, not gallery-grade, and a reason `index.csv`
-stays valuable. Ambit-Admin's *Ecosystem Architecture* turned out to already define corpus-walk in
+stays valuable. Ambit-Admin's _Ecosystem Architecture_ turned out to already define corpus-walk in
 D3+D4's exact terms, so those two implement a recorded decision rather than make one.
 
 **Decisions to close it out:** one blurb in `summary` with `body` hard-null for every blog item
@@ -2543,11 +2668,11 @@ withdraw; its 20% mass-drop guard will trip on purpose. Approved design: `docs/P
 **Open / next:** `docs/PHASE6_PLAN_6.3.md` is written — thirteen tasks, cold-executable, for a
 separate session. T7 is the gate: the classification histogram over all 390 posts, recorded before
 any write, with a stop-and-show if the yield is under ~30%. T12 is the attended one: the archive's
-20% mass-drop guard is *expected* to block the first sync, and `--force-sweep` is Ben reading the
+20% mass-drop guard is _expected_ to block the first sync, and `--force-sweep` is Ben reading the
 number.
 
-*Session spend: 10.66M tok (in 12.2k · out 135.4k · cache r 9.88M / w 626.4k) · ~$28.28 · fable-5 + opus-5 · 22:09→22:39*
-*Session spend: 11.34M tok (in 11.2k · out 250.5k · cache r 10.48M / w 594.0k) · ~$35.00 · fable-5 · 22:39→22:53*
+_Session spend: 10.66M tok (in 12.2k · out 135.4k · cache r 9.88M / w 626.4k) · ~$28.28 · fable-5 + opus-5 · 22:09→22:39*
+*Session spend: 11.34M tok (in 11.2k · out 250.5k · cache r 10.48M / w 594.0k) · ~$35.00 · fable-5 · 22:39→22:53_
 
 ### [[08-24-26 Mon]] — Archive is live and verified; Ambit's side of A.6 closed the same afternoon
 
@@ -2565,7 +2690,7 @@ proof.
 
 - **The 310 rows from 08-21 were repaired by a URL rewrite, not a re-ingest or a delete.** Two
   reasons, one of them a finding: `scripts/ingest.ts` filters out anything already in the DB
-  *before* `upsertItem` runs (`ingest.ts:238-249`), so the upsert's `imageUrl` refresh never touches
+  _before_ `upsertItem` runs (`ingest.ts:238-249`), so the upsert's `imageUrl` refresh never touches
   an existing row — **a re-ingest cannot repair a stale URL, ever**. And delete-then-re-ingest would
   re-pay curation for 310 items. The archive's `/img/<sha>.webp` path is pure content-hash string
   maths, so swapping `http://localhost:3001/` → `https://archive.home.benreilly.io/` on `image_url`
@@ -2596,8 +2721,8 @@ did. Verified the standing key from Ambit's `.env`: `/search` 200, wrong key 401
 
 Full detail in `~/Dev/ambit-archive/log.md`; the VM 202 DNS fix is in the vault's homelab log.
 
-*Session spend: 32.51M tok (in 400 · out 251.5k · cache r 31.64M / w 615.6k) · ~$28.27 · opus-5 · 11:35→14:37*
-*Session spend: 8.05M tok (in 9.2k · out 113.5k · cache r 7.60M / w 327.5k) · ~$19.92 · fable-5 · 15:19→15:29*
+_Session spend: 32.51M tok (in 400 · out 251.5k · cache r 31.64M / w 615.6k) · ~$28.27 · opus-5 · 11:35→14:37*
+*Session spend: 8.05M tok (in 9.2k · out 113.5k · cache r 7.60M / w 327.5k) · ~$19.92 · fable-5 · 15:19→15:29_
 
 **Evening: Phase 5.11 planned — landing slideshow + install + PWA polish** (the last Phase 5
 step; `docs/PHASE5_PLAN_5.11.md`, cold-executable in the 5.10 format). Three decisions put to
@@ -2610,6 +2735,7 @@ with "hero size is easy to change, don't care on the first go" — the prototype
 hero ships as drawn.
 
 **Plan-time findings worth keeping:**
+
 - **`defaultCache` was caching the personalized feed.** `@serwist/turbopack`'s default rules
   put every same-origin `/api/*` except auth through `NetworkFirst` into a 16-entry `apis`
   bucket; tRPC queries go over GET, so feed pages have been landing in Cache Storage since
@@ -2623,7 +2749,7 @@ hero ships as drawn.
   installed app opened offline would hit the `~offline` fallback instead of the cached feed.
   Moves to `/feed`, which still bounces signed-out readers to `/` server-side.
 - **The one prototype deviation:** the "Ambit is on your home screen" confirmation fires on
-  `appinstalled` (Chromium) or on the *first standalone launch* (iOS), never after "Got it" —
+  `appinstalled` (Chromium) or on the _first standalone launch_ (iOS), never after "Got it" —
   Safari gives the page no install signal, so the prototype's flow would confirm an install
   that may not have happened.
 - The sheet must be **mounted from first paint** (translated off-screen, not unmounted):
@@ -2637,15 +2763,15 @@ cheaper session — Ben's cleared images are an optional prerequisite, not a blo
 install verification is manual against `bun run preview` (the SW is production-only by policy).
 Phase 5 closes with that merge; then the 6.3 blog design session or Phase 7.
 
-*Session spend: 8.58M tok (in 4.8k · out 174.3k · cache r 7.71M / w 696.7k) · ~$29.59 · fable-5 + opus-5 · 19:54→23:46*
+_Session spend: 8.58M tok (in 4.8k · out 174.3k · cache r 7.71M / w 696.7k) · ~$29.59 · fable-5 + opus-5 · 19:54→23:46_
 
 ### [[08-24-26 Mon]] — Phase 5.10: Profile + Settings planned, then shipped
 
 **The headline decision: BUILD_PLAN's "minimal viable" 5.10 is superseded.** Asked why the
 entry cut so much, Ben pulled the full designed surface back into scope — bio, handle, the
 complete settings row set — with three carve-outs: **avatar upload is out permanently**,
-replaced by a deterministic per-user color disc now and a *preference-derived sprite/glyph
-generator* as a named post-MVP feature; the three expensive rows (**Serendipity, Muted
+replaced by a deterministic per-user color disc now and a _preference-derived sprite/glyph
+generator_ as a named post-MVP feature; the three expensive rows (**Serendipity, Muted
 sources, Invite a friend**) ship as honest stubs (visible, no fabricated values, "coming
 soon" toasts) rather than real features; **email is read-only** (Better Auth's update-user
 rejects email changes; change-email is a later auth phase).
@@ -2661,6 +2787,7 @@ is wired, not hardcoded; collection tiles get real cover images (additive `cover
 `saves.collections`).
 
 **Plan-time findings:**
+
 - The Profile/Settings prototypes live in the **redesign** bundle, and there are **three**
   screens, not two — `Ambit - Profile Edit.dc.html` is where all editing happens. The bundle
   has no sign-out and no collection deletion anywhere (grep-verified across all 11 files).
@@ -2688,7 +2815,7 @@ held; the app has no internal 404s left.
 **Four things argued back, none of them the design:**
 
 - **The prototype's warn tint already had a token.** The plan said to render `#D98C6A` as a
-  literal with a "no theme token" comment. `--color-error` in globals.css *is* that hex.
+  literal with a "no theme token" comment. `--color-error` in globals.css _is_ that hex.
   `text-error` throughout instead.
 - **The plan's shape for the two client-capability reads is a lint error in this repo.** Null
   `useState` + an effect that fills it in — for the accent (localStorage) and the notification
@@ -2696,7 +2823,7 @@ held; the app has no internal 404s left.
   and it's an error here, not a warning. Both are genuinely external stores, so both became
   `useSyncExternalStore` with a `getServerSnapshot` returning `null`: same pre-mount null the plan
   wanted, one render sooner, no suppression, and the server/hydration renders agree by
-  construction. The topics sheet's re-seed-on-open took the *other* house answer — render-time
+  construction. The topics sheet's re-seed-on-open took the _other_ house answer — render-time
   state adjustment against a `prevOpen`, which is what `BottomSheet` already does. Two hardenings
   fell out of testing it: `getSnapshot` needs no cache (it returns a string; `Object.is` compares
   by value) and caching it was a way for store and reality to disagree across tests; and
@@ -2709,7 +2836,7 @@ held; the app has no internal 404s left.
   unordered query, so its order is arbitrary too — real if minor, and fixing it means changing a
   screen 5.10 doesn't own.
 - **Global handle uniqueness bit two test fixtures, in sequence.** `user.handle` is unique across
-  the whole table and e2e user rows persist by design (the timestamped *email* only stops reruns
+  the whole table and e2e user rows persist by design (the timestamped _email_ only stops reruns
   colliding on email). `e2e/settings.spec.ts` used a literal `@BenTest`: it passed once, then
   failed against its own predecessor. `routers.integration.test.ts` then failed the same way,
   losing to the e2e user. Both handles are run-scoped now, and the squatted `bentest` was released
@@ -2735,9 +2862,9 @@ avatar generator, as the locked decision required, with the pill's per-user disc
 small things noticed and left: `listTopics` ordering (above), and — from this morning's archive
 session — the two `test-feed-topic-*` rows still sitting in `topic`.
 
-*Session spend: 17.91M tok (in 154 · out 181.9k · cache r 16.33M / w 1.40M) · ~≥$51.61 · fable-5 + opus-4-7 + <synthetic> · 23:53→12:34*
-*Session spend: 62.55M tok (in 522 · out 233.1k · cache r 61.44M / w 872.9k) · ~$45.28 · opus-5 · 16:09→16:56*
-*Session spend: 6.07M tok (in 51 · out 24.8k · cache r 5.04M / w 1.00M) · ~$12.11 · opus-5 + opus-4-7 · 16:56→19:50*
+_Session spend: 17.91M tok (in 154 · out 181.9k · cache r 16.33M / w 1.40M) · ~≥$51.61 · fable-5 + opus-4-7 + <synthetic> · 23:53→12:34*
+*Session spend: 62.55M tok (in 522 · out 233.1k · cache r 61.44M / w 872.9k) · ~$45.28 · opus-5 · 16:09→16:56_
+_Session spend: 6.07M tok (in 51 · out 24.8k · cache r 5.04M / w 1.00M) · ~$12.11 · opus-5 + opus-4-7 · 16:56→19:50_
 
 ### [[08-23-26 Sun]] — Phase 6.1 planned: the feed learns from saves
 
@@ -2747,11 +2874,12 @@ option: **no unsave decrement** (weights record demonstrated interest; unsave is
 **taste keywords derived at feed time** from the last-24 unique tags across recent saves — never
 stored, so no migration and unsave self-heals; **one combined toast** ("Saved to Art · Now
 drifting toward Cartography"); **no graph-neighbor spillover** — creating the `user_topic` row on
-a save of an unpicked topic *is* the related-topic inference, and DRIFT/JUMP structure spreads it
+a save of an unpicked topic _is_ the related-topic inference, and DRIFT/JUMP structure spreads it
 from there. Bump arithmetic wasn't up for debate: phase0's `min(3, w + 0.5)` is the shipped
 default per SPEC §9's standing rule.
 
 **Findings from the plan-time exploration:**
+
 - BUILD_PLAN 6.1 cites **SPEC §3.3b, which doesn't exist** — the material lives in §3.3/§3.4/§9.
   The plan fixes the phantom.
 - The engine was already waiting: `feed.ts:526` carries the literal `tasteKeywords: []` TODO
@@ -2760,9 +2888,9 @@ default per SPEC §9's standing rule.
   it's the ready-made new-save-vs-move check.
 - Two breakages a cold executor would hit blind, now pre-charted: strict `toEqual` assertions on
   the mutation's return shape, and `sheets.test.tsx`'s hand-typed mock contract failing
-  *typecheck* (not just tests) once components read `result.drift`.
+  _typecheck_ (not just tests) once components read `result.drift`.
 - One real edge case, documented-not-mechanized: an authed never-onboarded user can save from the
-  public `/i/`/`/g/` pages, which creates a single-row weights map *and* flips
+  public `/i/`/`/g/` pages, which creates a single-row weights map _and_ flips
   `hasCompletedOnboarding`, silently skipping the picker forever. Bounded and acceptable for an
   invite-gated app; recorded, nothing built.
 
@@ -2773,7 +2901,7 @@ bound under shipped knobs).
 
 **Open / next:** execute the plan in a cheaper session on `feat/6.1-feed-learns-from-saves`.
 
-*Session spend: 3.86M tok (in 80 · out 90.8k · cache r 2.70M / w 1.07M) · ~$28.69 · fable-5 · 19:30→20:13*
+_Session spend: 3.86M tok (in 80 · out 90.8k · cache r 2.70M / w 1.07M) · ~$28.69 · fable-5 · 19:30→20:13_
 
 **Executed the same evening** (second session, straight through, no mid-phase stops — as planned):
 
@@ -2785,12 +2913,13 @@ the `feed.ts` TODO; the combined toast ships from a single `saveToastText` helpe
 call sites. 558 vitest tests + 15 e2e green; walkthrough: `docs/PHASE6_WALKTHROUGH_6.1.md`.
 
 **Findings (where the plan met reality):**
+
 - The tier-mix test's flat-`sim` fixture is **asymmetric for per-topic share measurements**:
   `pickJump` slices each row's stored tail, so with tied sims, tail membership falls out of array
   order and the alphabetically-first topic measured 0.195 instead of 0.25 under uniform weights.
   Rotated sims (0.9/0.5/0.1 cyclic) restore real symmetry — worth remembering next time a
   distribution test wants per-topic (not per-tier) assertions.
-- The predicted `sheets.test.tsx` *typecheck* break never happened — `vi.mock` replaces the tRPC
+- The predicted `sheets.test.tsx` _typecheck_ break never happened — `vi.mock` replaces the tRPC
   hooks at runtime only, so hand-typed mock shapes never meet the component's types. The break
   was real but surfaced as a runtime assertion instead.
 - Scripted FEED_DEBUG check: 5 botany saves doubled botany's share of fresh pages (10/48 vs 5/48
@@ -2798,8 +2927,8 @@ call sites. 558 vitest tests + 15 e2e green; walkthrough: `docs/PHASE6_WALKTHROU
 
 **Open / next:** 5.9/5.10/5.11 (remaining UI), or the 6.3 blog-source design session.
 
-*Session spend: 20.15M tok (in 442 · out 147.5k · cache r 19.21M / w 794.0k) · ~$35.95 · fable-5 + opus-4-7 · 20:17→20:31*
-*Session spend: 2.32M tok (in 28 · out 11.0k · cache r 2.29M / w 18.0k) · ~$3.20 · fable-5 · 20:31→20:33*
+_Session spend: 20.15M tok (in 442 · out 147.5k · cache r 19.21M / w 794.0k) · ~$35.95 · fable-5 + opus-4-7 · 20:17→20:31*
+*Session spend: 2.32M tok (in 28 · out 11.0k · cache r 2.29M / w 18.0k) · ~$3.20 · fable-5 · 20:31→20:33_
 
 **Phase 5.9 planned the same night** (third session): **5.9 Saved UI chosen** over the 6.3 blog
 design session (deferred a third time, knowingly) and the feel-tune pass — it's the next Phase 5
@@ -2825,7 +2954,7 @@ pagination, and the Saved-reachability question (two hops from feed — flag, do
 **Open / next:** execute `docs/PHASE5_PLAN_5.9.md` in a cheaper session on
 `feat/5.9-saved-collections-ui`.
 
-*Session spend: 3.16M tok (in 76 · out 72.9k · cache r 2.85M / w 234.3k) · ~$11.18 · fable-5 · 22:12→22:57*
+_Session spend: 3.16M tok (in 76 · out 72.9k · cache r 2.85M / w 234.3k) · ~$11.18 · fable-5 · 22:12→22:57_
 
 **5.9 executed the same night** (fourth session, straight through): `/saved` shipped and merged
 as `feat/5.9-saved-collections-ui`. The plan held — no design question surfaced; 581 vitest tests
@@ -2833,6 +2962,7 @@ green (21 new), build clean, the new e2e spec 5/5. Walkthrough:
 `docs/PHASE5_WALKTHROUGH_5.9.md`.
 
 **Findings (where reality improved on or argued with the plan):**
+
 - **Chip taps cost zero client fetches**, not the one the plan budgeted: `router.replace` to
   `/saved?collection=` is an RSC navigation, so the shell re-prefetches the filtered list and the
   payload hydrates the new query key. The hydration contract covers the filter, not just the
@@ -2849,25 +2979,27 @@ green (21 new), build clean, the new e2e spec 5/5. Walkthrough:
 **Open / next:** 5.10 (profile/settings — collection creation, the Saved-reachability decision),
 5.11, or the thrice-deferred 6.3 blog design session.
 
-*Session spend: 34.67M tok (in 427 · out 199.7k · cache r 33.89M / w 586.0k) · ~$53.30 · fable-5 + opus-4-7 · 23:18→23:53*
+_Session spend: 34.67M tok (in 427 · out 199.7k · cache r 33.89M / w 586.0k) · ~$53.30 · fable-5 + opus-4-7 · 23:18→23:53_
 
 ### [[08-22-26 Sat]] — LoC re-curation repaired, and a stale key no amount of checking could find
 
 **Findings:**
-- `bun run recurate --source loc` failed *every* item with OpenRouter `401 {"message":"User not found."}`.
+
+- `bun run recurate --source loc` failed _every_ item with OpenRouter `401 {"message":"User not found."}`.
   The cause was not the key in `.env`: **Bun resolves real environment variables ahead of `.env`**, and
   `~/.zshrc` carried two `export OPENROUTER_API_KEY` lines — the second, dead one winning. Editing `.env`
   changed nothing the process ever saw. Both old and new keys were 73 chars (`sk-or-v1-` + 64 hex), so
   length, prefix, format and a password-manager comparison all looked correct; the shadow was invisible to
   every check short of `env -u OPENROUTER_API_KEY bun -e …`, which returned 200 on the first try. The zshrc
   exports are deleted — `.env` is now the only source.
-- **"User not found." is OpenRouter's *account*-level error**, not a bad-key error (a malformed key reads
+- **"User not found." is OpenRouter's _account_-level error**, not a bad-key error (a malformed key reads
   "No auth credentials found"). That distinction was the tell, and it pointed at the account for two rounds
   before the real answer turned out to be which key was being sent at all. Worth remembering next time.
 - The 401s were never cached. `curator.ts`'s `writeFile` to `.cache/curation/` sits inside the `try` after a
   successful parse, so the failed run left no poisoned entries needing a sweep before the retry.
 
 **Shipped:**
+
 - **LoC re-curation complete** — resumed from offset 259 (5-row smoke test, then 112): **117 rows re-scored
   against the actual image**, `no-image 0`, `fallback-skips 0`, so nothing was left on a text-only judgment.
   avg 7.20→7.60 on the smoke set, 7.72→8.16 across the remaining 112; 49 of those changed score.
@@ -2879,19 +3011,19 @@ green (21 new), build clean, the new e2e spec 5/5. Walkthrough:
 source completely — every LoC item has now been scored against its image, and `recurate.ts`'s LoC job is
 done. Post-repair distribution: avg **8.21**, range 7–9, **0 rows with empty tags** and **0 bare-5s** — the
 shape `recurate.ts` treats as a give-up fallback survives nowhere in the source. (There is no score-based
-floor hiding low rows: `ingest.ts`'s structural floor is rule-based and runs *before* the curator, so 7–9
+floor hiding low rows: `ingest.ts`'s structural floor is rule-based and runs _before_ the curator, so 7–9
 is the genuine range.)
 
 **Open / next:** nothing outstanding on LoC.
 
-*Session spend: 3.94M tok (in 110 · out 27.9k · cache r 3.62M / w 297.7k) · ~$5.48 · opus-5 · 09:13→13:17*
+_Session spend: 3.94M tok (in 110 · out 27.9k · cache r 3.62M / w 297.7k) · ~$5.48 · opus-5 · 09:13→13:17_
 
 ### [[08-21-26 Fri]] — Two environment facts moved out of the Daily Brief and into CLAUDE.md
 
 Vault-side hygiene with a repo-side consequence. Ben trimmed the Daily Brief's attention list from 35
 items to 16 on the rule that **an item belongs there only if the brief is its only home** — anything an
 active repo's own plan tracks gets a pointer, not a copy. Verifying that before trimming found two
-Ambit items with no home at all, so they now live in `CLAUDE.md` under a new *Local dev environment*
+Ambit items with no home at all, so they now live in `CLAUDE.md` under a new _Local dev environment_
 section rather than only inside an old log entry:
 
 - **Ambit must own port 3000** — `BETTER_AUTH_URL` is pinned to `http://localhost:3000` and
@@ -2937,8 +3069,8 @@ keeper, default no.
 Discharged same evening — key is in `.env`, and 6.2 is **ready to hand to an executing session**
 (T1–T4 are independent starts; the session must stop at T6 for Ben's Keep/Park/Cut verdicts).
 
-*Session spend: 8.51M tok (in 152 · out 135.6k · cache r 7.73M / w 649.0k) · ~$27.49 · fable-5 · 17:02→17:36*
-*Session spend: 3.54M tok (in 44 · out 13.4k · cache r 2.83M / w 703.6k) · ~$17.57 · fable-5 · 17:36→19:33*
+_Session spend: 8.51M tok (in 152 · out 135.6k · cache r 7.73M / w 649.0k) · ~$27.49 · fable-5 · 17:02→17:36*
+*Session spend: 3.54M tok (in 44 · out 13.4k · cache r 2.83M / w 703.6k) · ~$17.57 · fable-5 · 17:36→19:33_
 
 ---
 
@@ -2950,13 +3082,13 @@ eight**. Evidence sheet and walkthrough: `docs/PHASE6_WALKTHROUGH_6.2.md`.
 **Findings, in rough order of how much they'll matter later:**
 
 **1. `tile.loc.gov` rate-limits by IP, and it caught us mid-ingest.** The LoC sample run's hotlink
-check was clean (42/42). The 334-image *promotion* run tripped a sustained HTTP 429 — not a burst
+check was clean (42/42). The 334-image _promotion_ run tripped a sustained HTTP 429 — not a burst
 problem: serial requests a second apart 429 identically, as do requests with no User-Agent and
 requests carrying a stock Chrome one. No `Retry-After`, no `x-ratelimit-*`, still blocking forty
 minutes later. **This is a different problem from AIC's and points somewhere else.** AIC is a
-referer rule, which a proxy fixes by definition. This is a *budget*, which a **cache** fixes and a
+referer rule, which a proxy fixes by definition. This is a _budget_, which a **cache** fixes and a
 bare proxy might make worse by funnelling every reader's requests through one address — and the
-feed hotlinks heroes from the *reader's* connection, so the exposure isn't ours to observe. Into
+feed hotlinks heroes from the _reader's_ connection, so the exposure isn't ours to observe. Into
 SPEC §15 for 7.3, per the phase's own "record, don't solve" decision.
 
 **2. The curator's image-download failure was completely silent, and that's now fixed.** It has
@@ -2969,12 +3101,12 @@ it was needed**, which is the whole lesson; LoC's 376 scores are of unknown prov
 
 **3. PoetryDB was parked for a reason that isn't PoetryDB's fault.** It averaged 5.50 with nothing
 above 7 — but Pope and Seeger both scored **4**, against a prompt that asks for "visually striking
-or quietly beautiful images" and "*huh, I never knew that*". A lyric poem cannot win on that
+or quietly beautiful images" and "_huh, I never knew that_". A lyric poem cannot win on that
 rubric, and it's the same structural reason wikipedia sits at 5.27 corpus-wide. **So the number was
 reading the prompt, not the corpus**, and the honest verdict was Park rather than Cut. Two fixable
 blockers recorded: that rubric gap (Ben's call — `CURATOR_PROMPT` is a taste artifact, SPEC §15),
 and summaries that take the first two lines of `lines[]`, which includes epigraphs — "The Last
-Oracle" leads with transliterated Greek. Parking is implemented as *no seed cells*: adapter and
+Oracle" leads with transliterated Greek. Parking is implemented as _no seed cells_: adapter and
 tests stay, ingest never reaches it, a test locks the state so un-parking can't happen silently.
 
 **4. Two plan assumptions died on contact, both replaced on measurement.** PoetryDB's `GET
@@ -3009,7 +3141,7 @@ plausibly shift layout under an animation) — swapping in `main`'s copy **still
 no code change between. What accumulated in between: **274 `user` rows and 6,709 `seen_item` rows**
 from repeated suites, on a corpus 30% larger than that morning. A pre-existing flake this phase made
 more likely without causing. Recorded in CLAUDE.md and explicitly distinguished from the older
-busy-machine note — that one hits a *different* test each time, this one is always the same test.
+busy-machine note — that one hits a _different_ test each time, this one is always the same test.
 Not fixed here; making it robust is its own change.
 
 **Open / next:** (1) **`--force` re-curate the 376 LoC items** once `tile.loc.gov` clears, with the
@@ -3020,7 +3152,7 @@ proxy-vs-cache decision now has two different kinds of evidence pointing at diff
 e2e users is not a healthy baseline. (5) 6.1 (feed learns from saves) is untouched and next in the
 phase.
 
-*Session spend: 82.88M tok (in 954 · out 338.6k · cache r 80.81M / w 1.74M) · ~$62.59 · opus-5 + opus-4-7 · 19:56→21:14*
+_Session spend: 82.88M tok (in 954 · out 338.6k · cache r 80.81M / w 1.74M) · ~$62.59 · opus-5 + opus-4-7 · 19:56→21:14_
 
 ### [[08-21-26 Fri]] — Handoff: the three questions 5.8 can't be planned without
 
@@ -3029,7 +3161,7 @@ far as the questions that gate the plan doc, and Ben moved the planning session 
 the questions here so the next session starts from them instead of re-deriving them.
 
 **Where `main` actually is.** Clean at `376b2e7`, 395 unit tests + e2e green at branch tip. 5.7 is
-*fully* closed — merged at `44371e7`, iOS device pass passed 08-20-26, and last night's follow-up
+_fully_ closed — merged at `44371e7`, iOS device pass passed 08-20-26, and last night's follow-up
 commit added the HTTPS dev origin and the hero callout guard. No `PHASE5_PLAN_5.8.md` exists yet.
 
 **Q1 — what the gallery swipes through.** The prototype fakes this with a fixed 28-item `POOL`;
@@ -3044,7 +3176,7 @@ gallery burns corpus. Three readings:
   marks nothing seen, so swiping doesn't spend corpus. Costs a new public procedure.
 - **The feed's image set** — what BUILD_PLAN 5.8 currently says ("over the feed's image set").
   Swiping continues exactly what the reader was just scrolling, but a feed page carries only ~6–8
-  images, the pool has to reach a *different route* through client state, and it has no answer for
+  images, the pool has to reach a _different route_ through client state, and it has no answer for
   either the stranger or Saved (5.9).
 - **Fresh `feed.page` draws** — personalized and endless, but auth-only (breaks the public hero)
   and every swipe-through burns corpus through `markSeen`. That is precisely the failure mode
@@ -3053,7 +3185,7 @@ gallery burns corpus. Three readings:
 **Q2 — do feed tiles enter the gallery?** BUILD_PLAN says the gallery is entered from item pages
 and Saved, "not feed tiles". The redesign README's gesture matrix lists **Feed** as an entry
 ("Tap image → Feed, Saved, Item image → Open Gallery at that work `?start={id}`"). A real
-conflict, and one the recorded convention doesn't settle by itself — *prototypes beat the README*,
+conflict, and one the recorded convention doesn't settle by itself — _prototypes beat the README_,
 but here the README disagrees with BUILD_PLAN rather than with a prototype. Today's shipped
 behaviour is 5.6's: a tile tap opens the item page, a long-press opens the item sheet.
 
@@ -3067,7 +3199,7 @@ because 5.7 established that back/exit behaviour here is a **correctness** const
 
 **Two constraints 5.8 must not trip, both bought expensively on 08-20.** The item hero's iOS
 long-press "Add to Photos" (two taps to the camera roll, the best path a web app can have) works
-*only* because the hero doesn't set `-webkit-touch-callout: none` the way the feed tiles must — so
+_only_ because the hero doesn't set `-webkit-touch-callout: none` the way the feed tiles must — so
 wiring the gallery tap onto that hero must not copy the tile's iOS incantations wholesale. There's
 a warning comment in `image-item-body.tsx`; it is the thing most likely to be undone by an
 executing session doing the obvious. And **device passes now run over HTTPS**
@@ -3086,7 +3218,7 @@ wander rail is where a "more wildcard" knob would live.
 integration test that never restored them, and AIC's Cloudflare challenge (`HANDOFF_aic-images.md`
 §8) — neither blocks 5.8.
 
-*Session spend: 3.20M tok (in 76 · out 25.7k · cache r 2.98M / w 197.5k) · ~$4.11 · opus-5 · 08:11→08:22*
+_Session spend: 3.20M tok (in 76 · out 25.7k · cache r 2.98M / w 197.5k) · ~$4.11 · opus-5 · 08:11→08:22_
 
 **The Fable session happened; 5.8 is planned.** All three questions answered with Ben, and
 `docs/PHASE5_PLAN_5.8.md` written cold-executable — the handoff below is discharged.
@@ -3094,8 +3226,8 @@ integration test that never restored them, and AIC's Cloudflare challenge (`HAND
 **Decisions:** **Q1 → the wander rail.** A new public `items.galleryRail` extends the wander
 machinery into an endless, bidirectional, images-only rail: topic walk using the feed's own
 CORE/DRIFT/JUMP shares picks where, curated-weighted random picks what, and nothing is ever
-marked seen. **Q2 settled itself by evidence, not preference** — the redesign *feed prototype's
-own code* sends image taps to the item page (`openItem()` → `Item Image.dc.html`); only the Saved
+marked seen. **Q2 settled itself by evidence, not preference** — the redesign _feed prototype's
+own code_ sends image taps to the item page (`openItem()` → `Item Image.dc.html`); only the Saved
 and Item-Image prototypes call `openGallery()`. So the README's gesture-matrix row for Feed is
 simply wrong, prototypes-beat-README applies after all, and BUILD_PLAN's "not feed tiles" stands.
 **Q3 → own route `/g/[itemId]`**, exits popping through a `gallery-origin` marker that mirrors
@@ -3120,7 +3252,7 @@ over the `tailscale serve` HTTPS origin.
 starts). Still parked from 08-20, still non-blocking: the `test-feed-topic-*` stranded items and
 AIC's Cloudflare challenge.
 
-*Session spend: 8.56M tok (in 154 · out 147.4k · cache r 7.87M / w 534.1k) · ~$25.93 · fable-5 · 08:39→09:37*
+_Session spend: 8.56M tok (in 154 · out 147.4k · cache r 7.87M / w 534.1k) · ~$25.93 · fable-5 · 08:39→09:37_
 
 ---
 
@@ -3133,7 +3265,7 @@ worth keeping here is the part neither of those records.
 than gaps.** T2 said to gate the debug knobs in the router "mirroring `routers/feed.ts`" — which
 doesn't gate them; `getFeedPage` does, precisely so the router can't grow an opinion that disagrees
 with the service. T4 asked for a handlers object in one sentence and a ref'd node in the next. In
-both cases the *named pattern* was right and the *instruction* was wrong, which is a useful signal
+both cases the _named pattern_ was right and the _instruction_ was wrong, which is a useful signal
 about how to read a plan written from a repo survey: where it points at an existing file, follow the
 file.
 
@@ -3166,7 +3298,7 @@ break it, but the callout itself is only visible on a device). Then merge and 5.
 gallery entry from Saved for free — the origin marker stores an item id, not a route. Still parked and
 still non-blocking: the `test-feed-topic-*` stranded items and AIC's Cloudflare challenge.
 
-*Session spend: 49.80M tok (in 672 · out 256.9k · cache r 48.39M / w 1.15M) · ~$39.94 · opus-5 + opus-4-7 · 09:52→10:28*
+_Session spend: 49.80M tok (in 672 · out 256.9k · cache r 48.39M / w 1.15M) · ~$39.94 · opus-5 + opus-4-7 · 09:52→10:28_
 
 ---
 
@@ -3184,26 +3316,26 @@ The temptation was four threshold nudges. The actual causes were three, all shar
   was the one that already had a two-way test. Everything is "far enough **or** fast enough" now.
 - **The axis was re-decided at release instead of locked at the slop.** A thumb swipe arcs, so a
   good sideways swipe that drifted down finished as "vertical" and did nothing. `useSwipeBack` was
-  worse — it *permanently abandoned* the gesture the first time vertical won mid-drag, which is
+  worse — it _permanently abandoned_ the gesture the first time vertical won mid-drag, which is
   exactly why the item page's back swipe died halfway across.
 - **iOS Safari's `pointercancel` was discarding the two-finger exit at the moment it was
-  recognised.** Safari fires it when it claims a multi-touch gesture for the system, *even under
-  `touch-action: none`*, and the hook treated every cancel as "throw this away".
+  recognised.** Safari fires it when it claims a multi-touch gesture for the system, _even under
+  `touch-action: none`_, and the hook treated every cancel as "throw this away".
 
 **The transferable lesson, for 5.9 and 5.10:** when several gestures on several screens all feel
-"too hard", suspect a shared missing *dimension* before suspecting the numbers. Four tweaks would
+"too hard", suspect a shared missing _dimension_ before suspecting the numbers. Four tweaks would
 have shipped four half-fixes and left the two-finger exit broken outright.
 
 **Two smaller catches, both from writing the tests rather than the fix.** React normalizes synthetic
 `timeStamp` as `nativeEvent.timeStamp || Date.now()` — so a falsy native value silently becomes an
-epoch millisecond beside a sibling's `performance.now()` one, and the subtraction goes *negative*,
+epoch millisecond beside a sibling's `performance.now()` one, and the subtraction goes _negative_,
 which sails through any `elapsed < window` check. `BottomSheet` reads one clock now; the rail hook
 can keep reading the event's, because native listeners never see React's normalization. And
 `gallery.spec.ts`'s doorway test had been taking the feed's first tile blind and `test.skip`-ing when
 it drew an article — a third of runs, showing green while covering nothing.
 
 **Feel is deliberately not tuned.** Ben's read on the rail: the mechanics are right, but how it
-*feels* can't be judged honestly against a two-museum corpus — a walk that can't drift far can't be
+_feels_ can't be judged honestly against a two-museum corpus — a walk that can't drift far can't be
 told from a lucky one. `wildcardChance` stays at its untuned 0.1 for the same reason. Both want a
 re-run once more sources land, not a guess now.
 
@@ -3211,13 +3343,13 @@ re-run once more sources land, not a guess now.
 e2e suite is green, but a threshold is a feel judgement and no test makes one; the session ended with
 the dev server stopped before a retest. Then merge 5.8 and start 5.9 (Saved), which inherits the
 gallery entry for free — the origin marker stores an item id, not a route. Worth watching: `bun run e2e` flaked twice in ~8 full runs
-during this session, in *different* specs each time including ones this branch never touched, always
+during this session, in _different_ specs each time including ones this branch never touched, always
 a 30s "waiting for element to be visible". Consistent with the machine-load note in CLAUDE.md and
 with a dev server shared with the phone; three consecutive green runs closed it out. If it recurs on
 a quiet machine it's real and worth chasing.
 
-*Session spend: 36.82M tok (in 194 · out 115.4k · cache r 36.57M / w 141.6k) · ~$22.58 · opus-5 · 10:28→11:19*
-*Session spend: 6.33M tok (in 61 · out 30.9k · cache r 6.02M / w 283.8k) · ~$5.63 · opus-5 + opus-4-7 · 11:19→11:33*
+_Session spend: 36.82M tok (in 194 · out 115.4k · cache r 36.57M / w 141.6k) · ~$22.58 · opus-5 · 10:28→11:19*
+*Session spend: 6.33M tok (in 61 · out 30.9k · cache r 6.02M / w 283.8k) · ~$5.63 · opus-5 + opus-4-7 · 11:19→11:33_
 
 ### [[08-20-26 Thu]] — The 5.6 device pass passes; the feed was eating the corpus on every Back
 
@@ -3232,20 +3364,20 @@ something much worse underneath.
 **The slow load was transport, not code.** The phone was on the same LAN the whole time (direct
 Tailscale path), but the first packet took 784ms — radio asleep — and the warm link still measures
 4–128ms with 47ms stddev. Jittery wifi plus an unminified dev bundle means chunk fetches time out,
-and the log filled with `ChunkLoadError`. Worth recording how it was *ruled out* as a build
+and the log filled with `ChunkLoadError`. Worth recording how it was _ruled out_ as a build
 problem: every one of the seven failing chunk names still returned 200 from the running server, so
 the names hadn't churned and nothing was stale. That also clears the service worker, 08-17's
 suspect — a stale SW cache would have named chunks the server no longer has. "Zero `sw.js`
 requests" was never evidence either way, since a cached SW makes no request.
 
 **The hydration error was a symptom, not a bug.** When a chunk failure breaks the RSC→client cache
-handoff, the client refetches `feed.page` — which returns *different items*, because the server's
+handoff, the client refetches `feed.page` — which returns _different items_, because the server's
 render already marked the first twelve seen and the cursor excludes the seen history. Client render
 ≠ server HTML, guaranteed. Nothing to fix in the components.
 
 **The real defect, and Ben named it faster than the investigation did:** going to an item page and
 coming back rebuilt the feed from scratch. The item stub's Back was `<Link href="/feed?focus={id}">`
-— a *push*, so the dynamic route re-ran, `getFeedPage` never repeats items, and the reader landed
+— a _push_, so the dynamic route re-ran, `getFeedPage` never repeats items, and the reader landed
 among cards they'd never seen with their scroll position gone. Cost per round trip: **two pages of
 corpus**, one drawn by the RSC render and one by the client query. `use-feed-scroll.ts`'s header had
 described this precisely and filed the fix under 5.7; what nobody had connected is that it fires on
@@ -3253,7 +3385,7 @@ every single Back, not just in edge cases.
 
 **Which is where 08-18's unresolved contradiction goes.** That session was left holding "172
 server-side `feed.page` executions against zero `GET /feed` lines" and couldn't reconcile it. The
-answer is the finding it had already made one paragraph earlier: proxy-*redirected* requests
+answer is the finding it had already made one paragraph earlier: proxy-_redirected_ requests
 produce no log line, so `/` → 307 → `/feed` renders invisibly. Combine that with a ChunkLoadError
 reload loop and the arithmetic closes — **1,116 items marked seen in six minutes**, 696 in the worst
 single minute, ~130 renders × 12 items at ~700–1200ms each.
@@ -3272,7 +3404,7 @@ mismatch by construction, since the server has no `sessionStorage` — so the an
 unconditional and the pop is an interception of its click. Same DOM on both sides, and it still
 works if JS never boots. Also refreshed the rotted LAN dev origin (`.68.65` → `.1.215`).
 
-333 unit tests (was 329) + 14 e2e green. The e2e that asserted the *old* behaviour was rewritten to
+333 unit tests (was 329) + 14 e2e green. The e2e that asserted the _old_ behaviour was rewritten to
 pin the new one: same tile ids before and after, and zero requests to `/feed` or `feed.page`.
 Matched on path rather than an `RSC:` header so a header rename can't make it pass vacuously, and
 checked with a negative control — stub `cameFromFeed` to `false` and it fails, so it isn't testing
@@ -3284,14 +3416,14 @@ behaviour you get.
 
 **AIC suspended, not removed.** Ben's call, and the right one — the source was actively getting in
 the way of building. `src/server/config/suspended-sources.ts` switches a source off **end to end**:
-ingestion skips it, *and* `getTopicPools` refuses to draw its existing rows. Doing only the first
+ingestion skips it, _and_ `getTopicPools` refuses to draw its existing rows. Doing only the first
 would have been worse than doing nothing, since 1,338 undrawable rows would have gone on winning
 slots in the draw and the feed would have looked like it had quietly gone bad. Nothing is deleted
 and no re-ingest is needed to reverse it: the adapter, its tests and every row stay put, so lifting
 the flag is a one-line change. `--source aic` still ingests when asked explicitly, and says out loud
 that the feed won't draw the result. 5.7's image proxy is what lifts this.
 
-**Open / next:** the fix removes the loop's fuel but not the loop's *cost*: `feed.page` still writes
+**Open / next:** the fix removes the loop's fuel but not the loop's _cost_: `feed.page` still writes
 `seen_item` during a server render whose output can be discarded, so any future reload loop burns
 corpus again, just slower. The durable fix is to let receipt — not attempted render — be what marks
 an item seen; carry it into the 5.7 plan. AIC is parked rather than solved: the `localhost`-referer 403 stands
@@ -3303,16 +3435,16 @@ and whether the block is a dev-only artifact at all (both referers ever tested a
 `topic_id = test-feed-topic-*` from an integration test that never restored them, which makes them
 unreachable by the feed — `source='e2e'` cleanup is clean, this is a different leak.
 
-*Session spend: 18.77M tok (in 306 · out 111.1k · cache r 18.13M / w 524.1k) · ~$17.09 · opus-5 · 10:00→11:05*
-*Session spend: 10.07M tok (in 181 · out 69.1k · cache r 9.75M / w 247.5k) · ~$8.38 · opus-5 + opus-4-7 · 11:05→11:51*
+_Session spend: 18.77M tok (in 306 · out 111.1k · cache r 18.13M / w 524.1k) · ~$17.09 · opus-5 · 10:00→11:05*
+*Session spend: 10.07M tok (in 181 · out 69.1k · cache r 9.75M / w 247.5k) · ~$8.38 · opus-5 + opus-4-7 · 11:05→11:51_
 
 **Decisions (afternoon) — blog-first content, decided in Ambit-Admin and landed here as docs.**
-Ben reviewed the ecosystem's content strategy. The trigger was in the *other* repo — ambit-archive's
+Ben reviewed the ecosystem's content strategy. The trigger was in the _other_ repo — ambit-archive's
 A.3b planned **$150/month of SerpApi** to identify artworks — but pulling that thread redirected
 where Ambit's content comes from at all. Five decisions; **docs only, no code, no schema change.**
 
 - **Ambit's future content comes primarily from designated blogs.** Blogs already carry the tags,
-  descriptions and the article explaining *why* an image matters — exactly the metadata that
+  descriptions and the article explaining _why_ an image matters — exactly the metadata that
   identification was going to buy, and that image APIs make you manufacture. This is the strategy,
   not a source addition.
 - **The presentation contract is excerpt + link-out, with no reader view.** A blog item is a **link
@@ -3327,11 +3459,11 @@ where Ambit's content comes from at all. Five decisions; **docs only, no code, n
   and non-monetized. The README and CLAUDE.md now say this in the places that used to say
   "public/PD/fair-use".
 - **The `from: <source>` credit line is not blog-specific and ships with 5.7**, for every source —
-  museum and Wikipedia items included. 9.4 stays the licensing *audit* and now covers blog credit
+  museum and Wikipedia items included. 9.4 stays the licensing _audit_ and now covers blog credit
   and license display too.
 - **Shape: an in-repo adapter family, explicitly not a third cross-service pattern.** Recorded in
   Ambit-Admin so nobody re-opens the "two blessed patterns" rule to accommodate it: those govern
-  seams *between* the three services, and this one lives entirely inside Ambit.
+  seams _between_ the three services, and this one lives entirely inside Ambit.
 - **New BUILD_PLAN step 6.3, gated on a design session** (⚖️), carrying **seven open questions**:
   the adapter interface (blogs don't `search(q)`), topic assignment without seed queries,
   items-per-post and the feed-flooding/dedupe rule, where the blurb lives, image hosting (the
@@ -3357,42 +3489,43 @@ designated blog, which the morning's triage had already **cut** on robots.txt gr
 stands, and it is now cited in the blogs table as the worked precedent for open question 6: a site
 that machine-readably refuses agents doesn't become a designated blog because its works are PD.
 
-*Session spend: 8.46M tok (in 106 · out 48.4k · cache r 8.32M / w 96.7k) · ~$6.34 · opus-5 · 12:11→12:22*
+_Session spend: 8.46M tok (in 106 · out 48.4k · cache r 8.32M / w 96.7k) · ~$6.34 · opus-5 · 12:11→12:22_
 
 **5.7 planned (afternoon)** — `docs/PHASE5_PLAN_5.7.md`, written cold-executable for a
 cheaper-model session. Three decisions taken with Ben at plan time: **reader body = stored `body`
-+ backfill** — planning surfaced that the ingester stores Wikipedia bodies with
-`exsectionformat=plain`, so the corpus has *no* `== heading ==` markers and the prototype's reader
-parser can't work on it as stored; the adapter flips to `exsectionformat=wiki` and a one-off
-script re-fetches existing bodies, rather than taking a runtime Wikipedia dependency. **The image
-proxy ships in 5.7**, not 7.3 — `/api/img/[itemId]`, itemId-lookup-only (never a URL param; that's
-the SSRF boundary), no Referer sent (which is what defeats AIC's 403), so the AIC suspension lifts
-in the same phase that caused it. And **signed-out visitors get no pill toolbar** — the prototypes
-don't model auth; anon gets content + credit line + join CTA only. The morning's two carries both
-landed in scope: seen-marking moves to receipt (`feed.markSeen`, with the argument for why the
-cursor's anchor math survives written into the plan), and the pop-don't-push evidence became a
-shared `useLeaveToFeed` hook that both the swipe-back gesture and the pill's Feed button use —
-`BackToFeed` dies with the stub. One prototype/plan conflict resolved against the prototype: the
-wander-next teaser renders on *both* variants (the redesign draws it image-only; the Done bar says
-"both variants + teaser", and the Done bar wins).
+
+- backfill** — planning surfaced that the ingester stores Wikipedia bodies with
+  `exsectionformat=plain`, so the corpus has _no_ `== heading ==` markers and the prototype's reader
+  parser can't work on it as stored; the adapter flips to `exsectionformat=wiki` and a one-off
+  script re-fetches existing bodies, rather than taking a runtime Wikipedia dependency. **The image
+  proxy ships in 5.7**, not 7.3 — `/api/img/[itemId]`, itemId-lookup-only (never a URL param; that's
+  the SSRF boundary), no Referer sent (which is what defeats AIC's 403), so the AIC suspension lifts
+  in the same phase that caused it. And **signed-out visitors get no pill toolbar** — the prototypes
+  don't model auth; anon gets content + credit line + join CTA only. The morning's two carries both
+  landed in scope: seen-marking moves to receipt (`feed.markSeen`, with the argument for why the
+  cursor's anchor math survives written into the plan), and the pop-don't-push evidence became a
+  shared `useLeaveToFeed` hook that both the swipe-back gesture and the pill's Feed button use —
+  `BackToFeed` dies with the stub. One prototype/plan conflict resolved against the prototype: the
+  wander-next teaser renders on _both_ variants (the redesign draws it image-only; the Done bar says
+  "both variants + teaser", and the Done bar wins).
 
 **Open / next:** execute T1–T9 per the plan doc; run the Wikipedia body backfill after merge; the
 phase closes on an iOS device pass (swipe-back feel, Save-image to camera roll, and — the real
 question — whether AIC images load on the phone through the proxy, HANDOFF Q2).
 
-*Session spend: 4.24M tok (in 84 · out 122.5k · cache r 3.65M / w 466.4k) · ~≥$19.10 · fable-5 + <synthetic> · 15:33→17:00*
+_Session spend: 4.24M tok (in 84 · out 122.5k · cache r 3.65M / w 466.4k) · ~≥$19.10 · fable-5 + <synthetic> · 15:33→17:00_
 
 **5.7 executed (evening)** — nine tasks, nine commits, on `feat/phase-5.7-item-pages`. Walkthrough
 in `docs/PHASE5_WALKTHROUGH_5.7.md`; the plan held up almost unchanged, so what follows is only the
 parts that aren't in it.
 
 **Three things argued back.** The plan's own OG fixture contradicted its own assertion — it seeded
-the e2e image item with a `data:` pixel *and* asked `og:image` to end in `/api/img/{id}`, which the
+the e2e image item with a `data:` pixel _and_ asked `og:image` to end in `/api/img/{id}`, which the
 page deliberately refuses to emit for a `data:` URL (nothing behind the proxy to fetch, and a broken
 preview image is worse than none). Fixed by seeding a fourth item with an http URL that exists for
 that meta tag alone. `renderHook` turned out to be the wrong tool for `useSwipeBack`, whose entire
 behaviour is an effect attaching native listeners to a ref'd node: the ref has to be attached by
-React *before* the effect runs, which only a real component does. And the authed e2e test needed
+React _before_ the effect runs, which only a real component does. And the authed e2e test needed
 `waitForHydration` pointed at the pill — a server-rendered toolbar takes an early click and drops
 it, the exact trap that helper's own comment describes for the landing form. That last one presented
 as a flake (2 failures in 7 runs) and wasn't.
@@ -3400,7 +3533,7 @@ as a flake (2 failures in 7 runs) and wasn't.
 **The big one: the proxy works, and AIC still doesn't.** The manual dev pass was the first time
 anyone pointed the finished proxy at a real AIC row, and it returned 502. Direct measurement:
 `www.artic.edu` now answers `403` with `cf-mitigated: challenge` and a "Just a moment..." body to
-*everything* from this network — the IIIF image URLs, **§2.2's own control URL that returned 200
+_everything_ from this network — the IIIF image URLs, **§2.2's own control URL that returned 200
 that morning**, a desktop-Chrome user-agent, and the plain homepage. That is a Cloudflare
 **interactive JS challenge**, not the referer rule, and no server-side fetch can ever pass one:
 there is no header to send, only a script to run. `api.artic.edu` is unaffected (200), so ingestion
@@ -3411,7 +3544,7 @@ Undistinguished: whether AIC escalated generally, or this IP earned a challenge 
 commands and both readings.
 
 **The proxy is still right, and the reasoning still holds** — every client-side attempt was doomed
-because a browser won't let you *unset* the `Referer` Cloudflare was judging, and moving the fetch
+because a browser won't let you _unset_ the `Referer` Cloudflare was judging, and moving the fetch
 server-side removes the input rather than working around the rule. Met, CMA and Wellcome all
 verified streaming through it. It just turned out to be aimed at a mitigation AIC had already moved
 past. What it bought regardless: one origin for every image (which is what makes the Save-image row
@@ -3425,13 +3558,13 @@ still the wrong thing to be building against by the time the build finished, bec
 the control. One `curl` in the dev pass caught it. Re-measure the premise before declaring the fix,
 especially when the premise is somebody else's live infrastructure.
 
-**One self-inflicted detour worth recording, because the *method* is the lesson.** The authed item
+**One self-inflicted detour worth recording, because the _method_ is the lesson.** The authed item
 e2e test needed a `waitForHydration` on the pill — a server-rendered toolbar takes an early click
 and drops it. Correct, and six green full runs followed. Then a different feed test failed once
 while the machine was loaded, and applying the same wait to `feed.spec.ts`'s shared `onFeed()`
 helper took the entire suite down: six parallel workers each spinning a `requestAnimationFrame` poll
 starved the dev server, and every spec began timing out on plain `page.goto("/")`, 9 minutes a run.
-It looked *exactly* like the environmental contention the HANDOFF footnote describes, and it got
+It looked _exactly_ like the environmental contention the HANDOFF footnote describes, and it got
 diagnosed that way for several rounds — .next cleared, load averages inspected, Postgres bloat
 checked, query paths timed (all fine: `getWanderNext` 25–72ms, dev server 40–500ms warm). What
 actually settled it in one run: `git checkout <last-green> && bun run e2e` → 22 passed in 60s. Mine,
@@ -3457,13 +3590,13 @@ longer really a question for it: the host-wide challenge explains the 08-18 phon
 tonight's laptop one with a single mechanism (HANDOFF §8.2), which is the closest thing to an answer
 Q2 has had. Retry `curl -sI https://www.artic.edu/` in a day or two, and from another network sooner
 — that's what distinguishes "they escalated" from "this IP is in the doghouse", and un-suspending is
-one line either way. Q3 (is any of this dev-only?) is now the *interesting* question rather than the
+one line either way. Q3 (is any of this dev-only?) is now the _interesting_ question rather than the
 academic one, and still waits on a deployed origin — as does checking the OG preview against a real
 scraper. The 60 items stranded on `topic_id = test-feed-topic-*` are still there; the backfill's dry
 run bumped into one.
 
-*Session spend: 58.51M tok (in 25.9k · out 288.1k · cache r 56.74M / w 1.46M) · ~≥$47.08 · opus-5 + opus-4-7 + <synthetic> · 17:34→19:04*
-*Session spend: 34.42M tok (in 223 · out 72.7k · cache r 34.11M / w 232.2k) · ~≥$20.65 · opus-5 + opus-4-7 + <synthetic> · 19:04→20:35*
+_Session spend: 58.51M tok (in 25.9k · out 288.1k · cache r 56.74M / w 1.46M) · ~≥$47.08 · opus-5 + opus-4-7 + <synthetic> · 17:34→19:04*
+*Session spend: 34.42M tok (in 223 · out 72.7k · cache r 34.11M / w 232.2k) · ~≥$20.65 · opus-5 + opus-4-7 + <synthetic> · 19:04→20:35_
 
 **5.7's device pass — passed, and the two things it found were both about the test environment
 rather than the code.** Swipe-back follows and commits; back restores the exact feed from both
@@ -3473,7 +3606,7 @@ exits; Save image reaches the camera roll. 5.7 is done.
 Share API is secure-context only.** Over `http://` on the LAN, `navigator.share` / `canShare` are
 not broken, they are `undefined` — so the handler fell straight through to its `<a download>`
 fallback and looked quietly wrong. The clipboard and service workers are gated the same way, which
-means *every* device pass over plain http has been silently unable to test three whole features.
+means _every_ device pass over plain http has been silently unable to test three whole features.
 Fixed at the root rather than worked around: `tailscale serve --bg 3000` puts a real cert in front
 of the dev server at `https://macbook-air-m5.halley-morpho.ts.net`, and `dev-origins.js` now emits
 the https, port-less origin too so Better Auth's CSRF check accepts a sign-in from it. Re-tested
@@ -3493,13 +3626,13 @@ OS sheet is the ceiling for a web app, by Apple's deliberate choice.
 
 **"Way too slow" on device was `next dev`, and the numbers are worth keeping.** Same proxied image:
 **170–970ms under `next dev`, 27–55ms on a production build, against 60–90ms hotlinking the museum
-CDN directly.** So in production the proxy is *faster* than the hotlinking it replaced — it reuses
+CDN directly.** So in production the proxy is _faster_ than the hotlinking it replaced — it reuses
 one warm upstream connection instead of paying a TLS handshake per image — and the proxy's own work
 is 23–33ms (1ms DB + 22–32ms upstream). Same shape as 08-20's morning finding: the dev server is not
 the app. One real number underneath it though: a Wikipedia hero measured **1.95 MB** unresized,
 which is 7.3's IIIF sizing and will bite on cellular.
 
-*Session spend: 25.05M tok (in 124 · out 57.6k · cache r 24.94M / w 53.7k) · ~$14.45 · opus-5 · 20:35→22:53*
+_Session spend: 25.05M tok (in 124 · out 57.6k · cache r 24.94M / w 53.7k) · ~$14.45 · opus-5 · 20:35→22:53_
 
 ### [[08-18-26 Tue]] — Two origin allowlists, and 1 image in 6 was never loading
 
@@ -3526,7 +3659,7 @@ into a real build. Verified the security property directly: an unlisted origin s
 phone's broken images turned up something else entirely: 20/20 AIC images 403 with
 `Referer: http://localhost:3000/`, 20/20 succeed with any other referer, user-agent irrelevant. The
 403 is **Cloudflare's**, not the origin's — `www.artic.edu` sits behind bot management, and a
-localhost referer reads as a bot to it. Since `next dev`'s canonical origin *is* localhost:3000,
+localhost referer reads as a bot to it. Since `next dev`'s canonical origin _is_ localhost:3000,
 **every one of AIC's 1,338 images — 17.5% of the corpus — has been failing silently on the laptop,
 presumably for all of Phase 5**, hidden by a fallback tile designed to look unremarkable. The
 lesson is the shape of it: a fallback that renders calmly is a fallback that can hide a total
@@ -3540,7 +3673,7 @@ permanently on the first dropped request, which on a phone turned every transien
 permanent hole; a dev-only `source · hostname` label on the fallback, which is the only reason the
 AIC concentration was visible at all on a device with no console; and `(src=rsc|nextjs-react)` on
 the `[TRPC]` log line — kept deliberately, because a server-side caller issues no HTTP request of
-its own, so the dev request log *structurally cannot* attribute one, and `feed.page` writes
+its own, so the dev request log _structurally cannot_ attribute one, and `feed.page` writes
 `seen_item` on every call. 329 tests green (was 328).
 
 **Not root-caused, and recorded as such:** the laptop's endless refresh. It cleared on restart with
@@ -3549,7 +3682,7 @@ worker (zero `sw.js` requests; `SwCleanup`'s sessionStorage guard is genuinely l
 onboarding↔feed bounce (`redirect()` throws before the prefetch, and all 172 prefetches completed).
 Left standing was a contradiction never resolved — 172 server-side `feed.page` executions against
 zero `GET /feed` lines, after confirming that plain, proxy-pass-through, RSC, and RSC-prefetch
-requests all *do* log. Worth knowing for next time: **proxy-*redirected* requests produce no log
+requests all _do_ log. Worth knowing for next time: **proxy-_redirected_ requests produce no log
 line at all**, which is what sent that investigation sideways for a while.
 
 **Open / next:** the phone's broken images **did not reproduce** from the dev machine — 48/48 mixed
@@ -3567,13 +3700,13 @@ to ~650s and fail unrelated Postgres-touching integration tests — three times 
 different test each time. Passes alone, passes clean serially. Check what else is running before
 debugging a red integration test; but per 5.6's flake, check the setup timing rather than assuming.
 
-*Session spend: 30.24M tok (in 490 · out 188.2k · cache r 29.38M / w 669.3k) · ~≥$26.09 · opus-5 + <synthetic> · 11:51→19:17*
+_Session spend: 30.24M tok (in 490 · out 188.2k · cache r 29.38M / w 669.3k) · ~≥$26.09 · opus-5 + <synthetic> · 11:51→19:17_
 
 ### [[08-17-26 Mon]] — The dev SW cleanup could itself loop; guarded
 
 **Findings:** Ben hit an endless refresh loop on `localhost:3000` in dev. Root cause wasn't
 current code — `main`'s layout correctly registers no SW outside production — but a missing
-guard in `SwCleanup`: it reloaded *every* time it found a registration, with no memory of
+guard in `SwCleanup`: it reloaded _every_ time it found a registration, with no memory of
 having already done so. Fine when cleanup converges (verified: a manually installed worker
 cleans up in exactly one reload), but the server log showed the worker being **re-registered
 between cleanups** (repeating `GET /` + `GET /serwist/sw.js` pairs) — most plausibly a second
@@ -3592,7 +3725,7 @@ naming the likely culprit.
 
 **Open / next:** unchanged from 08-16 — execute against the redesign per BUILD_PLAN 5.5+.
 
-*Session spend: 9.21M tok (in 216 · out 87.3k · cache r 8.86M / w 258.9k) · ~$18.40 · fable-5 · 10:15→11:37*
+_Session spend: 9.21M tok (in 216 · out 87.3k · cache r 8.86M / w 258.9k) · ~$18.40 · fable-5 · 10:15→11:37_
 
 **Later: the on-device blocker itself found and fixed.** The dead-buttons incident wasn't the
 service worker at all — Next dev refuses to serve `/_next/*` assets to any origin that isn't
@@ -3604,7 +3737,7 @@ Verified with a throwaway phone sign-up (`blanktest@example.dev`), then cleaned 
 deleted (session/account cascade), its accepted invite row removed, and confirmed it had left
 no saves/topics/seen-items/collections behind.
 
-*Session spend: 1.34M tok (in 44 · out 7.4k · cache r 1.21M / w 120.1k) · ~$3.98 · fable-5 · 15:48→15:49*
+_Session spend: 1.34M tok (in 44 · out 7.4k · cache r 1.21M / w 120.1k) · ~$3.98 · fable-5 · 15:48→15:49_
 
 **Later still: 5.6 planned** (`docs/PHASE5_PLAN_5.6.md`, written to execute cold in a
 cheaper-model session). Two decisions put to Ben, both siding with the recommendation:
@@ -3624,7 +3757,7 @@ same class of bug as 5.5's `absolute`→`fixed` trio), and `feed.page`'s uncondi
 makes refetch discipline (`staleTime: Infinity`, byte-matched hydration inputs) a correctness
 constraint, not a perf nicety. 5.5's never-run device pass folds into 5.6's Done bar.
 
-*Session spend: 5.27M tok (in 106 · out 111.0k · cache r 4.26M / w 899.2k) · ~$27.80 · fable-5 · 16:20→21:06*
+_Session spend: 5.27M tok (in 106 · out 111.0k · cache r 4.26M / w 899.2k) · ~$27.80 · fable-5 · 16:20→21:06_
 
 **And then executed: 5.6 is code complete** (`docs/PHASE5_WALKTHROUGH_5.6.md`). The plan held —
 nine steps, all landed roughly as written — so what's worth recording is the four places the
@@ -3635,13 +3768,13 @@ as `item.summary` straight through, unclamped, which is fine when every lede in 
 a hand-written sentence. The actual column holds source synopses, and Wikipedia's run 600+
 characters — the first real article card rendered **twenty-five lines tall** in a 196px column.
 That's the redesign's "no body, no expand affordance" rule broken by accident: at that length
-the lede *is* the body. Clamped to five lines, with `masonry.ts`'s height estimate capped to
+the lede _is_ the body. Clamped to five lines, with `masonry.ts`'s height estimate capped to
 match so the packer still predicts the tile it's placing. Only findable by running it against
 the real corpus, which is the argument for doing the browser pass before writing the
 walkthrough rather than after.
 
 **`?focus=` can't work through the stub's Back link, and that isn't a bug in `?focus=`.** The
-return-scroll assumes coming back to `/feed` shows you the feed you left. Browser *back* does —
+return-scroll assumes coming back to `/feed` shows you the feed you left. Browser _back_ does —
 the App Router restores the RSC payload from its client cache, the tiles are all still there,
 and scroll restores exactly (measured: 628 → 628). But a fresh `<Link href="/feed?focus=…">`
 re-runs the dynamic route, and `getFeedPage` never repeats items, so you land on **entirely
@@ -3651,7 +3784,7 @@ should be: pop history, don't push.
 
 **Two scroll-restore races that jsdom cannot see.** The first implementation restored to 0
 every time, for two independent reasons: `scrollTo({top: 900})` on a document that hasn't laid
-out yet silently *clamps* near the top (so the restore path needed the retry schedule the focus
+out yet silently _clamps_ near the top (so the restore path needed the retry schedule the focus
 path already had, plus a check of where it actually landed), and the rAF scroll-persist
 listener was **eating its own tail** — a clamped restore fires `scroll`, which writes the
 clamped offset over the saved one, so by the next attempt there was nothing left to restore to.
@@ -3662,7 +3795,7 @@ parallel workers, in a different test each run, always on sign-in. The house wis
 ("first-run failure after a change is usually on-demand compilation — re-run first") sent me
 round the loop twice before I read a trace, which is the lesson: the recorded flake pattern is
 a prior, not a diagnosis. Cause one — **Playwright's `test-results/` sits in the project root**
-and writes traces *during* the run, which trips Next's dev watcher; the failing trace has
+and writes traces _during_ the run, which trips Next's dev watcher; the failing trace has
 `[Fast Refresh] rebuilding` exactly where the navigation should have been, and a remount mid
 sign-in swallows `router.push`. Fixed with a dot-directory `outputDir` (Turbopack ignores
 those). Cause two, revealed once the first was gone — `navigated to "http://localhost:3000/?"`:
@@ -3684,7 +3817,7 @@ device), plus 5.5's carried-over pill/sheet pass, plus the `pt-[58px]` top inset
 plain value today because no screen in the app has established a safe-area convention yet.
 Then 5.7 — item pages, which also inherit the image proxy the feed's broken tiles are waiting on.
 
-*Session spend: 84.25M tok (in 764 · out 260.7k · cache r 83.26M / w 728.1k) · ~$55.43 · opus-5 · 21:26→23:11*
+_Session spend: 84.25M tok (in 764 · out 260.7k · cache r 83.26M / w 728.1k) · ~$55.43 · opus-5 · 21:26→23:11_
 
 ### [[08-16-26 Sun]] — Redesign landed; Phase 5 re-baselined (5.4 is now the design migration)
 
@@ -3699,6 +3832,7 @@ mention fixed (repo uses Serwist). Branch housekeeping: `phase-5.4-feed`'s lone 
 to `main`, branch deleted, work now on `phase-5.4-design-migration`.
 
 **Decisions** (four put to Ben directly, all sided with the recommendation):
+
 1. **Auth keeps email+password + invite gate** — the new Landing shows magic-link, but it's a
    restyle-only divergence, same as 5.2 recorded. Protects the whole auth test surface.
 2. **Collections backend gets built (5.5)** — the save-to-collection sheet is a backbone
@@ -3730,7 +3864,7 @@ auth/onboarding tests pass unmodified). Deferred flags recorded in BUILD_PLAN fo
 docs: Saved's two-hop reachability (5.9), share-collection scope with no public `/c/` route
 (5.9), reader body source — stored text vs server-side Wikipedia cache (5.7).
 
-*Session spend: 9.69M tok (in 166 · out 138.6k · cache r 9.02M / w 526.7k) · ~$26.49 · fable-5 · 21:52→00:10*
+_Session spend: 9.69M tok (in 166 · out 138.6k · cache r 9.02M / w 526.7k) · ~$26.49 · fable-5 · 21:52→00:10_
 
 **Then executed 5.4 in the same session** (Ben switched to Opus 5 and said go, so the
 plan-then-execute-cheaper split didn't apply this time — the plan doc is still written to be
@@ -3738,11 +3872,11 @@ executable cold). Walkthrough: `docs/PHASE5_WALKTHROUGH_5.4.md`. The app is now 
 token layer: Sora everywhere, indigo accent set, `ink-hi` title tier, 22px sheets, reduced-motion
 support. **All 7 e2e green unmodified** — the signal the restyle stayed a restyle.
 
-**Findings:** the sheet animation had to *split* rather than change — the old 400ms/103% curve is
+**Findings:** the sheet animation had to _split_ rather than change — the old 400ms/103% curve is
 still wanted for 5.8's gallery modal, so it was renamed `--animate-sheet-gallery` and
 `--animate-sheet-up` rebuilt as the redesign's 260ms `sheetup`; `BottomSheet` picked the new one
 up with no component change. Adding `.bg-avatar-gradient` walked straight back into the
-`border-hairline` twMerge trap from 5.1 (custom `bg-`/`border-` classes get misread as *color*
+`border-hairline` twMerge trap from 5.1 (custom `bg-`/`border-` classes get misread as _color_
 utilities and silently dropped next to `bg-ink/NN`) — registered it in the `bg-image` group, and
 discovered the `border-hairline` regression test everyone assumed existed had never been written.
 Both now have one.
@@ -3765,7 +3899,7 @@ what the test means, so it's flagged rather than quietly patched.
 feed test, and the landing hero/wordmark crowding (0px gap — pre-existing, and 5.11 replaces that
 screen wholesale, so it was left alone).
 
-*Session spend: 51.39M tok (in 460 · out 175.3k · cache r 49.88M / w 1.34M) · ~$42.82 · opus-5 + fable-5 + opus-4-7 · 00:10→00:29*
+_Session spend: 51.39M tok (in 460 · out 175.3k · cache r 49.88M / w 1.34M) · ~$42.82 · opus-5 + fable-5 + opus-4-7 · 00:10→00:29_
 
 **Then a third session: cleared the two carry-forwards and planned 5.5.**
 
@@ -3774,7 +3908,7 @@ screen wholesale, so it was left alone).
 rather than eyeballing one failure — the real failure rate is **4.5%**, roughly ten times what
 1000 binomial draws against a ±0.05 window should produce. The reason: **the fixture couldn't fill
 the page.** 4 topics × 200 items = 800 items for a `pageSize: 1000` page, so `composePage` ran to
-total pool exhaustion on *every* run. Once a topic's pool empties every tier landing on it just
+total pool exhaustion on _every_ run. Once a topic's pool empties every tier landing on it just
 retries, and the tiers don't concentrate on topics equally (JUMP draws the bottom half of a row,
 CORE spreads across all of `weights`) — so the measured mix wasn't the configured ratio at all.
 JUMP centred on **0.229**, not 0.25, leaving its true mean under 2σ from the failure edge. That
@@ -3784,21 +3918,21 @@ Fixed both: pools to 400/topic (means re-centre on 0.402 / 0.349 / 0.250, and a 
 "the page filled" so it can't silently regress), and eight fixed seeds pooled into one 8000-draw
 sample. Determinism paid for a **tighter** tolerance — ±0.02, 2.5× stricter than what it replaces —
 so the de-flaked test is a better regression detector than the flaky one, verified by injecting a
-`tierCore 40→35 / tierJump 25→30` change and watching it fail. The file's *other* `Math.random`
+`tierCore 40→35 / tierJump 25→30` change and watching it fail. The file's _other_ `Math.random`
 tests were deliberately left alone: they assert invariants ("never lands back on start"), where
 unseeded draws usefully fuzz a bit more of the space each run. **The lesson worth keeping:** a
-statistical test's fixture has to be able to *reach* the thing it measures — a starved fixture
+statistical test's fixture has to be able to _reach_ the thing it measures — a starved fixture
 silently changes what the assertion means, and reads as rng noise.
 
 **Branch housekeeping:** `phase-3.3-curation` and `phase-5.2-landing-signin` deleted both sides.
-Git reported them unmerged because both landed as *squash* merges (PRs #8 and #13), so the branch
+Git reported them unmerged because both landed as _squash_ merges (PRs #8 and #13), so the branch
 tips were never ancestors of `main` — content verified present on `main` before deleting.
 `archive-seed` deliberately survives: it's live post-MVP work, not a stale branch.
 
 **Phase 5.5 planned** — `docs/PHASE5_PLAN_5.5.md`, written to execute cold. Four decisions put to
-Ben, all sided with the recommendation: one collection per item (picking another row *moves* it,
+Ben, all sided with the recommendation: one collection per item (picking another row _moves_ it,
 matching the prototypes' `{itemId: collectionName}` shape); `saves.toggle` removed rather than kept
-(verified dead — nothing in `src/` or `e2e/` calls it, *not even* the `/feed` placeholder the
+(verified dead — nothing in `src/` or `e2e/` calls it, _not even_ the `/feed` placeholder the
 BUILD_PLAN line assumed did, so SPEC §7's six-procedure surface changes); all six share targets via
 `navigator.share` with a toast fallback rather than six brittle per-service intent URLs; and the
 Save-image row deferred to 5.7, since it needs a server-side image proxy (museum hosts bot-block
@@ -3807,9 +3941,9 @@ third-party fetchers) and image contexts don't exist until then.
 **The plan's main finding, which the BUILD_PLAN line got wrong:** the pill's bookmark sheet has
 **two modes**, not one. With an item in context (item pages, gallery) it's a save sheet — title
 "Save to collection", accent dot + "Already saved here", picking assigns. With no item (the feed
-pill) it's a *browse* sheet — title "Your collections", "Everything kept" + counts + "New
+pill) it's a _browse_ sheet — title "Your collections", "Everything kept" + counts + "New
 collection · Make one on your profile", picking navigates to Saved. Two components over one shell,
-not one component with a flag. Same read also settled that collection *creation* lives on Profile
+not one component with a flag. Same read also settled that collection _creation_ lives on Profile
 (5.10) — so 5.5 ships no `createCollection` procedure, keeping the discipline that just deleted
 `toggle` — and that the feed's long-press item sheet ("Closer Look" + compact rows, on a third
 animation, `ambitmenurise`) is 5.6's, not 5.5's. Drag-to-close likewise turns out to belong to
@@ -3832,7 +3966,7 @@ being built, which is the correct starting state and not a bug to chase.
 browser while being wrong on iOS. Still carried forward: the landing hero/wordmark crowding (0px
 gap — 5.11 replaces that screen wholesale).
 
-*Session spend: 14.89M tok (in 264 · out 155.5k · cache r 13.44M / w 1.29M) · ~$23.21 · opus-5 + opus-4-7 · 09:01→12:12*
+_Session spend: 14.89M tok (in 264 · out 155.5k · cache r 13.44M / w 1.29M) · ~$23.21 · opus-5 + opus-4-7 · 09:01→12:12_
 
 **Then executed 5.5 in the same session** — Ben said go rather than handing the plan to a cheaper
 model, so the plan-then-execute-cheaper split didn't apply again. Walkthrough:
@@ -3852,26 +3986,27 @@ the share targets needed explicit `aria-label`s (three of six are a bare letter 
 announces as "X X" at best and "P" at worst).
 
 **Two findings that will matter in 5.8**, which has far more animation to test than this:
+
 1. **jsdom implements no `AnimationEvent` at all**, so React never delivers a synthetic
    `onAnimationEnd` there — probed four ways (from a child with `bubbles: true`, a manual bubbling
    `dispatchEvent`, directly on the handler element, testing-library's default init), all zero
-   calls. This began as "why won't my exit-animation test pass" and ended as "it *can't*." The sheet
+   calls. This began as "why won't my exit-animation test pass" and ended as "it _can't_." The sheet
    attaches a **native** listener via a ref instead: testable, and it's the path a browser actually
    takes. Also needs an `e.target === el` guard, since `animationend` bubbles and any child
    animation would otherwise tear the sheet down mid-exit.
 2. **The exit state is adjusted during render, not in an effect.** The first version tripped
    `react-hooks/set-state-in-effect`, which turned out to be flagging a real defect rather than
-   style: an effect renders the closed sheet once and *then* re-renders it as leaving — a visible
+   style: an effect renders the closed sheet once and _then_ re-renders it as leaving — a visible
    flicker on the way out. React's documented "adjusting state when a prop changes" pattern fixes it
    and shrinks the component to one `leaving` bit with `mounted = open || leaving` derived.
 
 **An e2e investigation that took a wrong turn worth recording.** After a 12-hour-old hung dev server
 (holding port 3000 with no listening socket, so Playwright could neither reuse nor replace it) was
 cleared, the suite failed one auth test on the `auth-error` assertion; re-run, it failed a
-*different* test on the *same* assertion (`test.describe.serial` aborts the file, so the two runs
+_different_ test on the _same_ assertion (`test.describe.serial` aborts the file, so the two runs
 stopped at different points). The obvious next move — A/B against `main` — passed 7/7 and looked
 like proof the regression was 5.5's. **It wasn't.** `main`'s tree was already warm from the
-preceding runs, so that comparison varied branch *and* compile state together. Warmth alone was the
+preceding runs, so that comparison varied branch _and_ compile state together. Warmth alone was the
 real variable: every failure was a first run after a code change, with Next still compiling routes
 on demand; warm, the branch went 7/7 three times running at ~14s. Same false-alarm class 5.4
 recorded, plus a sharper lesson — **an A/B is only evidence if it isolates one variable** — and a
@@ -3884,13 +4019,13 @@ animation — all of which pass on a desktop while being wrong on iOS), then 5.6
 third animation, `ambitmenurise`). Still carried forward: the landing hero/wordmark crowding (0px
 gap — 5.11 replaces that screen wholesale).
 
-*Session spend: 66.61M tok (in 553 · out 243.5k · cache r 65.68M / w 681.0k) · ~≥$44.36 · opus-5 + opus-4-7 + &lt;synthetic&gt; · 12:12→13:55*
+_Session spend: 66.61M tok (in 553 · out 243.5k · cache r 65.68M / w 681.0k) · ~≥$44.36 · opus-5 + opus-4-7 + &lt;synthetic&gt; · 12:12→13:55_
 
 **Then `/code-review` over the merged range — ten findings, all applied** (`05e77d6`, merged
-`988e221`). Two were real defects, and they're the same *kind* of mistake: code that works in the
+`988e221`). Two were real defects, and they're the same _kind_ of mistake: code that works in the
 one place it was exercised.
 
-1. **`/dev/tokens` was permanently burning the corpus.** `feed.page` is declared a tRPC *query* and
+1. **`/dev/tokens` was permanently burning the corpus.** `feed.page` is declared a tRPC _query_ and
    reads like one, but `getFeedPage` calls `markSeen` unconditionally and `seen_item` has no TTL by
    design — so every visit to the style guide consumed a page of the signed-in user's feed forever,
    and with the 30s `staleTime` plus React Query's default `refetchOnWindowFocus`, tabbing back
@@ -3906,7 +4041,7 @@ one place it was exercised.
    reading CSS instead of screenshots.
 
 Third medium: save failures were silent (the sheet dismisses the instant a row is picked, so a
-failed write looked like a success). `onError` is now a *required* prop, which is why the type
+failed write looked like a success). `onError` is now a _required_ prop, which is why the type
 checker immediately found all four call sites — a case where making the API stricter did the
 finding for me.
 
@@ -3919,7 +4054,7 @@ collections" rather than "never seeded", which is harmless until deletion exists
 call site and written into BUILD_PLAN's 5.10 line instead of migrated speculatively.
 
 **A bug found while fixing, worth keeping next to the `AnimationEvent` one:** the focus trap's first
-draft filtered candidates by `offsetParent !== null`, which reports `null` for *everything* under
+draft filtered candidates by `offsetParent !== null`, which reports `null` for _everything_ under
 jsdom — the trap would have tested as empty while working fine in a browser. Twice in one phase now,
 **jsdom's missing layout and event interfaces quietly inverted what a DOM test proved.** Worth
 remembering in 5.8, which is almost entirely gesture and animation.
@@ -3927,14 +4062,14 @@ remembering in 5.8, which is almost entirely gesture and animation.
 279 tests (was 268), build clean, e2e 7/7. 5.5 is still **code complete, not done** — the on-device
 pass remains, and two of these three defects are exactly the sort it exists to catch.
 
-*Session spend: 31.62M tok (in 184 · out 64.6k · cache r 31.36M / w 198.1k) · ~$18.87 · opus-5 + opus-4-7 · 13:55→14:11*
+_Session spend: 31.62M tok (in 184 · out 64.6k · cache r 31.36M / w 198.1k) · ~$18.87 · opus-5 + opus-4-7 · 13:55→14:11_
 
 **Round two: reviewing the fixes found that the fix was broken.** Four more findings, and the first
 is the one worth keeping: **the accessibility work from round one didn't survive a re-rendering
 parent.** `BottomSheet`'s focus effect listed `onClose` in its deps, and every call site passes a
-fresh inline arrow — so *any* parent render while a sheet was open tore the effect down and rebuilt
+fresh inline arrow — so _any_ parent render while a sheet was open tore the effect down and rebuilt
 it, yanking focus off whatever the user had tabbed to and re-recording the restore target as a
-control *inside* the sheet. Closing then "restored" focus to a node about to be unmounted: exactly
+control _inside_ the sheet. Closing then "restored" focus to a node about to be unmounted: exactly
 the failure the change was written to prevent. `onClose` is in a ref now, and the guard was
 mutation-tested — putting the old dependency array back fails it.
 
@@ -3956,36 +4091,38 @@ CI. 282 tests, build clean, e2e 7/7.
 **Also answered, not a bug:** `bun run invite` sends no email — it's an admin script that inserts an
 `invite` row so the sign-up gate accepts an address (SPEC §3.1). The only mail the app ever sends is
 the password reset, and in dev it goes to Mailpit (`localhost:1025`, UI on `:8025`), never a real
-inbox; `requireEmailVerification` is deliberately off because the invite list *is* the trust anchor.
+inbox; `requireEmailVerification` is deliberately off because the invite list _is_ the trust anchor.
 Worth knowing before the device pass: port 3000 is currently held by an unrelated `node` app, and
 `BETTER_AUTH_URL` is pinned to `http://localhost:3000`, so Ambit has to own that port or every auth
 callback and reset link points at the wrong server.
 
-*Session spend: 18.67M tok (in 95 · out 44.0k · cache r 17.31M / w 1.31M) · ~$22.71 · opus-5 + opus-4-7 · 14:11→23:19*
+_Session spend: 18.67M tok (in 95 · out 44.0k · cache r 17.31M / w 1.31M) · ~$22.71 · opus-5 + opus-4-7 · 14:11→23:19_
 
 ### The on-device pass — started, **still blocked**, picking up in the morning
 
 **Unresolved: on Ben's phone, `/dev/tokens` renders but nothing on it responds to a tap.** Two fixes
-went in tonight that were each real defects but *neither resolved it*. Recording that plainly so
+went in tonight that were each real defects but _neither resolved it_. Recording that plainly so
 tomorrow doesn't start from a false premise.
 
 **Fixed on the way, both genuine, neither the cause:**
+
 1. **The auth card's mode-switch links were 20px tap targets.** "First time? Create your account" —
    the only route to sign-up — was a bare 13px text button with no padding (measured 207×20, against
    Apple's 44px minimum). Now 231×44 via `py-3`/`min-h-11` with a compensating negative margin, on
    all five of the card's text buttons. Verified with a touch tap 4px from the top edge, which
    missed the old box entirely. Ben got signed in, so this was at worst contributory.
 2. **A precaching service worker was running in front of the dev server.** The app registered its
-   ~120KB Serwist worker in *every* environment. Against a dev server whose chunk URLs change on
+   ~120KB Serwist worker in _every_ environment. Against a dev server whose chunk URLs change on
    each rebuild, a device that loaded the app earlier keeps being served stale JS: the HTML and CSS
    are fine so the page looks right, but the hydration bundle doesn't match and no handler is ever
-   attached — silent in the terminal *and* the console, which is what made it expensive. Now
+   attached — silent in the terminal _and_ the console, which is what made it expensive. Now
    production-only, plus a dev-only `SwCleanup` that unregisters any already-installed worker and
    clears its caches (registration alone can't help a device that already has one). Verified
    behaviourally: real `next start` still registers `/serwist/sw.js`; dev reports 0 registrations,
    0 caches, 33 interactive buttons.
 
 **Ruled out, with evidence — don't re-tread these:**
+
 - **Not a WebKit/Safari bug.** Installed Playwright's webkit and drove `/dev/tokens` through
   Safari's own engine on a fresh profile: 33 buttons, the accent switcher flips `data-accent`, no
   page errors, even with a service worker controlling the page.
@@ -3994,7 +4131,7 @@ tomorrow doesn't start from a false premise.
 - **Not the auth state.** Ben is signed in and onboarded (3 topics).
 
 **The cheap discriminator to run first in the morning** (nobody has actually run it yet, which is
-the real gap in tonight's debugging — every hypothesis was tested against *my* browsers, never
+the real gap in tonight's debugging — every hypothesis was tested against _my_ browsers, never
 against the failing device): **have Ben tap an accent swatch at the top of `/dev/tokens`.** Those are
 pure client state, no network and no tRPC. If the accent changes, hydration is fine and the problem
 is confined to the backbone section's data path; if it doesn't, the page's JS isn't running at all on
@@ -4002,9 +4139,9 @@ that device and the next step is Safari Web Inspector over USB — the actual co
 phone, which is the one piece of evidence this whole investigation never had.
 
 Also worth checking in the morning: whether `SwCleanup` fired on his device at all, and whether the
-phone is loading a cached *document* rather than a fresh one.
+phone is loading a cached _document_ rather than a fresh one.
 
-*Session spend: 40.47M tok (in 218 · out 77.7k · cache r 40.13M / w 264.0k) · ~$23.97 · opus-5 + opus-4-7 · 23:19→00:17*
+_Session spend: 40.47M tok (in 218 · out 77.7k · cache r 40.13M / w 264.0k) · ~$23.97 · opus-5 + opus-4-7 · 23:19→00:17_
 
 ### [[08-13-26 Thu]] — Phase 5.4 (Feed) planned, then paused pending a design redo
 
@@ -4040,7 +4177,7 @@ None of that is design-dependent.
 lives once `/feed`'s throwaway placeholder is deleted (the design handoff has no sign-out
 affordance anywhere on any screen). The plan's first draft suggested relocating it to
 `/dev/tokens`, but that route hard-`notFound()`s in production — meaning that "recommendation"
-would make sign-out *categorically* unreachable for real users, not just harder to find. Caught
+would make sign-out _categorically_ unreachable for real users, not just harder to find. Caught
 before Ben was asked to sign off on it; still unresolved, flagged clearly in the saved plan's
 Decision 1 for whenever this resumes.
 
@@ -4055,7 +4192,7 @@ against it, reuse the backend/primitive research verbatim, redo only the visual-
 constant verification, and resolve the sign-out placement question (may be moot if the new design
 addresses it directly) before writing anything executable.
 
-*Session spend: 32.22M tok (in 278 · out 192.1k · cache r 30.05M / w 1.97M) · ~$16.52 · sonnet-5 + opus-4-7 · 22:41→12:20*
+_Session spend: 32.22M tok (in 278 · out 192.1k · cache r 30.05M / w 1.97M) · ~$16.52 · sonnet-5 + opus-4-7 · 22:41→12:20_
 
 ### [[08-12-26 Wed]] — Phase 5.3 planned: onboarding (`docs/PHASE5_PLAN_5.3.md`)
 
@@ -4072,6 +4209,7 @@ entirely UI wiring plus one small new repo helper, not new backend work — clos
 "primitives already exist, just assemble them" shape than to 4.x's from-scratch service work.
 
 **Findings that shaped the plan:**
+
 - **`src/server/config/topics.ts`'s own header comment settles the chip-order question**: "This is
   not the onboarding chip order — that's Phase 5.3's call, and it reads from this array rather than
   from the DB." Taken literally — chip data/order comes from the static `TOPICS` config, not a
@@ -4103,29 +4241,30 @@ site, not worth generalizing yet.
 
 **Open / next:** execute `docs/PHASE5_PLAN_5.3.md` in a cheaper session on `phase-5.3-onboarding`.
 
-*Session spend: 10.71M tok (in 206 · out 130.6k · cache r 10.21M / w 373.5k) · ~$4.84 · sonnet-5 · 15:21→15:37*
+_Session spend: 10.71M tok (in 206 · out 130.6k · cache r 10.21M / w 373.5k) · ~$4.84 · sonnet-5 · 15:21→15:37_
 
 **Review pass (same day, switched to Opus 5).** Re-read the plan against the codebase rather than
 against itself. Three things were wrong, all of which would have cost the executing session real
 time, and all of which came from the same root cause — **writing spec from the prototype's inline
 styles and my own memory instead of checking the repo's actual toolchain and the handoff's shared
 sections**:
+
 - **Tailwind v3 gradient syntax in a v4.3.3 repo.** `bg-gradient-to-t`/`from-[62%]` should be
   `bg-linear-to-t`/`from-62%`. Verified against Tailwind's docs. The failure mode is nasty: a v3
-  name renders *no background at all*, so the sticky bar loses its fade and chips scroll visibly
+  name renders _no background at all_, so the sticky bar loses its fade and chips scroll visibly
   underneath it with nothing obviously "broken" to point at.
 - **`to-transparent` where the prototype says `rgba(22,20,17,0)`.** Not interchangeable —
-  `transparent` is transparent *black* and can band mid-fade. Now `to-bg/0`.
+  `transparent` is transparent _black_ and can band mid-fade. Now `to-bg/0`.
 - **Rise-in motion omitted entirely.** I'd checked the onboarding prototype (which doesn't implement
   it) and missed that the README puts rise-in in its **shared** Motion section — a global token, not
   a landing-only flourish. The prototype files are inconsistent about applying it; the spec wins.
-  *Generalizable lesson for 5.4–5.8: check the handoff's shared sections, not just the per-screen
-  one — the prototypes under-implement the global tokens.*
+  _Generalizable lesson for 5.4–5.8: check the handoff's shared sections, not just the per-screen
+  one — the prototypes under-implement the global tokens._
 
 Also hardened: navigate with `router.replace` (a `push` leaves `/onboarding` in history, where
 backing into it bounces forward to `/feed` and the back button reads as broken); flagged a stale
 client Router Cache on `/feed` as the subtlest failure mode (would present as the redirect guard
-looping — deliberately *not* pre-patched, just told the executor to walk that transition first);
+looping — deliberately _not_ pre-patched, just told the executor to walk that transition first);
 wrote out the actual `vi.mock` skeleton for `~/trpc/react`, since `useMutation()` is a hook
 returning an object and is much harder to mock than 5.2's plain-function `authClient` — and pinned
 the component to local `submitting` state so the mock stays one field wide. Fixed a step-ordering
@@ -4135,7 +4274,7 @@ the re-pick gap explicitly — `setUserTopics` supports weight-preserving re-pic
 redirect makes it unreachable until Phase 9 settings, so it shouldn't get built here or refiled as
 a bug later.
 
-*Session spend: 12.98M tok (in 148 · out 77.5k · cache r 12.18M / w 716.8k) · ~$14.57 · opus-5 + sonnet-5 · 15:37→16:14*
+_Session spend: 12.98M tok (in 148 · out 77.5k · cache r 12.18M / w 716.8k) · ~$14.57 · opus-5 + sonnet-5 · 15:37→16:14_
 
 **Execution pass (same day, cheaper Sonnet 5 session, cold on the plan above).** Worked
 `docs/PHASE5_PLAN_5.3.md`'s 7 steps in order on `phase-5.3-onboarding`, verifying each against the
@@ -4161,7 +4300,7 @@ this is the first other inline error slot in the app since that finding.
 **Open / next:** Phase 5.4 — Feed screen. Real `/feed` replaces the placeholder this phase's guard
 now points at; first real consumer of `src/trpc/server.ts`'s RSC-prefetch plumbing.
 
-*Session spend: 34.01M tok (in 526 · out 105.8k · cache r 33.58M / w 331.4k) · ~$9.10 · sonnet-5 · 22:24→22:41*
+_Session spend: 34.01M tok (in 526 · out 105.8k · cache r 33.58M / w 331.4k) · ~$9.10 · sonnet-5 · 22:24→22:41_
 
 ### [[08-12-26 Wed]] — Phase 5.2 executed and landed: landing / sign-in
 
@@ -4180,6 +4319,7 @@ Mailpit — 207 unit tests total, all green; `bun run build` under CI's placehol
 
 **Two real bugs, both caught by the plan's own checkpoints, neither visible from reading the
 code:**
+
 - **Sign-in/sign-up succeeded but never navigated anywhere.** The submit handler cleared
   `submitting` and returned on success with no `router.push` — `/`'s server-side redirect only
   fires on a fresh page load, so a client-side sign-in left the user staring at their own form
@@ -4197,7 +4337,7 @@ code:**
 **A third bug, found in passing, scoped beyond this phase's own files:** `cn()`'s plain
 `twMerge` didn't recognize `.border-hairline` (5.1's custom 0.5px border utility) and
 misclassified it into the same conflict group as `border-ink/NN` — silently dropping it from
-*every* component using the design system's own documented `border-hairline border-ink/12` idiom
+_every_ component using the design system's own documented `border-hairline border-ink/12` idiom
 (confirmed via `getComputedStyle`: `Input`/`Button` rendered a 1px border, not the specced
 0.5px hairline, with the class entirely absent from the DOM). Root-caused and fixed at the one
 shared choke point (`extendTailwindMerge` in `src/lib/utils.ts`), plus removed a redundant
@@ -4215,13 +4355,13 @@ this, only real-browser Playwright specs do).
 **Open / next:** plan Phase 5.3 — Onboarding (`/onboarding`, the topic-chip grid) against the now-
 real sign-up flow this phase lands users at the front of.
 
-*Session spend: 72.70M tok (in 804 · out 278.7k · cache r 70.87M / w 1.55M) · ~≥$23.18 · sonnet-5 + <synthetic> · 08:38→10:17*
+_Session spend: 72.70M tok (in 804 · out 278.7k · cache r 70.87M / w 1.55M) · ~≥$23.18 · sonnet-5 + <synthetic> · 08:38→10:17_
 
 ### [[08-11-26 Tue]] — Phase 5.2 planned: landing / sign-in (`docs/PHASE5_PLAN_5.2.md`)
 
 **Mode:** Opus planning session per the plan-then-execute-cheaper workflow — no app code; the
 deliverable is `docs/PHASE5_PLAN_5.2.md`, self-contained for a cold cheaper-model session.
-Planned against the *now-real* 5.1 primitive API rather than an imagined one, which was the whole
+Planned against the _now-real_ 5.1 primitive API rather than an imagined one, which was the whole
 reason 5.2–5.8 were left unplanned last time. Scoped to 5.2 alone, same rationale.
 
 **Ben's calls (four, all taken as recommended):** mode-toggle auth card (rejecting an email-first
@@ -4231,8 +4371,9 @@ mode only; a throwaway `/feed` placeholder deleted in 5.4; Playwright specs writ
 until 7.1 gives CI a Postgres.
 
 **Findings that reshaped the task:**
+
 - **The reset email doesn't link to our page.** Better Auth builds
-  `{baseURL}/api/auth/reset-password/{token}?callbackURL=…` — *its own* GET endpoint, which
+  `{baseURL}/api/auth/reset-password/{token}?callbackURL=…` — _its own_ GET endpoint, which
   validates the token and only then bounces to `/reset-password?token=…` **or**
   `?error=INVALID_TOKEN`. So `/reset-password` is unavoidably in 5.2's scope and has to handle both
   query shapes. Also: `resetPassword` does **not** sign the user in, and `requestPasswordReset`
@@ -4243,10 +4384,10 @@ until 7.1 gives CI a Postgres.
   belongs only where a real `getSession` runs; `proxy.ts` needs no changes at all this phase.
 - **Two 5.1 primitives actively fight this screen.** `Button` hardcodes `type="button"`, so a real
   `<form>` would silently never submit; and its `disabled` branch swaps an accent button onto the
-  *ghost* ladder — right for Onboarding's "Pick N more", wrong mid-submit, presenting as a CTA that
+  _ghost_ ladder — right for Onboarding's "Pick N more", wrong mid-submit, presenting as a CTA that
   turns grey while loading. Neither is a bug in 5.1 (both are correct for what 5.1 built against);
   they're the first evidence of what happens when the primitives meet a screen with real async
-  state. `Input` also has no placeholder color — fixed *in the primitive*, not at the call site.
+  state. `Input` also has no placeholder color — fixed _in the primitive_, not at the call site.
 - **The design handoff has no sign-out affordance on any screen.** Surfaced only because the
   throwaway placeholder needed somewhere to put one. That's a real Phase 9 settings gap, logged
   here so it isn't rediscovered later.
@@ -4269,7 +4410,7 @@ The visual gate is `/` at 402×874 against `screenshots/01-landing.png` in all f
 functional gate is the full loop by hand through Mailpit (uninvited refusal → invite → sign-up →
 sign-out → sign-in → wrong password → reset → old password rejected).
 
-*Session spend: 6.41M tok (in 122 · out 113.9k · cache r 5.95M / w 343.8k) · ~$9.26 · opus-5 · 12:38→15:22*
+_Session spend: 6.41M tok (in 122 · out 113.9k · cache r 5.95M / w 343.8k) · ~$9.26 · opus-5 · 12:38→15:22_
 
 ### [[08-10-26 Mon]] — Phase 4.2 landed — **Phase 4 complete**
 
@@ -4280,7 +4421,8 @@ technical narrative lives in `docs/PHASE4_WALKTHROUGH_4.1.md` / `_4.2.md`; SPEC 
 `knobs`-gating and rate-limiting paragraphs in the same merge.
 
 **Findings:**
-- ***The log stopped tracking reality for two days.*** 4.1 and 4.2 both executed *and merged* on
+
+- _**The log stopped tracking reality for two days.**_ 4.1 and 4.2 both executed _and merged_ on
   08-08 in separate cheaper-model sessions, and neither wrote back here — `log.md`'s newest entry
   still read "Phase 4 **planned**" while `main` already carried both. Nothing was lost (the
   walkthrough docs caught the detail), but `/brief` ran on a two-day-stale picture. This is the
@@ -4289,16 +4431,17 @@ technical narrative lives in `docs/PHASE4_WALKTHROUGH_4.1.md` / `_4.2.md`; SPEC 
   forward:** the executing session writes its own entry, and the session that lands the PR checks
   for the gap before merging.
 - **`PHASE4_WALKTHROUGH_4.2.md`'s first "finding for later tasks" was already stale when written** —
-  it flags `FEED_DEBUG` knob-gating as having zero test coverage, but the *next* commit
+  it flags `FEED_DEBUG` knob-gating as having zero test coverage, but the _next_ commit
   (`b841bc7`, a review fix) added exactly that coverage: 4 cases in `services/feed.test.ts`
   covering explicit off/on plus the `NODE_ENV=development` fallback both ways. Corrected in the
   doc in this commit, so the finding list doesn't send someone to redo it. Ordering hazard worth
-  remembering: a walkthrough written *before* the review-fix pass describes the pre-review tree.
+  remembering: a walkthrough written _before_ the review-fix pass describes the pre-review tree.
 
 **Open / next:**
+
 - **Phase 5.1 — design system foundation** is the next box (Tailwind theme from the handoff
-  tokens, 4-accent system, Newsreader, shared primitives). Per PHASE4_PLAN the *first shippable
-  moment* is 5.4, so 5.1–5.4 is the run that produces something to actually look at.
+  tokens, 4-accent system, Newsreader, shared primitives). Per PHASE4_PLAN the _first shippable
+  moment_ is 5.4, so 5.1–5.4 is the run that produces something to actually look at.
 - One real carry-forward from 4.2: **the rate limiter is untested under concurrent load.** The
   sliding window is unit-tested with an injected clock and `trustedClientIp`'s spoof-resistance is
   tested directly, but nothing exercises the 120 req/min threshold end-to-end. Deliberate — it's
@@ -4308,7 +4451,7 @@ technical narrative lives in `docs/PHASE4_WALKTHROUGH_4.1.md` / `_4.2.md`; SPEC 
   that precondition is now met and the `archive-seed` branch here is free to rebase onto current
   `main` whenever the archive service is real.
 
-*Session spend: 1.37M tok (in 46 · out 16.6k · cache r 1.17M / w 187.3k) · ~$2.18 · opus-5 + sonnet-5 · 10:46→12:05*
+_Session spend: 1.37M tok (in 46 · out 16.6k · cache r 1.17M / w 187.3k) · ~$2.18 · opus-5 + sonnet-5 · 10:46→12:05_
 
 **Same day, continued — Phase 5.1 planned (`docs/PHASE5_PLAN.md`).** Planning only, no app code;
 the doc is self-contained for a cold cheaper-model session. **Deliberately scoped to 5.1 alone** —
@@ -4316,7 +4459,8 @@ the doc is self-contained for a cold cheaper-model session. **Deliberately scope
 goes stale.
 
 **Findings that reshaped the task:**
-- **The prototypes have no token system.** Every value is a hard-coded inline style; the *only* CSS
+
+- **The prototypes have no token system.** Every value is a hard-coded inline style; the _only_ CSS
   variable in the whole handoff bundle is `--ambit-accent`, on one input, so a `:focus` rule can
   reach it. "Tokens as CSS vars" is net-new authoring, not a port — and the prototypes disagree with
   each other in ~10 places (rise 8px vs 10px, sheet 103% vs 105%, Feed's props JSON even declares
@@ -4327,8 +4471,9 @@ goes stale.
   `/onboarding`; nothing covers `/dev/*`. The plan requires it to `notFound()` outside development.
 
 **Decisions:**
+
 - **One ink color, not forty-one alphas.** The prototypes carry 19 distinct muted-text alphas, 12
-  border, 10 fill — hand-authoring noise against a README that specifies *ranges*. Tailwind v4's
+  border, 10 fill — hand-authoring noise against a README that specifies _ranges_. Tailwind v4's
   opacity modifier runs on `color-mix()` and works on any `--color-*`, so the whole muted/border/fill
   system collapses to `--color-ink: #EFEBE0` plus a normalized alpha ladder. (v3's
   `rgb(var(--x) / <alpha-value>)` channel trick is exactly what a model trained earlier reaches for
@@ -4358,7 +4503,7 @@ strictly required under Vitest 4, and jsdom-vs-happy-dom currency.
 The visual gate is `/dev/tokens` on a real phone at the 402×874 design viewport, all four accents,
 against `docs/design_handoff_ambit_pwa/screenshots/`.
 
-*Session spend: 4.73M tok (in 76 · out 133.7k · cache r 4.00M / w 591.1k) · ~$11.26 · opus-5 · 12:05→14:05*
+_Session spend: 4.73M tok (in 76 · out 133.7k · cache r 4.00M / w 591.1k) · ~$11.26 · opus-5 · 12:05→14:05_
 
 **Same day, continued — Phase 5.1 landed** (squash-merged
 [#12](https://github.com/Ibenthinkin/Ambit/pull/12) → `main` at `3d39e9d`, merged by Ben directly
@@ -4368,11 +4513,12 @@ plan-then-execute-cheaper workflow. Full narrative in `docs/PHASE5_WALKTHROUGH_5
 ladder; CLAUDE.md's stale "Pre-scaffold" status corrected.
 
 **Shipped:** the design system foundation — Tailwind v4 tokens (`src/styles/globals.css`, `@theme`
-+ `@theme inline`), the 4-accent runtime knob (`[data-accent]` on `<html>`, gold default),
-Newsreader via `next/font` (Geist removed), 11 icons, 11 shared primitives
-(`src/components/ui/`), and `/dev/tokens` as the proof page. Also the project's first UI test
-layer (`@testing-library/react` + jsdom, opt-in per file via `// @vitest-environment jsdom`) — 21
-new component tests, 193 total, all green.
+
+- `@theme inline`), the 4-accent runtime knob (`[data-accent]` on `<html>`, gold default),
+  Newsreader via `next/font` (Geist removed), 11 icons, 11 shared primitives
+  (`src/components/ui/`), and `/dev/tokens` as the proof page. Also the project's first UI test
+  layer (`@testing-library/react` + jsdom, opt-in per file via `// @vitest-environment jsdom`) — 21
+  new component tests, 193 total, all green.
 
 **Verified, not just built:** confirmed the plan's single highest-risk item — `@theme inline`
 resolving a runtime-swapped accent — actually works, live, in a running `bun run dev` server via
@@ -4385,7 +4531,7 @@ the icon-button chrome all matched.
 
 **Finding:** the exact gap this log flagged after Phase 4.2 recurred, in miniature — a follow-up
 log-only commit on the feature branch (correcting "PR not yet merged, CI hasn't run" to reflect
-the real state) was pushed *after* Ben had already squash-merged #12, so it landed on the
+the real state) was pushed _after_ Ben had already squash-merged #12, so it landed on the
 now-deleted feature branch instead of `main`. Cherry-picked onto `main` directly (`0efbb21`,
 matching the precedent this same entry's `7375e59` set for doc-only follow-ups) rather than a new
 PR. Worth naming as its own pattern: a merge can happen while the executing session is still
@@ -4394,9 +4540,9 @@ mid-write, not just across a multi-day gap.
 **Open / next:** Phase 5.2 (Landing/sign-in) is next, planned fresh against the now-real primitive
 API rather than an imagined one.
 
-*Session spend: 21.96M tok (in 362 · out 116.9k · cache r 21.54M / w 312.0k) · ~$6.73 · sonnet-5 · 22:10→22:24*
-*Session spend: 8.14M tok (in 101 · out 23.7k · cache r 8.00M / w 121.1k) · ~$2.73 · sonnet-5 + opus-4-7 · 22:24→22:53*
-*Session spend: 7.65M tok (in 74 · out 12.7k · cache r 7.61M / w 26.2k) · ~$1.75 · sonnet-5 · 22:53→23:14*
+_Session spend: 21.96M tok (in 362 · out 116.9k · cache r 21.54M / w 312.0k) · ~$6.73 · sonnet-5 · 22:10→22:24*
+*Session spend: 8.14M tok (in 101 · out 23.7k · cache r 8.00M / w 121.1k) · ~$2.73 · sonnet-5 + opus-4-7 · 22:24→22:53_
+_Session spend: 7.65M tok (in 74 · out 12.7k · cache r 7.61M / w 26.2k) · ~$1.75 · sonnet-5 · 22:53→23:14_
 
 ### [[08-08-26 Sat]] — Phase 4 planned: feed engine & API (`docs/PHASE4_PLAN.md`)
 
@@ -4405,11 +4551,12 @@ the deliverable is `docs/PHASE4_PLAN.md`, self-contained for a cold cheaper-mode
 (tasks 4.1 feed engine / 4.2 tRPC surface, one branch+PR each).
 
 **Decisions:**
+
 - **`seen_item` table, retention = forever** (Ben's call). SPEC §5 never defined a home for §9's
   seen-tracking — the phase0 prototype kept it in localStorage, which quietly became a schema
   gap. New table lands with 4.1's migration; decay/reset affordances are Phase 9 material.
 - **Constant-size stable cursor** — `{v, seed, page, anchor, prev[]}`, where `anchor` is
-  captured *before* the page's seen-rows insert and `prev` carries only the previous page's ids.
+  captured _before_ the page's seen-rows insert and `prev` carries only the previous page's ids.
   That makes the exclusion set reproducible, so refetching a cursor returns the identical page
   even though serving already marked its items seen — SPEC §7's "stable pages on refetch"
   without unbounded cursor growth or server-side page caches. ~400 chars, safe over tRPC's GET
@@ -4424,6 +4571,7 @@ the deliverable is `docs/PHASE4_PLAN.md`, self-contained for a cold cheaper-mode
   rate limiting = in-memory sliding window (single-instance Coolify assumption).
 
 **Findings:**
+
 - `protectedProcedure` **doesn't exist yet** — Phase 2.2 shipped the optimistic proxy redirect
   and left `trpc.ts` with a comment promising the real thing; 4.2 builds it (docs-verified
   Better Auth `getSession` shape + tRPC v11 narrowing idiom are inlined in the plan).
@@ -4434,7 +4582,7 @@ the deliverable is `docs/PHASE4_PLAN.md`, self-contained for a cold cheaper-mode
 **Open / next:** execute `docs/PHASE4_PLAN.md` Task 1 (`phase-4.1-feed-engine`) in a cheaper
 session; probe-feed CLI is the pre-UI feel check before 4.1's box gets ticked.
 
-*Session spend: 5.96M tok (in 104 · out 142.7k · cache r 5.31M / w 513.0k) · ~$22.71 · fable-5 · 08:37→09:05*
+_Session spend: 5.96M tok (in 104 · out 142.7k · cache r 5.31M / w 513.0k) · ~$22.71 · fable-5 · 08:37→09:05_
 
 ### [[08-07-26 Fri]] — Phase 3.4 shipped: ingestion job — Phase 3 complete
 
@@ -4480,7 +4628,7 @@ under its last-topic-wins dedupe). Score distribution matches SPEC §15's calibr
 **Open / next:** Phase 3 is complete. Phase 4 (feed algorithm) is unblocked with a real corpus to
 tune against — `docs/BUILD_PLAN.md`'s Phase 4 section is the next planning target.
 
-*Session spend: 4.43M tok (in 10.0k · out 26.4k · cache r 4.19M / w 205.4k) · ~$2.79 · sonnet-5 + opus-4-7 · 15:07→15:09*
+_Session spend: 4.43M tok (in 10.0k · out 26.4k · cache r 4.19M / w 205.4k) · ~$2.79 · sonnet-5 + opus-4-7 · 15:07→15:09_
 
 ### [[08-07-26 Fri]] — Phase 3.3 shipped: curation service + `drawFromTopic`
 
@@ -4502,19 +4650,20 @@ surface).
 
 **Findings — both infrastructure, not curation logic, and both fixed at the root rather than
 worked around:**
+
 - **Vitest doesn't resolve the `~/*` tsconfig path alias.** Every adapter file through 3.2b used
   relative imports, so nothing had yet exercised a test transitively importing a `~/`-aliased
   module. First one to do it (`items.integration.test.ts` → `db/client.ts` → `~/env`) failed
   outright. Fixed once, permanently, with an explicit `resolve.alias` in `vitest.config.ts`.
 - **`bun run test` doesn't get Bun's automatic `.env` loading** — Vitest's bin shebangs to plain
-  Node, unlike `dev`/`build`/`start`, which force `--bun`. Integration tests were *silently
-  self-skipping* even with `docker compose up -d` running and a real `.env` present — technically
+  Node, unlike `dev`/`build`/`start`, which force `--bun`. Integration tests were _silently
+  self-skipping_ even with `docker compose up -d` running and a real `.env` present — technically
   "working as designed" (skip when no DB) but not actually exercising the DB path Step 6 needed.
   Tried forcing `--bun` on vitest to match the existing idiom; that broke `zod`'s package-export
   resolution inside Vite's SSR transform instead (`z.string is not a function`) — reverted.
   Settled on loading `.env` once in `vitest.config.ts` via Node 24's built-in
   `process.loadEnvFile()`, a no-op in CI (no `.env` there) rather than a crash — no new dependency.
-- **A third fix rides along:** `drawFromTopic()` imports `db/client.ts` *dynamically*, inside the
+- **A third fix rides along:** `drawFromTopic()` imports `db/client.ts` _dynamically_, inside the
   function body, not at module scope — otherwise merely importing `items.ts` for the pure
   `drawWeight` tests would trigger `~/env`'s Zod validation, and CI's `bun run test` step runs with
   **zero env vars set** (only the later `bun run build` step supplies them). Verified directly, not
@@ -4525,7 +4674,7 @@ worked around:**
 collision-resolution rule, and this task's curation service into the idempotent job that populates
 the dev DB. Branch `phase-3.3-curation` pushed with a PR open.
 
-*Session spend: 22.23M tok (in 336 · out 117.1k · cache r 21.45M / w 661.3k) · ~$8.11 · sonnet-5 · 14:53→15:07*
+_Session spend: 22.23M tok (in 336 · out 117.1k · cache r 21.45M / w 661.3k) · ~$8.11 · sonnet-5 · 14:53→15:07_
 
 ### [[08-07-26 Fri]] — Phase 3 planned; 3.1 (adapter contract + Wikipedia) shipped
 
@@ -4535,6 +4684,7 @@ scaffolding it builds on (`schema.ts`, `topics.ts`, `items.ts` stubs), verified 
 behaviors via WebFetch (MediaWiki's `imageinfo`/`extmetadata` shape, and that full-article
 extracts cap at 1 page/request vs intro extracts' 20-page batch), then used `AskUserQuestion` to
 settle three open decisions before writing the plan:
+
 - **3.4's multi-topic collision gate (SPEC §15, previously open):** highest-search-rank wins, ties
   broken alphabetically by topic id. Order-independent by construction, replacing Phase 0's
   last-topic-wins dedupe that silently starved earlier topics (astronomy kept 4 of 419 AIC finds).
@@ -4558,10 +4708,11 @@ reusable live-verification CLI. 33 unit tests on fixtures; two live probes (astr
 plus a live `fetchBody` check.
 
 **Findings:**
+
 - **A real bug the live probe caught, not the fixtures:** the first live run returned zero images
   across every item, including ones known to have free-licensed lead images. Cause — MediaWiki
-  normalizes `File:` title underscores to spaces in the `imageinfo` *response*, but the adapter's
-  license lookup was still keyed on the raw underscored value it sent in the *request*. Fixtures
+  normalizes `File:` title underscores to spaces in the `imageinfo` _response_, but the adapter's
+  license lookup was still keyed on the raw underscored value it sent in the _request_. Fixtures
   encoded the correct mapping by construction, so only the live call exposed it; fixed by
   normalizing both sides through one `toFileTitle()` helper. Confirms the plan's live-verification
   step (not just fixture tests) earns its place.
@@ -4575,7 +4726,7 @@ plus a live `fetchBody` check.
 **Open / next:** Task 2 (3.2: Met + AIC adapters), same pattern, reusing the shared plumbing from
 3.1.
 
-*Session spend: 30.92M tok (in 24.4k · out 209.9k · cache r 29.37M / w 1.32M) · ~≥$36.20 · sonnet-5 + fable-5 + <synthetic> · 12:16→13:23*
+_Session spend: 30.92M tok (in 24.4k · out 209.9k · cache r 29.37M / w 1.32M) · ~≥$36.20 · sonnet-5 + fable-5 + <synthetic> · 12:16→13:23_
 
 **Same session, continued — 3.2 (Met + AIC adapters) shipped.** Full detail in
 `docs/PHASE3_WALKTHROUGH_3.2.md`. `met.ts` (N+1 shape: search returns bare IDs, one
@@ -4584,6 +4735,7 @@ records, paginated at the undocumented 100-per-page hard cap). Both register in
 `scripts/probe-adapter.ts`; 11 new unit tests (44 total).
 
 **Findings:**
+
 - **Live fixture-gathering re-confirmed two Phase 0 findings directly, with real examples on
   file:** the Met's `isPublicDomain=true` search filter genuinely lies (fixture objects `745853`
   and `490889` came back from a PD-filtered "machine" search yet are `isPublicDomain: false` on
@@ -4602,7 +4754,7 @@ records, paginated at the undocumented 100-per-page hard cap). Both register in
 
 **Open / next:** Task 3 (3.2b: CMA + Wellcome adapters) — completes the five-adapter registry.
 
-*Session spend: 26.94M tok (in 299 · out 133.4k · cache r 26.38M / w 423.4k) · ~$10.21 · sonnet-5 + opus-4-7 · 13:23→13:31*
+_Session spend: 26.94M tok (in 299 · out 133.4k · cache r 26.38M / w 423.4k) · ~$10.21 · sonnet-5 + opus-4-7 · 13:23→13:31_
 
 **Same session, continued — 3.2b (CMA + Wellcome adapters) shipped. All five v1 source adapters
 complete.** Full detail in `docs/PHASE3_WALKTHROUGH_3.2b.md`. `cma.ts` (friendliest API of the
@@ -4613,6 +4765,7 @@ heterogeneity, every hit's own `thumbnail.license.id` re-checked against the ope
 unit tests (64 total) — all passed on the first run, no debugging cycle needed this time.
 
 **Findings:**
+
 - **CMA's `description` field carries raw HTML** (`<em>`, `<br>`) not mentioned anywhere in
   `phase0/NOTES.md` — the throwaway harvester stored it but never rendered it, so nobody noticed.
   Added `stripHtml()` to `normalize.ts` (CLAUDE.md: never render unsanitized source HTML), designed
@@ -4633,7 +4786,7 @@ these five adapters' raw output into what the feed draws from. **Handing off to 
 here** — Task 3's branch (`phase-3.2b-cma-wellcome`) is committed and pushed with a PR open;
 `docs/PHASE3_PLAN.md` has the full Task 4/5 spec for a cold pickup.
 
-*Session spend: 41.58M tok (in 392 · out 109.2k · cache r 40.24M / w 1.23M) · ~$13.83 · sonnet-5 + opus-4-7 · 13:31→13:53*
+_Session spend: 41.58M tok (in 392 · out 109.2k · cache r 40.24M / w 1.23M) · ~$13.83 · sonnet-5 + opus-4-7 · 13:31→13:53_
 
 ### [[08-06-26 Thu]] — Phase 1 verified complete; Phase 2.2 and 2.3 shipped — **Phase 2 closed**
 
@@ -4650,6 +4803,7 @@ checkpoints included in the plan but run unattended since Ben wasn't present to 
 piece live — the walkthrough doc serves as the after-the-fact record instead.
 
 **Shipped (BUILD_PLAN 2.2 box checked):** full detail in `docs/PHASE2_WALKTHROUGH_2.2.md`.
+
 - Mailer seam (`src/server/services/mailer.ts`): `Mailer` interface, `MailpitMailer`
   (nodemailer), `ResendMailer`, env-switched — same isolation ethos as `SourceAdapter`.
 - `src/lib/auth.ts` fleshed out: `drizzleAdapter` now gets the schema explicitly; invite gating
@@ -4675,6 +4829,7 @@ the plan blindly (confirmed `proxy.ts` exporting `proxy()` is the current conven
 confirmed zero schema diff from the bump before building on top of it.
 
 **Findings:**
+
 - Docker Desktop wasn't running at the start of the execute session — started it, polled for the
   daemon, then `docker compose up -d`. The named Postgres volume from 2.1 had survived (only
   `down -v` would wipe it), so the schema was already migrated; verified with a no-op
@@ -4697,14 +4852,14 @@ confirmed zero schema diff from the bump before building on top of it.
 **Open / next:** 2.3 (topic seed data — the 16 validated topics, per the label mapping settled
 07-17) is next. No UI exists yet; Phase 5.2 is the first point sign-in/sign-up become visible.
 
-*Session spend: 25.94M tok (in 528 · out 134.5k · cache r 25.12M / w 682.6k) · ~$20.35 · sonnet-5 + fable-5 · 10:11→10:32*
+_Session spend: 25.94M tok (in 528 · out 134.5k · cache r 25.12M / w 682.6k) · ~$20.35 · sonnet-5 + fable-5 · 10:11→10:32_
 
 **Third session, same day — 2.3 shipped, Phase 2 complete.** Same plan-then-execute-cheaper split
 (planned on Opus, executed on Sonnet in-session this time rather than a fresh one). Full detail in
 `docs/PHASE2_WALKTHROUGH_2.3.md`. Shipped: `src/server/config/topics.ts` (16 topics, per-source
 seed-query arrays), `scripts/seed-topics.ts` (`bun run db:seed`), and
 `src/server/config/topics.test.ts`. No migration — `seed_queries` shipped back in 2.1's migration
-0000, and narrowing the type in *config only* (`Record<V1Source, string[]>`, assignable to the
+0000, and narrowing the type in _config only_ (`Record<V1Source, string[]>`, assignable to the
 schema's deliberately-open `Record<string, string[]>`) got the typo-safety without touching
 `schema.ts`.
 
@@ -4732,7 +4887,7 @@ was correct throughout; only the reporting lied. Fixed by walking a fixed key li
 
 **Decisions:** seed script upserts with `onConflictDoUpdate` (the repo's first `onConflict*` use),
 deliberately inverting `invite.ts`'s read-first-and-bail — an invite is user data that must never be
-overwritten, a topic is config that *should* re-sync when `topics.ts` is edited. Rejected `star`
+overwritten, a topic is config that _should_ re-sync when `topics.ts` is edited. Rejected `star`
 (193 CMA hits) and `printing type` (4,573 Met hits) despite good counts — hit count isn't relevance.
 Dropped the dead `typography` term from CMA entirely rather than keeping it for appearances.
 Caveat noted for later: `topic-graph.json`'s Astronomy and Machines centroids were built from
@@ -4740,10 +4895,10 @@ AIC-starved samples, so worth a re-look after 3.4's real ingestion.
 
 **Open / next:** Phase 3 — 3.1 (adapter contract + Wikipedia adapter). Backend 3.x/4.x can start
 interleaving with Phase 5 UI work from here. Two things 3.x inherits: the collision rule above, and
-the fact that seed-query *quality* still isn't proven — the retuned queries were verified non-empty
+the fact that seed-query _quality_ still isn't proven — the retuned queries were verified non-empty
 against live APIs, not verified to survive the 3.3 curation floor.
 
-*Session spend: 13.76M tok (in 214 · out 145.7k · cache r 12.73M / w 878.8k) · ~$17.98 · opus-5 + sonnet-5 · 14:42→15:48*
+_Session spend: 13.76M tok (in 214 · out 145.7k · cache r 12.73M / w 878.8k) · ~$17.98 · opus-5 + sonnet-5 · 14:42→15:48_
 
 ## 2026-07
 
@@ -4756,6 +4911,7 @@ plans" or handing the whole thing over. Detailed play-by-play in
 `docs/PHASE2_WALKTHROUGH_2.1.md`, written specifically so he can follow along after the fact.
 
 **Shipped (BUILD_PLAN 2.1 box checked):**
+
 - `docker-compose.yml`: `postgres:17-alpine` + `axllent/mailpit`, verified up/healthy and actually
   accepting connections (not just trusting the health label).
 - The real Drizzle `schema.ts`: Better Auth's `user`/`session`/`account`/`verification` generated
@@ -4783,12 +4939,13 @@ silently (a real convention change, not an implementation detail); he chose to d
 unprefixed table from drizzle-kit).
 
 **Findings:**
+
 - Verified the exact Drizzle DSL for the unfamiliar pieces (GIN index via `.using("gin", ...)`,
   composite PKs via the table-callback `primaryKey({ columns: [...] })` form, typed JSONB via
   `.$type<...>()`) against Drizzle's current docs rather than from memory — installed version is
   0.41.0, plan was written against research done 07-17.
-- `.env` sits outside the assistant's read/write boundary for existing secrets, but *generating and
-  appending* a fresh `BETTER_AUTH_SECRET` (`openssl rand -base64 32`) plus `BETTER_AUTH_URL` is a
+- `.env` sits outside the assistant's read/write boundary for existing secrets, but _generating and
+  appending_ a fresh `BETTER_AUTH_SECRET` (`openssl rand -base64 32`) plus `BETTER_AUTH_URL` is a
   pure local write with nothing to leak — did that directly instead of stopping to ask Ben to
   type it in by hand.
 - First draft of `items.ts` actually implemented `upsertItem` for real before catching, on review,
@@ -4799,7 +4956,7 @@ unprefixed table from drizzle-kit).
 password, invite gating, Mailpit/Resend mailer, auth route + client, middleware) is next, same
 pairing mode, picking up from the minimal `src/lib/auth.ts` already scaffolded this session.
 
-*Session spend: 22.45M tok (in 364 · out 90.1k · cache r 21.88M / w 479.5k) · ~$7.20 · sonnet-5 · 11:11→11:58*
+_Session spend: 22.45M tok (in 364 · out 90.1k · cache r 21.88M / w 479.5k) · ~$7.20 · sonnet-5 · 11:11→11:58_
 
 ### [[07-28-26 Tue]] — Phase 1.1 shipped: scaffold on Next 16, two real bugs caught before they shipped
 
@@ -4814,20 +4971,22 @@ teaching-pass comments landed in next.config.js, env.js, drizzle.config.ts, trpc
 BUILD_PLAN 1.1 box checked.
 
 **Findings — two real bugs, not template defaults:**
+
 - **`eslint-plugin-react` 7.37.5 doesn't support ESLint 10** (its peerDep still caps at `^9.7`) —
   hit a hard crash (`contextOrFilename.getFilename is not a function`) the moment `eslint-config-
-  next@16` pulled in ESLint 10. Pinned ESLint to 9.39.5, the latest 9.x line.
+next@16` pulled in ESLint 10. Pinned ESLint to 9.39.5, the latest 9.x line.
 - **Turbopack's client/server bundle-boundary tracer doesn't elide inline `import { type X }`**
   the way `tsc`/webpack do — it resolved the type-only `AppRouter` import in `src/trpc/react.tsx`
   as a real edge, pulling the `postgres` driver's Node built-ins (`fs`/`net`/`tls`) into the client
   bundle and 500ing both `next dev` and `next build`. Confirmed by isolating the variable: `next
-  build --webpack` compiled clean on the exact same code. Fix: standalone `import type { X }`
+build --webpack` compiled clean on the exact same code. Fix: standalone `import type { X }`
   instead of the inline modifier; also flipped typescript-eslint's `fixStyle` to
   `"separate-type-imports"` so `lint:fix` can't silently reintroduce the pattern project-wide.
 - Both fixes verified under the **actual `--bun` runtime** (not just Bun-as-package-manager) for
   both `dev` and `build` — no Node-runtime fallback needed, unlike the risk the 07-17 plan flagged.
 
 **Decisions:**
+
 - **Dropping the worktree technique after Phase 1.** Ben tried the scaffold hands-on and found the
   isolated-worktree setup (separate directory, separate branch, not reachable by switching
   branches in the main checkout) more confusing than it's worth. Once Phase 1's branch merges back
@@ -4837,6 +4996,7 @@ BUILD_PLAN 1.1 box checked.
   the failure is a clean `TRPCError` from the missing DB, not a leftover bundler regression.
 
 **Open / next (superseded below):**
+
 - Flagged in `PHASE2_PLAN.md`: `create-t3-app` now has an experimental `--betterAuth` flag that
   didn't exist when that plan was written against "create-t3-app doesn't offer Better Auth yet" —
   worth a quick spike before 2.2's hand-wiring to see if it actually covers invite-gated signup.
@@ -4853,18 +5013,20 @@ did 1.2 on a conventional branch (`phase1.2-quality-tooling`, off `main` in the 
 directory) per that decision — PR #1, merged after CI went green.
 
 **Shipped:**
+
 - Vitest, unit-testing a real `cn()` helper (`clsx` + `tailwind-merge`, added since components
   will need it — not a fake placeholder test).
 - Playwright, smoke-testing the home page renders with no console errors (`bun run e2e`, local-only
   — CI has no Postgres until Phase 7.1 adds compose services).
 - `bun run check` meta-script: typecheck → lint → format check → unit tests.
 - GitHub Actions (`.github/workflows/ci.yml`): checkout → setup-bun → `bun install
-  --frozen-lockfile` → `bun run check` → `bun run build` (a placeholder `DATABASE_URL` env var
+--frozen-lockfile` → `bun run check` → `bun run build` (a placeholder `DATABASE_URL` env var
   satisfies `src/env.js`'s build-time validation; nothing actually connects since the home route
   is dynamic, not statically generated). Verified green both on the PR and on push to `main`.
 - BUILD_PLAN 1.2 box checked; 1.1's box updated too (see finding below).
 
 **Findings:**
+
 - **The 1.1 "homepage 500s without Postgres" finding is now superseded, not just documented** —
   trimmed the create-t3-app boilerplate's DB-backed `getLatest` demo query off the home page
   (kept the DB-free `hello` query) so the Playwright smoke test can genuinely pass without
@@ -4873,17 +5035,19 @@ directory) per that decision — PR #1, merged after CI went green.
 - **A worktree's local `.env` doesn't survive `git worktree remove`** — the DB URL that made 1.1's
   dev server boot lived in the worktree's own untracked `.env`, not in the repo. Once the worktree
   was removed, the main checkout's own `.env` (a pre-Phase-1 leftover from Phase 0, holding only
-  the harvester/curator API keys) had no `DATABASE_URL`, so `bun run dev`/`build` failed *env
-  validation* outright rather than the softer "500 at query time" — a sharper failure mode worth
+  the harvester/curator API keys) had no `DATABASE_URL`, so `bun run dev`/`build` failed _env
+  validation_ outright rather than the softer "500 at query time" — a sharper failure mode worth
   knowing about if a worktree's app never got its own committed `.env.example`-derived `.env`.
 
 **Decisions:**
+
 - Confirmed with Ben mid-session: rather than stand up Postgres early or water down the smoke
   test's assertions to match a known-broken page, the right fix was trimming the demo DB call —
   it's throwaway t3 boilerplate due for replacement by the real feed UI anyway, and it keeps the
   "Docker not needed until Phase 2" sequencing intact.
 
 **Open / next (superseded below):**
+
 - 1.3 (PWA shell / `@serwist/next`) is the last item in Phase 1.
 - `PHASE2_PLAN.md`'s `--betterAuth` flag spike and the Docker/Podman-before-Phase-2 need (both
   still open, carried over from above) remain ahead of 2.1.
@@ -4891,6 +5055,7 @@ directory) per that decision — PR #1, merged after CI went green.
 **Later the same day — Phase 1.3 shipped, Phase 1 complete.**
 
 **Shipped:**
+
 - Web app manifest (`src/app/manifest.ts`): name "Ambit", `#161411` theme/background, standalone
   display.
 - App icons: extracted the design handoff's ring-and-dot logo mark (accent gold `#BFA06A`,
@@ -4904,6 +5069,7 @@ directory) per that decision — PR #1, merged after CI went green.
 - BUILD_PLAN 1.3 box checked; Phase 1 marked complete.
 
 **Decisions:**
+
 - **`@serwist/next` → `@serwist/turbopack`, revising the 07-17 gate.** That gate settled on
   `@serwist/next` specifically because Serwist had no Turbopack support at the time — SW would
   have to stay disabled under `next dev` and only get verified against production builds. Docs
@@ -4914,6 +5080,7 @@ directory) per that decision — PR #1, merged after CI went green.
   switching, since it revises a previously-settled gate.
 
 **Findings:**
+
 - **The route handler's directory must be a dynamic `[path]` segment, not a literal `sw.js`
   folder** — got this wrong on the first pass (nested it under a literal `serwist/sw.js/`
   directory to match the `SerwistProvider`'s `swUrl="/serwist/sw.js"`), which surfaced as a
@@ -4941,6 +5108,7 @@ Docker/Podman requirement (both flagged above) are the first things to resolve t
 ### [[07-17-26 Fri]] — Phase 1 gates settled; detailed plan written; Ben takes the wheel
 
 **Decisions:**
+
 - **The two harness judgments left open at the 0.5 gate are provisionally settled** — Ben browsed
   with the Voyage key in place and is happy with both the visual-embeddings column and the
   `--favorites` taste-profile results. Recorded in SPEC §15 as **provisional KEEP** (visual
@@ -4958,13 +5126,14 @@ the 07-17 docs-research findings: create-t3-app still has no Better Auth option 
 scaffold time; `create-next-app` hand-scaffold as fallback); Bun-as-runtime for Next has open
 issues (e.g. oven-sh/bun#26508), so 1.1 includes an explicit checkpoint — verify dev + build
 under `--bun`, fall back to Node runtime + Bun package manager if flaky and record it in SPEC
-§13. Also fixed two stale pre-pivot lines in BUILD_PLAN that the 0.5 sweep missed (3.3's *Done*
+§13. Also fixed two stale pre-pivot lines in BUILD_PLAN that the 0.5 sweep missed (3.3's _Done_
 line and 4.1's body still described `nearestNeighbors`).
 
 **Open / next:** Ben executes Phase 1 himself from `docs/PHASE1_PLAN.md` as a learning exercise
 — the plan doubles as the reference doc. Next session picks up wherever that leaves the tracker.
 
 **Later the same day — Phase 2 planned the same way (`docs/PHASE2_PLAN.md`).**
+
 - **Decision: v1 seeds the 16 graph-validated topics, not the design handoff's 32 chips.**
   Planning surfaced a real mismatch the docs had papered over: the handoff's onboarding grid
   specs 32 chip labels, but the validated topic graph covers 16 topics — and DRIFT/JUMP need a
@@ -4988,16 +5157,17 @@ line and 4.1's body still described `nearestNeighbors`).
 
 **Verdict — the 0.4 gate returns NO on item-level nearest-neighbour recommendation.** Ben browsed
 the harness and couldn't distinguish the variants: all four vector sets produce the same thing, all
-are far too clustered, and chaining is a straight line rather than a drift. Clicking *Poetry
-Fragment (Qit'a) in Nasta'liq Script* returns pages of calligraphy from the same few poems. His
+are far too clustered, and chaining is a straight line rather than a drift. Clicking _Poetry
+Fragment (Qit'a) in Nasta'liq Script_ returns pages of calligraphy from the same few poems. His
 words: "it feels like a direct search… that is not a serendipitous drift, that's just a straight
 line."
 
 **Why (the corpus explains it):**
+
 - **580 of 3168 items sit on a literally duplicated title.** 67 items are titled just `textile`,
   27 `fragment`, 12 `page of calligraphy from an anthology of poetry by sa'di and hafiz`.
 - Met items have a **median title of 4 words and a median summary of 129 chars** (12% under 80).
-- So embedding `title + summary` for a museum object mostly embeds *accession-catalog boilerplate*.
+- So embedding `title + summary` for a museum object mostly embeds _accession-catalog boilerplate_.
   Cosine similarity over that text degenerates into **string matching** — which is exactly why the
   neighbours of the calligraphy fragment were a dozen items whose titles are the same sentence.
 - Compounding it: **top-k NN is by construction an anti-serendipity operator.** It returns the most
@@ -5005,8 +5175,9 @@ line."
   function, not a tuning failure. The 0.4 mid-band toggle was the right instinct but can't rescue a
   corpus whose mid-band is also calligraphy.
 
-**The pivot — embeddings move up a level, from items to topics.** The failure was about *what we
-embedded*, not about embeddings. Separation of concerns, and it's the whole design now:
+**The pivot — embeddings move up a level, from items to topics.** The failure was about _what we
+embedded_, not about embeddings. Separation of concerns, and it's the whole design now:
+
 - **Embeddings choose WHERE to look** — topic level. 16 clean, semantically real concepts.
 - **Random draw + filters choose WHAT to show** — item level, where embeddings failed.
 
@@ -5019,7 +5190,7 @@ and diff in a PR.
 **Trap found — hubness — and it would have shipped silently.** Raw cosine over topic centroids makes
 **Geology the top-2 neighbour of 10 of the 16 topics** (Music→Geology 0.73, Portraiture→Geology 0.70
 — nonsense). Classic high-dimensional pathology: a centroid near the corpus mean is "close" to
-everything, so *every user on the platform drifts into rocks*. Fix is one step —
+everything, so _every user on the platform drifts into rocks_. Fix is one step —
 **subtract the global mean centroid** (the "generic digitised museum object" direction) before
 comparing. Geology drops to 3 top-2 appearances and the graph goes flat. This step is load-bearing;
 without it the feature looks like it works and is broken.
@@ -5032,14 +5203,15 @@ Botany→Textiles 0.22 (dyes, fibres), Ceramics→Geology 0.24 (clay), Astronomy
 structure, drift there is indistinguishable from noise. Script flags them; curate by hand.
 
 **Decisions:**
+
 - **Feed = three tiers over topics, random within a topic.** CORE (user's picked topics) / DRIFT
-  (walk the adjacency row, 1–2 hops, softmax-sampled) / JUMP (the *antipode* — tail of the row — a
+  (walk the adjacency row, 1–2 hops, softmax-sampled) / JUMP (the _antipode_ — tail of the row — a
   principled cross-domain leap rather than mere noise). Item selection inside the chosen topic is
   **random**, never by similarity.
 - **Personalisation-from-saves is dead and stays dead.** SPEC §9's "nearest-neighbours of recently
   saved items" was the item-level NN that failed. Personalisation is now: which topics you pick, and
   which topics you drift toward.
-- **The real work was never the ranking function.** A random draw over *this* corpus still serves
+- **The real work was never the ranking function.** A random draw over _this_ corpus still serves
   "textile" 67 times. Needed in either world, and it's what actually makes the feed feel good:
   a **quality floor at ingest** (drop bare-noun titles, drop items sharing a title with >2 others)
   and **diversity constraints at composition** (no two adjacent cards from one source; cap per
@@ -5047,6 +5219,7 @@ structure, drift there is indistinguishable from noise. Script flags them; curat
 - Keep `phase0/` on disk — `harvest.ts` is still the basis for the real adapters.
 
 **Open / next:**
+
 - ~~Ben is putting the topic-drift proposal to Fable before committing~~ → done, session 2 below.
 - SPEC §9 (feed algo), §5.1 (vector column), §15 (embedding-dimension open question) and the
   CLAUDE.md "**Embeddings are the product**" line are all now **false** and need rewriting once the
@@ -5058,8 +5231,9 @@ structure, drift there is indistinguishable from noise. Script flags them; curat
 
 **Session 3 (night) — ⚖️ THE 0.5 GATE PASSED; Phase 0 closed; docs swept.**
 
-Ben's verdict on `feed.html`: *"it's getting good. definitely on the right track… what I enjoy
-the most is the higher further drift."* Consequences, all landed:
+Ben's verdict on `feed.html`: _"it's getting good. definitely on the right track… what I enjoy
+the most is the higher further drift."_ Consequences, all landed:
+
 - **Default tier mix shifted drift-heavy:** CORE 40 / DRIFT 35 / JUMP 25, second-hop chance
   0.5 (was 55/30/15, hop 0.35). These are now the shipped defaults in SPEC §9. (Anyone with
   stored knobs from an earlier browse: hit "Reset knobs to defaults" to pick them up.)
@@ -5090,12 +5264,13 @@ Ben then re-stated the north star: the feel of **old Tumblr's curated-but-never-
 drift** — "a person's favorite wing of a museum" — pushed a bit further cross-domain, run rich
 (personal product, no scale constraints). Anti-example researched: **xikipedia** (traced the
 actual code: no embeddings — category-tag score bags; no quality layer beyond stub-removal;
-cold start seeds 12 huge categories at equal weight, which is *why* it opens boring; feedback
+cold start seeds 12 huge categories at equal weight, which is _why_ it opens boring; feedback
 loop invisible). Diagnosis for Ambit: the topic graph gives **structure (WHERE)** but nothing
 gives **taste (WHAT)** — the missing layer is item-level curation + a differentiated cold start.
 Phase 0.5 planned and approved (see BUILD_PLAN 0.5).
 
 **Shipped (all `phase0/`, verified end-to-end):**
+
 - **Corpus 3,168 → 9,811 → curated 8,093.** `harvest.ts` + Cleveland Museum (CC0, no key, real
   prose descriptions — friendliest API of the five) + Wellcome Collection (open-license filter +
   per-item license check); quota 75→150. New traps recorded in NOTES: Wellcome's `thumbnail.url`
@@ -5104,7 +5279,7 @@ Phase 0.5 planned and approved (see BUILD_PLAN 0.5).
 - **`curate.ts` — the taste layer.** Stage 1 structural floor (dup-titles >2, bare-noun image
   titles, thin summaries): 9,811 → 8,093, losses exactly where 0.4 found the noise. Stage 2:
   gemini-2.5-flash-lite as a Tumblr-art-blog-curator persona scores every item 1–10 + aesthetic
-  tags, judging images by the *downloaded image* (base64 — the catalog text would replay the 0.4
+  tags, judging images by the _downloaded image_ (base64 — the catalog text would replay the 0.4
   trap). ~12.4M tokens ≈ $1.25, cached per item×model×prompt-version. Spot-checks read true:
   Great Wave / Frederick Douglass daguerreotype / Voyager Family Portrait at 10; book-title-page
   stubs at 1; keyword-strays at 4.
@@ -5127,6 +5302,7 @@ Phase 0.5 planned and approved (see BUILD_PLAN 0.5).
   Jina/Cohere/DeepInfra). **Blocked on `VOYAGE_API_KEY`** (free, dash.voyageai.com).
 
 **Open / next (pick up here):**
+
 - **Ben browses `feed.html` — this is the 0.5 gate.** Compare the taste-picker vs topic-chips
   cold starts; turn the knobs (tier mix, score floor, drift temperature); debug overlay shows
   every card's why. Regenerate anytime: `harvest → curate → embed → topic-graph → build-feed`.
@@ -5136,11 +5312,11 @@ Phase 0.5 planned and approved (see BUILD_PLAN 0.5).
 - `--favorites` mode needs Ben's real list to be judged fairly.
 - ~~`VOYAGE_API_KEY` → run embed-images.ts~~ → done (session 3, same day): Ben's first run
   crawled for hours — Voyage's URL fetcher is bot-blocked by AIC (same trap as the curator,
-  second time in one day; NOTES now carries the rule: *never hand a museum image URL to a
-  third-party service, pass bytes*). Rewritten to local-download + base64 with checkpoint/resume:
+  second time in one day; NOTES now carries the rule: _never hand a museum image URL to a
+  third-party service, pass bytes_). Rewritten to local-download + base64 with checkpoint/resume:
   **5,931 visual vectors in 35 min**, free tier. explore.html rebuilt with a sixth
   **voyage-multimodal · visual** column (blind mode shuffles it in with the text columns).
-  First impression: text NN finds the *subject*, visual NN finds the *form/vibe* — for a
+  First impression: text NN finds the _subject_, visual NN finds the _form/vibe_ — for a
   sculptural Astronomy allegory, text returns zodiac prints, visual returns tritons fountains
   and firedogs. **Judge in the blind harness whether vibe-drift belongs in the feed.**
 - **After the gate:** the one-sweep doc rewrite (SPEC §9/§5.1/§6.1/§15, CLAUDE.md "Embeddings
@@ -5149,8 +5325,9 @@ Phase 0.5 planned and approved (see BUILD_PLAN 0.5).
 ### [[07-11-26 Sat]] — Auth rethink: magic link → email + password (Better Auth)
 
 **Decisions:**
+
 - Ben dropped magic-link auth for regular **email + password**. That forced a library change, not just a flow change: Auth.js's Credentials provider is the wrong tool for passwords — officially discouraged, JWT-only sessions (no DB persistence/revocation), and no built-in sign-up, hashing, or reset; you'd hand-roll all of it. Picked **Better Auth** instead (current docs verified): built-in email/password with scrypt hashing + reset flow, database sessions, Drizzle adapter, and a documented invite-gating seam (`databaseHooks.user.create.before` throws for uninvited emails).
-- Mail infra (Mailpit dev / Resend prod) **survives** — repurposed from magic links to password-reset mail. Email *verification* skipped: the invite list is the trust anchor.
+- Mail infra (Mailpit dev / Resend prod) **survives** — repurposed from magic links to password-reset mail. Email _verification_ skipped: the invite list is the trust anchor.
 - Scaffold consequence: create-t3-app still only offers NextAuth, so 1.1 now declines its auth option and 2.2 adds Better Auth by hand. Auth tables switch to Better Auth's `user`/`session`/`account`/`verification` (CLI-generated); app-table FKs now reference singular `"user"`.
 - Design handoff landing prototype still shows the magic-link flow — divergence note added to its README §1 rather than rewriting the as-built prototype description; 5.2 builds sign-in/sign-up/forgot-password states in the same visual language.
 
@@ -5159,29 +5336,33 @@ Phase 0.5 planned and approved (see BUILD_PLAN 0.5).
 ### [[07-10-26 Fri]] — Phase 0.3: four vector sets, `dimensions` answered; 0.4 harness built
 
 **Shipped:**
+
 - **Repo-as-teaching-tool pass** (evening session): explanatory comments through the `phase0/`
   scripts + harness template, aimed at a returning webdev — modern JS/TS idioms, embeddings
   concepts, the retry/cache patterns. Fixed one stale comment while in there (the harvest dedupe
-  Map keeps the *last* topic's copy, not the first). Published the **Ambit system map artifact**
+  Map keeps the _last_ topic's copy, not the first). Published the **Ambit system map artifact**
   (architecture, four data flows, data model, Phase 0 story, build order):
   https://claude.ai/code/artifact/cb527a06-6bd3-4d00-ac4b-a13a722a8262
-- **0.4 eyeball harness**: `phase0/build-explore.ts` + `phase0/explore.template.html` → self-contained `phase0/explore.html` (0.7 MB, gitignored, no server needed — open it directly). Precomputed top-10 *cross-source* neighbors per item for all 4 vector sets; 5 columns (4 sets + seeded-random baseline); search / random-item / click-to-chain; **blind mode** shuffles and unlabels the columns with a reveal button, so the go/no-go and model-vs-model judgments aren't biased. Verified end-to-end in Playwright (render, navigation, blind/reveal, search) — zero console errors after the fix below.
+- **0.4 eyeball harness**: `phase0/build-explore.ts` + `phase0/explore.template.html` → self-contained `phase0/explore.html` (0.7 MB, gitignored, no server needed — open it directly). Precomputed top-10 _cross-source_ neighbors per item for all 4 vector sets; 5 columns (4 sets + seeded-random baseline); search / random-item / click-to-chain; **blind mode** shuffles and unlabels the columns with a reveal button, so the go/no-go and model-vs-model judgments aren't biased. Verified end-to-end in Playwright (render, navigation, blind/reveal, search) — zero console errors after the fix below.
 - **AIC image trap found + fixed in `harvest.ts`**: the docs' IIIF size `843,` 403s on any original narrower than 843px (servers reject upscales — ~7% of AIC thumbs). `!843,843` (fit-in-box) works for all. Recorded in NOTES for the 3.2 adapter; items.json regenerated from cache (only imageUrls changed, vectors unaffected).
 - Early unblinded impression from verification screenshots: for easy cases all 4 model columns are clearly on-subject vs an obviously-random baseline; the Typography article (the known-hard topic) looked much shakier. The real browsing + verdicts are still open.
 - `phase0/embed.ts` (zero-dep Bun, same style as the harvester): embeds all 416 items through OpenRouter as 2 models × 2 recipes → 4 vector sets under `phase0/vectors/` (gitignored, ~19 MB, reproducible). Skips sets already on disk; `--force` re-embeds.
 - 0.3 findings appended to `phase0/NOTES.md`; box checked in BUILD_PLAN.
 
 **Findings:**
+
 - **OpenRouter honors OpenAI's `dimensions` param** (asked 512, got 512) — the open probe from 0.2. If 0.4 picks `text-embedding-3-small`, the `VECTOR(n)` dim is a free choice, not locked to 1536.
 - Whole run cost **~$0.003** (verified via OpenRouter usage accounting: $0.02/M vs $0.01/M). Cost is a non-factor in the model pick.
 - **bge-m3 is ~10× slower through OpenRouter** (75.7s vs 6.6s per set) — its upstream provider, not the model. Ingestion-only, so tolerable, but a tiebreaker strike.
-- Smoke test: cross-source neighbors of the Wikipedia *Astronomy* article are all astronomy-subject museum objects under both models. Proves the vectors work, not that serendipity is good — that's 0.4.
+- Smoke test: cross-source neighbors of the Wikipedia _Astronomy_ article are all astronomy-subject museum objects under both models. Proves the vectors work, not that serendipity is good — that's 0.4.
 
 **First 0.4 verdict attempt — inconclusive, and the random column won:**
-- Ben's browse of the harness: 416 items is too sparse to judge, and **the random baseline was his favorite column**. Two confounds explain (but don't dismiss) this: (1) the "random" column samples a corpus 100% harvested around his 8 topics, so it's really *random-within-interests* — a product finding in itself; (2) the NN columns show top-10 most-similar, i.e. relevant-but-unsurprising "more of the same," while serendipity lives in the mid-distance band the harness never shows — and at ~50 items/topic that band barely exists.
+
+- Ben's browse of the harness: 416 items is too sparse to judge, and **the random baseline was his favorite column**. Two confounds explain (but don't dismiss) this: (1) the "random" column samples a corpus 100% harvested around his 8 topics, so it's really _random-within-interests_ — a product finding in itself; (2) the NN columns show top-10 most-similar, i.e. relevant-but-unsurprising "more of the same," while serendipity lives in the mid-distance band the harness never shows — and at ~50 items/topic that band barely exists.
 - Provisional product implication if this holds at scale: feed shifts toward "curate the pool, randomize the order, embeddings for chain-jumps off saves" — SPEC §9's randomness floor becomes the ceiling.
 
 **Revised 0.4 plan executed — harness rebuilt at scale, verdicts still Ben's to make:**
+
 - Harvest scaled 416 → **3,168 items** (16 topics incl. 8 new ones — Architecture, Music,
   Textiles, Cartography, Zoology, Portraiture, Ceramics, Geology — quota 20 → 75/source/topic).
   Hit a new trap along the way: AIC hard-caps `limit` at 100 (undocumented, 403s above it) —
@@ -5199,6 +5380,7 @@ Phase 0.5 planned and approved (see BUILD_PLAN 0.5).
   Full detail in `phase0/NOTES.md` under "0.4 — First pass and scale-up".
 
 **Open / next (pick up here):**
+
 - **Session ended at the judgment gate — everything is staged for Ben's 0.4 verdicts.** The
   teaching pass + artifact link are committed and pushed (`a4c0251`); the harness was opened
   for browsing but no verdicts were reached. Judging procedure agreed: blind mode ON, a round
@@ -5221,14 +5403,17 @@ Phase 0.5 planned and approved (see BUILD_PLAN 0.5).
 ### [[07-09-26 Thu]] — Phase 0.2: sample harvester
 
 **Shipped:**
+
 - `phase0/harvest.ts` (zero-dep Bun script) + `phase0/items.json`: **416 items** — 160 Wikipedia articles, 135 Met, 121 AIC — across the 8 topic seeds. On-disk response cache (gitignored) so 0.3/0.4 iterate without re-hitting the APIs.
 - `phase0/NOTES.md` with the density + quality findings.
 
 **Findings:**
-- **Density is a non-issue.** Every topic × source pair except one could fill its quota many times over. The binding constraint for v1 is *quality and licensing*, not volume.
-- **The real risk to serendipity is the embedding text, not the model.** Museum objects have no prose description; their summary is synthesized from catalogue fields and is dominated by artist/date/**medium**/department, with the actual subject buried last in the tags. Wikipedia hands the model 591 chars of prose; the Met hands it 137 chars of "Bronze. Sculpture-Bronze." Cross-source neighbors may therefore cluster on *medium* rather than *subject* — technically serendipitous, experientially dull. **If 0.4 looks bad, re-order the summary to lead with subject/tags before blaming the model.** 0.3 should keep summary construction swappable so 0.4 can compare *recipes*, not just bge-small vs. text-embedding-3-small.
+
+- **Density is a non-issue.** Every topic × source pair except one could fill its quota many times over. The binding constraint for v1 is _quality and licensing_, not volume.
+- **The real risk to serendipity is the embedding text, not the model.** Museum objects have no prose description; their summary is synthesized from catalogue fields and is dominated by artist/date/**medium**/department, with the actual subject buried last in the tags. Wikipedia hands the model 591 chars of prose; the Met hands it 137 chars of "Bronze. Sculpture-Bronze." Cross-source neighbors may therefore cluster on _medium_ rather than _subject_ — technically serendipitous, experientially dull. **If 0.4 looks bad, re-order the summary to lead with subject/tags before blaming the model.** 0.3 should keep summary construction swappable so 0.4 can compare _recipes_, not just bge-small vs. text-embedding-3-small.
 
 **Traps found (all will recur in the Phase 3 adapters):**
+
 - The Met's `isPublicDomain=true` **search filter is not honored** — 14 of the first 20 `machine` hits aren't public domain. Must re-check every object's own record, at ~2–3× the fetches. An adapter that trusts the search filter ingests copyrighted images.
 - The Met rate-limits with a silent **403, not 429**, and it clears after a pause. First run showed three topics at `0/0`, which reads exactly like "no content" but was three dropped searches (real totals: 39 / 11,666 / 1,928). Harvester now reports a failed search as `ERR`, never a zero. ~2.5 req/s is clean.
 - Wikipedia's **`cllimit` is a per-query budget, not per-page**: at `cllimit=20` over a 20-page batch, page one takes all 20 categories and the rest get none. Only `cllimit=max` works. Silent — made tags look uniformly empty.
@@ -5236,26 +5421,32 @@ Phase 0.5 planned and approved (see BUILD_PLAN 0.5).
 - AIC + "typography" → **0 usable items** (all 60 hits in-copyright 20th-c photography). Abstract topics need object-vocabulary seed queries against museums. **Budget real time for seed-query tuning in 2.3** — one term per topic won't work across sources.
 
 **Decisions:**
+
 - **Embeddings go through OpenRouter**, for model flexibility. Its embeddings endpoint (`POST /api/v1/embeddings`, batched array `input`) is real now — SPEC §6.2's "limited embeddings support" note was stale. Verified against the docs.
-- **Local `bge-small` dropped.** Two facts killed it: embeddings are computed *at ingestion only* (the feed reads vectors already in Postgres, so nothing embeds on the request path — a managed provider adds no request latency or uptime risk), and cost is negligible (~$0.002 for the whole 416-item Phase 0 corpus at $0.02/M). The "local is free" argument was carrying weight it no longer deserved. Managed wins on simplicity; no local model runtime in Phase 3.3.
-- Caveat noted: **model choice stays expensive to reverse.** A gateway makes a *same-dimension* model swap one line, but a dimension change still means re-embedding the corpus plus a `VECTOR(n)` migration. `embed()` is the single seam.
+- **Local `bge-small` dropped.** Two facts killed it: embeddings are computed _at ingestion only_ (the feed reads vectors already in Postgres, so nothing embeds on the request path — a managed provider adds no request latency or uptime risk), and cost is negligible (~$0.002 for the whole 416-item Phase 0 corpus at $0.02/M). The "local is free" argument was carrying weight it no longer deserved. Managed wins on simplicity; no local model runtime in Phase 3.3.
+- Caveat noted: **model choice stays expensive to reverse.** A gateway makes a _same-dimension_ model swap one line, but a dimension change still means re-embedding the corpus plus a `VECTOR(n)` migration. `embed()` is the single seam.
 - `bge-small` isn't on OpenRouter anyway; closest is `bge-m3` (1024-dim). So 0.3's candidates became **`openai/text-embedding-3-small` (1536)** vs **`baai/bge-m3` (1024)**.
-- **0.3 reshaped to 2 models × 2 recipes** (4 vector sets) rather than a wider model bake-off — because 0.2 found the *embedding text* is the bigger lever. Recipe A = as-harvested; recipe B = subject-first (title + tags before catalogue fields). 0.4 gets 4 columns + random baseline.
+- **0.3 reshaped to 2 models × 2 recipes** (4 vector sets) rather than a wider model bake-off — because 0.2 found the _embedding text_ is the bigger lever. Recipe A = as-harvested; recipe B = subject-first (title + tags before catalogue fields). 0.4 gets 4 columns + random baseline.
 
 **Open / next (pick up here):**
+
 - **0.3 — embed** (`phase0/embed.ts`). Needs `OPENROUTER_API_KEY`, not yet set in `.env`. Also probe whether OpenRouter honors OpenAI's `dimensions` param — undocumented, and it decides whether 1536 can be shortened.
-- Then 0.4 (eyeball harness → go/no-go on serendipity, model + recipe pick, `VECTOR(n)` dim). If neighbors cluster by *medium* rather than *subject*, that's recipe A failing — try recipe B before blaming the model.
+- Then 0.4 (eyeball harness → go/no-go on serendipity, model + recipe pick, `VECTOR(n)` dim). If neighbors cluster by _medium_ rather than _subject_, that's recipe A failing — try recipe B before blaming the model.
 
 ### [[07-08-26 Wed]] — Repo setup + in-repo log
+
 **Shipped:**
+
 - `docs/BUILD_PLAN.md`: the living execution tracker (Phase 0 → MVP → Polish), step 0.1 done (plan committed, `LICENSE` moved to repo root, README license field fixed).
 - `docs/source-candidates.md`: post-MVP backlog of candidate content APIs, seeded with early ideas to organize later.
 - This `log.md` convention, replacing the dead `VAULT_LOG_PATH` vault-rollup step (adapted from Magpie's `log.md` pattern — the vault's `/brief` skill already reads any hybrid project's `<repo>/log.md` generically, no per-project wiring needed).
 
 **Decisions:**
+
 - Dev magic-link mail: Mailpit in dev, Resend in prod. Dev DB: local Docker Compose (`pgvector` image). Recorded in BUILD_PLAN.md context.
 - Project log lives in-repo (`log.md` at root) and complements commits — retired `VAULT_LOG_PATH`.
 
 **Open / next (pick up here):**
+
 - Phase 0 is still the active phase: **0.2 sample harvester** — Bun script to pull ~300–600 raw items from Wikipedia + Met + AIC across ~8 topic seeds, normalize, dump to `phase0/items.json`, note per-source density in `phase0/NOTES.md`.
 - Then 0.3 (embed with both candidates) → 0.4 (eyeball harness, go/no-go on serendipity + embedding model pick).

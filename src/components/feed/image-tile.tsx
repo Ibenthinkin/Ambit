@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { usePress } from "~/hooks/use-press";
+import { useDesktopPress, usePress } from "~/hooks/use-press";
 import { cn } from "~/lib/utils";
 import type { FeedCard } from "~/server/services/feed";
 import { DebugBadge } from "./debug-badge";
@@ -51,6 +51,7 @@ export function ImageTile({
   onLongPress,
 }: ImageTileProps) {
   const press = usePress({ onTap, onLongPress });
+  const desktop = useDesktopPress({ onTap, onLongPress });
   const [broken, setBroken] = React.useState(false);
   const [attempt, setAttempt] = React.useState(0);
   const { item } = card;
@@ -91,8 +92,15 @@ export function ImageTile({
   return (
     <div
       {...press}
+      {...desktop}
+      role="button"
+      tabIndex={0}
+      aria-label={item.title}
       className={cn(
-        "relative block w-full cursor-pointer touch-manipulation overflow-hidden select-none",
+        // `group` for the hover zoom on the `<img>` below; the `focus-visible` outline in the
+        // accent is so a keyboard reader can see where they are without the phone ever showing a
+        // ring (`:focus-visible` never matches a touch).
+        "group focus-visible:outline-accent relative block w-full cursor-pointer touch-manipulation overflow-hidden outline-none select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
         aspectClass,
       )}
       style={{ WebkitTouchCallout: "none" }}
@@ -134,7 +142,10 @@ export function ImageTile({
           src={src}
           alt={item.title}
           onError={handleError}
-          className="pointer-events-none block h-full w-full object-cover"
+          // The hover zoom: the tile's `overflow-hidden` clips it, so neighbours never move —
+          // the classic zoom-in-place. `hover:` is `@media (hover: hover)`-gated in Tailwind
+          // v4, so a touch screen never sees it.
+          className="pointer-events-none block h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
         />
       )}
       <DebugBadge card={card} />

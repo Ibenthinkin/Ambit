@@ -68,7 +68,11 @@ export function ImageItemBody({ item }: ImageItemBodyProps) {
             alt={item.title}
             fetchPriority="high"
             decoding="async"
-            className="rounded-tile block h-[300px] w-full object-cover"
+            // Below `md`: the redesign's 300px cover crop. Above it (docs/DESIGN_desktop-polish.md
+            // §4): the picture whole, up to 70% of the viewport tall, centered in the reader
+            // column. `w-auto` + `max-w-full` is what lets a tall plate stand at its own width
+            // instead of stretching to the column and letterboxing inside its rounded box.
+            className="rounded-tile block h-[300px] w-full object-cover md:mx-auto md:h-auto md:max-h-[70vh] md:w-auto md:max-w-full md:object-contain"
           />
         </HeroGalleryLink>
       ) : null}

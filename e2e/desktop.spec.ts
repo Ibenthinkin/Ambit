@@ -1,0 +1,127 @@
+import { expect, test, type Locator } from "@playwright/test";
+
+import {
+  cleanupSeeded,
+  connect,
+  inviteUser,
+  openAuthSheet,
+  seedFeedCorpus,
+  signIn,
+  type Connection,
+} from "./support";
+
+// The desktop pass, at 1440×900 (see playwright.config.ts's `desktop` project). Everything the
+// phone suite asserts still holds in the `chromium` project; this file only checks what changes
+// above `md` — docs/DESIGN_desktop-polish.md §5.
+//
+// Serial and sharing one signed-up user, the same arrangement as feed.spec.ts. Playwright isolates
+// storage per test, so the second test signs in again rather than assuming a cookie carried over.
+
+const EMAIL = `ambit-desktop-e2e-${Date.now()}@example.com`;
+const PASSWORD = "correcthorse123";
+const TOPICS = ["astronomy", "botany", "music"] as const;
+const PREFIX = "e2e-desktop-";
+
+// Two feed loads at four columns; 60 rows is that plus comfortable headroom. See feed.spec.ts's
+// note on why the seed exists at all (CI's database is empty) and what it deliberately doesn't do.
+const SEED_COUNT = 60;
+
+// The viewport is 1440×900, so its centre — what "centered" means below — is (720, 450).
+const CENTRE_X = 720;
+const CENTRE_Y = 450;
+
+/**
+ * Wait for an element's own animations and transitions to finish before measuring it.
+ *
+ * Not optional here: the desktop dialog arrives by `dialog-in`, which scales 0.97 → 1, and a
+ * `boundingBox()` taken mid-flight reports the *transformed* box — 504px for a 520px panel, which
+ * is exactly the failure this replaced. `toBeVisible()` does not wait for an animation to end.
+ */
+async function settle(locator: Locator) {
+  await locator.evaluate((el) =>
+    Promise.all(el.getAnimations().map((a) => a.finished)),
+  );
+}
+
+let conn: Connection;
+
+test.describe.serial("desktop", () => {
+  test.beforeAll(async () => {
+    conn = await connect();
+    await seedFeedCorpus(conn, PREFIX, SEED_COUNT, TOPICS);
+    inviteUser(EMAIL);
+  });
+
+  test.afterAll(async () => {
+    await cleanupSeeded(conn, PREFIX);
+  });
+
+  test("sign-up card is centered, the feed packs four centered columns", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await openAuthSheet(page);
+
+    // The auth panel is a centered card, not a bottom sheet, at this width.
+    const sheet = page.getByTestId("auth-sheet");
+    await settle(sheet);
+    const box = (await sheet.boundingBox())!;
+    expect(Math.round(box.width)).toBe(520);
+    expect(Math.abs(box.x + box.width / 2 - CENTRE_X)).toBeLessThan(2);
+
+    await page
+      .getByRole("button", { name: "First time? Create your account" })
+      .click();
+    await page.getByPlaceholder("What should we call you?").fill("Desktop E2E");
+    await page.getByPlaceholder("you@example.com").fill(EMAIL);
+    await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
+    await page.getByRole("button", { name: "Create account" }).click();
+
+    await page.waitForURL("/onboarding");
+    for (const label of ["Astronomy", "Botany", "Music"]) {
+      await page.getByRole("button", { name: label, pressed: false }).click();
+    }
+    await page.getByRole("button", { name: "Start exploring" }).click();
+    await page.waitForURL("/feed");
+    await expect(page.locator("[data-feed-id]").first()).toBeVisible();
+
+    // Four stacks, every one populated, inside a container no wider than 1120 and centered.
+    const grid = page.getByTestId("feed-columns");
+    await expect(grid.locator("> div")).toHaveCount(4);
+    const perColumn = await grid
+      .locator("> div")
+      .evaluateAll((cols) =>
+        cols.map((c) => c.querySelectorAll("[data-feed-id]").length),
+      );
+    expect(Math.min(...perColumn)).toBeGreaterThan(0);
+
+    const gridBox = (await grid.boundingBox())!;
+    expect(gridBox.width).toBeLessThanOrEqual(1120);
+    expect(Math.abs(gridBox.x + gridBox.width / 2 - CENTRE_X)).toBeLessThan(2);
+  });
+
+  test("right-click opens the item sheet as a centered dialog; Escape closes it", async ({
+    page,
+  }) => {
+    // Playwright isolates storage per test; sign in again through the landing page.
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const tile = page.locator("[data-feed-id] > *").first();
+    await expect(tile).toBeVisible();
+
+    await tile.click({ button: "right" });
+
+    const panel = page.getByTestId("bottom-sheet-panel");
+    await expect(panel.getByText("Save to collection")).toBeVisible();
+    await settle(panel);
+    const box = (await panel.boundingBox())!;
+    expect(Math.round(box.width)).toBe(520);
+    expect(Math.abs(box.x + box.width / 2 - CENTRE_X)).toBeLessThan(2);
+    expect(Math.abs(box.y + box.height / 2 - CENTRE_Y)).toBeLessThan(2);
+    // Not anchored to the bottom edge.
+    expect(box.y + box.height).toBeLessThan(900 - 40);
+
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+  });
+});

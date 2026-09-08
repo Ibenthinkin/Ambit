@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Item } from "~/server/db/items";
 import type { FeedCard, FeedPage, Tier } from "~/server/services/feed";
+import type { FeedTile } from "./masonry";
 import { buildTiles, IMAGE_ASPECTS, packColumns } from "./masonry";
 
 // Fixtures. The feed contract has a wide `Item` (every column of the table), but the layout only
@@ -216,11 +217,11 @@ describe("packColumns", () => {
     // Aspects 0..3 are 0.68, 0.78, 1.24, 1.30 — a runs left, b right (left is now taller), then c
     // goes right (still shorter after b) and d left.
     const [left, right] = packColumns(tiles);
-    const ids = (col: typeof left) =>
+    const ids = (col: FeedTile[]) =>
       col.map((t) => (t.kind === "because" ? t.key : t.card.item.id));
 
-    expect(ids(left)).toEqual(["a", "c"]);
-    expect(ids(right)).toEqual(["b", "d"]);
+    expect(ids(left!)).toEqual(["a", "c"]);
+    expect(ids(right!)).toEqual(["b", "d"]);
   });
 
   // The reason this is a greedy pack over two flex stacks rather than CSS `columns`: appending a
@@ -235,8 +236,8 @@ describe("packColumns", () => {
     const [l1, r1] = packColumns(buildTiles(first, LABELS));
     const [l2, r2] = packColumns(buildTiles(both, LABELS));
 
-    expect(l2.slice(0, l1.length)).toEqual(l1);
-    expect(r2.slice(0, r1.length)).toEqual(r1);
+    expect(l2!.slice(0, l1!.length)).toEqual(l1);
+    expect(r2!.slice(0, r1!.length)).toEqual(r1);
   });
 
   // The estimate has to agree with what `ArticleCard` actually renders (a five-line clamp), or a
@@ -282,6 +283,48 @@ describe("packColumns", () => {
     expect(right).toHaveLength(2);
   });
 
+  it("packs into N columns, shortest first, lowest index on ties", () => {
+    // Eight squares-ish tiles across four columns: the first four go one per column (all
+    // level at 0), then each next tile lands on whichever column is shortest.
+    const tiles = buildTiles(
+      [page(Array.from({ length: 8 }, (_, i) => card(`t${i}`)))],
+      LABELS,
+    );
+    const cols = packColumns(tiles, 4);
+    const ids = (col: FeedTile[]) =>
+      col.map((t) => (t.kind === "because" ? t.key : t.card.item.id));
+
+    expect(cols).toHaveLength(4);
+    expect(cols.map((c) => c[0] && ids([c[0]])[0])).toEqual([
+      "t0",
+      "t1",
+      "t2",
+      "t3",
+    ]);
+    // Aspects 0..3 are 0.68, 0.78, 1.24, 1.30: column 0 is shortest, then 1, then 2, then 3.
+    expect(ids(cols[0]!)).toEqual(["t0", "t4"]);
+    expect(ids(cols[1]!)).toEqual(["t1", "t5"]);
+    expect(ids(cols[2]!)).toEqual(["t2", "t6"]);
+    expect(ids(cols[3]!)).toEqual(["t3", "t7"]);
+  });
+
+  it("defaults to two columns, so Saved's call site is unchanged", () => {
+    const tiles = buildTiles([page([card("a"), card("b")])], LABELS);
+    expect(packColumns(tiles)).toHaveLength(2);
+  });
+
+  it("append-only holds per column at any width", () => {
+    const first = [page(Array.from({ length: 9 }, (_, i) => card(`a${i}`)))];
+    const both = [
+      ...first,
+      page(Array.from({ length: 9 }, (_, i) => card(`b${i}`))),
+    ];
+    const c1 = packColumns(buildTiles(first, LABELS), 3);
+    const c2 = packColumns(buildTiles(both, LABELS), 3);
+    for (let i = 0; i < 3; i++) {
+      expect(c2[i]!.slice(0, c1[i]!.length)).toEqual(c1[i]);
+    }
+  });
   it("packs an empty list into two empty columns", () => {
     expect(packColumns([])).toEqual([[], []]);
   });

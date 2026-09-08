@@ -71,7 +71,34 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // **The phone viewport, declared rather than inherited** (the desktop pass, 09-08-26).
+        // `Desktop Chrome`'s default is 1280×720 — which was harmless while every screen was the
+        // phone layout at any width, and stopped being harmless the moment the layout started
+        // answering to width: 1280 is exactly `xl`, so this suite silently began exercising the
+        // four-column desktop feed and the dialog-shaped sheets. 402×874 is the redesign's own
+        // design viewport (docs/design_handoff_ambit_pwa_redesign/README.md), which is what every
+        // spec in this project was written against.
+        //
+        // `Desktop Chrome` and not a phone device descriptor on purpose: a device preset also
+        // turns on touch emulation and swaps the user agent, and the gestures here are pointer
+        // events that already work under a mouse. The viewport is the only part that matters.
+        viewport: { width: 402, height: 874 },
+      },
+      // The desktop spec has its own project below; everything else is the phone-shaped suite.
+      testIgnore: /desktop\.spec\.ts$/,
+    },
+    {
+      // The desktop pass (docs/DESIGN_desktop-polish.md §5): one laptop-sized viewport, one spec.
+      // `Desktop Chrome`'s default is 1280×720, which is exactly the feed's three-to-four column
+      // boundary — the assertions want to be unambiguously on the four-column side of it.
+      name: "desktop",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+      },
+      testMatch: /desktop\.spec\.ts$/,
     },
   ],
   // `webServer` makes Playwright boot the app itself and poll `url` until it responds, so

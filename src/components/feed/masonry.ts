@@ -154,22 +154,26 @@ function estHeight(tile: FeedTile): number {
 
 /**
  * Greedy shortest-column packing — the prototype's own algorithm, and the reason this is a
- * two-column `grid` of two `flex` stacks rather than CSS `columns`. Native CSS multi-column
- * balances by *reflowing*, which means appending a page can move a tile the user is currently
- * looking at into the other column. This can't: a tile's placement depends only on the tiles
- * before it, so growing the list is always append-only per column.
+ * `grid` of `flex` stacks rather than CSS `columns`. Native CSS multi-column balances by
+ * *reflowing*, which means appending a page can move a tile the user is currently looking at
+ * into another column. This can't: a tile's placement depends only on the tiles before it, so
+ * growing the list is always append-only per column.
  *
- * Ties go to the left column, which keeps the output deterministic (and therefore assertable) for
- * a given input.
+ * `columnCount` arrived with the desktop pass (docs/DESIGN_desktop-polish.md §2): 2 on a phone,
+ * 3 from `md`, 4 from `xl`, chosen by `useColumnCount`. Ties go to the lowest index, which keeps
+ * the output deterministic (and therefore assertable) for a given input.
  */
-export function packColumns(tiles: FeedTile[]): [FeedTile[], FeedTile[]] {
-  const columns: [FeedTile[], FeedTile[]] = [[], []];
-  const heights: [number, number] = [0, 0];
+export function packColumns(tiles: FeedTile[], columnCount = 2): FeedTile[][] {
+  const columns: FeedTile[][] = Array.from({ length: columnCount }, () => []);
+  const heights = new Array<number>(columnCount).fill(0);
 
   for (const tile of tiles) {
-    const target = heights[0] <= heights[1] ? 0 : 1;
-    columns[target].push(tile);
-    heights[target] += estHeight(tile) + GAP;
+    let target = 0;
+    for (let i = 1; i < columnCount; i++) {
+      if (heights[i]! < heights[target]!) target = i;
+    }
+    columns[target]!.push(tile);
+    heights[target] = heights[target]! + estHeight(tile) + GAP;
   }
 
   return columns;

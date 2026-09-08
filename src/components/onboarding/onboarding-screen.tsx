@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Chip } from "~/components/ui/chip";
+import { Column } from "~/components/ui/column";
 import { Rise } from "~/components/ui/rise";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
@@ -79,73 +80,83 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
 
   return (
     <main className="bg-bg min-h-dvh">
-      <Rise>
-        <div className="px-6 pt-16 pb-2">
-          <p className="text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase">
-            Ambit · Setup
-          </p>
-          <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] font-semibold tracking-[-0.4px]">
-            What pulls your attention?
-          </h1>
-          <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
-            Choose as many as you like. Ambit starts here — then wanders
-            sideways into things you&apos;d never think to search for.
-          </p>
-        </div>
-      </Rise>
+      {/* The desktop cap (docs/DESIGN_desktop-polish.md §1). The chips keep their own `px-6`
+       *inside* the column, so at 768px the grid simply stops growing rather than re-padding. */}
+      <Column width="narrow">
+        <Rise>
+          <div className="px-6 pt-16 pb-2">
+            <p className="text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase">
+              Ambit · Setup
+            </p>
+            <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] font-semibold tracking-[-0.4px]">
+              What pulls your attention?
+            </h1>
+            <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
+              Choose as many as you like. Ambit starts here — then wanders
+              sideways into things you&apos;d never think to search for.
+            </p>
+          </div>
+        </Rise>
 
-      {/* The grid rises as one unit (landing's 0/80/160 stagger), not per-chip — a per-chip
+        {/* The grid rises as one unit (landing's 0/80/160 stagger), not per-chip — a per-chip
           stagger would turn a 16-chip grid into a slow cascade the handoff never asks for. */}
-      <Rise delayMs={80}>
-        <div
-          role="group"
-          aria-label="Topics"
-          className="flex flex-wrap gap-[10px] px-6 pt-[22px] pb-[180px]"
-        >
-          {topics.map((topic) => (
-            <Chip
-              key={topic.id}
-              selected={selected.has(topic.id)}
-              onClick={() => toggle(topic.id)}
-            >
-              {topic.label}
-            </Chip>
-          ))}
-        </div>
-      </Rise>
+        <Rise delayMs={80}>
+          <div
+            role="group"
+            aria-label="Topics"
+            className="flex flex-wrap gap-[10px] px-6 pt-[22px] pb-[180px]"
+          >
+            {topics.map((topic) => (
+              <Chip
+                key={topic.id}
+                selected={selected.has(topic.id)}
+                onClick={() => toggle(topic.id)}
+              >
+                {topic.label}
+              </Chip>
+            ))}
+          </div>
+        </Rise>
+      </Column>
 
       {/* Fixed chrome — not wrapped in <Rise>, which would fight its own positioning. The error
           slot lives inside this bar (above the count/CTA row) rather than in the scrollable
           column above: the bar is always on screen regardless of scroll position, so a mutation
           failure that could fire while the user is anywhere on a tall grid stays visible. */}
-      <div className="from-bg to-bg/0 fixed inset-x-0 bottom-0 z-20 bg-linear-to-t from-62% px-6 pt-5 pb-10">
-        {error && (
-          <div
-            role="alert"
-            data-testid="onboarding-error"
-            className="text-error mt-[11px] text-center font-sans text-[12.5px]"
-          >
-            {error}
+      <div className="from-bg to-bg/0 fixed inset-x-0 bottom-0 z-20 bg-linear-to-t from-62% pt-5 pb-10">
+        {/* Full-width gradient, narrow content — the bar's fade has to cover the whole viewport or
+            the chips scroll out from under a 600px band. The `px-6` moved off the bar and onto the
+            column so the CTA row lands column-then-padding, exactly like the chips above it;
+            left on the bar it would sit 24px inside the column's edge instead of at it. */}
+        <Column width="narrow" className="px-6">
+          {error && (
+            <div
+              role="alert"
+              data-testid="onboarding-error"
+              className="text-error mt-[11px] text-center font-sans text-[12.5px]"
+            >
+              {error}
+            </div>
+          )}
+          <div className="flex items-center gap-[14px]">
+            <p
+              aria-live="polite"
+              className="text-ink/55 flex-1 font-sans text-[12.5px]"
+            >
+              {countLabel}
+            </p>
+            <Button
+              shape="pill"
+              size="md"
+              disabled={remaining > 0}
+              aria-busy={submitting}
+              onClick={handleSubmit}
+              className={cn(submitting && "pointer-events-none opacity-80")}
+            >
+              {ctaLabel}
+            </Button>
           </div>
-        )}
-        <div className="flex items-center gap-[14px]">
-          <p
-            aria-live="polite"
-            className="text-ink/55 flex-1 font-sans text-[12.5px]"
-          >
-            {countLabel}
-          </p>
-          <Button
-            shape="pill"
-            size="md"
-            disabled={remaining > 0}
-            aria-busy={submitting}
-            onClick={handleSubmit}
-            className={cn(submitting && "pointer-events-none opacity-80")}
-          >
-            {ctaLabel}
-          </Button>
-        </div>
+        </Column>
       </div>
     </main>
   );

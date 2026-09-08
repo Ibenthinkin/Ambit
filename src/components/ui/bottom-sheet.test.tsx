@@ -2,6 +2,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DESKTOP_QUERY } from "~/hooks/use-media-query";
+import { stubMatchMedia } from "~/test/match-media";
 import { BottomSheet } from "./bottom-sheet";
 
 /**
@@ -340,7 +342,7 @@ describe("BottomSheet", () => {
     it("skips the exit entirely under prefers-reduced-motion", () => {
       // globals.css already collapses every animation to 0.01ms under this query, so animating out
       // would just leave the sheet sitting there invisible and inert for the fallback timer.
-      vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+      stubMatchMedia(["(prefers-reduced-motion: reduce)"]);
       const { rerender } = render(
         <BottomSheet open onClose={vi.fn()}>
           <p>Details</p>
@@ -665,5 +667,78 @@ describe("BottomSheet", () => {
       expect(onSwipeSide).not.toHaveBeenCalled();
       expect(onClose).toHaveBeenCalledTimes(1); // dy 100 > 56, so it closed
     });
+  });
+});
+
+// The desktop pass (docs/DESIGN_desktop-polish.md §3). Same component, same API, same keyboard
+// contract; above `md` the panel stops being anchored to an edge, so it stops sliding in from one.
+describe("above md — a centered dialog", () => {
+  beforeEach(() => stubMatchMedia([DESKTOP_QUERY]));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("is 520px, centered, rounded on every corner, and arrives by the dialog pair", () => {
+    render(
+      <BottomSheet open onClose={vi.fn()} title="Save to collection">
+        <p>Rows</p>
+      </BottomSheet>,
+    );
+    const panel = screen.getByTestId("bottom-sheet-panel");
+    expect(panel).toHaveClass(
+      "md:w-[520px]",
+      "md:left-1/2",
+      "md:top-1/2",
+      "md:-translate-x-1/2",
+      "md:-translate-y-1/2",
+      "md:rounded-sheet",
+      "animate-dialog-in",
+    );
+    expect(panel).not.toHaveClass("animate-sheet-up");
+  });
+
+  it("leaves by the dialog pair too, gallery variant included", () => {
+    const { rerender } = render(
+      <BottomSheet open onClose={vi.fn()} variant="gallery" dragToClose>
+        <p>Details</p>
+      </BottomSheet>,
+    );
+    rerender(
+      <BottomSheet open={false} onClose={vi.fn()} variant="gallery" dragToClose>
+        <p>Details</p>
+      </BottomSheet>,
+    );
+    expect(screen.getByTestId("bottom-sheet-panel")).toHaveClass(
+      "animate-dialog-out",
+    );
+  });
+
+  it("hides the grabber and never arms a drag", () => {
+    const onClose = vi.fn();
+    render(
+      <BottomSheet open onClose={onClose} dragToClose>
+        <p>Details</p>
+      </BottomSheet>,
+    );
+    const panel = screen.getByTestId("bottom-sheet-panel");
+    expect(panel.querySelector(".md\\:hidden")).not.toBeNull();
+
+    // The phone's close gesture: a slow drag past DRAG_CLOSE_PX. On desktop it must do nothing.
+    grab(panel);
+    send(panel, "pointerMove", { clientX: 0, clientY: 120 });
+    send(panel, "pointerUp", { clientX: 0, clientY: 120 });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("below md — unchanged", () => {
+  it("keeps the slide-up pair and the bottom anchoring", () => {
+    stubMatchMedia([]);
+    render(
+      <BottomSheet open onClose={vi.fn()}>
+        <p>Rows</p>
+      </BottomSheet>,
+    );
+    const panel = screen.getByTestId("bottom-sheet-panel");
+    expect(panel).toHaveClass("animate-sheet-up", "bottom-0", "inset-x-0");
+    vi.unstubAllGlobals();
   });
 });
