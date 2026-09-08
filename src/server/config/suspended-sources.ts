@@ -123,8 +123,9 @@ export const SUSPENDED_SOURCES: SourceId[] = [
   // `sovietpostcards` went first and is gone from this list; `70sscifiart` second and
   // `thevaultoftheatomicspaceage` third (both 09-07-26 — the second walk is what turned up the
   // missing `science-fiction` topic, promoted before the third so the vault's atomic-age
-  // material classifies against it from its first row rather than after a repair).
-  "thisisnthappiness",
+  // material classifies against it from its first row rather than after a repair);
+  // `thisisnthappiness` fourth and last (09-08-26, walk 4, after the vault landed clean under
+  // the curator's new fail-fast). All four are walked; this block is history.
 ];
 
 /** Whether `source` is currently switched off. Accepts a plain string for DB rows. */
