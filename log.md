@@ -5,6 +5,44 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-08-26 Tue]] — Walk 3 died on the wallet, and the curator kept going anyway
+
+The vault walk (started 17:56 yesterday) curated normally for 32 minutes and then, at 18:28,
+OpenRouter began answering every request with **HTTP 402** — the account was out of credits
+("You requested up to 65535 tokens, but can only afford 44161"). The process did not stop. Each
+failed item retried four times with backoff, so it crawled from 40% to ~60% of 19,000 over the
+next **18 hours**, failing 5,682 items, until it was found and killed at 12:52 today.
+
+**Findings:**
+- **Nothing reached the database** — the walk writes after curation, and it was killed at the
+  60% mark. Zero vault rows. The **7,438 items it did score are in the curation cache**, so the
+  re-run bills only the remainder.
+- **The curator's per-item fallback is wrong for a billing failure.** A failed curation becomes
+  score 5, no tags, no topics (`curator.ts`, the `catch` around the worker). That is the right
+  answer for one flaky request; it is the wrong answer for 402, where *every* remaining item
+  would have been stored as an unscored, un-homed row — 11,500 of them — and the walk would have
+  printed a clean summary over junk. The only reason it didn't is that someone asked "is this
+  walk still running" first.
+
+**Decisions:** Ben — fix it in a fresh session, not this one. Note below.
+
+**Open / next:**
+- **TODO, next session: fail fast on 401/402 in the curator.** In `curateItem()`'s retry loop
+  (`curator.ts` ~line 543), a 401 (bad key) or 402 (no credits) is neither transient nor
+  per-item: throw a distinct error class immediately instead of retrying, and let `curateItems()`
+  propagate it rather than swallowing it into the score-5 fallback, so the ingest exits non-zero
+  with the last message. This is the same fail-fast rule the Loupe adapter follows for 401/403.
+  Test: a mocked 402 on item 1 aborts the batch and writes nothing. Keep the fallback for
+  everything else (5xx, timeouts, a malformed answer) — that is what it is for. Consider a
+  second, softer guard: abort a walk when more than N consecutive items fail for any reason.
+- **Then top up OpenRouter and re-run the same command**:
+  `bun run ingest --source thevaultoftheatomicspaceage > .cache/thevault-walk.log 2>&1 &` —
+  resumes free through the cached 7,438, bills ~11,500 × $0.000235 ≈ $2.70.
+- The 09-07 pickup list is otherwise unchanged: walk 3 verdict, walk 4, the two `--cursor`
+  runs, and the four-script prod sequence after the deploy.
+
+*Session spend: 5.87M tok (in 103 · out 54.7k · cache r 4.77M / w 1.04M) · ~≥$3.60 · fable-5-1 + opus-4-7 · 17:57→12:55*
+
 ### [[09-07-26 Mon]] — Cut 2b sized, found wanting; sourceCap and MAX_TOPICS instead
 
 Ben's call on the sovietpostcards topic-capture finding was **Cut 2b**. Sizing it against the
