@@ -69,6 +69,17 @@ WHERE n <= :K AND n_src <= :K_SRC
 ORDER BY topic_id, id;
 ```
 
+> **Correction, 09-08-26, from the implementation.** The sketch above is wrong in one way that
+> matters, and it shipped before it was caught: those two `row_number()`s both rank over the
+> *whole* eligible set, so `n <= :K AND n_src <= :K_SRC` is an **intersection** — a row must make
+> the topic's global sixty *and* its own source's twenty. That shrinks the sample without giving
+> a minority source a single extra slot, because a minority row still only enters if it would
+> have placed in the global sixty anyway; measured on the corpus, `japan` kept 30 rows from 3 of
+> its 8 sources and `activism` 23 from 3 of 5. The bullet below ("minority sources are guaranteed
+> candidates") describes what the cap is *for*, and getting it needs **two stages**: cap each
+> source to `:K_SRC` first, then rank the survivors within the topic and take `:K`. Those two
+> topics then return 60 rows from all 8 and 46 from all 5. Shipped that way; see `db/feed.ts`.
+
 - **`K` per topic, ~60.** A page draws at most twelve items and retries on an empty pool; a topic
   is rarely drawn more than four times on one page. Sixty leaves room for `sourceCap` and
   `lastSource` filtering to reject most of a sample and still find a card.
