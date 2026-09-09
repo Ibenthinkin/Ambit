@@ -496,6 +496,12 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
    - **DRIFT** — start from one of the user's topics, walk its adjacency row: softmax-sample among **positive-similarity neighbours only** (temperature ≈ 0.15; no positive bridge → fall back to CORE), then a **second hop with p ≈ 0.5** (Poetry → Typography → Machines is the signature move).
    - **JUMP** — uniform draw from the **bottom half** of a user topic's row. Deliberately not the strict antipode: tail ordering in a 16-point mean-centered space is noise, and false precision there adds nothing.
 2. **Item pick** — within the chosen topic, weighted random over unseen items above the **curation-score floor** (default 4): `weight = (score − floor + 1)^power × (1 + boost per aesthetic_tag shared with the user's taste keywords)`. Never similarity-ranked — that was the 0.4 failure.
+   > **Sampled pools (09-08-26).** The draw runs over a deterministic per-topic *sample* of the
+   > eligible pool — 60 per topic, 20 per (topic, source), keyed by `md5(id || '<seed>:<page>')`
+   > exactly as the WILD pool is — not over every eligible row. The weight formula is unchanged
+   > and still applied in `pickItem`; only the candidate set is bounded. Design and measurements
+   > in `docs/DESIGN_feed-pool-sampling.md`.
+   >
    > **Cut 2a note (09-02-26).** Promotion set a display `topic_id` on 2,714 of the 3,741 un-homed items, so the backlog below is now largely drained — 1,027 items remain un-homed and the consequences listed here still apply to exactly those. The feed still reads `item.topic_id`; moving it onto the `item_topic` join (so an item can be drawn under *any* of its topics, not only its display one) is **Cut 2b**, with its own `bench:feed` run.
    >
    > **Cut 1 note (09-02-26; amended 09-06-26).** The item pick and `getTopicPools` still read `item.topic_id`, not `item_topic`. Consequences for an item that is still un-homed: an **un-homed** item (`topic_id IS NULL`) never enters a *topic* pool — it reaches the feed only as a **WILD** card (§9, 09-06-26), which is a real page slot but not a topic one; saving one bumps no topic (the toast reads only "Saved to X"); its `/i/` page has no wander teaser and its `/g/` rail is all-wildcard. The gallery's wildcard draw (`drawImageAnywhere`) has no topic filter, so an un-homed *image* can surface in a wildcard slot — deliberate: it is curated-weighted like every draw, and ignoring the graph is the wildcard's job.

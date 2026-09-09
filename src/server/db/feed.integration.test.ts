@@ -15,7 +15,13 @@ import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
-import { forgetSeenSince, getTopicPools, getWildPool } from "./feed";
+import {
+  forgetSeenSince,
+  getTopicPools,
+  getWildPool,
+  TOPIC_POOL_PER_SOURCE,
+  TOPIC_POOL_SAMPLE,
+} from "./feed";
 import { drawFromTopic } from "./items";
 
 describe.skipIf(!process.env.DATABASE_URL)(
@@ -84,6 +90,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         anchor: new Date(),
         scoreFloor: 1,
         excludeIds: [],
+        sampleKey: "pools-test:0",
       });
 
       const sources = (pools.get(topicId) ?? []).map((row) => row.source);
@@ -361,3 +368,182 @@ describe.skipIf(!process.env.DATABASE_URL)("getWildPool (integration)", () => {
     expect(await draw({ limit: 5 })).toHaveLength(5);
   });
 });
+
+// The topic pools sample (09-08-26, docs/DESIGN_feed-pool-sampling.md). Every property here is
+// SQL — two window functions and an md5 ordering — so a mocked test would be checking a mock.
+// What matters: no topic returns more than TOPIC_POOL_SAMPLE rows, no (topic, source) more than
+// TOPIC_POOL_PER_SOURCE, the sample is a pure function of `sampleKey` (SPEC §7's cursor promise
+// rides on it), and a topic with nothing eligible is still a key with an empty array.
+describe.skipIf(!process.env.DATABASE_URL)(
+  "getTopicPools sampling (integration)",
+  () => {
+    const topicId = `test-sample-topic-${nanoid(8)}`;
+    const emptyTopicId = `test-sample-empty-${nanoid(8)}`;
+    const userId = `test-sample-user-${nanoid(8)}`;
+    const prefix = `test-sample-${nanoid(8)}-`;
+    // Four sources × 30 rows = 120 eligible. The per-source cap (20) binds first → 80, then
+    // the per-topic cap (60) binds → 60. Both caps are therefore exercised by one seed.
+    // Every one of the four must be absent from SUSPENDED_SOURCES — `eligibilityConditions`
+    // filters those out before the sample sees them, and 30 vanished rows would quietly turn
+    // this into a three-source fixture (`aic` was in the first draft of this test and is
+    // suspended, which is exactly how that was found).
+    const SOURCES = ["met", "cma", "wellcome", "smithsonian"] as const;
+    const PER_SOURCE = 30;
+
+    const base = () => ({
+      userId,
+      anchor: new Date(),
+      scoreFloor: 1,
+      excludeIds: [] as string[],
+    });
+
+    beforeAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { item, topic, user } = await import("~/server/db/schema");
+      await db.insert(topic).values([
+        {
+          id: topicId,
+          label: "Test sample topic",
+          seedQueries: {
+            wikipedia: [],
+            met: [],
+            aic: [],
+            cma: [],
+            wellcome: [],
+          },
+        },
+        {
+          id: emptyTopicId,
+          label: "Test sample empty topic",
+          seedQueries: {
+            wikipedia: [],
+            met: [],
+            aic: [],
+            cma: [],
+            wellcome: [],
+          },
+        },
+      ]);
+      await db.insert(user).values({
+        id: userId,
+        name: "Test sample user",
+        email: `${userId}@example.com`,
+        emailVerified: false,
+      });
+      await db.insert(item).values(
+        SOURCES.flatMap((source, s) =>
+          Array.from({ length: PER_SOURCE }, (_, i) => ({
+            source,
+            sourceId: `${prefix}${s}-${i}`,
+            type: "image" as const,
+            title: `Sample item ${source} ${i}`,
+            sourceUrl: `https://example.com/${prefix}${s}-${i}`,
+            imageUrl: `https://example.com/${prefix}${s}-${i}.jpg`,
+            topicId,
+            curationScore: 9,
+            aestheticTags: [],
+          })),
+        ),
+      );
+    });
+
+    afterAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { item, topic, user } = await import("~/server/db/schema");
+      const rows = await db.query.item.findMany({
+        where: (t, { like }) => like(t.sourceId, `${prefix}%`),
+        columns: { id: true },
+      });
+      if (rows.length > 0) {
+        await db.delete(item).where(
+          inArray(
+            item.id,
+            rows.map((r) => r.id),
+          ),
+        );
+      }
+      await db.delete(user).where(inArray(user.id, [userId]));
+      await db.delete(topic).where(inArray(topic.id, [topicId, emptyTopicId]));
+    });
+
+    it("caps a topic at TOPIC_POOL_SAMPLE and each source within it at TOPIC_POOL_PER_SOURCE", async () => {
+      const pools = await getTopicPools([topicId], {
+        ...base(),
+        sampleKey: "sample-test:0",
+      });
+      const pool = pools.get(topicId)!;
+      expect(pool).toHaveLength(TOPIC_POOL_SAMPLE);
+
+      const bySource = new Map<string, number>();
+      for (const row of pool)
+        bySource.set(row.source, (bySource.get(row.source) ?? 0) + 1);
+      for (const source of SOURCES) {
+        expect(bySource.get(source) ?? 0).toBeLessThanOrEqual(
+          TOPIC_POOL_PER_SOURCE,
+        );
+      }
+      // 60 from four sources capped at 20 each: no source can be shut out, so all four appear.
+      expect(bySource.size).toBe(SOURCES.length);
+    });
+
+    it("is a pure function of sampleKey — same key, same rows, same order", async () => {
+      const a = await getTopicPools([topicId], {
+        ...base(),
+        sampleKey: "sample-test:1",
+      });
+      const b = await getTopicPools([topicId], {
+        ...base(),
+        sampleKey: "sample-test:1",
+      });
+      expect(b.get(topicId)!.map((r) => r.id)).toEqual(
+        a.get(topicId)!.map((r) => r.id),
+      );
+
+      const c = await getTopicPools([topicId], {
+        ...base(),
+        sampleKey: "sample-test:2",
+      });
+      // 60 of 120 under a different hash: the two sets differing is what "the next page gets
+      // fresh candidates" means, and identical sets would be a broken hash, not luck.
+      expect(new Set(c.get(topicId)!.map((r) => r.id))).not.toEqual(
+        new Set(a.get(topicId)!.map((r) => r.id)),
+      );
+    });
+
+    it("keeps every requested topic as a key, an empty array for one with nothing eligible", async () => {
+      const pools = await getTopicPools([topicId, emptyTopicId], {
+        ...base(),
+        sampleKey: "sample-test:3",
+      });
+      expect(pools.has(emptyTopicId)).toBe(true);
+      expect(pools.get(emptyTopicId)).toEqual([]);
+      expect(pools.get(topicId)!.length).toBeGreaterThan(0);
+    });
+
+    it("still refuses what eligibility refuses — a seen row never enters the sample", async () => {
+      const { db } = await import("~/server/db/client");
+      const { seenItem } = await import("~/server/db/schema");
+      const first = await getTopicPools([topicId], {
+        ...base(),
+        sampleKey: "sample-test:4",
+      });
+      const victim = first.get(topicId)![0]!.id;
+      const before = new Date(Date.now() - 60_000);
+      await db
+        .insert(seenItem)
+        .values({ userId, itemId: victim, servedAt: before });
+      try {
+        const after = await getTopicPools([topicId], {
+          ...base(),
+          anchor: new Date(),
+          sampleKey: "sample-test:4",
+        });
+        expect(after.get(topicId)!.map((r) => r.id)).not.toContain(victim);
+        // Still a full sample: the cap applies after eligibility, so one exclusion is backfilled.
+        expect(after.get(topicId)).toHaveLength(TOPIC_POOL_SAMPLE);
+      } finally {
+        await db.delete(seenItem).where(inArray(seenItem.userId, [userId]));
+      }
+    });
+  },
+);

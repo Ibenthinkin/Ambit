@@ -350,6 +350,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         anchor: new Date(),
         scoreFloor: 1,
         excludeIds: [],
+        sampleKey: "items-integration:0",
       });
       expect(pools.get(topicA)?.some((r) => r.id === itemId)).toBe(false);
 

@@ -373,6 +373,58 @@ escalations if it does. **Ben's call**; the executable plan follows it.
 
 _Session spend: 22.29M tok (in 118 · out 74.4k · cache r 21.12M / w 1.10M) · ~≥$1.69 · fable-5-1 + opus-5 · 20:29→21:45_
 
+---
+
+**Feed pool sampling shipped** (`feat/feed-pool-sampling`). The plain sample, per Ben's call.
+
+**Shipped:** `getTopicPools` returns ≤ 60 rows per topic and ≤ 20 per (topic, source), ranked
+by `md5(id || sampleKey)` in two window functions inside the one existing query; `sampleKey` is
+now a required option and `getFeedPage` passes the cursor's `${seed}:${page}` to both pools.
+Engine untouched. Four integration tests: both caps bind, same key → same rows in the same
+order, different key → different set, a topic with nothing eligible is still an empty-array key,
+and a seen row is backfilled rather than leaving a hole. `probe:feed` gained a score summary.
+
+**Measured** (same machine, same account, 22:15–22:25 EDT, with nothing else ingesting):
+
+| | before | after |
+|---|---|---|
+| `getTopicPools` rows / payload (104 topics, one call) | 133,701 · 21.4 MB | **3,946 · 0.6 MB** |
+| `getTopicPools` wall, bare script | 166 ms | 209 ms |
+| `getFeedPage` p50 / p95, bare script | 177 / 271 ms | 213 / 262 ms |
+| `feed.page` in the dev server, 8 loads | 0.9–4.5 s, **alternating** | **0.57–1.16 s, flat** |
+| dev-server RSS, first `/feed` after sign-up | +548 MB | **+190 MB** |
+| dev-server RSS across the next 8 loads | +455 MB | **+274 MB** |
+| served-card score, 25 pages / ~265 cards | mean 8.20 · p10 7 · ≥ 9 42% | mean 8.23 · p10 7 · ≥ 9 44% |
+
+**Findings:**
+
+- **The design's attribution holds, and the bare-script bench cannot see the win.** In a bare
+  process the sampled query is *slower* (166 → 209 ms, and `getFeedPage` p50 177 → 213 ms):
+  Postgres now sorts the same scanned set twice for the two `row_number()` windows, and over a
+  local socket the 21 MB it no longer sends was nearly free. The whole win is in the long-lived
+  process, which is exactly where the design said the cost was — the 0.9/4.2 s alternation
+  reproduced on the unchanged code an hour before the fix (1.2 / 5.2 s here) and is simply gone
+  after it. **On a network hop (8.1's VPS) the query change wins on transfer too; on this
+  laptop's socket it does not, so `bench:feed` alone would read as a regression.** Don't judge
+  this change by `bench:feed`.
+- **The score summary did not move** — mean +0.03, p10 unchanged, share ≥ 9 +2 points, all
+  inside the noise of two runs spending different pages of the same account. The design's one
+  trade-off is not visible at this corpus, so the escalations (a score-tilted sample) stay
+  unbuilt.
+- **The plan's test fixture named a suspended source.** It seeded four sources × 30 rows and
+  asserted all four appear in the sample; `aic` has been in `SUSPENDED_SOURCES` since round 2, so
+  `eligibilityConditions` silently dropped 30 of the 120 rows. Swapped for `smithsonian`, with a
+  comment saying why — anything seeding a pool fixture has to check that list first.
+
+**Decisions:** plain sample, not tilted — measure first (Ben, 09-08 evening); the measurement
+came back clean, so nothing escalates.
+
+**Open / next:** merge is Ben's call. Production draws from the same corpus, so this goes out
+with the next deploy.
+
+*Session spend: 16.93M tok (in 297 · out 62.8k · cache r 16.51M / w 361.7k) · ~$13.00 · opus-5 + opus-4-7 · 22:14→22:23*
+
+
 ### [[09-07-26 Mon]] — Cut 2b sized, found wanting; sourceCap and MAX_TOPICS instead
 
 Ben's call on the sovietpostcards topic-capture finding was **Cut 2b**. Sizing it against the

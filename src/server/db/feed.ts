@@ -14,6 +14,7 @@ import {
   inArray,
   isNull,
   lt,
+  lte,
   notExists,
   notInArray,
   sql,
@@ -43,34 +44,36 @@ export type PoolItem = Pick<
 
 /**
  * One SELECT per page, not one per topic (SPEC §9's "slot plan first, pools second" — see
- * services/feed.ts's `getFeedPage`): every item across `topicIds` that's above `scoreFloor` and
- * that this user hasn't been served before `anchor` (`seen_item.served_at < anchor` — a strict
- * `<`, deliberately not `<=`; see schema.ts's comment on `seenItem.servedAt` for why), excluding
- * `excludeIds` (the previous page's own item ids — a separate guard because they share `anchor`
- * exactly, so the `served_at < anchor` clause alone wouldn't catch them). Rides `idx_item_topic_
- * score` (topicId, curationScore) for the `IN (...) AND curationScore >=` half of the filter.
+ * services/feed.ts's `getFeedPage`): for every id in `topicIds`, a deterministic **sample** of
+ * the items above `scoreFloor` that this user hasn't been served before `anchor`
+ * (`seen_item.served_at < anchor` — a strict `<`, deliberately not `<=`; see schema.ts's comment
+ * on `seenItem.servedAt` for why), excluding `excludeIds` (the previous page's own item ids — a
+ * separate guard because they share `anchor` exactly). Rides `idx_item_topic_score` for the
+ * `IN (...) AND curationScore >=` half of the filter.
  *
  * Returns a Map keyed by every id in `topicIds` (even ones with zero eligible items — an empty
  * array, not a missing key) so services/feed.ts's `composePage` can do a plain `.get(topicId)`
  * without a null-vs-missing distinction to worry about.
  *
- * `ORDER BY id` is load-bearing, not cosmetic: `composePage`'s `weightedPick` walks each pool's
- * array in order, so SPEC §7's "refetching the same cursor returns a stable page" promise depends
- * on this query returning rows in the *same* order every time it's asked the same question.
- * Postgres makes no ordering guarantee without an explicit `ORDER BY` — a query plan flip as the
- * table grows, a parallel scan, or a HOT update moving a tuple could otherwise reorder results
- * between two calls with identical inputs, silently changing which item a fixed rng draw lands on.
+ * **A sample, not the pool** (09-08-26, docs/DESIGN_feed-pool-sampling.md). This used to return
+ * every eligible row — a projection of five columns (Phase 7.3), which was the right fix when
+ * the corpus was 9,848 rows and the weight was the `body` column. At 122,458 rows the *count* is
+ * the cost: `reachableTopics` reaches 101 of 104 topics from three picks, so a page fetched
+ * 133,698 rows / 22.4 MB and the process paid for materialising them (2.6 GB of dev-server RSS
+ * in eight loads; a one-row insert stalling 1.7 s behind a compose). Now each topic contributes
+ * at most `TOPIC_POOL_SAMPLE` rows, at most `TOPIC_POOL_PER_SOURCE` per source, chosen by
+ * `md5(id || sampleKey)` — the same cursor-keyed hash `getWildPool` has used since 09-06-26 —
+ * so a page costs O(topics × 60) whatever the corpus does. Postgres still scans every eligible
+ * row to rank it (md5 over ~130k rows is milliseconds); what stops crossing the wire is the
+ * other 95 %.
  *
- * **A projection, not whole rows** (Phase 7.3, decision D6). This used to be a bare `select()`,
- * and on 08-28-26 that meant **9,848 full rows — about 35.8 MB — dragged out of Postgres to
- * compose twelve cards**. Most of the weight was the `body` column: ~2,200 Wikipedia rows carry
- * one, averaging 13 KB, and `composePage` never reads it. It reads exactly five fields, which is
- * what `PoolItem` is. The ~12 winners are re-fetched whole afterwards, by id, in one query
- * (`getItemsByIds` → `getFeedPage`) — twelve full rows instead of ten thousand.
+ * The one thing this changes for the reader: `pickItem`'s curated-weighted draw runs over the
+ * sample rather than the whole pool, so a top-scored item in a topic of thousands has to be in
+ * the sixty first. `bun run probe:feed`'s score summary is what says whether that shows; the
+ * design doc has the escalation (a score-tilted sample) if it does.
  *
- * On this laptop, over a local socket, that was worth ~10 ms; the reason to do it anyway is the
- * VPS in 8.1, where the database is a network hop away and 35 MB per page is the whole latency
- * budget.
+ * The ~12 winners are re-fetched whole afterwards, by id, in one query (`getItemsByIds` →
+ * `getFeedPage`) — twelve full rows instead of six thousand.
  */
 export async function getTopicPools(
   topicIds: string[],
@@ -79,6 +82,8 @@ export async function getTopicPools(
     anchor: Date;
     scoreFloor: number;
     excludeIds: string[];
+    /** `${seed}:${page}` from the cursor — what makes the sample a pure function of the page. */
+    sampleKey: string;
   },
 ): Promise<Map<string, PoolItem[]>> {
   const pools = new Map<string, PoolItem[]>();
@@ -87,22 +92,51 @@ export async function getTopicPools(
 
   const { db } = await import("./client");
 
-  const conditions = [
-    inArray(item.topicId, topicIds),
-    ...eligibilityConditions(db, opts),
-  ];
-
-  const rows = await db
+  // Rank every eligible row inside its topic (and inside its (topic, source)) by a hash of its
+  // id and the page's key. `md5(id || key)` rather than `random()` for the same reason as
+  // `getWildPool`: SPEC §7 promises a refetched cursor returns the same page, and a random()
+  // sample would give a different one each time. The eligibility clauses are the shared
+  // `eligibilityConditions`, applied *inside* the ranking, so a row that eligibility refuses is
+  // never counted toward a cap — an exclusion is backfilled, not a hole in the sample.
+  const ranked = db
     .select({
       id: item.id,
       topicId: item.topicId,
       source: item.source,
       curationScore: item.curationScore,
       aestheticTags: item.aestheticTags,
+      n: sql<number>`row_number() over (partition by ${item.topicId} order by md5(${item.id} || ${opts.sampleKey}))`.as(
+        "n",
+      ),
+      nSrc: sql<number>`row_number() over (partition by ${item.topicId}, ${item.source} order by md5(${item.id} || ${opts.sampleKey}))`.as(
+        "n_src",
+      ),
     })
     .from(item)
-    .where(and(...conditions))
-    .orderBy(asc(item.id));
+    .where(
+      and(inArray(item.topicId, topicIds), ...eligibilityConditions(db, opts)),
+    )
+    .as("ranked");
+
+  // `ORDER BY topic_id, id` is load-bearing, not cosmetic: `composePage`'s `weightedPick` walks
+  // each pool's array in order, so the stable-page promise also depends on the *order* being
+  // the same every time — and Postgres guarantees none without an explicit ORDER BY.
+  const rows = await db
+    .select({
+      id: ranked.id,
+      topicId: ranked.topicId,
+      source: ranked.source,
+      curationScore: ranked.curationScore,
+      aestheticTags: ranked.aestheticTags,
+    })
+    .from(ranked)
+    .where(
+      and(
+        lte(ranked.n, TOPIC_POOL_SAMPLE),
+        lte(ranked.nSrc, TOPIC_POOL_PER_SOURCE),
+      ),
+    )
+    .orderBy(asc(ranked.topicId), asc(ranked.id));
 
   for (const row of rows) {
     // Unreachable in practice — the `inArray(topicId, …)` above cannot match a NULL — but the
@@ -165,14 +199,33 @@ function eligibilityConditions(
 export const WILD_POOL_SIZE = 200;
 
 /**
+ * How many eligible rows one page's draws see per topic, and per (topic, source) within that
+ * (09-08-26, docs/DESIGN_feed-pool-sampling.md). Before this, `getTopicPools` returned *every*
+ * eligible row in every reachable topic — and `reachableTopics` (services/feed.ts) reaches
+ * 101 of 104 topics from three picks, so every page dragged the whole corpus out of Postgres:
+ * 133,698 rows / 22.4 MB at 122,458 items, and the dev server materialising that per request
+ * grew to 2.6 GB in eight page loads. Sixty is generous: a page draws at most twelve cards and
+ * rarely hits one topic more than four times, and `pickItem` still has room to reject most of a
+ * sample for `sourceCap` / `lastSource` and find a card.
+ *
+ * The per-source cap is the diversity rule applied where it is cheapest. A blog-captured topic
+ * (`illustration` is ~17,500 items, most from one blog) would otherwise fill its sixty with one
+ * source and hand `pickItem` a sample `sourceCap` empties after three; twenty per source means
+ * a topic's minority sources are always candidates. Not `FeedKnobs`: those are compose-side.
+ */
+export const TOPIC_POOL_SAMPLE = 60;
+export const TOPIC_POOL_PER_SOURCE = 20;
+
+/**
  * The WILD tier's pool (09-06-26, docs/PLAN_caption-less-and-wild.md T2 / D6): a deterministic
  * sample of eligible **un-homed** items — `topic_id IS NULL`, which since Cut 1 means "stored,
  * curated, and no topic in the vocabulary fits it". Nothing else in the feed can return one.
  *
  * **Sampled in SQL, deterministically.** `ORDER BY md5(id || '<seed>:<page>') LIMIT 200`:
- *  - not the whole set, because loading every un-homed row per request is exactly the 9,848-rows-
- *    and-35.8-MB-per-page problem Phase 7.3 fixed in getTopicPools above, and a walk of a tagless
- *    picture blog can add tens of thousands of un-homed rows in one night;
+ *  - not the whole set, because loading every un-homed row per request is exactly the
+ *    whole-corpus-per-page problem `getTopicPools` had until 09-08-26 (it now samples the same
+ *    way — see its header), and a walk of a tagless picture blog can add tens of thousands of
+ *    un-homed rows in one night;
  *  - not `random()`, because SPEC §7 promises that refetching a cursor returns the same page, and
  *    feed.integration.test.ts pins it. `sampleKey` is `${seed}:${page}` from the cursor, so the
  *    sample is a pure function of the cursor exactly like every other part of a page.
