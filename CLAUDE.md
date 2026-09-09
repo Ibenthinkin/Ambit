@@ -101,7 +101,14 @@ Playwright project now declares a 402 × 874 viewport** rather than inheriting `
 1280 × 720 — 1280 is exactly `xl`, so the phone suite had silently begun exercising the desktop
 layout. That suite is green under `bun run e2e:prod` (49 passed); under `next dev` at a phone
 width the **Next.js dev-overlay portal sits on top of the pill toolbar** and eats the clicks, so
-`bun run e2e` alone reports failures that a production build does not. Pick the thread up from
+`bun run e2e` alone reports failures that a production build does not.
+**7.3's feed-performance win has been outrun by corpus growth, found 09-08-26 and handed to a
+follow-up session.** At **119,687 items** `getTopicPools` pulls **116,911 rows / 18.7 MB per page
+compose** — the whole corpus — and `feed.page` takes **1.5–9.2 s** through the dev server, against
+`bun run bench:feed`'s 155 ms p50 for `getFeedPage` in a warm script. 7.3 fixed this once by
+returning a five-column projection; the row _count_ is now the cost, so the projection alone no
+longer carries it. Read the 09-08 log entry before touching `src/server/db/feed.ts`, and treat the
+22 ms in this file's 7.3 sentence as a measurement against a 9,848-row corpus, not a current fact. Pick the thread up from
 `docs/HANDOFF_sources-round2.md` **§0** — streetartnews and spoon-tamago as a cold-executable
 seven-step task (config rows on the factory, verdict after each) — then Europeana / Openverse /
 Chronicling America. See
