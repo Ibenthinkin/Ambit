@@ -159,7 +159,7 @@ The fail-fast never fired; every fallback was a malformed answer.
 **Open / next:** the four-script prod sequence after the next deploy (`promote-prod.sh` →
 `trim:memberships` → `repair:periods` → `repair:rehome`) — the deploy now carries five Tumblr
 walks the production database has never seen, so the nightly ingest will re-walk them from the
-volume's curation cache (copy `.cache/curation` up first, or it re-bills ~$40). `img:warm` for
+volume's curation cache (copy `.cache/curation` up first, or it re-bills ~$33 for ~140,000 Tumblr items). `img:warm` for
 the new sources. Then spoon-tamago / streetartnews from the round-2 handoff.
 
 _Session spend: 6.87M tok (in 136 · out 42.8k · cache r 6.07M / w 765.0k) · ~≥$2.24 · fable-5-1 + opus-4-7 · 18:32→22:48_
