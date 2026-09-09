@@ -1093,6 +1093,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
         anchor: new Date(),
         scoreFloor: 4,
         excludeIds: [] as string[],
+        sampleKey: "routers-test:0",
       };
       const aPools = await getTopicPools([topicA], { ...opts, userId });
       const bPools = await getTopicPools([topicA], {

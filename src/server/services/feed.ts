@@ -657,15 +657,14 @@ export async function getFeedPage(
     scoreFloor: knobs.scoreFloor,
     excludeIds: prev,
   };
-  // Two pools, one round trip: the topic pools the first three tiers draw from, and the WILD
-  // tier's sample of un-homed items. `sampleKey` is the cursor's own `${seed}:${page}`, which is
-  // what makes the wild sample reproduce byte-for-byte on a refetch (db/feed.ts, D6). At
-  // `tierWild: 0` the tier can never be drawn, so the query is skipped entirely and /feed costs
-  // exactly what it did before this tier existed.
+  // Two pools, one round trip, one key. `sampleKey` is the cursor's own `${seed}:${page}`, which
+  // is what makes both samples reproduce byte-for-byte on a refetch (db/feed.ts). At
+  // `tierWild: 0` the WILD tier can never be drawn, so its query is skipped entirely.
+  const sampleKey = `${seed}:${page}`;
   const [pools, wildPool] = await Promise.all([
-    getTopicPools(distinctTopics, eligibility),
+    getTopicPools(distinctTopics, { ...eligibility, sampleKey }),
     knobs.tierWild > 0
-      ? getWildPool({ ...eligibility, sampleKey: `${seed}:${page}` })
+      ? getWildPool({ ...eligibility, sampleKey })
       : Promise.resolve([]),
   ]);
 

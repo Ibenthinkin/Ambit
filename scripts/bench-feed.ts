@@ -102,6 +102,7 @@ const pools = await getTopicPools(topicIds, {
   anchor: new Date(),
   scoreFloor: 4,
   excludeIds: [],
+  sampleKey: "bench:0",
 });
 const poolsMs = performance.now() - poolsStarted;
 
