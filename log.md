@@ -5,6 +5,50 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
+
+Morning status after 09-08's four sessions. The deploy gate (the `getTopicPools` scaling fix) is
+cleared and merged; `main` is pushed. This is the pre-flight for the deploy that carries 95
+commits, migration 0006, five Tumblr walks and the desktop pass.
+
+**Shipped (`4f3b846`, pushed):** `loupe` is in `SUSPENDED_SOURCES`. It was not, and CLAUDE.md said
+it had to be: the adapter throws when `LOUPE_URL`/`LOUPE_API_TOKEN` are unset. Checked what that
+would have done to the nightly — `ingest.ts` contains a walker's throw as `WALK FAILED ENTIRELY`
+and marks the walk incomplete, so no prune and the run survives; the damage was only a
+by-design failure line in every scheduled log. Suspending it also keeps its 132 local rows out of
+the Mac's feed; an explicit `--source loupe` still ingests.
+
+**Findings:**
+
+- **Production will stop ~40,000 rows short of local unless the cursor top-ups are replayed.**
+  The nightly walks each blog newest-first to its `walkQuota`; two of the 09-08 top-ups went past
+  their quota (70sscifiart 46,465 rows vs 32,000; thisisnthappiness 55,000 vs 27,500). Decision:
+  the budgets stay budgets (the standing rule — never a full archive every night), and the three
+  `--cursor` runs are replayed once in the container: `.cache/topups-prod.sh`, written today, free
+  through the pushed cache, after the nightly has landed the first walks.
+- **The VM has 15 GB free of 58**, and the ambit cache volume is 1.2 GB (10,657 images / 1.1 GB;
+  26,562 curation envelopes). The neighbour is `ambit-archive`'s 25.5 GB volume. Production's
+  images average ~103 KB, so warming the ~141,000 Tumblr rows is **~14.5 GB — it does not fit**.
+  `img:warm` for the new sources is off the list until the disk grows or the warm is bounded;
+  readers fill the cache on demand meanwhile, which is what 7.3's proxy does anyway. **Ben's
+  call.**
+- A typo'd volume name in a read-only `docker run -v` created an empty stray volume,
+  `mxo9s7hkdbtbfk2ilbvbgnmfr-ambit-cache` (4 KB, note `bvbg`). Remove it: `docker volume rm` it
+  on the VM. The real one is `…ilbvgnmfr…`.
+
+**Open / next:**
+
+1. `sh .cache/push-caches.sh` — 647 MB curation + pdr to the volume (Ben runs it; the session's
+   classifier would not). Without it the nightly re-walk re-bills ~$33 against $6.45 of credit and
+   fail-fasts on 402 with nothing written.
+2. Deploy in Coolify (Redeploy pulls branch HEAD = `4f3b846`); migration 0006 runs on boot.
+3. Let the nightly land the walks (or trigger the task), then `promote-prod.sh` →
+   `trim:memberships` → `repair:periods` → `repair:rehome`, then `.cache/topups-prod.sh`.
+4. Ben's visual pass of the desktop layout at 1440 px — still unlooked-at.
+5. Disk: decide on the image-warm question above before any `img:warm`.
+
+_Session spend: 5.63M tok (in 121 · out 28.1k · cache r 5.33M / w 266.6k) · ~≥$0.44 · fable-5-1 + opus-4-7 · 09:03→09:29_
+
 ### [[09-08-26 Tue]] — Walk 3 died on the wallet, and the curator kept going anyway
 
 The vault walk (started 17:56 yesterday) curated normally for 32 minutes and then, at 18:28,
