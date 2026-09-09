@@ -228,6 +228,23 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   without the flag first for a dry-run count. CI never sees any of this — its database is fresh
   every run — so a green CI and a red local `gallery.spec:193` are consistent, and the local one is
   the accumulation. Delete this note if the test is ever made robust.
+- **`services/feed.integration.test.ts`'s cursor-stability test fails ~1 local run in 10, and the
+  failure is a foreign-key error, not an assertion.** It reads
+  `insert or update on table "seen_item" violates foreign key constraint
+  "seen_item_item_id_item_id_fk"` thrown from `markSeen`, which looks like a bug in `markSeen`
+  and is not one. **Cause, verified 09-09-26:** three suites — `db/feed.integration.test.ts`,
+  `db/items.integration.test.ts`, `api/routers/routers.integration.test.ts` — seed **un-homed**
+  fixture rows (`topicId: null`) and delete them in `afterAll`. Since the WILD tier landed
+  (09-06-26) an un-homed row is drawable by *any* user's page, so when vitest runs those files in
+  parallel with this one, a page composes with another suite's fixture row in a WILD slot and
+  that row is deleted before the test acks it. Only un-homed fixtures do this: a fixture with a
+  test-only `topicId` is unreachable, because `reachableTopics` walks the checked-in graph and no
+  test topic is in it. **So a red cursor-stability test is not evidence about your branch, and
+  not evidence about SPEC §7.** It passes 5/5 when that file is run alone, and it fails at the
+  same rate on commits predating whatever you are testing — check one before believing it. CI
+  never sees it (fresh database, and the DB-backed suites are what they are there too, but
+  nothing else is racing them). Delete this note if the un-homed fixtures are ever scoped to
+  their own database or the files are made to run serially.
 - **A red Postgres-touching integration test usually means the machine is busy, not that the code broke.** Overlapping `bun run test` runs, or a dev server under load, balloon vitest setup from ~7s to ~650s and then fail _unrelated_ integration tests — three times in one session on 2026-08-20, a different test each time. Check what else is running before debugging the test. Delete this note if test isolation is ever fixed; don't leave it as folklore.
 - **After `bun add`/`bun remove`, clear Vite's dep cache before trusting a red test run.** Adding
   `sharp` in 7.3 invalidated `node_modules/.vite`, and the symptom was nothing like a dependency
