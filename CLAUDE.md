@@ -103,7 +103,7 @@ layout. That suite is green under `bun run e2e:prod` (49 passed); under `next de
 width the **Next.js dev-overlay portal sits on top of the pill toolbar** and eats the clicks, so
 `bun run e2e` alone reports failures that a production build does not.
 **7.3's feed-performance win has been outrun by corpus growth, found 09-08-26 and handed to a
-follow-up session.** At **119,687 items** `getTopicPools` pulls **116,911 rows / 18.7 MB per page
+follow-up session.** At **119,687 items** (122,458 hours later — walk 4; the number only goes up) `getTopicPools` pulls **116,911 rows / 18.7 MB per page
 compose** — the whole corpus — and `feed.page` takes **1.5–9.2 s** through the dev server, against
 `bun run bench:feed`'s 155 ms p50 for `getFeedPage` in a warm script. 7.3 fixed this once by
 returning a five-column projection; the row _count_ is now the cost, so the projection alone no

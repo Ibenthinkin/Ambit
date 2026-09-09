@@ -297,7 +297,9 @@ stopped here.
 **Findings — the real one, for Fable:**
 
 - **`getTopicPools` no longer scales, and this is 7.3's problem returning at 12× the corpus.** At
-  **119,687 items** (walk 3 plus the Tumblr walks) `bun run bench:feed` reports the all-topics call
+  **119,687 items** (walk 3 plus the Tumblr walks — already **122,458** by the time this was
+  written, walk 4 having landed mid-investigation, so treat every number here as a floor)
+  `bun run bench:feed` reports the all-topics call
   pulling **116,911 rows / 18.7 MB** — the whole corpus, per page compose. 7.3 fixed precisely this
   (138 ms → 22 ms) by returning a five-column projection and hydrating winners by id; growth has
   outrun the projection, because the row _count_ is now the cost. `getFeedPage` still benches at
