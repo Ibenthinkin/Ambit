@@ -329,6 +329,46 @@ stopped here.
 
 _Session spend: 32.70M tok (in 235 · out 130.4k · cache r 31.37M / w 1.20M) · ~$30.06 · opus-5 + opus-4-7 · 14:34→20:29_
 
+---
+
+**Corroborated, and the attribution corrected** (evening, Fable). Design + proposal in
+`docs/DESIGN_feed-pool-sampling.md`; the short version:
+
+**Findings:**
+
+- **The structural claim holds and is worse than stated.** `reachableTopics` (two graph hops from
+  the user's picks) reaches **101 of 104 topics** from `architecture, portraiture, zoology` — the
+  bench's "all topics" case is what every page does. One page for Ben's account:
+  **133,698 rows · 22.4 MB.** Row count is the cost, and row count is the corpus.
+- **The latency numbers were right; blaming the query was wrong.** In a bare process the whole
+  compose is **~200 ms** (`getTopicPools` ~175 ms). Inside the dev server the same page is
+  **0.9–4.2 s, alternating**, a one-row `markSeen` stalls to **1.7 s** behind it, `proxy.ts`
+  takes 827 ms to mint a nonce, and RSS climbs to **2.6 GB in eight page loads**. That is
+  materialising 133k objects per request in a single-threaded process, not a slow SELECT. (The
+  afternoon's measurements also had an ingest running the whole time and didn't say so — this
+  evening's did too, and the in-process number is still 200 ms, so contention isn't the story.)
+- **The wild pool already solved this** — `getWildPool` samples deterministically with
+  `ORDER BY md5(id || sampleKey) LIMIT 200`, its comment names `getTopicPools` as the thing it is
+  avoiding, and `feed.integration.test.ts` pins the determinism. The topic pools never got it.
+
+**Proposal:** the same md5 sample, per topic, in the one existing query — a window
+`row_number() OVER (PARTITION BY topic_id ORDER BY md5(id || sampleKey)) <= 60`, plus a second
+partition capping each `(topic, source)` at 20 so a blog-captured topic can't fill its sixty with
+one source. ≤ ~6,000 rows per page instead of 133,698, O(topics × K) instead of O(corpus), engine
+untouched, cursor stability preserved by the mechanism the wild pool already uses. One honest
+trade-off — the weighted draw runs over a sample of sixty rather than the whole pool — with a
+two-command way to measure whether it shows (`probe:feed` score mix before/after) and two
+escalations if it does. **Ben's call**; the executable plan follows it.
+
+**Open / next:**
+
+- Ben: read the design, pick — sample as proposed / tilt the sample / something else.
+- One hypothesis to check _next time the loop appears_, not chased now: a dev server whose event
+  loop stalls for seconds can drop Next's HMR socket, and the HMR client reloads on reconnect.
+  Firefox with Persist Logs on would show an `[HMR]` line before each reload if so.
+
+_Session spend: 22.29M tok (in 118 · out 74.4k · cache r 21.12M / w 1.10M) · ~≥$1.69 · fable-5-1 + opus-5 · 20:29→21:45_
+
 ### [[09-07-26 Mon]] — Cut 2b sized, found wanting; sourceCap and MAX_TOPICS instead
 
 Ben's call on the sovietpostcards topic-capture finding was **Cut 2b**. Sizing it against the
