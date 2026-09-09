@@ -92,22 +92,20 @@ export async function getTopicPools(
 
   const { db } = await import("./client");
 
-  // Rank every eligible row inside its topic (and inside its (topic, source)) by a hash of its
-  // id and the page's key. `md5(id || key)` rather than `random()` for the same reason as
-  // `getWildPool`: SPEC §7 promises a refetched cursor returns the same page, and a random()
-  // sample would give a different one each time. The eligibility clauses are the shared
-  // `eligibilityConditions`, applied *inside* the ranking, so a row that eligibility refuses is
-  // never counted toward a cap — an exclusion is backfilled, not a hole in the sample.
-  const ranked = db
+  // Stage one: rank each eligible row inside its own (topic, source) by a hash of its id and the
+  // page's key, and keep that source's first `TOPIC_POOL_PER_SOURCE`. `md5(id || key)` rather
+  // than `random()` for the same reason as `getWildPool`: SPEC §7 promises a refetched cursor
+  // returns the same page, and a `random()` sample would give a different one each time. The
+  // eligibility clauses are the shared `eligibilityConditions`, applied *inside* the ranking, so
+  // a row eligibility refuses is never counted toward a cap — an exclusion is backfilled, not a
+  // hole in the sample.
+  const perSource = db
     .select({
       id: item.id,
       topicId: item.topicId,
       source: item.source,
       curationScore: item.curationScore,
       aestheticTags: item.aestheticTags,
-      n: sql<number>`row_number() over (partition by ${item.topicId} order by md5(${item.id} || ${opts.sampleKey}))`.as(
-        "n",
-      ),
       nSrc: sql<number>`row_number() over (partition by ${item.topicId}, ${item.source} order by md5(${item.id} || ${opts.sampleKey}))`.as(
         "n_src",
       ),
@@ -116,27 +114,49 @@ export async function getTopicPools(
     .where(
       and(inArray(item.topicId, topicIds), ...eligibilityConditions(db, opts)),
     )
-    .as("ranked");
+    .as("per_source");
+
+  // Stage two: rank *what survived stage one* inside its topic, and keep the first
+  // `TOPIC_POOL_SAMPLE`.
+  //
+  // **Two stages, not one `WHERE n <= 60 AND n_src <= 20`.** That one-pass form ranks both ways
+  // over the *whole* eligible set, so a row has to make the topic's global top sixty AND its own
+  // source's top twenty — an intersection, not a composition. It shrinks the sample without
+  // giving a minority source a single extra slot, because a minority row still only enters if it
+  // would have placed in the global sixty anyway. Measured on the corpus 09-08-26: `japan` kept
+  // 30 rows drawn from 3 of its 8 sources, `activism` 23 from 3 of 5, and the corpus-wide sample
+  // was 3,990 rows where an uncapped top-sixty would have been 5,159. Capping first and ranking
+  // second is what the cap is *for*: the same topics come back as 60 rows from all 8 and 46 from
+  // all 5, because a dominant source arrives at stage two holding twenty rows rather than sixty.
+  const survivors = db
+    .select({
+      id: perSource.id,
+      topicId: perSource.topicId,
+      source: perSource.source,
+      curationScore: perSource.curationScore,
+      aestheticTags: perSource.aestheticTags,
+      n: sql<number>`row_number() over (partition by ${perSource.topicId} order by md5(${perSource.id} || ${opts.sampleKey}))`.as(
+        "n",
+      ),
+    })
+    .from(perSource)
+    .where(lte(perSource.nSrc, TOPIC_POOL_PER_SOURCE))
+    .as("survivors");
 
   // `ORDER BY topic_id, id` is load-bearing, not cosmetic: `composePage`'s `weightedPick` walks
   // each pool's array in order, so the stable-page promise also depends on the *order* being
   // the same every time — and Postgres guarantees none without an explicit ORDER BY.
   const rows = await db
     .select({
-      id: ranked.id,
-      topicId: ranked.topicId,
-      source: ranked.source,
-      curationScore: ranked.curationScore,
-      aestheticTags: ranked.aestheticTags,
+      id: survivors.id,
+      topicId: survivors.topicId,
+      source: survivors.source,
+      curationScore: survivors.curationScore,
+      aestheticTags: survivors.aestheticTags,
     })
-    .from(ranked)
-    .where(
-      and(
-        lte(ranked.n, TOPIC_POOL_SAMPLE),
-        lte(ranked.nSrc, TOPIC_POOL_PER_SOURCE),
-      ),
-    )
-    .orderBy(asc(ranked.topicId), asc(ranked.id));
+    .from(survivors)
+    .where(lte(survivors.n, TOPIC_POOL_SAMPLE))
+    .orderBy(asc(survivors.topicId), asc(survivors.id));
 
   for (const row of rows) {
     // Unreachable in practice — the `inArray(topicId, …)` above cannot match a NULL — but the
@@ -208,10 +228,14 @@ export const WILD_POOL_SIZE = 200;
  * rarely hits one topic more than four times, and `pickItem` still has room to reject most of a
  * sample for `sourceCap` / `lastSource` and find a card.
  *
- * The per-source cap is the diversity rule applied where it is cheapest. A blog-captured topic
- * (`illustration` is ~17,500 items, most from one blog) would otherwise fill its sixty with one
- * source and hand `pickItem` a sample `sourceCap` empties after three; twenty per source means
- * a topic's minority sources are always candidates. Not `FeedKnobs`: those are compose-side.
+ * The per-source cap is the diversity rule applied where it is cheapest, and it is applied
+ * **first** — see the two-stage note in the query below, which is the whole subtlety here. A
+ * blog-captured topic (`illustration` is ~17,500 items, most from one blog) would otherwise fill
+ * its sixty with one source and hand `pickItem` a sample `sourceCap` empties after three; twenty
+ * per source means a topic's minority sources are always candidates. A topic whose sources
+ * cannot between them offer sixty comes back short, which is the cap working, not a bug:
+ * `19th-century` is 95 % one blog, so it returns ~33 rows from three sources rather than sixty
+ * from one. Not `FeedKnobs`: those are compose-side.
  */
 export const TOPIC_POOL_SAMPLE = 60;
 export const TOPIC_POOL_PER_SOURCE = 20;

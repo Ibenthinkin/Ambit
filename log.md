@@ -388,25 +388,41 @@ and a seen row is backfilled rather than leaving a hole. `probe:feed` gained a s
 
 | | before | after |
 |---|---|---|
-| `getTopicPools` rows / payload (104 topics, one call) | 133,701 · 21.4 MB | **3,946 · 0.6 MB** |
-| `getTopicPools` wall, bare script | 166 ms | 209 ms |
-| `getFeedPage` p50 / p95, bare script | 177 / 271 ms | 213 / 262 ms |
+| `getTopicPools` rows / payload (104 topics, one call) | 133,701 · 21.4 MB | **4,801 · 0.7 MB** |
+| `getTopicPools` wall, bare script | 166 ms | **141 ms** |
+| `getFeedPage` p50 / p95, bare script | 177 / 271 ms | **144 / 161 ms** |
 | `feed.page` in the dev server, 8 loads | 0.9–4.5 s, **alternating** | **0.57–1.16 s, flat** |
 | dev-server RSS, first `/feed` after sign-up | +548 MB | **+190 MB** |
 | dev-server RSS across the next 8 loads | +455 MB | **+274 MB** |
-| served-card score, 25 pages / ~265 cards | mean 8.20 · p10 7 · ≥ 9 42% | mean 8.23 · p10 7 · ≥ 9 44% |
+| served-card score, 25 pages / ~275 cards | mean 8.20 · p10 7 · ≥ 9 42% | mean 8.23 · p10 7 · ≥ 9 45% |
 
 **Findings:**
 
-- **The design's attribution holds, and the bare-script bench cannot see the win.** In a bare
-  process the sampled query is *slower* (166 → 209 ms, and `getFeedPage` p50 177 → 213 ms):
-  Postgres now sorts the same scanned set twice for the two `row_number()` windows, and over a
-  local socket the 21 MB it no longer sends was nearly free. The whole win is in the long-lived
-  process, which is exactly where the design said the cost was — the 0.9/4.2 s alternation
-  reproduced on the unchanged code an hour before the fix (1.2 / 5.2 s here) and is simply gone
-  after it. **On a network hop (8.1's VPS) the query change wins on transfer too; on this
-  laptop's socket it does not, so `bench:feed` alone would read as a regression.** Don't judge
-  this change by `bench:feed`.
+- **The design's attribution holds.** The 0.9/4.2 s alternation reproduced on the unchanged code
+  an hour before the fix (1.2 / 5.2 s here) and is simply gone after it, while the query in a
+  bare process was never the story — it was ~170 ms before and is ~140 ms now. The cost was
+  materialising 133k objects per request in a long-lived single-threaded process, exactly as the
+  design said.
+- **The two caps were written as an intersection, and shipped that way for twenty minutes.**
+  The design's SQL sketch — and so the plan, and so the first commit — put both `row_number()`
+  windows over the *whole* eligible set and filtered `n <= 60 AND n_src <= 20`. That is an
+  intersection, not a composition: a row had to make the topic's global sixty **and** its own
+  source's twenty, so a dominated source bought the sample nothing (its rows still only entered
+  if they'd have placed in the global sixty) while the pool came back short. Measured on the
+  corpus: `japan` kept **30 rows from 3 of its 8 sources**, `activism` 23 from 3 of 5, and the
+  corpus-wide sample was 3,990 rows against an uncapped top-sixty's 5,159 — the per-source cap
+  was costing rows and buying nothing, on exactly the blog-captured topics it exists for.
+  Capping per source **first** and ranking the survivors second returns those topics as
+  **60 rows from all 8** and **46 from all 5**. It is also faster (141 ms vs 209 ms; stage two
+  ranks ~5k survivors, not ~130k rows), which is why the after-numbers above beat the baseline
+  rather than trailing it.
+  - **How it surfaced:** as flakiness, not as a wrong answer. The plan's own test asserted a pool
+    of exactly 60 and the intersection form returned 59 whenever one source happened to land 21
+    rows in the global sixty — so it passed most runs. A test that fails one run in four is
+    evidence, not noise; chasing it is what turned up the semantics.
+  - The repair carries a lopsided fixture (one source holding 80 % of a topic) that the even
+    fixture could not distinguish: under the old form a ten-row source contributed 4, under the
+    new one it arrives whole.
 - **The score summary did not move** — mean +0.03, p10 unchanged, share ≥ 9 +2 points, all
   inside the noise of two runs spending different pages of the same account. The design's one
   trade-off is not visible at this corpus, so the escalations (a score-tilted sample) stay
@@ -417,9 +433,11 @@ and a seen row is backfilled rather than leaving a hole. `probe:feed` gained a s
   comment saying why — anything seeding a pool fixture has to check that list first.
 
 **Decisions:** plain sample, not tilted — measure first (Ben, 09-08 evening); the measurement
-came back clean, so nothing escalates.
+came back clean, so nothing escalates. The two-stage cap composition is a repair of the design's
+own stated intent ("minority sources are always candidates"), not a change to what Ben chose —
+the plain uniform sample is still exactly what a topic's sixty are drawn by.
 
-**Open / next:** merge is Ben's call. Production draws from the same corpus, so this goes out
+**Open / next:** merged to `main` (`80ac04f`, plus `fix/feed-pool-sampling-caps`). Production draws from the same corpus, so this goes out
 with the next deploy.
 
 *Session spend: 16.93M tok (in 297 · out 62.8k · cache r 16.51M / w 361.7k) · ~$13.00 · opus-5 + opus-4-7 · 22:14→22:23*

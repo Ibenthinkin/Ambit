@@ -105,7 +105,11 @@ width the **Next.js dev-overlay portal sits on top of the pill toolbar** and eat
 **Feed pools are sampled as of 09-08-26** (`docs/DESIGN_feed-pool-sampling.md`, plan
 `docs/PLAN_feed-pool-sampling.md`): `getTopicPools` returns at most 60 rows per topic and 20 per
 (topic, source), chosen by the same cursor-keyed `md5` the WILD pool uses, so a page costs
-O(topics × 60) rows whatever the corpus does. Before this, `reachableTopics` (two graph hops from
+O(topics × 60) rows whatever the corpus does — **4,801 rows / 0.7 MB** at a 122,458-item corpus.
+The two caps compose in **two stages, per source first**: one `WHERE n <= 60 AND n_src <= 20`
+over a single ranking is an *intersection*, which shrinks the sample without giving a minority
+source a single extra slot (measured: `japan` 30 rows from 3 of 8 sources, vs 60 from all 8 after
+the repair). That is written up in `db/feed.ts`; don't collapse it back into one pass. Before this, `reachableTopics` (two graph hops from
 the user's picks) reached 101 of 104 topics and every page pulled the whole corpus —
 133,698 rows / 22.4 MB at 122,458 items; the query itself was only ~175 ms, but the dev server
 materialising it grew to 2.6 GB in eight page loads and stalled unrelated requests for seconds.

@@ -486,6 +486,89 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(bySource.size).toBe(SOURCES.length);
     });
 
+    // The regression that shipped and was caught the same night. Written as one
+    // `WHERE n <= 60 AND n_src <= 20` over a single ranking, the two caps are an *intersection* —
+    // a row needs the topic's global top sixty AND its own source's top twenty — so a dominated
+    // source buys the sample nothing and the pool comes back short and no more diverse. The even
+    // fixture above cannot tell the two forms apart; this lopsided one can, which is why it plants
+    // its own topic instead of reusing that one.
+    it("caps each source BEFORE taking the topic's sixty, so a dominated source is not squeezed out", async () => {
+      const { db } = await import("~/server/db/client");
+      const { item, topic } = await import("~/server/db/schema");
+      const lopsidedTopic = `test-sample-lop-${nanoid(8)}`;
+      const lopPrefix = `${prefix}lop-`;
+      const SMALL = ["cma", "wellcome", "smithsonian"] as const;
+      const SMALL_EACH = 10;
+
+      await db.insert(topic).values({
+        id: lopsidedTopic,
+        label: "Test lopsided topic",
+        seedQueries: { wikipedia: [], met: [], aic: [], cma: [], wellcome: [] },
+      });
+      // 120 rows from one source against 10 each from three others — 80 % of the topic in one
+      // place, which is what a walked blog does to a topic in the real corpus.
+      const planted = [
+        ...Array.from({ length: 120 }, (_, i) => ["met", `dom-${i}`] as const),
+        ...SMALL.flatMap((src) =>
+          Array.from(
+            { length: SMALL_EACH },
+            (_, i) => [src, `${src}-${i}`] as const,
+          ),
+        ),
+      ];
+      await db.insert(item).values(
+        planted.map(([source, key]) => ({
+          source,
+          sourceId: `${lopPrefix}${key}`,
+          type: "image" as const,
+          title: `Lopsided ${key}`,
+          sourceUrl: `https://example.com/${lopPrefix}${key}`,
+          imageUrl: `https://example.com/${lopPrefix}${key}.jpg`,
+          topicId: lopsidedTopic,
+          curationScore: 9,
+          aestheticTags: [],
+        })),
+      );
+
+      try {
+        const pool = (
+          await getTopicPools([lopsidedTopic], {
+            ...base(),
+            sampleKey: "sample-test:lopsided",
+          })
+        ).get(lopsidedTopic)!;
+
+        const bySource = new Map<string, number>();
+        for (const row of pool)
+          bySource.set(row.source, (bySource.get(row.source) ?? 0) + 1);
+
+        // The dominant source is held to its twenty despite holding 80 % of the topic…
+        expect(bySource.get("met")).toBe(TOPIC_POOL_PER_SOURCE);
+        // …and each small source, being under the cap, arrives WHOLE. Under the intersection form
+        // they contributed only the ~4 rows apiece that placed in the global sixty.
+        for (const src of SMALL) expect(bySource.get(src)).toBe(SMALL_EACH);
+        // 20 + 3×10 — everything stage one leaves, since that is under TOPIC_POOL_SAMPLE. The
+        // intersection form returned ~32 here.
+        expect(pool).toHaveLength(
+          TOPIC_POOL_PER_SOURCE + SMALL.length * SMALL_EACH,
+        );
+      } finally {
+        const rows = await db.query.item.findMany({
+          where: (t, { like }) => like(t.sourceId, `${lopPrefix}%`),
+          columns: { id: true },
+        });
+        if (rows.length > 0) {
+          await db.delete(item).where(
+            inArray(
+              item.id,
+              rows.map((r) => r.id),
+            ),
+          );
+        }
+        await db.delete(topic).where(inArray(topic.id, [lopsidedTopic]));
+      }
+    });
+
     it("is a pure function of sampleKey — same key, same rows, same order", async () => {
       const a = await getTopicPools([topicId], {
         ...base(),
