@@ -126,6 +126,18 @@ export const SUSPENDED_SOURCES: SourceId[] = [
   // material classifies against it from its first row rather than after a repair);
   // `thisisnthappiness` fourth and last (09-08-26, walk 4, after the vault landed clean under
   // the curator's new fail-fast). All four are walked; this block is history.
+  //
+  // **loupe** (Ben's clipping bench, **parked in production** 09-09-26 — not broken, not a
+  // verdict). Loupe has no production host: the adapter reads `LOUPE_URL`/`LOUPE_API_TOKEN` at
+  // call time and *throws* when either is unset (deliberately — an empty page would read as
+  // "corpus exhausted" to `--prune`). The ingest contains that as `WALK FAILED ENTIRELY` and
+  // marks the walk incomplete, so nothing is pruned and the run survives; but a source that fails
+  // by design every night is noise in the one log a scheduled run leaves behind. Suspending it
+  // also keeps its 132 local rows out of a feed they were never meant to reach: the feed reads
+  // this list too, so on the Mac, lift it (or run `--source loupe`) when Loupe is up. Un-parking
+  // is removing it from this list once Loupe has a reachable host and the two env vars are in
+  // Coolify (docs/PLAN_loupe-hookup.md).
+  "loupe",
 ];
 
 /** Whether `source` is currently switched off. Accepts a plain string for DB rows. */
