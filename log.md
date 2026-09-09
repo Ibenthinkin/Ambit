@@ -262,6 +262,71 @@ _Session spend: 41.42M tok (in 667 · out 166.2k · cache r 40.32M / w 927.8k) �
 
 _Session spend: 20.75M tok (in 200 · out 57.8k · cache r 20.37M / w 325.5k) · ~$13.98 · opus-5 + opus-4-7 · 14:13→14:34_
 
+---
+
+**A reload loop on `/feed`, chased and not caught — but it turned up a real one** (late afternoon,
+during Ben's visual pass of the desktop work). **Handing the feed-performance finding to Fable.**
+
+**The report:** `/feed` caught in a continuous reload loop in Ben's browser. The dev server logged
+**33 `GET /feed`** against 2 `/onboarding`, in runs of ~19 consecutive full-document loads with
+**no `/api/img` or tRPC calls interleaved** — so the page was reloading before it ever rendered a
+tile.
+
+**Ruled out, each with evidence:**
+
+- **A stale service worker.** The obvious suspect, because `bun run e2e:prod` had run four times
+  that afternoon and a _production_ build registers Serwist against `localhost:3000` (the pwa spec
+  even logs `serwist-precache-v2-http://localhost:3000/: 47`). `sw-cleanup.tsx` documents this
+  exact loop from 08-17-26. **Killed:** Ben's DevTools reported no service workers.
+- **The `/feed` ↔ `/onboarding` ping-pong.** The two guards are mutual (`app/feed/page.tsx:33`
+  bounces when `hasCompletedOnboarding` is false; `app/onboarding/page.tsx:24` bounces back when
+  it's true), which is loop-shaped by construction. **Killed twice:** the request counts are 33
+  vs 2, not 1:1; and a fresh sign-up→onboarding→feed run persisted its picks correctly
+  (`astronomy,botany,music`). One earlier run _did_ land on `/feed` with zero topics under heavy
+  load, which would bounce legitimately — not reproducible, noted rather than diagnosed.
+- **The desktop pass.** The whole merge diff under `src/` contains exactly one `window.location`
+  line — `mailto:` on Settings' "Get in touch" — and it is a re-indent, the same line moved inside
+  the new `Column`. No added line calls `reload`, `router.push/replace/refresh` or `redirect`. A
+  topic-having account at 1440 px sat on `/feed` for **60 s with zero main-frame navigations**.
+
+**Not reproduced.** Four attempts, Chromium and Firefox (Ben is on Firefox — his console's curly
+quotes and "preloaded with link preload was not used" wording are Firefox's), clean profiles, with
+and without topics. Without a failing case there is nothing to bisect, so the bisect Ben asked for
+stopped here.
+
+**Findings — the real one, for Fable:**
+
+- **`getTopicPools` no longer scales, and this is 7.3's problem returning at 12× the corpus.** At
+  **119,687 items** (walk 3 plus the Tumblr walks) `bun run bench:feed` reports the all-topics call
+  pulling **116,911 rows / 18.7 MB** — the whole corpus, per page compose. 7.3 fixed precisely this
+  (138 ms → 22 ms) by returning a five-column projection and hydrating winners by id; growth has
+  outrun the projection, because the row _count_ is now the cost. `getFeedPage` still benches at
+  **155 ms p50 / 215 ms max** in a warm script, but through the dev server **`feed.page` takes
+  1.5–9.2 s**. `src/server/db/feed.ts`; `bun run bench:feed` is the before/after.
+- **`/feed` throws an uncaught `TypeError: Failed to execute 'measure' on 'Performance':
+'<U+200B>FeedPage' cannot have a negative time stamp`** on every load in Chromium. That is Next's own
+  dev component-timing instrumentation, and a _negative_ timestamp is what multi-second server
+  renders produce — a readout of the line above, not an independent bug. Firefox doesn't throw it.
+- **A pre-existing hydration mismatch on the landing page.** Server renders
+  `<button aria-label="Back to the slideshow">`, client renders `<div aria-hidden>` —
+  `AuthSheet`'s `onCollapse`, which is `isStatic ? undefined : …` in `landing-screen.tsx:106`,
+  disagreeing across the boundary. Not from this work: that file's last two commits (`f786a83`,
+  `6bc08d5`) both predate it, and the desktop change to `auth-sheet.tsx` touched only the panel's
+  className array. Unrelated to the feed loop; worth a separate look.
+
+**Open / next:**
+
+- **For Fable: the `getTopicPools` scaling fix.** It gates a deploy — production draws from the
+  same corpus.
+- **If the loop recurs**, run this in the console _first_, since each reload wipes the evidence:
+  `addEventListener("beforeunload", () => sessionStorage.setItem("whoUnloaded", new Error().stack))`,
+  then read `sessionStorage.getItem("whoUnloaded")` after a cycle. The stack names the caller in one
+  shot.
+- The desktop merge stands — nothing found implicates it — but **it still has not been looked at**
+  by a human at 1440 px.
+
+_Session spend: 32.70M tok (in 235 · out 130.4k · cache r 31.37M / w 1.20M) · ~$30.06 · opus-5 + opus-4-7 · 14:34→20:29_
+
 ### [[09-07-26 Mon]] — Cut 2b sized, found wanting; sourceCap and MAX_TOPICS instead
 
 Ben's call on the sovietpostcards topic-capture finding was **Cut 2b**. Sizing it against the
