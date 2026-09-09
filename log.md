@@ -47,7 +47,12 @@ the Mac's feed; an explicit `--source loupe` still ingests.
    `trim:memberships` → `repair:periods` → `repair:rehome`, then `.cache/topups-prod.sh`.
 4. Ben's visual pass of the desktop layout at 1440 px — still unlooked-at.
 5. `img:warm` for the five Tumblr sources (~14.5 GB, fits now) — after the nightly lands them.
-6. **The cache push ran** (Ben, 09:35): 165,629 local envelopes → volume holds 168,086 (the
+6. **Deployed 09:47** — Ben pressed Redeploy at 09:43; health flipped `55bdf5d` → `90cc6f0` four
+   minutes later. Boot clean (migration 0006 applied as row 7, seed a no-op), all seven security
+   headers surviving the edge, landing / item / image proxy all 200, the container sees the
+   168,086 pushed envelopes. Production corpus is **24,358 items / 99 topics** — the five Tumblr
+   walks arrive with tonight's nightly (21:30 EDT), then steps 3–5 above.
+7. **The cache push ran** (Ben, 09:35): 165,629 local envelopes → volume holds 168,086 (the
    surplus is production's own nightly curation, kept by `--skip-old-files`); pdr 1,649. Deploy
    is unblocked.
 
