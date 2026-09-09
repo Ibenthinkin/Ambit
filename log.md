@@ -29,9 +29,10 @@ the Mac's feed; an explicit `--source loupe` still ingests.
 - **The VM has 15 GB free of 58**, and the ambit cache volume is 1.2 GB (10,657 images / 1.1 GB;
   26,562 curation envelopes). The neighbour is `ambit-archive`'s 25.5 GB volume. Production's
   images average ~103 KB, so warming the ~141,000 Tumblr rows is **~14.5 GB — it does not fit**.
-  `img:warm` for the new sources is off the list until the disk grows or the warm is bounded;
-  readers fill the cache on demand meanwhile, which is what 7.3's proxy does anyway. **Ben's
-  call.**
+  **Ben's call: grow the disk — done the same morning.** The virtual disk was already 120 GB;
+  Ubuntu's installer had given the root LV 59 GB of a 118 GB volume group, so one
+  `lvextend -l +100%FREE -r` grew it online to **116 GB, 71 GB free**, no hypervisor change, no
+  reboot. `img:warm` for the new sources is back on the post-deploy list.
 - A typo'd volume name in a read-only `docker run -v` created an empty stray volume,
   `mxo9s7hkdbtbfk2ilbvbgnmfr-ambit-cache` (4 KB, note `bvbg`). Remove it: `docker volume rm` it
   on the VM. The real one is `…ilbvgnmfr…`.
@@ -45,7 +46,10 @@ the Mac's feed; an explicit `--source loupe` still ingests.
 3. Let the nightly land the walks (or trigger the task), then `promote-prod.sh` →
    `trim:memberships` → `repair:periods` → `repair:rehome`, then `.cache/topups-prod.sh`.
 4. Ben's visual pass of the desktop layout at 1440 px — still unlooked-at.
-5. Disk: decide on the image-warm question above before any `img:warm`.
+5. `img:warm` for the five Tumblr sources (~14.5 GB, fits now) — after the nightly lands them.
+6. **The cache push ran** (Ben, 09:35): 165,629 local envelopes → volume holds 168,086 (the
+   surplus is production's own nightly curation, kept by `--skip-old-files`); pdr 1,649. Deploy
+   is unblocked.
 
 _Session spend: 5.63M tok (in 121 · out 28.1k · cache r 5.33M / w 266.6k) · ~≥$0.44 · fable-5-1 + opus-4-7 · 09:03→09:29_
 

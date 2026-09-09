@@ -22,6 +22,7 @@ Recorded as they were confirmed, so later phases don't have to go re-derive them
 | Internal DB hostname | `rabwcgrcztxzngrrxaienfsm` (Coolify-generated, internal network only) | Coolify → `ambit-db` → internal URL |
 | Coolify version | v4.3.12 | Coolify sidebar |
 | Scheduled-task cron clock | **UTC** — `30 1 * * *` = 21:30 EDT / 20:30 EST the evening before | `tz-probe` task running `date`, 08-30-26: `Sun Aug 30 18:08:03 UTC 2026` |
+| VM root disk | **116 GB, LVM** (`/dev/ubuntu-vg/ubuntu-lv` on a 120 GB virtual disk). Was 59 GB until 09-09-26: Ubuntu's installer had allocated half the VG, and `sudo lvextend -l +100%FREE -r /dev/ubuntu-vg/ubuntu-lv` grew it online, no reboot. The neighbour on the same disk is ambit-archive's 25.5 GB volume | `df -h /` → `116G 41G 71G`, 09-09-26 |
 | Backup on-disk path | _(TODO — does not exist until the first `0 4 * * *` run)_ | Coolify → `ambit-db` → Backups |
 
 **The container name carries a per-deploy numeric suffix**, so anything that has to find this
