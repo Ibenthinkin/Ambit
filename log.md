@@ -58,6 +58,31 @@ the Mac's feed; an explicit `--source loupe` still ingests.
 
 _Session spend: 5.63M tok (in 121 · out 28.1k · cache r 5.33M / w 266.6k) · ~≥$0.44 · fable-5-1 + opus-4-7 · 09:03→09:29_
 
+**Shipped (afternoon):** the **system map artifact is redrawn** for the first time since 08-31
+(same URL, same design system, `main @ 90cc6f0`). It had gone materially wrong in six places:
+9 → 16 live sources, 11,313 → 164,423 items, 16 → 101 topics, three feed tiers → four, eleven
+tables → twelve, and a "22 ms" page that no longer exists. New sections/figures for the
+**topic-vocabulary growth loop** (`item_topic`, display vs membership, mine → tick → promote →
+graph:rebuild) and for the **two-stage per-source pool cap**; the graph figure now shows the
+hybrid's two authors; the ingest figure gains `walkQuota`, the walk-image floor exemption and the
+curator's fail-fast. §01 carries an explicit "production is one deploy behind" caveat so the page
+cannot be misread as describing what is live.
+
+**Findings:**
+
+- **The feed's headline timing needs restating: p50 163 ms, p95 196 ms** (`bench:feed`, 12 pages,
+  164,423 items) — against SPEC §4's 300 ms bar, so it passes, but the map's old "twelve cards in
+  about twenty-two milliseconds" was measured at 9,848 rows — a corpus sixteen times smaller.
+  Pools are **4,918 rows / 0.8 MB**, which is the sampling cut doing exactly what it was built
+  for: the number barely moved from the 4,801 measured at 122,458 items.
+- **The vocabulary is 101 topics, not 104.** `topic` has 19 core rows, but three are
+  `test-wild-topic-*` fixtures left in the dev database; the real set is 16 core + 85 grown.
+  `db/feed.ts`'s comments say "101 of 104" because that is what `reachableTopics` sees on this
+  machine — harmless for the reasoning, wrong as a fact about the vocabulary, and worth knowing
+  before someone quotes 104 into a doc.
+
+*Session spend: 19.30M tok (in 222 · out 181.0k · cache r 17.79M / w 1.33M) · ~$26.72 · opus-5 · 09:43→15:28*
+
 ### [[09-08-26 Tue]] — Walk 3 died on the wallet, and the curator kept going anyway
 
 The vault walk (started 17:56 yesterday) curated normally for 32 minutes and then, at 18:28,
