@@ -136,6 +136,34 @@ separate, later step.
 
 _Session spend: 5.31M tok (in 130 · out 32.3k · cache r 4.82M / w 464.0k) · ~≥$2.48 · fable-5-1 + opus-4-7 · 14:33→18:32_
 
+**Evening — both walks kept (Ben), and the three cursor top-ups run back to back.** Ben's
+verdict on walks 3 and 4: **keep both**. Then the `--cursor` runs, one at a time via
+`.cache/topups.sh` (sovietpostcards first, the other two chained behind it), 20:02 → 22:47:
+
+- **sovietpostcards `--cursor 10400 --quota 4500`** (17 min): 4,500 offered, **1,729 already in
+  the DB** — the cursor is a post offset into a newest-first archive, and the blog had posted
+  since 09-06, so the offset had drifted back over the first walk's tail; idempotent, so it cost
+  ~40¢ of re-curation and nothing else — **2,771 new rows**, 9 un-homed. The blog now stands at
+  **20,271 rows from 12,250 posts (47.5% of 25,784)**: the half Ben chose. Next cursor 13350.
+- **70sscifiart `--cursor 24000`** (55 min): **14,465 rows**, 217 pages, walked to the end of the
+  archive — **46,465 rows from 34,316 of 34,836 posts**, the rest skips (answer/link/video). 14
+  un-homed, 2,417 over-filed, 9 curator fallbacks. @ 8.74, 97.1% ≥ 8 — the top-up did not
+  move the average. Fully walked; nothing left to resume.
+- **thisisnthappiness `--cursor 13550`** (93 min): **27,500 rows**, 189 un-homed, 3,408
+  over-filed, 3 fallbacks. Now **55,000 rows from 22,983 posts (21% of 108,982)** @ 8.10,
+  85.0% ≥ 8. Next cursor 23250 for the rest of the quarter, ~$1.50 more.
+
+Corpus **164,423**, un-homed 1,272. OpenRouter: **$6.45 left** — the three runs billed ~$11.60.
+The fail-fast never fired; every fallback was a malformed answer.
+
+**Open / next:** the four-script prod sequence after the next deploy (`promote-prod.sh` →
+`trim:memberships` → `repair:periods` → `repair:rehome`) — the deploy now carries five Tumblr
+walks the production database has never seen, so the nightly ingest will re-walk them from the
+volume's curation cache (copy `.cache/curation` up first, or it re-bills ~$40). `img:warm` for
+the new sources. Then spoon-tamago / streetartnews from the round-2 handoff.
+
+_Session spend: 6.87M tok (in 136 · out 42.8k · cache r 6.07M / w 765.0k) · ~≥$2.24 · fable-5-1 + opus-4-7 · 18:32→22:48_
+
 ---
 
 **Desktop pass, designed and planned** (a parallel session, 09-07 evening → 09-08 midday). Four
@@ -386,15 +414,15 @@ and a seen row is backfilled rather than leaving a hole. `probe:feed` gained a s
 
 **Measured** (same machine, same account, 22:15–22:25 EDT, with nothing else ingesting):
 
-| | before | after |
-|---|---|---|
-| `getTopicPools` rows / payload (104 topics, one call) | 133,701 · 21.4 MB | **4,801 · 0.7 MB** |
-| `getTopicPools` wall, bare script | 166 ms | **141 ms** |
-| `getFeedPage` p50 / p95, bare script | 177 / 271 ms | **144 / 161 ms** |
-| `feed.page` in the dev server, 8 loads | 0.9–4.5 s, **alternating** | **0.57–1.16 s, flat** |
-| dev-server RSS, first `/feed` after sign-up | +548 MB | **+190 MB** |
-| dev-server RSS across the next 8 loads | +455 MB | **+274 MB** |
-| served-card score, 25 pages / ~275 cards | mean 8.20 · p10 7 · ≥ 9 42% | mean 8.23 · p10 7 · ≥ 9 45% |
+|                                                       | before                      | after                       |
+| ----------------------------------------------------- | --------------------------- | --------------------------- |
+| `getTopicPools` rows / payload (104 topics, one call) | 133,701 · 21.4 MB           | **4,801 · 0.7 MB**          |
+| `getTopicPools` wall, bare script                     | 166 ms                      | **141 ms**                  |
+| `getFeedPage` p50 / p95, bare script                  | 177 / 271 ms                | **144 / 161 ms**            |
+| `feed.page` in the dev server, 8 loads                | 0.9–4.5 s, **alternating**  | **0.57–1.16 s, flat**       |
+| dev-server RSS, first `/feed` after sign-up           | +548 MB                     | **+190 MB**                 |
+| dev-server RSS across the next 8 loads                | +455 MB                     | **+274 MB**                 |
+| served-card score, 25 pages / ~275 cards              | mean 8.20 · p10 7 · ≥ 9 42% | mean 8.23 · p10 7 · ≥ 9 45% |
 
 **Findings:**
 
@@ -405,7 +433,7 @@ and a seen row is backfilled rather than leaving a hole. `probe:feed` gained a s
   design said.
 - **The two caps were written as an intersection, and shipped that way for twenty minutes.**
   The design's SQL sketch — and so the plan, and so the first commit — put both `row_number()`
-  windows over the *whole* eligible set and filtered `n <= 60 AND n_src <= 20`. That is an
+  windows over the _whole_ eligible set and filtered `n <= 60 AND n_src <= 20`. That is an
   intersection, not a composition: a row had to make the topic's global sixty **and** its own
   source's twenty, so a dominated source bought the sample nothing (its rows still only entered
   if they'd have placed in the global sixty) while the pool came back short. Measured on the
@@ -440,8 +468,7 @@ the plain uniform sample is still exactly what a topic's sixty are drawn by.
 **Open / next:** merged to `main` (`80ac04f`, plus `fix/feed-pool-sampling-caps`). Production draws from the same corpus, so this goes out
 with the next deploy.
 
-*Session spend: 16.93M tok (in 297 · out 62.8k · cache r 16.51M / w 361.7k) · ~$13.00 · opus-5 + opus-4-7 · 22:14→22:23*
-
+_Session spend: 16.93M tok (in 297 · out 62.8k · cache r 16.51M / w 361.7k) · ~$13.00 · opus-5 + opus-4-7 · 22:14→22:23_
 
 ### [[09-07-26 Mon]] — Cut 2b sized, found wanting; sourceCap and MAX_TOPICS instead
 
