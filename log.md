@@ -81,6 +81,14 @@ cannot be misread as describing what is live.
   machine — harmless for the reasoning, wrong as a fact about the vocabulary, and worth knowing
   before someone quotes 104 into a doc.
 
+**Correction, same session:** the map first shipped saying production was one deploy behind. It
+was not — `d52451b` landed the 09:47 deploy of this same commit while the drawing was in progress,
+and the session had read `main` at 09:43. Republished with the caveat rewritten to the true split,
+which is more useful anyway: the **shapes** are live, the **counts** are not. Production is
+`90cc6f0` at **24,358 items / 99 topics**; the Mac's 164,423 / 101 reach it through tonight's
+nightly, not through the deploy. Worth generalising — a long drawing session on a repo Ben is also
+deploying from should re-read `git log` before it publishes, not only when it starts.
+
 *Session spend: 19.30M tok (in 222 · out 181.0k · cache r 17.79M / w 1.33M) · ~$26.72 · opus-5 · 09:43→15:28*
 
 ### [[09-08-26 Tue]] — Walk 3 died on the wallet, and the curator kept going anyway
