@@ -85,6 +85,11 @@ const tierCounts: Record<Tier, number> = {
   WILD: 0,
 };
 const topicCounts = new Map<string, number>();
+// Every served card's curation score, for the summary. The pool-sampling change (09-08-26,
+// docs/DESIGN_feed-pool-sampling.md) draws from a sample of each topic rather than the whole
+// pool, and the one thing that could show is a drift of served scores toward the mean — this
+// is what says whether it did.
+const scores: number[] = [];
 let adjacencyViolations = 0;
 
 for (let p = 0; p < pages; p++) {
@@ -104,6 +109,7 @@ for (let p = 0; p < pages; p++) {
   let lastSource: string | null = null;
   for (const card of page.cards) {
     tierCounts[card.tier]++;
+    scores.push(card.item.curationScore);
     // The feed never serves an un-homed card (pools exclude them, db/feed.ts), but `FeedCard`'s
     // topic is `string | null` since Cut 1, so the probe stays honest about the type rather than
     // asserting past it — a `(none)` row here would be a real finding.
@@ -149,6 +155,13 @@ if (total === 0) {
   );
   console.log(
     `source-adjacency violations: ${adjacencyViolations} (should be ~0)`,
+  );
+  const sorted = [...scores].sort((a, b) => a - b);
+  const mean = sorted.reduce((s, x) => s + x, 0) / sorted.length;
+  const p10 = sorted[Math.floor(sorted.length * 0.1)]!;
+  const topShare = sorted.filter((x) => x >= 9).length / sorted.length;
+  console.log(
+    `score mean: ${mean.toFixed(2)} · p10: ${p10} · share ≥ 9: ${(topShare * 100).toFixed(0)}%`,
   );
 }
 
