@@ -362,7 +362,11 @@ escalations if it does. **Ben's call**; the executable plan follows it.
 
 **Open / next:**
 
-- Ben: read the design, pick — sample as proposed / tilt the sample / something else.
+- **Ben picked the plain sample** (evening). Executable plan: `docs/PLAN_feed-pool-sampling.md`
+  — four tasks: probe score summary + baseline, the sampled query with four integration tests,
+  the after-measurements with a stop condition on the score summary, the record. The Drizzle
+  window-subquery shape was smoke-tested read-only first (152 rows / three topics / 148 ms,
+  deterministic), so the executor copies it rather than discovers it. Execute in a cheaper session.
 - One hypothesis to check _next time the loop appears_, not chased now: a dev server whose event
   loop stalls for seconds can drop Next's HMR socket, and the HMR client reloads on reconnect.
   Firefox with Persist Logs on would show an `[HMR]` line before each reload if so.
