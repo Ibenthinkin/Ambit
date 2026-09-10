@@ -130,6 +130,31 @@ twenty personas + `bun run seed:personas`. 1,190 unit/integration tests green, e
   wrapped and clipped behind Back + CTA at 402 px (label now sits above the buttons), and
   Profile's new Topics row drew a full box because `border-hairline` sets all four sides.
 
+**Later — sub-project 2 designed and planned.** `docs/DESIGN_screen-structure.md` +
+`docs/PLAN_screen-structure.md` (11 tasks, cold-executable, every task carrying its code). Five
+questions to Ben. **Decisions:** the item page *becomes* the immersive screen — one route, `/g/`
+redirects, the rail is the hero strip and the whole page follows the swipe (`replaceState` keeps
+the address bar and share honest); hero square-cornered, top-aligned, natural height up to the
+viewport on the phone, **full viewport height edge to edge on desktop**; no details sheet — the
+facts table joins the body below; **down-flick at the top exits, up scrolls** (Ben's note said
+"up or down"; up lost because a fast up-flick and a scroll start identically and Chrome hands
+the touch to native scrolling mid-gesture); Escape everywhere; one `NewCollectionRow` in every
+picker plus **Share in the tile sheet**; the landing slideshow **never stops** — the sheet still
+rises after the first pass, click and ←/→ step a slide.
+
+**Findings, both from mapping the code before asking anything:**
+
+- **The "item sheet won't close on Escape" bug is the item page.** Enter on a tile opens `/i/`,
+  not the sheet; the sheet's Escape works (`desktop.spec.ts:99`). The item page has no Escape
+  handler at all. So the fix is the merged screen's, not a sheet's.
+- **The landing glyph is the 09-08 hydration mismatch.** `isStatic` reads `prefersReducedMotion()`
+  in a lazy initializer the server can't evaluate, so the client can render `AuthSheet`'s inert
+  `<div>` instead of the button. The fix is the same `useSyncExternalStore` shape `hydrated`
+  already uses, and it should also clear the production React #418 on `/` (`BUILD_PLAN.md`).
+- **The gallery's details sheet prints bare slugs for grown topics** — it resolves labels from the
+  sixteen-entry `TOPICS` config (`gallery-details-sheet.tsx:35`), which since sub-project 1 is
+  most of the vocabulary. `RailItem` gains `topicLabel` joined server-side, and `body` for PDR.
+
 **Open / next:** Ben has not looked at any of this yet — the picker's copy is placeholder until
 sub-project 3, and the four facets are still "far too limited" until a fresh `mine:topics` round
 against the 164k corpus. Production gets facets and the tier rename from the deploy itself
@@ -139,6 +164,7 @@ against the 164k corpus. Production gets facets and the tier rename from the dep
 *Session spend: 10.02M tok (in 203 · out 71.5k · cache r 9.60M / w 350.9k) · ~≥$0.83 · fable-5-1 + opus-4-7 · 13:16→13:29*
 *Session spend: 14.34M tok (in 154 · out 172.4k · cache r 13.97M / w 206.1k) · fable-5-1 · 13:29→14:17*
 *Session spend: 83.99M tok (in 1.0k · out 299.5k · cache r 82.11M / w 1.58M) · ~$60.36 · opus-5 + opus-4-7 · 14:27→15:04*
+*Session spend: 53.83M tok (in 256 · out 257.5k · cache r 52.50M / w 1.07M) · ~≥$2.76 · fable-5-1 + opus-5 · 15:04→16:53*
 
 ### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
 
