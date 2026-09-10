@@ -5,6 +5,56 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
+
+Ben's morning brief said production was thousands of images behind the Mac. It is: **29,062
+items against 164,423**, and the reason is the 09-09 nightly. Read straight from the production
+database (the only honest witness): the run started 01:30 UTC, wrote **4,704 rows** in 48
+minutes, and exited. The four Tumblr walks — the whole point of that deploy — landed
+**sovietpostcards 2,075 / 70sscifiart 1,924 / thevault 11 / thisisnthappiness 0** against
+budgets of 21,700 / 32,000 / 19,000 / 27,500. Tumblr answers the VM normally today. The
+curation cache did its job (732 envelopes billed for 4,704 rows).
+
+**Findings:**
+
+- **A failed page was final.** `runWalk` broke out of the loop on the first `walk()` throw and
+  kept whatever it had; the ingest then curated and wrote that partial haul as if it were the
+  night's walk. Four walks in parallel against Tumblr from one IP, and one bad answer each, is
+  the whole story — probably. "Probably" because **Coolify discarded the output**: its
+  `ScheduledTaskJob` still times out at 5 min (8.2 T3.0, not yet done), so the lines that would
+  have said `walk FAILED at cursor N — <reason>` are gone. Two structural fixes, one of them code.
+- `bun run check` is red on one row: the walk-source invariant test finds a literal `<details>`
+  in the **summary** of 70sscifiart `67374252514:1` (`BMcnd6bpV36d-GNFlmAK0`) — the Tumblr
+  caption itself contains the text, so `htmlToText()` is right to keep it. Pre-existing; one
+  row; not fixed today. Either the invariant learns to distinguish a tag from tag-shaped text,
+  or the row is edited by hand. Not a source-adapter bug.
+
+**Shipped (`21399b0`, pushed):** `walk-run.ts` retries a failed page **three times with
+backoff (5 s / 10 s / 20 s)** before ending the walk, TDD'd against the fake walker. A recovered
+page is counted in a new `retries` stat — a column in the ingest's walk table now — and does not
+void completeness; an unrecovered one still does, exactly as before. The cursor is an offset, so
+re-asking for the same page is as safe as asking the first time; guessing at the page *after* a
+failure is still refused.
+
+**Decisions:** the auto-mode classifier would not let the session write to Coolify's database
+or start an ingest on the VM, so both are scripts for Ben's hands (the standing convention):
+
+1. **`sh .cache/coolify-ingest-task.sh`** — 8.2 T3.0 from the DB side: the `ingest` task now
+   writes its whole output to `/app/.cache/ingest-YYYY-MM-DD.log` on the volume, echoes the last
+   60 lines back to Coolify, and keeps the ingest's own exit code; timeout 300 → 10,800 s on
+   `ingest` and `img-warm`. The next failure explains itself.
+2. **`sh .cache/walks-prod.sh`** — replays the four walks **one at a time** to their quotas
+   (free through the cache, ~30-60 min each), then chains the three `--cursor` top-ups. Then
+   `promote-prod.sh` → `trim:memberships` → `repair:periods` → `repair:rehome` → `img:warm`.
+3. Redeploy so the nightly runs with the retry (`main` = `61f43f0`, pushed, nothing ahead).
+
+**Open / next:** Ben's desktop review notes are in `docs/design_update_3/` (committed; the four
+reference photos gitignored at 22 MB). They split three ways — fixes to what exists, the
+redesign proper (side rail on desktop, detached share button, hover-over save on tiles), and
+testing scaffolding (topic manager, richer onboarding, twenty seeded personas). Brainstorm next.
+
+*Session spend: 10.02M tok (in 203 · out 71.5k · cache r 9.60M / w 350.9k) · ~≥$0.83 · fable-5-1 + opus-4-7 · 13:16→13:29*
+
 ### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
 
 Morning status after 09-08's four sessions. The deploy gate (the `getTopicPools` scaling fix) is
