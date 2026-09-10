@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Gear } from "~/components/icons";
@@ -44,6 +45,9 @@ export function ProfileScreen() {
   // app has had to be careful about it.
   const me = api.user.me.useQuery();
   const collections = api.saves.collections.useQuery();
+  // Just for the Topics row's count (09-10-26). The row itself is a link, not a sheet — the
+  // picker is /profile/topics.
+  const myTopics = api.topics.mine.useQuery();
 
   const [newCollectionOpen, setNewCollectionOpen] = React.useState(false);
   const [collectionsSheetOpen, setCollectionsSheetOpen] = React.useState(false);
@@ -146,6 +150,20 @@ export function ProfileScreen() {
                 Edit profile
               </button>
             </div>
+
+            {/* The picker's front door (09-10-26). A row + a separate hairline div, which is
+                this file's own idiom for a rule — `border-hairline` sets all four sides, so a
+                `border-b` beside it draws a box. */}
+            <Link
+              href="/profile/topics"
+              className="mt-6 flex h-[52px] items-center justify-between px-5"
+            >
+              <span className="text-ink text-[15px] font-medium">Topics</span>
+              <span className="text-ink/40 text-[13px]">
+                {myTopics.data ? `${myTopics.data.length} on ›` : "›"}
+              </span>
+            </Link>
+            <div className="bg-ink/10 mx-5 h-[0.5px]" />
 
             <div className="flex items-baseline gap-[9px] px-5 pt-[34px]">
               <h2 className="text-ink text-[17px] font-semibold">

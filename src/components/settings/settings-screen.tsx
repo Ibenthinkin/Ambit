@@ -38,7 +38,6 @@ import { InstallSheet } from "~/components/install/install-sheet";
 import { isStandalone, useInstall } from "~/lib/install-store";
 import { purgePagesCache } from "~/lib/sw-rules";
 import { SettingsGroup, SettingsRow } from "./settings-row";
-import { TopicsSheet } from "./topics-sheet";
 import { useNotificationPermission } from "./use-notification-permission";
 
 // `/settings` (`Ambit - Settings.dc.html`) — the full designed surface, with a hard line down the
@@ -65,7 +64,7 @@ const subscribeToNothing = () => () => undefined;
 const CONTACT_EMAIL = "benjamin.reilly@gmail.com";
 
 /** The one sheet open at a time, as a discriminant rather than four booleans that could disagree. */
-type OpenSheet = "topics" | "accent" | "about" | "install" | null;
+type OpenSheet = "accent" | "about" | "install" | null;
 
 export interface SettingsScreenProps {
   /** "v0.4" — derived from package.json server-side (`app/settings/page.tsx`). */
@@ -242,7 +241,9 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
               icon={<FeedLines size={17} />}
               label="What you see"
               value={topicValue}
-              onClick={() => setOpenSheet("topics")}
+              // A page since 09-10-26, not a sheet: the picker now offers a hundred topics in
+              // four tabs, which a bottom sheet has no room for (the sheet is deleted).
+              onClick={() => router.push("/profile/topics")}
             />
             <SettingsRow
               icon={<Mute size={17} />}
@@ -318,14 +319,6 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
           </p>
         </div>
       </Column>
-
-      <TopicsSheet
-        open={openSheet === "topics"}
-        onClose={() => setOpenSheet(null)}
-        topics={topics.data ?? []}
-        initialSelected={myTopics.data ?? []}
-        onSaved={() => setToast("Feed updated")}
-      />
 
       <AccentSheet
         open={openSheet === "accent"}

@@ -65,6 +65,7 @@ vi.mock("~/trpc/react", () => ({
     user: {
       me: { useQuery: () => ({ ...meState.current, refetch: vi.fn() }) },
     },
+    topics: { mine: { useQuery: () => ({ data: ["a", "b"] }) } },
     saves: {
       collections: {
         useQuery: () => ({ data: collectionsData.current, isLoading: false }),
@@ -297,5 +298,14 @@ describe("ProfileScreen", () => {
   it("centers in a narrow column above md", () => {
     render(<ProfileScreen />);
     expect(document.querySelector(".md\\:max-w-\\[600px\\]")).not.toBeNull();
+  });
+});
+
+describe("ProfileScreen — Topics row", () => {
+  it("links to /profile/topics and counts what topics.mine returns", () => {
+    render(<ProfileScreen />);
+    const row = screen.getByRole("link", { name: /Topics/ });
+    expect(row).toHaveAttribute("href", "/profile/topics");
+    expect(row.textContent).toContain("2 on");
   });
 });
