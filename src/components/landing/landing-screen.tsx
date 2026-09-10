@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Logo } from "~/components/icons";
+import { useMediaQuery } from "~/hooks/use-media-query";
 
 import { AuthSheet } from "./auth-sheet";
 import { LandingSlideshow } from "./landing-slideshow";
@@ -26,15 +27,29 @@ export interface LandingScreenProps {
   children: React.ReactNode;
 }
 
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  // Guarded: jsdom has no `matchMedia` unless a test stubs one, and this runs during a lazy state
-  // initializer, where a throw would take the render down rather than degrade.
-  try {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  } catch {
-    return false;
-  }
+/**
+ * Reduced motion is read the way `hydrated` is — after the hydration boundary, never in the
+ * server's render. `useMediaQuery` is a `useSyncExternalStore` whose server snapshot is `false`, so
+ * the server's markup and the hydration render agree for every reader, and a reduced-motion
+ * reader's static-ness arrives one synchronous re-render later.
+ *
+ * **Until 09-10-26 it was read in a lazy `useState` initializer**, which the server evaluates as
+ * `false` and a reduced-motion client as `true`. `onCollapse` hung off that value, so the server
+ * rendered `AuthSheet`'s collapse glyph as a `<button>` and the client hydrated an inert
+ * `<div aria-hidden>` — the hydration mismatch logged 09-08, and the reason the glyph "doesn't
+ * open or close anything". Expected to be the production React #418 on `/` too
+ * (`docs/BUILD_PLAN.md`).
+ */
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+/** A form field owns its arrow keys: in one, ←/→ move the caret, not the slideshow. */
+function isEditable(el: Element | null): boolean {
+  return (
+    el instanceof HTMLInputElement ||
+    el instanceof HTMLTextAreaElement ||
+    el instanceof HTMLSelectElement ||
+    (el instanceof HTMLElement && el.isContentEditable)
+  );
 }
 
 // The hydration boundary, as a store rather than a mount-effect flag.
@@ -58,71 +73,98 @@ export function LandingScreen({ mode, children }: LandingScreenProps) {
     onServer,
   );
 
-  // Computed once, in a lazy initializer, and never recomputed — the same run has to survive every
-  // re-render or the imagery would reshuffle mid-cycle. Nothing below renders it until `hydrated`,
-  // so the randomness never reaches the server's markup.
-  //
   // Reduced motion collapses into static mode: a reader who has asked the OS for less movement
   // should not be made to sit through a five-second animated preamble before they can sign in.
-  const [{ run, isStatic }] = React.useState(() => {
-    const staticMode = mode === "static" || prefersReducedMotion();
-    return {
-      run: pickRun(undefined, Math.random, staticMode ? 1 : undefined),
-      isStatic: staticMode,
-    };
-  });
+  // See REDUCED_MOTION above for why this is read here and not in the initializer below.
+  const reduce = useMediaQuery(REDUCED_MOTION);
+  const isStatic = mode === "static" || reduce;
+
+  // Computed once, in a lazy initializer, and never recomputed — the same run has to survive every
+  // re-render or the imagery would reshuffle mid-cycle. Nothing below renders it until `hydrated`,
+  // so the randomness never reaches the server's markup. Keyed on the *prop* only: whether this
+  // reader wants motion isn't known here (see above), so a cycle-mode run is always a full one.
+  const [run] = React.useState(() =>
+    pickRun(undefined, Math.random, mode === "static" ? 1 : undefined),
+  );
+  // What actually mounts: static shows one still picture, so only one is decoded and downloaded.
+  const shown = React.useMemo(
+    () => (isStatic ? run.slice(0, 1) : run),
+    [isStatic, run],
+  );
 
   const [ready, setReady] = React.useState(false);
-  const [opened, setOpened] = React.useState(false);
+  // The reader's own say about the sheet, once they've had one — the first pass raising it, the
+  // glyph, a collapse. Until then (`null`) the mode decides: static arrives with it up.
+  const [opened, setOpened] = React.useState<boolean | null>(null);
 
-  // Static mode arrives with the sheet already up. Gating on `hydrated` keeps the server's markup
-  // and the hydration render identical (sheet down, no imagery) for every reader, including the
-  // reduced-motion one whose static-ness the server can't know about; a frame later it rises on
-  // its own transition, which reads as intent rather than as a flash.
-  const open = hydrated && (isStatic || opened);
+  // Gating on `hydrated` keeps the server's markup and the hydration render identical (sheet down,
+  // no imagery) for every reader, including the reduced-motion one whose static-ness the server
+  // can't know about; a frame later it rises on its own transition, which reads as intent rather
+  // than as a flash.
+  const open = hydrated && (opened ?? isStatic);
 
   React.useEffect(() => {
     let cancelled = false;
     // `setReady` is asynchronous here — it lands in a promise callback after the first slide has
     // decoded, not synchronously during the effect.
-    void preloadRun(run).then(() => {
+    void preloadRun(shown).then(() => {
       if (!cancelled) setReady(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [run]);
+  }, [shown]);
 
+  // Never stops (09-10-26): the pictures keep cycling behind the sheet once the first pass has
+  // raised it. See `use-slideshow.ts`.
   const show = useSlideshow({
     count: isStatic || !hydrated ? 0 : run.length,
     slideMs: SLIDE_MS,
     enabled: ready,
-    onDone: () => setOpened(true),
+    onFirstPass: () => setOpened(true),
   });
+  const { advance } = show;
 
   // Collapsing replays the same run from the top (the prototype's behaviour) rather than picking a
   // fresh one — a reader who ducked back out to look at the pictures is asking for *those*
-  // pictures again.
-  const collapse = isStatic
-    ? undefined
-    : () => {
-        setOpened(false);
-        show.restart();
-      };
+  // pictures again. Defined for every reader on `/`, reduced motion included (they collapse to
+  // their one still picture); only `/reset-password` has no slideshow to go back to.
+  const collapse = () => {
+    setOpened(false);
+    show.restart();
+  };
+
+  // ←/→ step the slides (09-10-26) — unless a form field has focus, where the arrows edit the
+  // field, or a modifier is held, where Alt/⌘+← is the browser's own Back. Nothing here calls
+  // `preventDefault`: the page doesn't scroll, and a key the slideshow ignores is the browser's.
+  React.useEffect(() => {
+    if (isStatic) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey || e.metaKey || e.ctrlKey) return;
+      if (isEditable(document.activeElement)) return;
+      if (e.key === "ArrowRight") advance(1);
+      else if (e.key === "ArrowLeft") advance(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isStatic, advance]);
 
   return (
     <div className="bg-bg-app relative min-h-dvh overflow-hidden">
       <LandingSlideshow
-        run={hydrated ? run : []}
-        index={show.index}
+        run={hydrated ? shown : []}
+        index={isStatic ? 0 : show.index}
         fade={fadeMs(SLIDE_MS)}
-        onTap={isStatic ? undefined : show.skip}
+        // "Next", since 09-10-26 — it used to skip to the sheet. The glyph is the way to the sheet.
+        onTap={isStatic ? undefined : () => advance(1)}
       />
 
-      {/* The one visible control while the show runs. Its accessible name is deliberately not
+      {/* The one visible control while the sheet is down. Its accessible name is deliberately not
           "Sign in" — that belongs to the form's submit button, and two controls sharing it would
-          make every `getByRole("button", { name: "Sign in" })` in the e2e suite ambiguous. */}
-      {hydrated && !isStatic && !open ? (
+          make every `getByRole("button", { name: "Sign in" })` in the e2e suite ambiguous. Keyed on
+          the route, not on motion: a reduced-motion reader who collapsed the sheet needs a way
+          back up too. */}
+      {hydrated && mode !== "static" && !open ? (
         <button
           type="button"
           aria-label="Open sign-in"
@@ -139,7 +181,13 @@ export function LandingScreen({ mode, children }: LandingScreenProps) {
 
       {/* The hero follows the *route*, not the mode: a reduced-motion visitor to `/` still gets
           the pitch, while `/reset-password` never does regardless of how it renders. */}
-      <AuthSheet open={open} onCollapse={collapse} showHero={mode !== "static"}>
+      <AuthSheet
+        open={open}
+        // The prop, never the media query: this is what must be identical on both sides of
+        // hydration (see REDUCED_MOTION).
+        onCollapse={mode === "static" ? undefined : collapse}
+        showHero={mode !== "static"}
+      >
         {children}
       </AuthSheet>
     </div>

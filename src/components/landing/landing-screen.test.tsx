@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LandingScreen } from "./landing-screen";
@@ -49,6 +49,17 @@ async function renderScreen(mode: "cycle" | "static" = "cycle") {
 function sheet() {
   return screen.getByTestId("auth-sheet");
 }
+
+/** The slide on screen: every slide is mounted, and exactly one carries `opacity: 1`. */
+function visibleSrc() {
+  return screen
+    .getByTestId("landing-slideshow")
+    .querySelector("img[style*='opacity: 1']")
+    ?.getAttribute("src");
+}
+
+const key = (k: string) =>
+  act(() => void fireEvent.keyDown(window, { key: k }));
 
 function advance(ms: number) {
   act(() => {
@@ -138,12 +149,49 @@ describe("LandingScreen — cycle mode", () => {
     );
   });
 
-  it("raises the sheet when the imagery itself is tapped", async () => {
+  // 09-10-26: a click on the imagery means "next", not "skip" — the glyph is the way to the sheet.
+  it("a click on the imagery advances one slide and does not raise the sheet", async () => {
     await renderScreen();
+    const before = visibleSrc();
 
     act(() => screen.getByTestId("landing-slideshow").click());
 
+    expect(visibleSrc()).not.toBe(before);
+    expect(sheet()).toHaveAttribute("data-open", "false");
+  });
+
+  it("← and → step the slides", async () => {
+    await renderScreen();
+    const first = visibleSrc();
+
+    key("ArrowRight");
+    expect(visibleSrc()).not.toBe(first);
+    key("ArrowLeft");
+    expect(visibleSrc()).toBe(first);
+  });
+
+  it("leaves the arrow keys alone while a form field has focus", async () => {
+    await renderScreen();
+    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
+    const input = document.createElement("input");
+    screen.getByTestId("auth-child").appendChild(input);
+    input.focus();
+    const first = visibleSrc();
+
+    key("ArrowRight");
+
+    expect(visibleSrc()).toBe(first);
+  });
+
+  it("keeps the pictures moving behind the sheet", async () => {
+    await renderScreen();
+    for (let i = 0; i < SLIDES_PER_RUN - 1; i++) advance(SLIDE_MS);
+    advance(END_MS);
     expect(sheet()).toHaveAttribute("data-open", "true");
+
+    const behind = visibleSrc();
+    advance(SLIDE_MS);
+    expect(visibleSrc()).not.toBe(behind);
   });
 
   it("raises the sheet on its own once the run finishes", async () => {
@@ -223,5 +271,47 @@ describe("LandingScreen — reduced motion", () => {
     expect(
       screen.queryByRole("button", { name: "Open sign-in" }),
     ).not.toBeInTheDocument();
+  });
+
+  // The hydration mismatch that made the glyph "do nothing" (log 09-08): reduced motion was read
+  // in a lazy initializer, so the server rendered the collapse glyph as a <button> and the client
+  // as an inert <div>. It is read after hydration now, like `hydrated` itself, so both renders
+  // agree — and a reduced-motion reader on `/` gets a glyph that works.
+  it("renders the collapse glyph as a real button", async () => {
+    vi.unstubAllGlobals();
+    stubEnvironment({ reduce: true });
+
+    await renderScreen("cycle");
+
+    expect(
+      screen.getByRole("button", { name: "Back to the slideshow" }),
+    ).toBeInTheDocument();
+  });
+
+  it("collapses to the still picture, and the glyph brings the sheet back", async () => {
+    vi.unstubAllGlobals();
+    stubEnvironment({ reduce: true });
+    await renderScreen("cycle");
+
+    act(() =>
+      screen.getByRole("button", { name: "Back to the slideshow" }).click(),
+    );
+    expect(sheet()).toHaveAttribute("data-open", "false");
+    // Still one picture, still not moving — reduced motion is honoured with the sheet down too.
+    expect(document.querySelectorAll("img")).toHaveLength(1);
+    advance(30_000);
+    expect(sheet()).toHaveAttribute("data-open", "false");
+
+    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
+    expect(sheet()).toHaveAttribute("data-open", "true");
+  });
+
+  it("does not step the still picture with the arrow keys", async () => {
+    vi.unstubAllGlobals();
+    stubEnvironment({ reduce: true });
+    await renderScreen("cycle");
+    const first = visibleSrc();
+    key("ArrowRight");
+    expect(visibleSrc()).toBe(first);
   });
 });
