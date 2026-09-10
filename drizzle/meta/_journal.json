@@ -50,6 +50,13 @@
       "when": 1788723479205,
       "tag": "0006_curved_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789064890384,
+      "tag": "0007_topic_facet",
+      "breakpoints": true
     }
   ]
 }
