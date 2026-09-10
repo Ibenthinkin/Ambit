@@ -58,6 +58,9 @@ venv/
 # Design source archives (extracted copies are committed under docs/)
 Ambit Redesign.zip
 
+#Design reference images (too large to commit)
+docs/design_update_3/photos
+
 # Morning report written by the unattended Phase 7 run (docs/PHASE7_OVERNIGHT.md) — untracked so it survives branch switches
 /OVERNIGHT_STATUS.md
 
