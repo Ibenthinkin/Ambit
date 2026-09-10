@@ -10,6 +10,8 @@ import { eq, like } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { ERA_TOPICS, TOPIC_FACETS } from "~/server/config/topic-facets";
+
 import { listAllTopics, listTopics } from "./topics";
 import { topic } from "./schema";
 
@@ -38,7 +40,7 @@ describe.skipIf(!process.env.DATABASE_URL)("listTopics / listAllTopics", () => {
       .onConflictDoNothing();
 
     const core = await listTopics();
-    expect(core.every((t) => t.tier === "core")).toBe(true);
+    expect(core.every((t) => t.tier === "original")).toBe(true);
     expect(core.map((t) => t.id)).not.toContain(grownId);
 
     const all = await listAllTopics();
@@ -54,23 +56,54 @@ describe.skipIf(!process.env.DATABASE_URL)("listTopics / listAllTopics", () => {
     expect(labels).toEqual([...labels].sort());
   });
 
-  it("has no non-core rows hiding in the seeded sixteen", async () => {
+  it("has no non-original rows hiding in the seeded sixteen", async () => {
     const { db } = await import("./client");
-    const seeded = await db.select().from(topic).where(eq(topic.tier, "core"));
+    const seeded = await db
+      .select()
+      .from(topic)
+      .where(eq(topic.tier, "original"));
     expect(seeded.length).toBeGreaterThanOrEqual(16);
   });
 
-  it("gives every config topic a `core` tier row — the feed's CORE_TOPIC_IDS shortcut relies on it", async () => {
+  it("gives every config topic an `original` tier row — the feed's CORE_TOPIC_IDS shortcut relies on it", async () => {
     // The feel levers (dev knob panel, 09-05-26) decide "is this topic grown?" from `TOPICS`,
     // not from this column, because a hop must not cost a query. Inclusion, not equality: `tier`
-    // defaults to "core", so other suites' throwaway topics can legitimately sit here too.
+    // defaults to "original", so other suites' throwaway topics can legitimately sit here too.
     const { db } = await import("./client");
     const { TOPICS } = await import("~/server/config/topics");
-    const coreIds = new Set(
-      (await db.select().from(topic).where(eq(topic.tier, "core"))).map(
+    const originalIds = new Set(
+      (await db.select().from(topic).where(eq(topic.tier, "original"))).map(
         (t) => t.id,
       ),
     );
-    for (const t of TOPICS) expect(coreIds.has(t.id)).toBe(true);
+    for (const t of TOPICS) expect(originalIds.has(t.id)).toBe(true);
   });
 });
+
+describe.skipIf(!process.env.DATABASE_URL)(
+  "applyTopicFacets (integration)",
+  () => {
+    it("writes the map to every topic in the database and reports the unfaceted remainder", async () => {
+      const { applyTopicFacets, listAllTopics } = await import("./topics");
+      const result = await applyTopicFacets();
+
+      const all = await listAllTopics();
+      const byId = new Map(all.map((t) => [t.id, t]));
+      // Every key that exists in this database carries its facet.
+      for (const [id, facet] of Object.entries(TOPIC_FACETS)) {
+        const row = byId.get(id);
+        if (row) expect(row.facet, id).toBe(facet);
+      }
+      // `applied` counts the keys that were present, never the keys that were not.
+      expect(result.applied).toBe(
+        Object.keys(TOPIC_FACETS).filter((id) => byId.has(id)).length,
+      );
+      // The remainder is whatever real topic is unfaceted and not an era topic. On a fully
+      // classified vocabulary it is only test fixtures, which all start `test-`.
+      for (const id of result.unfaceted) {
+        expect(ERA_TOPICS.has(id)).toBe(false);
+        expect(byId.get(id)?.facet).toBeNull();
+      }
+    });
+  },
+);

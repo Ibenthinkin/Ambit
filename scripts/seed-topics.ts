@@ -65,10 +65,11 @@ async function main() {
         id: t.id,
         label: t.label,
         seedQueries: t.seedQueries,
-        // The sixteen config-defined topics are the `core` tier by definition — they ARE the
-        // onboarding chip grid (Cut 2a, 09-02-26). Written on the update branch too, so a re-seed
-        // can never silently demote one of them to `grown` if something else has touched the row.
-        tier: "core" as const,
+        // The sixteen config-defined topics are the `original` tier by definition — they are
+        // the query-seeded rows whose graph adjacency was tuned by hand (renamed from `core`
+        // 09-10-26). Written on the update branch too, so a re-seed can never silently demote one
+        // of them to `grown` if something else has touched the row.
+        tier: "original" as const,
       })),
     )
     .onConflictDoUpdate({
@@ -89,6 +90,18 @@ async function main() {
   for (const row of orphans) {
     console.warn(
       `Warning: topic "${row.id}" is in the database but not in topics.ts — left untouched.`,
+    );
+  }
+
+  // Facets (09-10-26): the map in config/topic-facets.ts is the authority; this is what puts it
+  // on production at the next deploy. Grown topics are not in TOPICS, so the upsert above never
+  // touches them — this pass does.
+  const { applyTopicFacets } = await import("~/server/db/topics");
+  const facets = await applyTopicFacets();
+  console.log(`Facets applied to ${facets.applied} topics.`);
+  for (const id of facets.unfaceted) {
+    console.warn(
+      `Warning: topic "${id}" has no facet — it is in the database but not in topic-facets.ts, so no picker will show it.`,
     );
   }
 

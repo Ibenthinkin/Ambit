@@ -4,7 +4,7 @@
 // directly, since that's a one-off config load, not a user-facing repository operation.
 // `getUserTopicWeights` is real as of Phase 4.1 — the feed engine's own read of a user's CORE
 // weights (SPEC §9.1).
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 
 import { topic, userTopic } from "~/server/db/schema";
 
@@ -43,6 +43,45 @@ export async function listTopics(): Promise<Topic[]> {
 export async function listAllTopics(): Promise<Topic[]> {
   const { db } = await import("./client");
   return db.select().from(topic).orderBy(topic.label);
+}
+
+/**
+ * Writes `config/topic-facets.ts` into the `facet` column — for every key that is a row here;
+ * keys that are not (a fresh database has only the sixteen) are skipped without comment. Run by
+ * `db:seed` on every boot, so a deploy is all it takes to facet production. Returns the ids
+ * still unfaceted afterwards, minus the known era set, so the seed can warn about a promoted
+ * topic nobody has classified — which would otherwise be invisible in every picker and say
+ * nothing.
+ */
+export async function applyTopicFacets(): Promise<{
+  applied: number;
+  unfaceted: string[];
+}> {
+  const { db } = await import("./client");
+  const { ERA_TOPICS, TOPIC_FACETS } =
+    await import("~/server/config/topic-facets");
+  const rows = await db.select({ id: topic.id }).from(topic);
+  const present = new Set(rows.map((r) => r.id));
+
+  // A hundred single-row updates inside one transaction. It runs once per boot and takes well
+  // under a second; a `CASE` bulk update would be faster and unreadable.
+  let applied = 0;
+  await db.transaction(async (tx) => {
+    for (const [id, facet] of Object.entries(TOPIC_FACETS)) {
+      if (!present.has(id)) continue;
+      await tx.update(topic).set({ facet }).where(eq(topic.id, id));
+      applied++;
+    }
+  });
+
+  const still = await db
+    .select({ id: topic.id })
+    .from(topic)
+    .where(isNull(topic.facet));
+  return {
+    applied,
+    unfaceted: still.map((r) => r.id).filter((id) => !ERA_TOPICS.has(id)),
+  };
 }
 
 /**
