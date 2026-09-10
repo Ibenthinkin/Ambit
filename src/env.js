@@ -37,6 +37,11 @@ export const env = createEnv({
     // there's no reason to fail app boot over it. curator.ts checks for its own presence at call
     // time and throws a clear error there instead.
     OPENROUTER_API_KEY: z.string().min(1).optional(),
+    // The shared password for the twenty seeded personas — scripts/seed-personas.ts. Optional so
+    // the app boots without it (nothing on a request path reads it); the script itself refuses to
+    // run when it is unset or under twelve characters, since twenty accounts behind a guessable
+    // password on a public host is a hole, not a fixture.
+    PERSONA_PASSWORD: z.string().min(12).optional(),
     // Ben's personal-archive service (Phase A.5; the ambit-archive repo). Optional for the same
     // reason as the key above, and one more: a machine without the archive running — CI, or any
     // clone that isn't Ben's — must still boot and run `bun run ingest` cleanly for the other five
@@ -100,6 +105,7 @@ export const env = createEnv({
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     MAIL_FROM: process.env.MAIL_FROM,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    PERSONA_PASSWORD: process.env.PERSONA_PASSWORD,
     ARCHIVE_URL: process.env.ARCHIVE_URL,
     ARCHIVE_API_KEY: process.env.ARCHIVE_API_KEY,
     LOUPE_URL: process.env.LOUPE_URL,
