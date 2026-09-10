@@ -23,6 +23,9 @@ export interface ChromeCycle {
   toggle: () => void;
   /** Hide now, and start over. Called on every image change — a new picture, a fresh look at it. */
   reset: () => void;
+  /** Show now, and start the next phase from here. For a mouse moving over the picture (desktop),
+   *  which should summon the caption without ever hiding it the way a second tap does. */
+  show: () => void;
 }
 
 export function useChromeCycle(): ChromeCycle {
@@ -50,5 +53,10 @@ export function useChromeCycle(): ChromeCycle {
     setPhase((p) => p + 1);
   }, []);
 
-  return { visible, toggle, reset };
+  const show = React.useCallback(() => {
+    setVisible(true);
+    setPhase((p) => p + 1);
+  }, []);
+
+  return { visible, toggle, reset, show };
 }

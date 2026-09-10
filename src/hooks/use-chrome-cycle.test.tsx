@@ -9,18 +9,19 @@ import { useChromeCycle } from "./use-chrome-cycle";
 // callbacks are reached through real buttons rather than a captured reference, which is both what a
 // consumer does and what keeps the component free of writes to module scope.
 function Chrome() {
-  const { visible, toggle, reset } = useChromeCycle();
+  const { visible, toggle, reset, show } = useChromeCycle();
   return (
     <>
       <span data-testid="state">{visible ? "shown" : "hidden"}</span>
       <button data-testid="toggle" onClick={toggle} />
       <button data-testid="reset" onClick={reset} />
+      <button data-testid="show" onClick={show} />
     </>
   );
 }
 
 const state = () => screen.getAllByTestId("state")[0]!.textContent;
-const press = (which: "toggle" | "reset") =>
+const press = (which: "toggle" | "reset" | "show") =>
   fireEvent.click(screen.getAllByTestId(which)[0]!);
 const tick = (ms: number) => act(() => void vi.advanceTimersByTime(ms));
 
@@ -92,5 +93,21 @@ describe("useChromeCycle", () => {
     unmount();
 
     expect(vi.getTimerCount()).toBe(before - 1);
+  });
+
+  it("show makes the chrome visible now and restarts the phase — a mouse moving is not a tap", () => {
+    expect(state()).toBe("hidden");
+    press("show");
+    expect(state()).toBe("shown");
+
+    // Already visible: show() never hides (a second tap would), but it still restarts the ten
+    // seconds — a mouse that keeps moving keeps the caption up.
+    tick(6_000);
+    press("show");
+    tick(6_000);
+    expect(state()).toBe("shown"); // 12s since the first show, 6s since the second
+
+    tick(4_000);
+    expect(state()).toBe("hidden");
   });
 });
