@@ -3,27 +3,27 @@
 // from seeding: Phase 2.3's `scripts/seed-topics.ts` upserts the 16 config-defined topic rows
 // directly, since that's a one-off config load, not a user-facing repository operation.
 // `getUserTopicWeights` is real as of Phase 4.1 — the feed engine's own read of a user's CORE
-// weights (SPEC §9.1).
-import { and, eq, notInArray, sql } from "drizzle-orm";
+// weights (SPEC §9.1; that CORE is the feed's tier, unrelated to a topic's).
+// `listTopics` returns every faceted topic as of 09-10-26 — see its comment.
+import { and, eq, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
 
 import { topic, userTopic } from "~/server/db/schema";
 
 export type Topic = typeof topic.$inferSelect;
 
 /**
- * The topics the onboarding chip grid offers — the `core` tier only (SPEC §3.2, and `topics.list`).
- * Small, checked-in-config-sized table; no pagination needed.
+ * The topics a picker may offer — every topic with a facet, ordered by label (SPEC §3.2, and
+ * `topics.list`). Since 09-10-26 that is the whole vocabulary minus the unclassified and the
+ * era topics (`config/topic-facets.ts` says which and why), grouped client-side by `facet`:
+ * onboarding shows one facet per stage, `/profile/topics` one per tab. Before this it was the
+ * sixteen `core` rows only — Cut 2a's "a hundred-chip grid is a broken screen" — which was
+ * right about the grid and wrong about the vocabulary; grouping is what fixed the grid.
  *
- * **This deliberately does not return every topic.** Cut 2a (09-02-26) grew the vocabulary from
- * sixteen to roughly a hundred by mining the corpus's own tags, and a hundred-chip onboarding grid
- * is a broken screen. The grown tier is still fully live in the feed: DRIFT and JUMP reach it
- * through the adjacency graph, and a promoted topic's items are drawn exactly like any other's.
- * What the grown tier is not is a thing we ask a new user to pick from. See
- * docs/DESIGN_topic-vocabulary-growth.md §11 — onboarding at scale is Cut 3's problem.
+ * `topics.setMine` validates against this list, so what is pickable here is exactly what is
+ * acceptable there. `listAllTopics` is for the graph, the mining and audits.
  *
- * The `ORDER BY label` is new in Cut 2a too: without it the chip grid sat at the mercy of whatever
- * order Postgres happened to return, a latent bug settings-screen.tsx had flagged and worked around
- * by sorting client-side.
+ * The `ORDER BY label` is Cut 2a's: without it the chip grid sat at the mercy of whatever order
+ * Postgres happened to return, a latent bug settings-screen.tsx had worked around client-side.
  */
 export async function listTopics(): Promise<Topic[]> {
   // Dynamic import — same CI-has-no-env-vars reason as every other repo file in this codebase
@@ -34,7 +34,7 @@ export async function listTopics(): Promise<Topic[]> {
   return db
     .select()
     .from(topic)
-    .where(eq(topic.tier, "core"))
+    .where(isNotNull(topic.facet))
     .orderBy(topic.label);
 }
 
@@ -43,6 +43,45 @@ export async function listTopics(): Promise<Topic[]> {
 export async function listAllTopics(): Promise<Topic[]> {
   const { db } = await import("./client");
   return db.select().from(topic).orderBy(topic.label);
+}
+
+/**
+ * Writes `config/topic-facets.ts` into the `facet` column — for every key that is a row here;
+ * keys that are not (a fresh database has only the sixteen) are skipped without comment. Run by
+ * `db:seed` on every boot, so a deploy is all it takes to facet production. Returns the ids
+ * still unfaceted afterwards, minus the known era set, so the seed can warn about a promoted
+ * topic nobody has classified — which would otherwise be invisible in every picker and say
+ * nothing.
+ */
+export async function applyTopicFacets(): Promise<{
+  applied: number;
+  unfaceted: string[];
+}> {
+  const { db } = await import("./client");
+  const { ERA_TOPICS, TOPIC_FACETS } =
+    await import("~/server/config/topic-facets");
+  const rows = await db.select({ id: topic.id }).from(topic);
+  const present = new Set(rows.map((r) => r.id));
+
+  // A hundred single-row updates inside one transaction. It runs once per boot and takes well
+  // under a second; a `CASE` bulk update would be faster and unreadable.
+  let applied = 0;
+  await db.transaction(async (tx) => {
+    for (const [id, facet] of Object.entries(TOPIC_FACETS)) {
+      if (!present.has(id)) continue;
+      await tx.update(topic).set({ facet }).where(eq(topic.id, id));
+      applied++;
+    }
+  });
+
+  const still = await db
+    .select({ id: topic.id })
+    .from(topic)
+    .where(isNull(topic.facet));
+  return {
+    applied,
+    unfaceted: still.map((r) => r.id).filter((id) => !ERA_TOPICS.has(id)),
+  };
 }
 
 /**
@@ -202,6 +241,18 @@ export async function bumpTopicWeight(
       isNew: sql<boolean>`(xmax = 0)`,
     });
   return row!;
+}
+
+/** Dev affordance (09-10-26, `/profile/topics` under FEED_DEBUG): every learned weight back to
+ *  the default, so a feel test can start from a flat prior. Returns the row count. */
+export async function resetUserTopicWeights(userId: string): Promise<number> {
+  const { db } = await import("./client");
+  const rows = await db
+    .update(userTopic)
+    .set({ weight: 1.0 })
+    .where(eq(userTopic.userId, userId))
+    .returning({ topicId: userTopic.topicId });
+  return rows.length;
 }
 
 /**

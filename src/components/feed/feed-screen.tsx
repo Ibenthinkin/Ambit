@@ -69,9 +69,9 @@ function moveMark(): Date {
 }
 
 export interface FeedDevProps {
-  /** The core-tier topic ids, from the DB via the /dev/feed shell — the readout's
-   *  core-vs-grown test. */
-  coreTopicIds: string[];
+  /** The original-tier topic ids, from the DB via the /dev/feed shell — the readout's
+   *  original-vs-grown test. */
+  originalTopicIds: string[];
 }
 
 export interface FeedScreenProps {
@@ -235,13 +235,13 @@ export function FeedScreen({ topicLabels, dev }: FeedScreenProps) {
     };
   }, [isDev, forgetSince]);
 
-  const coreIds = React.useMemo(
-    () => new Set(dev?.coreTopicIds ?? []),
-    [dev?.coreTopicIds],
+  const originalIds = React.useMemo(
+    () => new Set(dev?.originalTopicIds ?? []),
+    [dev?.originalTopicIds],
   );
   const devPageStats = React.useMemo(
-    () => (isDev ? pages.map((p) => pageStats(p.cards, coreIds)) : []),
-    [isDev, pages, coreIds],
+    () => (isDev ? pages.map((p) => pageStats(p.cards, originalIds)) : []),
+    [isDev, pages, originalIds],
   );
 
   // 2 / 3 / 4 by viewport, hydration-safe — see `useMediaQuery` on why it isn't an effect.

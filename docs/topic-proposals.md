@@ -9,6 +9,8 @@
 Tick `- [x]` for every candidate that should become a topic. Leave `- [ ]` to reject.
 Edit the **bold label** freely; it is what the chip and the credit line will say.
 Move a line from *Single-source* up into *Candidates* to rescue it.
+Each ticked line also needs `<!-- facet: subject | medium | look | place -->` (09-10-26);
+`promote:topics` refuses a line without one.
 
 **The test is not subject-vs-medium.** Ambit's original sixteen already mix them — `ceramics`,
 `textiles`, `typography`, `cartography` and `portraiture` are media or forms. The test is

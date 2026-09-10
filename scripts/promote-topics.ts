@@ -30,21 +30,24 @@
 // candidates have evidence", never as "how much backlog this clears".
 import { readFile } from "node:fs/promises";
 
+import type { TopicFacet } from "~/server/db/schema";
 import { topicIdFor } from "~/server/services/topic-mining";
 
 const confirm = process.argv.includes("--confirm");
 
 // A ticked line looks like:
-//   - [x] `sculpture` — **Sculpture** <!-- tag: sculpture --> · 738 un-homed / …
+//   - [x] `sculpture` — **Sculpture** <!-- tag: sculpture --> <!-- facet: medium --> · 738 un-homed / …
+// The facet comment is new (09-10-26); a verdict written before it has none, and is refused
+// below exactly like a `?` — a promoted topic without a facet is invisible in every picker.
 const LINE =
-  /^- \[x\]\s+`([^`]+)`\s+—\s+\*\*(.+?)\*\*\s+<!--\s*tag:\s*(.+?)\s*-->/;
+  /^- \[x\]\s+`([^`]+)`\s+—\s+\*\*(.+?)\*\*\s+<!--\s*tag:\s*(.+?)\s*-->(?:\s*<!--\s*facet:\s*(.+?)\s*-->)?/;
 
 const doc = await readFile("docs/topic-proposals.md", "utf8");
 const picks = doc
   .split("\n")
   .map((l) => LINE.exec(l))
   .filter((m): m is RegExpExecArray => m !== null)
-  .map((m) => ({ id: m[1]!, label: m[2]!, tag: m[3]! }));
+  .map((m) => ({ id: m[1]!, label: m[2]!, tag: m[3]!, facet: m[4] }));
 
 if (picks.length === 0) {
   console.error(
@@ -73,6 +76,18 @@ for (const p of picks) {
     process.exit(1);
   }
   seen.add(p.id);
+}
+
+// No facet, no promotion. `?` is what mine:topics writes; a verdict that predates the facet
+// slot has nothing at all. Either way the fix is in the file, not here.
+const { FACETS } = await import("~/server/config/topic-facets");
+for (const p of picks) {
+  if (!p.facet || !(FACETS as readonly string[]).includes(p.facet)) {
+    console.error(
+      `\`${p.id}\` has no facet (found "${p.facet ?? ""}") — set <!-- facet: subject | medium | look | place --> on its line.`,
+    );
+    process.exit(1);
+  }
 }
 
 const { db } = await import("~/server/db/client");
@@ -119,7 +134,13 @@ for (const p of picks) {
 
   await db
     .insert(topic)
-    .values({ id: p.id, label: p.label, seedQueries: {}, tier: "grown" })
+    .values({
+      id: p.id,
+      label: p.label,
+      seedQueries: {},
+      tier: "grown",
+      facet: p.facet as TopicFacet,
+    })
     .onConflictDoNothing();
   if (carrying.length > 0) {
     // Chunked: a single insert of tens of thousands of rows can exceed the parameter limit.
@@ -146,4 +167,12 @@ console.log(
   `\n${totalMemberships} membership(s), ${totalDisplay} item(s) gain a display topic` +
     (confirm ? "" : " — re-run with --confirm to write"),
 );
+if (confirm) {
+  // The DB row is ahead of the map until this is pasted in, and an unpasted facet survives
+  // exactly until someone runs `db:seed` against a fresh database.
+  console.log(
+    "\nAdd to src/server/config/topic-facets.ts (the map is the authority; the DB row is just ahead of it until you do):",
+  );
+  for (const p of picks) console.log(`  ${p.facet}: "${p.id}",`);
+}
 process.exit(0);

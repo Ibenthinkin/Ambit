@@ -1,14 +1,23 @@
-// The `topics` router (SPEC §7): the onboarding chip grid's read (`list`) and write (`setMine`).
+// The `topics` router (SPEC §7): the pickers' read (`list`) and write (`setMine`) — onboarding's
+// four stages and /profile/topics's four tabs, both of them chip grids over the same list.
 // Both protected — even `list` needs a session, since there's no anonymous-browsing use for the
 // topic catalog (unlike `items.byId`, which genuinely backs a public route).
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { getUserTopicIds, listTopics, setUserTopics } from "~/server/db/topics";
+import {
+  getUserTopicIds,
+  getUserTopicWeights,
+  listTopics,
+  resetUserTopicWeights,
+  setUserTopics,
+} from "~/server/db/topics";
+import { feedDebugEnabled } from "~/server/services/feed-debug";
 
 export const topicsRouter = createTRPCRouter({
-  /** All sixteen v1 topics — the source for the onboarding chip grid (SPEC §8.2's TopicChips). */
+  /** Every pickable topic — faceted, ordered by label — for onboarding's stages and
+   *  /profile/topics's tabs (SPEC §8.2). */
   list: protectedProcedure.query(() => listTopics()),
 
   /**
@@ -20,10 +29,11 @@ export const topicsRouter = createTRPCRouter({
   mine: protectedProcedure.query(({ ctx }) => getUserTopicIds(ctx.user.id)),
 
   /**
-   * Replaces the caller's topic selection (SPEC §7). Validates every id against the real topic
-   * catalog *before* touching `user_topic` — an unknown id is a client bug (a stale chip list, a
-   * typo'd id), not something the DB's foreign key should be the one to catch, so this throws a
-   * clean `BAD_REQUEST` instead of letting a constraint violation surface as a 500.
+   * Replaces the caller's topic selection (SPEC §7). Validates every id against `listTopics()` —
+   * the pickable set, so an unfaceted or era id is refused here, not by the FK — *before*
+   * touching `user_topic`. An unpickable id is a client bug (a stale chip list, a typo'd id),
+   * not something the DB's foreign key should be the one to catch, so this throws a clean
+   * `BAD_REQUEST` instead of letting a constraint violation surface as a 500.
    */
   setMine: protectedProcedure
     .input(z.object({ topicIds: z.array(z.string()).min(1) }))
@@ -40,4 +50,33 @@ export const topicsRouter = createTRPCRouter({
       await setUserTopics(ctx.user.id, input.topicIds);
       return { ok: true } as const;
     }),
+
+  /**
+   * Dev only: each picked topic's learned weight, for /profile/topics's readout. Gated by the
+   * same `feedDebugEnabled()` as `/dev/feed` and `feed.forgetSince`, and FORBIDDEN rather than
+   * silently empty — a product build must not be able to read a weight at all, and a caller that
+   * asks should be told why, not handed a plausible zero.
+   */
+  weights: protectedProcedure.query(async ({ ctx }) => {
+    if (!(await feedDebugEnabled())) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "topics.weights is a dev affordance (FEED_DEBUG is off)",
+      });
+    }
+    const map = await getUserTopicWeights(ctx.user.id);
+    return [...map].map(([topicId, weight]) => ({ topicId, weight }));
+  }),
+
+  /** Dev only: every weight back to 1.0, so a feel test can start from a flat prior. */
+  resetWeights: protectedProcedure.mutation(async ({ ctx }) => {
+    if (!(await feedDebugEnabled())) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "topics.resetWeights is a dev affordance (FEED_DEBUG is off)",
+      });
+    }
+    const reset = await resetUserTopicWeights(ctx.user.id);
+    return { reset } as const;
+  }),
 });

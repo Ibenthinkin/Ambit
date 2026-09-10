@@ -481,7 +481,7 @@ describe("FeedScreen without `dev` — the /feed contract", () => {
 describe("FeedScreen with `dev`", () => {
   // Botany is core, astronomy is grown, as far as this fixture is concerned — the split is decided
   // by the ids the shell passes, not by anything the screen knows on its own.
-  const dev = { coreTopicIds: ["botany"] };
+  const dev = { originalTopicIds: ["botany"] };
 
   beforeEach(() => {
     localStorage.clear();

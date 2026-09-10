@@ -218,3 +218,24 @@ export function topicLabelFor(tag: string): string {
     .map((w) => (w === "&" ? "&" : w.charAt(0).toUpperCase() + w.slice(1)))
     .join(" ");
 }
+
+/**
+ * One candidate as a line of `docs/topic-proposals.md`. Lives here rather than in the script so
+ * it can be pinned by a test: `promote:topics` parses this exact shape back, and a change to
+ * either side that the other does not see is a silent no-op on a verdict Ben has already made.
+ *
+ * The `<!-- facet: ? -->` slot is new (09-10-26). The verdict replaces `?` with
+ * subject | medium | look | place; `promote:topics` refuses a ticked line that still says `?`,
+ * because a promoted topic with no facet is invisible in every picker
+ * (docs/DESIGN_topic-facets-and-personas.md §1).
+ */
+export function proposalLine(s: TagStat): string {
+  return (
+    `- [ ] \`${topicIdFor(s.tag)}\` — **${topicLabelFor(s.tag)}** ` +
+    `<!-- tag: ${s.tag} --> <!-- facet: ? --> · ${s.unhomed} un-homed / ${s.total} total · ` +
+    `${s.sources.length} sources (${s.sources.join(", ")})` +
+    // Only when it is actually a factor: a candidate nobody's source ever named is a different
+    // kind of claim from one several blogs tag by hand, and the number says which this is.
+    (s.aestheticOnly > 0 ? ` · via curator ${s.aestheticOnly}/${s.total}` : "")
+  );
+}

@@ -10,9 +10,9 @@ import type { FeedCard, Tier } from "~/server/services/feed";
 export interface PageStats {
   cards: number;
   tiers: Record<Tier, number>;
-  core: number;
+  original: number;
   grown: number;
-  /** Cards the WILD tier drew — un-homed items, which belong to neither `core` nor `grown`
+  /** Cards the WILD tier drew — un-homed items, which belong to neither `original` nor `grown`
    *  because they belong to no topic at all. The three add up to `cards`. */
   wild: number;
   topics: Map<string, number>;
@@ -28,12 +28,12 @@ const emptyTiers = (): Record<Tier, number> => ({
 
 export function pageStats(
   cards: FeedCard[],
-  coreIds: ReadonlySet<string>,
+  originalIds: ReadonlySet<string>,
 ): PageStats {
   const s: PageStats = {
     cards: cards.length,
     tiers: emptyTiers(),
-    core: 0,
+    original: 0,
     grown: 0,
     wild: 0,
     topics: new Map(),
@@ -43,12 +43,12 @@ export function pageStats(
     s.tiers[c.tier]++;
     // `topicId` is the card's *display* topic (Cut 1). Null is no longer a bug to be seen: as of
     // 09-06-26 it means, and only means, a WILD card — an un-homed item the new tier drew. It
-    // gets its own bucket rather than being folded into core or grown, because "no topic fits
+    // gets its own bucket rather than being folded into original or grown, because "no topic fits
     // this yet" is the fact the readout exists to show.
     if (c.topicId === null) {
       s.wild++;
     } else {
-      if (coreIds.has(c.topicId)) s.core++;
+      if (originalIds.has(c.topicId)) s.original++;
       else s.grown++;
       s.topics.set(c.topicId, (s.topics.get(c.topicId) ?? 0) + 1);
     }
@@ -61,7 +61,7 @@ export function sumStats(pages: PageStats[]): PageStats {
   const t: PageStats = {
     cards: 0,
     tiers: emptyTiers(),
-    core: 0,
+    original: 0,
     grown: 0,
     wild: 0,
     topics: new Map(),
@@ -70,7 +70,7 @@ export function sumStats(pages: PageStats[]): PageStats {
   for (const p of pages) {
     t.cards += p.cards;
     for (const k of Object.keys(t.tiers) as Tier[]) t.tiers[k] += p.tiers[k];
-    t.core += p.core;
+    t.original += p.original;
     t.grown += p.grown;
     t.wild += p.wild;
     for (const [k, n] of p.topics) t.topics.set(k, (t.topics.get(k) ?? 0) + n);

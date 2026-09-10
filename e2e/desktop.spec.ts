@@ -2,6 +2,7 @@ import { expect, test, type Locator } from "@playwright/test";
 
 import {
   cleanupSeeded,
+  completeOnboarding,
   connect,
   inviteUser,
   openAuthSheet,
@@ -77,12 +78,7 @@ test.describe.serial("desktop", () => {
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await page.waitForURL("/onboarding");
-    for (const label of ["Astronomy", "Botany", "Music"]) {
-      await page.getByRole("button", { name: label, pressed: false }).click();
-    }
-    await page.getByRole("button", { name: "Start exploring" }).click();
-    await page.waitForURL("/feed");
+    await completeOnboarding(page, ["Astronomy", "Botany", "Music"]);
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();
 
     // Four stacks, every one populated, inside a container no wider than 1120 and centered.

@@ -32,6 +32,7 @@ export default async function ProfilePage() {
   // `HydrateClient` dehydrates whatever has settled by the time it renders.
   void api.user.me.prefetch();
   void api.saves.collections.prefetch();
+  void api.topics.mine.prefetch();
 
   return (
     <HydrateClient>

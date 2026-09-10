@@ -13,6 +13,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { appRouter, createCaller } from "~/server/api/root";
 import type { Context } from "~/server/api/trpc";
 import type * as FeedRepo from "~/server/db/feed";
+import type * as TopicsRepo from "~/server/db/topics";
 import type * as FeedService from "~/server/services/feed";
 import type * as FeedDebug from "~/server/services/feed-debug";
 
@@ -35,6 +36,18 @@ vi.mock("~/server/services/feed", async (importOriginal) => {
 vi.mock("~/server/services/wander", () => ({ getWanderNext: vi.fn() }));
 vi.mock("~/server/services/gallery-rail", () => ({ getGalleryRail: vi.fn() }));
 
+// The two dev-gated topic reads/writes (09-10-26, /profile/topics under FEED_DEBUG). Mocked for
+// the same reason as the feed repo above: what this file pins is the gate and the forwarded
+// caller id, and neither needs a database to be true.
+vi.mock("~/server/db/topics", async (importOriginal) => {
+  const actual = await importOriginal<typeof TopicsRepo>();
+  return {
+    ...actual,
+    getUserTopicWeights: vi.fn(),
+    resetUserTopicWeights: vi.fn(),
+  };
+});
+
 vi.mock("~/server/db/feed", async (importOriginal) => {
   const actual = await importOriginal<typeof FeedRepo>();
   return { ...actual, markSeen: vi.fn(), forgetSeenSince: vi.fn() };
@@ -55,6 +68,10 @@ const { markSeen: mockedMarkSeen, forgetSeenSince: mockedForgetSeenSince } =
   await import("~/server/db/feed");
 const { feedDebugEnabled: mockedFeedDebugEnabled } =
   await import("~/server/services/feed-debug");
+const {
+  getUserTopicWeights: mockedGetUserTopicWeights,
+  resetUserTopicWeights: mockedResetUserTopicWeights,
+} = await import("~/server/db/topics");
 
 // `items.wanderNext` reaches Postgres through services/wander.ts; mocked here for the same reason
 // as `getFeedPage` — this file's subject is the auth boundary and argument forwarding, not the
@@ -138,6 +155,18 @@ describe("protected procedures reject a null session", () => {
     await expect(
       caller.feed.forgetSince({ since: new Date() }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("topics.weights throws UNAUTHORIZED", async () => {
+    await expect(caller.topics.weights()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  it("topics.resetWeights throws UNAUTHORIZED", async () => {
+    await expect(caller.topics.resetWeights()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
   });
 
   it("saves.collections throws UNAUTHORIZED", async () => {
@@ -474,7 +503,9 @@ describe("appRouter shape", () => {
   // one thing that makes an accidentally-exported procedure, or one that quietly outlives its
   // last caller, show up as a failing test instead of shipping. The dev knob panel (09-05-26) adds
   // the eighteenth, `feed.forgetSince` — registered in every build, FORBIDDEN outside the dev gate.
-  it("exposes exactly the eighteen SPEC §7 procedures, no leftover post router", () => {
+  // /profile/topics's dev readout (09-10-26) adds the nineteenth and twentieth on the same terms,
+  // `topics.weights` and `topics.resetWeights`.
+  it("exposes exactly the twenty SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -496,6 +527,8 @@ describe("appRouter shape", () => {
         "topics.mine",
         "user.me",
         "user.updateProfile",
+        "topics.weights",
+        "topics.resetWeights",
       ].sort(),
     );
   });
@@ -589,5 +622,44 @@ describe("feed.forgetSince is dev-only", () => {
       forgotten: 3,
     });
     expect(mockedForgetSeenSince).toHaveBeenCalledWith("user-42", since);
+  });
+});
+
+describe("topics.weights / topics.resetWeights are dev-only", () => {
+  beforeEach(() => {
+    vi.mocked(mockedFeedDebugEnabled).mockReset();
+    vi.mocked(mockedGetUserTopicWeights)
+      .mockReset()
+      .mockResolvedValue(new Map([["botany", 1.5]]));
+    vi.mocked(mockedResetUserTopicWeights).mockReset().mockResolvedValue(4);
+  });
+
+  it("topics.weights throws FORBIDDEN when the gate is off — a product build never reads a weight", async () => {
+    vi.mocked(mockedFeedDebugEnabled).mockResolvedValue(false);
+    const caller = createCaller(authedContext("user-42"));
+    await expect(caller.topics.weights()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    expect(mockedGetUserTopicWeights).not.toHaveBeenCalled();
+  });
+
+  it("topics.resetWeights throws FORBIDDEN when the gate is off", async () => {
+    vi.mocked(mockedFeedDebugEnabled).mockResolvedValue(false);
+    const caller = createCaller(authedContext("user-42"));
+    await expect(caller.topics.resetWeights()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    expect(mockedResetUserTopicWeights).not.toHaveBeenCalled();
+  });
+
+  it("with the gate on, weights come back as rows and reset forwards the caller's id", async () => {
+    vi.mocked(mockedFeedDebugEnabled).mockResolvedValue(true);
+    const caller = createCaller(authedContext("user-42"));
+    await expect(caller.topics.weights()).resolves.toEqual([
+      { topicId: "botany", weight: 1.5 },
+    ]);
+    expect(mockedGetUserTopicWeights).toHaveBeenCalledWith("user-42");
+    await expect(caller.topics.resetWeights()).resolves.toEqual({ reset: 4 });
+    expect(mockedResetUserTopicWeights).toHaveBeenCalledWith("user-42");
   });
 });

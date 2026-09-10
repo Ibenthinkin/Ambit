@@ -1,5 +1,7 @@
 # Feed pool sampling — corroboration and proposal
 
+*`core` tier renamed `original` 09-10-26 (docs/DESIGN_topic-facets-and-personas.md); read accordingly.*
+
 **Written:** 09-08-26 evening by Fable 5.1, corroborating the finding recorded in `log.md`'s
 09-08 entry ("A reload loop on `/feed`, chased and not caught — but it turned up a real one").
 **Status:** shipped 09-08-26 as the plain sample (Ben's call); plan `docs/PLAN_feed-pool-sampling.md`.

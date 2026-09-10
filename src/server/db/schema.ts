@@ -147,17 +147,21 @@ export const accountRelations = relations(account, ({ one }) => ({
 // column itself is settled now, but nailing the exact per-source query shape is that step's job.
 type SeedQueries = Record<string, string[]>;
 
-/** Which tier of the vocabulary a topic belongs to (Cut 2a, 09-02-26).
+/** `original` = the sixteen config-defined, query-seeded topics (`config/topics.ts`), whose
+ *  tuned graph rows `graph:rebuild` preserves byte-for-byte; `grown` = promoted from the corpus's
+ *  own tags by `promote:topics` (Cut 2a). Renamed from `core` 09-10-26: the sixteen were the
+ *  first words anyone thought of, not a curated centre, and the word had started to imply one.
  *
- *  `core` — the sixteen Ambit shipped with. These are the onboarding chip grid, and they are the
- *  rows whose adjacency was tuned by hand in Phase 0.5.
- *  `grown` — promoted from corpus tags by scripts/promote-topics.ts. Real topics the feed draws
- *  from through DRIFT and JUMP, deliberately NOT offered as onboarding chips: a hundred-chip grid
- *  is a broken screen, and Cut 3 is where onboarding learns to scale (DESIGN §11).
- *
- *  A string union rather than a boolean because Cut 3 wants a third value (a curated middle tier),
- *  and a boolean would have to be migrated again to get one. */
-export type TopicTier = "core" | "grown";
+ *  A string union rather than a boolean because a third value (a curated middle tier) is still
+ *  imaginable, and a boolean would have to be migrated again to get one. */
+export type TopicTier = "original" | "grown";
+
+/** How the pickers group a topic (docs/DESIGN_topic-facets-and-personas.md §1). `null` means
+ *  "not pickable": no one has classified it yet, or it is an era topic (`19th-century`), which
+ *  is tag-only and would be an empty pool. Nullable on purpose — a default would file every
+ *  future promotion under one facet silently. The authority is `config/topic-facets.ts`, applied
+ *  by `db:seed` on every boot. */
+export type TopicFacet = "subject" | "medium" | "look" | "place";
 
 export const topic = pgTable("topic", {
   // Not a nanoid: topic ids are slugs Ambit assigns by hand (`ancient-history`, `the-ocean`, ...),
@@ -166,9 +170,10 @@ export const topic = pgTable("topic", {
   id: text("id").primaryKey(),
   label: text("label").notNull(),
   seedQueries: jsonb("seed_queries").$type<SeedQueries>().notNull(),
-  // Defaulted in SQL so the migration backfills every existing row to `core` — which is exactly
-  // right, since every row that exists when this lands IS one of the sixteen.
-  tier: text("tier").$type<TopicTier>().notNull().default("core"),
+  // Defaulted in SQL so a row inserted without one (test fixtures, mostly) is an original — the
+  // conservative reading, since only `grown` rows get the rebuild's rescaled edges.
+  tier: text("tier").$type<TopicTier>().notNull().default("original"),
+  facet: text("facet").$type<TopicFacet>(),
 });
 
 export const item = pgTable(

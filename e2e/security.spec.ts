@@ -2,6 +2,7 @@ import { expect, test, type Cookie, type Page } from "@playwright/test";
 
 import {
   cleanupSeeded,
+  completeOnboarding,
   connect,
   inviteUser,
   openAuthSheet,
@@ -177,12 +178,7 @@ test.describe.serial("security headers", () => {
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await page.waitForURL("/onboarding");
-    for (const label of ["Astronomy", "Botany", "Music"]) {
-      await page.getByRole("button", { name: label, pressed: false }).click();
-    }
-    await page.getByRole("button", { name: "Start exploring" }).click();
-    await page.waitForURL("/feed");
+    await completeOnboarding(page, ["Astronomy", "Botany", "Music"]);
 
     session = await saveSession(page);
 

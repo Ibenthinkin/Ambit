@@ -161,7 +161,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   (promotion + moving the feed onto the join); the ~3,500 items 6.3 dropped come back with a
   re-walk of each blog, free from the curation cache.
   **Cut 2a shipped 09-02-26** (plan `docs/PLAN_topic-vocabulary-cut2.md`): the vocabulary is now
-  **99 topics — 16 `core` + 83 `grown`** mined from the corpus's own tags, and the un-homed backlog
+  **99 topics — 16 `original` + 83 `grown`** mined from the corpus's own tags, and the un-homed backlog
   is **3,741 → 1,027**. Three scripts: `bun run mine:topics` proposes into `docs/topic-proposals.md`
   (Ben ticks it; that file **is** the verdict), `bun run promote:topics --confirm` applies it
   (`topic` rows at tier `grown`, `item_topic` at `origin: "tag"`, and `item.topic_id` set **only
@@ -170,26 +170,47 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   tuned rows byte-for-byte, every edge touching a promoted topic from IDF-weighted tag
   co-occurrence **rescaled to the embedding graph's spread** (raw co-occurrence is ~4× flatter and
   would soften DRIFT to a near-uniform draw — the subtlest thing in the cut). `topic.tier` keeps
-  onboarding at 16 chips: `listTopics()` is core only, `listAllTopics()` is everything. **Two
+  onboarding at 16 chips: `listTopics()` was core only, `listAllTopics()` everything. **Two
   things to know before building on it.** The feed now spends most of a page outside the reader's
-  own picks (a sampled 96 cards: 59 grown / 37 core) — intended in direction, untuned in degree,
+  own picks (a sampled 96 cards: 59 grown / 37 original) — intended in direction, untuned in degree,
   and the open feel question for **Cut 2b** (the `topic_edge` table + moving the feed onto the
   join; not urgent until ~300 topics). And `bun run promote:topics`'s **dry run over-counts** — it
   measures each topic's un-homed set against the untouched database, so an item carrying three
   ticked tags is counted three times; the write's number is the honest one.
+- **Topics have a `facet`, and every one of them is pickable — 09-10-26** (design
+  `docs/DESIGN_topic-facets-and-personas.md`, plan `docs/PLAN_topic-facets-and-personas.md`;
+  sub-project 1 of three from Ben's desktop review). One nullable `topic.facet` column —
+  `subject | medium | look | place` — assigned by hand in `src/server/config/topic-facets.ts` and
+  applied to every row by **`db:seed` on each boot**, which is what puts facets on production with
+  nothing copied into the container. `listTopics()` changed from `WHERE tier = 'core'` to
+  `WHERE facet IS NOT NULL`, and that one line is what lets both pickers — and `setMine` — see the
+  whole vocabulary: **onboarding is four stages, one facet each** (floor of three picks in total),
+  and **`/profile/topics`** is the same list in four tabs, saved on every toggle (floor of one),
+  replacing Settings' deleted "What you see" sheet. `facet IS NULL` means *not pickable*: an
+  unclassified fresh promotion, or an era topic (`19th-century`) whose pool would be empty until
+  Cut 2b; `promote:topics` now refuses a ticked proposal without a facet, and `mine:topics` writes
+  a `<!-- facet: ? -->` slot for the verdict to fill. **The tier `core` is renamed `original`**
+  (migration 0007) — the sixteen were the first words anyone thought of, not a curated centre.
+  Two things that follow and are easy to miss: **CORE slots can now name a grown topic**, because
+  CORE draws from what the reader picked and they can pick anything faceted (SPEC §9's "which tier
+  each draw can reach" is rewritten); and the picker is a second lever on Cut 2a's open feel
+  question, alongside `/dev/feed`'s. **Twenty personas** ship with it — `config/personas.ts` plus
+  `bun run seed:personas`, which signs each one up through Better Auth's server API against
+  `PERSONA_PASSWORD` (env; no default, and it is a secret) so Ben can read the feed from twenty
+  different chairs. Demographics in the fixture are documentation and are never stored.
 - **The dev knob panel shipped 09-05-26** — `/dev/feed` (local, `FEED_DEBUG`; a 404 under a
   production build), every feed knob live including the two Cut 2a levers
   `grownEdgeScale`/`grownHopPenalty` (identities at `1`, so `/feed` composes exactly as before),
-  per-page and session readouts with the **core/grown split**, and `feed.forgetSince` so tuning
+  per-page and session readouts with the **original/grown split**, and `feed.forgetSince` so tuning
   leaves no `seen_item` rows; plan `docs/PLAN_dev-knob-panel.md`. The gate is one function,
   `feedDebugEnabled()`, shared by both engines, the mutation and the route. The 59/96 question is
   now answerable; the answer, when Ben has it, goes into `DEFAULT_KNOBS` (and
   `bun run graph:rebuild --grown-scale <s> --confirm` if the graph lever is the one that moved —
-  the rebuild now reads its core set from `TOPICS` rather than the artifact's own keys, which is
+  the rebuild now reads its preserved set from `TOPICS` rather than the artifact's own keys, which is
   what makes re-running it safe). `FeedKnobs`/`DEFAULT_KNOBS` live in `services/feed-knobs.ts`,
   a no-import leaf, so the client can read the defaults without bundling the DB layer. Two more
   sliders since 09-06-26 — `tierWild` and `wildTagBoost` — and the readout's split is now
-  **core / grown / wild**.
+  **original / grown / wild**.
 - **The first big walk's three lessons (09-07-26)**, all on `main`: **`sourceCap`** (no source
   gets more than three cards a page, across every tier, filtered _before_ the draw — a
   17,500-item blog about illustration _is_ most of the corpus's illustration, and no pool query

@@ -11,7 +11,7 @@ import { KNOB_SPECS } from "./use-dev-knobs";
 
 // The drawer (plan 09-05-26, Decision D8): a fixed right column of sliders and readouts. It is
 // the Phase 0.5 bench's `<aside id="knobs">` rebuilt in the app's own tokens, plus the readouts
-// the bench never had — per-page and per-session tier counts, the core/grown split, and the
+// the bench never had — per-page and per-session tier counts, the original/grown split, and the
 // drift paths of the last page with their sims, which is the "why" the feel question needs.
 //
 // Purely presentational: every number comes in as a prop and every action goes out as a
@@ -79,8 +79,8 @@ function StatsBlock({
         value={`CORE ${stats.tiers.CORE} · DRIFT ${stats.tiers.DRIFT} · JUMP ${stats.tiers.JUMP} · WILD ${stats.tiers.WILD}`}
       />
       <Stat
-        label="core / grown / wild"
-        value={`${stats.core} (${pct(stats.core)}%) / ${stats.grown} (${pct(stats.grown)}%) / ${stats.wild} (${pct(stats.wild)}%)`}
+        label="original / grown / wild"
+        value={`${stats.original} (${pct(stats.original)}%) / ${stats.grown} (${pct(stats.grown)}%) / ${stats.wild} (${pct(stats.wild)}%)`}
       />
       <Stat
         label="topics"

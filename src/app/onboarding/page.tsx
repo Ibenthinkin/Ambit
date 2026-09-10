@@ -3,8 +3,7 @@ import { redirect } from "next/navigation";
 
 import { OnboardingScreen } from "~/components/onboarding/onboarding-screen";
 import { auth } from "~/lib/auth";
-import { TOPICS } from "~/server/config/topics";
-import { hasCompletedOnboarding } from "~/server/db/topics";
+import { hasCompletedOnboarding, listTopics } from "~/server/db/topics";
 
 // /onboarding (SPEC §8.1, PHASE5_PLAN_5.3.md) — the topic-chip grid a newly-signed-up user lands
 // on before ever seeing a feed. A Server Component, same shape as `/` and the `/feed` placeholder:
@@ -24,9 +23,17 @@ export default async function OnboardingPage() {
     redirect("/feed");
   }
 
+  // Every pickable topic, not the sixteen config rows the grid used to map (09-10-26): the
+  // screen groups them into four stages by facet. `facet!` is safe — `listTopics` is defined as
+  // "the rows where facet IS NOT NULL", which is exactly what makes them pickable.
+  const topics = await listTopics();
   return (
     <OnboardingScreen
-      topics={TOPICS.map((topic) => ({ id: topic.id, label: topic.label }))}
+      topics={topics.map((t) => ({
+        id: t.id,
+        label: t.label,
+        facet: t.facet!,
+      }))}
       minPicks={3}
     />
   );

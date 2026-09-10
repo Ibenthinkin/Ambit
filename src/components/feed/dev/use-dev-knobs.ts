@@ -117,7 +117,7 @@ export const KNOB_SPECS: readonly KnobSpec[] = [
     min: 0,
     max: 4,
     step: 0.05,
-    note: "Multiplies every graph edge that touches a grown topic. Moves DRIFT and JUMP; leaves the tuned core×core rows alone.",
+    note: "Multiplies every graph edge that touches a grown topic. Moves DRIFT and JUMP; leaves the tuned original×original rows alone.",
   },
   {
     key: "grownHopPenalty",

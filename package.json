@@ -19,6 +19,7 @@
     "ingest": "bun run scripts/ingest.ts",
     "retire": "bun run scripts/retire-source-rows.ts",
     "invite": "bun run scripts/invite.ts",
+    "seed:personas": "bun run scripts/seed-personas.ts",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "preview": "next build && next start",

@@ -15,11 +15,9 @@ import { writeFile } from "node:fs/promises";
 import { listAllTopics } from "~/server/db/topics";
 import {
   DEFAULT_MINING,
+  proposalLine,
   rankCandidates,
   tallyTags,
-  topicIdFor,
-  topicLabelFor,
-  type TagStat,
 } from "~/server/services/topic-mining";
 
 const args = process.argv.slice(2);
@@ -74,19 +72,13 @@ const rescued = rows.filter(
     ),
 ).length;
 
-const row = (s: TagStat) =>
-  `- [ ] \`${topicIdFor(s.tag)}\` — **${topicLabelFor(s.tag)}** ` +
-  `<!-- tag: ${s.tag} --> · ${s.unhomed} un-homed / ${s.total} total · ` +
-  `${s.sources.length} sources (${s.sources.join(", ")})` +
-  // Only when it is actually a factor: a candidate nobody's source ever named is a different
-  // kind of claim from one several blogs tag by hand, and the number says which this is.
-  (s.aestheticOnly > 0 ? ` · via curator ${s.aestheticOnly}/${s.total}` : "");
-
 const doc = `# Topic proposals — Cut 2a
 
 **Generated:** ${new Date().toISOString().slice(0, 10)} by \`bun run mine:topics\`
 (minUnhomed ${opts.minUnhomed}, minSources ${opts.minSources}${opts.allow.length ? `, allow: ${opts.allow.join(", ")}` : ""}).
 **Do not hand-edit the \`<!-- tag: … -->\` comments** — \`bun run promote:topics\` reads them.
+**Do** replace each \`<!-- facet: ? -->\` with one of \`subject\`, \`medium\`, \`look\`, \`place\` on
+every line you tick; \`promote:topics\` refuses a ticked line that still says \`?\`.
 
 ## How to verdict this
 
@@ -112,7 +104,7 @@ reach this list; the judgement call is the rest.
 
 ## Candidates (${promoted.length})
 
-${promoted.map(row).join("\n")}
+${promoted.map(proposalLine).join("\n")}
 
 ## Single-source (${singleSource.length}) — rejected by the multi-source rule, shown so you can rescue one
 
@@ -120,7 +112,7 @@ These clear the un-homed floor but appear on only one source, so they may be one
 vocabulary rather than shared language. Some are real (\`street art\`, \`public art\`); move any of
 those up into Candidates, or pass \`--allow\` to make it permanent.
 
-${singleSource.map(row).join("\n")}
+${singleSource.map(proposalLine).join("\n")}
 `;
 
 await writeFile("docs/topic-proposals.md", doc);

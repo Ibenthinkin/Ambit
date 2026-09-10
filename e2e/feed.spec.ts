@@ -1,11 +1,12 @@
 import { expect, test, type Cookie, type Page } from "@playwright/test";
 
 import {
+  PIXEL,
   cleanupSeeded,
+  completeOnboarding,
   connect,
   inviteUser,
   openAuthSheet,
-  PIXEL,
   restoreSession,
   saveSession,
   type Connection,
@@ -108,12 +109,7 @@ test.describe.serial("feed", () => {
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await page.waitForURL("/onboarding");
-    for (const label of ["Astronomy", "Botany", "Music"]) {
-      await page.getByRole("button", { name: label, pressed: false }).click();
-    }
-    await page.getByRole("button", { name: "Start exploring" }).click();
-    await page.waitForURL("/feed");
+    await completeOnboarding(page, ["Astronomy", "Botany", "Music"]);
 
     // A page is 12 cards; 8 is a floor that survives a Because tile or two without being brittle.
     await expect

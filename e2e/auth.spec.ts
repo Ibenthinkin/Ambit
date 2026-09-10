@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   cleanupSeeded,
+  completeOnboarding,
   connect,
   inviteUser,
   openAuthSheet,
@@ -110,15 +111,7 @@ test.describe.serial("auth", () => {
 
     // A fresh sign-up has no topic picks yet, so /feed's guard bounces here first
     // (PHASE5_PLAN_5.3.md Decision 5) — not the feed placeholder directly.
-    await page.waitForURL("/onboarding");
-
-    // Three stable labels, not positional `.nth()` picks, so a future reorder of `TOPICS`
-    // doesn't quietly change what this test selects. `pressed: false` both disambiguates from
-    // any other "Astronomy"-adjacent text on the page and asserts the pre-click state.
-    for (const label of ["Astronomy", "Botany", "Music"]) {
-      await page.getByRole("button", { name: label, pressed: false }).click();
-    }
-    await page.getByRole("button", { name: "Start exploring" }).click();
+    await completeOnboarding(page, ["Astronomy", "Botany", "Music"]);
 
     await page.waitForURL("/feed");
     // 5.6 replaced the "Signed in as …" placeholder with the real masonry, so the end of the

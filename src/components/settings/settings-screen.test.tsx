@@ -271,42 +271,12 @@ describe("SettingsScreen — What you see", () => {
     expect(screen.getByText("Nothing picked")).toBeInTheDocument();
   });
 
-  it("opens preselected, saves the toggled set, and invalidates", () => {
-    renderScreen();
-
-    fireEvent.click(screen.getByText("What you see"));
-    // Preselected from `topics.mine` — `aria-pressed` is the Chip primitive's own state.
-    expect(
-      screen.getByRole("button", { name: "Astronomy", pressed: true }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Cartography", pressed: false }),
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Cartography" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(setMineMutateMock).toHaveBeenCalledWith({
-      topicIds: ["astronomy", "botany", "music", "cartography"],
-    });
-
-    act(() => setMineOpts.current!.onSuccess());
-    expect(invalidateMock).toHaveBeenCalled();
-    expect(screen.getByText("Feed updated")).toBeInTheDocument();
-  });
-
-  it("disables Save at zero picks, but allows two — the gate is 1, not onboarding's 3", () => {
+  it("the 'What you see' row navigates to /profile/topics", () => {
+    // The sheet is gone (09-10-26): a hundred topics in four tabs is a page, not a bottom sheet.
+    // What the row still owns is its own value text, tested above.
     renderScreen();
     fireEvent.click(screen.getByText("What you see"));
-
-    const save = screen.getByRole("button", { name: "Save" });
-    fireEvent.click(screen.getByRole("button", { name: "Astronomy" }));
-    // Two left: an established reader narrowing their feed must not be blocked.
-    expect(save).not.toBeDisabled();
-
-    fireEvent.click(screen.getByRole("button", { name: "Botany" }));
-    fireEvent.click(screen.getByRole("button", { name: "Music" }));
-    expect(save).toBeDisabled();
+    expect(pushMock).toHaveBeenCalledWith("/profile/topics");
   });
 });
 
