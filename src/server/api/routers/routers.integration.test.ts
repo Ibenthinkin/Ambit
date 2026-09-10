@@ -79,11 +79,15 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
         id: topicA,
         label: "Test router topic A",
         seedQueries: { wikipedia: [], met: [], aic: [], cma: [], wellcome: [] },
+        // Faceted, or `topics.list` would not return it at all (09-10-26: the list is
+        // "every topic with a facet", not "every core topic").
+        facet: "subject" as const,
       },
       {
         id: topicB,
         label: "Test router topic B",
         seedQueries: { wikipedia: [], met: [], aic: [], cma: [], wellcome: [] },
+        facet: "subject" as const,
       },
     ]);
     await db.insert(user).values([
@@ -210,6 +214,48 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
     it("hasCompletedOnboarding is false before any topics are picked", async () => {
       const { hasCompletedOnboarding } = await import("~/server/db/topics");
       expect(await hasCompletedOnboarding(userId)).toBe(false);
+    });
+
+    it("list carries each topic's facet", async () => {
+      const caller = createCaller(authedContext(userId));
+      const all = await caller.topics.list();
+      const a = all.find((t) => t.id === topicA);
+      expect(a?.facet).toBe("subject");
+    });
+
+    it("setMine accepts a grown, faceted topic and refuses an unfaceted one", async () => {
+      // The point of the cut: pickable is a property of the facet column, not of the tier. An
+      // unfaceted row (a fresh promotion, or the era topic) is refused here by `listTopics`,
+      // not by the foreign key.
+      const { db } = await import("~/server/db/client");
+      const { topic } = await import("~/server/db/schema");
+      const grown = `test-grown-${nanoid(8)}`;
+      const era = `test-era-${nanoid(8)}`;
+      await db.insert(topic).values([
+        {
+          id: grown,
+          label: "Grown",
+          seedQueries: {},
+          tier: "grown" as const,
+          facet: "look" as const,
+        },
+        { id: era, label: "Era", seedQueries: {}, tier: "grown" as const },
+      ]);
+      try {
+        const caller = createCaller(authedContext(userId));
+        await expect(
+          caller.topics.setMine({ topicIds: [topicA, grown] }),
+        ).resolves.toEqual({ ok: true });
+        await expect(
+          caller.topics.setMine({ topicIds: [era] }),
+        ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      } finally {
+        const { userTopic } = await import("~/server/db/schema");
+        // Every pick this test made, not just the throwaway topics — the suite's later tests
+        // assume this user starts with no rows.
+        await db.delete(userTopic).where(eq(userTopic.userId, userId));
+        await db.delete(topic).where(inArray(topic.id, [grown, era]));
+      }
     });
 
     it("set, re-set with overlap: a retained topic keeps its hand-bumped weight, a dropped one is gone", async () => {

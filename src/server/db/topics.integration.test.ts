@@ -19,33 +19,57 @@ describe.skipIf(!process.env.DATABASE_URL)("listTopics / listAllTopics", () => {
   // A throwaway `grown` row, unique per run, so repeated or parallel runs never collide with each
   // other or with the real seeded vocabulary.
   const grownId = `test-grown-topic-${nanoid(8)}`;
+  // Its unfaceted twin: a real row no picker may offer (09-10-26).
+  const unfacetedId = `test-grown-topic-unfaceted-${nanoid(8)}`;
 
   afterAll(async () => {
     const { db } = await import("./client");
     await db.delete(topic).where(like(topic.id, "test-grown-topic-%"));
   });
 
-  it("returns only core topics — the onboarding grid must not grow with the vocabulary", async () => {
-    // Cut 2a grows the vocabulary from 16 to ~100. The chip grid is a curated tier, not a dump of
-    // everything the corpus knows about; `listAllTopics` is what wants the whole set.
+  it("listTopics returns faceted topics of either tier and hides unfaceted ones", async () => {
+    // Until 09-10-26 this asserted the opposite — that the grid stays at sixteen while the
+    // vocabulary grows. Facets are what made the other answer possible: a hundred chips is a
+    // broken screen, but a hundred chips in four grouped stages is not (docs/DESIGN_topic-facets-
+    // and-personas.md §1). What is still hidden is what has no facet — unclassified or era.
     const { db } = await import("./client");
     await db
       .insert(topic)
-      .values({
-        id: grownId,
-        label: "Test Grown",
-        seedQueries: {},
-        tier: "grown",
-      })
+      .values([
+        {
+          id: grownId,
+          label: "Test Grown",
+          seedQueries: {},
+          tier: "grown",
+          facet: "look",
+        },
+        {
+          id: unfacetedId,
+          label: "Test Unfaceted",
+          seedQueries: {},
+          tier: "grown",
+        },
+      ])
       .onConflictDoNothing();
 
-    const core = await listTopics();
-    expect(core.every((t) => t.tier === "original")).toBe(true);
-    expect(core.map((t) => t.id)).not.toContain(grownId);
+    const pickable = await listTopics();
+    const ids = pickable.map((t) => t.id);
+    expect(ids).toContain(grownId);
+    expect(ids).not.toContain(unfacetedId);
+    // Every row that comes back is faceted — that is the contract the pickers rely on.
+    for (const t of pickable) expect(t.facet).not.toBeNull();
+    // Still ordered by label (Cut 2a).
+    expect(ids).toEqual(
+      [...pickable]
+        .sort((a, b) => a.label.localeCompare(b.label))
+        .map((t) => t.id),
+    );
 
     const all = await listAllTopics();
-    expect(all.map((t) => t.id)).toContain(grownId);
-    expect(all.length).toBeGreaterThan(core.length);
+    expect(all.map((t) => t.id)).toEqual(
+      expect.arrayContaining([grownId, unfacetedId]),
+    );
+    expect(all.length).toBeGreaterThan(pickable.length);
   });
 
   it("orders both reads by label, so the grid reads the same on every visit", async () => {
