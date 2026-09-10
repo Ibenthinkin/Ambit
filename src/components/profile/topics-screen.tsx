@@ -48,6 +48,15 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
     onSettled: () => void utils.topics.mine.invalidate(),
   });
 
+  // Dev readout: the query only runs under the gate, and the procedure would FORBID it anyway.
+  const weights = api.topics.weights.useQuery(undefined, { enabled: dev });
+  const resetWeights = api.topics.resetWeights.useMutation({
+    onSuccess: () => void utils.topics.weights.invalidate(),
+  });
+  const weightOf = new Map(
+    (weights.data ?? []).map((w) => [w.topicId, w.weight]),
+  );
+
   const picked = new Set(mine.data ?? []);
   const tabTopics = (topics.data ?? []).filter((t) => t.facet === facet);
 
@@ -125,7 +134,9 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
               selected={picked.has(t.id)}
               onClick={() => toggle(t.id)}
             >
-              {t.label}
+              {dev && picked.has(t.id) && weightOf.has(t.id)
+                ? `${t.label} · ${weightOf.get(t.id)!.toFixed(1)}`
+                : t.label}
             </Chip>
           ))}
         </div>
@@ -133,10 +144,27 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
         <p
           role="status"
           aria-live="polite"
-          className="text-ink/55 px-5 pb-[140px] font-sans text-[12.5px]"
+          className="text-ink/55 px-5 font-sans text-[12.5px]"
         >
           {hint}
         </p>
+
+        {dev && (
+          <div className="px-5 pt-6 pb-[140px]">
+            <button
+              type="button"
+              onClick={() => resetWeights.mutate()}
+              className="border-hairline rounded-pill border-ink/18 text-ink h-[40px] px-5 text-[13px]"
+            >
+              Reset weights
+            </button>
+            <p className="text-ink/45 mt-2 font-sans text-[12px]">
+              Dev only (FEED_DEBUG). Saves nudge a topic&apos;s weight up by
+              0.5, capped at 3.0.
+            </p>
+          </div>
+        )}
+        {!dev && <div className="pb-[140px]" />}
       </Column>
     </main>
   );

@@ -243,6 +243,18 @@ export async function bumpTopicWeight(
   return row!;
 }
 
+/** Dev affordance (09-10-26, `/profile/topics` under FEED_DEBUG): every learned weight back to
+ *  the default, so a feel test can start from a flat prior. Returns the row count. */
+export async function resetUserTopicWeights(userId: string): Promise<number> {
+  const { db } = await import("./client");
+  const rows = await db
+    .update(userTopic)
+    .set({ weight: 1.0 })
+    .where(eq(userTopic.userId, userId))
+    .returning({ topicId: userTopic.topicId });
+  return rows.length;
+}
+
 /**
  * One topic's human-readable label — what the save toast needs to say *which* topic is now
  * drifting ("Saved to Art · Now drifting toward Cartography"). Read from the table rather than

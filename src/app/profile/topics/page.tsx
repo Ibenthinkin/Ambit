@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { TopicsScreen } from "~/components/profile/topics-screen";
 import { auth } from "~/lib/auth";
+import { feedDebugEnabled } from "~/server/services/feed-debug";
 import { api, HydrateClient } from "~/trpc/server";
 
 // /profile/topics — the topic manager (docs/DESIGN_topic-facets-and-personas.md §3), reached from
@@ -24,9 +25,14 @@ export default async function ProfileTopicsPage() {
   void api.topics.list.prefetch();
   void api.topics.mine.prefetch();
 
+  // Only under the gate: prefetching `weights` in a product build would fire a procedure that
+  // answers FORBIDDEN, which the screen never asks for anyway.
+  const dev = await feedDebugEnabled();
+  if (dev) void api.topics.weights.prefetch();
+
   return (
     <HydrateClient>
-      <TopicsScreen dev={false} />
+      <TopicsScreen dev={dev} />
     </HydrateClient>
   );
 }

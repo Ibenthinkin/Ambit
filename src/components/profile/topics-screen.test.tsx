@@ -142,4 +142,18 @@ describe("TopicsScreen", () => {
     expect(screen.queryByRole("button", { name: "Reset weights" })).toBeNull();
     expect(screen.getByRole("button", { name: "Alpha" })).toBeTruthy();
   });
+
+  it("under dev, pressed chips show their weight and Reset weights calls the mutation", () => {
+    state.weights = [{ topicId: "alpha", weight: 1.5 }];
+    render(<TopicsScreen dev />);
+    expect(screen.getByRole("button", { name: "Alpha · 1.5" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Reset weights" }));
+    expect(resetMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("an unpicked chip shows no weight even under dev", () => {
+    state.weights = [{ topicId: "beta", weight: 2 }];
+    render(<TopicsScreen dev />);
+    expect(screen.getByRole("button", { name: "Beta" })).toBeTruthy();
+  });
 });

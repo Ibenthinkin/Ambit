@@ -6,7 +6,14 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { getUserTopicIds, listTopics, setUserTopics } from "~/server/db/topics";
+import {
+  getUserTopicIds,
+  getUserTopicWeights,
+  listTopics,
+  resetUserTopicWeights,
+  setUserTopics,
+} from "~/server/db/topics";
+import { feedDebugEnabled } from "~/server/services/feed-debug";
 
 export const topicsRouter = createTRPCRouter({
   /** Every pickable topic — faceted, ordered by label — for onboarding's stages and
@@ -43,4 +50,33 @@ export const topicsRouter = createTRPCRouter({
       await setUserTopics(ctx.user.id, input.topicIds);
       return { ok: true } as const;
     }),
+
+  /**
+   * Dev only: each picked topic's learned weight, for /profile/topics's readout. Gated by the
+   * same `feedDebugEnabled()` as `/dev/feed` and `feed.forgetSince`, and FORBIDDEN rather than
+   * silently empty — a product build must not be able to read a weight at all, and a caller that
+   * asks should be told why, not handed a plausible zero.
+   */
+  weights: protectedProcedure.query(async ({ ctx }) => {
+    if (!(await feedDebugEnabled())) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "topics.weights is a dev affordance (FEED_DEBUG is off)",
+      });
+    }
+    const map = await getUserTopicWeights(ctx.user.id);
+    return [...map].map(([topicId, weight]) => ({ topicId, weight }));
+  }),
+
+  /** Dev only: every weight back to 1.0, so a feel test can start from a flat prior. */
+  resetWeights: protectedProcedure.mutation(async ({ ctx }) => {
+    if (!(await feedDebugEnabled())) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "topics.resetWeights is a dev affordance (FEED_DEBUG is off)",
+      });
+    }
+    const reset = await resetUserTopicWeights(ctx.user.id);
+    return { reset } as const;
+  }),
 });

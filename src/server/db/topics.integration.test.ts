@@ -6,9 +6,9 @@
 // Integration rather than unit because both functions are a single `select` — there is no pure
 // half worth testing, and the only thing that could break is the WHERE clause, which needs rows.
 // Self-skips whenever DATABASE_URL isn't set, same as items.integration.test.ts.
-import { eq, like } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { ERA_TOPICS, TOPIC_FACETS } from "~/server/config/topic-facets";
 
@@ -128,6 +128,57 @@ describe.skipIf(!process.env.DATABASE_URL)(
         expect(ERA_TOPICS.has(id)).toBe(false);
         expect(byId.get(id)?.facet).toBeNull();
       }
+    });
+  },
+);
+
+describe.skipIf(!process.env.DATABASE_URL)(
+  "resetUserTopicWeights (integration)",
+  () => {
+    // Its own fixtures: nothing else in this file needs a user, and a reset that hit a shared one
+    // would be a suite-ordering trap the moment another describe learned to bump a weight.
+    const userId = `test-weights-user-${nanoid(8)}`;
+    const topicA = `test-weights-topic-a-${nanoid(8)}`;
+    const topicB = `test-weights-topic-b-${nanoid(8)}`;
+
+    beforeAll(async () => {
+      const { db } = await import("./client");
+      const { user } = await import("./schema");
+      await db.insert(topic).values([
+        { id: topicA, label: "Weights A", seedQueries: {}, facet: "subject" },
+        { id: topicB, label: "Weights B", seedQueries: {}, facet: "subject" },
+      ]);
+      await db.insert(user).values({
+        id: userId,
+        name: "Test weights user",
+        email: `${userId}@example.com`,
+        emailVerified: false,
+      });
+    });
+
+    afterAll(async () => {
+      const { db } = await import("./client");
+      const { user, userTopic } = await import("./schema");
+      await db.delete(userTopic).where(eq(userTopic.userId, userId));
+      await db.delete(user).where(eq(user.id, userId));
+      await db.delete(topic).where(inArray(topic.id, [topicA, topicB]));
+    });
+
+    it("puts every weight back to 1.0 and reports how many", async () => {
+      const {
+        bumpTopicWeight,
+        getUserTopicWeights,
+        resetUserTopicWeights,
+        setUserTopics,
+      } = await import("./topics");
+      await setUserTopics(userId, [topicA, topicB]);
+      await bumpTopicWeight(userId, topicA);
+      expect((await getUserTopicWeights(userId)).get(topicA)).toBeCloseTo(1.5);
+
+      expect(await resetUserTopicWeights(userId)).toBe(2);
+      const after = await getUserTopicWeights(userId);
+      expect(after.get(topicA)).toBe(1);
+      expect(after.get(topicB)).toBe(1);
     });
   },
 );
