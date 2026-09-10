@@ -278,10 +278,12 @@ describe("the three public procedures", () => {
         attribution: null,
         imageUrl: "https://example.test/b.jpg",
         summary: null,
+        body: null,
         source: "met",
         sourceUrl: "https://example.test/o",
         license: null,
         topicId: "botany",
+        topicLabel: null,
       },
     ];
     vi.mocked(mockedGetGalleryRail).mockResolvedValue(rail);

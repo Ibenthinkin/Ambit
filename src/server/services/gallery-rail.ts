@@ -33,6 +33,7 @@ import {
   TOPIC_GRAPH,
   type TopicGraph,
 } from "~/server/services/feed";
+import { topicLabelsFor } from "~/server/db/topics";
 import { feedDebugEnabled } from "~/server/services/feed-debug";
 import { weightedPick } from "~/server/services/random";
 
@@ -71,19 +72,26 @@ export type RailStep =
   | { via: "stay" | "drift" | "jump"; topic: string }
   | { via: "wildcard"; topic: string | null };
 
-/** One rail cell: everything the gallery renders, and nothing else. All of it public item data. */
+/** One rail cell: everything the merged item screen renders for a picture, and nothing else. All
+ *  of it public item data — this shape crosses to anonymous visitors. */
 export interface RailItem {
   id: string;
   title: string;
   attribution: string | null;
   imageUrl: string | null;
   summary: string | null;
+  /** A stored essay (a Public Domain Review collection's own text, 09-02-26) — rendered under the
+   *  picture by `ItemFacts`, null for every other source. */
+  body: string | null;
   source: string;
   sourceUrl: string;
   license: string | null;
   /** The display topic (Cut 1: nullable — an un-homed picture opened by link, or drawn by a
-   *  wildcard slot, has none). The details sheet omits its Topic row rather than inventing one. */
+   *  wildcard slot, has none). `ItemFacts` omits its Topic row rather than inventing one. */
   topicId: string | null;
+  /** `topic.label` for `topicId`, resolved here so the client never has to — the config only
+   *  knows the sixteen originals, and since 09-10-26 most topics are grown. Null with `topicId`. */
+  topicLabel: string | null;
   /** Only populated when the server's debug flag is on (see `getGalleryRail`). */
   debug?: { via: RailVia; topic: string | null };
 }
@@ -241,11 +249,11 @@ export async function getGalleryRail(
         }))
       : pickRailTopics(anchor.topicId, TOPIC_GRAPH, rng, count, knobs);
 
-  const rows: RailItem[] = [];
   // Grows as the batch is drawn, so one rail batch never shows the same image twice. The anchor
   // leads it: the gallery is already showing that picture.
   const taken = [anchorItemId, ...excludeIds];
 
+  const drawnRows: { row: Item; step: RailStep }[] = [];
   for (const step of steps) {
     const drawn = await drawForStep(step, anchor, taken, rng);
     // Every link of the chain came back empty — the corpus has nothing more to offer this rail.
@@ -253,10 +261,18 @@ export async function getGalleryRail(
     if (!drawn) break;
 
     taken.push(drawn.id);
-    rows.push(toRailItem(drawn, debugEnabled ? step : undefined));
+    drawnRows.push({ row: drawn, step });
   }
 
-  return rows;
+  // One label query for the whole batch — see `topicLabelsFor`.
+  const labels = await topicLabelsFor(drawnRows.map((d) => d.row.topicId));
+  return drawnRows.map(({ row, step }) =>
+    railItemFrom(
+      row,
+      row.topicId ? (labels.get(row.topicId) ?? null) : null,
+      debugEnabled ? step : undefined,
+    ),
+  );
 }
 
 /** One slot's draw, with the three-link fallback chain described on `getGalleryRail`. */
@@ -314,18 +330,28 @@ async function drawForStep(
   return anywhere([]);
 }
 
-/** Narrow a full `item` row to the rail's public shape. `knobs` never travels; ids and copy do. */
-function toRailItem(row: Item, step: RailStep | undefined): RailItem {
+/**
+ * Narrow a full `item` row to the rail's public shape. `knobs` never travels; ids and copy do.
+ * Exported because the item page needs the entry picture in exactly this shape (it is cell zero
+ * of the rail it renders), and one function is how the two stay identical.
+ */
+export function railItemFrom(
+  row: Item,
+  topicLabel: string | null,
+  step?: RailStep,
+): RailItem {
   return {
     id: row.id,
     title: row.title,
     attribution: row.attribution,
     imageUrl: row.imageUrl,
     summary: row.summary,
+    body: row.body,
     source: row.source,
     sourceUrl: row.sourceUrl,
     license: row.license,
     topicId: row.topicId,
+    topicLabel,
     ...(step ? { debug: { via: step.via, topic: step.topic } } : {}),
   };
 }

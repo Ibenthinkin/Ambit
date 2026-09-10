@@ -835,6 +835,22 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       expect(drawn.every((row) => row.type === "image")).toBe(true);
     });
 
+    it("carries each cell's body and topic label, so the merged item screen can render it whole", async () => {
+      const rail = await createCaller(anonContext()).items.galleryRail({
+        itemId: plateOneId,
+      });
+      // The fixtures live in topicA ("Test router topic A") and have no body; a real PDR row would
+      // carry an essay. What is pinned is the *shape*: both fields present, the label resolved
+      // from the `topic` table rather than from the sixteen-entry config (a grown topic printed
+      // its bare slug through the gallery's details sheet until 09-10-26).
+      for (const cell of rail) {
+        expect(cell).toHaveProperty("body");
+        expect(cell).toHaveProperty("topicLabel");
+        if (cell.topicId === topicA)
+          expect(cell.topicLabel).toBe("Test router topic A");
+      }
+    });
+
     it("respects `exclude` and caps the batch at `count`", async () => {
       const rail = await createCaller(anonContext()).items.galleryRail({
         itemId: plateOneId,

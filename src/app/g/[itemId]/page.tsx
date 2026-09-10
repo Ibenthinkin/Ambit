@@ -53,10 +53,12 @@ function toRailItem(item: Item): RailItem {
     attribution: item.attribution,
     imageUrl: item.imageUrl,
     summary: item.summary,
+    body: null,
     source: item.source,
     sourceUrl: item.sourceUrl,
     license: item.license,
     topicId: item.topicId,
+    topicLabel: null,
   };
 }
 

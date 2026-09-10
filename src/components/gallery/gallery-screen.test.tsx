@@ -46,10 +46,12 @@ const railItem = (id: string, over: Partial<RailItem> = {}): RailItem => ({
   attribution: `Engraver ${id}`,
   imageUrl: `https://example.test/${id}.jpg`,
   summary: null,
+  body: null,
   source: "met",
   sourceUrl: `https://example.test/o/${id}`,
   license: null,
   topicId: "botany",
+  topicLabel: null,
   ...over,
 });
 
