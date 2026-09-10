@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_MINING,
+  proposalLine,
   rankCandidates,
   tallyTags,
   topicIdFor,
@@ -213,6 +214,36 @@ describe("topicIdFor / topicLabelFor", () => {
     expect(topicIdFor("art & illustration")).toBe("art-illustration");
     expect(topicLabelFor("street art")).toBe("Street Art");
     expect(topicLabelFor("art & illustration")).toBe("Art & Illustration");
+  });
+});
+
+describe("proposalLine", () => {
+  const stat: TagStat = {
+    tag: "sculpture",
+    total: 2180,
+    unhomed: 738,
+    sources: ["aic", "pdr"],
+    aestheticOnly: 0,
+  };
+
+  it("writes an unticked line carrying the tag the promoter reads back", () => {
+    const line = proposalLine(stat);
+    expect(line).toMatch(/^- \[ \] `sculpture` — \*\*Sculpture\*\*/);
+    expect(line).toContain("738 un-homed / 2180 total");
+    expect(line).toContain("2 sources (aic, pdr)");
+  });
+
+  it("emits a facet slot the verdict fills in — `?` until Ben says which", () => {
+    expect(proposalLine(stat)).toMatch(
+      /<!--\s*tag:\s*[^>]+-->\s*<!--\s*facet:\s*\?\s*-->/,
+    );
+  });
+
+  it("names the curator's share only when there is one", () => {
+    expect(proposalLine(stat)).not.toContain("via curator");
+    expect(proposalLine({ ...stat, aestheticOnly: 700 })).toContain(
+      "via curator 700/2180",
+    );
   });
 });
 
