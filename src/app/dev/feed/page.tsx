@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { FeedScreen } from "~/components/feed/feed-screen";
+import { env } from "~/env";
 import { auth } from "~/lib/auth";
 import { hasCompletedOnboarding, listAllTopics } from "~/server/db/topics";
 import { feedDebugEnabled } from "~/server/services/feed-debug";
@@ -37,5 +38,12 @@ export default async function DevFeedPage() {
     .filter((t) => t.tier === "original")
     .map((t) => t.id);
 
-  return <FeedScreen topicLabels={topicLabels} dev={{ originalTopicIds }} />;
+  return (
+    <FeedScreen
+      topicLabels={topicLabels}
+      dev={{ originalTopicIds }}
+      appUrl={env.BETTER_AUTH_URL}
+      viewerName={session.user.name?.trim().split(/\s+/)[0]}
+    />
+  );
 }

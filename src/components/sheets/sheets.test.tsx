@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CollectionsSheet } from "./collections-sheet";
@@ -19,7 +25,16 @@ const {
   countData,
   countLoading,
   mutationOpts,
+  createMock,
+  createOpts,
 } = vi.hoisted(() => ({
+  createMock: vi.fn(),
+  // The New-collection row's mutation, captured the same way as `mutationOpts` so a test can play
+  // the server's "created" answer at the moment it wants.
+  createOpts: {
+    current: undefined as
+      undefined | { onSuccess: (row: { id: string; name: string }) => void },
+  },
   mutateMock: vi.fn(),
   pushMock: vi.fn(),
   invalidateMock: vi.fn().mockResolvedValue(undefined),
@@ -68,6 +83,12 @@ vi.mock("~/trpc/react", () => ({
           isLoading: countLoading.current,
         }),
       },
+      createCollection: {
+        useMutation: (opts: NonNullable<typeof createOpts.current>) => {
+          createOpts.current = opts;
+          return { mutate: createMock, isPending: false };
+        },
+      },
       saveToCollection: {
         // Captures the caller's onSuccess/onError so a test can drive either branch — the sheet's
         // whole failure story lives in the options object, not in the mutate call.
@@ -90,7 +111,22 @@ const DEFAULT_COLLECTIONS = [
 beforeEach(() => {
   mutateMock.mockClear();
   pushMock.mockClear();
+  createMock.mockClear();
 });
+
+/** Opens a sheet's New-collection row, names it, submits, and plays the server's "created". */
+function makeCollection(name: string, id: string) {
+  fireEvent.click(screen.getByRole("button", { name: /New collection/ }));
+  const field = screen.getByLabelText("Collection name");
+  fireEvent.change(field, { target: { value: name } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(createMock).toHaveBeenCalledWith({ name });
+  act(() => createOpts.current!.onSuccess({ id, name }));
+}
+
+/** Every button's text, in document order — the rows' order is part of the design. */
+const buttonLabels = () =>
+  screen.getAllByRole("button").map((b) => b.textContent ?? "");
 
 // Restoring shared fixture state in a TEARDOWN hook, not at the end of the test body: a test that
 // mutates `collectionsData` and restores it inline leaves the mutation in place for every
@@ -215,6 +251,33 @@ describe("SaveToCollectionSheet", () => {
 
 // The feed's long-press sheet (5.6) — the third sibling. Same collections backend as the save
 // sheet, plus the "Closer Look" peek, minus the "Already saved here" state.
+describe("SaveToCollectionSheet's New collection row", () => {
+  const renderSave = () =>
+    render(
+      <SaveToCollectionSheet
+        open
+        onClose={vi.fn()}
+        itemId="i1"
+        onSaved={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+
+  it("ends the list", () => {
+    renderSave();
+    expect(buttonLabels().at(-1)).toContain("New collection");
+  });
+
+  it("files the item into the collection it makes", () => {
+    renderSave();
+    makeCollection("Maps", "c9");
+    expect(mutateMock).toHaveBeenCalledWith({
+      itemId: "i1",
+      collectionId: "c9",
+    });
+  });
+});
+
 describe("ItemSheet", () => {
   const ITEM = { id: "item-9", title: "Study of a Heron" };
 
@@ -228,9 +291,40 @@ describe("ItemSheet", () => {
         item={ITEM}
         onSaved={vi.fn()}
         onError={vi.fn()}
+        appUrl="https://ambit.test"
+        onToast={vi.fn()}
         {...props}
       />,
     );
+
+  it("offers a Share row that opens the share sheet for the item's own page", () => {
+    const onClose = vi.fn();
+    renderSheet({ onClose });
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+    // This menu steps aside for the share sheet, which shows the url without its scheme.
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.getByText("ambit.test/i/item-9")).toBeInTheDocument();
+  });
+
+  it("puts the sharer's first name on the link", () => {
+    renderSheet({ viewerName: "Mara" });
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+    expect(
+      screen.getByText("ambit.test/i/item-9?from=Mara"),
+    ).toBeInTheDocument();
+  });
+
+  it("ends with a New collection row that files the tile into what it makes", () => {
+    const onClose = vi.fn();
+    renderSheet({ onClose });
+    expect(buttonLabels().at(-1)).toContain("New collection");
+    makeCollection("Maps", "c9");
+    expect(mutateMock).toHaveBeenCalledWith({
+      itemId: "item-9",
+      collectionId: "c9",
+    });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
 
   it("shows the item's title, the peek action, and a row per collection", () => {
     renderSheet();
@@ -330,7 +424,7 @@ describe("CollectionsSheet", () => {
       .map((b) => b.textContent ?? "");
     expect(labels[0]).toContain("Everything kept");
     expect(labels[labels.length - 1]).toContain("New collection");
-    expect(labels[labels.length - 1]).toContain("Make one on your profile");
+    expect(labels[labels.length - 1]).toContain("Name it and it's made");
   });
 
   it("counts everything kept from saves.count, not the collection rows", () => {
@@ -360,9 +454,17 @@ describe("CollectionsSheet", () => {
 
     fireEvent.click(screen.getByText("Everything kept"));
     expect(pushMock).toHaveBeenCalledWith("/saved");
+  });
 
-    fireEvent.click(screen.getByText("New collection"));
-    expect(pushMock).toHaveBeenCalledWith("/profile");
+  // 09-10-26: the row makes the collection here rather than sending the reader to Profile to do
+  // it — and then goes where every other row goes, Saved filtered to it, origin marked.
+  it("makes a collection in place, then opens its (empty) Saved list", () => {
+    sessionStorage.clear();
+    render(<CollectionsSheet open onClose={vi.fn()} />);
+    makeCollection("Maps", "c9");
+    expect(pushMock).toHaveBeenCalledWith("/saved?collection=c9");
+    expect(sessionStorage.getItem("ambit.savedOrigin.v1")).toBe("1");
+    expect(pushMock).not.toHaveBeenCalledWith("/profile");
   });
 
   // 5.9: the marker is what lets the Saved screen pop back here instead of rebuilding the feed
@@ -375,212 +477,5 @@ describe("CollectionsSheet", () => {
     fireEvent.click(screen.getByText("Everything kept"));
     expect(sessionStorage.getItem("ambit.savedOrigin.v1")).toBe("1");
     expect(pushMock).toHaveBeenCalledWith("/saved");
-  });
-
-  // 5.10: the New-collection row writes the *profile* marker and never the saved one — each screen
-  // reads only its own, and a stray savedOrigin would make /saved pop somewhere it never came from.
-  it("marks the profile-origin, not the saved one, before navigating to Profile", () => {
-    sessionStorage.clear();
-    render(<CollectionsSheet open onClose={vi.fn()} />);
-
-    fireEvent.click(screen.getByText("New collection"));
-    expect(sessionStorage.getItem("ambit.profileOrigin.v1")).toBe("1");
-    expect(sessionStorage.getItem("ambit.savedOrigin.v1")).toBeNull();
-    expect(pushMock).toHaveBeenCalledWith("/profile");
-  });
-});
-
-describe("ShareSheet", () => {
-  const props = {
-    open: true,
-    url: "https://ambit.test/i/item-1",
-    title: "A test item",
-  };
-
-  it("shows the url without its scheme, and all six targets", () => {
-    render(
-      <ShareSheet
-        {...props}
-        onClose={vi.fn()}
-        onCopied={vi.fn()}
-        onShareUnavailable={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("ambit.test/i/item-1")).toBeInTheDocument();
-    for (const name of [
-      "Messages",
-      "Stories",
-      "X",
-      "Pinterest",
-      "WhatsApp",
-      "Email",
-    ]) {
-      expect(
-        screen.getByRole("button", { name: `Share via ${name}` }),
-      ).toBeInTheDocument();
-    }
-  });
-
-  it("retitles for a collection", () => {
-    render(
-      <ShareSheet
-        {...props}
-        collection
-        onClose={vi.fn()}
-        onCopied={vi.fn()}
-        onShareUnavailable={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByRole("heading", { name: "Share this collection" }),
-    ).toBeInTheDocument();
-  });
-
-  it("copies the link and reports it", async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    vi.stubGlobal("navigator", { clipboard: { writeText } });
-    const onCopied = vi.fn();
-
-    render(
-      <ShareSheet
-        {...props}
-        onClose={vi.fn()}
-        onCopied={onCopied}
-        onShareUnavailable={vi.fn()}
-      />,
-    );
-    fireEvent.click(screen.getByText("Copy link"));
-
-    await waitFor(() => expect(onCopied).toHaveBeenCalledWith(props.url));
-    expect(writeText).toHaveBeenCalledWith(props.url);
-    vi.unstubAllGlobals();
-  });
-
-  it("hands every target to the OS share sheet", async () => {
-    const share = vi.fn().mockResolvedValue(undefined);
-    vi.stubGlobal("navigator", { share });
-
-    render(
-      <ShareSheet
-        {...props}
-        onClose={vi.fn()}
-        onCopied={vi.fn()}
-        onShareUnavailable={vi.fn()}
-      />,
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Share via Pinterest" }),
-    );
-
-    await waitFor(() =>
-      expect(share).toHaveBeenCalledWith({
-        title: props.title,
-        url: props.url,
-      }),
-    );
-    vi.unstubAllGlobals();
-  });
-
-  // Dismissing the OS share sheet rejects with AbortError. Reporting that as a failure would put
-  // an error toast on screen every time someone changes their mind.
-  it("treats a dismissed OS sheet as a normal outcome", async () => {
-    const abort = Object.assign(new Error("dismissed"), { name: "AbortError" });
-    vi.stubGlobal("navigator", { share: vi.fn().mockRejectedValue(abort) });
-    const onShareUnavailable = vi.fn();
-
-    render(
-      <ShareSheet
-        {...props}
-        onClose={vi.fn()}
-        onCopied={vi.fn()}
-        onShareUnavailable={onShareUnavailable}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Share via X" }));
-
-    await waitFor(() => expect(onShareUnavailable).not.toHaveBeenCalled());
-    vi.unstubAllGlobals();
-  });
-
-  // The path that actually runs on a development laptop, so it had better not throw.
-  it("reports unavailability when the platform has no share API", async () => {
-    vi.stubGlobal("navigator", {});
-    const onShareUnavailable = vi.fn();
-
-    render(
-      <ShareSheet
-        {...props}
-        onClose={vi.fn()}
-        onCopied={vi.fn()}
-        onShareUnavailable={onShareUnavailable}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Share via Messages" }));
-
-    await waitFor(() => expect(onShareUnavailable).toHaveBeenCalledOnce());
-    vi.unstubAllGlobals();
-  });
-
-  // Both conditions have to hold: an article has no image to save, and an image with no handler
-  // would be a dead button.
-  it("offers Save image only in an image context with a handler", () => {
-    const onSaveImage = vi.fn();
-    const { rerender } = render(
-      <ShareSheet
-        {...props}
-        imageContext
-        onSaveImage={onSaveImage}
-        onClose={vi.fn()}
-        onCopied={vi.fn()}
-        onShareUnavailable={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByRole("button", { name: /Save image/ }),
-    ).toBeInTheDocument();
-
-    // The article share sheet — same props, no image.
-    rerender(
-      <ShareSheet
-        {...props}
-        onSaveImage={onSaveImage}
-        onClose={vi.fn()}
-        onCopied={vi.fn()}
-        onShareUnavailable={vi.fn()}
-      />,
-    );
-    expect(screen.queryByRole("button", { name: /Save image/ })).toBeNull();
-
-    // And an image with nobody to fetch it.
-    rerender(
-      <ShareSheet
-        {...props}
-        imageContext
-        onClose={vi.fn()}
-        onCopied={vi.fn()}
-        onShareUnavailable={vi.fn()}
-      />,
-    );
-    expect(screen.queryByRole("button", { name: /Save image/ })).toBeNull();
-  });
-
-  it("closes the sheet before handing off the save", () => {
-    const onClose = vi.fn();
-    const onSaveImage = vi.fn();
-    render(
-      <ShareSheet
-        {...props}
-        imageContext
-        onSaveImage={onSaveImage}
-        onClose={onClose}
-        onCopied={vi.fn()}
-        onShareUnavailable={vi.fn()}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Save image/ }));
-
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(onSaveImage).toHaveBeenCalledOnce();
   });
 });

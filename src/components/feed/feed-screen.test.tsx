@@ -73,6 +73,11 @@ vi.mock("~/trpc/react", () => ({
       saveToCollection: {
         useMutation: () => ({ mutate: saveMutateMock, isPending: false }),
       },
+      // The New-collection row every picker ends with (09-10-26) — the item sheet and the browse
+      // sheet both mount one.
+      createCollection: {
+        useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+      },
     },
   },
 }));
@@ -201,7 +206,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("FeedScreen", () => {
   it("renders every card across both pages, plus the page's Because tile", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
     // Six cards over two pages, each in a `data-feed-id` wrapper.
     expect(document.querySelectorAll("[data-feed-id]")).toHaveLength(6);
@@ -215,7 +220,9 @@ describe("FeedScreen", () => {
   });
 
   it("splits the tiles across two columns", () => {
-    const { container } = render(<FeedScreen topicLabels={LABELS} />);
+    const { container } = render(
+      <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />,
+    );
     const columns = container.querySelectorAll(".grid > div");
     expect(columns).toHaveLength(2);
     for (const column of columns) {
@@ -228,7 +235,7 @@ describe("FeedScreen", () => {
   it("fetches the next page when the sentinel comes into view", () => {
     feedState.current = loaded({ hasNextPage: true });
     const observer = captureObserver();
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
     act(() => observer.fire!(true));
     expect(fetchNextPageMock).toHaveBeenCalledOnce();
@@ -240,7 +247,7 @@ describe("FeedScreen", () => {
   it("does not stack fetches while one is already in flight", () => {
     feedState.current = loaded({ hasNextPage: true, isFetchingNextPage: true });
     const observer = captureObserver();
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
     act(() => observer.fire!(true));
     act(() => observer.fire!(true));
@@ -250,14 +257,14 @@ describe("FeedScreen", () => {
   it("ignores the sentinel leaving the viewport", () => {
     feedState.current = loaded({ hasNextPage: true });
     const observer = captureObserver();
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
     act(() => observer.fire!(false));
     expect(fetchNextPageMock).not.toHaveBeenCalled();
   });
 
   it("opens the item page on a tap", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     const tile = document.querySelector(
       '[data-feed-id="i1"]',
     )!.firstElementChild!;
@@ -271,7 +278,7 @@ describe("FeedScreen", () => {
   it("opens the item sheet, for the pressed item, on a long press", () => {
     vi.useFakeTimers();
     try {
-      render(<FeedScreen topicLabels={LABELS} />);
+      render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
       const tile = document.querySelector(
         '[data-feed-id="a1"]',
       )!.firstElementChild!;
@@ -292,7 +299,7 @@ describe("FeedScreen", () => {
   // Receipt, not render, is what spends an item (5.7). The server composes a page and writes
   // nothing; this effect is the only thing that tells the DB the reader got it.
   it("acks each received page exactly once", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
     expect(ackSeenMock).toHaveBeenCalledTimes(2);
     expect(ackSeenMock).toHaveBeenNthCalledWith(1, {
@@ -302,10 +309,12 @@ describe("FeedScreen", () => {
   });
 
   it("does not re-ack a page it has already acked on a re-render", () => {
-    const { rerender } = render(<FeedScreen topicLabels={LABELS} />);
+    const { rerender } = render(
+      <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />,
+    );
     ackSeenMock.mockClear();
 
-    rerender(<FeedScreen topicLabels={LABELS} />);
+    rerender(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
     expect(ackSeenMock).not.toHaveBeenCalled();
   });
@@ -313,7 +322,7 @@ describe("FeedScreen", () => {
   // Every http(s) image goes through Ambit's own origin as of 5.7 — that single fact is what
   // unblocked AIC's 1,338 images (see api/img/[itemId]/route.ts).
   it("loads tile images through the proxy, not the source CDN", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
     const img = document.querySelector('[data-feed-id="i1"] img')!;
     expect(img.getAttribute("src")).toBe("/api/img/i1");
@@ -327,7 +336,7 @@ describe("FeedScreen", () => {
   it("retries a failed image rather than giving up on the first error", () => {
     vi.useFakeTimers();
     try {
-      render(<FeedScreen topicLabels={LABELS} />);
+      render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
       const img = document.querySelector('[data-feed-id="i1"] img')!;
 
       fireEvent.error(img);
@@ -343,7 +352,7 @@ describe("FeedScreen", () => {
   it("holds the tile's slot with a caption once the retries are exhausted", () => {
     vi.useFakeTimers();
     try {
-      render(<FeedScreen topicLabels={LABELS} />);
+      render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
       // One more failure than the retry budget allows.
       for (let i = 0; i < 4; i++) {
@@ -361,7 +370,7 @@ describe("FeedScreen", () => {
   });
 
   it("says so when the corpus is exhausted", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     expect(
       screen.getByText("You've reached the edge, for now."),
     ).toBeInTheDocument();
@@ -371,7 +380,7 @@ describe("FeedScreen", () => {
     feedState.current = loaded({
       data: { pages: [{ cards: [], nextCursor: undefined }] },
     });
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
     expect(
       screen.getByText("Nothing here yet. Check back soon."),
@@ -384,7 +393,7 @@ describe("FeedScreen", () => {
   // A failed fetch must never read as an empty feed — same house rule as the sheets' `onError`.
   it("reports a failed load instead of claiming the feed is empty", () => {
     feedState.current = loaded({ isError: true, data: undefined });
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
     expect(screen.getByText("Couldn't load the feed.")).toBeInTheDocument();
     expect(
@@ -397,7 +406,7 @@ describe("FeedScreen", () => {
 
   it("shows the loader while a page is on its way", () => {
     feedState.current = loaded({ hasNextPage: true, isFetchingNextPage: true });
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     expect(
       screen.getByText("finding something interesting…"),
     ).toBeInTheDocument();
@@ -405,7 +414,7 @@ describe("FeedScreen", () => {
 
   // Share has no referent on a feed — there is no "current item" for it to act on.
   it("mounts the pill without a share control", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     expect(screen.getByRole("button", { name: "Profile" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Share" }),
@@ -413,7 +422,7 @@ describe("FeedScreen", () => {
   });
 
   it("opens the browse-collections sheet from the pill's bookmark", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     fireEvent.click(screen.getByRole("button", { name: "Save to collection" }));
     expect(
       screen.getByRole("heading", { name: "Your collections" }),
@@ -427,7 +436,7 @@ describe("FeedScreen", () => {
 describe("FeedScreen — returning to the feed", () => {
   it("scrolls to the tile named by ?focus=", () => {
     searchParams.current = new URLSearchParams("focus=i2");
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     expect(scrollToMock).toHaveBeenCalledOnce();
   });
 
@@ -436,7 +445,7 @@ describe("FeedScreen — returning to the feed", () => {
     try {
       searchParams.current = new URLSearchParams("focus=not-on-this-page");
       sessionStorage.setItem("ambit.feedScroll.v1", "1200");
-      render(<FeedScreen topicLabels={LABELS} />);
+      render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
 
       // Nothing yet: the tile might still be laying out.
       expect(scrollToMock).not.toHaveBeenCalled();
@@ -453,12 +462,12 @@ describe("FeedScreen — returning to the feed", () => {
 
   it("restores the remembered offset when there's no focus id", () => {
     sessionStorage.setItem("ambit.feedScroll.v1", "640");
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     expect(scrollToMock).toHaveBeenCalledWith({ top: 640 });
   });
 
   it("stays put when nothing was remembered", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     expect(scrollToMock).not.toHaveBeenCalled();
   });
 });
@@ -466,14 +475,14 @@ describe("FeedScreen — returning to the feed", () => {
 // ── the dev knob panel (plan 09-05-26) ──────────────────────────────────────────────────────────
 describe("FeedScreen without `dev` — the /feed contract", () => {
   it("queries with the literal input {} so the RSC prefetch key matches", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     expect(queryInputs[0]).toEqual({});
     // Not `{ knobs: undefined }` — React Query hashes that differently from `{}`.
     expect(Object.keys(queryInputs[0] as object)).toEqual([]);
   });
 
   it("renders no knob panel", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     expect(screen.queryByTestId("knob-panel")).not.toBeInTheDocument();
   });
 });
@@ -488,7 +497,9 @@ describe("FeedScreen with `dev`", () => {
   });
 
   it("mounts the panel and sends the default knobs in the query input", () => {
-    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    render(
+      <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} dev={dev} />,
+    );
     expect(screen.getByTestId("knob-panel")).toBeInTheDocument();
     const input = queryInputs[0] as {
       knobs: Record<string, number>;
@@ -500,14 +511,18 @@ describe("FeedScreen with `dev`", () => {
   });
 
   it("still acks pages (tuning must exercise the real seen filter)", () => {
-    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    render(
+      <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} dev={dev} />,
+    );
     expect(ackSeenMock).toHaveBeenCalledWith({
       itemIds: PAGE_ONE.cards.map((c) => c.item.id),
     });
   });
 
   it("committing a slider forgets the session, then queries again with the new knob and a new nonce", async () => {
-    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    render(
+      <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} dev={dev} />,
+    );
     const before = queryInputs.at(-1) as { nonce: number };
     const slider = screen.getByRole("slider", { name: /CORE/ });
     fireEvent.change(slider, { target: { value: "70" } });
@@ -527,7 +542,9 @@ describe("FeedScreen with `dev`", () => {
   it("shows per-page and session tier counts, and the core/grown split", () => {
     // The fixture: PAGE_TWO (the last page) is two CORE cards; the session is five CORE and one
     // JUMP, five on botany (core here) and one on astronomy (grown here).
-    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    render(
+      <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} dev={dev} />,
+    );
     const panel = screen.getByTestId("knob-panel");
     expect(panel).toHaveTextContent("CORE 2 · DRIFT 0 · JUMP 0");
     expect(panel).toHaveTextContent("CORE 5 · DRIFT 0 · JUMP 1");
@@ -539,7 +556,9 @@ describe("FeedScreen with `dev`", () => {
     // the next mount must forget from *there*, not from its own `new Date()`.
     const earlier = "2026-09-05T10:00:00.000Z";
     localStorage.setItem("ambit.devKnobs.mark", earlier);
-    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    render(
+      <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} dev={dev} />,
+    );
     const slider = screen.getByRole("slider", { name: /Page size/ });
     fireEvent.change(slider, { target: { value: "8" } });
     await act(async () => {
@@ -551,7 +570,9 @@ describe("FeedScreen with `dev`", () => {
   });
 
   it("persists knobs to localStorage under the versioned key", async () => {
-    render(<FeedScreen topicLabels={LABELS} dev={dev} />);
+    render(
+      <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} dev={dev} />,
+    );
     const slider = screen.getByRole("slider", { name: /Page size/ });
     fireEvent.change(slider, { target: { value: "8" } });
     await act(async () => {
@@ -568,7 +589,7 @@ describe("FeedScreen with `dev`", () => {
 // columns and only these stub it.
 describe("desktop columns", () => {
   it("packs two columns where matchMedia is absent (the phone, and the server)", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     const grid = screen.getByTestId("feed-columns");
     expect(grid).toHaveClass("grid-cols-2");
     expect(grid.children).toHaveLength(2);
@@ -576,7 +597,7 @@ describe("desktop columns", () => {
 
   it("packs four columns above xl, three above md", () => {
     const media = stubMatchMedia([DESKTOP_QUERY, WIDE_QUERY]);
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     const grid = screen.getByTestId("feed-columns");
     expect(grid).toHaveClass("grid-cols-4");
     expect(grid.children).toHaveLength(4);
@@ -587,7 +608,7 @@ describe("desktop columns", () => {
   });
 
   it("centers the masonry in the wide column", () => {
-    render(<FeedScreen topicLabels={LABELS} />);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     expect(screen.getByTestId("feed-columns").parentElement).toHaveClass(
       "md:max-w-[1120px]",
     );
