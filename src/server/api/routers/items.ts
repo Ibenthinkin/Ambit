@@ -1,11 +1,11 @@
 // The `items` router (SPEC §7). This router holds **all three** of the API's deliberately public
 // procedures — everything else in the app is protected. They exist for the same reason: they back
-// the app's two public routes, `/i/[itemId]` and `/g/[itemId]` (SPEC §8.1), which anyone with a
-// link can view, invite or not.
+// the app's one public route, `/i/[itemId]` (SPEC §8.1), which anyone with a link can view, invite
+// or not. (`/g/[itemId]` was a second until 09-10-26; it redirects to `/i/` now.)
 //
 //   - `byId` — the item itself.
 //   - `wanderNext` (5.7) — the "where Ambit would wander next" teaser at the foot of that page.
-//   - `galleryRail` (5.8) — the endless images-only rail the immersive gallery swipes through.
+//   - `galleryRail` (5.8) — the endless images-only rail the item page's picture swipes through.
 //
 // All three are intentional exceptions to SPEC §11's auth rule, and all three are covered by the
 // shared rate-limit middleware, which is what makes an unauthenticated read surface safe to expose.
@@ -46,11 +46,11 @@ export const itemsRouter = createTRPCRouter({
     .query(({ input }) => getWanderNext(input.itemId)),
 
   /**
-   * The next stretch of the gallery's wander rail from `itemId` (services/gallery-rail.ts).
+   * The next stretch of the wander rail from `itemId` (services/gallery-rail.ts) — the cells the
+   * merged item screen's hero swipes through (09-10-26).
    *
-   * **Public for the same reason as `wanderNext`**: the gallery opens from the hero on the public
-   * `/i/[itemId]`, and `/g/[itemId]` is itself deep-linkable — the person swiping may be a stranger
-   * who followed a shared link. Safe by the same construction, too: no `userId` parameter exists,
+   * **Public for the same reason as `wanderNext`**: the rail *is* the hero of the public
+   * `/i/[itemId]` — the person swiping may be a stranger who followed a shared link. Safe by the same construction, too: no `userId` parameter exists,
    * the topic graph it walks is checked-in config, and the return shape is public item data only.
    *
    * **Draws here are reads. This path writes no `seen_item` rows, ever.** That sentence exists

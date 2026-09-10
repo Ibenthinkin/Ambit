@@ -12,8 +12,10 @@ import { imageFileName } from "~/lib/image-filename";
 import { saveToastText } from "~/lib/save-toast";
 import { api } from "~/trpc/react";
 
-// The client layer wrapped around an item page's server-rendered content: the swipe-back gesture,
-// the floating pill, and the two sheets the pill opens.
+// The client layer wrapped around an **article** page's server-rendered content: the swipe-back
+// gesture, Escape, the floating pill, and the two sheets the pill opens. (A picture is
+// `ItemScreen`, which owns all of that itself — since 09-10-26 this shell only ever wraps the
+// reader.)
 //
 // **Signed-out visitors get none of it.** `/i/[itemId]` is public (SPEC §8.1), and a stranger
 // following a shared link has nothing to save an item *to* and no profile to visit. So the pill,
@@ -50,6 +52,20 @@ export function ItemShell({
   const [toast, setToast] = React.useState<string | null>(null);
   const [saveOpen, setSaveOpen] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
+
+  // Escape leaves (09-10-26 — Ben's review found it did nothing on an item page). On `window`, for
+  // the same reason the merged image screen's keys are: nothing on a reader page holds focus.
+  // Suspended while a sheet is up — BottomSheet owns Escape then, and closing the sheet is what a
+  // reader pressing it means.
+  const sheetOpen = saveOpen || shareOpen;
+  React.useEffect(() => {
+    if (sheetOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") leave();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sheetOpen, leave]);
 
   const utils = api.useUtils();
   // `enabled: authed` is the auth boundary in client form — an anonymous visitor must not fire a

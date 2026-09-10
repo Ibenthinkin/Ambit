@@ -1,15 +1,16 @@
-// The **wander rail** — the endless, images-only sequence behind `/g/[itemId]` (SPEC §8.1, §9).
+// The **wander rail** — the endless, images-only sequence the merged item screen's hero swipes
+// through (SPEC §8.1, §9). It lived behind the full-screen gallery at `/g/[itemId]` until 09-10-26.
 //
 // **What it is.** `services/wander.ts` answers "where would Ambit go next from here?" three times
 // and stops. This answers the same question forever: a walk over the topic graph that keeps
 // stepping — stay, drift, jump, or ignore the graph altogether (the wildcard) — with one
-// curated-weighted image drawn per step. Swipe sideways in the gallery and you are walking that
-// rail one slot at a time.
+// curated-weighted image drawn per step. Swipe sideways on an item page's picture and you are
+// walking that rail one slot at a time.
 //
 // **What it deliberately isn't.**
 //
 //   - **Not personalized.** Same structural guarantee as `wander.ts`: there is no `userId`
-//     parameter to pass. `/g/` is public because its entry point is the public `/i/[itemId]`, and a
+//     parameter to pass. The rail is public because it is the hero of the public `/i/[itemId]`, and a
 //     stranger who followed a shared link can fall into the gallery too.
 //   - **Not a feed page.** Fresh `feed.page` draws were rejected in writing at plan time: they are
 //     auth-only, and every swipe-through would re-create the corpus-burn defect removed on

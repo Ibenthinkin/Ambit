@@ -67,15 +67,25 @@ export function heroHeight(
   return Math.min(vh, Math.round(vw * ratio));
 }
 
-/** The viewport, re-read on resize. `innerHeight` rather than `100dvh` because the strip's height
- *  has to be a number the placement rule can compare against. */
-function useViewport() {
-  const read = () => ({ vw: window.innerWidth, vh: window.innerHeight });
-  const [size, setSize] = React.useState(read);
+/**
+ * The viewport, re-read on resize. `innerHeight` rather than `100dvh` because the strip's height
+ * has to be a number the placement rule can compare against.
+ *
+ * **Null until mounted.** The server renders this component too and has no `window`, and the
+ * first client render must match the server's or hydration fails — so neither side measures
+ * anything, the strip renders `100dvh` with the chrome overlaid (exactly the unknown-ratio
+ * placeholder), and the real numbers arrive one effect later.
+ */
+function useViewport(): { vw: number; vh: number } | null {
+  const [size, setSize] = React.useState<{ vw: number; vh: number } | null>(
+    null,
+  );
   React.useEffect(() => {
-    const onResize = () => setSize(read());
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    const read = () =>
+      setSize({ vw: window.innerWidth, vh: window.innerHeight });
+    read();
+    window.addEventListener("resize", read);
+    return () => window.removeEventListener("resize", read);
   }, []);
   return size;
 }
@@ -89,7 +99,7 @@ export function HeroRail({
   chromeVisible,
   desktop,
 }: HeroRailProps) {
-  const { vw, vh } = useViewport();
+  const viewport = useViewport();
   // One ratio per cell id, learned from `onLoad`. A Map in state rather than a ref because the
   // strip's height is derived from it and must re-render when it changes.
   const [ratios, setRatios] = React.useState<ReadonlyMap<string, number>>(
@@ -105,10 +115,14 @@ export function HeroRail({
   }, []);
 
   const current = cells[1];
-  const height = heroHeight(ratios.get(current.id), vw, vh, desktop);
+  const height = viewport
+    ? heroHeight(ratios.get(current.id), viewport.vw, viewport.vh, desktop)
+    : null;
   // Full-height picture → the caption overlays its foot. Anything shorter → the caption is a
-  // block under it. `vh - 1` absorbs a rounding pixel.
-  const overlay = height >= vh - 1;
+  // block under it. `vh - 1` absorbs a rounding pixel. Before the first measurement the strip is
+  // full height, so the chrome overlays.
+  const overlay =
+    viewport === null || height === null || height >= viewport.vh - 1;
 
   const chromeBlock = (
     <div
@@ -155,7 +169,7 @@ export function HeroRail({
         data-testid="hero-frame"
         className="relative overflow-hidden"
         style={{
-          height,
+          height: height ?? "100dvh",
           // Slides rather than jumps between a square plate and a tall one on advance. Off while
           // dragging, like the track's own transform.
           transition: dragging ? "none" : `height .4s ${EASE}`,
@@ -225,9 +239,22 @@ function RailImage({
     ? item.imageUrl
     : `/api/img/${item.id}`;
 
+  // **A picture that finished before hydration fires its `load` into the void** — React wasn't
+  // listening yet — and the entry picture is preloaded precisely so that it finishes early. So on
+  // mount (and harmlessly after: `learn` ignores a ratio it already has) read the size straight off
+  // an image that is already complete.
+  const ref = React.useRef<HTMLImageElement>(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (el?.complete && el.naturalWidth > 0) {
+      onRatio(el.naturalHeight / el.naturalWidth);
+    }
+  }, [onRatio]);
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      ref={ref}
       src={src}
       alt={item.title}
       decoding="async"

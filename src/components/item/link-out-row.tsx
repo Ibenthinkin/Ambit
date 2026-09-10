@@ -8,9 +8,8 @@ import { PDR } from "~/server/config/pdr";
 // item's source; this row is the blog-specific extra `credit-line.tsx` reserved for 6.3 — the
 // call-to-action, full width, under the blurb, on the two surfaces that show item text.
 //
-// Server-safe on purpose: no hooks, no handlers, a plain anchor — so `ImageItemBody` stays a
-// server component (React refuses a function prop on a host element there, which is why the
-// `stopPropagation` the gallery sheet needs lives on a wrapper in the sheet, not here).
+// Server-safe on purpose: no hooks, no handlers, a plain anchor — so it renders unchanged inside
+// the reader (a server component) and inside `ItemFacts` under the client `ItemScreen` alike.
 //
 // No prototype in the handoff shows this element; it borrows the pill's row idiom (a rounded,
 // ink-tinted, ≥44px target) rather than inventing a new one. (09-02-26: also rendered for `pdr`

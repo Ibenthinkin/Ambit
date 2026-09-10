@@ -2,10 +2,11 @@
 
 // Did this tab arrive at `/saved` *from inside the app*?
 //
-// The third origin marker, and a deliberate parallel of `components/feed/feed-origin.ts` and
-// `components/gallery/gallery-origin.ts` rather than a shared abstraction — read `feed-origin.ts`
-// for the full account of why a marker exists at all, and `gallery-origin.ts` for why three small
-// files that point at each other beat one factory.
+// The third origin marker, and a deliberate parallel of `components/feed/feed-origin.ts` rather
+// than a shared abstraction — read `feed-origin.ts` for the full account of why a marker exists at
+// all. (The second was `components/gallery/gallery-origin.ts`, whose header made the case for
+// small files that point at each other over one factory; it went with the gallery on 09-10-26 and
+// lives in git history.)
 //
 // Saved's version of the question: its back-arrow and the pill's Feed button both mean "leave".
 // Popping history returns to the feed that is already there — same tiles, same scroll, nothing

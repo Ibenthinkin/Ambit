@@ -252,7 +252,7 @@ describe("SavedScreen", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens the gallery from an image tile, with the origin marked for the close gesture", () => {
+  it("opens the item screen from an image tile, without claiming the feed is one entry down", () => {
     render(<SavedScreen />);
     const tile = document.querySelector(
       '[data-saved-id="img1"]',
@@ -261,8 +261,9 @@ describe("SavedScreen", () => {
     fireEvent.pointerDown(tile, { button: 0, clientX: 5, clientY: 5 });
     fireEvent.pointerUp(tile, { button: 0, clientX: 5, clientY: 5 });
 
-    expect(pushMock).toHaveBeenCalledWith("/g/img1");
-    expect(sessionStorage.getItem("ambit.galleryOrigin.v1")).toBe("img1");
+    // The merged screen since 09-10-26 — `/g/` is a redirect now, and nothing marks an origin.
+    expect(pushMock).toHaveBeenCalledWith("/i/img1");
+    expect(sessionStorage.getItem("ambit.feedOrigin.v1")).toBeNull();
   });
 
   it("opens the reader from an article tile, without claiming the feed is one entry down", () => {

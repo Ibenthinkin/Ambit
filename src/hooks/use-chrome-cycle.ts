@@ -2,9 +2,10 @@
 
 import * as React from "react";
 
-// The gallery's chrome — title, maker, hint, pill — on a slow ten-second heartbeat.
+// The picture's chrome — title, maker, pill — on a slow ten-second heartbeat. Born in the
+// full-screen gallery (5.8); the merged item screen's hero strip since 09-10-26.
 //
-// It starts **hidden**, which is the whole design in one word: `/g/[itemId]` is a picture, and a
+// It starts **hidden**, which is the whole design in one word: the hero is a picture, and a
 // picture with a caption permanently welded to it is a catalogue entry. So the caption comes and
 // goes on its own, ten seconds at a time, and any tap brings it straight back.
 //

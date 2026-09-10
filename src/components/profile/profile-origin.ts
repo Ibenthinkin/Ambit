@@ -4,9 +4,10 @@
 //
 // The fourth origin marker, and a deliberate structural copy of `components/saved/saved-origin.ts`
 // rather than a shared abstraction — read `components/feed/feed-origin.ts` for the full account of
-// why a marker exists at all, and `gallery-origin.ts` for why small files that point at each other
-// beat one factory. (5.10's own note: this makes six such files, which is where an `origin(key)`
-// helper starts to look defensible. A seventh should force the question.)
+// why a marker exists at all, and the retired `gallery-origin.ts` (git history, 09-10-26) for why
+// small files that point at each other beat one factory. (5.10's own note: this made six such
+// files, which is where an `origin(key)` helper starts to look defensible. A seventh should force
+// the question — the gallery's retirement took one away.)
 //
 // Profile's version: its pill's Feed button means "leave". Popping returns to the feed already
 // sitting in history — same tiles, same scroll, nothing drawn. Pushing `/feed` re-runs the dynamic
