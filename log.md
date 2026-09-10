@@ -53,7 +53,22 @@ reference photos gitignored at 22 MB). They split three ways — fixes to what e
 redesign proper (side rail on desktop, detached share button, hover-over save on tiles), and
 testing scaffolding (topic manager, richer onboarding, twenty seeded personas). Brainstorm next.
 
+**Afternoon — sub-project 1 designed and planned.** Brainstormed with Ben:
+`docs/DESIGN_topic-facets-and-personas.md` and `docs/PLAN_topic-facets-and-personas.md`
+(11 tasks, cold-executable). **Decisions:** the picker groups the vocabulary by **four facets
+assigned by hand** — Subject 60 / Medium 27 / Look 9 / Place 4 — not by graph neighbourhood
+and not by tier; **era is left out** (`19th-century` is tag-only, so picking it is an empty pool
+until Cut 2b); **`core` is renamed `original`** ("the first words we thought of", Ben — the word
+had started to imply a curated centre); onboarding becomes **four stages**, one facet each; the
+manager is **`/profile/topics`**, four tabs, save on every toggle, learned weights + reset behind
+`FEED_DEBUG`; **twenty personas** with invented demographics live in `config/personas.ts` and are
+seeded through Better Auth's own sign-up **in production too** (Ben's call), password from
+`PERSONA_PASSWORD`, nothing demographic stored. Every facet is "far too limited" — a fresh
+`mine:topics` round against the 164k corpus is the next cut, not this one. Duplicates
+(`portraiture`/`portraits`, `botany`/`plants`/`flowers`, `zoology`/`animals`) noted, not merged.
+
 *Session spend: 10.02M tok (in 203 · out 71.5k · cache r 9.60M / w 350.9k) · ~≥$0.83 · fable-5-1 + opus-4-7 · 13:16→13:29*
+*Session spend: 14.34M tok (in 154 · out 172.4k · cache r 13.97M / w 206.1k) · fable-5-1 · 13:29→14:17*
 
 ### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
 
