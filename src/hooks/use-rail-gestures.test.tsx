@@ -26,7 +26,6 @@ function pointer(
 
 const onTap = vi.fn();
 const onAdvance = vi.fn();
-const onOpenDetails = vi.fn();
 const onExit = vi.fn();
 
 // Rendered rather than `renderHook`ed: the behaviour lives in an effect that attaches native
@@ -36,7 +35,6 @@ function Track() {
   const { ref, dragPx, dragging } = useRailGestures({
     onTap,
     onAdvance,
-    onOpenDetails,
     onExit,
   });
   return (
@@ -49,9 +47,8 @@ function Track() {
   );
 }
 
-/** jsdom reports every box as 0×0, so the track's size has to be stated for the hook to measure. */
+/** jsdom reports every box as 0×0, so the track's width has to be stated for the hook to measure. */
 const TRACK_W = 400;
-const TRACK_H = 800;
 
 describe("useRailGestures", () => {
   let el: HTMLElement;
@@ -59,7 +56,6 @@ describe("useRailGestures", () => {
   beforeEach(() => {
     onTap.mockClear();
     onAdvance.mockClear();
-    onOpenDetails.mockClear();
     onExit.mockClear();
 
     el = render(<Track />).getByTestId("track");
@@ -67,8 +63,6 @@ describe("useRailGestures", () => {
       value: TRACK_W,
       configurable: true,
     });
-    el.getBoundingClientRect = () =>
-      ({ top: 0, left: 0, width: TRACK_W, height: TRACK_H }) as DOMRect;
   });
 
   const fire = (
@@ -152,7 +146,6 @@ describe("useRailGestures", () => {
       fire("pointerup", { x: 300, y: 560, at: 200 });
       expect(onAdvance).toHaveBeenCalledWith(-1);
       expect(onExit).not.toHaveBeenCalled();
-      expect(onOpenDetails).not.toHaveBeenCalled();
     });
 
     it("locks to vertical just as firmly — a later sideways drift never reaches dragPx", () => {
@@ -166,35 +159,58 @@ describe("useRailGestures", () => {
   });
 
   describe("exit", () => {
-    it("takes a long upward shove from the picture, whatever its speed", () => {
-      fire("pointerdown", { x: 200, y: 300, at: 0 });
-      fire("pointermove", { x: 200, y: 120, at: 900 });
-      fire("pointerup", { x: 200, y: 120, at: 900 }); // 180px in 900ms: far, slow
+    // The screen scrolls now (the details live under the picture), so the exit had to move off
+    // the up-flick — a fast upward move is also how you start scrolling, and Chrome hands the
+    // touch to native scrolling mid-gesture. Down, at the top of the page, is unambiguous: the
+    // browser has nowhere to scroll, and it is iOS Photos' own dismiss.
+    beforeEach(() => {
+      Object.defineProperty(window, "scrollY", {
+        value: 0,
+        configurable: true,
+      });
+    });
+
+    it("takes a quick downward flick when the page is at the top", () => {
+      fire("pointerdown", { x: 200, y: 200, at: 0 });
+      fire("pointermove", { x: 200, y: 300, at: 150 });
+      fire("pointerup", { x: 200, y: 300, at: 150 }); // 100px in 150ms
 
       expect(onExit).toHaveBeenCalledTimes(1);
     });
 
-    it("takes a quick flick that never travelled far", () => {
-      fire("pointerdown", { x: 200, y: 300, at: 0 });
-      fire("pointermove", { x: 200, y: 200, at: 150 });
-      fire("pointerup", { x: 200, y: 200, at: 150 }); // 100px in 150ms
-
-      expect(onExit).toHaveBeenCalledTimes(1);
-    });
-
-    it("ignores a slow, short upward drift — a reader who changed their mind", () => {
-      fire("pointerdown", { x: 200, y: 300, at: 0 });
-      fire("pointermove", { x: 200, y: 200, at: 900 });
-      fire("pointerup", { x: 200, y: 200, at: 900 }); // 100px in 900ms: neither far nor fast
+    it("ignores the same flick when the page is scrolled — that is a scroll back up", () => {
+      Object.defineProperty(window, "scrollY", {
+        value: 40,
+        configurable: true,
+      });
+      fire("pointerdown", { x: 200, y: 200, at: 0 });
+      fire("pointermove", { x: 200, y: 300, at: 150 });
+      fire("pointerup", { x: 200, y: 300, at: 150 });
 
       expect(onExit).not.toHaveBeenCalled();
-      expect(onOpenDetails).not.toHaveBeenCalled();
+    });
+
+    it("ignores a slow downward drag at the top — that is overscroll, or a reader thinking", () => {
+      fire("pointerdown", { x: 200, y: 200, at: 0 });
+      fire("pointermove", { x: 200, y: 400, at: 900 });
+      fire("pointerup", { x: 200, y: 400, at: 900 }); // 200px in 900ms: far, but slow
+
+      expect(onExit).not.toHaveBeenCalled();
+    });
+
+    it("never exits on an upward move of any speed — up is the browser's scroll", () => {
+      fire("pointerdown", { x: 200, y: 300, at: 0 });
+      fire("pointermove", { x: 200, y: 200, at: 150 });
+      fire("pointerup", { x: 200, y: 200, at: 150 });
+
+      expect(onExit).not.toHaveBeenCalled();
+      expect(onTap).not.toHaveBeenCalled();
     });
 
     // iOS Safari fires `pointercancel` the moment it claims a multi-touch gesture for the system,
-    // even under `touch-action: none`. Discarding the gesture there threw the two-finger exit away
-    // at exactly the moment it was recognised — which is why it "barely fires" on device.
-    it("survives Safari cancelling the gesture out from under it", () => {
+    // even under a restrictive `touch-action`. Discarding the gesture there threw the two-finger
+    // exit away at exactly the moment it was recognised — which is why it "barely fires" on device.
+    it("survives Safari cancelling the two-finger gesture out from under it", () => {
       fire("pointerdown", { x: 200, y: 400, id: 1 });
       fire("pointerdown", { x: 240, y: 400, id: 2 });
       fire("pointermove", { x: 200, y: 300, id: 1 });
@@ -203,12 +219,13 @@ describe("useRailGestures", () => {
       expect(onExit).toHaveBeenCalledTimes(1);
     });
 
-    it("still discards a cancelled single-finger gesture — that's an interruption, not a swipe", () => {
+    it("still discards a cancelled single-finger gesture — under pan-y that is the browser taking a scroll", () => {
       fire("pointerdown", { x: 200, y: 400 });
       fire("pointermove", { x: 200, y: 200 });
       fire("pointercancel", { x: 200, y: 200 });
 
       expect(onExit).not.toHaveBeenCalled();
+      expect(onTap).not.toHaveBeenCalled();
     });
 
     it("takes any two-finger movement, and ignores a two-finger rest", () => {
@@ -224,34 +241,6 @@ describe("useRailGestures", () => {
       fire("pointerup", { x: 200, y: 400, id: 1 });
       expect(onExit).toHaveBeenCalledTimes(1);
       expect(onTap).not.toHaveBeenCalled(); // and emphatically not a tap
-    });
-  });
-
-  describe("details", () => {
-    it("opens on a slow upward drag from the bottom third", () => {
-      // Bottom third of an 800px track starts at 533px.
-      fire("pointerdown", { x: 200, y: 700, at: 0 });
-      fire("pointermove", { x: 200, y: 620, at: 800 });
-      fire("pointerup", { x: 200, y: 620, at: 800 });
-
-      expect(onOpenDetails).toHaveBeenCalledTimes(1);
-      expect(onExit).not.toHaveBeenCalled();
-    });
-
-    it("does not open from the picture above it, however far the drag went", () => {
-      fire("pointerdown", { x: 200, y: 300, at: 0 });
-      fire("pointermove", { x: 200, y: 220, at: 800 });
-      fire("pointerup", { x: 200, y: 220, at: 800 });
-
-      expect(onOpenDetails).not.toHaveBeenCalled();
-    });
-
-    it("ignores travel under the threshold", () => {
-      fire("pointerdown", { x: 200, y: 700, at: 0 });
-      fire("pointermove", { x: 200, y: 660, at: 800 }); // 40px, under 60
-      fire("pointerup", { x: 200, y: 660, at: 800 });
-
-      expect(onOpenDetails).not.toHaveBeenCalled();
     });
   });
 

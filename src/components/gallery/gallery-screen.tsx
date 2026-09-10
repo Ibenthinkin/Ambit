@@ -191,7 +191,6 @@ export function GalleryScreen({
     // seen the title, so the second tap is asking for the rest.
     onTap: () => (chrome.visible ? openDetails() : chrome.toggle()),
     onAdvance: advance,
-    onOpenDetails: openDetails,
     onExit: exit,
   });
 
