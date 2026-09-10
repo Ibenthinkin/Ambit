@@ -48,6 +48,23 @@ or start an ingest on the VM, so both are scripts for Ben's hands (the standing 
    `promote-prod.sh` → `trim:memberships` → `repair:periods` → `repair:rehome` → `img:warm`.
 3. Redeploy so the nightly runs with the retry (`main` = `61f43f0`, pushed, nothing ahead).
 
+**Correction, 18:40 — the diagnosis above is wrong, and the replay found the real cause in
+thirteen minutes.** The sovietpostcards walk ran to its full quota (21,700 offered, 480 pages,
+no page error at all) and then the **upsert loop crashed on a foreign key**:
+`item.topic_id = 'science-fiction'`, a topic production does not have. `science-fiction` and
+`retrofuturism` were promoted on the Mac on 09-07 (`3cbf6ac`) and never in production —
+`promote-prod.sh` was queued *after* the walks in every post-deploy list, and the curation
+envelopes pushed to the volume already carry the new topic for anything curated after that
+evening (the 09-08 top-ups, the vault walk, thisisnthappiness). Last night's nightly died the
+same way: four walks pooled into one write loop, 4,704 rows in, first `science-fiction` item,
+FK, exit 1 — and Coolify threw the line away. Tumblr was never the problem. The retry in
+`21399b0` is still right (a single bad page *was* final), but it is not what happened.
+Two proofs in the replay: 70sscifiart wrote all **30,076** of its rows with exit 0, because
+its envelopes predate the promotion and none name the topic; the three walks whose envelopes
+postdate it all died on it. **Order for every future deploy: promote first, walk second.**
+Production is at 74,626 items with the loop finished; Ben runs `promote-prod.sh` then
+`walks-prod.sh` again, free and idempotent.
+
 **Open / next:** Ben's desktop review notes are in `docs/design_update_3/` (committed; the four
 reference photos gitignored at 22 MB). They split three ways — fixes to what exists, the
 redesign proper (side rail on desktop, detached share button, hover-over save on tiles), and
