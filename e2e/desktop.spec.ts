@@ -120,4 +120,42 @@ test.describe.serial("desktop", () => {
     await page.keyboard.press("Escape");
     await expect(panel).toBeHidden();
   });
+
+  // The merged item screen (docs/DESIGN_screen-structure.md decision 2): above `md` the picture is
+  // full viewport height, edge to edge, and the words stay in the 720px reader column.
+  test("the item page's picture fills the viewport height, with the facts in the reader column", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const imageTile = page.locator("[data-feed-id]:has(img)").first();
+    await expect(imageTile).toBeVisible();
+    await imageTile.locator("> *").click();
+    await page.waitForURL(/\/i\//);
+
+    const strip = page.getByTestId("hero-rail");
+    await expect(strip).toBeVisible();
+    await settle(page.getByTestId("hero-frame"));
+    const box = (await strip.boundingBox())!;
+    expect(Math.round(box.height)).toBe(900);
+    expect(Math.round(box.width)).toBe(1440);
+    expect(Math.round(box.y)).toBe(0); // top-aligned: nothing above the picture
+
+    const facts = page.getByRole("list", { name: "About this work" });
+    const factsBox = (await facts.boundingBox())!;
+    expect(factsBox.width).toBeLessThanOrEqual(720);
+    expect(factsBox.y).toBeGreaterThanOrEqual(900); // under the picture, not over it
+
+    // A mouse moving over the picture summons the caption.
+    await page.mouse.move(700, 300);
+    await page.mouse.move(720, 320);
+    await expect(page.getByTestId("gallery-chrome")).toHaveAttribute(
+      "aria-hidden",
+      "false",
+    );
+
+    // And Escape leaves — the review's "Escape does nothing" (09-10-26), fixed on this screen.
+    await page.keyboard.press("Escape");
+    await page.waitForURL(/\/feed/);
+  });
 });
