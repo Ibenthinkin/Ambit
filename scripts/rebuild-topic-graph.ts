@@ -51,7 +51,7 @@ if (!Number.isFinite(grownScale) || grownScale < 0) {
   process.exit(2);
 }
 
-// **Core = the config, not the JSON's keys.** The first version of this script read "tuned rows"
+// **Original = the config, not the JSON's keys.** The first version of this script read "tuned rows"
 // off the artifact's own key set, which meant the sixteen exactly once — after its first run the
 // artifact had 99 keys, and a re-run would have frozen every grown value as if Ben had tuned it.
 // TOPICS is the contract (config/topics.ts's header; CORE_TOPIC_IDS in services/feed.ts is the
@@ -93,7 +93,7 @@ for (const r of rows) {
 
 const cooc = cooccurrenceSims(profiles);
 // The spread to match: the mean per-row standard deviation of the tuned embedding rows — and only
-// their core×core cells, for the same reason as `original` above. Measured over the whole artifact
+// their original×original cells, for the same reason as `original` above. Measured over the whole artifact
 // this would drift with every rebuild (the rescaled rows are in there too); measured over the
 // sixteen rows' fifteen embedding cells it is the same 0.1345 the first run saw, every time.
 const target =
@@ -177,9 +177,9 @@ if (!preserved) {
 console.log(
   `${topics.length} topics · ${topics.length * (topics.length - 1)} edges`,
 );
-// What a re-run would actually change, so a dry run says more than "the invariant held". Core×core
+// What a re-run would actually change, so a dry run says more than "the invariant held". Original×original
 // must be zero by construction; the rest moves when the corpus has (or `--grown-scale` did).
-let changedCore = 0;
+let changedOriginal = 0;
 let changedOther = 0;
 let newCells = 0;
 for (const [from, row] of Object.entries(graph)) {
@@ -188,13 +188,13 @@ for (const [from, row] of Object.entries(graph)) {
     const prev = before.get(n.topic);
     if (prev === undefined) newCells++;
     else if (prev !== n.sim) {
-      if (original.has(from) && original.has(n.topic)) changedCore++;
+      if (original.has(from) && original.has(n.topic)) changedOriginal++;
       else changedOther++;
     }
   }
 }
 console.log(
-  `vs the current artifact: ${changedCore} core×core cells changed · ${changedOther} other cells changed · ${newCells} new cells`,
+  `vs the current artifact: ${changedOriginal} original×original cells changed · ${changedOther} other cells changed · ${newCells} new cells`,
 );
 
 if (!confirm) {

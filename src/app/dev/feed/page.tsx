@@ -27,13 +27,15 @@ export default async function DevFeedPage() {
   if (!session) redirect("/");
   if (!(await hasCompletedOnboarding(session.user.id))) redirect("/onboarding");
 
-  // All 99 topics, once: labels so Because tiles and the readout can name grown topics (on
-  // /feed only the sixteen are passed — out of scope to change there), and the core-tier ids
-  // for the readout's core/grown split. The DB's `tier` column is the authoritative answer;
+  // Every topic, once: labels so Because tiles and the readout can name grown topics (on
+  // /feed only the sixteen are passed — out of scope to change there), and the original-tier
+  // ids for the readout's original/grown split. The DB's `tier` column is the authority;
   // the engine's own CORE_TOPIC_IDS is config, and topics.test.ts pins that they agree.
   const topics = await listAllTopics();
   const topicLabels = Object.fromEntries(topics.map((t) => [t.id, t.label]));
-  const coreTopicIds = topics.filter((t) => t.tier === "core").map((t) => t.id);
+  const originalTopicIds = topics
+    .filter((t) => t.tier === "original")
+    .map((t) => t.id);
 
-  return <FeedScreen topicLabels={topicLabels} dev={{ coreTopicIds }} />;
+  return <FeedScreen topicLabels={topicLabels} dev={{ originalTopicIds }} />;
 }
