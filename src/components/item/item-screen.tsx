@@ -214,6 +214,9 @@ export function ItemScreen({
   React.useEffect(() => {
     if (sheetOpen) return;
     const onKey = (e: KeyboardEvent) => {
+      // A modifier chord is the browser's (Alt/⌘+← is Back) — paging the rail as well would be a
+      // second, surprising thing happening on the way out.
+      if (e.altKey || e.metaKey || e.ctrlKey) return;
       if (e.key === "ArrowRight") advance(1);
       else if (e.key === "ArrowLeft") advance(-1);
       else if (e.key === "Escape") leave();

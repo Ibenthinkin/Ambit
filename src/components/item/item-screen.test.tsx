@@ -249,6 +249,19 @@ describe("ItemScreen", () => {
       expect(pushMock).toHaveBeenCalledWith("/feed?focus=entry");
     });
 
+    it("leaves modifier chords to the browser — Alt/⌘+← is Back, not a page of the rail", () => {
+      renderScreen();
+      act(
+        () =>
+          void fireEvent.keyDown(window, { key: "ArrowRight", altKey: true }),
+      );
+      act(
+        () =>
+          void fireEvent.keyDown(window, { key: "ArrowRight", metaKey: true }),
+      );
+      expect(heading()).toHaveTextContent("Plate entry");
+    });
+
     it("Escape pops when the visit came from the feed — keyed on the entry, however far the rail went", () => {
       sessionStorage.setItem("ambit.feedOrigin.v1", "entry");
       renderScreen();
