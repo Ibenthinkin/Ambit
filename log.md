@@ -67,8 +67,61 @@ seeded through Better Auth's own sign-up **in production too** (Ben's call), pas
 `mine:topics` round against the 164k corpus is the next cut, not this one. Duplicates
 (`portraiture`/`portraits`, `botany`/`plants`/`flowers`, `zoology`/`animals`) noted, not merged.
 
+**Evening — sub-project 1 built, all eleven tasks.** Branch `feat/topic-facets-and-personas`,
+one commit per task, the plan followed as written except where it collided with the codebase.
+
+**Shipped:** `topic.facet` (`subject | medium | look | place`, nullable) + migration 0007, which
+also renames the tier `core` → `original`; the hand-assigned map in `config/topic-facets.ts`
+applied by **`db:seed` on every boot** (100 topics faceted locally, counts matching the design
+doc exactly — look 9 / medium 27 / place 4 / subject 60); `listTopics()` = `WHERE facet IS NOT
+NULL`; onboarding in four stages; `/profile/topics` with four tabs and save-on-toggle, retiring
+Settings' `topics-sheet.tsx`; `topics.weights` / `topics.resetWeights` behind `feedDebugEnabled()`;
+proposals carrying `<!-- facet: ? -->` and `promote:topics` refusing a ticked line without one;
+twenty personas + `bun run seed:personas`. 1,190 unit/integration tests green, e2e 49/49.
+
+**Findings:**
+
+- **Two concurrent `setMine` writes can interleave, and the stale one wins.** Found by the new
+  settings e2e: toggle a chip on one tab, another on the next, and the DB ends up holding the
+  first set. Every toggle sends the *whole* set and `setUserTopics` is a delete-then-insert
+  transaction, so the transaction that commits last decides, not the click that happened last —
+  and this screen is built for exactly that rapid flipping. Fixed with a TanStack Query
+  `scope: { id }`, which serializes same-scope mutations; `onMutate` still runs the instant
+  `.mutate()` is called, so the chip's optimism is unaffected. Worth remembering for any other
+  save-on-every-change screen sub-project 3 adds.
+- **The first red run was the test, not that bug.** Reloading right after an optimistic flip
+  cancels the in-flight request. `e2e/support.ts` grew `waitForSetMine(page)` — start it before
+  the click, await it after — because the chip's `aria-pressed` proves nothing about Postgres.
+- **`bun run e2e:prod` at three workers now trips `feed.spec.ts:152`** ("scrolling appends
+  another page"), twice in a row, where `--workers=1` is **49 passed / 0 failed** and the spec
+  alone is 8/8. CI runs one worker, so CI is unaffected. Same class as CLAUDE.md's two documented
+  flakes; not added to that list yet, since one evening is not a pattern.
+- **The plan's persona integration test had to be rewritten.** As written it seeded the real
+  `PERSONAS` and asserted twenty created — only true on a database nobody has seeded — and its
+  cleanup deleted the accounts Ben signs in as. It now uses two throwaway personas; "twenty" is a
+  property of the fixture and `personas.test.ts` pins it.
+- Two smaller deviations from the plan, both because the code was not where it said: the proposal
+  line writer lived in `scripts/mine-topics.ts`, not `topic-mining.ts`, so it moved into the
+  service as `proposalLine` to be testable; and `topics.integration.test.ts` had no user fixture
+  for the `resetUserTopicWeights` test, so that describe builds its own.
+- **The settings e2e picks `Ceramics`, not `Surreal`.** CI's database is `db:migrate` +
+  `db:seed`, which is the sixteen config topics and nothing else — thirteen subjects, three
+  media, and *no* looks or places. Two of onboarding's four stages render empty there, which the
+  screen allows on purpose. That grown topics are acceptable to `setMine` is pinned in
+  `routers.integration.test.ts` instead, where the fixture is real.
+- One layout fix each, both caught by looking rather than by a test: onboarding's count label
+  wrapped and clipped behind Back + CTA at 402 px (label now sits above the buttons), and
+  Profile's new Topics row drew a full box because `border-hairline` sets all four sides.
+
+**Open / next:** Ben has not looked at any of this yet — the picker's copy is placeholder until
+sub-project 3, and the four facets are still "far too limited" until a fresh `mine:topics` round
+against the 164k corpus. Production gets facets and the tier rename from the deploy itself
+(migration + `db:seed`); `PERSONA_PASSWORD` has to be set in Coolify **before** running
+`.cache/seed-personas-prod.sh`. Sub-projects 2 and 3 are still unwritten.
+
 *Session spend: 10.02M tok (in 203 · out 71.5k · cache r 9.60M / w 350.9k) · ~≥$0.83 · fable-5-1 + opus-4-7 · 13:16→13:29*
 *Session spend: 14.34M tok (in 154 · out 172.4k · cache r 13.97M / w 206.1k) · fable-5-1 · 13:29→14:17*
+*Session spend: 83.99M tok (in 1.0k · out 299.5k · cache r 82.11M / w 1.58M) · ~$60.36 · opus-5 + opus-4-7 · 14:27→15:04*
 
 ### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
 
