@@ -2,8 +2,8 @@
 
 **Written:** 09-10-26 by Fable 5.1, from Ben's desktop review notes
 (`docs/design_update_3/desktopPolishChecklistNotes.md`, "Onboarding" and "One more thing").
-**Status:** design approved in conversation 09-10-26; plan to follow
-(`docs/PLAN_topic-facets-and-personas.md`).
+**Status:** design approved 09-10-26; plan written the same afternoon —
+`docs/PLAN_topic-facets-and-personas.md`, ready to execute cold.
 **Sub-project 1 of 3** from that review. Sub-project 2 (screen structure fixes: item page and
 gallery merged, Escape back to the feed, bigger square heroes, landing slideshow) and
 sub-project 3 (the chrome redesign: detached share button, desktop right-hand rail, hover-over
@@ -114,9 +114,10 @@ data and the flow.
   indicator.
 - **Next** advances; on the last stage it reads **Done**. **Back** on stages 2–4. Any stage may
   be passed with nothing picked.
-- **Done** is enabled when the total selection across stages is ≥ 1 — the floor `setMine`
-  already enforces. One `setMine` call at the end with the union, exactly as today; nothing is
-  written mid-flow, so abandoning onboarding leaves no rows.
+- **Done** is enabled when the total selection across stages is ≥ 3 — SPEC §3.2's existing
+  floor (`minPicks={3}`), kept as-is when the plan was written; the page's floor is one. One
+  `setMine` call at the end with the union, exactly as today; nothing is written mid-flow, so
+  abandoning onboarding leaves no rows.
 - Selection state is one `Set<string>` for all four stages, so going Back and unpicking works.
 - `hasCompletedOnboarding()` (≥ 1 `user_topic` row) is unchanged, so the redirect logic is too.
 - The chip grid pulls from `topics.list` (a query) rather than the `TOPICS` config it maps today
