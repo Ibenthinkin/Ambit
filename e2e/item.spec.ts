@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  PIXEL,
   cleanupSeeded,
+  completeOnboarding,
   connect,
   inviteUser,
   openAuthSheet,
-  PIXEL,
   signIn,
   waitForHydration,
   type Connection,
@@ -317,14 +318,7 @@ test.describe.serial("item pages", () => {
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await page.waitForURL("/onboarding");
-    // Three is the minimum before the CTA stops reading "Pick N more" (SPEC §3.2). The seeded
-    // items all live in Astronomy; the other two are just there to satisfy the gate.
-    for (const label of ["Astronomy", "Botany", "Music"]) {
-      await page.getByRole("button", { name: label, pressed: false }).click();
-    }
-    await page.getByRole("button", { name: "Start exploring" }).click();
-    await page.waitForURL("/feed");
+    await completeOnboarding(page, ["Astronomy", "Botany", "Music"]);
 
     await page.goto(`/i/${imageId}`);
 

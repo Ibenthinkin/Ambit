@@ -3,12 +3,14 @@ import { eq, inArray } from "drizzle-orm";
 
 import {
   cleanupSeeded,
+  completeOnboarding,
   connect,
   inviteUser,
   openAuthSheet,
   restoreSession,
   saveSession,
   seedFeedCorpus,
+  waitForSetMine,
   type Connection,
 } from "./support";
 
@@ -108,12 +110,7 @@ test.describe.serial("settings", () => {
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await page.waitForURL("/onboarding");
-    for (const label of ["Astronomy", "Botany", "Music"]) {
-      await page.getByRole("button", { name: label, pressed: false }).click();
-    }
-    await page.getByRole("button", { name: "Start exploring" }).click();
-    await page.waitForURL("/feed");
+    await completeOnboarding(page, ["Astronomy", "Botany", "Music"]);
     // The pill only exists once the feed has rendered — 15s, same as every other first compose.
     await expect(page.locator("[data-feed-id]").first()).toBeVisible({
       timeout: 15_000,
@@ -216,19 +213,47 @@ test.describe.serial("settings", () => {
       timeout: 15_000,
     });
 
-    // "Maps" is the chip label for the `cartography` topic (the slug is a graph key — see
-    // server/config/topics.ts). Adding it makes four picks, and the row lists three alphabetically
-    // with an overflow count.
+    // The row is a link to /profile/topics now, not a sheet (09-10-26): a hundred topics in four
+    // tabs has no room in a bottom sheet. "Maps" is the chip label for the `cartography` topic
+    // (the slug is a graph key — see server/config/topics.ts), and it is a Subject.
     await page.getByText("What you see").click();
-    // Scoped to the sheet: "Everything kept · 0 saves" also matches a bare `name: "Save"` prefix
-    // match, and "Maps" would match this user's collection tile on another screen.
-    const sheet = page.getByTestId("bottom-sheet-panel");
-    await sheet.getByRole("button", { name: "Maps" }).click();
-    await sheet.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Feed updated")).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByText("Astronomy, Botany, Maps +1")).toBeVisible({
+    await page.waitForURL("/profile/topics");
+    await page.getByRole("tab", { name: "Subject" }).click();
+
+    // Wait for the write itself, not just the chip. The screen is optimistic on purpose — the
+    // chip flips before the server answers — so asserting `pressed: true` and reloading proves
+    // nothing about what was stored, and a reload mid-flight cancels the request. `setMine` is
+    // the one honest signal that the toggle reached Postgres.
+    const savedMaps = waitForSetMine(page);
+    await page.getByRole("button", { name: "Maps", pressed: false }).click();
+    await expect(
+      page.getByRole("button", { name: "Maps", pressed: true }),
+    ).toBeVisible();
+    await savedMaps;
+
+    // Another tab's topic is pickable in the same visit — the point of the facet cut. Ceramics,
+    // not a grown topic: CI's database is `db:migrate` + `db:seed`, which is the sixteen config
+    // topics and nothing else, so `surreal` and friends do not exist there. That grown topics are
+    // acceptable to `setMine` is pinned by routers.integration.test.ts, where the fixture is real.
+    await page.getByRole("tab", { name: "Medium" }).click();
+    const savedCeramics = waitForSetMine(page);
+    await page
+      .getByRole("button", { name: "Ceramics", pressed: false })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Ceramics", pressed: true }),
+    ).toBeVisible();
+    await savedCeramics;
+
+    // Every toggle saved as it happened — no Done button to press, so a reload is the proof.
+    await page.reload();
+    await page.getByRole("tab", { name: "Medium" }).click();
+    await expect(
+      page.getByRole("button", { name: "Ceramics", pressed: true }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await goTo(page, "/settings");
+    await expect(page.getByText("Astronomy, Botany, Ceramics +2")).toBeVisible({
       timeout: 15_000,
     });
 

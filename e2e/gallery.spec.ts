@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  PIXEL,
   cleanupSeeded,
+  completeOnboarding,
   connect,
   inviteUser,
   openAuthSheet,
-  PIXEL,
   waitForHydration,
   type Connection,
 } from "./support";
@@ -179,14 +180,7 @@ test.describe.serial("the immersive gallery", () => {
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await page.waitForURL("/onboarding");
-    // Three is the minimum before the CTA stops reading "Pick N more" (SPEC §3.2). The seeded
-    // images live in Astronomy and Botany; Music is there to satisfy the gate.
-    for (const label of ["Astronomy", "Botany", "Music"]) {
-      await page.getByRole("button", { name: label, pressed: false }).click();
-    }
-    await page.getByRole("button", { name: "Start exploring" }).click();
-    await page.waitForURL("/feed");
+    await completeOnboarding(page, ["Astronomy", "Botany", "Music"]);
 
     const feedIds = () =>
       page

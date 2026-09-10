@@ -32,6 +32,14 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
   const [hint, setHint] = React.useState("");
 
   const setMine = api.topics.setMine.useMutation({
+    // **Serialized, not parallel.** Every toggle sends the whole set, and `setUserTopics` is a
+    // delete-then-insert transaction — so two flips in quick succession can interleave and leave
+    // the DB holding whichever *transaction* committed last, which is not necessarily the last
+    // set the reader chose. Found by e2e (two toggles on two tabs; the second was silently lost).
+    // A `scope.id` puts same-scope mutations in a serial queue (TanStack Query v5); only the
+    // mutationFn waits, `onMutate` still runs the instant `.mutate()` is called, so the chip
+    // still answers immediately.
+    scope: { id: "topics.setMine" },
     // Optimistic: the chip flips now, `topics.mine` is patched to the set we sent, and settle
     // re-reads the truth. On error the patch is rolled back to the snapshot.
     onMutate: async ({ topicIds }) => {

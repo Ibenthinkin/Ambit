@@ -254,3 +254,48 @@ export async function countSeenFor(
     .where(eq(user.email, email));
   return rows.length;
 }
+
+/**
+ * Walks the four-stage onboarding (09-10-26), pressing every chip in `labels` on whatever
+ * stage it appears, then Start exploring. The stages are Subject / Medium / Look / Place; a
+ * label that is on no stage fails the test by name rather than silently landing on /feed with
+ * fewer picks — the specs' fixtures depend on exactly which topics the user has.
+ *
+ * A stage may legitimately be empty. CI's database is `db:migrate` + `db:seed`, which is the
+ * sixteen config topics and nothing else — thirteen subjects, three media, no looks and no
+ * places — so two of the four stages render no chips at all there and are simply passed. The
+ * screen allows that on purpose (the floor is three picks in total, not per stage).
+ */
+export async function completeOnboarding(page: Page, labels: string[]) {
+  await page.waitForURL("/onboarding");
+  const remaining = new Set(labels);
+  for (let stage = 0; stage < 4; stage++) {
+    for (const label of [...remaining]) {
+      // `pressed: false` both disambiguates from any other text on the page and asserts the
+      // pre-click state, exactly as the inline loops this replaces did.
+      const chip = page.getByRole("button", { name: label, pressed: false });
+      if (await chip.count()) {
+        await chip.click();
+        remaining.delete(label);
+      }
+    }
+    if (stage < 3) await page.getByRole("button", { name: "Next" }).click();
+  }
+  if (remaining.size) {
+    throw new Error(`onboarding: no chip for ${[...remaining].join(", ")}`);
+  }
+  await page.getByRole("button", { name: "Start exploring" }).click();
+  await page.waitForURL("/feed");
+}
+
+/**
+ * Resolves when a `topics.setMine` call comes back 200 — the one honest proof that a toggle on
+ * /profile/topics reached Postgres. The screen is optimistic by design, so the chip's own
+ * `aria-pressed` flips before the server has answered; asserting on it and then reloading tests
+ * nothing, and worse, the reload cancels the in-flight request. Start this *before* the click.
+ */
+export function waitForSetMine(page: Page) {
+  return page.waitForResponse(
+    (r) => r.url().includes("topics.setMine") && r.status() === 200,
+  );
+}
