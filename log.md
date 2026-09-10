@@ -155,6 +155,56 @@ rises after the first pass, click and ←/→ step a slide.
   sixteen-entry `TOPICS` config (`gallery-details-sheet.tsx:35`), which since sub-project 1 is
   most of the vocabulary. `RailItem` gains `topicLabel` joined server-side, and `body` for PDR.
 
+**Later still — sub-project 2 built** (branch `feat/screen-structure`, not yet merged). All eleven
+tasks of `docs/PLAN_screen-structure.md`: the item page *is* the immersive screen (`ItemScreen` =
+`HeroRail` over `ItemFacts`; `/g/` a permanent redirect; `components/gallery/` gone), one
+`NewCollectionRow` in every picker plus Share in the tile sheet, and a landing slideshow that never
+stops. `bun run check` green bar the known-red `<details>` invariant row (1,215 tests);
+`bun run e2e:prod` **51/51** across both projects on the second full run.
+
+**Findings — where the plan's own code would have shipped broken** (each fixed and explained in a
+comment where it lives):
+
+- **The desktop summon would have killed tap-to-hide on phones.** `onMouseMove → show()` hears the
+  *compatibility* `mousemove` a browser fires after every tap, so a second tap's hide was undone at
+  once. It is a `pointermove` filtered to `pointerType === "mouse"`, with a unit test for the
+  touch case.
+- **`HeroRail` would have crashed server rendering** — it read `window` in a lazy `useState`
+  initializer, and the server renders client components too. The viewport is `null` until mount
+  (the strip is `100dvh` until then, the design's own placeholder).
+- **A preloaded picture never reported its height.** The entry picture is preloaded precisely so it
+  finishes early — before hydration, when React isn't listening for `load`. It reads `complete` on
+  mount now.
+- **The reduced-motion glyph fix, as sketched, still did nothing:** with `open = isStatic || opened`
+  a collapse left the sheet pinned open, and the reopen glyph hid behind `!isStatic`. `opened` is
+  now "the reader's choice, else the mode's default" and the glyph keys on the route. Reduced motion
+  is read through the existing `useMediaQuery` rather than a second `useSyncExternalStore`.
+- Smaller: `topicLabelsFor` moved to `db/topics.ts` (the sketch's dynamic import still ran a live
+  query inside the pure rail suite), articles keep `hasImage` for their picture, and every arrow
+  handler ignores Alt/⌘ chords (Alt/⌘+← is the browser's Back).
+
+**Findings — the visual pass (production build, 402 and 1440, signed out).** Desktop is exactly as
+designed: full viewport height, square-cornered, the facts in the 720px column. **The phone has a
+dark band under any picture shorter than the screen.** Decision 2 puts the caption block *below* a
+short picture, and `visibility: hidden` keeps its space — so the hidden caption is ~165–175px of
+`bg-immersive` between picture and title (a landscape Colossal plate: 268px of picture, 175px of
+band), and when shown it repeats the title `ItemFacts` prints right under it. Built to the letter of
+the design and **left for Ben**, with three ways out: collapse the block when hidden (the facts
+then slide ~165px on every tap), always overlay (a caption over the foot of a short picture), or
+give the below-placement only the pill.
+
+**One unexplained e2e draw.** The first full run saw a single client `feed.page` after Escape in
+"tile → item → swipe → Escape returns to the intact feed" — the tiles were identical. An
+instrumented rerun and the second full run were clean. The guard now records the request URL, which
+separates a cache miss (no cursor) from the sentinel (a cursor) if it ever recurs. CLAUDE.md's
+`gallery.spec.ts:193` note is deleted, per the plan: its successor's signature is not that one's.
+
+**Open / next (sub-project 2):** Ben to look — on glass over the tailnet for the gestures the suite
+can't drive (down-flick exit, `pan-y` scroll, the compatibility-mouse fix), and in Firefox for the
+production React #418 on `/` (Chromium's production console is clean on `/` and `/i/`); the band;
+merge + push. Storing image dimensions on `item` is still the follow-up that would retire the
+height-learning altogether.
+
 **Open / next:** Ben has not looked at any of this yet — the picker's copy is placeholder until
 sub-project 3, and the four facets are still "far too limited" until a fresh `mine:topics` round
 against the 164k corpus. Production gets facets and the tier rename from the deploy itself
@@ -165,6 +215,7 @@ against the 164k corpus. Production gets facets and the tier rename from the dep
 *Session spend: 14.34M tok (in 154 · out 172.4k · cache r 13.97M / w 206.1k) · fable-5-1 · 13:29→14:17*
 *Session spend: 83.99M tok (in 1.0k · out 299.5k · cache r 82.11M / w 1.58M) · ~$60.36 · opus-5 + opus-4-7 · 14:27→15:04*
 *Session spend: 53.83M tok (in 256 · out 257.5k · cache r 52.50M / w 1.07M) · ~≥$2.76 · fable-5-1 + opus-5 · 15:04→16:53*
+*Session spend: 99.68M tok (in 9.0k · out 1.00M · cache r 95.43M / w 3.24M) · ~$101.27 · opus-5 + opus-4-7 · 19:19→19:57*
 
 ### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
 

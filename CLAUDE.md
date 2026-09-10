@@ -198,6 +198,25 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `bun run seed:personas`, which signs each one up through Better Auth's server API against
   `PERSONA_PASSWORD` (env; no default, and it is a secret) so Ben can read the feed from twenty
   different chairs. Demographics in the fixture are documentation and are never stored.
+- **The item page *is* the immersive screen — 09-10-26** (design `docs/DESIGN_screen-structure.md`,
+  plan `docs/PLAN_screen-structure.md`; sub-project 2 of three from Ben's desktop review). `/i/[itemId]`
+  for a picture is `ItemScreen`: `HeroRail` (the old gallery's three-cell track, square-cornered,
+  top-aligned, its height following the loaded picture on the phone and the full viewport above
+  `md`) over `ItemFacts` in the reader column — no details sheet. **`/g/[itemId]` is a permanent
+  redirect** and `components/gallery/` is gone. Sideways swipes walk the wander rail and the page
+  follows (`history.replaceState`); a tap toggles the chrome; **a quick downward flick at the top of
+  the page, or Escape, leaves** — up is the browser's scroll, the track is `touch-action: pan-y` —
+  and every exit is `useLeaveToFeed(entryItemId)`, so Back still pops to the intact feed after any
+  number of swipes. Three traps it met, each explained where it lives: the desktop summon is a
+  **`pointermove` filtered to `pointerType === "mouse"`** (a tap's compatibility `mousemove` would
+  re-show the chrome the instant a second tap hid it); `HeroRail`'s viewport is **null until mount**
+  (the server renders client components too); and a picture that loaded before hydration reports
+  its ratio from `complete`, because its `load` fired before React was listening. Alongside it:
+  **`NewCollectionRow`** (`sheets/collection-rows.tsx`) is the app's one create form and ends every
+  collection picker, the tile sheet gained **Share**, and the **landing slideshow never stops** —
+  click and ←/→ step it, the sheet still rises after the first pass, and reduced motion is read
+  through `useMediaQuery` after hydration, which is what fixed the collapse glyph (the 09-08
+  `AuthSheet onCollapse` hydration mismatch).
 - **The dev knob panel shipped 09-05-26** — `/dev/feed` (local, `FEED_DEBUG`; a 404 under a
   production build), every feed knob live including the two Cut 2a levers
   `grownEdgeScale`/`grownHopPenalty` (identities at `1`, so `/feed` composes exactly as before),
@@ -235,20 +254,6 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 
 - **Ambit must own port 3000.** `BETTER_AUTH_URL` is pinned to `http://localhost:3000`, so every auth callback and password-reset link points at whatever is listening there — and `tailscale serve --bg 3000`, which is how device passes get HTTPS, fronts the same port. An unrelated `node` app has been squatting 3000 since 08-16; run `lsof -ti:3000` and clear it before starting a dev server or a device pass.
 - **Run device passes over HTTPS, not `http://` on the LAN.** The Web Share API is secure-context only, so on plain HTTP `navigator.share` is `undefined` rather than broken — share, clipboard and service workers silently can't be tested at all. Use the tailnet origin (`https://macbook-air-m5.halley-morpho.ts.net`); it and every other dev origin must be listed in `src/config/dev-origins.js`.
-- **`e2e/gallery.spec.ts:193` ("tile → item → hero → gallery, and back") goes flaky as the dev DB
-  accumulates e2e state.** Distinct from the note below, and don't confuse them: that one is CPU
-  load and hits a _different_ test each time; this is the **same test every time**, it passes 10/10
-  in isolation, and it only fails inside a full `bun run e2e`. Verified on `main` 08-21-26 — clean
-  3/3 early in the evening, then 2 failures in 3 runs a couple of hours later with no code change
-  between. What accumulated in between: **274 `user` rows and 6,709 `seen_item` rows** from repeated
-  suites, on top of a corpus that grew 30% the same day. Both failure signatures are the same class
-  — clicking something mid-animation (`element is not stable`, or a `waitForURL` that never
-  resolves). **So: a red gallery.spec:193 is not evidence about your branch.** Check `main` at the
-  same moment before believing it, then clear the accumulation: **`bun run e2e:clean --confirm`**
-  (Phase 7.1) retires every `ambit-%@example.com` user and the rows hanging off them; run it
-  without the flag first for a dry-run count. CI never sees any of this — its database is fresh
-  every run — so a green CI and a red local `gallery.spec:193` are consistent, and the local one is
-  the accumulation. Delete this note if the test is ever made robust.
 - **`services/feed.integration.test.ts`'s cursor-stability test fails ~1 local run in 10, and the
   failure is a foreign-key error, not an assertion.** It reads
   `insert or update on table "seen_item" violates foreign key constraint
