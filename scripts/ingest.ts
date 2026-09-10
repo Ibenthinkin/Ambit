@@ -364,6 +364,7 @@ async function main() {
         offered: 0,
         errors: 1,
         pageErrors: 1,
+        retries: 0,
         seenSourceIds: [],
         complete: false,
         items: [],
@@ -689,6 +690,7 @@ function printSummary(args: {
         "pages".padEnd(8),
         "offered".padEnd(10),
         "errors".padEnd(8),
+        "retries".padEnd(9),
         "complete".padEnd(10),
         "no-image",
       ].join(""),
@@ -700,6 +702,9 @@ function printSummary(args: {
           String(s.walked).padEnd(8),
           String(s.offered).padEnd(10),
           String(s.errors).padEnd(8),
+          // Pages that failed and recovered (walk-run.ts, 09-10-26): a non-zero here with zero
+          // errors is a flaky host that the retry absorbed; read it before blaming a walk.
+          String(s.retries).padEnd(9),
           (s.complete ? "yes" : "no").padEnd(10),
           // Same reading as the search table's column: a blog whose heroes will not fetch is
           // being scored blind, and that must show up here, not months later in the feed.

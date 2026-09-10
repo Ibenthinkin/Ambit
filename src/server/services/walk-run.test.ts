@@ -99,17 +99,80 @@ describe("runWalk — failures", () => {
     expect(stats.complete).toBe(true);
   });
 
-  it("stops on a failed page, counts it, and refuses completeness", async () => {
+  it("stops on a page that keeps failing, counts it once, and refuses completeness", async () => {
     const walker = fakeWalker(50);
-    const stats = await runWalk({
-      ...walker,
-      walk: (cursor) =>
-        cursor === "20"
-          ? Promise.reject(new Error("502"))
-          : walker.walk(cursor),
-    });
+    const stats = await runWalk(
+      {
+        ...walker,
+        walk: (cursor) =>
+          cursor === "20"
+            ? Promise.reject(new Error("502"))
+            : walker.walk(cursor),
+      },
+      { sleep: () => Promise.resolve() },
+    );
     expect(stats.pageErrors).toBe(1);
     expect(stats.offered).toBe(20);
+    expect(stats.complete).toBe(false);
+  });
+
+  // 09-10-26: the 09-09 nightly's four Tumblr walks all stopped at a fraction of their budgets
+  // (0 / 11 / 1,924 / 2,075 rows against 27,500 / 19,000 / 32,000 / 21,700). One bad answer from
+  // Tumblr ended a whole night's walk, because a failed page was final. It is not: the cursor
+  // is an offset, so the same page can simply be asked for again after a pause.
+  it("retries a page that fails once, and the walk is still complete", async () => {
+    const walker = fakeWalker(50);
+    let failuresLeft = 1;
+    const slept: number[] = [];
+    const stats = await runWalk(
+      {
+        ...walker,
+        walk: (cursor) => {
+          if (cursor === "20" && failuresLeft-- > 0)
+            return Promise.reject(new Error("502"));
+          return walker.walk(cursor);
+        },
+      },
+      {
+        sleep: (ms) => {
+          slept.push(ms);
+          return Promise.resolve();
+        },
+      },
+    );
+    expect(stats.offered).toBe(50);
+    expect(stats.pageErrors).toBe(0);
+    expect(stats.retries).toBe(1);
+    expect(stats.complete).toBe(true);
+    expect(slept).toEqual([5_000]);
+  });
+
+  it("gives up after three retries, each waiting twice as long as the last", async () => {
+    const walker = fakeWalker(50);
+    let attempts = 0;
+    const slept: number[] = [];
+    const stats = await runWalk(
+      {
+        ...walker,
+        walk: (cursor) => {
+          if (cursor === "20") {
+            attempts++;
+            return Promise.reject(new Error("502"));
+          }
+          return walker.walk(cursor);
+        },
+      },
+      {
+        sleep: (ms) => {
+          slept.push(ms);
+          return Promise.resolve();
+        },
+      },
+    );
+    expect(attempts).toBe(4);
+    expect(slept).toEqual([5_000, 10_000, 20_000]);
+    expect(stats.retries).toBe(3);
+    expect(stats.pageErrors).toBe(1);
     expect(stats.complete).toBe(false);
   });
 });
