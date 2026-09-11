@@ -57,6 +57,76 @@ redeploy, `seed-personas-prod.sh`.
 
 *Session spend: 19.91M tok (in 3.1k · out 268.4k · cache r 18.94M / w 702.7k) · fable-5-1 · 09:14→10:34*
 
+**Executed the same day (Opus 5, a second session)** — the plan, end to end, on
+`feat/feed-on-membership`, merged to `main` the same day at Ben's request.
+
+**Shipped:**
+
+- **Fixtures write membership** — `db/test-fixtures.ts`'s `insertHomedItems` for the DB suites,
+  `writeMemberships` in `e2e/support.ts` for the Playwright corpora. The plan listed five sites;
+  there were ten. The five it missed were the lopsided-source sample test, the router's
+  `feed.page` fixture, and the `feed`/`saved`/`pwa.prod` specs, which seed their own feed corpus
+  rather than calling `seedFeedCorpus` — on CI's empty database those three would have served an
+  empty feed.
+- **`getTopicPools` on `item_topic ⋈ item`**, same two-stage sample. `items.integration`'s
+  un-homed test was flipped on purpose, as its own comment said the join would have to: an item
+  with memberships and a NULL display topic is now in the topic pool (and still in the wild one —
+  the shape `drawnIds` exists for).
+- **Two streams, `pickSlot`, `planTopics`, `drawnIds`**; **`getFeedPage` plans, fetches, composes,
+  falls back**; `FeedPage.debug` under the dev gate; `bench:feed` / `probe:feed` readouts.
+
+**Findings:**
+
+- **Slower than before at today's vocabulary, and under the bar.** Before/after in the same
+  minutes (a throwaway checkout at `6d6ad32` against the branch, alternating per account):
+  Ben's own account 163 → **176 ms** p50 (183 → 271 p95), `persona-sam` 159 → **225**, the
+  cold-start `ben-e2e` 162 → **250**. All under SPEC's 300 ms; 0 fallbacks in 36 pages; 28-37
+  planned topics a page. The design's "not worse than before" line is missed and recorded, not
+  tuned — the plan's rule.
+- **Why:** the planned topics are the *big* ones — a reader's picks plus their strongest graph
+  neighbours are well-populated by construction — so 24-37 of them hold ~125k-180k memberships,
+  about what the old query ranked across all 104 display pools, now through a join and a sort that
+  spills past 4 MB `work_mem`. EXPLAIN also said two things the design did not: the planner
+  switches to a **seq scan of `item_topic` at ~33 topics** (the design guessed ~100), and `item`
+  is hash-joined off a seq scan, not looked up by key. The sort is the cost either way. What the
+  plan buys is the property the vocabulary needs: the page follows its ~30-40 planned topics, and
+  round 2's ~370-topic reachable set would have put the old shape near 700 ms. Levers, untaken:
+  `SET LOCAL work_mem` for the one query (the design measured ~40 ms), a covering
+  `item_topic (topic_id, item_id)` index.
+- **The join reaches the feed:** 13 of 36 probe cards were served under a topic other than their
+  display topic (`new-york` serving a Berenice Abbott filed under `architecture`, `water` a
+  `70sscifiart` illustration).
+- **A latent production 500, found by the e2e log rather than a test.** `e2e:prod` passed but
+  logged two redacted SSR errors that `main`'s run did not. Unredacted: the join's *Parallel Hash
+  Join* ran out of `/dev/shm` — Docker's default 64 MB, which local, CI and the production
+  Postgres all have — under concurrent pages (`could not resize shared memory segment`, SQLSTATE
+  53100). 24 concurrent pool queries failed 110 of 120. Fixed with `SET LOCAL
+  enable_parallel_hash = off` in a transaction around the query: 0 of 120, and in the page a
+  reader with picks pays nothing measurable (p50 148-163 ms vs 203), a cold start ~+85 ms.
+  `--shm-size` on the container is the infra alternative and Ben's call.
+- `bench:feed` with no `--user` picks `ben-e2e`, which has **no picks** — a cold-start reader. Pass
+  `--user` for a real account's numbers.
+- **99 test-fixture rows from 09-07 sit in the dev corpus** (`source_id LIKE 'test-%'`, titled
+  "Wild item N", one still pointing at a `test-wild-topic-*`), and the probe served three of them
+  as WILD cards. Left alone — Ben's database; they are what the design's "un-homed ≈ no membership,
+  to within test leftovers" was counting.
+- Era topics (`19th-century`) now have a non-empty pool — their tag memberships — so leaving them
+  unfaceted is a choice now, not a necessity.
+
+**Verified:** `bun run check` — 1,232 of 1,233, the one red being the known `70sscifiart`
+`<details>` summary row (09-10); two prettier drifts in this morning's mining scripts were fixed
+on the way. `bun run e2e:prod` — 51 passed, 3 skipped (the dev-only knob panel), and after the shared-memory
+fix zero redacted SSR errors, as on `main`.
+
+**Open / next:** Ben reads `/feed` and `/dev/feed` on the branch (which pictures a topic shows has
+changed, not which topics); a call on the p50 regression (accept, or one of the two levers); then
+deploy, and round 2 — tick `docs/topic-proposals-round2.md` with facets,
+`promote:topics --file … --confirm`, `graph:rebuild --confirm`, and
+`sh .cache/promote-prod.sh docs/topic-proposals-round2.md` in production (the script takes the
+file as its first argument now). Saves still bump the display topic (design §5 follow-up).
+
+*Session spend: 55.78M tok (in 6.2k · out 633.9k · cache r 53.32M / w 1.81M) · ~$58.74 · opus-5 + opus-4-7 · 10:54→11:30*
+
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
 Ben's morning brief said production was thousands of images behind the Mac. It is: **29,062

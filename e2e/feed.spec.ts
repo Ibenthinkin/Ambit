@@ -12,6 +12,7 @@ import {
   type Connection,
   waitForFeedToSettle,
   tapInPlace,
+  writeMemberships,
 } from "./support";
 
 // The feed masonry against a real dev server, real Postgres and the real feed engine (SPEC §12,
@@ -57,7 +58,7 @@ test.describe.serial("feed", () => {
   test.beforeAll(async () => {
     conn = await connect();
 
-    await conn.db
+    const seeded = await conn.db
       .insert(conn.item)
       .values(
         Array.from({ length: SEED_COUNT }, (_, i) => ({
@@ -79,7 +80,11 @@ test.describe.serial("feed", () => {
           curationScore: 9,
         })),
       )
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ id: conn.item.id, topicId: conn.item.topicId });
+    // The feed draws on `item_topic` membership since 09-11-26, so a seeded row needs a
+    // membership to be drawable — see support.ts's writeMemberships().
+    await writeMemberships(conn, seeded);
 
     inviteUser(EMAIL);
   });

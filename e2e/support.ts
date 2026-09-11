@@ -205,7 +205,11 @@ export async function restoreSession(page: Page, cookies: Cookie[]) {
  * run: two files seeding nothing (they had never needed to) and two seeding a single page's worth.
  *
  * Callers size `count` from how many feed loads their file performs, with headroom. The rows are
- * cheap — one bulk insert — and `cleanupSeeded(conn, prefix)` takes them all away again.
+ * cheap — one bulk insert — and `cleanupSeeded(conn, prefix)` takes them all away again (their
+ * `item_topic` rows go with them: that foreign key cascades on the item).
+ *
+ * Each row also gets its topic membership (`writeMemberships` below) — since 09-11-26 that, not
+ * `topicId`, is what makes a row drawable.
  */
 export async function seedFeedCorpus(
   conn: Connection,
@@ -213,7 +217,7 @@ export async function seedFeedCorpus(
   count: number,
   topics: readonly string[],
 ): Promise<void> {
-  await conn.db
+  const inserted = await conn.db
     .insert(conn.item)
     .values(
       Array.from({ length: count }, (_, i) => ({
@@ -233,6 +237,39 @@ export async function seedFeedCorpus(
         curationScore: 9,
       })),
     )
+    .onConflictDoNothing()
+    .returning({ id: conn.item.id, topicId: conn.item.topicId });
+  await writeMemberships(conn, inserted);
+}
+
+/**
+ * Writes the `item_topic` row that puts each seeded item in its topic's feed pool.
+ *
+ * **Why a seeded row needs one (09-11-26).** The feed draws on `item_topic` membership, not on
+ * `item.topic_id` (docs/DESIGN_feed-on-membership.md): the column is the *display* topic the item
+ * page shows, membership is what the feed's topic pools are made of. A row with a `topicId` and no
+ * membership is therefore in no pool — invisible to /feed, which on CI's empty database means a
+ * feed with no tiles at all. Same shape as src/server/db/test-fixtures.ts's `insertHomedItems`,
+ * written out here because e2e runs against the built app and does not import the server's test
+ * helpers.
+ *
+ * Pass it what `.returning({ id, topicId })` gave back. After an `onConflictDoNothing()` insert
+ * that is only the rows that were *new* — on a re-run the rest already have their membership, so
+ * an empty list is the normal case, not a failure.
+ */
+export async function writeMemberships(
+  conn: Connection,
+  rows: readonly { id: string; topicId: string | null }[],
+): Promise<void> {
+  const memberships = rows.flatMap((r) =>
+    r.topicId
+      ? [{ itemId: r.id, topicId: r.topicId, origin: "seed" as const }]
+      : [],
+  );
+  if (memberships.length === 0) return;
+  await conn.db
+    .insert(conn.itemTopic)
+    .values(memberships)
     .onConflictDoNothing();
 }
 

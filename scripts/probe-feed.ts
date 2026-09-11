@@ -91,14 +91,26 @@ const topicCounts = new Map<string, number>();
 // is what says whether it did.
 const scores: number[] = [];
 let adjacencyViolations = 0;
+// Cards whose SLOT topic is not the item's display topic — only possible since the pools moved
+// onto `item_topic` membership (09-11-26). Zero here on a real account would mean the join
+// is not reaching the feed.
+let slotIsNotDisplay = 0;
 
 for (let p = 0; p < pages; p++) {
   const page = await getFeedPage(userId, cursor, knobOverrides);
   console.log(`\n── page ${p + 1} ${"─".repeat(60)}`);
+  // The planned fetch's readout (FeedPage.debug, dev gate only): how many pools this page asked
+  // for, and whether it composed short and took the full reachable fetch too.
+  if (page.debug) {
+    console.log(
+      `(planned ${page.debug.plannedTopics} topics${page.debug.fallback ? " · FALLBACK to the reachable set" : ""})`,
+    );
+  }
   console.log(
     [
       "tier".padEnd(6),
       "topic".padEnd(16),
+      "display".padEnd(16),
       "source".padEnd(10),
       "score".padEnd(6),
       "title".padEnd(40),
@@ -110,18 +122,21 @@ for (let p = 0; p < pages; p++) {
   for (const card of page.cards) {
     tierCounts[card.tier]++;
     scores.push(card.item.curationScore);
-    // The feed never serves an un-homed card (pools exclude them, db/feed.ts), but `FeedCard`'s
-    // topic is `string | null` since Cut 1, so the probe stays honest about the type rather than
-    // asserting past it — a `(none)` row here would be a real finding.
+    // A topic card's `topicId` is the SLOT's topic; since 09-11-26 the pools come from
+    // membership, so it can differ from the item's display topic — the `display` column beside
+    // it shows when. `(none)` in the topic column is a WILD card (an un-homed item).
     const t = card.topicId ?? "(none)";
     topicCounts.set(t, (topicCounts.get(t) ?? 0) + 1);
     if (lastSource && card.item.source === lastSource) adjacencyViolations++;
+    if (card.topicId !== null && card.item.topicId !== card.topicId)
+      slotIsNotDisplay++;
     lastSource = card.item.source;
 
     console.log(
       [
         card.tier.padEnd(6),
         (card.topicId ?? "(none)").padEnd(16),
+        (card.item.topicId ?? "(none)").padEnd(16),
         card.item.source.padEnd(10),
         String(card.item.curationScore).padEnd(6),
         card.item.title.slice(0, 38).padEnd(40),
@@ -155,6 +170,9 @@ if (total === 0) {
   );
   console.log(
     `source-adjacency violations: ${adjacencyViolations} (should be ~0)`,
+  );
+  console.log(
+    `cards served under a topic other than their display topic: ${slotIsNotDisplay} of ${scores.length}`,
   );
   const sorted = [...scores].sort((a, b) => a - b);
   const mean = sorted.reduce((s, x) => s + x, 0) / sorted.length;

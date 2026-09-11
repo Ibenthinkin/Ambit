@@ -12,6 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createCaller } from "~/server/api/root";
 import type { Context } from "~/server/api/trpc";
+import { insertHomedItems } from "~/server/db/test-fixtures";
 
 /** A well-formed anonymous context — no session cookie at all. */
 function anonContext(): Context {
@@ -72,7 +73,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
 
   beforeAll(async () => {
     const { db } = await import("~/server/db/client");
-    const { item, topic, user } = await import("~/server/db/schema");
+    const { topic, user } = await import("~/server/db/schema");
 
     await db.insert(topic).values([
       {
@@ -104,72 +105,69 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
         emailVerified: false,
       },
     ]);
-    const [itemOne, itemTwo, s3, s4, s5] = await db
-      .insert(item)
-      .values([
-        {
-          source: "wikipedia",
-          sourceId: `test-router-item-1-${nanoid(8)}`,
-          type: "article" as const,
-          title: "Integration test item one",
-          summary: "A summary long enough to be unremarkable.",
-          sourceUrl: `https://example.com/test-router-item-1-${nanoid(8)}`,
-          topicId: topicA,
-          curationScore: 7,
-          aestheticTags: [],
-        },
-        {
-          source: "wikipedia",
-          sourceId: `test-router-item-2-${nanoid(8)}`,
-          type: "article" as const,
-          title: "Integration test item two",
-          summary: "A summary long enough to be unremarkable.",
-          sourceUrl: `https://example.com/test-router-item-2-${nanoid(8)}`,
-          topicId: topicA,
-          curationScore: 7,
-          aestheticTags: [],
-        },
-        // Items three and four back the 6.1 describe below — both in topicA (so the afterAll
-        // item sweep, which deletes by topicA, cleans them up for free), with overlapping
-        // aesthetic tags so the taste-keyword derivation has a dedupe case to prove.
-        {
-          source: "wikipedia",
-          sourceId: `test-router-item-3-${nanoid(8)}`,
-          type: "article" as const,
-          title: "Integration test item three",
-          summary: "A summary long enough to be unremarkable.",
-          sourceUrl: `https://example.com/test-router-item-3-${nanoid(8)}`,
-          topicId: topicA,
-          curationScore: 7,
-          aestheticTags: ["etching", "botanical plate"],
-        },
-        {
-          source: "wikipedia",
-          sourceId: `test-router-item-4-${nanoid(8)}`,
-          type: "article" as const,
-          title: "Integration test item four",
-          summary: "A summary long enough to be unremarkable.",
-          sourceUrl: `https://example.com/test-router-item-4-${nanoid(8)}`,
-          topicId: topicA,
-          curationScore: 7,
-          aestheticTags: ["botanical plate", "sepia"],
-        },
-        // Item five backs 5.10's collection-cover assertions: the only one here with an
-        // `imageUrl`, and in topicA so the afterAll sweep cleans it up with the rest.
-        {
-          source: "met",
-          sourceId: `test-router-item-5-${nanoid(8)}`,
-          type: "image" as const,
-          title: "Integration test item five",
-          summary: "A summary long enough to be unremarkable.",
-          imageUrl: "https://example.com/test-router-item-5.jpg",
-          sourceUrl: `https://example.com/test-router-item-5-${nanoid(8)}`,
-          topicId: topicA,
-          curationScore: 7,
-          aestheticTags: [],
-        },
-      ])
-      .returning();
+    const [itemOne, itemTwo, s3, s4, s5] = await insertHomedItems(db, [
+      {
+        source: "wikipedia",
+        sourceId: `test-router-item-1-${nanoid(8)}`,
+        type: "article" as const,
+        title: "Integration test item one",
+        summary: "A summary long enough to be unremarkable.",
+        sourceUrl: `https://example.com/test-router-item-1-${nanoid(8)}`,
+        topicId: topicA,
+        curationScore: 7,
+        aestheticTags: [],
+      },
+      {
+        source: "wikipedia",
+        sourceId: `test-router-item-2-${nanoid(8)}`,
+        type: "article" as const,
+        title: "Integration test item two",
+        summary: "A summary long enough to be unremarkable.",
+        sourceUrl: `https://example.com/test-router-item-2-${nanoid(8)}`,
+        topicId: topicA,
+        curationScore: 7,
+        aestheticTags: [],
+      },
+      // Items three and four back the 6.1 describe below — both in topicA (so the afterAll
+      // item sweep, which deletes by topicA, cleans them up for free), with overlapping
+      // aesthetic tags so the taste-keyword derivation has a dedupe case to prove.
+      {
+        source: "wikipedia",
+        sourceId: `test-router-item-3-${nanoid(8)}`,
+        type: "article" as const,
+        title: "Integration test item three",
+        summary: "A summary long enough to be unremarkable.",
+        sourceUrl: `https://example.com/test-router-item-3-${nanoid(8)}`,
+        topicId: topicA,
+        curationScore: 7,
+        aestheticTags: ["etching", "botanical plate"],
+      },
+      {
+        source: "wikipedia",
+        sourceId: `test-router-item-4-${nanoid(8)}`,
+        type: "article" as const,
+        title: "Integration test item four",
+        summary: "A summary long enough to be unremarkable.",
+        sourceUrl: `https://example.com/test-router-item-4-${nanoid(8)}`,
+        topicId: topicA,
+        curationScore: 7,
+        aestheticTags: ["botanical plate", "sepia"],
+      },
+      // Item five backs 5.10's collection-cover assertions: the only one here with an
+      // `imageUrl`, and in topicA so the afterAll sweep cleans it up with the rest.
+      {
+        source: "met",
+        sourceId: `test-router-item-5-${nanoid(8)}`,
+        type: "image" as const,
+        title: "Integration test item five",
+        summary: "A summary long enough to be unremarkable.",
+        imageUrl: "https://example.com/test-router-item-5.jpg",
+        sourceUrl: `https://example.com/test-router-item-5-${nanoid(8)}`,
+        topicId: topicA,
+        curationScore: 7,
+        aestheticTags: [],
+      },
+    ]);
     itemOneId = itemOne!.id;
     itemTwoId = itemTwo!.id;
     itemThreeId = s3!.id;
@@ -787,24 +785,21 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
 
     beforeAll(async () => {
       const { db } = await import("~/server/db/client");
-      const { item } = await import("~/server/db/schema");
-      const [one, two] = await db
-        .insert(item)
-        .values(
-          [1, 2].map((n) => ({
-            source: "met",
-            sourceId: `test-router-plate-${n}-${nanoid(8)}`,
-            type: "image" as const,
-            title: `Integration test plate ${n}`,
-            summary: "A caption long enough to be unremarkable.",
-            imageUrl: `https://example.com/test-router-plate-${n}.jpg`,
-            sourceUrl: `https://example.com/test-router-plate-${n}-${nanoid(8)}`,
-            topicId: topicA,
-            curationScore: 9,
-            aestheticTags: [],
-          })),
-        )
-        .returning();
+      const [one, two] = await insertHomedItems(
+        db,
+        [1, 2].map((n) => ({
+          source: "met",
+          sourceId: `test-router-plate-${n}-${nanoid(8)}`,
+          type: "image" as const,
+          title: `Integration test plate ${n}`,
+          summary: "A caption long enough to be unremarkable.",
+          imageUrl: `https://example.com/test-router-plate-${n}.jpg`,
+          sourceUrl: `https://example.com/test-router-plate-${n}-${nanoid(8)}`,
+          topicId: topicA,
+          curationScore: 9,
+          aestheticTags: [],
+        })),
+      );
       plateOneId = one!.id;
       plateTwoId = two!.id;
     });
@@ -939,8 +934,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
 
     beforeAll(async () => {
       const { db } = await import("~/server/db/client");
-      const { item, topic, user, userTopic } =
-        await import("~/server/db/schema");
+      const { topic, user, userTopic } = await import("~/server/db/schema");
 
       await db.insert(topic).values({
         id: feedTopicId,
@@ -962,7 +956,8 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       await db
         .insert(userTopic)
         .values({ userId: feedUserId, topicId: feedTopicId, weight: 1 });
-      await db.insert(item).values(
+      await insertHomedItems(
+        db,
         Array.from({ length: ITEM_COUNT }, (_, i) => ({
           source: i % 2 === 0 ? "wikipedia" : "met",
           sourceId: `test-router-feed-item-${i}-${nanoid(8)}`,

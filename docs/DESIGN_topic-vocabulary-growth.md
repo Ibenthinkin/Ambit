@@ -499,6 +499,13 @@ around 300 topics. `rebuild-topic-graph.ts` was written so 2b changes its sink, 
 > per-source cap in `composePage`, sibling of `topicCap`) and `MAX_TOPICS` (above). 2b stays
 > scale-triggered, as this section says; it is not a diversity tool.
 
+> **09-11-26 — the join half shipped after all, for a different reason.** Round 2 of mining
+> found the un-homed lens spent (1,272 of 164k) and the picker needing a vocabulary that only
+> total-frequency mining gives — and a topic promoted that way has a display pool of a handful.
+> The feed now draws on `item_topic` (`docs/DESIGN_feed-on-membership.md`), with the page
+> fetching only its planned topics so the cost stopped scaling with the vocabulary. The
+> `topic_edge` half stays scale-triggered as above.
+
 **And one feel question 2b inherits**: with 83 grown topics against 16 core, a sampled 96 cards came
 back 59 grown / 37 core. CORE still draws only core topics (weights come from chips), but DRIFT and
 JUMP now have 83 more places to go, so a drift-heavy mix spends most of the page outside what the

@@ -81,8 +81,12 @@ const ranked = rankCandidates(
 );
 const byRank = (a: { total: number; unhomed: number }, b: typeof a) =>
   rank === "total" ? b.total - a.total : b.unhomed - a.unhomed;
-const promoted = ranked.promoted.filter((s) => s.total >= minTotal).sort(byRank);
-const singleSource = ranked.singleSource.filter((s) => s.total >= minTotal).sort(byRank);
+const promoted = ranked.promoted
+  .filter((s) => s.total >= minTotal)
+  .sort(byRank);
+const singleSource = ranked.singleSource
+  .filter((s) => s.total >= minTotal)
+  .sort(byRank);
 
 const unhomedTotal = rows.filter((r) => r.topicId === null).length;
 const keep = new Set(promoted.map((p) => p.tag));
