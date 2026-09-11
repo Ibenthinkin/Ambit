@@ -241,6 +241,68 @@ server stopped, **port 3000 free**; `tailscale serve` still fronts :3000.
 
 _Session spend: 11.16M tok (in 790 · out 59.7k · cache r 9.76M / w 1.35M) · ~$19.65 · opus-5 + opus-4-7 · 13:33→15:03_
 
+**Diagnosed the same evening (Fable 5.1, a fifth session) — the `/feed` reload loop Ben hit
+opening `feat/chrome-redesign` (handoff in that branch's log block) is Next's dev client
+misreading Firefox, and the service worker was a red herring.** Reproduced in Playwright Firefox
+against a dev server on the branch, then fixed and re-run; committed on `main` at Ben's request.
+
+**Findings:**
+
+- **The mechanism.** Next 16.2.12's dev client, with `experimental.reactDebugChannel` on (the
+  default), has to decide at boot whether the document it is hydrating came fresh from the
+  server or was restored from the browser's HTTP cache — a restored one has no live debug
+  channel, so `createDebugChannel()` in `next/dist/client/dev/debug-channel.js` looks for a
+  sessionStorage copy keyed by the request id and, finding none, calls `location.reload()` and
+  parks the Flight client. "Restored" is `performance.getEntriesByType("navigation")[0].transferSize
+=== 0`. **Firefox leaves `transferSize` and `encodedBodySize` at 0 until the response has
+  finished** (measured: 0/0 at boot, 38,853 body bytes twenty seconds later on the same
+  document); Chromium in the same recipe hydrates once, so its entry is non-zero by the time
+  Next reads it. `/feed`'s response is
+  still open at boot because `app/feed/page.tsx` prefetches `feed.page` un-awaited and the pending
+  query streams in behind the shell — ~1.2 s in dev on membership pools, 1.5-9 s on 09-08. The
+  request id is minted fresh per render, so no cycle ever finds a stored channel, and the reload
+  fires before hydration: no tRPC, no ack, no console (Firefox clears it per navigation), and the
+  `GET /feed 200 in ~500 ms` lines in the dev log are the _aborted_ streams — the log prints
+  `feed.page took 1,200 ms` after each one because the server finished composing a page nobody
+  was waiting for.
+- **Why it hid.** Three conditions: Firefox, a _document_ load of `/feed` (typed URL or reload —
+  sign-in's `router.push` never trips it, which is every e2e path and both 09-08 attempts), and a
+  feed slow enough that the client boots first — new on 09-08 with the corpus growth. Clean
+  Firefox profile, cookies restored, `goto("/feed")`: **16 navigations in 15 s**. Same, Chromium:
+  hydrates once. Timeline fits: 7.3 measured the compose at 22 ms; the loop appeared the afternoon
+  the compose reached seconds.
+- **The service worker is real but secondary.** `bun run e2e:prod` does leave the production
+  Serwist worker installed on `localhost:3000` in any browser that touched the port, and a
+  worker-served document in Firefox also reports `transferSize: 0` — so it reproduces the loop
+  too (32 navigations in 20 s in a profile that had visited the prod build; `about:serviceworkers`
+  is the honest list). But a fix that only unregistered the worker earlier (an inline `<head>`
+  script — built, verified to remove the worker, and reverted) left the loop running: once the
+  worker was gone the document still streamed, and Firefox still said 0. Chromium under the same
+  worker: no loop, one corrective reload from `SwCleanup`, hydrated. With the debug channel off,
+  `SwCleanup`'s post-hydration cleanup is reached and does exactly that in Firefox as well.
+- **Upstream already fixed it.** 16.3.5's `wasServedFromCacheKnownAtExec` treats
+  `encodedBodySize === 0` at boot as "still streaming or WebKit — undecided, re-check at
+  `pageshow`", and applies the size heuristic to `back_forward` navigations only; the canary has
+  no size heuristic at all. This app is on 16.2.12.
+- Discriminator that settled it, for the record: the same profile and server with
+  `performance.getEntriesByType` shimmed to report `transferSize: 1` → one reload, hydrated feed.
+
+**Decisions:** `experimental.reactDebugChannel: false` in `next.config.js` (dev-only in effect;
+the debug info rides in the RSC payload as it did before 16.2), pinned by
+`src/next-config.test.ts`; both retire on a Next ≥ 16.3.5 upgrade, which is the durable fix and
+Ben's call. Committed on `main`, not the branch — it is unrelated to the redesign.
+
+**Verified:** clean-profile Firefox direct `/feed` with the flag off: hydrates, `markSeen` fires;
+worker-profile Firefox: `SwCleanup`'s one reload, then hydrated. `bun run check`: typecheck and
+lint clean, 1,263 of 1,264 tests, the one red the known `70sscifiart` `<details>` row. Four throwaway `ambit-reload-repro-*@example.com` users are left in the dev database, as
+the e2e specs' own users are.
+
+**Open / next:** bump Next past 16.3.5 when convenient and retire the flag and its test; then the
+chrome-redesign browser review this was blocking. Report upstream is optional — the heuristic is
+already gone from 16.3.
+
+_Session spend: 19.27M tok (in 3.3k · out 187.0k · cache r 18.58M / w 503.8k) · fable-5-1 · 15:06→15:34_
+
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
 Ben's morning brief said production was thousands of images behind the Mac. It is: **29,062

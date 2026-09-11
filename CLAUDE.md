@@ -116,8 +116,9 @@ materialising it grew to 2.6 GB in eight page loads and stalled unrelated reques
 `bun run bench:feed` and `bun run probe:feed`'s score summary are the before/after. The 22 ms in
 the 7.3 sentence above was measured against 9,848 rows. **Sub-project 3 of Ben's desktop review — the chrome redesign — was built 09-11-26 on
 `feat/chrome-redesign` (see its bullet under Architecture); list screens are sub-project 4,
-unwritten.** **Opening it, Ben hit a `/feed` reload loop — open, handed to a fresh
-session; start from the "Handoff" block in `log.md` 09-11 (same signature as 09-08's).** Pick the thread up from
+unwritten.** **Opening it, Ben hit a `/feed` reload loop — diagnosed and fixed on `main` the same evening
+(`596a26a`, merged into this branch): Next 16.2's dev client misreading Firefox on a still-streaming
+`/feed`, not the branch and not the service worker — see the local-dev bullet below.** Pick the thread up from
 `docs/HANDOFF_sources-round2.md` **§0** — streetartnews and spoon-tamago as a cold-executable
 seven-step task (config rows on the factory, verdict after each) — then Europeana / Openverse /
 Chronicling America. See
@@ -296,6 +297,24 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 - Never render unsanitized source HTML.
 
 ## Local dev environment
+
+**A `/feed` that reloads itself forever in Firefox under `next dev` is Next's dev client, not
+the app** (diagnosed 09-11-26; it ate the afternoons of 09-08 and 09-11). Signature: runs of
+`GET /feed 200` in the dev log, one every ~600 ms, not one `/api/trpc` call between them, and
+nothing in the console because Firefox clears it on every navigation. Cause: with
+`experimental.reactDebugChannel` on (Next 16.2's default) the client decides at boot whether
+the document was restored from the HTTP cache by reading `transferSize === 0` off the
+navigation-timing entry, and **Firefox reports 0 until the response has finished** — which
+`/feed` has not, because its un-awaited `feed.page` prefetch keeps the stream open for as long
+as a page takes to compose (~1.2 s in dev). Chromium never loops in the same
+recipe. So it needs three things at once: Firefox, a _document_ load of `/feed` (typing the URL
+or reloading — a client-side navigation from sign-in never trips it), and a feed slow enough
+that Next's client boots before the stream ends; the third arrived on 09-08 with the corpus
+growth. `next.config.js` turns the flag off, `src/next-config.test.ts` pins it, and Next
+≥ 16.3.5 (which decides the cache question differently) retires both. A stale production
+service worker on `localhost:3000` (left by `bun run e2e:prod` in any browser that touched the
+port) also makes Firefox report 0 and was the first suspect; it is real but secondary — the
+existing `SwCleanup` handles it once the page is allowed to hydrate.
 
 - **Ambit must own port 3000.** `BETTER_AUTH_URL` is pinned to `http://localhost:3000`, so every auth callback and password-reset link points at whatever is listening there — and `tailscale serve --bg 3000`, which is how device passes get HTTPS, fronts the same port. An unrelated `node` app has been squatting 3000 since 08-16; run `lsof -ti:3000` and clear it before starting a dev server or a device pass.
 - **Run device passes over HTTPS, not `http://` on the LAN.** The Web Share API is secure-context only, so on plain HTTP `navigator.share` is `undefined` rather than broken — share, clipboard and service workers silently can't be tested at all. Use the tailnet origin (`https://macbook-air-m5.halley-morpho.ts.net`); it and every other dev origin must be listed in `src/config/dev-origins.js`.
