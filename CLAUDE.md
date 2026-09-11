@@ -281,6 +281,24 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 
 ## Local dev environment
 
+**A `/feed` that reloads itself forever in Firefox under `next dev` is Next's dev client, not
+the app** (diagnosed 09-11-26; it ate the afternoons of 09-08 and 09-11). Signature: runs of
+`GET /feed 200` in the dev log, one every ~600 ms, not one `/api/trpc` call between them, and
+nothing in the console because Firefox clears it on every navigation. Cause: with
+`experimental.reactDebugChannel` on (Next 16.2's default) the client decides at boot whether
+the document was restored from the HTTP cache by reading `transferSize === 0` off the
+navigation-timing entry, and **Firefox reports 0 until the response has finished** — which
+`/feed` has not, because its un-awaited `feed.page` prefetch keeps the stream open for as long
+as a page takes to compose (~1.2 s in dev). Chromium never loops in the same
+recipe. So it needs three things at once: Firefox, a _document_ load of `/feed` (typing the URL
+or reloading — a client-side navigation from sign-in never trips it), and a feed slow enough
+that Next's client boots before the stream ends; the third arrived on 09-08 with the corpus
+growth. `next.config.js` turns the flag off, `src/next-config.test.ts` pins it, and Next
+≥ 16.3.5 (which decides the cache question differently) retires both. A stale production
+service worker on `localhost:3000` (left by `bun run e2e:prod` in any browser that touched the
+port) also makes Firefox report 0 and was the first suspect; it is real but secondary — the
+existing `SwCleanup` handles it once the page is allowed to hydrate.
+
 - **Ambit must own port 3000.** `BETTER_AUTH_URL` is pinned to `http://localhost:3000`, so every auth callback and password-reset link points at whatever is listening there — and `tailscale serve --bg 3000`, which is how device passes get HTTPS, fronts the same port. An unrelated `node` app has been squatting 3000 since 08-16; run `lsof -ti:3000` and clear it before starting a dev server or a device pass.
 - **Run device passes over HTTPS, not `http://` on the LAN.** The Web Share API is secure-context only, so on plain HTTP `navigator.share` is `undefined` rather than broken — share, clipboard and service workers silently can't be tested at all. Use the tailnet origin (`https://macbook-air-m5.halley-morpho.ts.net`); it and every other dev origin must be listed in `src/config/dev-origins.js`.
 - **`services/feed.integration.test.ts`'s cursor-stability test fails ~1 local run in 10, and the

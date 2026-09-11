@@ -43,6 +43,37 @@ const config = {
   // completely different check — see that file for why the two have to agree.
   allowedDevOrigins: DEV_ORIGIN_HOSTS,
 
+  experimental: {
+    // **Off, because on it puts `/feed` into a reload loop in Firefox (09-11-26).** Dev-only in
+    // effect (Next reads it only under `next dev`), harmless in a production build.
+    //
+    // What the flag does: in dev, Next 16 sends React's Server Components debug info over the
+    // HMR WebSocket ("the debug channel") instead of inside the RSC payload, and the client has
+    // to decide at boot whether the document it is hydrating was served fresh or restored from
+    // the browser's HTTP cache — a restored one has no live channel, so Next force-reloads it.
+    // 16.2.12 makes that call from the navigation-timing entry's `transferSize === 0`
+    // (`wasServedFromCache()` in `next/dist/client/dev/debug-channel.js`). Firefox leaves
+    // `transferSize` and `encodedBodySize` at 0 until the response has *finished*; Chromium does
+    // not trip the check in the same recipe. `/feed`'s response stays open for as long as `feed.page` takes,
+    // because `app/feed/page.tsx` prefetches it un-awaited and the pending query streams in
+    // after the shell — ~1.2 s in dev since the feed moved onto membership pools, and 1.5-9 s on
+    // 09-08 when `getTopicPools` had stopped scaling. Next's client boots at ~400 ms. So in
+    // Firefox every direct load of `/feed` reads as "served from cache", finds no stored channel
+    // (the request id is minted fresh per render), and calls `location.reload()` before
+    // hydration — forever, at ~600 ms a cycle, with not one tRPC call between loads. That is the
+    // 33-`GET /feed` signature of 09-08 and 09-11. Reproduced 09-11-26 in a clean Playwright
+    // Firefox profile with no service worker (16 navigations in 15 s); Chromium in the same
+    // recipe hydrates once. A signed-in reader who reaches `/feed` by client navigation never
+    // sees it, which is why it hid from every earlier attempt.
+    //
+    // Next 16.3.x rewrote the check (`wasServedFromCacheKnownAtExec`): a still-streaming
+    // response is treated as undecided, and the size heuristic only applies to back/forward
+    // navigations. **Upgrading past 16.3.5 is the durable fix; delete this key when that lands.**
+    // What the flag costs while off: the debug info rides in the RSC payload instead, which is
+    // how every Next before 16.2 shipped it. `next-config.test.ts` pins the value.
+    reactDebugChannel: false,
+  },
+
   /**
    * The security headers every response carries (SPEC §11, Phase 7.2). The values live in
    * `src/config/security-headers.js` so that this file and `src/proxy.ts` cannot drift apart, and
