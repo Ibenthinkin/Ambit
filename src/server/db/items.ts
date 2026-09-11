@@ -182,9 +182,13 @@ function weightedSampleWithoutReplacement<T>(
 }
 
 /**
- * The feed's item-pick step (SPEC §9.2): weighted-random draw of unseen items in `topicId` above
- * `scoreFloor` — weight = drawWeight(...) above. Never similarity-ranked (SPEC §9 — that was the
- * Phase 0.4 failure the whole tiered-topic-drift design replaced).
+ * A weighted-random draw of unseen items whose DISPLAY topic is `topicId`, above `scoreFloor` —
+ * weight = drawWeight(...) above. This was the feed's item-pick step (SPEC §9.2) until Phase 7.3
+ * moved the feed onto batched pools (db/feed.ts `getTopicPools`), and since 09-11-26 those pools
+ * come from `item_topic` membership while this still reads `item.topic_id`: its callers are the
+ * wander teaser and the gallery rail, for which a picture's *display* topic is the honest anchor
+ * of its neighbourhood. Never similarity-ranked (SPEC §9 — that was the Phase 0.4 failure the
+ * whole tiered-topic-drift design replaced).
  */
 export async function drawFromTopic(
   topicId: string,

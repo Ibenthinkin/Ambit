@@ -157,8 +157,9 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `item_topic (item_id, topic_id, origin)` holds membership, additive, never retracted by code;
   classify returns an array (possibly empty) and nothing was re-billed; the ingest summary prints
   the un-homed count **and their tag histogram** — read that line before any source verdict. **What
-  it did not:** the feed still reads `topic_id`, so un-homed items are invisible to it until Cut 2
-  (promotion + moving the feed onto the join); the ~3,500 items 6.3 dropped come back with a
+  it did not:** un-homed items reach the feed only as WILD cards; **the feed draws on
+  `item_topic` since 09-11-26** (`docs/DESIGN_feed-on-membership.md`); the ~3,500 items 6.3
+  dropped come back with a
   re-walk of each blog, free from the curation cache.
   **Cut 2a shipped 09-02-26** (plan `docs/PLAN_topic-vocabulary-cut2.md`): the vocabulary is now
   **99 topics — 16 `original` + 83 `grown`** mined from the corpus's own tags, and the un-homed backlog
@@ -173,8 +174,9 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   onboarding at 16 chips: `listTopics()` was core only, `listAllTopics()` everything. **Two
   things to know before building on it.** The feed now spends most of a page outside the reader's
   own picks (a sampled 96 cards: 59 grown / 37 original) — intended in direction, untuned in degree,
-  and the open feel question for **Cut 2b** (the `topic_edge` table + moving the feed onto the
-  join; not urgent until ~300 topics). And `bun run promote:topics`'s **dry run over-counts** — it
+  and the open feel question for **Cut 2b** (the `topic_edge` table; the join move shipped
+  09-11-26, not urgent until ~300 topics). And `bun run promote:topics`'s **dry run
+  over-counts** — it
   measures each topic's un-homed set against the untouched database, so an item carrying three
   ticked tags is counted three times; the write's number is the honest one.
 - **Topics have a `facet`, and every one of them is pickable — 09-10-26** (design
@@ -187,8 +189,8 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   whole vocabulary: **onboarding is four stages, one facet each** (floor of three picks in total),
   and **`/profile/topics`** is the same list in four tabs, saved on every toggle (floor of one),
   replacing Settings' deleted "What you see" sheet. `facet IS NULL` means *not pickable*: an
-  unclassified fresh promotion, or an era topic (`19th-century`) whose pool would be empty until
-  Cut 2b; `promote:topics` now refuses a ticked proposal without a facet, and `mine:topics` writes
+  unclassified fresh promotion, or an era topic (`19th-century`), tag-only by decision;
+  `promote:topics` now refuses a ticked proposal without a facet, and `mine:topics` writes
   a `<!-- facet: ? -->` slot for the verdict to fill. **The tier `core` is renamed `original`**
   (migration 0007) — the sixteen were the first words anyone thought of, not a curated centre.
   Two things that follow and are easy to miss: **CORE slots can now name a grown topic**, because
@@ -241,6 +243,25 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `bun run repair:periods` are the two dated exceptions to the additivity rule and **must run in
   the production container after the next deploy**. Cut 2b was sized against this and deferred:
   the join move does not dissolve a blog's topic capture (90-98% by membership too).
+- **The feed draws on membership and fetches to plan — 09-11-26** (design
+  `docs/DESIGN_feed-on-membership.md`, plan `docs/PLAN_feed-on-membership.md`; branch
+  `feat/feed-on-membership`, merged only after Ben reads `/feed` on it).
+  `getTopicPools` samples `item_topic ⋈ item`, so a topic's pool is its whole membership
+  (`surreal` 3,919 → 26,701 drawable) and a promoted topic is full from its first page.
+  `composePage` takes a topic stream (`rng`) and an item stream (`itemRng`, default `rng`);
+  `planTopics` replays the topic sequence without pools and `getFeedPage` fetches ~30-40 pools
+  instead of ~100 reachable, falling back to the reachable set only when a page composes
+  short (`FeedPage.debug` under `FEED_DEBUG` says so; `bench:feed` counts it). `pickItem`
+  refuses an id already drawn this page. `PoolItem.topicId` is the *pool's* topic; the
+  display topic (`item.topic_id`) still drives the item page, saves and the rail. Fixtures
+  must write membership — `db/test-fixtures.ts`'s `insertHomedItems`, and e2e's
+  `writeMemberships` (which `seedFeedCorpus` calls) — or a seeded item is in no pool. **Cost,
+  measured:** p50 176-250 ms against 159-163 before, same minutes, three accounts — under SPEC's
+  300 ms bar but *slower* at today's 104 topics, because the planned topics are the big ones and
+  their ~125k-180k memberships sort past 4 MB `work_mem`; what it buys is that the cost no longer
+  grows with the vocabulary. **Round 2 of the vocabulary is unblocked:**
+  `docs/topic-proposals-round2.md` (267 candidates ranked by total, `mine:topics --rank total`),
+  `promote:topics --file`, and `sh .cache/promote-prod.sh docs/topic-proposals-round2.md`.
 - **Feed composition** (SPEC §9) = per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25 — drift-heavy on purpose) → topic via the user's weights or a graph walk → item via curated-weighted random, under diversity constraints (no adjacent same-source; per-page topic caps). Saves reweight _topics_, visibly. Cursor-based pagination; the cursor encodes the page seed. Debug overlay + tuning knobs ship behind a dev flag throughout development.
 - **Auth boundary**: all user-scoped queries filter by `userId`; the only public surface is `items.byId` / `/i/[itemId]`.
 

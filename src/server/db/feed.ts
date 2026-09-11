@@ -51,10 +51,13 @@ export type PoolItem = Pick<
  * (`seen_item.served_at < anchor` — a strict `<`, deliberately not `<=`; see schema.ts's comment
  * on `seenItem.servedAt` for why), excluding `excludeIds` (the previous page's own item ids — a
  * separate guard because they share `anchor` exactly). `topicIds` is the page's *planned* topics
- * (services/feed.ts's `planTopics` → `getFeedPage`), not every topic the page could reach. Walks
- * `idx_item_topic_topic` for the `IN (...)` half and joins `item` by primary key for the rest;
- * at a few dozen topics that is the plan Postgres picks, at a hundred it seq-scans both — which
- * is the other reason `getFeedPage` asks for few.
+ * (services/feed.ts's `planTopics` → `getFeedPage`), not every topic the page could reach.
+ * What Postgres does with it (EXPLAIN ANALYZE, 09-11-26, 164k items / 459k memberships): for ~24
+ * topics it bitmap-scans `idx_item_topic_topic`, by ~33 it seq-scans `item_topic` instead, and
+ * either way it hash-joins a seq scan of `item`. The real cost is neither scan but the sort
+ * feeding the window functions — ~125k-180k membership rows, which spills past the default 4 MB
+ * `work_mem`. Rows ranked grow with the topics asked for, which is the other reason
+ * `getFeedPage` asks for few.
  *
  * Returns a Map keyed by every id in `topicIds` (even ones with zero eligible items — an empty
  * array, not a missing key) so services/feed.ts's `composePage` can do a plain `.get(topicId)`

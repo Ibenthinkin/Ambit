@@ -2,7 +2,9 @@
 
 **Written:** 09-11-26 by Fable 5.1, from the finding that opened the topic-mining round 2 (below).
 **Status:** approved by Ben 09-11-26 ("approach 2, might as well go all the way"); plan
-`docs/PLAN_feed-on-membership.md`. This is the half of Cut 2b that moves the feed onto
+`docs/PLAN_feed-on-membership.md`. **Shipped 09-11-26 on `feat/feed-on-membership`** — not
+merged: Ben reads `/feed` on the branch first (§6, "Feel"). Measured in §9, which is where one
+acceptance line (§7, "not worse than before") is recorded as missed. This is the half of Cut 2b that moves the feed onto
 `item_topic`. The other half — the `topic_edge` table — stays deferred, for the reason
 `docs/DESIGN_topic-vocabulary-growth.md` §11 gives (it is a scale trigger at ~300 topics, and
 nothing here changes that arithmetic).
@@ -191,3 +193,57 @@ left unticked — period topics are tag-only, 09-07-26), then `bun run promote:t
 docs/topic-proposals-round2.md --confirm`, `bun run graph:rebuild --confirm`, and the same two in
 the production container after the deploy (`.cache/promote-prod.sh` needs the `--file` flag added).
 A promoted topic's pool is then its whole membership from the first page.
+
+## 9. Measured after
+
+Taken 09-11-26 on the Mac with nothing else running (no ingest, no dev server, no test run; `ps`
+checked before each). The "same minutes" rows are the honest comparison: a throwaway checkout at
+`6d6ad32` (pre-change) and the branch, run alternately per account so any drift in the machine
+lands on both sides. 12 pages each, `bun run bench:feed --user <email>`.
+
+| account | picks | before p50 / p95 | after p50 / p95 | planned topics / page | fallbacks |
+|---|---|---|---|---|---|
+| Ben's own (`benjamin.reilly@…`) | 3 | 163 / 183 ms | **176 / 271 ms** | 28 (22-31) | 0 of 12 |
+| `persona-sam` | 6 | 159 / 166 ms | **225 / 259 ms** | 31 (26-37) | 0 of 12 |
+| `ben-e2e` (cold start: the sixteen) | 0 | 162 / 167 ms | **250 / 274 ms** | 37 (32-40) | 0 of 12 |
+
+Task 1's baseline on `ben-e2e`, an hour earlier, agrees: 164 / 206 ms before, 247 / 286 ms after.
+`getTopicPools` across all 104 topics in one call — the ceiling, not a page's cost — went from
+~157-160 ms / 4,918 rows / 0.8 MB to ~430-443 ms / 5,943 rows / 0.9 MB: memberships, as §3
+predicted.
+
+**Against §7:** p50 ≤ 300 ms — **met** on all three. Fallback ≤ 1 in 12 — **met** (0 in 36).
+"Not worse than before" — **missed**: +13 ms p50 for Ben's own account, +66 and +88 ms for the
+six-pick persona and the cold start, and p95 up ~90-100 ms throughout. Per the plan this is
+recorded, not tuned.
+
+**Why, from `EXPLAIN (ANALYZE, BUFFERS)`** (`.cache/explain-pools.ts`, one planned fetch):
+
+- Ben's account, 24 planned topics: `Bitmap Index Scan on idx_item_topic_topic` (126k membership
+  rows) → `Parallel Hash Join` against a **`Parallel Seq Scan on item`** → hash anti-join on
+  `seen_item` → a sort of 124k rows that **spills** (`external merge`, ~3.8 MB per worker × 3) →
+  131 ms execution.
+- Cold start, 33 planned topics: the planner has already switched to **`Parallel Seq Scan on
+  item_topic`** (180k rows); same join, spill ~5.5 MB × 3, 177 ms.
+
+Two things the design did not predict. **The seq-scan flip comes at ~33 topics, not ~100** (§6
+guessed 100); and `item` is hash-joined off a seq scan rather than looked up by primary key. Neither
+is the cost: the sort feeding the window functions is. The planned topics are the *big* ones —
+a reader's picks and their strongest graph neighbours are, by construction, the well-populated
+topics — so 24-37 of them hold ~125k-180k memberships, about as many rows as the old query ranked
+across all 104 display pools, now through a join and a disk sort. At today's vocabulary the plan
+buys back roughly the 2.8× membership multiplier and no more.
+
+What the plan *does* buy is the property §3 asked for: the page's cost follows the ~30-40 planned
+topics, not the vocabulary. Round 2 would take the reachable set to ~370 topics; the every-reachable
+shape on the join extrapolates to ~700 ms there, the planned shape stays at the same thirty-odd
+topics. **Levers, if Ben wants the last 15-90 ms back (none taken here):** `SET LOCAL work_mem`
+for this one query (§3 measured 64 MB at ~40 ms saved — it removes the spill); a covering index
+`item_topic (topic_id, item_id)` so the join reads no heap; or a smaller per-source cap. The
+horizon is not a lever — it changes how many topics a page may *need*, not what each costs.
+
+**Probe** (`bun run probe:feed --user ben-e2e@example.com --pages 3`): twelve-card pages, tier mix
+CORE 41 / DRIFT 38 / JUMP 22 against 40/35/25, no source above `sourceCap`, zero adjacency
+violations, and **13 of 36 cards served under a topic other than their display topic** — the join
+reaching the feed (`water` serving a `70sscifiart` illustration, `new-york` a Berenice Abbott filed
+under `architecture`, `trees` a root-bench installation filed under `architecture`).
