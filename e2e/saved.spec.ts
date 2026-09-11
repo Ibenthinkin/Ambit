@@ -12,6 +12,7 @@ import {
   saveSession,
   type Connection,
   waitForFeedToSettle,
+  writeMemberships,
 } from "./support";
 
 // The Saved screen (5.9) against a real server and Postgres — locally the dev server, and since
@@ -50,7 +51,7 @@ test.describe.serial("saved", () => {
   test.beforeAll(async () => {
     conn = await connect();
 
-    await conn.db
+    const seeded = await conn.db
       .insert(conn.item)
       .values(
         Array.from({ length: SEED_COUNT }, (_, i) => ({
@@ -68,7 +69,11 @@ test.describe.serial("saved", () => {
           curationScore: 9,
         })),
       )
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ id: conn.item.id, topicId: conn.item.topicId });
+    // The feed draws on `item_topic` membership since 09-11-26, so a seeded row needs a
+    // membership to be drawable — see support.ts's writeMemberships().
+    await writeMemberships(conn, seeded);
 
     inviteUser(EMAIL);
   });

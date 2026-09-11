@@ -23,6 +23,7 @@ import {
   TOPIC_POOL_SAMPLE,
 } from "./feed";
 import { drawFromTopic } from "./items";
+import { insertHomedItems } from "./test-fixtures";
 
 describe.skipIf(!process.env.DATABASE_URL)(
   "suspended-source filtering (integration)",
@@ -33,7 +34,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     beforeAll(async () => {
       const { db } = await import("~/server/db/client");
-      const { item, topic, user } = await import("~/server/db/schema");
+      const { topic, user } = await import("~/server/db/schema");
 
       await db.insert(topic).values({
         id: topicId,
@@ -50,7 +51,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
       // One row per suspended source plus a live one, all otherwise identical and all comfortably
       // above any score floor — so anything missing from the pool is missing because of the source
       // filter and nothing else.
-      await db.insert(item).values(
+      await insertHomedItems(
+        db,
         ["met", "doorofperception", ...SUSPENDED_SOURCES].map((source, i) => ({
           source,
           sourceId: `${sourceIdPrefix}${i}`,
@@ -399,7 +401,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     beforeAll(async () => {
       const { db } = await import("~/server/db/client");
-      const { item, topic, user } = await import("~/server/db/schema");
+      const { topic, user } = await import("~/server/db/schema");
       await db.insert(topic).values([
         {
           id: topicId,
@@ -430,7 +432,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
         email: `${userId}@example.com`,
         emailVerified: false,
       });
-      await db.insert(item).values(
+      await insertHomedItems(
+        db,
         SOURCES.flatMap((source, s) =>
           Array.from({ length: PER_SOURCE }, (_, i) => ({
             source,
@@ -516,7 +519,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
           ),
         ),
       ];
-      await db.insert(item).values(
+      await insertHomedItems(
+        db,
         planted.map(([source, key]) => ({
           source,
           sourceId: `${lopPrefix}${key}`,

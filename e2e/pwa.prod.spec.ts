@@ -7,6 +7,7 @@ import {
   inviteUser,
   openAuthSheet,
   type Connection,
+  writeMemberships,
 } from "./support";
 
 // **Part of `bun run e2e:prod` and of CI (Phase 7.1), but not of `bun run e2e`** —
@@ -58,7 +59,7 @@ test.describe.serial("pwa verification (production build)", () => {
   test.beforeAll(async () => {
     conn = await connect();
 
-    await conn.db
+    const seeded = await conn.db
       .insert(conn.item)
       .values(
         Array.from({ length: SEED_COUNT }, (_, i) => ({
@@ -76,7 +77,11 @@ test.describe.serial("pwa verification (production build)", () => {
           curationScore: 9,
         })),
       )
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ id: conn.item.id, topicId: conn.item.topicId });
+    // The feed draws on `item_topic` membership since 09-11-26, so a seeded row needs a
+    // membership to be drawable — see support.ts's writeMemberships().
+    await writeMemberships(conn, seeded);
 
     inviteUser(EMAIL);
   });

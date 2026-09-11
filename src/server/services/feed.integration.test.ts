@@ -30,6 +30,7 @@ import { and, eq, like } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import { insertHomedItems } from "~/server/db/test-fixtures";
 import { getFeedPage, type FeedPage } from "./feed";
 
 describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
@@ -57,7 +58,7 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
 
   beforeAll(async () => {
     const { db } = await import("~/server/db/client");
-    const { item, topic, user, userTopic } = await import("~/server/db/schema");
+    const { topic, user, userTopic } = await import("~/server/db/schema");
 
     await db.insert(topic).values({
       id: topicId,
@@ -74,7 +75,8 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
     // Alternate two sources evenly so the source-adjacency constraint never has to relax within a
     // 3-card page (keeps this fixture's behavior fully deterministic in shape, if not in which
     // exact items land where — the item *pick* itself is still weighted-random).
-    await db.insert(item).values(
+    await insertHomedItems(
+      db,
       Array.from({ length: ITEM_COUNT }, (_, i) => ({
         source: i % 2 === 0 ? "wikipedia" : "met",
         sourceId: `${sourceIdPrefix}${i}`,

@@ -11,6 +11,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { addItemTopics, drawFromTopic, upsertItem } from "./items";
 import { item, itemTopic, topic } from "./schema";
+import { insertHomedItems } from "./test-fixtures";
 
 describe.skipIf(!process.env.DATABASE_URL)(
   "drawFromTopic (integration)",
@@ -33,7 +34,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
         label: "Test draw-from-topic topic",
         seedQueries: { wikipedia: [], met: [], aic: [], cma: [], wellcome: [] },
       });
-      await db.insert(item).values(
+      await insertHomedItems(
+        db,
         scores.map((score, i) => ({
           source: "wikipedia" as const,
           sourceId: `${sourceIdPrefix}${i}`,
