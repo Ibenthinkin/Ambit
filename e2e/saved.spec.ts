@@ -232,7 +232,7 @@ test.describe.serial("saved", () => {
     await expect(page.locator("[data-saved-id]")).toHaveCount(2);
   });
 
-  test("an image tile opens the gallery, an article tile opens the reader", async ({
+  test("an image tile opens the item screen, an article tile opens the reader", async ({
     page,
   }) => {
     const { db, item } = conn;
@@ -248,7 +248,9 @@ test.describe.serial("saved", () => {
     // `> *` then .first(): the pressable tile is the wrapper's first child; the second is the
     // unsave badge, which must NOT be what this click lands on.
     await page.locator(`[data-saved-id="${imageItemId}"] > *`).first().click();
-    await page.waitForURL(`/g/${imageItemId}`);
+    // The merged item screen since 09-10-26 — the gallery at `/g/` is a redirect now.
+    await page.waitForURL(`/i/${imageItemId}`);
+    await expect(page.getByTestId("gallery-track")).toBeVisible();
 
     await page.goBack();
     await page.waitForURL(/\/saved/);

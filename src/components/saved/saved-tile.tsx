@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { ArticleCard } from "~/components/feed/article-card";
 import { ImageTile } from "~/components/feed/image-tile";
 import type { FeedTile } from "~/components/feed/masonry";
-import { markGalleryOrigin } from "~/components/gallery/gallery-origin";
 import { Bookmark } from "~/components/icons";
 import { Rise } from "~/components/ui/rise";
 
@@ -31,19 +30,14 @@ export function SavedTile({ tile, onUnsave }: SavedTileProps) {
   const router = useRouter();
   const { item } = tile.card;
 
-  // Byte-for-byte the `HeroGalleryLink` move: mark, then push, so the gallery's close gesture
-  // knows this screen is one entry down the stack and pops back to /saved. The marker is
-  // entry-agnostic by design (BUILD_PLAN:239) — the gallery needed zero changes for this.
-  const openGallery = () => {
-    markGalleryOrigin(item.id);
-    router.push(`/g/${item.id}`);
-  };
-
+  // Every tile opens the item page — a picture's is the merged screen since 09-10-26 (the gallery
+  // at `/g/`, and the gallery-origin marker this used to write, are gone).
+  //
   // Deliberately NO `markFeedOrigin` before this push. That marker semantically means "the *feed*
-  // is one entry down"; writing it from here would make the item page's pill pop back to Saved
-  // under a button labeled Feed. Accepted seam: the reader's swipe-back from a Saved-opened item
-  // page pushes a fresh `/feed?focus=` (browser back still returns here).
-  const openReader = () => {
+  // is one entry down"; writing it from here would make the item page's Escape and pill pop back
+  // to Saved under a button labeled Feed. Accepted seam: leaving a Saved-opened item page pushes a
+  // fresh `/feed?focus=` (browser back still returns here).
+  const openItem = () => {
     router.push(`/i/${item.id}`);
   };
 
@@ -56,10 +50,10 @@ export function SavedTile({ tile, onUnsave }: SavedTileProps) {
           <ImageTile
             card={tile.card}
             aspectClass={tile.aspectClass}
-            onTap={openGallery}
+            onTap={openItem}
           />
         ) : (
-          <ArticleCard card={tile.card} onTap={openReader} />
+          <ArticleCard card={tile.card} onTap={openItem} />
         )}
         {/* Two badge treatments from the prototype: a glass circle over imagery (needs the blur
             and stronger border to stay legible on arbitrary pictures), a flat one on the already-

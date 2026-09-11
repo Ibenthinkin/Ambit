@@ -8,7 +8,9 @@ import type { Item } from "~/server/db/items";
 // set of items that reproduce PDR's text, and a PDR link card (no body) correctly gets nothing.
 // Server-safe: a plain paragraph and an anchor.
 export interface ReuseNoticeProps {
-  item: Item;
+  /** Only the three fields it reads — a `RailItem` (the merged item screen) satisfies this as
+   *  readily as an `Item` (the reader page). */
+  item: Pick<Item, "source" | "sourceUrl" | "body">;
 }
 
 export function ReuseNotice({ item }: ReuseNoticeProps) {

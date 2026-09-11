@@ -29,6 +29,18 @@ vi.mock("~/server/db/items", () => ({
   drawImageAnywhere: mockDrawImageAnywhere,
 }));
 vi.mock("~/env", () => ({ env: mockEnv }));
+// The one query the shell makes of its own: every drawn cell's topic label (09-10-26). Partial, so
+// `feed.ts`'s import of `getUserTopicWeights` still resolves; the labels are the ids upper-cased so
+// a test can tell a resolved label from a missing one.
+vi.mock("~/server/db/topics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/server/db/topics")>()),
+  topicLabelsFor: async (ids: readonly (string | null)[]) =>
+    new Map(
+      ids
+        .filter((id): id is string => id !== null)
+        .map((id) => [id, id.toUpperCase()]),
+    ),
+}));
 
 const GRAPH: TopicGraph = {
   botany: [
@@ -432,10 +444,12 @@ describe("getGalleryRail", () => {
       rng: mulberry32(hashSeed("shape")),
     });
 
-    // The wire shape is the privacy boundary: `/g/` renders for anonymous visitors, exactly like
-    // `/i/`. Nothing user-shaped, and nothing about scores or seen-state, crosses it.
+    // The wire shape is the privacy boundary: the merged item screen renders for anonymous
+    // visitors. Nothing user-shaped, and nothing about scores or seen-state, crosses it. `body` and
+    // `topicLabel` joined 09-10-26 — public item data the details below the picture print.
     expect(Object.keys(row!).sort()).toEqual([
       "attribution",
+      "body",
       "id",
       "imageUrl",
       "license",
@@ -444,6 +458,9 @@ describe("getGalleryRail", () => {
       "summary",
       "title",
       "topicId",
+      "topicLabel",
     ]);
+    // Resolved through `topicLabelsFor` (mocked above to upper-case the id), not the config.
+    expect(row!.topicLabel).toBe(row!.topicId!.toUpperCase());
   });
 });

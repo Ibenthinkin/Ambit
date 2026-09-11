@@ -4,8 +4,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { ImageItemBody } from "~/components/item/image-item-body";
 import { Column } from "~/components/ui/column";
+import { ItemScreen } from "~/components/item/item-screen";
 import { ItemShell } from "~/components/item/item-shell";
 import { JoinCta } from "~/components/item/join-cta";
 import { ReaderItemBody } from "~/components/item/reader-item-body";
@@ -14,13 +14,17 @@ import { WanderNext } from "~/components/item/wander-next";
 import { Rise } from "~/components/ui/rise";
 import { auth } from "~/lib/auth";
 import { getItemById } from "~/server/db/items";
+import { topicLabelsFor } from "~/server/db/topics";
+import { railItemFrom } from "~/server/services/gallery-rail";
 import { api } from "~/trpc/server";
 import { env } from "~/env";
 
 // The item page — the app's **one public surface** (SPEC §8.1). Anyone with the link can read it,
 // invite or not, which shapes almost every decision in this file:
 //
-//   - Two variants keyed on `item.type`: a picture with a caption, or an article to read.
+//   - Two variants keyed on `item.type`. A picture is `ItemScreen` — the merged screen since
+//     09-10-26 (docs/DESIGN_screen-structure.md), which absorbed the old `/g/` gallery: a rail hero
+//     edge to edge, the facts below it. An article is the reader, inside `ItemShell`.
 //   - The pill toolbar, the sheets, and every protected query render for signed-in readers ONLY.
 //     A signed-out visitor gets content, credit, the wander teaser, and an invitation — and the
 //     page fires no user-scoped query on their behalf, because there is no user.
@@ -101,13 +105,14 @@ export default async function ItemPage({
   const wander = await api.items.wanderNext({ itemId });
 
   const sharedBy = sharedByName((await searchParams).from);
-  const variant = item.type === "image" ? "image" : "article";
+  // First token only: a share link says "Mara shared this with you", not a full legal name.
+  const viewerName = session?.user.name?.trim().split(/\s+/)[0];
 
   // **Starts the hero's request before the browser has parsed the markup that needs it**
   // (Phase 7.3, T5). This is the LCP element of the app's one public page — the thing a stranger
   // following a shared link waits for — and `preload` puts a `<link rel="preload" as="image">` in
   // the document head, so the fetch begins with the HTML rather than after it. Paired with
-  // `fetchPriority="high"` on the `<img>` itself (image-item-body.tsx).
+  // `fetchPriority="high"` on the `<img>` itself (the rail's current cell, hero-rail.tsx).
   //
   // Only for a real proxied image: `data:` URLs are inline already (the e2e corpus), and
   // preloading something the page won't request is a wasted connection plus a console warning.
@@ -115,6 +120,35 @@ export default async function ItemPage({
     preload(`/api/img/${item.id}`, { as: "image", fetchPriority: "high" });
   }
 
+  // A picture is the merged screen (09-10-26). The rail is drawn here so the page opens on cells
+  // that already exist — a hero that spent its first moment fetching would be a blank strip, the
+  // one thing it must never be — and the entry item goes in the rail's own shape, so cell zero is
+  // indistinguishable from the rest. `galleryRail` is public and writes nothing (routers/items.ts).
+  if (item.type === "image") {
+    const [rail, labels] = await Promise.all([
+      api.items.galleryRail({ itemId, count: 8 }),
+      topicLabelsFor([item.topicId]),
+    ]);
+    const entryItem = railItemFrom(
+      item,
+      item.topicId ? (labels.get(item.topicId) ?? null) : null,
+    );
+    return (
+      <ItemScreen
+        entryItem={entryItem}
+        // Entry first: the reader is already looking at it, so it's cell zero, and everything
+        // drawn lies ahead of it on the rail.
+        initialRail={[entryItem, ...rail]}
+        initialWander={wander}
+        authed={Boolean(session)}
+        appUrl={env.BETTER_AUTH_URL}
+        viewerName={viewerName}
+        sharedBy={sharedBy}
+      />
+    );
+  }
+
+  // An article keeps the reader layout, inside the shell that gives it the pill and the exits.
   return (
     <ItemShell
       itemId={item.id}
@@ -122,8 +156,7 @@ export default async function ItemPage({
       hasImage={Boolean(item.imageUrl)}
       authed={Boolean(session)}
       appUrl={env.BETTER_AUTH_URL}
-      // First token only: a share link says "Mara shared this with you", not a full legal name.
-      viewerName={session?.user.name?.trim().split(/\s+/)[0]}
+      viewerName={viewerName}
     >
       {/* Bottom padding clears the floating pill; the column width and gutters are the redesign's. */}
       <main className="bg-bg text-ink min-h-dvh pt-[68px] pb-[110px]">
@@ -140,11 +173,7 @@ export default async function ItemPage({
 
           <Rise delayMs={50}>
             <div className="mt-[18px]">
-              {variant === "image" ? (
-                <ImageItemBody item={item} />
-              ) : (
-                <ReaderItemBody item={item} />
-              )}
+              <ReaderItemBody item={item} />
             </div>
           </Rise>
 
@@ -154,7 +183,7 @@ export default async function ItemPage({
 
           {session ? null : (
             <Rise delayMs={160}>
-              <JoinCta variant={variant} />
+              <JoinCta variant="article" />
             </Rise>
           )}
         </Column>

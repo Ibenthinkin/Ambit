@@ -189,6 +189,33 @@ test.describe.serial("feed", () => {
   // client query drew one). Found on-device 08-20-26. The assertions below are the guard: same
   // tiles, and nothing drawn. Both halves still matter with receipt-based marking — a fresh draw
   // is a fresh page of cards whether or not it gets acked.
+
+  test("the item sheet makes a new collection and files the tile into it, and offers Share", async ({
+    page,
+  }) => {
+    await onFeed(page);
+    const tile = page.locator("[data-feed-id] > *").first();
+    const box = (await tile.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(550);
+    await page.mouse.up();
+
+    const sheet = page.getByTestId("bottom-sheet-panel");
+    await expect(
+      sheet.getByRole("button", { name: "Share", exact: true }),
+    ).toBeVisible();
+    await sheet.getByRole("button", { name: /New collection/ }).click();
+    const name = `Made from a tile ${Date.now()}`;
+    await sheet.getByLabel("Collection name").fill(name);
+    await sheet.getByRole("button", { name: "Create" }).click();
+    // One step, as the design asks: made, and the tile filed into it — the feed's own save toast.
+    await expect(
+      page.getByText(`Saved to ${name}`, { exact: false }),
+    ).toBeVisible({
+      timeout: 15_000,
+    });
+  });
   test("returning from an item page restores the same feed without drawing new items", async ({
     page,
   }) => {
@@ -219,7 +246,8 @@ test.describe.serial("feed", () => {
     const draws: string[] = [];
     page.on("request", (request) => {
       const { pathname } = new URL(request.url());
-      if (pathname.startsWith("/api/trpc/feed.page")) draws.push("client");
+      if (pathname.startsWith("/api/trpc/feed.page"))
+        draws.push(`client ${request.url()}`);
       else if (pathname === "/feed") draws.push(`route:${request.method()}`);
     });
 

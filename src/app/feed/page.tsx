@@ -6,6 +6,7 @@ import { auth } from "~/lib/auth";
 import { TOPICS } from "~/server/config/topics";
 import { hasCompletedOnboarding } from "~/server/db/topics";
 import { api, HydrateClient } from "~/trpc/server";
+import { env } from "~/env";
 
 // The feed's server shell: two guards, one prefetch, and the client screen. Everything visible is
 // `FeedScreen`'s; this file exists to make sure the first page of items is already in the client's
@@ -51,7 +52,12 @@ export default async function FeedPage() {
 
   return (
     <HydrateClient>
-      <FeedScreen topicLabels={topicLabels} />
+      <FeedScreen
+        topicLabels={topicLabels}
+        appUrl={env.BETTER_AUTH_URL}
+        // First token only: a share link says "Mara shared this with you", not a full legal name.
+        viewerName={session.user.name?.trim().split(/\s+/)[0]}
+      />
     </HydrateClient>
   );
 }

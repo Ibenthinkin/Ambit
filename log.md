@@ -155,6 +155,69 @@ rises after the first pass, click and ←/→ step a slide.
   sixteen-entry `TOPICS` config (`gallery-details-sheet.tsx:35`), which since sub-project 1 is
   most of the vocabulary. `RailItem` gains `topicLabel` joined server-side, and `body` for PDR.
 
+**Later still — sub-project 2 built** (branch `feat/screen-structure`, not yet merged). All eleven
+tasks of `docs/PLAN_screen-structure.md`: the item page *is* the immersive screen (`ItemScreen` =
+`HeroRail` over `ItemFacts`; `/g/` a permanent redirect; `components/gallery/` gone), one
+`NewCollectionRow` in every picker plus Share in the tile sheet, and a landing slideshow that never
+stops. `bun run check` green bar the known-red `<details>` invariant row (1,215 tests);
+`bun run e2e:prod` **51/51** across both projects on the second full run.
+
+**Findings — where the plan's own code would have shipped broken** (each fixed and explained in a
+comment where it lives):
+
+- **The desktop summon would have killed tap-to-hide on phones.** `onMouseMove → show()` hears the
+  *compatibility* `mousemove` a browser fires after every tap, so a second tap's hide was undone at
+  once. It is a `pointermove` filtered to `pointerType === "mouse"`, with a unit test for the
+  touch case.
+- **`HeroRail` would have crashed server rendering** — it read `window` in a lazy `useState`
+  initializer, and the server renders client components too. The viewport is `null` until mount
+  (the strip is `100dvh` until then, the design's own placeholder).
+- **A preloaded picture never reported its height.** The entry picture is preloaded precisely so it
+  finishes early — before hydration, when React isn't listening for `load`. It reads `complete` on
+  mount now.
+- **The reduced-motion glyph fix, as sketched, still did nothing:** with `open = isStatic || opened`
+  a collapse left the sheet pinned open, and the reopen glyph hid behind `!isStatic`. `opened` is
+  now "the reader's choice, else the mode's default" and the glyph keys on the route. Reduced motion
+  is read through the existing `useMediaQuery` rather than a second `useSyncExternalStore`.
+- Smaller: `topicLabelsFor` moved to `db/topics.ts` (the sketch's dynamic import still ran a live
+  query inside the pure rail suite), articles keep `hasImage` for their picture, and every arrow
+  handler ignores Alt/⌘ chords (Alt/⌘+← is the browser's Back).
+
+**Findings — the visual pass (production build, 402 and 1440, signed out).** Desktop is exactly as
+designed: full viewport height, square-cornered, the facts in the 720px column. **The phone has a
+dark band under any picture shorter than the screen.** Decision 2 puts the caption block *below* a
+short picture, and `visibility: hidden` keeps its space — so the hidden caption is ~165–175px of
+`bg-immersive` between picture and title (a landscape Colossal plate: 268px of picture, 175px of
+band), and when shown it repeats the title `ItemFacts` prints right under it. Built to the letter of
+the design, then put to Ben with three ways out — collapse the block when hidden, always overlay,
+or give the below-placement only the pill. **Ben chose collapse**: the below-placement now sits in
+a grid row that animates `0fr → 1fr`, so a hidden caption is nothing and bringing it up slides the
+facts down under it (`hero-rail.tsx`). The overlay placement — tall pictures, and all of desktop —
+is untouched.
+
+**The flake, explained — and it is not this branch's.** Three-worker runs kept tripping one of two
+"back to the intact feed" tests (`item.spec.ts`'s swipe-then-Escape, `feed.spec.ts`'s pill-back)
+with one extra client `feed.page`, and `feed.spec.ts:152` with nothing appended. The guards now
+record the URL: **every extra draw is a page-2 cursor** — the infinite-scroll sentinel, never a
+cache miss or a hydration refetch (ruled out in `query-core`'s source: a dehydrated promise is
+consumed by the retryer without calling the fetch). Instrumented runs then measured the geometry:
+`scrollY` 0 at every step, and a twelve-card first page only ~1,400–1,520 px tall at 402 × 874,
+which parks the sentinel within tens of pixels of its 500 px `rootMargin`. `IntersectionObserver`
+fires only on a crossing, so page 2 loading on the first mount, on the return, or never is timing:
+ten three-worker loops of the two specs failed 7 times; `--workers=1` over the whole suite is
+**51/51**, and CI runs one worker. That is what the old `gallery.spec.ts:193` note was describing
+under another name, so CLAUDE.md gets one corrected note in its place. The durable fix is the
+feed's own — load-more decided from state rather than from a crossing, which would also fetch page 2
+on load for a reader whose first page is that short (a corpus call, so Ben's) — and the product
+side of it is worth a look on a phone: a first page that short may be one a reader can scroll to
+the bottom of and get nothing more.
+
+**Open / next (sub-project 2):** Ben to look — on glass over the tailnet for the gestures the suite
+can't drive (down-flick exit, `pan-y` scroll, the compatibility-mouse fix), and in Firefox for the
+production React #418 on `/` (Chromium's production console is clean on `/` and `/i/`), and
+whether the collapse's slide reads well under a thumb. Merged to `main` and pushed. Storing image dimensions on `item` is still the follow-up that would retire the
+height-learning altogether.
+
 **Open / next:** Ben has not looked at any of this yet — the picker's copy is placeholder until
 sub-project 3, and the four facets are still "far too limited" until a fresh `mine:topics` round
 against the 164k corpus. Production gets facets and the tier rename from the deploy itself
@@ -165,6 +228,9 @@ against the 164k corpus. Production gets facets and the tier rename from the dep
 *Session spend: 14.34M tok (in 154 · out 172.4k · cache r 13.97M / w 206.1k) · fable-5-1 · 13:29→14:17*
 *Session spend: 83.99M tok (in 1.0k · out 299.5k · cache r 82.11M / w 1.58M) · ~$60.36 · opus-5 + opus-4-7 · 14:27→15:04*
 *Session spend: 53.83M tok (in 256 · out 257.5k · cache r 52.50M / w 1.07M) · ~≥$2.76 · fable-5-1 + opus-5 · 15:04→16:53*
+*Session spend: 99.68M tok (in 9.0k · out 1.00M · cache r 95.43M / w 3.24M) · ~$101.27 · opus-5 + opus-4-7 · 19:19→19:57*
+*Session spend: 9.87M tok (in 518 · out 47.5k · cache r 7.32M / w 2.50M) · ~$29.85 · opus-5 · 19:57→22:18*
+*Session spend: 44.09M tok (in 2.1k · out 197.8k · cache r 43.56M / w 336.8k) · ~$29.82 · opus-5 + opus-4-7 · 22:18→22:33*
 
 ### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
 

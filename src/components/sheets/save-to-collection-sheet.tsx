@@ -9,11 +9,13 @@ import { api } from "~/trpc/react";
 import {
   CollectionRow,
   CollectionRowList,
+  NewCollectionRow,
   itemCountLabel,
 } from "./collection-rows";
 
-// The **item-in-context** collection sheet — the one opened from an item page or the gallery,
-// where "the current item" is unambiguous. Picking a row saves the item there and closes.
+// The **item-in-context** collection sheet — the one opened from an item page's pill, where "the
+// current item" is unambiguous. Picking a row saves the item there and closes; so does making a
+// new collection with the last row (09-10-26), which files the item into what it makes.
 //
 // Its sibling, `CollectionsSheet`, looks nearly identical and does something completely different
 // (it browses, from the feed pill, where there is no current item). They are deliberately two
@@ -112,6 +114,8 @@ export function SaveToCollectionSheet({
               />
             );
           })}
+          {/* Made with an item in hand: file it there at once, exactly as picking a row does. */}
+          <NewCollectionRow onCreate={(c) => pick(c.id)} />
         </CollectionRowList>
       )}
     </BottomSheet>

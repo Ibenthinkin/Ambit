@@ -249,6 +249,9 @@ which resolves into a sign-in sheet.
 - Pill toolbar with the Ambit mark wired to "scroll to top".
 
 ### 4. Immersive gallery — `Ambit - Gallery.dc.html`
+
+*Gallery and Item Image are one screen since 09-10-26 — `docs/DESIGN_screen-structure.md`.*
+
 **Purpose:** the heart of the product. *Images only, zero UI, until you ask for it.*
 
 - **Background** `#0B0A08`, `overflow: hidden`, no scrolling.
@@ -287,6 +290,9 @@ which resolves into a sign-in sheet.
   supplied images, each with `id, title, maker, src, placeholder, medium, origin, home, detail`.
 
 ### 5. Item — image — `Ambit - Item Image.dc.html`
+
+*Gallery and Item Image are one screen since 09-10-26 — `docs/DESIGN_screen-structure.md`.*
+
 **Purpose:** the public share target for an image. Read-only; no top bar at all.
 
 - No header. Content starts at `padding-top: 68px` with the **shared-by attribution**:

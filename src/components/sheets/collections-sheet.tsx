@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import { markProfileOrigin } from "~/components/profile/profile-origin";
 import { markSavedOrigin } from "~/components/saved/saved-origin";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Spinner } from "~/components/ui/spinner";
@@ -11,6 +10,7 @@ import { api } from "~/trpc/react";
 import {
   CollectionRow,
   CollectionRowList,
+  NewCollectionRow,
   itemCountLabel,
 } from "./collection-rows";
 
@@ -39,9 +39,6 @@ export function CollectionsSheet({ open, onClose }: CollectionsSheetProps) {
     // button) can pop back to whatever screen opened this sheet instead of rebuilding the feed —
     // see `saved-origin.ts` for the corpus arithmetic behind that distinction.
     if (href.startsWith("/saved")) markSavedOrigin();
-    // Same arrangement one screen over: Profile's pill and its exits pop back to whatever opened
-    // this sheet rather than pushing a fresh `/feed` (`profile-origin.ts`).
-    if (href === "/profile") markProfileOrigin();
     router.push(href);
   };
 
@@ -80,15 +77,13 @@ export function CollectionsSheet({ open, onClose }: CollectionsSheetProps) {
             />
           ))}
 
-          {/* Creating a collection lives on Profile — the design puts it there, and as of 5.10 it
-              genuinely does: this row navigates to the screen whose dashed tile opens the
-              new-collection sheet, so the sub-label is now literally true rather than an apology
-              for a 404. */}
-          <CollectionRow
-            label="New collection"
-            sub="Make one on your profile"
-            tone="faint"
-            onPick={() => go("/profile")}
+          {/* Made here, since 09-10-26 — this row used to navigate to the profile, where the only
+              create form lived. A new collection is empty, so the useful next screen is the one
+              that fills it: Saved, filtered to it, the same place an existing row goes. */}
+          <NewCollectionRow
+            onCreate={(c) =>
+              go(`/saved?collection=${encodeURIComponent(c.id)}`)
+            }
           />
         </CollectionRowList>
       )}

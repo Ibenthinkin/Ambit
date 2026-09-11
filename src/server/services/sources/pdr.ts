@@ -28,8 +28,8 @@
 //     non-image media). PDR's one-sentence Excerpt is the blurb (the Preamble's first substantial
 //     paragraph stands in when the Excerpt is empty or thin), and the Preamble itself — PDR's own
 //     text, CC BY-SA 4.0 — is stored as `body` and rendered on the item page UNDER the picture
-//     (components/item/image-item-body.tsx). The item stays an image item so it keeps its place
-//     in the gallery and the wander rail. A collection whose digital copy an institution marks
+//     (components/item/item-facts.tsx). The item stays an image item so it keeps its place
+//     on the picture rail. A collection whose digital copy an institution marks
 //     Non-commercial is dropped in walk() by passesRightsPolicy() (~5%, all Bibliothèque nationale
 //     de France in the planning sample).
 //   - An ESSAY → an `article` item whose `body` is the essay when PDR labels it `CC-BY-SA` (28 of
@@ -254,7 +254,7 @@ export function passesRightsPolicy(c: PdrCollection): boolean {
 /** Pure: the holding institution(s) — the umbrella name where PDR records one ("Library of
  *  Congress" over "Library of Congress (Prints+Photos+Maps)"), deduped, ` · `-joined — or PDR's
  *  own name when a collection lists no source, in which case the credit line already says it
- *  and image-item-body.tsx suppresses the duplicate maker line. */
+ *  and item-facts.tsx suppresses the duplicate maker line. */
 export function collectionAttribution(c: PdrCollection): string {
   const names = uniqueTags(
     (c.Sources ?? []).map((s) => s.data.Umbrella_Title?.[0] ?? s.data.Title),
@@ -500,8 +500,8 @@ function collectionToItem(imageHost: string, c: PdrCollection): NormalizedItem {
     // idempotency key, so this choice is permanent for the corpus — which is exactly why the
     // slug is normalised before it is used as one.
     sourceId: `collection/${slug}`,
-    // An IMAGE item that also carries text: the gallery and wander rail keep it, and the item
-    // page renders the body under the picture (image-item-body.tsx).
+    // An IMAGE item that also carries text: the picture rail keeps it, and the item page renders
+    // the body under the picture (item-facts.tsx).
     type: "image",
     title: plainText(c.Title),
     summary,

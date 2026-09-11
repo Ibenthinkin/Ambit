@@ -2,21 +2,22 @@
 
 import * as React from "react";
 
-// The immersive gallery's whole input surface, in one place: every way a finger can talk to
-// `/g/[itemId]`.
+// The picture rail's whole input surface, in one place: every way a finger can talk to the hero
+// strip at the top of `/i/[itemId]` (the merged item screen since 09-10-26 — until then this drove
+// the full-screen gallery at `/g/`).
 //
-// The gallery has no chrome to speak of by default — no buttons, no scrollbar, nothing to press.
-// What it has instead is a small vocabulary of gestures, and this hook is the state machine that
-// tells them apart from one another and from the accidents (a resting thumb, a scroll that never
-// was, an iOS system swipe). Five outcomes, distinguished by *where* the press started, which axis
-// won, how far it went, and how fast:
+// The strip has no chrome to speak of by default — no buttons, nothing to press. What it has
+// instead is a small vocabulary of gestures, and this hook is the state machine that tells them
+// apart from one another and from the accidents (a resting thumb, a scroll, an iOS system swipe).
+// Four outcomes, distinguished by which axis won, which way it went, how far, and how fast:
 //
-//   - **tap** — no travel at all. Shows the chrome, or opens details if the chrome is already up.
-//   - **advance** — a horizontal drag past a fifth of the screen. The rail moves one cell.
-//   - **open details** — a slow upward drag from the **bottom third**, where a title and a hint sit
-//     saying that's what's down there.
-//   - **exit** — a *hard* upward flick from the **top two-thirds**, or any two-finger movement.
-//   - **nothing** — everything else, which snaps back.
+//   - **tap** — no travel at all. Toggles the chrome.
+//   - **advance** — a horizontal drag past 15% of the screen, or a quick short flick. The rail
+//     moves one cell.
+//   - **exit** — a quick **downward** flick that began with the page scrolled to the top, or any
+//     two-finger movement.
+//   - **nothing** — everything else, which snaps back. That includes every upward movement: up is
+//     the browser's, because the item's details are on the page below the picture.
 //
 // **Two things learned on the 08-21-26 device pass, both of which shape the code below.**
 //
@@ -28,23 +29,19 @@ import * as React from "react";
 //      drifted down finishes as "vertical" and does nothing. The axis is now decided once, the
 //      moment the gesture clears the slop, and held for the rest of it.
 //
-// **Why "hard" is measured two ways.** `|dy| > 150` catches a long deliberate shove; `|dy| > 80`
-// within 320ms catches a quick flick that never travelled far. Distance alone would make a flick
-// impossible and a slow drag inevitable, which is precisely backwards: a fast short movement is the
-// more confident of the two.
-//
-// **Why the start position matters at all.** Up-to-exit and up-to-details are the same axis in the
-// same direction, so something has to separate them. The screen does: the bottom third is where the
-// details live (the title block is drawn there), and everything above it is the picture, which is
-// the thing you're leaving. A reader never has to know the rule — they reach for what they can see.
+// **Why the exit is speed-only.** Until the screen merge it had a slow far-drag path too (a
+// 150px shove at any speed). A slow downward drag at the top of a scrolling page is iOS overscroll,
+// though, and the two would fight — so only a flick leaves. See {@link EXIT_FAST_PX}.
 //
 // Sibling to `use-swipe-back.ts` and built the same way: native listeners on a ref'd node, so a
 // gesture in flight never re-renders the screen it's driving. This one is the bigger of the two,
 // and it should read like the same author wrote it.
 //
 // **Never `preventDefault` on move** (same rule as `use-swipe-back`). The track carries
-// `touch-action: none` instead, which tells the browser up front that this element owns its
-// gestures — declared rather than fought for.
+// `touch-action: pan-y` instead, which tells the browser up front that vertical panning is its own
+// and horizontal is ours — declared rather than fought for. Under `pan-y` the browser may fire
+// `pointercancel` once it commits to a scroll; a single-finger cancel is therefore discarded,
+// exactly as an interruption is.
 
 /** Past this much travel in either axis, a press stops being a tap. The app-wide slop is 12px; the gallery's own prototype uses 8, and the tighter value wins on a screen with no other targets. */
 const SLOP_PX = 8;
@@ -64,22 +61,23 @@ const ADVANCE_FRACTION = 0.15;
  *
  * A swipe is not a measured drag. Distance-only thresholds punish exactly the gesture people
  * perform most confidently — the quick flick that covers 50px in 150ms and lets go — and reward the
- * hesitant one. Every commit in this hook now offers both, which is the same two-way "hard" test
- * the exit has always used (see {@link EXIT_FAR_PX}).
+ * hesitant one. Every horizontal commit in this hook offers both. (The exit is the exception, and
+ * speed-only on purpose — see {@link EXIT_FAST_PX}.)
  */
 const FLICK_PX = 40;
 const FLICK_MS = 300;
 
-/** Where "the bottom third" starts, as a fraction of the track's height. */
-const DETAILS_ZONE = 2 / 3;
-
-/** Upward travel from the bottom third that opens the details sheet. */
-const DETAILS_PX = 60;
-
-/** A long, deliberate upward shove — exits regardless of speed. */
-const EXIT_FAR_PX = 150;
-
-/** A quick upward flick: this much travel inside {@link EXIT_FAST_MS} also exits. */
+/**
+ * The exit: a quick **downward** flick, this much travel inside {@link EXIT_FAST_MS}, that began
+ * with the page scrolled to the top.
+ *
+ * Down, not up, since the screen merge (09-10-26, docs/DESIGN_screen-structure.md decision 4).
+ * The picture now sits on top of a page you scroll — the details are under it — so an upward
+ * move is the browser's, and the track says so with `touch-action: pan-y`. A downward move at
+ * scroll position 0 is the one vertical gesture the browser has no use for, which is exactly why
+ * iOS Photos uses it to dismiss. There is deliberately no slow far-drag path any more: a slow
+ * downward drag at the top is overscroll, and the two would fight.
+ */
 const EXIT_FAST_PX = 80;
 const EXIT_FAST_MS = 320;
 
@@ -88,14 +86,12 @@ export interface UseRailGesturesOptions {
   onTap: () => void;
   /** A committed horizontal drag. `1` moves the rail forward (finger travelled left). */
   onAdvance: (dir: 1 | -1) => void;
-  /** A slow upward drag from the bottom third. */
-  onOpenDetails: () => void;
-  /** A hard upward flick from the top two-thirds, or any two-finger movement. */
+  /** A quick downward flick from the top of the page, or any two-finger movement. */
   onExit: () => void;
 }
 
 export interface RailGestures {
-  /** Spread onto the track element — it must also carry `touch-action: none`. */
+  /** Spread onto the track element — it must also carry `touch-action: pan-y`. */
   ref: React.RefObject<HTMLDivElement | null>;
   /** Live horizontal travel, in px, while a single-finger horizontal drag is in flight; else 0. */
   dragPx: number;
@@ -106,7 +102,6 @@ export interface RailGestures {
 export function useRailGestures({
   onTap,
   onAdvance,
-  onOpenDetails,
   onExit,
 }: UseRailGesturesOptions): RailGestures {
   const ref = React.useRef<HTMLDivElement>(null);
@@ -118,9 +113,9 @@ export function useRailGestures({
   // every parent render — and this hook's parent re-renders on every cell change, which is how a
   // gesture starts dropping events mid-swipe. Same lesson as `BottomSheet`'s `onCloseRef` and
   // `useSwipeBack`'s `commitRef`.
-  const handlers = React.useRef({ onTap, onAdvance, onOpenDetails, onExit });
+  const handlers = React.useRef({ onTap, onAdvance, onExit });
   React.useEffect(() => {
-    handlers.current = { onTap, onAdvance, onOpenDetails, onExit };
+    handlers.current = { onTap, onAdvance, onExit };
   });
 
   React.useEffect(() => {
@@ -130,8 +125,8 @@ export function useRailGestures({
     let startX = 0;
     let startY = 0;
     let startedAt = 0;
-    /** Fraction down the track where the press began — decides exit vs details. */
-    let startFraction = 0;
+    /** Whether the page was scrolled to the top when the press began — the exit's precondition. */
+    let atTop = false;
     let moved = false;
     /**
      * Decided once, the moment the gesture clears the slop, and held. Re-deciding at release is what
@@ -162,12 +157,10 @@ export function useRailGestures({
         multiTouch = true;
         return;
       }
-      const rect = el.getBoundingClientRect();
       startX = e.clientX;
       startY = e.clientY;
       startedAt = e.timeStamp;
-      startFraction =
-        rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0;
+      atTop = window.scrollY <= 0;
       moved = false;
       axis = null;
       multiTouch = false;
@@ -188,9 +181,9 @@ export function useRailGestures({
         axis = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
       }
 
-      // Only a single-finger drag locked to the horizontal moves the rail. A vertical drag is on
-      // its way to being an exit or a details-open, and letting it leak into `dragPx` would slide
-      // the picture sideways while the reader is pulling it upward.
+      // Only a single-finger drag locked to the horizontal moves the rail. A vertical drag is either
+      // the browser's scroll or an exit flick, and letting it leak into `dragPx` would slide the
+      // picture sideways while the page moves under the reader's thumb.
       setDragPx(axis === "x" && !multiTouch ? dx : 0);
     };
 
@@ -227,20 +220,10 @@ export function useRailGestures({
         return;
       }
 
-      if (lockedAxis === "y" && dy < 0) {
-        const travel = Math.abs(dy);
-        const hard =
-          travel > EXIT_FAR_PX ||
-          (travel > EXIT_FAST_PX && elapsed < EXIT_FAST_MS);
-
-        if (startFraction < DETAILS_ZONE) {
-          // Started on the picture. Only a hard flick leaves; a gentle upward drift here is a
-          // reader who changed their mind, and it should cost them nothing.
-          if (hard) cb.onExit();
-          return;
-        }
-        // Started on the title block at the foot of the screen, where the hint says details live.
-        if (travel > DETAILS_PX) cb.onOpenDetails();
+      if (lockedAxis === "y") {
+        // Only a downward flick, only from the top of the page, only fast. See EXIT_FAST_PX.
+        const fast = dy > EXIT_FAST_PX && elapsed < EXIT_FAST_MS;
+        if (dy > 0 && atTop && fast) cb.onExit();
         return;
       }
 
@@ -259,11 +242,11 @@ export function useRailGestures({
      * **A cancelled two-finger gesture still counts as an exit.**
      *
      * iOS Safari fires `pointercancel` the moment it decides a multi-touch gesture belongs to the
-     * system rather than to the page — and it does that for two-finger swipes even under
-     * `touch-action: none`. Discarding the gesture there meant the two-finger exit was thrown away
-     * at precisely the moment it was recognised, which is why it "barely fires" (device pass,
+     * system rather than to the page — and it does that for two-finger swipes whatever the
+     * `touch-action`. Discarding the gesture there meant the two-finger exit was thrown away at
+     * precisely the moment it was recognised, which is why it "barely fires" (device pass,
      * 08-21-26). Single-finger cancels are still discarded: those are genuine interruptions (a
-     * call arriving, the app backgrounding), not gestures.
+     * call arriving, the app backgrounding) or, under `pan-y`, the browser taking a scroll.
      */
     const cancel = (e: PointerEvent) => {
       active.delete(e.pointerId);

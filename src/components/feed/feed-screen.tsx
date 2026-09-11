@@ -81,9 +81,18 @@ export interface FeedScreenProps {
    *  input and runs the forget cycle. **Absent on /feed, and must stay absent** — see the
    *  query-key note below. */
   dev?: FeedDevProps;
+  /** The app's own origin (`env.BETTER_AUTH_URL`) — the tile sheet's Share row builds `/i/` links. */
+  appUrl: string;
+  /** The reader's first name, for `?from=` on a shared link. */
+  viewerName?: string;
 }
 
-export function FeedScreen({ topicLabels, dev }: FeedScreenProps) {
+export function FeedScreen({
+  topicLabels,
+  dev,
+  appUrl,
+  viewerName,
+}: FeedScreenProps) {
   const router = useRouter();
   const isDev = dev !== undefined;
 
@@ -475,6 +484,9 @@ export function FeedScreen({ topicLabels, dev }: FeedScreenProps) {
           setToast(saveToastText(collection.name, drift))
         }
         onError={setToast}
+        appUrl={appUrl}
+        viewerName={viewerName}
+        onToast={setToast}
       />
 
       {/* The install ask lives here rather than in the layout: the feed is the only screen where

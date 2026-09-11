@@ -20,10 +20,16 @@ import {
 // a fresh database — the seeded `source: "e2e"` corpus below is what makes the latter possible.
 // It is cleaned up children-first in `afterAll`.
 //
-// **The swipe gesture is not tested here.** Playwright's mouse API doesn't compose the pointerdown
-// / pointermove / pointerup sequence the hook listens for reliably enough to assert on; it's
-// covered by `src/hooks/use-swipe-back.test.tsx` and by the phase's iOS device pass, which is where
-// a rubber-band follow can actually be judged anyway.
+// A picture's page is the **merged item screen** since 09-10-26 (docs/DESIGN_screen-structure.md):
+// the old immersive gallery's rail is the hero, the facts sit under it, and `/g/` redirects here.
+// `gallery.spec.ts` folded into this file then — its rail flows are the "rail" tests below.
+//
+// **The swipe gestures are not tested here.** Playwright's mouse API doesn't compose the
+// pointerdown / pointermove / pointerup sequences the hooks listen for reliably enough to assert
+// on — the rail swipe, the down-flick exit, the article page's swipe-back. They're covered by
+// `src/hooks/use-rail-gestures.test.tsx` and `use-swipe-back.test.tsx`, and judged on an iOS device
+// pass, which is where a rubber-band follow can actually be judged anyway. The keyboard drives the
+// rail here instead: ←/→ page it, Escape leaves.
 const EMAIL = `ambit-item-e2e-${Date.now()}@example.com`;
 const PASSWORD = "correcthorse123";
 
@@ -45,6 +51,27 @@ let articleId: string;
 let imagelessId: string;
 let httpImageId: string;
 let blogId: string;
+/** The rail's neighbours: six more pictures across two topics, so the walk has somewhere to go. */
+let imageIds: string[] = [];
+
+/**
+ * Bring the picture's chrome (caption + pill) up with the mouse. A *move*, not a click: a click on
+ * the picture is a tap, which toggles — and Playwright's click moves the mouse first, which
+ * summons, so a click would show and then hide in one call. A move only ever shows, and restarts
+ * the ten-second cycle, so the pill stays put for the next few steps.
+ */
+async function summonChrome(page: import("@playwright/test").Page) {
+  const { width, height } = page.viewportSize()!;
+  await page.mouse.move(Math.round(width / 2) - 10, Math.round(height / 4));
+  await page.mouse.move(
+    Math.round(width / 2) + 10,
+    Math.round(height / 4) + 10,
+  );
+  await expect(page.getByTestId("gallery-chrome")).toHaveAttribute(
+    "aria-hidden",
+    "false",
+  );
+}
 
 test.describe.serial("item pages", () => {
   test.beforeAll(async () => {
@@ -131,6 +158,29 @@ test.describe.serial("item pages", () => {
     httpImageId = httpImage!.id;
     blogId = blog!.id;
 
+    // Six pictures across two real topic ids (moved from gallery.spec.ts), so the rail's walk has
+    // somewhere to go and its fallback chain (step topic → anchor topic → anywhere) has something
+    // to find. Same `e2e-item-` prefix, so afterAll's cleanup finds them.
+    const stamp = Date.now();
+    const rail = await conn.db
+      .insert(conn.item)
+      .values(
+        Array.from({ length: 6 }, (_, i) => ({
+          source: "e2e",
+          sourceId: `e2e-item-rail-${i}-${stamp}`,
+          type: "image" as const,
+          title: `Rail plate ${i}`,
+          summary: `A caption for plate ${i}, long enough to occupy a line.`,
+          imageUrl: PIXEL,
+          sourceUrl: `https://example.test/e2e/rail-${i}`,
+          attribution: `Engraver ${i}`,
+          topicId: i % 2 === 0 ? "astronomy" : "botany",
+          curationScore: 9,
+        })),
+      )
+      .returning();
+    imageIds = rail.map((r) => r.id);
+
     inviteUser(EMAIL);
   });
 
@@ -151,12 +201,23 @@ test.describe.serial("item pages", () => {
     await expect(
       page.getByRole("heading", { name: "A seeded plate", level: 1 }),
     ).toBeVisible();
-    await expect(page.getByText("An engraver, unattributed")).toBeVisible();
-    await expect(page.getByRole("link", { name: "E2e" })).toHaveAttribute(
-      "href",
-      "https://example.test/e2e/image",
-    );
+    // The picture is the page's hero strip, and the facts table sits under it: the maker is a
+    // row there (the caption says it too, but the caption starts hidden).
+    await expect(page.getByTestId("gallery-track")).toBeVisible();
     await expect(page.locator("main img").first()).toBeVisible();
+    const facts = page.getByRole("list", { name: "About this work" });
+    await expect(facts).toBeVisible();
+    await expect(facts.getByText("An engraver, unattributed")).toBeVisible();
+    // Two links name the source — the credit line under the title and the table's From row —
+    // and both go to the original.
+    const credits = page.getByRole("link", { name: "E2e", exact: true });
+    await expect(credits).toHaveCount(2);
+    for (const link of await credits.all()) {
+      await expect(link).toHaveAttribute(
+        "href",
+        "https://example.test/e2e/image",
+      );
+    }
 
     // The teaser renders even against a thin corpus, because wander-next falls back to the item's
     // own topic when the graph offers nothing.
@@ -215,14 +276,19 @@ test.describe.serial("item pages", () => {
       page.getByRole("heading", { name: "A seeded post", level: 1 }),
     ).toBeVisible();
     await expect(page.getByText(/The blog's own excerpt/)).toBeVisible();
-    // The credit line and the link-out row both point at the post.
+    // The credit line, the facts table's From row and the link-out row all point at the post.
     // `exact`, or Playwright's substring match also catches "Read the post on Door of Perception".
-    await expect(
-      page.getByRole("link", { name: "Door of Perception", exact: true }),
-    ).toHaveAttribute(
-      "href",
-      "https://doorofperception.com/2026/01/a-seeded-post/",
-    );
+    const credits = page.getByRole("link", {
+      name: "Door of Perception",
+      exact: true,
+    });
+    await expect(credits).toHaveCount(2);
+    for (const link of await credits.all()) {
+      await expect(link).toHaveAttribute(
+        "href",
+        "https://doorofperception.com/2026/01/a-seeded-post/",
+      );
+    }
     const linkOut = page.getByRole("link", {
       name: /Read the post on Door of Perception/,
     });
@@ -322,13 +388,15 @@ test.describe.serial("item pages", () => {
 
     await page.goto(`/i/${imageId}`);
 
-    // Unlike the feed's three-control pill, an item page has a current item — so it has a share.
-    await expect(page.getByRole("button", { name: "Share" })).toHaveCount(1);
-
     // The pill is server-rendered before React attaches to it, so a click that lands too early
     // does nothing at all and the test waits out its timeout on a sheet that never opened — the
     // same trap `waitForHydration`'s own comment describes for the landing form.
     await waitForHydration(page, "nav[aria-label='Ambit toolbar']");
+
+    // On a picture the pill rides in the chrome, which starts hidden. Unlike the feed's
+    // three-control pill, an item page has a current item — so it has a share.
+    await summonChrome(page);
+    await expect(page.getByRole("button", { name: "Share" })).toHaveCount(1);
 
     await page.getByRole("button", { name: "Save to collection" }).click();
     await page.getByRole("heading", { name: "Save to" }).waitFor();
@@ -336,18 +404,77 @@ test.describe.serial("item pages", () => {
     await expect(page.getByText("Saved to Articles")).toBeVisible();
 
     // Reopening shows where it went, which is what `saves.forItem` is for.
+    await summonChrome(page);
     await page.getByRole("button", { name: "Save to collection" }).click();
     await expect(page.getByText("Already saved here")).toBeVisible();
     await page.getByTestId("bottom-sheet-scrim").click();
 
-    // The hero is a doorway as of 5.8 — a tap opens the immersive gallery. A Playwright click is a
-    // tap (no movement between down and up, so `usePress`'s slop guard passes). The gallery's own
-    // behaviour is `gallery.spec.ts`'s subject; what belongs here is that the *item page* sends
-    // the reader there at all.
-    await waitForHydration(page, "main img");
-    await page.locator("main img").first().click();
-    await page.waitForURL(`/g/${imageId}`);
+    // The picture IS the screen as of 09-10-26 — there is no doorway to tap. What belongs here:
+    // the strip is on the page and the facts are under it.
     await expect(page.getByTestId("gallery-track")).toBeVisible();
+    await expect(
+      page.getByRole("list", { name: "About this work" }),
+    ).toBeVisible();
+  });
+
+  test("/g/ redirects to the item page", async ({ page }) => {
+    await page.goto(`/g/${imageId}`);
+    await page.waitForURL(`/i/${imageId}`);
+    await expect(page.getByTestId("gallery-track")).toBeVisible();
+  });
+
+  test("from the feed: tile → item → swipe → Escape returns to the intact feed, drawing nothing", async ({
+    page,
+  }) => {
+    await page.goto("/feed");
+    await signIn(page, EMAIL, PASSWORD);
+
+    const feedIds = () =>
+      page
+        .locator("[data-feed-id]")
+        .evaluateAll((nodes) =>
+          nodes.map((node) => node.getAttribute("data-feed-id")),
+        );
+    // The tiles arrive after the route resolves — reading ids straight off `waitForURL` races the
+    // render and comes back empty (`onFeed` in feed.spec.ts waits the same way, for the same reason).
+    await expect(page.locator("[data-feed-id]").first()).toBeVisible();
+    const before = await feedIds();
+
+    // The first *image* tile, not simply the first tile: an article opens the reader, which has no
+    // rail to swipe.
+    const imageTile = page.locator("[data-feed-id]:has(img)").first();
+    await expect(imageTile).toBeVisible();
+    const itemId = (await imageTile.getAttribute("data-feed-id"))!;
+    await imageTile.locator("> *").click();
+    await page.waitForURL(`/i/${itemId}`);
+    await waitForHydration(page, "[data-testid='gallery-track']");
+
+    // Every way back to /feed that would cost a page of corpus: the client query, and any request
+    // for the route itself. Same technique, same reasoning, as feed.spec.ts's own guard — counted
+    // from here so the outbound trip's requests don't muddy it.
+    const draws: string[] = [];
+    page.on("request", (request) => {
+      const { pathname } = new URL(request.url());
+      // The whole URL, not just a label: a recurrence must say exactly which request fired (the
+      // first full run of this test saw one client `feed.page` it could not explain).
+      if (pathname.startsWith("/api/trpc/feed.page"))
+        draws.push(`client ${request.url()}`);
+      else if (pathname === "/feed") draws.push(`route:${request.method()}`);
+    });
+
+    // ArrowRight advances the rail — the address bar follows (`replaceState`), the page does not
+    // navigate.
+    await page.keyboard.press("ArrowRight");
+    await expect.poll(() => page.url()).not.toContain(`/i/${itemId}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    // Escape pops the feed that was already on the stack — keyed on the *entry* item, so the swipe
+    // doesn't matter: same tiles, no `?focus=`, nothing redrawn.
+    await page.keyboard.press("Escape");
+    await page.waitForURL(/\/feed$/);
+    await expect(page.locator("[data-feed-id]").first()).toBeVisible();
+    expect(await feedIds()).toEqual(before);
+    expect(draws).toEqual([]);
   });
 
   test("a signed-in reader can sign in again and still read the page", async ({
@@ -364,5 +491,40 @@ test.describe.serial("item pages", () => {
     ).toBeVisible();
     // No invitation for someone already inside.
     await expect(page.getByText("Get your invite")).toHaveCount(0);
+  });
+
+  // The sentence the whole rail design turns on (the 08-20-26 corpus-burn postmortem): swiping is
+  // free. Asserted from the outside, on a real signed-up account, after a real rail session.
+  test("a rail session spends none of the reader's corpus", async ({
+    page,
+  }) => {
+    const { db, seenItem, user } = conn;
+    const { count, eq } = await import("drizzle-orm");
+
+    const [row] = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.email, EMAIL));
+    const userId = row!.id;
+
+    const seenCount = async () => {
+      const [c] = await db
+        .select({ n: count() })
+        .from(seenItem)
+        .where(eq(seenItem.userId, userId));
+      return c!.n;
+    };
+
+    const before = await seenCount();
+
+    // Signed out is enough for this: the rail procedure is public and takes no user, so if it
+    // wrote anything at all it would be a bug regardless of who was looking.
+    for (const id of imageIds.slice(0, 3)) {
+      await page.goto(`/i/${id}`);
+      await expect(page.getByTestId("gallery-track")).toBeVisible();
+      await page.keyboard.press("ArrowRight");
+    }
+
+    expect(await seenCount()).toBe(before);
   });
 });

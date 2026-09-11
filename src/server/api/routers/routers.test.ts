@@ -268,8 +268,8 @@ describe("the three public procedures", () => {
     expect(vi.mocked(mockedGetWanderNext)).toHaveBeenCalledWith("a");
   });
 
-  // Same direction, same reason: `/g/[itemId]` is deep-linkable and opens from the public item
-  // page, so a stranger swiping the gallery must reach this resolver.
+  // Same direction, same reason: the rail is the hero of the public item page (the merged screen,
+  // 09-10-26), so a stranger swiping it must reach this resolver.
   it("items.galleryRail serves an anonymous caller", async () => {
     const rail = [
       {
@@ -278,10 +278,12 @@ describe("the three public procedures", () => {
         attribution: null,
         imageUrl: "https://example.test/b.jpg",
         summary: null,
+        body: null,
         source: "met",
         sourceUrl: "https://example.test/o",
         license: null,
         topicId: "botany",
+        topicLabel: null,
       },
     ];
     vi.mocked(mockedGetGalleryRail).mockResolvedValue(rail);

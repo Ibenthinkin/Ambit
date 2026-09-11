@@ -5,7 +5,15 @@
 // `getUserTopicWeights` is real as of Phase 4.1 — the feed engine's own read of a user's CORE
 // weights (SPEC §9.1; that CORE is the feed's tier, unrelated to a topic's).
 // `listTopics` returns every faceted topic as of 09-10-26 — see its comment.
-import { and, eq, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 
 import { topic, userTopic } from "~/server/db/schema";
 
@@ -271,4 +279,24 @@ export async function getTopicLabel(
     .where(eq(topic.id, topicId))
     .limit(1);
   return row?.label;
+}
+
+/**
+ * `topic.label` for each id, in one query — the batch sibling of `getTopicLabel`. The gallery
+ * rail draws eight rows a batch and every cell now carries its label (09-10-26: the client can't
+ * resolve one from the sixteen-entry config, and most topics are grown), so eight round trips for
+ * eight labels would be the wrong shape. Nulls (un-homed rows) and duplicates are dropped before
+ * the query; an id with no row is simply absent from the map.
+ */
+export async function topicLabelsFor(
+  ids: readonly (string | null)[],
+): Promise<Map<string, string>> {
+  const wanted = [...new Set(ids.filter((id): id is string => id !== null))];
+  if (wanted.length === 0) return new Map();
+  const { db } = await import("./client");
+  const rows = await db
+    .select({ id: topic.id, label: topic.label })
+    .from(topic)
+    .where(inArray(topic.id, wanted));
+  return new Map(rows.map((r) => [r.id, r.label]));
 }

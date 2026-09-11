@@ -16,7 +16,8 @@ export interface LandingSlideshowProps {
   index: number;
   /** Cross-fade duration in ms — `fadeMs(SLIDE_MS)`. */
   fade: number;
-  /** Tapping the imagery skips to the sign-in sheet. Omitted in static mode. */
+  /** Tapping the imagery steps to the next slide (09-10-26 — it used to skip to the sign-in
+   *  sheet). Omitted in static mode. */
   onTap?: () => void;
 }
 
