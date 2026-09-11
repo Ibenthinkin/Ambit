@@ -154,6 +154,15 @@ z-index above content and below sheets.
 - Screens with a page-specific extra action put it in this same row; never add a second bar.
 - Hit areas are ≥31px; keep them ≥44px in production where the platform allows.
 
+> **Amended 09-11-26 (`docs/DESIGN_chrome-redesign.md`).** The pill is 56 px tall
+> (`padding: 10px 22px; gap: 28px`, glyphs 28 / 34 / 26, 48 px hit areas). **Share is no longer
+> in the pill**: when a screen has something to share it is a detached 56 px disc on the same
+> glass, centred between the pill's right edge and the screen's right edge — a detached button
+> beside the pill, not a second bar. From `md` (768 px) the toolbar is a **vertical rail** fixed
+> 26 px from the right edge, vertically centred (52 px controls, glyphs 32 / 38 / 29 / 27), and
+> its sheets float 14 px to its left as 360 px popovers with no visible scrim. The measurements
+> above this note describe the phone pill as first built and are superseded.
+
 ### 2. Bottom sheets
 
 Two sheets, same shell, summoned from the pill.

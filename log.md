@@ -155,6 +155,49 @@ only for a member (`isItemInTopic`) — which closes the feed-on-membership foll
 
 _Session spend: 16.47M tok (in 2.2k · out 274.1k · cache r 15.19M / w 1.00M) · fable-5-1 · 11:49→12:37_
 
+**Executed the same day (Opus 5, a fourth session) — the chrome redesign, all seven tasks, on
+`feat/chrome-redesign`.** Pushed, **not merged** (the plan merges only on Ben's say-so).
+
+**Shipped:** the 56 px pill with Share as a detached disc; `RailToolbar` + `Toolbar` from `md`,
+the item screen's rail fading with its chrome; `BottomSheet`'s `anchor`/`placement` popovers
+with an invisible scrim, wired to every toolbar opener; `saves.ids` and `topicId` on
+`saveToCollection` (member-only, `isItemInTopic`); `TileActions` on every feed tile under a real
+hover, with the last-used collection and an optimistic one-click save; no hover zoom and a 3 px
+off-white focus ring; the onboarding copy; the README amendment, SPEC §7/§8.1 and CLAUDE.md.
+
+**Findings — where the plan and the code disagreed:**
+
+- **The tile picker had to be portalled to `<body>`** — the one real bug. Rendered inside a tile,
+  its `fixed` + `z-[35]` ranked only within the tile's stacking context (page-one tiles sit in an
+  `animate-rise` wrapper), and later tiles painted over the popover and took its clicks. Caught
+  only by the desktop e2e ("subtree intercepts pointer events" on the New-collection row); the
+  unit tests could not see it. The rail's sheets never had it — they mount at screen level.
+- **Playwright's phone project drives a mouse**, so `HOVER_QUERY` matches there and every phone
+  e2e tile carries a strip too. `[data-feed-id] > *` then resolves to two elements; `item.spec`'s
+  `tapInPlace` needed the same `.first()` the plan gave `desktop.spec`. A real phone never
+  mounts the strip.
+- **The pill measures 56–58 px, not 56.** The design's 56 is 10 + 36 + 10; the 0.5 px hairline
+  border paints as a full device pixel each side at DPR 1. The e2e now allows the range.
+- **A rail popover centres on its own button, not on the rail** — as designed (`popoverStyle`), so
+  on the feed's three-control rail the bookmark's panel sits 68 px below the rail's middle. The
+  plan's e2e measured against the rail's centre; it now measures against the button.
+- **The disc-vs-pill check flaked 1 run in 2** with two `boundingBox()` calls straddling a frame
+  of the caption's 600 ms slide. Both rects are now read in one `evaluate`; 36/36 across three
+  repeats.
+- Smaller: `routers.test.ts`'s exhaustive procedure list needed `saves.ids` (twenty-one now), and
+  `tile-actions.test.tsx`'s mock had to capture only the strip's `useMutation` options — the
+  picker the strip mounts calls the same hook after it and was overwriting them.
+
+**Verified:** `bun run check` — 1,262 of 1,263, the one red the known `70sscifiart` `<details>`
+row; `bun run e2e:prod` — 54 passed (51 + the three new desktop tests), 3 skipped as on `main`.
+Ben's `next dev` on :3000 was stopped (with his OK) for the prod e2e run and is not restarted.
+
+**Open / next:** Ben reviews the three sub-projects in the browser — phone widths and a desktop —
+then says merge; sub-project 4 (list screens) waits on that review.
+
+*Session spend: 41.61M tok (in 5.4k · out 432.3k · cache r 39.37M / w 1.80M) · ~$46.22 · opus-5 + opus-4-7 · 12:52→13:33*
+
+
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
 Ben's morning brief said production was thousands of images behind the Mac. It is: **29,062
