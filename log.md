@@ -195,8 +195,7 @@ Ben's `next dev` on :3000 was stopped (with his OK) for the prod e2e run and is 
 **Open / next:** Ben reviews the three sub-projects in the browser — phone widths and a desktop —
 then says merge; sub-project 4 (list screens) waits on that review.
 
-*Session spend: 41.61M tok (in 5.4k · out 432.3k · cache r 39.37M / w 1.80M) · ~$46.22 · opus-5 + opus-4-7 · 12:52→13:33*
-
+_Session spend: 41.61M tok (in 5.4k · out 432.3k · cache r 39.37M / w 1.80M) · ~$46.22 · opus-5 + opus-4-7 · 12:52→13:33_
 
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
