@@ -197,6 +197,50 @@ then says merge; sub-project 4 (list screens) waits on that review.
 
 _Session spend: 41.61M tok (in 5.4k · out 432.3k · cache r 39.37M / w 1.80M) · ~$46.22 · opus-5 + opus-4-7 · 12:52→13:33_
 
+**Handoff (same session, afterwards) — `/feed` caught in a reload loop on the branch, the moment
+Ben opened it.** Not diagnosed here; Ben is taking it to a fresh session. What this session saw,
+so that one doesn't re-derive it:
+
+- **The signature is 09-08's, exactly** (see "A reload loop on `/feed`, chased and not caught"
+  under 09-08): the dev server logged **33 `GET /feed`, every one a 200** — the same count as
+  09-08 — each server-rendering `feed.page` (~1.2 s in dev) and the new `saves.ids` prefetch, and
+  **not one `/api/trpc` or `/api/img` request between them**. No redirects (the two `GET / 307`s
+  are the landing's own), no ping-pong with `/onboarding`, no server errors. The page reloads
+  before the client issues a single query — before or during hydration. Nothing was acked, so no
+  corpus was burned. Raw log: `.cache/reload-loop-09-11-devserver.log` (gitignored; the 404s in it
+  are Ben looking for `/dev/feed`).
+- **What preceded it:** this session's `E2E_HIDE_DEV_INDICATOR=1 bun run dev` on
+  `feat/chrome-redesign`, started right after **three `e2e:prod` runs had served a production
+  build on the same `localhost:3000`** — which is also what preceded 09-08's loop (four `e2e:prod`
+  runs that afternoon).
+
+**Suspects, in the order they are cheap to test — none confirmed:**
+
+1. **Browser-profile state, not code.** Both loops were in Ben's own Firefox after `e2e:prod`
+   held :3000; 09-08's four clean-profile attempts never reproduced it. A production build
+   registers Serwist on `localhost:3000` (`sw-cleanup.tsx` documents this exact loop from
+   08-17-26), and a Firefox tab left open on :3000 would register it if it navigated while the
+   prod server held the port. 09-08 dismissed the SW on the DevTools panel's word — **Firefox's
+   authoritative list is `about:serviceworkers`** (or `about:debugging#/runtime/this-firefox`).
+   **The one-step discriminator is a private window on `/feed`:** loops there ⇒ code; doesn't ⇒
+   profile state.
+2. **This branch.** Nothing here calls `reload`, `location` or `router.*`, but it adds
+   `useSyncExternalStore` stores that re-render at hydration (`last-collection.ts`, the
+   `HOVER_QUERY` gate in `FeedScreen`) and the `saves.ids` RSC prefetch. The test is
+   `git switch main && bun run dev` in the same browser — a loop on `main` too clears the branch.
+3. **Next dev's own full reload** — Fast Refresh falling back, or the HMR websocket failing
+   (through the tailnet origin, if that was the URL; `src/config/dev-origins.js`). Firefox clears
+   the console on every navigation: **turn on "Persist Logs" in Console and Network first**, then
+   read what the console says between loads and the _Cause_ column of each `/feed` document.
+
+**Ask Ben first:** which URL (localhost or the tailnet); does a private window loop; what
+`about:serviceworkers` lists for :3000.
+
+**State at handoff:** `feat/chrome-redesign` pushed and clean, not merged; this session's dev
+server stopped, **port 3000 free**; `tailscale serve` still fronts :3000.
+
+_Session spend: 11.16M tok (in 790 · out 59.7k · cache r 9.76M / w 1.35M) · ~$19.65 · opus-5 + opus-4-7 · 13:33→15:03_
+
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
 Ben's morning brief said production was thousands of images behind the Mac. It is: **29,062

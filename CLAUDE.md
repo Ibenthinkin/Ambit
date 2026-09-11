@@ -116,7 +116,8 @@ materialising it grew to 2.6 GB in eight page loads and stalled unrelated reques
 `bun run bench:feed` and `bun run probe:feed`'s score summary are the before/after. The 22 ms in
 the 7.3 sentence above was measured against 9,848 rows. **Sub-project 3 of Ben's desktop review — the chrome redesign — was built 09-11-26 on
 `feat/chrome-redesign` (see its bullet under Architecture); list screens are sub-project 4,
-unwritten.** Pick the thread up from
+unwritten.** **Opening it, Ben hit a `/feed` reload loop — open, handed to a fresh
+session; start from the "Handoff" block in `log.md` 09-11 (same signature as 09-08's).** Pick the thread up from
 `docs/HANDOFF_sources-round2.md` **§0** — streetartnews and spoon-tamago as a cold-executable
 seven-step task (config rows on the factory, verdict after each) — then Europeana / Openverse /
 Chronicling America. See
