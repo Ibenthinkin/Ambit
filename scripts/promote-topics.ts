@@ -36,7 +36,8 @@ import { topicIdFor } from "~/server/services/topic-mining";
 
 const confirm = process.argv.includes("--confirm");
 const fileArg = process.argv.indexOf("--file");
-const file = fileArg > -1 ? process.argv[fileArg + 1]! : "docs/topic-proposals.md";
+const file =
+  fileArg > -1 ? process.argv[fileArg + 1]! : "docs/topic-proposals.md";
 
 // A ticked line looks like:
 //   - [x] `sculpture` — **Sculpture** <!-- tag: sculpture --> <!-- facet: medium --> · 738 un-homed / …
@@ -53,9 +54,7 @@ const picks = doc
   .map((m) => ({ id: m[1]!, label: m[2]!, tag: m[3]!, facet: m[4] }));
 
 if (picks.length === 0) {
-  console.error(
-    `No ticked candidates in ${file} — nothing to promote.`,
-  );
+  console.error(`No ticked candidates in ${file} — nothing to promote.`);
   console.error('Tick a line by changing "- [ ]" to "- [x]".');
   process.exit(1);
 }
