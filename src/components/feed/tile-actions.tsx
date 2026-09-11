@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 import { Bookmark, ChevronDown } from "~/components/icons";
 import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sheet";
@@ -146,20 +147,33 @@ export function TileActions({ card, onToast }: TileActionsProps) {
         </button>
       </div>
 
-      <SaveToCollectionSheet
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        itemId={card.item.id}
-        currentCollectionId={forItem.data?.collectionId ?? undefined}
-        topicId={card.topicId}
-        anchor={anchor}
-        placement="below"
-        onSaved={(collection, drift) => {
-          onToast(saveToastText(collection.name, drift));
-          void utils.saves.ids.invalidate();
-        }}
-        onError={onToast}
-      />
+      {/* **Portalled to `<body>`, not rendered in place.** This strip lives inside a feed tile, so
+          a sheet rendered here inherits the tile's stacking context: its `fixed` + `z-[35]` only
+          rank it among that tile's descendants, and the tiles after it painted over the popover
+          and took its clicks (caught by e2e — "subtree intercepts pointer events" on the picker's
+          New-collection row). The screen-level sheets never had this problem because they are
+          mounted at the top of the screen. React still bubbles the picker's events through this
+          component, not through `<body>`, which is harmless: no ancestor handles them. The guard
+          is for form's sake — the feed only mounts strips on a client with a real hover. */}
+      {typeof document === "undefined"
+        ? null
+        : createPortal(
+            <SaveToCollectionSheet
+              open={pickerOpen}
+              onClose={() => setPickerOpen(false)}
+              itemId={card.item.id}
+              currentCollectionId={forItem.data?.collectionId ?? undefined}
+              topicId={card.topicId}
+              anchor={anchor}
+              placement="below"
+              onSaved={(collection, drift) => {
+                onToast(saveToastText(collection.name, drift));
+                void utils.saves.ids.invalidate();
+              }}
+              onError={onToast}
+            />,
+            document.body,
+          )}
     </>
   );
 }

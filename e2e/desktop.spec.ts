@@ -132,7 +132,9 @@ test.describe.serial("desktop", () => {
     const rail = page.getByTestId("rail-toolbar");
     const railBox = (await rail.boundingBox())!;
 
-    await rail.getByRole("button", { name: "Save to collection" }).click();
+    const bookmark = rail.getByRole("button", { name: "Save to collection" });
+    const anchorBox = (await bookmark.boundingBox())!;
+    await bookmark.click();
     const panel = page.getByTestId("bottom-sheet-panel");
     await expect(
       panel.getByRole("heading", { name: "Your collections" }),
@@ -141,7 +143,11 @@ test.describe.serial("desktop", () => {
     const box = (await panel.boundingBox())!;
     expect(Math.round(box.width)).toBe(360);
     expect(box.x + box.width).toBeLessThan(railBox.x); // beside the rail, not over it
-    expect(Math.abs(box.y + box.height / 2 - CENTRE_Y)).toBeLessThan(2); // centred on the rail
+    // Centred on the button that opened it, not on the rail: on the feed the bookmark is the
+    // third of three controls, 68px below the rail's middle (design §2, `popoverStyle`).
+    expect(
+      Math.abs(box.y + box.height / 2 - (anchorBox.y + anchorBox.height / 2)),
+    ).toBeLessThan(2);
 
     // Decision 5: no scrim is painted — the click-catcher is transparent.
     await expect(page.getByTestId("bottom-sheet-scrim")).toHaveCSS(
