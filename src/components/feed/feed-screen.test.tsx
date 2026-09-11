@@ -1,10 +1,20 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Item } from "~/server/db/items";
 import type { FeedCard, FeedPage, Tier } from "~/server/services/feed";
-import { DESKTOP_QUERY, WIDE_QUERY } from "~/hooks/use-media-query";
+import {
+  DESKTOP_QUERY,
+  HOVER_QUERY,
+  WIDE_QUERY,
+} from "~/hooks/use-media-query";
 import { stubMatchMedia } from "~/test/match-media";
 import { FeedScreen } from "./feed-screen";
 
@@ -43,6 +53,13 @@ vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({
       saves: {
+        // The tile strips' optimistic cache (09-11-26, docs/DESIGN_chrome-redesign.md §3).
+        ids: {
+          cancel: vi.fn(),
+          getData: vi.fn(),
+          setData: vi.fn(),
+          invalidate: invalidateMock,
+        },
         collections: { invalidate: invalidateMock },
         list: { invalidate: invalidateMock },
         count: { invalidate: invalidateMock },
@@ -70,6 +87,8 @@ vi.mock("~/trpc/react", () => ({
         }),
       },
       count: { useQuery: () => ({ data: 2, isLoading: false }) },
+      ids: { useQuery: () => ({ data: [] }) },
+      forItem: { useQuery: () => ({ data: undefined }) },
       saveToCollection: {
         useMutation: () => ({ mutate: saveMutateMock, isPending: false }),
       },
@@ -712,6 +731,22 @@ describe("FeedScreen with `dev`", () => {
 // which reads `matchMedia` — absent in jsdom, so every test above renders the phone's two
 // columns and only these stub it.
 describe("desktop columns", () => {
+  // docs/DESIGN_chrome-redesign.md §3: the hover strip exists only where there is a hover — an
+  // invisible strip on a phone would still catch taps across the top of every tile.
+  it("mounts a tile strip per card only on a hover-capable fine pointer", () => {
+    // jsdom: no matchMedia → no hover → no strip.
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+    expect(screen.queryAllByTestId("tile-actions")).toHaveLength(0);
+    cleanup();
+    stubMatchMedia([HOVER_QUERY]);
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+    expect(screen.getAllByTestId("tile-actions").length).toBeGreaterThan(0);
+    // The strip is the wrapper's second child; the tile stays first (e2e's `> *` .first()).
+    const wrapper = document.querySelector("[data-feed-id]")!;
+    expect(wrapper).toHaveClass("group/tile", "relative");
+    expect(wrapper.children[1]).toHaveAttribute("data-testid", "tile-actions");
+  });
+
   it("packs two columns where matchMedia is absent (the phone, and the server)", () => {
     render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
     const grid = screen.getByTestId("feed-columns");

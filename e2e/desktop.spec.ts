@@ -124,6 +124,89 @@ test.describe.serial("desktop", () => {
     expect(tops[1]! - tops[0]!).toBeGreaterThan(52); // each below the last
   });
 
+  test("a rail button's sheet floats left of it, over an unblurred page", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const rail = page.getByTestId("rail-toolbar");
+    const railBox = (await rail.boundingBox())!;
+
+    await rail.getByRole("button", { name: "Save to collection" }).click();
+    const panel = page.getByTestId("bottom-sheet-panel");
+    await expect(
+      panel.getByRole("heading", { name: "Your collections" }),
+    ).toBeVisible();
+    await settle(panel);
+    const box = (await panel.boundingBox())!;
+    expect(Math.round(box.width)).toBe(360);
+    expect(box.x + box.width).toBeLessThan(railBox.x); // beside the rail, not over it
+    expect(Math.abs(box.y + box.height / 2 - CENTRE_Y)).toBeLessThan(2); // centred on the rail
+
+    // Decision 5: no scrim is painted — the click-catcher is transparent.
+    await expect(page.getByTestId("bottom-sheet-scrim")).toHaveCSS(
+      "background-color",
+      "rgba(0, 0, 0, 0)",
+    );
+
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+  });
+
+  // docs/DESIGN_chrome-redesign.md §3: hover a tile, the strip appears, one click saves to the
+  // last-used collection, the chevron opens the picker under the pill.
+  test("hovering a tile reveals its strip; one click saves; the chevron opens the picker beneath", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const first = page.locator("[data-feed-id]:has(img)").first();
+    await expect(first).toBeVisible();
+
+    const strip = first.getByTestId("tile-actions");
+    await first.hover();
+    await expect(strip).toHaveCSS("opacity", "1");
+    await strip.getByRole("button", { name: /^Save to / }).click();
+    await expect(page.getByText(/^Saved to /)).toBeVisible();
+    await expect(
+      strip.getByRole("button", { name: /^Saved to / }),
+    ).toBeVisible();
+
+    const second = page.locator("[data-feed-id]:has(img)").nth(1);
+    await second.hover();
+    const pill = second.getByRole("button", { name: "Choose collection" });
+    await pill.click();
+    const panel = page.getByTestId("bottom-sheet-panel");
+    await expect(
+      panel.getByRole("heading", { name: "Save to collection" }),
+    ).toBeVisible();
+    await settle(panel);
+    const pillBox = (await pill.boundingBox())!;
+    const box = (await panel.boundingBox())!;
+    expect(Math.round(box.width)).toBe(360);
+    expect(box.y).toBeGreaterThanOrEqual(pillBox.y + pillBox.height); // under the pill
+
+    await panel.getByRole("button", { name: /New collection/ }).click();
+    const name = `From a hover ${Date.now()}`;
+    await panel.getByLabel("Collection name").fill(name);
+    await panel.getByRole("button", { name: "Create" }).click();
+    await expect(
+      page.getByText(`Saved to ${name}`, { exact: false }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // The next strip names the collection just used.
+    const third = page.locator("[data-feed-id]:has(img)").nth(2);
+    await third.hover();
+    await expect(
+      third.getByRole("button", { name: "Choose collection" }),
+    ).toHaveText(name);
+
+    await page.goto("/saved");
+    expect(
+      await page.locator("[data-saved-id]").count(),
+    ).toBeGreaterThanOrEqual(2);
+  });
+
   test("right-click opens the item sheet as a centered dialog; Escape closes it", async ({
     page,
   }) => {
@@ -158,7 +241,8 @@ test.describe.serial("desktop", () => {
     await signIn(page, EMAIL, PASSWORD);
     const imageTile = page.locator("[data-feed-id]:has(img)").first();
     await expect(imageTile).toBeVisible();
-    await imageTile.locator("> *").click();
+    // `.first()`: the wrapper holds the tile and, on a mouse, its hover strip.
+    await imageTile.locator("> *").first().click();
     await page.waitForURL(/\/i\//);
 
     const strip = page.getByTestId("hero-rail");

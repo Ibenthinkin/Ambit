@@ -12,7 +12,11 @@ import { Rise } from "~/components/ui/rise";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
 import { Column } from "~/components/ui/column";
-import { useColumnCount } from "~/hooks/use-media-query";
+import {
+  HOVER_QUERY,
+  useColumnCount,
+  useMediaQuery,
+} from "~/hooks/use-media-query";
 import { cn } from "~/lib/utils";
 import { saveToastText } from "~/lib/save-toast";
 import type { FeedKnobs } from "~/server/services/feed-knobs";
@@ -23,6 +27,7 @@ import { pageStats } from "./dev/feed-stats";
 import { KnobPanel } from "./dev/knob-panel";
 import { useDevKnobs } from "./dev/use-dev-knobs";
 import { markFeedOrigin } from "./feed-origin";
+import { TileActions } from "./tile-actions";
 import { ImageTile } from "./image-tile";
 import { buildTiles, packColumns, type FeedTile } from "./masonry";
 import { useFeedScroll } from "./use-feed-scroll";
@@ -268,6 +273,9 @@ export function FeedScreen({
 
   // 2 / 3 / 4 by viewport, hydration-safe — see `useMediaQuery` on why it isn't an effect.
   const columnCount = useColumnCount();
+  // A real hover and a fine pointer: only then does each tile carry its hover strip
+  // (docs/DESIGN_chrome-redesign.md §3). On touch the strip does not exist at all.
+  const hoverCapable = useMediaQuery(HOVER_QUERY);
 
   const { columns, firstPageTiles, cardCount } = React.useMemo(() => {
     const tiles = buildTiles(pages, topicLabels);
@@ -454,8 +462,21 @@ export function FeedScreen({
                 const key =
                   tile.kind === "because" ? tile.key : tile.card.item.id;
                 const body = (
-                  <div data-feed-id={tile.kind === "because" ? undefined : key}>
+                  <div
+                    data-feed-id={tile.kind === "because" ? undefined : key}
+                    // `group/tile relative`: the hover strip below is a sibling overlay keyed
+                    // on this wrapper's hover (docs/DESIGN_chrome-redesign.md §3). Second child
+                    // on purpose — e2e reaches the tile as `[data-feed-id] > *` `.first()`.
+                    className={
+                      tile.kind === "because"
+                        ? undefined
+                        : "group/tile relative"
+                    }
+                  >
                     {renderTile(tile)}
+                    {hoverCapable && tile.kind !== "because" ? (
+                      <TileActions card={tile.card} onToast={setToast} />
+                    ) : null}
                   </div>
                 );
                 // Only page one rises in. An appended page arriving mid-scroll with a staggered

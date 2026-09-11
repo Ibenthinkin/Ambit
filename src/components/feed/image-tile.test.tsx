@@ -100,3 +100,17 @@ describe("ImageTile — desktop input", () => {
     ).toBe(true);
   });
 });
+
+// Decision 4 (docs/DESIGN_chrome-redesign.md §4): no hover zoom; a 3px off-white ring for keyboard
+// focus (the 2px accent was invisible on a photograph — Ben's review).
+it("has no hover zoom and an off-white focus ring", () => {
+  render(
+    <ImageTile card={card("a")} aspectClass="aspect-square" onTap={vi.fn()} />,
+  );
+  const tile = screen.getByRole("button", { name: "A title" });
+  expect(tile.querySelector("img")?.className).not.toMatch(/scale/);
+  expect(tile).toHaveClass(
+    "focus-visible:outline-ink-hi",
+    "focus-visible:outline-[3px]",
+  );
+});

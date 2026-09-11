@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Magnifier, Share } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import { writeLastCollectionId } from "~/lib/last-collection";
 import type { SaveDrift } from "~/lib/save-toast";
 import { Spinner } from "~/components/ui/spinner";
 import { api } from "~/trpc/react";
@@ -88,6 +89,8 @@ export function ItemSheet({
 
   const saveToCollection = api.saves.saveToCollection.useMutation({
     onSuccess: async (result, variables) => {
+      // Every save moves the feed's hover strips to this collection (last-collection.ts).
+      writeLastCollectionId(variables.collectionId);
       await Promise.all([
         utils.saves.collections.invalidate(),
         utils.saves.list.invalidate(),

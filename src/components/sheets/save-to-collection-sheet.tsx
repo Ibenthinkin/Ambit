@@ -5,6 +5,7 @@ import * as React from "react";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import type { SaveDrift } from "~/lib/save-toast";
 import { Spinner } from "~/components/ui/spinner";
+import { writeLastCollectionId } from "~/lib/last-collection";
 import { api } from "~/trpc/react";
 import {
   CollectionRow,
@@ -28,6 +29,11 @@ export interface SaveToCollectionSheetProps {
   itemId: string;
   /** Which collection the item is in right now, if any — drives the accent dot. */
   currentCollectionId?: string;
+  /**
+   * The slot the card was served under, when opened from a feed tile — the save bumps it
+   * (docs/DESIGN_chrome-redesign.md §5). The item screen passes none.
+   */
+  topicId?: string | null;
   /**
    * Called after a successful save. Carries the id as well as the name because the caller almost
    * always needs both: the name to toast with, and the id to move its own `currentCollectionId` to
@@ -53,6 +59,7 @@ export function SaveToCollectionSheet({
   onClose,
   itemId,
   currentCollectionId,
+  topicId,
   onSaved,
   onError,
   anchor,
@@ -66,6 +73,8 @@ export function SaveToCollectionSheet({
   });
   const saveToCollection = api.saves.saveToCollection.useMutation({
     onSuccess: async (result, variables) => {
+      // Every save moves the feed's hover strips to this collection (last-collection.ts).
+      writeLastCollectionId(variables.collectionId);
       // Counts on every row just changed, and so did whatever list the caller is showing.
       await Promise.all([
         utils.saves.collections.invalidate(),
@@ -89,7 +98,11 @@ export function SaveToCollectionSheet({
   const pick = (collectionId: string) => {
     if (saveToCollection.isPending) return; // double-tap guard
     onClose(); // close first: the design's sheet dismisses immediately, the write settles behind it
-    saveToCollection.mutate({ itemId, collectionId });
+    saveToCollection.mutate({
+      itemId,
+      collectionId,
+      topicId: topicId ?? undefined,
+    });
   };
 
   return (
