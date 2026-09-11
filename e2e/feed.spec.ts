@@ -10,6 +10,8 @@ import {
   restoreSession,
   saveSession,
   type Connection,
+  waitForFeedToSettle,
+  tapInPlace,
 } from "./support";
 
 // The feed masonry against a real dev server, real Postgres and the real feed engine (SPEC §12,
@@ -151,6 +153,8 @@ test.describe.serial("feed", () => {
 
   test("scrolling to the bottom appends another page", async ({ page }) => {
     await onFeed(page);
+    // A short first page pulls page 2 on its own now (the trip wire, 09-10-26) — count after that.
+    await waitForFeedToSettle(page);
     const before = await page.locator("[data-feed-id]").count();
 
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -228,11 +232,16 @@ test.describe.serial("feed", () => {
           nodes.map((node) => node.getAttribute("data-feed-id")),
         );
 
+    // Any scroll the tap needs happens *before* the snapshot, and the tap itself moves nothing —
+    // see `tapInPlace` for the 58px that made this matter.
+    const tile = page.locator("[data-feed-id] > *").first();
+    await tile.scrollIntoViewIfNeeded();
+    await waitForFeedToSettle(page);
     const before = await feedIds();
     expect(before.length).toBeGreaterThan(0);
 
-    const itemId = before[0]!;
-    await page.locator(`[data-feed-id="${itemId}"] > *`).click();
+    const itemId = (await tile.locator("..").getAttribute("data-feed-id"))!;
+    await tapInPlace(page, tile);
     await page.waitForURL(`/i/${itemId}`);
     // Level 1 specifically: the item page grew a second heading in 5.7 (the wander-next teaser),
     // and the item's own title is the one that proves the page rendered.
@@ -253,6 +262,10 @@ test.describe.serial("feed", () => {
 
     // The pill's Feed button is the way back now — `BackToFeed` was folded into `useLeaveToFeed`
     // (5.7) and the pill calls it. The e2e user is signed in, so the pill is there.
+    // On a picture the pill rides in the merged screen's chrome, which starts hidden; a mouse move
+    // summons it (a click would toggle it). On an article it is always there and this is a no-op.
+    await page.mouse.move(200, 200);
+    await page.mouse.move(210, 210);
     await page.getByRole("button", { name: "Feed" }).click();
 
     // Popped, not pushed — so the URL is the feed entry that was already on the stack, with no

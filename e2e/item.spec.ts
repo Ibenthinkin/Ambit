@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   PIXEL,
@@ -10,6 +10,8 @@ import {
   signIn,
   waitForHydration,
   type Connection,
+  waitForFeedToSettle,
+  tapInPlace,
 } from "./support";
 
 // The item pages (`/i/[itemId]`) against a real dev server and real Postgres — the app's one
@@ -60,7 +62,7 @@ let imageIds: string[] = [];
  * summons, so a click would show and then hide in one call. A move only ever shows, and restarts
  * the ten-second cycle, so the pill stays put for the next few steps.
  */
-async function summonChrome(page: import("@playwright/test").Page) {
+async function summonChrome(page: Page) {
   const { width, height } = page.viewportSize()!;
   await page.mouse.move(Math.round(width / 2) - 10, Math.round(height / 4));
   await page.mouse.move(
@@ -438,14 +440,15 @@ test.describe.serial("item pages", () => {
     // The tiles arrive after the route resolves — reading ids straight off `waitForURL` races the
     // render and comes back empty (`onFeed` in feed.spec.ts waits the same way, for the same reason).
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();
-    const before = await feedIds();
 
     // The first *image* tile, not simply the first tile: an article opens the reader, which has no
-    // rail to swipe.
+    // rail to swipe. Scrolled to *before* the snapshot, and tapped in place — see `tapInPlace`.
     const imageTile = page.locator("[data-feed-id]:has(img)").first();
-    await expect(imageTile).toBeVisible();
+    await imageTile.scrollIntoViewIfNeeded();
+    await waitForFeedToSettle(page);
+    const before = await feedIds();
     const itemId = (await imageTile.getAttribute("data-feed-id"))!;
-    await imageTile.locator("> *").click();
+    await tapInPlace(page, imageTile.locator("> *"));
     await page.waitForURL(`/i/${itemId}`);
     await waitForHydration(page, "[data-testid='gallery-track']");
 
@@ -499,7 +502,7 @@ test.describe.serial("item pages", () => {
     page,
   }) => {
     const { db, seenItem, user } = conn;
-    const { count, eq } = await import("drizzle-orm");
+    const { eq } = await import("drizzle-orm");
 
     const [row] = await db
       .select({ id: user.id })
@@ -507,15 +510,23 @@ test.describe.serial("item pages", () => {
       .where(eq(user.email, EMAIL));
     const userId = row!.id;
 
-    const seenCount = async () => {
-      const [c] = await db
-        .select({ n: count() })
-        .from(seenItem)
-        .where(eq(seenItem.userId, userId));
-      return c!.n;
-    };
+    // The items this reader has been handed, as a set — **not a row count.** "Spends none of the
+    // corpus" means the session *adds* no `seen_item` row, and a count also moves when rows are
+    // taken away: at three workers another spec's `cleanupSeeded` deletes the seen rows of *its*
+    // seeded items for every user, and this reader's feed can include one of them. That landed as a
+    // count going 35 → 34 mid-test (09-10-26) — a deletion, never a spend. A set difference only
+    // sees additions.
+    const seenIds = async () =>
+      new Set(
+        (
+          await db
+            .select({ itemId: seenItem.itemId })
+            .from(seenItem)
+            .where(eq(seenItem.userId, userId))
+        ).map((r) => r.itemId),
+      );
 
-    const before = await seenCount();
+    const before = await seenIds();
 
     // Signed out is enough for this: the rail procedure is public and takes no user, so if it
     // wrote anything at all it would be a bug regardless of who was looking.
@@ -525,6 +536,7 @@ test.describe.serial("item pages", () => {
       await page.keyboard.press("ArrowRight");
     }
 
-    expect(await seenCount()).toBe(before);
+    const added = [...(await seenIds())].filter((id) => !before.has(id));
+    expect(added).toEqual([]);
   });
 });

@@ -11,6 +11,7 @@ import {
   restoreSession,
   saveSession,
   type Connection,
+  waitForFeedToSettle,
 } from "./support";
 
 // The Saved screen (5.9) against a real server and Postgres — locally the dev server, and since
@@ -270,6 +271,7 @@ test.describe.serial("saved", () => {
     page,
   }) => {
     await onFeed(page);
+    await waitForFeedToSettle(page);
 
     const feedIds = () =>
       page
