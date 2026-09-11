@@ -125,6 +125,10 @@ export interface FeedCard {
 export interface FeedPage {
   cards: FeedCard[];
   nextCursor?: string;
+  /** Only when the dev gate is on (`feedDebugEnabled()`), like every card's `debug`: how many
+   *  topic pools the page asked for, and whether the planned fetch composed short and the full
+   *  reachable fetch had to be made (09-11-26). `bench:feed` and `probe:feed` read it. */
+  debug?: { plannedTopics: number; fallback: boolean };
 }
 
 // ── cursor (SPEC §7) ────────────────────────────────────────────────────────────────────────────
@@ -676,8 +680,9 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
 
 // ── orchestration (the part that isn't in the prototype) ───────────────────────────────────────
 /**
- * Every topic id `composePage`'s guard loop could possibly land on, computed purely/in-memory
- * (no DB) so `getFeedPage` can fetch every relevant pool in exactly one `getTopicPools` call
+ * Every topic id `composePage`'s guard loop could possibly land on — the fallback fetch's set
+ * since 09-11-26, and every page's set before that. Computed purely/in-memory (no DB) so
+ * `getFeedPage` can fetch every relevant pool in exactly one `getTopicPools` call
  * rather than one per slot the way the prototype's interleaved loop implicitly did (it read
  * straight from an in-memory `items` object; the server has to go to Postgres instead). CORE only
  * ever draws from `weights`' own keys; DRIFT can walk up to two hops out from a weighted topic;
@@ -712,14 +717,17 @@ function reachableTopics(
  * The real, DB-backed entry point (SPEC §7, §9). Orchestrates around the pure engine above:
  *
  * 1. Decode the cursor (absent → a fresh page 0: random seed, `anchor: now`, empty `prev`).
- *    `rng = mulberry32(hashSeed(\`${seed}:${page}\`))` — every draw on this page uses it, and
- *    only it, which is what makes "same cursor + same pools → identical page" hold (SPEC §7).
+ *    Two random streams from that seed: a topic stream, `mulberry32(hashSeed(\`${seed}:${page}\`))`,
+ *    for tiers and topics, and an item stream (the same key plus `:items`) for item draws — see
+ *    `planTopics` for why there are two. Every draw on this page uses one of them and nothing
+ *    else, which is what makes "same cursor + same pools → identical page" hold (SPEC §7).
  * 2. Load the user's topic weights (cold start → `coldStartWeights()`). Knob overrides from the
  *    caller are only honored when FEED_DEBUG is on — SPEC §9's "dev affordances... behind a dev
  *    flag."
- * 3. "Slot plan first, pools second": compute the reachable topic superset (pure, in-memory, see
- *    `reachableTopics` above), fetch every one of those topics' pools in one `getTopicPools`
- *    call, then hand everything to `composePage` for the actual tier/topic/item guard loop.
+ * 3. Plan first, pools second (09-11-26): `planTopics` replays the compose's topic sequence to
+ *    learn which pools the page needs, `getTopicPools` fetches exactly those in one call, and
+ *    `composePage` runs the tier/topic/item guard loop over them. Only a short page falls back
+ *    to the `reachableTopics` superset every page used to fetch.
  * 4. Capture `servedAt` as the next cursor's `anchor` — purely the page-boundary instant now.
  *    This function deliberately does NOT mark anything seen: as of 5.7 the client acks the page it
  *    actually received (`feed.markSeen`), because a server render whose output is discarded — a
@@ -742,7 +750,14 @@ export async function getFeedPage(
   const anchor = decoded ? new Date(decoded.anchor) : new Date();
   const prev = decoded?.prev ?? [];
 
-  const rng = mulberry32(hashSeed(`${seed}:${page}`));
+  // Two streams from one seed (09-11-26): the topic stream drives tiers and topics, the item
+  // stream drives item draws. Fresh instances each time they are handed out — `planTopics` and
+  // `composePage` must each start from the stream's beginning, and so must a fallback compose.
+  // (A factory rather than a value because a `mulberry32` stream is stateful: every call to it
+  // advances it, so one instance shared by the plan and the compose would hand the compose the
+  // plan's leftovers.)
+  const topicStream = () => mulberry32(hashSeed(`${seed}:${page}`));
+  const itemStream = () => mulberry32(hashSeed(`${seed}:${page}:items`));
 
   // The dev gate, shared with the gallery rail, the forget mutation and the /dev/feed route —
   // see feed-debug.ts for the rule and for why it is a dynamic import underneath.
@@ -769,34 +784,53 @@ export async function getFeedPage(
     knobs.grownEdgeScale,
   );
 
-  const distinctTopics = [...reachableTopics(weights, graph)];
   const eligibility = {
     userId,
     anchor,
     scoreFloor: knobs.scoreFloor,
     excludeIds: prev,
   };
-  // Two pools, one round trip, one key. `sampleKey` is the cursor's own `${seed}:${page}`, which
-  // is what makes both samples reproduce byte-for-byte on a refetch (db/feed.ts). At
-  // `tierWild: 0` the WILD tier can never be drawn, so its query is skipped entirely.
+  // One key for both pools: the cursor's own `${seed}:${page}`, which is what makes both samples
+  // reproduce byte-for-byte on a refetch (db/feed.ts). At `tierWild: 0` the WILD tier can never
+  // be drawn, so its query is skipped entirely.
   const sampleKey = `${seed}:${page}`;
-  const [pools, wildPool] = await Promise.all([
-    getTopicPools(distinctTopics, { ...eligibility, sampleKey }),
-    knobs.tierWild > 0
-      ? getWildPool({ ...eligibility, sampleKey })
-      : Promise.resolve([]),
-  ]);
+  const wildPool =
+    knobs.tierWild > 0 ? await getWildPool({ ...eligibility, sampleKey }) : [];
 
-  const composed = composePage({
-    weights,
-    graph,
-    pools,
-    wildPool,
-    rng,
-    knobs,
-    tasteKeywords,
-    debug: debugEnabled,
-  });
+  const compose = async (topicIds: string[]) => {
+    const pools = await getTopicPools(topicIds, { ...eligibility, sampleKey });
+    return composePage({
+      weights,
+      graph,
+      pools,
+      wildPool,
+      rng: topicStream(),
+      itemRng: itemStream(),
+      knobs,
+      tasteKeywords,
+      debug: debugEnabled,
+    });
+  };
+
+  // **Plan, then fetch, then compose** (docs/DESIGN_feed-on-membership.md §4.3). The plan replays
+  // the compose's own topic sequence without pools, so the page fetches the ~40 topics it will
+  // draw from rather than every topic it *could* reach (~100 of 104 from three picks). Pools come
+  // from membership now, which made the every-reachable fetch ~2.8× dearer overnight and would
+  // make it grow with every promoted topic; this makes the page's cost a function of page size.
+  const planned = [
+    ...planTopics({ weights, graph, knobs, rng: topicStream() }),
+  ];
+  let composed = await compose(planned);
+  let fallback = false;
+  // A short page means the compose ran past the plan's horizon into pools it never fetched — a
+  // reader whose picks are all tiny topics, a near-exhausted corpus, CI's empty database. Fetch
+  // the superset every page used to fetch and compose again from the streams' beginning; same
+  // seed, so the fallback page is as deterministic as the fast one. A healthy reader never
+  // takes this path; `bench:feed` counts how often it fires.
+  if (composed.length < knobs.pageSize) {
+    fallback = true;
+    composed = await compose([...reachableTopics(weights, graph)]);
+  }
 
   if (composed.length === 0) {
     return { cards: [], nextCursor: undefined };
@@ -831,5 +865,11 @@ export async function getFeedPage(
     prev: itemIds,
   });
 
-  return { cards, nextCursor };
+  return {
+    cards,
+    nextCursor,
+    ...(debugEnabled
+      ? { debug: { plannedTopics: planned.length, fallback } }
+      : {}),
+  };
 }

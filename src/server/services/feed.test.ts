@@ -1217,6 +1217,93 @@ describe("getFeedPage — FEED_DEBUG knob gating", () => {
   });
 });
 
+// ── the planned fetch (09-11-26, docs/DESIGN_feed-on-membership.md §4.3) ──────────────────────
+// `getFeedPage` now asks `getTopicPools` for the topics `planTopics` says the page will draw from,
+// and only a page that composes short pays for the full reachable fetch. What must hold: the first
+// fetch is exactly the plan, the fallback is a superset that fills the page, a refetched cursor
+// still reproduces its page through both, and the readout stays behind the dev gate.
+describe("getFeedPage — planned fetch (09-11-26)", () => {
+  // Five picks, not three: at `topicCap: 3` a page can hold at most 3 × topics cards from its
+  // topic tiers, and with the WILD pool empty that has to reach `pageSize` (12) or every test
+  // here would take the fallback for the wrong reason.
+  const PICKED = ["p0", "p1", "p2", "p3", "p4"];
+  // Twelve-per-topic pools for every topic the mock is asked about.
+  const poolsFor = (topicIds: string[], size = 12) =>
+    new Map(
+      topicIds.map((topicId) => [
+        topicId,
+        Array.from({ length: size }, (_, i) =>
+          makeItem({ id: `${topicId}-${i}`, topicId, curationScore: 7 }),
+        ),
+      ]),
+    );
+
+  beforeEach(() => {
+    mockEnv.FEED_DEBUG = true;
+    mockEnv.NODE_ENV = "test";
+    mockGetUserTopicWeights
+      .mockReset()
+      .mockResolvedValue(new Map(PICKED.map((id) => [id, 1])));
+    mockGetTasteKeywords.mockReset().mockResolvedValue([]);
+    mockGetWildPool.mockReset().mockResolvedValue([]);
+    mockGetTopicPools
+      .mockReset()
+      .mockImplementation(async (topicIds: string[]) => poolsFor(topicIds));
+    mockMarkSeen.mockReset().mockResolvedValue(undefined);
+    mockGetItemsByIds.mockClear();
+  });
+
+  it("fetches pools for the planned topics only, and reports how many", async () => {
+    const page = await getFeedPage("user-plan");
+    expect(mockGetTopicPools).toHaveBeenCalledTimes(1);
+    const [asked] = mockGetTopicPools.mock.calls[0] as [string[]];
+    // These ids have no row in the real TOPIC_GRAPH, so DRIFT and JUMP both "stay on the start
+    // topic" and the plan is exactly the picks — which makes the fetched set checkable to the
+    // element. (Against the real graph the same three-to-five picks reach ~100 topics; the
+    // plan asks for ~40. `bench:feed` prints that number.)
+    expect([...asked].sort()).toEqual([...PICKED].sort());
+    expect(page.cards).toHaveLength(DEFAULT_KNOBS.pageSize);
+    expect(page.debug).toEqual({
+      plannedTopics: asked.length,
+      fallback: false,
+    });
+  });
+
+  it("falls back to the reachable superset when the planned pools compose short", async () => {
+    // First call: every planned pool is empty. Second call: pools for whatever is asked.
+    mockGetTopicPools
+      .mockReset()
+      .mockImplementationOnce(async (topicIds: string[]) =>
+        poolsFor(topicIds, 0),
+      )
+      .mockImplementation(async (topicIds: string[]) => poolsFor(topicIds));
+    const page = await getFeedPage("user-fallback");
+    expect(mockGetTopicPools).toHaveBeenCalledTimes(2);
+    const [first] = mockGetTopicPools.mock.calls[0] as [string[]];
+    const [second] = mockGetTopicPools.mock.calls[1] as [string[]];
+    expect(second.length).toBeGreaterThanOrEqual(first.length);
+    for (const id of PICKED) expect(second).toContain(id);
+    expect(page.cards).toHaveLength(DEFAULT_KNOBS.pageSize);
+    expect(page.debug?.fallback).toBe(true);
+  });
+
+  it("same cursor ⇒ same page, through the plan (SPEC §7)", async () => {
+    const first = await getFeedPage("user-stable");
+    const second = await getFeedPage("user-stable", first.nextCursor);
+    const again = await getFeedPage("user-stable", first.nextCursor);
+    expect(again.cards.map((c) => c.item.id)).toEqual(
+      second.cards.map((c) => c.item.id),
+    );
+  });
+
+  it("carries no debug field when the gate is off", async () => {
+    mockEnv.FEED_DEBUG = false;
+    mockEnv.NODE_ENV = "production";
+    const page = await getFeedPage("user-quiet");
+    expect(page.debug).toBeUndefined();
+  });
+});
+
 // Phase 6.1's done-bar assertion, in test form: a burst of saves in one domain (modelled as that
 // topic sitting at WEIGHT_CAP, the most learning the bump can ever accumulate) measurably shifts
 // page composition — but never overwhelms it. Both tests follow the two hard-won rules from the
