@@ -58,7 +58,7 @@ redeploy, `seed-personas-prod.sh`.
 *Session spend: 19.91M tok (in 3.1k · out 268.4k · cache r 18.94M / w 702.7k) · fable-5-1 · 09:14→10:34*
 
 **Executed the same day (Opus 5, a second session)** — the plan, end to end, on
-`feat/feed-on-membership`. Not merged: Ben reads `/feed` on the branch first.
+`feat/feed-on-membership`, merged to `main` the same day at Ben's request.
 
 **Shipped:**
 
@@ -120,7 +120,7 @@ fix zero redacted SSR errors, as on `main`.
 
 **Open / next:** Ben reads `/feed` and `/dev/feed` on the branch (which pictures a topic shows has
 changed, not which topics); a call on the p50 regression (accept, or one of the two levers); then
-merge, deploy, and round 2 — tick `docs/topic-proposals-round2.md` with facets,
+deploy, and round 2 — tick `docs/topic-proposals-round2.md` with facets,
 `promote:topics --file … --confirm`, `graph:rebuild --confirm`, and
 `sh .cache/promote-prod.sh docs/topic-proposals-round2.md` in production (the script takes the
 file as its first argument now). Saves still bump the display topic (design §5 follow-up).

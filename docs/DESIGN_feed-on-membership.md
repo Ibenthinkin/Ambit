@@ -2,8 +2,8 @@
 
 **Written:** 09-11-26 by Fable 5.1, from the finding that opened the topic-mining round 2 (below).
 **Status:** approved by Ben 09-11-26 ("approach 2, might as well go all the way"); plan
-`docs/PLAN_feed-on-membership.md`. **Shipped 09-11-26 on `feat/feed-on-membership`** — not
-merged: Ben reads `/feed` on the branch first (§6, "Feel"). Measured in §9, which is where one
+`docs/PLAN_feed-on-membership.md`. **Shipped 09-11-26 on `feat/feed-on-membership`, merged to
+`main` the same day** at Ben's request; the feel read (§6) is still his to make. Measured in §9, which is where one
 acceptance line (§7, "not worse than before") is recorded as missed. This is the half of Cut 2b that moves the feed onto
 `item_topic`. The other half — the `topic_edge` table — stays deferred, for the reason
 `docs/DESIGN_topic-vocabulary-growth.md` §11 gives (it is a scale trigger at ~300 topics, and

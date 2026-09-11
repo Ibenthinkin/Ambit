@@ -245,7 +245,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   the join move does not dissolve a blog's topic capture (90-98% by membership too).
 - **The feed draws on membership and fetches to plan — 09-11-26** (design
   `docs/DESIGN_feed-on-membership.md`, plan `docs/PLAN_feed-on-membership.md`; branch
-  `feat/feed-on-membership`, merged only after Ben reads `/feed` on it).
+  `feat/feed-on-membership`, merged to `main` 09-11-26).
   `getTopicPools` samples `item_topic ⋈ item`, so a topic's pool is its whole membership
   (`surreal` 3,919 → 26,701 drawable) and a promoted topic is full from its first page.
   `composePage` takes a topic stream (`rng`) and an item stream (`itemRng`, default `rng`);
