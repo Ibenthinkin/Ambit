@@ -5,6 +5,58 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-11-26 Fri]] — Round 2 mining hit the display-topic wall; the feed moves onto membership
+
+Ben set `PERSONA_PASSWORD` in Coolify and asked what next. Production catch-up first (redeploy
+held back: a walk loop was running in another session, and a Coolify redeploy replaces the
+container the loop's `docker exec` is bound to — it would have killed the walk mid-page). He ran
+the Coolify task fix and `promote-prod.sh` while this session started the `mine:topics` round.
+
+**Findings:**
+
+- **The un-homed lens is spent.** Cut 2a's mining ranks a tag by how many invisible items it
+  rescues; the corpus is now 99% homed (1,272 of 164,423 un-homed) and that lens proposes
+  **ten** topics. Ranking by *total* frequency instead — ≥300 items on ≥3 sources — proposes
+  **267**, and reads like the corpus: retro sci-fi, Soviet, spaceship, folk art, engraving,
+  street photography, botanical illustration, comics. That is the vocabulary the pickers need.
+- **But every one of the 267 would be an empty topic.** `promote:topics` sets `item.topic_id`
+  only where NULL, and the feed draws only on `item.topic_id`. `spaceship` is 4,409 items and
+  one of them is un-homed: a display pool of one. The join move deferred on 09-07 as "not a
+  diversity tool" is now the gate on the vocabulary growing at all — a different reason than the
+  one it was deferred for.
+- **The join alone is too slow, and round 2 makes it slower.** Same two-stage sampling over
+  `item_topic ⋈ item`: ~400 ms for 100 topics against ~150 ms today (451k membership rows ranked
+  vs 164k items; the sort spills to disk at 4 MB `work_mem`, and 64 MB buys ~40 ms). Round 2
+  adds ~300k `tag` rows and pushes the reachable set to ~370 topics: extrapolated ~700 ms
+  against SPEC §4's 300 ms bar. 34 topics ran in ~190 ms — and the engine fetches ~100 pools to
+  draw from at most twelve, which is the fat.
+- The membership pools change existing topics more than they add new ones: `surreal` 3,919 →
+  26,701 drawable, `color` 245 → 7,525, `black-and-white` 58 → 5,983. Ben will feel that on
+  `/feed` before he ticks a single line.
+- `mine:topics`' default overwrote `docs/topic-proposals.md` — the very file `promote-prod.sh`
+  was tarring to production at that moment, carrying the two ticked lines production needed.
+  Hence `--out` (and `--file` on `promote:topics`); round 2 lives in
+  `docs/topic-proposals-round2.md`.
+
+**Decisions (Ben):** approach 2 — the join **plus** a planned fetch ("might as well go all the
+way"). Design `docs/DESIGN_feed-on-membership.md`, plan `docs/PLAN_feed-on-membership.md`
+(seven tasks, cold-executable, every task carrying its code). The four parts: `getTopicPools`
+on `item_topic`; `composePage` takes a second stream (`itemRng`) so its topic sequence is a pure
+function of the topic stream; `planTopics` replays that sequence without pools and `getFeedPage`
+fetches only those ~40 topics, falling back to the two-hop reachable set when a page composes
+short; `pickItem` refuses an id already drawn this page (an item now sits in up to three pools).
+`item.topic_id` stays as the display topic; `topic_edge` stays deferred; saves still bump the
+display topic (follow-up). Period tags (`70s`, `1960s`) stay unticked in round 2.
+
+**Open / next:** execute the plan in a cheaper session (branch `feat/feed-on-membership`; Task 0
+commits the mining flags and the round-2 file). Then Ben reads `/feed` on the branch before
+merging; then round 2 proper — tick with facets, `promote:topics --file …`, `graph:rebuild`,
+`sh .cache/promote-prod.sh docs/topic-proposals-round2.md` after the deploy. Production
+sequence still pending in Ben's hands: wait for the walk loop's `ALL DONE`, `post-walks-prod.sh`,
+redeploy, `seed-personas-prod.sh`.
+
+*Session spend: 19.91M tok (in 3.1k · out 268.4k · cache r 18.94M / w 702.7k) · fable-5-1 · 09:14→10:34*
+
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
 Ben's morning brief said production was thousands of images behind the Mac. It is: **29,062
