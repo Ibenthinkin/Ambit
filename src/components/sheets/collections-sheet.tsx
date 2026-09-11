@@ -24,9 +24,17 @@ import {
 export interface CollectionsSheetProps {
   open: boolean;
   onClose: () => void;
+  /** Desktop popover anchoring — passed straight to `BottomSheet`. See its `anchor` doc. */
+  anchor?: DOMRect | null;
+  placement?: "left" | "below";
 }
 
-export function CollectionsSheet({ open, onClose }: CollectionsSheetProps) {
+export function CollectionsSheet({
+  open,
+  onClose,
+  anchor,
+  placement,
+}: CollectionsSheetProps) {
   const router = useRouter();
   const collections = api.saves.collections.useQuery(undefined, {
     enabled: open,
@@ -46,6 +54,8 @@ export function CollectionsSheet({ open, onClose }: CollectionsSheetProps) {
     <BottomSheet
       open={open}
       onClose={onClose}
+      anchor={anchor}
+      placement={placement}
       title="Your collections"
       maxHeightPct={72}
     >

@@ -53,6 +53,10 @@ export function SavedScreen() {
   const utils = api.useUtils();
   const [toast, setToast] = React.useState<string | null>(null);
   const [collectionsOpen, setCollectionsOpen] = React.useState(false);
+  // The rect of the toolbar control that opened the sheet — above `md` the sheet floats beside
+  // it (docs/DESIGN_chrome-redesign.md §2); the phone ignores it.
+  const [collectionsAnchor, setCollectionsAnchor] =
+    React.useState<DOMRect | null>(null);
 
   // "Unsave is immediate" (prototype): the tile leaves the visible list optimistically, then the
   // settle invalidates the same trio every save path invalidates (`item-sheet.tsx`), which either
@@ -224,7 +228,10 @@ export function SavedScreen() {
 
       <Toolbar
         bookmark="on-saved"
-        onBookmark={() => setCollectionsOpen(true)}
+        onBookmark={(anchor) => {
+          setCollectionsAnchor(anchor);
+          setCollectionsOpen(true);
+        }}
         onHome={leaveSaved}
         // No `onShare`, same rationale as the feed: a list has no single referent to share — and
         // public share-collection is out of 5.9's scope entirely.
@@ -233,6 +240,7 @@ export function SavedScreen() {
       <CollectionsSheet
         open={collectionsOpen}
         onClose={() => setCollectionsOpen(false)}
+        anchor={collectionsAnchor}
       />
 
       {/* `raised` — the pill is mounted here, and an unraised toast would sit behind it. 1700ms is

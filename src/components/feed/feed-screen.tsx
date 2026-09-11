@@ -160,6 +160,10 @@ export function FeedScreen({
 
   const [toast, setToast] = React.useState<string | null>(null);
   const [collectionsOpen, setCollectionsOpen] = React.useState(false);
+  // The rect of the toolbar control that opened the sheet — above `md` the sheet floats beside
+  // it (docs/DESIGN_chrome-redesign.md §2); the phone ignores it.
+  const [collectionsAnchor, setCollectionsAnchor] =
+    React.useState<DOMRect | null>(null);
   const [itemSheetOpen, setItemSheetOpen] = React.useState(false);
   // Deliberately NOT cleared when the sheet closes: `ItemSheet` stays mounted through its exit
   // animation, and blanking the item would flash an empty title on the way out.
@@ -527,7 +531,10 @@ export function FeedScreen({
 
       <Toolbar
         bookmark="idle"
-        onBookmark={() => setCollectionsOpen(true)}
+        onBookmark={(anchor) => {
+          setCollectionsAnchor(anchor);
+          setCollectionsOpen(true);
+        }}
         onHome={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         // No `onProfile` override as of 5.10: the pill's own default navigates to the real
         // `/profile` (marking the origin on the way), so the toast placeholder that stood in for a
@@ -539,6 +546,7 @@ export function FeedScreen({
       <CollectionsSheet
         open={collectionsOpen}
         onClose={() => setCollectionsOpen(false)}
+        anchor={collectionsAnchor}
       />
 
       <ItemSheet

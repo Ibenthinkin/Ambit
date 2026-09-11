@@ -51,6 +51,10 @@ export function ProfileScreen() {
 
   const [newCollectionOpen, setNewCollectionOpen] = React.useState(false);
   const [collectionsSheetOpen, setCollectionsSheetOpen] = React.useState(false);
+  // The rect of the toolbar control that opened the sheet — above `md` the sheet floats beside
+  // it (docs/DESIGN_chrome-redesign.md §2); the phone ignores it.
+  const [collectionsAnchor, setCollectionsAnchor] =
+    React.useState<DOMRect | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
 
   // Pop when an in-app surface brought us here, push when /profile was opened cold (a bookmark, a
@@ -201,7 +205,10 @@ export function ProfileScreen() {
         // A deliberate divergence from the prototype, whose bookmark goes straight to Saved: one
         // bookmark behavior app-wide. The sheet already writes `saved-origin` and offers filtered
         // entry, so this is strictly more, not less.
-        onBookmark={() => setCollectionsSheetOpen(true)}
+        onBookmark={(anchor) => {
+          setCollectionsAnchor(anchor);
+          setCollectionsSheetOpen(true);
+        }}
         onHome={leaveProfile}
         // Inert: you are already on Profile. Passing a no-op rather than letting the default fire
         // keeps the button from pushing a second copy of this screen onto the history stack.
@@ -218,6 +225,7 @@ export function ProfileScreen() {
       <CollectionsSheet
         open={collectionsSheetOpen}
         onClose={() => setCollectionsSheetOpen(false)}
+        anchor={collectionsAnchor}
       />
 
       {/* `raised` — the pill is mounted here, and an unraised toast would sit behind it. */}

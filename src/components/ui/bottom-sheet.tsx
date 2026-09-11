@@ -121,6 +121,15 @@ export interface BottomSheetProps {
    * making the reader close the sheet, swipe, and reopen it. No other sheet passes it.
    */
   onSwipeSide?: (dir: 1 | -1) => void;
+  /**
+   * Desktop only (09-11-26): the rect of the control that opened this sheet, captured at click
+   * time (`e.currentTarget.getBoundingClientRect()`). With it, and above `md`, the panel is a
+   * popover floating beside that control rather than the centred dialog; the scrim goes invisible
+   * but keeps catching clicks. Ignored on the phone. See `popoverStyle`.
+   */
+  anchor?: DOMRect | null;
+  /** Which side of the anchor the popover takes: `left` (rail buttons, default) or `below` (tile pills). */
+  placement?: "left" | "below";
 }
 
 // Enter/exit class pairs per variant. Both halves live together deliberately: an exit that doesn't
@@ -152,6 +161,68 @@ const PANEL = {
 const PANEL_DESKTOP =
   "md:inset-auto md:left-1/2 md:top-1/2 md:w-[520px] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-sheet md:border md:overscroll-contain";
 
+// The desktop **popover** (docs/DESIGN_chrome-redesign.md §2, decision 5): with an `anchor` the
+// panel stops being a centred dialog and floats beside the control that opened it — left of a
+// rail button, under a tile's collection pill. 360px wide, the sheet radius, a full hairline
+// border, the *menu* animation pair (a lift-and-fade; a dialog's scale would read as arriving
+// from nowhere). Position is inline, computed by `popoverStyle` from the anchor's rect.
+export const POPOVER_W = 360;
+const PANEL_POPOVER =
+  "md:inset-auto md:w-[360px] md:rounded-sheet md:border md:overscroll-contain";
+
+const POPOVER_GAP = 14; // between a rail button and its panel
+const BELOW_GAP = 8; // between a tile pill and its picker
+const EDGE = 16; // the least the panel keeps from any viewport edge
+const MIN_BELOW = 240; // under this much room, a `below` panel flips above
+
+/**
+ * Where a popover goes, as inline style. Pure, so the flip and the clamp are unit-testable.
+ *
+ * `left` centres the panel on the anchor vertically. **The centring is the `translate`
+ * property, not `transform`**: `animate-menu-rise` animates `transform` with `fill-mode: both`,
+ * and a `transform: translateY(-50%)` here would be replaced by the keyframe's own value the
+ * moment it played — the same composition trap CLAUDE.md records for the 520px dialog, from the
+ * other side. The max-height is twice the shorter distance to a viewport edge, less margins: a
+ * panel centred on its anchor cannot then overflow either way.
+ *
+ * `below` drops the panel under the anchor's left edge (Cosmos's picker), flips above when
+ * fewer than `MIN_BELOW`px remain, and keeps its left edge on screen.
+ */
+export function popoverStyle(
+  a: DOMRect,
+  placement: "left" | "below",
+  vw: number,
+  vh: number,
+): React.CSSProperties {
+  if (placement === "left") {
+    const cy = a.top + a.height / 2;
+    const room = 2 * Math.min(cy, vh - cy) - 2 * EDGE;
+    return {
+      right: vw - a.left + POPOVER_GAP,
+      top: cy,
+      translate: "0 -50%",
+      maxHeight: Math.min(vh * 0.7, room),
+      transformOrigin: "right center",
+    };
+  }
+  const left = Math.max(EDGE, Math.min(a.left, vw - POPOVER_W - EDGE));
+  const below = vh - a.bottom - BELOW_GAP - EDGE;
+  if (below >= MIN_BELOW) {
+    return {
+      left,
+      top: a.bottom + BELOW_GAP,
+      maxHeight: below,
+      transformOrigin: "top left",
+    };
+  }
+  return {
+    left,
+    bottom: vh - a.top + BELOW_GAP,
+    maxHeight: a.top - BELOW_GAP - EDGE,
+    transformOrigin: "bottom left",
+  };
+}
+
 /**
  * There's no point animating a sheet out for someone who asked the OS for less motion — globals.css
  * already collapses every animation to 0.01ms under this query, so without this check the sheet
@@ -177,6 +248,8 @@ export function BottomSheet({
   variant = "pill",
   dragToClose = false,
   onSwipeSide,
+  anchor = null,
+  placement = "left",
 }: BottomSheetProps) {
   // Only the *closing* phase needs state; "open" is a prop, so `leaving` is the single extra bit
   // and the sheet is on screen whenever either is true.
@@ -185,6 +258,12 @@ export function BottomSheet({
   // One read, shared by the animation pair, the panel skin and the gesture gate below. Sheets
   // only ever render on the client (they open from a tap), so the server snapshot never paints.
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  // A popover only ever renders on a desktop client, so reading the viewport here is safe; the
+  // dimensions are read per render, which is what keeps a resized window's panel on screen.
+  const anchored = isDesktop && anchor !== null;
+  const popover = anchored
+    ? popoverStyle(anchor, placement, window.innerWidth, window.innerHeight)
+    : null;
   const panelRef = React.useRef<HTMLDivElement>(null);
   // Whatever had focus before the sheet opened, so it can be handed back on close — otherwise a
   // keyboard user is dumped at the top of the document every time a sheet dismisses.
@@ -311,11 +390,16 @@ export function BottomSheet({
   // `variant` wins over `animation` when it's the gallery: that pair *is* the variant, and no call
   // site has any reason to mix the gallery's skin with the menu's lift. Above `md` the dialog pair
   // wins over both, because the panel is centered there and has no edge to slide from.
-  const pair = isDesktop
-    ? "dialog"
-    : variant === "gallery"
-      ? "gallery"
-      : animation;
+  //
+  // An anchored panel lifts and fades in place — it is a menu beside its button, not a surface
+  // arriving — so the menu pair wins over everything.
+  const pair = anchored
+    ? "menu"
+    : isDesktop
+      ? "dialog"
+      : variant === "gallery"
+        ? "gallery"
+        : animation;
 
   // ── the drag gesture (5.8) ────────────────────────────────────────────────────────────────────
   // Refs, not state, throughout the gesture itself: the panel is moved by writing to its own
@@ -467,8 +551,11 @@ export function BottomSheet({
         data-testid="bottom-sheet-scrim"
         onClick={onClose}
         className={cn(
-          "bg-scrim/66 absolute inset-0 backdrop-blur-[3px]",
-          leaving ? "animate-scrim-out" : "animate-scrim-in",
+          "absolute inset-0",
+          // Decision 5: a popover's scrim is an invisible click-catcher. The page stays fully
+          // visible; click-outside, Escape and the focus trap all still work through it.
+          !anchored && "bg-scrim/66 backdrop-blur-[3px]",
+          !anchored && (leaving ? "animate-scrim-out" : "animate-scrim-in"),
         )}
       />
       <div
@@ -480,7 +567,8 @@ export function BottomSheet({
         // Focusable so the sheet itself can take focus on open (see the keyboard effect above),
         // but not a tab stop of its own.
         tabIndex={-1}
-        style={{ maxHeight: `${maxHeightPct}%` }}
+        // A popover's own px `maxHeight` (and position) wins over the percentage cap.
+        style={{ maxHeight: `${maxHeightPct}%`, ...popover }}
         {...(gestureEnabled
           ? {
               onPointerDown,
@@ -495,7 +583,7 @@ export function BottomSheet({
           // the cap would otherwise spill out of the rounded panel and paint over the scrim.
           "border-hairline bg-surface absolute inset-x-0 bottom-0 flex flex-col overflow-y-auto border-t pt-2 pb-[26px] outline-none",
           PANEL[variant],
-          PANEL_DESKTOP,
+          anchored ? PANEL_POPOVER : PANEL_DESKTOP,
           leaving ? ANIMATIONS[pair].out : ANIMATIONS[pair].in,
         )}
       >

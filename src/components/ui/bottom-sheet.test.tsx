@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DESKTOP_QUERY } from "~/hooks/use-media-query";
 import { stubMatchMedia } from "~/test/match-media";
-import { BottomSheet } from "./bottom-sheet";
+import { BottomSheet, POPOVER_W, popoverStyle } from "./bottom-sheet";
 
 /**
  * The drag's velocity test reads the wall clock (see `bottom-sheet.tsx`'s note on why it can't read
@@ -740,5 +740,118 @@ describe("below md — unchanged", () => {
     const panel = screen.getByTestId("bottom-sheet-panel");
     expect(panel).toHaveClass("animate-sheet-up", "bottom-0", "inset-x-0");
     vi.unstubAllGlobals();
+  });
+});
+
+// A rect the way a rail button reports one at 1440×900: 52px square, 26px from the right edge.
+const RAIL_RECT = {
+  left: 1362,
+  top: 424,
+  width: 52,
+  height: 52,
+  right: 1414,
+  bottom: 476,
+  x: 1362,
+  y: 424,
+  toJSON: () => ({}),
+} as DOMRect;
+
+describe("popoverStyle — docs/DESIGN_chrome-redesign.md §2", () => {
+  it("left: floats 14px left of the anchor, centred on it, with a symmetric height clamp", () => {
+    const s = popoverStyle(RAIL_RECT, "left", 1440, 900);
+    expect(s.right).toBe(1440 - 1362 + 14);
+    expect(s.top).toBe(450);
+    // `translate`, not `transform`: the entrance keyframe animates `transform` and would
+    // otherwise replace the centring (CLAUDE.md, the dialog that landed 260px off).
+    expect(s.translate).toBe("0 -50%");
+    expect(s.transform).toBeUndefined();
+    expect(s.maxHeight).toBe(Math.min(900 * 0.7, 2 * 450 - 32));
+  });
+
+  it("below: sits under the anchor when there is room, clamped to the viewport's right edge", () => {
+    const pill = {
+      ...RAIL_RECT,
+      left: 1300,
+      right: 1400,
+      top: 100,
+      bottom: 132,
+      height: 32,
+    } as DOMRect;
+    const s = popoverStyle(pill, "below", 1440, 900);
+    expect(s.top).toBe(140);
+    expect(s.left).toBe(1440 - POPOVER_W - 16);
+    expect(s.maxHeight).toBe(900 - 140 - 16);
+  });
+
+  it("below: flips above the anchor when fewer than 240px remain under it", () => {
+    const low = {
+      ...RAIL_RECT,
+      left: 200,
+      top: 760,
+      bottom: 792,
+      height: 32,
+    } as DOMRect;
+    const s = popoverStyle(low, "below", 1440, 900);
+    expect(s.bottom).toBe(900 - 760 + 8);
+    expect(s.top).toBeUndefined();
+    expect(s.maxHeight).toBe(760 - 8 - 16);
+  });
+});
+
+describe("BottomSheet — anchored (desktop popover)", () => {
+  beforeEach(() => {
+    stubMatchMedia([DESKTOP_QUERY]);
+    Object.defineProperty(window, "innerWidth", {
+      value: 1440,
+      configurable: true,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      value: 900,
+      configurable: true,
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("positions the panel from the anchor and paints no scrim (decision 5)", () => {
+    render(
+      <BottomSheet open onClose={vi.fn()} anchor={RAIL_RECT}>
+        <p>Rows</p>
+      </BottomSheet>,
+    );
+    const panel = screen.getByTestId("bottom-sheet-panel");
+    expect(panel.style.right).toBe("92px");
+    expect(panel.style.top).toBe("450px");
+    expect(panel).toHaveClass("md:w-[360px]", "animate-menu-rise");
+    expect(panel).not.toHaveClass("md:left-1/2");
+    const scrim = screen.getByTestId("bottom-sheet-scrim");
+    expect(scrim).not.toHaveClass("bg-scrim/66");
+    expect(scrim).not.toHaveClass("backdrop-blur-[3px]");
+  });
+
+  it("still closes on the invisible scrim and on Escape", () => {
+    const onClose = vi.fn();
+    render(
+      <BottomSheet open onClose={onClose} anchor={RAIL_RECT}>
+        <p>Rows</p>
+      </BottomSheet>,
+    );
+    fireEvent.click(screen.getByTestId("bottom-sheet-scrim"));
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("without an anchor the desktop dialog is exactly what it was", () => {
+    render(
+      <BottomSheet open onClose={vi.fn()}>
+        <p>Rows</p>
+      </BottomSheet>,
+    );
+    const panel = screen.getByTestId("bottom-sheet-panel");
+    expect(panel).toHaveClass(
+      "md:w-[520px]",
+      "md:left-1/2",
+      "animate-dialog-in",
+    );
+    expect(screen.getByTestId("bottom-sheet-scrim")).toHaveClass("bg-scrim/66");
   });
 });

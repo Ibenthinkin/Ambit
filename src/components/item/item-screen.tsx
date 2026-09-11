@@ -97,6 +97,10 @@ export function ItemScreen({
 
   const [saveOpen, setSaveOpen] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
+  // The rects of the controls that opened each sheet — above `md` the sheet floats beside its
+  // button (docs/DESIGN_chrome-redesign.md §2); the phone pill's rects are ignored there.
+  const [saveAnchor, setSaveAnchor] = React.useState<DOMRect | null>(null);
+  const [shareAnchor, setShareAnchor] = React.useState<DOMRect | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
 
   const chrome = useChromeCycle();
@@ -324,8 +328,14 @@ export function ItemScreen({
         <PillToolbar
           className="static bottom-auto -mx-6 mt-[20px]"
           bookmark={saved.data?.saved ? "saved" : "idle"}
-          onBookmark={() => setSaveOpen(true)}
-          onShare={() => setShareOpen(true)}
+          onBookmark={(anchor) => {
+            setSaveAnchor(anchor);
+            setSaveOpen(true);
+          }}
+          onShare={(anchor) => {
+            setShareAnchor(anchor);
+            setShareOpen(true);
+          }}
           // NOT the pill's default `/feed` push: that re-runs the dynamic route and draws a fresh
           // page of cards. See `useLeaveToFeed`.
           onHome={leave}
@@ -358,8 +368,14 @@ export function ItemScreen({
         <RailToolbar
           visible={chrome.visible}
           bookmark={saved.data?.saved ? "saved" : "idle"}
-          onBookmark={() => setSaveOpen(true)}
-          onShare={() => setShareOpen(true)}
+          onBookmark={(anchor) => {
+            setSaveAnchor(anchor);
+            setSaveOpen(true);
+          }}
+          onShare={(anchor) => {
+            setShareAnchor(anchor);
+            setShareOpen(true);
+          }}
           onHome={leave}
         />
       ) : null}
@@ -393,6 +409,7 @@ export function ItemScreen({
           <SaveToCollectionSheet
             open={saveOpen}
             onClose={() => setSaveOpen(false)}
+            anchor={saveAnchor}
             itemId={current.id}
             currentCollectionId={saved.data?.collectionId ?? undefined}
             onSaved={async (collection, drift) => {
@@ -405,6 +422,7 @@ export function ItemScreen({
           <ShareSheet
             open={shareOpen}
             onClose={() => setShareOpen(false)}
+            anchor={shareAnchor}
             url={shareUrl}
             title={current.title}
             // Always true here: this screen is only ever a picture.

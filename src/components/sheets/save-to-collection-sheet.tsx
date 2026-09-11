@@ -43,6 +43,9 @@ export interface SaveToCollectionSheetProps {
    * The user walks away believing the item was filed.
    */
   onError: (message: string) => void;
+  /** Desktop popover anchoring — passed straight to `BottomSheet`. See its `anchor` doc. */
+  anchor?: DOMRect | null;
+  placement?: "left" | "below";
 }
 
 export function SaveToCollectionSheet({
@@ -52,6 +55,8 @@ export function SaveToCollectionSheet({
   currentCollectionId,
   onSaved,
   onError,
+  anchor,
+  placement,
 }: SaveToCollectionSheetProps) {
   const utils = api.useUtils();
   // `enabled: open` — the sheet's data is worthless until it's on screen, and every screen in the
@@ -91,6 +96,8 @@ export function SaveToCollectionSheet({
     <BottomSheet
       open={open}
       onClose={onClose}
+      anchor={anchor}
+      placement={placement}
       title="Save to collection"
       maxHeightPct={72}
     >
