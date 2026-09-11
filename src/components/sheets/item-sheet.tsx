@@ -38,8 +38,11 @@ export interface ItemSheetProps {
    * The long-pressed item, or `null` when nothing is pressed. Nullable rather than conditionally
    * mounting the whole sheet, because unmounting it on close would cut the exit animation off
    * mid-flight — the sheet has to outlive the item selection by one animation.
+   *
+   * `topicId` is the slot the card was served under, for the bump (docs/DESIGN_chrome-redesign.md
+   * §5).
    */
-  item: { id: string; title: string } | null;
+  item: { id: string; title: string; topicId?: string | null } | null;
   /** Same contract as `SaveToCollectionSheet.onSaved` — see its comment for what `drift` is. */
   onSaved: (collection: { id: string; name: string }, drift: SaveDrift) => void;
   /**
@@ -107,7 +110,11 @@ export function ItemSheet({
   const pick = (collectionId: string) => {
     if (!item || saveToCollection.isPending) return; // double-tap guard
     onClose(); // close first: the write settles behind the dismissal, as everywhere else
-    saveToCollection.mutate({ itemId: item.id, collectionId });
+    saveToCollection.mutate({
+      itemId: item.id,
+      collectionId,
+      topicId: item.topicId ?? undefined,
+    });
   };
 
   const closerLook = () => {

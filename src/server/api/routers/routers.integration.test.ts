@@ -392,6 +392,36 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       await db.delete(item).where(eq(item.id, unhomed!.id));
     });
 
+    // 09-11-26 (docs/DESIGN_chrome-redesign.md §5): the feed serves a card under any topic it is a
+    // member of, so the save says which. Honoured only for a member — a client cannot bump an
+    // arbitrary topic — and the display topic stays the fallback.
+    it("saveToCollection bumps the slot topic when the item is a member of it, else the display topic", async () => {
+      const { addItemTopics } = await import("~/server/db/items");
+      const caller = createCaller(authedContext(userId));
+      const [articles] = await caller.saves.collections();
+
+      // itemFour is displayed under topicA; make it a member of topicB as well.
+      await addItemTopics(itemFourId, [topicB], "curator");
+
+      const served = await caller.saves.saveToCollection({
+        itemId: itemFourId,
+        collectionId: articles!.id,
+        topicId: topicB,
+      });
+      expect(served.drift?.topicLabel).toBe("Test router topic B");
+      expect(await caller.saves.ids()).toContain(itemFourId);
+      await caller.saves.unsave({ itemId: itemFourId });
+
+      const notAMember = await caller.saves.saveToCollection({
+        itemId: itemFourId,
+        collectionId: articles!.id,
+        topicId: "test-router-not-a-member",
+      });
+      expect(notAMember.drift?.topicLabel).toBe("Test router topic A");
+      await caller.saves.unsave({ itemId: itemFourId });
+      expect(await caller.saves.ids()).not.toContain(itemFourId);
+    });
+
     it("re-filing an item MOVES it rather than adding a second membership", async () => {
       const caller = createCaller(authedContext(userId));
       const collections = await caller.saves.collections();

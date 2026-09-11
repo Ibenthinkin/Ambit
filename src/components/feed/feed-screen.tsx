@@ -170,6 +170,8 @@ export function FeedScreen({
   const [pressedItem, setPressedItem] = React.useState<{
     id: string;
     title: string;
+    // The slot the card was served under — the save bumps it (docs/DESIGN_chrome-redesign.md §5).
+    topicId: string | null;
   } | null>(null);
 
   const pages = React.useMemo(() => data?.pages ?? [], [data]);
@@ -385,7 +387,11 @@ export function FeedScreen({
     markFeedOrigin(id);
     router.push(`/i/${id}`);
   };
-  const openItemSheet = (item: { id: string; title: string }) => {
+  const openItemSheet = (item: {
+    id: string;
+    title: string;
+    topicId: string | null;
+  }) => {
     setPressedItem(item);
     setItemSheetOpen(true);
   };
@@ -397,7 +403,12 @@ export function FeedScreen({
     const { item } = tile.card;
     const gestures = {
       onTap: () => openItem(item.id),
-      onLongPress: () => openItemSheet({ id: item.id, title: item.title }),
+      onLongPress: () =>
+        openItemSheet({
+          id: item.id,
+          title: item.title,
+          topicId: tile.card.topicId,
+        }),
     };
     return tile.kind === "image" ? (
       <ImageTile

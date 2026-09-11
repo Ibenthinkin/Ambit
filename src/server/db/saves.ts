@@ -113,6 +113,21 @@ export async function getSavedCount(userId: string): Promise<number> {
 }
 
 /**
+ * Every item id the user has saved, in no particular order — what the feed's tile strips read
+ * to render a glyph lit (09-11-26, docs/DESIGN_chrome-redesign.md §3). One query for the whole
+ * feed rather than a `saves.forItem` per tile; ids only, because a reader with a few hundred
+ * saves must not pull a few hundred full rows to light up a few bookmarks.
+ */
+export async function getSavedItemIds(userId: string): Promise<string[]> {
+  const { db } = await import("./client");
+  const rows = await db
+    .select({ itemId: savedItem.itemId })
+    .from(savedItem)
+    .where(eq(savedItem.userId, userId));
+  return rows.map((r) => r.itemId);
+}
+
+/**
  * The pure half of taste-keyword derivation (Phase 6.1), split out so it can be unit-tested
  * without a database. `tagLists` is expected most-recent-save first, each item's stored tag order
  * preserved; the flatten keeps that order, so the result is recency-ordered. Dedupe is
