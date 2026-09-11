@@ -259,7 +259,13 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   measured:** p50 176-250 ms against 159-163 before, same minutes, three accounts — under SPEC's
   300 ms bar but *slower* at today's 104 topics, because the planned topics are the big ones and
   their ~125k-180k memberships sort past 4 MB `work_mem`; what it buys is that the cost no longer
-  grows with the vocabulary. **Round 2 of the vocabulary is unblocked:**
+  grows with the vocabulary. **`getTopicPools` runs with `SET LOCAL enable_parallel_hash = off`**,
+  in its own transaction: the join's parallel hash lives in `/dev/shm`, Docker's default 64 MB
+  of it (local, CI *and* production) ran out under concurrent pages — SQLSTATE 53100, a
+  `feed.page` 500 the client retry hid, found only because `e2e:prod` logged a redacted SSR
+  error `main` did not. 24 concurrent calls failed 110/120 before, 0 after; a reader with picks
+  pays nothing measurable, a cold start ~+85 ms p50. `--shm-size` on the container is the infra
+  alternative. **Round 2 of the vocabulary is unblocked:**
   `docs/topic-proposals-round2.md` (267 candidates ranked by total, `mine:topics --rank total`),
   `promote:topics --file`, and `sh .cache/promote-prod.sh docs/topic-proposals-round2.md`.
 - **Feed composition** (SPEC §9) = per-slot tier draw (CORE 40 / DRIFT 35 / JUMP 25 — drift-heavy on purpose) → topic via the user's weights or a graph walk → item via curated-weighted random, under diversity constraints (no adjacent same-source; per-page topic caps). Saves reweight _topics_, visibly. Cursor-based pagination; the cursor encodes the page seed. Debug overlay + tuning knobs ship behind a dev flag throughout development.

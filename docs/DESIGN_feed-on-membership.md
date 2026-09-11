@@ -247,3 +247,32 @@ CORE 41 / DRIFT 38 / JUMP 22 against 40/35/25, no source above `sourceCap`, zero
 violations, and **13 of 36 cards served under a topic other than their display topic** — the join
 reaching the feed (`water` serving a `70sscifiart` illustration, `new-york` a Berenice Abbott filed
 under `architecture`, `trees` a root-bench installation filed under `architecture`).
+
+### Found after the measurements: a shared-memory 500
+
+`bun run e2e:prod` passed on the branch but logged two production-redacted SSR errors that the
+same suite on `main` did not. Unredacted (a local-only `shouldRedactErrors: () => false`), the
+error was this query: **`could not resize shared memory segment … No space left on device`,
+SQLSTATE 53100.** The join plans as a *Parallel Hash Join*, whose shared hash table lives in
+dynamic shared memory under `/dev/shm`; Docker gives a container 64 MB of that by default, and
+the local, CI and Coolify production Postgres containers all have exactly 64 MB. A few pages
+composing at once exhaust it and one `feed.page` fails — a 500 the client's retry hid, which is
+why no test went red. The display-topic query before this never built a hash.
+
+Reproduced on demand: 24 concurrent `getTopicPools` calls over a real planned set, five rounds —
+**110 of 120 failed**. Two fixes were measured:
+
+| | concurrent failures | single query (EXPLAIN) | `getFeedPage` p50 / p95, same minutes |
+|---|---|---|---|
+| as built (parallel hash) | 110 / 120 | 114-148 ms (Ben) · 150-247 (cold) | Ben 203 / 253 · cold 183 / 322 |
+| `max_parallel_workers_per_gather = 0` | — | 238-322 · 319-501 | not benched |
+| **`enable_parallel_hash = off`** (shipped) | **0 / 120** | 247-316 · 287-357 | Ben 148-163 / 266-277 · cold 266-269 / 359-362 |
+
+With the parallel hash off the planner goes serial altogether, so the two settings cost the same
+per query; the narrower one was kept because it names the mechanism that fails. In the page the
+single-query doubling mostly disappears for a reader with picks and costs a cold-start reader
+~+85 ms p50 (still under the bar; its p95 is not). `getTopicPools` runs the final select in a
+transaction so `SET LOCAL` cannot leak onto a pooled connection. `e2e:prod` after the fix: 51
+passed, zero redacted errors. **Infra alternative, Ben's call:** `--shm-size` (e.g. 256 MB) on
+the Postgres container — `docker-compose.yml`, CI's service `options`, and Coolify's custom
+Docker options — would let the parallel hash back.

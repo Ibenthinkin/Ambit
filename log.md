@@ -96,6 +96,14 @@ redeploy, `seed-personas-prod.sh`.
 - **The join reaches the feed:** 13 of 36 probe cards were served under a topic other than their
   display topic (`new-york` serving a Berenice Abbott filed under `architecture`, `water` a
   `70sscifiart` illustration).
+- **A latent production 500, found by the e2e log rather than a test.** `e2e:prod` passed but
+  logged two redacted SSR errors that `main`'s run did not. Unredacted: the join's *Parallel Hash
+  Join* ran out of `/dev/shm` — Docker's default 64 MB, which local, CI and the production
+  Postgres all have — under concurrent pages (`could not resize shared memory segment`, SQLSTATE
+  53100). 24 concurrent pool queries failed 110 of 120. Fixed with `SET LOCAL
+  enable_parallel_hash = off` in a transaction around the query: 0 of 120, and in the page a
+  reader with picks pays nothing measurable (p50 148-163 ms vs 203), a cold start ~+85 ms.
+  `--shm-size` on the container is the infra alternative and Ben's call.
 - `bench:feed` with no `--user` picks `ben-e2e`, which has **no picks** — a cold-start reader. Pass
   `--user` for a real account's numbers.
 - **99 test-fixture rows from 09-07 sit in the dev corpus** (`source_id LIKE 'test-%'`, titled
@@ -107,7 +115,8 @@ redeploy, `seed-personas-prod.sh`.
 
 **Verified:** `bun run check` — 1,232 of 1,233, the one red being the known `70sscifiart`
 `<details>` summary row (09-10); two prettier drifts in this morning's mining scripts were fixed
-on the way. `bun run e2e:prod` — 51 passed, 3 skipped (the dev-only knob panel).
+on the way. `bun run e2e:prod` — 51 passed, 3 skipped (the dev-only knob panel), and after the shared-memory
+fix zero redacted SSR errors, as on `main`.
 
 **Open / next:** Ben reads `/feed` and `/dev/feed` on the branch (which pictures a topic shows has
 changed, not which topics); a call on the p50 regression (accept, or one of the two levers); then
@@ -115,6 +124,8 @@ merge, deploy, and round 2 — tick `docs/topic-proposals-round2.md` with facets
 `promote:topics --file … --confirm`, `graph:rebuild --confirm`, and
 `sh .cache/promote-prod.sh docs/topic-proposals-round2.md` in production (the script takes the
 file as its first argument now). Saves still bump the display topic (design §5 follow-up).
+
+*Session spend: 55.78M tok (in 6.2k · out 633.9k · cache r 53.32M / w 1.81M) · ~$58.74 · opus-5 + opus-4-7 · 10:54→11:30*
 
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
