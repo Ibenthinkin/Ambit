@@ -303,6 +303,39 @@ already gone from 16.3.
 
 _Session spend: 19.27M tok (in 3.3k · out 187.0k · cache r 18.58M / w 503.8k) · fable-5-1 · 15:06→15:34_
 
+**Ben's browser review of sub-projects 1–3, the same evening (Fable 5.1, same session) — five
+notes, all built on `feat/chrome-redesign`.** In his words: the save button "does not float
+separately on the desktop version"; the UI bar "is all over the place on the phone-sized one";
+"there's also no gallery view on the phone-sized screen, or at least I can't figure out how to
+get to it"; "some padding around the images, I know I said none but it looks weird — just a
+little bit like the photo app on iOS"; and "some automatic spacing between the image and the
+description".
+
+**Decisions (Ben, one question each):** the phone tap opens a **full-screen picture first** —
+the item page's strip is the viewport on every width, no separate gallery; the desktop rail
+keeps Profile and Feed in the bar and floats **Save and Share as detached discs** below it; the
+phone pill is **fixed at the bottom, always**, fading with the chrome. Two calls made here and
+stated: a 12 px inset on every width, and the picture centred vertically on the phone (a
+landscape plate pinned to the top of a black frame looks unfinished).
+
+**Shipped:** `HeroRail` is `h-dvh` with the picture `object-contain` in a `p-[12px]` cell — the
+ratio map, `useViewport`, `heroHeight`, the overlay/below placement and the collapsing grid row
+are deleted, and with them the `desktop` prop; `PillToolbar` gained `visible` (the rail's
+`visibility` fade, moved onto the shared props); `RailToolbar` is a stack — bar + `RailDisc`s of
+68 px, the bar's own width; the item screen mounts the pill as a fixed sibling of the strip and
+the reader column starts `pt-[28px]`. Tests first, all four components: 7 red → 140 green in
+`components/item` + `components/ui`; `bun run e2e:prod` 54 passed / 3 skipped with the e2e assertions untouched;
+`bun run check` 1,259 of 1,260, the one red the known `70sscifiart` row. Docs: amendments in `DESIGN_screen-structure.md` decision 2
+and `DESIGN_chrome-redesign.md` §1/§2, CLAUDE.md's two bullets.
+
+**Findings:** `getByRole` will not resolve an accessible name inside a `visibility: hidden`
+subtree even with `hidden: true` — the fixed-pill test is keyed on the chrome state instead
+(inert before the tap, findable after), which is the better assertion anyway. And the e2e
+assertions survived unchanged: the stack carries the rail's test id and box, the pill's disc
+geometry is measured within the pill's own wrapper, and the strip is still 900 × 1440 at y = 0.
+
+_Session spend: 35.49M tok (in 3.1k · out 166.5k · cache r 34.91M / w 418.8k) · ~≥$0.69 · fable-5-1 + opus-4-7 · 15:34→16:45_
+
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
 Ben's morning brief said production was thousands of images behind the Mac. It is: **29,062

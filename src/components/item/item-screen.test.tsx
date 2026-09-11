@@ -158,9 +158,14 @@ describe("ItemScreen", () => {
       "/api/img/entry",
     );
     expect(heading()).toHaveTextContent("Plate entry");
-    expect(
-      screen.getByRole("list", { name: "About this work" }),
-    ).toBeInTheDocument();
+    const facts = screen.getByRole("list", { name: "About this work" });
+    expect(facts).toBeInTheDocument();
+    // "Some automatic spacing between the image and the description" (Ben, 09-11-26): the
+    // reader column starts a clear 28px under the strip, on every width.
+    const column = [...document.querySelectorAll<HTMLElement>("*")].find(
+      (el) => el.className.includes?.("pt-[28px]") && el.contains(facts),
+    );
+    expect(column).toBeDefined();
   });
 
   it("renders only the three cells around the reader", () => {
@@ -325,13 +330,28 @@ describe("ItemScreen", () => {
       );
     });
 
-    it("gives a signed-in reader the pill, inside the chrome", () => {
+    // Ben's review (09-11-26): "the UI bar is all over the place on the phone" — it rode inside
+    // the caption, whose position followed the picture's height. Now it is fixed at the bottom
+    // like every other screen's, outside the caption, and fades with the chrome.
+    it("gives a signed-in reader a fixed pill outside the caption, fading with the chrome", () => {
       renderScreen();
-      tap();
+      const pill = screen.getByTestId("pill-toolbar");
+      expect(pill).toHaveClass("fixed");
+      // Hidden with the chrome: inert, so not even findable as a control.
+      expect(pill).toHaveAttribute("aria-hidden", "true");
       expect(
-        screen.getByRole("button", { name: "Save to collection" }),
-      ).toBeInTheDocument();
+        screen.queryByRole("button", { name: "Save to collection" }),
+      ).toBeNull();
+
+      tap();
+      expect(pill).toHaveAttribute("aria-hidden", "false");
+      const save = screen.getByRole("button", { name: "Save to collection" });
       expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
+      expect(pill).toContainElement(save);
+      expect(screen.getByTestId("gallery-chrome")).not.toContainElement(save);
+
+      tap();
+      expect(pill).toHaveAttribute("aria-hidden", "true");
     });
   });
 

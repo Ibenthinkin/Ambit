@@ -12,24 +12,28 @@ import {
 } from "~/components/ui/pill-toolbar";
 import { cn } from "~/lib/utils";
 
-// The desktop toolbar (docs/DESIGN_chrome-redesign.md §2): the pill's four controls stood on end,
-// fixed at the right edge and vertically centred — "the buttons will be located down the right
-// side" — a bit bigger and a bit further apart than on the phone. Same props as `PillToolbar`
-// (`Toolbar` picks between them by breakpoint) plus `visible`, for the one screen where the
-// toolbar belongs to something that fades: the item screen's chrome (decision 3).
+// The desktop toolbar (docs/DESIGN_chrome-redesign.md §2, amended 09-11-26 by Ben's review): a
+// vertical **stack** fixed at the right edge and vertically centred — "the buttons will be located
+// down the right side". Profile and Feed share a bar; **Save and Share are detached discs below
+// it**, the desktop twin of the phone's detached Share ("the save button does not float separately
+// on the desktop version"). Same props as `PillToolbar` (`Toolbar` picks between them by
+// breakpoint), including `visible`, for the one screen where the toolbar belongs to something
+// that fades: the item screen's chrome (decision 3).
 //
-// No full-width wrapper here, so none of the pill's `pointer-events` split: the nav *is* the
-// element, 68px wide, and takes pointer events like any other control.
+// The stack is the positioned, fading element; the bar and each disc are its children and take
+// pointer events like any other control. No full-width wrapper here, so none of the pill's
+// `pointer-events` split.
 //
 // **Hidden means `visibility: hidden`, not `pointer-events: none`** — the same reasoning as
 // hero-rail.tsx's chrome block: `visibility` transitions discretely (visible at once, hidden only
 // after the fade) and no descendant can override it. An invisible control that still takes clicks
 // is worse than no control at all.
 
-export type RailToolbarProps = PillToolbarProps & {
-  /** Default true. False fades the rail out over the chrome's 600ms and takes it out of the tab order. */
-  visible?: boolean;
-};
+export type RailToolbarProps = PillToolbarProps;
+
+/** The stack's one width: the bar is 52 + 2×8 padding, and each disc matches it, as the phone's
+ *  disc matches its pill's height. */
+const DISC = "size-[68px]";
 
 /** 52px hit areas, glyphs up to 38 — bigger than the pill's 48/34, as the review asked. */
 function RailButton({
@@ -74,34 +78,45 @@ export function RailToolbar({
     });
   const goHome = onHome ?? (() => router.push("/feed"));
 
+  const fade: React.CSSProperties = {
+    opacity: visible ? 1 : 0,
+    transform: visible ? "none" : "translateX(10px)",
+    visibility: visible ? "visible" : "hidden",
+    transition: "opacity .6s ease, transform .6s ease, visibility .6s",
+  };
+
   return (
-    <nav
-      aria-label="Ambit toolbar"
+    <div
       data-testid="rail-toolbar"
       aria-hidden={!visible}
       // `-translate-y-1/2` writes the standalone `translate` property (Tailwind v4), so the
-      // fade's `transform` nudge below composes with it instead of replacing it.
+      // fade's `transform` nudge composes with it instead of replacing it.
       className={cn(
-        TOOLBAR_GLASS,
-        "fixed top-1/2 right-[26px] z-30 flex -translate-y-1/2 flex-col items-center gap-[16px] rounded-full px-2 py-[14px]",
+        "fixed top-1/2 right-[26px] z-30 flex -translate-y-1/2 flex-col items-center gap-[14px]",
         className,
       )}
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "none" : "translateX(10px)",
-        visibility: visible ? "visible" : "hidden",
-        transition: "opacity .6s ease, transform .6s ease, visibility .6s",
-      }}
+      style={fade}
     >
-      <RailButton label="Profile" onClick={goProfile}>
-        <AvatarChip size={32} />
-      </RailButton>
+      <nav
+        aria-label="Ambit toolbar"
+        className={cn(
+          TOOLBAR_GLASS,
+          "flex flex-col items-center gap-[16px] rounded-full px-2 py-[14px]",
+        )}
+      >
+        <RailButton label="Profile" onClick={goProfile}>
+          <AvatarChip size={32} />
+        </RailButton>
 
-      <RailButton label="Feed" onClick={goHome}>
-        <Logo size={38} className="text-white/95" />
-      </RailButton>
+        <RailButton label="Feed" onClick={goHome}>
+          <Logo size={38} className="text-white/95" />
+        </RailButton>
 
-      <RailButton
+        {extra}
+      </nav>
+
+      {/* Detached, like the phone's Share disc: siblings of the bar, not children of it. */}
+      <RailDisc
         label="Save to collection"
         onClick={(e) => onBookmark(e.currentTarget.getBoundingClientRect())}
       >
@@ -114,18 +129,43 @@ export function RailToolbar({
             bookmark === "on-saved" && "text-white",
           )}
         />
-      </RailButton>
+      </RailDisc>
 
       {onShare ? (
-        <RailButton
+        <RailDisc
           label="Share"
           onClick={(e) => onShare(e.currentTarget.getBoundingClientRect())}
         >
           <Share size={27} className="text-white/82" />
-        </RailButton>
+        </RailDisc>
       ) : null}
+    </div>
+  );
+}
 
-      {extra}
-    </nav>
+/** A detached disc on the bar's glass, the bar's own width, one glyph. */
+function RailDisc({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      onPointerDown={(e) => e.stopPropagation()}
+      className={cn(
+        TOOLBAR_GLASS,
+        DISC,
+        "inline-flex flex-none items-center justify-center rounded-full transition-transform duration-150 active:scale-95",
+      )}
+    >
+      {children}
+    </button>
   );
 }

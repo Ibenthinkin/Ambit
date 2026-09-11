@@ -121,6 +121,26 @@ describe("PillToolbar", () => {
     expect(onShare.mock.calls[0]![0]).toHaveProperty("width");
   });
 
+  // The item screen (09-11-26 review): the pill is fixed at the bottom there like everywhere
+  // else, and fades with the chrome instead of riding inside it. Hidden means `visibility:
+  // hidden` — the rail's trick — so an invisible pill takes no taps.
+  it("visible={false} fades the whole toolbar out and makes it inert", () => {
+    const { container } = renderPill({ visible: false });
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper).toHaveAttribute("data-testid", "pill-toolbar");
+    expect(wrapper).toHaveAttribute("aria-hidden", "true");
+    expect(wrapper.style.visibility).toBe("hidden");
+    expect(wrapper.style.opacity).toBe("0");
+    expect(wrapper.style.transition).toContain("visibility");
+  });
+
+  it("is visible by default, with no fade styles in the way", () => {
+    const { container } = renderPill();
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper).toHaveAttribute("aria-hidden", "false");
+    expect(wrapper.style.visibility).toBe("visible");
+  });
+
   it("renders a page-specific extra action in the same row", () => {
     renderPill({ extra: <button type="button">Closer look</button> });
     const nav = screen.getByRole("navigation");

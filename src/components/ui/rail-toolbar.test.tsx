@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { RailToolbar } from "./rail-toolbar";
@@ -8,14 +8,34 @@ const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 describe("RailToolbar", () => {
-  it("stacks the four controls top to bottom, Share last", () => {
+  const labels = (root: HTMLElement) =>
+    within(root)
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label"));
+
+  // Ben's review (09-11-26): "the save button does not float separately on the desktop". Profile
+  // and Feed stay in the bar; Save and Share are detached discs below it — the desktop twin of the
+  // phone's detached Share. The stack is the fixed, fading element; the bar and the discs are its
+  // children, top to bottom.
+  it("keeps Profile and Feed in the bar and floats Save and Share as discs below it", () => {
     render(<RailToolbar onBookmark={vi.fn()} onShare={vi.fn()} />);
+    const stack = screen.getByTestId("rail-toolbar");
     const nav = screen.getByRole("navigation", { name: "Ambit toolbar" });
-    expect(nav).toHaveAttribute("data-testid", "rail-toolbar");
-    expect(nav).toHaveClass("flex-col", "fixed");
-    expect(
-      screen.getAllByRole("button").map((b) => b.getAttribute("aria-label")),
-    ).toEqual(["Profile", "Feed", "Save to collection", "Share"]);
+    expect(stack).toContainElement(nav);
+    expect(stack).toHaveClass("flex-col", "fixed");
+    expect(labels(nav)).toEqual(["Profile", "Feed"]);
+    expect(labels(stack)).toEqual([
+      "Profile",
+      "Feed",
+      "Save to collection",
+      "Share",
+    ]);
+    for (const name of ["Save to collection", "Share"]) {
+      const disc = screen.getByRole("button", { name });
+      expect(nav).not.toContainElement(disc);
+      expect(disc.parentElement).toBe(stack);
+      expect(disc).toHaveClass("rounded-full");
+    }
   });
 
   it("omits Share without a handler, like the pill", () => {

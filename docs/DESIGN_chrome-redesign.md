@@ -105,6 +105,14 @@ Feed, Saved, Profile: three controls, no disc — unchanged shape, bigger. The h
 "never add a second bar" line gets an amendment: a detached *button* aligned with the pill is not
 a bar, and the README's measurements are superseded by this section.
 
+**Amended 09-11-26 (Ben's browser review).** On the item screen the pill no longer rides inside
+the caption. It is **fixed at the bottom like every other screen's**, outside the caption, and
+fades with the chrome through a new `visible` prop on `PillToolbar` (the rail's `visibility`
+treatment, moved up onto `PillToolbarProps` so both toolbars share it). Ben's words: "the UI bar
+is all over the place on the phone-sized one" — the caption's position followed the picture's
+height, and the pill went with it. The caption's bottom padding grows to 108 px below `md` to
+clear it.
+
 ## 2. The desktop rail — vertical, fixed right, panels float beside it
 
 From `md` up, a new `RailToolbar` (`src/components/ui/rail-toolbar.tsx`) replaces the pill. Same
@@ -154,6 +162,14 @@ Profile bookmark), `SaveToCollectionSheet` (item bookmark; also the tile picker,
 `placement="below"`), `ShareSheet`. Both toolbars' `onBookmark` and `onShare` become
 `(anchor: DOMRect) => void`; callers on the phone may ignore the argument. This is "the current
 menus/options we have for now", floating where Ben asked.
+
+**Amended 09-11-26 (Ben's browser review): "the save button does not float separately on the
+desktop version".** The rail is now a **stack**: Profile and Feed share the bar; **Save and Share
+are detached 68 px discs below it** (the bar's own width, as the phone's disc matches its pill's
+height), 14 px apart, the whole stack fixed at `right-[26px]` and vertically centred. The stack
+is the positioned, fading element and carries `data-testid="rail-toolbar"`; the bar is the
+`<nav aria-label="Ambit toolbar">` inside it; the discs are its siblings, exactly as the phone's
+Share disc is the pill's sibling. Popovers anchor to each button's own rect and did not move.
 
 ## 3. The tile hover strip — one-click save, fine pointer only
 

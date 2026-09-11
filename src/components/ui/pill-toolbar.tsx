@@ -66,6 +66,14 @@ export interface PillToolbarProps {
   /** A page-specific action, rendered in the pill's own row rather than a second bar. */
   extra?: React.ReactNode;
   className?: string;
+  /**
+   * Default true. False fades the toolbar out over the chrome's 600ms and takes it out of the tab
+   * order — the item screen, where the toolbar belongs to something that fades (09-11-26). Hidden
+   * means `visibility: hidden`, never `pointer-events: none`: `visibility` transitions discretely
+   * (visible at once, hidden only after the fade) and no descendant can override it, so an
+   * invisible control can never take a tap.
+   */
+  visible?: boolean;
 }
 
 /**
@@ -106,6 +114,7 @@ export function PillToolbar({
   onHome,
   extra,
   className,
+  visible = true,
 }: PillToolbarProps) {
   const router = useRouter();
   const goProfile =
@@ -125,10 +134,18 @@ export function PillToolbar({
       //
       // A `1fr auto 1fr` grid: the pill in the middle column is centred by the two flexible
       // columns whether or not the disc is in the third.
+      data-testid="pill-toolbar"
+      aria-hidden={!visible}
       className={cn(
         "pointer-events-none fixed inset-x-0 bottom-[26px] z-30 grid grid-cols-[1fr_auto_1fr] items-center",
         className,
       )}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "none" : "translateY(10px)",
+        visibility: visible ? "visible" : "hidden",
+        transition: "opacity .6s ease, transform .6s ease, visibility .6s",
+      }}
     >
       <nav
         aria-label="Ambit toolbar"
