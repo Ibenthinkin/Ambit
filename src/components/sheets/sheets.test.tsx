@@ -58,7 +58,11 @@ const {
               collectionName: string;
               drift: { topicLabel: string; isNew: boolean } | null;
             },
-            variables: { itemId: string; collectionId: string },
+            variables: {
+              itemId: string;
+              collectionId: string;
+              topicId?: string;
+            },
           ) => Promise<void>;
         },
   },
@@ -324,6 +328,18 @@ describe("ItemSheet", () => {
       collectionId: "c9",
     });
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  // docs/DESIGN_chrome-redesign.md §5: the feed tells the sheet which topic the card was served
+  // under, and the save carries it so the server can bump that topic (for a member only).
+  it("passes the slot topic along with the save", () => {
+    renderSheet({ item: { ...ITEM, topicId: "surreal" } });
+    fireEvent.click(screen.getByRole("button", { name: "Articles" }));
+    expect(mutateMock).toHaveBeenCalledWith({
+      itemId: "item-9",
+      collectionId: "c1",
+      topicId: "surreal",
+    });
   });
 
   it("shows the item's title, the peek action, and a row per collection", () => {

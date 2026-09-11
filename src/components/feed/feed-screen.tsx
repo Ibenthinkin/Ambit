@@ -7,12 +7,16 @@ import { CollectionsSheet } from "~/components/sheets/collections-sheet";
 import { InstallFlow } from "~/components/install/install-flow";
 import { ItemSheet } from "~/components/sheets/item-sheet";
 import { Button } from "~/components/ui/button";
-import { PillToolbar } from "~/components/ui/pill-toolbar";
+import { Toolbar } from "~/components/ui/toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
 import { Column } from "~/components/ui/column";
-import { useColumnCount } from "~/hooks/use-media-query";
+import {
+  HOVER_QUERY,
+  useColumnCount,
+  useMediaQuery,
+} from "~/hooks/use-media-query";
 import { cn } from "~/lib/utils";
 import { saveToastText } from "~/lib/save-toast";
 import type { FeedKnobs } from "~/server/services/feed-knobs";
@@ -23,6 +27,7 @@ import { pageStats } from "./dev/feed-stats";
 import { KnobPanel } from "./dev/knob-panel";
 import { useDevKnobs } from "./dev/use-dev-knobs";
 import { markFeedOrigin } from "./feed-origin";
+import { TileActions } from "./tile-actions";
 import { ImageTile } from "./image-tile";
 import { buildTiles, packColumns, type FeedTile } from "./masonry";
 import { useFeedScroll } from "./use-feed-scroll";
@@ -160,12 +165,18 @@ export function FeedScreen({
 
   const [toast, setToast] = React.useState<string | null>(null);
   const [collectionsOpen, setCollectionsOpen] = React.useState(false);
+  // The rect of the toolbar control that opened the sheet — above `md` the sheet floats beside
+  // it (docs/DESIGN_chrome-redesign.md §2); the phone ignores it.
+  const [collectionsAnchor, setCollectionsAnchor] =
+    React.useState<DOMRect | null>(null);
   const [itemSheetOpen, setItemSheetOpen] = React.useState(false);
   // Deliberately NOT cleared when the sheet closes: `ItemSheet` stays mounted through its exit
   // animation, and blanking the item would flash an empty title on the way out.
   const [pressedItem, setPressedItem] = React.useState<{
     id: string;
     title: string;
+    // The slot the card was served under — the save bumps it (docs/DESIGN_chrome-redesign.md §5).
+    topicId: string | null;
   } | null>(null);
 
   const pages = React.useMemo(() => data?.pages ?? [], [data]);
@@ -262,6 +273,9 @@ export function FeedScreen({
 
   // 2 / 3 / 4 by viewport, hydration-safe — see `useMediaQuery` on why it isn't an effect.
   const columnCount = useColumnCount();
+  // A real hover and a fine pointer: only then does each tile carry its hover strip
+  // (docs/DESIGN_chrome-redesign.md §3). On touch the strip does not exist at all.
+  const hoverCapable = useMediaQuery(HOVER_QUERY);
 
   const { columns, firstPageTiles, cardCount } = React.useMemo(() => {
     const tiles = buildTiles(pages, topicLabels);
@@ -381,7 +395,11 @@ export function FeedScreen({
     markFeedOrigin(id);
     router.push(`/i/${id}`);
   };
-  const openItemSheet = (item: { id: string; title: string }) => {
+  const openItemSheet = (item: {
+    id: string;
+    title: string;
+    topicId: string | null;
+  }) => {
     setPressedItem(item);
     setItemSheetOpen(true);
   };
@@ -393,7 +411,12 @@ export function FeedScreen({
     const { item } = tile.card;
     const gestures = {
       onTap: () => openItem(item.id),
-      onLongPress: () => openItemSheet({ id: item.id, title: item.title }),
+      onLongPress: () =>
+        openItemSheet({
+          id: item.id,
+          title: item.title,
+          topicId: tile.card.topicId,
+        }),
     };
     return tile.kind === "image" ? (
       <ImageTile
@@ -439,8 +462,21 @@ export function FeedScreen({
                 const key =
                   tile.kind === "because" ? tile.key : tile.card.item.id;
                 const body = (
-                  <div data-feed-id={tile.kind === "because" ? undefined : key}>
+                  <div
+                    data-feed-id={tile.kind === "because" ? undefined : key}
+                    // `group/tile relative`: the hover strip below is a sibling overlay keyed
+                    // on this wrapper's hover (docs/DESIGN_chrome-redesign.md §3). Second child
+                    // on purpose — e2e reaches the tile as `[data-feed-id] > *` `.first()`.
+                    className={
+                      tile.kind === "because"
+                        ? undefined
+                        : "group/tile relative"
+                    }
+                  >
                     {renderTile(tile)}
+                    {hoverCapable && tile.kind !== "because" ? (
+                      <TileActions card={tile.card} onToast={setToast} />
+                    ) : null}
                   </div>
                 );
                 // Only page one rises in. An appended page arriving mid-scroll with a staggered
@@ -525,9 +561,12 @@ export function FeedScreen({
         />
       ) : null}
 
-      <PillToolbar
+      <Toolbar
         bookmark="idle"
-        onBookmark={() => setCollectionsOpen(true)}
+        onBookmark={(anchor) => {
+          setCollectionsAnchor(anchor);
+          setCollectionsOpen(true);
+        }}
         onHome={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         // No `onProfile` override as of 5.10: the pill's own default navigates to the real
         // `/profile` (marking the origin on the way), so the toast placeholder that stood in for a
@@ -539,6 +578,7 @@ export function FeedScreen({
       <CollectionsSheet
         open={collectionsOpen}
         onClose={() => setCollectionsOpen(false)}
+        anchor={collectionsAnchor}
       />
 
       <ItemSheet

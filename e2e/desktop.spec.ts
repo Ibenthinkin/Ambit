@@ -23,9 +23,10 @@ const PASSWORD = "correcthorse123";
 const TOPICS = ["astronomy", "botany", "music"] as const;
 const PREFIX = "e2e-desktop-";
 
-// Two feed loads at four columns; 60 rows is that plus comfortable headroom. See feed.spec.ts's
-// note on why the seed exists at all (CI's database is empty) and what it deliberately doesn't do.
-const SEED_COUNT = 60;
+// Five feed loads at four columns (the chrome redesign added three); 100 rows is that plus
+// headroom. See feed.spec.ts's note on why the seed exists at all (CI's database is empty) and
+// what it deliberately doesn't do.
+const SEED_COUNT = 100;
 
 // The viewport is 1440×900, so its centre — what "centered" means below — is (720, 450).
 const CENTRE_X = 720;
@@ -96,6 +97,122 @@ test.describe.serial("desktop", () => {
     expect(Math.abs(gridBox.x + gridBox.width / 2 - CENTRE_X)).toBeLessThan(2);
   });
 
+  // docs/DESIGN_chrome-redesign.md §2: from `md` the toolbar is a vertical rail, fixed at the
+  // right edge and vertically centred. Three controls on the feed — no Share, as on the phone.
+  test("the toolbar is a vertical rail hugging the right edge", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+
+    const rail = page.getByTestId("rail-toolbar");
+    await expect(rail).toBeVisible();
+    await expect(page.locator("nav[aria-label='Ambit toolbar']")).toHaveCount(
+      1,
+    );
+
+    const box = (await rail.boundingBox())!;
+    expect(Math.abs(box.x + box.width - (1440 - 26))).toBeLessThan(2);
+    expect(Math.abs(box.y + box.height / 2 - CENTRE_Y)).toBeLessThan(2);
+
+    const buttons = rail.getByRole("button");
+    await expect(buttons).toHaveCount(3);
+    const tops = await buttons.evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect().top),
+    );
+    expect(tops).toEqual([...tops].sort((a, b) => a - b)); // stacked, top to bottom
+    expect(tops[1]! - tops[0]!).toBeGreaterThan(52); // each below the last
+  });
+
+  test("a rail button's sheet floats left of it, over an unblurred page", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const rail = page.getByTestId("rail-toolbar");
+    const railBox = (await rail.boundingBox())!;
+
+    const bookmark = rail.getByRole("button", { name: "Save to collection" });
+    const anchorBox = (await bookmark.boundingBox())!;
+    await bookmark.click();
+    const panel = page.getByTestId("bottom-sheet-panel");
+    await expect(
+      panel.getByRole("heading", { name: "Your collections" }),
+    ).toBeVisible();
+    await settle(panel);
+    const box = (await panel.boundingBox())!;
+    expect(Math.round(box.width)).toBe(360);
+    expect(box.x + box.width).toBeLessThan(railBox.x); // beside the rail, not over it
+    // Centred on the button that opened it, not on the rail: on the feed the bookmark is the
+    // third of three controls, 68px below the rail's middle (design §2, `popoverStyle`).
+    expect(
+      Math.abs(box.y + box.height / 2 - (anchorBox.y + anchorBox.height / 2)),
+    ).toBeLessThan(2);
+
+    // Decision 5: no scrim is painted — the click-catcher is transparent.
+    await expect(page.getByTestId("bottom-sheet-scrim")).toHaveCSS(
+      "background-color",
+      "rgba(0, 0, 0, 0)",
+    );
+
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+  });
+
+  // docs/DESIGN_chrome-redesign.md §3: hover a tile, the strip appears, one click saves to the
+  // last-used collection, the chevron opens the picker under the pill.
+  test("hovering a tile reveals its strip; one click saves; the chevron opens the picker beneath", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const first = page.locator("[data-feed-id]:has(img)").first();
+    await expect(first).toBeVisible();
+
+    const strip = first.getByTestId("tile-actions");
+    await first.hover();
+    await expect(strip).toHaveCSS("opacity", "1");
+    await strip.getByRole("button", { name: /^Save to / }).click();
+    await expect(page.getByText(/^Saved to /)).toBeVisible();
+    await expect(
+      strip.getByRole("button", { name: /^Saved to / }),
+    ).toBeVisible();
+
+    const second = page.locator("[data-feed-id]:has(img)").nth(1);
+    await second.hover();
+    const pill = second.getByRole("button", { name: "Choose collection" });
+    await pill.click();
+    const panel = page.getByTestId("bottom-sheet-panel");
+    await expect(
+      panel.getByRole("heading", { name: "Save to collection" }),
+    ).toBeVisible();
+    await settle(panel);
+    const pillBox = (await pill.boundingBox())!;
+    const box = (await panel.boundingBox())!;
+    expect(Math.round(box.width)).toBe(360);
+    expect(box.y).toBeGreaterThanOrEqual(pillBox.y + pillBox.height); // under the pill
+
+    await panel.getByRole("button", { name: /New collection/ }).click();
+    const name = `From a hover ${Date.now()}`;
+    await panel.getByLabel("Collection name").fill(name);
+    await panel.getByRole("button", { name: "Create" }).click();
+    await expect(
+      page.getByText(`Saved to ${name}`, { exact: false }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // The next strip names the collection just used.
+    const third = page.locator("[data-feed-id]:has(img)").nth(2);
+    await third.hover();
+    await expect(
+      third.getByRole("button", { name: "Choose collection" }),
+    ).toHaveText(name);
+
+    await page.goto("/saved");
+    expect(
+      await page.locator("[data-saved-id]").count(),
+    ).toBeGreaterThanOrEqual(2);
+  });
+
   test("right-click opens the item sheet as a centered dialog; Escape closes it", async ({
     page,
   }) => {
@@ -130,7 +247,8 @@ test.describe.serial("desktop", () => {
     await signIn(page, EMAIL, PASSWORD);
     const imageTile = page.locator("[data-feed-id]:has(img)").first();
     await expect(imageTile).toBeVisible();
-    await imageTile.locator("> *").click();
+    // `.first()`: the wrapper holds the tile and, on a mouse, its hover strip.
+    await imageTile.locator("> *").first().click();
     await page.waitForURL(/\/i\//);
 
     const strip = page.getByTestId("hero-rail");
@@ -153,6 +271,12 @@ test.describe.serial("desktop", () => {
       "aria-hidden",
       "false",
     );
+    // The rail is chrome here too (decision 3): summoned by the same mouse move.
+    await expect(page.getByTestId("rail-toolbar")).toHaveAttribute(
+      "aria-hidden",
+      "false",
+    );
+    await expect(page.getByRole("button", { name: "Share" })).toHaveCount(1);
 
     // And Escape leaves — the review's "Escape does nothing" (09-10-26), fixed on this screen.
     await page.keyboard.press("Escape");

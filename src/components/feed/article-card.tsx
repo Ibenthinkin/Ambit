@@ -71,7 +71,7 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
         // The hover lift is one step up the fill ladder, not a transform: this card has a border,
         // and scaling a hairline is how you get a blurry hairline. `hover:` and `focus-visible:`
         // are both pointer/keyboard-gated, so a phone sees neither (see `image-tile.tsx`).
-        "border-hairline bg-ink/[3.5%] border-ink/7 focus-visible:outline-accent hover:bg-ink/[5%] relative block w-full cursor-pointer touch-manipulation border px-[14px] pt-4 pb-[14px] transition-transform duration-200 outline-none select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
+        "border-hairline bg-ink/[3.5%] border-ink/7 focus-visible:outline-ink-hi hover:bg-ink/[5%] relative block w-full cursor-pointer touch-manipulation border px-[14px] pt-4 pb-[14px] transition-transform duration-200 outline-none select-none focus-visible:outline-[3px] focus-visible:-outline-offset-[3px]",
         pressing && "scale-[0.985]",
       )}
       style={{ WebkitTouchCallout: "none" }}

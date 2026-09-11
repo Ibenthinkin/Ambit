@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Magnifier, Share } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import { writeLastCollectionId } from "~/lib/last-collection";
 import type { SaveDrift } from "~/lib/save-toast";
 import { Spinner } from "~/components/ui/spinner";
 import { api } from "~/trpc/react";
@@ -38,8 +39,11 @@ export interface ItemSheetProps {
    * The long-pressed item, or `null` when nothing is pressed. Nullable rather than conditionally
    * mounting the whole sheet, because unmounting it on close would cut the exit animation off
    * mid-flight — the sheet has to outlive the item selection by one animation.
+   *
+   * `topicId` is the slot the card was served under, for the bump (docs/DESIGN_chrome-redesign.md
+   * §5).
    */
-  item: { id: string; title: string } | null;
+  item: { id: string; title: string; topicId?: string | null } | null;
   /** Same contract as `SaveToCollectionSheet.onSaved` — see its comment for what `drift` is. */
   onSaved: (collection: { id: string; name: string }, drift: SaveDrift) => void;
   /**
@@ -85,6 +89,8 @@ export function ItemSheet({
 
   const saveToCollection = api.saves.saveToCollection.useMutation({
     onSuccess: async (result, variables) => {
+      // Every save moves the feed's hover strips to this collection (last-collection.ts).
+      writeLastCollectionId(variables.collectionId);
       await Promise.all([
         utils.saves.collections.invalidate(),
         utils.saves.list.invalidate(),
@@ -107,7 +113,11 @@ export function ItemSheet({
   const pick = (collectionId: string) => {
     if (!item || saveToCollection.isPending) return; // double-tap guard
     onClose(); // close first: the write settles behind the dismissal, as everywhere else
-    saveToCollection.mutate({ itemId: item.id, collectionId });
+    saveToCollection.mutate({
+      itemId: item.id,
+      collectionId,
+      topicId: item.topicId ?? undefined,
+    });
   };
 
   const closerLook = () => {

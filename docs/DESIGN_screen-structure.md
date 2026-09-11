@@ -48,6 +48,16 @@ Three things Ben ran into on the desktop pass, and one he has been living with o
    (≥ `md`): **full viewport height, edge to edge** — a portrait image fills the height and sits
    centred left–right; the details below stay in the 720 px reader column. No rounded corners on
    any hero anywhere; the profile's collection covers keep theirs (they are tiles).
+   **Amended 09-11-26, from Ben's browser review of sub-projects 1–3:** the strip is the **full
+   viewport on every width**, and the picture sits **centred both ways inside a 12 px inset**
+   (plus the notch on the phone), whole, never cropped — "a little padding around the images,
+   like the Photos app on iOS", reversing "or maybe even none at all" from the desktop pass. His
+   words for the phone as built: "there's no gallery view on the phone, or at least I can't figure
+   out how to get to it". The phone's picture-height strip, the caption-below-the-picture
+   placement, and the `<img onLoad>` ratio map / viewport measurement / collapsing grid row that
+   existed for them are deleted (`hero-rail.tsx`), and so is `HeroRail`'s `desktop` prop. The
+   reader column now starts **28 px** under the strip ("some automatic spacing between the image
+   and the description").
 3. **No details sheet, no "tap for more".** Maker, from, license and topic join the item body
    below the hero. A tap toggles the chrome (title + pill); a second tap toggles it back. Mouse
    movement summons the chrome on desktop, exactly like a tap.

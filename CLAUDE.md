@@ -114,9 +114,11 @@ the user's picks) reached 101 of 104 topics and every page pulled the whole corp
 133,698 rows / 22.4 MB at 122,458 items; the query itself was only ~175 ms, but the dev server
 materialising it grew to 2.6 GB in eight page loads and stalled unrelated requests for seconds.
 `bun run bench:feed` and `bun run probe:feed`'s score summary are the before/after. The 22 ms in
-the 7.3 sentence above was measured against 9,848 rows. **Sub-project 3 of Ben's desktop review — the chrome redesign — is designed and planned
-(09-11-26): `docs/DESIGN_chrome-redesign.md` + `docs/PLAN_chrome-redesign.md`, seven tasks,
-cold-executable on `feat/chrome-redesign`; list screens are sub-project 4, unwritten.** Pick the thread up from
+the 7.3 sentence above was measured against 9,848 rows. **Sub-project 3 of Ben's desktop review — the chrome redesign — was built 09-11-26 on
+`feat/chrome-redesign` (see its bullet under Architecture); list screens are sub-project 4,
+unwritten.** **Opening it, Ben hit a `/feed` reload loop — diagnosed and fixed on `main` the same evening
+(`596a26a`, merged into this branch): Next 16.2's dev client misreading Firefox on a still-streaming
+`/feed`, not the branch and not the service worker — see the local-dev bullet below.** Pick the thread up from
 `docs/HANDOFF_sources-round2.md` **§0** — streetartnews and spoon-tamago as a cold-executable
 seven-step task (config rows on the factory, verdict after each) — then Europeana / Openverse /
 Chronicling America. See
@@ -205,22 +207,40 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 - **The item page _is_ the immersive screen — 09-10-26** (design `docs/DESIGN_screen-structure.md`,
   plan `docs/PLAN_screen-structure.md`; sub-project 2 of three from Ben's desktop review). `/i/[itemId]`
   for a picture is `ItemScreen`: `HeroRail` (the old gallery's three-cell track, square-cornered,
-  top-aligned, its height following the loaded picture on the phone and the full viewport above
-  `md`) over `ItemFacts` in the reader column — no details sheet. **`/g/[itemId]` is a permanent
+  **the full viewport on every width since Ben's 09-11-26 review, the picture centred in a 12 px
+  inset like iOS Photos** — it followed the picture's height on the phone before that, and the
+  ratio map, viewport measurement and collapsing caption row that took are gone) over `ItemFacts`
+  in the reader column, 28 px below the strip — no details sheet. **`/g/[itemId]` is a permanent
   redirect** and `components/gallery/` is gone. Sideways swipes walk the wander rail and the page
   follows (`history.replaceState`); a tap toggles the chrome; **a quick downward flick at the top of
   the page, or Escape, leaves** — up is the browser's scroll, the track is `touch-action: pan-y` —
   and every exit is `useLeaveToFeed(entryItemId)`, so Back still pops to the intact feed after any
-  number of swipes. Three traps it met, each explained where it lives: the desktop summon is a
+  number of swipes. One trap it met, explained where it lives: the desktop summon is a
   **`pointermove` filtered to `pointerType === "mouse"`** (a tap's compatibility `mousemove` would
-  re-show the chrome the instant a second tap hid it); `HeroRail`'s viewport is **null until mount**
-  (the server renders client components too); and a picture that loaded before hydration reports
-  its ratio from `complete`, because its `load` fired before React was listening. Alongside it:
+  re-show the chrome the instant a second tap hid it). Alongside it:
   **`NewCollectionRow`** (`sheets/collection-rows.tsx`) is the app's one create form and ends every
   collection picker, the tile sheet gained **Share**, and the **landing slideshow never stops** —
   click and ←/→ step it, the sheet still rises after the first pass, and reduced motion is read
   through `useMediaQuery` after hydration, which is what fixed the collapse glyph (the 09-08
   `AuthSheet onCollapse` hydration mismatch).
+- **The chrome redesign shipped 09-11-26** (design `docs/DESIGN_chrome-redesign.md`, plan
+  `docs/PLAN_chrome-redesign.md`; sub-project 3 of three from Ben's desktop review — list screens
+  are sub-project 4, unwritten). Below `md` the pill is 56 px tall and **Share is a detached
+  disc** beside it, centred in the space to the pill's right (`PillToolbar`'s `1fr auto 1fr`
+  grid). From `md` the toolbar is **`RailToolbar`** — a vertical stack fixed at the right edge:
+  Profile and Feed in a bar, **Save and Share as detached 68 px discs below it** (Ben's review,
+  09-11-26; they were four glyphs in one bar) — and `Toolbar` picks one by `useMediaQuery`. On
+  the item screen both toolbars are chrome: the pill **fixed at the bottom** (it rode inside the
+  caption until the review, moving with the picture's height) and the rail at the right, each
+  with `visible={chrome.visible}` — `PillToolbar` gained `visible` for it. `BottomSheet` takes an
+  `anchor` + `placement` and becomes a 360 px **popover** beside its opener with an invisible
+  scrim (`popoverStyle` is pure; its centring is the `translate` property because the menu
+  keyframe owns `transform`). Feed tiles carry **`TileActions`** — mounted only under
+  `HOVER_QUERY`, a sibling of the tile in the `group/tile relative` wrapper — naming the
+  last-used collection (`lib/last-collection.ts`, localStorage, `useSyncExternalStore`) with a
+  one-click optimistic save against the new `saves.ids`. The hover zoom is gone; the focus ring
+  is 3 px off-white. **`saves.saveToCollection` takes `topicId`** and bumps it only for a member
+  — the feed-on-membership follow-up, closed.
 - **The dev knob panel shipped 09-05-26** — `/dev/feed` (local, `FEED_DEBUG`; a 404 under a
   production build), every feed knob live including the two Cut 2a levers
   `grownEdgeScale`/`grownHopPenalty` (identities at `1`, so `/feed` composes exactly as before),

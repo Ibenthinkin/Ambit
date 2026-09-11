@@ -44,6 +44,9 @@ export default async function FeedPage() {
   // Un-awaited by design: `prefetchInfinite` seeds the shared per-request query client, and the
   // `HydrateClient` boundary below dehydrates whatever has settled by the time it renders.
   void api.feed.page.prefetchInfinite({});
+  // The tile strips' saved-state (09-11-26). Same contract: the client hook keys on (path, no
+  // input), and so does this.
+  void api.saves.ids.prefetch();
 
   // Resolved on the server because `TOPICS` is server config (it imports the whole seed-query
   // table) and the Because tiles only need sixteen id→label pairs out of it. Shipping the map

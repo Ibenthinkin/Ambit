@@ -15,9 +15,10 @@ import {
   getCollections,
   setItemCollection,
 } from "~/server/db/collections";
-import { getItemById } from "~/server/db/items";
+import { getItemById, isItemInTopic } from "~/server/db/items";
 import {
   getSavedCount,
+  getSavedItemIds,
   getSavedItems,
   getSavedItemCollection,
   isItemSaved,
@@ -76,9 +77,18 @@ export const savesRouter = createTRPCRouter({
    * the topic whose weight just got bumped (Phase 6.1, SPEC §9): the toast grows into
    * "Saved to Art · Now drifting toward Cartography". `drift` is null on a move, because moving
    * an item between collections is housekeeping, not a fresh signal of interest.
+   *
+   * `topicId` (09-11-26, docs/DESIGN_chrome-redesign.md §5) is the topic the card was served
+   * under, bumped instead of the display topic when the item is a member of it.
    */
   saveToCollection: protectedProcedure
-    .input(z.object({ itemId: z.string(), collectionId: z.string() }))
+    .input(
+      z.object({
+        itemId: z.string(),
+        collectionId: z.string(),
+        topicId: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const item = await getItemById(input.itemId);
       if (!item) {
@@ -104,18 +114,26 @@ export const savesRouter = createTRPCRouter({
       if (wasSaved) {
         return { collectionName: collection.name, drift: null } as const;
       }
-      // An un-homed item — a walk post no current topic fits (Cut 1, design §5) — has no topic to
-      // bump. The save itself is recorded above; the toast just reads "Saved to X", the same
-      // `drift: null` shape a move between collections produces. Cut 2's promotion is what gives
-      // such an item a topic, and from then on its saves bump like any other.
-      if (item.topicId === null) {
+      // The topic to bump. The feed draws on membership (09-11-26), so a card is routinely served
+      // under a topic that is not its display topic; the client says which slot it saved from and
+      // the server honours it **only for a member** (`isItemInTopic`) — the display topic is the
+      // fallback, and a bogus `topicId` can bump nothing it shouldn't.
+      const slotTopic =
+        input.topicId && (await isItemInTopic(input.itemId, input.topicId))
+          ? input.topicId
+          : item.topicId;
+      // An un-homed item with no slot — a walk post no current topic fits (Cut 1, design §5) — has
+      // no topic to bump. The save itself is recorded above; the toast just reads "Saved to X", the
+      // same `drift: null` shape a move between collections produces. Cut 2's promotion is what
+      // gives such an item a topic, and from then on its saves bump like any other.
+      if (slotTopic === null) {
         return { collectionName: collection.name, drift: null } as const;
       }
       // Accepted race: two concurrent first-saves of the same item can both see `wasSaved ===
       // false` and double-bump. The client's in-flight guard makes that rare, and WEIGHT_CAP
       // bounds the damage — not worth a serializable transaction.
-      const bumped = await bumpTopicWeight(ctx.user.id, item.topicId);
-      const topicLabel = (await getTopicLabel(item.topicId)) ?? item.topicId;
+      const bumped = await bumpTopicWeight(ctx.user.id, slotTopic);
+      const topicLabel = (await getTopicLabel(slotTopic)) ?? slotTopic;
       return {
         collectionName: collection.name,
         drift: { topicLabel, isNew: bumped.isNew },
@@ -146,6 +164,9 @@ export const savesRouter = createTRPCRouter({
 
   /** Total number of saved items — the "Everything kept" row's count in the collections sheet. */
   count: protectedProcedure.query(({ ctx }) => getSavedCount(ctx.user.id)),
+
+  /** Every saved item id — the feed's tile strips light their glyphs from this one list. */
+  ids: protectedProcedure.query(({ ctx }) => getSavedItemIds(ctx.user.id)),
 
   /**
    * Whether the caller has saved one specific item, and where they filed it — what an item page's

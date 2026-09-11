@@ -93,6 +93,25 @@ export async function addItemTopics(
 }
 
 /**
+ * Whether `itemId` honestly belongs to `topicId` — an `item_topic` row exists. Backs the
+ * server-side check on `saves.saveToCollection`'s `topicId`: the feed tells the client which
+ * topic a card was served under, and the save says so back, but the server bumps that topic
+ * only if the membership is real. Otherwise any client could bump any topic.
+ */
+export async function isItemInTopic(
+  itemId: string,
+  topicId: string,
+): Promise<boolean> {
+  const { db } = await import("./client");
+  const [row] = await db
+    .select({ itemId: itemTopic.itemId })
+    .from(itemTopic)
+    .where(and(eq(itemTopic.itemId, itemId), eq(itemTopic.topicId, topicId)))
+    .limit(1);
+  return row !== undefined;
+}
+
+/**
  * Single-item lookup by id — backs the public `/i/[itemId]` route and `items.byId` (SPEC §7,
  * §8.1), and used directly by scripts/probe-feed.ts to print a card's full record. Deliberately
  * not user-scoped: `items.byId` is the one procedure SPEC §11 calls out as intentionally public.

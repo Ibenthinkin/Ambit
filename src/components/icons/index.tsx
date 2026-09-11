@@ -390,6 +390,27 @@ export function ChevronRight({ size = 13, className, ...rest }: IconProps) {
   );
 }
 
+/** ChevronDown — the tile strip's "choose a collection" affordance. Stroke 2.2 at 13px, the same
+ *  exception `ChevronRight` documents above. */
+export function ChevronDown({ size = 13, className, ...rest }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...rest}
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 /** Person — Settings' "Account details" row. */
 export function Person({ size = 17, className, ...rest }: IconProps) {
   return (

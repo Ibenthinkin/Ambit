@@ -20,12 +20,12 @@ export interface OnboardingScreenProps {
   minPicks: number;
 }
 
-/** Stage copy. Placeholder wording until sub-project 3 (the chrome redesign) writes it properly;
- *  the facet order is `FACETS` and is not a copy decision. */
+/** Stage copy (09-11-26, docs/DESIGN_chrome-redesign.md §6). The facet order is `FACETS` and is
+ *  not a copy decision. */
 const STAGE_HEADINGS: Record<TopicFacet, string> = {
-  subject: "What do you want to see?",
-  medium: "Made how?",
-  look: "What should it look like?",
+  subject: "What are you drawn to?",
+  medium: "In what form?",
+  look: "What should it feel like?",
   place: "Anywhere in particular?",
 };
 

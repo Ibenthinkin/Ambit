@@ -83,6 +83,9 @@ export interface ShareSheetProps {
   onCopied: (url: string) => void;
   /** No `navigator.share` and no clipboard — the screen should say so rather than fail silently. */
   onShareUnavailable: () => void;
+  /** Desktop popover anchoring — passed straight to `BottomSheet`. See its `anchor` doc. */
+  anchor?: DOMRect | null;
+  placement?: "left" | "below";
 }
 
 export function ShareSheet({
@@ -95,6 +98,8 @@ export function ShareSheet({
   onSaveImage,
   onCopied,
   onShareUnavailable,
+  anchor,
+  placement,
 }: ShareSheetProps) {
   const copy = async () => {
     onClose();
@@ -127,6 +132,8 @@ export function ShareSheet({
     <BottomSheet
       open={open}
       onClose={onClose}
+      anchor={anchor}
+      placement={placement}
       title={collection ? "Share this collection" : "Share"}
     >
       <div className="border-hairline border-ink/10 mx-[18px] flex items-center gap-2.5 rounded-full py-1.5 pr-1.5 pl-[15px]">

@@ -202,6 +202,12 @@ describe("protected procedures reject a null session", () => {
     });
   });
 
+  it("saves.ids throws UNAUTHORIZED", async () => {
+    await expect(caller.saves.ids()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
   it("saves.forItem throws UNAUTHORIZED", async () => {
     await expect(
       caller.saves.forItem({ itemId: "some-item" }),
@@ -506,8 +512,9 @@ describe("appRouter shape", () => {
   // last caller, show up as a failing test instead of shipping. The dev knob panel (09-05-26) adds
   // the eighteenth, `feed.forgetSince` — registered in every build, FORBIDDEN outside the dev gate.
   // /profile/topics's dev readout (09-10-26) adds the nineteenth and twentieth on the same terms,
-  // `topics.weights` and `topics.resetWeights`.
-  it("exposes exactly the twenty SPEC §7 procedures, no leftover post router", () => {
+  // `topics.weights` and `topics.resetWeights`. The chrome redesign (09-11-26) adds the
+  // twenty-first, `saves.ids` — the feed's tile strips light their glyphs from it.
+  it("exposes exactly the twenty-one SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -524,6 +531,7 @@ describe("appRouter shape", () => {
         "saves.unsave",
         "saves.list",
         "saves.count",
+        "saves.ids",
         "saves.forItem",
         "saves.createCollection",
         "topics.mine",

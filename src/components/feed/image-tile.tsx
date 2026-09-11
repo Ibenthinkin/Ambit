@@ -97,10 +97,11 @@ export function ImageTile({
       tabIndex={0}
       aria-label={item.title}
       className={cn(
-        // `group` for the hover zoom on the `<img>` below; the `focus-visible` outline in the
-        // accent is so a keyboard reader can see where they are without the phone ever showing a
-        // ring (`:focus-visible` never matches a touch).
-        "group focus-visible:outline-accent relative block w-full cursor-pointer touch-manipulation overflow-hidden outline-none select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
+        // The `focus-visible` ring is so a keyboard reader can see where they are without the
+        // phone ever showing one (`:focus-visible` never matches a touch). The 3px off-white ring,
+        // inside the edge, is for a keyboard reader — 2px of accent was invisible on a photograph
+        // (docs/DESIGN_chrome-redesign.md §4).
+        "focus-visible:outline-ink-hi relative block w-full cursor-pointer touch-manipulation overflow-hidden outline-none select-none focus-visible:outline-[3px] focus-visible:-outline-offset-[3px]",
         aspectClass,
       )}
       style={{ WebkitTouchCallout: "none" }}
@@ -142,10 +143,10 @@ export function ImageTile({
           src={src}
           alt={item.title}
           onError={handleError}
-          // The hover zoom: the tile's `overflow-hidden` clips it, so neighbours never move —
-          // the classic zoom-in-place. `hover:` is `@media (hover: hover)`-gated in Tailwind
-          // v4, so a touch screen never sees it.
-          className="pointer-events-none block h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          // No hover effect on the picture (09-11-26, docs/DESIGN_chrome-redesign.md decision 4):
+          // the tile's hover feedback is the strip `FeedScreen` lays over it. The 3% zoom this
+          // used to carry read as "barely visible and clunky".
+          className="pointer-events-none block h-full w-full object-cover"
         />
       )}
       <DebugBadge card={card} />

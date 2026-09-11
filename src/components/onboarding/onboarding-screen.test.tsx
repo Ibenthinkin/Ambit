@@ -61,14 +61,14 @@ describe("OnboardingScreen", () => {
     expect(
       screen.getByRole("navigation", { name: "Setup progress" }),
     ).toBeTruthy();
-    expect(screen.getByText("What do you want to see?")).toBeTruthy();
+    expect(screen.getByText("What are you drawn to?")).toBeTruthy();
   });
 
   it("Next walks the four facets in order and the last stage shows the CTA", () => {
     render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
     next();
     expect(chips().map((b) => b.textContent)).toEqual(["Gamma"]);
-    expect(screen.getByText("Made how?")).toBeTruthy();
+    expect(screen.getByText("In what form?")).toBeTruthy();
     next();
     expect(chips().map((b) => b.textContent)).toEqual(["Delta"]);
     next();

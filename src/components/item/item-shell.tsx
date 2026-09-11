@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sheet";
 import { ShareSheet } from "~/components/sheets/share-sheet";
-import { PillToolbar } from "~/components/ui/pill-toolbar";
+import { Toolbar } from "~/components/ui/toolbar";
 import { Toast } from "~/components/ui/toast";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
 import { useSwipeBack } from "~/hooks/use-swipe-back";
@@ -52,6 +52,10 @@ export function ItemShell({
   const [toast, setToast] = React.useState<string | null>(null);
   const [saveOpen, setSaveOpen] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
+  // The rects of the controls that opened each sheet — above `md` the sheet floats beside its
+  // button (docs/DESIGN_chrome-redesign.md §2); the phone pill's rects are ignored there.
+  const [saveAnchor, setSaveAnchor] = React.useState<DOMRect | null>(null);
+  const [shareAnchor, setShareAnchor] = React.useState<DOMRect | null>(null);
 
   // Escape leaves (09-10-26 — Ben's review found it did nothing on an item page). On `window`, for
   // the same reason the merged image screen's keys are: nothing on a reader page holds focus.
@@ -124,10 +128,16 @@ export function ItemShell({
 
       {authed ? (
         <>
-          <PillToolbar
+          <Toolbar
             bookmark={saved.data?.saved ? "saved" : "idle"}
-            onBookmark={() => setSaveOpen(true)}
-            onShare={() => setShareOpen(true)}
+            onBookmark={(anchor) => {
+              setSaveAnchor(anchor);
+              setSaveOpen(true);
+            }}
+            onShare={(anchor) => {
+              setShareAnchor(anchor);
+              setShareOpen(true);
+            }}
             // NOT the pill's default `/feed` push: that re-runs the dynamic route and draws a
             // fresh page of cards. See `useLeaveToFeed`.
             onHome={leave}
@@ -136,6 +146,7 @@ export function ItemShell({
           <SaveToCollectionSheet
             open={saveOpen}
             onClose={() => setSaveOpen(false)}
+            anchor={saveAnchor}
             itemId={itemId}
             currentCollectionId={saved.data?.collectionId ?? undefined}
             onSaved={async (collection, drift) => {
@@ -148,6 +159,7 @@ export function ItemShell({
           <ShareSheet
             open={shareOpen}
             onClose={() => setShareOpen(false)}
+            anchor={shareAnchor}
             url={shareUrl}
             title={title}
             imageContext={hasImage}

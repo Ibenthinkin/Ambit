@@ -12,6 +12,7 @@ import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sh
 import { ShareSheet } from "~/components/sheets/share-sheet";
 import { Column } from "~/components/ui/column";
 import { PillToolbar } from "~/components/ui/pill-toolbar";
+import { RailToolbar } from "~/components/ui/rail-toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Toast } from "~/components/ui/toast";
 import { useChromeCycle } from "~/hooks/use-chrome-cycle";
@@ -35,6 +36,8 @@ import { api } from "~/trpc/react";
 //     the response" (Ben's desktop review).
 //   - **The chrome starts hidden** and comes back on a ten-second loop (`useChromeCycle`). A tap
 //     brings it up, another puts it away; on desktop a mouse moving over the picture brings it up.
+//     The chrome is the caption over the picture's foot *and* the toolbar — the phone's pill fixed
+//     at the bottom, the desktop's rail at the right — both fading on the same 600ms.
 //   - **Swiping goes somewhere, and the page follows.** The rail is `services/gallery-rail.ts`'s
 //     endless wander — the topic graph chooses where, a curated-weighted draw chooses what — and
 //     it **never marks anything seen**: swiping spends none of the reader's corpus, which is the
@@ -96,6 +99,10 @@ export function ItemScreen({
 
   const [saveOpen, setSaveOpen] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
+  // The rects of the controls that opened each sheet — above `md` the sheet floats beside its
+  // button (docs/DESIGN_chrome-redesign.md §2); the phone pill's rects are ignored there.
+  const [saveAnchor, setSaveAnchor] = React.useState<DOMRect | null>(null);
+  const [shareAnchor, setShareAnchor] = React.useState<DOMRect | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
 
   const chrome = useChromeCycle();
@@ -314,19 +321,6 @@ export function ItemScreen({
           {current.attribution ?? sourceLabel(current.source)}
         </p>
       </div>
-      {authed ? (
-        // `static`, so the pill rides inside the fading chrome block instead of floating
-        // independently of it — this is the one screen where it belongs to something.
-        <PillToolbar
-          className="static bottom-auto mt-[20px]"
-          bookmark={saved.data?.saved ? "saved" : "idle"}
-          onBookmark={() => setSaveOpen(true)}
-          onShare={() => setShareOpen(true)}
-          // NOT the pill's default `/feed` push: that re-runs the dynamic route and draws a fresh
-          // page of cards. See `useLeaveToFeed`.
-          onHome={leave}
-        />
-      ) : null}
     </>
   );
 
@@ -344,12 +338,53 @@ export function ItemScreen({
         dragging={dragging}
         chrome={caption}
         chromeVisible={chrome.visible}
-        desktop={desktop}
       />
 
+      {authed && !desktop ? (
+        // Fixed at the bottom like every other screen's pill, and — decision 3's phone half since
+        // Ben's review (09-11-26) — part of the chrome: it fades with the caption. Until then it
+        // rode *inside* the caption, whose position followed the picture's height, which is how it
+        // came to be "all over the place" on the phone.
+        <PillToolbar
+          visible={chrome.visible}
+          bookmark={saved.data?.saved ? "saved" : "idle"}
+          onBookmark={(anchor) => {
+            setSaveAnchor(anchor);
+            setSaveOpen(true);
+          }}
+          onShare={(anchor) => {
+            setShareAnchor(anchor);
+            setShareOpen(true);
+          }}
+          // NOT the pill's default `/feed` push: that re-runs the dynamic route and draws a fresh
+          // page of cards. See `useLeaveToFeed`.
+          onHome={leave}
+        />
+      ) : null}
+
+      {authed && desktop ? (
+        // Decision 3 (docs/DESIGN_chrome-redesign.md): the rail is part of the chrome here — it
+        // fades with the caption, on the same 600ms, and a mouse moving over the picture summons
+        // both.
+        <RailToolbar
+          visible={chrome.visible}
+          bookmark={saved.data?.saved ? "saved" : "idle"}
+          onBookmark={(anchor) => {
+            setSaveAnchor(anchor);
+            setSaveOpen(true);
+          }}
+          onShare={(anchor) => {
+            setShareAnchor(anchor);
+            setShareOpen(true);
+          }}
+          onHome={leave}
+        />
+      ) : null}
+
       {/* A book-width measure above `md` (docs/DESIGN_desktop-polish.md §1, §4) — the picture is
-          edge to edge, the words are not. */}
-      <Column width="reader" className="px-[22px]">
+          the whole viewport, the words are not. `pt-[28px]`: a clear gap between the strip and
+          the title on every width (Ben's review, 09-11-26). */}
+      <Column width="reader" className="px-[22px] pt-[28px]">
         {sharedBy ? (
           <Rise>
             <SharedByRow name={sharedBy} />
@@ -376,6 +411,7 @@ export function ItemScreen({
           <SaveToCollectionSheet
             open={saveOpen}
             onClose={() => setSaveOpen(false)}
+            anchor={saveAnchor}
             itemId={current.id}
             currentCollectionId={saved.data?.collectionId ?? undefined}
             onSaved={async (collection, drift) => {
@@ -388,6 +424,7 @@ export function ItemScreen({
           <ShareSheet
             open={shareOpen}
             onClose={() => setShareOpen(false)}
+            anchor={shareAnchor}
             url={shareUrl}
             title={current.title}
             // Always true here: this screen is only ever a picture.

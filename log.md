@@ -155,6 +155,92 @@ only for a member (`isItemInTopic`) — which closes the feed-on-membership foll
 
 _Session spend: 16.47M tok (in 2.2k · out 274.1k · cache r 15.19M / w 1.00M) · fable-5-1 · 11:49→12:37_
 
+**Executed the same day (Opus 5, a fourth session) — the chrome redesign, all seven tasks, on
+`feat/chrome-redesign`.** Pushed, **not merged** (the plan merges only on Ben's say-so).
+
+**Shipped:** the 56 px pill with Share as a detached disc; `RailToolbar` + `Toolbar` from `md`,
+the item screen's rail fading with its chrome; `BottomSheet`'s `anchor`/`placement` popovers
+with an invisible scrim, wired to every toolbar opener; `saves.ids` and `topicId` on
+`saveToCollection` (member-only, `isItemInTopic`); `TileActions` on every feed tile under a real
+hover, with the last-used collection and an optimistic one-click save; no hover zoom and a 3 px
+off-white focus ring; the onboarding copy; the README amendment, SPEC §7/§8.1 and CLAUDE.md.
+
+**Findings — where the plan and the code disagreed:**
+
+- **The tile picker had to be portalled to `<body>`** — the one real bug. Rendered inside a tile,
+  its `fixed` + `z-[35]` ranked only within the tile's stacking context (page-one tiles sit in an
+  `animate-rise` wrapper), and later tiles painted over the popover and took its clicks. Caught
+  only by the desktop e2e ("subtree intercepts pointer events" on the New-collection row); the
+  unit tests could not see it. The rail's sheets never had it — they mount at screen level.
+- **Playwright's phone project drives a mouse**, so `HOVER_QUERY` matches there and every phone
+  e2e tile carries a strip too. `[data-feed-id] > *` then resolves to two elements; `item.spec`'s
+  `tapInPlace` needed the same `.first()` the plan gave `desktop.spec`. A real phone never
+  mounts the strip.
+- **The pill measures 56–58 px, not 56.** The design's 56 is 10 + 36 + 10; the 0.5 px hairline
+  border paints as a full device pixel each side at DPR 1. The e2e now allows the range.
+- **A rail popover centres on its own button, not on the rail** — as designed (`popoverStyle`), so
+  on the feed's three-control rail the bookmark's panel sits 68 px below the rail's middle. The
+  plan's e2e measured against the rail's centre; it now measures against the button.
+- **The disc-vs-pill check flaked 1 run in 2** with two `boundingBox()` calls straddling a frame
+  of the caption's 600 ms slide. Both rects are now read in one `evaluate`; 36/36 across three
+  repeats.
+- Smaller: `routers.test.ts`'s exhaustive procedure list needed `saves.ids` (twenty-one now), and
+  `tile-actions.test.tsx`'s mock had to capture only the strip's `useMutation` options — the
+  picker the strip mounts calls the same hook after it and was overwriting them.
+
+**Verified:** `bun run check` — 1,262 of 1,263, the one red the known `70sscifiart` `<details>`
+row; `bun run e2e:prod` — 54 passed (51 + the three new desktop tests), 3 skipped as on `main`.
+Ben's `next dev` on :3000 was stopped (with his OK) for the prod e2e run and is not restarted.
+
+**Open / next:** Ben reviews the three sub-projects in the browser — phone widths and a desktop —
+then says merge; sub-project 4 (list screens) waits on that review.
+
+_Session spend: 41.61M tok (in 5.4k · out 432.3k · cache r 39.37M / w 1.80M) · ~$46.22 · opus-5 + opus-4-7 · 12:52→13:33_
+
+**Handoff (same session, afterwards) — `/feed` caught in a reload loop on the branch, the moment
+Ben opened it.** Not diagnosed here; Ben is taking it to a fresh session. What this session saw,
+so that one doesn't re-derive it:
+
+- **The signature is 09-08's, exactly** (see "A reload loop on `/feed`, chased and not caught"
+  under 09-08): the dev server logged **33 `GET /feed`, every one a 200** — the same count as
+  09-08 — each server-rendering `feed.page` (~1.2 s in dev) and the new `saves.ids` prefetch, and
+  **not one `/api/trpc` or `/api/img` request between them**. No redirects (the two `GET / 307`s
+  are the landing's own), no ping-pong with `/onboarding`, no server errors. The page reloads
+  before the client issues a single query — before or during hydration. Nothing was acked, so no
+  corpus was burned. Raw log: `.cache/reload-loop-09-11-devserver.log` (gitignored; the 404s in it
+  are Ben looking for `/dev/feed`).
+- **What preceded it:** this session's `E2E_HIDE_DEV_INDICATOR=1 bun run dev` on
+  `feat/chrome-redesign`, started right after **three `e2e:prod` runs had served a production
+  build on the same `localhost:3000`** — which is also what preceded 09-08's loop (four `e2e:prod`
+  runs that afternoon).
+
+**Suspects, in the order they are cheap to test — none confirmed:**
+
+1. **Browser-profile state, not code.** Both loops were in Ben's own Firefox after `e2e:prod`
+   held :3000; 09-08's four clean-profile attempts never reproduced it. A production build
+   registers Serwist on `localhost:3000` (`sw-cleanup.tsx` documents this exact loop from
+   08-17-26), and a Firefox tab left open on :3000 would register it if it navigated while the
+   prod server held the port. 09-08 dismissed the SW on the DevTools panel's word — **Firefox's
+   authoritative list is `about:serviceworkers`** (or `about:debugging#/runtime/this-firefox`).
+   **The one-step discriminator is a private window on `/feed`:** loops there ⇒ code; doesn't ⇒
+   profile state.
+2. **This branch.** Nothing here calls `reload`, `location` or `router.*`, but it adds
+   `useSyncExternalStore` stores that re-render at hydration (`last-collection.ts`, the
+   `HOVER_QUERY` gate in `FeedScreen`) and the `saves.ids` RSC prefetch. The test is
+   `git switch main && bun run dev` in the same browser — a loop on `main` too clears the branch.
+3. **Next dev's own full reload** — Fast Refresh falling back, or the HMR websocket failing
+   (through the tailnet origin, if that was the URL; `src/config/dev-origins.js`). Firefox clears
+   the console on every navigation: **turn on "Persist Logs" in Console and Network first**, then
+   read what the console says between loads and the _Cause_ column of each `/feed` document.
+
+**Ask Ben first:** which URL (localhost or the tailnet); does a private window loop; what
+`about:serviceworkers` lists for :3000.
+
+**State at handoff:** `feat/chrome-redesign` pushed and clean, not merged; this session's dev
+server stopped, **port 3000 free**; `tailscale serve` still fronts :3000.
+
+_Session spend: 11.16M tok (in 790 · out 59.7k · cache r 9.76M / w 1.35M) · ~$19.65 · opus-5 + opus-4-7 · 13:33→15:03_
+
 **Diagnosed the same evening (Fable 5.1, a fifth session) — the `/feed` reload loop Ben hit
 opening `feat/chrome-redesign` (handoff in that branch's log block) is Next's dev client
 misreading Firefox, and the service worker was a red herring.** Reproduced in Playwright Firefox
@@ -216,6 +302,39 @@ chrome-redesign browser review this was blocking. Report upstream is optional �
 already gone from 16.3.
 
 _Session spend: 19.27M tok (in 3.3k · out 187.0k · cache r 18.58M / w 503.8k) · fable-5-1 · 15:06→15:34_
+
+**Ben's browser review of sub-projects 1–3, the same evening (Fable 5.1, same session) — five
+notes, all built on `feat/chrome-redesign`.** In his words: the save button "does not float
+separately on the desktop version"; the UI bar "is all over the place on the phone-sized one";
+"there's also no gallery view on the phone-sized screen, or at least I can't figure out how to
+get to it"; "some padding around the images, I know I said none but it looks weird — just a
+little bit like the photo app on iOS"; and "some automatic spacing between the image and the
+description".
+
+**Decisions (Ben, one question each):** the phone tap opens a **full-screen picture first** —
+the item page's strip is the viewport on every width, no separate gallery; the desktop rail
+keeps Profile and Feed in the bar and floats **Save and Share as detached discs** below it; the
+phone pill is **fixed at the bottom, always**, fading with the chrome. Two calls made here and
+stated: a 12 px inset on every width, and the picture centred vertically on the phone (a
+landscape plate pinned to the top of a black frame looks unfinished).
+
+**Shipped:** `HeroRail` is `h-dvh` with the picture `object-contain` in a `p-[12px]` cell — the
+ratio map, `useViewport`, `heroHeight`, the overlay/below placement and the collapsing grid row
+are deleted, and with them the `desktop` prop; `PillToolbar` gained `visible` (the rail's
+`visibility` fade, moved onto the shared props); `RailToolbar` is a stack — bar + `RailDisc`s of
+68 px, the bar's own width; the item screen mounts the pill as a fixed sibling of the strip and
+the reader column starts `pt-[28px]`. Tests first, all four components: 7 red → 140 green in
+`components/item` + `components/ui`; `bun run e2e:prod` 54 passed / 3 skipped with the e2e assertions untouched;
+`bun run check` 1,259 of 1,260, the one red the known `70sscifiart` row. Docs: amendments in `DESIGN_screen-structure.md` decision 2
+and `DESIGN_chrome-redesign.md` §1/§2, CLAUDE.md's two bullets.
+
+**Findings:** `getByRole` will not resolve an accessible name inside a `visibility: hidden`
+subtree even with `hidden: true` — the fixed-pill test is keyed on the chrome state instead
+(inert before the tap, findable after), which is the better assertion anyway. And the e2e
+assertions survived unchanged: the stack carries the rail's test id and box, the pill's disc
+geometry is measured within the pill's own wrapper, and the strip is still 900 × 1440 at y = 0.
+
+_Session spend: 35.49M tok (in 3.1k · out 166.5k · cache r 34.91M / w 418.8k) · ~≥$0.69 · fable-5-1 + opus-4-7 · 15:34→16:45_
 
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
