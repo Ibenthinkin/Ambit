@@ -114,6 +114,29 @@ describe("HeroRail", () => {
     expect(strip).toHaveAttribute("data-overlay", "false");
   });
 
+  // The visual pass (09-10-26): `visibility: hidden` keeps its box, so a hidden caption below a
+  // short picture was a dead band between the picture and its title. It collapses now.
+  it("collapses the below-the-picture caption to nothing while hidden, and opens it on demand", () => {
+    const { rerender } = render(
+      <Harness cells={[undefined, cell("b"), undefined]} />,
+    );
+    loaded(screen.getByAltText("Plate b"), 1000, 1000); // square → caption goes below
+    const row = screen.getByTestId("hero-chrome-below");
+    expect(row).toHaveAttribute("data-collapsed", "true");
+    expect(row).toContainElement(screen.getByTestId("gallery-chrome"));
+
+    rerender(
+      <Harness cells={[undefined, cell("b"), undefined]} chromeVisible />,
+    );
+    expect(row).toHaveAttribute("data-collapsed", "false");
+  });
+
+  it("has no collapsing row when the caption overlays the picture", () => {
+    render(<Harness cells={[undefined, cell("b"), undefined]} />);
+    loaded(screen.getByAltText("Plate b"), 1000, 2200); // tall → overlay
+    expect(screen.queryByTestId("hero-chrome-below")).toBeNull();
+  });
+
   it("keeps a tall picture at the full viewport height with the chrome over it", () => {
     render(<Harness cells={[undefined, cell("b"), undefined]} />);
     loaded(screen.getByAltText("Plate b"), 1000, 2200);

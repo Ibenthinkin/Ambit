@@ -189,9 +189,11 @@ dark band under any picture shorter than the screen.** Decision 2 puts the capti
 short picture, and `visibility: hidden` keeps its space — so the hidden caption is ~165–175px of
 `bg-immersive` between picture and title (a landscape Colossal plate: 268px of picture, 175px of
 band), and when shown it repeats the title `ItemFacts` prints right under it. Built to the letter of
-the design and **left for Ben**, with three ways out: collapse the block when hidden (the facts
-then slide ~165px on every tap), always overlay (a caption over the foot of a short picture), or
-give the below-placement only the pill.
+the design, then put to Ben with three ways out — collapse the block when hidden, always overlay,
+or give the below-placement only the pill. **Ben chose collapse**: the below-placement now sits in
+a grid row that animates `0fr → 1fr`, so a hidden caption is nothing and bringing it up slides the
+facts down under it (`hero-rail.tsx`). The overlay placement — tall pictures, and all of desktop —
+is untouched.
 
 **One unexplained e2e draw.** The first full run saw a single client `feed.page` after Escape in
 "tile → item → swipe → Escape returns to the intact feed" — the tiles were identical. An
@@ -201,8 +203,8 @@ separates a cache miss (no cursor) from the sentinel (a cursor) if it ever recur
 
 **Open / next (sub-project 2):** Ben to look — on glass over the tailnet for the gestures the suite
 can't drive (down-flick exit, `pan-y` scroll, the compatibility-mouse fix), and in Firefox for the
-production React #418 on `/` (Chromium's production console is clean on `/` and `/i/`); the band;
-merge + push. Storing image dimensions on `item` is still the follow-up that would retire the
+production React #418 on `/` (Chromium's production console is clean on `/` and `/i/`), and
+whether the collapse's slide reads well under a thumb. Merged to `main` and pushed. Storing image dimensions on `item` is still the follow-up that would retire the
 height-learning altogether.
 
 **Open / next:** Ben has not looked at any of this yet — the picker's copy is placeholder until
@@ -216,6 +218,7 @@ against the 164k corpus. Production gets facets and the tier rename from the dep
 *Session spend: 83.99M tok (in 1.0k · out 299.5k · cache r 82.11M / w 1.58M) · ~$60.36 · opus-5 + opus-4-7 · 14:27→15:04*
 *Session spend: 53.83M tok (in 256 · out 257.5k · cache r 52.50M / w 1.07M) · ~≥$2.76 · fable-5-1 + opus-5 · 15:04→16:53*
 *Session spend: 99.68M tok (in 9.0k · out 1.00M · cache r 95.43M / w 3.24M) · ~$101.27 · opus-5 + opus-4-7 · 19:19→19:57*
+*Session spend: 9.87M tok (in 518 · out 47.5k · cache r 7.32M / w 2.50M) · ~$29.85 · opus-5 · 19:57→22:18*
 
 ### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
 

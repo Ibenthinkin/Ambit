@@ -21,6 +21,10 @@ import type { RailItem } from "~/server/services/gallery-rail";
 //   - **Where the chrome goes.** Under a short picture the caption and pill are an ordinary block
 //     *below* it; under a full-height one they overlay the bottom with the gallery's gradient.
 //     `data-overlay` says which, for the tests and for anyone debugging why the pill moved.
+//     **Below the picture, a hidden caption takes no space** (Ben, 09-10-26). `visibility: hidden`
+//     alone keeps an element's box, and the first visual pass found that box as a ~170px dead band
+//     between a landscape plate and its title. So the below-placement sits in a grid row that
+//     animates `0fr → 1fr`: hidden, it is nothing; brought up, it slides the facts down under it.
 //
 // **The image is a plain `<img>`, in no anchor, with no `-webkit-touch-callout: none`.** The
 // feed tiles set the callout (load-bearing there — iOS raises its own image menu partway through
@@ -217,7 +221,22 @@ export function HeroRail({
         {overlay ? chromeBlock : null}
       </div>
 
-      {overlay ? null : chromeBlock}
+      {overlay ? null : (
+        // The collapsing row (see the header). `grid-template-rows` is the one property that can
+        // transition an element between zero and its own content height; the child's `min-h-0` +
+        // `overflow-hidden` is what lets the `0fr` row actually shrink below that content.
+        <div
+          data-testid="hero-chrome-below"
+          data-collapsed={!chromeVisible}
+          className="grid"
+          style={{
+            gridTemplateRows: chromeVisible ? "1fr" : "0fr",
+            transition: `grid-template-rows .4s ${EASE}`,
+          }}
+        >
+          <div className="min-h-0 overflow-hidden">{chromeBlock}</div>
+        </div>
+      )}
     </section>
   );
 }
