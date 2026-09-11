@@ -340,7 +340,110 @@ export function pickJump(
   };
 }
 
+/** One guard-loop iteration's tier draw and topic pick, with the item draw left out. */
+export interface SlotPick {
+  tier: Tier;
+  /** Null for WILD (no topic behind it) and for a topic tier that found nothing to pick (an
+   *  empty weights map). */
+  pick: TopicPick | null;
+}
+
+/**
+ * The first half of one iteration of `composePage`'s guard loop: draw a tier, then a topic for
+ * it. Factored out (09-11-26) so `planTopics` can replay exactly this sequence without pools —
+ * which only works because this consumes `rng` identically whether or not the slot then fills.
+ * Every rng call a slot makes before its item draw happens in here, and nothing in here depends
+ * on what earlier slots drew.
+ */
+export function pickSlot(
+  weights: Map<string, number>,
+  graph: TopicGraph,
+  knobs: FeedKnobs,
+  rng: () => number,
+  coreTopicIds: ReadonlySet<string>,
+): SlotPick | null {
+  const tier = weightedPick<Tier>(
+    [
+      ["CORE", knobs.tierCore],
+      ["DRIFT", knobs.tierDrift],
+      ["JUMP", knobs.tierJump],
+      ["WILD", knobs.tierWild],
+    ],
+    rng,
+  );
+  if (!tier) return null; // all tier weights <= 0 — degenerate knobs; the caller's guard bounds the retry
+  if (tier === "WILD") return { tier, pick: null };
+  const pick =
+    tier === "CORE"
+      ? pickCore(weights, rng)
+      : tier === "DRIFT"
+        ? pickDrift(weights, graph, knobs, rng, coreTopicIds)
+        : pickJump(weights, graph, rng);
+  return { tier, pick };
+}
+
+/**
+ * How far ahead `planTopics` looks, in pages: horizon = pageSize × this. A page needs `pageSize`
+ * successful draws; the rest is slack for the slots that fail (a capped topic, an empty pool).
+ * Five is generous — 48 failures in a 12-card page — and cheap, because a plan iteration is a
+ * few weighted picks with no I/O. Past the horizon `composePage` meets pools it never fetched,
+ * composes short, and `getFeedPage` takes the full-fetch fallback; `bench:feed` counts how often.
+ */
+export const PLAN_HORIZON_PAGES = 5;
+
+/**
+ * Which topics a page will draw from — computed **without pools** (09-11-26,
+ * docs/DESIGN_feed-on-membership.md §4.3). Replays `composePage`'s guard loop through
+ * `pickSlot` for `horizon` iterations, assuming every draw succeeds (so the topic cap advances
+ * on every uncapped pick, exactly as it does in the real loop when the pool is not empty), and
+ * returns every topic it landed on.
+ *
+ * Why this is exact and not a guess: `composePage`, handed a topic stream seeded the same way
+ * and a *separate* `itemRng`, consumes the topic stream identically per iteration whether the
+ * slot fills or not — the cap check comes after the pick — so its iteration i lands on the same
+ * topic this one did. The two can only differ in *how many* iterations the real loop needs,
+ * which is what the horizon's slack is for. A capped pick is not added on that iteration, but
+ * it was added on the pick that first counted it, so nothing the real loop can land on inside
+ * the horizon is missing from the set. (The plan's cap counts are never *below* the real loop's
+ * — it assumes every draw landed — so the real loop can never be let through to a topic the
+ * plan had already closed.)
+ *
+ * This is what lets `getFeedPage` fetch ~40 pools rather than every reachable one (~100 of 104
+ * from any three picks, and ~370 once the round-2 vocabulary lands) — the page's cost becomes a
+ * function of page size rather than of vocabulary size, which is the property the whole
+ * "vocabulary grows to fit the corpus" principle needs from the feed.
+ */
+export function planTopics(opts: {
+  weights: Map<string, number>;
+  graph: TopicGraph;
+  knobs: FeedKnobs;
+  rng: () => number;
+  coreTopicIds?: ReadonlySet<string>;
+  horizon?: number;
+}): Set<string> {
+  const {
+    weights,
+    graph,
+    knobs,
+    rng,
+    coreTopicIds = CORE_TOPIC_IDS,
+    horizon = knobs.pageSize * PLAN_HORIZON_PAGES,
+  } = opts;
+  const planned = new Set<string>();
+  const topicCounts = new Map<string, number>();
+  for (let i = 0; i < horizon; i++) {
+    const slot = pickSlot(weights, graph, knobs, rng, coreTopicIds);
+    if (!slot || slot.tier === "WILD" || !slot.pick) continue;
+    const { topicId } = slot.pick;
+    if ((topicCounts.get(topicId) ?? 0) >= knobs.topicCap) continue;
+    topicCounts.set(topicId, (topicCounts.get(topicId) ?? 0) + 1);
+    planned.add(topicId);
+  }
+  return planned;
+}
+
 const EMPTY_SOURCES: ReadonlySet<string> = new Set();
+const EMPTY_IDS: ReadonlySet<string> = new Set();
 
 // ── item pick (SPEC §9.2) ───────────────────────────────────────────────────────────────────────
 /**
@@ -360,10 +463,19 @@ function pickItem(
    *  doing its job. Filtering here rather than rejecting after the draw is what lets a topic's
    *  minority sources win the slot once the majority is capped. */
   cappedSources: ReadonlySet<string> = EMPTY_SOURCES,
+  /** Items already drawn on this page. Since the pools come from membership (09-11-26) one item
+   *  can sit in up to three of them, and `composePage` only splices a draw out of the pool it
+   *  drew from. Hard filter, like the cap. Applied to the WILD pool too, though an un-homed row
+   *  has no membership and cannot overlap — a rule with one exception is a bug waiting. */
+  drawnIds: ReadonlySet<string> = EMPTY_IDS,
 ): PoolItem | null {
   if (!pool || pool.length === 0) return null;
 
   let candidates = pool;
+  if (drawnIds.size > 0) {
+    candidates = candidates.filter((it) => !drawnIds.has(it.id));
+    if (candidates.length === 0) return null;
+  }
   if (cappedSources.size > 0) {
     candidates = candidates.filter((it) => !cappedSources.has(it.source));
     if (candidates.length === 0) return null;
@@ -407,6 +519,14 @@ export interface ComposePageOpts {
    *  corpus with nothing un-homed composes exactly as it did before this tier existed. */
   wildPool?: PoolItem[];
   rng: () => number;
+  /**
+   * The stream the ITEM draws use (09-11-26). `rng` is then the topic stream only — tiers and
+   * topics — which is what makes a page's topic sequence a pure function of weights, graph,
+   * knobs and `rng`, and what lets `planTopics` know a page's topics before any pool is
+   * fetched. Defaults to `rng`, in which case this function is byte-for-byte the single-stream
+   * engine it was before, and every test written against that keeps its meaning.
+   */
+  itemRng?: () => number;
   knobs: FeedKnobs;
   tasteKeywords?: string[];
   // Whether to attach `debug.why`/`debug.curationScore` to each card. Kept as a plain boolean
@@ -434,6 +554,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
     pools,
     wildPool = [],
     rng,
+    itemRng = rng,
     knobs,
     tasteKeywords = [],
     debug = false,
@@ -442,7 +563,8 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
 
   // Working copies of each topic's pool: an item drawn this page is spliced out immediately, so
   // it can never be drawn again on the same page (the in-page exclusion half of SPEC §9.4's "seen"
-  // tracking — seen_item covers everything *before* this page, this covers *within* it).
+  // tracking — seen_item covers everything *before* this page, this covers *within* it — together
+  // with `drawnIds` below, since 09-11-26, because an item can be in several pools).
   const working = new Map<string, PoolItem[]>();
   for (const [topicId, items] of pools) working.set(topicId, [...items]);
   // The wild pool gets the same treatment, as one flat list: a wild item drawn this page is
@@ -456,6 +578,9 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
   // can filter by membership without knowing the knob.
   const sourceCounts = new Map<string, number>();
   const cappedSources = new Set<string>();
+  // Every id drawn on this page, across all pools. The pools come from membership now, so one
+  // item can be in three of them; splicing it out of the pool it was drawn from is not enough.
+  const drawnIds = new Set<string>();
   let lastSource: string | null = null;
   const countSource = (source: string) => {
     const n = (sourceCounts.get(source) ?? 0) + 1;
@@ -468,16 +593,11 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
     cards.length < knobs.pageSize && guard < knobs.pageSize * 40;
     guard++
   ) {
-    const tierName = weightedPick<Tier>(
-      [
-        ["CORE", knobs.tierCore],
-        ["DRIFT", knobs.tierDrift],
-        ["JUMP", knobs.tierJump],
-        ["WILD", knobs.tierWild],
-      ],
-      rng,
-    );
-    if (!tierName) continue; // all tier weights <= 0 — degenerate knobs; guard bounds the retry
+    // The tier draw and the topic pick, from the TOPIC stream — see `pickSlot` for why they are
+    // one function now. Everything after this line that draws uses `itemRng`.
+    const slot = pickSlot(weights, graph, knobs, rng, coreTopicIds);
+    if (!slot) continue; // all tier weights <= 0 — degenerate knobs; guard bounds the retry
+    const tierName = slot.tier;
 
     // WILD short-circuits the topic step entirely: there is no topic to pick, no graph to walk,
     // no driftPath to record, and topicCap — which bounds how much of a page one TOPIC may be —
@@ -489,14 +609,16 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
         lastSource,
         { ...knobs, tagBoost: knobs.wildTagBoost },
         tasteKeywords,
-        rng,
+        itemRng,
         cappedSources,
+        drawnIds,
       );
       if (!drawn) continue; // nothing un-homed left to show — soft, like every other constraint
       workingWild.splice(
         workingWild.findIndex((it) => it.id === drawn.id),
         1,
       );
+      drawnIds.add(drawn.id);
       lastSource = drawn.source;
       countSource(drawn.source);
       cards.push({
@@ -515,12 +637,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
       continue;
     }
 
-    const pick =
-      tierName === "CORE"
-        ? pickCore(weights, rng)
-        : tierName === "DRIFT"
-          ? pickDrift(weights, graph, knobs, rng, coreTopicIds)
-          : pickJump(weights, graph, rng);
+    const pick = slot.pick;
     if (!pick) continue; // no topics to draw from at all (e.g. an empty weights map)
 
     const { topicId, why, driftPath } = pick;
@@ -531,13 +648,15 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
       lastSource,
       knobs,
       tasteKeywords,
-      rng,
+      itemRng,
       cappedSources,
+      drawnIds,
     );
     if (!drawn) continue; // this topic's pool is empty/exhausted — soft constraint, try again
 
     const remaining = working.get(topicId)!.filter((it) => it.id !== drawn.id);
     working.set(topicId, remaining);
+    drawnIds.add(drawn.id);
 
     topicCounts.set(topicId, (topicCounts.get(topicId) ?? 0) + 1);
     lastSource = drawn.source;

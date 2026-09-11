@@ -11,6 +11,7 @@
 // `getTopicPools`/`markSeen`) rather than reaching a real Postgres.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { PoolItem } from "~/server/db/feed";
 import type { Item } from "~/server/db/items";
 import { WEIGHT_CAP } from "~/server/db/topics";
 import { TOPICS } from "~/server/config/topics";
@@ -79,6 +80,7 @@ import {
   pickCore,
   pickDrift,
   pickJump,
+  planTopics,
   scaleGrownEdges,
   type FeedCursor,
   type FeedKnobs,
@@ -643,6 +645,70 @@ describe("composePage", () => {
     // Only 5 items exist — the page can't exceed that, and every id is unique.
     expect(cards).toHaveLength(5);
     expect(new Set(cards.map((c) => c.item.id)).size).toBe(5);
+  });
+
+  it("never draws an item twice on a page when it sits in two pools (09-11-26)", () => {
+    // The same five items are members of BOTH topics — what the membership join hands the
+    // engine when an item carries two of the page's topics. Before drawnIds, splicing a drawn
+    // item out of ITS pool left it drawable from the other.
+    const shared = Array.from({ length: 5 }, (_, i) =>
+      makeItem({ id: `shared-${i}`, topicId: "a" }),
+    );
+    const weights = new Map([
+      ["a", 1],
+      ["b", 1],
+    ]);
+    const knobs: FeedKnobs = {
+      ...baseKnobs,
+      topicCap: 100,
+      pageSize: 10,
+      tierWild: 0,
+    };
+    const cards = composePage({
+      weights,
+      graph: {},
+      pools: new Map([
+        ["a", shared],
+        ["b", shared.map((it) => ({ ...it, topicId: "b" }))],
+      ]),
+      rng: mulberry32(hashSeed("twice:1")),
+      knobs,
+    });
+    expect(cards).toHaveLength(5);
+    expect(new Set(cards.map((c) => c.item.id)).size).toBe(5);
+  });
+
+  it("with itemRng omitted composes exactly what it composed before (the single-stream default)", () => {
+    const pools = new Map([
+      ["only", Array.from({ length: 60 }, () => makeItem({ topicId: "only" }))],
+    ]);
+    const knobs: FeedKnobs = { ...baseKnobs, topicCap: 100, tierWild: 0 };
+    const a = composePage({
+      weights: new Map([["only", 1]]),
+      graph: {},
+      pools,
+      rng: mulberry32(hashSeed("single:1")),
+      knobs,
+    });
+    const b = composePage({
+      weights: new Map([["only", 1]]),
+      graph: {},
+      pools,
+      rng: mulberry32(hashSeed("single:1")),
+      itemRng: mulberry32(hashSeed("single:1")), // a second stream with the SAME seed — not the same stream
+      knobs,
+    });
+    // Different: the second call's topic draws no longer share a stream with its item draws.
+    expect(b.map((c) => c.item.id)).not.toEqual(a.map((c) => c.item.id));
+    // But each is reproducible on its own terms.
+    const a2 = composePage({
+      weights: new Map([["only", 1]]),
+      graph: {},
+      pools,
+      rng: mulberry32(hashSeed("single:1")),
+      knobs,
+    });
+    expect(a2.map((c) => c.item.id)).toEqual(a.map((c) => c.item.id));
   });
 
   it("avoids adjacent same-source cards when the pool allows it", () => {
@@ -1248,5 +1314,99 @@ describe("composePage — learned weights (6.1)", () => {
         DEFAULT_KNOBS.topicCap,
       );
     }
+  });
+});
+
+// ── planTopics (09-11-26, docs/DESIGN_feed-on-membership.md §4.3) ─────────────────────────────
+// What makes the planned fetch safe: for the same topic stream, the set `planTopics` returns
+// contains every topic `composePage` serves, and a page composed from ONLY those pools is the page
+// composed from every pool. The two properties are checked over many seeds because each seed is a
+// different tier/topic sequence — and a dense graph so DRIFT and JUMP actually go somewhere.
+describe("planTopics (09-11-26)", () => {
+  // A dense little graph: every topic a neighbour of every other, so DRIFT and JUMP have
+  // somewhere to go and the plan is not trivially the weights' keys.
+  const TOPIC_IDS = Array.from({ length: 12 }, (_, i) => `t${i}`);
+  const graph: TopicGraph = Object.fromEntries(
+    TOPIC_IDS.map((from) => [
+      from,
+      TOPIC_IDS.filter((t) => t !== from).map((topic, j) => ({
+        topic,
+        sim: 0.9 - j * 0.15, // a head of positive bridges and a tail of negative ones
+      })),
+    ]),
+  );
+  const weights = new Map(TOPIC_IDS.slice(0, 3).map((id) => [id, 1]));
+  const fullPools = () =>
+    new Map(
+      TOPIC_IDS.map((id) => [
+        id,
+        Array.from({ length: 60 }, () => makeItem({ topicId: id })),
+      ]),
+    );
+  const knobs: FeedKnobs = { ...DEFAULT_KNOBS, tierWild: 0 };
+  const core = new Set(TOPIC_IDS);
+
+  it("covers every topic composePage serves, for the same topic stream (200 seeds)", () => {
+    for (let seed = 0; seed < 200; seed++) {
+      const planned = planTopics({
+        weights,
+        graph,
+        knobs,
+        rng: mulberry32(hashSeed(`plan:${seed}`)),
+        coreTopicIds: core,
+      });
+      const cards = composePage({
+        weights,
+        graph,
+        pools: fullPools(),
+        rng: mulberry32(hashSeed(`plan:${seed}`)),
+        itemRng: mulberry32(hashSeed(`plan:${seed}:items`)),
+        knobs,
+        coreTopicIds: core,
+      });
+      for (const card of cards) {
+        expect(planned.has(card.topicId!)).toBe(true);
+      }
+    }
+  });
+
+  it("a page composed from only the planned pools is identical to one composed from every pool", () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const planned = planTopics({
+        weights,
+        graph,
+        knobs,
+        rng: mulberry32(hashSeed(`same:${seed}`)),
+        coreTopicIds: core,
+      });
+      const all = fullPools();
+      const only = new Map([...all].filter(([id]) => planned.has(id)));
+      const compose = (pools: Map<string, PoolItem[]>) =>
+        composePage({
+          weights,
+          graph,
+          pools,
+          rng: mulberry32(hashSeed(`same:${seed}`)),
+          itemRng: mulberry32(hashSeed(`same:${seed}:items`)),
+          knobs,
+          coreTopicIds: core,
+        });
+      expect(compose(only).map((c) => [c.topicId, c.item.id])).toEqual(
+        compose(all).map((c) => [c.topicId, c.item.id]),
+      );
+    }
+  });
+
+  it("returns at most horizon topics and nothing outside the graph's reach", () => {
+    const planned = planTopics({
+      weights,
+      graph,
+      knobs,
+      rng: mulberry32(hashSeed("bound")),
+      coreTopicIds: core,
+      horizon: 7,
+    });
+    expect(planned.size).toBeLessThanOrEqual(7);
+    for (const id of planned) expect(TOPIC_IDS).toContain(id);
   });
 });
