@@ -5,6 +5,8 @@
 //   bun run mine:topics                          # defaults: minUnhomed 20, minSources 2
 //   bun run mine:topics --min-unhomed 40         # the conservative set (36 topics, 70% of backlog)
 //   bun run mine:topics --allow "street art,public art"
+//   bun run mine:topics --out docs/topic-proposals-round2.md   # keep an earlier verdict file intact
+//   bun run mine:topics --rank total --min-total 300         # round 2 (09-11-26): see below
 //
 // The output is Markdown with a `- [ ]` per candidate. Ben ticks the ones to promote, edits any
 // label he dislikes, and scripts/promote-topics.ts reads the ticked lines back. The file is the
@@ -37,6 +39,18 @@ const opts = {
   minSources: Number(flag("min-sources") ?? DEFAULT_MINING.minSources),
   allow: list("allow"),
 };
+// Where the proposals go. The default is the file promote:topics reads; pass --out when the
+// current file still holds a verdict someone is about to apply (round 2, 09-11-26: production
+// was promoting Cut 2a's file at the moment round 2 was mined).
+const out = flag("out") ?? "docs/topic-proposals.md";
+// `--rank total` ranks by how many items carry the tag AT ALL, not how many un-homed ones. The
+// un-homed lens is Cut 2a's: "which topic rescues the most invisible items". By round 2 the
+// corpus was 99% homed (1,272 of 164,423 un-homed) and that lens finds ten topics, while the
+// picker needs a vocabulary — `spaceship` is 4,409 items and one of them is un-homed. Ranking by
+// total is that vocabulary. Read the write-up before ticking a total-ranked file: until the feed
+// draws from `item_topic`, a promoted topic's DISPLAY pool is only its un-homed items.
+const rank = flag("rank") === "total" ? "total" : "unhomed";
+const minTotal = Number(flag("min-total") ?? 0);
 
 const { db } = await import("~/server/db/client");
 const { item } = await import("~/server/db/schema");
@@ -60,7 +74,15 @@ const stats = tallyTags(
   })),
 );
 const existing = (await listAllTopics()).map((t) => t.id);
-const { promoted, singleSource } = rankCandidates(stats, existing, opts);
+const ranked = rankCandidates(
+  stats,
+  existing,
+  rank === "total" ? { ...opts, minUnhomed: 0 } : opts,
+);
+const byRank = (a: { total: number; unhomed: number }, b: typeof a) =>
+  rank === "total" ? b.total - a.total : b.unhomed - a.unhomed;
+const promoted = ranked.promoted.filter((s) => s.total >= minTotal).sort(byRank);
+const singleSource = ranked.singleSource.filter((s) => s.total >= minTotal).sort(byRank);
 
 const unhomedTotal = rows.filter((r) => r.topicId === null).length;
 const keep = new Set(promoted.map((p) => p.tag));
@@ -75,7 +97,7 @@ const rescued = rows.filter(
 const doc = `# Topic proposals — Cut 2a
 
 **Generated:** ${new Date().toISOString().slice(0, 10)} by \`bun run mine:topics\`
-(minUnhomed ${opts.minUnhomed}, minSources ${opts.minSources}${opts.allow.length ? `, allow: ${opts.allow.join(", ")}` : ""}).
+(rank ${rank}, minUnhomed ${opts.minUnhomed}, minTotal ${minTotal}, minSources ${opts.minSources}${opts.allow.length ? `, allow: ${opts.allow.join(", ")}` : ""}).
 **Do not hand-edit the \`<!-- tag: … -->\` comments** — \`bun run promote:topics\` reads them.
 **Do** replace each \`<!-- facet: ? -->\` with one of \`subject\`, \`medium\`, \`look\`, \`place\` on
 every line you tick; \`promote:topics\` refuses a ticked line that still says \`?\`.
@@ -115,9 +137,9 @@ those up into Candidates, or pass \`--allow\` to make it permanent.
 ${singleSource.map(proposalLine).join("\n")}
 `;
 
-await writeFile("docs/topic-proposals.md", doc);
+await writeFile(out, doc);
 console.log(
-  `wrote docs/topic-proposals.md — ${promoted.length} candidates, ${singleSource.length} single-source, ` +
+  `wrote ${out} — ${promoted.length} candidates, ${singleSource.length} single-source, ` +
     `${rescued}/${unhomedTotal} un-homed rescued if all accepted`,
 );
 process.exit(0);

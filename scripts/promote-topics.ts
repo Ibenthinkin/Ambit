@@ -3,6 +3,7 @@
 //
 //   bun run promote:topics              # dry run — prints exactly what it would do
 //   bun run promote:topics --confirm    # writes
+//   bun run promote:topics --file docs/topic-proposals-round2.md --confirm   # a later round's file
 //
 // For each ticked candidate this does three things, and the third is the one that makes the
 // backlog visible:
@@ -34,6 +35,8 @@ import type { TopicFacet } from "~/server/db/schema";
 import { topicIdFor } from "~/server/services/topic-mining";
 
 const confirm = process.argv.includes("--confirm");
+const fileArg = process.argv.indexOf("--file");
+const file = fileArg > -1 ? process.argv[fileArg + 1]! : "docs/topic-proposals.md";
 
 // A ticked line looks like:
 //   - [x] `sculpture` — **Sculpture** <!-- tag: sculpture --> <!-- facet: medium --> · 738 un-homed / …
@@ -42,7 +45,7 @@ const confirm = process.argv.includes("--confirm");
 const LINE =
   /^- \[x\]\s+`([^`]+)`\s+—\s+\*\*(.+?)\*\*\s+<!--\s*tag:\s*(.+?)\s*-->(?:\s*<!--\s*facet:\s*(.+?)\s*-->)?/;
 
-const doc = await readFile("docs/topic-proposals.md", "utf8");
+const doc = await readFile(file, "utf8");
 const picks = doc
   .split("\n")
   .map((l) => LINE.exec(l))
@@ -51,7 +54,7 @@ const picks = doc
 
 if (picks.length === 0) {
   console.error(
-    "No ticked candidates in docs/topic-proposals.md — nothing to promote.",
+    `No ticked candidates in ${file} — nothing to promote.`,
   );
   console.error('Tick a line by changing "- [ ]" to "- [x]".');
   process.exit(1);
