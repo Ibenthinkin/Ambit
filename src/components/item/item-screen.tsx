@@ -12,6 +12,7 @@ import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sh
 import { ShareSheet } from "~/components/sheets/share-sheet";
 import { Column } from "~/components/ui/column";
 import { PillToolbar } from "~/components/ui/pill-toolbar";
+import { RailToolbar } from "~/components/ui/rail-toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Toast } from "~/components/ui/toast";
 import { useChromeCycle } from "~/hooks/use-chrome-cycle";
@@ -314,11 +315,14 @@ export function ItemScreen({
           {current.attribution ?? sourceLabel(current.source)}
         </p>
       </div>
-      {authed ? (
+      {authed && !desktop ? (
         // `static`, so the pill rides inside the fading chrome block instead of floating
-        // independently of it — this is the one screen where it belongs to something.
+        // independently of it — this is the one screen where it belongs to something. Above `md`
+        // the rail below plays that part, outside the caption. `-mx-6`
+        // undoes the caption's 24px inset so the Share disc centres between the pill and the
+        // *screen's* edge, as the design measures it, not the caption's.
         <PillToolbar
-          className="static bottom-auto mt-[20px]"
+          className="static bottom-auto -mx-6 mt-[20px]"
           bookmark={saved.data?.saved ? "saved" : "idle"}
           onBookmark={() => setSaveOpen(true)}
           onShare={() => setShareOpen(true)}
@@ -346,6 +350,19 @@ export function ItemScreen({
         chromeVisible={chrome.visible}
         desktop={desktop}
       />
+
+      {authed && desktop ? (
+        // Decision 3 (docs/DESIGN_chrome-redesign.md): the rail is part of the chrome here — it
+        // fades with the caption, on the same 600ms, and a mouse moving over the picture summons
+        // both.
+        <RailToolbar
+          visible={chrome.visible}
+          bookmark={saved.data?.saved ? "saved" : "idle"}
+          onBookmark={() => setSaveOpen(true)}
+          onShare={() => setShareOpen(true)}
+          onHome={leave}
+        />
+      ) : null}
 
       {/* A book-width measure above `md` (docs/DESIGN_desktop-polish.md §1, §4) — the picture is
           edge to edge, the words are not. */}

@@ -98,6 +98,29 @@ describe("PillToolbar", () => {
     expect(wrapper.querySelector("nav")).toHaveClass("pointer-events-auto");
   });
 
+  // docs/DESIGN_chrome-redesign.md §1: Share is a detached disc beside the pill, not a fourth
+  // glyph inside it — Cosmos's phone bar. A sibling of the nav, inside the same full-width
+  // wrapper, so the grid can centre it in the space to the pill's right.
+  it("renders Share as a disc outside the nav, in the same wrapper", () => {
+    const { container } = renderPill();
+    const share = screen.getByRole("button", { name: "Share" });
+    const nav = screen.getByRole("navigation");
+    expect(nav).not.toContainElement(share);
+    expect(share.parentElement).toBe(container.firstElementChild);
+    expect(share).toHaveClass("pointer-events-auto");
+  });
+
+  it("hands each control's own rect to its handler, for the desktop popovers", () => {
+    const onBookmark = vi.fn();
+    const onShare = vi.fn();
+    renderPill({ onBookmark, onShare });
+    fireEvent.click(screen.getByRole("button", { name: "Save to collection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+    // jsdom's rects are all zeros, but they are DOMRects — the shape is the contract.
+    expect(onBookmark.mock.calls[0]![0]).toHaveProperty("width");
+    expect(onShare.mock.calls[0]![0]).toHaveProperty("width");
+  });
+
   it("renders a page-specific extra action in the same row", () => {
     renderPill({ extra: <button type="button">Closer look</button> });
     const nav = screen.getByRole("navigation");

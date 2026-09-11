@@ -400,6 +400,26 @@ test.describe.serial("item pages", () => {
     await summonChrome(page);
     await expect(page.getByRole("button", { name: "Share" })).toHaveCount(1);
 
+    // The detached disc (docs/DESIGN_chrome-redesign.md §1): on the pill's axis, centred in the
+    // remaining distance between the pill's right edge and the screen's right edge.
+    const navBox = (await page
+      .locator("nav[aria-label='Ambit toolbar']")
+      .boundingBox())!;
+    const shareBox = (await page
+      .getByRole("button", { name: "Share" })
+      .boundingBox())!;
+    const { width } = page.viewportSize()!;
+    const expectedX = (navBox.x + navBox.width + width) / 2;
+    expect(Math.abs(shareBox.x + shareBox.width / 2 - expectedX)).toBeLessThan(
+      2,
+    );
+    expect(
+      Math.abs(
+        shareBox.y + shareBox.height / 2 - (navBox.y + navBox.height / 2),
+      ),
+    ).toBeLessThan(2);
+    expect(Math.round(navBox.height)).toBe(56);
+
     await page.getByRole("button", { name: "Save to collection" }).click();
     await page.getByRole("heading", { name: "Save to" }).waitFor();
     await page.getByText("Articles").click();
