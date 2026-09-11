@@ -22,7 +22,7 @@ import {
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
 import type { Item } from "./items";
-import { item, seenItem } from "./schema";
+import { item, itemTopic, seenItem } from "./schema";
 
 /**
  * The slice of an `Item` the feed engine actually reads while composing a page: `topicId` keys the
@@ -35,21 +35,26 @@ export type PoolItem = Pick<
   Item,
   "id" | "source" | "curationScore" | "aestheticTags"
 > & {
-  /** Null ONLY for a row from `getWildPool` (09-06-26) — an un-homed item, which is the entire
-   *  point of that pool. `getTopicPools` filters with `inArray(item.topicId, …)`, which no NULL
-   *  row matches, so a topic pool still cannot contain one. Downstream, `composePage` turns a
-   *  null here into exactly one thing: a WILD card. */
+  /** **The pool this row was fetched for** — `item_topic.topic_id`, since 09-11-26 — not the
+   *  item's display topic. An item with three memberships can come back in three pools on one
+   *  page (which is why `pickItem` refuses an id already drawn this page). Null ONLY for a row
+   *  from `getWildPool`: an un-homed item has no membership row at all, so a topic pool still
+   *  cannot contain one. Downstream, `composePage` turns a null here into exactly one thing: a
+   *  WILD card. */
   topicId: string | null;
 };
 
 /**
- * One SELECT per page, not one per topic (SPEC §9's "slot plan first, pools second" — see
- * services/feed.ts's `getFeedPage`): for every id in `topicIds`, a deterministic **sample** of
- * the items above `scoreFloor` that this user hasn't been served before `anchor`
+ * One SELECT per page, not one per topic: for every id in `topicIds`, a deterministic **sample**
+ * of the eligible **memberships** of that topic — `item_topic` rows joined to their item — whose
+ * item is above `scoreFloor` and hasn't been served to this user before `anchor`
  * (`seen_item.served_at < anchor` — a strict `<`, deliberately not `<=`; see schema.ts's comment
  * on `seenItem.servedAt` for why), excluding `excludeIds` (the previous page's own item ids — a
- * separate guard because they share `anchor` exactly). Rides `idx_item_topic_score` for the
- * `IN (...) AND curationScore >=` half of the filter.
+ * separate guard because they share `anchor` exactly). `topicIds` is the page's *planned* topics
+ * (services/feed.ts's `planTopics` → `getFeedPage`), not every topic the page could reach. Walks
+ * `idx_item_topic_topic` for the `IN (...)` half and joins `item` by primary key for the rest;
+ * at a few dozen topics that is the plan Postgres picks, at a hundred it seq-scans both — which
+ * is the other reason `getFeedPage` asks for few.
  *
  * Returns a Map keyed by every id in `topicIds` (even ones with zero eligible items — an empty
  * array, not a missing key) so services/feed.ts's `composePage` can do a plain `.get(topicId)`
@@ -92,27 +97,44 @@ export async function getTopicPools(
 
   const { db } = await import("./client");
 
-  // Stage one: rank each eligible row inside its own (topic, source) by a hash of its id and the
-  // page's key, and keep that source's first `TOPIC_POOL_PER_SOURCE`. `md5(id || key)` rather
-  // than `random()` for the same reason as `getWildPool`: SPEC §7 promises a refetched cursor
-  // returns the same page, and a `random()` sample would give a different one each time. The
-  // eligibility clauses are the shared `eligibilityConditions`, applied *inside* the ranking, so
-  // a row eligibility refuses is never counted toward a cap — an exclusion is backfilled, not a
-  // hole in the sample.
+  // Stage one: every membership row in the requested topics whose ITEM is eligible, ranked
+  // inside its own (topic, source) by a hash of the item's id and the page's key; keep that
+  // source's first `TOPIC_POOL_PER_SOURCE`. `md5(id || key)` rather than `random()` for the same
+  // reason as `getWildPool`: SPEC §7 promises a refetched cursor returns the same page, and a
+  // `random()` sample would give a different one each time. The eligibility clauses are the
+  // shared `eligibilityConditions`, applied *inside* the ranking, so a row eligibility refuses is
+  // never counted toward a cap — an exclusion is backfilled, not a hole in the sample.
+  //
+  // **From `item_topic`, not `item` (09-11-26, docs/DESIGN_feed-on-membership.md).** Until then
+  // this ranked `item` rows by their display `topic_id`, so an item could only ever be drawn
+  // under its first honest home. Membership is the whole of what an item belongs to — the
+  // curator's three topics, a promotion's tag match, a seed query — and a topic's pool is now
+  // exactly its members: `surreal` went from 3,919 drawable items to 26,701 on the day this
+  // landed, and a topic promoted from a tag has its full membership as its pool from the first
+  // page rather than the handful of un-homed items `promote:topics` could give a display topic
+  // to. The row count the windows rank is memberships (~2.8 rows per item), which is why
+  // `getFeedPage` now asks for the topics a page will *use* rather than every reachable one.
+  //
+  // (An inner join, so the partition key is the MEMBERSHIP's topic: one item with two of the
+  // requested topics is ranked twice, once in each partition, and can come back in both pools.)
   const perSource = db
     .select({
       id: item.id,
-      topicId: item.topicId,
+      topicId: itemTopic.topicId,
       source: item.source,
       curationScore: item.curationScore,
       aestheticTags: item.aestheticTags,
-      nSrc: sql<number>`row_number() over (partition by ${item.topicId}, ${item.source} order by md5(${item.id} || ${opts.sampleKey}))`.as(
+      nSrc: sql<number>`row_number() over (partition by ${itemTopic.topicId}, ${item.source} order by md5(${item.id} || ${opts.sampleKey}))`.as(
         "n_src",
       ),
     })
-    .from(item)
+    .from(itemTopic)
+    .innerJoin(item, eq(item.id, itemTopic.itemId))
     .where(
-      and(inArray(item.topicId, topicIds), ...eligibilityConditions(db, opts)),
+      and(
+        inArray(itemTopic.topicId, topicIds),
+        ...eligibilityConditions(db, opts),
+      ),
     )
     .as("per_source");
 
@@ -159,9 +181,9 @@ export async function getTopicPools(
     .orderBy(asc(survivors.topicId), asc(survivors.id));
 
   for (const row of rows) {
-    // Unreachable in practice — the `inArray(topicId, …)` above cannot match a NULL — but the
-    // projection is typed `string | null` because the column is, and a `!` here would hide the
-    // day this ever changes.
+    // `item_topic.topic_id` is NOT NULL, so this never fires; the projection is typed
+    // `string | null` because `PoolItem` is shared with the wild pool, and a `!` here would hide
+    // the day the type changes.
     if (row.topicId === null) continue;
     pools.get(row.topicId)?.push({ ...row, topicId: row.topicId });
   }

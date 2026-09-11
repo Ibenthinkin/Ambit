@@ -334,10 +334,19 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(await addItemTopics(itemId, [], "seed")).toBe(0);
     });
 
-    it("an un-homed item is drawn by getWildPool and by nothing else", async () => {
-      // Membership rows exist for topicA now, but every TOPIC draw reads item.topic_id, which is
-      // still null — design §5's "invisible with no guard at all". That half is unchanged and is
-      // what Cut 2b has to flip on purpose when the feed moves onto the item_topic join.
+    it("an item with memberships but no display topic: the topic pool draws it, drawFromTopic does not", async () => {
+      // Membership rows exist for topicA now while item.topic_id is still null. Until 09-11-26
+      // every TOPIC draw read item.topic_id, so this item was invisible to all of them — and this
+      // test's old comment said the feed's move onto the item_topic join would have to flip that
+      // on purpose. It is flipped (docs/DESIGN_feed-on-membership.md): `getTopicPools` ranks
+      // `item_topic ⋈ item`, so membership is what makes an item drawable under a topic.
+      // `drawFromTopic` still reads the DISPLAY topic (the wander teaser and gallery rail anchor on
+      // a picture's own home), so it still refuses it.
+      //
+      // The state itself — memberships but a NULL display topic — is artificial: ingest and
+      // `promote:topics` both set `topic_id` whenever they write a membership. It is the one shape
+      // in which an item can be in a topic pool AND the wild pool at once, which is why
+      // `composePage`'s `drawnIds` guard applies to WILD draws too.
       const drawn = await drawFromTopic(topicA, {
         scoreFloor: 1,
         excludeIds: [],
@@ -354,11 +363,11 @@ describe.skipIf(!process.env.DATABASE_URL)(
         excludeIds: [],
         sampleKey: "items-integration:0",
       });
-      expect(pools.get(topicA)?.some((r) => r.id === itemId)).toBe(false);
+      expect(pools.get(topicA)?.some((r) => r.id === itemId)).toBe(true);
 
-      // …and getWildPool is the one draw that DOES return it (plan 09-06-26). That is the whole
-      // of the WILD tier's reachability: an item no topic fits is invisible to the three topic
-      // tiers and visible to the fourth.
+      // …and getWildPool still returns it too (plan 09-06-26): it asks for `topic_id IS NULL`,
+      // which is exactly what makes an item un-homed. An item with no membership at all — the
+      // real un-homed case — reaches the feed through this pool and no other.
       const wild = await getWildPool({
         userId,
         anchor: new Date(),

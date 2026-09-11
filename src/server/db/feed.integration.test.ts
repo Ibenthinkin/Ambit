@@ -10,7 +10,7 @@
 //
 // Self-skips whenever DATABASE_URL isn't set (same pattern as db/items.integration.test.ts); run
 // locally with `docker compose up -d` then `bun run test`.
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -631,6 +631,96 @@ describe.skipIf(!process.env.DATABASE_URL)(
       } finally {
         await db.delete(seenItem).where(inArray(seenItem.userId, [userId]));
       }
+    });
+  },
+);
+
+// **The feed draws on membership (09-11-26, docs/DESIGN_feed-on-membership.md).** Until then
+// `getTopicPools` ranked `item` rows by their display `topic_id`, so an item was drawable only under
+// its first honest home. This pins the move: an item whose ONLY route to a topic is an `item_topic`
+// row is in that topic's pool, and an item with two memberships sits in both pools when both are
+// asked for (which is why `composePage` has to refuse an id already drawn on the page).
+describe.skipIf(!process.env.DATABASE_URL)(
+  "getTopicPools draws on membership (integration)",
+  () => {
+    const prefix = `test-membership-${nanoid(8)}-`;
+    const displayTopic = `test-display-${nanoid(8)}`;
+    const memberTopic = `test-member-${nanoid(8)}`;
+    const userId = `test-membership-user-${nanoid(8)}`;
+    let itemId: string;
+    const opts = () => ({
+      userId,
+      anchor: new Date(),
+      scoreFloor: 4,
+      excludeIds: [],
+      sampleKey: "membership:0",
+    });
+
+    beforeAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { itemTopic, topic, user } = await import("~/server/db/schema");
+      await db.insert(topic).values(
+        [displayTopic, memberTopic].map((id) => ({
+          id,
+          label: id,
+          seedQueries: {
+            wikipedia: [],
+            met: [],
+            aic: [],
+            cma: [],
+            wellcome: [],
+          },
+        })),
+      );
+      await db.insert(user).values({
+        id: userId,
+        name: "Test membership user",
+        email: `${userId}@example.com`,
+        emailVerified: false,
+      });
+      // One item whose DISPLAY topic is A and which is ALSO a member of B. Before 09-11-26 it was
+      // drawable under A only; the point of the join is that B can draw it too.
+      const [row] = await insertHomedItems(db, [
+        {
+          source: "met",
+          sourceId: `${prefix}0`,
+          type: "image" as const,
+          title: "A picture with two homes",
+          sourceUrl: `https://example.com/${prefix}0`,
+          imageUrl: `https://example.com/${prefix}0.jpg`,
+          topicId: displayTopic,
+          curationScore: 9,
+          aestheticTags: [],
+        },
+      ]);
+      itemId = row!.id;
+      await db
+        .insert(itemTopic)
+        .values({ itemId, topicId: memberTopic, origin: "tag" });
+    });
+
+    afterAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { item, topic, user } = await import("~/server/db/schema");
+      await db.delete(item).where(eq(item.id, itemId)); // cascades to item_topic
+      await db.delete(user).where(eq(user.id, userId));
+      await db
+        .delete(topic)
+        .where(inArray(topic.id, [displayTopic, memberTopic]));
+    });
+
+    it("draws an item under a topic it is a member of, not only its display topic", async () => {
+      const pools = await getTopicPools([memberTopic], opts());
+      const pool = pools.get(memberTopic)!;
+      expect(pool.map((r) => r.id)).toEqual([itemId]);
+      // The pool's own topic, not the item's display topic.
+      expect(pool[0]!.topicId).toBe(memberTopic);
+    });
+
+    it("puts an item with two memberships in both pools when both are asked for", async () => {
+      const pools = await getTopicPools([displayTopic, memberTopic], opts());
+      expect(pools.get(displayTopic)!.map((r) => r.id)).toEqual([itemId]);
+      expect(pools.get(memberTopic)!.map((r) => r.id)).toEqual([itemId]);
     });
   },
 );
