@@ -57,7 +57,8 @@ export type PoolItem = Pick<
  * either way it hash-joins a seq scan of `item`. The real cost is neither scan but the sort
  * feeding the window functions — ~125k-180k membership rows, which spills past the default 4 MB
  * `work_mem`. Rows ranked grow with the topics asked for, which is the other reason
- * `getFeedPage` asks for few.
+ * `getFeedPage` asks for few. It runs with Postgres's *parallel hash join* switched off — the
+ * transaction at the bottom of this function says why (Docker's 64 MB of `/dev/shm`).
  *
  * Returns a Map keyed by every id in `topicIds` (even ones with zero eligible items — an empty
  * array, not a missing key) so services/feed.ts's `composePage` can do a plain `.get(topicId)`
@@ -171,17 +172,38 @@ export async function getTopicPools(
   // `ORDER BY topic_id, id` is load-bearing, not cosmetic: `composePage`'s `weightedPick` walks
   // each pool's array in order, so the stable-page promise also depends on the *order* being
   // the same every time — and Postgres guarantees none without an explicit ORDER BY.
-  const rows = await db
-    .select({
-      id: survivors.id,
-      topicId: survivors.topicId,
-      source: survivors.source,
-      curationScore: survivors.curationScore,
-      aestheticTags: survivors.aestheticTags,
-    })
-    .from(survivors)
-    .where(lte(survivors.n, TOPIC_POOL_SAMPLE))
-    .orderBy(asc(survivors.topicId), asc(survivors.id));
+  //
+  // **One transaction, with the parallel hash join off (09-11-26).** Joined, this query plans as
+  // a *Parallel Hash Join*: the worker processes share one hash table of `item`, and Postgres
+  // keeps a shared table in dynamic shared memory — files under `/dev/shm`. Docker gives every
+  // container 64 MB of that by default, and local, CI and the Coolify production container all
+  // run with the default. A few feed pages composing at once filled it: `could not resize shared
+  // memory segment … No space left on device` (SQLSTATE 53100), a `feed.page` 500 that the
+  // client's retry hid (the e2e run logged it twice and passed). 24 concurrent calls failed 110
+  // times in 120; with this setting, none did. The single-table query before the join never
+  // built a hash, which is why this never came up.
+  //
+  // `SET LOCAL` lasts until the transaction ends, and that is the only reason there *is* a
+  // transaction: a plain `SET` would stay on whichever pooled connection ran it and quietly
+  // change the plan of every later query that borrowed that connection. At today's corpus the
+  // planner then runs this serially; measured in the same minutes, a reader with picks paid
+  // nothing (p50 148-163 ms against 203) and a cold start ~+85 ms (266 against 183). The other
+  // fix is infrastructure — a bigger `--shm-size` on the Postgres container would let the
+  // parallel hash back — and it is Ben's call, not a code change.
+  const rows = await db.transaction(async (tx) => {
+    await tx.execute(sql`set local enable_parallel_hash = off`);
+    return tx
+      .select({
+        id: survivors.id,
+        topicId: survivors.topicId,
+        source: survivors.source,
+        curationScore: survivors.curationScore,
+        aestheticTags: survivors.aestheticTags,
+      })
+      .from(survivors)
+      .where(lte(survivors.n, TOPIC_POOL_SAMPLE))
+      .orderBy(asc(survivors.topicId), asc(survivors.id));
+  });
 
   for (const row of rows) {
     // `item_topic.topic_id` is NOT NULL, so this never fires; the projection is typed
