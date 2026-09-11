@@ -195,11 +195,22 @@ a grid row that animates `0fr → 1fr`, so a hidden caption is nothing and bring
 facts down under it (`hero-rail.tsx`). The overlay placement — tall pictures, and all of desktop —
 is untouched.
 
-**One unexplained e2e draw.** The first full run saw a single client `feed.page` after Escape in
-"tile → item → swipe → Escape returns to the intact feed" — the tiles were identical. An
-instrumented rerun and the second full run were clean. The guard now records the request URL, which
-separates a cache miss (no cursor) from the sentinel (a cursor) if it ever recurs. CLAUDE.md's
-`gallery.spec.ts:193` note is deleted, per the plan: its successor's signature is not that one's.
+**The flake, explained — and it is not this branch's.** Three-worker runs kept tripping one of two
+"back to the intact feed" tests (`item.spec.ts`'s swipe-then-Escape, `feed.spec.ts`'s pill-back)
+with one extra client `feed.page`, and `feed.spec.ts:152` with nothing appended. The guards now
+record the URL: **every extra draw is a page-2 cursor** — the infinite-scroll sentinel, never a
+cache miss or a hydration refetch (ruled out in `query-core`'s source: a dehydrated promise is
+consumed by the retryer without calling the fetch). Instrumented runs then measured the geometry:
+`scrollY` 0 at every step, and a twelve-card first page only ~1,400–1,520 px tall at 402 × 874,
+which parks the sentinel within tens of pixels of its 500 px `rootMargin`. `IntersectionObserver`
+fires only on a crossing, so page 2 loading on the first mount, on the return, or never is timing:
+ten three-worker loops of the two specs failed 7 times; `--workers=1` over the whole suite is
+**51/51**, and CI runs one worker. That is what the old `gallery.spec.ts:193` note was describing
+under another name, so CLAUDE.md gets one corrected note in its place. The durable fix is the
+feed's own — load-more decided from state rather than from a crossing, which would also fetch page 2
+on load for a reader whose first page is that short (a corpus call, so Ben's) — and the product
+side of it is worth a look on a phone: a first page that short may be one a reader can scroll to
+the bottom of and get nothing more.
 
 **Open / next (sub-project 2):** Ben to look — on glass over the tailnet for the gestures the suite
 can't drive (down-flick exit, `pan-y` scroll, the compatibility-mouse fix), and in Firefox for the
@@ -219,6 +230,7 @@ against the 164k corpus. Production gets facets and the tier rename from the dep
 *Session spend: 53.83M tok (in 256 · out 257.5k · cache r 52.50M / w 1.07M) · ~≥$2.76 · fable-5-1 + opus-5 · 15:04→16:53*
 *Session spend: 99.68M tok (in 9.0k · out 1.00M · cache r 95.43M / w 3.24M) · ~$101.27 · opus-5 + opus-4-7 · 19:19→19:57*
 *Session spend: 9.87M tok (in 518 · out 47.5k · cache r 7.32M / w 2.50M) · ~$29.85 · opus-5 · 19:57→22:18*
+*Session spend: 44.09M tok (in 2.1k · out 197.8k · cache r 43.56M / w 336.8k) · ~$29.82 · opus-5 + opus-4-7 · 22:18→22:33*
 
 ### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
 

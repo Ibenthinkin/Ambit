@@ -246,7 +246,8 @@ test.describe.serial("feed", () => {
     const draws: string[] = [];
     page.on("request", (request) => {
       const { pathname } = new URL(request.url());
-      if (pathname.startsWith("/api/trpc/feed.page")) draws.push("client");
+      if (pathname.startsWith("/api/trpc/feed.page"))
+        draws.push(`client ${request.url()}`);
       else if (pathname === "/feed") draws.push(`route:${request.method()}`);
     });
 

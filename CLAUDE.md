@@ -254,6 +254,21 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 
 - **Ambit must own port 3000.** `BETTER_AUTH_URL` is pinned to `http://localhost:3000`, so every auth callback and password-reset link points at whatever is listening there — and `tailscale serve --bg 3000`, which is how device passes get HTTPS, fronts the same port. An unrelated `node` app has been squatting 3000 since 08-16; run `lsof -ti:3000` and clear it before starting a dev server or a device pass.
 - **Run device passes over HTTPS, not `http://` on the LAN.** The Web Share API is secure-context only, so on plain HTTP `navigator.share` is `undefined` rather than broken — share, clipboard and service workers silently can't be tested at all. Use the tailnet origin (`https://macbook-air-m5.halley-morpho.ts.net`); it and every other dev origin must be listed in `src/config/dev-origins.js`.
+- **The two "back to the intact feed" e2e tests and `feed.spec.ts:152` flake at three local workers
+  — one cause, measured 09-10-26.** `item.spec.ts`'s "tile → item → swipe → Escape…" and
+  `feed.spec.ts`'s "returning from an item page…" fail by drawing one client `feed.page` on the way
+  back (their guards record the URL: always a *page-2* cursor, never a refetch), and
+  `feed.spec.ts:152` ("scrolling appends another page") fails by appending nothing. At 402 × 874 a
+  first page of twelve cards is only ~1,400–1,520 px tall, which parks the feed's infinite-scroll
+  sentinel within tens of pixels of its 500 px `rootMargin` — and an `IntersectionObserver` calls
+  back only on a *crossing*, so whether page 2 loads on the first mount, on the return, or not at
+  all comes down to timing. One worker resolves it the same way every time (`--workers=1`: 51/51 on
+  09-10-26), and **CI runs one worker**, so CI never sees it. **So: a red one of these at three
+  workers is not evidence about your branch** — re-run with `E2E_PROD=1 bunx playwright test
+  --workers=1`. The durable fix is the feed's (decide load-more from state, not from a crossing —
+  which also means fetching page 2 on load for a reader whose first page is that short: a corpus
+  call for Ben). This note replaces the old `gallery.spec.ts:193` one, which was this class under a
+  different name; delete it when the fix lands.
 - **`services/feed.integration.test.ts`'s cursor-stability test fails ~1 local run in 10, and the
   failure is a foreign-key error, not an assertion.** It reads
   `insert or update on table "seen_item" violates foreign key constraint
