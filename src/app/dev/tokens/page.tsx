@@ -8,6 +8,7 @@ import {
   Bookmark,
   ChatBubble,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
@@ -143,6 +144,7 @@ const ICONS = [
   // 5.10's settings-row set. All 24-grid/1.7 except the two noted at their definitions.
   { name: "Gear", Comp: Gear },
   { name: "ChevronRight", Comp: ChevronRight },
+  { name: "ChevronDown", Comp: ChevronDown },
   { name: "Person", Comp: Person },
   { name: "PersonPlus", Comp: PersonPlus },
   { name: "FeedLines", Comp: FeedLines },

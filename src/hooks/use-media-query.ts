@@ -6,6 +6,12 @@ import * as React from "react";
 export const DESKTOP_QUERY = "(min-width: 768px)";
 /** Tailwind's `xl`. Exists only for the feed's fourth column. */
 export const WIDE_QUERY = "(min-width: 1280px)";
+/**
+ * A real hover and a fine pointer — a mouse or a trackpad. The feed's tile strip
+ * (`tile-actions.tsx`) is mounted only where this matches: a strip that is merely invisible on a
+ * phone would still catch taps across the top of every tile.
+ */
+export const HOVER_QUERY = "(hover: hover) and (pointer: fine)";
 
 /**
  * Does `query` match right now — as a subscription, not a one-off read.
