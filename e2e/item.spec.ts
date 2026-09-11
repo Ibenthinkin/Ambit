@@ -402,23 +402,30 @@ test.describe.serial("item pages", () => {
 
     // The detached disc (docs/DESIGN_chrome-redesign.md §1): on the pill's axis, centred in the
     // remaining distance between the pill's right edge and the screen's right edge.
-    const navBox = (await page
-      .locator("nav[aria-label='Ambit toolbar']")
-      .boundingBox())!;
-    const shareBox = (await page
-      .getByRole("button", { name: "Share" })
-      .boundingBox())!;
-    const { width } = page.viewportSize()!;
-    const expectedX = (navBox.x + navBox.width + width) / 2;
-    expect(Math.abs(shareBox.x + shareBox.width / 2 - expectedX)).toBeLessThan(
-      2,
-    );
+    //
+    // Both rects in **one** `evaluate`, i.e. one frame: the caption the two ride in slides up over
+    // 600ms after the summon, and two separate `boundingBox()` calls can straddle a frame of that
+    // slide and disagree about y by a pixel or more (seen 09-11-26, 1 run in 2).
+    const { nav, share, width } = await page.evaluate(() => {
+      const box = (el: Element) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, width: r.width, height: r.height };
+      };
+      return {
+        nav: box(document.querySelector("nav[aria-label='Ambit toolbar']")!),
+        share: box(document.querySelector("button[aria-label='Share']")!),
+        width: document.documentElement.clientWidth,
+      };
+    });
+    const expectedX = (nav.x + nav.width + width) / 2;
+    expect(Math.abs(share.x + share.width / 2 - expectedX)).toBeLessThan(2);
     expect(
-      Math.abs(
-        shareBox.y + shareBox.height / 2 - (navBox.y + navBox.height / 2),
-      ),
+      Math.abs(share.y + share.height / 2 - (nav.y + nav.height / 2)),
     ).toBeLessThan(2);
-    expect(Math.round(navBox.height)).toBe(56);
+    // 56px by construction (10 + 36 + 10), plus the 0.5px hairline border, which paints as a full
+    // device pixel each side at DPR 1 — so 56–58 depending on the screen.
+    expect(nav.height).toBeGreaterThanOrEqual(56);
+    expect(nav.height).toBeLessThanOrEqual(58);
 
     await page.getByRole("button", { name: "Save to collection" }).click();
     await page.getByRole("heading", { name: "Save to" }).waitFor();
@@ -468,7 +475,9 @@ test.describe.serial("item pages", () => {
     await waitForFeedToSettle(page);
     const before = await feedIds();
     const itemId = (await imageTile.getAttribute("data-feed-id"))!;
-    await tapInPlace(page, imageTile.locator("> *"));
+    // `.first()`: the wrapper holds the tile and, under a mouse, its hover strip
+    // (docs/DESIGN_chrome-redesign.md §3) — Playwright's phone project drives a mouse.
+    await tapInPlace(page, imageTile.locator("> *").first());
     await page.waitForURL(`/i/${itemId}`);
     await waitForHydration(page, "[data-testid='gallery-track']");
 
