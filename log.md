@@ -16,7 +16,7 @@ the Coolify task fix and `promote-prod.sh` while this session started the `mine:
 
 - **The un-homed lens is spent.** Cut 2a's mining ranks a tag by how many invisible items it
   rescues; the corpus is now 99% homed (1,272 of 164,423 un-homed) and that lens proposes
-  **ten** topics. Ranking by *total* frequency instead — ≥300 items on ≥3 sources — proposes
+  **ten** topics. Ranking by _total_ frequency instead — ≥300 items on ≥3 sources — proposes
   **267**, and reads like the corpus: retro sci-fi, Soviet, spaceship, folk art, engraving,
   street photography, botanical illustration, comics. That is the vocabulary the pickers need.
 - **But every one of the 267 would be an empty topic.** `promote:topics` sets `item.topic_id`
@@ -55,7 +55,7 @@ merging; then round 2 proper — tick with facets, `promote:topics --file …`, 
 sequence still pending in Ben's hands: wait for the walk loop's `ALL DONE`, `post-walks-prod.sh`,
 redeploy, `seed-personas-prod.sh`.
 
-*Session spend: 19.91M tok (in 3.1k · out 268.4k · cache r 18.94M / w 702.7k) · fable-5-1 · 09:14→10:34*
+_Session spend: 19.91M tok (in 3.1k · out 268.4k · cache r 18.94M / w 702.7k) · fable-5-1 · 09:14→10:34_
 
 **Executed the same day (Opus 5, a second session)** — the plan, end to end, on
 `feat/feed-on-membership`, merged to `main` the same day at Ben's request.
@@ -83,7 +83,7 @@ redeploy, `seed-personas-prod.sh`.
   cold-start `ben-e2e` 162 → **250**. All under SPEC's 300 ms; 0 fallbacks in 36 pages; 28-37
   planned topics a page. The design's "not worse than before" line is missed and recorded, not
   tuned — the plan's rule.
-- **Why:** the planned topics are the *big* ones — a reader's picks plus their strongest graph
+- **Why:** the planned topics are the _big_ ones — a reader's picks plus their strongest graph
   neighbours are well-populated by construction — so 24-37 of them hold ~125k-180k memberships,
   about what the old query ranked across all 104 display pools, now through a join and a sort that
   spills past 4 MB `work_mem`. EXPLAIN also said two things the design did not: the planner
@@ -97,11 +97,11 @@ redeploy, `seed-personas-prod.sh`.
   display topic (`new-york` serving a Berenice Abbott filed under `architecture`, `water` a
   `70sscifiart` illustration).
 - **A latent production 500, found by the e2e log rather than a test.** `e2e:prod` passed but
-  logged two redacted SSR errors that `main`'s run did not. Unredacted: the join's *Parallel Hash
-  Join* ran out of `/dev/shm` — Docker's default 64 MB, which local, CI and the production
+  logged two redacted SSR errors that `main`'s run did not. Unredacted: the join's _Parallel Hash
+  Join_ ran out of `/dev/shm` — Docker's default 64 MB, which local, CI and the production
   Postgres all have — under concurrent pages (`could not resize shared memory segment`, SQLSTATE
   53100). 24 concurrent pool queries failed 110 of 120. Fixed with `SET LOCAL
-  enable_parallel_hash = off` in a transaction around the query: 0 of 120, and in the page a
+enable_parallel_hash = off` in a transaction around the query: 0 of 120, and in the page a
   reader with picks pays nothing measurable (p50 148-163 ms vs 203), a cold start ~+85 ms.
   `--shm-size` on the container is the infra alternative and Ben's call.
 - `bench:feed` with no `--user` picks `ben-e2e`, which has **no picks** — a cold-start reader. Pass
@@ -125,7 +125,35 @@ deploy, and round 2 — tick `docs/topic-proposals-round2.md` with facets,
 `sh .cache/promote-prod.sh docs/topic-proposals-round2.md` in production (the script takes the
 file as its first argument now). Saves still bump the display topic (design §5 follow-up).
 
-*Session spend: 55.78M tok (in 6.2k · out 633.9k · cache r 53.32M / w 1.81M) · ~$58.74 · opus-5 + opus-4-7 · 10:54→11:30*
+_Session spend: 55.78M tok (in 6.2k · out 633.9k · cache r 53.32M / w 1.81M) · ~$58.74 · opus-5 + opus-4-7 · 10:54→11:30_
+
+**Planned the same afternoon (Fable 5.1, a third session) — sub-project 3, the chrome redesign.**
+Ben pushed `main` from another session and asked whether to clear the list first or plan SP3;
+the list is his hands (read `/feed` on membership, the p50 call, tick round 2, the deploy
+sequence) or cheap-session code, so this session planned. Sources: the review notes' Tiles and
+Redesign sections and the four Cosmos reference photos.
+
+**Decisions (Ben):** list screens **split out** to a sub-project 4 (after he reviews 1–3 in the
+browser); the hover pill is the **target collection**, Cosmos-literal — one-click save to the
+last-used collection, chevron opens the picker; the desktop rail **fades with the chrome** on the
+item screen; the hover zoom is **dropped**; popovers get **no visible scrim**; article cards get
+the **same strip**.
+
+**Shipped:** `docs/DESIGN_chrome-redesign.md` and `docs/PLAN_chrome-redesign.md` (seven tasks,
+every task carrying its tests and code, cold-executable). The shape: `PillToolbar` grows to 56 px
+and renders Share as a detached disc in the third column of a `1fr auto 1fr` grid; a new
+`RailToolbar` (vertical, fixed right, `visible` on the `visibility` trick) and a `Toolbar` that
+picks by breakpoint; `BottomSheet` gains `anchor` + `placement` and a pure `popoverStyle` — its
+vertical centring is the `translate` property because `menu-rise` owns `transform` (the 520 px
+dialog trap from the other side); `TileActions` as a sibling overlay in a `group/tile relative`
+wrapper, mounted only under `(hover: hover) and (pointer: fine)`, reading a new `saves.ids` and a
+localStorage last-used store on `useSyncExternalStore`; and `saveToCollection.topicId`, honoured
+only for a member (`isItemInTopic`) — which closes the feed-on-membership follow-up.
+
+**Open / next:** execute the plan in a cheaper session on `feat/chrome-redesign`; then Ben's list
+(above); sub-project 4 (list screens) is unwritten and waits on his browser review.
+
+_Session spend: 16.47M tok (in 2.2k · out 274.1k · cache r 15.19M / w 1.00M) · fable-5-1 · 11:49→12:37_
 
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
@@ -155,7 +183,7 @@ curation cache did its job (732 envelopes billed for 4,704 rows).
 backoff (5 s / 10 s / 20 s)** before ending the walk, TDD'd against the fake walker. A recovered
 page is counted in a new `retries` stat — a column in the ingest's walk table now — and does not
 void completeness; an unrecovered one still does, exactly as before. The cursor is an offset, so
-re-asking for the same page is as safe as asking the first time; guessing at the page *after* a
+re-asking for the same page is as safe as asking the first time; guessing at the page _after_ a
 failure is still refused.
 
 **Decisions:** the auto-mode classifier would not let the session write to Coolify's database
@@ -175,12 +203,12 @@ thirteen minutes.** The sovietpostcards walk ran to its full quota (21,700 offer
 no page error at all) and then the **upsert loop crashed on a foreign key**:
 `item.topic_id = 'science-fiction'`, a topic production does not have. `science-fiction` and
 `retrofuturism` were promoted on the Mac on 09-07 (`3cbf6ac`) and never in production —
-`promote-prod.sh` was queued *after* the walks in every post-deploy list, and the curation
+`promote-prod.sh` was queued _after_ the walks in every post-deploy list, and the curation
 envelopes pushed to the volume already carry the new topic for anything curated after that
 evening (the 09-08 top-ups, the vault walk, thisisnthappiness). Last night's nightly died the
 same way: four walks pooled into one write loop, 4,704 rows in, first `science-fiction` item,
 FK, exit 1 — and Coolify threw the line away. Tumblr was never the problem. The retry in
-`21399b0` is still right (a single bad page *was* final), but it is not what happened.
+`21399b0` is still right (a single bad page _was_ final), but it is not what happened.
 Two proofs in the replay: 70sscifiart wrote all **30,076** of its rows with exit 0, because
 its envelopes predate the promotion and none name the topic; the three walks whose envelopes
 postdate it all died on it. **Order for every future deploy: promote first, walk second.**
@@ -222,7 +250,7 @@ twenty personas + `bun run seed:personas`. 1,190 unit/integration tests green, e
 
 - **Two concurrent `setMine` writes can interleave, and the stale one wins.** Found by the new
   settings e2e: toggle a chip on one tab, another on the next, and the DB ends up holding the
-  first set. Every toggle sends the *whole* set and `setUserTopics` is a delete-then-insert
+  first set. Every toggle sends the _whole_ set and `setUserTopics` is a delete-then-insert
   transaction, so the transaction that commits last decides, not the click that happened last —
   and this screen is built for exactly that rapid flipping. Fixed with a TanStack Query
   `scope: { id }`, which serializes same-scope mutations; `onMutate` still runs the instant
@@ -245,7 +273,7 @@ twenty personas + `bun run seed:personas`. 1,190 unit/integration tests green, e
   for the `resetUserTopicWeights` test, so that describe builds its own.
 - **The settings e2e picks `Ceramics`, not `Surreal`.** CI's database is `db:migrate` +
   `db:seed`, which is the sixteen config topics and nothing else — thirteen subjects, three
-  media, and *no* looks or places. Two of onboarding's four stages render empty there, which the
+  media, and _no_ looks or places. Two of onboarding's four stages render empty there, which the
   screen allows on purpose. That grown topics are acceptable to `setMine` is pinned in
   `routers.integration.test.ts` instead, where the fixture is real.
 - One layout fix each, both caught by looking rather than by a test: onboarding's count label
@@ -254,7 +282,7 @@ twenty personas + `bun run seed:personas`. 1,190 unit/integration tests green, e
 
 **Later — sub-project 2 designed and planned.** `docs/DESIGN_screen-structure.md` +
 `docs/PLAN_screen-structure.md` (11 tasks, cold-executable, every task carrying its code). Five
-questions to Ben. **Decisions:** the item page *becomes* the immersive screen — one route, `/g/`
+questions to Ben. **Decisions:** the item page _becomes_ the immersive screen — one route, `/g/`
 redirects, the rail is the hero strip and the whole page follows the swipe (`replaceState` keeps
 the address bar and share honest); hero square-cornered, top-aligned, natural height up to the
 viewport on the phone, **full viewport height edge to edge on desktop**; no details sheet — the
@@ -278,7 +306,7 @@ rises after the first pass, click and ←/→ step a slide.
   most of the vocabulary. `RailItem` gains `topicLabel` joined server-side, and `body` for PDR.
 
 **Later still — sub-project 2 built** (branch `feat/screen-structure`, not yet merged). All eleven
-tasks of `docs/PLAN_screen-structure.md`: the item page *is* the immersive screen (`ItemScreen` =
+tasks of `docs/PLAN_screen-structure.md`: the item page _is_ the immersive screen (`ItemScreen` =
 `HeroRail` over `ItemFacts`; `/g/` a permanent redirect; `components/gallery/` gone), one
 `NewCollectionRow` in every picker plus Share in the tile sheet, and a landing slideshow that never
 stops. `bun run check` green bar the known-red `<details>` invariant row (1,215 tests);
@@ -288,7 +316,7 @@ stops. `bun run check` green bar the known-red `<details>` invariant row (1,215 
 comment where it lives):
 
 - **The desktop summon would have killed tap-to-hide on phones.** `onMouseMove → show()` hears the
-  *compatibility* `mousemove` a browser fires after every tap, so a second tap's hide was undone at
+  _compatibility_ `mousemove` a browser fires after every tap, so a second tap's hide was undone at
   once. It is a `pointermove` filtered to `pointerType === "mouse"`, with a unit test for the
   touch case.
 - **`HeroRail` would have crashed server rendering** — it read `window` in a lazy `useState`
@@ -307,7 +335,7 @@ comment where it lives):
 
 **Findings — the visual pass (production build, 402 and 1440, signed out).** Desktop is exactly as
 designed: full viewport height, square-cornered, the facts in the 720px column. **The phone has a
-dark band under any picture shorter than the screen.** Decision 2 puts the caption block *below* a
+dark band under any picture shorter than the screen.** Decision 2 puts the caption block _below_ a
 short picture, and `visibility: hidden` keeps its space — so the hidden caption is ~165–175px of
 `bg-immersive` between picture and title (a landscape Colossal plate: 268px of picture, 175px of
 band), and when shown it repeats the title `ItemFacts` prints right under it. Built to the letter of
@@ -342,12 +370,12 @@ height-learning altogether.
 
 **Latest — the feed trip wire, fixed** (branch `fix/feed-trip-wire`). The cause, confirmed in
 instrumented production builds rather than inferred: `FeedScreen`'s `IntersectionObserver` calls
-back only on a *crossing*, and on every first load its one callback lands while the feed is still
-empty — the sentinel 816px *above* the fold, zero pages, `hasNextPage` false, so load-more does
+back only on a _crossing_, and on every first load its one callback lands while the feed is still
+empty — the sentinel 816px _above_ the fold, zero pages, `hasNextPage` false, so load-more does
 nothing. When page one then leaves the sentinel inside the 500px margin, nothing ever crosses again,
 and one missing callback produced all three symptoms: page 2 never loaded, a scroll to the bottom
 never appended (`feed.spec.ts:152`, "the three-worker flake"), and the next remount loaded it
-instead (the "back to the intact feed" draw). **The fix** is a re-check that *measures* the
+instead (the "back to the intact feed" draw). **The fix** is a re-check that _measures_ the
 sentinel (`getBoundingClientRect`) whenever the page count, `hasNextPage` or the fetch state
 changes — never reading the observer's state back, since a stale "intersecting" after a page lands
 would spend a page of corpus on nothing — skipped after a failed next page so it can't become a
@@ -373,14 +401,14 @@ against the 164k corpus. Production gets facets and the tier rename from the dep
 (migration + `db:seed`); `PERSONA_PASSWORD` has to be set in Coolify **before** running
 `.cache/seed-personas-prod.sh`. Sub-projects 2 and 3 are still unwritten.
 
-*Session spend: 10.02M tok (in 203 · out 71.5k · cache r 9.60M / w 350.9k) · ~≥$0.83 · fable-5-1 + opus-4-7 · 13:16→13:29*
+_Session spend: 10.02M tok (in 203 · out 71.5k · cache r 9.60M / w 350.9k) · ~≥$0.83 · fable-5-1 + opus-4-7 · 13:16→13:29*
 *Session spend: 14.34M tok (in 154 · out 172.4k · cache r 13.97M / w 206.1k) · fable-5-1 · 13:29→14:17*
-*Session spend: 83.99M tok (in 1.0k · out 299.5k · cache r 82.11M / w 1.58M) · ~$60.36 · opus-5 + opus-4-7 · 14:27→15:04*
-*Session spend: 53.83M tok (in 256 · out 257.5k · cache r 52.50M / w 1.07M) · ~≥$2.76 · fable-5-1 + opus-5 · 15:04→16:53*
-*Session spend: 99.68M tok (in 9.0k · out 1.00M · cache r 95.43M / w 3.24M) · ~$101.27 · opus-5 + opus-4-7 · 19:19→19:57*
-*Session spend: 9.87M tok (in 518 · out 47.5k · cache r 7.32M / w 2.50M) · ~$29.85 · opus-5 · 19:57→22:18*
-*Session spend: 44.09M tok (in 2.1k · out 197.8k · cache r 43.56M / w 336.8k) · ~$29.82 · opus-5 + opus-4-7 · 22:18→22:33*
-*Session spend: 68.75M tok (in 2.9k · out 258.7k · cache r 68.08M / w 409.3k) · ~$44.36 · opus-5 + opus-4-7 · 22:33→23:34*
+*Session spend: 83.99M tok (in 1.0k · out 299.5k · cache r 82.11M / w 1.58M) · ~$60.36 · opus-5 + opus-4-7 · 14:27→15:04_
+_Session spend: 53.83M tok (in 256 · out 257.5k · cache r 52.50M / w 1.07M) · ~≥$2.76 · fable-5-1 + opus-5 · 15:04→16:53*
+*Session spend: 99.68M tok (in 9.0k · out 1.00M · cache r 95.43M / w 3.24M) · ~$101.27 · opus-5 + opus-4-7 · 19:19→19:57_
+_Session spend: 9.87M tok (in 518 · out 47.5k · cache r 7.32M / w 2.50M) · ~$29.85 · opus-5 · 19:57→22:18*
+*Session spend: 44.09M tok (in 2.1k · out 197.8k · cache r 43.56M / w 336.8k) · ~$29.82 · opus-5 + opus-4-7 · 22:18→22:33_
+_Session spend: 68.75M tok (in 2.9k · out 258.7k · cache r 68.08M / w 409.3k) · ~$44.36 · opus-5 + opus-4-7 · 22:33→23:34_
 
 ### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
 
@@ -466,7 +494,7 @@ which is more useful anyway: the **shapes** are live, the **counts** are not. Pr
 nightly, not through the deploy. Worth generalising — a long drawing session on a repo Ben is also
 deploying from should re-read `git log` before it publishes, not only when it starts.
 
-*Session spend: 19.30M tok (in 222 · out 181.0k · cache r 17.79M / w 1.33M) · ~$26.72 · opus-5 · 09:43→15:28*
+_Session spend: 19.30M tok (in 222 · out 181.0k · cache r 17.79M / w 1.33M) · ~$26.72 · opus-5 · 09:43→15:28_
 
 ### [[09-08-26 Tue]] — Walk 3 died on the wallet, and the curator kept going anyway
 

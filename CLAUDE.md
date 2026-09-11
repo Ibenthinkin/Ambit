@@ -107,14 +107,16 @@ width the **Next.js dev-overlay portal sits on top of the pill toolbar** and eat
 (topic, source), chosen by the same cursor-keyed `md5` the WILD pool uses, so a page costs
 O(topics × 60) rows whatever the corpus does — **4,801 rows / 0.7 MB** at a 122,458-item corpus.
 The two caps compose in **two stages, per source first**: one `WHERE n <= 60 AND n_src <= 20`
-over a single ranking is an *intersection*, which shrinks the sample without giving a minority
+over a single ranking is an _intersection_, which shrinks the sample without giving a minority
 source a single extra slot (measured: `japan` 30 rows from 3 of 8 sources, vs 60 from all 8 after
 the repair). That is written up in `db/feed.ts`; don't collapse it back into one pass. Before this, `reachableTopics` (two graph hops from
 the user's picks) reached 101 of 104 topics and every page pulled the whole corpus —
 133,698 rows / 22.4 MB at 122,458 items; the query itself was only ~175 ms, but the dev server
 materialising it grew to 2.6 GB in eight page loads and stalled unrelated requests for seconds.
 `bun run bench:feed` and `bun run probe:feed`'s score summary are the before/after. The 22 ms in
-the 7.3 sentence above was measured against 9,848 rows. Pick the thread up from
+the 7.3 sentence above was measured against 9,848 rows. **Sub-project 3 of Ben's desktop review — the chrome redesign — is designed and planned
+(09-11-26): `docs/DESIGN_chrome-redesign.md` + `docs/PLAN_chrome-redesign.md`, seven tasks,
+cold-executable on `feat/chrome-redesign`; list screens are sub-project 4, unwritten.** Pick the thread up from
 `docs/HANDOFF_sources-round2.md` **§0** — streetartnews and spoon-tamago as a cold-executable
 seven-step task (config rows on the factory, verdict after each) — then Europeana / Openverse /
 Chronicling America. See
@@ -188,7 +190,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `WHERE facet IS NOT NULL`, and that one line is what lets both pickers — and `setMine` — see the
   whole vocabulary: **onboarding is four stages, one facet each** (floor of three picks in total),
   and **`/profile/topics`** is the same list in four tabs, saved on every toggle (floor of one),
-  replacing Settings' deleted "What you see" sheet. `facet IS NULL` means *not pickable*: an
+  replacing Settings' deleted "What you see" sheet. `facet IS NULL` means _not pickable_: an
   unclassified fresh promotion, or an era topic (`19th-century`), tag-only by decision;
   `promote:topics` now refuses a ticked proposal without a facet, and `mine:topics` writes
   a `<!-- facet: ? -->` slot for the verdict to fill. **The tier `core` is renamed `original`**
@@ -200,7 +202,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `bun run seed:personas`, which signs each one up through Better Auth's server API against
   `PERSONA_PASSWORD` (env; no default, and it is a secret) so Ben can read the feed from twenty
   different chairs. Demographics in the fixture are documentation and are never stored.
-- **The item page *is* the immersive screen — 09-10-26** (design `docs/DESIGN_screen-structure.md`,
+- **The item page _is_ the immersive screen — 09-10-26** (design `docs/DESIGN_screen-structure.md`,
   plan `docs/PLAN_screen-structure.md`; sub-project 2 of three from Ben's desktop review). `/i/[itemId]`
   for a picture is `ItemScreen`: `HeroRail` (the old gallery's three-cell track, square-cornered,
   top-aligned, its height following the loaded picture on the phone and the full viewport above
@@ -252,16 +254,16 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `planTopics` replays the topic sequence without pools and `getFeedPage` fetches ~30-40 pools
   instead of ~100 reachable, falling back to the reachable set only when a page composes
   short (`FeedPage.debug` under `FEED_DEBUG` says so; `bench:feed` counts it). `pickItem`
-  refuses an id already drawn this page. `PoolItem.topicId` is the *pool's* topic; the
+  refuses an id already drawn this page. `PoolItem.topicId` is the _pool's_ topic; the
   display topic (`item.topic_id`) still drives the item page, saves and the rail. Fixtures
   must write membership — `db/test-fixtures.ts`'s `insertHomedItems`, and e2e's
   `writeMemberships` (which `seedFeedCorpus` calls) — or a seeded item is in no pool. **Cost,
   measured:** p50 176-250 ms against 159-163 before, same minutes, three accounts — under SPEC's
-  300 ms bar but *slower* at today's 104 topics, because the planned topics are the big ones and
+  300 ms bar but _slower_ at today's 104 topics, because the planned topics are the big ones and
   their ~125k-180k memberships sort past 4 MB `work_mem`; what it buys is that the cost no longer
   grows with the vocabulary. **`getTopicPools` runs with `SET LOCAL enable_parallel_hash = off`**,
   in its own transaction: the join's parallel hash lives in `/dev/shm`, Docker's default 64 MB
-  of it (local, CI *and* production) ran out under concurrent pages — SQLSTATE 53100, a
+  of it (local, CI _and_ production) ran out under concurrent pages — SQLSTATE 53100, a
   `feed.page` 500 the client retry hid, found only because `e2e:prod` logged a redacted SSR
   error `main` did not. 24 concurrent calls failed 110/120 before, 0 after; a reader with picks
   pays nothing measurable, a cold start ~+85 ms p50. `--shm-size` on the container is the infra
@@ -284,11 +286,11 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 - **`services/feed.integration.test.ts`'s cursor-stability test fails ~1 local run in 10, and the
   failure is a foreign-key error, not an assertion.** It reads
   `insert or update on table "seen_item" violates foreign key constraint
-  "seen_item_item_id_item_id_fk"` thrown from `markSeen`, which looks like a bug in `markSeen`
+"seen_item_item_id_item_id_fk"` thrown from `markSeen`, which looks like a bug in `markSeen`
   and is not one. **Cause, verified 09-09-26:** three suites — `db/feed.integration.test.ts`,
   `db/items.integration.test.ts`, `api/routers/routers.integration.test.ts` — seed **un-homed**
   fixture rows (`topicId: null`) and delete them in `afterAll`. Since the WILD tier landed
-  (09-06-26) an un-homed row is drawable by *any* user's page, so when vitest runs those files in
+  (09-06-26) an un-homed row is drawable by _any_ user's page, so when vitest runs those files in
   parallel with this one, a page composes with another suite's fixture row in a WILD slot and
   that row is deleted before the test acks it. Only un-homed fixtures do this: a fixture with a
   test-only `topicId` is unreachable, because `reachableTopics` walks the checked-in graph and no
