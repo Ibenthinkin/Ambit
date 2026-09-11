@@ -23,9 +23,10 @@ const PASSWORD = "correcthorse123";
 const TOPICS = ["astronomy", "botany", "music"] as const;
 const PREFIX = "e2e-desktop-";
 
-// Two feed loads at four columns; 60 rows is that plus comfortable headroom. See feed.spec.ts's
-// note on why the seed exists at all (CI's database is empty) and what it deliberately doesn't do.
-const SEED_COUNT = 60;
+// Five feed loads at four columns (the chrome redesign added three); 100 rows is that plus
+// headroom. See feed.spec.ts's note on why the seed exists at all (CI's database is empty) and
+// what it deliberately doesn't do.
+const SEED_COUNT = 100;
 
 // The viewport is 1440×900, so its centre — what "centered" means below — is (720, 450).
 const CENTRE_X = 720;
@@ -96,6 +97,33 @@ test.describe.serial("desktop", () => {
     expect(Math.abs(gridBox.x + gridBox.width / 2 - CENTRE_X)).toBeLessThan(2);
   });
 
+  // docs/DESIGN_chrome-redesign.md §2: from `md` the toolbar is a vertical rail, fixed at the
+  // right edge and vertically centred. Three controls on the feed — no Share, as on the phone.
+  test("the toolbar is a vertical rail hugging the right edge", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+
+    const rail = page.getByTestId("rail-toolbar");
+    await expect(rail).toBeVisible();
+    await expect(page.locator("nav[aria-label='Ambit toolbar']")).toHaveCount(
+      1,
+    );
+
+    const box = (await rail.boundingBox())!;
+    expect(Math.abs(box.x + box.width - (1440 - 26))).toBeLessThan(2);
+    expect(Math.abs(box.y + box.height / 2 - CENTRE_Y)).toBeLessThan(2);
+
+    const buttons = rail.getByRole("button");
+    await expect(buttons).toHaveCount(3);
+    const tops = await buttons.evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect().top),
+    );
+    expect(tops).toEqual([...tops].sort((a, b) => a - b)); // stacked, top to bottom
+    expect(tops[1]! - tops[0]!).toBeGreaterThan(52); // each below the last
+  });
+
   test("right-click opens the item sheet as a centered dialog; Escape closes it", async ({
     page,
   }) => {
@@ -153,6 +181,12 @@ test.describe.serial("desktop", () => {
       "aria-hidden",
       "false",
     );
+    // The rail is chrome here too (decision 3): summoned by the same mouse move.
+    await expect(page.getByTestId("rail-toolbar")).toHaveAttribute(
+      "aria-hidden",
+      "false",
+    );
+    await expect(page.getByRole("button", { name: "Share" })).toHaveCount(1);
 
     // And Escape leaves — the review's "Escape does nothing" (09-10-26), fixed on this screen.
     await page.keyboard.press("Escape");

@@ -12,7 +12,7 @@ import { Button } from "~/components/ui/button";
 import { Column } from "~/components/ui/column";
 import { GlassHeader } from "~/components/ui/glass-header";
 import { IconButton } from "~/components/ui/icon-button";
-import { PillToolbar } from "~/components/ui/pill-toolbar";
+import { Toolbar } from "~/components/ui/toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
@@ -222,7 +222,7 @@ export function SavedScreen() {
         <div className="h-24" />
       </Column>
 
-      <PillToolbar
+      <Toolbar
         bookmark="on-saved"
         onBookmark={() => setCollectionsOpen(true)}
         onHome={leaveSaved}

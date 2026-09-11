@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sheet";
 import { ShareSheet } from "~/components/sheets/share-sheet";
-import { PillToolbar } from "~/components/ui/pill-toolbar";
+import { Toolbar } from "~/components/ui/toolbar";
 import { Toast } from "~/components/ui/toast";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
 import { useSwipeBack } from "~/hooks/use-swipe-back";
@@ -124,7 +124,7 @@ export function ItemShell({
 
       {authed ? (
         <>
-          <PillToolbar
+          <Toolbar
             bookmark={saved.data?.saved ? "saved" : "idle"}
             onBookmark={() => setSaveOpen(true)}
             onShare={() => setShareOpen(true)}

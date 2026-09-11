@@ -13,7 +13,7 @@ import { AvatarChip } from "~/components/ui/avatar-chip";
 import { Button } from "~/components/ui/button";
 import { Column } from "~/components/ui/column";
 import { IconButton } from "~/components/ui/icon-button";
-import { PillToolbar } from "~/components/ui/pill-toolbar";
+import { Toolbar } from "~/components/ui/toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
@@ -196,7 +196,7 @@ export function ProfileScreen() {
         ) : null}
       </Column>
 
-      <PillToolbar
+      <Toolbar
         bookmark="idle"
         // A deliberate divergence from the prototype, whose bookmark goes straight to Saved: one
         // bookmark behavior app-wide. The sheet already writes `saved-origin` and offers filtered

@@ -7,7 +7,7 @@ import { CollectionsSheet } from "~/components/sheets/collections-sheet";
 import { InstallFlow } from "~/components/install/install-flow";
 import { ItemSheet } from "~/components/sheets/item-sheet";
 import { Button } from "~/components/ui/button";
-import { PillToolbar } from "~/components/ui/pill-toolbar";
+import { Toolbar } from "~/components/ui/toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
@@ -525,7 +525,7 @@ export function FeedScreen({
         />
       ) : null}
 
-      <PillToolbar
+      <Toolbar
         bookmark="idle"
         onBookmark={() => setCollectionsOpen(true)}
         onHome={() => window.scrollTo({ top: 0, behavior: "smooth" })}
