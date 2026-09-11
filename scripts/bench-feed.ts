@@ -9,8 +9,11 @@
  *
  *   1. **`getFeedPage`, N consecutive pages**, following the real cursor — what a reader actually
  *      waits for. SPEC §4's bar is p50 under 300 ms.
- *   2. **One `getTopicPools` call across every topic** — what the *engine* drags out of Postgres to
- *      compose one page. On a laptop with a fast local socket this barely shows up in (1), which is
+ *   2. **One `getTopicPools` call across every topic** — what the *engine* would drag out of
+ *      Postgres if a page fetched the whole vocabulary. Since 09-11-26 a page fetches only its
+ *      planned topics (the `planned … topics/page` line under measurement 1), so this is the
+ *      ceiling, not the per-page cost — and it rises as memberships and topics grow, which is the
+ *      point of printing the plan beside it. On a laptop with a fast local socket this barely shows up in (1), which is
  *      exactly why it needs measuring separately: on a small VPS with the database a hop away, the
  *      payload is the number that hurts.
  *
@@ -69,12 +72,21 @@ console.log(`bench: ${userLabel} · ${pages} pages\n`);
 
 // ── 1. getFeedPage, page by page, following the cursor ───────────────────────────────────────────
 const timings: number[] = [];
+// The planned fetch's own readout (09-11-26): how many topic pools each page asked for, and how
+// many pages composed short and paid for the full reachable fetch as well. Only present when
+// the dev gate is on (`FeedPage.debug`), which it is for a script run against the dev database.
+const plannedTopics: number[] = [];
+let fallbacks = 0;
 let cursor: string | undefined;
 let cards = 0;
 for (let p = 0; p < pages; p++) {
   const started = performance.now();
   const page = await getFeedPage(userId, cursor);
   timings.push(performance.now() - started);
+  if (page.debug) {
+    plannedTopics.push(page.debug.plannedTopics);
+    if (page.debug.fallback) fallbacks++;
+  }
   cards += page.cards.length;
   cursor = page.nextCursor;
   if (!cursor) {
@@ -91,6 +103,15 @@ console.log(`  min     ${ms(sorted[0]!)}`);
 console.log(`  p50     ${ms(percentile(sorted, 0.5))}`);
 console.log(`  p95     ${ms(percentile(sorted, 0.95))}`);
 console.log(`  max     ${ms(sorted[sorted.length - 1]!)}`);
+if (plannedTopics.length > 0) {
+  const avg = plannedTopics.reduce((a, b) => a + b, 0) / plannedTopics.length;
+  console.log(
+    `  planned ${avg.toFixed(0)} topics/page (min ${Math.min(...plannedTopics)}, max ${Math.max(...plannedTopics)})`,
+  );
+  console.log(`  fallback ${fallbacks} of ${timings.length} pages`);
+} else {
+  console.log("  (no plan readout — FEED_DEBUG is off)");
+}
 
 // ── 2. getTopicPools on its own ──────────────────────────────────────────────────────────────────
 const topics = await db.select({ id: topic.id }).from(topic);
