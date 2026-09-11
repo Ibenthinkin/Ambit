@@ -183,6 +183,37 @@ function captureObserver() {
   return captured;
 }
 
+/**
+ * Where the sentinel sits, as the screen measures it. jsdom has no layout, so `getBoundingClientRect`
+ * is stubbed: the element marked `feed-sentinel` reports `top` = `sentinelTop.current` (px from the
+ * top of the viewport; jsdom's viewport is 768 tall and the trip wire's margin is 500, so anything
+ * under 1268 is "in range"). Everything else gets jsdom's zero rect. Defaults to far away, so a test
+ * that doesn't care about geometry never loads a page by accident.
+ */
+const sentinelTop = { current: 10_000 };
+function stubSentinelGeometry() {
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: Element) {
+      const top =
+        this.getAttribute("data-testid") === "feed-sentinel"
+          ? sentinelTop.current
+          : 0;
+      // jsdom's own rect is all zeros; only the sentinel's `top` means anything here.
+      return {
+        top,
+        bottom: top,
+        left: 0,
+        right: 0,
+        width: 0,
+        height: 0,
+        x: 0,
+        y: top,
+        toJSON: () => ({}),
+      };
+    },
+  );
+}
+
 // jsdom implements no scrolling at all — `window.scrollTo` logs a "Not implemented" error and does
 // nothing. Stubbing it keeps the noise out and, more usefully, makes "did the feed try to scroll?"
 // assertable.
@@ -190,6 +221,8 @@ const scrollToMock = vi.fn();
 
 beforeEach(() => {
   feedState.current = loaded();
+  sentinelTop.current = 10_000;
+  stubSentinelGeometry();
   searchParams.current = new URLSearchParams();
   window.scrollTo = scrollToMock;
   sessionStorage.clear();
@@ -202,7 +235,10 @@ beforeEach(() => {
   forgetMock.mockReset().mockResolvedValue({ forgotten: 0 });
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe("FeedScreen", () => {
   it("renders every card across both pages, plus the page's Because tile", () => {
@@ -261,6 +297,94 @@ describe("FeedScreen", () => {
 
     act(() => observer.fire!(false));
     expect(fetchNextPageMock).not.toHaveBeenCalled();
+  });
+
+  // The trip wire (09-10-26). An IntersectionObserver calls back only on a *crossing*. On a first
+  // load its one callback lands while the feed is still empty — "intersecting", with nothing to
+  // load yet — and if the page that then arrives is short enough to leave the sentinel inside the
+  // margin, nothing ever crosses again: page 2 never loads, a scroll to the bottom never appends,
+  // and the next remount (the reader popping back from an item) loads it instead. Measured in a
+  // production build: first callback at 816px above the fold with zero pages, then the sentinel
+  // parked 505–533px below it — a hair outside the 500px margin on the runs that passed.
+  describe("the trip wire, decided from where the sentinel is rather than from a crossing", () => {
+    it("loads the next page once it arrives if the sentinel is still in range — no fresh crossing needed", () => {
+      feedState.current = loaded({
+        isPending: true,
+        data: undefined,
+        hasNextPage: false,
+      });
+      sentinelTop.current = 300;
+      const observer = captureObserver();
+      const { rerender } = render(
+        <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />,
+      );
+
+      // The first load's one callback: in range, but there is nothing to load yet.
+      act(() => observer.fire!(true));
+      expect(fetchNextPageMock).not.toHaveBeenCalled();
+
+      // Page one arrives, short: the sentinel is still in range, and the observer says nothing.
+      feedState.current = loaded({ hasNextPage: true });
+      rerender(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+      expect(fetchNextPageMock).toHaveBeenCalledOnce();
+    });
+
+    it("keeps filling when a page lands and the sentinel is still in range", () => {
+      feedState.current = loaded({
+        hasNextPage: true,
+        isFetchingNextPage: true,
+      });
+      sentinelTop.current = 300;
+      captureObserver();
+      const { rerender } = render(
+        <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />,
+      );
+      expect(fetchNextPageMock).not.toHaveBeenCalled();
+
+      feedState.current = loaded({
+        hasNextPage: true,
+        isFetchingNextPage: false,
+      });
+      rerender(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+      expect(fetchNextPageMock).toHaveBeenCalledOnce();
+    });
+
+    // The corpus guard: every page received is a page spent (it is acked), so a landing page must
+    // never pull the next one unless the reader is genuinely near the bottom.
+    it("stays still when the page lands with the sentinel out of range", () => {
+      feedState.current = loaded({
+        hasNextPage: true,
+        isFetchingNextPage: true,
+      });
+      sentinelTop.current = 2_000;
+      captureObserver();
+      const { rerender } = render(
+        <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />,
+      );
+
+      feedState.current = loaded({
+        hasNextPage: true,
+        isFetchingNextPage: false,
+      });
+      rerender(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+      expect(fetchNextPageMock).not.toHaveBeenCalled();
+    });
+
+    // A next page that failed must not be retried in a loop by the re-check — the reader's own
+    // scroll (a real crossing) is what asks again, exactly as before.
+    it("does not retry a failed next page on its own; a crossing still does", () => {
+      feedState.current = loaded({
+        hasNextPage: true,
+        isFetchNextPageError: true,
+      });
+      sentinelTop.current = 300;
+      const observer = captureObserver();
+      render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+      expect(fetchNextPageMock).not.toHaveBeenCalled();
+
+      act(() => observer.fire!(true));
+      expect(fetchNextPageMock).toHaveBeenCalledOnce();
+    });
   });
 
   it("opens the item page on a tap", () => {

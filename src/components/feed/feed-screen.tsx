@@ -87,6 +87,13 @@ export interface FeedScreenProps {
   viewerName?: string;
 }
 
+/**
+ * How far below the fold the sentinel may sit and still count as "near the bottom" — the observer's
+ * `rootMargin` and the re-check's measurement, one number so the two can never disagree about it.
+ * Half a phone screen: the next page is on its way before the reader reaches the end of this one.
+ */
+const TRIP_MARGIN_PX = 500;
+
 export function FeedScreen({
   topicLabels,
   dev,
@@ -272,15 +279,36 @@ export function FeedScreen({
   }, [pages, topicLabels, columnCount]);
 
   // ── infinite scroll ───────────────────────────────────────────────────────────────────────────
+  // Two things ask for the next page, and both go through `requestNextPage`:
+  //
+  //   - **The observer**, for the reader scrolling: it fires when the sentinel *crosses* into the
+  //     500px margin below the fold.
+  //   - **The re-check** (09-10-26), for everything that moves the answer *without* a crossing —
+  //     a page landing, the query learning there is a next page. See the effect below for the bug
+  //     that made it necessary.
+  //
   // The observer is created ONCE and never rebuilt, because tearing it down and re-observing on
   // every render is how an observer starts missing intersections. The moving parts (`hasNextPage`,
   // the fetch itself) reach it through a ref instead — the same lesson as `BottomSheet`'s
   // `onCloseRef`, where an inline arrow in the deps rebuilt the effect on every parent render.
   const sentinelRef = React.useRef<HTMLDivElement>(null);
   const loadMoreRef = React.useRef<() => void>(() => undefined);
+
+  // Synchronous, where `isFetchingNextPage` is a render behind: with two askers, the observer and
+  // the re-check can both fire in the frame before React has re-rendered with the fetch in flight,
+  // and a second `fetchNextPage` would cancel the first and start it again.
+  const requesting = React.useRef(false);
+  const requestNextPage = React.useCallback(() => {
+    if (requesting.current) return;
+    requesting.current = true;
+    void Promise.resolve(fetchNextPage()).finally(() => {
+      requesting.current = false;
+    });
+  }, [fetchNextPage]);
+
   React.useEffect(() => {
     loadMoreRef.current = () => {
-      if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+      if (hasNextPage && !isFetchingNextPage) requestNextPage();
     };
   });
 
@@ -297,11 +325,48 @@ export function FeedScreen({
       // makes the scroll feel endless rather than paged. The prototype also wires a scroll
       // listener doing the same job; one mechanism is enough, and two racing each other is how
       // you end up fetching two pages for one bottom.
-      { rootMargin: "500px" },
+      { rootMargin: `${TRIP_MARGIN_PX}px` },
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // **The re-check — decided from where the sentinel *is*, not from a crossing (09-10-26).**
+  //
+  // An `IntersectionObserver` calls back only when a target crosses its threshold. On a first
+  // load its one callback lands while the feed is still empty — the sentinel right under the
+  // header, "intersecting", with nothing to load yet — and then page one arrives. If that page is
+  // short enough to leave the sentinel inside the margin, nothing ever crosses again, and three
+  // things follow from one missing callback: page 2 never loads, a scroll to the bottom never
+  // appends (the sentinel was in range all along), and the next remount — the reader popping back
+  // from an item — loads it instead, which is the one moment the feed promises to draw nothing.
+  // A twelve-card first page at the phone viewport is ~1,450px: measured in a production build,
+  // the sentinel sat 505–533px below the fold on the runs that got lucky.
+  //
+  // So whenever the answer can change without a crossing — a page lands, a fetch settles, the
+  // query learns there's a next page — measure the sentinel and ask if it's in range. Measured
+  // (`getBoundingClientRect` forces layout, so it is the committed truth), never read back from
+  // the observer: its update for the new layout may not have been delivered yet, and a stale
+  // "intersecting" would pull a page the reader is nowhere near — every page received is acked,
+  // so that would be corpus spent on nothing.
+  //
+  // Skipped after a failed next page: the re-check must never become a retry loop. The reader's
+  // own scroll — a real crossing, through the observer — still asks again, exactly as before.
+  const { isFetchNextPageError } = feed;
+  React.useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage || isFetchNextPageError) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    if (el.getBoundingClientRect().top < window.innerHeight + TRIP_MARGIN_PX) {
+      requestNextPage();
+    }
+  }, [
+    pages.length,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    requestNextPage,
+  ]);
 
   // Puts the reader back where they were — on the tile they just came back from, when `?focus=`
   // says which one. Mounted after the columns are built so its first attempt has tiles to find.
@@ -395,7 +460,7 @@ export function FeedScreen({
 
       {/* The infinite-scroll trip wire. Always rendered — an observer with nothing to observe is
           an observer that never fires again once the list grows. */}
-      <div ref={sentinelRef} className="h-px" />
+      <div ref={sentinelRef} data-testid="feed-sentinel" className="h-px" />
 
       {showLoader ? (
         <div className="flex items-center justify-center gap-[10px] pt-5 pb-[26px]">

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-import { expect, type Cookie, type Page } from "@playwright/test";
+import { expect, type Cookie, type Page, type Locator } from "@playwright/test";
 import { inArray, like } from "drizzle-orm";
 
 /**
@@ -298,4 +298,50 @@ export function waitForSetMine(page: Page) {
   return page.waitForResponse(
     (r) => r.url().includes("topics.setMine") && r.status() === 200,
   );
+}
+
+/**
+ * Waits until the feed has stopped growing: no loader on screen, and the same tile count on two
+ * polls a few hundred ms apart. Take this before snapshotting the feed's tiles.
+ *
+ * **Why it exists (09-10-26).** The feed's trip wire loads the next page whenever the sentinel is
+ * within 500px of the fold, and a twelve-card first page at the phone viewport (~1,450px) often
+ * leaves it there — so page 2 now legitimately arrives a moment after page 1. A snapshot taken on
+ * the first visible tile would then miss it, and a later "same tiles" comparison would fail for a
+ * reason that has nothing to do with what the test is about.
+ */
+export async function waitForFeedToSettle(page: Page) {
+  let last = -1;
+  await expect
+    .poll(
+      async () => {
+        const loading = await page
+          .getByText("finding something interesting…")
+          .count();
+        const tiles = await page.locator("[data-feed-id]").count();
+        const settled = loading === 0 && tiles > 0 && tiles === last;
+        last = tiles;
+        return settled;
+      },
+      { intervals: [400, 400, 400, 600, 800, 1_000], timeout: 15_000 },
+    )
+    .toBe(true);
+}
+
+/**
+ * Taps an element where it sits on screen — a raw mouse click at its current centre, with no
+ * scroll first. Use it for the tap that *leaves* a feed a test has just snapshotted.
+ *
+ * **Why not `locator.click()` (measured 09-10-26).** Before clicking, Playwright scrolls the
+ * target into view — and it scrolled a fully visible first tile to the very top of the viewport,
+ * moving the feed 58px (182px on another run) in the instant before the tap. A real finger moves
+ * nothing. On a short first page those pixels carry the infinite-scroll sentinel into its 500px
+ * margin, the feed correctly loads page 2 on the way out, and the "same tiles on the way back"
+ * comparison fails for a reason that was never about the return. So: scroll deliberately, let the
+ * feed settle (`waitForFeedToSettle`), snapshot, and only then tap in place.
+ */
+export async function tapInPlace(page: Page, target: Locator) {
+  const box = await target.boundingBox();
+  if (!box) throw new Error("tapInPlace: the target has no box on screen");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }

@@ -218,6 +218,33 @@ production React #418 on `/` (Chromium's production console is clean on `/` and 
 whether the collapse's slide reads well under a thumb. Merged to `main` and pushed. Storing image dimensions on `item` is still the follow-up that would retire the
 height-learning altogether.
 
+**Latest — the feed trip wire, fixed** (branch `fix/feed-trip-wire`). The cause, confirmed in
+instrumented production builds rather than inferred: `FeedScreen`'s `IntersectionObserver` calls
+back only on a *crossing*, and on every first load its one callback lands while the feed is still
+empty — the sentinel 816px *above* the fold, zero pages, `hasNextPage` false, so load-more does
+nothing. When page one then leaves the sentinel inside the 500px margin, nothing ever crosses again,
+and one missing callback produced all three symptoms: page 2 never loaded, a scroll to the bottom
+never appended (`feed.spec.ts:152`, "the three-worker flake"), and the next remount loaded it
+instead (the "back to the intact feed" draw). **The fix** is a re-check that *measures* the
+sentinel (`getBoundingClientRect`) whenever the page count, `hasNextPage` or the fetch state
+changes — never reading the observer's state back, since a stale "intersecting" after a page lands
+would spend a page of corpus on nothing — skipped after a failed next page so it can't become a
+retry loop, with both askers behind one `requestNextPage` and a synchronous in-flight guard. Its
+consequence, Ben's call and made: a reader whose first page is that short now gets page 2 on load.
+
+Two test findings on the way, neither of them the product. **Playwright's `locator.click()` scrolls
+the target to the very top of the viewport before clicking** — a fully visible first tile moved the
+feed 58px, and 182px on another run (the `scroll` landed before the tile's `focusin`) — which is
+enough to carry the sentinel into range, so the back-to-feed tests now scroll first, wait for
+`waitForFeedToSettle`, snapshot, and leave through `tapInPlace` (a raw click where the tile sits).
+And the rail test's `seen_item` **count** could drop mid-test at three workers, because another
+spec's `cleanupSeeded` deletes its seeded items' seen rows for every user; it is now a set
+difference, which sees additions only — a spend, never a deletion.
+
+**Verified:** unit tests 1,221 green bar the known-red invariant row; `bun run e2e:prod` full suite
+**51/51 at three workers and at one**; three-worker loops of the feed, item and Saved specs
+**6/6, 156/156** — where the same loops failed 7 runs in 10 before the fix. CLAUDE.md's flake note is deleted — it said to delete itself when this landed.
+
 **Open / next:** Ben has not looked at any of this yet — the picker's copy is placeholder until
 sub-project 3, and the four facets are still "far too limited" until a fresh `mine:topics` round
 against the 164k corpus. Production gets facets and the tier rename from the deploy itself
@@ -231,6 +258,7 @@ against the 164k corpus. Production gets facets and the tier rename from the dep
 *Session spend: 99.68M tok (in 9.0k · out 1.00M · cache r 95.43M / w 3.24M) · ~$101.27 · opus-5 + opus-4-7 · 19:19→19:57*
 *Session spend: 9.87M tok (in 518 · out 47.5k · cache r 7.32M / w 2.50M) · ~$29.85 · opus-5 · 19:57→22:18*
 *Session spend: 44.09M tok (in 2.1k · out 197.8k · cache r 43.56M / w 336.8k) · ~$29.82 · opus-5 + opus-4-7 · 22:18→22:33*
+*Session spend: 68.75M tok (in 2.9k · out 258.7k · cache r 68.08M / w 409.3k) · ~$44.36 · opus-5 + opus-4-7 · 22:33→23:34*
 
 ### [[09-09-26 Wed]] — Pre-deploy: loupe parked, the cache push, and two things the VM said
 
