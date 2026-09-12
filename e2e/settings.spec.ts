@@ -14,7 +14,8 @@ import {
   type Connection,
 } from "./support";
 
-// Phase 5.10's three screens — Profile, Profile Edit, Settings — against a real dev server and
+// The Profile hub's tabs — Collections, Topics, Edit profile, Settings (5.10's three screens, one
+// hub since 09-12-26, docs/DESIGN_list-screens.md) — against a real dev server and
 // Postgres — locally the dev server, and since Phase 7.1 a production build with a fresh database
 // in CI. Same "leaves a real user row behind by design" arrangement as `feed.spec.ts` and
 // `saved.spec.ts`, whose scaffolding this shares (./support).
@@ -120,6 +121,10 @@ test.describe.serial("settings", () => {
     await page.getByRole("button", { name: "Profile" }).click();
     await page.waitForURL("/profile", { timeout: 15_000 });
 
+    // The hub (09-12-26): four routed tabs under the avatar, landing on Collections.
+    await expect(
+      page.getByRole("navigation", { name: "Profile" }).getByRole("link"),
+    ).toHaveText(["Collections", "Topics", "Edit profile", "Settings"]);
     await expect(page.getByText("Settings E2E")).toBeVisible();
     await expect(page.getByText("New collection")).toBeVisible();
     // The three seeded defaults, all empty.
@@ -207,7 +212,7 @@ test.describe.serial("settings", () => {
   test("the real settings rows are real, and the stubs are honest", async ({
     page,
   }) => {
-    await goTo(page, "/settings");
+    await goTo(page, "/profile/settings");
 
     // "What you see" reads back the three topics picked during onboarding.
     await expect(page.getByText("Astronomy, Botany, Music")).toBeVisible({
@@ -253,7 +258,7 @@ test.describe.serial("settings", () => {
       page.getByRole("button", { name: "Ceramics", pressed: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    await goTo(page, "/settings");
+    await goTo(page, "/profile/settings");
     await expect(page.getByText("Astronomy, Botany, Ceramics +2")).toBeVisible({
       timeout: 15_000,
     });
@@ -272,10 +277,20 @@ test.describe.serial("settings", () => {
     await expect(page.getByText("Ambit · invite-only · v0.5")).toBeVisible();
   });
 
+  test("/settings lands on the Settings tab", async ({ page }) => {
+    await goTo(page, "/settings");
+    await page.waitForURL("/profile/settings", { timeout: 15_000 });
+    await expect(page.getByRole("link", { name: "Settings" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(page.getByText("Ambit · invite-only · v0.5")).toBeVisible();
+  });
+
   test("sign out from its permanent home ends the session", async ({
     page,
   }) => {
-    await goTo(page, "/settings");
+    await goTo(page, "/profile/settings");
 
     await page.getByRole("button", { name: "Sign out" }).click();
     await page.waitForURL("/", { timeout: 15_000 });

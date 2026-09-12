@@ -1,5 +1,5 @@
 // The `user` router (Phase 5.10) — the signed-in reader's own profile: the read behind `/profile`
-// and `/settings`, and the write behind `/profile/edit`. Both protected; there is no public
+// and `/profile/settings`, and the write behind `/profile/edit`. Both protected; there is no public
 // profile anywhere in the product, so there is no anonymous read of this data.
 //
 // **Why a router at all, rather than `authClient.updateUser`?** Three reasons, in the order they

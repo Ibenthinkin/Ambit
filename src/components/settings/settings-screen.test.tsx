@@ -8,29 +8,11 @@ import { SettingsScreen } from "./settings-screen";
 // two capability-backed rows (notifications, accent) are the interesting ones — both read state
 // that doesn't exist during a server render, so both are asserted against a stubbed global rather
 // than a mocked hook, which is the only way to prove the real branching.
-/** The shape of a mocked `useQuery` result — annotated rather than asserted, so `data` can hold a
- * profile in one test and `undefined` in the next. */
-interface QueryState {
-  data: unknown;
-  isPending: boolean;
-  isError: boolean;
-}
-
-/**
- * The return annotation, not an assertion, is what widens `data` from `undefined` to `unknown` so a
- * test can swap a profile in. Declared as a function because `vi.hoisted` runs before any
- * module-level `const` is initialized — a hoisted factory can call this, but can't read a constant.
- */
-function blankQuery(): QueryState {
-  return { data: undefined, isPending: false, isError: false };
-}
-
 const {
-  meState,
-  savedCount,
   topicsData,
   myTopicsData,
   pushMock,
+  replaceMock,
   backMock,
   setMineMutateMock,
   setMineOpts,
@@ -40,11 +22,10 @@ const {
   promptMock,
   purgeMock,
 } = vi.hoisted(() => ({
-  meState: { current: blankQuery() },
-  savedCount: { current: 0 },
   topicsData: { current: [] as { id: string; label: string }[] },
   myTopicsData: { current: [] as string[] },
   pushMock: vi.fn(),
+  replaceMock: vi.fn(),
   backMock: vi.fn(),
   setMineMutateMock: vi.fn(),
   setMineOpts: {
@@ -81,10 +62,6 @@ vi.mock("~/lib/sw-rules", async (importOriginal) => {
 vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({ topics: { mine: { invalidate: invalidateMock } } }),
-    user: {
-      me: { useQuery: () => ({ ...meState.current, refetch: vi.fn() }) },
-    },
-    saves: { count: { useQuery: () => ({ data: savedCount.current }) } },
     topics: {
       list: { useQuery: () => ({ data: topicsData.current }) },
       mine: { useQuery: () => ({ data: myTopicsData.current }) },
@@ -99,18 +76,10 @@ vi.mock("~/trpc/react", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock, replace: vi.fn(), back: backMock }),
+  useRouter: () => ({ push: pushMock, replace: replaceMock, back: backMock }),
 }));
 
 vi.mock("~/lib/auth-client", () => ({ authClient: { signOut: signOutMock } }));
-
-const ME = {
-  id: "user_abc123",
-  name: "Ben Traverse",
-  email: "ben@example.test",
-  handle: "bentraverse",
-  bio: null,
-};
 
 const TOPICS = [
   { id: "astronomy", label: "Astronomy" },
@@ -134,8 +103,6 @@ function renderScreen() {
 }
 
 beforeEach(() => {
-  meState.current = { data: ME, isPending: false, isError: false };
-  savedCount.current = 4;
   topicsData.current = TOPICS;
   myTopicsData.current = ["astronomy", "botany", "music"];
   sessionStorage.clear();
@@ -145,6 +112,7 @@ beforeEach(() => {
   promptMock.mockClear();
   purgeMock.mockClear();
   pushMock.mockClear();
+  replaceMock.mockClear();
   backMock.mockClear();
   setMineMutateMock.mockClear();
   invalidateMock.mockClear();
@@ -153,30 +121,6 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.unstubAllGlobals());
-
-describe("SettingsScreen — shortcut cards", () => {
-  it("shows the name and pluralizes the save count", () => {
-    renderScreen();
-    expect(screen.getByText("Ben Traverse")).toBeInTheDocument();
-    expect(screen.getByText("4 saves")).toBeInTheDocument();
-
-    savedCount.current = 1;
-    renderScreen();
-    expect(screen.getAllByText("1 save").length).toBeGreaterThan(0);
-  });
-
-  it("each card writes its own marker before navigating", () => {
-    renderScreen();
-
-    fireEvent.click(screen.getByText("Edit profile"));
-    expect(sessionStorage.getItem("ambit.profileEditOrigin.v1")).toBe("1");
-    expect(pushMock).toHaveBeenCalledWith("/profile/edit");
-
-    fireEvent.click(screen.getByText("Everything kept"));
-    expect(sessionStorage.getItem("ambit.savedOrigin.v1")).toBe("1");
-    expect(pushMock).toHaveBeenCalledWith("/saved");
-  });
-});
 
 describe("SettingsScreen — rows", () => {
   it("renders every designed row", () => {
@@ -220,27 +164,17 @@ describe("SettingsScreen — rows", () => {
     expect(screen.getByText("Ambit · invite-only · v0.5")).toBeInTheDocument();
   });
 
-  it("back pops when marked and pushes to /profile when opened cold", () => {
+  // Inside the hub's wide column (docs/DESIGN_list-screens.md §6) the rows sit left-aligned at
+  // the list measure. One cap, not two: there is no header of its own any more.
+  it("caps itself at the list measure, left-aligned, with no header and no <main>", () => {
     renderScreen();
-
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(pushMock).toHaveBeenCalledWith("/profile");
-    expect(backMock).not.toHaveBeenCalled();
-
-    sessionStorage.setItem("ambit.settingsOrigin.v1", "1");
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(backMock).toHaveBeenCalledOnce();
-  });
-
-  // The desktop pass (docs/DESIGN_desktop-polish.md §1): list-shaped screens stop stretching at
-  // 600px. Two columns, not one — `GlassHeader` centers its own content (so the back button lines
-  // up with the body's left edge) and the body below it centers separately. Below `md` both
-  // classes are inert, which is the point: the phone layout is untouched.
-  it("centers the header and the body in narrow columns above md", () => {
-    renderScreen();
-    expect(
-      document.querySelectorAll(".md\\:max-w-\\[600px\\]").length,
-    ).toBeGreaterThanOrEqual(2);
+    expect(document.querySelectorAll(".md\\:max-w-\\[600px\\]")).toHaveLength(
+      1,
+    );
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Settings" })).toBeNull();
+    expect(screen.queryByText("Everything kept")).toBeNull();
+    expect(document.querySelector("main")).toBeNull();
   });
 });
 
@@ -271,12 +205,14 @@ describe("SettingsScreen — What you see", () => {
     expect(screen.getByText("Nothing picked")).toBeInTheDocument();
   });
 
-  it("the 'What you see' row navigates to /profile/topics", () => {
-    // The sheet is gone (09-10-26): a hundred topics in four tabs is a page, not a bottom sheet.
-    // What the row still owns is its own value text, tested above.
+  it("the 'What you see' and 'Account details' rows switch tabs in place", () => {
     renderScreen();
     fireEvent.click(screen.getByText("What you see"));
-    expect(pushMock).toHaveBeenCalledWith("/profile/topics");
+    expect(replaceMock).toHaveBeenCalledWith("/profile/topics");
+    fireEvent.click(screen.getByText("Account details"));
+    expect(replaceMock).toHaveBeenCalledWith("/profile/edit");
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("ambit.profileEditOrigin.v1")).toBeNull();
   });
 });
 

@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 
 import {
   Bell,
-  Bookmark,
   ChatBubble,
-  ChevronLeft,
   Contrast,
   Download,
   FeedLines,
@@ -19,18 +17,9 @@ import {
   Photo,
   Rays,
 } from "~/components/icons";
-import { markProfileEditOrigin } from "~/components/profile/edit-origin";
-import { cameToSettingsFromApp } from "~/components/settings/settings-origin";
-import { markSavedOrigin } from "~/components/saved/saved-origin";
-import { AvatarChip } from "~/components/ui/avatar-chip";
-import { Column } from "~/components/ui/column";
-import { GlassHeader } from "~/components/ui/glass-header";
-import { IconButton } from "~/components/ui/icon-button";
-import { Rise } from "~/components/ui/rise";
 import { Toast } from "~/components/ui/toast";
 import { authClient } from "~/lib/auth-client";
 import { ACCENTS, setAccent, useAccent } from "~/lib/accent";
-import { avatarGradient } from "~/lib/avatar-hue";
 import { api } from "~/trpc/react";
 import { AboutSheet } from "./about-sheet";
 import { AccentSheet } from "./accent-sheet";
@@ -40,8 +29,9 @@ import { purgePagesCache } from "~/lib/sw-rules";
 import { SettingsGroup, SettingsRow } from "./settings-row";
 import { useNotificationPermission } from "./use-notification-permission";
 
-// `/settings` (`Ambit - Settings.dc.html`) — the full designed surface, with a hard line down the
-// middle of it.
+// `/profile/settings` (`Ambit - Settings.dc.html`) — the Settings tab of the Profile hub since
+// 09-12-26 (docs/DESIGN_list-screens.md §5; `/settings` is a permanent redirect here). The full
+// designed surface, with a hard line down the middle of it.
 //
 // **Real rows do the thing. Stub rows say so and show nothing.** The prototype's demo values ("2
 // left", "Often", "Not determined") are all dropped: a settings screen that displays invented state
@@ -50,12 +40,15 @@ import { useNotificationPermission } from "./use-notification-permission";
 // toast — Serendipity, Muted sources, Invite a friend, Camera roll, Language. The two rows whose
 // value is *true* today keep it: Muted sources says "None" and Language says "English".
 //
-// This screen is also where **sign-out finally lives**. It sat on `/dev/tokens` from 5.6, flagged
-// there as an interim home, because the design handoff has no sign-out affordance on any screen —
-// the one-row card below is 5.10's own invention rather than a recreation of anything.
+// This screen is also where **sign-out lives** — `/profile/settings` is its permanent home. It sat
+// on `/dev/tokens` from 5.6, flagged there as an interim home, because the design handoff has no
+// sign-out affordance on any screen — the one-row card below is 5.10's own invention rather than a
+// recreation of anything.
 //
-// And it answers 5.9's open reachability question: the "Everything kept" shortcut card is the third
-// doorway into Saved, after the pill's bookmark and the collections sheet.
+// As a tab it renders content only: the hub (`profile-hub.tsx`) owns the identity block, the nav
+// and the toolbar, so the glass header, its back chevron and the two shortcut cards (Edit profile,
+// "Everything kept") went — the tabs above are those doorways, and Saved has the toolbar's
+// bookmark. "Account details" and "What you see" switch tabs in place.
 
 /** Display mode never changes within a page's life, so this subscription has nothing to report. */
 const subscribeToNothing = () => () => undefined;
@@ -67,17 +60,15 @@ const CONTACT_EMAIL = "benjamin.reilly@gmail.com";
 type OpenSheet = "accent" | "about" | "install" | null;
 
 export interface SettingsScreenProps {
-  /** "v0.4" — derived from package.json server-side (`app/settings/page.tsx`). */
+  /** "v0.4" — derived from package.json server-side (`app/profile/settings/page.tsx`). */
   versionLabel: string;
 }
 
 export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
   const router = useRouter();
 
-  // All four prefetched by the RSC shell, all input-less — so the byte-identical-input contract is
+  // Both prefetched by the RSC shell, both input-less — so the byte-identical-input contract is
   // trivially satisfied, and a hard reload paints filled.
-  const me = api.user.me.useQuery();
-  const savedCount = api.saves.count.useQuery();
   const topics = api.topics.list.useQuery();
   const myTopics = api.topics.mine.useQuery();
 
@@ -103,23 +94,6 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
     isStandalone,
     () => false,
   );
-
-  const leaveSettings = React.useCallback(() => {
-    // Pop when an in-app surface brought us here; otherwise fall back to /profile, where the gear
-    // that opens this screen lives. See `settings-origin.ts`.
-    if (cameToSettingsFromApp()) router.back();
-    else router.push("/profile");
-  }, [router]);
-
-  const goEdit = () => {
-    markProfileEditOrigin();
-    router.push("/profile/edit");
-  };
-
-  const goSaved = () => {
-    markSavedOrigin();
-    router.push("/saved");
-  };
 
   /** Every stub row's tap. One place, so they can't drift into five different apologies. */
   const stub = (label: string) => () => setToast(`${label} · coming soon`);
@@ -151,64 +125,18 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
   };
 
   return (
-    <main className="bg-bg text-ink min-h-dvh">
-      <GlassHeader>
-        <IconButton size={34} aria-label="Back" onClick={leaveSettings}>
-          <ChevronLeft size={15} />
-        </IconButton>
-        <h1 className="text-ink text-[17px] font-semibold">Settings</h1>
-        {/* Optical centering: the title is centered against the row, so the right side needs the
-            back button's own width to balance it. */}
-        <span className="w-[34px] flex-none" aria-hidden />
-      </GlassHeader>
-
-      {/* The desktop cap (docs/DESIGN_desktop-polish.md §1). The rows keep their own `px-5`
-          inside it, so above 768px the list simply stops widening. */}
-      <Column width="narrow">
-        <div className="px-5 pb-[120px]">
-          <Rise>
-            <div className="grid grid-cols-2 gap-3 pt-5">
-              <button
-                type="button"
-                onClick={goEdit}
-                className="border-hairline border-ink/8 bg-ink/4 rounded-[18px] p-4 text-left"
-              >
-                <AvatarChip
-                  size={44}
-                  gradient={me.data ? avatarGradient(me.data.id) : undefined}
-                />
-                <span className="text-ink-hi mt-[14px] block truncate text-[16px] font-semibold">
-                  {me.data?.name ?? ""}
-                </span>
-                <span className="text-ink/42 mt-[3px] block text-[13px]">
-                  Edit profile
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={goSaved}
-                className="border-hairline border-ink/8 bg-ink/4 rounded-[18px] p-4 text-left"
-              >
-                <span className="border-hairline border-ink/9 bg-ink/6 flex size-[44px] items-center justify-center rounded-[13px]">
-                  {/* Outline, not filled — this is a doorway, not a state. */}
-                  <Bookmark size={19} className="text-accent" />
-                </span>
-                <span className="text-ink-hi mt-[14px] block text-[16px] font-semibold">
-                  Everything kept
-                </span>
-                <span className="text-ink/42 mt-[3px] block text-[13px]">
-                  {saveCountLabel(savedCount.data ?? 0)}
-                </span>
-              </button>
-            </div>
-          </Rise>
-
+    <>
+      {/* Left-aligned at the list measure inside the hub's wide column (docs/DESIGN_list-screens.md
+          §6). The rows keep their own `px-5` inside it, so above 768px the list simply stops
+          widening. */}
+      <div className="md:max-w-[600px]">
+        <div className="px-5 pt-5 pb-[120px]">
           <SettingsGroup title="Account">
             <SettingsRow
               icon={<Person size={17} />}
               label="Account details"
-              onClick={goEdit}
+              // An in-hub tab switch, so `replace` like the nav (docs/DESIGN_list-screens.md §5).
+              onClick={() => router.replace("/profile/edit")}
             />
             <SettingsRow
               icon={<PersonPlus size={17} />}
@@ -241,9 +169,10 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
               icon={<FeedLines size={17} />}
               label="What you see"
               value={topicValue}
-              // A page since 09-10-26, not a sheet: the picker now offers a hundred topics in
-              // four tabs, which a bottom sheet has no room for (the sheet is deleted).
-              onClick={() => router.push("/profile/topics")}
+              // A page since 09-10-26, not a sheet: the picker offers every topic by facet, which a
+              // bottom sheet has no room for. An in-hub tab switch since 09-12-26, so `replace`
+              // like the nav (docs/DESIGN_list-screens.md §5).
+              onClick={() => router.replace("/profile/topics")}
             />
             <SettingsRow
               icon={<Mute size={17} />}
@@ -318,7 +247,7 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
             Ambit · invite-only · {versionLabel}
           </p>
         </div>
-      </Column>
+      </div>
 
       <AccentSheet
         open={openSheet === "accent"}
@@ -338,14 +267,16 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
         onClose={() => setOpenSheet(null)}
       />
 
-      {/* Unraised — there is no pill on this screen for a toast to clear. */}
+      {/* Its own toast rather than the hub's — the stubs and the notifications row say things
+          unrelated to anything else on the hub. `raised`: the hub's toolbar sits under it now. */}
       <Toast
         text={toast ?? ""}
         open={toast !== null}
         onDone={() => setToast(null)}
         durationMs={1700}
+        raised
       />
-    </main>
+    </>
   );
 }
 
@@ -375,11 +306,6 @@ function SignOutRow() {
       Sign out
     </button>
   );
-}
-
-/** "1 save" / "N saves" — the shortcut card's sub-label. */
-function saveCountLabel(n: number): string {
-  return n === 1 ? "1 save" : `${n} saves`;
 }
 
 /**

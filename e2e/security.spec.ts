@@ -205,7 +205,7 @@ test.describe.serial("security headers", () => {
     const problems = await watchForProblems(page);
     await restoreSession(page, session);
 
-    for (const path of ["/feed", "/settings", "/saved"]) {
+    for (const path of ["/feed", "/profile/settings", "/saved"]) {
       const res = await page.goto(path);
       expectSecurityHeaders(res!.headers(), path);
       // Every one of these screens has interactive controls; waiting for hydration is what makes

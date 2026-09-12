@@ -136,12 +136,13 @@ test.describe.serial("auth", () => {
       await signIn(page, EMAIL, PASSWORD);
     }
 
-    // Sign-out's permanent home as of 5.10: the Settings screen. It spent 5.6–5.9 parked on
+    // Sign-out's permanent home as of 5.10: the Settings screen — `/profile/settings`, a tab of the
+    // Profile hub, since 09-12-26. It spent 5.6–5.9 parked on
     // /dev/tokens (the design handoff has no sign-out affordance anywhere), and that interim home
     // is gone along with `sign-out-button.tsx`. e2e/settings.spec.ts proves the whole path in from
     // the feed; this test keeps the *auth* assertion — signing out ends the session — where the
     // rest of the auth journey lives.
-    await page.goto("/settings");
+    await page.goto("/profile/settings");
     await page.getByRole("button", { name: "Sign out" }).click();
     await page.waitForURL("/");
 
