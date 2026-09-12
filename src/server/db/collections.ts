@@ -5,6 +5,7 @@
 // the router can prove a client-supplied `collectionId` belongs to the caller.
 import { and, asc, count, eq, isNotNull, lte, sql } from "drizzle-orm";
 
+import { imageSrc } from "~/lib/image-src";
 import { collection, item, savedItem } from "~/server/db/schema";
 
 /**
@@ -20,11 +21,13 @@ export interface CollectionWithCount {
   createdAt: Date;
   itemCount: number;
   /**
-   * The image URLs of the four most recently saved *image* items in this collection, newest
-   * first — `[]` when the collection is empty or holds only articles. The Collections tab paints
-   * them as a 2×2 mosaic and every picker row as a 36 px one (docs/DESIGN_list-screens.md §2, §7);
-   * `TileActions` and the two sheets that predate the face ignore the field, which is why it could
-   * change shape here rather than fork into a second read.
+   * The picture srcs of the four most recently saved *image* items in this collection, newest
+   * first — `[]` when the collection is empty or holds only articles. Srcs, not stored URLs:
+   * `/api/img/<itemId>` through `lib/image-src.ts`, because the page's CSP allows only same-origin
+   * images and a raw museum URL renders as a broken image. The Collections tab paints them as a 2×2
+   * mosaic and every picker row as a 36 px one (docs/DESIGN_list-screens.md §2, §7);
+   * `TileActions` ignores the field, which is why it could change shape here rather than fork into
+   * a second read.
    */
   covers: string[];
 }
@@ -147,6 +150,7 @@ async function withCovers(
   const ranked = db
     .select({
       collectionId: savedItem.collectionId,
+      itemId: item.id,
       imageUrl: item.imageUrl,
       n: sql<number>`row_number() over (partition by ${savedItem.collectionId} order by ${savedItem.savedAt} desc)`.as(
         "n",
@@ -166,6 +170,7 @@ async function withCovers(
   const covers = await db
     .select({
       collectionId: ranked.collectionId,
+      itemId: ranked.itemId,
       imageUrl: ranked.imageUrl,
     })
     .from(ranked)
@@ -178,7 +183,7 @@ async function withCovers(
     // Both non-null by the WHERE above; the guard narrows the types rather than handling a case.
     if (!row.collectionId || !row.imageUrl) continue;
     const list = byCollection.get(row.collectionId) ?? [];
-    list.push(row.imageUrl);
+    list.push(imageSrc(row.itemId, row.imageUrl));
     byCollection.set(row.collectionId, list);
   }
   return rows.map((row) => ({

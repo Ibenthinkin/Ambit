@@ -118,7 +118,7 @@ describe("CollectionRow's leading slot", () => {
         sub="Already saved here"
         leading={{
           kind: "covers",
-          covers: ["https://example.test/a.jpg"],
+          covers: ["/api/img/a-item"],
           current: true,
         }}
         onPick={vi.fn()}

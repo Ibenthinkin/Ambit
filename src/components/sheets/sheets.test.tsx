@@ -45,7 +45,7 @@ const {
         name: "Articles",
         createdAt: new Date(),
         itemCount: 2,
-        covers: ["https://example.test/c1.jpg"],
+        covers: ["/api/img/c1-item"],
       },
       {
         id: "c2",
@@ -125,7 +125,7 @@ const DEFAULT_COLLECTIONS = [
     name: "Articles",
     createdAt: new Date(),
     itemCount: 2,
-    covers: ["https://example.test/c1.jpg"],
+    covers: ["/api/img/c1-item"],
   },
   { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0, covers: [] },
 ];

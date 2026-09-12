@@ -76,7 +76,7 @@ const COLLECTIONS = [
     name: "Articles",
     createdAt: new Date(),
     itemCount: 3,
-    covers: ["https://example.test/cover.jpg"],
+    covers: ["/api/img/cover-item"],
   },
   { id: "c2", name: "Art", createdAt: new Date(), itemCount: 1, covers: [] },
 ];
@@ -103,7 +103,7 @@ describe("CollectionsTab", () => {
     expect(tiles).toHaveLength(2);
     expect(
       document.querySelector('[data-collection-id="c1"] img'),
-    ).toHaveAttribute("src", "https://example.test/cover.jpg");
+    ).toHaveAttribute("src", "/api/img/cover-item");
     expect(document.querySelector('[data-collection-id="c2"] img')).toBeNull();
 
     // itemCountLabel, shared with the collection sheets.

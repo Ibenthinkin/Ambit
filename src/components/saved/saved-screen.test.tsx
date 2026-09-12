@@ -131,8 +131,14 @@ const ARTICLE_ITEM = makeItem({
 });
 
 const COLLECTIONS = [
-  { id: "c1", name: "Articles", createdAt: new Date(), itemCount: 1 },
-  { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0 },
+  {
+    id: "c1",
+    name: "Articles",
+    createdAt: new Date(),
+    itemCount: 1,
+    covers: [],
+  },
+  { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0, covers: [] },
 ];
 
 /** Two saves across both tile kinds, both collections rendered, total of 2. */

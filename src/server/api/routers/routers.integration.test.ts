@@ -554,7 +554,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       ).rejects.toMatchObject({ code: "CONFLICT" });
     });
 
-    it("covers are the four newest pictures, newest first, and [] when there are none", async () => {
+    it("covers are the four newest pictures' proxied srcs, newest first, and [] when there are none", async () => {
       const { db } = await import("~/server/db/client");
       const caller = createCaller(authedContext(userId));
       const maps = (await caller.saves.collections()).find(
@@ -595,11 +595,14 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       });
 
       const after = await caller.saves.collections();
+      // Proxied srcs, not the stored URLs: the page's CSP allows only same-origin images, so a
+      // face is `/api/img/<itemId>` exactly as a feed tile is (lib/image-src.ts).
+      const [six, seven, eight, nine] = extras.map((e) => e.id);
       expect(after.find((c) => c.name === "Maps")?.covers).toEqual([
-        "https://example.com/test-router-item-9.jpg",
-        "https://example.com/test-router-item-8.jpg",
-        "https://example.com/test-router-item-7.jpg",
-        "https://example.com/test-router-item-6.jpg",
+        `/api/img/${nine}`,
+        `/api/img/${eight}`,
+        `/api/img/${seven}`,
+        `/api/img/${six}`,
       ]);
       // Art holds itemTwo, an article — saves but no pictures is an empty face, not a null.
       expect(after.find((c) => c.name === "Art")?.covers).toEqual([]);
