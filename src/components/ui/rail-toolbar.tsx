@@ -12,15 +12,19 @@ import {
 } from "~/components/ui/pill-toolbar";
 import { cn } from "~/lib/utils";
 
-// The desktop toolbar (docs/DESIGN_chrome-redesign.md §2, amended 09-11-26 by Ben's review): a
-// vertical **stack** fixed at the right edge and vertically centred — "the buttons will be located
-// down the right side". Profile and Feed share a bar; **Save and Share are detached discs below
-// it**, the desktop twin of the phone's detached Share ("the save button does not float separately
-// on the desktop version"). Same props as `PillToolbar` (`Toolbar` picks between them by
+// The desktop toolbar (docs/DESIGN_chrome-redesign.md §2, amended 09-11-26 and again 09-12-26
+// by Ben's review): a vertical **stack** fixed at the right edge and vertically centred — "the
+// buttons will be located down the right side". Profile, Feed and Save share the bar — the same
+// three the phone's pill holds — and **Share is the one detached disc below it**, the desktop twin
+// of the phone's detached Share. Save belongs in the bar because it is on every screen: on the
+// feed, Saved and Profile it opens the collections list (nothing to save there, so the sheet
+// offers nothing to save), on the item screen the picker. Share is beside the bar because it is
+// only ever on the item screen — it needs a current picture to refer to — so its absence must not
+// change the bar's shape. Same props as `PillToolbar` (`Toolbar` picks between them by
 // breakpoint), including `visible`, for the one screen where the toolbar belongs to something
 // that fades: the item screen's chrome (decision 3).
 //
-// The stack is the positioned, fading element; the bar and each disc are its children and take
+// The stack is the positioned, fading element; the bar and the disc are its children and take
 // pointer events like any other control. No full-width wrapper here, so none of the pill's
 // `pointer-events` split.
 //
@@ -31,7 +35,7 @@ import { cn } from "~/lib/utils";
 
 export type RailToolbarProps = PillToolbarProps;
 
-/** The stack's one width: the bar is 52 + 2×8 padding, and each disc matches it, as the phone's
+/** The stack's one width: the bar is 52 + 2×8 padding, and the disc matches it, as the phone's
  *  disc matches its pill's height. */
 const DISC = "size-[68px]";
 
@@ -112,25 +116,26 @@ export function RailToolbar({
           <Logo size={38} className="text-white/95" />
         </RailButton>
 
+        <RailButton
+          label="Save to collection"
+          onClick={(e) => onBookmark(e.currentTarget.getBoundingClientRect())}
+        >
+          <Bookmark
+            size={29}
+            filled={bookmark !== "idle"}
+            className={cn(
+              bookmark === "idle" && "text-white/82",
+              bookmark === "saved" && "text-accent",
+              bookmark === "on-saved" && "text-white",
+            )}
+          />
+        </RailButton>
+
         {extra}
       </nav>
 
-      {/* Detached, like the phone's Share disc: siblings of the bar, not children of it. */}
-      <RailDisc
-        label="Save to collection"
-        onClick={(e) => onBookmark(e.currentTarget.getBoundingClientRect())}
-      >
-        <Bookmark
-          size={29}
-          filled={bookmark !== "idle"}
-          className={cn(
-            bookmark === "idle" && "text-white/82",
-            bookmark === "saved" && "text-accent",
-            bookmark === "on-saved" && "text-white",
-          )}
-        />
-      </RailDisc>
-
+      {/* Detached, like the phone's Share disc: a sibling of the bar, not a child of it. Omitted
+          without a handler rather than greyed out — the same "share what?" reasoning as the pill. */}
       {onShare ? (
         <RailDisc
           label="Share"

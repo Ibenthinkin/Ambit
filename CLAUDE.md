@@ -230,8 +230,10 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   are sub-project 4, unwritten). Below `md` the pill is 56 px tall and **Share is a detached
   disc** beside it, centred in the space to the pill's right (`PillToolbar`'s `1fr auto 1fr`
   grid). From `md` the toolbar is **`RailToolbar`** — a vertical stack fixed at the right edge:
-  Profile and Feed in a bar, **Save and Share as detached 68 px discs below it** (Ben's review,
-  09-11-26; they were four glyphs in one bar) — and `Toolbar` picks one by `useMediaQuery`. On
+  Profile, Feed and Save in a bar, **Share as the one detached 68 px disc below it** (Ben's
+  reviews: 09-11-26 detached Save and Share, 09-12-26 put Save back — the bar holds what is on
+  every screen, the disc what only the item screen has) — and `Toolbar` picks one by
+  `useMediaQuery`. On
   the item screen both toolbars are chrome: the pill **fixed at the bottom** (it rode inside the
   caption until the review, moving with the picture's height) and the rail at the right, each
   with `visible={chrome.visible}` — `PillToolbar` gained `visible` for it. `BottomSheet` takes an

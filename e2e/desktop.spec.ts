@@ -144,7 +144,7 @@ test.describe.serial("desktop", () => {
     expect(Math.round(box.width)).toBe(360);
     expect(box.x + box.width).toBeLessThan(railBox.x); // beside the rail, not over it
     // Centred on the button that opened it, not on the rail: on the feed the bookmark is the
-    // third of three controls, 68px below the rail's middle (design §2, `popoverStyle`).
+    // third of the bar's three controls, below the rail's middle (design §2, `popoverStyle`).
     expect(
       Math.abs(box.y + box.height / 2 - (anchorBox.y + anchorBox.height / 2)),
     ).toBeLessThan(2);

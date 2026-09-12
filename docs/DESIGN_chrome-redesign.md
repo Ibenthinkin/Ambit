@@ -171,6 +171,14 @@ is the positioned, fading element and carries `data-testid="rail-toolbar"`; the 
 `<nav aria-label="Ambit toolbar">` inside it; the discs are its siblings, exactly as the phone's
 Share disc is the pill's sibling. Popovers anchor to each button's own rect and did not move.
 
+**Amended again 09-12-26 (Ben, after reading it on production): Save goes back into the bar;
+only Share floats.** The bar is Profile, Feed, Save — the same three as the phone's pill — and
+Share is the one detached 68 px disc below it, present only where there is a picture to share
+(the item screen). The reasoning: Save is on every screen, and on the feed, Saved and Profile it
+opens the collections list with nothing to save, so it belongs with the two other always-present
+controls; Share is the only control whose presence varies, so it is the only one whose absence
+must not change the bar's shape. `rail-toolbar.test.tsx` pins the new order.
+
 ## 3. The tile hover strip — one-click save, fine pointer only
 
 New `TileActions` (`src/components/feed/tile-actions.tsx`), rendered by `feed-screen.tsx` as a

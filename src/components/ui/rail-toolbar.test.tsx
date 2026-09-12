@@ -13,29 +13,27 @@ describe("RailToolbar", () => {
       .getAllByRole("button")
       .map((b) => b.getAttribute("aria-label"));
 
-  // Ben's review (09-11-26): "the save button does not float separately on the desktop". Profile
-  // and Feed stay in the bar; Save and Share are detached discs below it — the desktop twin of the
-  // phone's detached Share. The stack is the fixed, fading element; the bar and the discs are its
-  // children, top to bottom.
-  it("keeps Profile and Feed in the bar and floats Save and Share as discs below it", () => {
+  // Ben's reviews (09-11-26, 09-12-26): the bar holds the same three controls as the phone's pill
+  // — Profile, Feed, Save — and only Share floats, as a detached disc below it, because Share is
+  // the one control that is not on every screen. The stack is the fixed, fading element; the bar
+  // and the disc are its children, top to bottom.
+  it("keeps Profile, Feed and Save in the bar and floats only Share as a disc below it", () => {
     render(<RailToolbar onBookmark={vi.fn()} onShare={vi.fn()} />);
     const stack = screen.getByTestId("rail-toolbar");
     const nav = screen.getByRole("navigation", { name: "Ambit toolbar" });
     expect(stack).toContainElement(nav);
     expect(stack).toHaveClass("flex-col", "fixed");
-    expect(labels(nav)).toEqual(["Profile", "Feed"]);
+    expect(labels(nav)).toEqual(["Profile", "Feed", "Save to collection"]);
     expect(labels(stack)).toEqual([
       "Profile",
       "Feed",
       "Save to collection",
       "Share",
     ]);
-    for (const name of ["Save to collection", "Share"]) {
-      const disc = screen.getByRole("button", { name });
-      expect(nav).not.toContainElement(disc);
-      expect(disc.parentElement).toBe(stack);
-      expect(disc).toHaveClass("rounded-full");
-    }
+    const disc = screen.getByRole("button", { name: "Share" });
+    expect(nav).not.toContainElement(disc);
+    expect(disc.parentElement).toBe(stack);
+    expect(disc).toHaveClass("rounded-full");
   });
 
   it("omits Share without a handler, like the pill", () => {
