@@ -672,7 +672,17 @@ against the 164k corpus. Production gets facets and the tier rename from the dep
 `.cache/seed-personas-prod.sh`. Sub-projects 2 and 3 are still unwritten.
 
 _Session spend: 10.02M tok (in 203 · out 71.5k · cache r 9.60M / w 350.9k) · ~≥$0.83 · fable-5-1 + opus-4-7 · 13:16→13:29*
-*Session spend: 14.34M tok (in 154 · out 172.4k · cache r 13.97M / w 206.1k) · fable-5-1 · 13:29→14:17*
+_Session spend: 14.34M tok (in 154 · out 172.4k · cache r 13.97M / w 206.1k) · fable-5-1 · 13:29→14:17_
+
+**Later the same day** — Ben redeployed and ran `promote-prod.sh` (round 2 is on production),
+then read the desktop rail and reversed half of 09-11's amendment: **Save goes back into the
+bar** with Profile and Feed — the phone pill's three — and **Share is the only detached disc**,
+present only on the item screen. The rule that fell out: the bar holds what is on every screen,
+the disc what varies. No behaviour changed — the feed's bookmark already opened the collections
+list with nothing to save, and Share was already omitted there. `3aaeeda`, e2e:prod 54 passed.
+Ben's 18-hour `next dev` on :3000 was stopped for the run. **Next: SP4, the list screens.**
+
+*Session spend: 6.97M tok (in 987 · out 37.7k · cache r 6.65M / w 283.0k) · ~≥$1.80 · fable-5-1 + opus-4-7 · 11:50→12:21*
 *Session spend: 83.99M tok (in 1.0k · out 299.5k · cache r 82.11M / w 1.58M) · ~$60.36 · opus-5 + opus-4-7 · 14:27→15:04_
 _Session spend: 53.83M tok (in 256 · out 257.5k · cache r 52.50M / w 1.07M) · ~≥$2.76 · fable-5-1 + opus-5 · 15:04→16:53*
 *Session spend: 99.68M tok (in 9.0k · out 1.00M · cache r 95.43M / w 3.24M) · ~$101.27 · opus-5 + opus-4-7 · 19:19→19:57_
