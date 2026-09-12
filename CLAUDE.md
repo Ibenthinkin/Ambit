@@ -19,7 +19,7 @@ real ingest run. Phase 5 built the UI against the redesign handoff (`docs/design
 screen by screen, per `docs/BUILD_PLAN.md`'s Phase 5 ordering. **All of 5.1–5.11 are shipped**
 (design system, auth, onboarding, feed, item, gallery, Saved, Profile/Settings/Edit, and the
 landing slideshow + install flow + PWA caching). The app has no internal 404s, sign-out lives on
-`/settings`, and it is installable with the last feed page available offline. **6.3 shipped
+`/profile/settings`, and it is installable with the last feed page available offline. **6.3 shipped
 08-27-26** (blog adapters: the `CorpusWalkAdapter` contract, doorofperception live as link
 cards). **7.1 shipped 08-27-26** — the Playwright suite (8 specs, 42 tests) runs in CI against a
 **production build** with Postgres + Mailpit service containers, and the five DB-backed Vitest
@@ -115,8 +115,8 @@ the user's picks) reached 101 of 104 topics and every page pulled the whole corp
 materialising it grew to 2.6 GB in eight page loads and stalled unrelated requests for seconds.
 `bun run bench:feed` and `bun run probe:feed`'s score summary are the before/after. The 22 ms in
 the 7.3 sentence above was measured against 9,848 rows. **Sub-project 3 of Ben's desktop review — the chrome redesign — was built 09-11-26 on
-`feat/chrome-redesign` (see its bullet under Architecture); list screens are sub-project 4,
-unwritten.** **Opening it, Ben hit a `/feed` reload loop — diagnosed and fixed on `main` the same evening
+`feat/chrome-redesign` (see its bullet under Architecture); sub-project 4, the list screens, was
+built 09-12-26 on `feat/list-screens` — see its bullet.** **Opening it, Ben hit a `/feed` reload loop — diagnosed and fixed on `main` the same evening
 (`596a26a`, merged into this branch): Next 16.2's dev client misreading Firefox on a still-streaming
 `/feed`, not the branch and not the service worker — see the local-dev bullet below.** Pick the thread up from
 `docs/HANDOFF_sources-round2.md` **§0** — streetartnews and spoon-tamago as a cold-executable
@@ -226,8 +226,8 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   through `useMediaQuery` after hydration, which is what fixed the collapse glyph (the 09-08
   `AuthSheet onCollapse` hydration mismatch).
 - **The chrome redesign shipped 09-11-26** (design `docs/DESIGN_chrome-redesign.md`, plan
-  `docs/PLAN_chrome-redesign.md`; sub-project 3 of three from Ben's desktop review — list screens
-  are sub-project 4, unwritten). Below `md` the pill is 56 px tall and **Share is a detached
+  `docs/PLAN_chrome-redesign.md`; sub-project 3 of three from Ben's desktop review — sub-project 4,
+  the list screens, was built 09-12-26 — see its bullet). Below `md` the pill is 56 px tall and **Share is a detached
   disc** beside it, centred in the space to the pill's right (`PillToolbar`'s `1fr auto 1fr`
   grid). From `md` the toolbar is **`RailToolbar`** — a vertical stack fixed at the right edge:
   Profile, Feed and Save in a bar, **Share as the one detached 68 px disc below it** (Ben's
@@ -245,6 +245,26 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   one-click optimistic save against the new `saves.ids`. The hover zoom is gone; the focus ring
   is 3 px off-white. **`saves.saveToCollection` takes `topicId`** and bumps it only for a member
   — the feed-on-membership follow-up, closed.
+- **The list screens were built 09-12-26 on `feat/list-screens`** (design
+  `docs/DESIGN_list-screens.md`, plan `docs/PLAN_list-screens.md`; sub-project 4 of four from Ben's
+  desktop review — pushed for his review, not merged). `/profile` is a **hub**:
+  `app/profile/layout.tsx` mounts `ProfileHub` — the identity block, a `<nav>` of four
+  `<Link replace>`s (Collections · Topics · Edit profile · Settings) keyed on
+  `useSelectedLayoutSegment()`, the `Toolbar`, and one raised toast tabs reach through
+  `useProfileHub()` — around the child pages, which render content only. Tabs `replace`, so the
+  hub is one history entry and Feed pops from any tab; `profile-origin.ts` is the hub's one
+  marker (`edit-origin`/`settings-origin` are gone with the back chevrons). **`/settings` is a
+  308 to `/profile/settings`**; `proxy.ts` keeps it in `AUTHED_PREFIXES` on purpose. A
+  collection's face is **`CoverMosaic`** — `saves.collections` returns `covers: string[]` (the
+  four newest pictures, one `row_number()` window, `COVER_COUNT = 4`) instead of `cover` — on
+  the Collections tab and as the `leading` slot of `CollectionRow` in every picker. The hub and
+  Saved are `Column width="wide"` and pack `GRID_COLS[useColumnCount()]` (`GRID_COLS` lives in
+  `masonry.ts` now); the Edit / Topics / Settings tabs sit left-aligned in a
+  `md:max-w-[600px]` div. One trap: **a layout's server guard runs on the document load only** —
+  client tab switches re-render the page segment — so the four pages keep their own guards.
+  And one finding: **every `<img>` of an item must be `lib/image-src.ts`'s `imageSrc`** — the
+  CSP is `img-src 'self' data: blob:`, so a raw museum URL is blocked outright. The old Profile
+  cover had been a broken image since 7.2 for exactly that; `covers` are proxied srcs now.
 - **The dev knob panel shipped 09-05-26** — `/dev/feed` (local, `FEED_DEBUG`; a 404 under a
   production build), every feed knob live including the two Cut 2a levers
   `grownEdgeScale`/`grownHopPenalty` (identities at `1`, so `/feed` composes exactly as before),

@@ -123,7 +123,7 @@ Every `<img>` is `alt=""` and plain (not `next/image`) — arbitrary museum URLs
 every image surface in the app. The 20 px radius on today's cover goes: Ben's "ditch the rounded
 corners on hero images in every view" applies to any picture that is content.
 
-**The data.** `saves.collections` returns **`covers: string[]`** — the image URLs of the four
+**The data.** `saves.collections` returns **`covers: string[]`** — the picture srcs of the four
 most recently saved *image* items in the collection, newest first, `[]` for an empty or
 article-only collection — in place of `cover: string | null`. `db/collections.ts`'s
 `withCovers` swaps its `DISTINCT ON` for one window function,
@@ -131,6 +131,12 @@ article-only collection — in place of `cover: string | null`. `db/collections.
 collected-only / image-only filter, and keeps rows numbered ≤ 4. Still one extra round trip after
 the count query, for the same reason as before: the count is a `GROUP BY`, a face is specific
 rows per group.
+
+> **Amended at build, 09-12-26.** "Image URLs" became *proxied srcs*: each entry is
+> `/api/img/<itemId>` (or a `data:` pixel as-is), through `lib/image-src.ts`, the rule the feed
+> tile already followed. The page's CSP is `img-src 'self' data: blob:`, so the stored museum
+> URL the design named is blocked by the browser — the old single cover had been a broken image
+> on production since 7.2 for exactly that reason, and nobody had noticed.
 
 ## 3. Topics tab
 

@@ -338,6 +338,15 @@ which resolves into a sign-in sheet.
   (no *Save image* — it's text).
 - Props: `itemId` (`sky|engine|wayfinding`, also `?itemId=`), `accent`.
 
+> **Amended 09-12-26 (`docs/DESIGN_list-screens.md`).** Sections 7–10 describe the phone
+> prototypes; the built screens diverge: `/profile` is a hub — the identity block over a
+> four-link nav (Collections · Topics · Edit profile · Settings), no gear, no Edit pill —
+> whose tabs are routes under one layout; a collection's cover is a square-cornered 2×2 of its
+> four newest pictures, on the Collections tab and small in every picker row; Edit profile and
+> Settings have no glass header and no back chevron (they are tabs), Settings has no shortcut
+> cards, and `/settings` redirects to `/profile/settings`; on desktop the hub and Saved take the
+> feed's 1120 px column and pack its column count.
+
 ### 7. Saved — `Ambit - Saved.dc.html`
 **Purpose:** the user's quiet collection. Same visual language as the feed.
 
