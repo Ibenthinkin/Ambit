@@ -554,35 +554,54 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       ).rejects.toMatchObject({ code: "CONFLICT" });
     });
 
-    it("covers report the newest saved image per collection, and null when there is none", async () => {
+    it("covers are the four newest pictures, newest first, and [] when there are none", async () => {
+      const { db } = await import("~/server/db/client");
       const caller = createCaller(authedContext(userId));
       const maps = (await caller.saves.collections()).find(
         (c) => c.name === "Maps",
       )!;
 
-      // Two saves into one collection: the image item first, then an article. The cover has to
-      // stay the image even though the article is the *newer* save — which is what the
-      // `imageUrl IS NOT NULL` filter inside the DISTINCT ON buys, and what a plain
-      // "newest save in this collection" query would get wrong.
-      await caller.saves.saveToCollection({
-        itemId: itemFiveId,
-        collectionId: maps.id,
-      });
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      // Four more image items in topicA (the afterAll sweep deletes by topicA, so they need no
+      // cleanup of their own). With itemFive that is five pictures — one more than a face holds.
+      const extras = await insertHomedItems(
+        db,
+        [6, 7, 8, 9].map((n) => ({
+          source: "met",
+          sourceId: `test-router-item-${n}-${nanoid(8)}`,
+          type: "image" as const,
+          title: `Integration test item ${n}`,
+          summary: "A summary long enough to be unremarkable.",
+          imageUrl: `https://example.com/test-router-item-${n}.jpg`,
+          sourceUrl: `https://example.com/test-router-item-${n}-${nanoid(8)}`,
+          topicId: topicA,
+          curationScore: 7,
+          aestheticTags: [],
+        })),
+      );
+
+      // Saved in order: five, six, seven, eight, nine — then an article on top. The article is
+      // the newest save and must not appear (image-only), and item five is the oldest picture
+      // and must fall off the end (four, not five).
+      for (const id of [itemFiveId, ...extras.map((e) => e.id)]) {
+        await caller.saves.saveToCollection({ itemId: id, collectionId: maps.id });
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
       await caller.saves.saveToCollection({
         itemId: itemOneId,
         collectionId: maps.id,
       });
 
       const after = await caller.saves.collections();
-      expect(after.find((c) => c.name === "Maps")?.cover).toBe(
-        "https://example.com/test-router-item-5.jpg",
-      );
-      // Art holds itemTwo, an article — a collection with saves but no pictures still reports
-      // null, and the Profile tile falls back to its bookmark placeholder.
-      expect(after.find((c) => c.name === "Art")?.cover).toBeNull();
+      expect(after.find((c) => c.name === "Maps")?.covers).toEqual([
+        "https://example.com/test-router-item-9.jpg",
+        "https://example.com/test-router-item-8.jpg",
+        "https://example.com/test-router-item-7.jpg",
+        "https://example.com/test-router-item-6.jpg",
+      ]);
+      // Art holds itemTwo, an article — saves but no pictures is an empty face, not a null.
+      expect(after.find((c) => c.name === "Art")?.covers).toEqual([]);
       // And an empty collection, likewise.
-      expect(after.find((c) => c.name === "Photos")?.cover).toBeNull();
+      expect(after.find((c) => c.name === "Photos")?.covers).toEqual([]);
     });
   });
 
