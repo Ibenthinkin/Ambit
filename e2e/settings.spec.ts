@@ -223,11 +223,14 @@ test.describe.serial("settings", () => {
     });
 
     // The row is a link to /profile/topics now, not a sheet (09-10-26): a hundred topics in four
-    // tabs has no room in a bottom sheet. "Maps" is the chip label for the `cartography` topic
-    // (the slug is a graph key — see server/config/topics.ts), and it is a Subject.
+    // facet sections has no room in a bottom sheet. Every section is on the page at once
+    // (09-12-26), so there is nothing to click before a chip. "Maps" is the chip label for the
+    // `cartography` topic (the slug is a graph key — see server/config/topics.ts), a Subject.
     await page.getByText("What you see").click();
     await page.waitForURL("/profile/topics");
-    await page.getByRole("button", { name: "Subject", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "What are you drawn to?" }),
+    ).toBeVisible({ timeout: 15_000 });
 
     // Wait for the write itself, not just the chip. The screen is optimistic on purpose — the
     // chip flips before the server answers — so asserting `pressed: true` and reloading proves
@@ -240,11 +243,10 @@ test.describe.serial("settings", () => {
     ).toBeVisible();
     await savedMaps;
 
-    // Another tab's topic is pickable in the same visit — the point of the facet cut. Ceramics,
+    // Another facet's topic is pickable in the same visit — the point of the facet cut. Ceramics,
     // not a grown topic: CI's database is `db:migrate` + `db:seed`, which is the sixteen config
     // topics and nothing else, so `surreal` and friends do not exist there. That grown topics are
     // acceptable to `setMine` is pinned by routers.integration.test.ts, where the fixture is real.
-    await page.getByRole("button", { name: "Medium", exact: true }).click();
     const savedCeramics = waitForSetMine(page);
     await page
       .getByRole("button", { name: "Ceramics", pressed: false })
@@ -256,7 +258,6 @@ test.describe.serial("settings", () => {
 
     // Every toggle saved as it happened — no Done button to press, so a reload is the proof.
     await page.reload();
-    await page.getByRole("button", { name: "Medium", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Ceramics", pressed: true }),
     ).toBeVisible({ timeout: 15_000 });

@@ -4,8 +4,11 @@ import * as React from "react";
 
 import { Chip } from "~/components/ui/chip";
 import { Rise } from "~/components/ui/rise";
-import { FACETS, FACET_LABELS } from "~/server/config/topic-facets";
-import type { TopicFacet } from "~/server/db/schema";
+import {
+  FACETS,
+  FACET_LABELS,
+  FACET_PROMPTS,
+} from "~/server/config/topic-facets";
 import { api } from "~/trpc/react";
 
 // /profile/topics — the Topics tab of the Profile hub (docs/DESIGN_topic-facets-and-personas.md §3;
@@ -17,8 +20,12 @@ import { api } from "~/trpc/react";
 // kept across the write keeps its learned weight.
 //
 // The hub (`profile-hub.tsx`) owns the title, the nav and the toolbar, so this renders content
-// only. The facets are a **chip row**, not a tablist: the hub's nav is already the screen's one
-// row of sections, and tabs under tabs read as one broken tablist.
+// only. The facets are **four stacked sections** on one page, each under the question onboarding
+// asked for it (`FACET_PROMPTS`) — Ben's 09-12-26 review of the list screens, replacing a chip
+// row that showed one facet at a time. A filter made the reader flick to see what they had
+// picked elsewhere; the whole vocabulary is a few screens of chips, and the four questions in
+// sequence read as the onboarding screen laid flat, which is what this is. Nothing is a
+// tablist: the hub's nav above is the screen's one row of sections.
 //
 // It replaced Settings' "What you see" sheet, which could only ever offer the sixteen and had no
 // room for four groups of a hundred chips.
@@ -29,7 +36,6 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
   const utils = api.useUtils();
   const topics = api.topics.list.useQuery();
   const mine = api.topics.mine.useQuery();
-  const [facet, setFacet] = React.useState<TopicFacet>(FACETS[0]);
   const [hint, setHint] = React.useState("");
 
   const setMine = api.topics.setMine.useMutation({
@@ -67,7 +73,7 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
   );
 
   const picked = new Set(mine.data ?? []);
-  const tabTopics = (topics.data ?? []).filter((t) => t.facet === facet);
+  const all = topics.data ?? [];
 
   function toggle(topicId: string) {
     const next = new Set(picked);
@@ -95,48 +101,49 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
         </p>
       </Rise>
 
-      {/* A chip row, not a second tablist: the hub's nav above is the screen's one row of
-          sections, and two underlined rows stacked read as one broken one. Scrolls sideways
-          below md rather than wrapping, like Saved's filter row. */}
-      <div
-        role="group"
-        aria-label="Facets"
-        className="mt-4 flex gap-2 overflow-x-auto px-5"
-      >
-        {FACETS.map((f) => (
-          <Chip
-            key={f}
-            size="sm"
-            selected={f === facet}
-            onClick={() => setFacet(f)}
-          >
-            {FACET_LABELS[f]}
-          </Chip>
-        ))}
-      </div>
-
-      <div
-        role="group"
-        aria-label={`${FACET_LABELS[facet]} topics`}
-        className="flex flex-wrap gap-[10px] px-5 pt-5 pb-6"
-      >
-        {tabTopics.map((t) => (
-          <Chip
-            key={t.id}
-            selected={picked.has(t.id)}
-            onClick={() => toggle(t.id)}
-          >
-            {dev && picked.has(t.id) && weightOf.has(t.id)
-              ? `${t.label} · ${weightOf.get(t.id)!.toFixed(1)}`
-              : t.label}
-          </Chip>
-        ))}
-      </div>
+      {/* One section per facet, in `FACETS` order, every one on the page at once. The eyebrow is
+          the facet's name and the heading its onboarding question, so the tab reads as the four
+          setup stages laid end to end. `h2`: the hub's identity block holds the page's h1. */}
+      {FACETS.map((f, i) => {
+        const sectionTopics = all.filter((t) => t.facet === f);
+        return (
+          <Rise key={f} delayMs={80 + i * 60}>
+            <section aria-labelledby={`topics-${f}`} className="px-5 pt-7">
+              <p className="text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase">
+                {FACET_LABELS[f]}
+              </p>
+              <h2
+                id={`topics-${f}`}
+                className="text-ink-hi mt-2 text-[22px] leading-[1.2] font-semibold tracking-[-0.2px]"
+              >
+                {FACET_PROMPTS[f]}
+              </h2>
+              <div
+                role="group"
+                aria-label={`${FACET_LABELS[f]} topics`}
+                className="flex flex-wrap gap-[10px] pt-4"
+              >
+                {sectionTopics.map((t) => (
+                  <Chip
+                    key={t.id}
+                    selected={picked.has(t.id)}
+                    onClick={() => toggle(t.id)}
+                  >
+                    {dev && picked.has(t.id) && weightOf.has(t.id)
+                      ? `${t.label} · ${weightOf.get(t.id)!.toFixed(1)}`
+                      : t.label}
+                  </Chip>
+                ))}
+              </div>
+            </section>
+          </Rise>
+        );
+      })}
 
       <p
         role="status"
         aria-live="polite"
-        className="text-ink/55 px-5 font-sans text-[12.5px]"
+        className="text-ink/55 px-5 pt-5 font-sans text-[12.5px]"
       >
         {hint}
       </p>

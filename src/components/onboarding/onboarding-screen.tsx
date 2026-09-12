@@ -8,7 +8,11 @@ import { Chip } from "~/components/ui/chip";
 import { Column } from "~/components/ui/column";
 import { Rise } from "~/components/ui/rise";
 import { cn } from "~/lib/utils";
-import { FACETS, FACET_LABELS } from "~/server/config/topic-facets";
+import {
+  FACETS,
+  FACET_LABELS,
+  FACET_PROMPTS,
+} from "~/server/config/topic-facets";
 import type { TopicFacet } from "~/server/db/schema";
 import { api } from "~/trpc/react";
 
@@ -19,15 +23,6 @@ export interface OnboardingScreenProps {
    *  (SPEC §3.2: 3). */
   minPicks: number;
 }
-
-/** Stage copy (09-11-26, docs/DESIGN_chrome-redesign.md §6). The facet order is `FACETS` and is
- *  not a copy decision. */
-const STAGE_HEADINGS: Record<TopicFacet, string> = {
-  subject: "What are you drawn to?",
-  medium: "In what form?",
-  look: "What should it feel like?",
-  place: "Anywhere in particular?",
-};
 
 // Onboarding's topic-chip picker (Ambit - Onboarding.dc.html, PHASE5_PLAN_5.3.md) — the screen a
 // freshly invited sign-up lands on before ever seeing a feed. A near-straight port of the
@@ -112,7 +107,7 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
               Ambit · Setup · {stage + 1} of {FACETS.length}
             </p>
             <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] font-semibold tracking-[-0.4px]">
-              {STAGE_HEADINGS[facet]}
+              {FACET_PROMPTS[facet]}
             </h1>
             <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
               {stage === 0

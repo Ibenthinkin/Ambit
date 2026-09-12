@@ -142,11 +142,17 @@ rows per group.
 
 `/profile/topics` keeps every behaviour — optimistic toggles, the serialised `setMine`, the
 floor of one, the dev-only weights and Reset — and loses its chrome: no "← Profile" link, no
-"Topics" h1. "**N on. Changes save as you go.**" stays as the first line. The four facets become a
-row of small chips (`Chip size="sm"`, `aria-pressed`, the Saved filter row's idiom) in a
-`role="group" aria-label="Facets"`, and the topic chips sit in a `role="group"` named
-"{Facet} topics". Two tablists stacked read as one broken tablist; a chip row under a nav row
-reads as a filter under a screen, which is what it is.
+"Topics" h1. "**N on. Changes save as you go.**" stays as the first line. The four facets are
+**four stacked sections on one page**, in `FACETS` order: an uppercase accent eyebrow with the
+facet's name, an `h2` carrying the question onboarding asks for that facet (`FACET_PROMPTS`, the
+one copy both pickers share), and the topic chips in a `role="group"` named "{Facet} topics".
+Nothing here is a tablist — the hub's nav is the screen's one row of sections.
+
+_Amended 09-12-26 after Ben's review._ The first build put the facets in a row of small chips
+(the Saved filter row's idiom) showing one facet at a time. Ben asked for the onboarding
+screen's grouping instead: the filter made a reader flick between facets to see what they had
+already picked, and the whole vocabulary is only a few screens of chips. So the tab is now the
+four setup stages laid end to end, which is what it is.
 
 ## 4. Edit profile tab
 

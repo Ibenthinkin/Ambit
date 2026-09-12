@@ -193,7 +193,8 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   nothing copied into the container. `listTopics()` changed from `WHERE tier = 'core'` to
   `WHERE facet IS NOT NULL`, and that one line is what lets both pickers — and `setMine` — see the
   whole vocabulary: **onboarding is four stages, one facet each** (floor of three picks in total),
-  and **`/profile/topics`** is the same list in four tabs, saved on every toggle (floor of one),
+  and **`/profile/topics`** is the same list as four stacked facet sections on one page, each
+  under its onboarding question (`FACET_PROMPTS`; a chip-row filter until Ben's 09-12-26 review), saved on every toggle (floor of one),
   replacing Settings' deleted "What you see" sheet. `facet IS NULL` means _not pickable_: an
   unclassified fresh promotion, or an era topic (`19th-century`), tag-only by decision;
   `promote:topics` now refuses a ticked proposal without a facet, and `mine:topics` writes
