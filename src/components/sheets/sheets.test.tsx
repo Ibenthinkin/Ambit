@@ -40,8 +40,20 @@ const {
   invalidateMock: vi.fn().mockResolvedValue(undefined),
   collectionsData: {
     current: [
-      { id: "c1", name: "Articles", createdAt: new Date(), itemCount: 2 },
-      { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0 },
+      {
+        id: "c1",
+        name: "Articles",
+        createdAt: new Date(),
+        itemCount: 2,
+        covers: ["https://example.test/c1.jpg"],
+      },
+      {
+        id: "c2",
+        name: "Art",
+        createdAt: new Date(),
+        itemCount: 0,
+        covers: [],
+      },
     ],
   },
   countData: { current: 7 },
@@ -108,8 +120,14 @@ vi.mock("~/trpc/react", () => ({
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
 
 const DEFAULT_COLLECTIONS = [
-  { id: "c1", name: "Articles", createdAt: new Date(), itemCount: 2 },
-  { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0 },
+  {
+    id: "c1",
+    name: "Articles",
+    createdAt: new Date(),
+    itemCount: 2,
+    covers: ["https://example.test/c1.jpg"],
+  },
+  { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0, covers: [] },
 ];
 
 beforeEach(() => {
@@ -175,9 +193,33 @@ describe("SaveToCollectionSheet", () => {
     expect(screen.getByText("2 items")).toBeInTheDocument();
   });
 
+  it("leads every row with the collection's face, the current one ringed", () => {
+    render(
+      <SaveToCollectionSheet
+        open
+        onClose={vi.fn()}
+        itemId="item-1"
+        currentCollectionId="c2"
+        onSaved={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+    const faces = screen.getAllByTestId("cover-mosaic");
+    // Articles has one picture, Art none, and the New-collection row is a glyph, not a face.
+    expect(faces.map((f) => f.getAttribute("data-count"))).toEqual(["1", "0"]);
+    expect(faces[1]!.parentElement).toHaveClass("ring-accent");
+    expect(faces[0]!.parentElement).not.toHaveClass("ring-accent");
+  });
+
   it("uses the singular for a collection holding one item", () => {
     collectionsData.current = [
-      { id: "c1", name: "Articles", createdAt: new Date(), itemCount: 1 },
+      {
+        id: "c1",
+        name: "Articles",
+        createdAt: new Date(),
+        itemCount: 1,
+        covers: [],
+      },
     ];
     render(
       <SaveToCollectionSheet
@@ -300,6 +342,11 @@ describe("ItemSheet", () => {
         {...props}
       />,
     );
+
+  it("shows each collection's face on its compact row", () => {
+    renderSheet();
+    expect(screen.getAllByTestId("cover-mosaic")).toHaveLength(2);
+  });
 
   it("offers a Share row that opens the share sheet for the item's own page", () => {
     const onClose = vi.fn();
@@ -441,6 +488,16 @@ describe("CollectionsSheet", () => {
     expect(labels[0]).toContain("Everything kept");
     expect(labels[labels.length - 1]).toContain("New collection");
     expect(labels[labels.length - 1]).toContain("Name it and it's made");
+  });
+
+  it("leads Everything kept with the bookmark square and each collection with its face", () => {
+    render(<CollectionsSheet open onClose={vi.fn()} />);
+    expect(
+      screen
+        .getAllByTestId("row-glyph")
+        .map((g) => g.getAttribute("data-glyph")),
+    ).toEqual(["bookmark", "plus"]);
+    expect(screen.getAllByTestId("cover-mosaic")).toHaveLength(2);
   });
 
   it("counts everything kept from saves.count, not the collection rows", () => {

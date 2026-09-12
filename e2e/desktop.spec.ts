@@ -213,6 +213,57 @@ test.describe.serial("desktop", () => {
     ).toBeGreaterThanOrEqual(2);
   });
 
+  // docs/DESIGN_list-screens.md §6: the hub is the feed's wide column, left-aligned, and packs
+  // four collection tiles across; Saved packs four stacks.
+  test("the Profile hub is wide and left-aligned, and its collections pack four across", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    await page.getByRole("button", { name: "Profile" }).click();
+    await page.waitForURL("/profile", { timeout: 15_000 });
+
+    const nav = page.getByRole("navigation", { name: "Profile" });
+    await expect(nav.getByRole("link")).toHaveText([
+      "Collections",
+      "Topics",
+      "Edit profile",
+      "Settings",
+    ]);
+
+    // The dashed tile, the three seeded defaults, and the one the hover test above made: five
+    // tiles, so a row of four and one below it.
+    const grid = page.getByTestId("collections-grid");
+    const tiles = grid.locator(":scope > *");
+    await expect(tiles).toHaveCount(5, { timeout: 15_000 });
+    const tops = await tiles.evaluateAll((els) =>
+      els.map((el) => Math.round(el.getBoundingClientRect().top)),
+    );
+    expect(new Set(tops.slice(0, 4)).size).toBe(1);
+    expect(tops[4]!).toBeGreaterThan(tops[0]!);
+
+    // The 1120 column is centred in the viewport and the nav hangs off its left edge, inset 20 —
+    // measured against the grid (same column, same inset) rather than a hard-coded 160, so a
+    // scrollbar's width can't move the goalposts.
+    const gridBox = (await grid.boundingBox())!;
+    expect(gridBox.width).toBeLessThanOrEqual(1120);
+    const navBox = (await nav.boundingBox())!;
+    expect(Math.abs(navBox.x - gridBox.x)).toBeLessThan(2);
+    expect(Math.abs(navBox.x - (160 + 20))).toBeLessThan(10);
+
+    await nav.getByRole("link", { name: "Settings" }).click();
+    await page.waitForURL("/profile/settings");
+    await expect(nav.getByRole("link", { name: "Settings" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    await page.goto("/saved");
+    await expect(
+      page.getByTestId("saved-columns").locator(":scope > div"),
+    ).toHaveCount(4);
+  });
+
   test("right-click opens the item sheet as a centered dialog; Escape closes it", async ({
     page,
   }) => {

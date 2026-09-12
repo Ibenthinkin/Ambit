@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { cn } from "~/lib/utils";
-import { Column } from "./column";
+import { Column, type ColumnProps } from "./column";
 
 // Feed's sticky glass header (Ambit - Feed.dc.html ~32): frosted, translucent, sits above the
 // scroll content on every screen that has one. Callers supply their own children (wordmark, icon
@@ -13,11 +13,15 @@ import { Column } from "./column";
 // `narrow` column the screen's body uses, so a back button lines up with the body's left edge.
 // `className` therefore lands on the inner column, where the flex layout lives, which is what
 // every existing caller (`flex-col items-stretch` on Saved) was targeting anyway.
+//
+// `width` picks that column. `narrow` by default (`/dev/tokens` keeps it); Saved passes
+// `wide` since 09-12-26 (docs/DESIGN_list-screens.md §6), because its body is the feed's column now.
 export function GlassHeader({
   className,
   children,
+  width = "narrow",
   ...rest
-}: React.ComponentProps<"header">) {
+}: React.ComponentProps<"header"> & { width?: ColumnProps["width"] }) {
   return (
     <header
       // z-[8] mirrors the prototype's own stacking value — there's no `--z-*` theme namespace to
@@ -26,7 +30,7 @@ export function GlassHeader({
       {...rest}
     >
       <Column
-        width="narrow"
+        width={width}
         className={cn("flex items-end justify-between px-5", className)}
       >
         {children}
