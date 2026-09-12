@@ -236,20 +236,26 @@ test.describe.serial("desktop", () => {
     const grid = page.getByTestId("collections-grid");
     const tiles = grid.locator(":scope > *");
     await expect(tiles).toHaveCount(5, { timeout: 15_000 });
-    const tops = await tiles.evaluateAll((els) =>
-      els.map((el) => Math.round(el.getBoundingClientRect().top)),
-    );
-    expect(new Set(tops.slice(0, 4)).size).toBe(1);
-    expect(tops[4]!).toBeGreaterThan(tops[0]!);
+    // Polled, and by `offsetTop`: the server renders the phone's two columns and the client
+    // switches to four on hydration (`useColumnCount`), and each tile rises in on a transform —
+    // a one-shot `getBoundingClientRect` can catch either mid-flight.
+    await expect
+      .poll(async () => {
+        const tops = await tiles.evaluateAll((els) =>
+          els.map((el) => (el as HTMLElement).offsetTop),
+        );
+        return new Set(tops.slice(0, 4)).size === 1 && tops[4]! > tops[0]!;
+      })
+      .toBe(true);
 
-    // The 1120 column is centred in the viewport and the nav hangs off its left edge, inset 20 —
-    // measured against the grid (same column, same inset) rather than a hard-coded 160, so a
-    // scrollbar's width can't move the goalposts.
+    // The 1120 column is centred in the viewport — its left edge at (1440 − 1120) / 2 = 160 — and
+    // the nav hangs off that edge inset 20. The grid spans the whole column (its 20 px inset is
+    // padding, the nav's is margin), so the grid's box is the column's.
     const gridBox = (await grid.boundingBox())!;
     expect(gridBox.width).toBeLessThanOrEqual(1120);
+    expect(Math.abs(gridBox.x + gridBox.width / 2 - CENTRE_X)).toBeLessThan(2);
     const navBox = (await nav.boundingBox())!;
-    expect(Math.abs(navBox.x - gridBox.x)).toBeLessThan(2);
-    expect(Math.abs(navBox.x - (160 + 20))).toBeLessThan(10);
+    expect(Math.abs(navBox.x - (gridBox.x + 20))).toBeLessThan(2);
 
     await nav.getByRole("link", { name: "Settings" }).click();
     await page.waitForURL("/profile/settings");

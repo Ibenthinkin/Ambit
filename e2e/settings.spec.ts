@@ -201,7 +201,10 @@ test.describe.serial("settings", () => {
     await expect(page).toHaveURL(/\/profile\/edit$/);
     await expect(page.getByRole("heading", { name: "Ben R" })).toBeVisible();
     await expect(page.getByText(`@${HANDLE}`)).toBeVisible();
-    await expect(page.getByText("Maps, mostly.")).toBeVisible();
+    // The paragraph, not any text: on this tab the About field's textarea holds the same words.
+    await expect(
+      page.getByRole("paragraph").filter({ hasText: "Maps, mostly." }),
+    ).toBeVisible();
 
     // And Settings — a tab now — reads the same row.
     await page.getByRole("link", { name: "Settings" }).click();
