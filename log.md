@@ -5,6 +5,44 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-12-26 Sat]] — Redeployed; round 2 of the vocabulary ticked and promoted locally
+
+Ben redeployed production to `5bb2f56` (`/api/health` confirms the commit; sub-projects 1–3 and
+the feed-on-membership move are live) and seeded the twenty personas. Then round 2.
+
+**Shipped:**
+
+- **Round 2 verdict** — 59 of 346 candidates in `docs/topic-proposals-round2.md` ticked with
+  facets (32 subject / 14 medium / 11 look / 2 place), drafted here and confirmed by Ben. Kept
+  on his say-so: `star-wars` and `star-trek`. Rejected by rule: every synonym of an existing topic
+  (the dozen sci-fi spellings — `retro sci-fi` alone is 12,807 items — plus `vintage-advertising`,
+  `oil-painting`, `children`, …), one canonical per cluster (`soviet` over four variants,
+  `comics` over three, `street-art` over `graffiti`/`public-art`), every period tag (Ben's
+  standing rule), the curator's look-boilerplate (`dramatic-lighting`, `dynamic-composition`,
+  single colours), process noise (`photo-set`, `ffffollow`, `sp-available`, museum
+  classifications like `prints`), and every named artist in the single-source list (an artist
+  topic is a different design, not a tag promotion).
+- **Promoted locally:** 72,846 memberships, 269 items gained a display topic (the dry run said
+  335 — the documented over-count). Facet map at 159 pickable (`topic-facets.ts`, dated
+  block per facet; the test pin and the design doc moved with it). `graph:rebuild` → 160 topics,
+  the sixteen tuned rows byte-identical, 15,340 new cells.
+
+**Findings:**
+
+- **The feed's cost did not move with the vocabulary**, as the membership move promised: the
+  cold-start reader (`bench:feed`, `ben-e2e`) measured p50 182 ms / p95 313 / 0 fallbacks in 12
+  pages at 160 topics, against 250 ms p50 measured at 104 on 09-11.
+- The mood words in Look (`whimsical`, `eerie`, `melancholy`, `cinematic`, `painterly`) are the
+  most "tone as a topic" the vocabulary has taken; read `/feed` for them first.
+
+**Open / next:** production — Redeploy (the facet map ships in the image, `db:seed` applies it),
+then `sh .cache/promote-prod.sh docs/topic-proposals-round2.md` **before tonight's nightly**
+walk. Follow-up worth a small design: a **tag-alias table** so a rejected synonym feeds an
+existing topic's membership — today `retro sci-fi` reaches `science-fiction` only where the
+rehome rule caught it. Then SP4 (list screens), 8.1 T8/T9, spoon-tamago.
+
+_Session spend: 6.08M tok (in 1.1k · out 44.6k · cache r 5.41M / w 621.9k) · fable-5-1 · 08:18→11:50_
+
 ### [[09-11-26 Fri]] — Round 2 mining hit the display-topic wall; the feed moves onto membership
 
 Ben set `PERSONA_PASSWORD` in Coolify and asked what next. Production catch-up first (redeploy

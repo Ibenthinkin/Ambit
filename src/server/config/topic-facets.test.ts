@@ -44,7 +44,7 @@ describe("TOPIC_FACETS", () => {
     ]);
   });
 
-  it("has exactly 100 entries — the design doc's count; update both if the vocabulary grows", () => {
-    expect(Object.keys(TOPIC_FACETS)).toHaveLength(100);
+  it("has exactly 159 entries — 100 from the design doc plus round 2 (09-12-26); update both if the vocabulary grows", () => {
+    expect(Object.keys(TOPIC_FACETS)).toHaveLength(159);
   });
 });

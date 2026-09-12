@@ -102,6 +102,39 @@ const subject = [
   "trees",
   "water",
   "weather",
+  // Round 2 (09-12-26), docs/topic-proposals-round2.md:
+  "soviet",
+  "soviet-propaganda",
+  "natural-history",
+  "spaceship",
+  "space-exploration",
+  "space-art",
+  "astronaut",
+  "moon",
+  "alien",
+  "robot",
+  "ufo",
+  "monster",
+  "dragon",
+  "star-wars",
+  "star-trek",
+  "children-s-illustration",
+  "retro-computing",
+  "retro-gaming",
+  "industrial",
+  "industrial-design",
+  "urban-decay",
+  "urban-landscape",
+  "street-art",
+  "desert",
+  "halloween",
+  "animation",
+  "humor",
+  "horror",
+  "fantasy",
+  "mushrooms",
+  "roadside-americana",
+  "night",
 ];
 
 const medium = [
@@ -134,6 +167,21 @@ const medium = [
   "sculpture",
   "watercolor",
   "wood",
+  // Round 2 (09-12-26), docs/topic-proposals-round2.md:
+  "comics",
+  "cover-art",
+  "album-art",
+  "folk-art",
+  "street-photography",
+  "graphic-design",
+  "poster-art",
+  "engraving",
+  "diagram",
+  "scientific-illustration",
+  "technical-drawing",
+  "botanical-illustration",
+  "postcard",
+  "concept-art",
 ];
 
 const look = [
@@ -146,9 +194,29 @@ const look = [
   "psychedelic",
   "retrofuturism",
   "surreal",
+  // Round 2 (09-12-26), docs/topic-proposals-round2.md:
+  "mid-century-modern",
+  "art-deco",
+  "brutalist",
+  "aerial-view",
+  "whimsical",
+  "eerie",
+  "painterly",
+  "neon",
+  "pastel-palette",
+  "cinematic",
+  "melancholy",
 ];
 
-const place = ["chicago", "japan", "london", "new-york"];
+const place = [
+  "chicago",
+  "japan",
+  "london",
+  "new-york",
+  // Round 2 (09-12-26), docs/topic-proposals-round2.md:
+  "russia",
+  "ukraine",
+];
 
 function assign(ids: readonly string[], facet: TopicFacet) {
   return Object.fromEntries(ids.map((id) => [id, facet] as const));

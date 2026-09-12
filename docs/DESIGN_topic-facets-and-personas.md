@@ -86,7 +86,7 @@ grown side, which is unchanged.
 mining, audits). `topics.setMine` validates against `listTopics()` as before — which now means
 "any pickable topic", so a grown pick is accepted and an era pick is still a `BAD_REQUEST`.
 
-### The facet map (100 pickable + 1 era)
+### The facet map (100 pickable + 1 era; 159 pickable since round 2, 09-12-26)
 
 | facet | n | topics |
 |---|---|---|

@@ -175,7 +175,9 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   tuned rows byte-for-byte, every edge touching a promoted topic from IDF-weighted tag
   co-occurrence **rescaled to the embedding graph's spread** (raw co-occurrence is ~4× flatter and
   would soften DRIFT to a near-uniform draw — the subtlest thing in the cut). `topic.tier` keeps
-  onboarding at 16 chips: `listTopics()` was core only, `listAllTopics()` everything. **Two
+  onboarding at 16 chips: `listTopics()` was core only, `listAllTopics()` everything. **Round 2 shipped 09-12-26** — 59 more topics from
+  `docs/topic-proposals-round2.md` (ranked by total, not un-homed): **160 topics, 159 pickable**;
+  the feed's cost did not move with it (p50 182 ms, cold start). **Two
   things to know before building on it.** The feed now spends most of a page outside the reader's
   own picks (a sampled 96 cards: 59 grown / 37 original) — intended in direction, untuned in degree,
   and the open feel question for **Cut 2b** (the `topic_edge` table; the join move shipped
