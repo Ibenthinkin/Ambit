@@ -53,6 +53,45 @@ Ben's 18-hour `next dev` on :3000 was stopped for the run. **Next: SP4, the list
 
 _Session spend: 6.97M tok (in 987 · out 37.7k · cache r 6.65M / w 283.0k) · ~≥$1.80 · fable-5-1 + opus-4-7 · 11:50→12:21_
 
+**Afternoon — sub-project 4, the list screens, designed and planned (Fable 5.1, a third
+session, after a `/clear`).** Brainstormed with Ben while the rail-fix redeploy ran. The review
+note was one line ("they adhere to the spec but I don't like the way they look at all"); asked
+what, he narrowed it: *"I may have been a little too broad with my condemnation. For the most
+part, everything looks ok, layout wise."* Two diagnoses ticked — **desktop is a stretched
+phone**, **collections have no face** — and the actual brief: the gear "doesn't need to be a
+little floatey thing off in the corner"; the account page should have "edit profile,
+collections, topics, and settings … listed across the top kinda like tabs, right under the
+profile avatar, where the 'edit profile' button currently is … definitely how it should look on
+the phone. Adapt that to a bigger screen size however you see fit."
+
+**Decisions (Ben, three questions):** the Profile screen is a **hub with four routed tabs**
+under one `app/profile/layout.tsx` — Collections · Topics · Edit profile · Settings, landing on
+Collections (he approved the reorder over his listing order); tabs **`replace`** history so the
+hub is one entry and Feed pops from any tab; **`/settings` is a 308** to `/profile/settings`;
+a collection's face is a **square-cornered 2×2 mosaic** of its four newest pictures, on the
+Collections tab and small in every picker row (over a single cover, and over a Cosmos-style
+cluster); desktop is "however you see fit" — the hub and Saved take the feed's 1120 px column
+and pack its column count, the form-and-row tabs sit left-aligned at 600 px.
+
+**Shipped:** `docs/DESIGN_list-screens.md` (six decisions, seven sections) and a
+cold-executable `docs/PLAN_list-screens.md` — eight TDD tasks: `covers: string[]` via one
+`row_number()` window (replacing the `DISTINCT ON` single cover), `CoverMosaic`, the hub
+(`ProfileHub` + `ProfileHubContext` for one raised toast, `useSelectedLayoutSegment` for the
+current link, `GRID_COLS` moved to `masonry.ts`), the three tabs stripped of their own chrome
+(`edit-origin.ts` and `settings-origin.ts` deleted with the back chevrons), the redirect, Saved
+wide, `CollectionRow`'s `leading` slot, the desktop e2e, the words. Execute in a cheaper session
+on `feat/list-screens`.
+
+**Findings:** the one non-obvious mechanism is that **a layout's server guard runs on the
+document load only** — a client tab switch re-renders the page segment — so the four pages keep
+their own `getSession` guards. And the facets inside the Topics tab become chips, not a second
+tablist: two underlined rows stacked read as one broken one.
+
+**Open / next:** execute the plan; Ben reviews at phone width and 1440, merges, redeploys (no
+migration — `covers` is a query). Then 8.1 T8/T9, spoon-tamago.
+
+_Session spend: 20.00M tok (in 3.3k · out 301.7k · cache r 18.69M / w 1.01M) · fable-5-1 · 12:28→13:44_
+
 ### [[09-11-26 Fri]] — Round 2 mining hit the display-topic wall; the feed moves onto membership
 
 Ben set `PERSONA_PASSWORD` in Coolify and asked what next. Production catch-up first (redeploy
