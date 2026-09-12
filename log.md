@@ -43,6 +43,16 @@ rehome rule caught it. Then SP4 (list screens), 8.1 T8/T9, spoon-tamago.
 
 _Session spend: 6.08M tok (in 1.1k · out 44.6k · cache r 5.41M / w 621.9k) · fable-5-1 · 08:18→11:50_
 
+**Later the same day** — Ben redeployed and ran `promote-prod.sh` (round 2 is on production),
+then read the desktop rail and reversed half of 09-11's amendment: **Save goes back into the
+bar** with Profile and Feed — the phone pill's three — and **Share is the only detached disc**,
+present only on the item screen. The rule that fell out: the bar holds what is on every screen,
+the disc what varies. No behaviour changed — the feed's bookmark already opened the collections
+list with nothing to save, and Share was already omitted there. `3aaeeda`, e2e:prod 54 passed.
+Ben's 18-hour `next dev` on :3000 was stopped for the run. **Next: SP4, the list screens.**
+
+_Session spend: 6.97M tok (in 987 · out 37.7k · cache r 6.65M / w 283.0k) · ~≥$1.80 · fable-5-1 + opus-4-7 · 11:50→12:21_
+
 ### [[09-11-26 Fri]] — Round 2 mining hit the display-topic wall; the feed moves onto membership
 
 Ben set `PERSONA_PASSWORD` in Coolify and asked what next. Production catch-up first (redeploy
@@ -674,19 +684,10 @@ against the 164k corpus. Production gets facets and the tier rename from the dep
 _Session spend: 10.02M tok (in 203 · out 71.5k · cache r 9.60M / w 350.9k) · ~≥$0.83 · fable-5-1 + opus-4-7 · 13:16→13:29*
 _Session spend: 14.34M tok (in 154 · out 172.4k · cache r 13.97M / w 206.1k) · fable-5-1 · 13:29→14:17_
 
-**Later the same day** — Ben redeployed and ran `promote-prod.sh` (round 2 is on production),
-then read the desktop rail and reversed half of 09-11's amendment: **Save goes back into the
-bar** with Profile and Feed — the phone pill's three — and **Share is the only detached disc**,
-present only on the item screen. The rule that fell out: the bar holds what is on every screen,
-the disc what varies. No behaviour changed — the feed's bookmark already opened the collections
-list with nothing to save, and Share was already omitted there. `3aaeeda`, e2e:prod 54 passed.
-Ben's 18-hour `next dev` on :3000 was stopped for the run. **Next: SP4, the list screens.**
-
-*Session spend: 6.97M tok (in 987 · out 37.7k · cache r 6.65M / w 283.0k) · ~≥$1.80 · fable-5-1 + opus-4-7 · 11:50→12:21*
-*Session spend: 83.99M tok (in 1.0k · out 299.5k · cache r 82.11M / w 1.58M) · ~$60.36 · opus-5 + opus-4-7 · 14:27→15:04_
-_Session spend: 53.83M tok (in 256 · out 257.5k · cache r 52.50M / w 1.07M) · ~≥$2.76 · fable-5-1 + opus-5 · 15:04→16:53*
-*Session spend: 99.68M tok (in 9.0k · out 1.00M · cache r 95.43M / w 3.24M) · ~$101.27 · opus-5 + opus-4-7 · 19:19→19:57_
-_Session spend: 9.87M tok (in 518 · out 47.5k · cache r 7.32M / w 2.50M) · ~$29.85 · opus-5 · 19:57→22:18*
+_Session spend: 83.99M tok (in 1.0k · out 299.5k · cache r 82.11M / w 1.58M) · ~$60.36 · opus-5 + opus-4-7 · 14:27→15:04_
+_Session spend: 53.83M tok (in 256 · out 257.5k · cache r 52.50M / w 1.07M) · ~≥$2.76 · fable-5-1 + opus-5 · 15:04→16:53_
+_Session spend: 99.68M tok (in 9.0k · out 1.00M · cache r 95.43M / w 3.24M) · ~$101.27 · opus-5 + opus-4-7 · 19:19→19:57_
+_Session spend: 9.87M tok (in 518 · out 47.5k · cache r 7.32M / w 2.50M) · ~$29.85 · opus-5 · 19:57→22:18_
 *Session spend: 44.09M tok (in 2.1k · out 197.8k · cache r 43.56M / w 336.8k) · ~$29.82 · opus-5 + opus-4-7 · 22:18→22:33_
 _Session spend: 68.75M tok (in 2.9k · out 258.7k · cache r 68.08M / w 409.3k) · ~$44.36 · opus-5 + opus-4-7 · 22:33→23:34_
 
