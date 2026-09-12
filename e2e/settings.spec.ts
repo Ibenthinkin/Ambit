@@ -178,7 +178,7 @@ test.describe.serial("settings", () => {
   test("the edit form round-trips name, handle and bio", async ({ page }) => {
     await goTo(page, "/profile");
 
-    await page.getByRole("button", { name: "Edit profile" }).click();
+    await page.getByRole("link", { name: "Edit profile" }).click();
     await page.waitForURL("/profile/edit", { timeout: 15_000 });
 
     await page.getByLabel("Name").fill("Ben R");
@@ -191,16 +191,17 @@ test.describe.serial("settings", () => {
     await expect(page.getByText("Profile saved")).toBeVisible({
       timeout: 15_000,
     });
-    // The save leaves after its confirmation beat, back to Profile.
-    await page.waitForURL("/profile", { timeout: 15_000 });
-    await expect(page.getByText("Ben R")).toBeVisible();
+    // The save stays on the tab (09-12-26): the hub's header above the form is the same row,
+    // and it reads back the new name without a navigation.
+    await expect(page).toHaveURL(/\/profile\/edit$/);
+    await expect(page.getByRole("heading", { name: "Ben R" })).toBeVisible();
     await expect(page.getByText(`@${HANDLE}`)).toBeVisible();
     await expect(page.getByText("Maps, mostly.")).toBeVisible();
 
-    // And Settings reads the same row.
-    await page.getByRole("button", { name: "Settings" }).click();
-    await page.waitForURL("/settings", { timeout: 15_000 });
-    await expect(page.getByText("Ben R")).toBeVisible();
+    // And Settings — a tab now — reads the same row.
+    await page.getByRole("link", { name: "Settings" }).click();
+    await page.waitForURL("/profile/settings", { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Ben R" })).toBeVisible();
   });
 
   test("the real settings rows are real, and the stubs are honest", async ({
