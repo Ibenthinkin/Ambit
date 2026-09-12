@@ -103,9 +103,9 @@ const COLLECTIONS = [
     name: "Articles",
     createdAt: new Date(),
     itemCount: 3,
-    cover: "https://example.test/cover.jpg",
+    covers: ["https://example.test/cover.jpg"],
   },
-  { id: "c2", name: "Art", createdAt: new Date(), itemCount: 1, cover: null },
+  { id: "c2", name: "Art", createdAt: new Date(), itemCount: 1, covers: [] },
 ];
 
 beforeEach(() => {

@@ -191,7 +191,7 @@ export function ProfileScreen() {
                     id={c.id}
                     name={c.name}
                     itemCount={c.itemCount}
-                    cover={c.cover}
+                    covers={c.covers}
                   />
                 </Rise>
               ))}

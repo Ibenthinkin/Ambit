@@ -3,29 +3,31 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import { Bookmark, Plus } from "~/components/icons";
+import { Plus } from "~/components/icons";
 import { markSavedOrigin } from "~/components/saved/saved-origin";
 import { itemCountLabel } from "~/components/sheets/collection-rows";
+import { CoverMosaic } from "./cover-mosaic";
 
-// One tile in Profile's collections grid (`Ambit - Profile.dc.html`). A square cover, a name and a
-// count — the same three facts the collections *sheet* shows as a row, given a picture.
+// One tile in Profile's Collections tab (`Ambit - Profile.dc.html`, amended 09-12-26). A square
+// face, a name and a count — the same three facts the collections *sheet* shows as a row, given
+// pictures.
 //
-// The cover is the most recent image saved into the collection (`db/collections.ts`'s `withCovers`).
-// A collection with no pictures in it — empty, or articles only — falls back to an outline bookmark
-// on a bordered square, which is the same glyph-shows-the-affordance treatment Saved's empty state
-// uses rather than an image placeholder that promises a picture there isn't.
+// The face is the four most recent images saved into the collection (`covers`, from
+// `db/collections.ts`'s `withCovers`), painted by `CoverMosaic` as a square-cornered 2×2
+// (docs/DESIGN_list-screens.md §2). A collection with no pictures in it — empty, or articles only —
+// shows the mosaic's outline-bookmark placeholder instead.
 export interface CollectionTileProps {
   id: string;
   name: string;
   itemCount: number;
-  cover: string | null;
+  covers: string[];
 }
 
 export function CollectionTile({
   id,
   name,
   itemCount,
-  cover,
+  covers,
 }: CollectionTileProps) {
   const router = useRouter();
 
@@ -44,20 +46,7 @@ export function CollectionTile({
       onPointerDown={(e) => e.stopPropagation()}
       className="w-full text-left transition-transform duration-150 active:scale-[0.98]"
     >
-      {cover ? (
-        // Not `next/image`: these are arbitrary remote museum URLs, the same reason every other
-        // image surface in the app uses a plain `<img>`.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={cover}
-          alt=""
-          className="aspect-square w-full rounded-[20px] object-cover"
-        />
-      ) : (
-        <div className="border-hairline border-ink/10 bg-ink/3 flex aspect-square w-full items-center justify-center rounded-[20px]">
-          <Bookmark size={26} className="text-ink/30" />
-        </div>
-      )}
+      <CoverMosaic covers={covers} className="aspect-square w-full" />
       <span className="text-ink mt-[10px] block truncate text-[15px] font-medium">
         {name}
       </span>
@@ -81,7 +70,7 @@ export function NewCollectionTile({ onClick }: { onClick: () => void }) {
       onPointerDown={(e) => e.stopPropagation()}
       className="w-full text-left transition-transform duration-150 active:scale-[0.98]"
     >
-      <div className="bg-ink/[4.5%] border-ink/16 flex aspect-square w-full items-center justify-center rounded-[20px] border-[0.5px] border-dashed">
+      <div className="bg-ink/[4.5%] border-ink/16 flex aspect-square w-full items-center justify-center border-[0.5px] border-dashed">
         <Plus size={26} className="text-ink/55" />
       </div>
       <span className="text-ink mt-[10px] block text-[15px] font-medium">
