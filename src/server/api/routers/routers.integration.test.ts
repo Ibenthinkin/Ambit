@@ -583,7 +583,10 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       // the newest save and must not appear (image-only), and item five is the oldest picture
       // and must fall off the end (four, not five).
       for (const id of [itemFiveId, ...extras.map((e) => e.id)]) {
-        await caller.saves.saveToCollection({ itemId: id, collectionId: maps.id });
+        await caller.saves.saveToCollection({
+          itemId: id,
+          collectionId: maps.id,
+        });
         await new Promise((resolve) => setTimeout(resolve, 5));
       }
       await caller.saves.saveToCollection({

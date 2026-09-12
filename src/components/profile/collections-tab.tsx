@@ -32,7 +32,10 @@ export function CollectionsTab() {
           rises on its own, with no stagger — the prototype animates them individually. */}
       <div
         data-testid="collections-grid"
-        className={cn("grid gap-4 px-5 pt-[18px] pb-[120px]", GRID_COLS[columnCount])}
+        className={cn(
+          "grid gap-4 px-5 pt-[18px] pb-[120px]",
+          GRID_COLS[columnCount],
+        )}
       >
         <Rise>
           <NewCollectionTile onClick={() => setNewCollectionOpen(true)} />

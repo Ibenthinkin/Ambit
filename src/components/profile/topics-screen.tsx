@@ -151,8 +151,8 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
             Reset weights
           </button>
           <p className="text-ink/45 mt-2 font-sans text-[12px]">
-            Dev only (FEED_DEBUG). Saves nudge a topic&apos;s weight up by
-            0.5, capped at 3.0.
+            Dev only (FEED_DEBUG). Saves nudge a topic&apos;s weight up by 0.5,
+            capped at 3.0.
           </p>
         </div>
       )}

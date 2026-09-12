@@ -168,7 +168,9 @@ describe("ProfileHub", () => {
     render(<ProfileHub>x</ProfileHub>);
     expect(screen.getByText("Couldn't load your profile.")).toBeInTheDocument();
     expect(screen.queryByText("Ben Traverse")).not.toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Profile" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Profile" }),
+    ).toBeInTheDocument();
   });
 
   // The desktop pass, revised (docs/DESIGN_list-screens.md §6): the hub is the feed's wide
