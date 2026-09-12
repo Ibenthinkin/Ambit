@@ -336,6 +336,57 @@ geometry is measured within the pill's own wrapper, and the strip is still 900 �
 
 _Session spend: 35.49M tok (in 3.1k · out 166.5k · cache r 34.91M / w 418.8k) · ~≥$0.69 · fable-5-1 + opus-4-7 · 15:34→16:45_
 
+**The post-walks production sequence, the same night (Fable 5.1, a sixth session, after a
+`/clear`) — three repairs in minutes, then the image warm: twenty-two hours on one Tumblr host.**
+Ben ran `sh .cache/post-walks-prod.sh` at 22:16 and asked this session to keep an eye on the warm
+("it's supposed to go for a few hours, right?"). It was a day. Watched with a Monitor on the
+container log (new 429/abandon lines, the totals table, the host's exit line) and a half-hour
+readout; the run itself was never touched.
+
+**Shipped (in production, no code):**
+
+- `trim:memberships` — 13 items, 169 rows, all `pdr`.
+- `repair:periods` — 11,022 memberships removed, the display topic moved for 1,882 items
+  (10,972 of the rows `sovietpostcards`; 23 items to null).
+- `repair:rehome` — 24,700 memberships added, 18,519 curator rows removed, 1,121 display topics
+  moved.
+- `img:warm --rate 2`, detached — **exit 0 at 20:25**, elapsed 79,617 s. **154,554 filled**,
+  18 failures (16 upstream, 1 decode, 1 timeout). The cache is 165,785 files; ~22 GB written,
+  48 GB free on the volume.
+
+**Findings:**
+
+- **"A few hours" is a day when the images share a host.** The dry run counted 154,520 uncached,
+  and 144,467 of them live on `64.media.tumblr.com`. The warm's limiter is _per host_, so a
+  Tumblr-heavy warm is one serial 2/s queue: ~20 h by arithmetic, 22 h measured (1.92–1.97/s all
+  day; the Colossal and PDR hosts interleaved for free). The script's own header said "runs for
+  hours" and "~14.5 GB" — ~150 KB an image makes it ~22 GB. Estimate the next one as
+  _uncached rows on the largest host ÷ rate_, and size the volume from the file count, not the
+  header.
+- **Wikimedia was abandoned at request 2,145** — three consecutive 429s, the 7.4c thumbnail
+  throttle, expected. 87 wikipedia images filled, ~213 were skipped behind the abandon; they want
+  the 20-image / 75 s chunk loop from the 8.1 walkthrough. The 18 scattered failures fill on
+  demand, or on the next plain `img:warm`.
+- The nightly ingest ran at 00:00 UTC underneath the warm (corpus 167,224 → **167,290**, 1,074
+  un-homed) with no conflict — the warm reads the database and writes only disk. Its ~66 new rows
+  are un-warmed and fill on demand.
+- Watching note: a log watcher that greps `429` fires when the counter passes 42,900 (and
+  142,900). Match `answered 429`.
+
+**State:** production still runs `90cc6f0` — the redeploy from the 09-10 list is still pending,
+and `seed-personas-prod.sh` behind it; `main` (with `feat/chrome-redesign` merged at 17:52,
+`32ca640`) is pushed and clean. Ben's `next dev` is not running; port 3000 is free.
+
+**Open / next:** the wikipedia chunk loop; **redeploy** to `main` (sub-projects 1–3, the feed on
+membership, the `reactDebugChannel` flag) → `seed-personas-prod.sh` → round 2 in production;
+then sub-project 4. The pre-`/clear` half of this session (the browser review above, the merge,
+the script) had not recorded its remaining spend; it reported when this session ran the script
+against its id, so both lines follow, oldest first:
+
+_Session spend: 36.97M tok (in 1.2k · out 254.9k · cache r 33.34M / w 3.37M) · ~≥$22.19 · fable-5-1 + opus-4-7 · 14:17→22:16_
+
+_Session spend: 37.85M tok (in 5.1k · out 234.7k · cache r 34.66M / w 2.95M) · ~≥$16.62 · fable-5-1 + opus-4-7 · 22:18→23:12_
+
 ### [[09-10-26 Thu]] — The nightly walked into a wall, and nobody could see it
 
 Ben's morning brief said production was thousands of images behind the Mac. It is: **29,062
