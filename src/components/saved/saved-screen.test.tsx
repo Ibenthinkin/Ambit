@@ -1,8 +1,16 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DESKTOP_QUERY, WIDE_QUERY } from "~/hooks/use-media-query";
 import type { Item } from "~/server/db/items";
+import { stubMatchMedia } from "~/test/match-media";
 import { SavedScreen } from "./saved-screen";
 
 // Like `feed-screen.test.tsx`, the screen's job is composition — three queries in, a chip row and
@@ -123,8 +131,14 @@ const ARTICLE_ITEM = makeItem({
 });
 
 const COLLECTIONS = [
-  { id: "c1", name: "Articles", createdAt: new Date(), itemCount: 1 },
-  { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0 },
+  {
+    id: "c1",
+    name: "Articles",
+    createdAt: new Date(),
+    itemCount: 1,
+    covers: [],
+  },
+  { id: "c2", name: "Art", createdAt: new Date(), itemCount: 0, covers: [] },
 ];
 
 /** Two saves across both tile kinds, both collections rendered, total of 2. */
@@ -155,14 +169,16 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("SavedScreen", () => {
   it("renders both tile kinds across the two columns", () => {
-    const { container } = render(<SavedScreen />);
+    render(<SavedScreen />);
 
     expect(document.querySelectorAll("[data-saved-id]")).toHaveLength(2);
     // The image tile is an <img> through the proxy; the article tile is its headline.
     expect(document.querySelector('[data-saved-id="img1"] img')).not.toBeNull();
     expect(screen.getByText("The Heron")).toBeInTheDocument();
 
-    const columns = container.querySelectorAll(".grid > div");
+    const columns = screen
+      .getByTestId("saved-columns")
+      .querySelectorAll(":scope > div");
     expect(columns).toHaveLength(2);
     for (const column of columns) {
       expect(column.querySelectorAll("[data-saved-id]")).toHaveLength(1);
@@ -345,14 +361,25 @@ describe("SavedScreen", () => {
     expect(pushMock).toHaveBeenCalledWith("/feed");
   });
 
-  // The desktop pass (docs/DESIGN_desktop-polish.md §1): list-shaped screens stop stretching at
-  // 600px. Two columns, not one — `GlassHeader` centers its own content (so the back button lines
-  // up with the body's left edge) and the body below it centers separately. Below `md` both
-  // classes are inert, which is the point: the phone layout is untouched.
-  it("centers the header and the body in narrow columns above md", () => {
+  // The desktop pass, revised (docs/DESIGN_list-screens.md §6): Saved takes the feed's wide
+  // column — header content and body both — and packs the feed's column count.
+  it("takes the wide column above md, header and body", () => {
     render(<SavedScreen />);
     expect(
-      document.querySelectorAll(".md\\:max-w-\\[600px\\]").length,
+      document.querySelectorAll(".md\\:max-w-\\[1120px\\]").length,
     ).toBeGreaterThanOrEqual(2);
+    expect(document.querySelector(".md\\:max-w-\\[600px\\]")).toBeNull();
+  });
+
+  it("packs two stacks on the phone and four from xl", () => {
+    render(<SavedScreen />);
+    expect(screen.getByTestId("saved-columns")).toHaveClass("grid-cols-2");
+    cleanup();
+    stubMatchMedia([DESKTOP_QUERY, WIDE_QUERY]);
+    render(<SavedScreen />);
+    expect(screen.getByTestId("saved-columns")).toHaveClass("grid-cols-4");
+    expect(
+      screen.getByTestId("saved-columns").querySelectorAll(":scope > div"),
+    ).toHaveLength(4);
   });
 });

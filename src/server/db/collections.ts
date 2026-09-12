@@ -3,8 +3,9 @@
 // design: `userId` is always an explicit parameter so a caller can't accidentally read or write
 // across users (SPEC §11's authorization rule), and `getCollectionForUser` exists specifically so
 // the router can prove a client-supplied `collectionId` belongs to the caller.
-import { and, asc, count, desc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, count, eq, isNotNull, lte, sql } from "drizzle-orm";
 
+import { imageSrc } from "~/lib/image-src";
 import { collection, item, savedItem } from "~/server/db/schema";
 
 /**
@@ -20,12 +21,15 @@ export interface CollectionWithCount {
   createdAt: Date;
   itemCount: number;
   /**
-   * The image URL of the most recently saved *image* item in this collection, or null when the
-   * collection is empty or holds only articles. Phase 5.10's Profile grid paints it as the tile's
-   * cover; the two sheets that predate it simply ignore the field, which is why this could be
-   * added to the shared shape rather than forked into a second read.
+   * The picture srcs of the four most recently saved *image* items in this collection, newest
+   * first — `[]` when the collection is empty or holds only articles. Srcs, not stored URLs:
+   * `/api/img/<itemId>` through `lib/image-src.ts`, because the page's CSP allows only same-origin
+   * images and a raw museum URL renders as a broken image. The Collections tab paints them as a 2×2
+   * mosaic and every picker row as a 36 px one (docs/DESIGN_list-screens.md §2, §7);
+   * `TileActions` ignores the field, which is why it could change shape here rather than fork into
+   * a second read.
    */
-  cover: string | null;
+  covers: string[];
 }
 
 /**
@@ -115,50 +119,76 @@ export async function getCollections(
   return withCovers(userId, rows);
 }
 
+/** A face is four pictures; the fifth is the one a 2×2 has no cell for. */
+export const COVER_COUNT = 4;
+
 /**
- * Attaches each collection's cover image — the most recently saved image item in it (Phase 5.10's
- * Profile grid). A second round trip rather than a join onto the count query above, because the
- * two want different shapes: the count is a `GROUP BY` aggregate, and a cover is one specific row
- * per group. `DISTINCT ON` is Postgres' own answer to "the first row of each group under this
- * ordering", so the ordering here isn't cosmetic — `collection_id` first is what `DISTINCT ON`
- * requires, and `saved_at DESC` is what makes the surviving row the newest save.
+ * Attaches each collection's cover images — the four most recently saved image items in it
+ * (docs/DESIGN_list-screens.md §2). A second round trip rather than a join onto the count query
+ * above, because the two want different shapes: the count is a `GROUP BY` aggregate, and a face is
+ * specific rows per group.
  *
- * Only image items qualify (`imageUrl IS NOT NULL`), so an article-only collection reports null and
+ * `row_number() over (partition by collection_id order by saved_at desc)` numbers every collected
+ * picture inside its own collection, newest save first, and the outer query keeps the rows
+ * numbered ≤ `COVER_COUNT`. (Until 09-12-26 this was a `DISTINCT ON`, which is Postgres' answer to
+ * "the first row of each group" — exactly one, and a face holds four.)
+ *
+ * Only image items qualify (`imageUrl IS NOT NULL`), so an article-only collection reports `[]` and
  * the tile falls back to its bookmark placeholder — a cover slot is a picture or it's nothing.
  */
 async function withCovers(
   userId: string,
-  rows: Omit<CollectionWithCount, "cover">[],
+  rows: Omit<CollectionWithCount, "covers">[],
 ): Promise<CollectionWithCount[]> {
   if (rows.length === 0) return [];
   const { db } = await import("./client");
 
-  const covers = await db
-    .selectDistinctOn([savedItem.collectionId], {
+  // Rank every collected picture inside its collection, newest save first. The filter is applied
+  // *before* ranking rather than after, for the same reason it was before the `DISTINCT ON`: an
+  // uncollected save (`collection_id` null) belongs to no tile, and an article cannot be a cover —
+  // filtered afterwards, an article that is the newest save would take slot 1 and leave a hole.
+  const ranked = db
+    .select({
       collectionId: savedItem.collectionId,
+      itemId: item.id,
       imageUrl: item.imageUrl,
+      n: sql<number>`row_number() over (partition by ${savedItem.collectionId} order by ${savedItem.savedAt} desc)`.as(
+        "n",
+      ),
     })
     .from(savedItem)
     .innerJoin(item, eq(item.id, savedItem.itemId))
     .where(
       and(
         eq(savedItem.userId, userId),
-        // Uncollected saves (a null `collection_id`) belong to no tile, and an item with no image
-        // can't be a cover — both are excluded here rather than filtered out afterwards so the
-        // `DISTINCT ON` picks the newest *qualifying* save rather than discarding a group whose
-        // newest save happens to be an article.
         isNotNull(savedItem.collectionId),
         isNotNull(item.imageUrl),
       ),
     )
-    .orderBy(savedItem.collectionId, desc(savedItem.savedAt));
+    .as("ranked");
 
-  const byCollection = new Map(
-    covers.map((row) => [row.collectionId, row.imageUrl]),
-  );
+  const covers = await db
+    .select({
+      collectionId: ranked.collectionId,
+      itemId: ranked.itemId,
+      imageUrl: ranked.imageUrl,
+    })
+    .from(ranked)
+    .where(lte(ranked.n, COVER_COUNT))
+    // `n` ascending is newest-first, which is the order the mosaic fills its cells in.
+    .orderBy(ranked.collectionId, ranked.n);
+
+  const byCollection = new Map<string, string[]>();
+  for (const row of covers) {
+    // Both non-null by the WHERE above; the guard narrows the types rather than handling a case.
+    if (!row.collectionId || !row.imageUrl) continue;
+    const list = byCollection.get(row.collectionId) ?? [];
+    list.push(imageSrc(row.itemId, row.imageUrl));
+    byCollection.set(row.collectionId, list);
+  }
   return rows.map((row) => ({
     ...row,
-    cover: byCollection.get(row.id) ?? null,
+    covers: byCollection.get(row.id) ?? [],
   }));
 }
 

@@ -49,7 +49,10 @@ app".
   exactly one desktop state.
 - **`Column`** (`src/components/ui/column.tsx`) carries the three widths the whole design
   needs: `narrow` **600 px** (onboarding, saved, profile, edit profile, settings, reset
-  password), `reader` **720 px** (the item page), `wide` **1120 px** (the feed). It is a `div`
+  password), `reader` **720 px** (the item page), `wide` **1120 px** (the feed — **and, since
+  09-12-26, the Profile hub and Saved** (`docs/DESIGN_list-screens.md` §6); `narrow` keeps
+  onboarding, and the hub's Edit / Topics / Settings tabs cap themselves at 600 px left-aligned
+  inside the wide column). It is a `div`
   with `mx-auto w-full` and a `md:max-w-[…]` — nothing else — so below `md` it is invisible.
 - Each screen's `<main>` wraps its content in one `Column`. Screens keep their own horizontal
   padding *inside* the column (the `px-5` / `px-6` / `px-[22px]` they have today), so at the

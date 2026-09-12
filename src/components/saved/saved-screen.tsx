@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { FeedCard } from "~/server/services/feed";
-import { buildTiles, packColumns } from "~/components/feed/masonry";
+import { buildTiles, GRID_COLS, packColumns } from "~/components/feed/masonry";
 import { cameToSavedFromApp } from "~/components/saved/saved-origin";
 import { CollectionsSheet } from "~/components/sheets/collections-sheet";
 import { Bookmark, ChevronLeft } from "~/components/icons";
@@ -16,6 +16,8 @@ import { Toolbar } from "~/components/ui/toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
+import { useColumnCount } from "~/hooks/use-media-query";
+import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { CollectionChips } from "./collection-chips";
 import { SavedTile } from "./saved-tile";
@@ -91,6 +93,10 @@ export function SavedScreen() {
 
   const total = count.data ?? 0;
 
+  // The feed's column count (docs/DESIGN_list-screens.md §6): two on the phone, three from `md`,
+  // four from `xl`.
+  const columnCount = useColumnCount();
+
   const columns = React.useMemo(() => {
     // Each saved item dressed as a CORE card so the feed's masonry pipeline can be reused
     // verbatim: `buildTiles` only synthesizes a Because tile for a qualifying JUMP, so a CORE-only
@@ -101,8 +107,8 @@ export function SavedScreen() {
       tier: "CORE" as const,
       topicId: item.topicId,
     }));
-    return packColumns(buildTiles([{ cards }], {}));
-  }, [list.data]);
+    return packColumns(buildTiles([{ cards }], {}), columnCount);
+  }, [list.data, columnCount]);
 
   // Empty means *confirmed* empty — while the count or list is still on its way, the spinner
   // below holds the space rather than flashing the empty state at a user with plenty kept.
@@ -115,7 +121,7 @@ export function SavedScreen() {
 
   return (
     <main className="bg-bg text-ink min-h-dvh">
-      <GlassHeader className="flex-col items-stretch">
+      <GlassHeader width="wide" className="flex-col items-stretch">
         <div className="flex items-center gap-3">
           <IconButton size={34} aria-label="Back to feed" onClick={leaveSaved}>
             <ChevronLeft size={16} />
@@ -142,10 +148,11 @@ export function SavedScreen() {
         ) : null}
       </GlassHeader>
 
-      {/* The desktop cap (docs/DESIGN_desktop-polish.md §1). `narrow`, not the feed's `wide`:
-          Saved stays a two-column masonry — it is a list of things you already chose, and widening
-          it to four would make a modest collection look like a thin feed. */}
-      <Column width="narrow">
+      {/* The desktop cap: the feed's column and column count (docs/DESIGN_list-screens.md §6).
+          Until 09-12-26 this was `narrow` and two columns at every width, on the reasoning that four
+          would make a modest collection look like a thin feed — but the stretched phone was the
+          complaint, and a modest collection at 1440 is four short stacks rather than two long ones. */}
+      <Column width="wide">
         {list.isPending ? (
           <div className="flex justify-center py-24">
             <Spinner />
@@ -200,9 +207,15 @@ export function SavedScreen() {
           </div>
         ) : null}
 
-        {/* The feed's own masonry geometry, verbatim: two independent stacks, `items-start` so a
-          short column doesn't stretch. `pt-2` tucks the first row right under the sticky header. */}
-        <div className="grid grid-cols-2 items-start gap-1 px-1 pt-2">
+        {/* The feed's own masonry geometry, verbatim: independent stacks, `items-start` so a short
+          column doesn't stretch. `pt-2` tucks the first row right under the sticky header. */}
+        <div
+          data-testid="saved-columns"
+          className={cn(
+            "grid items-start gap-1 px-1 pt-2",
+            GRID_COLS[columnCount],
+          )}
+        >
           {columns.map((column, columnIndex) => (
             <div key={columnIndex} className="flex flex-col gap-1">
               {column.map((tile) =>

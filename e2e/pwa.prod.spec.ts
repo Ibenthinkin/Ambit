@@ -167,14 +167,14 @@ test.describe.serial("pwa verification (production build)", () => {
     expect(offlineTiles).toBeGreaterThan(0);
 
     // 4. Offline: an uncached route falls back to the offline shell, not a browser error page.
-    await page.goto("/settings");
+    await page.goto("/profile/settings");
     await expect(page.getByText("You're offline")).toBeVisible({
       timeout: 15_000,
     });
 
     // 5. Back online, then sign out — the cached feed must not outlive the session.
     await page.context().setOffline(false);
-    await page.goto("/settings");
+    await page.goto("/profile/settings");
     await page.getByRole("button", { name: "Sign out" }).click();
     await page.waitForURL("/", { timeout: 15_000 });
     await page.waitForTimeout(1000);

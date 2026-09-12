@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { NewCollectionRow } from "./collection-rows";
+import { CollectionRow, NewCollectionRow } from "./collection-rows";
 
 // The one create form in the app (09-10-26). The mutation is captured rather than run, so each case
 // can play the server's answer — a created row, or a CONFLICT — at exactly the moment it wants.
@@ -101,5 +101,55 @@ describe("NewCollectionRow", () => {
   it("starts expanded when asked — the profile's sheet is nothing but this form", () => {
     render(<NewCollectionRow onCreate={vi.fn()} initiallyOpen />);
     expect(screen.getByLabelText("Collection name")).toBeInTheDocument();
+  });
+});
+
+describe("CollectionRow's leading slot", () => {
+  it("renders the dot when nothing is asked for", () => {
+    render(<CollectionRow label="Art" sub="2 items" onPick={vi.fn()} />);
+    expect(screen.queryByTestId("cover-mosaic")).toBeNull();
+    expect(document.querySelector(".rounded-full")).not.toBeNull();
+  });
+
+  it("renders a mosaic of the covers, ringed when current", () => {
+    render(
+      <CollectionRow
+        label="Art"
+        sub="Already saved here"
+        leading={{
+          kind: "covers",
+          covers: ["/api/img/a-item"],
+          current: true,
+        }}
+        onPick={vi.fn()}
+      />,
+    );
+    const face = screen.getByTestId("cover-mosaic");
+    expect(face).toHaveAttribute("data-count", "1");
+    expect(face.parentElement).toHaveClass("ring-accent");
+  });
+
+  it("renders a glyph square for the pseudo-rows", () => {
+    render(
+      <CollectionRow
+        label="Everything kept"
+        sub="7 items"
+        leading={{ kind: "glyph", glyph: "bookmark" }}
+        onPick={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("row-glyph")).toHaveAttribute(
+      "data-glyph",
+      "bookmark",
+    );
+    expect(screen.queryByTestId("cover-mosaic")).toBeNull();
+  });
+
+  it("the collapsed New collection row leads with the plus square", () => {
+    render(<NewCollectionRow onCreate={vi.fn()} />);
+    expect(screen.getByTestId("row-glyph")).toHaveAttribute(
+      "data-glyph",
+      "plus",
+    );
   });
 });

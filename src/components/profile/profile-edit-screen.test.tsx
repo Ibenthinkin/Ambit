@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProfileEditScreen } from "./profile-edit-screen";
+import { ProfileHubContext } from "./profile-hub";
 
 // The form's own subject matter: what it seeds from, what it *sends* (normalization is the
 // interesting half), and where each kind of failure lands. The zod schema's own rejections are
@@ -32,6 +33,7 @@ const {
   saveOpts,
   setDataMock,
   invalidateMock,
+  toastMock,
 } = vi.hoisted(() => ({
   meState: { current: blankQuery() },
   pushMock: vi.fn(),
@@ -47,6 +49,7 @@ const {
   },
   setDataMock: vi.fn(),
   invalidateMock: vi.fn().mockResolvedValue(undefined),
+  toastMock: vi.fn(),
 }));
 
 vi.mock("~/trpc/react", () => ({
@@ -86,13 +89,23 @@ beforeEach(() => {
   saveMutateMock.mockClear();
   setDataMock.mockClear();
   invalidateMock.mockClear();
+  toastMock.mockClear();
 });
 
 afterEach(() => vi.useRealTimers());
 
+/** The tab renders inside the hub, which owns the toast — a provider stands in for it. */
+function renderScreen() {
+  return render(
+    <ProfileHubContext.Provider value={{ toast: toastMock }}>
+      <ProfileEditScreen />
+    </ProfileHubContext.Provider>,
+  );
+}
+
 describe("ProfileEditScreen", () => {
   it("seeds every field from user.me, with email read-only and explained", () => {
-    render(<ProfileEditScreen />);
+    renderScreen();
 
     expect(screen.getByLabelText("Name")).toHaveValue("Ben Traverse");
     expect(screen.getByLabelText("Handle")).toHaveValue("bentraverse");
@@ -112,14 +125,14 @@ describe("ProfileEditScreen", () => {
       isPending: false,
       isError: false,
     };
-    render(<ProfileEditScreen />);
+    renderScreen();
 
     expect(screen.getByLabelText("Handle")).toHaveValue("");
     expect(screen.getByLabelText("About")).toHaveValue("");
   });
 
   it("strips a typed @, lowercases, and trims on submit", () => {
-    render(<ProfileEditScreen />);
+    renderScreen();
 
     fireEvent.change(screen.getByLabelText("Name"), {
       target: { value: "  Ben R  " },
@@ -130,7 +143,7 @@ describe("ProfileEditScreen", () => {
     fireEvent.change(screen.getByLabelText("About"), {
       target: { value: "  Curious about maps.  " },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(saveMutateMock).toHaveBeenCalledWith({
       name: "Ben R",
@@ -140,7 +153,7 @@ describe("ProfileEditScreen", () => {
   });
 
   it("sends null, not an empty string, for a cleared handle and bio", () => {
-    render(<ProfileEditScreen />);
+    renderScreen();
 
     fireEvent.change(screen.getByLabelText("Handle"), {
       target: { value: "" },
@@ -159,28 +172,27 @@ describe("ProfileEditScreen", () => {
     });
   });
 
-  it("on success: primes the cache, toasts, and leaves after the confirmation beat", () => {
-    vi.useFakeTimers();
-    render(<ProfileEditScreen />);
+  it("on success: primes the cache, toasts through the hub, and stays on the tab", () => {
+    renderScreen();
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     const updated = { ...ME, name: "Ben R" };
     act(() => saveOpts.current!.onSuccess(updated));
 
     expect(setDataMock).toHaveBeenCalledWith(undefined, updated);
     expect(invalidateMock).toHaveBeenCalled();
-    expect(screen.getByText("Profile saved")).toBeInTheDocument();
-    // Still here — the toast has to be readable before the screen goes.
+    expect(toastMock).toHaveBeenCalledWith("Profile saved");
     expect(pushMock).not.toHaveBeenCalled();
-
-    act(() => void vi.advanceTimersByTime(900));
-    expect(pushMock).toHaveBeenCalledWith("/profile");
+    expect(backMock).not.toHaveBeenCalled();
+    // …and a second save is possible: the guard released when the write settled.
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(saveMutateMock).toHaveBeenCalledTimes(2);
   });
 
   it("renders a handle conflict under the field and stays put", () => {
-    render(<ProfileEditScreen />);
+    renderScreen();
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     act(() => saveOpts.current!.onError({ data: { code: "CONFLICT" } }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("That handle's taken.");
@@ -189,8 +201,8 @@ describe("ProfileEditScreen", () => {
   });
 
   it("clears a stale conflict as soon as the handle is edited", () => {
-    render(<ProfileEditScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    renderScreen();
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     act(() => saveOpts.current!.onError({ data: { code: "CONFLICT" } }));
 
     fireEvent.change(screen.getByLabelText("Handle"), {
@@ -201,9 +213,9 @@ describe("ProfileEditScreen", () => {
   });
 
   it("sends any other failure to the centered slot, not the handle field", () => {
-    render(<ProfileEditScreen />);
+    renderScreen();
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     act(() =>
       saveOpts.current!.onError({ data: { code: "INTERNAL_SERVER_ERROR" } }),
     );
@@ -213,24 +225,37 @@ describe("ProfileEditScreen", () => {
     );
   });
 
-  it("Discard and the back chevron leave without submitting anything", () => {
-    render(<ProfileEditScreen />);
+  it("Discard puts the loaded values back and navigates nowhere", () => {
+    renderScreen();
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Someone" },
+    });
+    fireEvent.change(screen.getByLabelText("Handle"), {
+      target: { value: "other" },
+    });
+    fireEvent.change(screen.getByLabelText("About"), { target: { value: "" } });
 
     fireEvent.click(screen.getByText("Discard"));
-    expect(saveMutateMock).not.toHaveBeenCalled();
-    // No marker: this tab arrived cold, so leaving pushes rather than popping out of the app.
-    expect(pushMock).toHaveBeenCalledWith("/profile");
 
-    sessionStorage.setItem("ambit.profileEditOrigin.v1", "1");
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(backMock).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText("Name")).toHaveValue("Ben Traverse");
+    expect(screen.getByLabelText("Handle")).toHaveValue("bentraverse");
+    expect(screen.getByLabelText("About")).toHaveValue("Maps, mostly.");
     expect(saveMutateMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(backMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  });
+
+  it("renders no header and no <main> — the hub owns those", () => {
+    renderScreen();
+    expect(screen.queryByRole("heading", { name: "Edit profile" })).toBeNull();
+    expect(document.querySelector("main")).toBeNull();
   });
 
   it("guards against a double submit while one is in flight", () => {
-    render(<ProfileEditScreen />);
+    renderScreen();
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(saveMutateMock).toHaveBeenCalledOnce();
@@ -238,20 +263,18 @@ describe("ProfileEditScreen", () => {
 
   it("renders nothing but the error branch when the profile can't be read", () => {
     meState.current = { data: undefined, isPending: false, isError: true };
-    render(<ProfileEditScreen />);
+    renderScreen();
 
     expect(screen.getByText("Couldn't load your profile.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
   });
 
-  // The desktop pass (docs/DESIGN_desktop-polish.md §1): list-shaped screens stop stretching at
-  // 600px. Two columns, not one — `GlassHeader` centers its own content (so the back button lines
-  // up with the body's left edge) and the body below it centers separately. Below `md` both
-  // classes are inert, which is the point: the phone layout is untouched.
-  it("centers the header and the body in narrow columns above md", () => {
-    render(<ProfileEditScreen />);
-    expect(
-      document.querySelectorAll(".md\\:max-w-\\[600px\\]").length,
-    ).toBeGreaterThanOrEqual(2);
+  // Inside the hub's wide column (docs/DESIGN_list-screens.md §6) the form sits left-aligned at
+  // the list measure. One cap, not two: there is no header of its own any more.
+  it("caps itself at the list measure, once", () => {
+    renderScreen();
+    expect(document.querySelectorAll(".md\\:max-w-\\[600px\\]")).toHaveLength(
+      1,
+    );
   });
 });

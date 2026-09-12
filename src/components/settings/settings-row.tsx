@@ -5,7 +5,7 @@ import * as React from "react";
 import { ChevronRight } from "~/components/icons";
 import { cn } from "~/lib/utils";
 
-// The chrome of `/settings` (`Ambit - Settings.dc.html`): a titled card of rows, and one row.
+// The chrome of `/profile/settings` (`Ambit - Settings.dc.html`): a titled card of rows, and one row.
 // Purely presentational — every behavior, including which rows are honest stubs, lives in
 // `settings-screen.tsx`.
 //

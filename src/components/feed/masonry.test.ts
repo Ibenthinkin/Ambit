@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Item } from "~/server/db/items";
 import type { FeedCard, FeedPage, Tier } from "~/server/services/feed";
 import type { FeedTile } from "./masonry";
-import { buildTiles, IMAGE_ASPECTS, packColumns } from "./masonry";
+import { buildTiles, GRID_COLS, IMAGE_ASPECTS, packColumns } from "./masonry";
 
 // Fixtures. The feed contract has a wide `Item` (every column of the table), but the layout only
 // reads four of its fields — so build a whole one and let the helpers vary just those.
@@ -327,5 +327,17 @@ describe("packColumns", () => {
   });
   it("packs an empty list into two empty columns", () => {
     expect(packColumns([])).toEqual([[], []]);
+  });
+});
+
+describe("GRID_COLS", () => {
+  // Three literal strings, one per value `useColumnCount` can return — shared by the feed, the
+  // Collections tab and Saved. Literal on purpose: Tailwind's scanner reads source text.
+  it("names one literal class per column count", () => {
+    expect(GRID_COLS).toEqual({
+      2: "grid-cols-2",
+      3: "grid-cols-3",
+      4: "grid-cols-4",
+    });
   });
 });

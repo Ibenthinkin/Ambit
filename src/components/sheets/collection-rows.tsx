@@ -2,13 +2,20 @@
 
 import * as React from "react";
 
+import { Bookmark, Plus } from "~/components/icons";
+import { CoverMosaic } from "~/components/profile/cover-mosaic";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 
 // The row shape shared by the two collection sheets. They diverge in *behavior* — one saves, one
-// navigates — but the row is one design: 9px dot, name, sub-label, hairline rule.
+// navigates — but the row is one design: a leading mark, name, sub-label, hairline rule.
+//
+// **Since 09-12-26 the mark is a face** (docs/DESIGN_list-screens.md §7): a collection leads with a
+// 36 px `CoverMosaic` of its four newest pictures, and the two pseudo-rows with a glyph square —
+// the same two squares the Collections tab's placeholder and dashed tile use, at row size. The
+// 9 px dot below is the fallback for a caller that passes no `leading`.
 //
 // Dot alphas come straight from the handoff: `accent` marks the collection an item is currently
 // in, 25% is an ordinary collection, and 40%/18% are the two pseudo-rows — "Everything kept" (the
@@ -22,10 +29,21 @@ const DOT_TONE: Record<DotTone, string> = {
   faint: "bg-ink/18",
 };
 
+/**
+ * What leads a row (docs/DESIGN_list-screens.md §7). `covers` is a collection's face, 36 px,
+ * ringed in the accent when `current` ("Already saved here"); `glyph` is one of the two
+ * pseudo-rows' squares — the outline bookmark for "Everything kept", the dashed plus for
+ * "New collection…". Absent, the row keeps its 9 px dot (`tone`).
+ */
+export type RowLeading =
+  | { kind: "covers"; covers: string[]; current?: boolean }
+  | { kind: "glyph"; glyph: "bookmark" | "plus" };
+
 export interface CollectionRowProps {
   label: string;
   sub: string;
   tone?: DotTone;
+  leading?: RowLeading;
   onPick: () => void;
 }
 
@@ -33,6 +51,7 @@ export function CollectionRow({
   label,
   sub,
   tone = "normal",
+  leading,
   onPick,
 }: CollectionRowProps) {
   return (
@@ -43,9 +62,41 @@ export function CollectionRow({
       onPointerDown={(e) => e.stopPropagation()}
       className="border-hairline border-ink/6 flex w-full items-center gap-[13px] rounded-[14px] border-b px-3 py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
     >
-      <span
-        className={cn("size-[9px] flex-none rounded-full", DOT_TONE[tone])}
-      />
+      {leading?.kind === "covers" ? (
+        <span
+          className={cn(
+            "size-9 flex-none overflow-hidden",
+            leading.current && "ring-accent ring-2",
+          )}
+        >
+          <CoverMosaic
+            covers={leading.covers}
+            className="size-9"
+            placeholderSize={14}
+          />
+        </span>
+      ) : leading?.kind === "glyph" ? (
+        <span
+          data-testid="row-glyph"
+          data-glyph={leading.glyph}
+          className={cn(
+            "flex size-9 flex-none items-center justify-center",
+            leading.glyph === "bookmark"
+              ? "border-hairline border-ink/10 bg-ink/3"
+              : "border-ink/16 bg-ink/[4.5%] border-[0.5px] border-dashed",
+          )}
+        >
+          {leading.glyph === "bookmark" ? (
+            <Bookmark size={14} className="text-ink/40" />
+          ) : (
+            <Plus size={14} className="text-ink/55" />
+          )}
+        </span>
+      ) : (
+        <span
+          className={cn("size-[9px] flex-none rounded-full", DOT_TONE[tone])}
+        />
+      )}
       <span className="min-w-0 flex-1">
         <span className="text-ink block truncate text-[15px]">{label}</span>
         <span className="text-ink/38 mt-0.5 block truncate text-[12px]">
@@ -130,6 +181,7 @@ export function NewCollectionRow({
         label="New collection…"
         sub="Name it and it's made"
         tone="faint"
+        leading={{ kind: "glyph", glyph: "plus" }}
         onPick={() => setOpen(true)}
       />
     );

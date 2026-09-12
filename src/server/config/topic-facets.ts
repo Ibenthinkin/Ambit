@@ -21,7 +21,7 @@
 // here — merging is topic surgery on memberships and graph rows.
 import type { TopicFacet } from "~/server/db/schema";
 
-/** Display order — onboarding's stages, the page's tabs. */
+/** Display order — onboarding's stages, `/profile/topics`'s sections. */
 export const FACETS = [
   "subject",
   "medium",
@@ -34,6 +34,17 @@ export const FACET_LABELS: Record<TopicFacet, string> = {
   medium: "Medium",
   look: "Look",
   place: "Place",
+};
+
+/** The question each facet asks (09-11-26, docs/DESIGN_chrome-redesign.md §6) — onboarding's
+ *  stage headings, and since 09-12-26 the section headings of `/profile/topics` too, so the
+ *  re-picker reads as the same four questions the reader first answered. The facet order is
+ *  `FACETS` and is not a copy decision. */
+export const FACET_PROMPTS: Record<TopicFacet, string> = {
+  subject: "What are you drawn to?",
+  medium: "In what form?",
+  look: "What should it feel like?",
+  place: "Anywhere in particular?",
 };
 
 /** Topics that are unfaceted by design, not by omission — `db:seed` does not warn about these. */

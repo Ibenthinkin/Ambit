@@ -8,11 +8,12 @@ import { cn } from "~/lib/utils";
  * and the column would quietly stay full-width.
  */
 const WIDTHS = {
-  /** Onboarding, saved, profile, edit profile, settings — anything list-shaped. */
+  /** Onboarding. (The Profile hub and Saved moved to `wide` on 09-12-26 —
+   *  docs/DESIGN_list-screens.md §6; the hub's form tabs cap themselves at 600 left-aligned.) */
   narrow: "md:max-w-[600px]",
   /** The item page: a book-width measure for body text. */
   reader: "md:max-w-[720px]",
-  /** The feed: room for four ~270px masonry columns. */
+  /** The feed, the Profile hub and Saved: room for four ~270px masonry columns. */
   wide: "md:max-w-[1120px]",
 } as const;
 

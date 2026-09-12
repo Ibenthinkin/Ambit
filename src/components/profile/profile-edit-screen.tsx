@@ -1,31 +1,28 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 
-import { ChevronLeft } from "~/components/icons";
-import { cameToEditFromApp } from "~/components/profile/edit-origin";
 import { AvatarChip } from "~/components/ui/avatar-chip";
 import { Button } from "~/components/ui/button";
-import { Column } from "~/components/ui/column";
-import { GlassHeader } from "~/components/ui/glass-header";
-import { IconButton } from "~/components/ui/icon-button";
 import { Rise } from "~/components/ui/rise";
 import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/ui/spinner";
 import { Textarea } from "~/components/ui/textarea";
-import { Toast } from "~/components/ui/toast";
 import { avatarGradient } from "~/lib/avatar-hue";
 import type { UserProfile } from "~/server/db/users";
 import { api } from "~/trpc/react";
+import { useProfileHub } from "./profile-hub";
 
-// `/profile/edit` (`Ambit - Profile Edit.dc.html`) — a dedicated route, not a sheet, because it is
-// a real multi-field form and a sheet that holds four fields plus a keyboard is a page wearing a
-// disguise.
+// `/profile/edit` (`Ambit - Profile Edit.dc.html`) — the Edit profile tab of the Profile hub since
+// 09-12-26 (docs/DESIGN_list-screens.md §4). A route, not a sheet, because it is a real multi-field
+// form and a sheet that holds four fields plus a keyboard is a page wearing a disguise.
 //
-// A `GlassHeader` here (and on Settings), unlike Profile: this screen's prototype has a sticky
-// blurred bar, and it needs one — Save lives in it, and a save button that scrolls away is a save
-// button you can't find.
+// **No `GlassHeader`, and nothing leaves.** It had one while it was its own screen, because Save
+// lived in it; as a tab it sits under the hub's identity block and nav, which is nothing that needs
+// to stay on screen, so the save is the "Save changes" button at the foot of the form. On success
+// the tab *stays*: the hub's header above is the same `user.me` row and re-renders with the new
+// name, which is a better confirmation than the old 900 ms beat and a navigation. Discard resets
+// the fields to what was loaded rather than leaving — there is nowhere to leave to.
 //
 // **Dropped from the prototype, deliberately:** the "Drop a photo" slot and the upload caption
 // under the avatar. There is no avatar upload anywhere in the product and there isn't going to be
@@ -40,20 +37,17 @@ export function ProfileEditScreen() {
   const me = api.user.me.useQuery();
 
   return (
-    <main className="bg-bg text-ink min-h-dvh">
-      {/* The desktop cap (docs/DESIGN_desktop-polish.md §1) — on every branch, so a spinner and an
-          error land where the form will, rather than in the middle of a 1440px band. */}
+    // Left-aligned at the list measure inside the hub's wide column (docs/DESIGN_list-screens.md
+    // §6) — on every branch, so a spinner and an error land where the form will.
+    <div className="md:max-w-[600px]">
       {me.isPending ? (
-        <Column width="narrow" className="flex justify-center py-24">
+        <div className="flex justify-center py-24">
           <Spinner />
-        </Column>
+        </div>
       ) : null}
 
       {me.isError ? (
-        <Column
-          width="narrow"
-          className="flex flex-col items-center gap-4 px-8 py-24"
-        >
+        <div className="flex flex-col items-center gap-4 px-8 py-24">
           <span className="text-ink/40 text-center text-[14px]">
             Couldn&apos;t load your profile.
           </span>
@@ -64,7 +58,7 @@ export function ProfileEditScreen() {
           >
             Try again
           </Button>
-        </Column>
+        </div>
       ) : null}
 
       {/* The form is a separate component mounted only once the profile has arrived, so its
@@ -72,13 +66,13 @@ export function ProfileEditScreen() {
           from `undefined` and then patch itself in an effect, which is how a form ends up
           clobbering something the user typed while the query was in flight. */}
       {me.data ? <EditForm profile={me.data} /> : null}
-    </main>
+    </div>
   );
 }
 
 function EditForm({ profile }: { profile: UserProfile }) {
-  const router = useRouter();
   const utils = api.useUtils();
+  const hub = useProfileHub();
 
   const [name, setName] = React.useState(profile.name);
   const [handle, setHandle] = React.useState(profile.handle ?? "");
@@ -87,28 +81,21 @@ function EditForm({ profile }: { profile: UserProfile }) {
   const [handleError, setHandleError] = React.useState<string | null>(null);
   /** Everything else, centered under the CTA (the AuthCard pattern). */
   const [formError, setFormError] = React.useState<string | null>(null);
-  const [toast, setToast] = React.useState<string | null>(null);
-  // A local re-entry guard rather than relying on `isPending`: the success path deliberately holds
-  // the screen for 900ms after the mutation settles (see below), and a second submit in that window
-  // would fire a second write. Same shape as `AuthCard`'s.
+  // A local re-entry guard rather than relying on `isPending`, so a double tap can never fire two
+  // writes between the click and React Query's state update. Same shape as `AuthCard`'s. Released
+  // on either outcome.
   const [submitting, setSubmitting] = React.useState(false);
-
-  const leaveEdit = React.useCallback(() => {
-    if (cameToEditFromApp()) router.back();
-    else router.push("/profile");
-  }, [router]);
 
   const save = api.user.updateProfile.useMutation({
     onSuccess: (updated) => {
-      // Both, and in this order: `setData` makes the Profile screen correct the instant it renders
-      // (a pop is a client navigation — nothing refetches on its own), and the invalidate makes it
-      // *true* rather than merely optimistic.
+      // Both, and in this order: `setData` makes the hub's header above correct the instant it
+      // re-renders, and the invalidate makes it *true* rather than merely optimistic.
       utils.user.me.setData(undefined, updated);
       void utils.user.me.invalidate();
-      setToast("Profile saved");
-      // The prototype's own beat: confirm, then leave. Long enough to read, short enough not to
-      // feel like a stall.
-      setTimeout(leaveEdit, 900);
+      hub.toast("Profile saved");
+      // Nothing leaves (docs/DESIGN_list-screens.md §4) — the header is the confirmation — so
+      // the guard releases here rather than on a timer.
+      setSubmitting(false);
     },
     onError: (err) => {
       setSubmitting(false);
@@ -135,122 +122,103 @@ function EditForm({ profile }: { profile: UserProfile }) {
     });
   };
 
+  /** Back to what was loaded — a reset, not an exit: there is nowhere to go, the form is a tab. */
+  const discard = () => {
+    setName(profile.name);
+    setHandle(profile.handle ?? "");
+    setBio(profile.bio ?? "");
+    setHandleError(null);
+    setFormError(null);
+  };
+
   return (
     <>
-      <GlassHeader>
-        <IconButton size={34} aria-label="Back" onClick={leaveEdit}>
-          <ChevronLeft size={15} />
-        </IconButton>
-        <h1 className="text-ink text-[17px] font-semibold">Edit profile</h1>
-        <button
-          type="button"
-          onClick={submit}
-          aria-busy={submitting}
-          className="text-accent text-[14.5px] font-semibold"
-        >
-          Save
-        </button>
-      </GlassHeader>
+      {/* No caption under it — see the file header on why the prototype's upload copy is gone. */}
+      <div className="flex justify-center pt-6">
+        <Rise>
+          <AvatarChip size={104} gradient={avatarGradient(profile.id)} />
+        </Rise>
+      </div>
 
-      <Column width="narrow">
-        {/* No caption under it — see the file header on why the prototype's upload copy is gone. */}
-        <div className="flex justify-center pt-[34px]">
-          <Rise>
-            <AvatarChip size={104} gradient={avatarGradient(profile.id)} />
-          </Rise>
-        </div>
+      <div className="flex flex-col gap-5 px-5 pt-[34px] pb-[60px]">
+        <Field label="Name">
+          <Input
+            value={name}
+            maxLength={60}
+            placeholder="Your name"
+            aria-label="Name"
+            onChange={(e) => setName(e.target.value)}
+          />
+        </Field>
 
-        <div className="flex flex-col gap-5 px-5 pt-[34px] pb-[60px]">
-          <Field label="Name">
-            <Input
-              value={name}
-              maxLength={60}
-              placeholder="Your name"
-              aria-label="Name"
-              onChange={(e) => setName(e.target.value)}
-            />
-          </Field>
-
-          <Field label="Handle">
-            <Input
-              value={handle}
-              maxLength={25}
-              placeholder="@you"
-              aria-label="Handle"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              onChange={(e) => {
-                setHandle(e.target.value);
-                if (handleError) setHandleError(null);
-              }}
-            />
-            {/* The conflict's home. Under the field rather than in a toast, because the fix is to
+        <Field label="Handle">
+          <Input
+            value={handle}
+            maxLength={25}
+            placeholder="@you"
+            aria-label="Handle"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            onChange={(e) => {
+              setHandle(e.target.value);
+              if (handleError) setHandleError(null);
+            }}
+          />
+          {/* The conflict's home. Under the field rather than in a toast, because the fix is to
               edit the thing directly above it. */}
-            {handleError ? (
-              <span
-                role="alert"
-                className="text-error mt-2 block text-[12.5px]"
-              >
-                {handleError}
-              </span>
-            ) : null}
-          </Field>
-
-          <Field label="About">
-            <Textarea
-              value={bio}
-              rows={4}
-              maxLength={280}
-              placeholder="What are you curious about?"
-              aria-label="About"
-              onChange={(e) => setBio(e.target.value)}
-            />
-          </Field>
-
-          <Field label="Email">
-            <Input
-              readOnly
-              value={profile.email}
-              aria-label="Email"
-              className="text-ink/55"
-            />
-            <span className="text-ink/35 mt-2 block text-[12px]">
-              Only used for your invite and sign-in.
-            </span>
-          </Field>
-
-          <Button
-            className="mt-1 h-[50px] w-full"
-            onClick={submit}
-            aria-busy={submitting}
-          >
-            Save changes
-          </Button>
-
-          {formError ? (
-            <span role="alert" className="text-error text-center text-[12.5px]">
-              {formError}
+          {handleError ? (
+            <span role="alert" className="text-error mt-2 block text-[12.5px]">
+              {handleError}
             </span>
           ) : null}
+        </Field>
 
-          <button
-            type="button"
-            onClick={leaveEdit}
-            className="text-ink/45 text-center text-[14px]"
-          >
-            Discard
-          </button>
-        </div>
-      </Column>
+        <Field label="About">
+          <Textarea
+            value={bio}
+            rows={4}
+            maxLength={280}
+            placeholder="What are you curious about?"
+            aria-label="About"
+            onChange={(e) => setBio(e.target.value)}
+          />
+        </Field>
 
-      {/* Unraised: there is no pill on this screen for a toast to clear. */}
-      <Toast
-        text={toast ?? ""}
-        open={toast !== null}
-        onDone={() => setToast(null)}
-        durationMs={1700}
-      />
+        <Field label="Email">
+          <Input
+            readOnly
+            value={profile.email}
+            aria-label="Email"
+            className="text-ink/55"
+          />
+          <span className="text-ink/35 mt-2 block text-[12px]">
+            Only used for your invite and sign-in.
+          </span>
+        </Field>
+
+        <Button
+          className="mt-1 h-[50px] w-full"
+          onClick={submit}
+          aria-busy={submitting}
+        >
+          Save changes
+        </Button>
+
+        {formError ? (
+          <span role="alert" className="text-error text-center text-[12.5px]">
+            {formError}
+          </span>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={discard}
+          className="text-ink/45 text-center text-[14px]"
+        >
+          Discard
+        </button>
+      </div>
     </>
   );
 }

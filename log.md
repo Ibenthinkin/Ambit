@@ -92,6 +92,91 @@ migration — `covers` is a query). Then 8.1 T8/T9, spoon-tamago.
 
 _Session spend: 20.00M tok (in 3.3k · out 301.7k · cache r 18.69M / w 1.01M) · fable-5-1 · 12:28→13:44_
 
+**Afternoon — the list screens built (Opus 5, on `feat/list-screens`, pushed for review).** While
+Ben redeployed, the plan ran end to end, one commit per task.
+
+**Shipped:**
+
+- `ef89dc5` — `saves.collections` carries `covers: string[]` (one `row_number()` window,
+  `COVER_COUNT = 4`).
+- `d38a8f5` — `CoverMosaic`; the Profile tile paints it, square-cornered.
+- `2919ee6` — the hub: `app/profile/layout.tsx` → `ProfileHub` (identity block, four
+  `<Link replace>`s, toolbar, one raised toast through `ProfileHubContext`); `GRID_COLS` moved to
+  `masonry.ts`; `profile-screen.tsx` became `collections-tab.tsx`.
+- `f6fd83c` — the Topics tab: no chrome, facets as chips. `f8d4958` — the Edit tab: no header,
+  save stays, Discard resets; `edit-origin.ts` gone. `a8238df` — the Settings tab at
+  `/profile/settings`, `/settings` a 308; `settings-origin.ts` and the two shortcut cards gone.
+- `a3371d7` — Saved wide at the feed's column count; `CollectionRow`'s `leading` slot (a 36 px
+  face, a glyph square, or the old dot) in every picker, a 28 px face in `ItemSheet`.
+- `73f6eb0` — the fix below. Plus a prettier commit and an e2e-fix commit.
+- Verified: `bun run test` 1,277 passed (the one known red, `source-invariants`' `<details>` row);
+  `bun run e2e:prod` 56 passed / 3 skipped across `chromium` and `desktop` in three of four full
+  runs (the fourth: the flake below); screenshots
+  of the hub at 402 and 1440 checked by eye before the docs commit.
+
+**Findings:**
+
+- **The Profile cover was a broken image on production, and has been since 7.2.** The page's
+  CSP is `img-src 'self' data: blob:`; `withCovers` returned the stored museum URL, which the
+  browser blocks outright. Nobody noticed because a new account's collections are empty and the
+  e2e corpus uses `data:` pixels (which the CSP allows). The plan would have turned one broken
+  image into four per tile. `covers` are now `/api/img/<itemId>` srcs through a new
+  `lib/image-src.ts`, the rule the feed tile already followed and now shares. Found only by
+  screenshotting the desktop run, where the hover test's saves put real (fake-URL) rows in a
+  collection — worth remembering that a green e2e over `data:` pixels says nothing about the CSP
+  and image srcs.
+- **Where the plan was wrong against the code**, each fixed and small: `bun run format` does not
+  exist (it is `format:write`), so the first three commits went in unformatted and a style commit
+  followed; `profile-screen.tsx` itself still passed `cover=` (not in the plan's file list); the
+  hub test compared `style.backgroundImage` to a raw `hsl()` string, which jsdom rewrites to
+  `rgb()` (ported the old test's probe-element idiom); the `/settings`-redirect e2e was appended
+  *after* the sign-out test in a serial describe, so its restored cookie was already dead (moved
+  ahead of it); the desktop hub test expected exactly four tiles, but the hover test earlier in
+  the same serial run makes a fifth collection (now: first four share a row, the fifth wraps);
+  the fixtures for `feed-screen`, `tile-actions` and `saved-screen` predated `covers` and crashed
+  once the sheets read it.
+- **Two e2e traps, both from hydration:** the edit tab's `getByText("Maps, mostly.")` is
+  ambiguous because the About textarea holds the same words as a text node (the plan foresaw it
+  for "Ben R" but not for the bio); and tile tops read once after `toHaveCount` can catch the
+  server's two-column grid before `useColumnCount` switches to four, or a tile mid-`Rise` — polled
+  by `offsetTop` now.
+
+- **One unexplained intermittent failure, not chased to ground.** `settings.spec.ts` "the real
+  settings rows are real" failed once in four full `e2e:prod` runs (and 0 of 4 runs of the spec
+  alone): after the reload, `/profile/topics` read "4 on" with Ceramics unpressed, although the
+  test had awaited Ceramics' own `topics.setMine` 200 — a lost second toggle, the same symptom
+  the `scope: { id: "topics.setMine" }` serialisation was added to fix. The service worker does
+  not cache tRPC, so it is not that. Unknown whether it predates this branch (the Topics tab's
+  mutation code is untouched; the hub layout is new around it). If it recurs, check it on `main`
+  first.
+
+**Open / next:** Ben reviews `feat/list-screens` at phone width and 1440, then merges and
+redeploys (no migration). Then 8.1 T8/T9, spoon-tamago; the flake above if it comes back.
+
+*Session spend: 47.69M tok (in 623 · out 197.3k · cache r 46.07M / w 1.43M) · ~$38.90 · opus-5 + opus-4-7 · 14:04→14:27*
+*Session spend: 10.38M tok (in 67 · out 34.6k · cache r 10.29M / w 50.9k) · ~$6.44 · opus-5 + opus-4-7 · 14:27→14:42*
+
+**Ben's review of the list screens (Fable).** One note: the Topics tab should group topics the
+way onboarding does, not behind a facet filter.
+
+**Shipped:** `/profile/topics` is **four stacked facet sections on one page** — an uppercase
+eyebrow with the facet's name, an `h2` with the question onboarding asks for it, then the chips.
+The four questions moved from `onboarding-screen.tsx` into `topic-facets.ts` as `FACET_PROMPTS`,
+so both pickers share one copy. The chip-row filter and its `Facets` group are gone; the e2e
+settings spec no longer clicks a facet before a chip. Verified: unit suites for both pickers,
+`settings.spec.ts` under a production build (6 passed), and screenshots at 1440 and 402.
+
+**Decisions:** the design doc's §3 keeps the chip-row reasoning as history and records the
+amendment. Why the filter lost: it made the reader flick between facets to see what they had
+already picked, and the whole vocabulary is only a few screens of chips — the onboarding screen
+laid flat is the honest shape.
+
+**Open / next:** unchanged — Ben merges `feat/list-screens` and redeploys.
+
+*Session spend: 4.40M tok (in 1.1k · out 32.1k · cache r 4.14M / w 230.0k) · fable-5-1 · 14:46→14:50*
+
+
+
 ### [[09-11-26 Fri]] — Round 2 mining hit the display-topic wall; the feed moves onto membership
 
 Ben set `PERSONA_PASSWORD` in Coolify and asked what next. Production catch-up first (redeploy

@@ -81,7 +81,13 @@ vi.mock("~/trpc/react", () => ({
       collections: {
         useQuery: () => ({
           data: [
-            { id: "c1", name: "Articles", createdAt: new Date(), itemCount: 2 },
+            {
+              id: "c1",
+              name: "Articles",
+              createdAt: new Date(),
+              itemCount: 2,
+              covers: [],
+            },
           ],
           isLoading: false,
         }),

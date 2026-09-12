@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { Magnifier, Share } from "~/components/icons";
+import { CoverMosaic } from "~/components/profile/cover-mosaic";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { writeLastCollectionId } from "~/lib/last-collection";
 import type { SaveDrift } from "~/lib/save-toast";
@@ -30,7 +31,10 @@ import { ShareSheet } from "./share-sheet";
 // Deliberately no "Already saved here" state on the rows, unlike SaveToCollectionSheet. The
 // prototype shows plain rows, and it's the right call for a menu you reach by long-pressing an
 // arbitrary tile mid-scroll: fetching + rendering the item's current collection would mean a
-// second query on a surface the user typically dismisses in under a second.
+// second query on a surface the user typically dismisses in under a second. Each row does lead with
+// its collection's face since 09-12-26 (a 28 px `CoverMosaic`, docs/DESIGN_list-screens.md §7) —
+// that comes from the same `saves.collections` read the rows already make, so it costs nothing
+// the old accent dot didn't.
 
 export interface ItemSheetProps {
   open: boolean;
@@ -185,7 +189,11 @@ export function ItemSheet({
                   onPointerDown={(e) => e.stopPropagation()}
                   className="flex w-full items-center gap-[11px] rounded-[12px] px-[10px] py-3 text-left transition-transform duration-150 active:scale-[0.99]"
                 >
-                  <span className="bg-accent size-2 flex-none rounded-full" />
+                  <CoverMosaic
+                    covers={c.covers}
+                    className="size-7 flex-none"
+                    placeholderSize={12}
+                  />
                   <span className="text-ink min-w-0 flex-1 truncate text-[15px]">
                     {c.name}
                   </span>

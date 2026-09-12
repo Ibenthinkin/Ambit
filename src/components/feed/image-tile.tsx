@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { useDesktopPress, usePress } from "~/hooks/use-press";
+import { imageSrc } from "~/lib/image-src";
 import { cn } from "~/lib/utils";
 import type { FeedCard } from "~/server/services/feed";
 import { DebugBadge } from "./debug-badge";
@@ -80,13 +81,9 @@ export function ImageTile({
     });
   }, []);
 
-  // Every http(s) image is fetched through Ambit's own proxy (`/api/img/[itemId]`) — one origin,
-  // no referer sent upstream, which is what unblocked AIC (see the route's header comment). The
-  // `data:` bypass is for the e2e corpus, whose items carry inline base64 pixels: there is nothing
-  // for a proxy to fetch, and teaching the route to dereference `data:` would be strictly worse
-  // than branching here.
-  const src = item.imageUrl?.startsWith("data:")
-    ? item.imageUrl
+  // Proxied, or a `data:` pixel as-is — the rule, and why, is `lib/image-src.ts`'s.
+  const src = item.imageUrl
+    ? imageSrc(item.id, item.imageUrl)
     : `/api/img/${item.id}`;
 
   return (

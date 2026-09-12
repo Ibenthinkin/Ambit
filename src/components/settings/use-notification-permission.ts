@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-// The one Permissions row in `/settings` backed by a real browser API. Everything about this hook
+// The one Permissions row in `/profile/settings` backed by a real browser API. Everything about this hook
 // is shaped by the fact that the answer is genuinely unavailable during render.
 //
 // **`"unsupported"` is a real state, not a fallback.** On iOS, `window.Notification` does not exist

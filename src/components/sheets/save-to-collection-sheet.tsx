@@ -130,6 +130,11 @@ export function SaveToCollectionSheet({
                   isCurrent ? "Already saved here" : itemCountLabel(c.itemCount)
                 }
                 tone={isCurrent ? "accent" : "normal"}
+                leading={{
+                  kind: "covers",
+                  covers: c.covers,
+                  current: isCurrent,
+                }}
                 onPick={() => pick(c.id)}
               />
             );
