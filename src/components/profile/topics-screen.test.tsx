@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TopicsScreen } from "./topics-screen";
@@ -71,8 +71,10 @@ const TOPICS = [
   { id: "epsilon", label: "Epsilon", facet: "place" },
 ];
 
+/** The pressed chips inside the topic group — the facet chips are pressed too, and not the point. */
 function pressed() {
-  return screen
+  const group = screen.getByRole("group", { name: /topics$/ });
+  return within(group)
     .getAllByRole("button")
     .filter((b) => b.getAttribute("aria-pressed") === "true")
     .map((b) => b.textContent);
@@ -88,26 +90,43 @@ describe("TopicsScreen", () => {
     state.weights = [];
   });
 
-  it("shows four tabs in facet order with Subject selected, and that facet's chips", () => {
+  it("shows four facet chips in order with Subject pressed, and that facet's topics", () => {
     render(<TopicsScreen dev={false} />);
-    const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual([
+    const facets = within(
+      screen.getByRole("group", { name: "Facets" }),
+    ).getAllByRole("button");
+    expect(facets.map((f) => f.textContent)).toEqual([
       "Subject",
       "Medium",
       "Look",
       "Place",
     ]);
-    expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
+    expect(facets[0]).toHaveAttribute("aria-pressed", "true");
+    expect(facets[1]).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
     expect(screen.getByRole("button", { name: "Alpha" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Gamma" })).toBeNull();
     expect(pressed()).toEqual(["Alpha"]);
   });
 
-  it("a tab click switches the panel", () => {
+  it("a facet chip switches the group", () => {
     render(<TopicsScreen dev={false} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Medium" }));
+    fireEvent.click(screen.getByRole("button", { name: "Medium" }));
     expect(screen.getByRole("button", { name: "Gamma" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Alpha" })).toBeNull();
+    expect(
+      screen.getByRole("group", { name: "Medium topics" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders no title, no back link and no <main> — the hub owns those", () => {
+    render(<TopicsScreen dev={false} />);
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.queryByText("← Profile")).toBeNull();
+    expect(document.querySelector("main")).toBeNull();
+    expect(
+      screen.getByText("1 on. Changes save as you go."),
+    ).toBeInTheDocument();
   });
 
   it("toggling a chip on saves the new full set immediately", () => {

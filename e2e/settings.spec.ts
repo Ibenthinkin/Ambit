@@ -218,7 +218,7 @@ test.describe.serial("settings", () => {
     // (the slug is a graph key — see server/config/topics.ts), and it is a Subject.
     await page.getByText("What you see").click();
     await page.waitForURL("/profile/topics");
-    await page.getByRole("tab", { name: "Subject" }).click();
+    await page.getByRole("button", { name: "Subject", exact: true }).click();
 
     // Wait for the write itself, not just the chip. The screen is optimistic on purpose — the
     // chip flips before the server answers — so asserting `pressed: true` and reloading proves
@@ -235,7 +235,7 @@ test.describe.serial("settings", () => {
     // not a grown topic: CI's database is `db:migrate` + `db:seed`, which is the sixteen config
     // topics and nothing else, so `surreal` and friends do not exist there. That grown topics are
     // acceptable to `setMine` is pinned by routers.integration.test.ts, where the fixture is real.
-    await page.getByRole("tab", { name: "Medium" }).click();
+    await page.getByRole("button", { name: "Medium", exact: true }).click();
     const savedCeramics = waitForSetMine(page);
     await page
       .getByRole("button", { name: "Ceramics", pressed: false })
@@ -247,7 +247,7 @@ test.describe.serial("settings", () => {
 
     // Every toggle saved as it happened — no Done button to press, so a reload is the proof.
     await page.reload();
-    await page.getByRole("tab", { name: "Medium" }).click();
+    await page.getByRole("button", { name: "Medium", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Ceramics", pressed: true }),
     ).toBeVisible({ timeout: 15_000 });
