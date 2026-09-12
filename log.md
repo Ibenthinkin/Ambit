@@ -154,6 +154,7 @@ Ben redeployed, the plan ran end to end, one commit per task.
 redeploys (no migration). Then 8.1 T8/T9, spoon-tamago; the flake above if it comes back.
 
 *Session spend: 47.69M tok (in 623 · out 197.3k · cache r 46.07M / w 1.43M) · ~$38.90 · opus-5 + opus-4-7 · 14:04→14:27*
+*Session spend: 10.38M tok (in 67 · out 34.6k · cache r 10.29M / w 50.9k) · ~$6.44 · opus-5 + opus-4-7 · 14:27→14:42*
 
 
 
