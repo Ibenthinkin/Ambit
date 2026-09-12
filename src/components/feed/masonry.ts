@@ -39,6 +39,15 @@ export const IMAGE_ASPECTS = [
   { className: "aspect-square", ratio: 1.0 },
 ] as const;
 
+// Literal, never computed — Tailwind's scanner reads source text (see `IMAGE_ASPECTS` above). One
+// entry per value `useColumnCount` can return. Shared by the feed, the Profile hub's Collections
+// tab and Saved (docs/DESIGN_list-screens.md §6), which all pack the same column count.
+export const GRID_COLS = {
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-4",
+} as const;
+
 /**
  * A JUMP whose walk actually has a from→to pair to name. See `buildTiles`. Written as a type
  * predicate so the caller gets `driftPath` and `topicId` narrowed for free — a JUMP always has

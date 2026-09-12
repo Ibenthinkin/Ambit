@@ -29,7 +29,7 @@ import { useDevKnobs } from "./dev/use-dev-knobs";
 import { markFeedOrigin } from "./feed-origin";
 import { TileActions } from "./tile-actions";
 import { ImageTile } from "./image-tile";
-import { buildTiles, packColumns, type FeedTile } from "./masonry";
+import { buildTiles, GRID_COLS, packColumns, type FeedTile } from "./masonry";
 import { useFeedScroll } from "./use-feed-scroll";
 
 // The screen the whole app is for (SPEC §9, `Ambit - Feed Masonry 3.dc.html`): an infinite
@@ -41,14 +41,6 @@ import { useFeedScroll } from "./use-feed-scroll";
 // Getting this wrong is the same class of bug 5.5 hit three separate times with
 // `absolute`-vs-`fixed`, and here it has a second face: the IntersectionObserver's root must be
 // the viewport (its default), never a ref'd element.
-
-// Literal, never computed — Tailwind's scanner reads source text (see masonry.ts on
-// `IMAGE_ASPECTS`). One entry per value `useColumnCount` can return.
-const GRID_COLS = {
-  2: "grid-cols-2",
-  3: "grid-cols-3",
-  4: "grid-cols-4",
-} as const;
 
 // The dev panel's session mark, persisted so it outlives the tab (see `sessionMark` below).
 // Plain functions, not a hook: they read and write localStorage on demand, never during render.
