@@ -5,6 +5,39 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-13-26 Sun]] — Tumblr round 4: eight blogs probed and sampled; two kept
+
+Ben handed over eight Tumblr blogs to assess without doing the hands-on steps himself. All eight
+answer the legacy API and serve the platform-default robots.txt, so each would be a config row on
+`tumblr.ts`. Evidence sheet and per-blog recommendations: `docs/HANDOFF_tumblr-round4.md`.
+Nothing registered, nothing written to the DB, no `src/` change.
+
+**Findings:**
+
+- **Recommended Keep:** `jareckiworld` (8.69 / 99% ≥ 8, original posts, structured
+  `Artist — Title (medium, year)` captions, ~27k items) and `kvetchlandia` (8.44 / 95%, canonical
+  20th c. photography, on a 10k–15k budget because 111 of 150 sampled items land in `portraits`, a
+  6,524-member topic). `2000-lightyearsfromhome` (8.30 / 97%) is the swap-in, but it's a reblog
+  stream with no tags.
+- **Recommended Park:** `semioticapocalypse` (dormant since 07-04, `Visual Ratatosk` caption
+  boilerplate, six-language tag synonyms); `ffactory` (~192k items of reblogs, more than the whole
+  corpus); `lovejapanese80s` (a unique 80s-Japan texture, but 1980s idol gravure that the curator
+  scores 4, and `scoreFloor` is `gte 4`, so it would be drawn); `noosphe.re` (116 picture-less quote
+  posts per 150 items); `general-cybernetics` (7.00 / 55%, militaria and fetish images).
+- **Trap for anyone sampling an unregistered blog:** `structuralFloor` exempts only ids in the
+  compile-time `WALK_SOURCES`, so an ad hoc id gets the museum floor. The first pass floored 44–87%
+  of four blogs on `dup-title`/`thin-summary` and was thrown out.
+- **`sharp` hangs under Bun 1.4 here** — a 10×10 `create().png()` never resolves in a `bun run`
+  script. Contact sheets went through ffmpeg.
+
+**Decisions:** Ben agreed with every recommendation — **jareckiworld and kvetchlandia kept**
+(kvetchlandia on a 10k–15k budget), the other six parked.
+
+**Open / next:** Register the two keeps under the handoff's ids (the ~1,200
+sampled curations are cached under them); ~$0.28 of curation spent.
+
+*Session spend: 19.66M tok (in 226 · out 100.9k · cache r 18.98M / w 571.7k) · ~$17.73 · opus-5 · 14:05→14:27*
+
 ### [[09-12-26 Sat]] — Redeployed; round 2 of the vocabulary ticked and promoted locally
 
 Ben redeployed production to `5bb2f56` (`/api/health` confirms the commit; sub-projects 1–3 and
