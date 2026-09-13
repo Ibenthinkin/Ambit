@@ -175,6 +175,66 @@ laid flat is the honest shape.
 
 *Session spend: 4.40M tok (in 1.1k · out 32.1k · cache r 4.14M / w 230.0k) · fable-5-1 · 14:46→14:50*
 
+**Night — three solo threads while Ben slept (Fable 5.1, a fourth session).** Ben parked the
+restore drill and spoon-tamago for the evening ("too sleepy"); picked from a list: make
+`bun run check` green, chase the settings Topics flake, draft the tag-alias design.
+
+**Shipped (uncommitted on `main`, for Ben's morning):**
+
+- **`bun run check` is green again** — 1,279 tests. The one red row was the source-invariant's
+  HTML-tag check on a 70sscifiart summary ending in a literal `<details>`. Root cause read from
+  the raw Tumblr caption: `&lt;<em><a …>details</a></em>&gt;` — the stripper removes the real
+  tags and the entity decoder correctly yields the prose `<details>`; nothing is stored as
+  markup, and a hand edit would not survive the next walk (`upsertItem` rewrites `summary`). So
+  the *pattern* was narrowed, not the row: markup is now a closing tag, an opening tag with an
+  attribute run, a self-closing tag, or a bare `<br>`/`<hr>`/`<img>`/`<p>`; a bare `<details>`
+  or `<ref>` is prose. Eleven named shapes are pinned in a new test, and the pattern is bound as
+  a parameter — which turned up that the old inline `\s` inside the `sql` template literal had
+  been a plain `s` all along (a cooked template literal eats it), so `<a href=…>` was never
+  caught before. It is now.
+- **The lost-toggle flake is root-caused and fixed in the e2e helper.** `waitForSetMine`
+  resolved on the mutation's **headers**, and the client speaks `httpBatchStreamLink`, whose 200
+  goes out the moment the handler starts — the result (and the commit) follow in the body, ~8 ms
+  later idle and ~1 s under a loaded machine (both measured). Reloading on the headers raced the
+  commit: the reloaded page's `topics.mine` read the row a beat early, rendered the previous
+  set, and nothing refetched inside the 15 s window — exactly "4 on, Ceramics unpressed". The
+  write itself **always landed**: every aborted request's toggle was in Postgres afterwards
+  (checked across a dozen runs), so the proof was early, not wrong. The helper now waits for the
+  `topics.mine` GET that `onSettled`'s invalidate issues after the result chunk arrives —
+  because Playwright cannot wait for the body: on a streamed response in Chromium
+  `response.finished()` never settles and `response.text()` throws a protocol error (both
+  measured; the first attempt at the fix hung on `finished()` three runs out of three).
+  `settings.spec.ts` 3/3, full `e2e:prod` 56 passed / 3 skipped.
+- **`docs/DESIGN_tag-aliases.md` + `docs/PLAN_tag-aliases.md`** — the follow-up the morning
+  entry flagged, DRAFT, four questions for Ben in §8. Measured: the rejected synonyms imply
+  **~5,970 memberships** nothing has written (`comic art` 1,747 · `soviet era` 1,671 ·
+  `soviet illustration` 735 · `vintage advertising` 598 · `graffiti` 523 …), and a second gap
+  beside it — items fetched since Cut 2a carrying a grown topic's **own** tag with no membership
+  (`surreal` 1,296 of 12,813, `illustration` 467), because `promote:topics` writes tag-origin
+  rows once, on promotion day, and the classifier misses the exact tag on about one item in ten.
+  Design: a hand-written `TOPIC_ALIASES` config (no table; nothing reads it per request), one
+  pure `topicsFromTags` called from the ingest and from a new `bun run tags:apply` backfill,
+  mining treats aliases as taken, promotion refuses them. Eight TDD tasks, cold-executable.
+
+**Findings:**
+
+- Two of tonight's hypotheses died with evidence worth keeping: the service worker does **not**
+  touch tRPC (`isTrpc` → `NetworkOnly`, read from `sw-rules.ts`), and the server does **not**
+  drop a write when the client aborts a streaming mutation (health stayed 200 throughout, the
+  rows landed).
+- **One thing seen and not chased:** reloading `/profile/topics` within ~10 ms of a chip tap —
+  before the streamed `setMine` body arrives — left the reloaded page blank for 30 s+ in the
+  reproduction, one `topics.mine` GET pending forever, server healthy the whole time, with or
+  without the service worker. Unreachable by a human hand; recipe recorded here in case it
+  ever shows up somewhere reachable.
+
+**Open / next:** Ben reviews the diff and the two DRAFT docs, answers §8 (Q1 the alias set,
+Q2 apply at ingest, Q3 own-tag half, Q4 script vs boot), commits. Then, unchanged: 8.1 T8
+(restore drill, his hands) → T9.2–9.5; spoon-tamago parked by his call tonight; the alias plan
+in a cheaper session once the questions are answered.
+
+*Session spend: 23.41M tok (in 3.7k · out 251.9k · cache r 22.39M / w 762.7k) · fable-5-1 · 18:09→23:35*
+
 
 
 ### [[09-11-26 Fri]] — Round 2 mining hit the display-topic wall; the feed moves onto membership
