@@ -331,10 +331,33 @@ export async function completeOnboarding(page: Page, labels: string[]) {
  * `aria-pressed` flips before the server has answered; asserting on it and then reloading tests
  * nothing, and worse, the reload cancels the in-flight request. Start this *before* the click.
  */
-export function waitForSetMine(page: Page) {
-  return page.waitForResponse(
+export async function waitForSetMine(page: Page) {
+  const written = await page.waitForResponse(
     (r) => r.url().includes("topics.setMine") && r.status() === 200,
   );
+  // That 200 is not yet the write. The client speaks `httpBatchStreamLink` (trpc/react.tsx), and
+  // a streamed response sends its status the moment the handler starts — the result, and the
+  // commit it stands for, arrive in the body some milliseconds later (~8 ms idle, measured
+  // 09-12-26; under a loaded machine, longer). Reloading on the headers alone raced that commit:
+  // the reloaded page's `topics.mine` read the row a beat before `setUserTopics` wrote it,
+  // rendered the previous set, and nothing refetched inside the assertion's window. That was the
+  // "lost second toggle" settings.spec.ts saw once in four full `e2e:prod` runs; the write itself
+  // always landed (checked in Postgres after every aborted request), so the proof was early, not
+  // wrong.
+  //
+  // Playwright cannot wait for the body: on a streamed response in Chromium `response.finished()`
+  // never settles and `response.text()` throws a protocol error (both measured). The app's own
+  // signal is the honest one instead — topics-screen.tsx's `onSettled` invalidates `topics.mine`,
+  // which only runs once the result chunk has arrived, and the refetch it triggers is a GET this
+  // helper can see complete. Its 200 is a read of the committed row.
+  await page.waitForResponse(
+    (r) =>
+      r.url().includes("topics.mine") &&
+      r.request().method() === "GET" &&
+      r.status() === 200 &&
+      r.request().timing().startTime >= written.request().timing().startTime,
+  );
+  return written;
 }
 
 /**
