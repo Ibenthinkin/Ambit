@@ -72,6 +72,32 @@ describe("walk-source invariants (unit)", () => {
   });
 });
 
+/**
+ * What "an HTML tag" means to the corpus check below — one pattern, bound as a parameter so
+ * neither the SQL nor the template literal gets a say in its backslashes (`\s` inside a cooked
+ * `sql\`…\`` literal is a plain `s`, which is what the first version of this pattern silently
+ * became). Case-insensitive at the call site (`~*`).
+ *
+ * The line it draws (09-12-26): markup is a **closing** tag (`</i>`), an opening tag carrying an
+ * **attribute run** (`<a href=…>`), a **self-closing** tag (`<br/>`), a bare **void** element
+ * (`<br>`, `<hr>`, `<img>`), or a bare `<p>` — the one block tag every unstripped WordPress
+ * excerpt opens with and no caption says in prose. Any other bare opening tag by itself — `<details>`, `<ref>`, `<section>` —
+ * is *not* markup to this check, because a summary that ends in one is exactly what a caption
+ * that *talks about* a tag looks like once `htmlToText()` has done its job: 70sscifiart post
+ * `67374252514` reads `&lt;<em><a …>details</a></em>&gt;` at the source, the stripper removes the
+ * real tags and the entity decoder correctly yields the prose `<details>`. Every row the 7.2
+ * finding turned up was a pair (`<i>Tsuba</i>`) or a break (`<br><br>`), so nothing real is lost
+ * by the narrowing; what is given up is a lede that was cut between an `<i>` and its `</i>`,
+ * which no adapter has produced. Named shapes are pinned by the "tells markup from tag-shaped
+ * prose" test.
+ */
+const TAG_PATTERN = [
+  String.raw`</[a-zA-Z][a-zA-Z0-9]*\s*>`, // closing tag
+  String.raw`<[a-zA-Z][a-zA-Z0-9]*\s[^>]*>`, // opening tag with attributes
+  String.raw`<[a-zA-Z][a-zA-Z0-9]*\s*/>`, // self-closing tag
+  String.raw`<(br|hr|img|wbr|p)\s*>`, // bare void element, or the `<p>` every unstripped excerpt opens with
+].join("|");
+
 describe.skipIf(!process.env.DATABASE_URL)(
   "walk-source invariants (integration)",
   () => {
@@ -135,6 +161,33 @@ describe.skipIf(!process.env.DATABASE_URL)(
     //
     // What is left is still worth running: every *other* source — aic, cma, loc, and any source a
     // later phase adds — must keep all three fields tag-free, and this is what says so.
+    it("the tag pattern tells markup from tag-shaped prose", async () => {
+      const { db } = await import("~/server/db/client");
+      const { sql } = await import("drizzle-orm");
+      // Every shape the corpus has actually produced, on both sides of the line. The first
+      // group is what the 7.2 finding looked like (stored markup, must be caught); the second is
+      // plain text that merely contains angle brackets (must not be).
+      const cases: Array<[text: string, markup: boolean]> = [
+        ["Sword Guard (<i>Tsuba</i>) with a dragon", true],
+        ["A remark <em>emphasised</em> in passing.", true],
+        ["Between the lines.<br><br>Here, the poet", true],
+        ['See <a href="https://example.org/x">this page</a>.', true],
+        ["Line one<br/>line two", true],
+        ["<p>A whole paragraph, opened and never closed", true],
+        ["**Image restoration by Pixography. <details>", false],
+        ["From: Ivars Skrastins <i** @du.lv >", false],
+        ["a < b and c > d", false],
+        ["love it <3", false],
+        ["the <section> and <ref> elements", false],
+      ];
+      for (const [text, markup] of cases) {
+        const [row] = await db.execute<{ hit: boolean }>(
+          sql`select ${text} ~* ${TAG_PATTERN} as hit`,
+        );
+        expect(row?.hit, text).toBe(markup);
+      }
+    });
+
     it("no stored title, summary or body contains an HTML tag", async () => {
       const { db } = await import("~/server/db/client");
       const { sql } = await import("drizzle-orm");
@@ -145,13 +198,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
         field: string;
       }>(sql`
         select source, id, 'title' as field from item
-          where title ~ '<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^>]*)?\/?>'
+          where title ~* ${TAG_PATTERN}
         union all
         select source, id, 'summary' as field from item
-          where summary ~ '<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^>]*)?\/?>'
+          where summary ~* ${TAG_PATTERN}
         union all
         select source, id, 'body' as field from item
-          where body ~ '<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^>]*)?\/?>'
+          where body ~* ${TAG_PATTERN}
             and source <> 'wikipedia'
       `);
 
