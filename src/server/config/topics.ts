@@ -80,6 +80,9 @@ export const WALK_SOURCES = [
   "toiich",
   "thevaultoftheatomicspaceage",
   "thisisnthappiness",
+  // Sources round 4 (09-13-26): the two kept of eight, also on the factory.
+  "jareckiworld",
+  "kvetchlandia",
 ] as const;
 
 export type WalkSourceId = (typeof WALK_SOURCES)[number];

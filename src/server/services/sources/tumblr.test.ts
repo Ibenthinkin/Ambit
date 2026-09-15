@@ -6,8 +6,8 @@
 // drift. Network paths (the walk itself) are exercised by `bun run probe:walk`, per the
 // no-live-HTTP-in-unit-tests convention.
 //
-// Beyond that: one fixture per blog, recorded live 09-05-26 from three depths of each archive
-// (offsets 0 / 500 / 5000) and trimmed to the fields toItem reads. What they pin is that each
+// Beyond that: one fixture per blog, recorded live 09-05-26 (round 4's two: 09-15-26) from
+// three depths of each archive (offsets 0 / 500 / 5000) and trimmed to the fields toItem reads. What they pin is that each
 // blog really does answer in the two shapes the factory handles — several of these archives are
 // mostly `regular` posts where thingsorganizedneatly is mostly `photo` — and that no blog's
 // markup escapes into a title or summary.
@@ -18,6 +18,8 @@ import scifiart70s from "./__fixtures__/70sscifiart.json";
 import scifiart70sMulti from "./__fixtures__/70sscifiart-multi.json";
 import dreamsrecurring from "./__fixtures__/dreamsrecurring.json";
 import humanoidhistory from "./__fixtures__/humanoidhistory.json";
+import jareckiworld from "./__fixtures__/jareckiworld.json";
+import kvetchlandia from "./__fixtures__/kvetchlandia.json";
 import nemfrog from "./__fixtures__/nemfrog.json";
 import sovietpostcards from "./__fixtures__/sovietpostcards.json";
 import sovietpostcardsMulti from "./__fixtures__/sovietpostcards-multi.json";
@@ -48,7 +50,7 @@ function pictures(raws: TumblrRaw[], blogId: string) {
     .flatMap((r) => expandPictures(r, blogId));
 }
 
-/** The nine round-3 blogs and the fixture recorded from each. */
+/** The nine round-3 blogs and the two round-4 keeps, and the fixture recorded from each. */
 const FIXTURES: [string, TumblrRaw[]][] = [
   ["nemfrog", nemfrog],
   ["humanoidhistory", humanoidhistory],
@@ -59,6 +61,10 @@ const FIXTURES: [string, TumblrRaw[]][] = [
   ["toiich", toiich],
   ["thevaultoftheatomicspaceage", thevault],
   ["thisisnthappiness", thisisnthappiness],
+  // Round 4 (recorded 09-15-26, same three depths). Both archives are `regular` posts from the
+  // newer editor at the top and `photo` posts deeper down — kvetchlandia's fixture has both.
+  ["jareckiworld", jareckiworld],
+  ["kvetchlandia", kvetchlandia],
 ] as unknown as [string, TumblrRaw[]][];
 
 /** The post types the factory turns into items; everything else must throw. */

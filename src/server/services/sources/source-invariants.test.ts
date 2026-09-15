@@ -19,6 +19,8 @@ import sanFixtures from "./__fixtures__/streetartnews.json";
 import scifiart70sFixtures from "./__fixtures__/70sscifiart.json";
 import drecFixtures from "./__fixtures__/dreamsrecurring.json";
 import humhistFixtures from "./__fixtures__/humanoidhistory.json";
+import jareckiFixtures from "./__fixtures__/jareckiworld.json";
+import kvetchFixtures from "./__fixtures__/kvetchlandia.json";
 import nemfrogFixtures from "./__fixtures__/nemfrog.json";
 import sovpostFixtures from "./__fixtures__/sovietpostcards.json";
 import vaultFixtures from "./__fixtures__/thevaultoftheatomicspaceage.json";
@@ -46,6 +48,8 @@ const fixturesByWalker: Record<string, unknown[]> = {
   toiich: toiichFixtures,
   thevaultoftheatomicspaceage: vaultFixtures,
   thisisnthappiness: tihFixtures,
+  jareckiworld: jareckiFixtures,
+  kvetchlandia: kvetchFixtures,
 };
 
 describe("walk-source invariants (unit)", () => {

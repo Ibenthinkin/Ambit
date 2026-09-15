@@ -138,6 +138,13 @@ export const SUSPENDED_SOURCES: SourceId[] = [
   // is removing it from this list once Loupe has a reachable host and the two env vars are in
   // Coolify (docs/PLAN_loupe-hookup.md).
   "loupe",
+  // Round 4, KEPT 09-13-26 and quota'd (blogs.ts), registered 09-15-26, awaiting their walks.
+  // Sequencing, not doubt, exactly as with round 3's four above: one blog at a time with a
+  // readout between, `jareckiworld` first (13,700 items, ~2 GB of cache) then `kvetchlandia`
+  // (12,500, ~1.9 GB — read its row's note on portrait capture before raising that). Each leaves
+  // this list when its walk is scheduled.
+  "jareckiworld",
+  "kvetchlandia",
 ];
 
 /** Whether `source` is currently switched off. Accepts a plain string for DB rows. */

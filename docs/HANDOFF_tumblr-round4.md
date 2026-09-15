@@ -4,8 +4,11 @@
 hands-on steps to be done for him). **Status: verdicted 09-13-26 — Ben agreed with every
 recommendation in §2.** **Kept:** `jareckiworld`, `kvetchlandia` (on a 10k–15k budget).
 **Parked:** `2000-lightyearsfromhome` (the swap-in if contemporary photography is ever wanted),
-`semioticapocalypse`, `ffactory`, `lovejapanese80s`, `noosphere`, `general-cybernetics`. Nothing
-is registered yet and no file under `src/` changed — registering the two keeps is the next step.
+`semioticapocalypse`, `ffactory`, `lovejapanese80s`, `noosphere`, `general-cybernetics`.
+**Both keeps registered 09-15-26** — config rows on the factory (`jareckiworld` walkQuota 13,700,
+the newest half; `kvetchlandia` 12,500, the middle of Ben's range), fixtures recorded live from
+three depths, both in `SUSPENDED_SOURCES` until their walks are scheduled. `stats:walk` on each
+re-read the sample from the curation cache (140 cached / 10 fresh) at 8.67 / 99% and 8.46 / 96%.
 
 The eight, as given: `2000-lightyearsfromhome.tumblr.com`, `noosphe.re`,
 `tumblr.com/kvetchlandia`, `tumblr.com/jareckiworld`, `tumblr.com/semioticapocalypse`,
@@ -17,13 +20,16 @@ The eight, as given: `2000-lightyearsfromhome.tumblr.com`, `noosphe.re`,
 
 1. ~~Wait for Ben's Keep / Park per blog.~~ Done 09-13-26 — see the status line. The six parked
    blogs are not registered at all, so there is nothing to add to `SUSPENDED_SOURCES` for them.
-2. For each Keep (`jareckiworld`, `kvetchlandia`): a `blogs.ts` row (with a `walkQuota` — every one of these is big), one line in
+2. ~~For each Keep (`jareckiworld`, `kvetchlandia`): a `blogs.ts` row (with a `walkQuota` — every one of these is big), one line in
    `tumblr-blogs.ts`, an id in `types.ts` / `topics.ts` `WALK_SOURCES` / `sources/index.ts`, and
-   a fixture — exactly round 3's recipe (`docs/HANDOFF_tumblr-round3.md` §1, §5).
-3. **Use the ids in §1's first column.** The curation cache is keyed `source:sourceId`, and
+   a fixture — exactly round 3's recipe (`docs/HANDOFF_tumblr-round3.md` §1, §5).~~ Done 09-15-26.
+3. ~~**Use the ids in §1's first column.** The curation cache is keyed `source:sourceId`, and
    the 1,200 items sampled here were cached under those ids, so `bun run stats:walk <id>`
-   re-reads them free once they are registered. `noosphe.re`'s id here is `noosphere`.
-4. Anything kept but not yet walked goes in `SUSPENDED_SOURCES` until its walk is scheduled.
+   re-reads them free once they are registered.~~ Done — both re-read from cache. `noosphe.re`'s id here is `noosphere`.
+4. ~~Anything kept but not yet walked goes in `SUSPENDED_SOURCES` until its walk is scheduled.~~
+   Both are there. **Next:** walk them one at a time, `jareckiworld` first — lift it from
+   `SUSPENDED_SOURCES`, `bun run ingest --source jareckiworld`, read the summary line (un-homed
+   count and tag histogram) and `stats:walk`, then `kvetchlandia` with an eye on `portraits`.
 
 ---
 

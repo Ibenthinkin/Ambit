@@ -23,3 +23,6 @@ export const thevaultoftheatomicspaceage = walker(
   "thevaultoftheatomicspaceage",
 );
 export const thisisnthappiness = walker("thisisnthappiness");
+// Sources round 4 (09-13-26; registered 09-15-26): the two Ben kept of eight.
+export const jareckiworld = walker("jareckiworld");
+export const kvetchlandia = walker("kvetchlandia");

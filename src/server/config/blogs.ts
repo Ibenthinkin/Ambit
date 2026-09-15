@@ -308,6 +308,52 @@ export const BLOGS: readonly BlogConfig[] = [
     // `nevver` is the author's own handle, the most frequent tag in the sample.
     selfTags: ["nevver"],
   },
+  // Sources round 4 (09-13-26): eight Tumblr blogs probed and sampled without registering any
+  // of them (docs/HANDOFF_tumblr-round4.md); Ben kept these two and parked the other six, which
+  // are therefore not here at all. Registered 09-15-26; both sit in SUSPENDED_SOURCES until
+  // their walks are scheduled, one at a time, like round 3's.
+  {
+    id: "jareckiworld",
+    label: "Pierre Menard",
+    baseUrl: "https://jareckiworld.tumblr.com",
+    license: BLOG_LICENSE,
+    // 27,289 posts, 100% pictures, 1.00 pictures/post, **0% reblogs** — an original poster whose
+    // every caption is the same structured credit, `Artist (dates) — Title (medium, year)`, so
+    // every card gets a real title. 4.3 tags/post of artist names and national-school vocabulary
+    // (`polish art`, `women painters`, `metamodernism`); no self-tag observed in 60 posts across
+    // three depths. Global 20th–21st c. painting and illustration, much of it by artists nobody
+    // else in the corpus carries; lands mostly in `painting`.
+    // KEPT 09-13-26. Sample of the newest 150: avg **8.69, 99% ≥ 8**, nothing below 7,
+    // un-homed 0%, 0 toItem errors — level with 70sscifiart, the strongest source in the corpus.
+    // Budget: newest 50% = 13,650 posts × 1.00 pictures/post ⇒ walkQuota 13,700 items (the
+    // handoff offered the whole archive or the half; the half is the standing rule for a big
+    // walk). ~$3.20 of curation, ~2 GB of image cache. Resume from the cursor the run prints.
+    robotsCheckedOn: "2026-09-13",
+    walk: "tumblr",
+    walkQuota: 13_700,
+  },
+  {
+    id: "kvetchlandia",
+    // Lowercase because that is how the blog names itself (its API title is `"kvetchlandia"`),
+    // the same call as nemfrog's.
+    label: "kvetchlandia",
+    baseUrl: "https://kvetchlandia.tumblr.com",
+    license: BLOG_LICENSE,
+    // 57,763 posts, 91% pictures, 1.01 pictures/post, 8% reblogs. Canonical 20th c. photography
+    // and portraiture — Rodchenko, Man Ray, Penn, Cartier-Bresson, Goldin — with credits the
+    // corpus can use as titles (`Photographer  Subject, Place  Year`). **No tags at all**
+    // (0.0/post), so topic mining has only the curator's aesthetic tags to go on. Captions often
+    // end in a long quote or lyric (p90 491 chars); capSummary cuts those at 600.
+    // KEPT 09-13-26 on a small budget. Sample of the newest 150: avg 8.44, 95% ≥ 8, un-homed 0%,
+    // 5 toItem errors. **Portrait capture** is why the budget is small: 111 of 150 sampled items
+    // land in `portraits` (6,524 members on 09-13-26), so a newest-half walk would make that
+    // topic mostly this blog. Ben's range was 10k–15k; this is its middle.
+    // Budget: walkQuota 12,500 items ≈ the newest 12,400 posts (21% of the archive). ~$2.90 of
+    // curation, ~1.9 GB of image cache.
+    robotsCheckedOn: "2026-09-13",
+    walk: "tumblr",
+    walkQuota: 12_500,
+  },
 ];
 
 export function blogConfig(id: string): BlogConfig | undefined {

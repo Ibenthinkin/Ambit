@@ -75,7 +75,10 @@ rows locally @ 8.70, 97.5% ≥ 8, all 16 topics — the strongest source in the 
 parked** (`SUSPENDED_SOURCES`, the only switch that keeps a
 registered walker out of the nightly ingest). Walk sources are now exempt from the dup-title floor
 rule, and `bun run stats:walk` prints the score distribution a verdict needs. Neither kept blog is
-on production yet — the nightly ingest walks them after the next deploy. **The Public Domain Review
+on production yet — the nightly ingest walks them after the next deploy. **Tumblr round 4 (09-13-26,
+`docs/HANDOFF_tumblr-round4.md`): eight blogs probed, `jareckiworld` and `kvetchlandia` kept and
+registered 09-15-26** on the factory with budgets (13,700 / 12,500 items), in `SUSPENDED_SOURCES`
+until each is walked, one at a time. **The Public Domain Review
 (`pdr`) was built and KEPT 09-02-26** — the fourth walk source and the first that is _not_ a designated
 blog (its images are public domain, its own text CC BY-SA 4.0), a walk over Gatsby `page-data` JSON
 with a per-record disk cache; **1,624 local rows @ 8.39, 87% ≥ 8**, of which 186 are un-homed under

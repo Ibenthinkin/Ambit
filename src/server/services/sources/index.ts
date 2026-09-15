@@ -16,6 +16,8 @@ import { thisiscolossal } from "./thisiscolossal";
 import {
   dreamsrecurring,
   humanoidhistory,
+  jareckiworld,
+  kvetchlandia,
   nemfrog,
   scifiart70s,
   sovietpostcards,
@@ -68,6 +70,9 @@ export const walkers: Record<WalkSourceId, CorpusWalkAdapter<unknown>> = {
   toiich,
   thevaultoftheatomicspaceage,
   thisisnthappiness,
+  // Sources round 4 (09-13-26) — the two kept of eight.
+  jareckiworld,
+  kvetchlandia,
 };
 
 /** For CLIs that validate a `--source` flag: everything ingest knows how to reach. */

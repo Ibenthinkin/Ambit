@@ -5,6 +5,36 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-15-26 Tue]] — Round 4's two keeps registered
+
+Pushed `main` (four commits, 5607130..219e155) and registered `jareckiworld` and `kvetchlandia`
+on the `tumblr.ts` factory, round 3's recipe exactly: a `blogs.ts` row each with the probe
+evidence and a budget, one line in `tumblr-blogs.ts`, the id in `types.ts` / `WALK_SOURCES` /
+`sources/index.ts`, a fixture recorded live from offsets 0 / 500 / 5000, and both in
+`SUSPENDED_SOURCES` until their walks are scheduled.
+
+**Decisions (mine, flagged for Ben):** `jareckiworld` walkQuota **13,700** — the newest half of
+27,289 posts at 1.00 pictures/post; the handoff offered the half or the whole archive and the
+half is the standing rule for a big walk. `kvetchlandia` **12,500** — the middle of Ben's
+10k–15k range, ~the newest 12,400 posts. Labels: `Pierre Menard` (the blog's own title) and
+lowercase `kvetchlandia`, because that is how the blog names itself and `blogs.test.ts` refuses
+a label that is only the id title-cased — nemfrog's precedent. Neither blog self-tags
+(jareckiworld's 4.3 tags/post are artist names and national schools; kvetchlandia has none),
+so no `selfTags`.
+
+**Findings:** `stats:walk --quota 150` on each re-read the 09-13 sample from the curation cache
+(140 cached / 10 fresh — the posts since) at **8.67 / 99% ≥ 8** and **8.46 / 96%**, matching
+the handoff. Both archives are `regular` posts from the newer editor at the top and `photo`
+posts deeper down; no unsupported post type in 120 posts. `bun run check` green (1,287 tests;
+lint's 13 warnings are pre-existing).
+
+**Open / next:** walk them one at a time, `jareckiworld` first (lift from `SUSPENDED_SOURCES`,
+`ingest --source jareckiworld`, read the un-homed line and `stats:walk`), then `kvetchlandia`
+with an eye on `portraits`. Both are local until the next deploy. Then the tag-alias §8
+answers, or 8.1 T8.
+
+*Session spend: 7.36M tok (in 1.8k · out 46.3k · cache r 7.02M / w 293.4k) · fable-5-1 · 12:35→12:48*
+
 ### [[09-13-26 Sun]] — Tumblr round 4: eight blogs probed and sampled; two kept
 
 Ben handed over eight Tumblr blogs to assess without doing the hands-on steps himself. All eight

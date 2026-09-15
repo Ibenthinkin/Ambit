@@ -53,7 +53,10 @@ export type SourceId =
   | "dreamsrecurring"
   | "toiich"
   | "thevaultoftheatomicspaceage"
-  | "thisisnthappiness";
+  | "thisisnthappiness"
+  // Sources round 4 (09-13-26): the two kept of eight Tumblr blogs, same factory, same registry.
+  | "jareckiworld"
+  | "kvetchlandia";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds
