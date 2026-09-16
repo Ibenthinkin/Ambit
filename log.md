@@ -5,6 +5,53 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-16-26 Wed]] — jareckiworld walked: 13,700 rows @ 8.60
+
+Third launch of `bun run ingest --source jareckiworld` did it, 10:15→10:25 (601 s). The second
+had died like the first — Ben raised the _key's_ spend limit, but the 402 is about the
+_account's_ credit balance, which was $0.24; a two-token probe call passed because it cost
+nothing, and the twelve in-flight curator calls did not. Credits added, it ran.
+
+**Shipped:**
+
+- **jareckiworld: 13,700 inserted**, 0 floored, 0 skipped, 15 `answer` posts refused by design,
+  **13 un-homed** (their tags: `aboriginal art`, `australian aboriginal art`, `dot painting` —
+  one small honest gap), 57 over-filed (kept first 3), **38,469 memberships** (2.81/item).
+  Score histogram `2:9 5:1 6:1 7:225 8:4930 9:8514 10:20` — **avg 8.60, 98.3% ≥ 8**, the single
+  score-5 row is the one curator response that came back `{}`. Corpus **178,123**. Membership
+  lands where the sample said: painting 4,882 · illustration 4,845 · surreal 3,516 · mythology
+  2,024 · abstract 1,611 · nature 1,466 · japan 1,208. Display topics: surreal 1,658, painting
+  1,500, mythology 1,044, japan 794.
+- **Lifted from `SUSPENDED_SOURCES`** — the feed draws it now (local; production after the next
+  deploy walks it from cache-less scratch, ~$4.20).
+- **The stored-HTML invariant narrowed again.** It read Seiko Tachibana's print title _Cosmos
+  <Scene A-20>_ as a `<Scene>` tag with attributes; an opening tag "with attributes" now has to
+  carry a `name=`. Pinned both ways (that title, and the Tumblr ALT badge span). `check` green,
+  1,287.
+
+**Findings:**
+
+- **Cost:** the three launches together spent ~$4.45 + $0.07 + $0.23 for 13,700 fresh
+  curations — **~$0.00035/item**, half again round 3's $0.000235. Long structured captions and
+  full-size paintings. Budget kvetchlandia at ~$4.40; balance now $19.94.
+- **The cache made the relaunches nearly free** (12,719 then 209 curations preserved; run 3
+  curated ~770). The fail-fast + cache pair works exactly as designed: two aborts, zero rows
+  written twice, zero re-billing.
+- **Capture check:** `abstract` is now 1,611 of 3,443 members (47%) from this one blog — the
+  only topic where jareckiworld is close to half; `painting` is 25% (4,882 of 19,908),
+  `surreal` 12%. Worth a `/feed` read on `abstract` before kvetchlandia adds to `portraits`.
+- The 16 malformed-JSON responses of the aborted run were re-scored clean on the relaunch (they
+  are never cached), so the final table has one neutral row, not sixteen. A retry-once in the
+  curator would have saved nothing here; leave it unless kvetchlandia shows the rate again.
+- `docs/source-candidates.md` in the working tree is an older copy (round 2's probe notes gone,
+  the eight round-4 URLs pasted at the foot), changed 09-15 13:22:44 by nothing in the repo —
+  an editor buffer from 09-13, most likely. Not committed; `git checkout` restores 50ea3e0's.
+
+**Open / next:** kvetchlandia (`--source kvetchlandia`, budget 12,500, watch `portraits` at
+6,524 members); then the walk's production twin after the next deploy; tag-alias §8; 8.1 T8.
+
+_Session spend: 11.25M tok (in 1.4k · out 38.5k · cache r 10.68M / w 530.3k) · fable-5-1 + <synthetic> · 15:28→10:28_
+
 ### [[09-15-26 Tue]] — Round 4's two keeps registered
 
 Pushed `main` (four commits, 5607130..219e155) and registered `jareckiworld` and `kvetchlandia`
@@ -33,7 +80,35 @@ lint's 13 warnings are pre-existing).
 with an eye on `portraits`. Both are local until the next deploy. Then the tag-alias §8
 answers, or 8.1 T8.
 
-*Session spend: 7.36M tok (in 1.8k · out 46.3k · cache r 7.02M / w 293.4k) · fable-5-1 · 12:35→12:48*
+_Session spend: 7.36M tok (in 1.8k · out 46.3k · cache r 7.02M / w 293.4k) · fable-5-1 · 12:35→12:48_
+
+**Afternoon — jareckiworld's walk, killed at 93% by the account.** `nohup caffeinate -i bun run
+ingest --source jareckiworld` (log `.cache/jareckiworld-walk.log`), 13:22→15:12. The walk phase
+offered **13,700 items from 13,700 posts** (the probe's 1.00 pictures/post held exactly; resume
+cursor **13701**), 15 `answer` posts refused by design. Curation ran to **12,700 of 13,700** and
+the run **aborted on OpenRouter HTTP 402 — nothing written, 0 rows**, by the fail-fast rule.
+The balance had been $4.45 at launch against a $3.20 estimate.
+
+**Findings:**
+
+- **This blog curates at ~$0.00033/item, not the $0.000235 measured on round 3** — $4.20 for
+  12,700. Every caption is a long structured credit, and the pictures are paintings at full
+  Tumblr size, so more tokens a call. Budget the rest of round 4 at the higher figure:
+  kvetchlandia's 12,500 is ~$4.10, not $2.90.
+- **The cache kept everything the account paid for:** 12,719 curation files written during the
+  run, so the re-run curates ~~980 fresh items (~~$0.35) and writes all 13,700.
+- **16 malformed-JSON curator responses in 12,700 (0.13%)**, against round 3's 3 in 8,732
+  (0.03%) — `Unterminated string` / `Expected ']'`, all on items with long structured titles.
+  Each is stored at the neutral score 5 with no tags or topic, un-homed and drawable only as
+  WILD, and is _not_ cached, so a re-run re-scores exactly those. Worth a retry-once in the
+  curator if the rate holds on kvetchlandia.
+- The Monitor's 30-minute cap ate the exit notice twice; the log is the witness, as ever.
+
+**Open / next:** Ben tops up OpenRouter (balance $0.25), then the same command again — the cache
+makes the first 12,700 free — then read the summary's un-homed line, `stats:walk jareckiworld`,
+and lift it from `SUSPENDED_SOURCES`. Then kvetchlandia, budgeted at ~$4.10.
+
+_Session spend: 12.93M tok (in 1.4k · out 39.9k · cache r 12.67M / w 217.4k) · ~≥$1.61 · fable-5-1 + opus-4-7 · 12:48→15:28_
 
 ### [[09-13-26 Sun]] — Tumblr round 4: eight blogs probed and sampled; two kept
 
@@ -66,7 +141,7 @@ Nothing registered, nothing written to the DB, no `src/` change.
 **Open / next:** Register the two keeps under the handoff's ids (the ~1,200
 sampled curations are cached under them); ~$0.28 of curation spent.
 
-*Session spend: 19.66M tok (in 226 · out 100.9k · cache r 18.98M / w 571.7k) · ~$17.73 · opus-5 · 14:05→14:27*
+_Session spend: 19.66M tok (in 226 · out 100.9k · cache r 18.98M / w 571.7k) · ~$17.73 · opus-5 · 14:05→14:27_
 
 ### [[09-12-26 Sat]] — Redeployed; round 2 of the vocabulary ticked and promoted locally
 
@@ -119,8 +194,8 @@ _Session spend: 6.97M tok (in 987 · out 37.7k · cache r 6.65M / w 283.0k) · ~
 **Afternoon — sub-project 4, the list screens, designed and planned (Fable 5.1, a third
 session, after a `/clear`).** Brainstormed with Ben while the rail-fix redeploy ran. The review
 note was one line ("they adhere to the spec but I don't like the way they look at all"); asked
-what, he narrowed it: *"I may have been a little too broad with my condemnation. For the most
-part, everything looks ok, layout wise."* Two diagnoses ticked — **desktop is a stretched
+what, he narrowed it: _"I may have been a little too broad with my condemnation. For the most
+part, everything looks ok, layout wise."_ Two diagnoses ticked — **desktop is a stretched
 phone**, **collections have no face** — and the actual brief: the gear "doesn't need to be a
 little floatey thing off in the corner"; the account page should have "edit profile,
 collections, topics, and settings … listed across the top kinda like tabs, right under the
@@ -193,7 +268,7 @@ Ben redeployed, the plan ran end to end, one commit per task.
   followed; `profile-screen.tsx` itself still passed `cover=` (not in the plan's file list); the
   hub test compared `style.backgroundImage` to a raw `hsl()` string, which jsdom rewrites to
   `rgb()` (ported the old test's probe-element idiom); the `/settings`-redirect e2e was appended
-  *after* the sign-out test in a serial describe, so its restored cookie was already dead (moved
+  _after_ the sign-out test in a serial describe, so its restored cookie was already dead (moved
   ahead of it); the desktop hub test expected exactly four tiles, but the hover test earlier in
   the same serial run makes a fifth collection (now: first four share a row, the fifth wraps);
   the fixtures for `feed-screen`, `tile-actions` and `saved-screen` predated `covers` and crashed
@@ -216,8 +291,8 @@ Ben redeployed, the plan ran end to end, one commit per task.
 **Open / next:** Ben reviews `feat/list-screens` at phone width and 1440, then merges and
 redeploys (no migration). Then 8.1 T8/T9, spoon-tamago; the flake above if it comes back.
 
-*Session spend: 47.69M tok (in 623 · out 197.3k · cache r 46.07M / w 1.43M) · ~$38.90 · opus-5 + opus-4-7 · 14:04→14:27*
-*Session spend: 10.38M tok (in 67 · out 34.6k · cache r 10.29M / w 50.9k) · ~$6.44 · opus-5 + opus-4-7 · 14:27→14:42*
+_Session spend: 47.69M tok (in 623 · out 197.3k · cache r 46.07M / w 1.43M) · ~$38.90 · opus-5 + opus-4-7 · 14:04→14:27*
+*Session spend: 10.38M tok (in 67 · out 34.6k · cache r 10.29M / w 50.9k) · ~$6.44 · opus-5 + opus-4-7 · 14:27→14:42_
 
 **Ben's review of the list screens (Fable).** One note: the Topics tab should group topics the
 way onboarding does, not behind a facet filter.
@@ -236,7 +311,7 @@ laid flat is the honest shape.
 
 **Open / next:** unchanged — Ben merges `feat/list-screens` and redeploys.
 
-*Session spend: 4.40M tok (in 1.1k · out 32.1k · cache r 4.14M / w 230.0k) · fable-5-1 · 14:46→14:50*
+_Session spend: 4.40M tok (in 1.1k · out 32.1k · cache r 4.14M / w 230.0k) · fable-5-1 · 14:46→14:50_
 
 **Night — three solo threads while Ben slept (Fable 5.1, a fourth session).** Ben parked the
 restore drill and spoon-tamago for the evening ("too sleepy"); picked from a list: make
@@ -249,7 +324,7 @@ restore drill and spoon-tamago for the evening ("too sleepy"); picked from a lis
   the raw Tumblr caption: `&lt;<em><a …>details</a></em>&gt;` — the stripper removes the real
   tags and the entity decoder correctly yields the prose `<details>`; nothing is stored as
   markup, and a hand edit would not survive the next walk (`upsertItem` rewrites `summary`). So
-  the *pattern* was narrowed, not the row: markup is now a closing tag, an opening tag with an
+  the _pattern_ was narrowed, not the row: markup is now a closing tag, an opening tag with an
   attribute run, a self-closing tag, or a bare `<br>`/`<hr>`/`<img>`/`<p>`; a bare `<details>`
   or `<ref>` is prose. Eleven named shapes are pinned in a new test, and the pattern is bound as
   a parameter — which turned up that the old inline `\s` inside the `sql` template literal had
@@ -296,9 +371,7 @@ Q2 apply at ingest, Q3 own-tag half, Q4 script vs boot), commits. Then, unchange
 (restore drill, his hands) → T9.2–9.5; spoon-tamago parked by his call tonight; the alias plan
 in a cheaper session once the questions are answered.
 
-*Session spend: 23.41M tok (in 3.7k · out 251.9k · cache r 22.39M / w 762.7k) · fable-5-1 · 18:09→23:35*
-
-
+_Session spend: 23.41M tok (in 3.7k · out 251.9k · cache r 22.39M / w 762.7k) · fable-5-1 · 18:09→23:35_
 
 ### [[09-11-26 Fri]] — Round 2 mining hit the display-topic wall; the feed moves onto membership
 

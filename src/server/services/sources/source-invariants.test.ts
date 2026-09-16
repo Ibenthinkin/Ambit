@@ -94,10 +94,17 @@ describe("walk-source invariants (unit)", () => {
  * by the narrowing; what is given up is a lede that was cut between an `<i>` and its `</i>`,
  * which no adapter has produced. Named shapes are pinned by the "tells markup from tag-shaped
  * prose" test.
+ *
+ * Narrowed once more 09-16-26: an opening tag "with attributes" has to carry an actual
+ * `name=` — `<a href=`, `<span class=` — not merely a space and anything up to `>`. The
+ * looser shape read jareckiworld post `818871659573477376`'s real title, Seiko Tachibana's
+ * print *Cosmos <Scene A-20>*, as a `<Scene>` tag with attributes. Markup with attributes
+ * always has the `=`; a title never does. Given up: a bare boolean attribute (`<input disabled>`),
+ * which no source has produced.
  */
 const TAG_PATTERN = [
   String.raw`</[a-zA-Z][a-zA-Z0-9]*\s*>`, // closing tag
-  String.raw`<[a-zA-Z][a-zA-Z0-9]*\s[^>]*>`, // opening tag with attributes
+  String.raw`<[a-zA-Z][a-zA-Z0-9]*\s+[a-zA-Z-]+=`, // opening tag with an attribute (`<a href=`)
   String.raw`<[a-zA-Z][a-zA-Z0-9]*\s*/>`, // self-closing tag
   String.raw`<(br|hr|img|wbr|p)\s*>`, // bare void element, or the `<p>` every unstripped excerpt opens with
 ].join("|");
@@ -183,6 +190,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
         ["a < b and c > d", false],
         ["love it <3", false],
         ["the <section> and <ref> elements", false],
+        // jareckiworld 818871659573477376 — an artwork's own title, not a tag with attributes.
+        ["Seiko Tachibana — Cosmos <Scene A-20> (intaglio print, 2022)", false],
+        ['<span class="tmblr-alt-text-helper">ALT</span>', true],
       ];
       for (const [text, markup] of cases) {
         const [row] = await db.execute<{ hit: boolean }>(

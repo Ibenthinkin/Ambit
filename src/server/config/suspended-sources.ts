@@ -140,10 +140,12 @@ export const SUSPENDED_SOURCES: SourceId[] = [
   "loupe",
   // Round 4, KEPT 09-13-26 and quota'd (blogs.ts), registered 09-15-26, awaiting their walks.
   // Sequencing, not doubt, exactly as with round 3's four above: one blog at a time with a
-  // readout between, `jareckiworld` first (13,700 items, ~2 GB of cache) then `kvetchlandia`
-  // (12,500, ~1.9 GB — read its row's note on portrait capture before raising that). Each leaves
-  // this list when its walk is scheduled.
-  "jareckiworld",
+  // readout between. `jareckiworld` went first — WALKED 09-16-26 (13,700 rows @ 8.60, 98.3% ≥ 8,
+  // 13 un-homed; the walk needed three launches because the OpenRouter *account* balance, not
+  // the key's limit, ran out twice — the cache made each relaunch nearly free) and is gone from
+  // this list. `kvetchlandia` (12,500 items, ~1.9 GB of cache, ~$4.10 at this blog's measured
+  // rate — read its row's note on portrait capture before raising that) leaves when its walk is
+  // scheduled.
   "kvetchlandia",
 ];
 
