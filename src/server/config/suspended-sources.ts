@@ -138,15 +138,14 @@ export const SUSPENDED_SOURCES: SourceId[] = [
   // is removing it from this list once Loupe has a reachable host and the two env vars are in
   // Coolify (docs/PLAN_loupe-hookup.md).
   "loupe",
-  // Round 4, KEPT 09-13-26 and quota'd (blogs.ts), registered 09-15-26, awaiting their walks.
-  // Sequencing, not doubt, exactly as with round 3's four above: one blog at a time with a
-  // readout between. `jareckiworld` went first — WALKED 09-16-26 (13,700 rows @ 8.60, 98.3% ≥ 8,
-  // 13 un-homed; the walk needed three launches because the OpenRouter *account* balance, not
-  // the key's limit, ran out twice — the cache made each relaunch nearly free) and is gone from
-  // this list. `kvetchlandia` (12,500 items, ~1.9 GB of cache, ~$4.10 at this blog's measured
-  // rate — read its row's note on portrait capture before raising that) leaves when its walk is
-  // scheduled.
-  "kvetchlandia",
+  // Round 4, KEPT 09-13-26 and quota'd (blogs.ts), registered 09-15-26, walked one at a time
+  // with a readout between, exactly as round 3's four above. `jareckiworld` WALKED 09-16-26
+  // (13,700 rows @ 8.60, 98.3% ≥ 8, 13 un-homed) and `kvetchlandia` the same day (12,500 rows
+  // @ 8.30, 93.5% ≥ 8, 32 un-homed; `portraits` is 44% this blog by membership, `new-york` 53% —
+  // the capture its row predicted, at the budget Ben chose for it). Five launches between them:
+  // OpenRouter refused twice on the *account* balance and once on the *key's* monthly limit, and
+  // each fail-fast abort wrote nothing while the curation cache kept every scored item, so the
+  // relaunches were nearly free. Both are out of this list; this block is history.
 ];
 
 /** Whether `source` is currently switched off. Accepts a plain string for DB rows. */
