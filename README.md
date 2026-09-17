@@ -16,6 +16,8 @@ The name *Ambit* = the scope you wander within: a weighted-random walk through t
 
 ## Status
 
+**Deployed at [ambit.benreilly.io](https://ambit.benreilly.io)** since 08-29-26 (invite-only), on a homelab Coolify host — Phase 8.1, closed 09-17-26.
+
 **Phases 0–4 complete; Phase 5 (the UI redesign) is mid-flight** — 5.6, the real feed, shipped 08-20-26. There is a working app on `main` with a database populated from real ingest runs: five source adapters, an LLM curation pass at ingest, the tiered topic-drift feed engine, accounts and invites, and saves/collections.
 
 Phase 0 settled both existential risks and is worth keeping on the record, because it produced a pivot: item-level embedding recommendation was tested and **rejected** (museum catalog text degenerates cosine similarity into string matching, and top-k similarity is anti-serendipity by construction). The validated design is a tiered topic-drift feed over an LLM-curated pool; the original prototype still lives at `phase0/feed.html` (self-contained; open in a browser).

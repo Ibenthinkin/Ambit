@@ -42,7 +42,7 @@ proxy-with-cache**. `/api/img/[itemId]` now fills a disk cache (`IMAGE_CACHE_DIR
 politely, per host). And the feed's page compose went from **138 ms to 22 ms** — `getTopicPools`
 had been dragging 9,848 full rows / 35.8 MB out of Postgres to pick twelve cards; it now returns a
 five-column projection and `getFeedPage` hydrates the winners by id. `bun run bench:feed` is the
-before/after. **8.1 is in progress and paused mid-phase**: T1–T2 shipped 08-28-26 (`/api/health`,
+before/after. **8.1 shipped — public 08-29-26, closed 09-17-26; 8.2 (ops guardrails + beta invites) is next.** The history: T1–T2 shipped 08-28-26 (`/api/health`,
 `MAIL_FROM`, `cf-connecting-ip` for Better Auth in production, a `SOURCE_COMMIT`-first precache
 revision, and the `Dockerfile`/`.dockerignore` whose boot path — migrate, seed, `next start` — was
 proven locally against an empty database, cache volume and all). **T3 shipped 08-29-26** — Ambit is
@@ -63,11 +63,13 @@ fallback). Raising `scheduled_tasks.timeout` is 8.2's T3.0. **7.4 and 7.4c shipp
 08-31/09-01-26** — the image cache is warm for all nine sources; the wikipedia adapter now asks for 1600 px thumbnails instead of originals, and `bun run rethumb` is
 the row repair. Wikimedia throttles on-demand thumbnail _rendering_ on a budget of roughly 60
 renders refilling at ~20/min — a sustained `--rate 1` still 429s; warm it as 20-image chunks with
-75 s pauses (loop in the 8.1 walkthrough). **T8 (restore drill) and T9.2–9.5 (closing docs) remain**, so
-resume from
-`docs/PHASE8_PLAN_8.1.md` — its execution-state banner says exactly where — and read
-`docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed facts (resource UUID, volume name, DB hostname)
-rather than re-deriving them from the Coolify UI. **A second thread is mid-flight beside 8.1:
+75 s pauses (loop in the 8.1 walkthrough). **T8 ran 09-16-26 and found every scheduled backup empty** — "Backup All Databases" is
+`pg_dumpall`, which the non-superuser `ambit` role cannot run, and Coolify recorded each 215-byte
+header as a success; fixed by the toggle, restore proven in 8.5 s (SPEC §13 has the procedure). **The
+file on disk is the witness, the same way the database is for a task.** T9's closing docs landed
+09-17-26. SPEC §13 is now *what is deployed*; read `docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed
+facts (resource UUID, volume name, DB container, backup path) rather than re-deriving them from the
+Coolify UI. **A second thread is mid-flight beside 8.1:
 source-candidates round 2** — every remaining candidate in `docs/source-candidates.md` was live-probed
 09-01-26, and the same night Ben verdicted the first three: **thingsorganizedneatly kept** (Tumblr
 walk, 891 rows locally @ 7.90), **thisiscolossal kept** (on the new `wp-rest.ts` factory; 6,075
@@ -347,6 +349,7 @@ service worker on `localhost:3000` (left by `bun run e2e:prod` in any browser th
 port) also makes Firefox report 0 and was the first suspect; it is real but secondary — the
 existing `SwCleanup` handles it once the page is allowed to hydrate.
 
+- **Production is `https://ambit.benreilly.io`, and the container is found by port, never by name.** On VM 202 (`ssh ben@192.168.1.202`), `C=$(docker ps -q --filter publish=3000)` — the name carries a per-deploy suffix. `docker exec "$C" bun run invite <email>` is how someone gets invited; `curl -s localhost:3000/api/health` says which commit is live. The auto-mode classifier refuses agent-run database writes and ingests on that host, so ship those as short scripts under `.cache/` for Ben to run (long single-line `ssh` commands wrap in his terminal and fail silently).
 - **Ambit must own port 3000.** `BETTER_AUTH_URL` is pinned to `http://localhost:3000`, so every auth callback and password-reset link points at whatever is listening there — and `tailscale serve --bg 3000`, which is how device passes get HTTPS, fronts the same port. An unrelated `node` app has been squatting 3000 since 08-16; run `lsof -ti:3000` and clear it before starting a dev server or a device pass.
 - **Run device passes over HTTPS, not `http://` on the LAN.** The Web Share API is secure-context only, so on plain HTTP `navigator.share` is `undefined` rather than broken — share, clipboard and service workers silently can't be tested at all. Use the tailnet origin (`https://macbook-air-m5.halley-morpho.ts.net`); it and every other dev origin must be listed in `src/config/dev-origins.js`.
 - **`services/feed.integration.test.ts`'s cursor-stability test fails ~1 local run in 10, and the

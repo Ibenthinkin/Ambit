@@ -4,8 +4,10 @@ Companion to `docs/PHASE8_PLAN_8.1.md`. The plan says what to do; this says what
 happened, what it proved, and every trap hit along the way. Written during execution, not after —
 the numbers below are the ones observed at the time, not reconstructed.
 
-**Status: in progress.** T1–T2 shipped 08-28-26. T3 and T4.1–4.4 executed 08-29-26 — Ambit is
-public at `https://ambit.benreilly.io`. T4.5–4.6, T5 and T6 (bar 6.2) done 08-29-26. **T7 in progress 08-30-26** — 7.1 smoke re-run clean, 7.2 tasks created, 7.3's first full ingest launched (running as of the last session close; numbers TBD).
+**Status: shipped.** T1–T2 08-28-26; T3–T6 (bar 6.2) 08-29-26 — public at
+`https://ambit.benreilly.io`; T7 08-30/31-26 (first ingest 11,313 items, unattended nightly on record);
+7.4/7.4c/7.5 09-01-26; T8 09-16-26 (the restore drill, and what it found); T9 09-17-26. The closing
+section at the end says what the phase proved, the numbers, and what it deliberately left to 8.2.
 
 ## Deployed facts (T3.6)
 
@@ -606,3 +608,39 @@ greps for its own marker string will match *itself* and `kill` its own shell (ex
 **Ops note that makes the rest of this cheaper:** `ssh ben@192.168.1.202` works non-interactively
 from the Mac, so a detached warm and its log (`.cache/img-warm-7.4c.log`) are one command away —
 the Coolify task runner was never in the path this time.
+
+## Closing — what 8.1 proved, the numbers, and what it left alone (09-17)
+
+**What deploying proved.** The Dockerfile's boot path (`db:migrate && db:seed && next start`) has
+now applied every migration through 0007 and re-seeded 160 topics with their facets on every start
+since 08-29 — the schema and the topic config reach production with nothing copied in. The volume
+survives a Redeploy (7.5), so a deploy costs no museum traffic and no OpenRouter spend. The seven
+security headers, the per-request CSP nonce, and the `__Secure-` cookie all arrive through the edge
+exactly as the production build sends them. Rate limiting keys on the real client behind Cloudflare.
+Mail leaves from the verified subdomain with DKIM passing. The nightly task fires on schedule and
+its work lands. And a backup can be restored — which, until 09-16, was not true.
+
+**The numbers, as observed.**
+
+| What | Value |
+|---|---|
+| Image | 1.58 GB; ~3 min to build on the NUC |
+| First full ingest (08-31 nightly) | 11,313 items, nine sources, ~70 min wall (the killed manual run's cache made it that short) |
+| Corpus on production | 170,452 items at the 09-16 backup; the round-4 walks add ~26k on 09-17 |
+| Image cache on the volume | 166,137 files / 23 GB (09-17); the Tumblr warm alone was 154,554 fills over 22.1 h at a per-host 2/s |
+| Curation cache | 798 MB — the only part of the volume that costs money to rebuild (~$40 at today's corpus) |
+| VM root disk | 116 GB, 64 GB used, 48 GB free (09-17) |
+| Backup | 36 MB `pg_dump --format=custom` for 170,452 items; restore into a scratch database 8.5 s, five counts equal |
+| Feed | `feed.page` p50 ~180-250 ms on production-shaped data, under SPEC's 300 ms bar |
+
+**The three lessons that outlive the phase**, each already written where it lives: Coolify's
+task status is not evidence (7.3 — every healthy ingest recorded `failed`); Coolify's backup
+status is not evidence either (trap #3 — every empty dump recorded `success`); and a Coolify
+Postgres resource can look right and be wrong in three separate ways (the traps section). The
+database, the dated log on the volume, and the file on disk are the witnesses.
+
+**What 8.1 deliberately does not do**, all named in the plan's out-of-scope list and all 8.2's:
+no error visibility (an exception in production is in `docker logs` and nowhere else), no uptime
+ping (a WAN outage is discovered by Ben opening the app), no ingest-failure notification (a dead
+nightly is found by the item count not moving — the 09-09 nightly's four dead Tumblr walks were
+found a day later that way). No one but Ben and the twenty personas is invited until 8.2 T6.
