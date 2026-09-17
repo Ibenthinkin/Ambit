@@ -12,6 +12,7 @@ import {
   saveSession,
   type Connection,
   waitForFeedToSettle,
+  fixtureSource,
   writeMemberships,
 } from "./support";
 
@@ -55,7 +56,9 @@ test.describe.serial("saved", () => {
       .insert(conn.item)
       .values(
         Array.from({ length: SEED_COUNT }, (_, i) => ({
-          source: "e2e",
+          // Rotated across several sources: under one, `sourceCap` holds a page to three tiles
+          // on CI's fixtures-only database — see support.ts's FIXTURE_SOURCES.
+          source: fixtureSource(i),
           // The spec-specific prefix is what the afterAll cleanup is scoped to — deleting by
           // `source: "e2e"` would pull other specs' fixtures out from under their parallel
           // workers (see support.ts's cleanupSeeded() for the incident that taught this).

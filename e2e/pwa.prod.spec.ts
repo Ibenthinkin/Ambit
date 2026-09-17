@@ -7,6 +7,7 @@ import {
   inviteUser,
   openAuthSheet,
   type Connection,
+  fixtureSource,
   writeMemberships,
 } from "./support";
 
@@ -41,7 +42,9 @@ const TOPICS = ["astronomy", "botany", "music"] as const;
 // through the SW's NetworkFirst handler), and each load costs the reader a page it can never be
 // served again. On CI's empty database the first sizing left only three tiles standing by the
 // second load — enough to pass, with no margin at all. See support.ts's seedFeedCorpus().
-const SEED_COUNT = 40;
+// 09-17-26: with full pages (support.ts's FIXTURE_SOURCES) the two loads measured 27 rows, which
+// left 40 the same kind of margin again; 80 is comfortable.
+const SEED_COUNT = 80;
 
 /**
  * A same-origin image, so the request is real — `image-tile.tsx` sends every http(s) `imageUrl`
@@ -63,7 +66,9 @@ test.describe.serial("pwa verification (production build)", () => {
       .insert(conn.item)
       .values(
         Array.from({ length: SEED_COUNT }, (_, i) => ({
-          source: "e2e",
+          // Rotated across several sources: under one, `sourceCap` holds a page to three tiles
+          // on CI's fixtures-only database — see support.ts's FIXTURE_SOURCES.
+          source: fixtureSource(i),
           sourceId: `e2e-pwa-${i}`,
           // All images: the point of this fixture is the proxy → cache chain, and an article tile
           // renders no image at all.

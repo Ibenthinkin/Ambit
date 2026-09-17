@@ -12,6 +12,7 @@ import {
   type Connection,
   waitForFeedToSettle,
   tapInPlace,
+  fixtureSource,
   writeMemberships,
 } from "./support";
 
@@ -41,8 +42,13 @@ const TOPICS = ["astronomy", "botany", "music"] as const;
 // never be served again, because the engine excludes their `seen_item` rows. Thirty rows was
 // plenty while the development corpus stood behind them; on CI's empty database (Phase 7.1) the
 // pool ran dry mid-file and the remaining tests waited out their timeouts on a feed with no tiles.
-// 150 is roughly the file's consumption plus headroom. See support.ts's seedFeedCorpus().
-const SEED_COUNT = 150;
+// See support.ts's seedFeedCorpus().
+//
+// **Re-sized 09-17-26, by measurement.** 150 had been sized while every fixture shared one source,
+// when `sourceCap` held a CI page to three tiles. With FIXTURE_SOURCES a page is full, each
+// round-trip hands the reader three times as much, and the file measured **162–171 rows**
+// consumed on a fixtures-only database — 150 ran dry before the last test. 360 is that, doubled.
+const SEED_COUNT = 360;
 
 // See support.ts's connect() for why the DB handle is loaded here rather than imported statically.
 let conn: Connection;
@@ -62,7 +68,9 @@ test.describe.serial("feed", () => {
       .insert(conn.item)
       .values(
         Array.from({ length: SEED_COUNT }, (_, i) => ({
-          source: "e2e",
+          // Rotated across several sources: under one, `sourceCap` holds a page to three tiles
+          // on CI's fixtures-only database — see support.ts's FIXTURE_SOURCES.
+          source: fixtureSource(i),
           sourceId: `e2e-feed-${i}`,
           // Roughly a third articles, so both tile components get exercised. The per-branch
           // `as const` is load-bearing: nothing gives this object literal a contextual type
