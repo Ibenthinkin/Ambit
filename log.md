@@ -5,6 +5,54 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-17-26 Thu]] — 8.1 closed; round 4 is on production
+
+Ben redeployed to `ce67c54` last night, and the nightly ingest that followed at 01:30 UTC walked
+both round-4 blogs from the pushed curation cache — **26,256 inserted in 51 min, $0 billed**
+(`/app/.cache/ingest-2026-09-17.log`: jareckiworld 13,700 with 14 page retries, kvetchlandia
+12,500 with 13). So `.cache/walks-round4-prod.sh`, run this morning "before the nightly", found
+its work done: jareckiworld skipped 13,697 as already present and inserted 3 posts newer than
+the Mac's walk, in 338 s. Kvetchlandia likewise: 12,500 skipped, 0 inserted, 326 s. Idempotence working exactly as the script's comment promised. The detached `img:warm --rate 2` for the new pictures started at 12:25 (`/app/.cache/img-warm-round4.log`).
+
+**Shipped:**
+
+- **8.1 is closed** — T9.2–9.5. `SPEC.md` §13 is rewritten as _what is deployed_: host and
+  tunnel, image (1.58 GB, ~3 min) and boot sequence, the one-instance rule, an env table with each
+  variable's source, the volume's three caches with today's sizes (img 166,137 files / 23 GB,
+  curation 798 MB, pdr 23 MB; 48 GB free of 116), the nightly task and why its status is not
+  evidence, the two Cloudflare pieces, and what is left to 8.2. `BUILD_PLAN.md` 8.1 ✅ carries
+  the four carried items with their proofs and the four decisions that differ from the plan text
+  (homelab not VPS; Coolify task not cron; fresh ingest with the cache copied; `cf-connecting-ip`).
+  The walkthrough has its closing section; `CLAUDE.md` gets the status line and a local-dev note on
+  finding the container by port; `README.md` a "Deployed at" line; the vault's integration table
+  reads "deployed both sides" for the archive seam and its log records the three-places key.
+  T8's docs from the 09-16 session committed first (`61580c3`); the stale
+  `docs/source-candidates.md` editor copy restored, not committed.
+- **`max_tokens: 400` on every curator call** (`CURATOR_MAX_TOKENS`, pinned by a test on the
+  request body). The 09-16 finding closed: OpenRouter reserved flash-lite's whole 65,535-token
+  window (~$0.026 a call, ~$0.31 across twelve in flight) before dispatching, which is how a key
+  with $2 left 402'd; now it reserves ~$0.0002, and a thin balance stops a walk only when it is
+  actually thin. The ecosystem doc had said "always send `max_tokens`" since the archive learned
+  it — Ambit finally does.
+
+**Findings:**
+
+- The "run the walks before the nightly" framing was wrong by one redeploy: once the image
+  carries the registered ids, the nightly _is_ the walk, and with the cache pushed it costs
+  nothing. The manual script is still the right tool when a walk has to land the same day, or
+  when a nightly dies mid-way and Coolify's status can't say so.
+- Production corpus is therefore ~196,700 items (170,452 at the 09-16 backup + 26,256). The
+  ~26k new pictures are uncached in `img/`; a detached `img:warm --rate 2` (all on
+  `64.media.tumblr.com`, so one serial 2/s queue, ~3.7 h) fills them ahead of readers.
+
+**Open / next:** 8.2 (`docs/PHASE8_PLAN_8.2.md` — Coolify notifications over Resend, the ingest
+verdict exit code, `/api/health`'s `ingest:` field, the external monitor); the `/feed` reads on
+`abstract`, `portraits` and `new-york` that both walks asked for; tag-alias §8 (Ben's answers);
+Coolify's backup run history for the missing 09-02–09-14 files; sources round 2 §0 (streetartnews
+after Cut 2, spoon-tamago parked).
+
+*Session spend: 11.14M tok (in 2.2k · out 86.0k · cache r 10.57M / w 475.1k) · ~≥$0.85 · fable-5-1 + opus-4-7 · 11:07→12:18*
+
 ### [[09-16-26 Wed]] — jareckiworld walked: 13,700 rows @ 8.60
 
 Third launch of `bun run ingest --source jareckiworld` did it, 10:15→10:25 (601 s). The second
