@@ -12,6 +12,8 @@ import {
   type Connection,
   waitForFeedToSettle,
   tapInPlace,
+  fixtureSource,
+  writeMemberships,
 } from "./support";
 
 // The item pages (`/i/[itemId]`) against a real dev server and real Postgres — the app's one
@@ -168,7 +170,9 @@ test.describe.serial("item pages", () => {
       .insert(conn.item)
       .values(
         Array.from({ length: 6 }, (_, i) => ({
-          source: "e2e",
+          // `i + 1`: the hand-written rows above already hold four `"e2e"` slots, one more than
+          // `sourceCap` lets a page show — see support.ts's FIXTURE_SOURCES.
+          source: fixtureSource(i + 1),
           sourceId: `e2e-item-rail-${i}-${stamp}`,
           type: "image" as const,
           title: `Rail plate ${i}`,
@@ -182,6 +186,20 @@ test.describe.serial("item pages", () => {
       )
       .returning();
     imageIds = rail.map((r) => r.id);
+
+    // The feed draws on `item_topic` membership since 09-11-26, so a seeded row needs one to be
+    // drawable — see support.ts's writeMemberships(). This file inserts its rows by hand and went
+    // without: locally the development corpus filled /feed regardless, and on CI's fixtures-only
+    // database the "from the feed" test below met a feed with no tiles at all (red on `main` from
+    // 09-11 until 09-17-26; docs/HANDOFF_e2e-ci-red.md).
+    await writeMemberships(conn, [
+      image!,
+      article!,
+      imageless!,
+      httpImage!,
+      blog!,
+      ...rail,
+    ]);
 
     inviteUser(EMAIL);
   });

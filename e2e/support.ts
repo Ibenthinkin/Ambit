@@ -114,7 +114,7 @@ export function inviteUser(email: string): void {
  * Deletes every seeded item whose `sourceId` starts with `prefix`, children first (`seen_item`
  * and `saved_item` both reference `item`).
  *
- * **Scoped to a prefix, never to `source: "e2e"`.** Every spec seeds under that same source, and
+ * **Scoped to a prefix, never to a `source`.** Every spec seeds under the same FIXTURE_SOURCES, and
  * `fullyParallel` runs the spec files in separate workers — so a cleanup that deleted the whole
  * source would pull another spec's fixtures out from under it mid-run. That is exactly what
  * happened when 5.8 added a third such spec: the feed came back empty and an item page 404'd, in
@@ -193,6 +193,41 @@ export async function restoreSession(page: Page, cookies: Cookie[]) {
 }
 
 /**
+ * The fixture corpus's sources — several, because a corpus has several.
+ *
+ * **Why not one `"e2e"` source (09-17-26).** The engine's `sourceCap` (services/feed-knobs.ts)
+ * lets no source take more than **three** cards of a page, across every tier, as a hard filter.
+ * It is a deliberate product rule (the first big walk's lesson, 09-07-26), and it meant a fixture
+ * corpus filed entirely under `"e2e"` could never compose a page of more than three tiles. Locally
+ * nobody saw it — `bun run e2e:prod` runs against the development database, whose real corpus
+ * fills the page — but CI's database holds the fixtures and nothing else, so its feed was three
+ * tiles over four columns and `main` was red from 09-07 to 09-17-26
+ * (docs/HANDOFF_e2e-ci-red.md). The repair is a fixture corpus shaped like a corpus, not a knob
+ * override and not a weaker assertion.
+ *
+ * **Seven, on purpose.** Four would fill a 12-card page exactly (4 × 3) with no slack for the
+ * "no adjacent same-source" rule; seven leaves headroom. And seven is coprime with every topic
+ * count the specs use, so `fixtureSource(i)` beside `topics[i % topics.length]` walks every
+ * (topic, source) pair instead of pinning each topic to one or two sources.
+ *
+ * `"e2e"` stays first: item.spec.ts's hand-written rows use it and assert its label ("E2e").
+ */
+export const FIXTURE_SOURCES = [
+  "e2e",
+  "e2e-b",
+  "e2e-c",
+  "e2e-d",
+  "e2e-e",
+  "e2e-f",
+  "e2e-g",
+] as const;
+
+/** The source for the `i`-th row of a bulk fixture insert — see FIXTURE_SOURCES. */
+export function fixtureSource(i: number): string {
+  return FIXTURE_SOURCES[i % FIXTURE_SOURCES.length]!;
+}
+
+/**
  * Inserts `count` drawable image/article rows under `prefix`, spread across `topics`.
  *
  * **Why a spec needs its own corpus at all, and why it needs this many rows.** Locally the feed
@@ -221,7 +256,8 @@ export async function seedFeedCorpus(
     .insert(conn.item)
     .values(
       Array.from({ length: count }, (_, i) => ({
-        source: "e2e",
+        // Rotated, never one source — see FIXTURE_SOURCES for what a single source costs.
+        source: fixtureSource(i),
         sourceId: `${prefix}${i}`,
         // Roughly a third articles, so both tile components get exercised. The per-branch
         // `as const` is load-bearing: nothing gives this object literal a contextual type, so

@@ -26,7 +26,12 @@ const PREFIX = "e2e-desktop-";
 // Five feed loads at four columns (the chrome redesign added three); 100 rows is that plus
 // headroom. See feed.spec.ts's note on why the seed exists at all (CI's database is empty) and
 // what it deliberately doesn't do.
-const SEED_COUNT = 100;
+//
+// **Re-sized 09-17-26, by measurement**: 100 dated from when one shared fixture source held a CI
+// page to three tiles (support.ts's FIXTURE_SOURCES). With full pages this file measured
+// **117–126 rows** consumed on a fixtures-only database — a 1440 × 900 feed pulls about three
+// pages a load — and 100 ran dry before the last test. 260 is that, doubled.
+const SEED_COUNT = 260;
 
 // The viewport is 1440×900, so its centre — what "centered" means below — is (720, 450).
 const CENTRE_X = 720;
