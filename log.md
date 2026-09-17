@@ -5,7 +5,7 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
-### [[09-17-26 Thu]] — 8.1 closed; round 4 is on production
+### [[09-17-26 Thu]] — 8.1 closed; round 4 is on production; 8.2 T1+T2 built
 
 Ben redeployed to `ce67c54` last night, and the nightly ingest that followed at 01:30 UTC walked
 both round-4 blogs from the pushed curation cache — **26,256 inserted in 51 min, $0 billed**
@@ -52,6 +52,31 @@ Coolify's backup run history for the missing 09-02–09-14 files; sources round 
 after Cut 2, spoon-tamago parked).
 
 *Session spend: 11.14M tok (in 2.2k · out 86.0k · cache r 10.57M / w 475.1k) · ~≥$0.85 · fable-5-1 + opus-4-7 · 11:07→12:18*
+
+**Afternoon — 8.2 T1 + T2 built** (`feat/8.2-ops`, PR #20; walkthrough started in
+`docs/PHASE8_WALKTHROUGH_8.2.md`). The ingest now has a verdict: exit 2 naming the dead sources,
+and one `ingest_run` row per real run (migration `0008`), which `/api/health` reports as
+`ingest: ok | stale | never | unknown` + `lastIngestAt` without touching the status code. Server
+errors go through `src/instrumentation.ts` as one JSON line each, mailed to `OPS_EMAIL` at most
+once an hour per error. **Re-enacting the 08-29 smoke with a fake Smithsonian key now exits 2**
+(`searched 34 / offered 0 / errors 34`), where it used to exit 0.
+
+**Findings — two things the handoff had wrong, both caught before they shipped, plus one addition:**
+
+- **A dead walk is `offered === 0 && errors > 0`, not `walked === 0`.** `runWalk` counts a page as
+  walked *before* asking for it, so a walk whose first page fails every retry reads `walked 1`.
+  The handoff's rule would have passed the one case it was written to catch.
+- **The plan's probe route `api/_boom` can never be requested.** An App Router folder whose name
+  starts with `_` is private and never becomes a route. The proof used `api/boom-probe`, which is
+  deleted.
+- **Added: `ingest: "unknown"`, a fourth value.** It appears when the `ingest_run` read throws; saying
+  `never` there would be a false claim about the corpus.
+
+**Open / next:** PR #20 → merge on green. Then Ben's part: set `OPS_EMAIL` in Coolify, deploy in
+daytime once `img-warm-round4` is done, and read `/api/health` (`"never"` until the next nightly
+run). After that, T3–T5.
+
+*Session spend: 20.75M tok (in 279 · out 102.0k · cache r 20.17M / w 483.9k) · ~$16.90 · opus-5 + opus-4-7 · 12:28→12:43*
 
 ### [[09-16-26 Wed]] — jareckiworld walked: 13,700 rows @ 8.60
 
