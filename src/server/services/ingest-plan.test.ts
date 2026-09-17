@@ -11,6 +11,7 @@ import type { Claim } from "./ingest-plan";
 import {
   planPrune,
   resolveCollisions,
+  runVerdict,
   tagHistogram,
   topicHistogram,
 } from "./ingest-plan";
@@ -202,5 +203,123 @@ describe("planPrune", () => {
         existingKeys,
       }),
     ).toEqual([]);
+  });
+});
+
+describe("runVerdict", () => {
+  // Phase 8.2 D2: the ingest used to exit 0 whatever its summary table said, so a run in which a
+  // source died outright read as a success to Coolify. The verdict turns "a source is dead" into
+  // exit 2 — and must NOT turn a merely quiet or partly-flaky source into one, or the failure mail
+  // fires every night and stops being read.
+  const search = (entries: [string, number, number, number][]) =>
+    new Map(
+      entries.map(([id, searched, offered, errors]) => [
+        id,
+        { searched, offered, errors },
+      ]),
+    );
+  const walk = (entries: [string, number, number, number][]) =>
+    new Map(
+      entries.map(([id, walked, offered, errors]) => [
+        id,
+        { walked, offered, errors },
+      ]),
+    );
+
+  it("exits 0 when every source ran clean", () => {
+    expect(
+      runVerdict({
+        search: search([
+          ["met", 34, 120, 0],
+          ["aic", 34, 98, 0],
+        ]),
+        walk: walk([["thisiscolossal", 40, 400, 0]]),
+      }),
+    ).toEqual({ exitCode: 0, deadSources: [] });
+  });
+
+  // The 08-29-26 smoke, exactly: a revoked Smithsonian key failed every one of its 34 searches.
+  it("exits 2 and names a search source whose every search errored (the 08-29 smoke)", () => {
+    expect(
+      runVerdict({
+        search: search([
+          ["met", 34, 54, 3],
+          ["smithsonian", 34, 0, 34],
+        ]),
+        walk: walk([]),
+      }),
+    ).toEqual({ exitCode: 2, deadSources: ["smithsonian"] });
+  });
+
+  it("does not fail a source with partial errors — the Met's normal night", () => {
+    expect(
+      runVerdict({ search: search([["met", 34, 54, 3]]), walk: walk([]) }),
+    ).toEqual({ exitCode: 0, deadSources: [] });
+  });
+
+  it("does not fail a source that never searched (parked poetrydb, no seed cells)", () => {
+    expect(
+      runVerdict({ search: search([["poetrydb", 0, 0, 0]]), walk: walk([]) }),
+    ).toEqual({ exitCode: 0, deadSources: [] });
+  });
+
+  // ingest.ts records a search source whose whole promise rejected as searched 0 / errors 1: it
+  // crashed before its first search could be counted, which is as dead as a source gets.
+  it("exits 2 for a search source that crashed before its first search", () => {
+    expect(
+      runVerdict({ search: search([["loc", 0, 0, 1]]), walk: walk([]) }),
+    ).toEqual({ exitCode: 2, deadSources: ["loc"] });
+  });
+
+  // runWalk counts a page as walked BEFORE asking for it, so a walk whose first page failed every
+  // retry reads walked 1 / offered 0 / errors 1 — not walked 0. This is the case that matters.
+  it("exits 2 for a walk whose first page failed", () => {
+    expect(
+      runVerdict({
+        search: search([]),
+        walk: walk([["pdr", 1, 0, 1]]),
+      }),
+    ).toEqual({ exitCode: 2, deadSources: ["pdr"] });
+  });
+
+  // ingest.ts records a walker whose whole promise rejected as walked 0 / errors 1.
+  it("exits 2 for a walk that crashed before its first page", () => {
+    expect(
+      runVerdict({
+        search: search([]),
+        walk: walk([["pdr", 0, 0, 1]]),
+      }),
+    ).toEqual({ exitCode: 2, deadSources: ["pdr"] });
+  });
+
+  it("does not fail a walk that found nothing new and hit no errors", () => {
+    expect(
+      runVerdict({
+        search: search([]),
+        walk: walk([["doorofperception", 1, 0, 0]]),
+      }),
+    ).toEqual({ exitCode: 0, deadSources: [] });
+  });
+
+  // The nightly of 09-17-26: two healthy 13k-row Tumblr walks recovered 14 and 13 failed pages.
+  it("does not fail a walk that errored part-way but walked pages", () => {
+    expect(
+      runVerdict({
+        search: search([]),
+        walk: walk([["jareckiworld", 1370, 13700, 2]]),
+      }),
+    ).toEqual({ exitCode: 0, deadSources: [] });
+  });
+
+  it("names every dead source, search and walk alike, in a stable order", () => {
+    expect(
+      runVerdict({
+        search: search([
+          ["smithsonian", 34, 0, 34],
+          ["aic", 34, 0, 34],
+        ]),
+        walk: walk([["pdr", 0, 0, 1]]),
+      }).deadSources,
+    ).toEqual(["aic", "pdr", "smithsonian"]);
   });
 });

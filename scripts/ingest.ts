@@ -57,12 +57,20 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "~/server/db/client";
+import { recordIngestRun } from "~/server/db/ingest-runs";
 import { addItemTopics, upsertItem } from "~/server/db/items";
-import { item, savedItem, seenItem, topic } from "~/server/db/schema";
+import {
+  item,
+  savedItem,
+  seenItem,
+  topic,
+  type IngestRunPerSource,
+} from "~/server/db/schema";
 import type { Claim } from "~/server/services/ingest-plan";
 import {
   planPrune,
   resolveCollisions,
+  runVerdict,
   tagHistogram,
   topicHistogram,
 } from "~/server/services/ingest-plan";
@@ -240,6 +248,42 @@ async function processWalker(
     onWarn: (msg) => console.warn(`  ${sourceId}: ${msg}`),
     onNote: (msg) => console.log(`  ${sourceId}: ${msg}`),
   });
+}
+
+// ── Phase 8.2: the run record ────────────────────────────────────────────────
+
+/** Taken before main() so the throw path can record a start time too. */
+const runStartedAt = new Date();
+
+/**
+ * Write this run's `ingest_run` row — the durable witness /api/health reads (schema.ts says why the
+ * app keeps one). Never under --dry-run, which writes nothing by contract. And never allowed to
+ * change the run's outcome: a database that refuses the row is logged and the process still exits
+ * with the code the run earned, because "the ingest worked but its receipt didn't" must not read
+ * as "the ingest failed" (and the reverse must not read as a success).
+ *
+ * Note a manual `--source x` run is a real run and writes a row like any other; the health field
+ * asks "has an ingest succeeded lately", not "did the cron fire".
+ */
+async function recordRun(
+  row: Pick<
+    Parameters<typeof recordIngestRun>[0],
+    "exitCode" | "inserted" | "perSource" | "error"
+  >,
+): Promise<void> {
+  if (dryRun) return;
+  try {
+    await recordIngestRun({
+      ...row,
+      startedAt: runStartedAt,
+      finishedAt: new Date(),
+      dryRun: false,
+    });
+  } catch (err) {
+    console.error(
+      `could not record ingest_run (exit code unchanged): ${String(err)}`,
+    );
+  }
 }
 
 // ── main ─────────────────────────────────────────────────────────────────
@@ -592,7 +636,51 @@ async function main() {
     skipLlm,
   });
 
-  process.exit(0);
+  // Phase 8.2 D2: the verdict. The table above is the diagnosis; this one line — printed only on
+  // failure, and last, so it is what a scheduler's failure mail quotes — is the judgment, and the
+  // exit code is how Coolify hears it. It runs under --dry-run too: a dry-run smoke is exactly
+  // where a revoked key shows up first.
+  const verdict = runVerdict({
+    search: statsBySource,
+    walk: walkStatsBySource,
+  });
+  if (verdict.exitCode !== 0) {
+    console.log(
+      `\ningest verdict: FAILED — dead sources: ${verdict.deadSources.join(", ")}`,
+    );
+  }
+
+  // The summary table as data, for the row. Claims and items stay out: they are the run's
+  // working set, not its result, and would make a nightly row megabytes.
+  const perSource: IngestRunPerSource = {
+    search: Object.fromEntries(
+      [...statsBySource].map(([id, s]) => [
+        id,
+        { searched: s.searched, offered: s.offered, errors: s.errors },
+      ]),
+    ),
+    walk: Object.fromEntries(
+      [...walkStatsBySource].map(([id, w]) => [
+        id,
+        {
+          walked: w.walked,
+          offered: w.offered,
+          errors: w.errors,
+          retries: w.retries,
+          complete: w.complete,
+        },
+      ]),
+    ),
+    deadSources: verdict.deadSources,
+  };
+  await recordRun({
+    exitCode: verdict.exitCode,
+    inserted,
+    perSource,
+    error: null,
+  });
+
+  process.exit(verdict.exitCode);
 }
 
 // ── summary ──────────────────────────────────────────────────────────────
@@ -777,12 +865,22 @@ function printSummary(args: {
   console.log(`\nelapsed: ${elapsedSec.toFixed(1)}s`);
 }
 
-main().catch((err: unknown) => {
+main().catch(async (err: unknown) => {
   // A curator abort (09-08-26: 401/402, or twenty fallbacks in a row) is an account problem,
   // not a bug: its message says so, and a stack trace would only bury it. Nothing was written —
   // the abort happens before the upsert loop — so the re-run resumes free through the cache.
   if (err instanceof CuratorAbortError)
     console.error(`\ningest aborted: ${err.message}`);
   else console.error("ingest script failed:", err);
+  // Phase 8.2: a run that threw is still a run — record it, with the message, so the database
+  // shows the night a 402 stopped the curator rather than a gap. inserted is recorded as 0: the
+  // count lives inside main(), and the throws that matter (a curator abort) happen before the
+  // upsert loop starts. A throw part-way through the loop would under-report it.
+  await recordRun({
+    exitCode: 1,
+    inserted: 0,
+    perSource: null,
+    error: err instanceof Error ? err.message : String(err),
+  });
   process.exit(1);
 });

@@ -16,6 +16,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   primaryKey,
@@ -418,3 +419,63 @@ export const invite = pgTable("invite", {
     .defaultNow()
     .notNull(),
 });
+
+// ---------------------------------------------------------------------------------------------
+// Operations (Phase 8.2)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * One row per real ingest run — the durable witness of the nightly job (PHASE8_PLAN_8.2.md D3).
+ *
+ * Why the app keeps its own record rather than trusting the scheduler: for its first two weeks in
+ * production Coolify recorded *every healthy* ingest as `failed` (a 5-minute task timeout that
+ * discarded the output and let the run carry on), and no scheduler at all can say "the task never
+ * ran" — a stopped cron, or a container mid-restart at 01:30, leaves no failure to report. So
+ * `scripts/ingest.ts` writes this row at the end of every run (and on the way out of a throw), and
+ * `/api/health` reads the newest successful one to answer `ingest: ok | stale | never`. A run
+ * that never happened shows up as staleness, which an outside monitor can see.
+ *
+ * `--dry-run` writes no row, by the same contract that makes it write nothing else.
+ */
+export const ingestRun = pgTable(
+  "ingest_run",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }).notNull(),
+    // The process's exit code, exactly: 0 clean, 2 = ran but a source was dead (runVerdict in
+    // services/ingest-plan.ts), 1 = threw. /api/health counts only 0 as a successful run.
+    exitCode: integer("exit_code").notNull(),
+    // Items written this run. 0 on a throw — the upsert loop is the last thing a run does.
+    inserted: integer("inserted").notNull(),
+    // Always false today (a dry run writes no row). Kept as a column so "a successful REAL run"
+    // is stated in the health query rather than assumed from the writer's behaviour.
+    dryRun: boolean("dry_run").notNull(),
+    // The summary table as data — per search source and per walk source, the same numbers the
+    // printed table shows — so "which source went quiet, and when" is a query, not a log search.
+    perSource: jsonb("per_source").$type<IngestRunPerSource>(),
+    // The thrown message, only on the exit-1 path (a CuratorAbortError's "OpenRouter 402…", say).
+    // Null for a run that finished, even one that exited 2 — its reasons are in perSource.
+    error: text("error"),
+  },
+  // The health probe's one query is "newest finished run", every request.
+  (table) => [index("idx_ingest_run_finished_at").on(table.finishedAt)],
+);
+
+/** Shape of `ingest_run.per_source`. Search and walk sources keep the fields their tables print. */
+export interface IngestRunPerSource {
+  search: Record<string, { searched: number; offered: number; errors: number }>;
+  walk: Record<
+    string,
+    {
+      walked: number;
+      offered: number;
+      errors: number;
+      retries: number;
+      complete: boolean;
+    }
+  >;
+  deadSources: string[];
+}
