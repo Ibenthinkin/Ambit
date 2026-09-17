@@ -19,11 +19,11 @@ Recorded as they were confirmed, so later phases don't have to go re-derive them
 | Host port binding | `0.0.0.0:3000->3000/tcp` | `docker ps` |
 | Image tag | the deployed commit SHA (`4a4c428b999c…`) | `docker ps` IMAGE column |
 | Database | `ambit-db`, `postgres:17-alpine`, internal network only, no public port | `/api/health` → `db:"ok"` |
-| Internal DB hostname | `rabwcgrcztxzngrrxaienfsm` (Coolify-generated, internal network only) | Coolify → `ambit-db` → internal URL |
+| Internal DB hostname / container | `bbzic3lx3ybsmkxjueae0da9` (Coolify-generated, internal network only). The walkthrough said `rabwcgrcztxzngrrxaienfsm` until 09-16-26 — that was the *first* resource, recreated 08-29 (trap #2 below), and the row was never updated | `docker ps --format '{{.Names}}\t{{.Image}}' \| grep postgres:17` |
 | Coolify version | v4.3.12 | Coolify sidebar |
 | Scheduled-task cron clock | **UTC** — `30 1 * * *` = 21:30 EDT / 20:30 EST the evening before | `tz-probe` task running `date`, 08-30-26: `Sun Aug 30 18:08:03 UTC 2026` |
 | VM root disk | **116 GB, LVM** (`/dev/ubuntu-vg/ubuntu-lv` on a 120 GB virtual disk). Was 59 GB until 09-09-26: Ubuntu's installer had allocated half the VG, and `sudo lvextend -l +100%FREE -r /dev/ubuntu-vg/ubuntu-lv` grew it online, no reboot. The neighbour on the same disk is ambit-archive's 25.5 GB volume | `df -h /` → `116G 41G 71G`, 09-09-26 |
-| Backup on-disk path | _(TODO — does not exist until the first `0 4 * * *` run)_ | Coolify → `ambit-db` → Backups |
+| Backup on-disk path | `/data/coolify/backups/databases/root-team-0/ambit-db-bbzic3lx3ybsmkxjueae0da9/pg-dump-ambit-<epoch>.dmp` — root-only directory, `sudo` to read; **36 MB** for 170,452 items (09-16-26). The `pg-dump-all-*.gz` files beside it are the empty ones from trap #3 | `sudo find /data/coolify/backups -type f -printf '%T+ %s %p\n'` |
 
 **The container name carries a per-deploy numeric suffix**, so anything that has to find this
 container (T6's invite, T7's ingest) filters on `publish=3000` or on the resource UUID — never on
@@ -136,11 +136,12 @@ are blocked**, so the `config.yml` edit, the restart, and the dashboard steps st
 convention is still right; the reason attached to it was not. Future plans should mark steps 🖐️ for
 *mutation* and *dashboards*, not for "the agent can't get there".
 
-## Two ways a Coolify Postgres resource looks right and is wrong
+## Three ways a Coolify Postgres resource looks right and is wrong
 
-Both were hit on 08-29-26, back to back, and neither is visible from the Coolify UI or from the
-app. They belong together because the tell for both is in the *database* container, never in the
-application's logs.
+The first two were hit on 08-29-26, back to back, the third found by T8's restore drill on
+09-16-26 — and none is visible from the Coolify UI or from the app. They belong together because
+the tell for all three is in the *database* container or on its disk, never in the application's
+logs.
 
 ### 1. Coolify's image field defaulted to Postgres 18, not the 17 the plan specified
 
@@ -205,6 +206,55 @@ the same 502 with a different cause.
 **A recreated database is a new database.** The `user` and `invite` rows do not survive it —
 `db:migrate` and `db:seed` restore the schema and the 16 topics automatically, but the account has to
 be re-invited (`bun run invite <email>`, idempotent) and re-registered.
+
+### 3. "Backup All Databases" with a non-superuser role is an empty backup marked successful
+
+Found 09-16-26, the day T8 finally ran, and it had been true on every backup since the resource was
+recreated. The tell was the file listing: `pg-dump-all-1789531204.gz` at **215 bytes**, for a
+database of 170,452 items. `zcat` showed ten lines — the `PostgreSQL database cluster dump` header,
+`\restrict`, two `SET`s — and then nothing. That is `pg_dumpall` running as `ambit`, printing its
+preamble, and dying on `pg_authid`, which only a superuser may read; `ambit` is the plain login role
+trap #2's fix created by hand. The error went to stderr, Coolify gzipped the stdout and recorded the
+run as a success. The 08-29 file under the old resource is 1,030 bytes for the same reason — an
+empty cluster's roles were all it could dump, but there it *could* dump them because the resource's
+own user was the superuser.
+
+The plan had already said the right thing and then contradicted itself: D4 specifies
+`pg_dump --format=custom` and T8 restores with `pg_restore` (which only reads that format), but 3.3
+switched *Backup All Databases* on, which is the `pg_dumpall` mode. The fix is the toggle: off,
+`ambit` selected. The next *Backup now* wrote `pg-dump-ambit-1789574180.dmp` at **36,198,730 bytes**,
+and that file is what T8 restored. `ALTER ROLE ambit SUPERUSER` would also have "worked" and was
+rejected — it hands the app's connection superuser rights to fix a setting that was wrong anyway.
+
+Two things to take from it beyond the toggle. **Coolify's backup success is not evidence** — the
+same lesson as 7.3's scheduled-task status, from the other direction: there the healthy run reads
+`failed`, here the empty run reads `success`. The file's size on disk is the witness, and 8.2's
+*Backups → Failure* alert would never have fired for this. And **retention is not doing what it
+says**: the resource has been backed up nightly since 08-30 yet only 09-15 and 09-16 survived,
+against a 14 days / 20 files setting — unexplained, and the run history in Coolify → `ambit-db` →
+Backups for 09-02–09-14 is where to look next.
+
+## T8 — the restore drill (09-16)
+
+**What it proved:** the 36 MB custom-format dump restores into a scratch database in **8.5 s** and
+every count matches production — `item` 170,452 · `user` 2 · `item_topic` 561,914 · `topic` 160 ·
+`seen_item` 2,312; twelve tables; `ambit_restore` 236 MB against `ambit`'s 262 MB (the difference
+is index bloat on the live side). The procedure is in SPEC §13 and, as run, in
+`.cache/restore-drill.sh` + `restore-drill-cleanup.sh`.
+
+**What it took:** the drill could not run over `ssh 'bash -s' < script` from the Mac, twice. First
+the classifier that gates the agent's shell refused a database-touching command on the production
+host (correctly — the agent prepared the script, Ben ran it, the A.6 🖐️ convention holding without
+being asked). Then `docker cp` from `/data/coolify/backups` failed with `lstat: permission denied`:
+the directory is root-only, `sudo` needs a tty for its prompt, and stdin was the script. The shape
+that works is `scp` the script to the VM and `ssh -t … bash restore-drill.sh`, sudo prompting on the
+terminal; the script tolerates a scratch database left by a failed attempt.
+
+**What it changed upstream of the phase:** Ben is cutting the Proxmox `vzdump` of VM 202 from
+2 weekly + 3 daily to 1 weekly + 1 daily for disk space. That was judged safe *on the condition that
+Coolify's own dumps carry the database history inside every VM image* — and until this morning they
+carried nothing. The condition is met now; the retention change proceeds; and Ben's separate plan to
+test-restore the VM image itself (homelab repo) is the other half of the same proof.
 
 ## T5 + T6 — mail, cookies, and the spoof test that had to be rewritten to prove anything
 

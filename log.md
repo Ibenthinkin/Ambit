@@ -47,10 +47,95 @@ nothing, and the twelve in-flight curator calls did not. Credits added, it ran.
   the eight round-4 URLs pasted at the foot), changed 09-15 13:22:44 by nothing in the repo —
   an editor buffer from 09-13, most likely. Not committed; `git checkout` restores 50ea3e0's.
 
+**Decisions (backup retention, 11:10):** Ben is cutting the Proxmox `vzdump` of VM 202 from
+2 weekly + 3 daily to **1 weekly + 1 daily** (managed in the homelab repo; more than halves the
+NAS footprint). Judged safe on two conditions: **Coolify's own `pg_dump` retention stays at
+14 days / 20 files** — those dumps ride inside every VM image, so even the lone weekly carries two
+weeks of database history, and the database is where the irreplaceable data (accounts, saves,
+collections, picks) lives — and **8.1 T8, the restore drill, finally runs**, because thin retention
+plus a never-tested backup is the combination that bites (one daily gives ~24 h to notice a bad
+state before it overwrites). `keep-last=2` is the cheap floor if a single-file moment after
+rotation bothers him. **The cache volume stays in the backup.** The other session's "don't back up
+the cache" was half right: `.cache/img` is the bulk (1.8 GB local, ~~15 GB+ on the volume) and is
+replaceable by days of polite refetching; `.cache/curation` is 705 MB and replaceable only by
+re-billing OpenRouter (~~$40 at today's corpus). Both sit on one Docker volume, so `vzdump` cannot
+split them — if disk pressure returns, the precise lever is a second volume for the curation
+cache with the image volume excluded, not thinner retention.
+
+**Findings (8.1 T8, the restore drill — 11:30–12:15):** it ran because the retention decision
+above leaned on it, and **every scheduled backup of the production database had been empty.**
+`ls` on `/data/coolify/backups/…/ambit-db-bbzic3lx3ybsmkxjueae0da9/` showed `pg-dump-all-*.gz` at
+213 and 215 bytes for a 170,452-item database; `zcat` gave the `pg_dumpall` header and nothing —
+3.3 had switched on "Backup All Databases", which is `pg_dumpall`, which needs a superuser for
+`pg_authid`, and `ambit` is the plain login role trap #2 created by hand. Stderr discarded, stdout
+gzipped, run recorded as **success** — 7.3's lesson mirrored: the task status lies `failed` when
+healthy, the backup status lies `success` when empty; **the file on disk is the witness.** Fix was the
+toggle (off, `ambit` selected; D4 and T8 had said `pg_dump --format=custom` all along), _Backup now_
+→ **36 MB**, then the drill: restore into `ambit_restore` in **8.5 s**, five counts equal on both
+sides (item 170,452 · user 2 · item_topic 561,914 · topic 160 · seen_item 2,312). `ALTER ROLE ambit
+SUPERUSER` rejected. Two things the drill cost that are written into the walkthrough's T8: the
+agent's shell is (rightly) refused database commands on the production host, and the backups dir is
+root-only so `docker cp` needs `sudo` needs a tty — the shape is `scp` + `ssh -t bash script.sh`,
+never `bash -s`. Also found: the walkthrough's DB-hostname row still named the _first_ resource
+(`rabwcg…`, recreated 08-29) — fixed; and retention keeps two files, not fourteen — unexplained,
+Coolify's run history for 09-02–09-14 is the next look. SPEC §13 now carries the procedure and the
+real-restore rule (rename-swap, never `--clean` into `ambit`). Ben has a separate homelab-repo plan
+to test-restore the VM image, which is 8.3. **8.1 is T9.2–9.5 from done.**
+
 **Open / next:** kvetchlandia (`--source kvetchlandia`, budget 12,500, watch `portraits` at
-6,524 members); then the walk's production twin after the next deploy; tag-alias §8; 8.1 T8.
+6,524 members); then the walk's production twin after the next deploy; tag-alias §8; 8.1 T9.2–9.5;
+Coolify's backup run history for the missing 09-02–09-14 files.
 
 _Session spend: 11.25M tok (in 1.4k · out 38.5k · cache r 10.68M / w 530.3k) · fable-5-1 + <synthetic> · 15:28→10:28_
+
+_Session spend: 952.9k tok (in 204 · out 10.9k · cache r 764.3k / w 177.4k) · fable-5-1 · 11:07→11:14_
+_Session spend: 4.03M tok (in 662 · out 49.1k · cache r 3.91M / w 62.7k) · fable-5-1 · 11:14→12:14_
+
+**Afternoon — kvetchlandia walked: 12,500 rows @ 8.30 (the walk session, beside T8).** Two
+launches: the first died at 40% on a *third* kind of 402 — the **key's monthly spend limit**
+($50, used $52.15, $0.02 left; the account itself had $18) — with the message "requested up to
+65535 tokens, but can only afford…": the curator sends no `max_tokens`, so OpenRouter reserves
+the model's whole output window per call, ~$0.31 across twelve in-flight, and refuses under that
+headroom however cheap a real call is. Ben raised the key to $75; the relaunch curated from the
+cache to 40% and finished in 44 min.
+
+**Shipped:**
+
+- **kvetchlandia: 12,500 inserted** from 13,290 posts (835 picture-less `regular` posts refused by
+  design — the probe's 9%), 0 floored, **32 un-homed** (tags `protest`, `political commentary`,
+  `crowd`, `flags` — protest photography without a home that `activism` did not take), 557
+  over-filed, **35,961 memberships** (2.88/item), 2 malformed curator responses. Histogram
+  `1:7 2:25 4:15 5:2 6:5 7:762 8:6936 9:4710 10:38` — **avg 8.30, 93.5% ≥ 8**, a touch under
+  the sample's 8.44 / 95%. Corpus **190,623**. Resume cursor 13290.
+- **Lifted from `SUSPENDED_SOURCES`**; round 4's block there is history now. Suite green, tsc
+  clean.
+
+**Findings — the capture its row predicted, measured:**
+
+| topic | kvetchlandia | total | share |
+|---|---:|---:|---:|
+| new-york | 3,542 | 6,722 | 53% |
+| literature | 1,309 | 2,835 | 46% |
+| portraits | 5,822 | 13,291 | 44% |
+| music | 1,203 | 2,772 | 43% |
+| fashion | 1,112 | 3,635 | 31% |
+| photography | 8,244 | 35,081 | 24% |
+
+`portraits` went 7,469 → 13,291; the blog is 44% of it by membership, under half, at the
+budget Ben chose for exactly this reason. `new-york` is the surprise — over half — because
+the credits say *New York City 1972* and the classifier files the place. Per-(topic, source)
+pool sampling and `sourceCap` keep a page from showing it, but `new-york`'s *meaning* is now
+mostly mid-century portrait photography; a `/feed` read on `new-york` and `portraits`, and
+`abstract` from the morning, is the honest next look. **Cost:** $2.32 of key budget for
+~7,500 fresh — **$0.00031/item**, the same as jareckiworld; round 3's $0.000235 was the
+caption-less blogs. Key remaining $22.70.
+
+**Open / next:** production walks both from scratch after the next deploy (~$8.50 — or push
+`.cache/curation` to the volume first, as before, and pay nothing); the `max_tokens` follow-up
+in the curator (a few hundred is plenty for its JSON) so a thin balance stops a walk only when
+it is actually thin; tag-alias §8; T8 is in the other session's hands above.
+
+*Session spend: 9.34M tok (in 740 · out 33.3k · cache r 9.15M / w 159.6k) · ~≥$1.11 · fable-5-1 + opus-4-7 · 10:28→12:46*
 
 ### [[09-15-26 Tue]] — Round 4's two keeps registered
 
