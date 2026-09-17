@@ -4,6 +4,10 @@ _Written 09-17-26 for a cold Fable session. Purpose: find why, fix it, and get `
 PR #20 (8.2 T1+T2, `feat/8.2-ops`) can merge on a green check as the 8.2 plan requires. Ben's
 call: investigate before merging, in a separate session._
 
+> **Resolved 09-17-26** on `fix/e2e-fixture-corpus`: three fixture causes (no memberships in
+> `item.spec.ts`, one shared fixture source under `sourceCap`, seed counts sized for three-tile
+> pages). The write-up is `log.md` 09-17-26. Kept as history.
+
 ## The state you inherit
 
 - **`main`** — `a8b273b` + this doc. Local checkout clean. CI red on every push since 09-07.
