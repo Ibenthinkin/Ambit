@@ -32,6 +32,12 @@ export const env = createEnv({
     // default is the deployed domain; a different deployment overrides it rather than editing
     // mailer.ts, which is why this is a var at all.
     MAIL_FROM: z.string().min(1).default("Ambit <noreply@ambit.benreilly.io>"),
+    // Where server errors are mailed (Phase 8.2, D4) — unset = log only. src/instrumentation.ts
+    // writes every server-side throw as one JSON line to stderr regardless; with this set it also
+    // mails that line, at most once an hour per error (services/error-report.ts). Unset in dev,
+    // CI and the Mac's .env on purpose, so a dev-server error never mails anyone. Not a secret —
+    // just Ben's address, set in Coolify's environment for production.
+    OPS_EMAIL: z.string().email().optional(),
     // Optional here (unlike the two above): only the ingest-time curator (server/services/
     // curator.ts, Phase 3.3) and offline embedding tooling read it, never a request path, so
     // there's no reason to fail app boot over it. curator.ts checks for its own presence at call
@@ -104,6 +110,7 @@ export const env = createEnv({
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     MAIL_FROM: process.env.MAIL_FROM,
+    OPS_EMAIL: process.env.OPS_EMAIL,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     PERSONA_PASSWORD: process.env.PERSONA_PASSWORD,
     ARCHIVE_URL: process.env.ARCHIVE_URL,

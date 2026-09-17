@@ -153,3 +153,60 @@ export function planPrune(args: {
   }
   return gone.sort();
 }
+
+// ── Phase 8.2: the run's verdict ─────────────────────────────────────────────────────────────
+
+/**
+ * Did this ingest run work? Until 8.2 the script printed its summary table and exited 0 whatever
+ * the table said — so 08-29-26's smoke, where a revoked Smithsonian key failed all 34 of its
+ * searches, would have been a *success* to Coolify. The exit code is the one signal a scheduler
+ * reads without a human, so this function decides it (PHASE8_PLAN_8.2.md D2):
+ *
+ *   exit 0 — every source did at least some of its job. Partial errors are normal: the Met
+ *            rate-limits a few searches most nights, and a Tumblr walk recovers a dozen flaky
+ *            pages. A source with nothing new to offer is not a failure either.
+ *   exit 2 — some source is DEAD: it ran and got nothing but errors. (Exit 1 stays "the script
+ *            threw", which ingest.ts's `main().catch` already does — a CuratorAbortError, say.)
+ *
+ * "Dead", concretely:
+ *   - search-shaped: it searched, every search errored, and nothing was offered
+ *     (`searched > 0 && errors >= searched && offered === 0`) — or it crashed before its first
+ *     search could even be counted (`searched === 0 && errors > 0`, how ingest.ts records a
+ *     rejected source promise).
+ *   - walk-shaped: it offered nothing and something errored (`offered === 0 && errors > 0`).
+ *     Note it is NOT `walked === 0`: runWalk counts a page as walked before asking for it, so a
+ *     walk whose very first page failed every retry reads `walked 1 / offered 0 / errors 1`.
+ *     The same rule catches a walker that crashed outright (ingest.ts records walked 0 /
+ *     errors 1) and one whose every post failed toItem. A walk that errored part-way but offered
+ *     items is a partial run, not a dead one.
+ *   - `searched === 0` with no errors (a parked source, a source with no seed cells for the
+ *     `--topic` asked for) is simply idle.
+ *
+ * Takes plain maps rather than the script's own stat types, so the tests need no fixtures. If
+ * this ever misfires on a real source that legitimately finds nothing at a small quota, the rule
+ * is what is wrong — tighten it (e.g. `searched >= 3`), never special-case a source by name.
+ */
+export function runVerdict(args: {
+  search: ReadonlyMap<
+    string,
+    { searched: number; offered: number; errors: number }
+  >;
+  walk: ReadonlyMap<
+    string,
+    { walked: number; offered: number; errors: number }
+  >;
+}): { exitCode: 0 | 2; deadSources: string[] } {
+  const dead: string[] = [];
+  for (const [id, s] of args.search) {
+    const everySearchFailed =
+      s.searched > 0 && s.errors >= s.searched && s.offered === 0;
+    const crashedBeforeSearching = s.searched === 0 && s.errors > 0;
+    if (everySearchFailed || crashedBeforeSearching) dead.push(id);
+  }
+  for (const [id, w] of args.walk) {
+    if (w.offered === 0 && w.errors > 0) dead.push(id);
+  }
+  // Sorted so the verdict line — the text Coolify's failure mail will quote — is stable run to run.
+  dead.sort();
+  return { exitCode: dead.length > 0 ? 2 : 0, deadSources: dead };
+}

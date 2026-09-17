@@ -15,6 +15,11 @@ vi.mock("~/server/db/client", () => ({ db: { execute } }));
 const imageCacheDir = vi.hoisted(() => vi.fn());
 vi.mock("~/server/services/image-cache", () => ({ imageCacheDir }));
 
+// Phase 8.2: the ingest's last successful run. Defaults to "never ran" in beforeEach, so the
+// original cases below keep describing a fresh database.
+const lastSuccessfulIngestAt = vi.hoisted(() => vi.fn());
+vi.mock("~/server/db/ingest-runs", () => ({ lastSuccessfulIngestAt }));
+
 /** A directory that exists and is writable — the healthy case. */
 async function writableDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), "ambit-health-"));
@@ -37,6 +42,8 @@ describe("GET /api/health", () => {
   beforeEach(() => {
     execute.mockReset();
     imageCacheDir.mockReset();
+    lastSuccessfulIngestAt.mockReset();
+    lastSuccessfulIngestAt.mockResolvedValue(null);
     delete process.env.SOURCE_COMMIT;
   });
 
@@ -56,6 +63,8 @@ describe("GET /api/health", () => {
       db: "ok",
       imageCache: "ok",
       commit: null,
+      ingest: "never",
+      lastIngestAt: null,
     });
   });
 
@@ -133,9 +142,72 @@ describe("GET /api/health", () => {
       "commit",
       "db",
       "imageCache",
+      "ingest",
+      "lastIngestAt",
       "ok",
     ]);
     expect(JSON.stringify(body)).not.toContain(dir);
     expect(JSON.stringify(body)).not.toContain("password");
+  });
+
+  // ── Phase 8.2: the ingest field (PHASE8_PLAN_8.2.md D3) ──────────────────────────────────────
+
+  describe("ingest", () => {
+    beforeEach(async () => {
+      execute.mockResolvedValue([{ "?column?": 1 }]);
+      imageCacheDir.mockReturnValue(await writableDir());
+    });
+
+    it("reports ok with the finish time after a recent successful run", async () => {
+      const finished = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      lastSuccessfulIngestAt.mockResolvedValue(finished);
+
+      const res = await GET();
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        ok: true,
+        ingest: "ok",
+        lastIngestAt: finished.toISOString(),
+      });
+    });
+
+    // The line this whole field hangs on: /api/health is the Docker HEALTHCHECK, so a late cron
+    // job must never make Docker restart a healthy app. The body says stale; the code stays 200.
+    it("reports stale but still answers 200 when db and cache are fine", async () => {
+      lastSuccessfulIngestAt.mockResolvedValue(
+        new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      );
+
+      const res = await GET();
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ ok: true, ingest: "stale" });
+    });
+
+    it("reports never on a database with no successful run, still 200", async () => {
+      const res = await GET();
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        ingest: "never",
+        lastIngestAt: null,
+      });
+    });
+
+    // A read that fails (say the ingest_run migration has not run) is not "never" — that would be
+    // a lie about the corpus — and it is not a reason to call the container unhealthy either.
+    it("reports unknown when the ingest record cannot be read, without changing the status code", async () => {
+      lastSuccessfulIngestAt.mockRejectedValue(
+        new Error('relation "ingest_run" does not exist'),
+      );
+
+      const res = await GET();
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body).toMatchObject({ ingest: "unknown", lastIngestAt: null });
+      expect(JSON.stringify(body)).not.toContain("ingest_run");
+    });
   });
 });

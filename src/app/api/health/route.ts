@@ -10,6 +10,13 @@
 //      have to be separable questions.
 //   3. Whatever uptime monitoring Phase 8.2 adds.
 //
+// **Phase 8.2 added a third thing it reports, and it is deliberately not a check.** `ingest` says
+// whether the nightly ingest has *succeeded* in the last 30 hours (`ok | stale | never`, or
+// `unknown` if the record could not be read), and `lastIngestAt` says when. An outside monitor
+// keyword-matches `"ingest":"ok"`; a human reads the time. It never feeds `ok` or the status code:
+// this route is the Docker HEALTHCHECK, and a cron job that ran late is no reason for Docker to
+// restart an app that is serving perfectly well (PHASE8_PLAN_8.2.md, Global Constraints).
+//
 // **What it checks, and why exactly these two.** A boot can fail in two ways that a running
 // process cannot see from the outside: the database is unreachable (wrong DATABASE_URL, Postgres
 // still starting, a half-applied migration), or the image cache's directory is missing/read-only
@@ -26,7 +33,12 @@ import { access, constants, mkdir } from "node:fs/promises";
 import { sql } from "drizzle-orm";
 
 import { db } from "~/server/db/client";
+import { lastSuccessfulIngestAt } from "~/server/db/ingest-runs";
 import { imageCacheDir } from "~/server/services/image-cache";
+import {
+  ingestStatus,
+  type IngestStatus,
+} from "~/server/services/ingest-health";
 
 /** Fixed vocabulary — never a message, never a path (see the note above). */
 type Check = "ok" | "error";
@@ -63,13 +75,34 @@ async function checkImageCache(): Promise<Check> {
   }
 }
 
+/**
+ * The ingest's recency. A failed read is `unknown` — not `never`, which would claim the corpus has
+ * never been filled, and not an error in the status code, for the reason in the header. Like the
+ * checks above it names nothing: no driver message leaves this function.
+ */
+async function checkIngest(): Promise<{
+  ingest: IngestStatus | "unknown";
+  lastIngestAt: string | null;
+}> {
+  try {
+    const last = await lastSuccessfulIngestAt();
+    return {
+      ingest: ingestStatus(last, new Date()),
+      lastIngestAt: last?.toISOString() ?? null,
+    };
+  } catch {
+    return { ingest: "unknown", lastIngestAt: null };
+  }
+}
+
 export async function GET() {
   // Both checks always run, even when the first has already failed: a probe that short-circuits
   // can only ever name one problem, and "the database is down" would hide "and the volume never
   // mounted" until the first was fixed. Two independent failures, both reported.
-  const [dbStatus, imageCacheStatus] = await Promise.all([
+  const [dbStatus, imageCacheStatus, ingest] = await Promise.all([
     checkDb(),
     checkImageCache(),
+    checkIngest(),
   ]);
   const ok = dbStatus === "ok" && imageCacheStatus === "ok";
 
@@ -81,6 +114,9 @@ export async function GET() {
       // Coolify sets SOURCE_COMMIT on the running container; a plain `docker run` won't, and null
       // is the honest answer there rather than a fabricated one.
       commit: process.env.SOURCE_COMMIT ?? null,
+      // Reported, never judged — `ok` above does not read it (see the header).
+      ingest: ingest.ingest,
+      lastIngestAt: ingest.lastIngestAt,
     },
     {
       // 503, not 500: the app is *unable to serve*, which is what a load balancer, an orchestrator
