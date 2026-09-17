@@ -27,6 +27,18 @@ import type { NormalizedItem } from "./sources/types";
  *  never clobbers scores already paid for. */
 export const CURATOR_MODEL = "google/gemini-2.5-flash-lite";
 
+/** Output cap sent on every curator call. The reply is one small JSON object — a score, two to
+ *  four short tags, up to three topic ids — well under 100 tokens, so 400 is generous. The number
+ *  is not about truncation; it is about **reservation**: OpenRouter reserves `max_tokens` × the
+ *  output price against the key's remaining budget *before* dispatching a call, and with no cap
+ *  it reserves the model's whole output window (65,535 tokens for flash-lite, ~$0.026 a call).
+ *  Twelve in-flight calls therefore needed ~$0.31 of headroom to send ~$0.004 of work, and
+ *  kvetchlandia's walk aborted on a 402 ("requested up to 65535 tokens, but can only afford…")
+ *  with $2 still on the key (09-16-26). With the cap, a thin balance stops a walk only when it is
+ *  actually thin. The Ambit-Admin ecosystem doc has carried "always send max_tokens" since the
+ *  archive learned it; this is Ambit finally doing it. */
+export const CURATOR_MAX_TOKENS = 400;
+
 /** Bump when CURATOR_PROMPT changes — it's part of the cache key, so a new prompt version
  *  invalidates exactly the responses it should and nothing else. */
 export const PROMPT_VERSION = 1;
@@ -553,6 +565,8 @@ async function scoreItem(
           // Asks the provider to guarantee syntactically valid JSON output.
           response_format: { type: "json_object" },
           temperature: 0.2,
+          // Reserved against the key's budget before dispatch — see CURATOR_MAX_TOKENS.
+          max_tokens: CURATOR_MAX_TOKENS,
         }),
       });
       if (!res.ok) {

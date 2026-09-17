@@ -19,6 +19,7 @@ import {
   PROMPT_VERSION,
   structuralFloor,
   TOPIC_IDS,
+  CURATOR_MAX_TOKENS,
 } from "./curator";
 import { TOPICS } from "~/server/config/topics";
 import type { NormalizedItem } from "./sources/types";
@@ -563,6 +564,7 @@ describe("parseCuratorResponse — classify mode", () => {
 describe("curateItems classify mode", () => {
   let bodies: {
     model: string;
+    max_tokens?: number;
     messages: { role: string; content: unknown }[];
   }[];
   beforeEach(() => {
@@ -593,6 +595,21 @@ describe("curateItems classify mode", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
+  });
+
+  it("caps every request with max_tokens so OpenRouter reserves a few hundred tokens, not the model's whole window", async () => {
+    // Without it OpenRouter reserves the model's full output window (65,535 tokens for
+    // gemini-2.5-flash-lite) against the key's remaining budget *before* dispatch — twelve
+    // in-flight calls needed ~$0.31 of headroom to send ~$0.004 of work, and kvetchlandia's
+    // walk died on a 402 with $2 still on the key (09-16-26).
+    await curateItems([makeItem({ sourceId: `cap-${Date.now()}` })], {
+      classify: true,
+      force: true,
+    });
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]!.max_tokens).toBe(CURATOR_MAX_TOKENS);
+    expect(CURATOR_MAX_TOKENS).toBeGreaterThanOrEqual(200);
+    expect(CURATOR_MAX_TOKENS).toBeLessThanOrEqual(1000);
   });
 
   it("sends CLASSIFY_PROMPT and returns the topic when classify is on", async () => {
