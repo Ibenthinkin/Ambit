@@ -771,7 +771,22 @@ describe("curateItems fails fast on an account-level error", () => {
       (v) => ({ ok: true as const, v }),
       (e: unknown) => ({ ok: false as const, e }),
     );
-    await vi.runAllTimersAsync();
+    // **Advance until the run settles, not once.** `runAllTimersAsync` returns as soon as no fake
+    // timer is pending — but a *successful* judgment writes its cache file, and that is real disk
+    // I/O the fake clock does not own. A worker still inside `writeFile` when the queue drains
+    // schedules its next item's backoff *afterwards*, where nothing would ever advance it: the
+    // test hangs to its 5 s timeout. It needs a disk slower than the other workers' retries,
+    // which this Mac never is and a CI runner sometimes is (09-17-26 — red on PR #20's e2e job,
+    // green in the same commit's check job). `setImmediate` is real here (only `setTimeout` is
+    // faked), so each turn of the loop lets pending I/O land before draining again.
+    let done = false;
+    void settled.then(() => {
+      done = true;
+    });
+    while (!done) {
+      await vi.runAllTimersAsync();
+      await new Promise((resolve) => setImmediate(resolve));
+    }
     return settled;
   }
 
