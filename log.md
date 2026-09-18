@@ -123,7 +123,17 @@ it. Reproduced deterministically by putting 200 `setImmediate` turns before the 
 identical 5 s timeout), fixed by advancing until the run settles, verified with the delay still
 in. Committed on `feat/8.2-ops` so PR #20 carries it to `main`.
 
-**Open / next:** PR #20's merge and the 8.2 deploy steps stay with Ben.
+**Evening — PR #20 merged (`a472e7a`), `main` green on the merge, and Ben deployed 8.2 T1+T2 at
+~03:00 UTC 09-18** after the host went quiet: the round-4 walks had finished at 16:18 UTC, the
+image warm ran 5.1 h (13,685 + 12,483 pictures, zero errors — its host-side log file stayed
+empty, the exit line was never written; the container's `.cache/img-warm-round4.log` is the
+witness), and the nightly had already run 01:30–02:15 UTC on the old code (53 inserted).
+`/api/health` after the deploy: `commit a472e7a`, `"ingest":"never"` (the table exists and is
+empty — `unknown` would have meant the migration had not run), `OPS_EMAIL` present in the
+container, all six security headers intact at the edge.
+
+**Open / next:** 8.2 T3 (Coolify notifications — **3.0's timeout raise first**), then T4/T5 the
+morning after health reads `"ingest":"ok"` for the first time.
 
 *Session spend: 8.78M tok (in 146 · out 38.4k · cache r 8.40M / w 336.1k) · fable-5-1 · 13:00→13:14*
 *Session spend: 9.50M tok (in 158 · out 33.2k · cache r 9.34M / w 121.8k) · ~≥$0.64 · fable-5-1 + opus-4-7 · 13:14→13:47*
