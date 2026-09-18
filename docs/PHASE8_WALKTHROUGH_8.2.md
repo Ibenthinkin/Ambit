@@ -4,8 +4,9 @@ Companion to `docs/PHASE8_PLAN_8.2.md`. The plan says what to do; this says what
 happened, what it proved, and every trap hit along the way. Written during execution, not after —
 the numbers below are the ones observed at the time, not reconstructed.
 
-**Status: T1–T2 built 09-17-26 on `feat/8.2-ops` (agent). Not deployed** — T2.5's deploy, and all
-of T3–T5, are Ben's hands. T6 (the beta week) and T7 (close) follow.
+**Status: T1–T2 built 09-17-26 on `feat/8.2-ops` (agent), merged as PR #20 and deployed by Ben at
+~03:00 UTC 09-18-26 (`/api/health` → `commit a472e7a`). T3.0 (the task timeout) was already on the host
+from 09-10-26 — see below. T3.1–T5 are Ben's hands; T6 (the beta week) and T7 (close) follow.**
 
 ## T1 — the ingest verdict and the run record (09-17-26)
 
@@ -66,12 +67,28 @@ the first with `?token=SECRET` on it):
 - No `digest` on a route-handler throw: Next assigns digests to errors React processes (renders),
   so expect the field on a page error and not on an API one.
 
-## Next — Ben's hands
+## T3.0 — the task timeout was already raised (verified 09-18-26)
 
-1. **Before the deploy:** Coolify → Ambit → Environment → add `OPS_EMAIL` = your address.
-2. **Deploy in daytime**, not during an ingest or a warm — check
-   `ssh ben@192.168.1.202 'cat ~/img-warm-round4.log'` first (the warm started 09-17 12:25 runs
-   ~3.7 h). The boot path runs migration `0008` itself.
-3. **After:** `curl -s https://ambit.benreilly.io/api/health` → `commit` is the merge,
-   `"ingest":"never"` until the next 01:30 UTC nightly, `"ok"` the morning after.
-4. Then T3 → T5 from the plan.
+The plan's first step was done on 09-10-26 from the database side (`.cache/coolify-ingest-task.sh`,
+log 09-10) and never ticked. Read off the host on 09-18-26:
+
+```
+name                 timeout  enabled  frequency
+img-warm             10800    f        monthly
+ingest               10800    t        30 1 * * *
+```
+
+Proof it holds: `/app/.cache/ingest-2026-09-18.log` (the 01:30 UTC nightly, on the pre-8.2 code)
+ends with the full per-source table and `elapsed: 2719.8s` — a 45-minute run that the old 300 s
+job would have killed and recorded `failed`. Nine search sources all offered rows (`errors 0`
+throughout), ten walks all offered, no dead source, 53 inserted, 145 memberships. So
+*Scheduled Tasks → Failure* is safe to enable in T3.3.
+
+## Next — Ben's hands (as of 09-18-26)
+
+1. **Tonight's nightly (01:30 UTC = 21:30 EDT) is the first on the 8.2 code.** Tomorrow morning
+   `/api/health` should read `"ingest":"ok"` with a `lastIngestAt`. If it still reads `never`, the
+   run threw before its `ingest_run` write — read `/app/.cache/ingest-2026-09-19.log`.
+2. **T3.1–T3.5** (Resend key → Coolify notifications → `fail-probe`) any time; T3.0 is done.
+3. **T4** the morning after health reads `ok` (Monitor B keywords on it), **T5** when convenient.
+4. Then T6, the watched beta week.

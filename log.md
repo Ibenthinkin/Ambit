@@ -5,6 +5,36 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-18-26 Fri]] — first health read after the 8.2 deploy; T3.0 was already done
+
+**Findings:** `/api/health` on `a472e7a` reads `"ingest":"never"`, and that is the correct
+answer, not a fault: the only nightly since migration `0008` ran 01:30–02:15 UTC on the pre-deploy
+code, which wrote no `ingest_run` row. Its log is healthy end to end — nine search sources
+offered rows with `errors 0`, ten walks offered, no dead source, 53 inserted, 145 memberships,
+`elapsed: 2719.8s`. Tonight's 01:30 UTC run is the first on the 8.2 code and should flip health to
+`ok`.
+
+Two plan steps turned out to be done before anyone ticked them. **T3.0** — the 09-10
+`.cache/coolify-ingest-task.sh` had already set `scheduled_tasks.timeout` to `10800` on `ingest`
+and `img-warm`; read back from `coolify-db` today, and the 45-minute run above is the proof it
+holds, so _Scheduled Tasks → Failure_ is safe to enable. **T5.3** — the app container's log driver
+is already `json-file` with `max-size 10m / max-file 3` (Coolify's default), so the plan's
+unbounded-stdout fear does not apply and no Custom Docker Options are needed. Both ticked in the
+plan; the walkthrough's status line and next-steps block were stale ("not deployed") and are
+current now.
+
+**Decisions:** the rest of 8.2 is Ben's hands by design (UI logins, an account signup, secrets
+the agent must not see), so instead of the next session re-reading the plan and walkthrough,
+`docs/HANDOFF_8.2-T3-T5.md` carries every remaining step with its exact values, the deployed facts
+they need (container lookups, the `ambit-db` container name `bbzic3lx3ybsmkxjueae0da9`, hub
+URLs, task schedule), and blanks for the observed Coolify wording T7 will want.
+
+**Open / next:** 09-19 morning — confirm `"ingest":"ok"`; then T3.1–3.5 (Resend key, Coolify
+notifications, `fail-probe`), T4 (Monitor B only after the first `ok`), T5.1–5.2 (Beszel agent),
+then T6's install note + feedback file and the watched week.
+
+*Session spend: 5.16M tok (in 96 · out 33.9k · cache r 4.48M / w 654.9k) · fable-5-1 · 10:14→16:14*
+
 ### [[09-17-26 Thu]] — 8.1 closed; round 4 is on production; 8.2 T1+T2 built
 
 Ben redeployed to `ce67c54` last night, and the nightly ingest that followed at 01:30 UTC walked
