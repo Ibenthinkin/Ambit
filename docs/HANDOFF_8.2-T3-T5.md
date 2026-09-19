@@ -18,11 +18,14 @@ at the end (T7 collects it)._
 - **T3.0 is done and verified** — `scheduled_tasks.timeout` is `10800` on `ingest` and
   `img-warm` since 09-10 (`.cache/coolify-ingest-task.sh`), and the 45-minute run above is the
   proof it holds. So _Scheduled Tasks → Failure_ is safe to enable.
-- **Tonight (01:30 UTC = 21:30 EDT 09-18) is the first nightly on the 8.2 code.** Health should
-  read `"ingest":"ok"` by the morning of 09-19. That moment gates T4.3 (the keyword monitor).
+- **The first nightly on the 8.2 code ran 09-19 01:30 UTC and health reads `"ingest":"ok"`**
+  (read 09-19: `lastIngestAt: 2026-09-19T02:15:05Z`; one `ingest_run` row, `exit_code 0`,
+  `inserted 44`, `elapsed 2702.0s`). **T4.3's gate is open.**
 - `OPS_EMAIL` is set in the container (T2.5 done). T2's mailer is live: a server error now writes
   one JSON line to the container log and mails Ben once per error signature per hour.
-- Repo: `main`, clean after this handoff's commit. No branch is open. Nothing to build.
+- Repo: `main`, clean, pushed. No branch is open. Nothing to build. **T6.1 and T6.3 are written**
+  (`docs/BETA_INSTALL.md`, `docs/BETA_FEEDBACK.md`, 09-19) so invites can go out the moment T3–T5
+  are live.
 
 ## Start here (agent, ~1 min)
 
@@ -143,11 +146,11 @@ _Done = VM 202 is in Beszel; the log driver is already bounded (above); the vaul
 
 ## After T5 — what the agent does next (no hands needed)
 
-- **T6.1** write `docs/BETA_INSTALL.md` (≤ 20 lines, paste-into-a-text shape: the URL, "sign up
+- [x] **T6.1** write `docs/BETA_INSTALL.md` (≤ 20 lines, paste-into-a-text shape: the URL, "sign up
   with the address I invited", iOS Share → Add to Home Screen, Android/desktop install prompt,
-  what to expect, one ask: "tell me the first thing that felt wrong"). **T6.3** create
+  what to expect, one ask: "tell me the first thing that felt wrong"). **[x] T6.3** create
   `docs/BETA_FEEDBACK.md` with the table header `date · who (role) · screen · what they said ·
-  triage`. Then Ben invites two or three people: `docker exec "$C" bun run invite <email>`.
+  triage`. Both done 09-19. Then Ben invites two or three people: `docker exec "$C" bun run invite <email>`.
 - **T6.4** the watched week: each morning health, inbox, OpenRouter usage, and on the host
   `du -sh .cache/img` + `select count(*) from item` + one `ingest_run` row per night with
   `exit_code = 0`.
