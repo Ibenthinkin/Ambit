@@ -76,11 +76,22 @@ during an ingest (01:30–02:30 UTC) or a warm.
       `Ambit Ops <ops@ambit.benreilly.io>` (same verified domain, DKIM passes). (b) the exact
       toggles under _Container Status Changes_. Then _Send test notification_ → the mail arrives;
       view headers, `dkim=pass`.
-      - Observed from-address field: ______
-      - Observed container-status toggles: ______
+      - Observed from-address field: **yes** — read 09-19 from `coolify-db`
+        (`email_notification_settings`, Coolify 4.3.14): the Resend channel has only
+        `resend_enabled` + `resend_api_key`; **From Name / From Address / Recipients are the
+        shared email fields** (`smtp_from_name`, `smtp_from_address`, `smtp_recipients`) above
+        both SMTP and Resend. Fill them: `Ambit Ops` / `ops@ambit.benreilly.io` / Ben's address.
+        Leave _Use instance settings_ off (`use_instance_email_settings = f`, team-level key).
+        Ben confirms the labels in the UI: ______
+      - Observed container-status toggles: **one** — `status_change_email_notifications`
+        (currently **off**; the only failure-class toggle Coolify ships off). Everything in 3.3
+        else is already on by default; the extras not in the plan are `docker_cleanup_failure`
+        (on), `server_patch` (on), `traefik_outdated` (on), `server_reachable` (off). Leave them.
+        Ben confirms in the UI: ______
 - [ ] **3.3 Events on:** _Deployments → Failure_, _Deployments → Container Status Changes_,
       _Backups → Failure_, _Scheduled Tasks → Failure_, _Server → Unreachable_,
-      _Server → Disk Usage_ (keep Coolify's default threshold; note it: ______).
+      _Server → Disk Usage_ (keep Coolify's default threshold — read 09-19:
+      `server_disk_usage_notification_threshold = 80` %, checked `0 23 * * *`).
       **Every Success toggle off.**
 - [ ] **3.4 Prove the one that matters.** Coolify → Ambit application → Scheduled Tasks → _Add_:
       name `fail-probe`, command `false`, any frequency, **disabled**. _Execute now_. Within a few
