@@ -45,6 +45,12 @@ agent that write): 20 created, verified 23 accounts / 20 personas / `user_topic`
 **Open / next:** T6.4's watched week (health, inbox, OpenRouter, cache size, item count, one
 `ingest_run` row a night at exit 0; rows into `docs/BETA_FEEDBACK.md`), then 6.5's triage into
 Phase 9, which ticks 8.2's row. Then 8.3 / 8.4 design sessions, or the feed reads.
+**Parked idea (Ben's, 09-20):** seed queries for grown topics. All 144 grown topics were promoted
+with `seed_queries: {}` and the boot seed writes only the sixteen originals' cells, so the nightly
+search lane has asked the museums the same sixteen sets of words since Phase 3 — a grown topic
+fills from walks and the classifier only. The shape: a checked-in map topic id → source → words,
+applied on boot like facets; `ingest --topic <id> --source <src>` runs a cell on demand;
+`probe-adapter` vets a word first. Ben assembles the list when he has time; then design + plan.
 
 *Session spend: 4.81M tok (in 944 · out 20.9k · cache r 4.25M / w 534.7k) · fable-5-1 · 14:55→19:33*
 *Session spend: 5.16M tok (in 1.0k · out 41.9k · cache r 5.02M / w 97.6k) · fable-5-1 · 19:33→21:14*
