@@ -54,6 +54,7 @@ applied on boot like facets; `ingest --topic <id> --source <src>` runs a cell on
 
 *Session spend: 4.81M tok (in 944 · out 20.9k · cache r 4.25M / w 534.7k) · fable-5-1 · 14:55→19:33*
 *Session spend: 5.16M tok (in 1.0k · out 41.9k · cache r 5.02M / w 97.6k) · fable-5-1 · 19:33→21:14*
+*Session spend: 5.64M tok (in 692 · out 20.4k · cache r 5.59M / w 30.6k) · fable-5-1 · 21:14→21:59*
 
 ### [[09-18-26 Fri]] — first health read after the 8.2 deploy; T3.0 was already done
 
