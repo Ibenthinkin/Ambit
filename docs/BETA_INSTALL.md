@@ -15,7 +15,7 @@ pick. No likes, no comments, no followers, no ads. Just look at things.
 3. Pick a few topics when it asks. You can change them later under Profile → Topics.
 4. Put it on your home screen so it feels like an app:
    - **iPhone:** in Safari, tap Share → scroll down → **Add to Home Screen** → Add.
-   - **Android / desktop Chrome:** tap **Install app** when the banner offers it (or ⋮ → Install app).
+   - **Android / desktop Chrome:** tap **Add** on the "Keep Ambit close" card (or ⋮ → Install app).
 5. Scroll. Tap a picture to see it full-screen; swipe sideways to wander. Save what you like —
    saving nudges what you see next.
 

@@ -5,6 +5,34 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-20-26 Sun]] — 8.2 T3–T5 done in one sitting; every alert path proven
+
+**Shipped (Ben's hands, agent recording):** T3 — the second Resend key (`coolify`, sending-only,
+domain-restricted) is in Coolify's team notifications; the shared from-fields carry
+`Ambit Ops <ops@ambit.benreilly.io>`; _Container Status Changes_ turned on (the one failure-class
+toggle Coolify ships off), every Success toggle off. Proven with a disabled `fail-probe` task
+(`false`, _Execute now_): mail at 17:16 local, subject `Coolify: [ACTION REQUIRED] Scheduled task
+(fail-probe) failed.`, body naming the task and `exit code: 1` — so a dead-source ingest will read
+`exit code: 2` in the inbox. Backups → Failure recorded as configured, not exercised. T4 — two
+UptimeRobot monitors: `ambit/health` (HTTP, 5 min) and `ambit/ingest` (keyword `"ingest":"ok"`,
+absent → alert, 30 min), checking from Ashburn, USA. Proven by flipping the keyword to `nope`:
+incident 12:40:22 → resolved 12:42:44 on UptimeRobot's clock, both mails arrived. T5 — the Beszel
+agent on VM 202 as `archive-host`, a standalone `docker run` outside Coolify, via
+`.cache/beszel-agent.sh` (holds KEY/TOKEN, gitignored) + `.cache/beszel-agent-install.sh` (scp +
+run from the Mac, because long pasted lines wrap in Ben's terminal). Vault: `archive-host` row in
+the Beszel inventory, plan #34 gains the Ambit-wants-alerts note.
+
+**Findings:** the installer's placeholder guard grepped the whole script and matched its own
+`if [ "$KEY" = 'PASTE_KEY_HERE' ]` line, so a correctly filled file was refused — fixed to check
+the two assignment lines only. Coolify 4.3.14's Resend channel is just an enable toggle + key;
+from-name/address and recipients are the email-wide fields above SMTP and Resend.
+
+**Open / next:** invites (two or three, `docker exec "$C" bun run invite <email>` + paste
+`docs/BETA_INSTALL.md`), then T6.4's watched week (health, inbox, OpenRouter, cache size, item
+count, one `ingest_run` row a night at exit 0), then T7 closes the phase.
+
+*Session spend: 4.81M tok (in 944 · out 20.9k · cache r 4.25M / w 534.7k) · fable-5-1 · 14:55→19:33*
+
 ### [[09-18-26 Fri]] — first health read after the 8.2 deploy; T3.0 was already done
 
 **Findings:** `/api/health` on `a472e7a` reads `"ingest":"never"`, and that is the correct

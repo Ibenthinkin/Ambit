@@ -6,7 +6,12 @@ are the long form if something below is not enough. Read this file, run the "Sta
 then go step by step. Tick each box here as it lands; the walkthrough gets the observed wording
 at the end (T7 collects it)._
 
-## Where things stand (09-18-26 14:30 UTC)
+## Where things stand (09-20-26 evening)
+
+**T3, T4 and T5 are all done and proven** (every box below is ticked, observed values filled).
+Second 8.2 nightly ok (`lastIngestAt` 09-20 02:15 UTC). Remaining: invites → T6.4 watched week
+→ T7 close-out (agent). The 09-18 notes that follow are kept as the record of how it was found.
+
 
 - **Production** = `https://ambit.benreilly.io`, commit `a472e7a` (PR #20: 8.2 T1+T2), deployed
   ~03:00 UTC 09-18. `/api/health` → `{"ok":true,"db":"ok","imageCache":"ok","ingest":"never",
@@ -67,10 +72,11 @@ during an ingest (01:30–02:30 UTC) or a warm.
 ## T3 — Coolify notifications → email via Resend (Ben, ~20 min)
 
 - [x] **3.0 Timeout** — done, see above.
-- [ ] **3.1 Second Resend key.** Resend dashboard → API Keys → _Create_: name `coolify`,
+- [x] **3.1 Second Resend key.** _Done 09-20._ Resend dashboard → API Keys → _Create_: name `coolify`,
       permission **Sending access**, domain restricted to `ambit.benreilly.io`. Password manager
       first, then Coolify. Never reuse the app's key (one key per consumer, so either rotates alone).
-- [ ] **3.2 Coolify → Settings (team) → Notifications → Email → Resend.** Paste the key, recipient
+- [x] **3.2 Coolify → Settings (team) → Notifications → Email → Resend.** _Done 09-20: test
+      notification arrived through Resend._ Paste the key, recipient
       = Ben's address. **Read off the UI and write down here** two things the docs left open:
       (a) does the Resend channel ask for a from-address? If yes use
       `Ambit Ops <ops@ambit.benreilly.io>` (same verified domain, DKIM passes). (b) the exact
@@ -88,17 +94,22 @@ during an ingest (01:30–02:30 UTC) or a warm.
         else is already on by default; the extras not in the plan are `docker_cleanup_failure`
         (on), `server_patch` (on), `traefik_outdated` (on), `server_reachable` (off). Leave them.
         Ben confirms in the UI: ______
-- [ ] **3.3 Events on:** _Deployments → Failure_, _Deployments → Container Status Changes_,
+- [x] **3.3 Events on** (_done 09-20, Container Status Changes turned on_)**:** _Deployments → Failure_, _Deployments → Container Status Changes_,
       _Backups → Failure_, _Scheduled Tasks → Failure_, _Server → Unreachable_,
       _Server → Disk Usage_ (keep Coolify's default threshold — read 09-19:
       `server_disk_usage_notification_threshold = 80` %, checked `0 23 * * *`).
       **Every Success toggle off.**
-- [ ] **3.4 Prove the one that matters.** Coolify → Ambit application → Scheduled Tasks → _Add_:
+- [x] **3.4 Prove the one that matters** (_done 09-20_)**.** Coolify → Ambit application → Scheduled Tasks → _Add_:
       name `fail-probe`, command `false`, any frequency, **disabled**. _Execute now_. Within a few
       minutes: one mail naming the task and the non-zero exit. Then **delete the task**. This is
       exactly the path a dead-source ingest takes (`runVerdict` exits 2).
-      - Mail arrived at: ______ · subject/wording: ______
-- [ ] **3.5 Backups → Failure** cannot be forced safely; record it as _configured, not exercised_.
+      - Mail arrived at: **17:16 local, 09-20-26**, within minutes of _Execute now_, from
+        `Ambit Ops <ops@ambit.benreilly.io>` · subject:
+        `Coolify: [ACTION REQUIRED] Scheduled task (fail-probe) failed.` · body: "Scheduled
+        task (fail-probe) was FAILED with the following error: SSH command failed with exit
+        code: 1" + a link to the task. So the mail carries the task name and the exit code —
+        an ingest that dies on a dead source will read `exit code: 2`.
+- [x] **3.5 Backups → Failure** cannot be forced safely; recorded 09-20 as _configured, not exercised_.
 
 **Fallback:** channel refuses the domain-restricted key → mint one without the restriction, still
 Sending-only, note it. No mail at all → Resend → Logs: an attempt with an error is a key/domain
@@ -108,29 +119,33 @@ _Done = a failing scheduled task produced one email through Resend; the blanks a
 
 ## T4 — External uptime monitor (Ben, ~15 min; 4.3 after the first `"ingest":"ok"`)
 
-- [ ] **4.1** Sign up for UptimeRobot (free tier). **Check the pricing page at signup** for: ≥ 2
+- [x] **4.1** (_done 09-20, UptimeRobot free tier_) Sign up for UptimeRobot (free tier). **Check the pricing page at signup** for: ≥ 2
       HTTP monitors, keyword matching, 5-min interval, email alerts. If keyword monitors are no
       longer free → Better Stack; if neither → Uptime Kuma on VM 200 with the LAN blind spot
       recorded (it cannot see the WAN go down; that is the whole point of a hosted one).
-- [ ] **4.2 Monitor A — `ambit / health`:** HTTP(s) `https://ambit.benreilly.io/api/health`,
+- [x] **4.2** (_done 09-20_) **Monitor A — `ambit / health`:** HTTP(s) `https://ambit.benreilly.io/api/health`,
       interval 5 min, alert on non-200, email Ben. Record the check-from locations (must be
-      outside the house): ______
-- [ ] **4.3 Monitor B — `ambit / ingest`:** keyword monitor, same URL, keyword `"ingest":"ok"`
+      outside the house): **North America — Ashburn, USA (`178.156.189.249`)**, per the 4.4 mails.
+- [x] **4.3** (_done 09-20_) **Monitor B — `ambit / ingest`:** keyword monitor, same URL, keyword `"ingest":"ok"`
       (with the quotes and colon exactly), **alert when the keyword is absent**, interval 30 min.
       Create it **the morning after health first reads `ok`** (expected 09-19), or accept one
       known alert.
-- [ ] **4.4 Prove it without breaking anything:** edit Monitor B's keyword to `"ingest":"nope"`
-      → alert mail at the next check → restore → recovery mail. Record both timestamps: ______
+- [x] **4.4 Prove it without breaking anything** (_done 09-20_)**:** edit Monitor B's keyword to `"ingest":"nope"`
+      → alert mail at the next check → restore → recovery mail. Record both timestamps:
+      **incident started 2026-09-20 12:40:22, resolved 12:42:44 (UptimeRobot's clock), duration
+      2 min 22 s**; root cause shown as _Keyword Does Not Exist_, checked from **Ashburn, USA**
+      (`178.156.189.249`). Recovery mail subject shape: "The latest incident has been resolved
+      and your monitor is up again in North America." Monitor is named `ambit/ingest` in the UI.
 
 _Done = two monitors green from outside the LAN; a deliberately wrong keyword alerted and
 recovered by email._
 
 ## T5 — Beszel agent on VM 202 + log rotation (Ben ~10 min; 5.3 is done)
 
-- [ ] **5.1 Hub:** `https://beszel.home.benreilly.io` → _Add system_: name `archive-host`, host
+- [x] **5.1** (_done 09-20_) **Hub:** `https://beszel.home.benreilly.io` → _Add system_: name `archive-host`, host
       `192.168.1.202`, port `45876` → copy the `docker run` it shows (it embeds the hub's public
       **KEY**; the **TOKEN** is the universal one from Settings → Tokens & Fingerprints).
-- [ ] **5.2 VM 202** — a standalone `docker run`, **not** a Coolify resource (a Coolify reset must
+- [x] **5.2** (_done 09-20 via `.cache/beszel-agent.sh` + `.cache/beszel-agent-install.sh`; hub shows `archive-host` green_) **VM 202** — a standalone `docker run`, **not** a Coolify resource (a Coolify reset must
       never take the monitor with it). Write it to a file on the VM and run the file (long
       pasted lines wrap and fail silently in Ben's terminal):
       ```bash
@@ -149,7 +164,7 @@ recovered by email._
       default on every application container, so the plan's fear (unbounded stdout after T2's
       error lines) does not apply. 30 MB ceiling per container. Goes into SPEC §13's deployed
       facts at T7; no Custom Docker Options needed.
-- [ ] **5.4 Vault:** `homelab-reference.md` Beszel inventory gets the `archive-host` row;
+- [x] **5.4** (_done 09-20_) **Vault:** `homelab-reference.md` Beszel inventory gets the `archive-host` row;
       `plan.md` #34 gains "Ambit 8.2 wants Beszel alerts once a channel exists — CPU/disk on
       `archive-host`, container-stop on `ambit-*`".
 
