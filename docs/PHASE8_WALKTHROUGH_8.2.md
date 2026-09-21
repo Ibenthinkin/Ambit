@@ -4,9 +4,11 @@ Companion to `docs/PHASE8_PLAN_8.2.md`. The plan says what to do; this says what
 happened, what it proved, and every trap hit along the way. Written during execution, not after —
 the numbers below are the ones observed at the time, not reconstructed.
 
-**Status: T1–T2 built 09-17-26 on `feat/8.2-ops` (agent), merged as PR #20 and deployed by Ben at
-~03:00 UTC 09-18-26 (`/api/health` → `commit a472e7a`). T3.0 (the task timeout) was already on the host
-from 09-10-26 — see below. T3.1–T5 are Ben's hands; T6 (the beta week) and T7 (close) follow.**
+**Status: the guardrails are all shipped and proven — T1–T2 built 09-17-26 on `feat/8.2-ops`
+(agent), merged as PR #20 and deployed by Ben at ~03:00 UTC 09-18-26 (`/api/health` →
+`commit a472e7a`); T3.0 was found already done; T3.1–T5 done by Ben's hands in one sitting on
+09-20-26, every alert path exercised. T6 — the beta week — is open: the first friends are in
+(3 accounts, 4 invites), the feedback file is waiting for rows, and 6.5's triage closes the phase.**
 
 ## T1 — the ingest verdict and the run record (09-17-26)
 
@@ -84,11 +86,99 @@ job would have killed and recorded `failed`. Nine search sources all offered row
 throughout), ten walks all offered, no dead source, 53 inserted, 145 memberships. So
 *Scheduled Tasks → Failure* is safe to enable in T3.3.
 
-## Next — Ben's hands (as of 09-18-26)
+## T3 — Coolify notifications through Resend (09-20-26, Ben's hands)
 
-1. **Tonight's nightly (01:30 UTC = 21:30 EDT) is the first on the 8.2 code.** Tomorrow morning
-   `/api/health` should read `"ingest":"ok"` with a `lastIngestAt`. If it still reads `never`, the
-   run threw before its `ingest_run` write — read `/app/.cache/ingest-2026-09-19.log`.
-2. **T3.1–T3.5** (Resend key → Coolify notifications → `fail-probe`) any time; T3.0 is done.
-3. **T4** the morning after health reads `ok` (Monitor B keywords on it), **T5** when convenient.
-4. Then T6, the watched beta week.
+**Done:** a second Resend key, `coolify` (sending access only, restricted to
+`ambit.benreilly.io`; one key per consumer so either rotates alone), pasted into Coolify's
+team-level _Notifications → Email_. The shared from-fields — Coolify 4.3.14 keeps _From Name /
+From Address / Recipients_ above both the SMTP and Resend sections, and the Resend section is only
+an enable toggle and the key — carry `Ambit Ops <ops@ambit.benreilly.io>` and Ben's address;
+_Use instance settings_ off. The test notification arrived. Under the events, one toggle was off
+and is now on: **Container Status Changes** — everything else the plan wanted was on by default
+(Deployments → Failure, Backups → Failure, Scheduled Tasks → Failure, Server → Unreachable,
+Server → Disk Usage at Coolify's 80 % / `0 23 * * *`), and every _Success_ toggle stays off.
+
+**Proven (3.4):** a disabled scheduled task `fail-probe` with command `false`, _Execute now_. The
+mail was in the inbox at **17:16 local**, from `Ambit Ops <ops@ambit.benreilly.io>`:
+
+> **Subject:** `Coolify: [ACTION REQUIRED] Scheduled task (fail-probe) failed.`
+> Scheduled task (fail-probe) was FAILED with the following error: SSH command failed with exit
+> code: 1 — _Click here to view the task._
+
+So the mail carries the task name and the exit code, which is what makes it useful: a nightly
+that dies on a dead source reads `exit code: 2` (`runVerdict`), a crash before the verdict reads
+`1`. The task was deleted afterwards. 3.5, _Backups → Failure_, cannot be forced without breaking
+a backup and is recorded as configured, not exercised.
+
+## T4 — the outside view: UptimeRobot (09-20-26, Ben's hands)
+
+Two monitors on the free tier, both on `https://ambit.benreilly.io/api/health`, checking from
+**North America — Ashburn, USA** (`178.156.189.249`), which is the point: nothing on the LAN can
+see the tunnel or the WAN go down.
+
+- **`ambit/health`** — HTTP(s), every 5 min, alert on non-200.
+- **`ambit/ingest`** — keyword, every 30 min, keyword `"ingest":"ok"` (quotes and colon exactly),
+  **alert when absent**. Created the morning after health first read `ok` (09-19), so it never
+  alerted on the pre-8.2 `never`.
+
+**Proven (4.4)** by editing the keyword to `"ingest":"nope"` and restoring it:
+
+| | UptimeRobot's clock |
+|---|---|
+| Incident started (root cause _Keyword Does Not Exist_) | 2026-09-20 12:40:22 |
+| Resolved | 2026-09-20 12:42:44 |
+| Duration | 2 min 22 s |
+
+Both mails arrived; the recovery one reads "The latest incident has been resolved and your monitor
+is up again in North America." The health contract this rests on: `ingest` **never changes the
+status code**, so the HTTP monitor stays green through a stale ingest and the keyword monitor is
+the only thing that sees it.
+
+## T5 — Beszel sees VM 202 (09-20-26)
+
+`archive-host` is on the hub (`https://beszel.home.benreilly.io`) as a **standalone `docker run`**
+on VM 202 — deliberately not a Coolify resource, so a Coolify reset can never take the monitor
+with it — host network, `docker.sock:ro`, `HUB_URL=http://192.168.1.200:8090` (the LAN IP, never
+localhost), the hub's public `KEY` and the universal `TOKEN`. Two scripts, both under the
+gitignored `.cache/`: `beszel-agent.sh` (runs on the VM; holds the two secrets; idempotent —
+`docker rm -f` then `docker run`, the data volume survives) and `beszel-agent-install.sh` (runs
+on the Mac; refuses while the placeholders are unfilled, `scp`s the script up, runs it, deletes
+the copy). Written that way because a long pasted line wraps and fails silently in Ben's terminal
+— A.6's costliest lesson, still true. **One trap of my own making:** the installer's guard grepped
+the whole script for `PASTE_KEY_HERE` and matched its own `if [ "$KEY" = 'PASTE_KEY_HERE' ]`
+line, so a correctly filled file was refused; fixed to test the two assignment lines only.
+`docker ps` on the host: `beszel-agent Up`, hub green with the container list. **5.3 needed
+nothing:** the app container's log driver was already `json-file` / `max-size 10m` / `max-file 3`
+(Coolify's default; read 09-18), a 30 MB ceiling. The vault has the `archive-host` row and #34's
+note that Ambit wants Beszel alerts once a channel exists.
+
+## What 8.2 proved, and the numbers (09-20-26)
+
+- **Every alert path has fired once on purpose:** a failing scheduled task → mail in minutes; a
+  missing keyword → alert and recovery by mail in 2 min 22 s; a server throw → one JSON line and
+  one mail (T2, locally against Mailpit; production carries `OPS_EMAIL` since 09-18). The one path
+  not exercised is a backup failure, by choice.
+- **Two nightlies on the 8.2 code, both `exit_code 0`:** 09-19 (`inserted 44`, 2,702 s) and 09-20
+  (`inserted 25`, 2,727 s) — ~45 min each, the corpus growing slowly now that every walk source is
+  at budget. `/api/health` → `"ingest":"ok"`, `lastIngestAt 2026-09-20T02:15:29Z`.
+- **Production on 09-20:** 196,833 items / 636,780 memberships; image cache **195,483 files /
+  27 GB**, VM root disk 62 % (43 GB free); **3 accounts, 4 invites (3 accepted, 1 pending), 12
+  collections, 49 topic picks, 2,768 seen rows.** The friends came in from 09-17, before 8.3/8.4
+  (the 09-01 gate on T6 was overtaken by Ben's own hand).
+- **Spend:** T3–T5 cost nothing but the UptimeRobot free tier; the nightly's OpenRouter spend is
+  the curation of ~25–50 new items a night.
+
+**What 8.2 deliberately does not do:** no Sentry/GlitchTip (D4; the trigger is SPEC §15's — more
+than ~5 active users, or the first error the hourly throttle hides), no Beszel alerting or push
+channel (homelab #34, now wanted by two projects), no client-side error reporting (9.5), no
+invite admin page (9.9).
+
+## Next — the beta week (T6.4–6.5)
+
+1. **Each morning, four glances:** UptimeRobot's status page; the inbox (any Coolify/ops mail is a
+   finding); OpenRouter's usage page; and on VM 202 `du -sh .cache/img` + `select count(*) from
+   item` + the newest `ingest_run` row (`exit_code 0`). One line here if any of them moved.
+2. **`docs/BETA_FEEDBACK.md`** gets a row per thing a friend says, in their words, with the screen.
+3. **6.5 at the end of the week (agent):** every row triaged — "9.x" rows into BUILD_PLAN Phase 9
+   with the row's date as provenance, "fix now" rows listed at the top of this file, "no" rows kept
+   with a one-clause reason. That closes 8.2's row in BUILD_PLAN.

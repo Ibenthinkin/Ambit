@@ -27,11 +27,26 @@ the Beszel inventory, plan #34 gains the Ambit-wants-alerts note.
 the two assignment lines only. Coolify 4.3.14's Resend channel is just an enable toggle + key;
 from-name/address and recipients are the email-wide fields above SMTP and Resend.
 
-**Open / next:** invites (two or three, `docker exec "$C" bun run invite <email>` + paste
-`docs/BETA_INSTALL.md`), then T6.4's watched week (health, inbox, OpenRouter, cache size, item
-count, one `ingest_run` row a night at exit 0), then T7 closes the phase.
+**T7 written the same evening, at Ben's ask, ahead of the watched week:** BUILD_PLAN's 8.2 row
+carries the alert map and the two decisions that differ from its own text (no Sentry yet, D4;
+"email-on-error" is Coolify's failure notification driven by the exit code, D2) but stays
+unticked — its done-bar is friends using it for a week with feedback triaged, and that is T6.4–6.5;
+SPEC §13 gains an _Operations_ subsection (alert map table, the health contract, `OPS_EMAIL` in
+the env table, the success-off rule, the log driver) and §15 the GlitchTip trigger; CLAUDE.md's
+status paragraph and one local-dev note (`OPS_EMAIL` unset = log only); the walkthrough has T3–T5
+in the A.6 shape with the observed Coolify wording, the monitor's check location, and the
+production numbers; the Ambit-Admin vault log has its entry. **Two things read off production
+while writing it:** the friends are already in — 3 accounts, 4 invites (3 accepted, 1 pending),
+12 collections — so BUILD_PLAN's 09-01 gate on T6 (wait for 8.3 + 8.4) was overtaken by Ben's own
+hand on 09-17; and the 20 personas are _not_ on production (user count 3), whatever the 09-12
+memory says.
+
+**Open / next:** T6.4's watched week (health, inbox, OpenRouter, cache size, item count, one
+`ingest_run` row a night at exit 0; rows into `docs/BETA_FEEDBACK.md`), then 6.5's triage into
+Phase 9, which ticks 8.2's row. Then 8.3 / 8.4 design sessions, or the feed reads.
 
 *Session spend: 4.81M tok (in 944 · out 20.9k · cache r 4.25M / w 534.7k) · fable-5-1 · 14:55→19:33*
+*Session spend: 5.16M tok (in 1.0k · out 41.9k · cache r 5.02M / w 97.6k) · fable-5-1 · 19:33→21:14*
 
 ### [[09-18-26 Fri]] — first health read after the 8.2 deploy; T3.0 was already done
 

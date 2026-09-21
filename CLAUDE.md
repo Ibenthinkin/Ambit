@@ -42,7 +42,7 @@ proxy-with-cache**. `/api/img/[itemId]` now fills a disk cache (`IMAGE_CACHE_DIR
 politely, per host). And the feed's page compose went from **138 ms to 22 ms** — `getTopicPools`
 had been dragging 9,848 full rows / 35.8 MB out of Postgres to pick twelve cards; it now returns a
 five-column projection and `getFeedPage` hydrates the winners by id. `bun run bench:feed` is the
-before/after. **8.1 shipped — public 08-29-26, closed 09-17-26; 8.2 (ops guardrails + beta invites) is next.** The history: T1–T2 shipped 08-28-26 (`/api/health`,
+before/after. **8.1 shipped — public 08-29-26, closed 09-17-26. 8.2's guardrails shipped 09-20-26** — an ingest verdict (exit 2 on a dead source) + `ingest_run` rows read back by `/api/health` as `ingest: ok|stale|never|unknown`, `instrumentation.ts` mailing `OPS_EMAIL` once an hour per error signature, Coolify failure notifications through Resend (proven with a `fail-probe` task), two UptimeRobot monitors (HTTP + the `"ingest":"ok"` keyword, from Ashburn), and Beszel on VM 202; SPEC §13 has the alert map. **The beta week (8.2 T6) is open** — 3 accounts on production as of 09-20 — and its triage into Phase 9 closes the phase. The history: T1–T2 shipped 08-28-26 (`/api/health`,
 `MAIL_FROM`, `cf-connecting-ip` for Better Auth in production, a `SOURCE_COMMIT`-first precache
 revision, and the `Dockerfile`/`.dockerignore` whose boot path — migrate, seed, `next start` — was
 proven locally against an empty database, cache volume and all). **T3 shipped 08-29-26** — Ambit is
@@ -59,7 +59,7 @@ anything scheduled on this host: **Coolify records every healthy ingest as `fail
 `ScheduledTaskJob` times out at 5 minutes, discards the task output, and lets the `docker exec`
 run on to completion regardless, so **the task status is not evidence in either direction and the
 database is the only honest witness** (the diagnostic query is in `PHASE8_PLAN_8.1.md` 7.3's
-fallback). Raising `scheduled_tasks.timeout` is 8.2's T3.0. **7.4 and 7.4c shipped
+fallback). Raising `scheduled_tasks.timeout` was 8.2's T3.0 (10800 s since 09-10-26). **7.4 and 7.4c shipped
 08-31/09-01-26** — the image cache is warm for all nine sources; the wikipedia adapter now asks for 1600 px thumbnails instead of originals, and `bun run rethumb` is
 the row repair. Wikimedia throttles on-demand thumbnail _rendering_ on a budget of roughly 60
 renders refilling at ~20/min — a sustained `--rate 1` still 429s; warm it as 20-image chunks with
@@ -409,6 +409,11 @@ existing `SwCleanup` handles it once the page is allowed to hydrate.
   not the key. (Related tell: OpenRouter's `"User not found."` is an _account_-level error; a
   malformed key reads `"No auth credentials found"`.) The zshrc exports are gone as of 08-22-26,
   but any new machine or re-added export brings it straight back.
+
+- **`OPS_EMAIL` unset means log only.** A server-side throw always writes one JSON line to
+  stderr; it is mailed only when `OPS_EMAIL` is set, and it is set on production only. So a
+  dev server can throw all day without mailing anyone — and if you want to see the mail path
+  locally, set it and read Mailpit (`services/error-report.ts`, 8.2 T2).
 
 ## Project log (`log.md`)
 
