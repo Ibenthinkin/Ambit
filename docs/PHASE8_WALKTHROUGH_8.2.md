@@ -165,6 +165,11 @@ note that Ambit wants Beszel alerts once a channel exists.
   27 GB**, VM root disk 62 % (43 GB free); **3 accounts, 4 invites (3 accepted, 1 pending), 12
   collections, 49 topic picks, 2,768 seen rows.** The friends came in from 09-17, before 8.3/8.4
   (the 09-01 gate on T6 was overtaken by Ben's own hand).
+- **The twenty personas were not on production until tonight** — the user count of 3 said so,
+  whatever the 09-12 note claimed. Ben ran `.cache/seed-personas-prod.sh` after T7's first
+  read: `personas: 20 created, 0 updated, 0 unchanged`; verified from the database — **23
+  accounts, 20 `persona-*@ambit.local`, `user_topic` 49 → 154**. Those 20 are readers of the
+  feed from twenty chairs, not beta users; the beta count stays 3.
 - **Spend:** T3–T5 cost nothing but the UptimeRobot free tier; the nightly's OpenRouter spend is
   the curation of ~25–50 new items a night.
 

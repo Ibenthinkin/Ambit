@@ -39,7 +39,8 @@ production numbers; the Ambit-Admin vault log has its entry. **Two things read o
 while writing it:** the friends are already in — 3 accounts, 4 invites (3 accepted, 1 pending),
 12 collections — so BUILD_PLAN's 09-01 gate on T6 (wait for 8.3 + 8.4) was overtaken by Ben's own
 hand on 09-17; and the 20 personas are _not_ on production (user count 3), whatever the 09-12
-memory says.
+memory says. Ben ran `.cache/seed-personas-prod.sh` the same evening (the classifier refuses the
+agent that write): 20 created, verified 23 accounts / 20 personas / `user_topic` 49 → 154.
 
 **Open / next:** T6.4's watched week (health, inbox, OpenRouter, cache size, item count, one
 `ingest_run` row a night at exit 0; rows into `docs/BETA_FEEDBACK.md`), then 6.5's triage into
