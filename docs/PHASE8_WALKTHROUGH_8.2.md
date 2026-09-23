@@ -187,3 +187,14 @@ invite admin page (9.9).
 3. **6.5 at the end of the week (agent):** every row triaged — "9.x" rows into BUILD_PLAN Phase 9
    with the row's date as provenance, "fix now" rows listed at the top of this file, "no" rows kept
    with a one-clause reason. That closes 8.2's row in BUILD_PLAN.
+
+**The week's reads** (VM 202 half by the agent, read-only; UptimeRobot / inbox / OpenRouter are
+Ben's glances and are not recorded here unless something fired):
+
+- **09-22:** three nightlies on the 8.2 code, all `exit_code 0` (09-20 `inserted 25`, 09-21 `71`,
+  09-22 `61`; ~45 min each; `per_source` identical night to night — the four budget walks report
+  `complete:false` with the same retry counts every run, which is the standing profile, not a
+  fault). Health `ok`, `lastIngestAt 2026-09-22T02:15:26Z`, commit `a472e7a`. **196,965 items**
+  (+132 in two nights), image cache **195,485 files / 27 GB** (+2), root disk 62 % / 43 GB free —
+  all unchanged in shape. 23 accounts; `invite` reads 24, up from 4, which is the 20 persona
+  sign-ups of 09-20 and not new beta invites. No feedback rows yet.

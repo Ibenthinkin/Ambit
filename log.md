@@ -5,6 +5,65 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-22-26 Tue]] — T6.4 read #1 clean; 8.3 landing session opened and parked
+
+**T6.4 (agent, VM 202 half):** three nightlies on the 8.2 code, all `exit_code 0` (inserted
+25 / 71 / 61), health `ok` on `a472e7a`, 196,965 items, cache 195,485 files / 27 GB, root disk
+62 %. The four budget walks report `complete:false` with identical retry counts every night —
+the standing profile, not a fault. `invite` reads 24 (was 4): the 20 persona sign-ups. Recorded
+in the 8.2 walkthrough's beta-week section. No feedback rows yet.
+
+**8.3 landing redo — design session opened, parked by Ben** ("I need to do some research and
+decisions before I can come back and tell you what to build"). Classified architectural (a
+knowing reversal of 5.11 on four axes → `DESIGN_landing-redo.md` + plan, executed cold). Facts
+gathered for the pickup, so they need not be re-derived:
+
+- Today: 8 committed JPEGs (~1.6 MB), 600 ms × 8 → sheet at ~5 s, never stops; `/`'s LCP is
+  4.1 s simulated mobile (7.3, unfixed). The slideshow says nothing; the pitch is three lines in
+  the sheet.
+- **Corpus imagery pool, production, score ≥ 9 under a landing-safe licence:** cma 855, pdr ~745,
+  met 458, smithsonian 258, wellcome 205, nasa-images 147, loc 57 — ~2,700 candidates, all warm
+  in `.cache/img` as ≤1600 px WebP. The Tumblr blogs are "rights retained" and out.
+- Two backlog items ride on this session: the **logo redesign** is an input to 8.3 (vault: decide
+  it here or design the landing around a mark about to change; touches favicon, install icon,
+  invite mail), and **rewrite all copy** says 8.3 owns the landing copy and settles the voice.
+- The T6 gate is overtaken: 8.3 ships *into* the beta, not ahead of it — argues for a v1 inside
+  the week with the trailer's full ambition staged.
+- First question, unanswered: the **medium** — pan-zoom over stills in CSS/JS (recommended;
+  keeps the pool open to the corpus via `/api/img`), authored video (fixed asset, heavy, iOS
+  autoplay), Lottie, or the cross-fade kept but slowed with copy beats. Then: pool (hand-picked
+  vs corpus-drawn), length and beats, copy, skip affordance, perf budget.
+
+**Sources round 3 — the 09-22 batch, probed (step 0 only):** twenty URLs Ben dropped into
+`source-candidates.md`, fetched by five Haiku subagents (facts only, ~430k tokens between them;
+the verdicts are Fable's, and only recommendations until Ben says otherwise). Now a table in
+that file where the raw list was. **Six cheap trials:** anothergraphic (WP REST open, 1,726
+caption-less design posts), typehunting (479 original found-lettering photos, Tumblr) and
+theleoisallinthemind (15,772 posts, 0/50 reblogs, 2-word captions) go straight onto the two
+factories that exist; ajourneyroundmyskull is **Will Schofield's Blogger scrapbook — the 50watts
+author, through a door robots.txt leaves open** (50watts itself re-checked, still `Disallow: /`)
+and wants a small `blogger.ts` factory; the Iowa **International Dada Archive is Omeka** with a
+clean JSON walk (328 PD periodical scans, but `/files/` is robots-disallowed — email first), and
+Omeka is the platform behind hundreds of small archives, so the factory is the prize. **Parked:**
+grafook (50/50 reblogs — the ffactory shape), eastasiangraphicsarchive (custom post type, 128
+items), arabicdesignarchive / peoplesgdarchive / casca (real archives, no machine surface —
+two worth an email), illustration.lol (96 commissioned editorial illustrations), IDEA's
+superbooks (30 posts). **Cut:** print.pm (`Disallow: /` + `noindex` — artvee rule),
+rarehistoricalphotos (photos from Pinterest/Reddit — the Open Culture credit problem), are.na
+(API terms forbid bulk collection, and a block is a bookmark of someone else's image), the EBABZ
+zine library (<15 PDFs). archives.design is a lead: 120 hand-picked Internet Archive scans.
+One slip to own: the two reblog-count requests went out with curl's default UA — the grep for
+the repo's `USER_AGENT` came back empty and the loop did not notice.
+
+**Open / next:** Ben's research → answer the medium question → the rest of the 8.3 session.
+Sources: Ben verdicts the round 3 table; suggested order anothergraphic → typehunting →
+theleoisallinthemind, then the Blogger and Omeka factory notes.
+Daily T6.4 reads continue; 6.5 triage at the week's end ticks 8.2. 8.4 after 8.3.
+
+*Session spend: 4.29M tok (in 860 · out 29.4k · cache r 3.97M / w 285.8k) · fable-5-1 · 09:16→09:29*
+*Session spend: 4.75M tok (in 732 · out 111.6k · cache r 4.27M / w 372.3k) · fable-5-1 · 14:48→14:57*
+*Session spend: 1.37M tok (in 288 · out 7.4k · cache r 1.36M / w 9.9k) · fable-5-1 · 14:57→14:58*
+
 ### [[09-20-26 Sun]] — 8.2 T3–T5 done in one sitting; every alert path proven
 
 **Shipped (Ben's hands, agent recording):** T3 — the second Resend key (`coolify`, sending-only,
