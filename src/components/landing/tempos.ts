@@ -1,0 +1,68 @@
+// The two ways the landing's reel can move (docs/DESIGN_landing-redo.md D5). A no-import leaf, like
+// services/feed-knobs.ts: the client reads it without bundling anything server-side, and it
+// unit-tests in node.
+//
+// Ben is choosing between these by looking (`?tempo=` under the dev gate — see app/page.tsx).
+// When he has, DEFAULT_TEMPO flips and the plan's Task 9 deletes the loser; the `Tempo` object
+// itself stays, because `behindSheet` needs a second gear to name.
+
+export type TempoId = "cut" | "dissolve";
+
+export interface Tempo {
+  id: TempoId;
+  /** How long a picture holds, ms. */
+  frameMs: number;
+  /** Cross-fade, ms. 0 is a hard cut. */
+  fadeMs: number;
+  /** Pictures shown before the sheet rises (the first pass). */
+  firstPass: number;
+  /** Decoded pictures required before the reel starts. */
+  gateFrames: number;
+  /** A slow 1.00 → 1.06 scale over each frame, transform only. */
+  drift: boolean;
+  /** The tempo that runs once the sheet is up — a 3 Hz strobe under a form is hostile. */
+  behindSheet: TempoId;
+}
+
+export const TEMPOS: Record<TempoId, Tempo> = {
+  // 350, not the reference's 320: WCAG 2.3.1 caps flashing at three a second, and 1000/320 is
+  // 3.1. 1000/350 = 2.86 — the same feel, under the line.
+  cut: {
+    id: "cut",
+    frameMs: 350,
+    fadeMs: 0,
+    firstPass: 12,
+    gateFrames: 4,
+    drift: false,
+    behindSheet: "dissolve",
+  },
+  dissolve: {
+    id: "dissolve",
+    frameMs: 6000,
+    fadeMs: 2500,
+    firstPass: 2,
+    gateFrames: 1,
+    drift: true,
+    behindSheet: "dissolve",
+  },
+};
+
+/** What production runs. Flip after Ben's pick. */
+export const DEFAULT_TEMPO: TempoId = "cut";
+
+/** `?tempo=`, resolved server-side; the override is honoured only under the dev gate (D5). */
+export function resolveTempo(
+  param: string | undefined,
+  allowOverride: boolean,
+): Tempo {
+  if (allowOverride && (param === "cut" || param === "dissolve")) {
+    return TEMPOS[param];
+  }
+  return TEMPOS[DEFAULT_TEMPO];
+}
+
+/** How many pictures past the current one to have decoded: the cut's frames arrive faster than a
+ *  350 ms tick could fetch them, so it wants the whole reel; the dissolve wants one ahead. */
+export function wantedAhead(tempo: Tempo): number {
+  return tempo.fadeMs === 0 ? Infinity : 1;
+}
