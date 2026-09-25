@@ -49,6 +49,38 @@ profile mark. Also carried: the 09-23 round 3 edits are committed with this entr
 
 *Session spend: 1.01M tok (in 24 · out 7.4k · cache r 886.6k / w 120.6k) · opus-5-5 · 17:23→17:34*
 
+**Later the same day (Fable) — the reference changed the design, and the design + plan are
+written.** Ben pointed at `doorofperception.com/explore` ("look like that, except you don't have
+to zoom in on the word — just play the images for a few seconds and bring up the sign-up"). Read
+its source and ran it: black screen, one line whose tail collapses into the wordmark, then a
+**hard cut into a 320 ms flicker** of full-bleed pictures with a difference-blended wordmark
+slowly growing — not a Ken Burns drift at all. Three decisions on top of the morning's:
+
+- **Both tempos get built; Ben picks by looking** ("torn between the quick hard cuts and a slow
+  morphing dissolve"): `cut` (350 ms hard cuts — 320 is over WCAG 2.3.1's three flashes a
+  second — 12 frames then the sheet) and `dissolve` (6 s / 2.5 s fade / slow 1.06 drift, two
+  pictures then the sheet), one engine, a `Tempo` object, `?tempo=` under `FEED_DEBUG`. Behind
+  the sheet the cut relaxes to the dissolve — a 3 Hz strobe under a form is hostile.
+- **The overture is copied too:** `AMBIT — A quieter way to be curious.`, the tail collapsing
+  into the wordmark on the reference's clock (1.4 s hold, 2.2 s collapse), then the cut with no
+  click. **Inter** stands in for ABC Diatype (commercial); Sora tracked out is the recorded escape
+  hatch. Built with `clip-path` + `transform`, not the reference's `width` transition, so CLS
+  stays 0.
+- **The budget is restated honestly:** the overture makes LCP ≈ 3.6 s *by design*; the line is
+  now "the first picture paints on the frame the overture ends — never later", measured as zero
+  wait after the overture on simulated 4G. The 960 rendition (p50 45 KB / p90 132 KB, measured
+  on 120 cached files) is what makes that true for the cut's four-frame gate.
+
+`docs/DESIGN_landing-redo.md` (D1–D9) and `docs/PLAN_landing-redo.md` (nine tasks, cold-executable;
+Task 9 waits on Ben's two picks — tempo and mark) are committed. The plan's shape: the RSC picks
+the reel from an in-process memo of the ~2,760 landing-eligible rows (exact licence strings, as
+data), so the first pictures are `<head>` preloads and 5.11's "random can't be in server markup"
+gymnastics go; `/api/img/<id>?w=960` is a closed-set rendition *derived* from the cached master
+(never its own museum fetch); three candidate profile marks on `/dev/marks`, production keeping
+the Cosmos chip until Ben picks. Copy is untouched by design (D9).
+
+*Session spend: 18.98M tok (in 2.6k · out 222.0k · cache r 17.53M / w 1.23M) · fable-5-1 + opus-5-5 · 17:34→19:42*
+
 ### [[09-23-26 Wed]] — Round 3 parked whole; polishpostergallery probed
 
 **Sources round 3:** Ben parked the whole 09-22 batch ("park them all for now") — the five 🔵 rows
