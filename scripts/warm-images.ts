@@ -5,6 +5,12 @@
  *   bun run img:warm --source loc --rate 1        # one image per second, LoC only
  *   bun run img:warm --limit 50                   # every source, 2/s, first 50 uncached
  *   bun run img:warm --dry-run                    # count what would be fetched, fetch nothing
+ *   bun run img:warm --rendition 960 --landing    # derive the landing pool's 960 px renditions
+ *
+ * **`--rendition <w>`** (docs/DESIGN_landing-redo.md D3) derives that rendition from masters
+ * already on disk — CPU only, no network, no per-host pacing. A row whose master is not cached is
+ * skipped, not filled: warm the masters first. **`--landing`** narrows any run to the pictures the
+ * landing reel can draw (config/landing-pool.ts), so a deploy can pre-derive exactly those.
  *
  * **What this is for.** `tile.loc.gov` rate-limits **by IP with no published budget and no
  * `Retry-After`** — a 334-image ingest tripped a sustained 429 from every User-Agent it tried
@@ -21,15 +27,31 @@
  * rest of the run, with the count printed. A budget you have already exceeded is not a budget you
  * should keep pushing on.
  */
-import { and, inArray, isNotNull, like, notInArray } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  like,
+  notInArray,
+} from "drizzle-orm";
 
 import { db } from "~/server/db/client";
 import { item } from "~/server/db/schema";
+import {
+  isLandingLicense,
+  LANDING_SCORE_FLOOR,
+} from "~/server/config/landing-pool";
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
 import {
   cachePathFor,
   fillCache,
+  getOrFillRendition,
   ImageFillError,
+  isRendition,
+  RENDITIONS,
+  renditionPathFor,
 } from "~/server/services/image-cache";
 
 import { stat } from "node:fs/promises";
@@ -48,6 +70,17 @@ const sources = flagAll("source");
 const rate = Number(flag("rate") ?? "2");
 const limit = flag("limit") ? Number(flag("limit")) : undefined;
 const dryRun = process.argv.includes("--dry-run");
+/** `--rendition 960`: derive that rendition from cached masters instead of filling masters. */
+const renditionFlag = flag("rendition");
+const rendition = renditionFlag ? isRendition(renditionFlag) : null;
+if (renditionFlag && rendition === null) {
+  console.error(
+    `unknown rendition ${renditionFlag}; known: ${RENDITIONS.join(", ")}`,
+  );
+  process.exit(1);
+}
+/** `--landing`: only the pictures the landing reel can draw (config/landing-pool.ts). */
+const landingOnly = process.argv.includes("--landing");
 
 /** The gap between two requests to the same host, in ms. */
 const intervalMs = Math.max(0, Math.round(1000 / rate));
@@ -92,17 +125,37 @@ if (SUSPENDED_SOURCES.length > 0) {
   conditions.push(notInArray(item.source, SUSPENDED_SOURCES));
 }
 
-const rows = await db
-  .select({ id: item.id, source: item.source, imageUrl: item.imageUrl })
+if (landingOnly) {
+  conditions.push(eq(item.type, "image"));
+  conditions.push(gte(item.curationScore, LANDING_SCORE_FLOOR));
+}
+
+const selected = await db
+  .select({
+    id: item.id,
+    source: item.source,
+    imageUrl: item.imageUrl,
+    license: item.license,
+  })
   .from(item)
   .where(and(...conditions));
+// The licence half of the landing rule is filtered here, in JS, against the config's own
+// predicate — so this script can never drift from `listLandingPool`'s idea of the pool by
+// carrying a second copy of the SQL.
+const rows = landingOnly
+  ? selected.filter((r) => isLandingLicense(r.license))
+  : selected;
 
 console.log(
   `warm: ${rows.length} candidate images` +
     (sources.length
       ? ` from ${sources.join(", ")}`
       : " from every live source") +
-    ` · ${rate}/s per host${limit ? ` · limit ${limit}` : ""}` +
+    (rendition !== null
+      ? ` · rendition ${rendition} (derived, no network)`
+      : ` · ${rate}/s per host`) +
+    (landingOnly ? " · landing pool only" : "") +
+    (limit ? ` · limit ${limit}` : "") +
     (dryRun ? " · DRY RUN" : ""),
 );
 
@@ -136,6 +189,39 @@ for (const row of rows) {
   if (limit !== undefined && attempted >= limit) break;
 
   const tallyRow = tallyFor(row.source);
+
+  if (rendition !== null) {
+    // Derived, never fetched: a master that isn't on disk is skipped, not filled — this mode is
+    // CPU, not network, so it runs at full speed with no per-host pacing.
+    try {
+      await stat(renditionPathFor(row.id, rendition));
+      tallyRow.skipped++;
+      continue;
+    } catch {
+      // not derived yet
+    }
+    if (!(await isCached(row.id))) {
+      tallyRow.skipped++;
+      continue;
+    }
+    attempted++;
+    if (dryRun) {
+      tallyRow.filled++;
+      continue;
+    }
+    try {
+      await getOrFillRendition(row, rendition);
+      tallyRow.filled++;
+    } catch (err) {
+      if (!(err instanceof ImageFillError)) throw err;
+      tallyRow.decode++;
+    }
+    if (attempted % 100 === 0) {
+      process.stdout.write(`  … ${attempted} derived\n`);
+    }
+    continue;
+  }
+
   if (await isCached(row.id)) {
     tallyRow.skipped++;
     continue;

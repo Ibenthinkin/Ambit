@@ -45,11 +45,13 @@ vi.mock("~/server/services/rate-limit", async () => {
 // `importActual` matters: the real `ImageFillError` class has to reach the route, because the
 // route tells a cache failure from a programming mistake with `instanceof`.
 const getOrFill = vi.hoisted(() => vi.fn());
+const getOrFillRendition = vi.hoisted(() => vi.fn());
 vi.mock("~/server/services/image-cache", async () => ({
   ...(await vi.importActual<typeof ImageCacheModule>(
     "~/server/services/image-cache",
   )),
   getOrFill,
+  getOrFillRendition,
 }));
 
 const itemWith = (imageUrl: string | null): Item =>
@@ -76,6 +78,7 @@ beforeEach(() => {
   limiterState.allow = true;
   limiterState.keys = [];
   getOrFill.mockReset().mockResolvedValue(cached());
+  getOrFillRendition.mockReset().mockResolvedValue(cached("SMALLBYTES"));
   // Still stubbed, and still asserted on below: after 7.3 the route reaching `fetch` at all would
   // mean it had gone around the cache.
   vi.stubGlobal("fetch", vi.fn());
@@ -196,5 +199,47 @@ describe("GET /api/img/[itemId]", () => {
 
   it("buys its own budget rather than sharing the API's", async () => {
     expect(limiterState.options).toEqual({ limit: 600, windowMs: 60_000 });
+  });
+});
+
+// docs/DESIGN_landing-redo.md D3: `?w=` names a rendition from a closed set, never a size.
+const requestWith = (search: string) =>
+  new Request(`http://ambit.test/api/img/item-1${search}`);
+const callWith = (search: string) =>
+  GET(requestWith(search), { params: Promise.resolve({ itemId: "item-1" }) });
+
+describe("?w= renditions", () => {
+  it("serves the 960 rendition through getOrFillRendition, never getOrFill", async () => {
+    getItemById.mockResolvedValue(itemWith("https://museum.test/a.jpg"));
+    const res = await callWith("?w=960");
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("SMALLBYTES");
+    expect(getOrFillRendition).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "item-1" }),
+      960,
+    );
+    expect(getOrFill).not.toHaveBeenCalled();
+    expect(res.headers.get("Cache-Control")).toBe(
+      "public, max-age=31536000, immutable",
+    );
+  });
+
+  it.each(["1600", "abc", "960.0", "", "0960"])(
+    "400s w=%s without touching the cache (Review Focus 2)",
+    async (w) => {
+      getItemById.mockResolvedValue(itemWith("https://museum.test/a.jpg"));
+      const res = await callWith(`?w=${w}`);
+      expect(res.status).toBe(400);
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
+      expect(getOrFill).not.toHaveBeenCalled();
+      expect(getOrFillRendition).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still serves the master with no w", async () => {
+    getItemById.mockResolvedValue(itemWith("https://museum.test/a.jpg"));
+    const res = await call();
+    expect(await res.text()).toBe("WEBPBYTES");
+    expect(getOrFillRendition).not.toHaveBeenCalled();
   });
 });

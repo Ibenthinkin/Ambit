@@ -14,10 +14,14 @@ import {
   cachePathFor,
   fillCache,
   getOrFill,
+  getOrFillRendition,
   ImageFillError,
+  isRendition,
   MAX_EDGE,
   MAX_UPSTREAM_BYTES,
   readCached,
+  renditionPathFor,
+  RENDITIONS,
 } from "./image-cache";
 
 let dir: string;
@@ -296,5 +300,57 @@ describe("cachePathFor / readCached", () => {
 
   it("reads a miss as null rather than throwing", async () => {
     expect(await readCached("never-filled", dir)).toBeNull();
+  });
+});
+
+describe("renditions (docs/DESIGN_landing-redo.md D3)", () => {
+  it("isRendition admits only the closed set, as a number", () => {
+    expect(isRendition("960")).toBe(960);
+    expect(isRendition("1600")).toBeNull();
+    expect(isRendition("960.0")).toBeNull();
+    expect(isRendition("0960")).toBeNull();
+    expect(isRendition("abc")).toBeNull();
+    expect(isRendition(null)).toBeNull();
+    expect(RENDITIONS).toEqual([960]);
+  });
+
+  it("derives the rendition from the cached master without touching fetch", async () => {
+    const fetchImpl = fetchReturning(await png(3000, 2000));
+    await fillCache(item, { dir, fetchImpl }); // the master: one upstream fetch
+    const r = await getOrFillRendition(item, 960, { dir, fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const meta = await sharp(r.bytes).metadata();
+    expect(meta.format).toBe("webp");
+    expect(meta.width).toBe(960);
+    expect(meta.height).toBe(640);
+    expect(r.hit).toBe(false);
+    expect((await readdir(dir)).sort()).toEqual(
+      [`${item.id}.w960.webp`, `${item.id}.webp`].sort(),
+    );
+  });
+
+  it("fills the master first when neither exists — one upstream fetch, two files", async () => {
+    const fetchImpl = fetchReturning(await png(3000, 2000));
+    await getOrFillRendition(item, 960, { dir, fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(await readdir(dir)).toHaveLength(2);
+  });
+
+  it("reads the rendition off disk on the second call", async () => {
+    const fetchImpl = fetchReturning(await png(3000, 2000));
+    await getOrFillRendition(item, 960, { dir, fetchImpl });
+    const again = await getOrFillRendition(item, 960, { dir, fetchImpl });
+    expect(again.hit).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("never enlarges a master smaller than the rendition (Review Focus 5)", async () => {
+    const fetchImpl = fetchReturning(await png(400, 300));
+    const r = await getOrFillRendition(item, 960, { dir, fetchImpl });
+    expect((await sharp(r.bytes).metadata()).width).toBe(400);
+  });
+
+  it("renditionPathFor keys on the id and the width only", () => {
+    expect(renditionPathFor("abc", 960, "/tmp/x")).toBe("/tmp/x/abc.w960.webp");
   });
 });

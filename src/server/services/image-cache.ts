@@ -300,3 +300,112 @@ export async function getOrFill(
 
   return { ...(await pending), hit: false };
 }
+
+// ── Renditions (docs/DESIGN_landing-redo.md D3) ──────────────────────────────────────────────
+//
+// A second, smaller WebP per item, **derived from the cached master and never its own upstream
+// fetch** — so the "once, ever" promise above survives it. The set is closed: a caller names a
+// token from RENDITIONS, never a size, which keeps `route.ts`'s "the item id is the whole key"
+// boundary intact (a route that resized to any `?w=` would be a CPU amplifier aimed at sharp).
+//
+// Measured on 120 cached masters (09-25-26): 960 px q76 is p50 45 KB / p90 132 KB against the
+// master's 78 / 263. The landing's first frames ride on this; nothing else uses it yet.
+
+export const RENDITIONS = [960] as const;
+export type Rendition = (typeof RENDITIONS)[number];
+/** Lower than the master's 82: a rendition is a background or a thumbnail, never the hero. */
+export const RENDITION_QUALITY = 76;
+
+/** The query-string token, parsed strictly: `"960"` → 960; anything else → null. */
+export function isRendition(w: string | null | undefined): Rendition | null {
+  if (w === undefined || w === null) return null;
+  for (const r of RENDITIONS) {
+    if (w === String(r)) return r;
+  }
+  return null;
+}
+
+export function renditionPathFor(
+  itemId: string,
+  w: Rendition,
+  dir?: string,
+): string {
+  return join(imageCacheDir(dir), `${itemId}.w${w}.webp`);
+}
+
+async function readRendition(
+  itemId: string,
+  w: Rendition,
+  dir?: string,
+): Promise<CachedImage | null> {
+  try {
+    return {
+      bytes: await readFile(renditionPathFor(itemId, w, dir)),
+      contentType: "image/webp",
+    };
+  } catch {
+    // A miss, for the same reasons `readCached` treats every read failure as one.
+    return null;
+  }
+}
+
+/** Resize the master's bytes and write atomically — the same temp + rename shape as `fillCache`. */
+async function deriveRendition(
+  item: Pick<Item, "id" | "imageUrl" | "source">,
+  w: Rendition,
+  opts: FillOpts,
+): Promise<CachedImage> {
+  // Fills upstream only if the master itself is missing — one museum fetch, as ever.
+  const master = await getOrFill(item, opts);
+  let bytes: Buffer;
+  try {
+    bytes = await sharp(master.bytes)
+      .resize({ width: w, height: w, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: RENDITION_QUALITY })
+      .toBuffer();
+  } catch (err) {
+    throw new ImageFillError(
+      "decode",
+      `item ${item.id}: sharp refused the cached master: ${String(err)}`,
+    );
+  }
+  const dir = imageCacheDir(opts.dir);
+  await ensureDir(dir);
+  const final = renditionPathFor(item.id, w, opts.dir);
+  const temp = `${final}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temp, bytes);
+    await rename(temp, final);
+  } catch (err) {
+    await unlink(temp).catch(() => undefined);
+    throw new ImageFillError(
+      "upstream",
+      `item ${item.id}: rendition write failed: ${String(err)}`,
+    );
+  }
+  return { bytes, contentType: "image/webp" };
+}
+
+/** In-flight derives, keyed `<id>:<w>` — the rendition's counterpart to `inFlight` above. */
+const inFlightRenditions = new Map<string, Promise<CachedImage>>();
+
+/** The rendition's `getOrFill`: off disk if present, else one shared derive per (id, w). */
+export async function getOrFillRendition(
+  item: Pick<Item, "id" | "imageUrl" | "source">,
+  w: Rendition,
+  opts: FillOpts = {},
+): Promise<CachedImage & { hit: boolean }> {
+  const cached = await readRendition(item.id, w, opts.dir);
+  if (cached) return { ...cached, hit: true };
+  const key = `${item.id}:${w}`;
+  let pending = inFlightRenditions.get(key);
+  if (!pending) {
+    pending = deriveRendition(item, w, opts);
+    inFlightRenditions.set(key, pending);
+    // The trailing catch is load-bearing for the reason `getOrFill` spells out.
+    pending
+      .finally(() => inFlightRenditions.delete(key))
+      .catch(() => undefined);
+  }
+  return { ...(await pending), hit: false };
+}

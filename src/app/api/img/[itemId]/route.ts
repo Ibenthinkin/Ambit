@@ -22,7 +22,12 @@
 // to disk; concurrent misses for the same item share a single fetch. This handler is what's left:
 // rate-limit, resolve the id, hand off, answer. Failures are never cached (D4).
 import { getItemById } from "~/server/db/items";
-import { getOrFill, ImageFillError } from "~/server/services/image-cache";
+import {
+  getOrFill,
+  getOrFillRendition,
+  ImageFillError,
+  isRendition,
+} from "~/server/services/image-cache";
 import { RateLimiter, trustedClientIp } from "~/server/services/rate-limit";
 
 // A separate limiter instance from the tRPC middleware's (120/min), and generously sized on
@@ -55,9 +60,24 @@ export async function GET(
     return new Response("Not found", { status: 404, headers: NO_STORE });
   }
 
+  // An optional rendition token (docs/DESIGN_landing-redo.md D3). Parsed strictly against the
+  // closed set — `?w=` is the name of a file we already decided to offer, never a size. Rejected
+  // before any cache work, so a scraper trying widths costs a string compare.
+  const wParam = new URL(req.url).searchParams.get("w");
+  const rendition = wParam === null ? null : isRendition(wParam);
+  if (wParam !== null && rendition === null) {
+    return new Response("Unknown rendition", {
+      status: 400,
+      headers: NO_STORE,
+    });
+  }
+
   let image;
   try {
-    image = await getOrFill(item);
+    image =
+      rendition === null
+        ? await getOrFill(item)
+        : await getOrFillRendition(item, rendition);
   } catch (err) {
     // Every failure mode the cache distinguishes (upstream / decode / too-large / timeout) is the
     // same answer to a browser: there is no image here, and don't remember that.
