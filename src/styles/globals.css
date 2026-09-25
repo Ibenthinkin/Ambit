@@ -179,6 +179,24 @@
       transform: rotate(360deg);
     }
   }
+  /* The landing overture's line arriving (docs/DESIGN_landing-redo.md D4): opacity only. */
+  @keyframes overture-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  /* The dissolve tempo's slow drift (D5): transform only, so it composites. */
+  @keyframes reel-drift {
+    from {
+      transform: scale(1);
+    }
+    to {
+      transform: scale(1.06);
+    }
+  }
   @keyframes toast-in {
     /* Deliberately Y-only — the prototype's version baked `translate(-50%, ...)` into this same
        keyframe to handle horizontal centering, which makes the transform load-bearing for layout.

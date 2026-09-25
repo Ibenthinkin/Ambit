@@ -1,4 +1,4 @@
-import { Sora } from "next/font/google";
+import { Inter, Sora } from "next/font/google";
 
 // Sora is a variable font (wght 100-800). `weight` is deliberately OMITTED — for a variable font,
 // next/font/google serves the single variable file and lets weight be controlled per-element in
@@ -16,4 +16,16 @@ export const sora = Sora({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-sora",
+});
+
+// Inter, for the landing's overture only (docs/DESIGN_landing-redo.md D4). The reference is ABC
+// Diatype, a commercial grotesque; Inter is the nearest face we can ship, and Sora — the app's
+// one face — is geometric enough to read as a different idea. One static weight, latin only:
+// ~25 KB of woff2, self-hosted by next/font and preloaded by the component that imports it. Not
+// on <html>: this is one screen's voice, not a second app-wide font token.
+export const inter = Inter({
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+  variable: "--font-inter",
 });
