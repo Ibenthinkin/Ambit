@@ -1,7 +1,16 @@
 // Repository for the `item` table (SPEC §6.3). Per docs/PHASE2_PLAN.md step 1.6, each function's
 // real body lands with the phase that needs it — drawFromTopic is real as of Phase 3.3, upsertItem
 // as of 3.4; getItemById stays a stub until Phase 4.
-import { and, eq, gte, inArray, notInArray } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  like,
+  notInArray,
+  or,
+} from "drizzle-orm";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
 import { item, itemTopic, type ItemTopicOrigin } from "./schema";
@@ -387,4 +396,45 @@ export async function drawImageAnywhere(opts: {
     limit,
     rng,
   });
+}
+
+/**
+ * Every item the landing may show (docs/DESIGN_landing-redo.md D1): an image, at
+ * `LANDING_SCORE_FLOOR` or better, from a live source, under a licence `isLandingLicense` admits.
+ *
+ * **Two columns only, on purpose.** The caller (`services/landing-pool.ts`) memoises the whole
+ * pool in-process for ten minutes — ~2,700 rows × ~120 bytes — and a landing hit then costs no
+ * query at all. Fetching full rows here would put megabytes in that memo for nothing: the reel
+ * needs an id to build a proxy URL, and the URL only to tell a `data:` fixture from a museum.
+ *
+ * The licence rule is expressed twice — as data in config (the source of truth, unit-tested) and
+ * as the `inArray`/`like` below (what Postgres can filter on). `items.integration.test.ts` pins
+ * that they agree on the six shapes that matter.
+ */
+export async function listLandingPool(): Promise<
+  { id: string; imageUrl: string }[]
+> {
+  const { db } = await import("./client");
+  const { LANDING_LICENSES, LANDING_LICENSE_PREFIXES, LANDING_SCORE_FLOOR } =
+    await import("~/server/config/landing-pool");
+
+  const licence = or(
+    inArray(item.license, [...LANDING_LICENSES]),
+    ...LANDING_LICENSE_PREFIXES.map((p) => like(item.license, `${p}%`)),
+  )!;
+  const conditions = [
+    eq(item.type, "image"),
+    isNotNull(item.imageUrl),
+    gte(item.curationScore, LANDING_SCORE_FLOOR),
+    licence,
+  ];
+  if (SUSPENDED_SOURCES.length > 0) {
+    conditions.push(notInArray(item.source, SUSPENDED_SOURCES));
+  }
+  const rows = await db
+    .select({ id: item.id, imageUrl: item.imageUrl })
+    .from(item)
+    .where(and(...conditions));
+  // `isNotNull` above guarantees the `!`.
+  return rows.map((r) => ({ id: r.id, imageUrl: r.imageUrl! }));
 }

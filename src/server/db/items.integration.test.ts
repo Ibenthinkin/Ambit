@@ -9,7 +9,12 @@ import { and, eq, inArray, like } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { addItemTopics, drawFromTopic, upsertItem } from "./items";
+import {
+  addItemTopics,
+  drawFromTopic,
+  listLandingPool,
+  upsertItem,
+} from "./items";
 import { item, itemTopic, topic } from "./schema";
 import { insertHomedItems } from "./test-fixtures";
 
@@ -387,6 +392,123 @@ describe.skipIf(!process.env.DATABASE_URL)(
         .from(itemTopic)
         .where(eq(itemTopic.itemId, itemId));
       expect(rows).toHaveLength(0);
+    });
+  },
+);
+
+// docs/DESIGN_landing-redo.md D1 — the landing pool query agrees with config/landing-pool.ts on
+// the six shapes that matter. The rows carry a throwaway topic rather than `topicId: null`: an
+// un-homed image at score 9 is drawable by every user's WILD slots, and CLAUDE.md records what
+// that does to feed.integration.test.ts's cursor-stability test when the suites run in parallel.
+describe.skipIf(!process.env.DATABASE_URL)(
+  "listLandingPool (integration)",
+  () => {
+    const topicId = `test-landing-pool-${nanoid(8)}`;
+    const prefix = `test-landing-${nanoid(8)}-`;
+    const base = {
+      type: "image" as const,
+      title: "Landing pool fixture",
+      topicId,
+    };
+
+    beforeAll(async () => {
+      const { db } = await import("./client");
+      await db.insert(topic).values({
+        id: topicId,
+        label: "Test landing-pool topic",
+        seedQueries: { wikipedia: [], met: [], aic: [], cma: [], wellcome: [] },
+      });
+      await db.insert(item).values([
+        // in: image, score 9, exact licence
+        {
+          ...base,
+          source: "met",
+          sourceId: `${prefix}in-1`,
+          imageUrl: "https://x.test/1.jpg",
+          sourceUrl: "https://x.test/1",
+          license: "CC0 1.0 (public domain)",
+          curationScore: 9,
+        },
+        // in: PDR prefix, score 10
+        {
+          ...base,
+          source: "pdr",
+          sourceId: `${prefix}in-2`,
+          imageUrl: "https://x.test/2.jpg",
+          sourceUrl: "https://x.test/2",
+          license:
+            "Public domain — PD Worldwide · text CC BY-SA 4.0 (The Public Domain Review)",
+          curationScore: 10,
+        },
+        // out: score 8.9
+        {
+          ...base,
+          source: "met",
+          sourceId: `${prefix}out-score`,
+          imageUrl: "https://x.test/3.jpg",
+          sourceUrl: "https://x.test/3",
+          license: "CC0",
+          curationScore: 8.9,
+        },
+        // out: an article
+        {
+          ...base,
+          type: "article" as const,
+          source: "met",
+          sourceId: `${prefix}out-type`,
+          imageUrl: "https://x.test/4.jpg",
+          sourceUrl: "https://x.test/4",
+          license: "CC0",
+          curationScore: 9,
+        },
+        // out: CC BY
+        {
+          ...base,
+          source: "wellcome",
+          sourceId: `${prefix}out-lic`,
+          imageUrl: "https://x.test/5.jpg",
+          sourceUrl: "https://x.test/5",
+          license: "CC BY 4.0",
+          curationScore: 9,
+        },
+        // out: no image
+        {
+          ...base,
+          source: "met",
+          sourceId: `${prefix}out-img`,
+          imageUrl: null,
+          sourceUrl: "https://x.test/6",
+          license: "CC0",
+          curationScore: 9,
+        },
+      ]);
+    });
+
+    afterAll(async () => {
+      const { db } = await import("./client");
+      await db.delete(item).where(like(item.sourceId, `${prefix}%`));
+      await db.delete(topic).where(eq(topic.id, topicId));
+    });
+
+    it("returns exactly the image rows at the floor under a landing licence", async () => {
+      const { db } = await import("./client");
+      const pool = new Map(
+        (await listLandingPool()).map((r) => [r.id, r.imageUrl]),
+      );
+      const rows = await db
+        .select({
+          id: item.id,
+          sourceId: item.sourceId,
+          imageUrl: item.imageUrl,
+        })
+        .from(item)
+        .where(like(item.sourceId, `${prefix}%`));
+      expect(rows).toHaveLength(6);
+      for (const r of rows) {
+        const expected = r.sourceId.includes("-in-");
+        expect(pool.has(r.id), r.sourceId).toBe(expected);
+        if (expected) expect(pool.get(r.id)).toBe(r.imageUrl);
+      }
     });
   },
 );
