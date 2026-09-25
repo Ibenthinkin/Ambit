@@ -5,6 +5,72 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
+
+**Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:
+
+- **Medium: pan-zoom over stills** (Ken Burns in CSS/JS), a new picture every few seconds.
+- **Pool: corpus-drawn** from the ~2,700 production pictures scored ≥ 9 under a landing-safe
+  licence (cma, pdr, met, smithsonian, wellcome, nasa-images, loc; the Tumblr blogs are out,
+  "rights retained"). Served through `/api/img`, all already warm in `.cache/img`.
+- **Dwell ~7 s per picture, ~1 s cross-fade** (agent's suggestion, Ben: "let's try your way for
+  now"). Why: dwell does **not** move load time — LCP is the first picture alone — but it sets
+  bytes per visit (a 30 s visit ≈ 4 pictures at 8 s vs ≈ 8 at 4 s) and it is the preload window
+  for the next picture, so a longer dwell is fewer stalls on a weak connection; 3–4 s reads as a
+  screensaver, 6–8 s as a slow drift.
+- **Logo stays** for now (the vault's logo-redesign item is deferred, not folded into 8.3).
+- **The profile icon must change.** `AvatarChip` (`components/ui/avatar-chip.tsx`) — the
+  gradient disc with a white ring — is a straight copy of Cosmos's. It wants a new mark in the
+  same quiet, abstract vein. It lives beyond the landing (pill + rail toolbar, Profile header,
+  per-user `avatarGradient`), so it is its own item in the 8.3 design doc, not a landing detail.
+
+**Performance budget (proposed, not yet signed off line by line):**
+
+| Line | Target |
+|---|---|
+| LCP, mid-range phone on 4G | ≤ 2.5 s (today 4.1 s) |
+| First picture | ≤ 120 KB, `<link rel=preload>` from the server-rendered HTML |
+| Bytes before the auth sheet rises | ≤ 600 KB |
+| Landing JS | ≤ 15 KB |
+| Motion | `transform`/`opacity` only, CLS 0; reduced motion → slow cross-fade or one still |
+
+What the budget implies for the build: the **server** must pick the first picture (so its preload
+hint is in the HTML, not discovered after hydration); prefetch **one** picture ahead, never the
+reel; and `/api/img` has only one rendition today (≤1600 px WebP, ~150–300 KB), so the first-frame
+line probably needs a **smaller rendition** (e.g. 800 px) — real work in `image-cache.ts`, a second
+cache variant per item, to size in the design.
+
+**Open / next:** a fresh session writes `docs/DESIGN_landing-redo.md` + `docs/PLAN_landing-redo.md`
+from this entry and 09-22's fact list (classified architectural — a knowing reversal of 5.11).
+Still to decide inside it: hand-curation filter on the pool (e.g. aspect/subject exclusions),
+beats and copy (8.3 settles the voice), skip affordance, the small-rendition question, and the new
+profile mark. Also carried: the 09-23 round 3 edits are committed with this entry; daily T6.4 reads
+(last 09-22 — one is overdue) and the 6.5 triage that ticks 8.2.
+
+*Session spend: 1.01M tok (in 24 · out 7.4k · cache r 886.6k / w 120.6k) · opus-5-5 · 17:23→17:34*
+
+### [[09-23-26 Wed]] — Round 3 parked whole; polishpostergallery probed
+
+**Sources round 3:** Ben parked the whole 09-22 batch ("park them all for now") — the five 🔵 rows
+in `source-candidates.md` now read `⏸️ Parked 09-23-26`, evidence and recommendation kept, the
+suggested order kept for when it is un-parked. Nothing moved.
+
+**polishpostergallery.com (= poster.pl), probed step 0, repo UA this time:** a Warsaw poster
+dealer's shop, ~1,250 posters across five decade listings (20 a page), 42 named artists, one page
+per poster with `og:` meta and labelled fields (designer, year of print, technique, price). **No
+machine surface** — `/api/` robots-disallowed, no sitemap, no feed, every unknown path answers
+200 HTML — and the image is the dealer's 552 × 800 photograph with no larger rendition.
+Rights are the friendliest of the batch (site content reusable *with attribution and a link*),
+and the Polish poster school is squarely the vocabulary (`poster-art`, `graphic-design`,
+`surreal`). **Recommended park** on the arabicdesignarchive ground (HTML-only walk, a shape the
+repo has never built) plus the small image; an email asking for larger images or an export is the
+cheap next step. Row is under "09-23-26 addition" in the round 3 section.
+
+**Open / next:** unchanged from 09-22 — Ben's 8.3 research → the medium question; daily T6.4
+reads; 6.5 triage at the week's end ticks 8.2.
+
+*Session spend: 3.14M tok (in 812 · out 33.0k · cache r 2.68M / w 423.9k) · fable-5-1 · 10:47→13:18*
+
 ### [[09-22-26 Tue]] — T6.4 read #1 clean; 8.3 landing session opened and parked
 
 **T6.4 (agent, VM 202 half):** three nightlies on the 8.2 code, all `exit_code 0` (inserted
