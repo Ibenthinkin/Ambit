@@ -1,0 +1,43 @@
+{
+  "ambit.profileGlyph": {
+    "variant": "6f: color flow + fast-forward on tap",
+    "color": {
+      "periwinkle": { "value": "#A8AEFF" },
+      "terracotta": { "value": "#E0A184" },
+      "sage": { "value": "#7FC4B0" },
+      "butter": { "value": "#E8D48A" },
+      "rim": { "value": "#FFFFFF" }
+    },
+    "flow": {
+      "type": "radial, center → out",
+      "order": ["periwinkle", "terracotta", "sage", "butter"],
+      "duration": { "value": "10000ms" },
+      "easing": { "value": "cubic-bezier(.45,0,.55,1)", "per": "color step" },
+      "stops": [0, 0.33, 0.66, 1],
+      "center": [12, 14],
+      "radius": 12
+    },
+    "tap": {
+      "rush": {
+        "description": "One full flow cycle, cross-faded over the ambient flow",
+        "duration": { "value": "900ms" },
+        "fade": { "opacity": [0, 1, 1, 0], "offsets": [0, 0.1, 0.85, 1] }
+      },
+      "flash": {
+        "description": "Alternate (6d): outline swell + rim flash",
+        "duration": { "value": "900ms" },
+        "scale": { "keyframes": [1, 1.055, 0.985, 1], "offsets": [0, 0.3, 0.6, 1], "origin": "50% 58%" },
+        "rim": { "opacity": [0, 0.75, 0.25, 0], "strokeWidth": [0, 1.4, 0.6, 0], "offsets": [0, 0.3, 0.6, 1] }
+      }
+    },
+    "geometry": {
+      "viewBox": "0 0 24 24",
+      "head": { "cx": 12, "cy": 7.2, "r": 5 },
+      "body": "M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z",
+      "size": { "value": "29px" },
+      "slot": { "value": "31px" },
+      "hitTarget": { "value": "44px" }
+    },
+    "reducedMotion": "Static periwinkle fill; tap has no motion."
+  }
+}

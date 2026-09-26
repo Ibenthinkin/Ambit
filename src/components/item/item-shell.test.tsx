@@ -112,11 +112,11 @@ describe("ItemShell", () => {
       expect(pushMock).not.toHaveBeenCalled();
     });
 
-    it("Share is still Share, and Escape leaves for /explore", () => {
+    it("Share is still Share, and Escape leaves for /", () => {
       renderShell({ authed: false });
       expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
       escape();
-      expect(pushMock).toHaveBeenCalledWith("/explore");
+      expect(pushMock).toHaveBeenCalledWith("/");
     });
   });
 });

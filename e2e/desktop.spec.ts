@@ -346,13 +346,13 @@ test.describe.serial("desktop", () => {
     await page.waitForURL(/\/feed/);
   });
 
-  // `/explore` (09-26-26): the signed-out taste at desktop width — four columns like /feed, the
-  // rail toolbar at the right, and the sign-up card its Profile raises is the landing's centered
-  // one. Signed out, so this spends nothing of the shared user; the seed above is what it draws.
-  test("/explore packs four columns, and the rail's Profile raises a centered sign-up card", async ({
+  // `/` (09-26-26): the signed-out taste at desktop width — four columns like /feed, the rail
+  // toolbar at the right, and the sign-up card its Profile raises is centered. Signed out, so
+  // this spends nothing of the shared user; the seed above is what it draws.
+  test("/ packs four columns, and the rail's Profile raises a centered sign-up card", async ({
     page,
   }) => {
-    await page.goto("/explore");
+    await page.goto("/");
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();
     await expect(
       page.getByTestId("feed-columns").locator(":scope > div"),

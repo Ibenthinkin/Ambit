@@ -23,7 +23,7 @@ import { api } from "~/trpc/react";
 // to visit, so Profile and Save raise the sign-up sheet in place (`AuthSurface`, the same one
 // `/explore`'s toolbar opens). The save sheet and — the part that matters — the protected
 // `saves.forItem` query sit behind `authed`: nothing user-scoped is ever requested on an
-// anonymous visitor's behalf. Feed takes a stranger to `/explore`, never `/feed`.
+// anonymous visitor's behalf. Feed takes a stranger to `/`, the taste, never `/feed`.
 //
 // The gesture works for everyone: leaving is not a privilege.
 export interface ItemShellProps {

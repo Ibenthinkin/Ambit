@@ -11,12 +11,13 @@ import {
   type Connection,
 } from "./support";
 
-// `/explore` — the signed-out taste of the feed (09-26-26, docs/PLAN_explore-route.md). The real
-// feed engine composing for nobody: the cold-start sampler over the sixteen original topics, so
-// the fixtures below live in three of those and carry their memberships, with no user anywhere —
-// which is what makes this the cold-start path on CI's fixtures-only database too.
+// `/` — the signed-out taste of the feed (09-26-26, docs/PLAN_explore-route.md; built as
+// `/explore`, the front door since the same evening). The real feed engine composing for nobody:
+// the cold-start sampler over the sixteen original topics, so the fixtures below live in three
+// of those and carry their memberships, with no user anywhere — which is what makes this the
+// cold-start path on CI's fixtures-only database too.
 //
-// Nothing here is acked, so /explore loads spend no corpus; the seed only has to fill a page or
+// Nothing here is acked, so loads of `/` spend no corpus; the seed only has to fill a page or
 // two. As everywhere in the suite, assertions are about behaviour — tiles, a block, where a tap
 // leads — never about which item appears.
 const PREFIX = "e2e-explore-";
@@ -44,8 +45,8 @@ test.describe.serial("explore", () => {
   test("a signed-out visitor sees the feed and a message block", async ({
     page,
   }) => {
-    await page.goto("/explore");
-    await expect(page).toHaveURL(/\/explore$/);
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/$/);
     // The landing's opening line stands in for the loading screen, then cuts to the feed.
     await expect(page.getByTestId("overture-tail")).toBeVisible();
     await expect(page.getByTestId("explore-curtain")).toBeVisible();
@@ -59,7 +60,7 @@ test.describe.serial("explore", () => {
   // The whole point of the taste is that it scrolls: page two is a `fetchNextPage`, which tRPC
   // sends with a `direction` key the RSC prefetch of page one never does.
   test("scrolling loads the next page", async ({ page }) => {
-    await page.goto("/explore");
+    await page.goto("/");
     await waitForHydration(page, "[data-feed-id] > *");
     await waitForOverture(page);
     await waitForFeedToSettle(page);
@@ -80,7 +81,7 @@ test.describe.serial("explore", () => {
   test("the pill's Profile and Save raise the sign-up card; Feed scrolls to the top", async ({
     page,
   }) => {
-    await page.goto("/explore");
+    await page.goto("/");
     await waitForHydration(page, "[data-feed-id] > *");
     await waitForOverture(page);
     await expect(page.locator("header")).toHaveCount(0);
@@ -94,7 +95,7 @@ test.describe.serial("explore", () => {
     await expect(
       page.getByPlaceholder("What should we call you?"),
     ).toBeInViewport();
-    await expect(page).toHaveURL(/\/explore$/);
+    await expect(page).toHaveURL(/\/$/);
     await page.getByRole("button", { name: "Back to exploring" }).click();
     await expect(sheet).toHaveAttribute("data-open", "false");
 
@@ -109,11 +110,11 @@ test.describe.serial("explore", () => {
       .toBeGreaterThan(0);
     await pill.getByRole("button", { name: "Feed" }).click();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-    await expect(page).toHaveURL(/\/explore$/);
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test("'what is this?' opens the about dialog", async ({ page }) => {
-    await page.goto("/explore");
+    await page.goto("/");
     await waitForHydration(page, '[data-explore-message="about"] button');
     await waitForOverture(page);
     await page
@@ -125,7 +126,7 @@ test.describe.serial("explore", () => {
   });
 
   test("?open=signup opens the card in sign-up", async ({ page }) => {
-    await page.goto("/explore?open=signup");
+    await page.goto("/?open=signup");
     await expect(
       page.getByPlaceholder("What should we call you?"),
     ).toBeInViewport();
@@ -136,7 +137,7 @@ test.describe.serial("explore", () => {
   test("a tile opens the item page, and leaving it comes back to /explore", async ({
     page,
   }) => {
-    await page.goto("/explore");
+    await page.goto("/");
     await waitForHydration(page, "[data-feed-id] > *");
     await waitForOverture(page);
     await waitForFeedToSettle(page);
@@ -164,22 +165,30 @@ test.describe.serial("explore", () => {
     await expect(sheet).toHaveAttribute("data-open", "false");
     await expect(page).toHaveURL(/\/i\//);
     await page.keyboard.press("Escape");
-    await page.waitForURL(/\/explore$/);
+    await page.waitForURL(/\/$/);
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();
     // Back pops to the feed that was already there — the overture is once per document load.
     await expect(page.getByTestId("overture")).toHaveCount(0);
   });
 
-  test("`/` is still the landing", async ({ page }) => {
-    await page.goto("/");
-    await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByTestId("auth-sheet")).toBeAttached();
+  test("`/explore` is a permanent redirect to `/`, `?open=` and all", async ({
+    page,
+    request,
+  }) => {
+    const res = await request.get("/explore", { maxRedirects: 0 });
+    expect(res.status()).toBe(308);
+    expect(res.headers().location).toBe("/");
+    await page.goto("/explore?open=signup");
+    await expect(page).toHaveURL(/\/\?open=signup$/);
+    await expect(
+      page.getByPlaceholder("What should we call you?"),
+    ).toBeInViewport();
   });
 
-  test("an invited visitor signs up from the about dialog, and /explore then sends them on", async ({
+  test("an invited visitor signs up from the about dialog, and / then sends them on", async ({
     page,
   }) => {
-    await page.goto("/explore");
+    await page.goto("/");
     await waitForHydration(page, '[data-explore-message="about"] button');
     await waitForOverture(page);
     await page
@@ -198,8 +207,9 @@ test.describe.serial("explore", () => {
     // A new account has no picks yet: /feed hands it to onboarding.
     await page.waitForURL(/\/onboarding/);
 
-    // Signed in, /explore is not for them — the same rule as `/`.
-    await page.goto("/explore");
-    await expect(page).not.toHaveURL(/\/explore/);
+    // Signed in, the taste is not for them: `/` sends a reader to the feed — which, for an
+    // account with no picks yet, hands them straight on to onboarding.
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/onboarding/);
   });
 });

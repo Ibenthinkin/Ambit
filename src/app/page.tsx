@@ -1,60 +1,49 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { preload } from "react-dom";
 
-import { AuthCard } from "~/components/landing/auth-card";
-import { LandingScreen } from "~/components/landing/landing-screen";
-import { resolveTempo } from "~/components/landing/tempos";
+import { ExploreScreen } from "~/components/explore/explore-screen";
 import { auth } from "~/lib/auth";
-import { guessShape } from "~/server/config/landing-pool";
-import { feedDebugEnabled } from "~/server/services/feed-debug";
-import { getReels } from "~/server/services/landing-pool";
+import { TOPICS } from "~/server/config/topics";
+import { api, HydrateClient } from "~/trpc/server";
 
-// The real Ambit landing/sign-in screen (SPEC §8.1). A Server Component: it checks for a real
-// session itself (not the cookie-shape-only check in src/proxy.ts — see that file's comment for
-// why the redirect can't live there) and bounces straight to /feed, so a signed-in visitor never
-// sees the landing flash before redirecting. Reading `headers()` also keeps the route dynamic,
-// which is what keeps both the session check and the reel pick out of build time.
+// `/` — the front door: a signed-out taste of the feed (docs/PLAN_explore-route.md). Built
+// 09-26-26 as `/explore`, a second front door beside the overture-and-reel landing so the two
+// could be compared; the same evening Ben chose this one ("I like this version a lot better"),
+// so it moved here and the reel landing was parked at `/dev/landing` — kept whole, gated, in
+// case it comes back. `/explore` is a permanent redirect here.
 //
-// 8.3 (docs/DESIGN_landing-redo.md) made it pick the reel too: the server chooses the pictures
-// (D2), so the first ones are `<link rel="preload">`s in the HTML and the first `<img>` is in the
-// markup — nothing about the imagery waits for hydration. `?tempo=cut|dissolve` is honoured only
-// under the dev gate (D5), the same function that gates /dev/feed, so a production build ignores
-// it; that is how Ben compares the two tempos on a device.
+// Same shape as /feed's shell: one guard, one prefetch, the client screen. The guard is the
+// landing's rule, not the feed's — a signed-in reader has the real feed and is sent to it. Not in
+// proxy.ts's AUTHED_PREFIXES, because it isn't authed; the service worker treats it as
+// NetworkOnly (only the feed's pages are cached for offline). Indexable — the old landing was.
+
+/** The one `?open=` values the page honours — anything else is ignored, never echoed. */
+const OPENABLE = ["signin", "signup", "about"] as const;
+
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tempo?: string }>;
+  searchParams: Promise<{ open?: string | string[] }>;
 }) {
-  const requestHeaders = await headers();
-  const session = await auth.api.getSession({ headers: requestHeaders });
+  const session = await auth.api.getSession({ headers: await headers() });
   if (session) {
     redirect("/feed");
   }
 
-  const { tempo: tempoParam } = await searchParams;
-  const tempo = resolveTempo(tempoParam, await feedDebugEnabled());
-  // Two reels — tall for a phone held upright, wide for anything else (09-25-26) — and a guess at
-  // which this reader needs, from the user agent. Only the guessed reel is preloaded; the client
-  // swaps to the other if the screen's real orientation disagrees.
-  const reels = await getReels();
-  const initialShape = guessShape(requestHeaders.get("user-agent"));
+  // **`{}` — byte-identical to ExploreScreen's `useInfiniteQuery` input**, or the client keys a
+  // different query and fetches page one again. Un-awaited, as on /feed: `HydrateClient`
+  // dehydrates whatever has settled by the time it renders.
+  void api.feed.explore.prefetchInfinite({});
 
-  // The budget's "preloaded from <head>" line: the gate's worth of the guessed reel. A `data:`
-  // picture (the e2e fixtures) is inline already and needs no preload.
-  for (const p of reels[initialShape].slice(0, tempo.gateFrames)) {
-    if (p.src.startsWith("data:")) continue;
-    preload(p.src, { as: "image", fetchPriority: "high" });
-  }
+  const topicLabels = Object.fromEntries(TOPICS.map((t) => [t.id, t.label]));
+
+  // `?open=` — sent by the item page's end card, whose actions need a sheet this page owns.
+  const { open } = await searchParams;
+  const initialOpen = OPENABLE.find((o) => o === open);
 
   return (
-    <LandingScreen
-      mode="cycle"
-      reels={reels}
-      initialShape={initialShape}
-      tempo={tempo}
-    >
-      <AuthCard />
-    </LandingScreen>
+    <HydrateClient>
+      <ExploreScreen topicLabels={topicLabels} initialOpen={initialOpen} />
+    </HydrateClient>
   );
 }

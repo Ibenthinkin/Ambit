@@ -23,13 +23,14 @@ import { cameFromFeed } from "~/components/feed/feed-origin";
 
 /**
  * Returns a `leave()` that pops back to the feed when this visit came from it, and otherwise
- * pushes `/feed?focus={itemId}` to build one — or `/explore`, for a signed-out visitor.
+ * pushes `/feed?focus={itemId}` to build one — or `/`, the signed-out taste, for a stranger.
  */
 export function useLeaveToFeed(
   itemId: string,
-  /** `signedOut`: there is no `/feed` for this visitor — the proxy would bounce them to the
-   *  landing — so the way out is `/explore`, whether the visit began there or on a shared link
-   *  (09-26-26; before the toolbar reached signed-out screens this was only the explore case).
+  /** `signedOut`: there is no `/feed` for this visitor — the proxy would bounce them anyway —
+   *  so the way out is `/`, the signed-out taste of the feed, whether the visit began there or
+   *  on a shared link (09-26-26; before the toolbar reached signed-out screens this was only
+   *  the explore case, and `/` was the reel landing).
    *  The caller decides it from the session, never from the explore marker, which outlives a
    *  sign-in in the same tab. */
   { signedOut = false }: { signedOut?: boolean } = {},
@@ -43,8 +44,8 @@ export function useLeaveToFeed(
       router.back();
       return;
     }
-    // A signed-out visitor has no feed to be focused in — `/feed` would bounce them to the
-    // landing — so they go to the taste, which for one who came from `/explore` is back.
-    router.push(signedOut ? "/explore" : `/feed?focus=${itemId}`);
+    // A signed-out visitor has no feed to be focused in — `/feed` would bounce them — so they
+    // go to the taste at `/`, which for one who came from it is back.
+    router.push(signedOut ? "/" : `/feed?focus=${itemId}`);
   }, [itemId, signedOut, router]);
 }

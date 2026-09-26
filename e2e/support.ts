@@ -37,27 +37,34 @@ export async function waitForHydration(page: Page, selector = "form") {
 }
 
 /**
- * Raises the landing page's sign-in sheet and waits until its fields can actually be typed into.
+ * Raises the front door's sign-in sheet and waits until its fields can actually be typed into.
  *
- * **Why every landing test now needs this.** Phase 5.11 put the auth form inside a sheet that
- * spends the first ~5 seconds of a visit translated off the bottom of the screen while the
- * slideshow runs. The fields are in the DOM the whole time — `waitForHydration` still works, and
- * has to keep working — but they are outside the viewport, so Playwright's actionability checks
- * would sit and wait on them. The glyph is the reader's own way to skip ahead; tests take the same
- * path rather than waiting the slideshow out on every single test.
+ * **Why every landing test needs this.** The auth form lives in a sheet that starts translated
+ * off the bottom of the screen. The fields are in the DOM the whole time — `waitForHydration`
+ * still works, and has to keep working — but they are outside the viewport, so Playwright's
+ * actionability checks would sit and wait on them.
+ *
+ * Since 09-26-26 the front door is the explore feed, whose toolbar opens the sheet in *sign-up*
+ * mode after an overture (~5 s) that owns the screen. `?open=signin` is the page's own way to
+ * arrive with the sheet already up and the overture skipped — so this navigates there when the
+ * sheet isn't up yet, which is also faster than the old landing's glyph. Safe to call after a
+ * `goto("/")`, and safe to call twice.
  */
 export async function openAuthSheet(page: Page) {
-  await waitForHydration(page);
-  const glyph = page.getByRole("button", { name: "Open sign-in" });
-  // The sheet may already be up — a slow machine can let the slideshow finish first, and this is
-  // safe to call twice. Once the sheet rises the glyph unmounts, so its absence is the signal.
-  if (await glyph.isVisible()) await glyph.click();
+  const sheet = page.getByTestId("auth-sheet");
+  const isUp = async () =>
+    (await sheet.count()) > 0 &&
+    (await sheet.getAttribute("data-open")) === "true";
+  if (!(await isUp())) {
+    await page.goto("/?open=signin");
+  }
+  await waitForHydration(page, "form");
   await expect(page.getByPlaceholder("you@example.com")).toBeInViewport({
     timeout: 15_000,
   });
 }
 
-/** Signs an existing user in through the landing page and waits for the feed to render. */
+/** Signs an existing user in through the front door and waits for the feed to render. */
 export async function signIn(page: Page, email: string, password: string) {
   await openAuthSheet(page);
   await page.getByPlaceholder("you@example.com").fill(email);
