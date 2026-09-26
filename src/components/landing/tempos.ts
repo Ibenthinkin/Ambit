@@ -4,9 +4,10 @@
 //
 // Ben is choosing between these by looking (`?tempo=` under the dev gate — see app/page.tsx).
 // When he has, DEFAULT_TEMPO flips and the plan's Task 9 deletes the loser; the `Tempo` object
-// itself stays, because `behindSheet` needs a second gear to name.
+// itself stays, because `behindSheet` needs a second gear to name. `gentle` is not a candidate: it
+// is what reduced motion gets (D6).
 
-export type TempoId = "cut" | "dissolve";
+export type TempoId = "cut" | "dissolve" | "gentle";
 
 export interface Tempo {
   id: TempoId;
@@ -20,6 +21,8 @@ export interface Tempo {
   gateFrames: number;
   /** A slow 1.00 → 1.06 scale over each frame, transform only. */
   drift: boolean;
+  /** The first frame fades in from black instead of cutting (D4's hard cut is itself motion). */
+  softStart: boolean;
   /** The tempo that runs once the sheet is up — a 3 Hz strobe under a form is hostile. */
   behindSheet: TempoId;
 }
@@ -34,6 +37,7 @@ export const TEMPOS: Record<TempoId, Tempo> = {
     firstPass: 12,
     gateFrames: 4,
     drift: false,
+    softStart: false,
     behindSheet: "dissolve",
   },
   dissolve: {
@@ -43,7 +47,22 @@ export const TEMPOS: Record<TempoId, Tempo> = {
     firstPass: 2,
     gateFrames: 1,
     drift: true,
+    softStart: false,
     behindSheet: "dissolve",
+  },
+  // The reduced-motion tempo (D6, 09-26-26): what a reader whose OS asks for less movement gets
+  // in place of either of the above. The dissolve's clock with nothing but opacity moving — no
+  // drift, and no hard cut into the first frame. Its own gear behind the sheet: relaxing to
+  // `dissolve` would bring the drift back.
+  gentle: {
+    id: "gentle",
+    frameMs: 6000,
+    fadeMs: 2500,
+    firstPass: 2,
+    gateFrames: 1,
+    drift: false,
+    softStart: true,
+    behindSheet: "gentle",
   },
 };
 

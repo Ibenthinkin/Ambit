@@ -12,6 +12,7 @@ describe("tempos", () => {
       firstPass: 12,
       gateFrames: 4,
       drift: false,
+      softStart: false,
       behindSheet: "dissolve",
     });
   });
@@ -24,7 +25,23 @@ describe("tempos", () => {
       firstPass: 2,
       gateFrames: 1,
       drift: true,
+      softStart: false,
       behindSheet: "dissolve",
+    });
+  });
+
+  // The reduced-motion tempo (D6, 09-26-26): the dissolve with no drift and no hard cut anywhere —
+  // the first frame fades in from black too. Opacity is the only thing that moves.
+  it("gentle: the dissolve without drift, and a soft start; it is its own gear behind the sheet", () => {
+    expect(TEMPOS.gentle).toEqual({
+      id: "gentle",
+      frameMs: 6000,
+      fadeMs: 2500,
+      firstPass: 2,
+      gateFrames: 1,
+      drift: false,
+      softStart: true,
+      behindSheet: "gentle",
     });
   });
 
@@ -32,15 +49,17 @@ describe("tempos", () => {
     expect(1000 / TEMPOS.cut.frameMs).toBeLessThan(3);
   });
 
-  it("resolveTempo honours the param only when overrides are allowed", () => {
+  it("resolveTempo honours the param only when overrides are allowed, and never resolves gentle", () => {
     expect(resolveTempo("dissolve", true).id).toBe("dissolve");
     expect(resolveTempo("dissolve", false).id).toBe(DEFAULT_TEMPO);
+    expect(resolveTempo("gentle", true).id).toBe(DEFAULT_TEMPO);
     expect(resolveTempo("nonsense", true).id).toBe(DEFAULT_TEMPO);
     expect(resolveTempo(undefined, true).id).toBe(DEFAULT_TEMPO);
   });
 
-  it("wantedAhead: cut prefetches the whole reel, dissolve one ahead", () => {
+  it("wantedAhead: cut prefetches the whole reel, dissolve and gentle one ahead", () => {
     expect(wantedAhead(TEMPOS.cut)).toBe(Infinity);
     expect(wantedAhead(TEMPOS.dissolve)).toBe(1);
+    expect(wantedAhead(TEMPOS.gentle)).toBe(1);
   });
 });
