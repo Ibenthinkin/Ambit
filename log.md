@@ -154,9 +154,19 @@ dividing by group size in `setUserTopics` is the follow-up if `/dev/feed` says s
 **reminds** rather than refuses on a missing group (the proposals file has no group slot; the test
 is the guard). `science` → Machines & technology, `humor` → Myth, story & the strange.
 
-**Open / next:** the worktree has no `.env` (deny rule) — Ben copies it, then the 7 DB-backed
-suites, `bun run e2e:prod` and the CI-shape run; Ben looks at the chips and renames groups in
-`topic-groups.ts`; merge to `main` after 8.3 lands; group-size weighting if the feel is off.
+**Verified next morning (09-26, once Ben copied `.env` into the worktree and okayed killing
+8.3's ten-hour dev server on :3000):** full unit suite **1,394 green**; `bun run e2e:prod`
+**57 passed / 3 skipped** on the real corpus; CI-shape (fresh `postgres:17-alpine` on :5434,
+sixteen seeded topics, `--workers 1`) **56 passed / 4 skipped**. Screenshots in the session
+scratchpad: twelve Subject chips fit one phone screen; the Topics tab reads "Space & science
+fiction · 11 of 12" after un-picking The Moon from the flat list.
+
+**Open / next:** Ben looks at the chips and renames groups in `topic-groups.ts` (one file, no
+other change); merge `feat/topic-groups` to `main` after 8.3 lands and remove the worktree;
+group-size weighting if `/dev/feed` says the flat 1.0 skews CORE. 8.3's dev server on :3000 was
+stopped for the e2e runs — `bun run dev` in `~/Dev/ambit` brings it back.
+
+*Session spend: 6.97M tok (in 1.0k · out 30.5k · cache r 6.56M / w 374.4k) · ~≥$1.22 · fable-5-1 + opus-4-7 · 22:45→09:08*
 
 
 ### [[09-23-26 Wed]] — Round 3 parked whole; polishpostergallery probed
