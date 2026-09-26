@@ -66,7 +66,7 @@ describe("Overture", () => {
     expect(line.className).toContain("motion-gentle");
   });
 
-  it("gentle collapse: the whole line fades on opacity alone — no clip, no drift, and the fade-in animation is dropped so the inline opacity can paint", () => {
+  it("gentle collapse: the whole line fades on opacity alone — no clip, no drift, and no fill-mode holding opacity against the transition", () => {
     const { rerender } = render(<Overture phase="in" gentle />);
     const tail = screen.getByTestId("overture-tail");
     Object.defineProperty(tail, "getBoundingClientRect", {
@@ -76,7 +76,10 @@ describe("Overture", () => {
     const line = screen.getByTestId("overture");
     expect(line.style.opacity).toBe("0");
     expect(line.style.transition).toContain("opacity 2200ms");
-    expect(line.style.animation).toBe("none");
+    // Unchanged from `in`, and fill-less: a `both`-filled finished animation holds opacity 1 in
+    // the after-change style, so the transition never starts and the line pops out (review, 09-26).
+    expect(line.style.animation).toContain("overture-in 500ms");
+    expect(line.style.animation).not.toContain("both");
     const mark = screen.getByTestId("overture-mark");
     expect(mark.style.transform).toBe("none");
     expect(mark.style.getPropertyValue("--drift")).toBe("");
@@ -104,5 +107,16 @@ describe("Overture", () => {
     rerender(<Overture phase="collapse" />);
     expect(tail.style.getPropertyValue("clip-path")).toBe("inset(0 100% 0 0)");
     expect(screen.getByTestId("overture").style.opacity).toBe("");
+  });
+});
+
+describe("Overture — the fade-in runs whatever the phase", () => {
+  // Removing the animation at `collapse`/`done` made the wordmark pop in without a fade whenever it
+  // remounted under full motion (a collapsed sheet). It stays on, every phase, fill-less.
+  it.each(["in", "collapse", "done"] as const)("%s", (phase) => {
+    render(<Overture phase={phase} />);
+    expect(screen.getByTestId("overture").style.animation).toContain(
+      "overture-in 500ms",
+    );
   });
 });

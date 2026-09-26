@@ -122,6 +122,39 @@ test("reduced motion: the overture fades, the reel cross-fades without drift, an
   expect(
     await overture.evaluate((el) => getComputedStyle(el).animationDuration),
   ).toBe("0.5s");
+  // The collapse is a real fade of the whole line, not a pop to black (final review, 09-26-26):
+  // wait out the fade-in until the line holds at full opacity, then catch it strictly mid-fade.
+  // Removing a `both`-filled animation in the same style change as setting opacity starts no
+  // transition in any engine, and this is the only layer that can see that — jsdom computes none.
+  // Sampled in one evaluate with the tail's presence: the wordmark's own fade-in at `done` (the
+  // tail gone) is not the collapse, and must not satisfy this.
+  const lineState = () =>
+    page.evaluate(() => {
+      const el = document.querySelector("[data-testid='overture']");
+      return {
+        opacity: el ? Number(getComputedStyle(el).opacity) : null,
+        collapsing:
+          document.querySelector("[data-testid='overture-tail']") !== null,
+      };
+    });
+  await expect
+    .poll(async () => (await lineState()).opacity, {
+      intervals: [50],
+      timeout: 3_000,
+    })
+    .toBeGreaterThan(0.99);
+  await expect
+    .poll(
+      async () => {
+        const { opacity, collapsing } = await lineState();
+        if (!collapsing) return "ended before a mid-fade sample";
+        return opacity !== null && opacity > 0.05 && opacity < 0.9
+          ? "mid-fade"
+          : `opacity ${opacity}`;
+      },
+      { intervals: [50], timeout: 5_000 },
+    )
+    .toBe("mid-fade");
   // The gentle collapse: the tail unmounts on the frame the reel starts (~3.6 s).
   await expect(page.getByTestId("overture-tail")).toHaveCount(0, {
     timeout: 10_000,

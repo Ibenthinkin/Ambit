@@ -45,7 +45,11 @@ export interface OvertureProps {
 }
 
 const EASE = "cubic-bezier(.4,0,.2,1)";
-const FADE_IN = `overture-in ${OVERTURE.fadeInMs}ms ease both`;
+// No fill mode, deliberately: the keyframe has no delay and ends at opacity's natural value, so a
+// fill does nothing visible — except that a `both`-filled *finished* animation keeps holding
+// opacity 1 in the style a transition is computed from, and the gentle collapse's fade to 0 then
+// never starts in any engine (final review, 09-26-26). Unfilled, it can stay on in every phase.
+const FADE_IN = `overture-in ${OVERTURE.fadeInMs}ms ease`;
 
 export function Overture({
   phase,
@@ -89,10 +93,9 @@ export function Overture({
         "text-[clamp(15px,2vw,25px)] font-normal whitespace-nowrap",
       )}
       style={{
-        // Dropped once the line starts fading: a finished `both`-filled animation keeps holding
-        // opacity 1 and beats inline styles in the cascade, so the 0 below would never paint.
-        // Nothing visible changes — it ended 900 ms ago at 1, the property's natural value.
-        animation: phase === "in" || gentleDone ? FADE_IN : "none",
+        // Always on: it plays once per mount — first paint, the gentle `done` re-key, and a remount
+        // after the sheet collapses — and, unfilled, never contends with the collapse's opacity.
+        animation: FADE_IN,
         opacity: lineFading ? 0 : undefined,
         transition: lineFading
           ? `opacity ${OVERTURE.collapseMs}ms ease`

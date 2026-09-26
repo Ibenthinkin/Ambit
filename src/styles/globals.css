@@ -179,24 +179,6 @@
       transform: rotate(360deg);
     }
   }
-  /* The landing overture's line arriving (docs/DESIGN_landing-redo.md D4): opacity only. */
-  @keyframes overture-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-  /* The dissolve tempo's slow drift (D5): transform only, so it composites. */
-  @keyframes reel-drift {
-    from {
-      transform: scale(1);
-    }
-    to {
-      transform: scale(1.06);
-    }
-  }
   @keyframes toast-in {
     /* Deliberately Y-only — the prototype's version baked `translate(-50%, ...)` into this same
        keyframe to handle horizontal centering, which makes the transform load-bearing for layout.
@@ -349,6 +331,30 @@
      src/lib/utils.ts — keep that registration. */
   .bg-avatar-gradient {
     background-image: linear-gradient(150deg, #8e92f0, #6c7be8);
+  }
+}
+
+/* The landing's two keyframes live out here, not in `@theme` with the others: Tailwind v4 emits a
+   theme keyframe only when an `--animate-*` token uses it, and these are named from inline styles
+   (`overture.tsx`, `landing-reel.tsx`), not utilities — inside `@theme` they were dropped from
+   the build, and the overture's fade-in and the dissolve's drift never ran (found 09-26-26;
+   `globals.test.ts` compiles this file to pin it). */
+/* The landing overture's line arriving (docs/DESIGN_landing-redo.md D4): opacity only. */
+@keyframes overture-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* The dissolve tempo's slow drift (D5): transform only, so it composites. */
+@keyframes reel-drift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
   }
 }
 

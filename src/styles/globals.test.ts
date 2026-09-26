@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import tailwind from "@tailwindcss/postcss";
+import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
 // The global reduced-motion rule collapses every duration in the app to 0.01 ms. The landing's
@@ -21,4 +23,21 @@ describe("globals.css reduced motion", () => {
     expect(block).toContain(":not(.motion-gentle, .motion-gentle *)::after");
     expect(block).not.toMatch(/^\s*\*,\s*$/m);
   });
+});
+
+// Tailwind v4 emits a `@keyframes` declared inside `@theme` only when an `--animate-*` token uses
+// it. The landing's two were declared there with no token, so the production CSS never had them:
+// the overture's fade-in and the dissolve's drift were animation names pointing at nothing, from
+// 8.3's first build until the 09-26-26 final review found the wordmark sitting at opacity 1 on
+// its first frame. Compiled here the way the build compiles it, because only the output can say.
+describe("globals.css keyframes survive the Tailwind build", () => {
+  it("emits overture-in and reel-drift", async () => {
+    const from = join(__dirname, "globals.css");
+    const out = await postcss([tailwind()]).process(
+      readFileSync(from, "utf8"),
+      { from },
+    );
+    expect(out.css).toContain("@keyframes overture-in");
+    expect(out.css).toContain("@keyframes reel-drift");
+  }, 60_000);
 });
