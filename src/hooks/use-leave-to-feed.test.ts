@@ -26,8 +26,8 @@ describe("useLeaveToFeed", () => {
     pushMock.mockClear();
   });
 
-  const leave = (itemId: string, exploring = false) => {
-    const { result } = renderHook(() => useLeaveToFeed(itemId, { exploring }));
+  const leave = (itemId: string, signedOut = false) => {
+    const { result } = renderHook(() => useLeaveToFeed(itemId, { signedOut }));
     act(() => result.current());
   };
 
@@ -59,9 +59,9 @@ describe("useLeaveToFeed", () => {
     expect(backMock).not.toHaveBeenCalled();
   });
 
-  // `/explore` (09-26-26): a visitor who reached this item from the signed-out feed, then wandered
-  // off it, goes back to /explore — /feed would only bounce them to the landing.
-  it("goes to /explore, not /feed, when the visit began on /explore", () => {
+  // `/explore` (09-26-26): a signed-out visitor — from the explore feed or a shared link — goes to
+  // /explore; /feed would only bounce them to the landing.
+  it("goes to /explore, not /feed, for a signed-out visitor", () => {
     markExploreOrigin();
     markFeedOrigin("item-other");
 
@@ -71,13 +71,20 @@ describe("useLeaveToFeed", () => {
   });
 
   // The marker outlives a sign-in in the same tab. A signed-in reader (the item screen passes
-  // `exploring: false` for anyone authed) must be sent to their feed, not to /explore's redirect.
-  it("ignores a stale explore marker when the screen says the reader isn't exploring", () => {
+  // `signedOut: false` for anyone authed) must be sent to their feed, not to /explore's redirect.
+  it("ignores a stale explore marker when the screen says the reader is signed in", () => {
     markExploreOrigin();
 
     leave("item-1", false);
 
     expect(pushMock).toHaveBeenCalledWith("/feed?focus=item-1");
+  });
+
+  it("goes to /explore on a cold-opened shared link too, with no marker at all", () => {
+    leave("item-1", true);
+
+    expect(pushMock).toHaveBeenCalledWith("/explore");
+    expect(backMock).not.toHaveBeenCalled();
   });
 
   it("still pops when the explore tile is the one that opened it", () => {

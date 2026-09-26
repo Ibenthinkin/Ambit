@@ -346,10 +346,10 @@ test.describe.serial("desktop", () => {
     await page.waitForURL(/\/feed/);
   });
 
-  // `/explore` (09-26-26): the signed-out taste at desktop width — four columns like /feed, and
-  // its sign-in card is the landing's centered one. Signed out, so this spends nothing of the
-  // shared user; the seed above is what it draws.
-  test("/explore packs four columns, and its sign-in card is centered", async ({
+  // `/explore` (09-26-26): the signed-out taste at desktop width — four columns like /feed, the
+  // rail toolbar at the right, and the sign-up card its Profile raises is the landing's centered
+  // one. Signed out, so this spends nothing of the shared user; the seed above is what it draws.
+  test("/explore packs four columns, and the rail's Profile raises a centered sign-up card", async ({
     page,
   }) => {
     await page.goto("/explore");
@@ -358,10 +358,13 @@ test.describe.serial("desktop", () => {
       page.getByTestId("feed-columns").locator(":scope > div"),
     ).toHaveCount(4);
 
-    await page
-      .locator("header")
-      .getByRole("button", { name: "Sign in" })
-      .click();
+    // The rail is hidden under the overture's curtain until the dissolve.
+    const rail = page.getByTestId("rail-toolbar");
+    await expect(rail).toHaveAttribute("aria-hidden", "false", {
+      timeout: 8_000,
+    });
+    await expect(page.getByTestId("explore-curtain")).toHaveCount(0);
+    await rail.getByRole("button", { name: "Profile" }).click();
     const sheet = page.getByTestId("auth-sheet");
     await expect(sheet).toHaveAttribute("data-open", "true");
     await settle(sheet);

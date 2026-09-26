@@ -13,7 +13,10 @@ import type { Item } from "~/server/db/items";
 import type { FeedCard, FeedPage } from "~/server/services/feed";
 import { stubMatchMedia } from "~/test/match-media";
 import { ExploreScreen } from "./explore-screen";
-import { resetOverturePlayedForTests } from "./once-per-document";
+import {
+  markOverturePlayed,
+  resetOverturePlayedForTests,
+} from "./once-per-document";
 
 // `/explore`'s screen is composition over the grid: the query, the cap, the message blocks and
 // the two surfaces they open. The grid and the packing are FeedGrid's and masonry's own tests.
@@ -158,19 +161,58 @@ describe("ExploreScreen", () => {
     expect(screen.getByTestId("auth-card")).toHaveTextContent("signup");
   });
 
-  it("the header's Sign in opens the card in sign-in", () => {
-    render(<ExploreScreen topicLabels={{}} />);
-    expect(authSheet()).toHaveAttribute("data-open", "false");
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(authSheet()).toHaveAttribute("data-open", "true");
-    expect(screen.getByTestId("auth-card")).toHaveTextContent("signin");
-  });
+  // The regular toolbar, not a header (Ben, 09-26-26): Profile and Save both lead somewhere a
+  // stranger can't go, so here they ask for the account instead; Feed is the feed's own scroll-
+  // to-top; Share needs a current item and a feed has none, so there is no disc.
+  describe("the toolbar", () => {
+    // Hidden behind the curtain on a document's first mount (see the overture tests), so these
+    // mount as Back from an item page does: overture already played.
+    beforeEach(() => markOverturePlayed());
 
-  it("the auth sheet's logo closes it", () => {
-    render(<ExploreScreen topicLabels={{}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    fireEvent.click(screen.getByRole("button", { name: "Back to exploring" }));
-    expect(authSheet()).toHaveAttribute("data-open", "false");
+    it("is the pill, with no header and no Share", () => {
+      render(<ExploreScreen topicLabels={{}} />);
+      expect(document.querySelector("header")).toBeNull();
+      expect(screen.getByTestId("pill-toolbar")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Share" })).toBeNull();
+    });
+
+    it("Profile opens the card in sign-up", () => {
+      render(<ExploreScreen topicLabels={{}} />);
+      expect(authSheet()).toHaveAttribute("data-open", "false");
+      fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+      expect(authSheet()).toHaveAttribute("data-open", "true");
+      expect(screen.getByTestId("auth-card")).toHaveTextContent("signup");
+      expect(pushMock).not.toHaveBeenCalled();
+    });
+
+    it("Save opens the card in sign-up", () => {
+      render(<ExploreScreen topicLabels={{}} />);
+      fireEvent.click(
+        screen.getByRole("button", { name: "Save to collection" }),
+      );
+      expect(authSheet()).toHaveAttribute("data-open", "true");
+      expect(screen.getByTestId("auth-card")).toHaveTextContent("signup");
+    });
+
+    it("Feed scrolls to the top rather than pushing /feed", () => {
+      const scrollTo = vi.fn();
+      vi.stubGlobal("scrollTo", scrollTo);
+      render(<ExploreScreen topicLabels={{}} />);
+      fireEvent.click(screen.getByRole("button", { name: "Feed" }));
+      expect(scrollTo).toHaveBeenCalledWith(
+        expect.objectContaining({ top: 0 }),
+      );
+      expect(pushMock).not.toHaveBeenCalled();
+    });
+
+    it("the auth sheet's logo closes it", () => {
+      render(<ExploreScreen topicLabels={{}} />);
+      fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Back to exploring" }),
+      );
+      expect(authSheet()).toHaveAttribute("data-open", "false");
+    });
   });
 
   it("a tap opens the item page, marking the way back", () => {
@@ -230,6 +272,12 @@ describe("ExploreScreen overture", () => {
     expect(curtain()).toHaveAttribute("data-dissolving", "false");
     // The feed is already there underneath — the overture hides loading, it doesn't delay it.
     expect(container.querySelectorAll("[data-feed-id]")).toHaveLength(2);
+    // The toolbar sits above the curtain (z-30 over z-10), so it is hidden until the dissolve
+    // starts and fades in with the feed.
+    expect(screen.getByTestId("pill-toolbar")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
     act(() => {
       vi.advanceTimersByTime(OVERTURE_MS - 1);
     });
@@ -241,6 +289,10 @@ describe("ExploreScreen overture", () => {
     });
     expect(curtain()).toHaveAttribute("data-dissolving", "true");
     expect(curtain()).toHaveStyle({ opacity: "0", pointerEvents: "none" });
+    expect(screen.getByTestId("pill-toolbar")).toHaveAttribute(
+      "aria-hidden",
+      "false",
+    );
     expect(overture()).toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(EXPLORE_DISSOLVE_MS - 1);

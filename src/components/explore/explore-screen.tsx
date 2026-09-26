@@ -9,13 +9,12 @@ import {
   markFeedOrigin,
 } from "~/components/feed/feed-origin";
 import { buildTiles } from "~/components/feed/masonry";
-import { AuthCard } from "~/components/landing/auth-card";
-import { AuthSheet } from "~/components/landing/auth-sheet";
 import { Overture } from "~/components/landing/overture";
 import { useOverture } from "~/components/landing/use-overture";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/ui/spinner";
+import { Toolbar } from "~/components/ui/toolbar";
 import {
   EXPLORE_ABOUT,
   EXPLORE_DISSOLVE_MS,
@@ -23,6 +22,7 @@ import {
   type ExploreAction,
 } from "~/config/explore";
 import { api } from "~/trpc/react";
+import { AuthSurface, useAuthSurface, type AuthMode } from "./auth-surface";
 import { capTiles } from "./explore-tiles";
 import { MessageTile } from "./message-tile";
 import {
@@ -37,12 +37,17 @@ import {
 // card, which turns an uninvited email away exactly as it does there.
 //
 // **What it is not: FeedScreen with a flag.** FeedScreen acks every page it receives, carries the
-// reader's saves, the item sheet and the pill, and all of that is per-user. This screen shares
-// only the grid (`FeedGrid`); what it adds is the cap, the blocks and the two surfaces they open.
-// Nothing here is stored per visitor: `feed.explore` composes for nobody and there is no ack, so
-// the cap is counted in the browser and a reload starts the taste over.
-
-type AuthMode = "signin" | "signup";
+// reader's saves and the item sheet, and all of that is per-user. This screen shares the grid
+// (`FeedGrid`) and the toolbar (`Toolbar`); what it adds is the cap, the blocks and the two
+// surfaces they open. Nothing here is stored per visitor: `feed.explore` composes for nobody and
+// there is no ack, so the cap is counted in the browser and a reload starts the taste over.
+//
+// **The toolbar is the app's own, not a header** (Ben, 09-26-26 — the wordmark-and-Sign-in bar
+// went). Profile and Save both lead somewhere a stranger can't go, so on this screen each opens
+// the sign-up sheet instead — the ask is the same either way ("Have an invite?"), and a visitor
+// who already has an account switches to sign-in inside the card. Feed is the feed's own scroll-
+// to-top, never the pill's default `/feed` push, which the proxy would bounce to the landing.
+// No Share: a feed has no current item to refer to, same as `/feed`.
 
 export interface ExploreScreenProps {
   /** topic id → chip label, for the Because tiles — same map `/feed` passes. */
@@ -95,26 +100,22 @@ export function ExploreScreen({
     };
   }, [pages, topicLabels, isPending, feed.isError, hasNextPage]);
 
-  // ── the two surfaces the blocks open ──────────────────────────────────────────────────────────
-  // `authKey` remounts the card on every open, so `initialMode` takes effect each time and a
-  // half-typed form from the last opening doesn't linger under a different heading.
-  const [auth, setAuth] = React.useState<{ open: boolean; mode: AuthMode }>(
-    () =>
-      initialOpen === "signin" || initialOpen === "signup"
-        ? { open: true, mode: initialOpen }
-        : { open: false, mode: "signin" },
+  // ── the two surfaces the blocks (and the toolbar) open ────────────────────────────────────────
+  const auth = useAuthSurface(
+    initialOpen === "signin" || initialOpen === "signup"
+      ? initialOpen
+      : undefined,
   );
-  const [authKey, setAuthKey] = React.useState(0);
   const [aboutOpen, setAboutOpen] = React.useState(initialOpen === "about");
 
-  const openAuth = React.useCallback((mode: AuthMode) => {
-    setAboutOpen(false);
-    setAuthKey((k) => k + 1);
-    setAuth({ open: true, mode });
-  }, []);
-  const closeAuth = React.useCallback(
-    () => setAuth((a) => ({ ...a, open: false })),
-    [],
+  const { openAuth: openAuthSheet } = auth;
+  // The about dialog closes under the card: the two never stack.
+  const openAuth = React.useCallback(
+    (mode: AuthMode) => {
+      setAboutOpen(false);
+      openAuthSheet(mode);
+    },
+    [openAuthSheet],
   );
   const onAction = React.useCallback(
     (action: ExploreAction) => {
@@ -123,17 +124,6 @@ export function ExploreScreen({
     },
     [openAuth],
   );
-
-  // Escape leaves the auth sheet, as it does every other sheet in the app. (The landing's sheet
-  // has no Escape because there it *is* the screen; here it sits over one.)
-  React.useEffect(() => {
-    if (!auth.open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeAuth();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [auth.open, closeAuth]);
 
   // The same pop-back marker the feed writes, so the item page's Back returns here intact — plus
   // the explore marker, which gives the item page its capped rail and its way back here.
@@ -177,8 +167,9 @@ export function ExploreScreen({
 
   return (
     <main className="bg-bg text-ink min-h-dvh">
-      {/* Above the header (z-8) and the grid, below the sheets (z-35), which can't open while it's
-          up anyway: the curtain takes every pointer until it starts to fade. The Overture sits
+      {/* Above the grid, below the sheets (z-35), which can't open while it's up anyway — and
+          below the toolbar, which is why the toolbar hides itself until the dissolve: the
+          curtain takes every pointer until it starts to fade. The Overture sits
           *inside* it so the two dissolve as one — its `difference` blend now composes against the
           curtain's own black (opacity makes the curtain a stacking context), which is white text,
           exactly as on the landing. Held at `collapse` through the fade: the line unmounts itself
@@ -204,22 +195,15 @@ export function ExploreScreen({
         </div>
       ) : null}
 
-      {/* The header: the wordmark, and a way in for someone who already has an account. Not the
-          pill — every control on it leads somewhere a stranger can't go. */}
-      <header className="bg-bg/66 border-ink/8 fixed inset-x-0 top-0 z-[8] flex h-[50px] items-center justify-between border-b-[0.5px] px-4 backdrop-blur-[18px] backdrop-saturate-[160%]">
-        <span className="text-ink-hi text-[15px] font-semibold tracking-[3px]">
-          {/* The overture's wordmark, spelled out rather than imported: this one is in the app's
-              own face, the overture's in the landing's Inter. */}
-          AMBIT
-        </span>
-        <button
-          type="button"
-          onClick={() => openAuth("signin")}
-          className="text-ink/82 text-[14px] font-medium"
-        >
-          Sign in
-        </button>
-      </header>
+      {/* The toolbar sits *above* the curtain (z-30 over z-10), so it is hidden until the
+          dissolve starts and fades in with the feed on its own 600 ms. */}
+      <Toolbar
+        visible={!curtainUp || dissolving}
+        bookmark="idle"
+        onProfile={() => openAuth("signup")}
+        onBookmark={() => openAuth("signup")}
+        onHome={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      />
 
       <FeedGrid
         tiles={tiles}
@@ -290,23 +274,7 @@ export function ExploreScreen({
         </div>
       </BottomSheet>
 
-      {/* The landing's scrim is inert (its reel is tap-to-skip underneath); over a feed, a tap
-          outside the sheet should close it rather than open a picture through it. */}
-      {auth.open ? (
-        <div
-          aria-hidden
-          data-testid="auth-scrim"
-          className="fixed inset-0 z-[35]"
-          onClick={closeAuth}
-        />
-      ) : null}
-      <AuthSheet
-        open={auth.open}
-        onCollapse={closeAuth}
-        collapseLabel="Back to exploring"
-      >
-        <AuthCard key={authKey} initialMode={auth.mode} />
-      </AuthSheet>
+      <AuthSurface {...auth} collapseLabel="Back to exploring" />
     </main>
   );
 }

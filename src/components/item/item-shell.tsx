@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { AuthSurface, useAuthSurface } from "~/components/explore/auth-surface";
 import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sheet";
 import { ShareSheet } from "~/components/sheets/share-sheet";
 import { Toolbar } from "~/components/ui/toolbar";
@@ -17,12 +18,14 @@ import { api } from "~/trpc/react";
 // `ItemScreen`, which owns all of that itself — since 09-10-26 this shell only ever wraps the
 // reader.)
 //
-// **Signed-out visitors get none of it.** `/i/[itemId]` is public (SPEC §8.1), and a stranger
-// following a shared link has nothing to save an item *to* and no profile to visit. So the pill,
-// the sheets, and — the part that matters — the protected `saves.forItem` query all sit behind
-// `authed`. Nothing user-scoped is ever requested on an anonymous visitor's behalf.
+// **Signed-out visitors get the toolbar too, since 09-26-26** — `/i/[itemId]` is public (SPEC
+// §8.1). Share is Share for anyone; a stranger has nothing to save an item *to* and no profile
+// to visit, so Profile and Save raise the sign-up sheet in place (`AuthSurface`, the same one
+// `/explore`'s toolbar opens). The save sheet and — the part that matters — the protected
+// `saves.forItem` query sit behind `authed`: nothing user-scoped is ever requested on an
+// anonymous visitor's behalf. Feed takes a stranger to `/explore`, never `/feed`.
 //
-// The gesture still works for everyone: leaving is not a privilege.
+// The gesture works for everyone: leaving is not a privilege.
 export interface ItemShellProps {
   itemId: string;
   /** Rides into the OS share sheet alongside the URL. */
@@ -46,8 +49,9 @@ export function ItemShell({
   viewerName,
   children,
 }: ItemShellProps) {
-  const leave = useLeaveToFeed(itemId);
+  const leave = useLeaveToFeed(itemId, { signedOut: !authed });
   const swipeRef = useSwipeBack({ onCommit: leave });
+  const auth = useAuthSurface();
 
   const [toast, setToast] = React.useState<string | null>(null);
   const [saveOpen, setSaveOpen] = React.useState(false);
@@ -61,7 +65,7 @@ export function ItemShell({
   // the same reason the merged image screen's keys are: nothing on a reader page holds focus.
   // Suspended while a sheet is up — BottomSheet owns Escape then, and closing the sheet is what a
   // reader pressing it means.
-  const sheetOpen = saveOpen || shareOpen;
+  const sheetOpen = saveOpen || shareOpen || auth.open;
   React.useEffect(() => {
     if (sheetOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -126,57 +130,59 @@ export function ItemShell({
         {children}
       </div>
 
+      <Toolbar
+        bookmark={saved.data?.saved ? "saved" : "idle"}
+        onProfile={authed ? undefined : () => auth.openAuth("signup")}
+        onBookmark={(anchor) => {
+          if (!authed) return auth.openAuth("signup");
+          setSaveAnchor(anchor);
+          setSaveOpen(true);
+        }}
+        onShare={(anchor) => {
+          setShareAnchor(anchor);
+          setShareOpen(true);
+        }}
+        // NOT the pill's default `/feed` push: that re-runs the dynamic route and draws a
+        // fresh page of cards. See `useLeaveToFeed`.
+        onHome={leave}
+      />
+
       {authed ? (
-        <>
-          <Toolbar
-            bookmark={saved.data?.saved ? "saved" : "idle"}
-            onBookmark={(anchor) => {
-              setSaveAnchor(anchor);
-              setSaveOpen(true);
-            }}
-            onShare={(anchor) => {
-              setShareAnchor(anchor);
-              setShareOpen(true);
-            }}
-            // NOT the pill's default `/feed` push: that re-runs the dynamic route and draws a
-            // fresh page of cards. See `useLeaveToFeed`.
-            onHome={leave}
-          />
+        <SaveToCollectionSheet
+          open={saveOpen}
+          onClose={() => setSaveOpen(false)}
+          anchor={saveAnchor}
+          itemId={itemId}
+          currentCollectionId={saved.data?.collectionId ?? undefined}
+          onSaved={async (collection, drift) => {
+            setToast(saveToastText(collection.name, drift));
+            await utils.saves.forItem.invalidate({ itemId });
+          }}
+          onError={setToast}
+        />
+      ) : (
+        <AuthSurface {...auth} collapseLabel="Back to the article" />
+      )}
 
-          <SaveToCollectionSheet
-            open={saveOpen}
-            onClose={() => setSaveOpen(false)}
-            anchor={saveAnchor}
-            itemId={itemId}
-            currentCollectionId={saved.data?.collectionId ?? undefined}
-            onSaved={async (collection, drift) => {
-              setToast(saveToastText(collection.name, drift));
-              await utils.saves.forItem.invalidate({ itemId });
-            }}
-            onError={setToast}
-          />
+      <ShareSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        anchor={shareAnchor}
+        url={shareUrl}
+        title={title}
+        imageContext={hasImage}
+        onSaveImage={() => void saveImage()}
+        onCopied={() => setToast("Link copied")}
+        onShareUnavailable={() => setToast("Sharing isn't available here")}
+      />
 
-          <ShareSheet
-            open={shareOpen}
-            onClose={() => setShareOpen(false)}
-            anchor={shareAnchor}
-            url={shareUrl}
-            title={title}
-            imageContext={hasImage}
-            onSaveImage={() => void saveImage()}
-            onCopied={() => setToast("Link copied")}
-            onShareUnavailable={() => setToast("Sharing isn't available here")}
-          />
-
-          {/* `raised` — this screen mounts the pill, and an unraised toast would sit behind it. */}
-          <Toast
-            text={toast ?? ""}
-            open={toast !== null}
-            onDone={() => setToast(null)}
-            raised
-          />
-        </>
-      ) : null}
+      {/* `raised` — this screen mounts the pill, and an unraised toast would sit behind it. */}
+      <Toast
+        text={toast ?? ""}
+        open={toast !== null}
+        onDone={() => setToast(null)}
+        raised
+      />
     </>
   );
 }
