@@ -114,8 +114,10 @@ of the effect):
 | 1.4 s | the tail (` — A quieter way to be curious.`) collapses over 2.2 s on `cubic-bezier(.4, 0, .2, 1)` and fades over 1.6 s; the line is centre-anchored, so **the wordmark drifts to centre as the tail shrinks** — one continuous motion |
 | ≈ 3.6 s | **hard cut**: the line is dropped and the first picture snaps to full opacity in the same frame (the reference's `show-slideshow` moment). No fade. |
 
-Then the reel (D5). The wordmark **stays on screen** at fixed size over the pictures, white,
-`mix-blend-mode: difference`, until the sheet rises; it does not grow (the reference's
+Then the reel (D5). **Amended 09-26-26 (Ben): the wordmark goes with the cut** — "remove the text
+hovering in the middle of the images" — so the reel runs with no text over it. (It had stayed on
+screen at fixed size over the pictures, white, `mix-blend-mode: difference`, until the sheet rose.)
+It never grows (the reference's
 `dope-breathe` and `intro-logo-grow` are the "zoom on the word" Ben waived). The bottom gradient
 that keeps the sheet's edge legible stays.
 
@@ -159,7 +161,7 @@ interface Tempo {
 
 | | **`cut`** | **`dissolve`** | `gentle` (09-26-26) |
 |---|---|---|---|
-| `frameMs` | **350** | **2500** (was 6000, then 3000) | 2500 |
+| `frameMs` | **350** | **2000** (was 6000, then 3000, then 2500) | 2000 |
 | `fadeMs` | 0 — a hard cut | **1000** (was 2500, then 1200) | 1000 |
 | `firstPass` | 12 (≈ 4.2 s) | **8** (≈ 20 s from the first picture; was 2) | 8 |
 | `gateFrames` | 4 | 1 | 1 |
@@ -171,7 +173,8 @@ interface Tempo {
 **Ben's pick, 09-26-26: the dissolve, at 3 s a picture** ("the change is just too slow" at 6 s, on
 the phone and the computer alike). The fade went to 1.2 s with it, so a picture still holds before
 it goes. Same evening, second look: "a bit faster and show 8 images before opening the signup
-tray" — 2.5 s, a 1 s fade, and a first pass of 8. `DEFAULT_TEMPO` is `dissolve`; `cut` stays in the code until plan Task 9 deletes it.
+tray" — 2.5 s, a 1 s fade, and a first pass of 8. Third look: "quicker, 2 seconds, keep the 1
+second fade". `DEFAULT_TEMPO` is `dissolve`; `cut` stays in the code until plan Task 9 deletes it.
 
 `gentle` is not a candidate: it is what a reduced-motion reader gets in place of either (D6). Its
 own gear behind the sheet, because relaxing to `dissolve` would bring the drift back.
@@ -209,11 +212,12 @@ what makes `behindSheet` expressible), the second preset does not.
 
 - The floating "Open sign-in" glyph and the sheet's "Back to the slideshow" disc are unchanged
   (the e2e suite's `openAuthSheet` depends on the first). Tap on the imagery = next. ←/→ step.
-- **Reduced motion (rewritten 09-26-26):** the reader gets the show, gently. The overture plays as
-  a plain fade — the line fades in, holds, fades out as a whole, and the wordmark alone fades back
-  in over the reel; nothing clips or translates. The reel runs the `gentle` tempo (D5): the
-  dissolve's clock (2.5 s / 1 s since 09-26-26) with no drift and a soft start, so even the first frame fades in
-  from black. Opacity is the only property that moves. The sheet rises on the gentle first pass
+- **Reduced motion (rewritten 09-26-26):** the reader gets the show, gently. **The overture is the
+  same as everyone's** — the line fades in, the tail collapses into the wordmark, and the line goes
+  with the cut. (For a few hours it was a plain opacity fade instead; on Ben's two devices, both with
+  Reduce Motion on, that read as "the text animation is gone", and he asked for the collapse back.)
+  The reel is what changes: the `gentle` tempo (D5), the dissolve's clock (2 s / 1 s) with no drift
+  and a soft start, so even the first frame fades in from black. The sheet rises on the gentle first pass
   (the dissolve's: eight frames). Still read after hydration through `useMediaQuery`, never in the server render
   (D8): the server renders phase `in` for everyone, which is now what every reader sees first,
   and the preference only changes what happens from the collapse on. `globals.css`'s 0.01 ms

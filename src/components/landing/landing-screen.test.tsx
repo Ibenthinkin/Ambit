@@ -127,12 +127,12 @@ describe("LandingScreen — cycle", () => {
     expect(sheet().className).toContain("translate-y-full");
   });
 
-  it("cuts into the reel when the overture ends; the tail is gone, the mark stays", async () => {
+  // Ben, 09-26-26: no text hovering over the slideshow — the whole line goes with the cut.
+  it("cuts into the reel when the overture ends, and the line goes with it", async () => {
     await renderScreen();
     advance(OVERTURE_MS);
     expect(currentId()).toBe("p0");
-    expect(screen.queryByTestId("overture-tail")).not.toBeInTheDocument();
-    expect(screen.getByTestId("overture-mark")).toBeInTheDocument();
+    expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
   });
 
   it("cut: after 12 frames the sheet rises, the mark goes, and the reel relaxes to the dissolve", async () => {
@@ -261,19 +261,24 @@ describe("LandingScreen — static (/reset-password)", () => {
   });
 });
 
-// Reduced motion (D6, 09-26-26): not a still any more. The overture plays as a plain fade, the
-// reel runs the gentle tempo, and the sheet rises on the gentle tempo's first pass. Diagnosed on
+// Reduced motion (D6, 09-26-26): not a still any more. The overture plays as it does for everyone,
+// the reel runs the gentle tempo, and the sheet rises on the gentle tempo's first pass. Diagnosed on
 // Ben's own devices, both with Reduce Motion on: the old "one still" path was the whole bug.
 describe("LandingScreen — reduced motion", () => {
-  it("plays the overture in gentle mode, then runs the gentle tempo and raises the sheet on its first pass", async () => {
+  it("plays the overture's collapse, then runs the gentle tempo and raises the sheet on its first pass", async () => {
     stubEnvironment({ reduce: true });
     await renderScreen("cycle", TEMPOS.cut);
-    // The overture is there, and it is the gentle one: at collapse the line itself fades.
+    // The overture is there, and its collapse is the same as everyone's (Ben, 09-26-26): the tail
+    // clips away and the wordmark drifts to centre.
     expect(screen.getByTestId("overture")).toBeInTheDocument();
     expect(sheet()).toHaveAttribute("data-open", "false");
     advance(OVERTURE_MS - 1);
-    expect(screen.getByTestId("overture").style.opacity).toBe("0");
-    expect(screen.getByTestId("overture-mark").style.transform).toBe("none");
+    expect(
+      screen.getByTestId("overture-tail").style.getPropertyValue("clip-path"),
+    ).toBe("inset(0 100% 0 0)");
+    expect(screen.getByTestId("overture-mark").style.transform).toBe(
+      "translateX(var(--drift, 0px))",
+    );
     // The reel starts on the gentle tempo, not the server's cut: the first frame fades in.
     advance(1);
     expect(currentId()).toBe("p0");

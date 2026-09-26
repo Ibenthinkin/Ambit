@@ -28,7 +28,7 @@ import { useReel } from "./use-reel";
 // the wrong element).
 //
 // **Reduced motion is a tempo, not a mode, as of 09-26-26** — the reader gets the show, gently
-// (D6): the overture as a plain fade and the reel on `TEMPOS.gentle`.
+// (D6): the overture as everyone sees it, and the reel on `TEMPOS.gentle`.
 
 export interface LandingScreenProps {
   /**
@@ -113,8 +113,8 @@ export function LandingScreen({
     [isStatic, saveData, pictures],
   );
 
-  // Every `cycle` reader gets the overture (the server renders its `in` phase for all of them, D8);
-  // a reduced-motion reader gets it gentle — a plain fade — through the prop below.
+  // Every `cycle` reader gets the overture and its collapse (the server renders its `in` phase for
+  // all of them, D8); reduced motion changes the reel, not the line (Ben, 09-26-26).
   const { phase } = useOverture(mode === "cycle");
 
   // Reduced motion picks the tempo (D6, 09-26-26): the gentle one — the dissolve with nothing but
@@ -198,9 +198,7 @@ export function LandingScreen({
         onTap={isStatic ? undefined : () => advance(1)}
       />
 
-      {!isStatic ? (
-        <Overture phase={phase} hidden={open} gentle={reduce} />
-      ) : null}
+      {!isStatic ? <Overture phase={phase} hidden={open} /> : null}
 
       {/* The one visible control while the sheet is down. Its accessible name is deliberately not
           "Sign in" — that belongs to the form's submit button, and two controls sharing it would

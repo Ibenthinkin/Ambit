@@ -57,17 +57,17 @@ test("home page renders with no console errors", async ({ page }) => {
 test("the overture plays, the reel cuts in, and the sheet rises on its own", async ({
   page,
 }) => {
-  // The whole show is ~24 s under the dissolve (below) — past Playwright's 30 s default once the
+  // The whole show is ~20 s under the dissolve (below) — past Playwright's 30 s default once the
   // navigation is counted on a cold picture.
   test.setTimeout(60_000);
   await page.goto("/");
   await expect(page.getByTestId("overture-tail")).toBeVisible();
-  // The tail unmounts on the frame the reel cuts in.
-  await expect(page.getByTestId("overture-tail")).toHaveCount(0, {
+  // The line unmounts on the frame the reel cuts in — nothing hovers over the slideshow.
+  await expect(page.getByTestId("overture")).toHaveCount(0, {
     timeout: 8_000,
   });
   await expect.poll(() => visibleId(page), { timeout: 8_000 }).toBeTruthy();
-  // cut: ~3.6 s + 12 × 350 ms ≈ 8 s; dissolve: ~3.6 s + 8 × 2.5 s ≈ 24 s. 35 s covers either.
+  // cut: ~3.6 s + 12 × 350 ms ≈ 8 s; dissolve: ~3.6 s + 8 × 2 s ≈ 20 s. 35 s covers either.
   await expect(page.getByPlaceholder("you@example.com")).toBeInViewport({
     timeout: 35_000,
   });
@@ -96,7 +96,7 @@ test("clicking the imagery changes the picture, and the pictures keep moving beh
   await expect(page.getByPlaceholder("you@example.com")).toBeInViewport({
     timeout: 20_000,
   });
-  // Behind the sheet the reel runs the dissolve gear: a change within frame + fade (3.5 s).
+  // Behind the sheet the reel runs the dissolve gear: a change within frame + fade (3 s).
   await expect.poll(() => visibleId(page), { timeout: 5_000 }).toBeTruthy();
   const behind = await visibleId(page);
   await expect
@@ -109,7 +109,7 @@ test("clicking the imagery changes the picture, and the pictures keep moving beh
 // old "one still" path was what Ben — Reduce Motion on, on both his devices — saw as "no
 // animation at all". Meaningful only against a production build. The computed durations are the
 // proof that globals.css's 0.01 ms collapse lets the landing through.
-test("reduced motion: the overture fades, the reel cross-fades without drift, and the sheet's disc collapses it back", async ({
+test("reduced motion: the overture collapses, the reel cross-fades without drift, and the sheet's disc collapses it back", async ({
   page,
 }) => {
   const consoleErrors: string[] = [];
@@ -125,43 +125,25 @@ test("reduced motion: the overture fades, the reel cross-fades without drift, an
   expect(
     await overture.evaluate((el) => getComputedStyle(el).animationDuration),
   ).toBe("0.5s");
-  // The collapse is a real fade of the whole line, not a pop to black (final review, 09-26-26):
-  // wait out the fade-in until the line holds at full opacity, then catch it strictly mid-fade.
-  // Removing a `both`-filled animation in the same style change as setting opacity starts no
-  // transition in any engine, and this is the only layer that can see that — jsdom computes none.
-  // Sampled in one evaluate with the tail's presence: the wordmark's own fade-in at `done` (the
-  // tail gone) is not the collapse, and must not satisfy this.
-  const lineState = () =>
+  // The collapse runs for this reader too (Ben, 09-26-26) — at its real duration, not 0.01 ms:
+  // catch the tail strictly mid-clip and the wordmark strictly mid-drift. jsdom computes no
+  // transitions, so this is the only layer that can see the global rule letting it through.
+  const collapse = () =>
     page.evaluate(() => {
-      const el = document.querySelector("[data-testid='overture']");
-      return {
-        opacity: el ? Number(getComputedStyle(el).opacity) : null,
-        collapsing:
-          document.querySelector("[data-testid='overture-tail']") !== null,
-      };
+      const tail = document.querySelector("[data-testid='overture-tail']");
+      const mark = document.querySelector("[data-testid='overture-mark']");
+      if (!tail || !mark) return "ended before a mid-collapse sample";
+      const opacity = Number(getComputedStyle(tail).opacity);
+      const x = new DOMMatrix(getComputedStyle(mark).transform).m41;
+      return opacity > 0.05 && opacity < 0.9 && x > 1
+        ? "mid-collapse"
+        : `tail ${opacity}, mark ${x}px`;
     });
   await expect
-    .poll(async () => (await lineState()).opacity, {
-      intervals: [50],
-      timeout: 3_000,
-    })
-    .toBeGreaterThan(0.99);
-  await expect
-    .poll(
-      async () => {
-        const { opacity, collapsing } = await lineState();
-        if (!collapsing) return "ended before a mid-fade sample";
-        return opacity !== null && opacity > 0.05 && opacity < 0.9
-          ? "mid-fade"
-          : `opacity ${opacity}`;
-      },
-      { intervals: [50], timeout: 5_000 },
-    )
-    .toBe("mid-fade");
-  // The gentle collapse: the tail unmounts on the frame the reel starts (~3.6 s).
-  await expect(page.getByTestId("overture-tail")).toHaveCount(0, {
-    timeout: 10_000,
-  });
+    .poll(collapse, { intervals: [50], timeout: 5_000 })
+    .toBe("mid-collapse");
+  // And the line goes with the cut: no text over the slideshow (~3.6 s).
+  await expect(overture).toHaveCount(0, { timeout: 10_000 });
   // The first frame fades in from black; once it is fully there, no layer drifts and the
   // current one carries the gentle fade at its real duration.
   await expect.poll(() => visibleId(page), { timeout: 12_000 }).not.toBeNull();
@@ -177,7 +159,7 @@ test("reduced motion: the overture fades, the reel cross-fades without drift, an
   expect(layers.every((l) => l.animation === "none")).toBe(true);
   expect(layers.find((l) => l.opacity === "1")?.transition).toBe("1s");
 
-  // The glyph, rather than waiting the gentle first pass (~24 s): the sheet's round trip is
+  // The glyph, rather than waiting the gentle first pass (~20 s): the sheet's round trip is
   // what this test is for.
   await page.getByRole("button", { name: "Open sign-in" }).click();
   await expect(page.getByPlaceholder("you@example.com")).toBeInViewport();

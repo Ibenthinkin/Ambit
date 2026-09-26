@@ -29,9 +29,10 @@ export interface Tempo {
 
 // The dissolve's clock and first pass, shared with `gentle` (the dissolve with only opacity
 // moving). Ben, 09-26-26, two phone looks: 6 s / 2.5 s was "just too slow", then 3 s wanted "a
-// bit faster, and 8 images before the sign-up tray" — 2.5 s a picture, a 1 s fade so each still
-// holds before it goes, and the sheet on the 8th (≈ 20 s from the first picture).
-const DISSOLVE_FRAME_MS = 2500;
+// bit faster, and 8 images before the sign-up tray" — 2.5 s, a 1 s fade so each still holds
+// before it goes, the sheet on the 8th; then "quicker, 2 seconds, keep the 1 second fade"
+// (the sheet ≈ 16 s from the first picture).
+const DISSOLVE_FRAME_MS = 2000;
 const DISSOLVE_FADE_MS = 1000;
 const DISSOLVE_FIRST_PASS = 8;
 
