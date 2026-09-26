@@ -279,6 +279,41 @@ export async function seedFeedCorpus(
 }
 
 /**
+ * Seeds `count` pictures the landing may draw (docs/DESIGN_landing-redo.md D1): image, score 9, an
+ * exact landing licence, the inline PIXEL. On CI's fixture-only database the pool is otherwise
+ * empty and `/` shows its one committed fallback picture — a real branch, covered by the unit
+ * tests — but "the picture changes" needs at least two.
+ *
+ * **A real topic, and no membership.** `topicId: null` would make these un-homed score-9 images,
+ * drawable by every reader's WILD slots in the feed specs; a topic with no `item_topic` row puts
+ * them in no feed pool at all (the feed draws on membership since 09-11-26). `cleanupSeeded`
+ * removes them by prefix like any other fixture.
+ */
+export async function seedLandingPool(
+  conn: Connection,
+  prefix: string,
+  count: number,
+): Promise<void> {
+  await conn.db
+    .insert(conn.item)
+    .values(
+      Array.from({ length: count }, (_, i) => ({
+        source: "met",
+        sourceId: `${prefix}landing-${i}`,
+        type: "image" as const,
+        title: `Landing fixture ${prefix}${i}`,
+        summary: "A public-domain picture, seeded for the landing reel.",
+        imageUrl: PIXEL,
+        sourceUrl: `https://example.test/${prefix}landing-${i}`,
+        license: "CC0 1.0 (public domain)",
+        topicId: "architecture",
+        curationScore: 9,
+      })),
+    )
+    .onConflictDoNothing();
+}
+
+/**
  * Writes the `item_topic` row that puts each seeded item in its topic's feed pool.
  *
  * **Why a seeded row needs one (09-11-26).** The feed draws on `item_topic` membership, not on

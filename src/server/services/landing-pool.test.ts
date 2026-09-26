@@ -94,6 +94,14 @@ describe("getReel", () => {
     expect(FALLBACK_PICTURE.srcSet).toBeNull();
   });
 
+  it("does not memoise an empty pool — the first rows to land are picked up on the next visit", async () => {
+    listLandingPool.mockResolvedValueOnce([]);
+    expect(await getReel()).toEqual([FALLBACK_PICTURE]);
+    const reel = await getReel(2);
+    expect(listLandingPool).toHaveBeenCalledTimes(2);
+    expect(reel[0]!.src).toMatch(/^\/api\/img\//);
+  });
+
   it("falls back, and does not memoise the failure, when the query throws", async () => {
     listLandingPool.mockRejectedValueOnce(new Error("db down"));
     expect(await getReel()).toEqual([FALLBACK_PICTURE]);

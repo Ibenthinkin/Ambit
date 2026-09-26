@@ -75,7 +75,10 @@ export function resetLandingPoolForTests(): void {
 async function pool(): Promise<PoolRow[]> {
   if (memo && Date.now() - memo.at < POOL_TTL_MS) return memo.rows;
   const rows = await listLandingPool();
-  memo = { rows, at: Date.now() };
+  // An empty pool is not remembered: a fresh install (or CI's fixture database, where a spec seeds
+  // landing pictures after an earlier spec has already visited `/`) must see its first rows on the
+  // next visit, not ten minutes later. Asking again while empty costs one indexed query.
+  if (rows.length > 0) memo = { rows, at: Date.now() };
   return rows;
 }
 
