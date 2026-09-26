@@ -81,6 +81,51 @@ the Cosmos chip until Ben picks. Copy is untouched by design (D9).
 
 *Session spend: 18.98M tok (in 2.6k · out 222.0k · cache r 17.53M / w 1.23M) · fable-5-1 + opus-5-5 · 17:34→19:42*
 
+**Evening (Opus 5.5) — 8.3 built, Tasks 1–8 of the plan, on `feat/landing-redo`.** Executed
+inline; every task TDD'd, 17 rulings in the ledger (listed in the branch hand-off). The landing
+now opens on the overture, cuts into a reel of the corpus's own pictures, and hands off to the
+sheet; both tempos run, `/dev/marks` shows the three candidate marks.
+
+**Findings the plan didn't have:**
+
+- **The difference blend has to sit on the fixed layer.** The first device run showed the
+  wordmark as plain white on a light picture: `mix-blend-difference` was on the span, inside a
+  `position: fixed; z-index` layer that is its own stacking context, so the span blended against
+  an empty group. Moved to the layer; now it inverts like the reference.
+- **The dissolve faded its first picture in over 2.5 s**, contradicting D4's hard cut. Both
+  tempos now cut in from black; only picture-to-picture changes fade.
+- **An empty pool must not be memoised.** On CI's fixture database `auth.spec` visits `/` before
+  `home.spec` seeds landing pictures; a memoised empty pool would have pinned the fallback for ten
+  minutes. Also the right thing on a fresh install.
+- **`REEL_SIZES` can't live in a `"use client"` module** if the RSC needs it for its preloads — a
+  Server Component gets a client reference, not the string. It lives in the `tempos.ts` leaf.
+- **Lighthouse's LCP element is the overture's line, not a picture.** A picture at opacity 0 isn't
+  LCP-eligible and the trace ends (~3 s) before the cut, so the design's "LCP ≈ 3.6 s by design"
+  didn't happen: observed LCP 1.9 s (`cut`) / 0.8 s (`dissolve`), simulated 4.1 / 4.0 s — level
+  with 7.3's 4.2. Perf 87 / 88 (done-bar: not below 87), CLS 0, a11y 95 (the pre-existing contrast
+  tokens). Bytes: `cut` 12 pictures 610 KiB (budget ≤ 600 p50 — at the line, one draw had a 148 KiB
+  picture); `dissolve` 2 pictures 127 KiB. Evidence JSON in `docs/phase8.3-evidence/`.
+- The measured wait after the overture was ~0.65 s locally, one gate picture being a *cold* museum
+  fetch: only ~1,100 of the 2,697 pool masters are cached on this Mac. Production's cache is warm,
+  and `.cache/landing-prod.sh` pre-derives the renditions there after the deploy.
+- `fallback.webp` is 155 KB, not ~60 — the Great Wave is fine-grained (q50 is still 110 KB). It
+  only shows on an empty pool.
+
+**Verification:** `bun run test` 1,375/1,375 (the cursor-stability FK flake hit once, passed 3/3
+alone, as CLAUDE.md says); `bun run e2e:prod` 57 passed / 3 skipped (the dev-gated `/dev/feed`
+spec); CI's shape (fixture-only Postgres on :5434 — :5433 is another project's container,
+`--workers 1`) 56 passed / 4 skipped (plus the preload test, which skips honestly on `data:`
+pixels). Under a production build `?tempo=` is ignored (4 preloads, the cut's gate) and
+`/dev/marks` is a 404. **Loupe's dev server was stopped** to free :3000 for the e2e run — restart
+it when you next need it.
+
+**Open / next:** Ben looks on the phone (tailnet, dev server, `/?tempo=cut` then
+`/?tempo=dissolve`) and at 1440, and on `/dev/marks`; names a tempo and a mark → plan Task 9
+(flip `DEFAULT_TEMPO`, delete the loser and the `?tempo=` override, swap `AvatarChip`); merge;
+deploy; run `.cache/landing-prod.sh`. Copy is untouched (D9).
+
+*Session spend: 102.14M tok (in 934 · out 348.6k · cache r 100.10M / w 1.69M) · ~≥$8.76 · opus-5-5 + opus-4-7 + fable-5-1 · 19:42→20:15*
+
 ### [[09-23-26 Wed]] — Round 3 parked whole; polishpostergallery probed
 
 **Sources round 3:** Ben parked the whole 09-22 batch ("park them all for now") — the five 🔵 rows

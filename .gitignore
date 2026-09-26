@@ -67,3 +67,4 @@ docs/design_update_3/photos
 # Lighthouse HTML reports (Phase 7.3) — the JSON summaries beside them are committed as
 # evidence; the HTML is a megabyte of inlined report viewer per run and reproducible from it.
 docs/phase7.3-evidence/*.html
+docs/phase8.3-evidence/*.html

@@ -42,7 +42,7 @@ proxy-with-cache**. `/api/img/[itemId]` now fills a disk cache (`IMAGE_CACHE_DIR
 politely, per host). And the feed's page compose went from **138 ms to 22 ms** — `getTopicPools`
 had been dragging 9,848 full rows / 35.8 MB out of Postgres to pick twelve cards; it now returns a
 five-column projection and `getFeedPage` hydrates the winners by id. `bun run bench:feed` is the
-before/after. **8.1 shipped — public 08-29-26, closed 09-17-26. 8.2's guardrails shipped 09-20-26** — an ingest verdict (exit 2 on a dead source) + `ingest_run` rows read back by `/api/health` as `ingest: ok|stale|never|unknown`, `instrumentation.ts` mailing `OPS_EMAIL` once an hour per error signature, Coolify failure notifications through Resend (proven with a `fail-probe` task), two UptimeRobot monitors (HTTP + the `"ingest":"ok"` keyword, from Ashburn), and Beszel on VM 202; SPEC §13 has the alert map. **The beta week (8.2 T6) is open** — 3 accounts on production as of 09-20 — and its triage into Phase 9 closes the phase. The history: T1–T2 shipped 08-28-26 (`/api/health`,
+before/after. **8.1 shipped — public 08-29-26, closed 09-17-26. 8.2's guardrails shipped 09-20-26** — an ingest verdict (exit 2 on a dead source) + `ingest_run` rows read back by `/api/health` as `ingest: ok|stale|never|unknown`, `instrumentation.ts` mailing `OPS_EMAIL` once an hour per error signature, Coolify failure notifications through Resend (proven with a `fail-probe` task), two UptimeRobot monitors (HTTP + the `"ingest":"ok"` keyword, from Ashburn), and Beszel on VM 202; SPEC §13 has the alert map. **The beta week (8.2 T6) is open** — 3 accounts on production as of 09-20 — and its triage into Phase 9 closes the phase. **8.3, the landing redo, was built 09-25-26 on `feat/landing-redo`** (`docs/DESIGN_landing-redo.md`, `docs/PLAN_landing-redo.md`): an overture on black (`AMBIT — A quieter way to be curious.` collapsing into the wordmark), a server-picked reel of the ~2,700 score-9 public-domain pictures in two tempos (`cut` / `dissolve`, `?tempo=` honoured only under `FEED_DEBUG`), a closed-set `?w=960` image rendition derived from the cached master, and three candidate profile marks on `/dev/marks` — **awaiting Ben's two picks** (plan Task 9), not merged. The history: T1–T2 shipped 08-28-26 (`/api/health`,
 `MAIL_FROM`, `cf-connecting-ip` for Better Auth in production, a `SOURCE_COMMIT`-first precache
 revision, and the `Dockerfile`/`.dockerignore` whose boot path — migrate, seed, `next start` — was
 proven locally against an empty database, cache volume and all). **T3 shipped 08-29-26** — Ambit is
@@ -409,6 +409,10 @@ existing `SwCleanup` handles it once the page is allowed to hydrate.
   not the key. (Related tell: OpenRouter's `"User not found."` is an _account_-level error; a
   malformed key reads `"No auth credentials found"`.) The zshrc exports are gone as of 08-22-26,
   but any new machine or re-added export brings it straight back.
+
+- **A production build ignores `?tempo=`** (and `/dev/marks` is a 404) — both are gated on
+  `feedDebugEnabled()`. To compare the landing's two tempos on the tailnet device pass, run the dev
+  server (`FEED_DEBUG` defaults on there) and open `/?tempo=cut`, then `/?tempo=dissolve`.
 
 - **`OPS_EMAIL` unset means log only.** A server-side throw always writes one JSON line to
   stderr; it is mailed only when `OPS_EMAIL` is set, and it is set on production only. So a
