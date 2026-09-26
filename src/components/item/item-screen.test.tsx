@@ -372,11 +372,11 @@ describe("ItemScreen", () => {
       expect(pushMock).not.toHaveBeenCalled();
     });
 
-    it("a stranger's Feed goes to /explore, never /feed", () => {
+    it("a stranger's Feed goes to /, never /feed", () => {
       renderScreen({ authed: false });
       tap();
       fireEvent.click(screen.getByRole("button", { name: "Feed" }));
-      expect(pushMock).toHaveBeenCalledWith("/explore");
+      expect(pushMock).toHaveBeenCalledWith("/");
     });
 
     it("a signed-in reader's Profile is the pill's own default, and no auth sheet is mounted", () => {
@@ -461,7 +461,7 @@ describe("the explore rail cap", () => {
     expect(endCard()).toBeInTheDocument();
   });
 
-  it("the end card's sign-up opens the card in place; its 'what is this?' goes to /explore", () => {
+  it("the end card's sign-up opens the card in place; its 'what is this?' goes to /", () => {
     markExploreOrigin();
     renderScreen({ authed: false });
     right(4);
@@ -474,7 +474,7 @@ describe("the explore rail cap", () => {
     expect(pushMock).not.toHaveBeenCalled();
     key("Escape");
     fireEvent.click(screen.getByRole("button", { name: "What is this?" }));
-    expect(pushMock).toHaveBeenCalledWith("/explore?open=about");
+    expect(pushMock).toHaveBeenCalledWith("/?open=about");
   });
 
   it("leaves a signed-in reader's rail endless", () => {
@@ -492,12 +492,12 @@ describe("the explore rail cap", () => {
     expect(endCard()).not.toBeInTheDocument();
   });
 
-  it("offers a way back to /explore under the picture", () => {
+  it("offers a way back to the taste under the picture", () => {
     markExploreOrigin();
     renderScreen({ authed: false });
     expect(
       screen.getByRole("link", { name: "Keep exploring" }),
-    ).toHaveAttribute("href", "/explore");
+    ).toHaveAttribute("href", "/");
   });
 
   it("offers no such link to a cold visitor", () => {

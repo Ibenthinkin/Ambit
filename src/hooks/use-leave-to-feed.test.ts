@@ -59,19 +59,19 @@ describe("useLeaveToFeed", () => {
     expect(backMock).not.toHaveBeenCalled();
   });
 
-  // `/explore` (09-26-26): a signed-out visitor — from the explore feed or a shared link — goes to
-  // /explore; /feed would only bounce them to the landing.
-  it("goes to /explore, not /feed, for a signed-out visitor", () => {
+  // (09-26-26) A signed-out visitor — from the explore feed at `/` or a shared link — goes to `/`;
+  // /feed would only bounce them there anyway, and would draw a page on the way.
+  it("goes to /, not /feed, for a signed-out visitor", () => {
     markExploreOrigin();
     markFeedOrigin("item-other");
 
     leave("item-1", true);
 
-    expect(pushMock).toHaveBeenCalledWith("/explore");
+    expect(pushMock).toHaveBeenCalledWith("/");
   });
 
   // The marker outlives a sign-in in the same tab. A signed-in reader (the item screen passes
-  // `signedOut: false` for anyone authed) must be sent to their feed, not to /explore's redirect.
+  // `signedOut: false` for anyone authed) must be sent to their feed, not to `/`'s redirect.
   it("ignores a stale explore marker when the screen says the reader is signed in", () => {
     markExploreOrigin();
 
@@ -80,10 +80,10 @@ describe("useLeaveToFeed", () => {
     expect(pushMock).toHaveBeenCalledWith("/feed?focus=item-1");
   });
 
-  it("goes to /explore on a cold-opened shared link too, with no marker at all", () => {
+  it("goes to / on a cold-opened shared link too, with no marker at all", () => {
     leave("item-1", true);
 
-    expect(pushMock).toHaveBeenCalledWith("/explore");
+    expect(pushMock).toHaveBeenCalledWith("/");
     expect(backMock).not.toHaveBeenCalled();
   });
 

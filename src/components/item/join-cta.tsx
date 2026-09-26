@@ -5,23 +5,23 @@ import { Card } from "~/components/ui/card";
 // The invitation, shown only to signed-out visitors at the foot of an item page.
 //
 // **No "keep browsing without an account" link** for a stranger from a shared link, which the
-// prototype offers: `/feed` is auth-gated (src/proxy.ts) and would bounce them straight back to the
-// landing page, and the wander-next teaser above is already doing the "here's what this is" work.
-// A visitor who came from `/explore` (09-26-26) is the exception — there *is* somewhere for them to
-// keep browsing, so the card offers it.
+// prototype offers: `/feed` is auth-gated (src/proxy.ts) and would bounce them straight back to
+// `/`, and the wander-next teaser above is already doing the "here's what this is" work. A
+// visitor who came from the taste at `/` (09-26-26) is the exception — there *is* somewhere for
+// them to keep browsing, so the card offers the way back.
 //
 // Signed-in readers see nothing at all: they're already inside.
 export interface JoinCtaProps {
   /** The article variant gets a quieter, shorter card — it sits under a long read, not a picture. */
   variant: "image" | "article";
-  /** The visit began on `/explore`: add a "Keep exploring" link back to it. */
+  /** The visit began on the explore feed at `/`: add a "Keep exploring" link back to it. */
   exploring?: boolean;
 }
 
 function KeepExploring() {
   return (
     <Link
-      href="/explore"
+      href="/"
       className="text-accent mt-[14px] block text-[13.5px] font-medium"
     >
       Keep exploring

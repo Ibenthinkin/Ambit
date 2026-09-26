@@ -165,11 +165,11 @@ export function ItemScreen({
     () => false,
   );
   const exploring = !authed && fromExplore;
-  // Every signed-out exit goes to `/explore` — the shared-link stranger's too, since the toolbar
-  // gave them a Feed button (09-26-26) and `/feed` would only bounce them to the landing.
+  // Every signed-out exit goes to `/` — the shared-link stranger's too, since the toolbar gave
+  // them a Feed button (09-26-26) and `/feed` would only bounce them there anyway.
   const leave = useLeaveToFeed(entryItem.id, { signedOut: !authed });
   // The sign-up sheet Profile and Save raise for a stranger, and the end card's sign-in / sign-up
-  // open too (its "what is this?" still goes to `/explore`, which owns that dialog).
+  // open too (its "what is this?" still goes to `/`, which owns that dialog).
   const auth = useAuthSurface();
   const railCount = React.useSyncExternalStore(
     subscribeRailCount,
@@ -436,7 +436,7 @@ export function ItemScreen({
               message="end"
               onAction={(action) =>
                 action === "about"
-                  ? router.push("/explore?open=about")
+                  ? router.push("/?open=about")
                   : auth.openAuth(action)
               }
             />

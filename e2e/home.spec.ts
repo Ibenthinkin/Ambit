@@ -3,16 +3,19 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   cleanupSeeded,
   connect,
-  openAuthSheet,
   seedLandingPool,
+  waitForHydration,
   type Connection,
 } from "./support";
 
-// The landing (8.3, docs/DESIGN_landing-redo.md): an overture on black (~3.6 s), then a reel of
-// server-picked pictures that hands off to the sign-in sheet. Both halves of that handoff are
-// pinned: it must complete on its own for a reader who waits, and be skippable for one who
-// doesn't — every auth test depends on the second (`openAuthSheet`), so a regression there would
-// surface as the whole suite timing out rather than as a landing bug.
+// **The parked landing** (8.3, docs/DESIGN_landing-redo.md), at `/dev/landing` since 09-26-26,
+// when the explore feed became `/`. An overture on black (~3.6 s), then a reel of server-picked
+// pictures that hands off to the sign-in sheet. Both halves of that handoff are pinned: it must
+// complete on its own for a reader who waits, and be skippable for one who doesn't.
+//
+// Behind the dev gate, like `/dev/feed`: under the production build (bun run e2e:prod, CI) it is
+// a 404 by design and this file skips itself — the gate *is* the assertion there. The page is
+// kept whole so the reel can come back; this spec is what says it still works.
 //
 // Twelve landing-eligible fixtures — six tall, six wide — so CI's fixture-only database has a
 // reel of each shape to step through. The
@@ -21,10 +24,32 @@ import {
 const PREFIX = "e2e-home-";
 let conn: Connection;
 
+const LANDING = "/dev/landing";
+
 test.beforeAll(async () => {
   conn = await connect();
   await seedLandingPool(conn, PREFIX, 12);
 });
+
+test.beforeEach(async ({ request }) => {
+  const res = await request.get(LANDING);
+  test.skip(
+    res.status() === 404,
+    "dev gate is off (production build) — 404 is the correct answer",
+  );
+});
+
+/** The parked landing's own way to skip the reel: its glyph. */
+async function openLandingSheet(page: Page) {
+  await waitForHydration(page);
+  const glyph = page.getByRole("button", { name: "Open sign-in" });
+  // The sheet may already be up — a slow machine can let the slideshow finish first. Once the
+  // sheet rises the glyph unmounts, so its absence is the signal.
+  if (await glyph.isVisible()) await glyph.click();
+  await expect(page.getByPlaceholder("you@example.com")).toBeInViewport({
+    timeout: 15_000,
+  });
+}
 
 test.afterAll(async () => {
   await cleanupSeeded(conn, PREFIX);
@@ -41,13 +66,13 @@ const visibleId = (page: Page) =>
           ?.getAttribute("data-id") ?? null,
     );
 
-test("home page renders with no console errors", async ({ page }) => {
+test("the parked landing renders with no console errors", async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on("console", (msg) => {
     if (msg.type() === "error") consoleErrors.push(msg.text());
   });
 
-  const response = await page.goto("/");
+  const response = await page.goto(LANDING);
 
   expect(response?.status()).toBe(200);
   await expect(page.locator("body")).toBeVisible();
@@ -60,7 +85,7 @@ test("the overture plays, the reel cuts in, and the sheet rises on its own", asy
   // The whole show is ~20 s under the dissolve (below) — past Playwright's 30 s default once the
   // navigation is counted on a cold picture.
   test.setTimeout(60_000);
-  await page.goto("/");
+  await page.goto(LANDING);
   await expect(page.getByTestId("overture-tail")).toBeVisible();
   // The line unmounts on the frame the reel cuts in — nothing hovers over the slideshow.
   await expect(page.getByTestId("overture")).toHaveCount(0, {
@@ -74,8 +99,8 @@ test("the overture plays, the reel cuts in, and the sheet rises on its own", asy
 });
 
 test("the glyph opens the sign-in sheet early", async ({ page }) => {
-  await page.goto("/");
-  await openAuthSheet(page);
+  await page.goto(LANDING);
+  await openLandingSheet(page);
 
   await expect(page.getByRole("button", { name: "Sign in" })).toBeInViewport();
 });
@@ -85,7 +110,7 @@ test("the glyph opens the sign-in sheet early", async ({ page }) => {
 test("clicking the imagery changes the picture, and the pictures keep moving behind the sheet", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto(LANDING);
   await expect.poll(() => visibleId(page), { timeout: 8_000 }).toBeTruthy();
   const first = await visibleId(page);
   await page
@@ -117,7 +142,7 @@ test("reduced motion: the overture collapses, the reel cross-fades without drift
     if (msg.type() === "error") consoleErrors.push(msg.text());
   });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
+  await page.goto(LANDING);
 
   // The line is there for this reader now, at its real fade-in — not 0.01 ms.
   const overture = page.getByTestId("overture");
@@ -181,14 +206,22 @@ test("reduced motion: the overture collapses, the reel cross-fades without drift
 test("the response preloads the first pictures of the guessed reel", async ({
   request,
 }) => {
-  const response = await request.get("/");
+  const response = await request.get(LANDING);
   const html = await response.text();
   test.skip(
     !html.includes('src="/api/img/'),
     "the reel is fixture pixels (CI); nothing to preload",
   );
-  expect(response.headers().link ?? "").toMatch(
-    /<\/api\/img\/[A-Za-z0-9_-]+>; rel=preload; as="image"/,
+  // A production build sends them as an HTTP `Link` header; the dev server — the only place this
+  // parked page runs now — writes them as `<link>` tags in the head. Either is the preload.
+  const header = response.headers().link ?? "";
+  const asHeader = /<\/api\/img\/[A-Za-z0-9_-]+>; rel=preload; as="image"/.test(
+    header,
   );
+  const asTag =
+    /<link rel="preload" href="\/api\/img\/[A-Za-z0-9_-]+" as="image"/.test(
+      html,
+    );
+  expect(asHeader || asTag).toBe(true);
   expect(html).not.toContain("?w=960");
 });

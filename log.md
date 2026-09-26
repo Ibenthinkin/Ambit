@@ -288,6 +288,47 @@ for that. Dev server left running on :3000.
 
 *Session spend: 10.56M tok (in 2.0k · out 71.7k · cache r 10.10M / w 383.6k) · fable-5-1 · 16:58→17:11*
 
+**Later (Fable) — the explore feed is the front door.** Ben, after the phone look: "I like the
+/explore landing page, let's switch that to be the default. No need to delete the work or
+components for the other landing page, we might bring it back in the future." Built on
+`feat/explore-as-landing` (not merged, not pushed).
+
+**Shipped:**
+- `app/page.tsx` is the explore page — same guard, prefetch and `?open=`; the "noindex" is gone
+  (it was "while it's an experiment"). `app/explore/page.tsx` is a **308 to `/`**, `?open=`
+  carried over, so the item page's end card in a tab opened before the deploy still lands.
+- **The reel landing is parked, not deleted:** the old `app/page.tsx` moved whole to
+  `app/dev/landing/page.tsx` with one added line — `notFound()` unless `feedDebugEnabled()` —
+  so it is viewable at `/dev/landing` under the dev server and a 404 in production. Nothing
+  under `components/landing/` changed. Bringing it back is moving one file.
+- Three route strings `/explore` → `/`: `useLeaveToFeed`'s signed-out push, the end card's
+  "what is this?", and `JoinCta`'s "Keep exploring".
+- e2e: `openAuthSheet` now goes to `/?open=signin` when the sheet isn't up — the front door's own
+  way to arrive with the sheet raised and the overture skipped, so the auth-driven specs got
+  faster, not slower. `home.spec.ts` drives `/dev/landing` with its own glyph opener and skips
+  itself under a production build, like `dev-feed.spec.ts`. The explore spec asserts the 308.
+
+**Findings:**
+- The parked landing's picture preloads arrive as `<link rel="preload">` **tags** under the dev
+  server, where the production build sends an HTTP `Link` header. `home.spec.ts` had only ever
+  asserted the header (it ran under `e2e:prod`); now that it runs against the dev server only, it
+  accepts either.
+- A fresh sign-up from `/` lands on `/onboarding`, not `/feed` — `/` → `/feed` → no picks →
+  onboarding. My first assertion said `/feed`; one red run.
+
+**Verified:** `bun run check` green (1,487 unit — no unit test names a route beyond the three
+strings). Full `E2E_PROD=1` suite against a fresh production build: **59 passed, 9 skipped**
+(the six parked-landing tests and the three knob-panel tests, both dev-only by design), one red
+that was the onboarding assertion above — fixed and green against the dev server (explore spec
+8/8; parked landing 6/6). SPEC §8.1's `/` bullet now describes the front door and where the
+reel went; §11's public-surface line lists `/`, `/explore` (redirect) and `/dev/landing`.
+
+**Open / next:** Ben looks at `/` on the phone (dev server on :3000, tailnet) → merge → push →
+deploy. The deploy is the first with `/` as the taste, so watch UptimeRobot's HTTP monitor —
+it hits `/`, which now composes a feed page for nobody rather than picking a reel.
+
+*Session spend: 19.66M tok (in 2.0k · out 102.9k · cache r 18.97M / w 582.3k) · ~≥$5.09 · fable-5-1 + opus-4-7 · 17:11→18:28*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:

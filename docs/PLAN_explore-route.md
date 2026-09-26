@@ -1,5 +1,12 @@
 # `/explore` — a signed-out taste of the feed
 
+> **09-26-26, the same evening it shipped: this is `/` now.** Ben, after the phone look with the
+> toolbar: "I like the /explore landing page, let's switch that to be the default." `app/page.tsx`
+> is the explore page, `/explore` is a permanent redirect to it, and the reel landing this plan
+> was written beside is parked whole at `/dev/landing` (`app/dev/landing/page.tsx`, dev-gated;
+> `components/landing/` untouched; `e2e/home.spec.ts` drives it against the dev server). Read
+> `/explore` below as `/`. SPEC §8.1 has the current description.
+
 ## Context
 
 Today a signed-out visitor at `/` sees the landing overture + reel, then the sign-in sheet — they
