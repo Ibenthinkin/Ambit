@@ -62,6 +62,27 @@ with Ben → Task 9 → push, deploy. Kill the stale topic-groups run on :3000 b
 
 *Session spend: 9.04M tok (in 2.1k · out 146.1k · cache r 8.50M / w 388.6k) · fable-5-1 · 09:05→09:29*
 
+**Shipped (Opus 5.5, same session): the plan, all seven tasks, on `fix/landing-orientation`.**
+`TEMPOS.gentle` (6 s / 2.5 s, no drift, `softStart`), `.motion-gentle` exempting the reel and
+overture roots from `globals.css`'s 0.01 ms collapse, the overture's `gentle` collapse (the whole
+line fades, then the wordmark alone re-fades in on a re-keyed root), the reel's soft first frame,
+and `LandingScreen` choosing the tempo by preference — `isStatic` is the route alone now. Unit
+1,407 green; the e2e reduced-motion test measures `0.5s` / `2.5s` computed durations and passes.
+**One finding for Ben:** a parallel local `bun run e2e:prod` now goes red on
+`security.spec`'s "API routes carry nosniff" with a **429** from `/api/img` (2 of 2 runs; base
+57/57; serial on this branch 57/57). The suite spends `/api/img`'s 600/min per-IP budget from
+127.0.0.1 in ~48 s against the real corpus (every `cut` landing load prefetches 12 masters), and
+the reduced-motion test now fetches ~2 pictures where it fetched 1. CI is unaffected — its
+landing pictures are `data:` fixtures. Fix options: an E2E-only limit override on the image route,
+or a security probe that doesn't spend the budget. **Trap met on the way:** `bunx playwright test`
+without a rebuild runs whatever `.next` holds — after a comparison run on another commit, that is
+the other commit.
+
+**Open / next:** Ben's phone look (Reduce Motion left on) → pick the 429 fix → merge the branch →
+the mark with Ben → Task 9 → push, deploy.
+
+*Session spend: 20.81M tok (in 619 · out 103.6k · cache r 19.85M / w 854.0k) · ~≥$2.70 · opus-5-5 + fable-5-1 + opus-4-7 · 09:29→09:50*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:

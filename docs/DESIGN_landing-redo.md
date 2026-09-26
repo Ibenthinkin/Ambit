@@ -146,25 +146,30 @@ node and the client reads it without the DB layer):
 
 ```ts
 interface Tempo {
-  id: "cut" | "dissolve";
+  id: "cut" | "dissolve" | "gentle";
   frameMs: number;        // how long a picture holds
   fadeMs: number;         // cross-fade; 0 = hard cut
   firstPass: number;      // pictures shown before the sheet rises
   gateFrames: number;     // decoded pictures required before the reel starts
   drift: boolean;         // slow 1.00 → 1.06 scale over the frame (transform only)
+  softStart: boolean;     // the first frame fades in from black instead of cutting (09-26-26)
   behindSheet: Tempo["id"]; // which tempo runs once the sheet is up
 }
 ```
 
-| | **`cut`** | **`dissolve`** |
-|---|---|---|
-| `frameMs` | **350** | **6000** |
-| `fadeMs` | 0 — a hard cut | **2500** |
-| `firstPass` | 12 (≈ 4.2 s) | 2 (≈ 8 s from the cut) |
-| `gateFrames` | 4 | 1 |
-| `drift` | no | yes |
-| `behindSheet` | `dissolve` | `dissolve` |
-| prefetch | all 12 at once, streaming | one ahead |
+| | **`cut`** | **`dissolve`** | `gentle` (09-26-26) |
+|---|---|---|---|
+| `frameMs` | **350** | **6000** | 6000 |
+| `fadeMs` | 0 — a hard cut | **2500** | 2500 |
+| `firstPass` | 12 (≈ 4.2 s) | 2 (≈ 8 s from the cut) | 2 |
+| `gateFrames` | 4 | 1 | 1 |
+| `drift` | no | yes | no |
+| `softStart` | no | no | **yes** |
+| `behindSheet` | `dissolve` | `dissolve` | `gentle` |
+| prefetch | all 12 at once, streaming | one ahead | one ahead |
+
+`gentle` is not a candidate: it is what a reduced-motion reader gets in place of either (D6). Its
+own gear behind the sheet, because relaxing to `dissolve` would bring the drift back.
 
 *Why 350 and not the reference's 320:* WCAG 2.3.1 caps flashing at three per second. 320 ms is
 3.1 changes/s; 350 is 2.9. Same feel, one fewer thing to answer for.
@@ -199,9 +204,17 @@ what makes `behindSheet` expressible), the second preset does not.
 
 - The floating "Open sign-in" glyph and the sheet's "Back to the slideshow" disc are unchanged
   (the e2e suite's `openAuthSheet` depends on the first). Tap on the imagery = next. ←/→ step.
-- **Reduced motion:** the overture is skipped, one still is shown, the sheet is up — exactly
-  today's behaviour and today's e2e test. Read after hydration through `useMediaQuery`, never in
-  the server render (the 09-10 lesson; D8).
+- **Reduced motion (rewritten 09-26-26):** the reader gets the show, gently. The overture plays as
+  a plain fade — the line fades in, holds, fades out as a whole, and the wordmark alone fades back
+  in over the reel; nothing clips or translates. The reel runs the `gentle` tempo (D5): the
+  dissolve's 6 s / 2.5 s clock with no drift and a soft start, so even the first frame fades in
+  from black. Opacity is the only property that moves. The sheet rises on the gentle first pass
+  (two frames). Still read after hydration through `useMediaQuery`, never in the server render
+  (D8): the server renders phase `in` for everyone, which is now what every reader sees first,
+  and the preference only changes what happens from the collapse on. `globals.css`'s 0.01 ms
+  collapse exempts the reel and overture roots (`.motion-gentle`) and nothing else — the sheet
+  still collapses. *History:* until 09-26 this bullet said "one still, sheet up"; that was what Ben
+  saw on both his devices (Reduce Motion on) and reported as "no animation at all".
 - **`Save-Data`** (`navigator.connection.saveData === true`): the reel stops after the first
   picture; the overture still plays. Cheap, and the honest thing on a metered connection.
 - The service worker: `/api/img/*` is already CacheFirst (150 entries), so the reel's pictures
@@ -274,9 +287,9 @@ pictures whole, not full-bleed; C: A plus fetching bigger originals):
   preloads as an HTTP `Link` header rather than `<link>` tags.
 
 Not done, recorded: **C** (bigger originals for the landing pool) is the only route to sharp
-full-bleed on a 3× phone, and depends on each source offering one. Reduced motion is unchanged —
-still one still with the sheet up — pending Ben checking whether his phone has Reduce Motion on
-(the evidence says it does: his visits fetched only the preloads).
+full-bleed on a 3× phone, and depends on each source offering one. Reduced motion was the cause of
+the "no motion" reports on both his devices, confirmed 09-26-26; D6 is rewritten — the gentle
+version — and `docs/PLAN_landing-reduced-motion.md` built it.
 
 ## The budget — stated honestly
 
