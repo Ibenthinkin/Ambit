@@ -78,6 +78,20 @@ or a security probe that doesn't spend the budget. **Trap met on the way:** `bun
 without a rebuild runs whatever `.next` holds — after a comparison run on another commit, that is
 the other commit.
 
+**The final review found — and sampling proved — a second cause of "no text animation", older
+than today.** `@keyframes overture-in` and `@keyframes reel-drift` were declared inside `@theme`
+with no `--animate-*` token, and Tailwind v4 emits a theme keyframe only when a token uses it: the
+production CSS had neither, so **the overture's fade-in and the dissolve's drift have never run
+since 8.3's first build**, for any reader. Found because a per-frame opacity sampler (Chromium,
+Firefox and WebKit, on the real build) showed the wordmark at 1.00 on its first frame. Moved to the
+top level and pinned by a test that compiles `globals.css` through `@tailwindcss/postcss`. With
+the keyframe real, the reviewer's own finding became true — the `both` fill held opacity 1 through
+the gentle collapse — so the fill is gone and the animation stays on in every phase (which also
+restores the wordmark's fade on a full-motion sheet collapse). After: all three engines fade in
+0 → 1 over 0.5 s, fade out 1 → 0 over 2.2 s, and re-fade the wordmark. check 1,411/1,411, e2e
+serial 57/57. Deferred minors: a sheet collapse at reel index ≥ 2 cuts the current picture to
+black before picture 0 fades in; a stale comment in `use-overture.ts`.
+
 **Open / next:** Ben's phone look (Reduce Motion left on) → pick the 429 fix → merge the branch →
 the mark with Ben → Task 9 → push, deploy.
 

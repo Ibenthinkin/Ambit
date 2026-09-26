@@ -101,7 +101,7 @@ hydrates straight into three or four columns, `BottomSheet` as a centered 520 px
 Playwright project at 1440 × 900. Below 768 px nothing changed. Two things it turned up that
 outlive it: **Tailwind v4's `translate-*` utilities write the standalone `translate` property,
 not `transform`**, so a keyframe that also states a centering translate _composes_ with them and
-moves the element twice (a 520 px dialog landed 260 px left of centre); and **the `chromium`
+moves the element twice (a 520 px dialog landed 260 px left of centre); and, from 09-26-26, **a `@keyframes` inside `@theme` is emitted only if an `--animate-*` token uses it** — one named only from an inline `style` must sit at the top level of `globals.css`, or it silently isn't in the build (the landing's `overture-in` and `reel-drift` weren't, for a month; `globals.test.ts` compiles the file to pin it); and **the `chromium`
 Playwright project now declares a 402 × 874 viewport** rather than inheriting `Desktop Chrome`'s
 1280 × 720 — 1280 is exactly `xl`, so the phone suite had silently begun exercising the desktop
 layout. That suite is green under `bun run e2e:prod` (49 passed); under `next dev` at a phone
