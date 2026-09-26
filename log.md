@@ -179,6 +179,14 @@ was stopped for the prod runs; restart it with `bun run dev`.
 
 *Session spend: 61.03M tok (in 688 · out 249.0k · cache r 59.65M / w 1.13M) · ~≥$6.55 · opus-5-5 + opus-4-7 · 13:58→14:40*
 
+**Later the same session — merged, and Ben's first phone look.** `feat/explore-route` merged to
+`main` (`eed1ca0`, `--no-ff`; check 1,472/1,472 on the merged tree; branch deleted). Ben opened
+`/explore` on his phone over the tailnet: "so far so good". `main` is 12 ahead of `origin`, not
+pushed, not deployed. **Next:** keep developing `/explore` in a fresh session from this state;
+the deferred minors above still stand.
+
+*Session spend: 7.89M tok (in 91 · out 32.8k · cache r 7.71M / w 149.5k) · ~≥$2.06 · opus-5-5 + opus-4-7 · 14:40→15:20*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:
