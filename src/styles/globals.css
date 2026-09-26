@@ -356,11 +356,17 @@
    by nature (rise-in on nearly every screen, sheets, toasts, the gallery's chrome cycle), and all
    of it is decorative — no animation in this app conveys information that isn't also in the DOM,
    so collapsing every duration to ~0 is safe and is the accessible default. Deliberately a
-   Phase 5.4 addition beyond the handoff, which specifies no reduced-motion behavior. */
+   Phase 5.4 addition beyond the handoff, which specifies no reduced-motion behavior.
+
+   One opt-out (09-26-26, docs/DESIGN_landing-redo.md D6): the landing's reel and overture carry
+   `.motion-gentle`. Under reduced motion they run the `gentle` tempo — opacity-only cross-fades,
+   no drift, no cuts — which *is* their reduced-motion version; collapsing those fades to 0.01 ms
+   would turn them back into the hard cuts the preference asked not to see. Nothing else opts out:
+   the sheet is outside both subtrees and still collapses. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :not(.motion-gentle, .motion-gentle *),
+  :not(.motion-gentle, .motion-gentle *)::before,
+  :not(.motion-gentle, .motion-gentle *)::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
