@@ -101,10 +101,12 @@ test("clicking the imagery changes the picture, and the pictures keep moving beh
     .not.toBe(behind);
 });
 
-// The hydration regression test (09-10-26): the collapse disc was an inert <div> on the client for
-// any reader whose OS asks for reduced motion. Emulated here, because that reader is exactly the
-// one the bug reached; meaningful only against a production build, where it was React #418.
-test("the sheet's disc collapses it back to the reel, reduced motion included", async ({
+// Reduced motion (D6, 09-26-26). Emulated, because that reader is exactly the one two earlier bugs
+// reached: the 09-10 hydration regression (an inert collapse disc), and the 09-26 finding that the
+// old "one still" path was what Ben — Reduce Motion on, on both his devices — saw as "no
+// animation at all". Meaningful only against a production build. The computed durations are the
+// proof that globals.css's 0.01 ms collapse lets the landing through.
+test("reduced motion: the overture fades, the reel cross-fades without drift, and the sheet's disc collapses it back", async ({
   page,
 }) => {
   const consoleErrors: string[] = [];
@@ -114,10 +116,35 @@ test("the sheet's disc collapses it back to the reel, reduced motion included", 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
 
-  await expect(page.getByPlaceholder("you@example.com")).toBeInViewport({
-    timeout: 15_000,
+  // The line is there for this reader now, at its real fade-in — not 0.01 ms.
+  const overture = page.getByTestId("overture");
+  await expect(overture).toBeVisible();
+  expect(
+    await overture.evaluate((el) => getComputedStyle(el).animationDuration),
+  ).toBe("0.5s");
+  // The gentle collapse: the tail unmounts on the frame the reel starts (~3.6 s).
+  await expect(page.getByTestId("overture-tail")).toHaveCount(0, {
+    timeout: 10_000,
   });
-  await expect(page.getByTestId("overture")).toHaveCount(0);
+  // The first frame fades in from black; once it is fully there, no layer drifts and the
+  // current one carries the gentle fade at its real duration.
+  await expect.poll(() => visibleId(page), { timeout: 12_000 }).not.toBeNull();
+  const layers = await page
+    .locator("[data-testid='landing-reel'] img")
+    .evaluateAll((imgs) =>
+      imgs.map((i) => ({
+        animation: getComputedStyle(i).animationName,
+        transition: getComputedStyle(i).transitionDuration,
+        opacity: getComputedStyle(i).opacity,
+      })),
+    );
+  expect(layers.every((l) => l.animation === "none")).toBe(true);
+  expect(layers.find((l) => l.opacity === "1")?.transition).toBe("2.5s");
+
+  // The glyph, rather than waiting the gentle first pass (~16 s): the sheet's round trip is
+  // what this test is for.
+  await page.getByRole("button", { name: "Open sign-in" }).click();
+  await expect(page.getByPlaceholder("you@example.com")).toBeInViewport();
   await page.getByRole("button", { name: "Back to the slideshow" }).click();
   await expect(
     page.getByRole("button", { name: "Open sign-in" }),
