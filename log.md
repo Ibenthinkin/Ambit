@@ -135,6 +135,50 @@ topic-group names in `topic-groups.ts` if he wants to rename; group-size weighti
 
 *Session spend: 58.74M tok (in 544 · out 174.7k · cache r 57.63M / w 939.6k) · ~≥$5.92 · opus-5-5 + opus-4-7 · 09:50→12:26*
 
+**Afternoon (second session) — `/explore` built on `feat/explore-route`** (`docs/PLAN_explore-route.md`,
+all seven tasks, not merged, not pushed). A signed-out taste of the real feed at a separate route
+so it can be compared against `/`, which is untouched.
+
+**Shipped (on the branch):**
+- `feed.explore`, the **fourth public procedure**: `getFeedPage(null, cursor)` composes for nobody
+  — cold-start weights, no taste keywords, no `seen_item` exclusion, nothing acked — and answers
+  `{ cards: [] }` from page 24. SPEC §7/§11 updated.
+- `FeedGrid` extracted from `FeedScreen` (masonry + infinite scroll, render hooks for the authed
+  extras); `message` tiles in `buildTiles({ messages: true })` — one per page after the fourth
+  card, rotating about → sign up → sign in, cards deduped across pages; `capTiles` trims at 200
+  images and closes on the end card (also when the feed simply ends). Copy in `config/explore.ts`.
+- `/explore` page + `ExploreScreen`: wordmark + Sign in header, the landing's `AuthCard` (new
+  `initialMode`) in its `AuthSheet` (new `collapseLabel`, plus a click-to-close scrim and Escape
+  here), an about dialog, `?open=signin|signup|about`. Signed-in → `/feed`. `noindex`.
+- Item page for an explore visitor: the rail ends on an end-card cell after 100 steps (counted per
+  tab in sessionStorage, read through `useSyncExternalStore`), leaving goes to `/explore`, and the
+  join card gets "Keep exploring". Shared links keep the endless rail.
+
+**Findings:**
+- **`.strict()` on a `useInfiniteQuery` procedure's input is a trap.** tRPC 11 sends
+  `{ ...input, cursor, direction }` for every page after the first; page one only worked because
+  the RSC prefetch calls the procedure with the bare `{}`. So the taste was exactly one page
+  long, and every unit test passed. The final review (Fable) caught it by reproducing the 400
+  over HTTP; a page-two e2e now pins it. `feed.page` had always tolerated `direction` because zod
+  strips unknown keys by default.
+- The null-user eligibility test passed before the implementation: `user_id = NULL` never
+  matches, so the anti-join already let everything through by accident. Made explicit anyway.
+- CI-shape run 1 hit an order-dependent flake in `desktop.spec`'s hover-strip popover (it opened
+  above the pill: y 326 vs ≥ 727); alone 8/8 twice, and the next two full CI-shape runs were green.
+  Code this branch didn't touch. Worth watching.
+- Port 5433 is held by another project's Postgres (`web-postgres-1`) now; the CI-shape recipe
+  ran on :5434.
+
+**Verified:** check 1,472/1,472; `e2e:prod` 65/65; CI-shape 64 passed / 4 skipped.
+
+**Open / next:** Ben looks at `/explore` on the phone (tailnet) and at 1440 — the copy, the
+message block on the feed, the end card inside the black rail cell; then merge. Deferred minors
+from the review: functional updates in `ItemScreen.advance`; an empty state for an empty page
+one; the 7.2 audit table and `security.spec.ts` don't list `/explore` yet. The dev server on :3000
+was stopped for the prod runs; restart it with `bun run dev`.
+
+*Session spend: 61.03M tok (in 688 · out 249.0k · cache r 59.65M / w 1.13M) · ~≥$6.55 · opus-5-5 + opus-4-7 · 13:58→14:40*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:
