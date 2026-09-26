@@ -176,5 +176,12 @@ if (confirm) {
     "\nAdd to src/server/config/topic-facets.ts (the map is the authority; the DB row is just ahead of it until you do):",
   );
   for (const p of picks) console.log(`  ${p.facet}: "${p.id}",`);
+  // And a group (09-25-26): the pickers show umbrella groups, and a faceted topic in no group
+  // fails topic-groups.test.ts — which is the guard, since the proposals file carries no group
+  // slot. Which group is an editorial call made in the file, not here.
+  console.log(
+    "\nThen file each under a group in src/server/config/topic-groups.ts (its test fails until you do):",
+  );
+  for (const p of picks) console.log(`  "${p.id}",  // → a ${p.facet} group`);
 }
 process.exit(0);

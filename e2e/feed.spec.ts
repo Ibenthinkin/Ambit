@@ -4,6 +4,7 @@ import {
   PIXEL,
   cleanupSeeded,
   completeOnboarding,
+  ONBOARDING_GROUPS,
   connect,
   inviteUser,
   openAuthSheet,
@@ -124,7 +125,7 @@ test.describe.serial("feed", () => {
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await completeOnboarding(page, ["Astronomy", "Botany", "Music"]);
+    await completeOnboarding(page, ONBOARDING_GROUPS);
 
     // A page is 12 cards; 8 is a floor that survives a Because tile or two without being brittle.
     await expect

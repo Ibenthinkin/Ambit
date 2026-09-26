@@ -212,6 +212,23 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `bun run seed:personas`, which signs each one up through Better Auth's server API against
   `PERSONA_PASSWORD` (env; no default, and it is a secret) so Ben can read the feed from twenty
   different chairs. Demographics in the fixture are documentation and are never stored.
+- **The pickers show umbrella groups, not topics — 09-25-26** (design
+  `docs/DESIGN_topic-facets-and-personas.md` §2a; branch `feat/topic-groups`). Ben's review of
+  onboarding after round 2: 92 Subject chips was "just too many words". `src/server/config/topic-groups.ts`
+  files every faceted topic into exactly one hand-named group (12 Subject / 8 Medium / 8 Look /
+  6 Place; `topic-groups.test.ts` pins the partition, so a promotion pasted into the facet map and
+  not here fails `bun run test` — the only guard, `promote:topics` just prints the reminder). **A
+  group is picker-side only**: onboarding selects group ids and flattens them on submit, `setMine`
+  still receives topic ids, and the feed, weights and personas never hear of a group. Two things
+  that follow: **`groupsFor()` intersects with `topics.list`** (CI seeds the sixteen originals, so
+  "Space & science fiction" is one chip that picks `astronomy` there and twelve topics on
+  production — an unlisted id is one `setMine` refuses), and e2e specs press `ONBOARDING_GROUPS`
+  and must accept both database shapes when asserting on picked topics. `/profile/topics` leads
+  each section with the group chips (tri-state; `Chip` gained `selected="mixed"`; tapping a mixed
+  group _completes_ it) and folds the flat list behind "Show all N topics". **Open:** every picked
+  topic is still written at weight 1.0, so a twelve-topic group is drawn twelve times as often as
+  a singleton in CORE/DRIFT/JUMP — shipped flat on purpose; dividing by group size in
+  `setUserTopics` is the follow-up if `/dev/feed` says so.
 - **The item page _is_ the immersive screen — 09-10-26** (design `docs/DESIGN_screen-structure.md`,
   plan `docs/PLAN_screen-structure.md`; sub-project 2 of three from Ben's desktop review). `/i/[itemId]`
   for a picture is `ItemScreen`: `HeroRail` (the old gallery's three-cell track, square-cornered,

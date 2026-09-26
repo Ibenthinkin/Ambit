@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   cleanupSeeded,
   completeOnboarding,
+  ONBOARDING_GROUPS,
   connect,
   inviteUser,
   openAuthSheet,
@@ -111,7 +112,7 @@ test.describe.serial("auth", () => {
 
     // A fresh sign-up has no topic picks yet, so /feed's guard bounces here first
     // (PHASE5_PLAN_5.3.md Decision 5) — not the feed placeholder directly.
-    await completeOnboarding(page, ["Astronomy", "Botany", "Music"]);
+    await completeOnboarding(page, ONBOARDING_GROUPS);
 
     await page.waitForURL("/feed");
     // 5.6 replaced the "Signed in as …" placeholder with the real masonry, so the end of the

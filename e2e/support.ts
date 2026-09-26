@@ -364,10 +364,28 @@ export async function countSeenFor(
 }
 
 /**
+ * The three onboarding group chips every spec presses (09-25-26): the groups holding astronomy,
+ * botany and music — the topics the specs seed their fixture items under. Their exact member
+ * lists live in `config/topic-groups.ts`; only the containment matters here.
+ */
+export const ONBOARDING_GROUPS = [
+  "Space & science fiction",
+  "Plants & fungi",
+  "Music, film & performance",
+];
+
+/**
  * Walks the four-stage onboarding (09-10-26), pressing every chip in `labels` on whatever
  * stage it appears, then Start exploring. The stages are Subject / Medium / Look / Place; a
  * label that is on no stage fails the test by name rather than silently landing on /feed with
  * fewer picks — the specs' fixtures depend on exactly which topics the user has.
+ *
+ * **The chips are umbrella groups since 09-25-26** (`config/topic-groups.ts`), so `labels` are
+ * group labels — `ONBOARDING_GROUPS` below is the three every spec uses. A group picks every
+ * member the server listed: on CI that is exactly the one original topic each of the three holds
+ * (astronomy, botany, music — where the specs seed their items), on a real corpus a dozen more
+ * besides. Specs that assert on the *picked topics* have to tolerate both shapes; see
+ * settings.spec.ts's "What you see" assertion.
  *
  * A stage may legitimately be empty. CI's database is `db:migrate` + `db:seed`, which is the
  * sixteen config topics and nothing else — thirteen subjects, three media, no looks and no
@@ -381,7 +399,11 @@ export async function completeOnboarding(page: Page, labels: string[]) {
     for (const label of [...remaining]) {
       // `pressed: false` both disambiguates from any other text on the page and asserts the
       // pre-click state, exactly as the inline loops this replaces did.
-      const chip = page.getByRole("button", { name: label, pressed: false });
+      const chip = page.getByRole("button", {
+        name: label,
+        pressed: false,
+        exact: true,
+      });
       if (await chip.count()) {
         await chip.click();
         remaining.delete(label);

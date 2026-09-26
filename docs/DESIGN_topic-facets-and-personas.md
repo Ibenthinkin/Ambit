@@ -123,6 +123,46 @@ data and the flow.
 - The chip grid pulls from `topics.list` (a query) rather than the `TOPICS` config it maps today
   — the config only knows the sixteen. The screen test's mocks follow.
 
+## 2a. Umbrella groups (09-25-26)
+
+Ben's review of the shipped onboarding, fifteen days and one vocabulary round later: "too many
+subjects to choose from, just too many words." By then Subject was 92 chips, Medium 41, Look 20,
+Place 6 — a catalogue, not a first screen. The fix is one layer above the vocabulary, not a cut
+to it.
+
+- **`src/server/config/topic-groups.ts`** — hand-assigned like the facet map: each group has an
+  id, a label, a facet and its member topics. **Every faceted topic is in exactly one group and
+  every member carries its group's facet**; `topic-groups.test.ts` pins the partition, which is
+  the guard against a promotion that is pasted into the facet map and not here (`promote:topics`
+  prints the reminder; the proposals file carries no group slot). Sizes as drafted: 12 Subject,
+  8 Medium, 8 Look, 6 Place — the six places stay six single-topic groups, because a reader who
+  wants Japan does not want Chicago. Names are provisional and Ben's to change.
+- **A group is a picker-side idea only.** Picking one picks every member topic. `setMine` still
+  receives topic ids, `user_topic` holds topics, the feed engine, weights and personas are
+  untouched, and nothing about a group reaches the database.
+- **Groups render from what the server lists.** `groupsFor(facet, topics)` intersects each group
+  with `topics.list`'s rows: a group with no listed member is not shown, and a pick flattens only
+  to listed members — never to an id `setMine` would refuse. CI's database is the sixteen
+  originals, so "Space & science fiction" is one chip that picks `astronomy` there and twelve
+  topics on production.
+- **Onboarding** shows its facet's groups per stage; the selection is a set of group ids,
+  flattened once on submit. The floor of three counts chips tapped, whatever they fan out to.
+- **`/profile/topics`** leads each section with the same group chips and folds the flat topic
+  list behind a "Show all N topics" disclosure (local state; a reload folds it). A group chip is
+  a tri-state summary of its listed members — on, off, or `mixed` ("· 3 of 12",
+  `aria-pressed="mixed"`, an accent outline; `Chip` gained the state). Tapping a mixed group
+  **completes** it; a full group unpicks all its members; the floor of one holds either way.
+  Weights (dev) show on topic chips only.
+- **Weights, the open question.** Every picked topic is written at 1.0, as before. CORE, DRIFT
+  and JUMP all start from a weighted draw over the reader's topics, so a twelve-topic group is
+  drawn twelve times as often as a one-topic group. Shipped flat on purpose: the save nudge and
+  its cap are calibrated against 1.0, a reader who tapped "Space" plausibly wants a lot of it,
+  and the per-page topic and source caps bound the damage. If `/dev/feed` says otherwise, the
+  follow-up is dividing a group's picks by its size in `setUserTopics`.
+- **e2e:** the specs press `ONBOARDING_GROUPS` (support.ts) instead of three topic labels; an
+  assertion on the picked topics has to accept both the fixture-only shape and the real-corpus
+  shape (`settings.spec.ts` shows how).
+
 ## 3. The topic page: `/profile/topics`
 
 - Route `src/app/profile/topics/page.tsx` → `TopicsScreen` in `components/profile/`.

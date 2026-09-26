@@ -15,8 +15,13 @@ import { cn } from "~/lib/utils";
 // onboarding, where toggling a chip is the screen's one event; Saved's chips are a filter row the
 // reader flicks between, and a squash animation on every flick reads as noise. The prototype's own
 // chips transition colors only, which the shared `transition ... duration-200` already covers.
+//
+// `selected="mixed"` (09-25-26, the umbrella groups): a group chip on `/profile/topics` whose
+// members are only partly picked. It reads `aria-pressed="mixed"` — the tri-state a toggle button
+// is allowed — and draws as an outline in the accent, neither the filled "on" nor the grey "off".
+// No pop: nothing was just toggled, the state is a description of the members below it.
 export interface ChipProps extends React.ComponentProps<"button"> {
-  selected?: boolean;
+  selected?: boolean | "mixed";
   size?: "md" | "sm";
 }
 
@@ -35,12 +40,14 @@ export function Chip({
         size === "md"
           ? "px-[17px] py-[11px] text-[15px]"
           : "px-[15px] py-2 text-[12.5px]",
-        selected
-          ? cn(
-              "bg-accent border-accent text-on-accent",
-              size === "md" && "animate-chip-pop",
-            )
-          : "bg-ink/5 border-ink/12 text-ink/82",
+        selected === "mixed"
+          ? "bg-accent/10 border-accent text-ink/82"
+          : selected
+            ? cn(
+                "bg-accent border-accent text-on-accent",
+                size === "md" && "animate-chip-pop",
+              )
+            : "bg-ink/5 border-ink/12 text-ink/82",
         className,
       )}
       {...rest}

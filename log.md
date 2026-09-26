@@ -126,6 +126,39 @@ deploy; run `.cache/landing-prod.sh`. Copy is untouched (D9).
 
 *Session spend: 102.14M tok (in 934 · out 348.6k · cache r 100.10M / w 1.69M) · ~≥$8.76 · opus-5-5 + opus-4-7 + fable-5-1 · 19:42→20:15*
 
+**Evening (Fable) — onboarding regrouped into umbrella groups, on `feat/topic-groups`.** Ben,
+on the shipped four-stage picker: "too many subjects to choose from, just too many words" — 92
+Subject chips, 41 Medium, 20 Look, 6 Place after round 2. Classified bounded; Ben chose
+**umbrella groups** over a curated short list ("build it as is, maybe I'll change the group names
+after I see the thing built"). Design is §2a of `docs/DESIGN_topic-facets-and-personas.md`.
+
+**Shipped (worktree `../ambit-topic-groups`, the checkout being 8.3's):**
+
+- `config/topic-groups.ts` — every one of the 159 faceted topics filed into exactly one of
+  **12 Subject / 8 Medium / 8 Look / 6 Place** groups, hand-named; `topic-groups.test.ts` pins the
+  partition (the draft covered all 159 first try). Groups are **picker-side only** — `setMine`
+  still takes topic ids; feed, weights, personas untouched, no migration.
+- Onboarding shows group chips per stage, selects group ids, flattens on submit — and only to the
+  members `topics.list` returned (`groupsFor` intersects: CI seeds the sixteen originals, so the
+  Space chip picks one topic there and twelve on production).
+- `/profile/topics` leads each section with the same chips, tri-state (`Chip` gained
+  `selected="mixed"`, "· 3 of 12"; tapping a mixed group completes it), flat list behind
+  "Show all N topics".
+- e2e: specs press `ONBOARDING_GROUPS`; `settings.spec` accepts both database shapes for "What
+  you see" and opens the disclosures before clicking Maps/Ceramics. Unit suite 1,299 green;
+  typecheck/lint/prettier clean.
+
+**Decisions:** weights stay **1.0 per topic** — a twelve-topic group is drawn 12× a singleton in
+CORE/DRIFT/JUMP, shipped flat on purpose (save nudge calibrated on 1.0; caps bound a page);
+dividing by group size in `setUserTopics` is the follow-up if `/dev/feed` says so. `promote:topics`
+**reminds** rather than refuses on a missing group (the proposals file has no group slot; the test
+is the guard). `science` → Machines & technology, `humor` → Myth, story & the strange.
+
+**Open / next:** the worktree has no `.env` (deny rule) — Ben copies it, then the 7 DB-backed
+suites, `bun run e2e:prod` and the CI-shape run; Ben looks at the chips and renames groups in
+`topic-groups.ts`; merge to `main` after 8.3 lands; group-size weighting if the feel is off.
+
+
 ### [[09-23-26 Wed]] — Round 3 parked whole; polishpostergallery probed
 
 **Sources round 3:** Ben parked the whole 09-22 batch ("park them all for now") — the five 🔵 rows

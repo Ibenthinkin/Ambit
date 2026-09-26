@@ -13,14 +13,16 @@ import {
   FACET_LABELS,
   FACET_PROMPTS,
 } from "~/server/config/topic-facets";
+import { groupsFor } from "~/server/config/topic-groups";
 import type { TopicFacet } from "~/server/db/schema";
 import { api } from "~/trpc/react";
 
 export interface OnboardingScreenProps {
   /** `topics.list` (every faceted topic, label order) mapped down to what the grid needs. */
   topics: { id: string; label: string; facet: TopicFacet }[];
-  /** Minimum picks — across all four stages — before the CTA flips to "Start exploring"
-   *  (SPEC §3.2: 3). */
+  /** Minimum picks — chips tapped, across all four stages — before the CTA flips to "Start
+   *  exploring" (SPEC §3.2: 3). Counted in groups since 09-25-26: three taps, whatever they fan
+   *  out to. */
   minPicks: number;
 }
 
@@ -34,11 +36,21 @@ export interface OnboardingScreenProps {
 // is a broken screen as one grid and a fine one as four grouped stages. Nothing is written until
 // the last stage's CTA: one `setMine` with the union, so abandoning onboarding halfway leaves no
 // rows and `hasCompletedOnboarding()` still reads false.
+//
+// **Umbrella groups since 09-25-26** (design doc §2a; `config/topic-groups.ts`). By round 2 the
+// Subject stage alone was 92 chips — "just too many words" — so each stage now shows its facet's
+// groups (twelve Subject chips, eight Medium, eight Look, six Place) and a tap picks every member
+// topic. The screen selects *group ids*; only on submit are they flattened to topic ids, and only
+// to the members `topics.list` actually returned (`groupsFor` intersects — CI lists sixteen topics,
+// and production can be ahead of the config between a promotion and its paste). `setMine` still
+// receives topic ids, so nothing downstream knows a group exists. Fine-tuning a single topic is
+// `/profile/topics`'s "Show all" — this screen is deliberately coarse.
 export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
   const router = useRouter();
   const { mutateAsync } = api.topics.setMine.useMutation();
 
-  // One set for all four stages, so Back-and-unpick works and the final write is the union.
+  // One set of *group ids* for all four stages, so Back-and-unpick works and the final write is
+  // the union of every group's listed members.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [stage, setStage] = useState(0);
   // Local `submitting`, not the mutation's own `isPending` — mirrors AuthCard exactly (same
@@ -49,20 +61,31 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
 
   const facet = FACETS[stage]!;
   const isLast = stage === FACETS.length - 1;
-  const stageTopics = topics.filter((t) => t.facet === facet);
+  const stageGroups = groupsFor(facet, topics);
 
-  function toggle(topicId: string) {
+  function toggle(groupId: string) {
     setSelected((prev) => {
       const next = new Set(prev);
       // Toggle off has to *delete*, not just add — an easy thing to get half-right and the
       // reason this is its own function rather than inlined at the call site.
-      if (next.has(topicId)) {
-        next.delete(topicId);
+      if (next.has(groupId)) {
+        next.delete(groupId);
       } else {
-        next.add(topicId);
+        next.add(groupId);
       }
       return next;
     });
+  }
+
+  /** The topic ids a submit writes: every listed member of every picked group, deduplicated. */
+  function flatten(groupIds: ReadonlySet<string>): string[] {
+    const ids = new Set<string>();
+    for (const f of FACETS) {
+      for (const { group, members } of groupsFor(f, topics)) {
+        if (groupIds.has(group.id)) for (const m of members) ids.add(m);
+      }
+    }
+    return [...ids];
   }
 
   const count = selected.size;
@@ -82,7 +105,7 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
     setError("");
     setSubmitting(true);
     try {
-      await mutateAsync({ topicIds: [...selected] });
+      await mutateAsync({ topicIds: flatten(selected) });
       // `replace`, not `push` (Decision 9): pushing would leave /onboarding in history, and
       // backing into it just bounces forward to /feed again via the page's redirect — a dead
       // entry that makes the back button look broken. Leave `submitting` true through the
@@ -122,16 +145,16 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
         <Rise key={`g-${stage}`} delayMs={80}>
           <div
             role="group"
-            aria-label={`${FACET_LABELS[facet]} topics`}
+            aria-label={`${FACET_LABELS[facet]} groups`}
             className="flex flex-wrap gap-[10px] px-6 pt-[22px] pb-[200px]"
           >
-            {stageTopics.map((topic) => (
+            {stageGroups.map(({ group }) => (
               <Chip
-                key={topic.id}
-                selected={selected.has(topic.id)}
-                onClick={() => toggle(topic.id)}
+                key={group.id}
+                selected={selected.has(group.id)}
+                onClick={() => toggle(group.id)}
               >
-                {topic.label}
+                {group.label}
               </Chip>
             ))}
           </div>

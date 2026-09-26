@@ -3,6 +3,7 @@ import { expect, test, type Cookie, type Page } from "@playwright/test";
 import {
   cleanupSeeded,
   completeOnboarding,
+  ONBOARDING_GROUPS,
   connect,
   inviteUser,
   openAuthSheet,
@@ -178,7 +179,7 @@ test.describe.serial("security headers", () => {
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await completeOnboarding(page, ["Astronomy", "Botany", "Music"]);
+    await completeOnboarding(page, ONBOARDING_GROUPS);
 
     session = await saveSession(page);
 

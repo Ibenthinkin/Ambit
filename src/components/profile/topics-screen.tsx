@@ -9,6 +9,8 @@ import {
   FACET_LABELS,
   FACET_PROMPTS,
 } from "~/server/config/topic-facets";
+import { groupsFor } from "~/server/config/topic-groups";
+import type { TopicFacet } from "~/server/db/schema";
 import { api } from "~/trpc/react";
 
 // /profile/topics — the Topics tab of the Profile hub (docs/DESIGN_topic-facets-and-personas.md §3;
@@ -29,6 +31,15 @@ import { api } from "~/trpc/react";
 //
 // It replaced Settings' "What you see" sheet, which could only ever offer the sixteen and had no
 // room for four groups of a hundred chips.
+//
+// **Umbrella groups since 09-25-26** (design doc §2a; `config/topic-groups.ts`): each section
+// leads with its facet's group chips — the same chips onboarding showed — and folds the flat
+// topic list behind a "Show all N topics" disclosure, so the page reads as onboarding laid flat
+// and the fine-tuning is one tap away rather than the whole page. A group chip is a tri-state
+// summary of its listed members: on when all are picked, off when none, `mixed` ("· 3 of 12")
+// otherwise. Tapping completes a mixed group rather than clearing it — the reader's likely
+// intent when they see "3 of 12" is "the rest too", and the full group is one more tap from off.
+// Groups are picker-side only: every write is still `setMine` with topic ids.
 //
 // `dev` (Task 8): under FEED_DEBUG each pressed chip shows its learned weight and a Reset button
 // sets them all back to 1.0. The product build never renders a weight.
@@ -74,21 +85,45 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
 
   const picked = new Set(mine.data ?? []);
   const all = topics.data ?? [];
+  // Which sections have their flat topic list open. Local state, reset on navigation: the
+  // folded page is the default view every visit, the way onboarding was coarse.
+  const [expanded, setExpanded] = React.useState<Set<TopicFacet>>(new Set());
+
+  /** Writes `next`, or refuses it: the mutation's floor is one (`min(1)`), and refusing here
+   *  keeps the chip honest instead of letting it flip and snap back on the server's BAD_REQUEST. */
+  function commit(next: Set<string>) {
+    if (next.size === 0) {
+      setHint("Keep at least one topic.");
+      return;
+    }
+    setMine.mutate({ topicIds: [...next] });
+  }
 
   function toggle(topicId: string) {
     const next = new Set(picked);
-    if (next.has(topicId)) {
-      if (next.size === 1) {
-        // The mutation's floor is one (`min(1)`); refusing here keeps the chip honest instead of
-        // letting it flip and snap back on the server's BAD_REQUEST.
-        setHint("Keep at least one topic.");
-        return;
-      }
-      next.delete(topicId);
-    } else {
-      next.add(topicId);
+    if (next.has(topicId)) next.delete(topicId);
+    else next.add(topicId);
+    commit(next);
+  }
+
+  /** A group tap: all listed members on unless every one already is, in which case all off. */
+  function toggleGroup(members: readonly string[]) {
+    const next = new Set(picked);
+    const complete = members.every((m) => picked.has(m));
+    for (const m of members) {
+      if (complete) next.delete(m);
+      else next.add(m);
     }
-    setMine.mutate({ topicIds: [...next] });
+    commit(next);
+  }
+
+  function toggleExpanded(f: TopicFacet) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(f)) next.delete(f);
+      else next.add(f);
+      return next;
+    });
   }
 
   return (
@@ -106,6 +141,9 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
           setup stages laid end to end. `h2`: the hub's identity block holds the page's h1. */}
       {FACETS.map((f, i) => {
         const sectionTopics = all.filter((t) => t.facet === f);
+        const sectionGroups = groupsFor(f, sectionTopics);
+        const open = expanded.has(f);
+        const n = sectionTopics.length;
         return (
           <Rise key={f} delayMs={80 + i * 60}>
             <section aria-labelledby={`topics-${f}`} className="px-5 pt-7">
@@ -118,23 +156,67 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
               >
                 {FACET_PROMPTS[f]}
               </h2>
+              {/* The group chips — onboarding's stage, laid flat. A group's state is derived from
+                  its listed members on every render, never stored, so it cannot drift from the
+                  flat list below it. */}
               <div
                 role="group"
-                aria-label={`${FACET_LABELS[f]} topics`}
+                aria-label={`${FACET_LABELS[f]} groups`}
                 className="flex flex-wrap gap-[10px] pt-4"
               >
-                {sectionTopics.map((t) => (
-                  <Chip
-                    key={t.id}
-                    selected={picked.has(t.id)}
-                    onClick={() => toggle(t.id)}
-                  >
-                    {dev && picked.has(t.id) && weightOf.has(t.id)
-                      ? `${t.label} · ${weightOf.get(t.id)!.toFixed(1)}`
-                      : t.label}
-                  </Chip>
-                ))}
+                {sectionGroups.map(({ group, members }) => {
+                  const on = members.filter((m) => picked.has(m)).length;
+                  const state =
+                    on === 0 ? false : on === members.length ? true : "mixed";
+                  return (
+                    <Chip
+                      key={group.id}
+                      selected={state}
+                      onClick={() => toggleGroup(members)}
+                    >
+                      {state === "mixed"
+                        ? `${group.label} · ${on} of ${members.length}`
+                        : group.label}
+                    </Chip>
+                  );
+                })}
               </div>
+              {/* The disclosure. A text button, not a chip: it is not a pick. `aria-controls`
+                  names the flat list it opens, which only exists while open. */}
+              {n > 0 && (
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-controls={open ? `topics-${f}-all` : undefined}
+                  onClick={() => toggleExpanded(f)}
+                  className="text-ink/62 hover:text-ink decoration-ink/25 mt-4 font-sans text-[13px] underline underline-offset-[3px] transition-colors"
+                >
+                  {open
+                    ? `Hide ${FACET_LABELS[f].toLowerCase()} topics`
+                    : `Show all ${n} ${n === 1 ? "topic" : "topics"}`}
+                </button>
+              )}
+              {open && (
+                <div
+                  id={`topics-${f}-all`}
+                  role="group"
+                  aria-label={`${FACET_LABELS[f]} topics`}
+                  className="flex flex-wrap gap-[10px] pt-4"
+                >
+                  {sectionTopics.map((t) => (
+                    <Chip
+                      key={t.id}
+                      size="sm"
+                      selected={picked.has(t.id)}
+                      onClick={() => toggle(t.id)}
+                    >
+                      {dev && picked.has(t.id) && weightOf.has(t.id)
+                        ? `${t.label} · ${weightOf.get(t.id)!.toFixed(1)}`
+                        : t.label}
+                    </Chip>
+                  ))}
+                </div>
+              )}
             </section>
           </Rise>
         );
