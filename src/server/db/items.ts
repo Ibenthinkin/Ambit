@@ -402,17 +402,18 @@ export async function drawImageAnywhere(opts: {
  * Every item the landing may show (docs/DESIGN_landing-redo.md D1): an image, at
  * `LANDING_SCORE_FLOOR` or better, from a live source, under a licence `isLandingLicense` admits.
  *
- * **Two columns only, on purpose.** The caller (`services/landing-pool.ts`) memoises the whole
+ * **Four columns only, on purpose.** The caller (`services/landing-pool.ts`) memoises the whole
  * pool in-process for ten minutes — ~2,700 rows × ~120 bytes — and a landing hit then costs no
  * query at all. Fetching full rows here would put megabytes in that memo for nothing: the reel
- * needs an id to build a proxy URL, and the URL only to tell a `data:` fixture from a museum.
+ * needs an id to build a proxy URL, the URL only to tell a `data:` fixture from a museum, and the
+ * measured size to put tall pictures on phones and wide ones on computers.
  *
  * The licence rule is expressed twice — as data in config (the source of truth, unit-tested) and
  * as the `inArray`/`like` below (what Postgres can filter on). `items.integration.test.ts` pins
  * that they agree on the six shapes that matter.
  */
 export async function listLandingPool(): Promise<
-  { id: string; imageUrl: string }[]
+  { id: string; imageUrl: string; width: number; height: number }[]
 > {
   const { db } = await import("./client");
   const { LANDING_LICENSES, LANDING_LICENSE_PREFIXES, LANDING_SCORE_FLOOR } =
@@ -425,6 +426,9 @@ export async function listLandingPool(): Promise<
   const conditions = [
     eq(item.type, "image"),
     isNotNull(item.imageUrl),
+    // Measured masters only: the reel needs a picture's shape to give a phone a tall one.
+    isNotNull(item.imageWidth),
+    isNotNull(item.imageHeight),
     gte(item.curationScore, LANDING_SCORE_FLOOR),
     licence,
   ];
@@ -432,9 +436,19 @@ export async function listLandingPool(): Promise<
     conditions.push(notInArray(item.source, SUSPENDED_SOURCES));
   }
   const rows = await db
-    .select({ id: item.id, imageUrl: item.imageUrl })
+    .select({
+      id: item.id,
+      imageUrl: item.imageUrl,
+      width: item.imageWidth,
+      height: item.imageHeight,
+    })
     .from(item)
     .where(and(...conditions));
-  // `isNotNull` above guarantees the `!`.
-  return rows.map((r) => ({ id: r.id, imageUrl: r.imageUrl! }));
+  // The `isNotNull`s above guarantee the `!`s.
+  return rows.map((r) => ({
+    id: r.id,
+    imageUrl: r.imageUrl!,
+    width: r.width!,
+    height: r.height!,
+  }));
 }

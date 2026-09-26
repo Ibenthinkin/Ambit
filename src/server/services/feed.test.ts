@@ -109,6 +109,8 @@ function makeItem(overrides: Partial<Item> = {}): Item & { topicId: string } {
     summary: overrides.summary ?? "A summary long enough to be unremarkable.",
     body: overrides.body ?? null,
     imageUrl: overrides.imageUrl ?? null,
+    imageWidth: null,
+    imageHeight: null,
     sourceUrl: overrides.sourceUrl ?? `https://example.com/${nextId}`,
     attribution: overrides.attribution ?? null,
     license: overrides.license ?? null,

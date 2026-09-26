@@ -4,9 +4,10 @@
 //
 // Ben is choosing between these by looking (`?tempo=` under the dev gate — see app/page.tsx).
 // When he has, DEFAULT_TEMPO flips and the plan's Task 9 deletes the loser; the `Tempo` object
-// itself stays, because `behindSheet` needs a second gear to name.
+// itself stays, because `behindSheet` needs a second gear to name. `gentle` is not a candidate: it
+// is what reduced motion gets (D6).
 
-export type TempoId = "cut" | "dissolve";
+export type TempoId = "cut" | "dissolve" | "gentle";
 
 export interface Tempo {
   id: TempoId;
@@ -20,9 +21,20 @@ export interface Tempo {
   gateFrames: number;
   /** A slow 1.00 → 1.06 scale over each frame, transform only. */
   drift: boolean;
+  /** The first frame fades in from black instead of cutting (D4's hard cut is itself motion). */
+  softStart: boolean;
   /** The tempo that runs once the sheet is up — a 3 Hz strobe under a form is hostile. */
   behindSheet: TempoId;
 }
+
+// The dissolve's clock and first pass, shared with `gentle` (the dissolve with only opacity
+// moving). Ben, 09-26-26, two phone looks: 6 s / 2.5 s was "just too slow", then 3 s wanted "a
+// bit faster, and 8 images before the sign-up tray" — 2.5 s, a 1 s fade so each still holds
+// before it goes, the sheet on the 8th; then "quicker, 2 seconds, keep the 1 second fade"
+// (the sheet ≈ 16 s from the first picture).
+const DISSOLVE_FRAME_MS = 2000;
+const DISSOLVE_FADE_MS = 1000;
+const DISSOLVE_FIRST_PASS = 8;
 
 export const TEMPOS: Record<TempoId, Tempo> = {
   // 350, not the reference's 320: WCAG 2.3.1 caps flashing at three a second, and 1000/320 is
@@ -34,21 +46,37 @@ export const TEMPOS: Record<TempoId, Tempo> = {
     firstPass: 12,
     gateFrames: 4,
     drift: false,
+    softStart: false,
     behindSheet: "dissolve",
   },
   dissolve: {
     id: "dissolve",
-    frameMs: 6000,
-    fadeMs: 2500,
-    firstPass: 2,
+    frameMs: DISSOLVE_FRAME_MS,
+    fadeMs: DISSOLVE_FADE_MS,
+    firstPass: DISSOLVE_FIRST_PASS,
     gateFrames: 1,
     drift: true,
+    softStart: false,
     behindSheet: "dissolve",
+  },
+  // The reduced-motion tempo (D6, 09-26-26): what a reader whose OS asks for less movement gets
+  // in place of either of the above. The dissolve's clock with nothing but opacity moving — no
+  // drift, and no hard cut into the first frame. Its own gear behind the sheet: relaxing to
+  // `dissolve` would bring the drift back.
+  gentle: {
+    id: "gentle",
+    frameMs: DISSOLVE_FRAME_MS,
+    fadeMs: DISSOLVE_FADE_MS,
+    firstPass: DISSOLVE_FIRST_PASS,
+    gateFrames: 1,
+    drift: false,
+    softStart: true,
+    behindSheet: "gentle",
   },
 };
 
-/** What production runs. Flip after Ben's pick. */
-export const DEFAULT_TEMPO: TempoId = "cut";
+/** What production runs — Ben's pick, 09-26-26. `cut` stays until plan Task 9 deletes it. */
+export const DEFAULT_TEMPO: TempoId = "dissolve";
 
 /** `?tempo=`, resolved server-side; the override is honoured only under the dev gate (D5). */
 export function resolveTempo(

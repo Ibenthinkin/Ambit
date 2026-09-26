@@ -4,7 +4,8 @@ import * as React from "react";
 
 import { Logo } from "~/components/icons";
 import { useMediaQuery } from "~/hooks/use-media-query";
-import type { ReelPicture } from "~/server/services/landing-pool";
+import type { LandingShape } from "~/server/config/landing-pool";
+import type { ReelPicture, Reels } from "~/server/services/landing-pool";
 
 import { AuthSheet } from "./auth-sheet";
 import { LandingReel } from "./landing-reel";
@@ -25,6 +26,9 @@ import { useReel } from "./use-reel";
 // boundary, which is the lesson 5.11 learned on 09-10-26 (a lazy `useState` initializer evaluated
 // `false` on the server and `true` on a reduced-motion client, and the collapse glyph hydrated as
 // the wrong element).
+//
+// **Reduced motion is a tempo, not a mode, as of 09-26-26** — the reader gets the show, gently
+// (D6): the overture as everyone sees it, and the reel on `TEMPOS.gentle`.
 
 export interface LandingScreenProps {
   /**
@@ -32,8 +36,15 @@ export interface LandingScreenProps {
    * `"static"` — one still, sheet open immediately, no overture (`/reset-password`).
    */
   mode: "cycle" | "static";
-  /** Server-picked (services/landing-pool.ts). Never empty: an empty pool is the fallback. */
-  pictures: ReelPicture[];
+  /** Server-picked (services/landing-pool.ts): a tall reel and a wide one. Neither is ever empty —
+   *  an empty shape is the committed fallback picture. */
+  reels: Reels;
+  /**
+   * The server's guess at the reader's screen, from the browser it can see (a phone is held
+   * upright). It is the orientation query's server snapshot, so the server's markup and the
+   * hydration render agree; the screen's real orientation replaces it one render later.
+   */
+  initialShape: LandingShape;
   tempo: Tempo;
   children: React.ReactNode;
 }
@@ -65,7 +76,8 @@ const readSaveData = () =>
 
 export function LandingScreen({
   mode,
-  pictures,
+  reels,
+  initialShape,
   tempo,
   children,
 }: LandingScreenProps) {
@@ -80,27 +92,38 @@ export function LandingScreen({
     readSaveData,
     onServer,
   );
-  const isStatic = mode === "static" || reduce;
+  const isStatic = mode === "static";
+  // A phone held upright draws the tall reel, anything wider the wide one (09-25-26): a wide
+  // picture covering a tall screen is scaled to its height and cropped to a blurry middle.
+  const portrait = useMediaQuery(
+    "(orientation: portrait)",
+    initialShape === "portrait",
+  );
+  const pictures = portrait ? reels.portrait : reels.landscape;
 
   // The reader's own say about the sheet, once they've had one — the first pass raising it, the
   // glyph, a collapse. Until then (`null`) the mode decides: static arrives with it up.
   const [opened, setOpened] = React.useState<boolean | null>(null);
   const open = hydrated && (opened ?? isStatic);
 
-  // Static and reduced-motion readers get one still. Save-Data readers get the overture and the
-  // first picture, and then nothing more is downloaded: to the reel hook it is one picture long.
+  // Static readers get one still. Save-Data readers get the overture and the first picture, and
+  // then nothing more is downloaded: to the reel hook it is one picture long.
   const shown = React.useMemo(
     () => (isStatic || saveData ? pictures.slice(0, 1) : pictures),
     [isStatic, saveData, pictures],
   );
 
-  // Keyed on the route and the reader's motion preference — both of which the server treats as
-  // "cycle, full motion", so the server renders the opening line and the client drops it for a
-  // reduced-motion reader one render later (it is `aria-hidden` and never interactive).
-  const { phase } = useOverture(mode === "cycle" && !reduce);
+  // Every `cycle` reader gets the overture and its collapse (the server renders its `in` phase for
+  // all of them, D8); reduced motion changes the reel, not the line (Ben, 09-26-26).
+  const { phase } = useOverture(mode === "cycle");
 
+  // Reduced motion picks the tempo (D6, 09-26-26): the gentle one — the dissolve with nothing but
+  // opacity moving — in place of whatever the server resolved. Read after hydration like `saveData`
+  // (D8); for the hydration render the tempo is the server's, and nothing is fetched on that
+  // render (see the `hydrated` gate on `usePictures`), so no reader pays for the wrong tempo.
+  const baseTempo = reduce ? TEMPOS.gentle : tempo;
   // Behind the sheet the reel changes gear (D5): the same hook, the gentler tempo.
-  const effectiveTempo = open ? TEMPOS[tempo.behindSheet] : tempo;
+  const effectiveTempo = open ? TEMPOS[baseTempo.behindSheet] : baseTempo;
 
   // `usePictures` needs the reel's index and `useReel` needs what `usePictures` has decoded — a
   // cycle between two hooks. Broken by mirroring the index one render late (React's
@@ -138,11 +161,11 @@ export function LandingScreen({
 
   const { advance } = reel;
 
-  // Collapsing replays the reel from the top rather than picking a fresh one — a reader who ducked
-  // back out to look at the pictures is asking for *those* pictures again.
+  // Collapsing carries on from the picture on screen, with the first pass re-armed so the sheet
+  // rises again after another run (Ben, 09-26-26 — it used to jump back to the first picture).
   const collapse = () => {
     setOpened(false);
-    reel.restart();
+    reel.rearm();
   };
 
   // ←/→ step the reel — unless a form field has focus, or a modifier is held (Alt/⌘+← is the
@@ -166,7 +189,9 @@ export function LandingScreen({
     >
       <LandingReel
         pictures={shown}
-        index={isStatic ? 0 : reel.index}
+        // Modulo: turning the phone swaps reels mid-run, and the two can differ in length (a
+        // fallback is one picture).
+        index={isStatic ? 0 : reel.index % shown.length}
         prev={isStatic ? null : reel.prev}
         tempo={effectiveTempo}
         started={isStatic || reel.started}

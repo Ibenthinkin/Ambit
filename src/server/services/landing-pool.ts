@@ -13,13 +13,14 @@
 // **The fallback is not an error path.** A fresh install and CI's fixture-only database have an
 // empty pool by construction; both must show a landing that looks like Ambit. One committed
 // public-domain picture does that.
+import { landingShape, type LandingShape } from "~/server/config/landing-pool";
 import { listLandingPool } from "~/server/db/items";
 
 export interface ReelPicture {
   id: string;
-  /** What the `<img src>` is: the 960 rendition through the proxy, or a `data:` URL verbatim. */
+  /** What the `<img src>` is: the proxied master, or a `data:` URL verbatim. */
   src: string;
-  /** Two candidates for the browser to choose between by `sizes`; null for `data:`. */
+  /** Unused since 09-25-26 (always null) — kept on the type so a future rendition can return. */
   srcSet: string | null;
 }
 
@@ -50,21 +51,22 @@ export function pickReel<T>(
 }
 
 /**
- * The `src`/`srcset` pair for one picture. Pure, so the client tests can build fixtures with it.
+ * The `src` for one picture. Pure, so the client tests can build fixtures with it.
  *
- * `sizes` lives on the `<img>` (landing-reel.tsx), not here: `(min-width: 768px) 100vw, 50vw` —
- * below `md` a phone takes the 960 (0.8 device pixels per image pixel at 3×, invisible behind a
- * moving surface), from `md` the master. The `1600w` descriptor is nominal (D3): a smaller master
- * is not enlarged, the browser only uses the number to choose.
+ * **The master, not the 960 rendition (09-25-26).** The reel is full-bleed on a 3× phone, which
+ * needs every pixel a picture has: the tall pool's median master is 893 px high, under 960
+ * anyway, and serving the rendition with `sizes="50vw"` is what made Ben's first device look a
+ * blurry close-up. The rendition stays available in the image route; nothing here uses it.
  */
 export function reelPicture(id: string, imageUrl: string): ReelPicture {
   if (imageUrl.startsWith("data:")) return { id, src: imageUrl, srcSet: null };
-  const master = `/api/img/${id}`;
-  const small = `${master}?w=960`;
-  return { id, src: small, srcSet: `${small} 960w, ${master} 1600w` };
+  return { id, src: `/api/img/${id}`, srcSet: null };
 }
 
-type PoolRow = { id: string; imageUrl: string };
+/** One reel per screen shape: tall pictures for a phone held upright, wide ones for a computer. */
+export type Reels = Record<LandingShape, ReelPicture[]>;
+
+type PoolRow = { id: string; imageUrl: string; width: number; height: number };
 let memo: { rows: PoolRow[]; at: number } | null = null;
 
 /** Tests only: forget the memo between cases. */
@@ -82,16 +84,36 @@ async function pool(): Promise<PoolRow[]> {
   return rows;
 }
 
-/** What `app/page.tsx` awaits. Never throws: a database problem is a fallback, not a 500 on `/`. */
-export async function getReel(n: number = REEL_SIZE): Promise<ReelPicture[]> {
+const FALLBACK_REELS: Reels = {
+  portrait: [FALLBACK_PICTURE],
+  landscape: [FALLBACK_PICTURE],
+};
+
+/**
+ * What `app/page.tsx` awaits: a tall reel and a wide reel, the page choosing between them by the
+ * reader's screen. Never throws — a database problem is the fallback, not a 500 on `/`. A shape
+ * with no pictures (a fresh install, CI's fixtures) falls back on its own; the other is unaffected.
+ */
+export async function getReels(n: number = REEL_SIZE): Promise<Reels> {
   let rows: PoolRow[];
   try {
     rows = await pool();
   } catch (err) {
     // Logged, not rethrown: instrumentation.ts mails on unhandled throws, and this one is handled.
     console.error("landing-pool: query failed, serving the fallback", err);
-    return [FALLBACK_PICTURE];
+    return FALLBACK_REELS;
   }
-  if (rows.length === 0) return [FALLBACK_PICTURE];
-  return pickReel(rows, n).map((r) => reelPicture(r.id, r.imageUrl));
+  const byShape: Record<LandingShape, PoolRow[]> = {
+    portrait: [],
+    landscape: [],
+  };
+  for (const r of rows) {
+    const shape = landingShape(r.width, r.height);
+    if (shape) byShape[shape].push(r);
+  }
+  const reel = (shape: LandingShape) =>
+    byShape[shape].length === 0
+      ? [FALLBACK_PICTURE]
+      : pickReel(byShape[shape], n).map((r) => reelPicture(r.id, r.imageUrl));
+  return { portrait: reel("portrait"), landscape: reel("landscape") };
 }

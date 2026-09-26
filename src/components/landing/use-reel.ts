@@ -10,7 +10,7 @@ import type { Tempo } from "./tempos";
 //
 // **One setTimeout per frame, never setInterval.** React 19 StrictMode double-invokes updaters; a
 // timeout armed by an effect and cancelled by that effect's own cleanup can never leave two timers
-// alive. `epoch` bumps on every manual step or restart so the next automatic step is a full frame
+// alive. `epoch` bumps on every manual step or re-arm so the next automatic step is a full frame
 // from *now*; the tempo's `frameMs` is a dependency too, so the gear change behind the sheet
 // applies immediately.
 //
@@ -53,8 +53,13 @@ export interface Reel {
   started: boolean;
   /** Raise the sheet now (the glyph). Idempotent; the pictures keep moving. */
   skip: () => void;
-  /** Back to frame 0 with the first pass re-armed (the sheet was collapsed). */
-  restart: () => void;
+  /**
+   * The sheet was collapsed: re-arm the first pass, and let the picture on screen hold a full frame
+   * before the next. It deliberately does not go back to frame 0 — that jump read as the picture
+   * "quickly changing back to a specific image every time" (Ben, 09-26-26), and at index ≥ 2 it
+   * cut the current picture to black before the first faded in.
+   */
+  rearm: () => void;
   /** Step one ready frame either way, wrapping, and start the next automatic step from now. */
   advance: (dir: 1 | -1) => void;
 }
@@ -63,13 +68,9 @@ interface Frame {
   index: number;
   prev: number | null;
 }
-type FrameAction =
-  | { type: "go"; to: number }
-  | { type: "start"; at: number }
-  | { type: "reset" };
+type FrameAction = { type: "go"; to: number } | { type: "start"; at: number };
 
 function frameReducer(state: Frame, action: FrameAction): Frame {
-  if (action.type === "reset") return { index: 0, prev: null };
   // The gate opening on a picture other than 0 (0 failed): a first frame, so nothing is leaving.
   if (action.type === "start") return { index: action.at, prev: null };
   return { index: action.to, prev: state.index };
@@ -219,10 +220,9 @@ export function useReel({
     [count, frame.index, nextReady, goTo],
   );
 
-  const restart = React.useCallback(() => {
+  const rearm = React.useCallback(() => {
     firedRef.current = false;
     shown.current = 1;
-    dispatch({ type: "reset" });
     setHeld(false);
     setEpoch((e) => e + 1);
   }, []);
@@ -232,7 +232,7 @@ export function useReel({
     prev: frame.prev,
     started,
     skip: fire,
-    restart,
+    rearm,
     advance,
   };
 }

@@ -114,8 +114,10 @@ of the effect):
 | 1.4 s | the tail (` — A quieter way to be curious.`) collapses over 2.2 s on `cubic-bezier(.4, 0, .2, 1)` and fades over 1.6 s; the line is centre-anchored, so **the wordmark drifts to centre as the tail shrinks** — one continuous motion |
 | ≈ 3.6 s | **hard cut**: the line is dropped and the first picture snaps to full opacity in the same frame (the reference's `show-slideshow` moment). No fade. |
 
-Then the reel (D5). The wordmark **stays on screen** at fixed size over the pictures, white,
-`mix-blend-mode: difference`, until the sheet rises; it does not grow (the reference's
+Then the reel (D5). **Amended 09-26-26 (Ben): the wordmark goes with the cut** — "remove the text
+hovering in the middle of the images" — so the reel runs with no text over it. (It had stayed on
+screen at fixed size over the pictures, white, `mix-blend-mode: difference`, until the sheet rose.)
+It never grows (the reference's
 `dope-breathe` and `intro-logo-grow` are the "zoom on the word" Ben waived). The bottom gradient
 that keeps the sheet's edge legible stays.
 
@@ -146,25 +148,36 @@ node and the client reads it without the DB layer):
 
 ```ts
 interface Tempo {
-  id: "cut" | "dissolve";
+  id: "cut" | "dissolve" | "gentle";
   frameMs: number;        // how long a picture holds
   fadeMs: number;         // cross-fade; 0 = hard cut
   firstPass: number;      // pictures shown before the sheet rises
   gateFrames: number;     // decoded pictures required before the reel starts
   drift: boolean;         // slow 1.00 → 1.06 scale over the frame (transform only)
+  softStart: boolean;     // the first frame fades in from black instead of cutting (09-26-26)
   behindSheet: Tempo["id"]; // which tempo runs once the sheet is up
 }
 ```
 
-| | **`cut`** | **`dissolve`** |
-|---|---|---|
-| `frameMs` | **350** | **6000** |
-| `fadeMs` | 0 — a hard cut | **2500** |
-| `firstPass` | 12 (≈ 4.2 s) | 2 (≈ 8 s from the cut) |
-| `gateFrames` | 4 | 1 |
-| `drift` | no | yes |
-| `behindSheet` | `dissolve` | `dissolve` |
-| prefetch | all 12 at once, streaming | one ahead |
+| | **`cut`** | **`dissolve`** | `gentle` (09-26-26) |
+|---|---|---|---|
+| `frameMs` | **350** | **2000** (was 6000, then 3000, then 2500) | 2000 |
+| `fadeMs` | 0 — a hard cut | **1000** (was 2500, then 1200) | 1000 |
+| `firstPass` | 12 (≈ 4.2 s) | **8** (≈ 20 s from the first picture; was 2) | 8 |
+| `gateFrames` | 4 | 1 | 1 |
+| `drift` | no | yes | no |
+| `softStart` | no | no | **yes** |
+| `behindSheet` | `dissolve` | `dissolve` | `gentle` |
+| prefetch | all 12 at once, streaming | one ahead | one ahead |
+
+**Ben's pick, 09-26-26: the dissolve, at 3 s a picture** ("the change is just too slow" at 6 s, on
+the phone and the computer alike). The fade went to 1.2 s with it, so a picture still holds before
+it goes. Same evening, second look: "a bit faster and show 8 images before opening the signup
+tray" — 2.5 s, a 1 s fade, and a first pass of 8. Third look: "quicker, 2 seconds, keep the 1
+second fade". `DEFAULT_TEMPO` is `dissolve`; `cut` stays in the code until plan Task 9 deletes it.
+
+`gentle` is not a candidate: it is what a reduced-motion reader gets in place of either (D6). Its
+own gear behind the sheet, because relaxing to `dissolve` would bring the drift back.
 
 *Why 350 and not the reference's 320:* WCAG 2.3.1 caps flashing at three per second. 320 ms is
 3.1 changes/s; 350 is 2.9. Same feel, one fewer thing to answer for.
@@ -172,7 +185,9 @@ interface Tempo {
 *Why the cut tempo relaxes behind the sheet:* the reference's intro leaves once its grid arrives;
 Ambit's pictures stay behind a form the reader is typing into, and a 3 Hz strobe under a text
 field is hostile. The 09-10 "never stops" rule holds — the reel changes gear. Collapse the sheet
-(the logo disc) and it is back to full speed from the top, as today's `restart`.
+(the logo disc) and it is back to full speed — **from the picture on screen, amended 09-26-26** (it went back to
+the top until Ben saw that as "the image quickly changes back to a specific image every time"; now
+`rearm()` keeps the picture and re-arms the first pass).
 
 **Selection.** `DEFAULT_TEMPO: Tempo["id"]` in `tempos.ts` is what production runs.
 `?tempo=cut|dissolve` on `/` overrides it **only when `feedDebugEnabled()`** (the same gate as
@@ -189,7 +204,7 @@ what makes `behindSheet` expressible), the second preset does not.
   bitmap survives re-renders. (5.11 mounted all eight because it needed them all for the fade;
   with one-ahead prefetch it needs three.)
 - The reel wraps (`(i + 1) % n`); the first pass fires `onFirstPass` exactly once (a ref, for the
-  StrictMode reason 5.11's hook records). `skip()`, `restart()`, `advance(±1)` keep their
+  StrictMode reason 5.11's hook records). `skip()`, `rearm()` (was `restart()`), `advance(±1)` keep their
   contracts — the glyph, the collapse, tap-to-next and ←/→ are unchanged.
 - **The grade is gone.** 5.11's `saturate(.72) contrast(1.06)` made eight postcards read as one
   surface; the reference's effect is pictures in their own colour under a pure black cut. Full
@@ -199,9 +214,18 @@ what makes `behindSheet` expressible), the second preset does not.
 
 - The floating "Open sign-in" glyph and the sheet's "Back to the slideshow" disc are unchanged
   (the e2e suite's `openAuthSheet` depends on the first). Tap on the imagery = next. ←/→ step.
-- **Reduced motion:** the overture is skipped, one still is shown, the sheet is up — exactly
-  today's behaviour and today's e2e test. Read after hydration through `useMediaQuery`, never in
-  the server render (the 09-10 lesson; D8).
+- **Reduced motion (rewritten 09-26-26):** the reader gets the show, gently. **The overture is the
+  same as everyone's** — the line fades in, the tail collapses into the wordmark, and the line goes
+  with the cut. (For a few hours it was a plain opacity fade instead; on Ben's two devices, both with
+  Reduce Motion on, that read as "the text animation is gone", and he asked for the collapse back.)
+  The reel is what changes: the `gentle` tempo (D5), the dissolve's clock (2 s / 1 s) with no drift
+  and a soft start, so even the first frame fades in from black. The sheet rises on the gentle first pass
+  (the dissolve's: eight frames). Still read after hydration through `useMediaQuery`, never in the server render
+  (D8): the server renders phase `in` for everyone, which is now what every reader sees first,
+  and the preference only changes what happens from the collapse on. `globals.css`'s 0.01 ms
+  collapse exempts the reel and overture roots (`.motion-gentle`) and nothing else — the sheet
+  still collapses. *History:* until 09-26 this bullet said "one still, sheet up"; that was what Ben
+  saw on both his devices (Reduce Motion on) and reported as "no animation at all".
 - **`Save-Data`** (`navigator.connection.saveData === true`): the reel stops after the first
   picture; the overture still plays. Cheap, and the honest thing on a metered connection.
 - The service worker: `/api/img/*` is already CacheFirst (150 entries), so the reel's pictures
@@ -244,6 +268,39 @@ The sheet's three lines ("A quieter way to be curious." / "No feeds engineered t
 "Ambit") stay as they are. The overture's line reuses the first. The vault's "rewrite all copy"
 item is its own small task once the tempo is chosen — settling a voice under a motion decision
 that has not been made would be settling it twice.
+
+## Amendment, 09-25-26 — tall pictures for phones, wide ones for computers
+
+**Ben's first device look:** "the second image is a super blurry close up … I think we need to have
+different image sets for phones screen sizes vs computer screen sizes, or crop them so they look
+ok." Measured cause: the reel is full-bleed `object-fit: cover`, so a wide picture on an upright
+phone is scaled to the screen's *height* and cropped to its middle; D3's `sizes="50vw"` then made
+the browser choose the 960 rendition, stretched ~4× on a 3× iPhone. Cropping cannot help — it is
+zooming — and the masters are small (the pool's tall pictures: median 893 px high; a 3× phone is
+~2,550 device px tall). Ben chose **option A** of three offered (A: shape-matched sets; B: show
+pictures whole, not full-bleed; C: A plus fetching bigger originals):
+
+- **Each item records its cached master's size** — `item.image_width` / `image_height` (migration
+  0009). `img:warm` writes them as it fills; `bun run img:dims [--landing]` backfills from the
+  cache, header-only, and **runs non-fatally on every container boot**. An unmeasured row is not
+  in the landing pool.
+- **Two pools** (`landingShape`, config/landing-pool.ts): **tall** 0.4 ≤ w/h ≤ 0.8 and **wide**
+  1.25 ≤ w/h ≤ 2, each with a long edge ≥ 800 px. The outer limits drop needles and panoramas that
+  would cover a screen only by being blown up (the first 1440 look drew a 6 : 1 panorama). Square
+  pictures sit out. Locally 387 tall / 396 wide of 1,616 measured (production ≈ 1.7× that).
+- **Two reels per visit**, `getReels()` → `{ portrait, landscape }`. The server preloads the reel
+  its user-agent guess needs (`guessShape`: a phone is upright; an iPad reports itself as a Mac and
+  counts as wide); the screen picks by `(orientation: portrait)`, with the guess as the query's
+  server snapshot so hydration agrees, and the real orientation replaces it one render later.
+  Turning a phone swaps reels mid-run.
+- **The master, not the 960 rendition** — every pixel is needed full-bleed. D3's rendition stays
+  in the image route (closed set, tested) but nothing uses it. Without a `srcset`, React sends the
+  preloads as an HTTP `Link` header rather than `<link>` tags.
+
+Not done, recorded: **C** (bigger originals for the landing pool) is the only route to sharp
+full-bleed on a 3× phone, and depends on each source offering one. Reduced motion was the cause of
+the "no motion" reports on both his devices, confirmed 09-26-26; D6 is rewritten — the gentle
+version — and `docs/PLAN_landing-reduced-motion.md` built it.
 
 ## The budget — stated honestly
 

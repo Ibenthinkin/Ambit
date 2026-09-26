@@ -32,17 +32,18 @@ describe("Overture", () => {
     expect(tail.style.transition).not.toMatch(/width|left|margin/);
   });
 
-  it("done: the tail is gone and the mark stays", () => {
+  // Ben, 09-26-26: no text hovering over the slideshow. The line collapses into the wordmark and
+  // the wordmark goes with the cut — the reel runs clean.
+  it("done: nothing renders — the wordmark does not stay over the reel", () => {
     render(<Overture phase="done" />);
-    expect(screen.queryByTestId("overture-tail")).not.toBeInTheDocument();
-    expect(screen.getByTestId("overture-mark")).toBeInTheDocument();
+    expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
   });
 
   // The blend must sit on the fixed layer itself: a `position: fixed` + z-index element is its own
   // stacking context, so a blended child inside it blends against that empty group and never
   // reaches the pictures (seen on the 09-25 device pass — white text on light ice).
   it("blends in difference at the fixed layer, not on a child inside its stacking context", () => {
-    render(<Overture phase="done" />);
+    render(<Overture phase="in" />);
     expect(screen.getByTestId("overture").className).toContain(
       "mix-blend-difference",
     );
@@ -56,13 +57,22 @@ describe("Overture", () => {
     expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
   });
 
-  // Reduced motion is a client-only answer (D8), so the server always renders the overture; this
-  // CSS media variant hides it before any script runs, so a reduced-motion reader never sees the
-  // line fade in between first paint and hydration.
-  it("is hidden by CSS for reduced-motion readers, before hydration can say so", () => {
+  // Reduced motion (D6): the line is for every reader, and — Ben, 09-26-26 — so is its collapse.
+  // The root opts out of globals.css's 0.01 ms rule, or the 2.2 s collapse would be a jump.
+  it("is not hidden for reduced-motion readers, and opts out of the global collapse", () => {
     render(<Overture phase="in" />);
-    expect(screen.getByTestId("overture").className).toContain(
-      "motion-reduce:hidden",
-    );
+    const line = screen.getByTestId("overture");
+    expect(line.className).not.toContain("motion-reduce:hidden");
+    expect(line.className).toContain("motion-gentle");
+  });
+});
+
+describe("Overture — the fade-in runs while the line is up", () => {
+  // Fill-less, so a finished fade-in never holds opacity against anything (final review, 09-26).
+  it.each(["in", "collapse"] as const)("%s", (phase) => {
+    render(<Overture phase={phase} />);
+    const { animation } = screen.getByTestId("overture").style;
+    expect(animation).toContain("overture-in 500ms");
+    expect(animation).not.toContain("both");
   });
 });

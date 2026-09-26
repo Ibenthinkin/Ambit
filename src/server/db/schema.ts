@@ -194,6 +194,12 @@ export const item = pgTable(
     summary: text("summary"), // lede / synopsis
     body: text("body"), // full article text; articles only
     imageUrl: text("image_url"), // images / illustrated articles
+    // The cached master's pixel size (not the source's): what the landing reel reads to give a
+    // phone tall pictures and a computer wide ones (docs/DESIGN_landing-redo.md, 09-25-26
+    // amendment). Written by `img:warm` when it fills a master and backfilled by `img:dims`; NULL
+    // until the image has been cached, and a NULL row is simply not in the landing pool.
+    imageWidth: integer("image_width"),
+    imageHeight: integer("image_height"),
     sourceUrl: text("source_url").notNull(), // canonical link back to the source
     attribution: text("attribution"), // required by some sources' terms
     license: text("license"),

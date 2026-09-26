@@ -179,24 +179,6 @@
       transform: rotate(360deg);
     }
   }
-  /* The landing overture's line arriving (docs/DESIGN_landing-redo.md D4): opacity only. */
-  @keyframes overture-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-  /* The dissolve tempo's slow drift (D5): transform only, so it composites. */
-  @keyframes reel-drift {
-    from {
-      transform: scale(1);
-    }
-    to {
-      transform: scale(1.06);
-    }
-  }
   @keyframes toast-in {
     /* Deliberately Y-only — the prototype's version baked `translate(-50%, ...)` into this same
        keyframe to handle horizontal centering, which makes the transform load-bearing for layout.
@@ -352,15 +334,45 @@
   }
 }
 
+/* The landing's two keyframes live out here, not in `@theme` with the others: Tailwind v4 emits a
+   theme keyframe only when an `--animate-*` token uses it, and these are named from inline styles
+   (`overture.tsx`, `landing-reel.tsx`), not utilities — inside `@theme` they were dropped from
+   the build, and the overture's fade-in and the dissolve's drift never ran (found 09-26-26;
+   `globals.test.ts` compiles this file to pin it). */
+/* The landing overture's line arriving (docs/DESIGN_landing-redo.md D4): opacity only. */
+@keyframes overture-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* The dissolve tempo's slow drift (D5): transform only, so it composites. */
+@keyframes reel-drift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
 /* Honor the OS "reduce motion" setting everywhere at once. The design system is animation-heavy
    by nature (rise-in on nearly every screen, sheets, toasts, the gallery's chrome cycle), and all
    of it is decorative — no animation in this app conveys information that isn't also in the DOM,
    so collapsing every duration to ~0 is safe and is the accessible default. Deliberately a
-   Phase 5.4 addition beyond the handoff, which specifies no reduced-motion behavior. */
+   Phase 5.4 addition beyond the handoff, which specifies no reduced-motion behavior.
+
+   One opt-out (09-26-26, docs/DESIGN_landing-redo.md D6): the landing's reel and overture carry
+   `.motion-gentle`. Under reduced motion they run the `gentle` tempo — opacity-only cross-fades,
+   no drift, no cuts — which *is* their reduced-motion version; collapsing those fades to 0.01 ms
+   would turn them back into the hard cuts the preference asked not to see. Nothing else opts out:
+   the sheet is outside both subtrees and still collapses. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :not(.motion-gentle, .motion-gentle *),
+  :not(.motion-gentle, .motion-gentle *)::before,
+  :not(.motion-gentle, .motion-gentle *)::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

@@ -45,7 +45,9 @@ describe("LandingReel", () => {
     expect(current!.style.opacity).toBe("1");
     expect(leaving!.style.opacity).toBe("0");
     expect(next!.style.opacity).toBe("0");
-    expect(current!.style.transition).toContain("opacity 2500ms");
+    expect(current!.style.transition).toContain(
+      `opacity ${TEMPOS.dissolve.fadeMs}ms`,
+    );
   });
 
   it("cut: no transition and no drift — a hard cut", () => {
@@ -87,7 +89,9 @@ describe("LandingReel", () => {
       />,
     );
     const [leaving, , next] = imgs();
-    expect(leaving!.style.animation).toContain("reel-drift 8500ms");
+    expect(leaving!.style.animation).toContain(
+      `reel-drift ${TEMPOS.dissolve.frameMs + TEMPOS.dissolve.fadeMs}ms`,
+    );
     expect(next!.style.animation).toBe("");
   });
 
@@ -101,7 +105,9 @@ describe("LandingReel", () => {
         started
       />,
     );
-    expect(imgs()[1]!.style.animation).toContain("reel-drift 8500ms");
+    expect(imgs()[1]!.style.animation).toContain(
+      `reel-drift ${TEMPOS.dissolve.frameMs + TEMPOS.dissolve.fadeMs}ms`,
+    );
   });
 
   it("carries srcset and sizes on a proxied layer, and neither on a data: picture", () => {
@@ -160,6 +166,19 @@ describe("LandingReel", () => {
     for (const i of imgs()) expect(i.style.filter).toBe("");
   });
 
+  it("a leaving index from a longer reel (the phone was turned) is dropped, not crashed on", () => {
+    render(
+      <LandingReel
+        pictures={pics.slice(0, 1)}
+        index={0}
+        prev={4}
+        tempo={TEMPOS.dissolve}
+        started
+      />,
+    );
+    expect(imgs().map((i) => i.dataset.id)).toEqual(["p0"]);
+  });
+
   it("a one-picture reel mounts one layer", () => {
     render(
       <LandingReel
@@ -187,5 +206,56 @@ describe("LandingReel", () => {
     );
     fireEvent.click(screen.getByTestId("landing-reel"));
     expect(onTap).toHaveBeenCalledTimes(1);
+  });
+
+  // The reduced-motion tempo (D6, 09-26-26): a cut into the first frame is motion too.
+  it("gentle: the first frame fades in from black instead of cutting", () => {
+    render(
+      <LandingReel
+        pictures={pics}
+        index={0}
+        prev={null}
+        tempo={TEMPOS.gentle}
+        started
+      />,
+    );
+    const first = imgs()[0]!;
+    expect(first.style.opacity).toBe("1");
+    expect(first.style.transition).toContain(
+      `opacity ${TEMPOS.dissolve.fadeMs}ms`,
+    );
+  });
+
+  it("gentle: cross-fades without drift — nothing but opacity moves", () => {
+    render(
+      <LandingReel
+        pictures={pics}
+        index={2}
+        prev={1}
+        tempo={TEMPOS.gentle}
+        started
+      />,
+    );
+    const [leaving, current] = imgs();
+    expect(current!.style.transition).toContain(
+      `opacity ${TEMPOS.dissolve.fadeMs}ms`,
+    );
+    expect(current!.style.animation).toBe("");
+    expect(leaving!.style.animation).toBe("");
+  });
+
+  it("opts out of the global reduced-motion collapse: its fades are the reduced version", () => {
+    render(
+      <LandingReel
+        pictures={pics}
+        index={0}
+        prev={null}
+        tempo={TEMPOS.gentle}
+        started
+      />,
+    );
+    expect(screen.getByTestId("landing-reel").className).toContain(
+      "motion-gentle",
+    );
   });
 });

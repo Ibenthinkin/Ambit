@@ -12,35 +12,68 @@ describe("tempos", () => {
       firstPass: 12,
       gateFrames: 4,
       drift: false,
+      softStart: false,
       behindSheet: "dissolve",
     });
   });
 
-  it("dissolve: 6 s frames, 2.5 s fade, 2 before the sheet, 1 decoded to start, drifts", () => {
+  // Ben, 09-26-26, after the phone look: 6 s was "just too slow" — 3 s a picture, the fade cut to
+  // 1.2 s so a picture still holds before it goes (the old 6 : 2.5 ratio, roughly).
+  // Then "a bit faster, and 8 images before the sign-up tray": 2.5 s, a 1 s fade; then "quicker,
+  // 2 seconds, keep the 1 second fade".
+  it("dissolve: 2 s frames, 1 s fade, 8 before the sheet, 1 decoded to start, drifts", () => {
     expect(TEMPOS.dissolve).toEqual({
       id: "dissolve",
-      frameMs: 6000,
-      fadeMs: 2500,
-      firstPass: 2,
+      frameMs: 2000,
+      fadeMs: 1000,
+      firstPass: 8,
       gateFrames: 1,
       drift: true,
+      softStart: false,
       behindSheet: "dissolve",
     });
+  });
+
+  // The reduced-motion tempo (D6, 09-26-26): the dissolve with no drift and no hard cut anywhere —
+  // the first frame fades in from black too. Opacity is the only thing that moves.
+  it("gentle: the dissolve's clock without drift, and a soft start; it is its own gear behind the sheet", () => {
+    expect(TEMPOS.gentle).toEqual({
+      id: "gentle",
+      frameMs: 2000,
+      fadeMs: 1000,
+      firstPass: 8,
+      gateFrames: 1,
+      drift: false,
+      softStart: true,
+      behindSheet: "gentle",
+    });
+  });
+
+  it("gentle keeps the dissolve's clock and first pass, so the two can't drift apart", () => {
+    expect(TEMPOS.gentle.frameMs).toBe(TEMPOS.dissolve.frameMs);
+    expect(TEMPOS.gentle.fadeMs).toBe(TEMPOS.dissolve.fadeMs);
+    expect(TEMPOS.gentle.firstPass).toBe(TEMPOS.dissolve.firstPass);
+  });
+
+  it("production runs the dissolve (Ben's pick, 09-26-26)", () => {
+    expect(DEFAULT_TEMPO).toBe("dissolve");
   });
 
   it("cut stays under WCAG 2.3.1's three flashes a second", () => {
     expect(1000 / TEMPOS.cut.frameMs).toBeLessThan(3);
   });
 
-  it("resolveTempo honours the param only when overrides are allowed", () => {
+  it("resolveTempo honours the param only when overrides are allowed, and never resolves gentle", () => {
     expect(resolveTempo("dissolve", true).id).toBe("dissolve");
     expect(resolveTempo("dissolve", false).id).toBe(DEFAULT_TEMPO);
+    expect(resolveTempo("gentle", true).id).toBe(DEFAULT_TEMPO);
     expect(resolveTempo("nonsense", true).id).toBe(DEFAULT_TEMPO);
     expect(resolveTempo(undefined, true).id).toBe(DEFAULT_TEMPO);
   });
 
-  it("wantedAhead: cut prefetches the whole reel, dissolve one ahead", () => {
+  it("wantedAhead: cut prefetches the whole reel, dissolve and gentle one ahead", () => {
     expect(wantedAhead(TEMPOS.cut)).toBe(Infinity);
     expect(wantedAhead(TEMPOS.dissolve)).toBe(1);
+    expect(wantedAhead(TEMPOS.gentle)).toBe(1);
   });
 });

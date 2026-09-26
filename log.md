@@ -5,6 +5,98 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
+
+**Ben's second phone look (on `fix/landing-orientation`, `e4bffb5`):** "the images are sized
+properly but there's no text animation or slideshow at all." So option A worked. The motion
+failure is the same one as the first look: **no overture and no reel on his phone**, only a still.
+
+**Leading hypothesis, unconfirmed:** iOS Reduce Motion is on. That is exactly what the build does
+under `prefers-reduced-motion`: it skips the overture (`motion-reduce:hidden` plus
+`useOverture(false)`) and shows one still with the sheet up. Evidence from the first look: the dev
+log showed his visits fetching only the preloaded pictures, which only happens on that path. WebKit
+emulating an iPhone 15 without reduced motion runs everything. **First step next session:** Ben
+reads Settings → Accessibility → Motion → Reduce Motion.
+- **If it's on:** decide what reduced motion should get. The recommendation is to keep the
+  overture as a plain fade and the reel as slow cross-fades with no zoom and no hard cuts (what iOS
+  itself does), rather than a single still.
+- **If it's off:** it's a real device bug. Debug on the phone itself (Safari Web Inspector over
+  USB, or log the `matchMedia` answers to the server). Don't guess from emulation again.
+
+**State:** `fix/landing-orientation` is committed and **not merged, not pushed** (Ben: "log and
+commit, don't push"). `main` has 8.3 merged (`0c0e8d8`, 9 ahead of origin, unpushed). After the
+motion question: merge the fix branch, then the profile mark with Ben (he found all three
+candidates "boring, uninspired, nonsensical" — start from what he wants, not from those), then plan
+Task 9's tempo half, then push, deploy, and let the boot's `img:dims` run. The dev server may still
+be running on :3000 from this session; Loupe's was stopped and needs restarting.
+
+*Session spend: 4.16M tok (in 26 · out 5.3k · cache r 4.02M / w 136.0k) · ~≥$0.83 · opus-5-5 + opus-4-7 · 22:59→23:01*
+
+**Later the same day (Fable) — diagnosed: Reduce Motion, on both devices; the build's still was
+the bug.** Ben widened the report to "no text animation or slideshow at all on phone *or*
+computer", which weakened the iOS-only hypothesis — and then confirmed it in a bigger form.
+Reproduced on his Mac: an un-emulated Chrome on this branch reports
+`matchMedia("(prefers-reduced-motion: reduce)").matches === true` with no overture element, one
+still, sheet up at once — the D6 path exactly. That answer is the OS's (System Settings →
+Accessibility → Display → Reduce motion) and Firefox, Chrome and Safari all follow it, so it is
+not browser-specific; the phone's "only the preloads fetched" signature from the first look is the
+same path. The counterfactual proved it: Playwright emulating `reducedMotion: no-preference`
+against the same server was caught mid-show at 6.1 s — tail collapsed, `AMBIT` alone over a
+cutting three-layer reel, glyph up. Ruled out by evidence, not by reading: hydration, the
+keyframes, image decode. Two things found on the way: **port 3000 is held by
+`~/Dev/ambit-topic-groups`'s `next start` + Playwright run since 09:05** (a production build with
+8.3 but not the shape fix, so `localhost:3000` and the tailnet show the wrong thing right now); and
+`globals.css`'s reduced-motion rule collapses *every* duration to 0.01 ms, so a gentle landing
+needs an opt-out or its fades are instant.
+
+**Decision (Ben): the gentle version.** Reduced motion gets the overture as a plain fade and the
+reel as drift-free slow cross-fades with a soft start — what iOS itself does — not a still, and
+not the full show. Written up as `docs/PLAN_landing-reduced-motion.md` (seven tasks: a `gentle`
+tempo with `softStart`, a `.motion-gentle` opt-out in the global rule, the overture's fade-only
+collapse, the reel's soft start, the screen selecting the tempo by preference, the e2e test
+measuring computed durations, docs). Execute cold in a cheaper session on
+`fix/landing-orientation`; after it, Ben's phone — Reduce Motion still on — is the review device.
+
+**Open / next:** execute the plan → Ben's phone look → merge `fix/landing-orientation` → the mark
+with Ben → Task 9 → push, deploy. Kill the stale topic-groups run on :3000 before any device pass.
+
+*Session spend: 9.04M tok (in 2.1k · out 146.1k · cache r 8.50M / w 388.6k) · fable-5-1 · 09:05→09:29*
+
+**Shipped (Opus 5.5, same session): the plan, all seven tasks, on `fix/landing-orientation`.**
+`TEMPOS.gentle` (6 s / 2.5 s, no drift, `softStart`), `.motion-gentle` exempting the reel and
+overture roots from `globals.css`'s 0.01 ms collapse, the overture's `gentle` collapse (the whole
+line fades, then the wordmark alone re-fades in on a re-keyed root), the reel's soft first frame,
+and `LandingScreen` choosing the tempo by preference — `isStatic` is the route alone now. Unit
+1,407 green; the e2e reduced-motion test measures `0.5s` / `2.5s` computed durations and passes.
+**One finding for Ben:** a parallel local `bun run e2e:prod` now goes red on
+`security.spec`'s "API routes carry nosniff" with a **429** from `/api/img` (2 of 2 runs; base
+57/57; serial on this branch 57/57). The suite spends `/api/img`'s 600/min per-IP budget from
+127.0.0.1 in ~48 s against the real corpus (every `cut` landing load prefetches 12 masters), and
+the reduced-motion test now fetches ~2 pictures where it fetched 1. CI is unaffected — its
+landing pictures are `data:` fixtures. Fix options: an E2E-only limit override on the image route,
+or a security probe that doesn't spend the budget. **Trap met on the way:** `bunx playwright test`
+without a rebuild runs whatever `.next` holds — after a comparison run on another commit, that is
+the other commit.
+
+**The final review found — and sampling proved — a second cause of "no text animation", older
+than today.** `@keyframes overture-in` and `@keyframes reel-drift` were declared inside `@theme`
+with no `--animate-*` token, and Tailwind v4 emits a theme keyframe only when a token uses it: the
+production CSS had neither, so **the overture's fade-in and the dissolve's drift have never run
+since 8.3's first build**, for any reader. Found because a per-frame opacity sampler (Chromium,
+Firefox and WebKit, on the real build) showed the wordmark at 1.00 on its first frame. Moved to the
+top level and pinned by a test that compiles `globals.css` through `@tailwindcss/postcss`. With
+the keyframe real, the reviewer's own finding became true — the `both` fill held opacity 1 through
+the gentle collapse — so the fill is gone and the animation stays on in every phase (which also
+restores the wordmark's fade on a full-motion sheet collapse). After: all three engines fade in
+0 → 1 over 0.5 s, fade out 1 → 0 over 2.2 s, and re-fade the wordmark. check 1,411/1,411, e2e
+serial 57/57. Deferred minors: a sheet collapse at reel index ≥ 2 cuts the current picture to
+black before picture 0 fades in; a stale comment in `use-overture.ts`.
+
+**Open / next:** Ben's phone look (Reduce Motion left on) → pick the 429 fix → merge the branch →
+the mark with Ben → Task 9 → push, deploy.
+
+*Session spend: 20.81M tok (in 619 · out 103.6k · cache r 19.85M / w 854.0k) · ~≥$2.70 · opus-5-5 + fable-5-1 + opus-4-7 · 09:29→09:50*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:
@@ -125,6 +217,34 @@ it when you next need it.
 deploy; run `.cache/landing-prod.sh`. Copy is untouched (D9).
 
 *Session spend: 102.14M tok (in 934 · out 348.6k · cache r 100.10M / w 1.69M) · ~≥$8.76 · opus-5-5 + opus-4-7 + fable-5-1 · 19:42→20:15*
+
+**Night — review fixes merged to `main` (0c0e8d8); then Ben's first phone look, and the reel
+became shape-matched (`fix/landing-orientation`).** Ben: "there's no visible movement in either
+version, the images don't change … the second image is a super blurry close up." Two causes:
+
+- **"Nothing changes" — almost certainly Reduce Motion is on for his phone.** The dev log shows
+  his visits fetched only the pictures preloaded in the page, never the rest of the reel — the
+  reduced-motion path by design (one still, sheet up). The same page on WebKit as an iPhone 15
+  runs normally. He is checking the setting; whether reduced motion should keep a slow dissolve
+  (what iOS itself does) is his call, not yet made.
+- **"Blurry close-up" — a wide picture covering a tall screen**, scaled to its height and cropped
+  to its middle, at the 960 rendition that D3's `sizes="50vw"` made the browser choose: ~4×
+  stretch on a 3× iPhone. The masters themselves are small (tall pool median 893 px high).
+  Offered A (shape-matched sets) / B (show pictures whole) / C (A + bigger originals); **Ben chose
+  A.** Built test-first: `item.image_width/height` (migration 0009) recorded by `img:warm` and
+  backfilled by `img:dims`, which now runs non-fatally in the container's boot command; tall
+  (0.4–0.8) and wide (1.25–2) pools with an 800 px floor — the outer limits added after the first
+  1440 look drew a 6 : 1 panorama; `getReels()` returns both, the server guesses by user agent and
+  the page picks by orientation; pictures are the master. Locally 387 tall / 396 wide.
+- **Finding:** without a `srcset`, React emits the image preloads as an HTTP `Link` header
+  instead of `<link>` tags; the e2e test now reads the header.
+
+Verified: `bun run test` 1,394/1,395 then the cursor-stability FK flake passed 3/3 alone;
+`e2e:prod` 57 passed / 3 skipped; CI shape 56 passed / 4 skipped. The marks are next, with Ben
+("the options for marks are horrible — boring, uninspired, nonsensical"); Task 9's mark half waits
+on that, its tempo half on his look.
+
+*Session spend: 88.06M tok (in 392 · out 179.1k · cache r 85.41M / w 2.48M) · ~≥$5.82 · opus-5-5 + opus-4-7 + <synthetic> · 20:15→22:59*
 
 ### [[09-23-26 Wed]] — Round 3 parked whole; polishpostergallery probed
 
