@@ -5,6 +5,33 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
+
+**Ben's second phone look (on `fix/landing-orientation`, `e4bffb5`):** "the images are sized
+properly but there's no text animation or slideshow at all." So option A worked. The motion
+failure is the same one as the first look: **no overture and no reel on his phone**, only a still.
+
+**Leading hypothesis, unconfirmed:** iOS Reduce Motion is on. That is exactly what the build does
+under `prefers-reduced-motion`: it skips the overture (`motion-reduce:hidden` plus
+`useOverture(false)`) and shows one still with the sheet up. Evidence from the first look: the dev
+log showed his visits fetching only the preloaded pictures, which only happens on that path. WebKit
+emulating an iPhone 15 without reduced motion runs everything. **First step next session:** Ben
+reads Settings → Accessibility → Motion → Reduce Motion.
+- **If it's on:** decide what reduced motion should get. The recommendation is to keep the
+  overture as a plain fade and the reel as slow cross-fades with no zoom and no hard cuts (what iOS
+  itself does), rather than a single still.
+- **If it's off:** it's a real device bug. Debug on the phone itself (Safari Web Inspector over
+  USB, or log the `matchMedia` answers to the server). Don't guess from emulation again.
+
+**State:** `fix/landing-orientation` is committed and **not merged, not pushed** (Ben: "log and
+commit, don't push"). `main` has 8.3 merged (`0c0e8d8`, 9 ahead of origin, unpushed). After the
+motion question: merge the fix branch, then the profile mark with Ben (he found all three
+candidates "boring, uninspired, nonsensical" — start from what he wants, not from those), then plan
+Task 9's tempo half, then push, deploy, and let the boot's `img:dims` run. The dev server may still
+be running on :3000 from this session; Loupe's was stopped and needs restarting.
+
+*Session spend: 4.16M tok (in 26 · out 5.3k · cache r 4.02M / w 136.0k) · ~≥$0.83 · opus-5-5 + opus-4-7 · 22:59→23:01*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:
