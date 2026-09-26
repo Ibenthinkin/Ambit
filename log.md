@@ -245,6 +245,48 @@ Verified: `bun run test` 1,394/1,395 then the cursor-stability FK flake passed 3
 on that, its tempo half on his look.
 
 *Session spend: 88.06M tok (in 392 · out 179.1k · cache r 85.41M / w 2.48M) · ~≥$5.82 · opus-5-5 + opus-4-7 + <synthetic> · 20:15→22:59*
+**Evening (Fable) — onboarding regrouped into umbrella groups, on `feat/topic-groups`.** Ben,
+on the shipped four-stage picker: "too many subjects to choose from, just too many words" — 92
+Subject chips, 41 Medium, 20 Look, 6 Place after round 2. Classified bounded; Ben chose
+**umbrella groups** over a curated short list ("build it as is, maybe I'll change the group names
+after I see the thing built"). Design is §2a of `docs/DESIGN_topic-facets-and-personas.md`.
+
+**Shipped (worktree `../ambit-topic-groups`, the checkout being 8.3's):**
+
+- `config/topic-groups.ts` — every one of the 159 faceted topics filed into exactly one of
+  **12 Subject / 8 Medium / 8 Look / 6 Place** groups, hand-named; `topic-groups.test.ts` pins the
+  partition (the draft covered all 159 first try). Groups are **picker-side only** — `setMine`
+  still takes topic ids; feed, weights, personas untouched, no migration.
+- Onboarding shows group chips per stage, selects group ids, flattens on submit — and only to the
+  members `topics.list` returned (`groupsFor` intersects: CI seeds the sixteen originals, so the
+  Space chip picks one topic there and twelve on production).
+- `/profile/topics` leads each section with the same chips, tri-state (`Chip` gained
+  `selected="mixed"`, "· 3 of 12"; tapping a mixed group completes it), flat list behind
+  "Show all N topics".
+- e2e: specs press `ONBOARDING_GROUPS`; `settings.spec` accepts both database shapes for "What
+  you see" and opens the disclosures before clicking Maps/Ceramics. Unit suite 1,299 green;
+  typecheck/lint/prettier clean.
+
+**Decisions:** weights stay **1.0 per topic** — a twelve-topic group is drawn 12× a singleton in
+CORE/DRIFT/JUMP, shipped flat on purpose (save nudge calibrated on 1.0; caps bound a page);
+dividing by group size in `setUserTopics` is the follow-up if `/dev/feed` says so. `promote:topics`
+**reminds** rather than refuses on a missing group (the proposals file has no group slot; the test
+is the guard). `science` → Machines & technology, `humor` → Myth, story & the strange.
+
+**Verified next morning (09-26, once Ben copied `.env` into the worktree and okayed killing
+8.3's ten-hour dev server on :3000):** full unit suite **1,394 green**; `bun run e2e:prod`
+**57 passed / 3 skipped** on the real corpus; CI-shape (fresh `postgres:17-alpine` on :5434,
+sixteen seeded topics, `--workers 1`) **56 passed / 4 skipped**. Screenshots in the session
+scratchpad: twelve Subject chips fit one phone screen; the Topics tab reads "Space & science
+fiction · 11 of 12" after un-picking The Moon from the flat list.
+
+**Open / next:** Ben looks at the chips and renames groups in `topic-groups.ts` (one file, no
+other change); merge `feat/topic-groups` to `main` after 8.3 lands and remove the worktree;
+group-size weighting if `/dev/feed` says the flat 1.0 skews CORE. 8.3's dev server on :3000 was
+stopped for the e2e runs — `bun run dev` in `~/Dev/ambit` brings it back.
+
+*Session spend: 6.97M tok (in 1.0k · out 30.5k · cache r 6.56M / w 374.4k) · ~≥$1.22 · fable-5-1 + opus-4-7 · 22:45→09:08*
+
 
 ### [[09-23-26 Wed]] — Round 3 parked whole; polishpostergallery probed
 

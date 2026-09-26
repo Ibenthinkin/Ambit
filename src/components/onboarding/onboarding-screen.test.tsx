@@ -25,18 +25,25 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
 }));
 
-// A small fixture rather than the real vocabulary: what each test asserts is *which* chips a
-// stage shows, and a hundred real chips would bury that. One topic per facet except subject,
-// which has two, so "this stage's chips only" is a real claim. The screen no longer reads
-// `TOPICS` at all — it is handed `topics.list`'s rows (09-10-26), so there is nothing left to
-// pin against the config.
+// Real topic ids, because the screen files them into the real `TOPIC_GROUPS` (09-25-26) and a
+// made-up id would land in no group and render nothing. Still a small fixture: what each test
+// asserts is *which* group chips a stage shows, and the whole vocabulary would bury that. Two
+// subject groups, and two members of one of them (astronomy + moon are both "Space & science
+// fiction"), so "a pick flattens to every listed member" is a real claim. One topic per other
+// facet. The fixture is what `topics.list` would return — CI's is the sixteen originals, and the
+// screen must render honestly from either.
 const FIXTURE_TOPICS = [
-  { id: "alpha", label: "Alpha", facet: "subject" as const },
-  { id: "beta", label: "Beta", facet: "subject" as const },
-  { id: "gamma", label: "Gamma", facet: "medium" as const },
-  { id: "delta", label: "Delta", facet: "look" as const },
-  { id: "epsilon", label: "Epsilon", facet: "place" as const },
+  { id: "astronomy", label: "Astronomy", facet: "subject" as const },
+  { id: "moon", label: "Moon", facet: "subject" as const },
+  { id: "botany", label: "Botany", facet: "subject" as const },
+  { id: "ceramics", label: "Ceramics", facet: "medium" as const },
+  { id: "surreal", label: "Surreal", facet: "look" as const },
+  { id: "japan", label: "Japan", facet: "place" as const },
 ];
+const SPACE = "Space & science fiction";
+const PLANTS = "Plants & fungi";
+const CRAFT = "Craft & materials";
+const SURREAL = "Surreal & dreamlike";
 
 /** The chips, and only the chips — the bar's Back/Next/CTA are buttons too. */
 function chips() {
@@ -54,9 +61,10 @@ describe("OnboardingScreen", () => {
     replaceMock.mockReset();
   });
 
-  it("stage 1 shows only the subject chips, in the order given, and no Back", () => {
+  it("stage 1 shows only the subject groups, in the config's order, and no Back", () => {
     render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    expect(chips().map((b) => b.textContent)).toEqual(["Alpha", "Beta"]);
+    // Two chips for three listed subjects: astronomy and moon fold into one group.
+    expect(chips().map((b) => b.textContent)).toEqual([SPACE, PLANTS]);
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
     expect(
       screen.getByRole("navigation", { name: "Setup progress" }),
@@ -67,12 +75,12 @@ describe("OnboardingScreen", () => {
   it("Next walks the four facets in order and the last stage shows the CTA", () => {
     render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
     next();
-    expect(chips().map((b) => b.textContent)).toEqual(["Gamma"]);
+    expect(chips().map((b) => b.textContent)).toEqual([CRAFT]);
     expect(screen.getByText("In what form?")).toBeTruthy();
     next();
-    expect(chips().map((b) => b.textContent)).toEqual(["Delta"]);
+    expect(chips().map((b) => b.textContent)).toEqual([SURREAL]);
     next();
-    expect(chips().map((b) => b.textContent)).toEqual(["Epsilon"]);
+    expect(chips().map((b) => b.textContent)).toEqual(["Japan"]);
     expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
     expect(
       screen.getByRole("button", { name: /Pick 3 more|Start exploring/ }),
@@ -89,24 +97,23 @@ describe("OnboardingScreen", () => {
 
   it("Back returns to the previous stage with its picks intact", () => {
     render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    fireEvent.click(screen.getByRole("button", { name: "Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: SPACE }));
     next();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(
-      screen
-        .getByRole("button", { name: "Alpha" })
-        .getAttribute("aria-pressed"),
+      screen.getByRole("button", { name: SPACE }).getAttribute("aria-pressed"),
     ).toBe("true");
   });
 
-  it("the count is across every stage, and the CTA flips at minPicks", () => {
+  it("the count is in groups, across every stage, and the CTA flips at minPicks", () => {
     render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    fireEvent.click(screen.getByRole("button", { name: "Alpha" }));
-    fireEvent.click(screen.getByRole("button", { name: "Beta" }));
+    fireEvent.click(screen.getByRole("button", { name: SPACE }));
+    fireEvent.click(screen.getByRole("button", { name: PLANTS }));
     next();
-    fireEvent.click(screen.getByRole("button", { name: "Gamma" }));
+    fireEvent.click(screen.getByRole("button", { name: CRAFT }));
     next();
     next();
+    // Space holds two listed topics, but the reader tapped three chips: the count is what they did.
     expect(screen.getByText("3 interests chosen")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Start exploring" }),
@@ -115,7 +122,7 @@ describe("OnboardingScreen", () => {
 
   it("below minPicks the CTA is disabled and setMine is never called", () => {
     render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    fireEvent.click(screen.getByRole("button", { name: "Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: SPACE }));
     next();
     next();
     next();
@@ -127,13 +134,13 @@ describe("OnboardingScreen", () => {
     expect(mutateAsyncMock).not.toHaveBeenCalled();
   });
 
-  it("a successful submit calls setMine once with the union of every stage's picks and navigates to /feed", async () => {
+  it("a successful submit calls setMine once with every listed member of every picked group and navigates to /feed", async () => {
     render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    fireEvent.click(screen.getByRole("button", { name: "Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: SPACE }));
     next();
-    fireEvent.click(screen.getByRole("button", { name: "Gamma" }));
+    fireEvent.click(screen.getByRole("button", { name: CRAFT }));
     next();
-    fireEvent.click(screen.getByRole("button", { name: "Delta" }));
+    fireEvent.click(screen.getByRole("button", { name: SURREAL }));
     next();
     fireEvent.click(screen.getByRole("button", { name: "Start exploring" }));
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/feed"));
@@ -141,13 +148,17 @@ describe("OnboardingScreen", () => {
     const [{ topicIds }] = mutateAsyncMock.mock.calls[0]! as [
       { topicIds: string[] },
     ];
-    expect(new Set(topicIds)).toEqual(new Set(["alpha", "gamma", "delta"]));
+    // Space flattens to both of its listed members — and to nothing the fixture did not list,
+    // though the config names twelve: an unlisted id is one `setMine` would refuse.
+    expect(new Set(topicIds)).toEqual(
+      new Set(["astronomy", "moon", "ceramics", "surreal"]),
+    );
   });
 
   it("a mutation error renders in the error slot and does not navigate", async () => {
     mutateAsyncMock.mockRejectedValueOnce(new Error("boom"));
     render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={1} />);
-    fireEvent.click(screen.getByRole("button", { name: "Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: SPACE }));
     next();
     next();
     next();
