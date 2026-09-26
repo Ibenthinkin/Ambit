@@ -279,10 +279,12 @@ pre-existing warnings, none in touched files), format. Full `E2E_PROD=1` suite *
 a fresh production build (explore, item and desktop specs updated: the desktop centred-card test
 now opens it from the rail's Profile).
 
-**Open / next:** Ben looks at `/explore` and a signed-out item page on the phone and at 1440, then
-merge to `main`. The plan's header bullet is struck through with a pointer. Still nothing
-deployed. The generic `AvatarChip` as the Profile glyph reads as "your account" to a stranger —
-it's the mark Ben already wants replaced, so it waits for that.
+**Open / next:** Ben looked on the phone over the tailnet ("looks right"); **merged to `main`
+(`3eb24e1`) and pushed** the same evening. Still nothing deployed — the next deploy carries 8.3,
+the topic groups, `/explore` and this, and runs migration 0009 + `img:dims` at boot. The plan's
+header bullet is struck through with a pointer. The generic `AvatarChip` as the Profile glyph
+reads as "your account" to a stranger — it's the mark Ben already wants replaced, so it waits
+for that. Dev server left running on :3000.
 
 *Session spend: 10.56M tok (in 2.0k · out 71.7k · cache r 10.10M / w 383.6k) · fable-5-1 · 16:58→17:11*
 
