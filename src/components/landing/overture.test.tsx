@@ -32,10 +32,21 @@ describe("Overture", () => {
     expect(tail.style.transition).not.toMatch(/width|left|margin/);
   });
 
-  it("done: the tail is gone and the mark stays, in difference blend", () => {
+  it("done: the tail is gone and the mark stays", () => {
     render(<Overture phase="done" />);
     expect(screen.queryByTestId("overture-tail")).not.toBeInTheDocument();
-    expect(screen.getByTestId("overture-mark").className).toContain(
+    expect(screen.getByTestId("overture-mark")).toBeInTheDocument();
+  });
+
+  // The blend must sit on the fixed layer itself: a `position: fixed` + z-index element is its own
+  // stacking context, so a blended child inside it blends against that empty group and never
+  // reaches the pictures (seen on the 09-25 device pass — white text on light ice).
+  it("blends in difference at the fixed layer, not on a child inside its stacking context", () => {
+    render(<Overture phase="done" />);
+    expect(screen.getByTestId("overture").className).toContain(
+      "mix-blend-difference",
+    );
+    expect(screen.getByTestId("overture-mark").className).not.toContain(
       "mix-blend-difference",
     );
   });

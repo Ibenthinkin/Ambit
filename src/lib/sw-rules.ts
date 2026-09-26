@@ -76,7 +76,7 @@ export const isFeedDocument = ({
 export const isNextStatic = ({ url, sameOrigin }: MatchInput): boolean =>
   sameOrigin && url.pathname.startsWith("/_next/static/");
 
-/** The landing slideshow's imagery and the app icons — committed files, revised only on deploy. */
+/** The landing's one fallback picture (docs/DESIGN_landing-redo.md D2) and the app icons — committed files, revised only on deploy. The reel itself is `/api/img/*`. */
 export const isStaticAsset = ({ url, sameOrigin }: MatchInput): boolean =>
   sameOrigin &&
   (url.pathname.startsWith("/landing/") ||

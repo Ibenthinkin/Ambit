@@ -79,9 +79,9 @@ describe("isImageProxy", () => {
     expect(isImageProxy(req("/api/img/01HXY"))).toBe(true);
   });
 
-  it("does not match the API root or a landing slide", () => {
+  it("does not match the API root or the landing fallback", () => {
     expect(isImageProxy(req("/api/trpc/items.byId"))).toBe(false);
-    expect(isImageProxy(req("/landing/great-wave.jpg"))).toBe(false);
+    expect(isImageProxy(req("/landing/fallback.webp"))).toBe(false);
   });
 });
 
@@ -123,8 +123,8 @@ describe("isNextStatic", () => {
 });
 
 describe("isStaticAsset", () => {
-  it("matches the landing slideshow and the app icons", () => {
-    expect(isStaticAsset(req("/landing/great-wave.jpg"))).toBe(true);
+  it("matches the landing fallback picture and the app icons", () => {
+    expect(isStaticAsset(req("/landing/fallback.webp"))).toBe(true);
     expect(isStaticAsset(req("/icon-192.png"))).toBe(true);
     expect(isStaticAsset(req("/icon-512-maskable.png"))).toBe(true);
   });

@@ -87,7 +87,7 @@ export function buildCsp({ nonce, dev }) {
     // policy exists for — script injection — and would cost a rewrite of the UI layer.
     "style-src 'self' 'unsafe-inline'",
     // **Images.** `'self'` covers `/api/img/*` (every source image is proxied through this origin
-    // — nothing hotlinks a museum) plus `/landing/*.jpg` and the icons in `public/`. `data:` is
+    // — nothing hotlinks a museum) plus the landing fallback `/landing/fallback.webp` and the icons in `public/`. `data:` is
     // the e2e corpus's inline pixel and any inline SVG data URI. `blob:` is the share sheet and
     // the gallery, which fetch a proxied image as a blob and hand the object URL to an `<img>`.
     "img-src 'self' data: blob:",

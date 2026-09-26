@@ -66,3 +66,8 @@ export function resolveTempo(
 export function wantedAhead(tempo: Tempo): number {
   return tempo.fadeMs === 0 ? Infinity : 1;
 }
+
+/** The `sizes` for every reel picture — the `<img>`, the off-DOM decode, and the RSC's preload.
+ *  All three must match exactly, or the browser picks a different candidate and a picture is
+ *  fetched twice. Below `md` a phone takes the 960 rendition; from `md` the master (D3). */
+export const REEL_SIZES = "(min-width: 768px) 100vw, 50vw";

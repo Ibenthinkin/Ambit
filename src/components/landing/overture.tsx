@@ -9,7 +9,8 @@ import { OVERTURE, type OverturePhase } from "./use-overture";
 
 // The opening line (docs/DESIGN_landing-redo.md D4): `AMBIT — A quieter way to be curious.` on
 // black, whose tail collapses into the wordmark; the wordmark then stays over the reel at fixed
-// size in `mix-blend-mode: difference`, inverting whatever picture is behind it.
+// size in `mix-blend-mode: difference` (on the fixed layer — see below), inverting whatever
+// picture is behind it.
 //
 // Copied from the reference's `#intro-text`, with one deliberate difference: the reference
 // collapses the tail with a `width` transition, which moves its siblings and is counted as layout
@@ -53,7 +54,10 @@ export function Overture({ phase, hidden = false }: OvertureProps) {
       aria-hidden
       className={cn(
         inter.className,
-        "pointer-events-none fixed inset-0 z-20 flex items-center justify-center text-white",
+        // The blend lives here, on the fixed layer: `fixed` + z-index makes this its own stacking
+        // context, and a blended child would only blend against this empty group — never the
+        // pictures behind it. White in `difference` is the reference's inverting wordmark.
+        "pointer-events-none fixed inset-0 z-20 flex items-center justify-center text-white mix-blend-difference",
         "text-[clamp(15px,2vw,25px)] font-normal whitespace-nowrap",
       )}
       style={{ animation: `overture-in ${OVERTURE.fadeInMs}ms ease both` }}
@@ -61,7 +65,7 @@ export function Overture({ phase, hidden = false }: OvertureProps) {
       <span
         ref={markRef}
         data-testid="overture-mark"
-        className="inline-block tracking-[.32em] mix-blend-difference"
+        className="inline-block tracking-[.32em]"
         style={{
           transform: collapsing ? "translateX(var(--drift, 0px))" : "none",
           transition: collapsing

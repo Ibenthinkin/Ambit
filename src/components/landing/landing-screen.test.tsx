@@ -2,15 +2,19 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { LandingScreen } from "./landing-screen";
-import { SLIDE_MS, SLIDES_PER_RUN } from "./landing-slides";
+import type { ReelPicture } from "~/server/services/landing-pool";
 
-const END_MS = 260;
+import { LandingScreen } from "./landing-screen";
+import { TEMPOS, type Tempo } from "./tempos";
+import { OVERTURE_MS } from "./use-overture";
+
+vi.mock("~/lib/fonts", () => ({ inter: { className: "font-inter-test" } }));
 
 /**
- * jsdom implements neither `matchMedia` nor `HTMLImageElement.decode`, and the screen calls both on
- * mount. Stubbing them is setup, not assertion — except for `reduce`, which one test flips on
- * purpose.
+ * jsdom implements neither `matchMedia` nor image decoding, and the screen uses both on mount.
+ * `Image` is replaced by one whose `decode` resolves at once, so every requested picture becomes
+ * ready on the next microtask. Stubbing is setup, not assertion — except `reduce`, which some
+ * tests flip on purpose.
  */
 function stubEnvironment({ reduce = false }: { reduce?: boolean } = {}) {
   vi.stubGlobal("matchMedia", (query: string) => ({
@@ -23,48 +27,64 @@ function stubEnvironment({ reduce = false }: { reduce?: boolean } = {}) {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   }));
-  // jsdom doesn't implement `decode` at all, so there is nothing to spy on — it has to be defined.
-  // `preloadRun` copes with its absence (it falls back to the load event), but defining it here
-  // exercises the path every real browser takes.
-  Object.defineProperty(HTMLImageElement.prototype, "decode", {
-    configurable: true,
-    writable: true,
-    value: () => Promise.resolve(),
-  });
+  vi.stubGlobal(
+    "Image",
+    class {
+      src = "";
+      srcset = "";
+      sizes = "";
+      decode = () => Promise.resolve();
+    },
+  );
 }
 
-/** Renders and lets the mount effect's preload promise settle, so the cycle is enabled. */
-async function renderScreen(mode: "cycle" | "static" = "cycle") {
+const pics = (n: number): ReelPicture[] =>
+  Array.from({ length: n }, (_, i) => ({
+    id: `p${i}`,
+    src: `/api/img/p${i}?w=960`,
+    srcSet: `/api/img/p${i}?w=960 960w, /api/img/p${i} 1600w`,
+  }));
+
+/** Renders and lets the decode promises settle, so the pictures are ready. */
+async function renderScreen(
+  mode: "cycle" | "static" = "cycle",
+  tempo: Tempo = TEMPOS.cut,
+  pictures: ReelPicture[] = pics(12),
+) {
   const view = render(
-    <LandingScreen mode={mode}>
+    <LandingScreen mode={mode} pictures={pictures} tempo={tempo}>
       <form data-testid="auth-child" />
     </LandingScreen>,
   );
   await act(async () => {
     await Promise.resolve();
+    await Promise.resolve();
   });
   return view;
 }
 
-function sheet() {
-  return screen.getByTestId("auth-sheet");
-}
+const sheet = () => screen.getByTestId("auth-sheet");
 
-/** The slide on screen: every slide is mounted, and exactly one carries `opacity: 1`. */
-function visibleSrc() {
-  return screen
-    .getByTestId("landing-slideshow")
-    .querySelector("img[style*='opacity: 1']")
-    ?.getAttribute("src");
-}
+/** The id of the picture on screen — exactly one layer carries `opacity: 1` once the reel runs. */
+const currentId = () =>
+  Array.from(
+    document.querySelectorAll<HTMLImageElement>(
+      "[data-testid='landing-reel'] img",
+    ),
+  ).find((i) => i.style.opacity === "1")?.dataset.id ?? null;
 
-const key = (k: string) =>
-  act(() => void fireEvent.keyDown(window, { key: k }));
+const key = (k: string, init: KeyboardEventInit = {}) =>
+  act(() => void fireEvent.keyDown(window, { key: k, ...init }));
 
+/** One `act` per call: an automatic step's timer is armed by an effect that runs only after the
+ *  previous step has flushed, so multi-frame runs go through `steps`. */
 function advance(ms: number) {
   act(() => {
     vi.advanceTimersByTime(ms);
   });
+}
+function steps(n: number, ms: number) {
+  for (let i = 0; i < n; i++) advance(ms);
 }
 
 beforeEach(() => {
@@ -76,56 +96,72 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  Reflect.deleteProperty(navigator, "connection");
 });
 
-describe("LandingScreen — cycle mode", () => {
-  it("renders a full run of slides with the sheet closed and the glyph offered", async () => {
+describe("LandingScreen — cycle", () => {
+  it("opens on the overture with no picture showing, the sheet down, the glyph offered", async () => {
     await renderScreen();
-
-    expect(document.querySelectorAll("img")).toHaveLength(SLIDES_PER_RUN);
+    expect(screen.getByTestId("overture")).toBeInTheDocument();
+    expect(currentId()).toBeNull();
+    expect(sheet()).toHaveAttribute("data-open", "false");
     expect(
       screen.getByRole("button", { name: "Open sign-in" }),
-    ).toBeInTheDocument();
-    expect(sheet()).toHaveAttribute("data-open", "false");
-  });
-
-  it("shows the pitch on the sign-in route", async () => {
-    await renderScreen();
-
-    expect(
-      screen.getByText("A quieter way to be curious."),
     ).toBeInTheDocument();
   });
 
   it("keeps the form mounted while the sheet is down — the e2e suite waits on it", async () => {
     await renderScreen();
-
-    // Off-screen, not absent: `waitForHydration(page, "form")` and password managers both need the
-    // fields in the DOM before the sheet has risen.
     expect(screen.getByTestId("auth-child")).toBeInTheDocument();
     expect(sheet().className).toContain("translate-y-full");
   });
 
-  it("raises the sheet when the glyph is tapped, and retires the glyph", async () => {
+  it("cuts into the reel when the overture ends; the tail is gone, the mark stays", async () => {
     await renderScreen();
+    advance(OVERTURE_MS);
+    expect(currentId()).toBe("p0");
+    expect(screen.queryByTestId("overture-tail")).not.toBeInTheDocument();
+    expect(screen.getByTestId("overture-mark")).toBeInTheDocument();
+  });
 
-    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
-
+  it("cut: after 12 frames the sheet rises, the mark goes, and the reel relaxes to the dissolve", async () => {
+    await renderScreen();
+    advance(OVERTURE_MS);
+    steps(12, 350);
     expect(sheet()).toHaveAttribute("data-open", "true");
-    expect(sheet().className).toContain("translate-y-0");
+    expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
+    const before = currentId();
+    advance(350);
+    expect(currentId()).toBe(before); // no longer 350 ms frames
+    advance(6000);
+    expect(currentId()).not.toBe(before);
+  });
+
+  it("dissolve: two pictures, then the sheet", async () => {
+    await renderScreen("cycle", TEMPOS.dissolve);
+    advance(OVERTURE_MS);
+    steps(2, 6000);
+    expect(sheet()).toHaveAttribute("data-open", "true");
+  });
+
+  it("the glyph raises the sheet early and retires; the disc collapses it and restarts the reel", async () => {
+    await renderScreen();
+    advance(OVERTURE_MS);
+    steps(3, 350);
+    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
+    expect(sheet()).toHaveAttribute("data-open", "true");
     expect(
       screen.queryByRole("button", { name: "Open sign-in" }),
     ).not.toBeInTheDocument();
+    act(() =>
+      screen.getByRole("button", { name: "Back to the slideshow" }).click(),
+    );
+    expect(sheet()).toHaveAttribute("data-open", "false");
+    expect(currentId()).toBe("p0");
   });
 
-  // The desktop pass (docs/DESIGN_desktop-polish.md §3). `AuthSheet` is deliberately not a
-  // `BottomSheet` (see its header comment), so it gets the dialog treatment by hand — and the
-  // closed state above `md` is transparent and inert rather than off-screen, because a card that
-  // is merely translated down still covers the slideshow it was supposed to hand back.
   it("is a centered 520px card above md, transparent and inert when closed", async () => {
     await renderScreen();
-
-    expect(sheet()).toHaveAttribute("data-open", "false");
     expect(sheet()).toHaveClass(
       "md:inset-auto",
       "md:left-1/2",
@@ -134,104 +170,66 @@ describe("LandingScreen — cycle mode", () => {
       "md:-translate-x-1/2",
       "md:rounded-[28px]",
     );
-    expect(sheet()).toHaveClass(
-      "translate-y-full",
-      "md:-translate-y-[45%]",
-      "md:opacity-0",
-      "md:pointer-events-none",
-    );
-
-    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
-    expect(sheet()).toHaveClass(
-      "translate-y-0",
-      "md:-translate-y-1/2",
-      "md:opacity-100",
-    );
+    expect(sheet()).toHaveClass("md:opacity-0", "md:pointer-events-none");
   });
 
-  // 09-10-26: a click on the imagery means "next", not "skip" — the glyph is the way to the sheet.
-  it("a click on the imagery advances one slide and does not raise the sheet", async () => {
+  it("a tap on the imagery is next and does not raise the sheet; ←/→ step; a field or a modifier keeps its arrows", async () => {
     await renderScreen();
-    const before = visibleSrc();
-
-    act(() => screen.getByTestId("landing-slideshow").click());
-
-    expect(visibleSrc()).not.toBe(before);
+    advance(OVERTURE_MS);
+    act(() => void fireEvent.click(screen.getByTestId("landing-reel")));
+    expect(currentId()).toBe("p1");
     expect(sheet()).toHaveAttribute("data-open", "false");
-  });
-
-  it("← and → step the slides", async () => {
-    await renderScreen();
-    const first = visibleSrc();
-
     key("ArrowRight");
-    expect(visibleSrc()).not.toBe(first);
+    expect(currentId()).toBe("p2");
     key("ArrowLeft");
-    expect(visibleSrc()).toBe(first);
-  });
-
-  it("leaves the arrow keys alone while a form field has focus", async () => {
-    await renderScreen();
-    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
+    expect(currentId()).toBe("p1");
+    key("ArrowRight", { altKey: true });
+    expect(currentId()).toBe("p1");
     const input = document.createElement("input");
-    screen.getByTestId("auth-child").appendChild(input);
+    document.body.appendChild(input);
     input.focus();
-    const first = visibleSrc();
-
     key("ArrowRight");
-
-    expect(visibleSrc()).toBe(first);
+    expect(currentId()).toBe("p1");
+    input.remove();
   });
 
-  it("keeps the pictures moving behind the sheet", async () => {
-    await renderScreen();
-    for (let i = 0; i < SLIDES_PER_RUN - 1; i++) advance(SLIDE_MS);
-    advance(END_MS);
-    expect(sheet()).toHaveAttribute("data-open", "true");
-
-    const behind = visibleSrc();
-    advance(SLIDE_MS);
-    expect(visibleSrc()).not.toBe(behind);
-  });
-
-  it("raises the sheet on its own once the run finishes", async () => {
-    await renderScreen();
-
-    expect(sheet()).toHaveAttribute("data-open", "false");
-
-    // Each slide's timer is scheduled by an effect that only runs after the previous advance has
-    // been flushed, so the run is stepped rather than skipped forward in one jump.
-    for (let i = 0; i < SLIDES_PER_RUN - 1; i++) advance(SLIDE_MS);
-    advance(END_MS);
-
+  it("the one-picture fallback still hands off to the sheet", async () => {
+    await renderScreen("cycle", TEMPOS.cut, [
+      { id: "fallback", src: "/landing/fallback.webp", srcSet: null },
+    ]);
+    advance(OVERTURE_MS);
+    expect(currentId()).toBe("fallback");
+    steps(13, 350);
     expect(sheet()).toHaveAttribute("data-open", "true");
   });
 
-  it("collapses back to the slideshow and starts the run over", async () => {
+  it("shows the pitch", async () => {
     await renderScreen();
-
-    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
-    act(() =>
-      screen.getByRole("button", { name: "Back to the slideshow" }).click(),
-    );
-
-    expect(sheet()).toHaveAttribute("data-open", "false");
     expect(
-      screen.getByRole("button", { name: "Open sign-in" }),
+      screen.getByText("A quieter way to be curious."),
     ).toBeInTheDocument();
+  });
 
-    // The replayed run still resolves into the sheet rather than stalling.
-    for (let i = 0; i < SLIDES_PER_RUN - 1; i++) advance(SLIDE_MS);
-    advance(END_MS);
+  it("Save-Data: the overture plays, then the first picture holds and the sheet still rises", async () => {
+    Object.defineProperty(navigator, "connection", {
+      configurable: true,
+      value: { saveData: true },
+    });
+    await renderScreen();
+    expect(screen.getByTestId("overture")).toBeInTheDocument();
+    advance(OVERTURE_MS);
+    expect(currentId()).toBe("p0");
+    steps(13, 350);
+    expect(currentId()).toBe("p0");
     expect(sheet()).toHaveAttribute("data-open", "true");
   });
 });
 
-describe("LandingScreen — static mode", () => {
-  it("shows one still image with the sheet already up and no controls to open it", async () => {
+describe("LandingScreen — static (/reset-password)", () => {
+  it("one still, no overture, sheet up, no glyph, no collapse disc", async () => {
     await renderScreen("static");
-
-    expect(document.querySelectorAll("img")).toHaveLength(1);
+    expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
+    expect(currentId()).toBe("p0");
     expect(sheet()).toHaveAttribute("data-open", "true");
     expect(
       screen.queryByRole("button", { name: "Open sign-in" }),
@@ -243,75 +241,27 @@ describe("LandingScreen — static mode", () => {
 
   it("drops the marketing hero — a reset link lands mid-task, not mid-pitch", async () => {
     await renderScreen("static");
-
     expect(
       screen.queryByText("A quieter way to be curious."),
     ).not.toBeInTheDocument();
   });
-
-  it("never moves — advancing time changes nothing", async () => {
-    await renderScreen("static");
-
-    advance(30_000);
-
-    expect(document.querySelectorAll("img")).toHaveLength(1);
-    expect(sheet()).toHaveAttribute("data-open", "true");
-  });
 });
 
 describe("LandingScreen — reduced motion", () => {
-  it("treats cycle mode as static when the reader has asked for less movement", async () => {
-    vi.unstubAllGlobals();
+  it("one still, no overture, sheet up; the disc collapses it and the glyph brings it back; nothing steps", async () => {
     stubEnvironment({ reduce: true });
-
-    await renderScreen("cycle");
-
-    expect(document.querySelectorAll("img")).toHaveLength(1);
+    await renderScreen();
+    expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
+    expect(currentId()).toBe("p0");
     expect(sheet()).toHaveAttribute("data-open", "true");
-    expect(
-      screen.queryByRole("button", { name: "Open sign-in" }),
-    ).not.toBeInTheDocument();
-  });
-
-  // The hydration mismatch that made the glyph "do nothing" (log 09-08): reduced motion was read
-  // in a lazy initializer, so the server rendered the collapse glyph as a <button> and the client
-  // as an inert <div>. It is read after hydration now, like `hydrated` itself, so both renders
-  // agree — and a reduced-motion reader on `/` gets a glyph that works.
-  it("renders the collapse glyph as a real button", async () => {
-    vi.unstubAllGlobals();
-    stubEnvironment({ reduce: true });
-
-    await renderScreen("cycle");
-
-    expect(
-      screen.getByRole("button", { name: "Back to the slideshow" }),
-    ).toBeInTheDocument();
-  });
-
-  it("collapses to the still picture, and the glyph brings the sheet back", async () => {
-    vi.unstubAllGlobals();
-    stubEnvironment({ reduce: true });
-    await renderScreen("cycle");
-
     act(() =>
       screen.getByRole("button", { name: "Back to the slideshow" }).click(),
     );
     expect(sheet()).toHaveAttribute("data-open", "false");
-    // Still one picture, still not moving — reduced motion is honoured with the sheet down too.
-    expect(document.querySelectorAll("img")).toHaveLength(1);
-    advance(30_000);
-    expect(sheet()).toHaveAttribute("data-open", "false");
-
+    advance(60_000);
+    key("ArrowRight");
+    expect(currentId()).toBe("p0");
     act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
     expect(sheet()).toHaveAttribute("data-open", "true");
-  });
-
-  it("does not step the still picture with the arrow keys", async () => {
-    vi.unstubAllGlobals();
-    stubEnvironment({ reduce: true });
-    await renderScreen("cycle");
-    const first = visibleSrc();
-    key("ArrowRight");
-    expect(visibleSrc()).toBe(first);
   });
 });

@@ -4,9 +4,12 @@ import * as React from "react";
 
 import type { ReelPicture } from "~/server/services/landing-pool";
 
-/** Must match the `<img sizes>` in landing-reel.tsx and the RSC's preload exactly, or the
- *  browser picks a different candidate and a picture this hook decoded is fetched twice. */
-export const REEL_SIZES = "(min-width: 768px) 100vw, 50vw";
+import { REEL_SIZES } from "./tempos";
+
+// Re-exported for the client modules that already import it from here; defined in the tempos leaf
+// because app/page.tsx (a Server Component) needs its value and cannot read one from a
+// "use client" module.
+export { REEL_SIZES } from "./tempos";
 
 // Which pictures of the reel have decoded (docs/DESIGN_landing-redo.md D5).
 //
