@@ -97,6 +97,44 @@ the mark with Ben → Task 9 → push, deploy.
 
 *Session spend: 20.81M tok (in 619 · out 103.6k · cache r 19.85M / w 854.0k) · ~≥$2.70 · opus-5-5 + fable-5-1 + opus-4-7 · 09:29→09:50*
 
+**Afternoon — Ben tuned the landing on his phone and computer, then everything merged to `main`
+and pushed (`deb36cb`). Not deployed: he is making more UI changes first.**
+
+- **Tempo picked: the dissolve** (`DEFAULT_TEMPO`), tuned over three looks — 6 s "just too slow"
+  → 3 s → "a bit faster, and 8 images before the sign-up tray" → "quicker, 2 seconds, keep the 1
+  second fade". Now **2 s a picture, 1 s fade, the sheet after 8** (≈ 16 s of pictures);
+  `gentle` shares all three through `DISSOLVE_*` constants in `tempos.ts`. `cut` is still in the
+  code — plan Task 9 deletes it.
+- **The collapse is for everyone again.** The plain-fade overture variant for reduced motion read
+  on both his devices (Reduce Motion on) as "the text animation is gone"; the variant and
+  `Overture`'s `gentle` prop are deleted. Reduced motion now changes only the reel (no drift, a
+  soft first frame).
+- **No text over the slideshow:** the overture unmounts at `done` — the wordmark no longer stays
+  over the reel in `difference` blend (D4 amended).
+- **Bug: closing the sheet snapped the reel back to one picture every time** — `collapse()`
+  called `restart()`, which reset to frame 0 (and at index ≥ 2 cut the current picture to black
+  first, the review's deferred minor). Now `rearm()`: same picture, first pass re-armed, a full
+  frame before the next. Reproduced p3 → p0 in a test first.
+- **Merged:** `fix/landing-orientation` → `main` (`72995b8`, CI green), then `feat/topic-groups`
+  (`deb36cb`; one conflict, this file — both 09-25 extensions kept). The merged tree: check
+  1,420/1,420, e2e serial 57/3 skipped. `~/Dev/ambit-topic-groups` worktree removed; the branch
+  is kept.
+- **Useful trick for later:** Next 16's dev server builds into `.next/dev`, so a production
+  `bun run build` + `next start -p 3002` and a throwaway Playwright config pointing `baseURL` at
+  :3002 runs `home.spec` without stopping the dev server. Auth flows still need :3000
+  (`BETTER_AUTH_URL`).
+
+**Open / next (Ben's list, in his words "address all that stuff" after his UI changes):**
+the local `/api/img` **429** in parallel `e2e:prod` (pick: E2E-only limit override, or a security
+probe that doesn't spend the budget); **Task 9** — delete `cut`, and the `?tempo=` override with
+it; the **profile mark** with Ben (all three candidates rejected — start from what he wants);
+topic-group names in `topic-groups.ts` if he wants to rename; group-size weighting only if
+`/dev/feed` says so. **Deploy** when the UI changes land — the boot runs migration 0009 and
+`img:dims` itself; check `/api/health` reports the new commit. Stale comment in
+`use-overture.ts` ("reduced motion" disabling the overture) still to fix.
+
+*Session spend: 58.74M tok (in 544 · out 174.7k · cache r 57.63M / w 939.6k) · ~≥$5.92 · opus-5-5 + opus-4-7 · 09:50→12:26*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:
