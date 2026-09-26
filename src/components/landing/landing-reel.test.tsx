@@ -76,6 +76,21 @@ describe("LandingReel", () => {
     expect(imgs()[0]!.style.transition).toBe("none");
   });
 
+  it("dissolve: the leaving layer keeps drifting through its fade — no snap back to scale(1)", () => {
+    render(
+      <LandingReel
+        pictures={pics}
+        index={2}
+        prev={1}
+        tempo={TEMPOS.dissolve}
+        started
+      />,
+    );
+    const [leaving, , next] = imgs();
+    expect(leaving!.style.animation).toContain("reel-drift 8500ms");
+    expect(next!.style.animation).toBe("");
+  });
+
   it("dissolve: the current layer drifts over frame + fade (transform only)", () => {
     render(
       <LandingReel

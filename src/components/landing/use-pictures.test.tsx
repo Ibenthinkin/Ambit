@@ -92,6 +92,19 @@ describe("usePictures", () => {
     expect(result.current.ready.has("p1")).toBe(false);
   });
 
+  it("a failure is recorded, bumps version, and does not use up the ahead budget — the next one is requested", async () => {
+    const { result } = renderHook(() => usePictures(pics(5), 0, 1));
+    expect(instances.map((i) => i.src)).toEqual([
+      "/api/img/p0?w=960",
+      "/api/img/p1?w=960",
+    ]);
+    instances[1]!.reject();
+    await settle();
+    expect(result.current.failed.has("p1")).toBe(true);
+    expect(result.current.version).toBe(1);
+    expect(instances.map((i) => i.src)).toContain("/api/img/p2?w=960");
+  });
+
   it("Infinity ahead requests the whole reel once", () => {
     renderHook(() => usePictures(pics(12), 0, Infinity));
     expect(instances).toHaveLength(12);

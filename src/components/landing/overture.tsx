@@ -58,6 +58,10 @@ export function Overture({ phase, hidden = false }: OvertureProps) {
         // context, and a blended child would only blend against this empty group — never the
         // pictures behind it. White in `difference` is the reference's inverting wordmark.
         "pointer-events-none fixed inset-0 z-20 flex items-center justify-center text-white mix-blend-difference",
+        // Reduced motion is only known to script after hydration (D8), so the server always
+        // renders this line; the media variant hides it from first paint for a reader who asked
+        // for less movement, instead of letting it fade in and vanish on the corrective render.
+        "motion-reduce:hidden",
         "text-[clamp(15px,2vw,25px)] font-normal whitespace-nowrap",
       )}
       style={{ animation: `overture-in ${OVERTURE.fadeInMs}ms ease both` }}

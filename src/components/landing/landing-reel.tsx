@@ -78,8 +78,11 @@ export function LandingReel({
             style={{
               opacity: current ? 1 : 0,
               transition: cut ? "none" : `opacity ${tempo.fadeMs}ms ease`,
+              // The leaving layer keeps its animation through the fade: removing a CSS animation
+              // cancels it and its fill, and the picture would snap from ~1.04 back to scale(1) at
+              // full opacity. The element is keyed, so the running animation simply continues.
               animation:
-                tempo.drift && current
+                tempo.drift && started && (i === index || i === prev)
                   ? `reel-drift ${tempo.frameMs + tempo.fadeMs}ms linear both`
                   : undefined,
               willChange: "opacity, transform",

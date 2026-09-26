@@ -55,4 +55,14 @@ describe("Overture", () => {
     render(<Overture phase="done" hidden />);
     expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
   });
+
+  // Reduced motion is a client-only answer (D8), so the server always renders the overture; this
+  // CSS media variant hides it before any script runs, so a reduced-motion reader never sees the
+  // line fade in between first paint and hydration.
+  it("is hidden by CSS for reduced-motion readers, before hydration can say so", () => {
+    render(<Overture phase="in" />);
+    expect(screen.getByTestId("overture").className).toContain(
+      "motion-reduce:hidden",
+    );
+  });
 });

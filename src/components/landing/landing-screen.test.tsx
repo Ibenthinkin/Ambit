@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ReelPicture } from "~/server/services/landing-pool";
@@ -263,5 +264,46 @@ describe("LandingScreen — reduced motion", () => {
     expect(currentId()).toBe("p0");
     act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
     expect(sheet()).toHaveAttribute("data-open", "true");
+  });
+});
+
+// Review finding 2 (09-25-26): the decode tracker must not start on the hydration commit, where
+// every client-only store still reads its server snapshot (saveData false, reduced motion false,
+// so all twelve pictures at `Infinity` ahead). A plain `render` can't see this — its first render
+// already has the client answers — so this hydrates real server markup.
+describe("LandingScreen — hydration", () => {
+  it("a Save-Data reader's hydration requests one picture, not the whole reel", async () => {
+    Object.defineProperty(navigator, "connection", {
+      configurable: true,
+      value: { saveData: true },
+    });
+    let requested = 0;
+    vi.stubGlobal(
+      "Image",
+      class {
+        src = "";
+        srcset = "";
+        sizes = "";
+        constructor() {
+          requested += 1;
+        }
+        decode = () => Promise.resolve();
+      },
+    );
+    const el = (
+      <LandingScreen mode="cycle" pictures={pics(12)} tempo={TEMPOS.cut}>
+        <form data-testid="auth-child" />
+      </LandingScreen>
+    );
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(el);
+    document.body.appendChild(container);
+    render(el, { container, hydrate: true });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(requested).toBe(1);
+    container.remove();
   });
 });

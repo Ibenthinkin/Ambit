@@ -40,6 +40,9 @@ export interface LandingScreenProps {
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
+/** Stable identity for "track nothing yet" — a fresh `[]` each render would re-run the tracker. */
+const NO_PICTURES: ReelPicture[] = [];
+
 /** A form field owns its arrow keys: in one, ←/→ move the caret, not the reel. */
 function isEditable(el: Element | null): boolean {
   return (
@@ -103,9 +106,15 @@ export function LandingScreen({
   // cycle between two hooks. Broken by mirroring the index one render late (React's
   // adjust-state-during-render pattern): the decode tracker is at most a frame behind, which at
   // one-ahead prefetch costs nothing, and the cut prefetches the whole reel regardless.
+  //
+  // **Not before hydration.** On the hydration commit every client-only store still reads its
+  // server snapshot — no Save-Data, no reduced motion, so all twelve pictures at `Infinity` ahead —
+  // and passive effects flush before the corrective render, so a tracker running then would
+  // download the whole reel for a reader who asked for none of it. The first frames are already
+  // `<head>` preloads and the overture buys 3.6 s, so one render of delay costs nothing.
   const [picIndex, setPicIndex] = React.useState(0);
-  const { ready, version } = usePictures(
-    shown,
+  const { ready, failed, version } = usePictures(
+    hydrated ? shown : NO_PICTURES,
     isStatic ? 0 : picIndex,
     wantedAhead(effectiveTempo),
   );
@@ -117,6 +126,10 @@ export function LandingScreen({
     isReady: (i) => {
       const p = shown[i];
       return p !== undefined && ready.has(p.id);
+    },
+    isFailed: (i) => {
+      const p = shown[i];
+      return p !== undefined && failed.has(p.id);
     },
     readyVersion: version,
     onFirstPass: () => setOpened(true),

@@ -31,10 +31,19 @@ export interface ReelOptions {
   /** `false` while the overture is playing; the gate is checked only once this is true. */
   enabled: boolean;
   isReady: (index: number) => boolean;
+  /** A picture that will never be ready (its decode rejected). Settled, for the gate's purposes. */
+  isFailed?: (index: number) => boolean;
   /** Bumped by `usePictures` on every decode — what opens the gate and wakes a held reel. */
   readyVersion: number;
   onFirstPass: () => void;
 }
+
+/**
+ * How long the reel waits, once enabled, for its gate to open before raising the sheet anyway. "Never
+ * cut to a blank" must not become "never cut": a visitor whose pictures all fail still gets the
+ * sign-in sheet on its own (docs/DESIGN_landing-redo.md D5; review finding 1, 09-25-26).
+ */
+export const GATE_DEADLINE_MS = 8000;
 
 export interface Reel {
   index: number;
@@ -54,10 +63,15 @@ interface Frame {
   index: number;
   prev: number | null;
 }
-type FrameAction = { type: "go"; to: number } | { type: "reset" };
+type FrameAction =
+  | { type: "go"; to: number }
+  | { type: "start"; at: number }
+  | { type: "reset" };
 
 function frameReducer(state: Frame, action: FrameAction): Frame {
   if (action.type === "reset") return { index: 0, prev: null };
+  // The gate opening on a picture other than 0 (0 failed): a first frame, so nothing is leaving.
+  if (action.type === "start") return { index: action.at, prev: null };
   return { index: action.to, prev: state.index };
 }
 
@@ -66,6 +80,7 @@ export function useReel({
   tempo,
   enabled,
   isReady,
+  isFailed = () => false,
   readyVersion,
   onFirstPass,
 }: ReelOptions): Reel {
@@ -77,20 +92,29 @@ export function useReel({
   const [held, setHeld] = React.useState(false);
 
   // The gate, as a sticky flag adjusted during render (React's documented "storing information
-  // from previous renders" pattern) rather than a setState inside an effect: it opens on the first
-  // render where the reel is enabled and its first `gateFrames` pictures (or all, if fewer) have
-  // decoded, and never closes again.
+  // from previous renders" pattern) rather than a setState inside an effect. It opens on the first
+  // render where the reel is enabled and either its first `gateFrames` pictures (or all, if fewer)
+  // have decoded, or those pictures have all *settled* — decoded or failed — and at least one
+  // picture anywhere is ready. It then starts on the first ready picture, so a failed picture 0
+  // is never the frame the reel cuts into. It never closes again.
   const [started, setStarted] = React.useState(false);
   if (!started && enabled && count > 0) {
     const need = Math.min(tempo.gateFrames, count);
-    let open = true;
+    let readyInGate = 0;
+    let settledInGate = 0;
     for (let i = 0; i < need; i++) {
-      if (!isReady(i)) {
-        open = false;
-        break;
-      }
+      if (isReady(i)) readyInGate += 1;
+      if (isReady(i) || isFailed(i)) settledInGate += 1;
     }
-    if (open) setStarted(true);
+    let firstReady = -1;
+    for (let i = 0; i < count && firstReady < 0; i++)
+      if (isReady(i)) firstReady = i;
+    const open =
+      readyInGate === need || (settledInGate === need && firstReady >= 0);
+    if (open) {
+      setStarted(true);
+      if (firstReady > 0) dispatch({ type: "start", at: firstReady });
+    }
   }
 
   const isReadyRef = React.useRef(isReady);
@@ -134,6 +158,14 @@ export function useReel({
     },
     [countFrame],
   );
+
+  // The deadline: a gate that has not opened GATE_DEADLINE_MS after the reel was enabled raises
+  // the sheet anyway. The pictures may still arrive and start the reel behind it.
+  React.useEffect(() => {
+    if (!enabled || started || count === 0) return;
+    const timer = setTimeout(fire, GATE_DEADLINE_MS);
+    return () => clearTimeout(timer);
+  }, [enabled, started, count, fire]);
 
   // The automatic step.
   React.useEffect(() => {

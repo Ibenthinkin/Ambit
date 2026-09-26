@@ -3,7 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TEMPOS } from "./tempos";
-import { useReel, type ReelOptions } from "./use-reel";
+import { GATE_DEADLINE_MS, useReel, type ReelOptions } from "./use-reel";
 
 function setup(overrides: Partial<ReelOptions> = {}) {
   const onFirstPass = vi.fn();
@@ -151,6 +151,52 @@ describe("useReel — cut", () => {
     rerender({ ...options, readyVersion: 5 });
     advance(150);
     expect(result.current.index).toBe(1);
+  });
+});
+
+// Review finding 1 (09-25-26): a picture that fails (a 502 from a cold museum fill, a row retired
+// between pick and paint) must never leave a first-time visitor on the wordmark.
+describe("useReel — failed pictures", () => {
+  it("a failed picture in the gate: starts on the first ready one once the gate's pictures have all settled", () => {
+    const failed = new Set<number>([0]);
+    const readySet = new Set<number>([1, 2, 3]);
+    const { result } = setup({
+      isReady: (i) => readySet.has(i),
+      isFailed: (i) => failed.has(i),
+    });
+    expect(result.current.started).toBe(true);
+    expect(result.current.index).toBe(1);
+    expect(result.current.prev).toBeNull();
+  });
+
+  it("waits while a gate picture is still in flight (neither ready nor failed)", () => {
+    const readySet = new Set<number>([1, 2]);
+    const { result } = setup({
+      isReady: (i) => readySet.has(i),
+      isFailed: (i) => i === 0,
+    });
+    expect(result.current.started).toBe(false);
+  });
+
+  it("the deadline: if nothing is ever ready, the sheet rises anyway", () => {
+    const { result, onFirstPass } = setup({ isReady: () => false });
+    expect(result.current.started).toBe(false);
+    advance(GATE_DEADLINE_MS - 1);
+    expect(onFirstPass).not.toHaveBeenCalled();
+    advance(1);
+    expect(onFirstPass).toHaveBeenCalledTimes(1);
+  });
+
+  it("the deadline clock only runs once the reel is enabled (not during the overture)", () => {
+    const { onFirstPass, rerender, options } = setup({
+      isReady: () => false,
+      enabled: false,
+    });
+    advance(GATE_DEADLINE_MS * 2);
+    expect(onFirstPass).not.toHaveBeenCalled();
+    rerender({ ...options, enabled: true });
+    advance(GATE_DEADLINE_MS);
+    expect(onFirstPass).toHaveBeenCalledTimes(1);
   });
 });
 
