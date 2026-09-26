@@ -1,13 +1,19 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as ExploreConfig from "~/config/explore";
-import { EXPLORE_ABOUT, EXPLORE_BLOCKS } from "~/config/explore";
+import {
+  EXPLORE_ABOUT,
+  EXPLORE_BLOCKS,
+  EXPLORE_DISSOLVE_MS,
+} from "~/config/explore";
+import { OVERTURE_MS } from "~/components/landing/use-overture";
 import type { Item } from "~/server/db/items";
 import type { FeedCard, FeedPage } from "~/server/services/feed";
 import { stubMatchMedia } from "~/test/match-media";
 import { ExploreScreen } from "./explore-screen";
+import { resetOverturePlayedForTests } from "./once-per-document";
 
 // `/explore`'s screen is composition over the grid: the query, the cap, the message blocks and
 // the two surfaces they open. The grid and the packing are FeedGrid's and masonry's own tests.
@@ -36,6 +42,9 @@ vi.mock("~/trpc/react", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
+
+// The overture pulls the landing's Inter in through next/font, which has no build step here.
+vi.mock("~/lib/fonts", () => ({ inter: { className: "font-inter-test" } }));
 
 // The real card needs Better Auth's client; what matters here is which mode it was opened in.
 vi.mock("~/components/landing/auth-card", () => ({
@@ -101,6 +110,7 @@ beforeEach(() => {
   fetchNextPageMock.mockClear();
   pushMock.mockClear();
   sessionStorage.clear();
+  resetOverturePlayedForTests();
   // Two cards: under the three-image cap, with a next page to come.
   feedState.current = loaded([page(["a", "b"], "c1")]);
 });
@@ -201,5 +211,61 @@ describe("ExploreScreen", () => {
     expect(
       within(screen.getByRole("dialog")).getByText(EXPLORE_ABOUT.title),
     ).toBeInTheDocument();
+  });
+});
+
+// The landing's overture stands in for the loading screen (09-26-26): the line on black while the
+// first page hydrates underneath, a hard cut into the feed when its clock runs out.
+describe("ExploreScreen overture", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const overture = () => screen.queryByTestId("overture");
+  const curtain = () => screen.queryByTestId("explore-curtain");
+
+  it("plays over a black curtain on a document's first mount, then dissolves into the feed", () => {
+    const { container } = render(<ExploreScreen topicLabels={{}} />);
+    expect(overture()).toBeInTheDocument();
+    expect(curtain()).toBeInTheDocument();
+    expect(curtain()).toHaveAttribute("data-dissolving", "false");
+    // The feed is already there underneath — the overture hides loading, it doesn't delay it.
+    expect(container.querySelectorAll("[data-feed-id]")).toHaveLength(2);
+    act(() => {
+      vi.advanceTimersByTime(OVERTURE_MS - 1);
+    });
+    expect(curtain()).toHaveAttribute("data-dissolving", "false");
+    // The clock runs out: the curtain and the line stay, fading together over the feed — and
+    // taking no taps while they do.
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(curtain()).toHaveAttribute("data-dissolving", "true");
+    expect(curtain()).toHaveStyle({ opacity: "0", pointerEvents: "none" });
+    expect(overture()).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(EXPLORE_DISSOLVE_MS - 1);
+    });
+    expect(curtain()).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(overture()).not.toBeInTheDocument();
+    expect(curtain()).not.toBeInTheDocument();
+  });
+
+  it("does not replay on a later mount in the same document (Back from an item page)", () => {
+    const first = render(<ExploreScreen topicLabels={{}} />);
+    expect(overture()).toBeInTheDocument();
+    first.unmount();
+    render(<ExploreScreen topicLabels={{}} />);
+    expect(overture()).not.toBeInTheDocument();
+    expect(curtain()).not.toBeInTheDocument();
+  });
+
+  it("is skipped when the page arrives with a sheet up (`initialOpen`)", () => {
+    render(<ExploreScreen topicLabels={{}} initialOpen="signup" />);
+    expect(overture()).not.toBeInTheDocument();
+    expect(curtain()).not.toBeInTheDocument();
+    expect(authSheet()).toHaveAttribute("data-open", "true");
   });
 });

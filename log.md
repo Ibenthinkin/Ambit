@@ -187,6 +187,53 @@ the deferred minors above still stand.
 
 *Session spend: 7.89M tok (in 91 · out 32.8k · cache r 7.71M / w 149.5k) · ~≥$2.06 · opus-5-5 + opus-4-7 · 14:40→15:20*
 
+**Later the same day (Fable) — `/explore` opens on the overture, which dissolves into the feed.**
+Ben's next `/explore` ask: play the landing's text animation on arrival, in place of the loading
+screen. Bounded — both halves existed — so no spec. `ExploreScreen` now mounts a black curtain
+with the landing's `Overture` *inside* it, on `useOverture`'s clock; the first page hydrates
+underneath (the spinner is only a fallback now), and at `done` the curtain — black and the
+collapsed wordmark together — dissolves into the feed. Ben watched it three times: hard cut →
+"can the transition be a smooth dissolve?" → 1 s → "a bit slower" → **1.6 s, "perfect"**. The
+number is `EXPLORE_DISSOLVE_MS` in `config/explore.ts`.
+
+**Decisions:**
+- **Once per document, not per mount** (`components/explore/once-per-document.ts`, a module
+  variable set from an effect). The overture is the loading screen, so it belongs to a document
+  load — typed URL, reload, new tab — and Back from an item page pops to a feed that is already
+  there, where 3.6 s of black would punish pressing Back. `sessionStorage` was the wrong grain
+  (it outlives the document and would skip a reload). Read in a lazy `useState` initializer:
+  `false` on the server and on the hydration render, the truth on a client-side remount, so no
+  render in which a skipped overture paints.
+- **Never under a raised sheet** — `?open=` from the item page's end card skips it, the landing's
+  own `static` rule.
+- The wordmark is held at `collapse` through the fade rather than unmounting at `done` as it
+  does on the landing, so text and black leave together. Its `difference` blend composes
+  against the curtain's own black (opacity makes the curtain a stacking context) — white text,
+  as on `/`. The curtain carries `.motion-gentle`: an opacity-only fade is what reduced motion
+  gets on the landing too, and `globals.css` would otherwise collapse it to a cut.
+- The unmount is a timer, not `transitionend` — a background tab fires none.
+
+**Findings:**
+- Importing `overture.tsx` pulls `next/font` in through `lib/fonts`, which has no build step
+  under vitest (`Sora is not a function`); the explore test now mocks `~/lib/fonts` as the
+  landing tests do. The old header comment that avoided the import for exactly this is gone.
+- The devtools `initScript` recorder is the honest witness for a 1.6 s fade — polling after
+  `new_page` or `reload` kept arriving after the show, because a dev-mode load of `/explore`
+  takes longer than the overture. Its log: mounted 43 ms, dissolving at 4.68 s with the wordmark
+  on the curtain and `transitionDuration: 1.6s`, 97 opacity samples, unmounted 1,613 ms later.
+
+**Verified:** explore unit tests 24/24 (+3 for the overture: plays once, not on remount, not
+under `initialOpen`), config 33/33 with them; typecheck + lint clean; `e2e/explore.spec.ts` 7/7
+against the dev server three times (it now waits through the overture explicitly and asserts it
+plays on load, not on Back, not under `?open=`). Not the full suite — nothing outside `/explore`
+changed.
+
+**Open / next:** still `main`, not pushed, not deployed (13 ahead after this commit). Ben's deferred
+minors from the `/explore` review stand. A follow-up if it reads right on the phone: nothing —
+the cut-vs-dissolve and the wordmark-into-the-header questions are both answered (dissolve; no).
+
+*Session spend: 18.12M tok (in 3.7k · out 120.5k · cache r 17.63M / w 370.6k) · fable-5-1 · 15:44→16:51*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:

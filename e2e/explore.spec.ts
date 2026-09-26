@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 import {
   cleanupSeeded,
@@ -25,6 +25,11 @@ const PASSWORD = "correcthorse123";
 
 let conn: Connection;
 
+/** The overture (~3.6 s) owns the screen on every document load; nothing under it takes a tap. */
+async function waitForOverture(page: Page) {
+  await expect(page.getByTestId("overture")).toHaveCount(0, { timeout: 8_000 });
+}
+
 test.describe.serial("explore", () => {
   test.beforeAll(async () => {
     conn = await connect();
@@ -41,6 +46,11 @@ test.describe.serial("explore", () => {
   }) => {
     await page.goto("/explore");
     await expect(page).toHaveURL(/\/explore$/);
+    // The landing's opening line stands in for the loading screen, then cuts to the feed.
+    await expect(page.getByTestId("overture-tail")).toBeVisible();
+    await expect(page.getByTestId("explore-curtain")).toBeVisible();
+    await waitForOverture(page);
+    await expect(page.getByTestId("explore-curtain")).toHaveCount(0);
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();
     // Page one's block is "what is this?", after its fourth card.
     await expect(page.locator('[data-explore-message="about"]')).toBeVisible();
@@ -51,6 +61,7 @@ test.describe.serial("explore", () => {
   test("scrolling loads the next page", async ({ page }) => {
     await page.goto("/explore");
     await waitForHydration(page, "[data-feed-id] > *");
+    await waitForOverture(page);
     await waitForFeedToSettle(page);
     const first = await page.locator("[data-feed-id]").count();
     const nextPage = page.waitForResponse(
@@ -66,6 +77,7 @@ test.describe.serial("explore", () => {
   test("'what is this?' opens the about dialog", async ({ page }) => {
     await page.goto("/explore");
     await waitForHydration(page, '[data-explore-message="about"] button');
+    await waitForOverture(page);
     await page
       .locator('[data-explore-message="about"]')
       .getByRole("button", { name: "Read how it works" })
@@ -79,6 +91,8 @@ test.describe.serial("explore", () => {
     await expect(
       page.getByPlaceholder("What should we call you?"),
     ).toBeInViewport();
+    // Arriving with the sheet up, there is no overture to wait through — the landing's own rule.
+    await expect(page.getByTestId("overture")).toHaveCount(0);
   });
 
   test("a tile opens the item page, and leaving it comes back to /explore", async ({
@@ -86,6 +100,7 @@ test.describe.serial("explore", () => {
   }) => {
     await page.goto("/explore");
     await waitForHydration(page, "[data-feed-id] > *");
+    await waitForOverture(page);
     await waitForFeedToSettle(page);
     const tile = page.locator("[data-feed-id] > *").first();
     await tapInPlace(page, tile);
@@ -97,6 +112,8 @@ test.describe.serial("explore", () => {
     await page.keyboard.press("Escape");
     await page.waitForURL(/\/explore$/);
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();
+    // Back pops to the feed that was already there — the overture is once per document load.
+    await expect(page.getByTestId("overture")).toHaveCount(0);
   });
 
   test("`/` is still the landing", async ({ page }) => {
@@ -110,6 +127,7 @@ test.describe.serial("explore", () => {
   }) => {
     await page.goto("/explore");
     await waitForHydration(page, '[data-explore-message="about"] button');
+    await waitForOverture(page);
     await page
       .locator('[data-explore-message="about"]')
       .getByRole("button", { name: "Read how it works" })

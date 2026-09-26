@@ -11,17 +11,24 @@ import {
 import { buildTiles } from "~/components/feed/masonry";
 import { AuthCard } from "~/components/landing/auth-card";
 import { AuthSheet } from "~/components/landing/auth-sheet";
+import { Overture } from "~/components/landing/overture";
+import { useOverture } from "~/components/landing/use-overture";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/ui/spinner";
 import {
   EXPLORE_ABOUT,
+  EXPLORE_DISSOLVE_MS,
   EXPLORE_FEED_IMAGE_CAP,
   type ExploreAction,
 } from "~/config/explore";
 import { api } from "~/trpc/react";
 import { capTiles } from "./explore-tiles";
 import { MessageTile } from "./message-tile";
+import {
+  markOverturePlayed,
+  overturePlayedThisDocument,
+} from "./once-per-document";
 
 // `/explore` — a signed-out taste of the feed (09-26-26, docs/PLAN_explore-route.md). The real
 // feed, readable without an account, with a calm message block on every page (what is this? · sign
@@ -136,16 +143,73 @@ export function ExploreScreen({
     router.push(`/i/${id}`);
   };
 
+  // ── the overture (09-26-26) ───────────────────────────────────────────────────────────────────
+  // The landing's opening line, on black, in place of a loading screen: the first page hydrates
+  // underneath while it plays, and when its clock runs out the curtain — black and the collapsed
+  // wordmark together — dissolves into the feed over `EXPLORE_DISSOLVE_MS` (Ben, 09-26-26: a
+  // dissolve, not the landing's hard cut). Once per *document* (once-per-document.ts): a reload
+  // replays it, Back from an item page does not. And never under a raised sheet — the landing's
+  // rule for its own `static` mode — which is what `initialOpen` is.
+  //
+  // Decided in a lazy initializer, not an effect: on the server and on the hydration render the
+  // flag is `false`, so the two agree, and a client-side remount reads the truth at once — no
+  // render in which a skipped overture paints.
+  const [overtureWanted] = React.useState(
+    () => initialOpen === undefined && !overturePlayedThisDocument(),
+  );
+  const { phase } = useOverture(overtureWanted);
+  React.useEffect(() => {
+    if (overtureWanted) markOverturePlayed();
+  }, [overtureWanted]);
+  // `done` starts the dissolve; the curtain unmounts when the fade has run, and not on
+  // `transitionend` — a background tab fires none, and the curtain would stay up.
+  const dissolving = phase === "done";
+  const [dissolved, setDissolved] = React.useState(false);
+  React.useEffect(() => {
+    if (!overtureWanted || !dissolving) return;
+    const t = setTimeout(() => setDissolved(true), EXPLORE_DISSOLVE_MS);
+    return () => clearTimeout(t);
+  }, [overtureWanted, dissolving]);
+  const curtainUp = overtureWanted && !dissolved;
+
+  // If the feed is somehow still pending when the curtain lifts, the loader below is the fallback.
   const showLoader = isPending || isFetchingNextPage;
 
   return (
     <main className="bg-bg text-ink min-h-dvh">
+      {/* Above the header (z-8) and the grid, below the sheets (z-35), which can't open while it's
+          up anyway: the curtain takes every pointer until it starts to fade. The Overture sits
+          *inside* it so the two dissolve as one — its `difference` blend now composes against the
+          curtain's own black (opacity makes the curtain a stacking context), which is white text,
+          exactly as on the landing. Held at `collapse` through the fade: the line unmounts itself
+          at `done`, and here it should stay and go with the black. `.motion-gentle`: an
+          opacity-only fade is what reduced motion gets on the landing too, and globals.css would
+          otherwise collapse it to a cut. */}
+      {curtainUp ? (
+        <div
+          data-testid="explore-curtain"
+          data-dissolving={dissolving}
+          aria-hidden
+          className="motion-gentle fixed inset-0 z-[10]"
+          style={{
+            background: "#000",
+            opacity: dissolving ? 0 : 1,
+            transition: dissolving
+              ? `opacity ${EXPLORE_DISSOLVE_MS}ms ease`
+              : "none",
+            pointerEvents: dissolving ? "none" : "auto",
+          }}
+        >
+          <Overture phase={dissolving ? "collapse" : phase} />
+        </div>
+      ) : null}
+
       {/* The header: the wordmark, and a way in for someone who already has an account. Not the
           pill — every control on it leads somewhere a stranger can't go. */}
       <header className="bg-bg/66 border-ink/8 fixed inset-x-0 top-0 z-[8] flex h-[50px] items-center justify-between border-b-[0.5px] px-4 backdrop-blur-[18px] backdrop-saturate-[160%]">
         <span className="text-ink-hi text-[15px] font-semibold tracking-[3px]">
-          {/* The overture's wordmark, spelled out rather than imported: overture.tsx loads the
-              landing's fonts at module scope, and this header needs none of them. */}
+          {/* The overture's wordmark, spelled out rather than imported: this one is in the app's
+              own face, the overture's in the landing's Inter. */}
           AMBIT
         </span>
         <button

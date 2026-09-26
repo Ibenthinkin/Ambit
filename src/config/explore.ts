@@ -18,6 +18,10 @@ export const EXPLORE_RAIL_CAP = 100;
  *  comfortably past the 200-image cap, so the client's cap is always what a visitor meets. */
 export const EXPLORE_MAX_PAGES = 24;
 
+/** How long the overture's curtain takes to dissolve into the feed once its line has collapsed.
+ *  Ben, 09-26-26: the reel's 1 s fade was right in kind and a touch quick — "a bit slower". */
+export const EXPLORE_DISSOLVE_MS = 1600;
+
 // ── copy (Ben edits) ────────────────────────────────────────────────────────────────────────────
 // Every word `/explore` says lives here, so the wording can change without touching a component.
 
