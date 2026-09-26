@@ -34,9 +34,18 @@ const USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL =
 // password, and the "check your inbox" confirmation). One `error` slot, centered under the CTA,
 // exactly as the prototype has it — no per-field error rows (Decision in the plan's state-machine
 // section).
-export function AuthCard() {
+export interface AuthCardProps {
+  /**
+   * Which state the card opens in — `/explore`'s sign-up block asks for `"signup"` (09-26-26).
+   * Read once, as `useState`'s initial value: to open it in another mode, remount it with a new
+   * `key`.
+   */
+  initialMode?: "signin" | "signup";
+}
+
+export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
