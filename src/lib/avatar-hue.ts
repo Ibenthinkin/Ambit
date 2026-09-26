@@ -58,7 +58,12 @@ export function avatarHue(userId: string): number {
  * created to solve — see `avatar-chip.tsx`). Inline style sidesteps both.
  */
 export function avatarGradient(userId: string): string {
-  const hue = avatarHue(userId);
+  return gradientForHue(avatarHue(userId));
+}
+
+/** The same two-stop gradient for a hue directly — what the candidate profile marks
+ *  (components/icons/marks.tsx, docs/DESIGN_landing-redo.md D7) are coloured from. */
+export function gradientForHue(hue: number): string {
   const second = (hue + 18) % 360;
   return `linear-gradient(150deg, hsl(${hue} 62% 72%), hsl(${second} 54% 46%))`;
 }

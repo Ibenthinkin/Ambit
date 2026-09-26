@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { avatarGradient, avatarHue } from "./avatar-hue";
+import { avatarGradient, avatarHue, gradientForHue } from "./avatar-hue";
 
 // A pure module, so these are the three properties that actually matter in production: the same id
 // always gives the same disc (or an avatar would change under the user), the hue is always a legal
@@ -65,5 +65,17 @@ describe("avatarGradient", () => {
     const second = (avatarHue(id!) + 18) % 360;
     expect(second).toBeLessThan(20);
     expect(avatarGradient(id!)).toContain(`hsl(${second} 54% 46%)`);
+  });
+});
+
+// docs/DESIGN_landing-redo.md D7: the candidate marks take a hue, not a user id.
+describe("gradientForHue", () => {
+  it("is the gradient avatarGradient builds, for any hue", () => {
+    expect(gradientForHue(200)).toBe(
+      "linear-gradient(150deg, hsl(200 62% 72%), hsl(218 54% 46%))",
+    );
+    expect(avatarGradient("some-user")).toBe(
+      gradientForHue(avatarHue("some-user")),
+    );
   });
 });
