@@ -234,6 +234,58 @@ the cut-vs-dissolve and the wordmark-into-the-header questions are both answered
 
 *Session spend: 18.12M tok (in 3.7k · out 120.5k · cache r 17.63M / w 370.6k) · fable-5-1 · 15:44→16:51*
 
+**Evening (Fable) — `/explore` gets the app's toolbar; strangers get it on item pages too.**
+Ben: drop the wordmark-and-Sign-in header, use the regular controls — Profile and Save open the
+sign-up page, the logo returns to the feed, Share works as normal. Built on `feat/explore-toolbar`
+(not merged, not pushed).
+
+**Shipped:**
+- `/explore`: no header; `Toolbar` with `onProfile` / `onBookmark` → sign-up sheet, `onHome` →
+  scroll to top (the pill's default `/feed` push would bounce a stranger to the landing), no
+  Share. Hidden with `visible` until the overture's dissolve starts — the pill's z-30 sits over
+  the curtain's z-10 — then fades in on its own 600 ms.
+- `components/explore/auth-surface.tsx`: the sign-up sheet as one piece — `useAuthSurface()`
+  (open / mode / a card key that remounts per open) + `<AuthSurface>` (click-to-close scrim,
+  `AuthSheet`, `AuthCard`, Escape). Was inline in the explore screen; now mounted there and on
+  both item screens for a signed-out visitor.
+- Item screens (`ItemScreen` for pictures, `ItemShell` for articles): the toolbars render for
+  everyone. Signed out, Profile and Save raise the sheet in place — the picture stays under it
+  (Ben's call: "sheet in place", not the end card's push to `/explore?open=`) — and the end card's
+  sign-in / sign-up open in place too; its "what is this?" still goes to `/explore`, which owns
+  that dialog. Escape closes the sheet before it leaves the page (`sheetOpen` includes it). Share,
+  the share sheet and the toast are unconditional; the save sheet and `saves.forItem` stay behind
+  `authed`.
+- `useLeaveToFeed`'s flag is `signedOut`, not `exploring`: every signed-out exit goes to
+  `/explore`, a cold shared link's included — `/feed` is never right for someone without a
+  session, and the toolbar just handed that visitor a Feed button.
+
+**Decisions:**
+- Profile *and* Save ask the same thing ("Have an invite?"), so both open the card in sign-up;
+  an account holder switches to sign-in inside the card. Sign in has no dedicated button any more
+  — the rotating tile and the card's link are the ways.
+- The shared-link stranger gets the toolbar too, not only the explore visitor: one rule for a
+  signed-out item page. `JoinCta`'s "Keep exploring" link is still explore-only.
+
+**Findings:**
+- On the item page a Playwright *click* on the picture toggles the chrome back off (the click's
+  own mouse move summons it first) — `item.spec.ts`'s `summonChrome` moves the mouse instead,
+  and the explore spec now does the same. Two red runs before that was remembered.
+- Port 3000 was held by a stale `next start` from the topic-groups session; killed before the
+  e2e run (Playwright refuses to reuse a server under `E2E_PROD` anyway).
+
+**Verified:** `bun run check` green — 1,487 unit tests (auth-surface 3 new, explore screen 5
+rewritten for the toolbar, item screen 4, item shell 2, leave hook 1), typecheck, lint (13
+pre-existing warnings, none in touched files), format. Full `E2E_PROD=1` suite **66/66** against
+a fresh production build (explore, item and desktop specs updated: the desktop centred-card test
+now opens it from the rail's Profile).
+
+**Open / next:** Ben looks at `/explore` and a signed-out item page on the phone and at 1440, then
+merge to `main`. The plan's header bullet is struck through with a pointer. Still nothing
+deployed. The generic `AvatarChip` as the Profile glyph reads as "your account" to a stranger —
+it's the mark Ben already wants replaced, so it waits for that.
+
+*Session spend: 10.56M tok (in 2.0k · out 71.7k · cache r 10.10M / w 383.6k) · fable-5-1 · 16:58→17:11*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:

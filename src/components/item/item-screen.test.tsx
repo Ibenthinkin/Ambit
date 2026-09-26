@@ -67,6 +67,13 @@ vi.mock("~/trpc/react", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ back: backMock, push: pushMock }),
 }));
+// The real card needs Better Auth's client; what matters here is which mode it was opened in.
+vi.mock("~/components/landing/auth-card", () => ({
+  AuthCard: ({ initialMode }: { initialMode?: string }) => (
+    <div data-testid="auth-card">{initialMode ?? "signin"}</div>
+  ),
+}));
+
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: React.ComponentProps<"a">) => (
     <a href={href} {...rest}>
@@ -323,20 +330,61 @@ describe("ItemScreen", () => {
   });
 
   describe("the auth boundary", () => {
-    it("gives a signed-out visitor the picture, the facts and no pill, and fires no protected query", () => {
+    // Since 09-26-26 a stranger gets the toolbar too: Share is Share, Profile and Save ask for
+    // the account in place, and nothing protected is ever requested for them.
+    it("gives a signed-out visitor the picture, the facts and the pill, and fires no protected query", () => {
       renderScreen({ authed: false });
       tap();
       expect(screen.getByAltText("Plate entry")).toBeInTheDocument();
       expect(
         screen.getByRole("list", { name: "About this work" }),
       ).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "Save to collection" }),
-      ).toBeNull();
+      expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
       expect(savedForItemMock).toHaveBeenCalledWith(
         { itemId: "entry" },
         expect.objectContaining({ enabled: false }),
       );
+    });
+
+    it("a stranger's Profile and Save raise the sign-up sheet over the picture", () => {
+      renderScreen({ authed: false });
+      tap();
+      const sheet = screen.getByTestId("auth-sheet");
+      expect(sheet).toHaveAttribute("data-open", "false");
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Save to collection" }),
+      );
+      expect(sheet).toHaveAttribute("data-open", "true");
+      expect(screen.getByTestId("auth-card")).toHaveTextContent("signup");
+      // In place: the picture is still there, nothing navigated.
+      expect(heading()).toHaveTextContent("Plate entry");
+      expect(pushMock).not.toHaveBeenCalled();
+
+      // Escape closes the sheet rather than leaving the page.
+      key("Escape");
+      expect(sheet).toHaveAttribute("data-open", "false");
+      expect(pushMock).not.toHaveBeenCalled();
+      expect(backMock).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+      expect(sheet).toHaveAttribute("data-open", "true");
+      expect(pushMock).not.toHaveBeenCalled();
+    });
+
+    it("a stranger's Feed goes to /explore, never /feed", () => {
+      renderScreen({ authed: false });
+      tap();
+      fireEvent.click(screen.getByRole("button", { name: "Feed" }));
+      expect(pushMock).toHaveBeenCalledWith("/explore");
+    });
+
+    it("a signed-in reader's Profile is the pill's own default, and no auth sheet is mounted", () => {
+      renderScreen();
+      tap();
+      fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+      expect(pushMock).toHaveBeenCalledWith("/profile");
+      expect(screen.queryByTestId("auth-sheet")).toBeNull();
     });
 
     // Ben's review (09-11-26): "the UI bar is all over the place on the phone" — it rode inside
@@ -413,12 +461,20 @@ describe("the explore rail cap", () => {
     expect(endCard()).toBeInTheDocument();
   });
 
-  it("the end card's sign-up goes to /explore with the card open", () => {
+  it("the end card's sign-up opens the card in place; its 'what is this?' goes to /explore", () => {
     markExploreOrigin();
     renderScreen({ authed: false });
     right(4);
     fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
-    expect(pushMock).toHaveBeenCalledWith("/explore?open=signup");
+    expect(screen.getByTestId("auth-sheet")).toHaveAttribute(
+      "data-open",
+      "true",
+    );
+    expect(screen.getByTestId("auth-card")).toHaveTextContent("signup");
+    expect(pushMock).not.toHaveBeenCalled();
+    key("Escape");
+    fireEvent.click(screen.getByRole("button", { name: "What is this?" }));
+    expect(pushMock).toHaveBeenCalledWith("/explore?open=about");
   });
 
   it("leaves a signed-in reader's rail endless", () => {

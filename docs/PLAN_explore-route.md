@@ -75,8 +75,13 @@ plain branch `feat/explore-route` off `main`, commit per task.
      — input `{}` byte-identical to the RSC prefetch (same hydration contract as `/feed`).
    - Counts image cards across pages; once ≥ `EXPLORE_FEED_IMAGE_CAP`, stop calling
      `fetchNextPage`, trim the tile list at the 200th image, and append a `message` tile of kind `"end"`.
-   - Header: the wordmark top-left and a small **Sign in** text button top-right (no `Toolbar` —
-     it links to profile/collections).
+   - ~~Header: the wordmark top-left and a small **Sign in** text button top-right (no `Toolbar` —
+     it links to profile/collections).~~ **Superseded 09-26-26 (Ben):** the header is gone and the
+     screen mounts the app's own `Toolbar` — Profile and Save raise the sign-up sheet, Feed
+     scrolls to the top, no Share (a feed has no current item). The same sheet
+     (`components/explore/auth-surface.tsx`) is mounted on both item screens for a signed-out
+     visitor, whose toolbar is there too: Share as anyone's, Profile and Save the sheet in place,
+     Feed to `/explore`. Branch `feat/explore-toolbar`.
    - `AuthSheet` + `AuthCard` (from `components/landing/`) mounted closed; a block's sign-in /
      sign-up opens it in that mode; `onCollapse` closes it. **`AuthCard` gains an
      `initialMode?: "signin" | "signup"` prop** (default `"signin"`, so the landing is unchanged);

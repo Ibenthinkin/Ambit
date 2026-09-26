@@ -4,6 +4,7 @@ import * as React from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
+import { AuthSurface, useAuthSurface } from "~/components/explore/auth-surface";
 import { MessageTile } from "~/components/explore/message-tile";
 import { cameFromExplore } from "~/components/feed/feed-origin";
 import { HeroRail, type RailCell } from "~/components/item/hero-rail";
@@ -51,8 +52,11 @@ import { api } from "~/trpc/react";
 //   - **Every way out is `useLeaveToFeed(entryItem)`**: Escape, the down-flick, the pill's Feed.
 //     Keyed on the *entry* item, whose feed-origin marker decides pop-vs-push, so ten swipes later
 //     Back still lands on the intact feed.
-//   - **Signed-out visitors get the picture, the facts and the way out.** The pill, the sheets and
-//     every protected query sit behind `authed`. Leaving is not a privilege, and neither is looking.
+//   - **Signed-out visitors get the picture, the facts, the way out — and, since 09-26-26, the
+//     toolbar.** Share works as it does for anyone (a link is a link); Profile and Save lead
+//     somewhere a stranger can't go, so each raises the sign-up sheet in place (`AuthSurface`)
+//     instead — the picture stays under it. The save sheet and every protected query still sit
+//     behind `authed`. Leaving is not a privilege, and neither is looking.
 //
 // Articles don't come here: they keep the reader layout inside `ItemShell` (see the page).
 
@@ -161,7 +165,12 @@ export function ItemScreen({
     () => false,
   );
   const exploring = !authed && fromExplore;
-  const leave = useLeaveToFeed(entryItem.id, { exploring });
+  // Every signed-out exit goes to `/explore` — the shared-link stranger's too, since the toolbar
+  // gave them a Feed button (09-26-26) and `/feed` would only bounce them to the landing.
+  const leave = useLeaveToFeed(entryItem.id, { signedOut: !authed });
+  // The sign-up sheet Profile and Save raise for a stranger, and the end card's sign-in / sign-up
+  // open too (its "what is this?" still goes to `/explore`, which owns that dialog).
+  const auth = useAuthSurface();
   const railCount = React.useSyncExternalStore(
     subscribeRailCount,
     readRailCount,
@@ -293,7 +302,7 @@ export function ItemScreen({
   // not a control. While a sheet is up it owns Escape (BottomSheet's own listener closes it), and
   // an arrow that changed the picture under an open sheet would be a surprise, so all three are
   // ignored until it's gone.
-  const sheetOpen = saveOpen || shareOpen;
+  const sheetOpen = saveOpen || shareOpen || auth.open;
   React.useEffect(() => {
     if (sheetOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -425,14 +434,19 @@ export function ItemScreen({
           exploring ? (
             <MessageTile
               message="end"
-              // The item page has no auth sheet of its own: `/explore` opens the one asked for.
-              onAction={(action) => router.push(`/explore?open=${action}`)}
+              onAction={(action) =>
+                action === "about"
+                  ? router.push("/explore?open=about")
+                  : auth.openAuth(action)
+              }
             />
           ) : undefined
         }
       />
 
-      {authed && !desktop ? (
+      {/* One set of handlers for both toolbars. A stranger's Profile and Save are the sign-up
+          sheet; Share is Share. */}
+      {!desktop ? (
         // Fixed at the bottom like every other screen's pill, and — decision 3's phone half since
         // Ben's review (09-11-26) — part of the chrome: it fades with the caption. Until then it
         // rode *inside* the caption, whose position followed the picture's height, which is how it
@@ -440,7 +454,9 @@ export function ItemScreen({
         <PillToolbar
           visible={chrome.visible}
           bookmark={saved.data?.saved ? "saved" : "idle"}
+          onProfile={authed ? undefined : () => auth.openAuth("signup")}
           onBookmark={(anchor) => {
+            if (!authed) return auth.openAuth("signup");
             setSaveAnchor(anchor);
             setSaveOpen(true);
           }}
@@ -452,16 +468,16 @@ export function ItemScreen({
           // page of cards. See `useLeaveToFeed`.
           onHome={leave}
         />
-      ) : null}
-
-      {authed && desktop ? (
+      ) : (
         // Decision 3 (docs/DESIGN_chrome-redesign.md): the rail is part of the chrome here — it
         // fades with the caption, on the same 600ms, and a mouse moving over the picture summons
         // both.
         <RailToolbar
           visible={chrome.visible}
           bookmark={saved.data?.saved ? "saved" : "idle"}
+          onProfile={authed ? undefined : () => auth.openAuth("signup")}
           onBookmark={(anchor) => {
+            if (!authed) return auth.openAuth("signup");
             setSaveAnchor(anchor);
             setSaveOpen(true);
           }}
@@ -471,7 +487,7 @@ export function ItemScreen({
           }}
           onHome={leave}
         />
-      ) : null}
+      )}
 
       {/* A book-width measure above `md` (docs/DESIGN_desktop-polish.md §1, §4) — the picture is
           the whole viewport, the words are not. `pt-[28px]`: a clear gap between the strip and
@@ -499,42 +515,42 @@ export function ItemScreen({
       </Column>
 
       {authed ? (
-        <>
-          <SaveToCollectionSheet
-            open={saveOpen}
-            onClose={() => setSaveOpen(false)}
-            anchor={saveAnchor}
-            itemId={current.id}
-            currentCollectionId={saved.data?.collectionId ?? undefined}
-            onSaved={async (collection, drift) => {
-              setToast(saveToastText(collection.name, drift));
-              await utils.saves.forItem.invalidate({ itemId: current.id });
-            }}
-            onError={setToast}
-          />
+        <SaveToCollectionSheet
+          open={saveOpen}
+          onClose={() => setSaveOpen(false)}
+          anchor={saveAnchor}
+          itemId={current.id}
+          currentCollectionId={saved.data?.collectionId ?? undefined}
+          onSaved={async (collection, drift) => {
+            setToast(saveToastText(collection.name, drift));
+            await utils.saves.forItem.invalidate({ itemId: current.id });
+          }}
+          onError={setToast}
+        />
+      ) : (
+        <AuthSurface {...auth} collapseLabel="Back to the picture" />
+      )}
 
-          <ShareSheet
-            open={shareOpen}
-            onClose={() => setShareOpen(false)}
-            anchor={shareAnchor}
-            url={shareUrl}
-            title={current.title}
-            // Always true here: this screen is only ever a picture.
-            imageContext
-            onSaveImage={() => void saveImage()}
-            onCopied={() => setToast("Link copied")}
-            onShareUnavailable={() => setToast("Sharing isn't available here")}
-          />
+      <ShareSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        anchor={shareAnchor}
+        url={shareUrl}
+        title={current.title}
+        // Always true here: this screen is only ever a picture.
+        imageContext
+        onSaveImage={() => void saveImage()}
+        onCopied={() => setToast("Link copied")}
+        onShareUnavailable={() => setToast("Sharing isn't available here")}
+      />
 
-          {/* `raised` — this screen mounts the pill, and an unraised toast would sit behind it. */}
-          <Toast
-            text={toast ?? ""}
-            open={toast !== null}
-            onDone={() => setToast(null)}
-            raised
-          />
-        </>
-      ) : null}
+      {/* `raised` — this screen mounts the pill, and an unraised toast would sit behind it. */}
+      <Toast
+        text={toast ?? ""}
+        open={toast !== null}
+        onDone={() => setToast(null)}
+        raised
+      />
     </main>
   );
 }

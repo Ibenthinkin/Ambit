@@ -74,6 +74,44 @@ test.describe.serial("explore", () => {
       .toBeGreaterThan(first);
   });
 
+  // The toolbar is the app's own (09-26-26): no header. Profile and Save lead somewhere a
+  // stranger can't go, so each raises the sign-up card in place; Feed scrolls to the top; a feed
+  // has no Share.
+  test("the pill's Profile and Save raise the sign-up card; Feed scrolls to the top", async ({
+    page,
+  }) => {
+    await page.goto("/explore");
+    await waitForHydration(page, "[data-feed-id] > *");
+    await waitForOverture(page);
+    await expect(page.locator("header")).toHaveCount(0);
+    const pill = page.getByTestId("pill-toolbar");
+    await expect(pill).toHaveAttribute("aria-hidden", "false");
+    await expect(page.getByRole("button", { name: "Share" })).toHaveCount(0);
+
+    await pill.getByRole("button", { name: "Profile" }).click();
+    const sheet = page.getByTestId("auth-sheet");
+    await expect(sheet).toHaveAttribute("data-open", "true");
+    await expect(
+      page.getByPlaceholder("What should we call you?"),
+    ).toBeInViewport();
+    await expect(page).toHaveURL(/\/explore$/);
+    await page.getByRole("button", { name: "Back to exploring" }).click();
+    await expect(sheet).toHaveAttribute("data-open", "false");
+
+    await pill.getByRole("button", { name: "Save to collection" }).click();
+    await expect(sheet).toHaveAttribute("data-open", "true");
+    await page.keyboard.press("Escape");
+    await expect(sheet).toHaveAttribute("data-open", "false");
+
+    await page.mouse.wheel(0, 3_000);
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(0);
+    await pill.getByRole("button", { name: "Feed" }).click();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page).toHaveURL(/\/explore$/);
+  });
+
   test("'what is this?' opens the about dialog", async ({ page }) => {
     await page.goto("/explore");
     await waitForHydration(page, '[data-explore-message="about"] button');
@@ -109,6 +147,22 @@ test.describe.serial("explore", () => {
     await expect(
       page.getByRole("link", { name: "Keep exploring" }),
     ).toBeVisible();
+    // The toolbar is there for a stranger too: a mouse move summons it (a click would toggle it
+    // straight back off — see item.spec.ts's `summonChrome`), Save raises the sign-up card over
+    // the picture — no navigation — and Escape closes the card, not the page.
+    await page.mouse.move(190, 210);
+    await page.mouse.move(210, 220);
+    const pill = page.getByTestId("pill-toolbar");
+    await expect(pill).toHaveAttribute("aria-hidden", "false");
+    await expect(pill.getByRole("button", { name: "Share" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Share" })).toBeVisible();
+    await pill.getByRole("button", { name: "Save to collection" }).click();
+    const sheet = page.getByTestId("auth-sheet");
+    await expect(sheet).toHaveAttribute("data-open", "true");
+    await expect(page).toHaveURL(/\/i\//);
+    await page.keyboard.press("Escape");
+    await expect(sheet).toHaveAttribute("data-open", "false");
+    await expect(page).toHaveURL(/\/i\//);
     await page.keyboard.press("Escape");
     await page.waitForURL(/\/explore$/);
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();

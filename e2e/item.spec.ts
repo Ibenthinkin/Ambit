@@ -249,11 +249,16 @@ test.describe.serial("item pages", () => {
       page.getByRole("link", { name: "Get your invite" }),
     ).toBeVisible();
 
-    // No pill: it exists only for signed-in readers, along with everything it opens.
-    await expect(
-      page.getByRole("button", { name: "Save to collection" }),
-    ).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Share" })).toHaveCount(0);
+    // The pill is there for a stranger too (09-26-26), hidden with the chrome until summoned.
+    // Share is Share; Save asks for the account, in place — the picture stays, nothing navigates.
+    await summonChrome(page);
+    await expect(page.getByRole("button", { name: "Share" })).toBeVisible();
+    await page.getByRole("button", { name: "Save to collection" }).click();
+    await expect(page.getByTestId("auth-sheet")).toHaveAttribute(
+      "data-open",
+      "true",
+    );
+    await expect(page).toHaveURL(new RegExp(`/i/${imageId}$`));
   });
 
   test("an article renders as a reader, apparatus dropped", async ({
@@ -284,9 +289,13 @@ test.describe.serial("item pages", () => {
     await expect(
       page.getByText("Ambit is a quieter way to read."),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Save to collection" }),
-    ).toHaveCount(0);
+    // The reader's toolbar too: Save asks a stranger for the account, in place.
+    await page.getByRole("button", { name: "Save to collection" }).click();
+    await expect(page.getByTestId("auth-sheet")).toHaveAttribute(
+      "data-open",
+      "true",
+    );
+    await expect(page).toHaveURL(new RegExp(`/i/${articleId}$`));
   });
 
   test("a blog item is a link card: credit, blurb, and a prominent link out — no reader view", async ({
