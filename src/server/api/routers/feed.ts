@@ -95,13 +95,16 @@ export const feedRouter = createTRPCRouter({
   // nothing is read about the caller and nothing is written — there is no `markSeen` for it, and
   // repeats between non-adjacent pages are the price (the client dedupes by id).
   //
-  // `.strict()` so knobs are refused rather than stripped: they are a signed-in dev affordance,
-  // and a stranger's request that carries them is a mistake worth a 400. The page backstop is the
-  // server's half of the taste's cap — the client stops at `EXPLORE_FEED_IMAGE_CAP` images long
-  // before it; this is only here so a script can't page the corpus forever. Rate limiting is
-  // `publicProcedure`'s own (120/min per IP).
+  // Knobs aren't in the input, and zod strips unknown keys, so a request carrying them composes
+  // exactly as one without. **Never `.strict()`:** `useInfiniteQuery` sends `{ ...input, cursor,
+  // direction }` on every page after the first, and a strict schema 400s all of them — the taste
+  // was one page long until the review caught it (`routers.test.ts` pins it now). The page
+  // backstop is the server's half of the taste's cap; the client stops at
+  // `EXPLORE_FEED_IMAGE_CAP` images long before it. It is not a security bound — the cursor is
+  // unsigned, so a script can start over at page 0 — that is `publicProcedure`'s rate limit
+  // (120/min per IP), the same posture as `items.galleryRail`.
   explore: publicProcedure
-    .input(z.object({ cursor: z.string().max(4096).optional() }).strict())
+    .input(z.object({ cursor: z.string().max(4096).optional() }))
     .query(async ({ input }) => {
       if (input.cursor !== undefined) {
         if (checkedCursor(input.cursor).page >= EXPLORE_MAX_PAGES) {

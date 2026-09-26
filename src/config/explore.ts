@@ -5,7 +5,8 @@
 //
 // The caps are *soft* and *per visit*: counted in the browser, reset by a reload. They shape the
 // taste, they don't guard anything — the account wall is what keeps Ambit invite-only, and the
-// server's page backstop is only there so a script can't page the corpus forever.
+// server's page backstop only keeps an ordinary client from paging past the taste — the cursor is
+// unsigned, so the real bound on a script is the public procedures' per-IP rate limit.
 
 /** Image cards the explore feed shows before its end card. */
 export const EXPLORE_FEED_IMAGE_CAP = 200;

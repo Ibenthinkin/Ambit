@@ -46,6 +46,23 @@ test.describe.serial("explore", () => {
     await expect(page.locator('[data-explore-message="about"]')).toBeVisible();
   });
 
+  // The whole point of the taste is that it scrolls: page two is a `fetchNextPage`, which tRPC
+  // sends with a `direction` key the RSC prefetch of page one never does.
+  test("scrolling loads the next page", async ({ page }) => {
+    await page.goto("/explore");
+    await waitForHydration(page, "[data-feed-id] > *");
+    await waitForFeedToSettle(page);
+    const first = await page.locator("[data-feed-id]").count();
+    const nextPage = page.waitForResponse(
+      (r) => r.url().includes("feed.explore") && r.request().method() === "GET",
+    );
+    await page.mouse.wheel(0, 20_000);
+    expect((await nextPage).status()).toBe(200);
+    await expect
+      .poll(() => page.locator("[data-feed-id]").count())
+      .toBeGreaterThan(first);
+  });
+
   test("'what is this?' opens the about dialog", async ({ page }) => {
     await page.goto("/explore");
     await waitForHydration(page, '[data-explore-message="about"] button');

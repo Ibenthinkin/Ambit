@@ -26,8 +26,8 @@ describe("useLeaveToFeed", () => {
     pushMock.mockClear();
   });
 
-  const leave = (itemId: string) => {
-    const { result } = renderHook(() => useLeaveToFeed(itemId));
+  const leave = (itemId: string, exploring = false) => {
+    const { result } = renderHook(() => useLeaveToFeed(itemId, { exploring }));
     act(() => result.current());
   };
 
@@ -65,16 +65,26 @@ describe("useLeaveToFeed", () => {
     markExploreOrigin();
     markFeedOrigin("item-other");
 
-    leave("item-1");
+    leave("item-1", true);
 
     expect(pushMock).toHaveBeenCalledWith("/explore");
+  });
+
+  // The marker outlives a sign-in in the same tab. A signed-in reader (the item screen passes
+  // `exploring: false` for anyone authed) must be sent to their feed, not to /explore's redirect.
+  it("ignores a stale explore marker when the screen says the reader isn't exploring", () => {
+    markExploreOrigin();
+
+    leave("item-1", false);
+
+    expect(pushMock).toHaveBeenCalledWith("/feed?focus=item-1");
   });
 
   it("still pops when the explore tile is the one that opened it", () => {
     markExploreOrigin();
     markFeedOrigin("item-1");
 
-    leave("item-1");
+    leave("item-1", true);
 
     expect(backMock).toHaveBeenCalledTimes(1);
   });

@@ -148,7 +148,6 @@ export function ItemScreen({
 
   const router = useRouter();
   const chrome = useChromeCycle();
-  const leave = useLeaveToFeed(entryItem.id);
 
   // ── the explore taste (09-26-26, docs/PLAN_explore-route.md) ──────────────────────────────────
   // A signed-out visitor who came from `/explore` gets a rail that ends, after `EXPLORE_RAIL_CAP`
@@ -162,6 +161,7 @@ export function ItemScreen({
     () => false,
   );
   const exploring = !authed && fromExplore;
+  const leave = useLeaveToFeed(entryItem.id, { exploring });
   const railCount = React.useSyncExternalStore(
     subscribeRailCount,
     readRailCount,

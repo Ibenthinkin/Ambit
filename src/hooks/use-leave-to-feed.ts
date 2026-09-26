@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import { cameFromExplore, cameFromFeed } from "~/components/feed/feed-origin";
+import { cameFromFeed } from "~/components/feed/feed-origin";
 
 // **The** way off an item page, shared by every control that leaves one: the pill's Feed button
 // and the swipe-back gesture both call this, so the two can't drift apart.
@@ -25,7 +25,12 @@ import { cameFromExplore, cameFromFeed } from "~/components/feed/feed-origin";
  * Returns a `leave()` that pops back to the feed when this visit came from it, and otherwise
  * pushes `/feed?focus={itemId}` to build one — or `/explore`, for a visitor whose visit began there.
  */
-export function useLeaveToFeed(itemId: string): () => void {
+export function useLeaveToFeed(
+  itemId: string,
+  /** `exploring`: a signed-out visitor whose visit began on `/explore` — the caller decides it
+   *  (ItemScreen: `!authed && cameFromExplore()`), because the marker alone outlives a sign-in. */
+  { exploring = false }: { exploring?: boolean } = {},
+): () => void {
   const router = useRouter();
 
   return React.useCallback(() => {
@@ -37,6 +42,6 @@ export function useLeaveToFeed(itemId: string): () => void {
     }
     // A visitor from `/explore` (09-26-26) who wandered off the item they tapped has no feed to
     // be focused in — `/feed` would bounce them to the landing — so they go back to the taste.
-    router.push(cameFromExplore() ? "/explore" : `/feed?focus=${itemId}`);
-  }, [itemId, router]);
+    router.push(exploring ? "/explore" : `/feed?focus=${itemId}`);
+  }, [itemId, exploring, router]);
 }

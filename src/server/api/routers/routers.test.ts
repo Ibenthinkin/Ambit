@@ -551,13 +551,24 @@ describe("feed.explore — the signed-out taste (09-26-26)", () => {
     expect(mockedGetFeedPage).not.toHaveBeenCalled();
   });
 
-  it("does not accept knobs", async () => {
-    await expect(
-      createCaller(anonContext()).feed.explore({
-        // @ts-expect-error — knobs are a signed-in dev affordance, not part of this input
-        knobs: { pageSize: 5 },
-      }),
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  // `useInfiniteQuery` sends `{ ...input, cursor, direction }` on every page after the first, so an
+  // input that refused unknown keys would 400 every `fetchNextPage` — the taste would be one page.
+  it("tolerates the direction key useInfiniteQuery adds", async () => {
+    const cursor = cursorAtPage(1);
+    await createCaller(anonContext()).feed.explore({
+      cursor,
+      // @ts-expect-error — not in the schema; the client adds it anyway
+      direction: "forward",
+    });
+    expect(mockedGetFeedPage).toHaveBeenCalledWith(null, cursor);
+  });
+
+  it("never forwards knobs", async () => {
+    await createCaller(anonContext()).feed.explore({
+      // @ts-expect-error — knobs are a signed-in dev affordance, not part of this input
+      knobs: { pageSize: 5 },
+    });
+    expect(mockedGetFeedPage).toHaveBeenCalledWith(null, undefined);
   });
 });
 

@@ -353,7 +353,7 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 | `topics.list`            | query    | —                                                                                                                   | `Topic[]` — every **pickable** topic (`facet IS NOT NULL`), label order, each row carrying its `facet`; the pickers group client-side (09-10-26)                            |
 | `topics.setMine`         | mutation | `{ topicIds: string[] }`                                                                                            | `{ ok: true }`                                                                                                                                                              |
 | `feed.page`              | query    | `{ cursor?: string, knobs?: Partial<FeedKnobs> }`                                                                   | `{ cards: FeedCard[], nextCursor?: string }`                                                                                                                                |
-| `feed.explore`           | query    | `{ cursor?: string }` (strict — no knobs)                                                                           | `{ cards: FeedCard[], nextCursor?: string }` — **public**; composes for nobody (cold-start weights, no `seen_item` reads or writes); empty from page 24 (09-26-26) |
+| `feed.explore`           | query    | `{ cursor?: string }` (no knobs)                                                                                    | `{ cards: FeedCard[], nextCursor?: string }` — **public**; composes for nobody (cold-start weights, no `seen_item` reads or writes); empty from page 24 (09-26-26) |
 | `feed.markSeen`          | mutation | `{ itemIds: string[] }` (max 64)                                                                                    | `{ ok: true }`                                                                                                                                                              |
 | `feed.forgetSince`       | mutation | `{ since: Date }`                                                                                                   | `{ forgotten: number }` — **dev-only**: `FORBIDDEN` unless the dev gate is on; deletes the caller's `seen_item` rows served at or after `since`                             |
 | `topics.weights`         | query    | —                                                                                                                   | `{ topicId, weight }[]` — **dev-only** (same gate), `/profile/topics`'s readout                                                                                             |
@@ -407,9 +407,10 @@ string[], debug?: { why: string, curationScore: number } }`. `driftPath` (the to
   `/explore`, the signed-out taste of the feed. It calls `getFeedPage(null, cursor)`: a page for
   nobody, even when the caller has a session — the cold-start weights, no taste keywords, and no
   `seen_item` exclusion (`eligibilityConditions` omits it for a null user) — and nothing is ever
-  acked, so there is no user data in or out. Its input is `.strict()` (knobs are refused, not
-  stripped), and a cursor at `EXPLORE_MAX_PAGES` (24) or beyond is answered `{ cards: [] }` without
-  composing — the server's backstop under the client's 200-image cap.
+  acked, so there is no user data in or out. Its input carries no knobs (zod strips them, and
+  must not be `.strict()` — tRPC's infinite query adds `direction` to every later page), and a cursor at `EXPLORE_MAX_PAGES` (24) or beyond is answered `{ cards: [] }` without
+  composing — the server's backstop under the client's 200-image cap (a shape, not a security
+  bound: the cursor is unsigned; the per-IP rate limit is the bound).
 - **`items.galleryRail` (Phase 5.8)** draws the next stretch of the gallery's wander rail from an
   anchor item (§9's "gallery rail"). `RailItem` is `{ id, title, attribution, imageUrl, summary, body,
 source, sourceUrl, license, topicId, topicLabel, debug?: { via, topic } }` — `body` and
