@@ -323,9 +323,11 @@ that was the onboarding assertion above — fixed and green against the dev serv
 8/8; parked landing 6/6). SPEC §8.1's `/` bullet now describes the front door and where the
 reel went; §11's public-surface line lists `/`, `/explore` (redirect) and `/dev/landing`.
 
-**Open / next:** Ben looks at `/` on the phone (dev server on :3000, tailnet) → merge → push →
-deploy. The deploy is the first with `/` as the taste, so watch UptimeRobot's HTTP monitor —
-it hits `/`, which now composes a feed page for nobody rather than picking a reel.
+**Open / next:** Ben's phone look first read as "all the other features are gone" — the phone
+had signed itself up while testing the sheet, so `/` was sending it to `/feed`, which has never
+had the overture or the tiles; signed out, `/` is the taste. **Merged to `main` (`d2614c3`)
+and pushed.** Next = deploy — the first with `/` as the taste, so watch UptimeRobot's HTTP
+monitor: it hits `/`, which now composes a feed page for nobody rather than picking a reel.
 
 *Session spend: 19.66M tok (in 2.0k · out 102.9k · cache r 18.97M / w 582.3k) · ~≥$5.09 · fable-5-1 + opus-4-7 · 17:11→18:28*
 
