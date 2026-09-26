@@ -201,4 +201,51 @@ describe("LandingReel", () => {
     fireEvent.click(screen.getByTestId("landing-reel"));
     expect(onTap).toHaveBeenCalledTimes(1);
   });
+
+  // The reduced-motion tempo (D6, 09-26-26): a cut into the first frame is motion too.
+  it("gentle: the first frame fades in from black instead of cutting", () => {
+    render(
+      <LandingReel
+        pictures={pics}
+        index={0}
+        prev={null}
+        tempo={TEMPOS.gentle}
+        started
+      />,
+    );
+    const first = imgs()[0]!;
+    expect(first.style.opacity).toBe("1");
+    expect(first.style.transition).toContain("opacity 2500ms");
+  });
+
+  it("gentle: cross-fades without drift — nothing but opacity moves", () => {
+    render(
+      <LandingReel
+        pictures={pics}
+        index={2}
+        prev={1}
+        tempo={TEMPOS.gentle}
+        started
+      />,
+    );
+    const [leaving, current] = imgs();
+    expect(current!.style.transition).toContain("opacity 2500ms");
+    expect(current!.style.animation).toBe("");
+    expect(leaving!.style.animation).toBe("");
+  });
+
+  it("opts out of the global reduced-motion collapse: its fades are the reduced version", () => {
+    render(
+      <LandingReel
+        pictures={pics}
+        index={0}
+        prev={null}
+        tempo={TEMPOS.gentle}
+        started
+      />,
+    );
+    expect(screen.getByTestId("landing-reel").className).toContain(
+      "motion-gentle",
+    );
+  });
 });

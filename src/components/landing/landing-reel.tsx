@@ -49,8 +49,9 @@ export function LandingReel({
   const leaving = prev !== null && prev < n ? prev : null;
   // No fade while nothing is leaving: the first frame after the overture (and after a restart) is
   // the reference's hard cut out of black under either tempo (D4). Only picture-to-picture changes
-  // take the tempo's fade.
-  const cut = tempo.fadeMs === 0 || leaving === null;
+  // take the tempo's fade — unless the tempo asks for a soft start (`gentle`, D6): under reduced
+  // motion the cut into the first frame is motion too, so it fades in from black.
+  const cut = tempo.fadeMs === 0 || (leaving === null && !tempo.softStart);
 
   return (
     <div
@@ -59,7 +60,10 @@ export function LandingReel({
       // accessible control for "open sign-in", and this is a convenience for the thumb.
       aria-hidden
       onClick={onTap}
-      className="fixed inset-0 overflow-hidden"
+      // `motion-gentle`: opts out of globals.css's reduced-motion collapse. Under the preference
+      // this reel runs the gentle tempo, whose 2.5 s opacity fades *are* the reduced version (D6);
+      // collapsed to 0.01 ms they would be the hard cuts the reader asked not to see.
+      className="motion-gentle fixed inset-0 overflow-hidden"
       style={{ background: "#000" }}
     >
       {layers.map((i) => {
