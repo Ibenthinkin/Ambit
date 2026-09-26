@@ -49,3 +49,41 @@ export function cameFromFeed(itemId: string): boolean {
     return false;
   }
 }
+
+// ── `/explore` (09-26-26, docs/PLAN_explore-route.md) ─────────────────────────────────────────────
+// A second, coarser marker: not "which item did the feed open" but "this tab's visit began on the
+// signed-out explore feed". The item page reads it for two things a stranger from `/explore` needs
+// and a stranger from a shared link does not — the capped rail that ends on the taste's end card,
+// and a way back to `/explore` rather than to `/feed`, which would only bounce them to the landing.
+// Per tab, like the marker above; `/feed` clears it, so a reader who signed in mid-taste is a
+// reader again.
+
+const EXPLORE_KEY = "ambit.exploreOrigin.v1";
+
+/** Record that the reader is leaving `/explore` for an item page. */
+export function markExploreOrigin(): void {
+  try {
+    sessionStorage.setItem(EXPLORE_KEY, "1");
+  } catch {
+    // Private mode: the item page treats the visitor as a cold one — endless rail, the landing's
+    // join card. Degraded, not broken.
+  }
+}
+
+/** `/feed` opening an item: whatever this tab was doing before, it is a signed-in reader now. */
+export function clearExploreOrigin(): void {
+  try {
+    sessionStorage.removeItem(EXPLORE_KEY);
+  } catch {
+    // nothing to clear
+  }
+}
+
+/** Whether this tab's visit came through `/explore`. Read in effects and handlers, never render. */
+export function cameFromExplore(): boolean {
+  try {
+    return sessionStorage.getItem(EXPLORE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}

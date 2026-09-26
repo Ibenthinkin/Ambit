@@ -17,7 +17,7 @@ import { api } from "~/trpc/react";
 import { pageStats } from "./dev/feed-stats";
 import { KnobPanel } from "./dev/knob-panel";
 import { useDevKnobs } from "./dev/use-dev-knobs";
-import { markFeedOrigin } from "./feed-origin";
+import { clearExploreOrigin, markFeedOrigin } from "./feed-origin";
 import { FeedGrid, type PressedItem } from "./feed-grid";
 import { TileActions } from "./tile-actions";
 import { buildTiles } from "./masonry";
@@ -270,6 +270,8 @@ export function FeedScreen({
   // render draws one and the client query draws another). See `feed-origin.ts`.
   const openItem = (id: string) => {
     markFeedOrigin(id);
+    // A reader who began this tab on `/explore` and has since signed in is a reader now.
+    clearExploreOrigin();
     router.push(`/i/${id}`);
   };
   const openItemSheet = (item: PressedItem) => {

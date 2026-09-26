@@ -10,8 +10,17 @@ import {
   type MockInstance,
 } from "vitest";
 
+import { markExploreOrigin } from "~/components/feed/feed-origin";
+import type * as ExploreConfig from "~/config/explore";
+import { EXPLORE_BLOCKS } from "~/config/explore";
 import type { RailItem } from "~/server/services/gallery-rail";
 import { ItemScreen } from "./item-screen";
+
+// A three-step rail cap for `/explore`'s visitors, so the tests reach it in three key presses.
+vi.mock("~/config/explore", async (importOriginal) => ({
+  ...(await importOriginal<typeof ExploreConfig>()),
+  EXPLORE_RAIL_CAP: 3,
+}));
 
 // Composition, not logic: the rail's own draw is `services/gallery-rail`'s, the gestures are
 // `use-rail-gestures.test.tsx`'s, the strip's sizing is `hero-rail.test.tsx`'s, and the facts
@@ -358,5 +367,87 @@ describe("ItemScreen", () => {
   it("names the sharer when the link carried one", () => {
     renderScreen({ sharedBy: "Mara" });
     expect(screen.getByText(/Mara/)).toBeInTheDocument();
+  });
+});
+
+// `/explore` (09-26-26): a signed-out visitor who came from the explore feed gets a capped rail
+// that ends on the taste's end card. Everyone else keeps the endless rail.
+describe("the explore rail cap", () => {
+  const right = (n: number) => {
+    for (let i = 0; i < n; i++) key("ArrowRight");
+  };
+  const endCard = () => screen.queryByText(EXPLORE_BLOCKS.end.title);
+
+  it("ends an explore visitor's rail on the end card after the cap", () => {
+    markExploreOrigin();
+    renderScreen({ authed: false });
+    right(3);
+    expect(heading()).toHaveTextContent("Plate r2");
+    // The end card waits in the next cell, and the fourth step lands on it.
+    right(1);
+    expect(endCard()).toBeInTheDocument();
+    expect(track().querySelectorAll("img")).toHaveLength(1);
+    // No further: the end card is the end.
+    right(1);
+    expect(heading()).toHaveTextContent("Plate r2");
+    expect(sessionStorage.getItem("ambit.explore.railCount")).toBe("3");
+  });
+
+  it("steps back off the end card to the last picture", () => {
+    markExploreOrigin();
+    renderScreen({ authed: false });
+    right(4);
+    key("ArrowLeft");
+    expect(track().querySelectorAll("img").length).toBeGreaterThan(1);
+    expect(heading()).toHaveTextContent("Plate r2");
+    key("ArrowLeft");
+    expect(heading()).toHaveTextContent("Plate r1");
+  });
+
+  it("counts across item pages in the same visit", () => {
+    markExploreOrigin();
+    sessionStorage.setItem("ambit.explore.railCount", "2");
+    renderScreen({ authed: false });
+    right(2);
+    expect(heading()).toHaveTextContent("Plate r0");
+    expect(endCard()).toBeInTheDocument();
+  });
+
+  it("the end card's sign-up goes to /explore with the card open", () => {
+    markExploreOrigin();
+    renderScreen({ authed: false });
+    right(4);
+    fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
+    expect(pushMock).toHaveBeenCalledWith("/explore?open=signup");
+  });
+
+  it("leaves a signed-in reader's rail endless", () => {
+    markExploreOrigin();
+    renderScreen({ authed: true });
+    right(4);
+    expect(heading()).toHaveTextContent("Plate r3");
+    expect(endCard()).not.toBeInTheDocument();
+  });
+
+  it("leaves a cold-opened shared link's rail endless", () => {
+    renderScreen({ authed: false });
+    right(4);
+    expect(heading()).toHaveTextContent("Plate r3");
+    expect(endCard()).not.toBeInTheDocument();
+  });
+
+  it("offers a way back to /explore under the picture", () => {
+    markExploreOrigin();
+    renderScreen({ authed: false });
+    expect(
+      screen.getByRole("link", { name: "Keep exploring" }),
+    ).toHaveAttribute("href", "/explore");
+  });
+
+  it("offers no such link to a cold visitor", () => {
+    renderScreen({ authed: false });
+    expect(
+      screen.queryByRole("link", { name: "Keep exploring" }),
+    ).not.toBeInTheDocument();
   });
 });

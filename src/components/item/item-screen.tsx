@@ -2,8 +2,11 @@
 
 import * as React from "react";
 import { keepPreviousData } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
-import { HeroRail } from "~/components/item/hero-rail";
+import { MessageTile } from "~/components/explore/message-tile";
+import { cameFromExplore } from "~/components/feed/feed-origin";
+import { HeroRail, type RailCell } from "~/components/item/hero-rail";
 import { ItemFacts } from "~/components/item/item-facts";
 import { JoinCta } from "~/components/item/join-cta";
 import { SharedByRow } from "~/components/item/shared-by-row";
@@ -15,6 +18,7 @@ import { PillToolbar } from "~/components/ui/pill-toolbar";
 import { RailToolbar } from "~/components/ui/rail-toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Toast } from "~/components/ui/toast";
+import { EXPLORE_RAIL_CAP } from "~/config/explore";
 import { useChromeCycle } from "~/hooks/use-chrome-cycle";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
 import { DESKTOP_QUERY, useMediaQuery } from "~/hooks/use-media-query";
@@ -75,6 +79,43 @@ const PREFETCH_MARGIN = 3;
 /** Mirrors the router's `exclude` cap. Past this the rail accepts a rare repeat far behind. */
 const EXCLUDE_CAP = 200;
 
+/**
+ * `/explore`'s rail count (09-26-26): every step an explore visitor takes along the rail, across
+ * every item page in the tab, so the cap is per visit rather than per picture. sessionStorage, so
+ * a new tab — or a new visit — starts over; the cap is a shape for the taste, not a lock.
+ */
+const RAIL_COUNT_KEY = "ambit.explore.railCount";
+function readRailCount(): number {
+  try {
+    const n = Number(sessionStorage.getItem(RAIL_COUNT_KEY));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+// A `useSyncExternalStore` store over that key — the hydration-safe way to read browser storage
+// (the server snapshot is 0, the client's is the real count, and React reconciles the two without a
+// mismatch), and the same shape as `lib/last-collection.ts`.
+const railListeners = new Set<() => void>();
+function writeRailCount(n: number): void {
+  try {
+    sessionStorage.setItem(RAIL_COUNT_KEY, String(n));
+  } catch {
+    // Private mode: nothing is counted, so the rail never caps. Degraded, not broken.
+  }
+  for (const cb of railListeners) cb();
+}
+function subscribeRailCount(cb: () => void) {
+  railListeners.add(cb);
+  return () => {
+    railListeners.delete(cb);
+  };
+}
+/** The explore marker never changes while an item page is up, so there is nothing to hear. */
+function subscribeNever() {
+  return () => undefined;
+}
+
 /** A mouse that jitters fires pointer moves at 60Hz; the chrome needs one call per quarter second. */
 const MOUSEMOVE_THROTTLE_MS = 250;
 
@@ -105,8 +146,30 @@ export function ItemScreen({
   const [shareAnchor, setShareAnchor] = React.useState<DOMRect | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
 
+  const router = useRouter();
   const chrome = useChromeCycle();
   const leave = useLeaveToFeed(entryItem.id);
+
+  // ── the explore taste (09-26-26, docs/PLAN_explore-route.md) ──────────────────────────────────
+  // A signed-out visitor who came from `/explore` gets a rail that ends, after `EXPLORE_RAIL_CAP`
+  // steps, on the taste's end card. A stranger from a shared link keeps the endless rail — they
+  // are outside the experiment. Read through `useSyncExternalStore`, never plainly in render: the
+  // server has no sessionStorage, so its snapshot is "not exploring" and React swaps in the real
+  // answer after hydration without a mismatch.
+  const fromExplore = React.useSyncExternalStore(
+    subscribeNever,
+    cameFromExplore,
+    () => false,
+  );
+  const exploring = !authed && fromExplore;
+  const railCount = React.useSyncExternalStore(
+    subscribeRailCount,
+    readRailCount,
+    () => 0,
+  );
+  // On the end card: the rail's middle cell is the card, and the picture before it is `current`.
+  const [atEnd, setAtEnd] = React.useState(false);
+  const capped = exploring && railCount >= EXPLORE_RAIL_CAP;
   const desktop = useMediaQuery(DESKTOP_QUERY);
 
   const current = items[index] ?? entryItem;
@@ -175,27 +238,40 @@ export function ItemScreen({
   );
 
   React.useEffect(() => {
-    if (!exhausted.tail && index >= items.length - 1 - PREFETCH_MARGIN) {
+    // A capped rail ends on the end card; there is nothing more to fetch towards it.
+    if (
+      !exhausted.tail &&
+      !capped &&
+      index >= items.length - 1 - PREFETCH_MARGIN
+    ) {
       void extend("tail");
     }
     if (!exhausted.head && index <= PREFETCH_MARGIN) {
       void extend("head");
     }
-  }, [index, items.length, exhausted, extend]);
+  }, [index, items.length, exhausted, capped, extend]);
 
   // ── advancing ─────────────────────────────────────────────────────────────────────────────────
   const advance = React.useCallback(
     (dir: 1 | -1) => {
-      setIndex((i) => {
-        const next = i + dir;
-        // Past a loaded end: stay put. The transform snaps back on its own, which reads as a
-        // rubber-band — the corpus-thin degradation, and deliberately not a wrap.
-        if (next < 0 || next >= items.length) return i;
-        return next;
-      });
       chrome.reset();
+      // The explore end card: forward from it is nowhere, back from it is the last picture.
+      if (atEnd) {
+        if (dir === -1) setAtEnd(false);
+        return;
+      }
+      if (dir === 1 && capped) {
+        setAtEnd(true);
+        return;
+      }
+      const next = index + dir;
+      // Past a loaded end: stay put. The transform snaps back on its own, which reads as a
+      // rubber-band — the corpus-thin degradation, and deliberately not a wrap.
+      if (next < 0 || next >= items.length) return;
+      setIndex(next);
+      if (exploring) writeRailCount(railCount + 1);
     },
-    [items.length, chrome],
+    [atEnd, capped, index, items.length, exploring, railCount, chrome],
   );
 
   // The address bar follows the rail. `replaceState`, not `router.replace`: this is the same page
@@ -307,7 +383,13 @@ export function ItemScreen({
   // The three cells on screen: the one before, the one you're looking at, and the one after. An
   // absent neighbour (either end of a loaded rail) renders as an empty cell, which is what makes
   // the rubber-band look like an edge rather than a missing image.
-  const cells = [items[index - 1], current, items[index + 1]] as const;
+  //
+  // `/explore`'s capped rail puts its end card where the next picture would be, and standing on it
+  // shifts the three cells one along.
+  const cells: readonly [RailCell | undefined, RailCell, RailCell | undefined] =
+    atEnd
+      ? [current, "end", undefined]
+      : [items[index - 1], current, capped ? "end" : items[index + 1]];
 
   const caption = (
     <>
@@ -337,7 +419,17 @@ export function ItemScreen({
         dragPx={dragPx}
         dragging={dragging}
         chrome={caption}
-        chromeVisible={chrome.visible}
+        // The caption belongs to a picture; over the end card it would name the one before it.
+        chromeVisible={chrome.visible && !atEnd}
+        endCell={
+          exploring ? (
+            <MessageTile
+              message="end"
+              // The item page has no auth sheet of its own: `/explore` opens the one asked for.
+              onAction={(action) => router.push(`/explore?open=${action}`)}
+            />
+          ) : undefined
+        }
       />
 
       {authed && !desktop ? (
@@ -401,7 +493,7 @@ export function ItemScreen({
 
         {authed ? null : (
           <Rise delayMs={160}>
-            <JoinCta variant="image" />
+            <JoinCta variant="image" exploring={exploring} />
           </Rise>
         )}
       </Column>

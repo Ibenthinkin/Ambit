@@ -18,7 +18,14 @@ import { api, HydrateClient } from "~/trpc/server";
 // Out of search results while it's an experiment.
 export const metadata: Metadata = { robots: { index: false } };
 
-export default async function ExplorePage() {
+/** The one `?open=` values the page honours — anything else is ignored, never echoed. */
+const OPENABLE = ["signin", "signup", "about"] as const;
+
+export default async function ExplorePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ open?: string | string[] }>;
+}) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (session) {
     redirect("/feed");
@@ -31,9 +38,13 @@ export default async function ExplorePage() {
 
   const topicLabels = Object.fromEntries(TOPICS.map((t) => [t.id, t.label]));
 
+  // `?open=` — sent by the item page's end card, whose actions need a sheet this page owns.
+  const { open } = await searchParams;
+  const initialOpen = OPENABLE.find((o) => o === open);
+
   return (
     <HydrateClient>
-      <ExploreScreen topicLabels={topicLabels} />
+      <ExploreScreen topicLabels={topicLabels} initialOpen={initialOpen} />
     </HydrateClient>
   );
 }

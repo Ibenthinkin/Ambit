@@ -4,7 +4,10 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { FeedGrid } from "~/components/feed/feed-grid";
-import { markFeedOrigin } from "~/components/feed/feed-origin";
+import {
+  markExploreOrigin,
+  markFeedOrigin,
+} from "~/components/feed/feed-origin";
 import { buildTiles } from "~/components/feed/masonry";
 import { AuthCard } from "~/components/landing/auth-card";
 import { AuthSheet } from "~/components/landing/auth-sheet";
@@ -37,9 +40,14 @@ type AuthMode = "signin" | "signup";
 export interface ExploreScreenProps {
   /** topic id → chip label, for the Because tiles — same map `/feed` passes. */
   topicLabels: Record<string, string>;
+  /** `?open=` — the item page's end card sends its actions here, so the page opens asking. */
+  initialOpen?: ExploreAction;
 }
 
-export function ExploreScreen({ topicLabels }: ExploreScreenProps) {
+export function ExploreScreen({
+  topicLabels,
+  initialOpen,
+}: ExploreScreenProps) {
   const router = useRouter();
 
   const feed = api.feed.explore.useInfiniteQuery(
@@ -83,12 +91,14 @@ export function ExploreScreen({ topicLabels }: ExploreScreenProps) {
   // ── the two surfaces the blocks open ──────────────────────────────────────────────────────────
   // `authKey` remounts the card on every open, so `initialMode` takes effect each time and a
   // half-typed form from the last opening doesn't linger under a different heading.
-  const [auth, setAuth] = React.useState<{ open: boolean; mode: AuthMode }>({
-    open: false,
-    mode: "signin",
-  });
+  const [auth, setAuth] = React.useState<{ open: boolean; mode: AuthMode }>(
+    () =>
+      initialOpen === "signin" || initialOpen === "signup"
+        ? { open: true, mode: initialOpen }
+        : { open: false, mode: "signin" },
+  );
   const [authKey, setAuthKey] = React.useState(0);
-  const [aboutOpen, setAboutOpen] = React.useState(false);
+  const [aboutOpen, setAboutOpen] = React.useState(initialOpen === "about");
 
   const openAuth = React.useCallback((mode: AuthMode) => {
     setAboutOpen(false);
@@ -118,9 +128,11 @@ export function ExploreScreen({ topicLabels }: ExploreScreenProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [auth.open, closeAuth]);
 
-  // The same pop-back marker the feed writes: the item page's Back returns here intact.
+  // The same pop-back marker the feed writes, so the item page's Back returns here intact — plus
+  // the explore marker, which gives the item page its capped rail and its way back here.
   const openItem = (id: string) => {
     markFeedOrigin(id);
+    markExploreOrigin();
     router.push(`/i/${id}`);
   };
 

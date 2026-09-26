@@ -170,6 +170,8 @@ describe("ExploreScreen", () => {
     fireEvent.pointerUp(tile, { button: 0, clientX: 5, clientY: 5 });
     expect(pushMock).toHaveBeenCalledWith("/i/a");
     expect(sessionStorage.getItem("ambit.feedOrigin.v1")).toBe("a");
+    // …and the explore marker, which gives the item page its capped rail.
+    expect(sessionStorage.getItem("ambit.exploreOrigin.v1")).toBe("1");
   });
 
   it("at the image cap: trims, closes on the end card, and fetches no more", () => {
@@ -185,5 +187,19 @@ describe("ExploreScreen", () => {
     ).toEqual(["a", "b", "c"]);
     expect(screen.getByText(EXPLORE_BLOCKS.end.title)).toBeInTheDocument();
     expect(fetchNextPageMock).not.toHaveBeenCalled();
+  });
+
+  // The item page's end card sends its actions here as `?open=` (the page validates it).
+  it("opens the card in the mode `initialOpen` names", () => {
+    render(<ExploreScreen topicLabels={{}} initialOpen="signup" />);
+    expect(authSheet()).toHaveAttribute("data-open", "true");
+    expect(screen.getByTestId("auth-card")).toHaveTextContent("signup");
+  });
+
+  it("opens the about dialog when `initialOpen` is about", () => {
+    render(<ExploreScreen topicLabels={{}} initialOpen="about" />);
+    expect(
+      within(screen.getByRole("dialog")).getByText(EXPLORE_ABOUT.title),
+    ).toBeInTheDocument();
   });
 });
