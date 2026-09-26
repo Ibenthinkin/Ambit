@@ -258,22 +258,94 @@ describe("LandingScreen — static (/reset-password)", () => {
   });
 });
 
+// Reduced motion (D6, 09-26-26): not a still any more. The overture plays as a plain fade, the
+// reel runs the gentle tempo, and the sheet rises on the gentle tempo's first pass. Diagnosed on
+// Ben's own devices, both with Reduce Motion on: the old "one still" path was the whole bug.
 describe("LandingScreen — reduced motion", () => {
-  it("one still, no overture, sheet up; the disc collapses it and the glyph brings it back; nothing steps", async () => {
+  it("plays the overture in gentle mode, then runs the gentle tempo and raises the sheet on its first pass", async () => {
     stubEnvironment({ reduce: true });
-    await renderScreen();
+    await renderScreen("cycle", TEMPOS.cut);
+    // The overture is there, and it is the gentle one: at collapse the line itself fades.
+    expect(screen.getByTestId("overture")).toBeInTheDocument();
+    expect(sheet()).toHaveAttribute("data-open", "false");
+    advance(OVERTURE_MS - 1);
+    expect(screen.getByTestId("overture").style.opacity).toBe("0");
+    expect(screen.getByTestId("overture-mark").style.transform).toBe("none");
+    // The reel starts on the gentle tempo, not the server's cut: the first frame fades in.
+    advance(1);
+    expect(currentId()).toBe("p0");
+    const first = document.querySelector<HTMLImageElement>(
+      "[data-testid='landing-reel'] img[data-id='p0']",
+    )!;
+    expect(first.style.transition).toContain("opacity 2500ms");
+    expect(first.style.animation).toBe("");
+    // Gentle frames are 6 s, not 350 ms.
+    advance(TEMPOS.cut.frameMs * 2);
+    expect(currentId()).toBe("p0");
+    steps(1, TEMPOS.gentle.frameMs);
+    expect(currentId()).toBe("p1");
+    expect(sheet()).toHaveAttribute("data-open", "false");
+    // Sheet after the gentle first pass (2 frames), not the cut's 12.
+    steps(1, TEMPOS.gentle.frameMs);
+    expect(sheet()).toHaveAttribute("data-open", "true");
+    expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
+  });
+
+  // Manual steps count toward the first pass, and the gentle one is two frames — so the glyph's
+  // round trip comes first, and the two arrow presses then raise the sheet on their own.
+  it("the glyph opens, the disc collapses and restarts the reel, ←/→ step and count toward the first pass", async () => {
+    stubEnvironment({ reduce: true });
+    await renderScreen("cycle", TEMPOS.cut);
+    advance(OVERTURE_MS);
+    const collapse = () =>
+      act(() =>
+        screen.getByRole("button", { name: "Back to the slideshow" }).click(),
+      );
+    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
+    expect(sheet()).toHaveAttribute("data-open", "true");
+    collapse();
+    expect(sheet()).toHaveAttribute("data-open", "false");
+    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
+    expect(sheet()).toHaveAttribute("data-open", "true");
+    collapse();
+    expect(currentId()).toBe("p0");
+    key("ArrowRight");
+    expect(currentId()).toBe("p1");
+    expect(sheet()).toHaveAttribute("data-open", "false");
+    key("ArrowLeft");
+    expect(currentId()).toBe("p0");
+    expect(sheet()).toHaveAttribute("data-open", "true");
+  });
+
+  // Both preferences at once. Save-Data still wins on bytes (one picture); the overture still
+  // plays; the one-picture reel still owes the sheet its cue.
+  it("with Save-Data too: the overture plays, one picture, and the sheet still rises on its own", async () => {
+    Object.defineProperty(navigator, "connection", {
+      configurable: true,
+      value: { saveData: true },
+    });
+    stubEnvironment({ reduce: true });
+    await renderScreen("cycle", TEMPOS.cut);
+    expect(screen.getByTestId("overture")).toBeInTheDocument();
+    advance(OVERTURE_MS);
+    expect(currentId()).toBe("p0");
+    expect(
+      document.querySelectorAll("[data-testid='landing-reel'] img"),
+    ).toHaveLength(1);
+    steps(2, TEMPOS.gentle.frameMs);
+    expect(sheet()).toHaveAttribute("data-open", "true");
+  });
+
+  // The reset-password screen is static by route, and stays a still.
+  it("static mode is unchanged by the preference: one still, no overture, sheet up", async () => {
+    stubEnvironment({ reduce: true });
+    await renderScreen("static");
     expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
     expect(currentId()).toBe("p0");
     expect(sheet()).toHaveAttribute("data-open", "true");
-    act(() =>
-      screen.getByRole("button", { name: "Back to the slideshow" }).click(),
-    );
-    expect(sheet()).toHaveAttribute("data-open", "false");
     advance(60_000);
     key("ArrowRight");
     expect(currentId()).toBe("p0");
-    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
-    expect(sheet()).toHaveAttribute("data-open", "true");
   });
 });
 
@@ -319,6 +391,46 @@ describe("LandingScreen — hydration", () => {
       await Promise.resolve();
     });
     expect(requested).toBe(1);
+    container.remove();
+  });
+
+  // A reduced-motion reader hydrates with `reduce` false (the server snapshot), i.e. the cut tempo
+  // and `Infinity` ahead. The tracker must wait for the corrective render, where the tempo is
+  // gentle and one-ahead: two pictures requested, never twelve.
+  it("a reduced-motion reader's hydration requests one picture ahead, not the whole reel", async () => {
+    stubEnvironment({ reduce: true });
+    let requested = 0;
+    vi.stubGlobal(
+      "Image",
+      class {
+        src = "";
+        srcset = "";
+        sizes = "";
+        constructor() {
+          requested += 1;
+        }
+        decode = () => Promise.resolve();
+      },
+    );
+    const el = (
+      <LandingScreen
+        mode="cycle"
+        reels={{ portrait: pics(12), landscape: pics(12) }}
+        initialShape="portrait"
+        tempo={TEMPOS.cut}
+      >
+        <form data-testid="auth-child" />
+      </LandingScreen>
+    );
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(el);
+    document.body.appendChild(container);
+    render(el, { container, hydrate: true });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(requested).toBe(2);
     container.remove();
   });
 });

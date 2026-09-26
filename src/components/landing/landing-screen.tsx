@@ -26,6 +26,9 @@ import { useReel } from "./use-reel";
 // boundary, which is the lesson 5.11 learned on 09-10-26 (a lazy `useState` initializer evaluated
 // `false` on the server and `true` on a reduced-motion client, and the collapse glyph hydrated as
 // the wrong element).
+//
+// **Reduced motion is a tempo, not a mode, as of 09-26-26** — the reader gets the show, gently
+// (D6): the overture as a plain fade and the reel on `TEMPOS.gentle`.
 
 export interface LandingScreenProps {
   /**
@@ -89,7 +92,7 @@ export function LandingScreen({
     readSaveData,
     onServer,
   );
-  const isStatic = mode === "static" || reduce;
+  const isStatic = mode === "static";
   // A phone held upright draws the tall reel, anything wider the wide one (09-25-26): a wide
   // picture covering a tall screen is scaled to its height and cropped to a blurry middle.
   const portrait = useMediaQuery(
@@ -103,20 +106,24 @@ export function LandingScreen({
   const [opened, setOpened] = React.useState<boolean | null>(null);
   const open = hydrated && (opened ?? isStatic);
 
-  // Static and reduced-motion readers get one still. Save-Data readers get the overture and the
-  // first picture, and then nothing more is downloaded: to the reel hook it is one picture long.
+  // Static readers get one still. Save-Data readers get the overture and the first picture, and
+  // then nothing more is downloaded: to the reel hook it is one picture long.
   const shown = React.useMemo(
     () => (isStatic || saveData ? pictures.slice(0, 1) : pictures),
     [isStatic, saveData, pictures],
   );
 
-  // Keyed on the route and the reader's motion preference — both of which the server treats as
-  // "cycle, full motion", so the server renders the opening line and the client drops it for a
-  // reduced-motion reader one render later (it is `aria-hidden` and never interactive).
-  const { phase } = useOverture(mode === "cycle" && !reduce);
+  // Every `cycle` reader gets the overture (the server renders its `in` phase for all of them, D8);
+  // a reduced-motion reader gets it gentle — a plain fade — through the prop below.
+  const { phase } = useOverture(mode === "cycle");
 
+  // Reduced motion picks the tempo (D6, 09-26-26): the gentle one — the dissolve with nothing but
+  // opacity moving — in place of whatever the server resolved. Read after hydration like `saveData`
+  // (D8); for the hydration render the tempo is the server's, and nothing is fetched on that
+  // render (see the `hydrated` gate on `usePictures`), so no reader pays for the wrong tempo.
+  const baseTempo = reduce ? TEMPOS.gentle : tempo;
   // Behind the sheet the reel changes gear (D5): the same hook, the gentler tempo.
-  const effectiveTempo = open ? TEMPOS[tempo.behindSheet] : tempo;
+  const effectiveTempo = open ? TEMPOS[baseTempo.behindSheet] : baseTempo;
 
   // `usePictures` needs the reel's index and `useReel` needs what `usePictures` has decoded — a
   // cycle between two hooks. Broken by mirroring the index one render late (React's
@@ -191,7 +198,9 @@ export function LandingScreen({
         onTap={isStatic ? undefined : () => advance(1)}
       />
 
-      {!isStatic ? <Overture phase={phase} hidden={open} /> : null}
+      {!isStatic ? (
+        <Overture phase={phase} hidden={open} gentle={reduce} />
+      ) : null}
 
       {/* The one visible control while the sheet is down. Its accessible name is deliberately not
           "Sign in" — that belongs to the form's submit button, and two controls sharing it would
