@@ -87,7 +87,8 @@ export type PoolItem = Pick<
 export async function getTopicPools(
   topicIds: string[],
   opts: {
-    userId: string;
+    /** `null` composes for nobody — `/explore`'s signed-out visitor (09-26-26). */
+    userId: string | null;
     anchor: Date;
     scoreFloor: number;
     excludeIds: string[];
@@ -216,35 +217,40 @@ export async function getTopicPools(
 }
 
 /** What makes an item eligible for ANY pool, topic or wild: above the floor, not served to this
- *  user before the page anchor, not from a suspended source, not on the previous page. Factored
+ *  user before the page anchor (when there is a user), not from a suspended source, not on the previous page. Factored
  *  out when getWildPool arrived (09-06-26) so the two pools cannot drift apart — an item that a
  *  topic pool would refuse must not reach a reader through the wild one. */
 function eligibilityConditions(
   db: Awaited<typeof import("./client")>["db"],
   opts: {
-    userId: string;
+    /** `null` composes for nobody — `/explore`'s signed-out visitor (09-26-26). */
+    userId: string | null;
     anchor: Date;
     scoreFloor: number;
     excludeIds: string[];
   },
 ) {
-  const notSeenBeforeAnchor = notExists(
-    db
-      .select()
-      .from(seenItem)
-      .where(
-        and(
-          eq(seenItem.userId, opts.userId),
-          eq(seenItem.itemId, item.id),
-          lt(seenItem.servedAt, opts.anchor),
-        ),
+  const conditions = [gte(item.curationScore, opts.scoreFloor)];
+  // A page for nobody (`/explore`, 09-26-26) has no history to exclude. Said here rather than left
+  // to SQL: `user_id = NULL` is never true, so the subquery would quietly match nothing and give
+  // the same answer — by accident, and at the price of a pointless anti-join per row.
+  const userId = opts.userId;
+  if (userId !== null) {
+    conditions.push(
+      notExists(
+        db
+          .select()
+          .from(seenItem)
+          .where(
+            and(
+              eq(seenItem.userId, userId),
+              eq(seenItem.itemId, item.id),
+              lt(seenItem.servedAt, opts.anchor),
+            ),
+          ),
       ),
-  );
-
-  const conditions = [
-    gte(item.curationScore, opts.scoreFloor),
-    notSeenBeforeAnchor,
-  ];
+    );
+  }
   // A suspended source's rows stay in the table but must never win a slot — see
   // config/suspended-sources.ts for why each one is off and what lifts it. Filtering here rather
   // than at ingest is what makes the switch retroactive: the corpus already holds thousands of
@@ -309,7 +315,7 @@ export const TOPIC_POOL_PER_SOURCE = 20;
  * written down so nobody has to rediscover that it was a choice.
  */
 export async function getWildPool(opts: {
-  userId: string;
+  userId: string | null;
   anchor: Date;
   scoreFloor: number;
   excludeIds: string[];

@@ -1,10 +1,16 @@
 // The `feed` router (SPEC §7): the one procedure the whole app is really for. Protected —
 // personalization is inherently per-user (SPEC §9's "personalisation = topics, not items", read
-// via `getUserTopicWeights(userId)` inside `getFeedPage`).
+// via `getUserTopicWeights(userId)` inside `getFeedPage`) — with one deliberate exception,
+// `feed.explore`, the signed-out taste (09-26-26), which composes for nobody.
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { EXPLORE_MAX_PAGES } from "~/config/explore";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 import { forgetSeenSince, markSeen } from "~/server/db/feed";
 import { decodeCursor, getFeedPage } from "~/server/services/feed";
 import { feedDebugEnabled } from "~/server/services/feed-debug";
@@ -44,6 +50,21 @@ const feedKnobsSchema = z
   })
   .partial();
 
+/** Decode a cursor or answer `BAD_REQUEST` — so a malformed or foreign-version one is a clean 400
+ *  (SPEC §7) rather than getFeedPage's plain `Error` surfacing as a 500. `decodeCursor` is pure,
+ *  so decoding here and again inside `getFeedPage` does no harm. */
+function checkedCursor(cursor: string) {
+  try {
+    return decodeCursor(cursor);
+  } catch (err) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: err instanceof Error ? err.message : "Invalid cursor",
+      cause: err,
+    });
+  }
+}
+
 export const feedRouter = createTRPCRouter({
   page: protectedProcedure
     .input(
@@ -62,19 +83,32 @@ export const feedRouter = createTRPCRouter({
       // `INTERNAL_SERVER_ERROR`. `decodeCursor` is pure, so calling it here and then handing the
       // same raw string to `getFeedPage` (which decodes it again internally) does no harm — it's
       // not consumed or mutated by decoding.
-      if (input.cursor !== undefined) {
-        try {
-          decodeCursor(input.cursor);
-        } catch (err) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: err instanceof Error ? err.message : "Invalid cursor",
-            cause: err,
-          });
-        }
-      }
+      if (input.cursor !== undefined) checkedCursor(input.cursor);
 
       return getFeedPage(ctx.user.id, input.cursor, input.knobs);
+    }),
+
+  // `/explore` (09-26-26, docs/PLAN_explore-route.md): the real feed, readable without an account
+  // — the fourth deliberate public procedure, after `items.byId`, `items.wanderNext` and
+  // `items.galleryRail`. It composes for **nobody**, even when a session is present: the page is
+  // the cold-start sampler (uniform over the sixteen originals, DRIFT/JUMP/WILD reach the rest),
+  // nothing is read about the caller and nothing is written — there is no `markSeen` for it, and
+  // repeats between non-adjacent pages are the price (the client dedupes by id).
+  //
+  // `.strict()` so knobs are refused rather than stripped: they are a signed-in dev affordance,
+  // and a stranger's request that carries them is a mistake worth a 400. The page backstop is the
+  // server's half of the taste's cap — the client stops at `EXPLORE_FEED_IMAGE_CAP` images long
+  // before it; this is only here so a script can't page the corpus forever. Rate limiting is
+  // `publicProcedure`'s own (120/min per IP).
+  explore: publicProcedure
+    .input(z.object({ cursor: z.string().max(4096).optional() }).strict())
+    .query(async ({ input }) => {
+      if (input.cursor !== undefined) {
+        if (checkedCursor(input.cursor).page >= EXPLORE_MAX_PAGES) {
+          return { cards: [], nextCursor: undefined };
+        }
+      }
+      return getFeedPage(null, input.cursor);
     }),
 
   // The receipt half of the feed (5.7). `feed.page` composes a page but writes nothing about who

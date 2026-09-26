@@ -721,7 +721,7 @@ function reachableTopics(
  *    for tiers and topics, and an item stream (the same key plus `:items`) for item draws — see
  *    `planTopics` for why there are two. Every draw on this page uses one of them and nothing
  *    else, which is what makes "same cursor + same pools → identical page" hold (SPEC §7).
- * 2. Load the user's topic weights (cold start → `coldStartWeights()`). Knob overrides from the
+ * 2. Load the user's topic weights (cold start, or no user at all → `coldStartWeights()`). Knob overrides from the
  *    caller are only honored when FEED_DEBUG is on — SPEC §9's "dev affordances... behind a dev
  *    flag."
  * 3. Plan first, pools second (09-11-26): `planTopics` replays the compose's topic sequence to
@@ -739,7 +739,7 @@ function reachableTopics(
  *    everything" banner is Phase 5's concern, not this function's.
  */
 export async function getFeedPage(
-  userId: string,
+  userId: string | null,
   cursor?: string,
   knobOverrides?: Partial<FeedKnobs>,
 ): Promise<FeedPage> {
@@ -765,10 +765,15 @@ export async function getFeedPage(
 
   // Two independent single-user reads — weights for the topic draws, taste keywords for the
   // item-draw boost (Phase 6.1) — fetched in parallel since neither depends on the other.
-  const [rawWeights, tasteKeywords] = await Promise.all([
-    getUserTopicWeights(userId),
-    getTasteKeywords(userId),
-  ]);
+  // A null user is `/explore`'s signed-out visitor (09-26-26): no weights and no saves to read,
+  // so the page is the cold-start sampler every new reader's first page already is.
+  const [rawWeights, tasteKeywords] =
+    userId === null
+      ? [new Map<string, number>(), [] as string[]]
+      : await Promise.all([
+          getUserTopicWeights(userId),
+          getTasteKeywords(userId),
+        ]);
   const weights = rawWeights.size > 0 ? rawWeights : coldStartWeights();
 
   const knobs: FeedKnobs = {

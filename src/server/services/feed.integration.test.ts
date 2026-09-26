@@ -263,6 +263,40 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
     }
   });
 
+  // `/explore` (09-26-26): a page composed for nobody. There is no reader to exclude seen items
+  // for, so another reader's `seen_item` rows must not thin the pool — they are not this
+  // visitor's history.
+  it("a null user's pools ignore every reader's seen rows", async () => {
+    const { getTopicPools } = await import("~/server/db/feed");
+    const all = await getTopicPools([topicId], {
+      userId: null,
+      anchor: new Date(Date.now() + 60_000),
+      scoreFloor: 1,
+      excludeIds: [],
+      sampleKey: "explore:0",
+    });
+    const ids = (all.get(topicId) ?? []).map((p) => p.id);
+    expect(ids).toHaveLength(ITEM_COUNT);
+
+    const { markSeen } = await import("~/server/db/feed");
+    await markSeen(userId, ids, new Date());
+    const opts = {
+      anchor: new Date(Date.now() + 60_000),
+      scoreFloor: 1,
+      excludeIds: [],
+      sampleKey: "explore:0",
+    };
+    const forReader = await getTopicPools([topicId], { ...opts, userId });
+    const forNobody = await getTopicPools([topicId], { ...opts, userId: null });
+    expect(forReader.get(topicId)).toHaveLength(0);
+    expect(forNobody.get(topicId)).toHaveLength(ITEM_COUNT);
+  });
+
+  it("composes a page for a null user on the cold-start weights", async () => {
+    const page = await getFeedPage(null);
+    expect(page).toHaveProperty("cards");
+  });
+
   it("degrades gracefully to uniform cold-start weights for a user with no user_topic rows", async () => {
     const { db } = await import("~/server/db/client");
     const { user: userTable } = await import("~/server/db/schema");
