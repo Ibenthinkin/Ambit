@@ -64,7 +64,7 @@ test("the overture plays, the reel cuts in, and the sheet rises on its own", asy
     timeout: 8_000,
   });
   await expect.poll(() => visibleId(page), { timeout: 8_000 }).toBeTruthy();
-  // cut: ~3.6 s + 12 × 350 ms ≈ 8 s; dissolve: ~3.6 s + 12 s. 20 s covers either default.
+  // cut: ~3.6 s + 12 × 350 ms ≈ 8 s; dissolve: ~3.6 s + 2 × 3 s. 20 s covers either default.
   await expect(page.getByPlaceholder("you@example.com")).toBeInViewport({
     timeout: 20_000,
   });
@@ -93,7 +93,7 @@ test("clicking the imagery changes the picture, and the pictures keep moving beh
   await expect(page.getByPlaceholder("you@example.com")).toBeInViewport({
     timeout: 20_000,
   });
-  // Behind the sheet the reel runs the dissolve gear: a change within frame + fade (8.5 s).
+  // Behind the sheet the reel runs the dissolve gear: a change within frame + fade (4.2 s).
   await expect.poll(() => visibleId(page), { timeout: 5_000 }).toBeTruthy();
   const behind = await visibleId(page);
   await expect
@@ -172,9 +172,9 @@ test("reduced motion: the overture fades, the reel cross-fades without drift, an
       })),
     );
   expect(layers.every((l) => l.animation === "none")).toBe(true);
-  expect(layers.find((l) => l.opacity === "1")?.transition).toBe("2.5s");
+  expect(layers.find((l) => l.opacity === "1")?.transition).toBe("1.2s");
 
-  // The glyph, rather than waiting the gentle first pass (~16 s): the sheet's round trip is
+  // The glyph, rather than waiting the gentle first pass (~10 s): the sheet's round trip is
   // what this test is for.
   await page.getByRole("button", { name: "Open sign-in" }).click();
   await expect(page.getByPlaceholder("you@example.com")).toBeInViewport();

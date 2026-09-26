@@ -159,14 +159,18 @@ interface Tempo {
 
 | | **`cut`** | **`dissolve`** | `gentle` (09-26-26) |
 |---|---|---|---|
-| `frameMs` | **350** | **6000** | 6000 |
-| `fadeMs` | 0 — a hard cut | **2500** | 2500 |
-| `firstPass` | 12 (≈ 4.2 s) | 2 (≈ 8 s from the cut) | 2 |
+| `frameMs` | **350** | **3000** (was 6000) | 3000 |
+| `fadeMs` | 0 — a hard cut | **1200** (was 2500) | 1200 |
+| `firstPass` | 12 (≈ 4.2 s) | 2 (≈ 6 s from the cut) | 2 |
 | `gateFrames` | 4 | 1 | 1 |
 | `drift` | no | yes | no |
 | `softStart` | no | no | **yes** |
 | `behindSheet` | `dissolve` | `dissolve` | `gentle` |
 | prefetch | all 12 at once, streaming | one ahead | one ahead |
+
+**Ben's pick, 09-26-26: the dissolve, at 3 s a picture** ("the change is just too slow" at 6 s, on
+the phone and the computer alike). The fade went to 1.2 s with it, so a picture still holds before
+it goes. `DEFAULT_TEMPO` is `dissolve`; `cut` stays in the code until plan Task 9 deletes it.
 
 `gentle` is not a candidate: it is what a reduced-motion reader gets in place of either (D6). Its
 own gear behind the sheet, because relaxing to `dissolve` would bring the drift back.
@@ -207,7 +211,7 @@ what makes `behindSheet` expressible), the second preset does not.
 - **Reduced motion (rewritten 09-26-26):** the reader gets the show, gently. The overture plays as
   a plain fade — the line fades in, holds, fades out as a whole, and the wordmark alone fades back
   in over the reel; nothing clips or translates. The reel runs the `gentle` tempo (D5): the
-  dissolve's 6 s / 2.5 s clock with no drift and a soft start, so even the first frame fades in
+  dissolve's clock (3 s / 1.2 s since 09-26-26) with no drift and a soft start, so even the first frame fades in
   from black. Opacity is the only property that moves. The sheet rises on the gentle first pass
   (two frames). Still read after hydration through `useMediaQuery`, never in the server render
   (D8): the server renders phase `in` for everyone, which is now what every reader sees first,

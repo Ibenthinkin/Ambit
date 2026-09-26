@@ -27,6 +27,12 @@ export interface Tempo {
   behindSheet: TempoId;
 }
 
+// The dissolve's clock, shared with `gentle` (which is the dissolve with only opacity moving).
+// Ben, 09-26-26, after the phone look: 6 s / 2.5 s was "just too slow" — 3 s a picture, and the
+// fade cut to 1.2 s so a picture still holds before it goes (the old 6 : 2.5 ratio, roughly).
+const DISSOLVE_FRAME_MS = 3000;
+const DISSOLVE_FADE_MS = 1200;
+
 export const TEMPOS: Record<TempoId, Tempo> = {
   // 350, not the reference's 320: WCAG 2.3.1 caps flashing at three a second, and 1000/320 is
   // 3.1. 1000/350 = 2.86 — the same feel, under the line.
@@ -42,8 +48,8 @@ export const TEMPOS: Record<TempoId, Tempo> = {
   },
   dissolve: {
     id: "dissolve",
-    frameMs: 6000,
-    fadeMs: 2500,
+    frameMs: DISSOLVE_FRAME_MS,
+    fadeMs: DISSOLVE_FADE_MS,
     firstPass: 2,
     gateFrames: 1,
     drift: true,
@@ -56,8 +62,8 @@ export const TEMPOS: Record<TempoId, Tempo> = {
   // `dissolve` would bring the drift back.
   gentle: {
     id: "gentle",
-    frameMs: 6000,
-    fadeMs: 2500,
+    frameMs: DISSOLVE_FRAME_MS,
+    fadeMs: DISSOLVE_FADE_MS,
     firstPass: 2,
     gateFrames: 1,
     drift: false,
@@ -66,8 +72,8 @@ export const TEMPOS: Record<TempoId, Tempo> = {
   },
 };
 
-/** What production runs. Flip after Ben's pick. */
-export const DEFAULT_TEMPO: TempoId = "cut";
+/** What production runs — Ben's pick, 09-26-26. `cut` stays until plan Task 9 deletes it. */
+export const DEFAULT_TEMPO: TempoId = "dissolve";
 
 /** `?tempo=`, resolved server-side; the override is honoured only under the dev gate (D5). */
 export function resolveTempo(

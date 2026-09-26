@@ -17,11 +17,13 @@ describe("tempos", () => {
     });
   });
 
-  it("dissolve: 6 s frames, 2.5 s fade, 2 before the sheet, 1 decoded to start, drifts", () => {
+  // Ben, 09-26-26, after the phone look: 6 s was "just too slow" — 3 s a picture, the fade cut to
+  // 1.2 s so a picture still holds before it goes (the old 6 : 2.5 ratio, roughly).
+  it("dissolve: 3 s frames, 1.2 s fade, 2 before the sheet, 1 decoded to start, drifts", () => {
     expect(TEMPOS.dissolve).toEqual({
       id: "dissolve",
-      frameMs: 6000,
-      fadeMs: 2500,
+      frameMs: 3000,
+      fadeMs: 1200,
       firstPass: 2,
       gateFrames: 1,
       drift: true,
@@ -32,17 +34,26 @@ describe("tempos", () => {
 
   // The reduced-motion tempo (D6, 09-26-26): the dissolve with no drift and no hard cut anywhere —
   // the first frame fades in from black too. Opacity is the only thing that moves.
-  it("gentle: the dissolve without drift, and a soft start; it is its own gear behind the sheet", () => {
+  it("gentle: the dissolve's clock without drift, and a soft start; it is its own gear behind the sheet", () => {
     expect(TEMPOS.gentle).toEqual({
       id: "gentle",
-      frameMs: 6000,
-      fadeMs: 2500,
+      frameMs: 3000,
+      fadeMs: 1200,
       firstPass: 2,
       gateFrames: 1,
       drift: false,
       softStart: true,
       behindSheet: "gentle",
     });
+  });
+
+  it("gentle keeps the dissolve's clock, so the two can't drift apart", () => {
+    expect(TEMPOS.gentle.frameMs).toBe(TEMPOS.dissolve.frameMs);
+    expect(TEMPOS.gentle.fadeMs).toBe(TEMPOS.dissolve.fadeMs);
+  });
+
+  it("production runs the dissolve (Ben's pick, 09-26-26)", () => {
+    expect(DEFAULT_TEMPO).toBe("dissolve");
   });
 
   it("cut stays under WCAG 2.3.1's three flashes a second", () => {

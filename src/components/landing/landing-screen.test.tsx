@@ -277,9 +277,11 @@ describe("LandingScreen — reduced motion", () => {
     const first = document.querySelector<HTMLImageElement>(
       "[data-testid='landing-reel'] img[data-id='p0']",
     )!;
-    expect(first.style.transition).toContain("opacity 2500ms");
+    expect(first.style.transition).toContain(
+      `opacity ${TEMPOS.dissolve.fadeMs}ms`,
+    );
     expect(first.style.animation).toBe("");
-    // Gentle frames are 6 s, not 350 ms.
+    // Gentle frames are the dissolve's 3 s, not 350 ms.
     advance(TEMPOS.cut.frameMs * 2);
     expect(currentId()).toBe("p0");
     steps(1, TEMPOS.gentle.frameMs);

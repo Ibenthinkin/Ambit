@@ -45,7 +45,9 @@ describe("LandingReel", () => {
     expect(current!.style.opacity).toBe("1");
     expect(leaving!.style.opacity).toBe("0");
     expect(next!.style.opacity).toBe("0");
-    expect(current!.style.transition).toContain("opacity 2500ms");
+    expect(current!.style.transition).toContain(
+      `opacity ${TEMPOS.dissolve.fadeMs}ms`,
+    );
   });
 
   it("cut: no transition and no drift — a hard cut", () => {
@@ -87,7 +89,9 @@ describe("LandingReel", () => {
       />,
     );
     const [leaving, , next] = imgs();
-    expect(leaving!.style.animation).toContain("reel-drift 8500ms");
+    expect(leaving!.style.animation).toContain(
+      `reel-drift ${TEMPOS.dissolve.frameMs + TEMPOS.dissolve.fadeMs}ms`,
+    );
     expect(next!.style.animation).toBe("");
   });
 
@@ -101,7 +105,9 @@ describe("LandingReel", () => {
         started
       />,
     );
-    expect(imgs()[1]!.style.animation).toContain("reel-drift 8500ms");
+    expect(imgs()[1]!.style.animation).toContain(
+      `reel-drift ${TEMPOS.dissolve.frameMs + TEMPOS.dissolve.fadeMs}ms`,
+    );
   });
 
   it("carries srcset and sizes on a proxied layer, and neither on a data: picture", () => {
@@ -215,7 +221,9 @@ describe("LandingReel", () => {
     );
     const first = imgs()[0]!;
     expect(first.style.opacity).toBe("1");
-    expect(first.style.transition).toContain("opacity 2500ms");
+    expect(first.style.transition).toContain(
+      `opacity ${TEMPOS.dissolve.fadeMs}ms`,
+    );
   });
 
   it("gentle: cross-fades without drift — nothing but opacity moves", () => {
@@ -229,7 +237,9 @@ describe("LandingReel", () => {
       />,
     );
     const [leaving, current] = imgs();
-    expect(current!.style.transition).toContain("opacity 2500ms");
+    expect(current!.style.transition).toContain(
+      `opacity ${TEMPOS.dissolve.fadeMs}ms`,
+    );
     expect(current!.style.animation).toBe("");
     expect(leaving!.style.animation).toBe("");
   });
