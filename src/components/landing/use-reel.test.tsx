@@ -201,14 +201,15 @@ describe("useReel — failed pictures", () => {
 });
 
 describe("useReel — dissolve", () => {
-  it("two frames then the sheet: onFirstPass after the second picture has held", () => {
+  it("firstPass frames then the sheet: onFirstPass once the last of them has held", () => {
+    const { firstPass, frameMs } = TEMPOS.dissolve;
     const { result, onFirstPass } = setup({ tempo: TEMPOS.dissolve });
-    advance(6000);
-    expect(result.current.index).toBe(1);
+    steps(firstPass - 1, frameMs);
+    expect(result.current.index).toBe(firstPass - 1);
     expect(onFirstPass).not.toHaveBeenCalled();
-    advance(6000);
+    steps(1, frameMs);
     expect(onFirstPass).toHaveBeenCalledTimes(1);
-    expect(result.current.index).toBe(2);
+    expect(result.current.index).toBe(firstPass);
   });
 
   it("holds when no other picture is ready, then moves as soon as one decodes", () => {
@@ -232,7 +233,7 @@ describe("useReel — dissolve", () => {
       tempo: TEMPOS.dissolve,
       isReady: () => true,
     });
-    steps(2, 6000);
+    steps(TEMPOS.dissolve.firstPass, TEMPOS.dissolve.frameMs);
     expect(result.current.index).toBe(0);
     expect(onFirstPass).toHaveBeenCalledTimes(1);
   });

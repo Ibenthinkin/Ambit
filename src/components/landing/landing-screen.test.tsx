@@ -148,10 +148,13 @@ describe("LandingScreen — cycle", () => {
     expect(currentId()).not.toBe(before);
   });
 
-  it("dissolve: two pictures, then the sheet", async () => {
+  it("dissolve: its first pass of pictures, then the sheet", async () => {
+    const { firstPass, frameMs } = TEMPOS.dissolve;
     await renderScreen("cycle", TEMPOS.dissolve);
     advance(OVERTURE_MS);
-    steps(2, 6000);
+    steps(firstPass - 1, frameMs);
+    expect(sheet()).toHaveAttribute("data-open", "false");
+    steps(1, frameMs);
     expect(sheet()).toHaveAttribute("data-open", "true");
   });
 
@@ -287,15 +290,15 @@ describe("LandingScreen — reduced motion", () => {
     steps(1, TEMPOS.gentle.frameMs);
     expect(currentId()).toBe("p1");
     expect(sheet()).toHaveAttribute("data-open", "false");
-    // Sheet after the gentle first pass (2 frames), not the cut's 12.
+    // Sheet after the gentle first pass, not the cut's 12.
+    steps(TEMPOS.gentle.firstPass - 2, TEMPOS.gentle.frameMs);
+    expect(sheet()).toHaveAttribute("data-open", "false");
     steps(1, TEMPOS.gentle.frameMs);
     expect(sheet()).toHaveAttribute("data-open", "true");
     expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
   });
 
-  // Manual steps count toward the first pass, and the gentle one is two frames — so the glyph's
-  // round trip comes first, and the two arrow presses then raise the sheet on their own.
-  it("the glyph opens, the disc collapses and restarts the reel, ←/→ step and count toward the first pass", async () => {
+  it("the glyph opens, the disc collapses and restarts the reel, ←/→ step, the glyph reopens", async () => {
     stubEnvironment({ reduce: true });
     await renderScreen("cycle", TEMPOS.cut);
     advance(OVERTURE_MS);
@@ -316,6 +319,8 @@ describe("LandingScreen — reduced motion", () => {
     expect(sheet()).toHaveAttribute("data-open", "false");
     key("ArrowLeft");
     expect(currentId()).toBe("p0");
+    expect(sheet()).toHaveAttribute("data-open", "false");
+    act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
     expect(sheet()).toHaveAttribute("data-open", "true");
   });
 
@@ -334,7 +339,7 @@ describe("LandingScreen — reduced motion", () => {
     expect(
       document.querySelectorAll("[data-testid='landing-reel'] img"),
     ).toHaveLength(1);
-    steps(2, TEMPOS.gentle.frameMs);
+    steps(TEMPOS.gentle.firstPass, TEMPOS.gentle.frameMs);
     expect(sheet()).toHaveAttribute("data-open", "true");
   });
 

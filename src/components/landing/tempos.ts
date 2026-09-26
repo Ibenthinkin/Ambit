@@ -27,11 +27,13 @@ export interface Tempo {
   behindSheet: TempoId;
 }
 
-// The dissolve's clock, shared with `gentle` (which is the dissolve with only opacity moving).
-// Ben, 09-26-26, after the phone look: 6 s / 2.5 s was "just too slow" — 3 s a picture, and the
-// fade cut to 1.2 s so a picture still holds before it goes (the old 6 : 2.5 ratio, roughly).
-const DISSOLVE_FRAME_MS = 3000;
-const DISSOLVE_FADE_MS = 1200;
+// The dissolve's clock and first pass, shared with `gentle` (the dissolve with only opacity
+// moving). Ben, 09-26-26, two phone looks: 6 s / 2.5 s was "just too slow", then 3 s wanted "a
+// bit faster, and 8 images before the sign-up tray" — 2.5 s a picture, a 1 s fade so each still
+// holds before it goes, and the sheet on the 8th (≈ 20 s from the first picture).
+const DISSOLVE_FRAME_MS = 2500;
+const DISSOLVE_FADE_MS = 1000;
+const DISSOLVE_FIRST_PASS = 8;
 
 export const TEMPOS: Record<TempoId, Tempo> = {
   // 350, not the reference's 320: WCAG 2.3.1 caps flashing at three a second, and 1000/320 is
@@ -50,7 +52,7 @@ export const TEMPOS: Record<TempoId, Tempo> = {
     id: "dissolve",
     frameMs: DISSOLVE_FRAME_MS,
     fadeMs: DISSOLVE_FADE_MS,
-    firstPass: 2,
+    firstPass: DISSOLVE_FIRST_PASS,
     gateFrames: 1,
     drift: true,
     softStart: false,
@@ -64,7 +66,7 @@ export const TEMPOS: Record<TempoId, Tempo> = {
     id: "gentle",
     frameMs: DISSOLVE_FRAME_MS,
     fadeMs: DISSOLVE_FADE_MS,
-    firstPass: 2,
+    firstPass: DISSOLVE_FIRST_PASS,
     gateFrames: 1,
     drift: false,
     softStart: true,

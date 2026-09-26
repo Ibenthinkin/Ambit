@@ -19,12 +19,13 @@ describe("tempos", () => {
 
   // Ben, 09-26-26, after the phone look: 6 s was "just too slow" — 3 s a picture, the fade cut to
   // 1.2 s so a picture still holds before it goes (the old 6 : 2.5 ratio, roughly).
-  it("dissolve: 3 s frames, 1.2 s fade, 2 before the sheet, 1 decoded to start, drifts", () => {
+  // Then "a bit faster, and 8 images before the sign-up tray": 2.5 s a picture, a 1 s fade.
+  it("dissolve: 2.5 s frames, 1 s fade, 8 before the sheet, 1 decoded to start, drifts", () => {
     expect(TEMPOS.dissolve).toEqual({
       id: "dissolve",
-      frameMs: 3000,
-      fadeMs: 1200,
-      firstPass: 2,
+      frameMs: 2500,
+      fadeMs: 1000,
+      firstPass: 8,
       gateFrames: 1,
       drift: true,
       softStart: false,
@@ -37,9 +38,9 @@ describe("tempos", () => {
   it("gentle: the dissolve's clock without drift, and a soft start; it is its own gear behind the sheet", () => {
     expect(TEMPOS.gentle).toEqual({
       id: "gentle",
-      frameMs: 3000,
-      fadeMs: 1200,
-      firstPass: 2,
+      frameMs: 2500,
+      fadeMs: 1000,
+      firstPass: 8,
       gateFrames: 1,
       drift: false,
       softStart: true,
@@ -47,9 +48,10 @@ describe("tempos", () => {
     });
   });
 
-  it("gentle keeps the dissolve's clock, so the two can't drift apart", () => {
+  it("gentle keeps the dissolve's clock and first pass, so the two can't drift apart", () => {
     expect(TEMPOS.gentle.frameMs).toBe(TEMPOS.dissolve.frameMs);
     expect(TEMPOS.gentle.fadeMs).toBe(TEMPOS.dissolve.fadeMs);
+    expect(TEMPOS.gentle.firstPass).toBe(TEMPOS.dissolve.firstPass);
   });
 
   it("production runs the dissolve (Ben's pick, 09-26-26)", () => {

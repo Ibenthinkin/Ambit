@@ -57,6 +57,9 @@ test("home page renders with no console errors", async ({ page }) => {
 test("the overture plays, the reel cuts in, and the sheet rises on its own", async ({
   page,
 }) => {
+  // The whole show is ~24 s under the dissolve (below) — past Playwright's 30 s default once the
+  // navigation is counted on a cold picture.
+  test.setTimeout(60_000);
   await page.goto("/");
   await expect(page.getByTestId("overture-tail")).toBeVisible();
   // The tail unmounts on the frame the reel cuts in.
@@ -64,9 +67,9 @@ test("the overture plays, the reel cuts in, and the sheet rises on its own", asy
     timeout: 8_000,
   });
   await expect.poll(() => visibleId(page), { timeout: 8_000 }).toBeTruthy();
-  // cut: ~3.6 s + 12 × 350 ms ≈ 8 s; dissolve: ~3.6 s + 2 × 3 s. 20 s covers either default.
+  // cut: ~3.6 s + 12 × 350 ms ≈ 8 s; dissolve: ~3.6 s + 8 × 2.5 s ≈ 24 s. 35 s covers either.
   await expect(page.getByPlaceholder("you@example.com")).toBeInViewport({
-    timeout: 20_000,
+    timeout: 35_000,
   });
 });
 
@@ -93,7 +96,7 @@ test("clicking the imagery changes the picture, and the pictures keep moving beh
   await expect(page.getByPlaceholder("you@example.com")).toBeInViewport({
     timeout: 20_000,
   });
-  // Behind the sheet the reel runs the dissolve gear: a change within frame + fade (4.2 s).
+  // Behind the sheet the reel runs the dissolve gear: a change within frame + fade (3.5 s).
   await expect.poll(() => visibleId(page), { timeout: 5_000 }).toBeTruthy();
   const behind = await visibleId(page);
   await expect
@@ -172,9 +175,9 @@ test("reduced motion: the overture fades, the reel cross-fades without drift, an
       })),
     );
   expect(layers.every((l) => l.animation === "none")).toBe(true);
-  expect(layers.find((l) => l.opacity === "1")?.transition).toBe("1.2s");
+  expect(layers.find((l) => l.opacity === "1")?.transition).toBe("1s");
 
-  // The glyph, rather than waiting the gentle first pass (~10 s): the sheet's round trip is
+  // The glyph, rather than waiting the gentle first pass (~24 s): the sheet's round trip is
   // what this test is for.
   await page.getByRole("button", { name: "Open sign-in" }).click();
   await expect(page.getByPlaceholder("you@example.com")).toBeInViewport();
