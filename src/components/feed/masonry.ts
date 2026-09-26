@@ -9,7 +9,29 @@ import type { FeedCard, FeedPage } from "~/server/services/feed";
 export type FeedTile =
   | { kind: "image"; card: FeedCard; aspectClass: string; ratio: number }
   | { kind: "article"; card: FeedCard }
-  | { kind: "because"; key: string; from: string; to: string };
+  | { kind: "because"; key: string; from: string; to: string }
+  | { kind: "message"; key: string; message: MessageKind };
+
+/**
+ * `/explore`'s calm message blocks (09-26-26, docs/PLAN_explore-route.md): sign in, sign up, "what
+ * is this?", and the end card the taste closes on. Copy lives in `config/explore.ts`.
+ */
+export type MessageKind = "signin" | "signup" | "about" | "end";
+
+/** The per-page rotation. "What is this?" leads: a stranger's first question is what they're
+ *  looking at, not how to join it. */
+const MESSAGE_ROTATION = ["about", "signup", "signin"] as const;
+
+/** A page's message follows its fourth card, so a block is never the first thing seen. */
+const MESSAGE_AFTER_CARD = 4;
+
+export interface BuildTilesOptions {
+  /**
+   * `/explore` only: one message tile per page, and cards deduped by id across pages — the
+   * signed-out feed has no seen-exclusion, so two pages a few apart can draw the same item.
+   */
+  messages?: boolean;
+}
 
 /**
  * The eight tile heights, as literal Tailwind aspect-ratio classes.
@@ -85,14 +107,28 @@ function qualifiesForBecause(
 export function buildTiles(
   pages: FeedPage[],
   topicLabels: Record<string, string>,
+  opts: BuildTilesOptions = {},
 ): FeedTile[] {
   const tiles: FeedTile[] = [];
   let imageOrdinal = 0;
+  const shown = new Set<string>();
 
-  for (const page of pages) {
-    const becauseCard = page.cards.find(qualifiesForBecause);
+  pages.forEach((page, pageIndex) => {
+    const cards = opts.messages
+      ? page.cards.filter((c) => !shown.has(c.item.id))
+      : page.cards;
+    const becauseCard = cards.find(qualifiesForBecause);
+    const message: FeedTile | null =
+      opts.messages && cards.length > 0
+        ? {
+            kind: "message",
+            key: `message-${pageIndex}`,
+            message: MESSAGE_ROTATION[pageIndex % MESSAGE_ROTATION.length]!,
+          }
+        : null;
 
-    for (const card of page.cards) {
+    cards.forEach((card, cardIndex) => {
+      shown.add(card.item.id);
       if (becauseCard && card === becauseCard) {
         const from = becauseCard.driftPath[0];
         tiles.push({
@@ -118,8 +154,16 @@ export function buildTiles(
       } else {
         tiles.push({ kind: "article", card });
       }
-    }
-  }
+
+      // After the fourth card, or after the last one on a shorter page.
+      if (
+        message &&
+        cardIndex + 1 === Math.min(MESSAGE_AFTER_CARD, cards.length)
+      ) {
+        tiles.push(message);
+      }
+    });
+  });
 
   return tiles;
 }
@@ -145,6 +189,8 @@ function estHeight(tile: FeedTile): number {
     case "image":
       return COL_W * tile.ratio;
     case "because":
+    // A message block is a Because tile's shape: a label, a line, a button.
+    case "message":
       return 118;
     case "article": {
       const { title, summary } = tile.card.item;

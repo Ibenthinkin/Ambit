@@ -219,9 +219,9 @@ export function SavedScreen() {
           {columns.map((column, columnIndex) => (
             <div key={columnIndex} className="flex flex-col gap-1">
               {column.map((tile) =>
-                // CORE-only input makes this branch unreachable (see the cards memo) — the check is
-                // here to narrow the type, not to handle a real case.
-                tile.kind === "because" ? null : (
+                // CORE-only input, and no `messages` option, make this branch unreachable (see the
+                // cards memo) — the check is here to narrow the type, not to handle a real case.
+                tile.kind === "because" || tile.kind === "message" ? null : (
                   <SavedTile
                     key={tile.card.item.id}
                     tile={tile}

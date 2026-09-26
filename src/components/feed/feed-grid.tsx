@@ -11,6 +11,9 @@ import { BecauseTile } from "./because-tile";
 import { ImageTile } from "./image-tile";
 import { GRID_COLS, packColumns, type FeedTile } from "./masonry";
 
+/** `/explore`'s message block tile (09-26-26). */
+export type MessageTileData = Extract<FeedTile, { kind: "message" }>;
+
 // The feed's masonry and its infinite scroll, shared by `/feed` (FeedScreen) and `/explore`
 // (ExploreScreen) since 09-26-26 (docs/PLAN_explore-route.md). Extracted rather than forked:
 // FeedScreen is authed through and through — `feed.page`, the receipt ack, the item sheet, the
@@ -51,6 +54,8 @@ export interface FeedGridProps {
   onLongPress?: (item: PressedItem) => void;
   /** Drawn over a card as a sibling of it (the hover strip). */
   renderTileExtras?: (tile: CardTile) => React.ReactNode;
+  /** `/explore`'s message blocks. Only a screen that asks `buildTiles` for them gets any. */
+  renderMessage?: (tile: MessageTileData) => React.ReactNode;
 }
 
 /**
@@ -70,6 +75,7 @@ export function FeedGrid({
   onOpen,
   onLongPress,
   renderTileExtras,
+  renderMessage,
 }: FeedGridProps) {
   // 2 / 3 / 4 by viewport, hydration-safe — see `useMediaQuery` on why it isn't an effect.
   const columnCount = useColumnCount();
@@ -177,6 +183,7 @@ export function FeedGrid({
     if (tile.kind === "because") {
       return <BecauseTile from={tile.from} to={tile.to} />;
     }
+    if (tile.kind === "message") return renderMessage?.(tile) ?? null;
     const { item } = tile.card;
     const gestures = {
       onTap: () => onOpen(item.id),
@@ -217,26 +224,21 @@ export function FeedGrid({
           {columns.map((column, columnIndex) => (
             <div key={columnIndex} className="flex flex-col gap-1">
               {column.map((tile, tileIndex) => {
-                // Because tiles carry no `data-feed-id`: they're inert, and `?focus=` resolves an
-                // *item*, so giving them an id would only create a second thing to scroll to.
-                const key =
-                  tile.kind === "because" ? tile.key : tile.card.item.id;
+                // Because and message tiles carry no `data-feed-id`: they're not items, and
+                // `?focus=` resolves an *item*, so giving them an id would only create a second
+                // thing to scroll to.
+                const isCard = tile.kind === "image" || tile.kind === "article";
+                const key = isCard ? tile.card.item.id : tile.key;
                 const body = (
                   <div
-                    data-feed-id={tile.kind === "because" ? undefined : key}
+                    data-feed-id={isCard ? key : undefined}
                     // `group/tile relative`: the hover strip below is a sibling overlay keyed
                     // on this wrapper's hover (docs/DESIGN_chrome-redesign.md §3). Second child
                     // on purpose — e2e reaches the tile as `[data-feed-id] > *` `.first()`.
-                    className={
-                      tile.kind === "because"
-                        ? undefined
-                        : "group/tile relative"
-                    }
+                    className={isCard ? "group/tile relative" : undefined}
                   >
                     {renderTile(tile)}
-                    {renderTileExtras && tile.kind !== "because"
-                      ? renderTileExtras(tile)
-                      : null}
+                    {renderTileExtras && isCard ? renderTileExtras(tile) : null}
                   </div>
                 );
                 // Only page one rises in. An appended page arriving mid-scroll with a staggered
