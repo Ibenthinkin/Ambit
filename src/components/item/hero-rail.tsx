@@ -40,9 +40,14 @@ import type { RailItem } from "~/server/services/gallery-rail";
 // offers on the image inside it. `next/image` is out for the reason `image-tile.tsx` gives — the
 // image hosts are an open, growing set.
 
+/** A rail cell: a picture, or `"end"` — `/explore`'s end card, drawn from `endCell` (09-26-26). */
+export type RailCell = RailItem | "end";
+
 export interface HeroRailProps {
   /** The cell before, the cell under the reader, the cell after. An absent neighbour is an empty cell. */
-  cells: readonly [RailItem | undefined, RailItem, RailItem | undefined];
+  cells: readonly [RailCell | undefined, RailCell, RailCell | undefined];
+  /** What an `"end"` cell shows. Only `/explore`'s capped rail has one. */
+  endCell?: React.ReactNode;
   /** From `useRailGestures` — spread onto the track. */
   trackRef: React.RefObject<HTMLDivElement | null>;
   dragPx: number;
@@ -65,6 +70,7 @@ export function HeroRail({
   dragging,
   chrome,
   chromeVisible,
+  endCell,
 }: HeroRailProps) {
   return (
     <section
@@ -91,7 +97,7 @@ export function HeroRail({
         >
           {cells.map((c, i) => (
             <div
-              key={c?.id ?? `empty-${i}`}
+              key={c === "end" ? "end" : (c?.id ?? `empty-${i}`)}
               // The 12px inset, centred both ways. The notch adds to the top inset on the phone
               // rather than replacing it, so the picture never sits under the status bar.
               className="flex items-center justify-center p-[12px]"
@@ -101,7 +107,11 @@ export function HeroRail({
                 paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)",
               }}
             >
-              {c ? <RailImage item={c} priority={i === 1} /> : null}
+              {c === "end" ? (
+                <div className="w-full max-w-[360px]">{endCell}</div>
+              ) : c ? (
+                <RailImage item={c} priority={i === 1} />
+              ) : null}
             </div>
           ))}
         </div>

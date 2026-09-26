@@ -2,7 +2,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { markFeedOrigin } from "~/components/feed/feed-origin";
+import {
+  markExploreOrigin,
+  markFeedOrigin,
+} from "~/components/feed/feed-origin";
 import { useLeaveToFeed } from "./use-leave-to-feed";
 
 const { backMock, pushMock } = vi.hoisted(() => ({
@@ -23,8 +26,8 @@ describe("useLeaveToFeed", () => {
     pushMock.mockClear();
   });
 
-  const leave = (itemId: string) => {
-    const { result } = renderHook(() => useLeaveToFeed(itemId));
+  const leave = (itemId: string, exploring = false) => {
+    const { result } = renderHook(() => useLeaveToFeed(itemId, { exploring }));
     act(() => result.current());
   };
 
@@ -54,5 +57,35 @@ describe("useLeaveToFeed", () => {
 
     expect(pushMock).toHaveBeenCalledWith("/feed?focus=item-1");
     expect(backMock).not.toHaveBeenCalled();
+  });
+
+  // `/explore` (09-26-26): a visitor who reached this item from the signed-out feed, then wandered
+  // off it, goes back to /explore — /feed would only bounce them to the landing.
+  it("goes to /explore, not /feed, when the visit began on /explore", () => {
+    markExploreOrigin();
+    markFeedOrigin("item-other");
+
+    leave("item-1", true);
+
+    expect(pushMock).toHaveBeenCalledWith("/explore");
+  });
+
+  // The marker outlives a sign-in in the same tab. A signed-in reader (the item screen passes
+  // `exploring: false` for anyone authed) must be sent to their feed, not to /explore's redirect.
+  it("ignores a stale explore marker when the screen says the reader isn't exploring", () => {
+    markExploreOrigin();
+
+    leave("item-1", false);
+
+    expect(pushMock).toHaveBeenCalledWith("/feed?focus=item-1");
+  });
+
+  it("still pops when the explore tile is the one that opened it", () => {
+    markExploreOrigin();
+    markFeedOrigin("item-1");
+
+    leave("item-1", true);
+
+    expect(backMock).toHaveBeenCalledTimes(1);
   });
 });

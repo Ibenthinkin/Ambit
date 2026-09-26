@@ -345,4 +345,28 @@ test.describe.serial("desktop", () => {
     await page.keyboard.press("Escape");
     await page.waitForURL(/\/feed/);
   });
+
+  // `/explore` (09-26-26): the signed-out taste at desktop width — four columns like /feed, and
+  // its sign-in card is the landing's centered one. Signed out, so this spends nothing of the
+  // shared user; the seed above is what it draws.
+  test("/explore packs four columns, and its sign-in card is centered", async ({
+    page,
+  }) => {
+    await page.goto("/explore");
+    await expect(page.locator("[data-feed-id]").first()).toBeVisible();
+    await expect(
+      page.getByTestId("feed-columns").locator(":scope > div"),
+    ).toHaveCount(4);
+
+    await page
+      .locator("header")
+      .getByRole("button", { name: "Sign in" })
+      .click();
+    const sheet = page.getByTestId("auth-sheet");
+    await expect(sheet).toHaveAttribute("data-open", "true");
+    await settle(sheet);
+    const box = (await sheet.boundingBox())!;
+    expect(Math.round(box.width)).toBe(520);
+    expect(Math.abs(box.x + box.width / 2 - CENTRE_X)).toBeLessThan(2);
+  });
 });

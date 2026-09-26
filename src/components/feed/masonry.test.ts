@@ -209,6 +209,86 @@ describe("buildTiles", () => {
   });
 });
 
+describe("buildTiles with messages (/explore, 09-26-26)", () => {
+  const ids = (prefix: string, n: number) =>
+    Array.from({ length: n }, (_, i) => card(`${prefix}${i}`));
+  const messages = (tiles: FeedTile[]) =>
+    tiles.flatMap((t) => (t.kind === "message" ? [t] : []));
+
+  it("adds no message tiles unless asked", () => {
+    const tiles = buildTiles([page(ids("a", 12))], LABELS);
+    expect(messages(tiles)).toHaveLength(0);
+  });
+
+  it("puts one message on each page, after the page's fourth card", () => {
+    const tiles = buildTiles([page(ids("a", 12)), page(ids("b", 12))], LABELS, {
+      messages: true,
+    });
+    expect(messages(tiles)).toHaveLength(2);
+    expect(tiles[4]?.kind).toBe("message");
+    // Page two starts at 12 cards + 1 message = index 13; its message follows its fourth card.
+    expect(tiles[13 + 4]?.kind).toBe("message");
+  });
+
+  it("never leads with a message", () => {
+    const tiles = buildTiles([page(ids("a", 12))], LABELS, { messages: true });
+    expect(tiles[0]?.kind).not.toBe("message");
+  });
+
+  it("rotates about → signup → signin, one per page", () => {
+    const pages = ["a", "b", "c", "d"].map((p) => page(ids(p, 6)));
+    const kinds = messages(buildTiles(pages, LABELS, { messages: true })).map(
+      (m) => m.message,
+    );
+    expect(kinds).toEqual(["about", "signup", "signin", "about"]);
+  });
+
+  it("gives every message tile a distinct key", () => {
+    const pages = ["a", "b", "c"].map((p) => page(ids(p, 6)));
+    const keys = messages(buildTiles(pages, LABELS, { messages: true })).map(
+      (m) => m.key,
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("still places a message on a page shorter than four cards", () => {
+    const tiles = buildTiles([page(ids("a", 2))], LABELS, { messages: true });
+    expect(tiles.map((t) => t.kind)).toEqual(["image", "image", "message"]);
+  });
+
+  it("drops a card already shown on an earlier page", () => {
+    const tiles = buildTiles(
+      [page([card("x"), card("y")]), page([card("y"), card("z")])],
+      LABELS,
+      { messages: true },
+    );
+    const cardIds = tiles.flatMap((t) =>
+      t.kind === "image" || t.kind === "article" ? [t.card.item.id] : [],
+    );
+    expect(cardIds).toEqual(["x", "y", "z"]);
+  });
+});
+
+describe("packColumns with a message tile", () => {
+  it("estimates a message tile's height like a Because tile", () => {
+    const msg: FeedTile = { kind: "message", key: "m", message: "about" };
+    // 118 (a Because tile's height) is shorter than a 0.68 image's 133, so the third tile joins
+    // the message's column. Without a height the column total is NaN and packing breaks.
+    const [a, b] = [card0(), card0("b")];
+    const cols = packColumns([msg, a, b], 2);
+    expect(cols).toEqual([[msg, b], [a]]);
+  });
+});
+
+function card0(id = "a"): FeedTile {
+  return {
+    kind: "image",
+    card: card(id),
+    aspectClass: IMAGE_ASPECTS[0].className,
+    ratio: IMAGE_ASPECTS[0].ratio,
+  };
+}
+
 describe("packColumns", () => {
   it("sends each tile to the shorter column, ties left", () => {
     // Four squares: both columns are level at each step, so they alternate.
@@ -220,7 +300,9 @@ describe("packColumns", () => {
     // goes right (still shorter after b) and d left.
     const [left, right] = packColumns(tiles);
     const ids = (col: FeedTile[]) =>
-      col.map((t) => (t.kind === "because" ? t.key : t.card.item.id));
+      col.map((t) =>
+        t.kind === "because" || t.kind === "message" ? t.key : t.card.item.id,
+      );
 
     expect(ids(left!)).toEqual(["a", "c"]);
     expect(ids(right!)).toEqual(["b", "d"]);
@@ -294,7 +376,9 @@ describe("packColumns", () => {
     );
     const cols = packColumns(tiles, 4);
     const ids = (col: FeedTile[]) =>
-      col.map((t) => (t.kind === "because" ? t.key : t.card.item.id));
+      col.map((t) =>
+        t.kind === "because" || t.kind === "message" ? t.key : t.card.item.id,
+      );
 
     expect(cols).toHaveLength(4);
     expect(cols.map((c) => c[0] && ids([c[0]])[0])).toEqual([

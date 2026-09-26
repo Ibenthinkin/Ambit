@@ -56,6 +56,17 @@ describe("AuthCard", () => {
     ).toBeInTheDocument();
   });
 
+  // `/explore`'s sign-up block opens the card already in sign-up (09-26-26).
+  it("opens in signup when initialMode says so", () => {
+    render(<AuthCard initialMode="signup" />);
+    expect(
+      screen.getByPlaceholderText("What should we call you?"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account" }),
+    ).toBeInTheDocument();
+  });
+
   it("blocks the network call on an invalid email", async () => {
     render(<AuthCard />);
     fireEvent.change(screen.getByPlaceholderText("you@example.com"), {

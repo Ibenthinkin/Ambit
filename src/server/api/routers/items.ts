@@ -7,7 +7,8 @@
 //   - `wanderNext` (5.7) — the "where Ambit would wander next" teaser at the foot of that page.
 //   - `galleryRail` (5.8) — the endless images-only rail the item page's picture swipes through.
 //
-// All three are intentional exceptions to SPEC §11's auth rule, and all three are covered by the
+// All three are intentional exceptions to SPEC §11's auth rule (a fourth, `feed.explore`, lives in
+// the feed router since 09-26-26 — `/explore`'s signed-out taste of the feed), and all three are covered by the
 // shared rate-limit middleware, which is what makes an unauthenticated read surface safe to expose.
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";

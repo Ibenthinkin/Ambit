@@ -20,8 +20,9 @@ import { Rise } from "~/components/ui/rise";
 // mid-scroll must not arm the tile's press underneath.
 
 export interface SavedTileProps {
-  /** Image and article tiles only — CORE cards never produce a Because tile (see SavedScreen). */
-  tile: Exclude<FeedTile, { kind: "because" }>;
+  /** Image and article tiles only — CORE cards never produce a Because tile, and Saved never asks
+   *  for message tiles (see SavedScreen). */
+  tile: Extract<FeedTile, { kind: "image" | "article" }>;
   /** Fires with no arguments — the screen already knows which item this tile is. */
   onUnsave: () => void;
 }

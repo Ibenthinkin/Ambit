@@ -24,6 +24,9 @@ export interface AuthSheetProps {
    * nothing to go back to — the logo then renders as plain decoration.
    */
   onCollapse?: () => void;
+  /** What the logo button says it does. The landing collapses to its slideshow; `/explore`
+   *  (09-26-26) goes back to the feed underneath. */
+  collapseLabel?: string;
   /**
    * The product pitch above the form. On by default, and switched off for `/reset-password`: a
    * reader who followed a reset link is mid-task and already has an account, so selling them the
@@ -37,6 +40,7 @@ export interface AuthSheetProps {
 export function AuthSheet({
   open,
   onCollapse,
+  collapseLabel = "Back to the slideshow",
   showHero = true,
   children,
 }: AuthSheetProps) {
@@ -84,7 +88,7 @@ export function AuthSheet({
           {onCollapse ? (
             <button
               type="button"
-              aria-label="Back to the slideshow"
+              aria-label={collapseLabel}
               onClick={onCollapse}
               className="bg-ink/6 border-ink/12 mb-5 flex size-[54px] items-center justify-center rounded-full border"
             >

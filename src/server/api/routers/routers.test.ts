@@ -16,6 +16,7 @@ import type * as FeedRepo from "~/server/db/feed";
 import type * as TopicsRepo from "~/server/db/topics";
 import type * as FeedService from "~/server/services/feed";
 import type * as FeedDebug from "~/server/services/feed-debug";
+import { EXPLORE_MAX_PAGES } from "~/config/explore";
 
 // Mock services/feed.ts's `getFeedPage` (keeping `decodeCursor`/everything else real via
 // `importOriginal`) so the feed router's own tests never touch Postgres — the actual tier/topic/
@@ -62,7 +63,7 @@ vi.mock("~/server/services/feed-debug", async (importOriginal) => {
   return { ...actual, feedDebugEnabled: vi.fn(actual.feedDebugEnabled) };
 });
 
-const { getFeedPage: mockedGetFeedPage } =
+const { getFeedPage: mockedGetFeedPage, encodeCursor } =
   await import("~/server/services/feed");
 const { markSeen: mockedMarkSeen, forgetSeenSince: mockedForgetSeenSince } =
   await import("~/server/db/feed");
@@ -500,6 +501,77 @@ describe("feed.page forwards knobs to getFeedPage unconditionally", () => {
   });
 });
 
+describe("feed.explore — the signed-out taste (09-26-26)", () => {
+  beforeEach(() => {
+    vi.mocked(mockedGetFeedPage).mockReset();
+    vi.mocked(mockedGetFeedPage).mockResolvedValue({
+      cards: [],
+      nextCursor: "next",
+    });
+  });
+
+  const cursorAtPage = (page: number) =>
+    encodeCursor({
+      v: 1,
+      seed: 7,
+      page,
+      anchor: new Date().toISOString(),
+      prev: [],
+    });
+
+  it("serves an anonymous caller, composing for no user", async () => {
+    const result = await createCaller(anonContext()).feed.explore({});
+    expect(result).toEqual({ cards: [], nextCursor: "next" });
+    expect(mockedGetFeedPage).toHaveBeenCalledWith(null, undefined);
+  });
+
+  it("composes for no user even when a session is present", async () => {
+    await createCaller(authedContext("user-42")).feed.explore({});
+    expect(mockedGetFeedPage).toHaveBeenCalledWith(null, undefined);
+  });
+
+  it("forwards a cursor below the backstop", async () => {
+    const cursor = cursorAtPage(EXPLORE_MAX_PAGES - 1);
+    await createCaller(anonContext()).feed.explore({ cursor });
+    expect(mockedGetFeedPage).toHaveBeenCalledWith(null, cursor);
+  });
+
+  it("returns an empty, final page at the backstop without composing", async () => {
+    const result = await createCaller(anonContext()).feed.explore({
+      cursor: cursorAtPage(EXPLORE_MAX_PAGES),
+    });
+    expect(result).toEqual({ cards: [], nextCursor: undefined });
+    expect(mockedGetFeedPage).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed cursor with BAD_REQUEST", async () => {
+    await expect(
+      createCaller(anonContext()).feed.explore({ cursor: "not-a-cursor" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(mockedGetFeedPage).not.toHaveBeenCalled();
+  });
+
+  // `useInfiniteQuery` sends `{ ...input, cursor, direction }` on every page after the first, so an
+  // input that refused unknown keys would 400 every `fetchNextPage` — the taste would be one page.
+  it("tolerates the direction key useInfiniteQuery adds", async () => {
+    const cursor = cursorAtPage(1);
+    await createCaller(anonContext()).feed.explore({
+      cursor,
+      // @ts-expect-error — not in the schema; the client adds it anyway
+      direction: "forward",
+    });
+    expect(mockedGetFeedPage).toHaveBeenCalledWith(null, cursor);
+  });
+
+  it("never forwards knobs", async () => {
+    await createCaller(anonContext()).feed.explore({
+      // @ts-expect-error — knobs are a signed-in dev affordance, not part of this input
+      knobs: { pageSize: 5 },
+    });
+    expect(mockedGetFeedPage).toHaveBeenCalledWith(null, undefined);
+  });
+});
+
 describe("appRouter shape", () => {
   // Phase 5.5 grew this from six procedures to nine (`saves.toggle` was removed — verified dead —
   // and the collection-aware surface took its place); 5.7 adds three — `feed.markSeen` (the
@@ -513,14 +585,16 @@ describe("appRouter shape", () => {
   // the eighteenth, `feed.forgetSince` — registered in every build, FORBIDDEN outside the dev gate.
   // /profile/topics's dev readout (09-10-26) adds the nineteenth and twentieth on the same terms,
   // `topics.weights` and `topics.resetWeights`. The chrome redesign (09-11-26) adds the
-  // twenty-first, `saves.ids` — the feed's tile strips light their glyphs from it.
-  it("exposes exactly the twenty-one SPEC §7 procedures, no leftover post router", () => {
+  // twenty-first, `saves.ids` — the feed's tile strips light their glyphs from it. `/explore`
+  // (09-26-26) adds the twenty-second, `feed.explore` — the fourth deliberate public procedure.
+  it("exposes exactly the twenty-two SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
         "topics.list",
         "topics.setMine",
         "feed.page",
+        "feed.explore",
         "feed.markSeen",
         "feed.forgetSince",
         "items.byId",

@@ -8,39 +8,27 @@ import { InstallFlow } from "~/components/install/install-flow";
 import { ItemSheet } from "~/components/sheets/item-sheet";
 import { Button } from "~/components/ui/button";
 import { Toolbar } from "~/components/ui/toolbar";
-import { Rise } from "~/components/ui/rise";
 import { Spinner } from "~/components/ui/spinner";
 import { Toast } from "~/components/ui/toast";
-import { Column } from "~/components/ui/column";
-import {
-  HOVER_QUERY,
-  useColumnCount,
-  useMediaQuery,
-} from "~/hooks/use-media-query";
-import { cn } from "~/lib/utils";
+import { HOVER_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { saveToastText } from "~/lib/save-toast";
 import type { FeedKnobs } from "~/server/services/feed-knobs";
 import { api } from "~/trpc/react";
-import { ArticleCard } from "./article-card";
-import { BecauseTile } from "./because-tile";
 import { pageStats } from "./dev/feed-stats";
 import { KnobPanel } from "./dev/knob-panel";
 import { useDevKnobs } from "./dev/use-dev-knobs";
-import { markFeedOrigin } from "./feed-origin";
+import { clearExploreOrigin, markFeedOrigin } from "./feed-origin";
+import { FeedGrid, type PressedItem } from "./feed-grid";
 import { TileActions } from "./tile-actions";
-import { ImageTile } from "./image-tile";
-import { buildTiles, GRID_COLS, packColumns, type FeedTile } from "./masonry";
+import { buildTiles } from "./masonry";
 import { useFeedScroll } from "./use-feed-scroll";
 
 // The screen the whole app is for (SPEC §9, `Ambit - Feed Masonry 3.dc.html`): an infinite
 // two-column masonry of the feed engine's output. Tap a tile to open it, long-press for the item
 // menu, and the floating pill for everything else.
 //
-// **The scroll container is the window.** The prototype scrolls an inner `<div>` because it's
-// rendered inside an iOS-frame mockup; the real app's equivalent of that frame is the viewport.
-// Getting this wrong is the same class of bug 5.5 hit three separate times with
-// `absolute`-vs-`fixed`, and here it has a second face: the IntersectionObserver's root must be
-// the viewport (its default), never a ref'd element.
+// The masonry and its infinite scroll live in `FeedGrid` (shared with `/explore` since 09-26-26);
+// this screen is the authed half around it — the query, the receipt ack, the sheets, the pill.
 
 // The dev panel's session mark, persisted so it outlives the tab (see `sessionMark` below).
 // Plain functions, not a hook: they read and write localStorage on demand, never during render.
@@ -83,13 +71,6 @@ export interface FeedScreenProps {
   /** The reader's first name, for `?from=` on a shared link. */
   viewerName?: string;
 }
-
-/**
- * How far below the fold the sentinel may sit and still count as "near the bottom" — the observer's
- * `rootMargin` and the re-check's measurement, one number so the two can never disagree about it.
- * Half a phone screen: the next page is on its way before the reader reaches the end of this one.
- */
-const TRIP_MARGIN_PX = 500;
 
 export function FeedScreen({
   topicLabels,
@@ -164,12 +145,9 @@ export function FeedScreen({
   const [itemSheetOpen, setItemSheetOpen] = React.useState(false);
   // Deliberately NOT cleared when the sheet closes: `ItemSheet` stays mounted through its exit
   // animation, and blanking the item would flash an empty title on the way out.
-  const [pressedItem, setPressedItem] = React.useState<{
-    id: string;
-    title: string;
-    // The slot the card was served under — the save bumps it (docs/DESIGN_chrome-redesign.md §5).
-    topicId: string | null;
-  } | null>(null);
+  const [pressedItem, setPressedItem] = React.useState<PressedItem | null>(
+    null,
+  );
 
   const pages = React.useMemo(() => data?.pages ?? [], [data]);
 
@@ -263,116 +241,23 @@ export function FeedScreen({
     [isDev, pages, originalIds],
   );
 
-  // 2 / 3 / 4 by viewport, hydration-safe — see `useMediaQuery` on why it isn't an effect.
-  const columnCount = useColumnCount();
   // A real hover and a fine pointer: only then does each tile carry its hover strip
   // (docs/DESIGN_chrome-redesign.md §3). On touch the strip does not exist at all.
   const hoverCapable = useMediaQuery(HOVER_QUERY);
 
-  const { columns, firstPageTiles, cardCount } = React.useMemo(() => {
+  const { tiles, firstPageCount, cardCount } = React.useMemo(() => {
     const tiles = buildTiles(pages, topicLabels);
-    // Only the first page gets an entrance animation, so the set of tiles that belong to it has to
-    // be identifiable after packing has interleaved them into its columns. Rebuilding page one on
-    // its own is a dozen cards' worth of work and unambiguously correct, where re-deriving the
-    // count from the tier rules would duplicate `buildTiles`' cadence logic in a second place.
+    // Rebuilding page one on its own is a dozen cards' worth of work and unambiguously correct,
+    // where re-deriving the count from the tier rules would duplicate `buildTiles`' cadence logic
+    // in a second place.
     const firstPage =
       pages.length > 0 ? buildTiles([pages[0]!], topicLabels) : [];
     return {
-      columns: packColumns(tiles, columnCount),
-      firstPageTiles: new Set(tiles.slice(0, firstPage.length)),
+      tiles,
+      firstPageCount: firstPage.length,
       cardCount: pages.reduce((n, p) => n + p.cards.length, 0),
     };
-  }, [pages, topicLabels, columnCount]);
-
-  // ── infinite scroll ───────────────────────────────────────────────────────────────────────────
-  // Two things ask for the next page, and both go through `requestNextPage`:
-  //
-  //   - **The observer**, for the reader scrolling: it fires when the sentinel *crosses* into the
-  //     500px margin below the fold.
-  //   - **The re-check** (09-10-26), for everything that moves the answer *without* a crossing —
-  //     a page landing, the query learning there is a next page. See the effect below for the bug
-  //     that made it necessary.
-  //
-  // The observer is created ONCE and never rebuilt, because tearing it down and re-observing on
-  // every render is how an observer starts missing intersections. The moving parts (`hasNextPage`,
-  // the fetch itself) reach it through a ref instead — the same lesson as `BottomSheet`'s
-  // `onCloseRef`, where an inline arrow in the deps rebuilt the effect on every parent render.
-  const sentinelRef = React.useRef<HTMLDivElement>(null);
-  const loadMoreRef = React.useRef<() => void>(() => undefined);
-
-  // Synchronous, where `isFetchingNextPage` is a render behind: with two askers, the observer and
-  // the re-check can both fire in the frame before React has re-rendered with the fetch in flight,
-  // and a second `fetchNextPage` would cancel the first and start it again.
-  const requesting = React.useRef(false);
-  const requestNextPage = React.useCallback(() => {
-    if (requesting.current) return;
-    requesting.current = true;
-    void Promise.resolve(fetchNextPage()).finally(() => {
-      requesting.current = false;
-    });
-  }, [fetchNextPage]);
-
-  React.useEffect(() => {
-    loadMoreRef.current = () => {
-      if (hasNextPage && !isFetchingNextPage) requestNextPage();
-    };
-  });
-
-  React.useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting))
-          loadMoreRef.current();
-      },
-      // No `root` — the viewport is the scroller (see the header). 500px of margin starts the
-      // next fetch while the reader is still half a screen away from the bottom, which is what
-      // makes the scroll feel endless rather than paged. The prototype also wires a scroll
-      // listener doing the same job; one mechanism is enough, and two racing each other is how
-      // you end up fetching two pages for one bottom.
-      { rootMargin: `${TRIP_MARGIN_PX}px` },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // **The re-check — decided from where the sentinel *is*, not from a crossing (09-10-26).**
-  //
-  // An `IntersectionObserver` calls back only when a target crosses its threshold. On a first
-  // load its one callback lands while the feed is still empty — the sentinel right under the
-  // header, "intersecting", with nothing to load yet — and then page one arrives. If that page is
-  // short enough to leave the sentinel inside the margin, nothing ever crosses again, and three
-  // things follow from one missing callback: page 2 never loads, a scroll to the bottom never
-  // appends (the sentinel was in range all along), and the next remount — the reader popping back
-  // from an item — loads it instead, which is the one moment the feed promises to draw nothing.
-  // A twelve-card first page at the phone viewport is ~1,450px: measured in a production build,
-  // the sentinel sat 505–533px below the fold on the runs that got lucky.
-  //
-  // So whenever the answer can change without a crossing — a page lands, a fetch settles, the
-  // query learns there's a next page — measure the sentinel and ask if it's in range. Measured
-  // (`getBoundingClientRect` forces layout, so it is the committed truth), never read back from
-  // the observer: its update for the new layout may not have been delivered yet, and a stale
-  // "intersecting" would pull a page the reader is nowhere near — every page received is acked,
-  // so that would be corpus spent on nothing.
-  //
-  // Skipped after a failed next page: the re-check must never become a retry loop. The reader's
-  // own scroll — a real crossing, through the observer — still asks again, exactly as before.
-  const { isFetchNextPageError } = feed;
-  React.useEffect(() => {
-    if (!hasNextPage || isFetchingNextPage || isFetchNextPageError) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    if (el.getBoundingClientRect().top < window.innerHeight + TRIP_MARGIN_PX) {
-      requestNextPage();
-    }
-  }, [
-    pages.length,
-    hasNextPage,
-    isFetchingNextPage,
-    isFetchNextPageError,
-    requestNextPage,
-  ]);
+  }, [pages, topicLabels]);
 
   // Puts the reader back where they were — on the tile they just came back from, when `?focus=`
   // says which one. Mounted after the columns are built so its first attempt has tiles to find.
@@ -385,40 +270,13 @@ export function FeedScreen({
   // render draws one and the client query draws another). See `feed-origin.ts`.
   const openItem = (id: string) => {
     markFeedOrigin(id);
+    // A reader who began this tab on `/explore` and has since signed in is a reader now.
+    clearExploreOrigin();
     router.push(`/i/${id}`);
   };
-  const openItemSheet = (item: {
-    id: string;
-    title: string;
-    topicId: string | null;
-  }) => {
+  const openItemSheet = (item: PressedItem) => {
     setPressedItem(item);
     setItemSheetOpen(true);
-  };
-
-  const renderTile = (tile: FeedTile) => {
-    if (tile.kind === "because") {
-      return <BecauseTile from={tile.from} to={tile.to} />;
-    }
-    const { item } = tile.card;
-    const gestures = {
-      onTap: () => openItem(item.id),
-      onLongPress: () =>
-        openItemSheet({
-          id: item.id,
-          title: item.title,
-          topicId: tile.card.topicId,
-        }),
-    };
-    return tile.kind === "image" ? (
-      <ImageTile
-        card={tile.card}
-        aspectClass={tile.aspectClass}
-        {...gestures}
-      />
-    ) : (
-      <ArticleCard card={tile.card} {...gestures} />
-    );
   };
 
   const showLoader = isPending || isFetchingNextPage;
@@ -434,61 +292,21 @@ export function FeedScreen({
         .join(" ")
         .trim()}
     >
-      {/* `items-start` so a short column doesn't stretch to match a tall one — the columns are
-          independent stacks that happen to sit side by side, which is the whole idea of a masonry.
-          The `Column` is the desktop cap (docs/DESIGN_desktop-polish.md §2): 1120px, centered in
-          whatever the dev drawer leaves. */}
-      <Column width="wide">
-        <div
-          data-testid="feed-columns"
-          className={cn(
-            "grid items-start gap-1 px-1 pt-[58px]",
-            GRID_COLS[columnCount],
-          )}
-        >
-          {columns.map((column, columnIndex) => (
-            <div key={columnIndex} className="flex flex-col gap-1">
-              {column.map((tile, tileIndex) => {
-                // Because tiles carry no `data-feed-id`: they're inert, and `?focus=` resolves an
-                // *item*, so giving them an id would only create a second thing to scroll to.
-                const key =
-                  tile.kind === "because" ? tile.key : tile.card.item.id;
-                const body = (
-                  <div
-                    data-feed-id={tile.kind === "because" ? undefined : key}
-                    // `group/tile relative`: the hover strip below is a sibling overlay keyed
-                    // on this wrapper's hover (docs/DESIGN_chrome-redesign.md §3). Second child
-                    // on purpose — e2e reaches the tile as `[data-feed-id] > *` `.first()`.
-                    className={
-                      tile.kind === "because"
-                        ? undefined
-                        : "group/tile relative"
-                    }
-                  >
-                    {renderTile(tile)}
-                    {hoverCapable && tile.kind !== "because" ? (
-                      <TileActions card={tile.card} onToast={setToast} />
-                    ) : null}
-                  </div>
-                );
-                // Only page one rises in. An appended page arriving mid-scroll with a staggered
-                // fade cascade doesn't read as "arriving" — it reads as flicker.
-                return firstPageTiles.has(tile) ? (
-                  <Rise key={key} delayMs={tileIndex * 40}>
-                    {body}
-                  </Rise>
-                ) : (
-                  <React.Fragment key={key}>{body}</React.Fragment>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </Column>
-
-      {/* The infinite-scroll trip wire. Always rendered — an observer with nothing to observe is
-          an observer that never fires again once the list grows. */}
-      <div ref={sentinelRef} data-testid="feed-sentinel" className="h-px" />
+      <FeedGrid
+        tiles={tiles}
+        firstPageCount={firstPageCount}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        isFetchNextPageError={feed.isFetchNextPageError}
+        fetchNextPage={fetchNextPage}
+        onOpen={openItem}
+        onLongPress={openItemSheet}
+        renderTileExtras={
+          hoverCapable
+            ? (tile) => <TileActions card={tile.card} onToast={setToast} />
+            : undefined
+        }
+      />
 
       {showLoader ? (
         <div className="flex items-center justify-center gap-[10px] pt-5 pb-[26px]">
