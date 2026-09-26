@@ -56,13 +56,53 @@ describe("Overture", () => {
     expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
   });
 
-  // Reduced motion is a client-only answer (D8), so the server always renders the overture; this
-  // CSS media variant hides it before any script runs, so a reduced-motion reader never sees the
-  // line fade in between first paint and hydration.
-  it("is hidden by CSS for reduced-motion readers, before hydration can say so", () => {
+  // Reduced motion (D6, 09-26-26): the line is for every reader now. The server renders phase
+  // `in` for all of them (D8), and a reduced-motion reader gets it as a plain fade — so nothing
+  // may hide it from first paint, and the root must opt out of the global 0.01 ms collapse.
+  it("is no longer hidden for reduced-motion readers, and opts out of the global collapse", () => {
     render(<Overture phase="in" />);
-    expect(screen.getByTestId("overture").className).toContain(
-      "motion-reduce:hidden",
-    );
+    const line = screen.getByTestId("overture");
+    expect(line.className).not.toContain("motion-reduce:hidden");
+    expect(line.className).toContain("motion-gentle");
+  });
+
+  it("gentle collapse: the whole line fades on opacity alone — no clip, no drift, and the fade-in animation is dropped so the inline opacity can paint", () => {
+    const { rerender } = render(<Overture phase="in" gentle />);
+    const tail = screen.getByTestId("overture-tail");
+    Object.defineProperty(tail, "getBoundingClientRect", {
+      value: () => ({ width: 300 }),
+    });
+    rerender(<Overture phase="collapse" gentle />);
+    const line = screen.getByTestId("overture");
+    expect(line.style.opacity).toBe("0");
+    expect(line.style.transition).toContain("opacity 2200ms");
+    expect(line.style.animation).toBe("none");
+    const mark = screen.getByTestId("overture-mark");
+    expect(mark.style.transform).toBe("none");
+    expect(mark.style.getPropertyValue("--drift")).toBe("");
+    expect(tail.style.getPropertyValue("clip-path")).toBe("inset(0)");
+    expect(tail.style.opacity).toBe("1");
+  });
+
+  it("gentle done: the tail is gone and the wordmark remounts, fading in again on its own", () => {
+    const { rerender } = render(<Overture phase="collapse" gentle />);
+    const before = screen.getByTestId("overture");
+    rerender(<Overture phase="done" gentle />);
+    const after = screen.getByTestId("overture");
+    expect(after).not.toBe(before);
+    expect(screen.queryByTestId("overture-tail")).not.toBeInTheDocument();
+    expect(after.style.animation).toContain("overture-in 500ms");
+    expect(after.style.opacity).toBe("");
+  });
+
+  it("full motion is unchanged by the prop's default: collapse still clips and drifts", () => {
+    const { rerender } = render(<Overture phase="in" />);
+    const tail = screen.getByTestId("overture-tail");
+    Object.defineProperty(tail, "getBoundingClientRect", {
+      value: () => ({ width: 300 }),
+    });
+    rerender(<Overture phase="collapse" />);
+    expect(tail.style.getPropertyValue("clip-path")).toBe("inset(0 100% 0 0)");
+    expect(screen.getByTestId("overture").style.opacity).toBe("");
   });
 });
