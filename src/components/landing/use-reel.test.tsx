@@ -108,13 +108,19 @@ describe("useReel — cut", () => {
     expect(result.current.index).toBe(1);
   });
 
-  it("restart() returns to 0 and re-arms the first pass", () => {
+  // Ben, 09-26-26: collapsing the sheet used to reset the reel to picture 0, which read as the
+  // picture "quickly changing back to a specific image every time". It stays where it is now.
+  it("rearm() keeps the picture on screen, re-arms the first pass, and waits a full frame", () => {
     const { result, onFirstPass } = setup();
     act(() => result.current.skip());
     steps(3, 350);
-    act(() => result.current.restart());
-    expect(result.current.index).toBe(0);
-    expect(result.current.prev).toBeNull();
+    const { index, prev } = result.current;
+    advance(300);
+    act(() => result.current.rearm());
+    expect(result.current.index).toBe(index);
+    expect(result.current.prev).toBe(prev);
+    advance(100); // the step that was 50 ms away must not fire
+    expect(result.current.index).toBe(index);
     steps(12, 350);
     expect(onFirstPass).toHaveBeenCalledTimes(2);
   });

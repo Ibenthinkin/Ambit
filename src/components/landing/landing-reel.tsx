@@ -47,7 +47,7 @@ export function LandingReel({
     (i, k, arr): i is number => i !== null && i < n && arr.indexOf(i) === k,
   );
   const leaving = prev !== null && prev < n ? prev : null;
-  // No fade while nothing is leaving: the first frame after the overture (and after a restart) is
+  // No fade while nothing is leaving: the first frame after the overture is
   // the reference's hard cut out of black under either tempo (D4). Only picture-to-picture changes
   // take the tempo's fade — unless the tempo asks for a soft start (`gentle`, D6): under reduced
   // motion the cut into the first frame is motion too, so it fades in from black.

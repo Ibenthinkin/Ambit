@@ -158,10 +158,11 @@ describe("LandingScreen — cycle", () => {
     expect(sheet()).toHaveAttribute("data-open", "true");
   });
 
-  it("the glyph raises the sheet early and retires; the disc collapses it and restarts the reel", async () => {
+  it("the glyph raises the sheet early and retires; the disc collapses it and the reel carries on from the same picture", async () => {
     await renderScreen();
     advance(OVERTURE_MS);
     steps(3, 350);
+    const showing = currentId();
     act(() => screen.getByRole("button", { name: "Open sign-in" }).click());
     expect(sheet()).toHaveAttribute("data-open", "true");
     expect(
@@ -171,7 +172,9 @@ describe("LandingScreen — cycle", () => {
       screen.getByRole("button", { name: "Back to the slideshow" }).click(),
     );
     expect(sheet()).toHaveAttribute("data-open", "false");
-    expect(currentId()).toBe("p0");
+    // Not back to p0 (Ben, 09-26-26: "the image quickly changes back to a specific image").
+    expect(showing).not.toBe("p0");
+    expect(currentId()).toBe(showing);
   });
 
   it("is a centered 520px card above md, transparent and inert when closed", async () => {
@@ -303,7 +306,7 @@ describe("LandingScreen — reduced motion", () => {
     expect(screen.queryByTestId("overture")).not.toBeInTheDocument();
   });
 
-  it("the glyph opens, the disc collapses and restarts the reel, ←/→ step, the glyph reopens", async () => {
+  it("the glyph opens, the disc collapses it back to the reel, ←/→ step, the glyph reopens", async () => {
     stubEnvironment({ reduce: true });
     await renderScreen("cycle", TEMPOS.cut);
     advance(OVERTURE_MS);

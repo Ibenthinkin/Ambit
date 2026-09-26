@@ -185,7 +185,9 @@ own gear behind the sheet, because relaxing to `dissolve` would bring the drift 
 *Why the cut tempo relaxes behind the sheet:* the reference's intro leaves once its grid arrives;
 Ambit's pictures stay behind a form the reader is typing into, and a 3 Hz strobe under a text
 field is hostile. The 09-10 "never stops" rule holds — the reel changes gear. Collapse the sheet
-(the logo disc) and it is back to full speed from the top, as today's `restart`.
+(the logo disc) and it is back to full speed — **from the picture on screen, amended 09-26-26** (it went back to
+the top until Ben saw that as "the image quickly changes back to a specific image every time"; now
+`rearm()` keeps the picture and re-arms the first pass).
 
 **Selection.** `DEFAULT_TEMPO: Tempo["id"]` in `tempos.ts` is what production runs.
 `?tempo=cut|dissolve` on `/` overrides it **only when `feedDebugEnabled()`** (the same gate as
@@ -202,7 +204,7 @@ what makes `behindSheet` expressible), the second preset does not.
   bitmap survives re-renders. (5.11 mounted all eight because it needed them all for the fade;
   with one-ahead prefetch it needs three.)
 - The reel wraps (`(i + 1) % n`); the first pass fires `onFirstPass` exactly once (a ref, for the
-  StrictMode reason 5.11's hook records). `skip()`, `restart()`, `advance(±1)` keep their
+  StrictMode reason 5.11's hook records). `skip()`, `rearm()` (was `restart()`), `advance(±1)` keep their
   contracts — the glyph, the collapse, tap-to-next and ←/→ are unchanged.
 - **The grade is gone.** 5.11's `saturate(.72) contrast(1.06)` made eight postcards read as one
   surface; the reference's effect is pictures in their own colour under a pure black cut. Full

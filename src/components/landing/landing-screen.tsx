@@ -161,11 +161,11 @@ export function LandingScreen({
 
   const { advance } = reel;
 
-  // Collapsing replays the reel from the top rather than picking a fresh one — a reader who ducked
-  // back out to look at the pictures is asking for *those* pictures again.
+  // Collapsing carries on from the picture on screen, with the first pass re-armed so the sheet
+  // rises again after another run (Ben, 09-26-26 — it used to jump back to the first picture).
   const collapse = () => {
     setOpened(false);
-    reel.restart();
+    reel.rearm();
   };
 
   // ←/→ step the reel — unless a form field has focus, or a modifier is held (Alt/⌘+← is the
