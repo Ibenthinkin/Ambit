@@ -32,6 +32,36 @@ be running on :3000 from this session; Loupe's was stopped and needs restarting.
 
 *Session spend: 4.16M tok (in 26 · out 5.3k · cache r 4.02M / w 136.0k) · ~≥$0.83 · opus-5-5 + opus-4-7 · 22:59→23:01*
 
+**Later the same day (Fable) — diagnosed: Reduce Motion, on both devices; the build's still was
+the bug.** Ben widened the report to "no text animation or slideshow at all on phone *or*
+computer", which weakened the iOS-only hypothesis — and then confirmed it in a bigger form.
+Reproduced on his Mac: an un-emulated Chrome on this branch reports
+`matchMedia("(prefers-reduced-motion: reduce)").matches === true` with no overture element, one
+still, sheet up at once — the D6 path exactly. That answer is the OS's (System Settings →
+Accessibility → Display → Reduce motion) and Firefox, Chrome and Safari all follow it, so it is
+not browser-specific; the phone's "only the preloads fetched" signature from the first look is the
+same path. The counterfactual proved it: Playwright emulating `reducedMotion: no-preference`
+against the same server was caught mid-show at 6.1 s — tail collapsed, `AMBIT` alone over a
+cutting three-layer reel, glyph up. Ruled out by evidence, not by reading: hydration, the
+keyframes, image decode. Two things found on the way: **port 3000 is held by
+`~/Dev/ambit-topic-groups`'s `next start` + Playwright run since 09:05** (a production build with
+8.3 but not the shape fix, so `localhost:3000` and the tailnet show the wrong thing right now); and
+`globals.css`'s reduced-motion rule collapses *every* duration to 0.01 ms, so a gentle landing
+needs an opt-out or its fades are instant.
+
+**Decision (Ben): the gentle version.** Reduced motion gets the overture as a plain fade and the
+reel as drift-free slow cross-fades with a soft start — what iOS itself does — not a still, and
+not the full show. Written up as `docs/PLAN_landing-reduced-motion.md` (seven tasks: a `gentle`
+tempo with `softStart`, a `.motion-gentle` opt-out in the global rule, the overture's fade-only
+collapse, the reel's soft start, the screen selecting the tempo by preference, the e2e test
+measuring computed durations, docs). Execute cold in a cheaper session on
+`fix/landing-orientation`; after it, Ben's phone — Reduce Motion still on — is the review device.
+
+**Open / next:** execute the plan → Ben's phone look → merge `fix/landing-orientation` → the mark
+with Ben → Task 9 → push, deploy. Kill the stale topic-groups run on :3000 before any device pass.
+
+*Session spend: 9.04M tok (in 2.1k · out 146.1k · cache r 8.50M / w 388.6k) · fable-5-1 · 09:05→09:29*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:
