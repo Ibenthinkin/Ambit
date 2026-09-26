@@ -50,6 +50,7 @@ import {
   getOrFillRendition,
   ImageFillError,
   isRendition,
+  readCachedSize,
   RENDITIONS,
   renditionPathFor,
 } from "~/server/services/image-cache";
@@ -251,6 +252,15 @@ for (const row of rows) {
   try {
     await fillCache(row);
     tallyRow.filled++;
+    // Record the master's size as it lands, so the landing pool (which reads it) never has to
+    // wait for an `img:dims` backfill to see a newly warmed picture.
+    const size = await readCachedSize(row.id);
+    if (size) {
+      await db
+        .update(item)
+        .set({ imageWidth: size.width, imageHeight: size.height })
+        .where(eq(item.id, row.id));
+    }
     consecutive429.set(host, 0);
   } catch (err) {
     if (!(err instanceof ImageFillError)) throw err;

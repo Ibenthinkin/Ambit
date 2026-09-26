@@ -126,6 +126,34 @@ deploy; run `.cache/landing-prod.sh`. Copy is untouched (D9).
 
 *Session spend: 102.14M tok (in 934 · out 348.6k · cache r 100.10M / w 1.69M) · ~≥$8.76 · opus-5-5 + opus-4-7 + fable-5-1 · 19:42→20:15*
 
+**Night — review fixes merged to `main` (0c0e8d8); then Ben's first phone look, and the reel
+became shape-matched (`fix/landing-orientation`).** Ben: "there's no visible movement in either
+version, the images don't change … the second image is a super blurry close up." Two causes:
+
+- **"Nothing changes" — almost certainly Reduce Motion is on for his phone.** The dev log shows
+  his visits fetched only the pictures preloaded in the page, never the rest of the reel — the
+  reduced-motion path by design (one still, sheet up). The same page on WebKit as an iPhone 15
+  runs normally. He is checking the setting; whether reduced motion should keep a slow dissolve
+  (what iOS itself does) is his call, not yet made.
+- **"Blurry close-up" — a wide picture covering a tall screen**, scaled to its height and cropped
+  to its middle, at the 960 rendition that D3's `sizes="50vw"` made the browser choose: ~4×
+  stretch on a 3× iPhone. The masters themselves are small (tall pool median 893 px high).
+  Offered A (shape-matched sets) / B (show pictures whole) / C (A + bigger originals); **Ben chose
+  A.** Built test-first: `item.image_width/height` (migration 0009) recorded by `img:warm` and
+  backfilled by `img:dims`, which now runs non-fatally in the container's boot command; tall
+  (0.4–0.8) and wide (1.25–2) pools with an 800 px floor — the outer limits added after the first
+  1440 look drew a 6 : 1 panorama; `getReels()` returns both, the server guesses by user agent and
+  the page picks by orientation; pictures are the master. Locally 387 tall / 396 wide.
+- **Finding:** without a `srcset`, React emits the image preloads as an HTTP `Link` header
+  instead of `<link>` tags; the e2e test now reads the header.
+
+Verified: `bun run test` 1,394/1,395 then the cursor-stability FK flake passed 3/3 alone;
+`e2e:prod` 57 passed / 3 skipped; CI shape 56 passed / 4 skipped. The marks are next, with Ben
+("the options for marks are horrible — boring, uninspired, nonsensical"); Task 9's mark half waits
+on that, its tempo half on his look.
+
+*Session spend: 88.06M tok (in 392 · out 179.1k · cache r 85.41M / w 2.48M) · ~≥$5.82 · opus-5-5 + opus-4-7 + <synthetic> · 20:15→22:59*
+
 ### [[09-23-26 Wed]] — Round 3 parked whole; polishpostergallery probed
 
 **Sources round 3:** Ben parked the whole 09-22 batch ("park them all for now") — the five 🔵 rows

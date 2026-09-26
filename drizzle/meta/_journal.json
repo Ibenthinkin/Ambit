@@ -64,6 +64,13 @@
       "when": 1789662603047,
       "tag": "0008_ingest_run",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790390584395,
+      "tag": "0009_item_image_dims",
+      "breakpoints": true
     }
   ]
 }

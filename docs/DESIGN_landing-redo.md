@@ -245,6 +245,39 @@ The sheet's three lines ("A quieter way to be curious." / "No feeds engineered t
 item is its own small task once the tempo is chosen — settling a voice under a motion decision
 that has not been made would be settling it twice.
 
+## Amendment, 09-25-26 — tall pictures for phones, wide ones for computers
+
+**Ben's first device look:** "the second image is a super blurry close up … I think we need to have
+different image sets for phones screen sizes vs computer screen sizes, or crop them so they look
+ok." Measured cause: the reel is full-bleed `object-fit: cover`, so a wide picture on an upright
+phone is scaled to the screen's *height* and cropped to its middle; D3's `sizes="50vw"` then made
+the browser choose the 960 rendition, stretched ~4× on a 3× iPhone. Cropping cannot help — it is
+zooming — and the masters are small (the pool's tall pictures: median 893 px high; a 3× phone is
+~2,550 device px tall). Ben chose **option A** of three offered (A: shape-matched sets; B: show
+pictures whole, not full-bleed; C: A plus fetching bigger originals):
+
+- **Each item records its cached master's size** — `item.image_width` / `image_height` (migration
+  0009). `img:warm` writes them as it fills; `bun run img:dims [--landing]` backfills from the
+  cache, header-only, and **runs non-fatally on every container boot**. An unmeasured row is not
+  in the landing pool.
+- **Two pools** (`landingShape`, config/landing-pool.ts): **tall** 0.4 ≤ w/h ≤ 0.8 and **wide**
+  1.25 ≤ w/h ≤ 2, each with a long edge ≥ 800 px. The outer limits drop needles and panoramas that
+  would cover a screen only by being blown up (the first 1440 look drew a 6 : 1 panorama). Square
+  pictures sit out. Locally 387 tall / 396 wide of 1,616 measured (production ≈ 1.7× that).
+- **Two reels per visit**, `getReels()` → `{ portrait, landscape }`. The server preloads the reel
+  its user-agent guess needs (`guessShape`: a phone is upright; an iPad reports itself as a Mac and
+  counts as wide); the screen picks by `(orientation: portrait)`, with the guess as the query's
+  server snapshot so hydration agrees, and the real orientation replaces it one render later.
+  Turning a phone swaps reels mid-run.
+- **The master, not the 960 rendition** — every pixel is needed full-bleed. D3's rendition stays
+  in the image route (closed set, tested) but nothing uses it. Without a `srcset`, React sends the
+  preloads as an HTTP `Link` header rather than `<link>` tags.
+
+Not done, recorded: **C** (bigger originals for the landing pool) is the only route to sharp
+full-bleed on a 3× phone, and depends on each source offering one. Reduced motion is unchanged —
+still one still with the sheet up — pending Ben checking whether his phone has Reduce Motion on
+(the evidence says it does: his visits fetched only the preloads).
+
 ## The budget — stated honestly
 
 The overture changes what Lighthouse's LCP *means* here: the largest paint is the first

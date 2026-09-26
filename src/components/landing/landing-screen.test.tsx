@@ -17,9 +17,14 @@ vi.mock("~/lib/fonts", () => ({ inter: { className: "font-inter-test" } }));
  * ready on the next microtask. Stubbing is setup, not assertion — except `reduce`, which some
  * tests flip on purpose.
  */
-function stubEnvironment({ reduce = false }: { reduce?: boolean } = {}) {
+function stubEnvironment({
+  reduce = false,
+  portrait = true,
+}: { reduce?: boolean; portrait?: boolean } = {}) {
   vi.stubGlobal("matchMedia", (query: string) => ({
-    matches: reduce && query.includes("prefers-reduced-motion"),
+    matches:
+      (reduce && query.includes("prefers-reduced-motion")) ||
+      (portrait && query.includes("orientation: portrait")),
     media: query,
     onchange: null,
     addListener: vi.fn(),
@@ -53,7 +58,12 @@ async function renderScreen(
   pictures: ReelPicture[] = pics(12),
 ) {
   const view = render(
-    <LandingScreen mode={mode} pictures={pictures} tempo={tempo}>
+    <LandingScreen
+      mode={mode}
+      reels={{ portrait: pictures, landscape: pictures }}
+      initialShape="portrait"
+      tempo={tempo}
+    >
       <form data-testid="auth-child" />
     </LandingScreen>,
   );
@@ -291,7 +301,12 @@ describe("LandingScreen — hydration", () => {
       },
     );
     const el = (
-      <LandingScreen mode="cycle" pictures={pics(12)} tempo={TEMPOS.cut}>
+      <LandingScreen
+        mode="cycle"
+        reels={{ portrait: pics(12), landscape: pics(12) }}
+        initialShape="portrait"
+        tempo={TEMPOS.cut}
+      >
         <form data-testid="auth-child" />
       </LandingScreen>
     );
@@ -305,5 +320,48 @@ describe("LandingScreen — hydration", () => {
     });
     expect(requested).toBe(1);
     container.remove();
+  });
+});
+
+// 09-25-26: a phone held upright gets the tall reel, a computer the wide one. The server guesses
+// from the browser (`initialShape`) so hydration agrees; the screen's real orientation wins after.
+describe("LandingScreen — shape", () => {
+  const tall = pics(12).map((p) => ({ ...p, id: `tall-${p.id}` }));
+  const wide = pics(12).map((p) => ({ ...p, id: `wide-${p.id}` }));
+
+  async function renderShaped(initialShape: "portrait" | "landscape") {
+    render(
+      <LandingScreen
+        mode="cycle"
+        reels={{ portrait: tall, landscape: wide }}
+        initialShape={initialShape}
+        tempo={TEMPOS.cut}
+      >
+        <form />
+      </LandingScreen>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    advance(OVERTURE_MS);
+  }
+
+  it("an upright phone shows the tall reel", async () => {
+    stubEnvironment({ portrait: true });
+    await renderShaped("portrait");
+    expect(currentId()).toBe("tall-p0");
+  });
+
+  it("a wide screen shows the wide reel", async () => {
+    stubEnvironment({ portrait: false });
+    await renderShaped("landscape");
+    expect(currentId()).toBe("wide-p0");
+  });
+
+  it("the screen's real shape wins over the server's guess", async () => {
+    stubEnvironment({ portrait: false });
+    await renderShaped("portrait");
+    expect(currentId()).toBe("wide-p0");
   });
 });

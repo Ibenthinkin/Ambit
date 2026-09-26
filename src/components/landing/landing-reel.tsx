@@ -41,13 +41,16 @@ export function LandingReel({
   const n = pictures.length;
   const next = n > 1 ? (index + 1) % n : null;
   // Leaving, current, next — de-duplicated, because with two pictures `prev` and `next` coincide.
+  // Out-of-range indices are dropped too: turning the phone swaps to the other shape's reel, and a
+  // `prev` from a longer one can point past the end of this one.
   const layers = [prev, index, next].filter(
-    (i, k, arr): i is number => i !== null && arr.indexOf(i) === k,
+    (i, k, arr): i is number => i !== null && i < n && arr.indexOf(i) === k,
   );
+  const leaving = prev !== null && prev < n ? prev : null;
   // No fade while nothing is leaving: the first frame after the overture (and after a restart) is
   // the reference's hard cut out of black under either tempo (D4). Only picture-to-picture changes
   // take the tempo's fade.
-  const cut = tempo.fadeMs === 0 || prev === null;
+  const cut = tempo.fadeMs === 0 || leaving === null;
 
   return (
     <div
@@ -82,7 +85,7 @@ export function LandingReel({
               // cancels it and its fill, and the picture would snap from ~1.04 back to scale(1) at
               // full opacity. The element is keyed, so the running animation simply continues.
               animation:
-                tempo.drift && started && (i === index || i === prev)
+                tempo.drift && started && (i === index || i === leaving)
                   ? `reel-drift ${tempo.frameMs + tempo.fadeMs}ms linear both`
                   : undefined,
               willChange: "opacity, transform",

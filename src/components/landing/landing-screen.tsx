@@ -4,7 +4,8 @@ import * as React from "react";
 
 import { Logo } from "~/components/icons";
 import { useMediaQuery } from "~/hooks/use-media-query";
-import type { ReelPicture } from "~/server/services/landing-pool";
+import type { LandingShape } from "~/server/config/landing-pool";
+import type { ReelPicture, Reels } from "~/server/services/landing-pool";
 
 import { AuthSheet } from "./auth-sheet";
 import { LandingReel } from "./landing-reel";
@@ -32,8 +33,15 @@ export interface LandingScreenProps {
    * `"static"` — one still, sheet open immediately, no overture (`/reset-password`).
    */
   mode: "cycle" | "static";
-  /** Server-picked (services/landing-pool.ts). Never empty: an empty pool is the fallback. */
-  pictures: ReelPicture[];
+  /** Server-picked (services/landing-pool.ts): a tall reel and a wide one. Neither is ever empty —
+   *  an empty shape is the committed fallback picture. */
+  reels: Reels;
+  /**
+   * The server's guess at the reader's screen, from the browser it can see (a phone is held
+   * upright). It is the orientation query's server snapshot, so the server's markup and the
+   * hydration render agree; the screen's real orientation replaces it one render later.
+   */
+  initialShape: LandingShape;
   tempo: Tempo;
   children: React.ReactNode;
 }
@@ -65,7 +73,8 @@ const readSaveData = () =>
 
 export function LandingScreen({
   mode,
-  pictures,
+  reels,
+  initialShape,
   tempo,
   children,
 }: LandingScreenProps) {
@@ -81,6 +90,13 @@ export function LandingScreen({
     onServer,
   );
   const isStatic = mode === "static" || reduce;
+  // A phone held upright draws the tall reel, anything wider the wide one (09-25-26): a wide
+  // picture covering a tall screen is scaled to its height and cropped to a blurry middle.
+  const portrait = useMediaQuery(
+    "(orientation: portrait)",
+    initialShape === "portrait",
+  );
+  const pictures = portrait ? reels.portrait : reels.landscape;
 
   // The reader's own say about the sheet, once they've had one — the first pass raising it, the
   // glyph, a collapse. Until then (`null`) the mode decides: static arrives with it up.
@@ -166,7 +182,9 @@ export function LandingScreen({
     >
       <LandingReel
         pictures={shown}
-        index={isStatic ? 0 : reel.index}
+        // Modulo: turning the phone swaps reels mid-run, and the two can differ in length (a
+        // fallback is one picture).
+        index={isStatic ? 0 : reel.index % shown.length}
         prev={isStatic ? null : reel.prev}
         tempo={effectiveTempo}
         started={isStatic || reel.started}

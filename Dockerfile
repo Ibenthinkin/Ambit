@@ -68,4 +68,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 # Migrate, seed, then serve — chained with && so a failed migration never leaves a server
 # answering from a half-migrated database. db:seed is a config upsert (scripts/seed-topics.ts), so
 # it is safe on every boot and *required* before any ingest: item.topic_id is a NOT NULL FK.
-CMD ["sh", "-c", "bun run db:migrate && bun run db:seed && bun run --bun next start"]
+# `img:dims --landing` (09-25-26) records the cached masters' sizes that the landing reel reads to
+# give phones tall pictures and computers wide ones; a row without them is not in the pool, so an
+# unmeasured deploy would show only the fallback picture. Idempotent (seconds the first time,
+# nothing after) and deliberately non-fatal: a landing with fewer pictures must never stop a boot.
+CMD ["sh", "-c", "bun run db:migrate && bun run db:seed && (bun run img:dims --landing || true) && bun run --bun next start"]

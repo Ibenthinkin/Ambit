@@ -133,6 +133,26 @@ export async function readCached(
   }
 }
 
+/**
+ * The cached master's pixel size, or `null` if it has never been filled (or can't be read).
+ *
+ * Header-only (`sharp(...).metadata()` reads the WebP header, not the pixels), so measuring the
+ * whole landing pool is seconds, not minutes. What `item.image_width/height` hold: the landing
+ * reel gives a phone tall pictures and a computer wide ones by these (config/landing-pool.ts).
+ */
+export async function readCachedSize(
+  itemId: string,
+  dir?: string,
+): Promise<{ width: number; height: number } | null> {
+  try {
+    const meta = await sharp(cachePathFor(itemId, dir)).metadata();
+    if (!meta.width || !meta.height) return null;
+    return { width: meta.width, height: meta.height };
+  } catch {
+    return null;
+  }
+}
+
 export interface FillOpts {
   /** Where to write. Tests pass an `mkdtemp`; production uses `IMAGE_CACHE_DIR`. */
   dir?: string;

@@ -14,7 +14,8 @@ import {
 // doesn't — every auth test depends on the second (`openAuthSheet`), so a regression there would
 // surface as the whole suite timing out rather than as a landing bug.
 //
-// Six landing-eligible fixtures, so CI's fixture-only database has a reel to step through. The
+// Twelve landing-eligible fixtures — six tall, six wide — so CI's fixture-only database has a
+// reel of each shape to step through. The
 // real corpus (local `e2e:prod`) has ~2,700 more; either way the pool is non-empty, so this file
 // never sees the fallback picture — that branch is unit-tested (landing-pool.test.ts).
 const PREFIX = "e2e-home-";
@@ -22,7 +23,7 @@ let conn: Connection;
 
 test.beforeAll(async () => {
   conn = await connect();
-  await seedLandingPool(conn, PREFIX, 6);
+  await seedLandingPool(conn, PREFIX, 12);
 });
 
 test.afterAll(async () => {
@@ -127,18 +128,22 @@ test("the sheet's disc collapses it back to the reel, reduced motion included", 
   expect(consoleErrors).toEqual([]);
 });
 
-// The LCP line of the budget: the first pictures are preloads in the served HTML. Only meaningful
-// when the reel is proxied pictures — the fixture pixels are `data:` URLs, inline already, and get
-// no preload by design, so on CI's fixture-only database this skips honestly.
-test("the served HTML preloads the first picture with its srcset", async ({
+// The LCP line of the budget: the first pictures of the reel the server guessed for this browser
+// are preloaded. Without a `srcset` (09-25-26: the master, not the 960 rendition) React sends them
+// as an HTTP `Link` header rather than `<link>` tags — earlier still, since the browser sees it
+// before the HTML. Only meaningful when the reel is proxied pictures: the fixture pixels are
+// `data:` URLs, inline already and never preloaded, so on CI's fixture database this skips.
+test("the response preloads the first pictures of the guessed reel", async ({
   request,
 }) => {
-  const html = await (await request.get("/")).text();
+  const response = await request.get("/");
+  const html = await response.text();
   test.skip(
     !html.includes('src="/api/img/'),
     "the reel is fixture pixels (CI); nothing to preload",
   );
-  expect(html).toMatch(
-    /<link rel="preload" as="image"[^>]*imageSrcSet="\/api\/img\/[^"]+\?w=960 960w/,
+  expect(response.headers().link ?? "").toMatch(
+    /<\/api\/img\/[A-Za-z0-9_-]+>; rel=preload; as="image"/,
   );
+  expect(html).not.toContain("?w=960");
 });

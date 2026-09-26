@@ -20,6 +20,7 @@ import {
   MAX_EDGE,
   MAX_UPSTREAM_BYTES,
   readCached,
+  readCachedSize,
   renditionPathFor,
   RENDITIONS,
 } from "./image-cache";
@@ -352,5 +353,22 @@ describe("renditions (docs/DESIGN_landing-redo.md D3)", () => {
 
   it("renditionPathFor keys on the id and the width only", () => {
     expect(renditionPathFor("abc", 960, "/tmp/x")).toBe("/tmp/x/abc.w960.webp");
+  });
+});
+
+describe("readCachedSize (the landing's shape data, 09-25-26)", () => {
+  it("measures the cached master, not the upstream original", async () => {
+    await fillCache(item, {
+      dir,
+      fetchImpl: fetchReturning(await png(3000, 2000)),
+    });
+    expect(await readCachedSize(item.id, dir)).toEqual({
+      width: MAX_EDGE,
+      height: Math.round((MAX_EDGE * 2000) / 3000),
+    });
+  });
+
+  it("is null when nothing is cached", async () => {
+    expect(await readCachedSize("never-filled", dir)).toBeNull();
   });
 });

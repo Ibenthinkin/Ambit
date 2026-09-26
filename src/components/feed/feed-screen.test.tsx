@@ -122,6 +122,8 @@ function makeItem(over: Partial<Item> & { id: string }): Item {
     summary: null,
     body: null,
     imageUrl: `https://example.test/${over.id}.jpg`,
+    imageWidth: null,
+    imageHeight: null,
     sourceUrl: "https://example.test/o",
     attribution: null,
     license: null,

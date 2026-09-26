@@ -280,7 +280,7 @@ export async function seedFeedCorpus(
 
 /**
  * Seeds `count` pictures the landing may draw (docs/DESIGN_landing-redo.md D1): image, score 9, an
- * exact landing licence, the inline PIXEL. On CI's fixture-only database the pool is otherwise
+ * exact landing licence, the inline PIXEL, and a recorded size (half tall, half wide). On CI's fixture-only database the pool is otherwise
  * empty and `/` shows its one committed fallback picture — a real branch, covered by the unit
  * tests — but "the picture changes" needs at least two.
  *
@@ -308,6 +308,10 @@ export async function seedLandingPool(
         license: "CC0 1.0 (public domain)",
         topicId: "architecture",
         curationScore: 9,
+        // Alternately tall and wide (09-25-26): the phone project draws the tall reel, the desktop
+        // project the wide one, and each needs at least two pictures to step through.
+        imageWidth: i % 2 === 0 ? 900 : 1600,
+        imageHeight: i % 2 === 0 ? 1400 : 1000,
       })),
     )
     .onConflictDoNothing();

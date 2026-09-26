@@ -1,9 +1,11 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 
 import { LandingScreen } from "~/components/landing/landing-screen";
 import { ResetPasswordCard } from "~/components/landing/reset-password-card";
 import { TEMPOS } from "~/components/landing/tempos";
-import { getReel } from "~/server/services/landing-pool";
+import { guessShape } from "~/server/config/landing-pool";
+import { getReels } from "~/server/services/landing-pool";
 
 export default async function ResetPasswordPage({
   searchParams,
@@ -11,15 +13,21 @@ export default async function ResetPasswordPage({
   searchParams: Promise<{ token?: string; error?: string }>;
 }) {
   const { token, error } = await searchParams;
-  // One picture from the same pool as `/` (docs/DESIGN_landing-redo.md D2). `getReel` never
-  // returns an empty list — an empty pool is the committed fallback.
-  const still = await getReel(1);
+  // One picture of each shape from the same pool as `/` (docs/DESIGN_landing-redo.md D2) — never
+  // an empty list: an empty shape is the committed fallback.
+  const reels = await getReels(1);
+  const initialShape = guessShape((await headers()).get("user-agent"));
 
   // Static mode: the same screen as `/`, but with one still image and the sheet already up. A
   // reader arriving here came from an email and has a job to do — there is nothing to introduce
   // them to, and making them watch the reel first would be an obstacle rather than a mood.
   return (
-    <LandingScreen mode="static" pictures={still} tempo={TEMPOS.cut}>
+    <LandingScreen
+      mode="static"
+      reels={reels}
+      initialShape={initialShape}
+      tempo={TEMPOS.cut}
+    >
       {token && !error ? (
         <ResetPasswordCard token={token} />
       ) : (

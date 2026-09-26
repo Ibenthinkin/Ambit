@@ -160,6 +160,19 @@ describe("LandingReel", () => {
     for (const i of imgs()) expect(i.style.filter).toBe("");
   });
 
+  it("a leaving index from a longer reel (the phone was turned) is dropped, not crashed on", () => {
+    render(
+      <LandingReel
+        pictures={pics.slice(0, 1)}
+        index={0}
+        prev={4}
+        tempo={TEMPOS.dissolve}
+        started
+      />,
+    );
+    expect(imgs().map((i) => i.dataset.id)).toEqual(["p0"]);
+  });
+
   it("a one-picture reel mounts one layer", () => {
     render(
       <LandingReel

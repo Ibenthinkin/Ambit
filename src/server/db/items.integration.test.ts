@@ -409,6 +409,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
       type: "image" as const,
       title: "Landing pool fixture",
       topicId,
+      // A cached master's size; every row has one unless it is the "no dimensions" case below.
+      imageWidth: 900,
+      imageHeight: 1400,
     };
 
     beforeAll(async () => {
@@ -481,6 +484,18 @@ describe.skipIf(!process.env.DATABASE_URL)(
           license: "CC0",
           curationScore: 9,
         },
+        // out: no dimensions yet (its master has not been cached and measured)
+        {
+          ...base,
+          source: "met",
+          sourceId: `${prefix}out-dims`,
+          imageUrl: "https://x.test/7.jpg",
+          sourceUrl: "https://x.test/7",
+          license: "CC0",
+          curationScore: 9,
+          imageWidth: null,
+          imageHeight: null,
+        },
       ]);
     });
 
@@ -492,9 +507,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     it("returns exactly the image rows at the floor under a landing licence", async () => {
       const { db } = await import("./client");
-      const pool = new Map(
-        (await listLandingPool()).map((r) => [r.id, r.imageUrl]),
-      );
+      const pool = new Map((await listLandingPool()).map((r) => [r.id, r]));
       const rows = await db
         .select({
           id: item.id,
@@ -503,11 +516,18 @@ describe.skipIf(!process.env.DATABASE_URL)(
         })
         .from(item)
         .where(like(item.sourceId, `${prefix}%`));
-      expect(rows).toHaveLength(6);
+      expect(rows).toHaveLength(7);
       for (const r of rows) {
         const expected = r.sourceId.includes("-in-");
         expect(pool.has(r.id), r.sourceId).toBe(expected);
-        if (expected) expect(pool.get(r.id)).toBe(r.imageUrl);
+        if (expected) {
+          expect(pool.get(r.id)).toEqual({
+            id: r.id,
+            imageUrl: r.imageUrl,
+            width: 900,
+            height: 1400,
+          });
+        }
       }
     });
   },
