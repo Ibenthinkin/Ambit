@@ -13,6 +13,9 @@ import {
 import { markExploreOrigin } from "~/components/feed/feed-origin";
 import type * as ExploreConfig from "~/config/explore";
 import { EXPLORE_BLOCKS } from "~/config/explore";
+import { DESKTOP_QUERY } from "~/hooks/use-media-query";
+import { HERO_LAYOUT_KEY } from "~/lib/hero-layout";
+import { stubMatchMedia } from "~/test/match-media";
 import type { RailItem } from "~/server/services/gallery-rail";
 import { ItemScreen } from "./item-screen";
 
@@ -505,5 +508,159 @@ describe("the explore rail cap", () => {
     expect(
       screen.queryByRole("link", { name: "Keep exploring" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+// docs/DESIGN_spread-mode.md — two rail pictures side by side on the desktop item screen.
+describe("spread mode", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    stubMatchMedia([DESKTOP_QUERY]);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const spreadOn = () => localStorage.setItem(HERO_LAYOUT_KEY, "spread");
+  /** The rail fades with the chrome, so the toggle is found the way a reader finds it: a mouse
+   *  moving over the picture brings it up. */
+  const toggle = () => {
+    act(
+      () => void track().dispatchEvent(pointer("pointermove", 10, 10, "mouse")),
+    );
+    return screen.getByRole("button", { name: "Two pictures at a time" });
+  };
+  /** Summon first, click after: summoning inside the click's `act` would batch the summon's
+   *  render behind the query and the rail would still be hidden when it is looked for. */
+  const clickToggle = () => {
+    const button = toggle();
+    act(() => void fireEvent.click(button));
+  };
+  /** The pictures in the cell under the reader — the middle child of the track. */
+  const currentPages = () =>
+    [...track().children[1]!.querySelectorAll("img")].map((i) =>
+      i.getAttribute("alt"),
+    );
+  /** A press with no travel, released at `x` — jsdom's window is 1024 wide. */
+  const tapAt = (x: number) => {
+    send("pointerdown", x, 300);
+    send("pointerup", x, 300);
+  };
+
+  it("offers the toggle on the desktop rail, and starts single", () => {
+    renderScreen();
+    expect(toggle()).toHaveAttribute("aria-pressed", "false");
+    expect(currentPages()).toEqual(["Plate entry"]);
+  });
+
+  it("the toggle flips to a two-page spread and remembers it on this device", () => {
+    renderScreen();
+    clickToggle();
+    expect(currentPages()).toEqual(["Plate entry", "Plate r0"]);
+    expect(toggle()).toHaveAttribute("aria-pressed", "true");
+    expect(localStorage.getItem(HERO_LAYOUT_KEY)).toBe("spread");
+  });
+
+  it("opens in a spread when the device remembers one", () => {
+    spreadOn();
+    renderScreen();
+    expect(currentPages()).toEqual(["Plate entry", "Plate r0"]);
+  });
+
+  it("turns two pictures at a time, both ways", () => {
+    spreadOn();
+    renderScreen();
+    key("ArrowRight");
+    expect(currentPages()).toEqual(["Plate r1", "Plate r2"]);
+    expect(heading()).toHaveTextContent("Plate r1");
+    key("ArrowLeft");
+    expect(currentPages()).toEqual(["Plate entry", "Plate r0"]);
+  });
+
+  // D2: with step-by-two the right page never becomes the left one, so without a focus its
+  // picture could never be saved or shared.
+  it("a click on the right page makes it the item — title, facts, address bar, save target", () => {
+    spreadOn();
+    renderScreen();
+    tapAt(800);
+    expect(heading()).toHaveTextContent("Plate r0");
+    expect(replaceState).toHaveBeenLastCalledWith(null, "", "/i/r0");
+    expect(savedForItemMock).toHaveBeenLastCalledWith(
+      { itemId: "r0" },
+      expect.anything(),
+    );
+    // Focusing is not a chrome toggle.
+    expect(screen.getByTestId("gallery-chrome")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+  });
+
+  it("a click on the focused page toggles the chrome, as a tap always has", () => {
+    spreadOn();
+    renderScreen();
+    tapAt(200);
+    expect(screen.getByTestId("gallery-chrome")).toHaveAttribute(
+      "aria-hidden",
+      "false",
+    );
+    expect(heading()).toHaveTextContent("Plate entry");
+  });
+
+  it("a turn puts the focus back on the left page", () => {
+    spreadOn();
+    renderScreen();
+    tapAt(800);
+    key("ArrowRight");
+    expect(heading()).toHaveTextContent("Plate r1");
+  });
+
+  it("turning the spread off lands on the page that was focused", () => {
+    spreadOn();
+    renderScreen();
+    tapAt(800);
+
+    clickToggle();
+    expect(currentPages()).toEqual(["Plate r0"]);
+    expect(heading()).toHaveTextContent("Plate r0");
+  });
+
+  it("captions both pages, the unfocused one dimmed", () => {
+    spreadOn();
+    renderScreen();
+    const chrome = screen.getByTestId("gallery-chrome");
+    const titles = [...chrome.querySelectorAll("h2")];
+    expect(titles.map((t) => t.textContent)).toEqual([
+      "Plate entry",
+      "Plate r0",
+    ]);
+    expect(titles[1]!.parentElement).toHaveClass("opacity-55");
+    expect(titles[0]!.parentElement).not.toHaveClass("opacity-55");
+  });
+
+  it("fetches ahead twice as early, since a turn eats two", () => {
+    spreadOn();
+    renderScreen();
+    railFetchMock.mockClear();
+    key("ArrowRight");
+    expect(railFetchMock).toHaveBeenCalledWith(
+      expect.objectContaining({ itemId: "r7" }),
+    );
+  });
+
+  it("is single, with no toggle, below the desktop breakpoint", () => {
+    stubMatchMedia([]);
+    spreadOn();
+    renderScreen();
+    expect(
+      screen.queryByRole("button", { name: "Two pictures at a time" }),
+    ).toBeNull();
+    expect(currentPages()).toEqual(["Plate entry"]);
+  });
+
+  it("counts two pictures a turn against the explore cap", () => {
+    markExploreOrigin();
+    spreadOn();
+    renderScreen({ authed: false });
+    key("ArrowRight");
+    expect(sessionStorage.getItem("ambit.explore.railCount")).toBe("2");
   });
 });
