@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import type { RailItem } from "~/server/services/gallery-rail";
+import type { HeroCells, HeroPage } from "./rail-cells";
 
 // The picture strip at the top of the merged item screen (09-10-26,
 // docs/DESIGN_screen-structure.md §1) — the gallery's rail, moved out of a full-screen room and
@@ -13,7 +14,10 @@ import type { RailItem } from "~/server/services/gallery-rail";
 //   - **The track.** Three cells, one screen wide each, translated so the middle one is under the
 //     reader; the drag rides on top in raw px. Lifted from the old `GalleryScreen` unchanged, except
 //     that the track declares `touch-action: pan-y` — vertical panning is the browser's now,
-//     because there is a page below the picture to pan to.
+//     because there is a page below the picture to pan to. **A cell holds pages** (09-27-26,
+//     docs/DESIGN_spread-mode.md D3): one in single mode, which is the cell as it always was, or
+//     up to two side by side in a desktop spread. The track still slides one cell per turn, so a
+//     spread turns two pictures at a time. The cells themselves are built by `rail-cells.ts`.
 //   - **The chrome's fade.** The caption (and, below `md`, nothing else — the pill is the screen's
 //     own, fixed at the bottom) overlays the foot of the strip on the gallery's gradient and fades
 //     with `visibility`, so it is untappable while hidden.
@@ -40,12 +44,15 @@ import type { RailItem } from "~/server/services/gallery-rail";
 // offers on the image inside it. `next/image` is out for the reason `image-tile.tsx` gives — the
 // image hosts are an open, growing set.
 
-/** A rail cell: a picture, or `"end"` — `/explore`'s end card, drawn from `endCell` (09-26-26). */
-export type RailCell = RailItem | "end";
-
 export interface HeroRailProps {
-  /** The cell before, the cell under the reader, the cell after. An absent neighbour is an empty cell. */
-  cells: readonly [RailCell | undefined, RailCell, RailCell | undefined];
+  /**
+   * The cell before, the cell under the reader, the cell after — each one or two pages (a page is
+   * a picture, or `"end"`, `/explore`'s end card drawn from `endCell`). An absent neighbour is an
+   * empty cell.
+   */
+  cells: HeroCells;
+  /** 1 for single, 2 for a desktop spread. Decides where a lone page sits: centred, or left. */
+  pages: 1 | 2;
   /** What an `"end"` cell shows. Only `/explore`'s capped rail has one. */
   endCell?: React.ReactNode;
   /** From `useRailGestures` — spread onto the track. */
@@ -65,6 +72,7 @@ const EASE = "cubic-bezier(.22,.61,.36,1)";
 
 export function HeroRail({
   cells,
+  pages,
   trackRef,
   dragPx,
   dragging,
@@ -97,20 +105,23 @@ export function HeroRail({
         >
           {cells.map((c, i) => (
             <div
-              key={c === "end" ? "end" : (c?.id ?? `empty-${i}`)}
-              // The 12px inset, centred both ways. The notch adds to the top inset on the phone
-              // rather than replacing it, so the picture never sits under the status bar.
-              className="flex items-center justify-center p-[12px]"
-              style={{
-                flex: `0 0 ${CELL}`,
-                height: "100%",
-                paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)",
-              }}
+              key={c ? c.map(pageKey).join("+") : `empty-${i}`}
+              className="flex"
+              style={{ flex: `0 0 ${CELL}`, height: "100%" }}
             >
-              {c === "end" ? (
-                <div className="w-full max-w-[360px]">{endCell}</div>
-              ) : c ? (
-                <RailImage item={c} priority={i === 1} />
+              {c?.map((page) => (
+                <Page
+                  key={pageKey(page)}
+                  page={page}
+                  endCell={endCell}
+                  // Every page of the cell under the reader — both halves of a spread.
+                  priority={i === 1}
+                />
+              ))}
+              {/* A spread's lone last page stays on the left half, a magazine's blank verso
+                  beside it, rather than drifting to the centre. */}
+              {c && pages === 2 && c.length === 1 ? (
+                <div className="min-w-0 flex-1" />
               ) : null}
             </div>
           ))}
@@ -144,6 +155,43 @@ export function HeroRail({
         </div>
       </div>
     </section>
+  );
+}
+
+const pageKey = (p: HeroPage) => (p === "end" ? "end" : p.id);
+
+/**
+ * One page of a cell: the 12px inset, centred both ways, around a picture or the end card. In
+ * single mode a cell is one page, so this box *is* the old cell; in a spread two of them share the
+ * cell half and half (`flex-1 min-w-0` — `min-w-0` lets a wide picture shrink below its natural
+ * width instead of pushing its neighbour off the screen), and their insets add up to a 24px
+ * gutter.
+ */
+function Page({
+  page,
+  endCell,
+  priority,
+}: {
+  page: HeroPage;
+  endCell: React.ReactNode;
+  priority: boolean;
+}) {
+  return (
+    <div
+      // The notch adds to the top inset on the phone rather than replacing it, so the picture never
+      // sits under the status bar.
+      className="flex min-w-0 flex-1 items-center justify-center p-[12px]"
+      style={{
+        height: "100%",
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)",
+      }}
+    >
+      {page === "end" ? (
+        <div className="w-full max-w-[360px]">{endCell}</div>
+      ) : (
+        <RailImage item={page} priority={priority} />
+      )}
+    </div>
   );
 }
 

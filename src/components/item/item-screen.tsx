@@ -7,9 +7,10 @@ import { useRouter } from "next/navigation";
 import { AuthSurface, useAuthSurface } from "~/components/explore/auth-surface";
 import { MessageTile } from "~/components/explore/message-tile";
 import { cameFromExplore } from "~/components/feed/feed-origin";
-import { HeroRail, type RailCell } from "~/components/item/hero-rail";
+import { HeroRail } from "~/components/item/hero-rail";
 import { ItemFacts } from "~/components/item/item-facts";
 import { JoinCta } from "~/components/item/join-cta";
+import { buildCells } from "~/components/item/rail-cells";
 import { SharedByRow } from "~/components/item/shared-by-row";
 import { WanderNext } from "~/components/item/wander-next";
 import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sheet";
@@ -395,10 +396,7 @@ export function ItemScreen({
   //
   // `/explore`'s capped rail puts its end card where the next picture would be, and standing on it
   // shifts the three cells one along.
-  const cells: readonly [RailCell | undefined, RailCell, RailCell | undefined] =
-    atEnd
-      ? [current, "end", undefined]
-      : [items[index - 1], current, capped ? "end" : items[index + 1]];
+  const cells = buildCells({ items, index, pages: 1, capped, atEnd });
 
   const caption = (
     <>
@@ -424,6 +422,7 @@ export function ItemScreen({
     >
       <HeroRail
         cells={cells}
+        pages={1}
         trackRef={ref}
         dragPx={dragPx}
         dragging={dragging}
