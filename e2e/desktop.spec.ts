@@ -349,6 +349,91 @@ test.describe.serial("desktop", () => {
   // `/` (09-26-26): the signed-out taste at desktop width — four columns like /feed, the rail
   // toolbar at the right, and the sign-up card its Profile raises is centered. Signed out, so
   // this spends nothing of the shared user; the seed above is what it draws.
+  // docs/DESIGN_spread-mode.md: the desktop item screen's spread — two rail pictures side by side,
+  // turned by two, the focused page being the item. Works on either database shape: the rail is
+  // drawn from whatever corpus is there, and the assertions are about positions and alts, never
+  // about which pictures came up.
+  test("spread mode: two pictures at a time, turned by two, the focused one is the item", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const imageTile = page.locator("[data-feed-id]:has(img)").first();
+    await expect(imageTile).toBeVisible();
+    await imageTile.locator("> *").first().click();
+    await page.waitForURL(/\/i\//);
+    await settle(page.getByTestId("hero-frame"));
+
+    /** The pictures in the cell under the reader — the track's middle child. */
+    const current = page
+      .getByTestId("gallery-track")
+      .locator("> *")
+      .nth(1)
+      .locator("img");
+    const alts = () =>
+      current.evaluateAll((els) => els.map((e) => e.getAttribute("alt")));
+    const toggle = page.getByRole("button", { name: "Two pictures at a time" });
+    // The item screen throttles its mouse-move summon to one per 250 ms, and Playwright moves
+    // faster than any hand — a summon right after another mouse action can be swallowed whole. So
+    // keep nudging the mouse until the rail answers.
+    let nudge = 0;
+    const summon = () =>
+      expect(async () => {
+        nudge = (nudge + 1) % 2;
+        await page.mouse.move(700 + nudge * 20, 300 + nudge * 20);
+        await expect(page.getByTestId("rail-toolbar")).toHaveAttribute(
+          "aria-hidden",
+          "false",
+          { timeout: 400 },
+        );
+      }).toPass();
+
+    await expect(current).toHaveCount(1);
+    await summon();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    // Two pages, the left one on the left half of the 1440 viewport and the right one on the right.
+    await expect(current).toHaveCount(2);
+    const [left, right] = [
+      (await current.nth(0).boundingBox())!,
+      (await current.nth(1).boundingBox())!,
+    ];
+    expect(left.x + left.width).toBeLessThanOrEqual(CENTRE_X);
+    expect(right.x).toBeGreaterThanOrEqual(CENTRE_X);
+    const first = await alts();
+
+    // A turn moves two: neither page of the new spread was on the old one.
+    const url = page.url();
+    await page.keyboard.press("ArrowRight");
+    await expect(page).not.toHaveURL(url);
+    await expect.poll(alts).not.toEqual(first);
+    const turned = await alts();
+    expect(first).not.toContain(turned[0]);
+    expect(first).not.toContain(turned[1]);
+
+    // A click on the right page makes it the item: the facts' title is its alt.
+    await page.mouse.click(1080, CENTRE_Y);
+    const heading = page.getByRole("heading", { level: 1 });
+    await expect(heading).toHaveText(turned[1]!);
+
+    // Turning the spread off keeps that picture.
+    await summon();
+    await toggle.click();
+    await expect(current).toHaveCount(1);
+    await expect(heading).toHaveText(turned[1]!);
+
+    // Back on, then a reload: the device remembers the spread.
+    await summon();
+    await toggle.click();
+    await expect(current).toHaveCount(2);
+    await page.reload();
+    await expect(
+      page.getByTestId("gallery-track").locator("> *").nth(1).locator("img"),
+    ).toHaveCount(2);
+  });
+
   test("/ packs four columns, and the rail's Profile raises a centered sign-up card", async ({
     page,
   }) => {
