@@ -179,6 +179,11 @@ opens the collections list with nothing to save, so it belongs with the two othe
 controls; Share is the only control whose presence varies, so it is the only one whose absence
 must not change the bar's shape. `rail-toolbar.test.tsx` pins the new order.
 
+**Amended 09-27-26: a page's `extra` control sits between Feed and Save.** The item screen's spread
+toggle (`docs/DESIGN_spread-mode.md` D4) is the first caller of `extra`, and Ben drew it between
+the logo and the bookmark. Only the item screen passes one, so every other screen's bar is still
+Profile, Feed, Save.
+
 ## 3. The tile hover strip — one-click save, fine pointer only
 
 New `TileActions` (`src/components/feed/tile-actions.tsx`), rendered by `feed-screen.tsx` as a

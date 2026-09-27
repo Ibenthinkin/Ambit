@@ -136,6 +136,12 @@ entry item's answer passed down as `initialData` (fresh for the query client's 3
 so a cold share link still pays zero client requests.
 Swiping still marks nothing seen.
 
+**Amended 09-27-26: the strip can be a two-page spread on a computer.** A toggle in the desktop
+rail puts two consecutive rail pictures side by side and turns them two at a time; the left page
+is the item until a click focuses the right one. A cell of the three-cell track now holds one or
+two pages (`rail-cells.ts`), and everything under the strip still reads one `current`. See
+`docs/DESIGN_spread-mode.md`.
+
 **Gone.** `gallery-screen.tsx`, `gallery-details-sheet.tsx`, `use-exit-gallery.ts`,
 `gallery-origin.ts`, `hero-gallery-link.tsx`, `image-item-body.tsx` (its two halves become
 `HeroRail` and `ItemFacts`), the `/g/` page body, `e2e/gallery.spec.ts` (folded into

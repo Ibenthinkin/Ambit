@@ -70,6 +70,36 @@ doesn't animate SVG `x`/`width`, so the glyph morph is instant in Ben's own brow
 
 *Session spend: 8.07M tok (in 1.3k · out 143.0k · cache r 7.49M / w 438.5k) · fable-5-1 · 13:56→15:44*
 
+**Late afternoon (Opus 5.5) — spread mode built on `feat/spread-mode`.** The plan ran end to end
+in the same session: the localStorage store, the pure `buildCells`, the tap's `clientX`, `HeroRail`
+cells of pages, the placeholder glyph and toggle in the rail's `extra` slot (moved between Feed and
+Save), the screen wiring, one desktop e2e test, and the doc amendments. Unit 1,533 green;
+`e2e:prod` 61 + 9 dev-only skips; the CI-shaped suite 61/61 twice.
+
+**Things worth knowing that the commits don't say:**
+- **Two sessions shared `~/Dev/ambit` and it cost ten minutes.** The doorofperception session
+  checked out its own branch four seconds after this one created `feat/spread-mode`, so four
+  spread commits landed on `feat/dop-fanout`, and a fifth on `main` after it switched the checkout
+  there. Repaired by moving the commits (same SHAs) under `feat/spread-mode` and resetting the
+  unpushed `main` to `2512f45`; the other session rebased its branch off them and moved to
+  `~/Dev/ambit-dop`. Check `git branch --show-current` before every commit when another session
+  is live on the machine.
+- **Focus-off lands during render, not in an effect.** Turning the spread off (or narrowing the
+  window past `md`) with the right page focused must land on that picture. React's "adjust state
+  when a value changes" pattern does it in the same render, so there is no frame and no
+  `replaceState` naming the left picture first.
+- **The React Compiler refused `saveImage`'s memo** once `current` came out of a freshly built
+  cell array; the callback is keyed on the id string now.
+- **Two e2e flakes predated this branch** and were fixed here because they held the gate: the
+  shared `signIn` helper clicked "Sign in" anywhere, and since `/` became the explore feed the page
+  behind the sheet can hold a "Sign in" message tile; and the explore item test opened the first
+  tile, sometimes an article. The CI-shaped suite had failed three rotating tests per run.
+
+**Open / next:** Ben looks at 1440 (dev server on `:3000` was restarted on this branch), then merge
+and push; his replacement glyph; the 09-26 list.
+
+*Session spend: 43.50M tok (in 740 · out 179.6k · cache r 41.90M / w 1.42M) · ~≥$5.96 · opus-5-5 + opus-4-7 + fable-5-1 · 15:44→16:12*
+
 ### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
 
 **Ben's second phone look (on `fix/landing-orientation`, `e4bffb5`):** "the images are sized
