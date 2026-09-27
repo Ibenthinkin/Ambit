@@ -104,6 +104,20 @@ push; his replacement glyph (`icons/layout-glyph.tsx`, a one-file swap); the 09-
 *Session spend: 43.50M tok (in 740 · out 179.6k · cache r 41.90M / w 1.42M) · ~≥$5.96 · opus-5-5 + opus-4-7 + fable-5-1 · 15:44→16:12*
 *Session spend: 2.88M tok (in 21 · out 11.1k · cache r 2.81M / w 61.8k) · ~≥$0.39 · opus-5-5 + opus-4-7 · 16:12→16:13*
 
+**First refinements (Ben at 1440):** "narrow the gap between the images in the middle, try and
+have them fill as much space as possible", then "can we have them touch in the middle". Each
+picture was centred in its half, so two height-limited pictures sat with a wide dark band between
+them. Now each spread page keeps the 12 px inset on its outer edge, none on the spine side, and
+pushes its picture against the spine with `object-position` — the pictures meet edge to edge and
+all the slack goes to the outer margins. `SPINE_PX` in `hero-rail.tsx` is the one number if a
+hairline gutter comes back; D3 in the design carries both amendments. The next lever for "bigger"
+is the outer 12 px, which only helps width-limited pictures — a tall one is capped by the screen's
+height.
+
+**Open / next:** more refinement with Ben, then merge and push; his replacement glyph.
+
+*Session spend: 9.97M tok (in 77 · out 25.4k · cache r 9.81M / w 129.3k) · ~≥$0.69 · opus-5-5 + opus-4-7 · 16:13→16:57*
+
 ### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
 
 **Ben's second phone look (on `fix/landing-orientation`, `e4bffb5`):** "the images are sized
