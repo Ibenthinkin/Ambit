@@ -150,8 +150,8 @@ describe("HeroRail", () => {
       "pr-[12px]",
       "justify-start",
     );
-    expect(left.parentElement!.style.paddingRight).toBe("3px");
-    expect(right.parentElement!.style.paddingLeft).toBe("3px");
+    expect(left.parentElement!.style.paddingRight).toBe("0px");
+    expect(right.parentElement!.style.paddingLeft).toBe("0px");
     expect(left).toHaveClass("object-contain", "object-right");
     expect(right).toHaveClass("object-contain", "object-left");
     // Both pages of the spread under the reader are fetched first.

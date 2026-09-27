@@ -179,8 +179,13 @@ const pageKey = (p: HeroPage) => (p === "end" ? "end" : p.id);
  * {@link SPINE_PX} on the spine side, and pushes its picture against that side with
  * `object-position`, so all the slack goes to the outer margins and the two pictures read as one
  * open magazine. A picture wide enough to be width-limited fills its half either way.
+ *
+ * **They touch** — Ben's second note the same afternoon, "can we have them touch in the middle".
+ * The spine inset went 3px → 0, so the two pictures meet edge to edge with no gutter at all. Kept
+ * as a named constant rather than deleted, because it is the one number to change if a hairline
+ * gutter comes back.
  */
-const SPINE_PX = 3;
+const SPINE_PX = 0;
 
 function Page({
   page,
