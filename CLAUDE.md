@@ -67,7 +67,7 @@ renders refilling at ~20/min — a sustained `--rate 1` still 429s; warm it as 2
 `pg_dumpall`, which the non-superuser `ambit` role cannot run, and Coolify recorded each 215-byte
 header as a success; fixed by the toggle, restore proven in 8.5 s (SPEC §13 has the procedure). **The
 file on disk is the witness, the same way the database is for a task.** T9's closing docs landed
-09-17-26. SPEC §13 is now *what is deployed*; read `docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed
+09-17-26. SPEC §13 is now _what is deployed_; read `docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed
 facts (resource UUID, volume name, DB container, backup path) rather than re-deriving them from the
 Coolify UI. **A second thread is mid-flight beside 8.1:
 source-candidates round 2** — every remaining candidate in `docs/source-candidates.md` was live-probed
@@ -302,7 +302,14 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   page — done during render, not in an effect, so no frame shows the wrong picture. The choice is
   per device in localStorage (`lib/hero-layout.ts`, `ambit.heroLayout.v1`). The toggle is Ben's
   **view toggle** (`docs/viewTOggleTOkens/`, 09-27-26): `icons/view-glyph.tsx` morphs one page
-  into an open magazine, labelled "Magazine view", and `M` flips it. One
+  into an open magazine, labelled "Magazine view", and `M` flips it. **The same evening it became a magazine**
+  (`docs/PLAN_magazine-turn.md`): in a spread the track stops sliding and a **leaf** swings 180°
+  around the spine — the index moves at once and the turn is drawn over it, a drag lifts the leaf
+  with the pointer, the toggle opens and closes the book, a spine gradient lies over the seam, and
+  the caption is two folios numbered from the entry (`01`, then `00`, `−01` going back).
+  **It runs on the Web Animations API, which `globals.css`'s reduced-motion rule does not reach —
+  deliberately, Ben wants the turn under Reduce Motion.** jsdom has no `Element.animate`, so in
+  unit tests every motion lands at once; the mid-flight tests stub it. One
   e2e trap it met: the item screen throttles its mouse-move summon to one per 250 ms, so a
   Playwright summon straight after another mouse action is swallowed — `desktop.spec.ts`'s
   spread test retries it with `toPass`.

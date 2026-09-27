@@ -3,7 +3,7 @@
 **Written:** 09-27-26 evening by Opus 5.5, from Ben's two Claude Design packages
 (`docs/turnpackage/page-turn/`, `docs/viewTOggleTOkens/view-toggle/`) and a read of
 `hero-rail.tsx`, `rail-cells.ts`, `item-screen.tsx` and `use-rail-gestures.ts` on
-`feat/spread-mode` at `696f756`. **Status: proposed — not built.** Three questions for Ben
+`feat/spread-mode` at `696f756`. **Status: BUILT 09-27-26 evening by Opus 5.5 on `feat/spread-mode`** — every box ticked except `e2e:prod` (see Task 7). Deviations are listed under "As built" at the end. Three questions for Ben
 were answered the same evening (end of file).
 
 **Already done in the same session (not part of this plan):** the view-toggle button swap —
@@ -139,72 +139,100 @@ repo's convention; `bun run test` per task, `bun run check` before each commit; 
 comment generously and cite the D-numbers above.
 
 ### Task 1 — `turnLayers`, pure
-- [ ] Test first in `rail-cells.test.ts`: forward and backward from a middle spread; forward onto
+- [x] Test first in `rail-cells.test.ts`: forward and backward from a middle spread; forward onto
       a lone last page; backward from index 1; no leaf when there is no next/previous spread;
       no leaf in single mode.
-- [ ] `export type Turn` and `turnLayers()` in `rail-cells.ts`, per the D1 table.
+- [x] `export type Turn` and `turnLayers()` in `rail-cells.ts`, per the D1 table.
 
 ### Task 2 — The spine and the folios (no motion yet)
-- [ ] `hero-rail.test.tsx`: a spread cell renders a `data-testid="spread-spine"`; a single cell
+- [x] `hero-rail.test.tsx`: a spread cell renders a `data-testid="spread-spine"`; a single cell
       doesn't.
-- [ ] `item-screen.test.tsx`: in a spread the caption shows `01` / `02` at entry, `03` / `04`
+- [x] `item-screen.test.tsx`: in a spread the caption shows `01` / `02` at entry, `03` / `04`
       after ArrowRight; titles still `<h2>`; the unfocused folio is dimmed.
-- [ ] Build D6 and D7 (numbers from `entryIndex`). Look at it at 1440 before going on —
+- [x] Build D6 and D7 (numbers from `entryIndex`). Look at it at 1440 before going on —
       this task alone should already read more like a magazine.
 
 ### Task 3 — The turn, keyboard and click
-- [ ] `ItemScreen`: `const [turn, setTurn] = useState<Turn | null>(null)`; `advance` sets it
+- [x] `ItemScreen`: `const [turn, setTurn] = useState<Turn | null>(null)`; `advance` sets it
       in spread mode (not on the end card, not past a loaded end) and ignores input while it's
       set (D3). `finishTurn` clears it.
-- [ ] `HeroRail` gains `turn` + `onTurnEnd` props and a `Leaf` component: two faces, each a
+- [x] `HeroRail` gains `turn` + `onTurnEnd` props and a `Leaf` component: two faces, each a
       `RailImage` with the side-correct `object-position` (front hugs the spine from its own
       side, back from the other), `backface-visibility: hidden`, back pre-rotated 180°; the
       stage gets `perspective: 2800px`. `useLayoutEffect` starts `leaf.animate()`; `finished` →
       draw the end state, then `onTurnEnd` on the next frame (D1).
-- [ ] Tests: jsdom has no `animate`, so existing tests pass unchanged — verify that first. New:
+- [x] Tests: jsdom has no `animate`, so existing tests pass unchanged — verify that first. New:
       stub `Element.prototype.animate` with a controllable fake; assert the under-pages and leaf
       faces mid-turn, that a second ArrowRight mid-turn does nothing, and that the cell is
       `[C, D]` after `finished` resolves.
-- [ ] Folios fade during a turn (D7).
+- [x] Folios fade during a turn (D7).
 
 ### Task 4 — The drag lifts the leaf
-- [ ] `HeroRail` in spread mode: the track's transform ignores `dragPx`; while `dragging` and
+- [x] `HeroRail` in spread mode: the track's transform ignores `dragPx`; while `dragging` and
       there is a next/previous spread, render the leaf at the drag angle with the D5 shades set
       inline.
-- [ ] `advance(dir, fromAngle?)` — the gesture's `onAdvance` passes the angle it released at;
+- [x] `advance(dir, fromAngle?)` — the gesture's `onAdvance` passes the angle it released at;
       the remaining duration scales (D2).
-- [ ] A drag released short: the leaf animates back to 0 (a second, shorter `animate()`), then
+- [x] A drag released short: the leaf animates back to 0 (a second, shorter `animate()`), then
       goes. `useRailGestures` resets `dragPx` to 0 on release — the fall-back must start from
       the last angle, so `HeroRail` keeps the last non-zero angle in a ref.
-- [ ] Tests: drag half-way and hold — leaf present at ~90°; release far → index +2; release
+- [x] Tests: drag half-way and hold — leaf present at ~90°; release far → index +2; release
       short → index unchanged, no leaf after the fall-back.
 
 ### Task 5 — Light, and reduced motion
-- [ ] D5's shade layers, keyframed in the turn's `animate()` and set per-frame for the drag.
-- [ ] D8: the turn plays under reduced motion — test with `stubMatchMedia` including the reduce
+- [x] D5's shade layers, keyframed in the turn's `animate()` and set per-frame for the drag.
+- [x] D8: the turn plays under reduced motion — test with `stubMatchMedia` including the reduce
       query that the leaf still animates.
-- [ ] Ben tunes the numbers by eye (shade peak, shadow width, duration). Leave them as named
+- [x] Ben tunes the numbers by eye (shade peak, shadow width, duration). Leave them as named
       constants at the top of `hero-rail.tsx` with the token they came from.
 
 ### Task 6 — The book opens and closes (optional)
-- [ ] Toggle on: after the spread renders, the right page's leaf animates 180° → 0 around the
+- [x] Toggle on: after the spread renders, the right page's leaf animates 180° → 0 around the
       spine (it starts folded onto the left page). Toggle off: it folds shut (0 → 180°), then
       single mode renders with the tokens' `single.enter` fade. Plays under reduced motion, as the
       turn does (D8).
-- [ ] The `prevSpread` render-time adjustment in `ItemScreen` must still land on the focused
+- [x] The `prevSpread` render-time adjustment in `ItemScreen` must still land on the focused
       page — run the existing "toggling off from a right focus" test.
 
 ### Task 7 — e2e and docs
-- [ ] `e2e/desktop.spec.ts`'s spread block: add `page.emulateMedia({ reducedMotion:
+- [x] `e2e/desktop.spec.ts`'s spread block: add `page.emulateMedia({ reducedMotion:
       "no-preference" })` (Playwright inherits the Mac's setting — the profile-glyph lesson),
       press ArrowRight, assert a `[data-testid="spread-leaf"]` is visible mid-turn and gone after,
       and that the pages advanced. Keep the existing assertions (they auto-retry past the turn).
-- [ ] `bun run e2e:prod` green; the CI-shape run from CLAUDE.md if the fixtures were touched.
-- [ ] `DESIGN_spread-mode.md` amendment pointing here; CLAUDE.md's spread bullet; `log.md`.
-- [ ] Do not merge or push until Ben has looked at 1440.
+- [ ] `bun run e2e:prod` green — **not run**: a hand-started `next dev` held :3000, and a dev-server run fails on the dev-tools button before reaching the spread test (the known trap); the CI-shape run from CLAUDE.md if the fixtures were touched.
+- [x] `DESIGN_spread-mode.md` amendment pointing here; CLAUDE.md's spread bullet; `log.md`.
+- [x] Do not merge or push until Ben has looked at 1440.
 
 ## Answered by Ben, 09-27-26
 
 1. Reduced motion: **play the turn anyway** (D8).
 2. Pages before the entry: **negative numbers** (D7).
 3. Task 6 (the book opens and closes): **in** — "if i don't like it we can just take it out".
+
+## As built (09-27-26)
+
+- **Code:** `src/components/item/spread-motion.ts` (pure: `turnLayers`, `bookLayers`,
+  `swingFrames`, `lightAt`, `folioNumber`, the token constants); `hero-rail.tsx` (the spine, the
+  `Leaf`/`Face`/`CastShadow`, the drag lift, the settle, the WAAPI driver, the folio fade, the
+  single-view fade-in); `item-screen.tsx` (the `motion` state, the turn in `advance`, the
+  animated `toggleSpread`, `Folio`).
+- **The book opens only from the toggle or `M`**, never on a document load that finds a
+  remembered spread — the hydration flip from single to spread would otherwise play it on every
+  item you open.
+- **The folios don't fade *out*.** The index has already moved when the turn starts, so a fade
+  would show the new captions dissolving; they vanish the instant the leaf lifts and fade back in
+  (300 ms) when it lands.
+- **A page let go short settles on its own curve** (`cubic-bezier(.3,.7,.4,1)`, pro rata time),
+  not the turn's ease-in-out, which made the fall back feel like a hesitation.
+- **The landed frame** is implemented as planned: `landed` draws the final spread under the leaf
+  for one `requestAnimationFrame`, then the leaf goes.
+- One bug found in the browser and fixed before commit: ending a close called
+  `writeHeroLayout` from inside a `setMotion` updater, which runs during render — React's
+  "cannot update a component while rendering" error. `onMotionEnd` now receives the ended motion.
+- **Seen in a browser at 1440 × 900** (Playwright MCP against the dev server): open mid-swing,
+  a forward turn caught at 330 ms (the back face landing, the new right page revealed), the
+  landed spread with spine and folios `03` / `04`, a real pointer drag lifting the page to
+  `rotateY(-50deg)` and turning on release, and a close from a right focus landing single on
+  that picture — no console errors. **Firefox not checked**, and Ben uses it.
+- Unit: 1,554 green (`spread-motion.test.ts` 13, and six mid-flight tests in
+  `item-screen.test.tsx` with a fake `Element.animate`).

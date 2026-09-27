@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import {
   afterEach,
   beforeEach,
@@ -632,17 +632,34 @@ describe("spread mode", () => {
     expect(heading()).toHaveTextContent("Plate r0");
   });
 
-  it("captions both pages, the unfocused one dimmed", () => {
+  // docs/PLAN_magazine-turn.md D7: the spread's caption is a pair of folios.
+  it("folios both pages, numbered from the entry, the unfocused one dimmed", () => {
     spreadOn();
     renderScreen();
     const chrome = screen.getByTestId("gallery-chrome");
-    const titles = [...chrome.querySelectorAll("h2")];
-    expect(titles.map((t) => t.textContent)).toEqual([
+    const titles = () => [...chrome.querySelectorAll("h2")];
+    const numbers = () =>
+      within(chrome)
+        .getAllByTestId("folio-number")
+        .map((n) => n.textContent);
+    expect(titles().map((t) => t.textContent)).toEqual([
       "Plate entry",
       "Plate r0",
     ]);
-    expect(titles[1]!.parentElement).toHaveClass("opacity-55");
-    expect(titles[0]!.parentElement).not.toHaveClass("opacity-55");
+    expect(numbers()).toEqual(["01", "02"]);
+    const folio = (t: HTMLElement) => t.closest("[class*='items-baseline']");
+    expect(folio(titles()[1]!)).toHaveClass("opacity-55");
+    expect(folio(titles()[0]!)).not.toHaveClass("opacity-55");
+
+    key("ArrowRight");
+    expect(numbers()).toEqual(["03", "04"]);
+  });
+
+  it("lays the spine over the seam of a spread, and not in single view", () => {
+    renderScreen();
+    expect(screen.queryByTestId("spread-spine")).toBeNull();
+    key("m");
+    expect(screen.getByTestId("spread-spine")).toBeInTheDocument();
   });
 
   it("fetches ahead twice as early, since a turn eats two", () => {
@@ -653,6 +670,138 @@ describe("spread mode", () => {
     expect(railFetchMock).toHaveBeenCalledWith(
       expect.objectContaining({ itemId: "r7" }),
     );
+  });
+
+  // docs/PLAN_magazine-turn.md. jsdom has no `Element.animate`, which is why every test above
+  // sees a turn land at once; these give it a fake one whose `finished` the test resolves, so the
+  // leaf can be caught mid-air.
+  describe("the magazine's motion", () => {
+    let pending: (() => void)[] = [];
+    let animate: ReturnType<typeof vi.fn>;
+    beforeEach(() => {
+      pending = [];
+      animate = vi.fn(() => {
+        let resolve!: () => void;
+        const finished = new Promise<void>((r) => (resolve = r));
+        pending.push(resolve);
+        return { finished, cancel: vi.fn() };
+      });
+      Element.prototype.animate = animate as unknown as Element["animate"];
+      vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+        cb(0);
+        return 0;
+      });
+    });
+    afterEach(() => {
+      delete (Element.prototype as { animate?: unknown }).animate;
+    });
+    /** Let every running animation finish. */
+    const land = async () => {
+      await act(async () => {
+        for (const resolve of pending.splice(0)) resolve();
+        await Promise.resolve();
+      });
+    };
+    const leaf = () => screen.queryByTestId("spread-leaf");
+    const faces = () =>
+      ["front", "back"].map(
+        (f) =>
+          leaf()!
+            .querySelector(`[data-face="${f}"] img`)
+            ?.getAttribute("alt") ?? null,
+      );
+
+    it("a turn swings the right page over, with the spread moved on underneath, and lands", async () => {
+      spreadOn();
+      renderScreen();
+      key("ArrowRight");
+      expect(leaf()).toHaveAttribute("data-half", "right");
+      expect(faces()).toEqual(["Plate r0", "Plate r1"]);
+      // Under the leaf: the old left page, and the new right page revealed.
+      expect(currentPages()).toEqual(["Plate entry", "Plate r2"]);
+      // The index moved at once — the facts already name the new left page.
+      expect(heading()).toHaveTextContent("Plate r1");
+      expect(animate).toHaveBeenCalled();
+
+      // A second press mid-turn is ignored.
+      key("ArrowRight");
+      expect(heading()).toHaveTextContent("Plate r1");
+
+      await land();
+      expect(leaf()).toBeNull();
+      expect(currentPages()).toEqual(["Plate r1", "Plate r2"]);
+    });
+
+    it("a backward turn swings the left page", async () => {
+      spreadOn();
+      renderScreen();
+      key("ArrowRight");
+      await land();
+      key("ArrowLeft");
+      expect(leaf()).toHaveAttribute("data-half", "left");
+      expect(faces()).toEqual(["Plate r1", "Plate r0"]);
+      await land();
+      expect(currentPages()).toEqual(["Plate entry", "Plate r0"]);
+    });
+
+    it("the book opens: the right page unfolds from over the left", async () => {
+      renderScreen();
+      key("m");
+      expect(leaf()).toHaveAttribute("data-half", "right");
+      expect(faces()).toEqual(["Plate r0", "Plate entry"]);
+      expect(currentPages()).toEqual(["Plate entry"]);
+      await land();
+      expect(leaf()).toBeNull();
+      expect(currentPages()).toEqual(["Plate entry", "Plate r0"]);
+    });
+
+    it("the book closes towards the focused page, then single view lands on it", async () => {
+      spreadOn();
+      renderScreen();
+      tapAt(900); // focus the right page
+      expect(heading()).toHaveTextContent("Plate r0");
+      clickToggle();
+      expect(leaf()).toHaveAttribute("data-half", "left");
+      // Still a spread until the page has folded.
+      expect(localStorage.getItem(HERO_LAYOUT_KEY)).toBe("spread");
+      await land();
+      expect(localStorage.getItem(HERO_LAYOUT_KEY)).toBe("single");
+      expect(currentPages()).toEqual(["Plate r0"]);
+      expect(heading()).toHaveTextContent("Plate r0");
+    });
+
+    it("a drag lifts the page with the pointer, and a short one falls back", async () => {
+      spreadOn();
+      renderScreen();
+      Object.defineProperty(track(), "offsetWidth", { value: 1024 });
+      send("pointerdown", 600, 300);
+      send("pointermove", 570, 300);
+      expect(leaf()).toHaveAttribute("data-half", "right");
+      expect(leaf()!.style.transform).toMatch(/rotateY\(-\d/);
+      send("pointerup", 570, 300);
+      // Short and slow: no turn, the page settles back.
+      expect(heading()).toHaveTextContent("Plate entry");
+      expect(leaf()).not.toBeNull();
+      await land();
+      expect(leaf()).toBeNull();
+      expect(currentPages()).toEqual(["Plate entry", "Plate r0"]);
+    });
+
+    it("a drag released far turns from where it let go", async () => {
+      spreadOn();
+      renderScreen();
+      Object.defineProperty(track(), "offsetWidth", { value: 1024 });
+      send("pointerdown", 800, 300);
+      send("pointermove", 544, 300); // half a half: the page stands upright
+      send("pointerup", 544, 300);
+      expect(heading()).toHaveTextContent("Plate r1");
+      const rotations = animate.mock.calls
+        .map((c) => (c[0] as Keyframe[])[0])
+        .filter((f) => f && "transform" in f);
+      expect(rotations.at(-1)).toEqual({ transform: "rotateY(-90deg)" });
+      await land();
+      expect(currentPages()).toEqual(["Plate r1", "Plate r2"]);
+    });
   });
 
   it("is single, with no toggle, below the desktop breakpoint", () => {

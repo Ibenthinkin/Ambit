@@ -142,6 +142,14 @@ share — it is never the left page. So there is a focus.
   only, in `ItemScreen`'s keydown). The web component in that folder is the prototype, not
   ported — the rail's `RailButton` stays the button.
 
+## D3a. The magazine (amended 09-27-26 evening)
+
+The track no longer slides in a spread. A turn is a leaf swinging 180° around the spine (Ben's
+`docs/turnpackage/`), a drag lifts the leaf with the pointer, the toggle opens and closes the book,
+a 90 px spine gradient lies over the seam, and the split caption became two **folios** numbered
+from the entry picture (`01`; before it `00`, `−01`…). All of it plays under Reduce Motion, by
+Ben's choice. Design and as-built notes: `docs/PLAN_magazine-turn.md`.
+
 ## D5. Testing
 
 Unit (Vitest):

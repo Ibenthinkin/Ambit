@@ -394,8 +394,13 @@ test.describe.serial("desktop", () => {
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
 
+    // The book opens (docs/PLAN_magazine-turn.md Task 6): a leaf swings, then lands.
+    const leaf = page.getByTestId("spread-leaf");
+    await expect(leaf).toHaveCount(0);
+
     // Two pages, the left one on the left half of the 1440 viewport and the right one on the right.
     await expect(current).toHaveCount(2);
+    await expect(page.getByTestId("spread-spine")).toBeVisible();
     const [left, right] = [
       (await current.nth(0).boundingBox())!,
       (await current.nth(1).boundingBox())!,
@@ -406,8 +411,12 @@ test.describe.serial("desktop", () => {
 
     // A turn moves two: neither page of the new spread was on the old one.
     const url = page.url();
+    // The turn is a page swinging over the spine (the plan's D1): caught in the air, then landed.
+    // The URL moves at once; the pages under the reader are final only once the leaf is gone.
     await page.keyboard.press("ArrowRight");
+    await expect(leaf).toBeVisible();
     await expect(page).not.toHaveURL(url);
+    await expect(leaf).toHaveCount(0);
     await expect.poll(alts).not.toEqual(first);
     const turned = await alts();
     expect(first).not.toContain(turned[0]);

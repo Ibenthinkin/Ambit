@@ -5,7 +5,7 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
-### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion
+### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
 had — under `reducedMotion: no-preference` Playwright sampled the four gradient stops cycling
@@ -117,6 +117,35 @@ height.
 **Open / next:** more refinement with Ben, then merge and push; his replacement glyph.
 
 *Session spend: 9.97M tok (in 77 · out 25.4k · cache r 9.81M / w 129.3k) · ~≥$0.69 · opus-5-5 + opus-4-7 · 16:13→16:57*
+
+**Evening — the spread becomes a magazine.** Ben brought two Claude Design packages:
+`docs/viewTOggleTOkens/` (the toggle button) and `docs/turnpackage/` (a page-turn web
+component). **The button** replaced the bars placeholder as `icons/view-glyph.tsx`, two paths
+morphing one page ↔ open magazine; label "Magazine view", `M` flips it (37d9fc6, with the plan).
+**The plan** (`docs/PLAN_magazine-turn.md`) named five things that make two touching pictures
+read as a magazine, in order of weight: the turn, the leaf following the hand, light on the paper,
+the spine, folios. Ben's answers: play the turn **under Reduce Motion too** (his Mac has it on —
+the profile glyph's precedent over the landing's), number pages before the entry **negatively**
+(`00`, `−01`…), and include the book opening/closing on the toggle — "if i don't like it we can
+just take it out".
+
+**Built, not merged:** one leaf does every motion (turn, drag lift, fall-back, open, close),
+described as pure data in `spread-motion.ts` and drawn by `HeroRail`. Two decisions worth
+keeping. **The index moves on the keypress** and the turn is drawn over it — the package commits
+after 820 ms, which would make the URL, Save and every test wait for nothing. And **it is the Web
+Animations API, not CSS** — it can start from a drag's angle, `finished` can't be missed like
+`transitionend`, jsdom lacks it (so unit tests land motions at once and six new ones stub it), and
+it is the reason Reduce Motion doesn't collapse it: `globals.css`'s rule only reaches CSS
+animations and transitions. Seen at 1440 in a browser mid-swing; one bug found there (a store
+write inside a `setMotion` updater — "cannot update a component while rendering") and fixed.
+
+**Open / next:** Ben looks at 1440 — in **Firefox**, which I did not check; the lighting numbers
+(`LEAF_SHADE_MAX`, `CAST_MAX`, the cast band's 18 %) are first guesses for his eye. **`bun run
+e2e:prod` not run** — a hand-started `next dev` held :3000 and a dev-server run fails on Next's
+dev-tools button before reaching the spread test; the spec's spread test was extended (leaf
+caught mid-turn, spine visible) and needs that run before merge. Then merge + push.
+
+*Session spend: 26.60M tok (in 317 · out 189.2k · cache r 25.85M / w 570.2k) · ~≥$1.29 · opus-5-5 + opus-4-7 · 18:30→19:54*
 
 ### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
 
