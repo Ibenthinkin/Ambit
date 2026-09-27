@@ -1,14 +1,16 @@
 // The WP-REST walker factory (sources round 2, 09-01-26). doorofperception.ts is the bespoke
 // original and stays as it is (Ben's call — shipped code with 318 rows behind it); the factory
 // is for blog #3 onward. So the sharpest test of the factory is that, fed doorofperception's own
-// config and fixture, it produces byte-identical items to the bespoke adapter — same facts,
-// same projection, no drift. Network paths (the walk itself) are exercised by `bun run
+// config and posts, it produces byte-identical items to the bespoke adapter — same facts,
+// same projection, no drift. Since doorofperception fans out to one item per picture (09-27-26,
+// docs/PLAN_dop-fanout.md) the comparison is with its FEATURED card — the one item per post both
+// shapes still share — over the pre-fan-out posts, kept as __fixtures__/wp-rest-dop-posts.json. Network paths (the walk itself) are exercised by `bun run
 // probe:walk`, per the no-live-HTTP-in-unit-tests convention.
 import { describe, expect, it } from "vitest";
 
 import { blogConfig } from "~/server/config/blogs";
-import fixtures from "./__fixtures__/doorofperception.json";
-import { doorofperception } from "./doorofperception";
+import fixtures from "./__fixtures__/wp-rest-dop-posts.json";
+import { doorofperception, expandPictures } from "./doorofperception";
 import { nextCursor, wpRestWalker, type WpRaw } from "./wp-rest";
 
 const raws = fixtures as unknown as WpRaw[];
@@ -28,7 +30,8 @@ describe("wpRestWalker", () => {
   it("produces exactly what the bespoke doorofperception adapter does, on every fixture row", () => {
     for (const raw of raws) {
       if (!raw.featured_media) continue;
-      expect(walker.toItem(raw)).toEqual(doorofperception.toItem(raw));
+      const featured = expandPictures(raw, []).pictures[0]!;
+      expect(walker.toItem(raw)).toEqual(doorofperception.toItem(featured));
     }
   });
 

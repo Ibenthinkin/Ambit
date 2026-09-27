@@ -11,20 +11,8 @@
       "rendered": "<p>The Geologic Atlas of the Moon looks like abstract painting, but only as a byproduct of classifying the lunar surface into type and age. The palette exists so that four billion years can be told apart at a glance.</p>\n",
       "protected": false
     },
-    "tags": [
-      86,
-      91,
-      73,
-      81,
-      164,
-      78,
-      201
-    ],
-    "categories": [
-      1,
-      8,
-      15
-    ],
+    "tags": [86, 91, 73, 81, 164, 78, 201],
+    "categories": [1, 8, 15],
     "featured_media": 26524,
     "_embedded": {
       "wp:featuredmedia": [
@@ -45,7 +33,164 @@
       "horizons",
       "science",
       "topophilia"
-    ]
+    ],
+    "pictureUrl": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-Featured-1.jpg"
+  },
+  {
+    "id": 26468,
+    "slug": "the-geologic-atlas-of-the-moon",
+    "link": "https://doorofperception.com/2026/08/the-geologic-atlas-of-the-moon/",
+    "date": "2026-08-08T12:10:25",
+    "title": {
+      "rendered": "The Geologic Atlas<br>of the Moon"
+    },
+    "excerpt": {
+      "rendered": "<p>The Geologic Atlas of the Moon looks like abstract painting, but only as a byproduct of classifying the lunar surface into type and age. The palette exists so that four billion years can be told apart at a glance.</p>\n",
+      "protected": false
+    },
+    "tags": [86, 91, 73, 81, 164, 78, 201],
+    "categories": [1, 8, 15],
+    "featured_media": 26524,
+    "_embedded": {
+      "wp:featuredmedia": [
+        {
+          "source_url": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-Featured-1.jpg",
+          "media_details": {
+            "width": 800,
+            "height": 805
+          }
+        }
+      ]
+    },
+    "tagNames": [
+      "abstract",
+      "art",
+      "colorful",
+      "design",
+      "horizons",
+      "science",
+      "topophilia"
+    ],
+    "pictureUrl": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-01.jpg",
+    "curationUrl": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-01-840x556.jpg",
+    "mediaId": 26515
+  },
+  {
+    "id": 26468,
+    "slug": "the-geologic-atlas-of-the-moon",
+    "link": "https://doorofperception.com/2026/08/the-geologic-atlas-of-the-moon/",
+    "date": "2026-08-08T12:10:25",
+    "title": {
+      "rendered": "The Geologic Atlas<br>of the Moon"
+    },
+    "excerpt": {
+      "rendered": "<p>The Geologic Atlas of the Moon looks like abstract painting, but only as a byproduct of classifying the lunar surface into type and age. The palette exists so that four billion years can be told apart at a glance.</p>\n",
+      "protected": false
+    },
+    "tags": [86, 91, 73, 81, 164, 78, 201],
+    "categories": [1, 8, 15],
+    "featured_media": 26524,
+    "_embedded": {
+      "wp:featuredmedia": [
+        {
+          "source_url": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-Featured-1.jpg",
+          "media_details": {
+            "width": 800,
+            "height": 805
+          }
+        }
+      ]
+    },
+    "tagNames": [
+      "abstract",
+      "art",
+      "colorful",
+      "design",
+      "horizons",
+      "science",
+      "topophilia"
+    ],
+    "pictureUrl": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-20.jpg",
+    "curationUrl": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-20-840x1100.jpg",
+    "mediaId": 26544
+  },
+  {
+    "id": 26468,
+    "slug": "the-geologic-atlas-of-the-moon",
+    "link": "https://doorofperception.com/2026/08/the-geologic-atlas-of-the-moon/",
+    "date": "2026-08-08T12:10:25",
+    "title": {
+      "rendered": "The Geologic Atlas<br>of the Moon"
+    },
+    "excerpt": {
+      "rendered": "<p>The Geologic Atlas of the Moon looks like abstract painting, but only as a byproduct of classifying the lunar surface into type and age. The palette exists so that four billion years can be told apart at a glance.</p>\n",
+      "protected": false
+    },
+    "tags": [86, 91, 73, 81, 164, 78, 201],
+    "categories": [1, 8, 15],
+    "featured_media": 26524,
+    "_embedded": {
+      "wp:featuredmedia": [
+        {
+          "source_url": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-Featured-1.jpg",
+          "media_details": {
+            "width": 800,
+            "height": 805
+          }
+        }
+      ]
+    },
+    "tagNames": [
+      "abstract",
+      "art",
+      "colorful",
+      "design",
+      "horizons",
+      "science",
+      "topophilia"
+    ],
+    "pictureUrl": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-3.jpg",
+    "curationUrl": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-3-840x678.jpg",
+    "mediaId": 26527
+  },
+  {
+    "id": 26468,
+    "slug": "the-geologic-atlas-of-the-moon",
+    "link": "https://doorofperception.com/2026/08/the-geologic-atlas-of-the-moon/",
+    "date": "2026-08-08T12:10:25",
+    "title": {
+      "rendered": "The Geologic Atlas<br>of the Moon"
+    },
+    "excerpt": {
+      "rendered": "<p>The Geologic Atlas of the Moon looks like abstract painting, but only as a byproduct of classifying the lunar surface into type and age. The palette exists so that four billion years can be told apart at a glance.</p>\n",
+      "protected": false
+    },
+    "tags": [86, 91, 73, 81, 164, 78, 201],
+    "categories": [1, 8, 15],
+    "featured_media": 26524,
+    "_embedded": {
+      "wp:featuredmedia": [
+        {
+          "source_url": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-Featured-1.jpg",
+          "media_details": {
+            "width": 800,
+            "height": 805
+          }
+        }
+      ]
+    },
+    "tagNames": [
+      "abstract",
+      "art",
+      "colorful",
+      "design",
+      "horizons",
+      "science",
+      "topophilia"
+    ],
+    "pictureUrl": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-21.jpg",
+    "curationUrl": "https://doorofperception.com/wp-content/uploads/doorofperception.com-Geological-Atlas-of-the-Moon-21-840x668.jpg",
+    "mediaId": 26545
   },
   {
     "id": 26480,
@@ -59,25 +204,8 @@
       "rendered": "<p>D O P Explore opens the archive as one connected whole. The machine&#8217;s eye reads every image and traces the affinities between them.</p>\n",
       "protected": false
     },
-    "tags": [
-      91,
-      81,
-      111,
-      164,
-      122,
-      76,
-      168,
-      161,
-      79
-    ],
-    "categories": [
-      1,
-      14,
-      8,
-      13,
-      7,
-      6
-    ],
+    "tags": [91, 81, 111, 164, 122, 76, 168, 161, 79],
+    "categories": [1, 14, 8, 13, 7, 6],
     "featured_media": 26502,
     "_embedded": {
       "wp:featuredmedia": [
@@ -100,7 +228,8 @@
       "personal",
       "videos",
       "visions"
-    ]
+    ],
+    "pictureUrl": "https://doorofperception.com/wp-content/uploads/Intro-Animation-small.gif"
   },
   {
     "id": 1,
@@ -117,6 +246,8 @@
     "categories": [],
     "featured_media": 0,
     "_embedded": {},
-    "tagNames": []
+    "tagNames": [],
+    "pictureUrl": "",
+    "expandError": "doorofperception: post \"no-featured-image\" has no featured image"
   }
 ]
