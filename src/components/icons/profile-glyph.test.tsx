@@ -99,10 +99,18 @@ describe("ProfileGlyph (docs/profile-glyph, variant 6f)", () => {
     expect(container.querySelector("svg[data-rush]")).toBeNull();
   });
 
-  it("under prefers-reduced-motion: a still fill, and rush() does nothing", () => {
+  it("under prefers-reduced-motion: the slow colour flow still plays, but rush() does nothing", () => {
+    // 09-27-26: reduced motion is a gentler tempo, never a still (the landing's 09-26 rule).
+    // The ambient flow is a colour cross-fade with no spatial movement, so it stays; the 900 ms
+    // fast-forward is the one thing that reads as motion, and that is what the setting removes.
     stubMatchMedia(["(prefers-reduced-motion: reduce)"]);
     const { container, handle } = renderGlyph();
-    expect(container.querySelectorAll("animate")).toHaveLength(0);
+    const animates = [...container.querySelectorAll("animate")];
+    expect(animates).toHaveLength(T.flow.stops.length);
+    for (const a of animates) {
+      expect(a.getAttribute("dur")).toBe("10s");
+      expect(a.getAttribute("repeatCount")).toBe("indefinite");
+    }
     act(() => handle.current!.rush());
     expect(container.querySelector("svg[data-rush]")).toBeNull();
   });

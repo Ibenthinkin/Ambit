@@ -28,5 +28,6 @@ In React, `<ambit-profile-glyph size="29" />` works as is. For TypeScript, decla
 - **Tap (rush):** a second layer plays one full cycle over 900ms. It fades in over the first 10% and out over the last 15%, so the slow flow underneath never restarts. Tapping again restarts the fast cycle.
 - A tap doesn't block the normal `click`, so routing stays with your app.
 - **Reduced motion** (`prefers-reduced-motion`): a still periwinkle fill, and taps don't animate.
+  - **App amendment, 09-27-26** (the export above is unchanged; this is what `components/icons/profile-glyph.tsx` does instead): the slow flow keeps playing and only the tap's rush is off. Ambit's rule since the landing's 09-26 amendment is that reduced motion is a gentler tempo, never a still, and the flow is a colour cross-fade with no spatial movement. Found because Ben's Mac has Reduce Motion on and the shipped port showed him a flat disc.
 
 The source explorations are in `Ambit - Glyph Options.dc.html` and `Ambit - Profile Glyph Test.dc.html` (6f) in the project root.

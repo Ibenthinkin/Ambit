@@ -262,10 +262,15 @@ fast-forwards through one cycle in 900 ms. The design source — a web component
 — is `docs/profile-glyph/`; the app's port is `components/icons/profile-glyph.tsx` (React SVG
 with SMIL stops, so it is in the server's markup and needs no shadow DOM under the CSP). Two
 departures from this section's premise: **it is a button glyph, not an avatar** — no per-reader
-hue, the same for everyone — so it replaces the chip in the **two toolbars only** (pill 29 px,
-rail 33 px) and the Profile hub and Edit profile keep `AvatarChip`'s gradient; and reduced
-motion is the token file's still periwinkle, not a slower tempo (the reel's rule is for a
-slideshow). `/dev/marks` and the three candidates are now dead code for Task 9's delete cut.
+hue, the same for everyone — so it replaces the chip in the **two toolbars only** (pill 36 px,
+rail 40 px since 09-27-26 — the spec's 29 drew 24 px tall beside the Logo's 30 px disc) and the Profile hub and Edit profile keep `AvatarChip`'s gradient; and reduced
+motion — **amended 09-27-26** — keeps the slow colour flow and drops only the tap's rush. The port
+first shipped the token file's still periwinkle, and on Ben's Mac (Reduce Motion on at the OS
+level, the same setting the reel met on 09-26) the glyph was a flat disc. The reel's rule holds
+here too: reduced motion is a gentler tempo, never a still. The ambient flow is a colour
+cross-fade with no pan, zoom or cut, so it is not what the setting removes; the 900 ms
+fast-forward is, and does not play. `/dev/marks` and the three candidates are now dead code for
+Task 9's delete cut.
 
 ### D8 — Hydration: what may and may not be in the server's markup
 

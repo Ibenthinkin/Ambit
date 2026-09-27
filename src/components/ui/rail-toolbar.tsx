@@ -120,8 +120,9 @@ export function RailToolbar({
             goProfile();
           }}
         >
-          {/* The pill's 29 scaled by the rail's ~1.12 (34 → 38 Logo, 28 → 32 chip before it). */}
-          <ProfileGlyph ref={glyph} size={33} />
+          {/* The pill's 36 scaled by the rail's ~1.12 (34 → 38 Logo): the mark draws 34 px
+              tall against the Logo's 34 px disc. */}
+          <ProfileGlyph ref={glyph} size={40} />
         </RailButton>
 
         <RailButton label="Feed" onClick={goHome}>

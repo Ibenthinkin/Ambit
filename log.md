@@ -5,6 +5,37 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion
+
+**Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
+had — under `reducedMotion: no-preference` Playwright sampled the four gradient stops cycling
+on the dev server — but Ben's Mac has Reduce Motion on at the OS level (`defaults read
+com.apple.universalaccess reduceMotion` → `1`, the same setting the reel met on 09-26), and the
+port followed the Claude Design export to the letter: `profile-glyph.tokens.json` says
+`reducedMotion: "Static periwinkle fill; tap has no motion."`, the README repeats it, and the
+web component does it. So the docs were right and complete; what was wrong was shipping the
+token file's rule over the app's. The landing settled on 09-26 that **reduced motion is a
+gentler tempo, never a still**, and 92b1d46's comment argued the glyph out of that rule ("a
+29 px glyph is not a slideshow"). The user with the setting on saw a flat disc.
+
+**Shipped (uncommitted on `main`):** under reduced motion the ambient flow keeps playing and
+only the tap's 900 ms rush is off — the flow is a colour cross-fade with no pan, zoom or cut,
+which is not what the setting removes; the fast-forward is. `still` alone turns the flow off.
+The test now asserts four looping `<animate>`s under the reduced query and no rush layer;
+verified live with `reducedMotion: "reduce"` emulated against `:3000`, colours cycling. D7 in
+`DESIGN_landing-redo.md` and `docs/profile-glyph/README.md` carry the amendment (the README's
+export text is untouched; the departure is a line under it).
+
+**Also:** the glyph is bigger — pill 36 / rail 40, from 29 / 33. The spec's 29 is the box, and
+the mark fills 20 of its 24 units, so it drew 24 px tall beside the Logo's 30 px disc; 36 draws
+it at 30. Ben: "make it bigger, to match the size of the other glyphs."
+
+**Open / next:** Ben's phone look (its Reduce Motion is on too, so the flow should now show
+there), commit, push, deploy. `/api/img` 429 in parallel e2e, Task 9's delete cut and
+`?tempo=`, the group names, the stale `use-overture.ts` comment — all still open from 09-26.
+
+*Session spend: 3.44M tok (in 906 · out 23.2k · cache r 3.19M / w 234.3k) · fable-5-1 · 12:17→12:20*
+
 ### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
 
 **Ben's second phone look (on `fix/landing-orientation`, `e4bffb5`):** "the images are sized

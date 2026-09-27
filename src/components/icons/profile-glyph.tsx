@@ -32,11 +32,16 @@ import { useMediaQuery } from "~/hooks/use-media-query";
 // cross-faded in over its first 10% and out over its last 15% by the Web Animations API — the
 // slow flow underneath never restarts, so the eye reads a fast-forward rather than a cut.
 //
-// **Reduced motion** is the spec's: a still periwinkle fill and no tap motion. (The landing reel
-// treats reduced motion as a slower tempo, `docs/DESIGN_landing-redo.md`'s 09-26 amendment; a
-// 29 px glyph is not a slideshow, so it follows the token file rather than the reel.) The query is
-// read through `useMediaQuery`, so the server renders the flowing version and a reader who asked
-// for less gets the still one at hydration, never a mismatch.
+// **Reduced motion** departs from the token file on purpose (09-27-26). The export says "static
+// periwinkle fill; tap has no motion", and the port shipped that way — and on Ben's Mac, which has
+// Reduce Motion on at the OS level, the glyph was a flat disc: the animation "didn't make it into
+// the dev version". The app's rule since the landing's 09-26 amendment
+// (`docs/DESIGN_landing-redo.md`) is that reduced motion is a gentler tempo, never a still. The
+// ambient flow is a colour cross-fade with no spatial movement — nothing pans, zooms or cuts, which
+// is what the setting exists to remove — so it keeps playing; the 900 ms rush is the one thing
+// that reads as motion, and that is what reduced motion drops. The query is read through
+// `useMediaQuery`, so the server and the first client render agree (both flow) and only the tap's
+// behaviour changes at hydration.
 
 /** From `docs/profile-glyph/profile-glyph.tokens.json` (variant 6f). Keep the two in step. */
 export const PROFILE_GLYPH_TOKENS = {
@@ -171,6 +176,7 @@ export const ProfileGlyph = React.forwardRef<
   // not share a gradient id, and a counter would also differ between server and client.
   const id = React.useId();
   const reduced = useMediaQuery(REDUCED_MOTION);
+  // Reduced motion silences the rush only; the ambient cross-fade is `still`'s to turn off.
   const frozen = still || reduced;
   const durationS = T.flow.durationMs / 1000 / (speed || 1);
 
@@ -231,7 +237,7 @@ export const ProfileGlyph = React.forwardRef<
     >
       <svg {...svgProps} style={{ display: "block", overflow: "visible" }}>
         <defs>
-          <FlowGradient id={id} durationS={durationS} still={frozen} />
+          <FlowGradient id={id} durationS={durationS} still={still} />
         </defs>
         <Shapes fill={`url(#${id})`} />
       </svg>

@@ -128,7 +128,7 @@ export function PillToolbar({
     });
   const goHome = onHome ?? (() => router.push("/feed"));
   // The Profile glyph's tap (09-26-26, `icons/profile-glyph.tsx`): the whole 48px target
-  // fast-forwards the glyph's colour flow, not just the 29px drawing, which is why the button
+  // fast-forwards the glyph's colour flow, not just the 36px drawing, which is why the button
   // calls it rather than the glyph listening for its own click.
   const glyph = React.useRef<ProfileGlyphHandle>(null);
 
@@ -168,8 +168,10 @@ export function PillToolbar({
             goProfile();
           }}
         >
-          {/* 29 in a 31 slot is the glyph's own spec (docs/profile-glyph/README.md). */}
-          <ProfileGlyph ref={glyph} size={29} />
+          {/* The spec's 29 px (docs/profile-glyph/README.md) read small beside the Logo: the
+              mark fills 20 of its 24-unit box, so 29 drew 24 px tall against the Logo's 30 px
+              disc. 36 draws it 30 px tall (Ben, 09-27-26). */}
+          <ProfileGlyph ref={glyph} size={36} />
         </PillButton>
 
         <PillButton label="Feed" onClick={goHome}>
