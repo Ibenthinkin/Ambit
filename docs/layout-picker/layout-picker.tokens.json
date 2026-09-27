@@ -1,0 +1,42 @@
+{
+  "ambit.layoutPicker": {
+    "layouts": [
+      { "cols": 4, "label": "4 columns", "feedMaxWidth": { "value": "1112px" } },
+      { "cols": 2, "label": "2 columns", "feedMaxWidth": { "value": "820px" } },
+      { "cols": 1, "label": "1 column", "feedMaxWidth": { "value": "560px" } }
+    ],
+    "feed": { "gap": { "value": "4px" }, "storageKey": "ambit.feedLayout.v1" },
+    "glyph": {
+      "viewBox": "0 0 24 24",
+      "size": { "value": "24px" },
+      "bar": { "y": 4, "height": 16, "rx": 1.2 },
+      "bars": {
+        "_note": "Always 4 rects [x, width]; overlapping rects read as one wider bar so the glyph can morph.",
+        "4": [[3, 2.4], [8.2, 2.4], [13.4, 2.4], [18.6, 2.4]],
+        "2": [[3, 7.6], [3, 7.6], [13.4, 7.6], [13.4, 7.6]],
+        "1": [[5.5, 13], [5.5, 13], [5.5, 13], [5.5, 13]]
+      },
+      "ink": { "value": "rgba(255,255,255,0.86)" },
+      "morph": { "duration": { "value": "320ms" }, "easing": { "value": "cubic-bezier(.3,1.3,.5,1)" }, "properties": ["x", "width"] }
+    },
+    "button": { "size": { "value": "36px" }, "radius": { "value": "10px" }, "activeBg": { "value": "rgba(255,255,255,0.14)" } },
+    "menu": {
+      "placement": "left of the pill, vertically centered on the button",
+      "width": { "value": "212px" },
+      "offset": { "value": "14px" },
+      "radius": { "value": "16px" },
+      "padding": { "value": "6px" },
+      "bg": { "value": "rgba(27,24,21,0.94)" },
+      "backdropBlur": { "value": "20px" },
+      "border": { "value": "0.5px solid rgba(239,235,224,0.12)" },
+      "shadow": { "value": "0 18px 44px rgba(0,0,0,0.5)" },
+      "enter": { "duration": { "value": "180ms" }, "easing": { "value": "ease" }, "distance": { "value": "6px" } },
+      "heading": { "text": "Layout", "size": "10px", "weight": 600, "tracking": "1.4px", "transform": "uppercase", "color": "rgba(239,235,224,0.38)" },
+      "row": { "padding": "11px 12px", "radius": "10px", "gap": "12px", "labelSize": "14px", "labelColor": "#EFEBE0", "iconSize": "22px" },
+      "selected": { "ink": "#A8AEFF", "bg": "rgba(168,174,255,0.1)", "check": "#A8AEFF" },
+      "unselectedInk": { "value": "rgba(239,235,224,0.7)" },
+      "hoverBg": { "value": "rgba(239,235,224,0.05)" }
+    },
+    "font": { "value": "'Sora', sans-serif" }
+  }
+}

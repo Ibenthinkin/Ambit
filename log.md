@@ -36,6 +36,40 @@ there), commit, push, deploy. `/api/img` 429 in parallel e2e, Task 9's delete cu
 
 *Session spend: 3.44M tok (in 906 · out 23.2k · cache r 3.19M / w 234.3k) · fable-5-1 · 12:17→12:20*
 
+**Afternoon (Fable) — the feed layout picker became spread mode on the item screen.** Ben
+arrived with a drawn control (`docs/layout-picker/`: a bars glyph that morphs 4 → 2 → 1, a
+"Layout" pick list, tokens) and the ask: 1 / 2 / 4 columns on a computer, 1 / 2 on a phone, the
+desktop 2-column a "magazine" of big pictures, the 1-column a plain infinite-scroll feed. Asked
+to think it through before building. The map of the feed said no, four times over: the tiles
+are `object-cover` crops into eight cycled fake ratios (`IMAGE_ASPECTS`, older than migration
+0009's real dimensions) — right for a 270 px thumbnail, a wrong picture at 560; a column change
+re-parents every tile and React remounts them; the server always packs page one at two columns,
+so a localStorage pick jumps on every load; and `useColumnCount` is shared with Saved and the
+square Collections grid. Ben's answer to the crop question ("real shape in 1 and 2 columns
+only") was already most of the way to the real answer, and when the magazine came up as
+row-aligned spreads he made the move himself: *"what if we forget the 1 column view and make
+the magazine view an option in the gallery view on desktop only? i feel like it makes more
+sense there anyway."* It does — the item screen already shows the picture whole, full-viewport,
+with the rail as its sequence and every key and exit built.
+
+**Decisions:** no feed picker at all; spread mode is desktop-only on `/i/[itemId]`, two rail
+pages per hero cell; **turn the page, step by two** (pairs stay stable); the **left page is
+focused** by default and a click on the other page focuses it — needed because with step-by-two
+the right page can never become the left one, so without a focus its picture could never be
+saved or shared; a **plain toggle, no menu** (two states); Ben's glyph is a **placeholder**, he
+is drawing another; the preference is per device in localStorage (`ambit.heroLayout.v1`), no
+column, no cookie — both stores correct during hydration as the desktop rail already does.
+Design `docs/DESIGN_spread-mode.md` (D1–D5), plan `docs/PLAN_spread-mode.md` (9 tasks, TDD,
+execute cold in a cheaper session on `feat/spread-mode`). One correction from the afternoon
+worth keeping: the CSP's `style-src` allows `'unsafe-inline'`, so a prototype's shadow styles
+are *not* blocked here — I said they were before checking. The Firefox point does stand: it
+doesn't animate SVG `x`/`width`, so the glyph morph is instant in Ben's own browser.
+
+**Open / next:** execute the plan; Ben's replacement glyph (a one-file swap by design); then the
+09-26 list above.
+
+*Session spend: 8.07M tok (in 1.3k · out 143.0k · cache r 7.49M / w 438.5k) · fable-5-1 · 13:56→15:44*
+
 ### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
 
 **Ben's second phone look (on `fix/landing-orientation`, `e4bffb5`):** "the images are sized
