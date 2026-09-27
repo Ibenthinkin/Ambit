@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { cn } from "~/lib/utils";
 import type { RailItem } from "~/server/services/gallery-rail";
 import type { HeroCells, HeroPage } from "./rail-cells";
 
@@ -109,10 +110,15 @@ export function HeroRail({
               className="flex"
               style={{ flex: `0 0 ${CELL}`, height: "100%" }}
             >
-              {c?.map((page) => (
+              {c?.map((page, side) => (
                 <Page
                   key={pageKey(page)}
                   page={page}
+                  // In a spread each page knows which side of the spine it is on, and leans its
+                  // picture towards it. A lone last page is a left page too.
+                  side={
+                    pages === 2 ? (side === 0 ? "left" : "right") : undefined
+                  }
                   endCell={endCell}
                   // Every page of the cell under the reader — both halves of a spread.
                   priority={i === 1}
@@ -161,35 +167,56 @@ export function HeroRail({
 const pageKey = (p: HeroPage) => (p === "end" ? "end" : p.id);
 
 /**
- * One page of a cell: the 12px inset, centred both ways, around a picture or the end card. In
- * single mode a cell is one page, so this box *is* the old cell; in a spread two of them share the
- * cell half and half (`flex-1 min-w-0` — `min-w-0` lets a wide picture shrink below its natural
- * width instead of pushing its neighbour off the screen), and their insets add up to a 24px
- * gutter.
+ * One page of a cell: the 12px inset around a picture or the end card. In single mode a cell is
+ * one page, so this box *is* the old cell, the picture centred in it. In a spread two of them
+ * share the cell half and half (`flex-1 min-w-0` — `min-w-0` lets a wide picture shrink below its
+ * natural width instead of pushing its neighbour off the screen).
+ *
+ * **A spread's pictures meet at the spine** (Ben's first look, 09-27-26: "narrow the gap between
+ * the images in the middle, fill as much space as possible"). Centred in their halves, two
+ * portrait plates sat with a wide dark band between them — each picture is height-limited, so its
+ * half had slack on both sides. Now each page keeps the 12px inset on its outer edge but only
+ * {@link SPINE_PX} on the spine side, and pushes its picture against that side with
+ * `object-position`, so all the slack goes to the outer margins and the two pictures read as one
+ * open magazine. A picture wide enough to be width-limited fills its half either way.
  */
+const SPINE_PX = 3;
+
 function Page({
   page,
   endCell,
   priority,
+  side,
 }: {
   page: HeroPage;
   endCell: React.ReactNode;
   priority: boolean;
+  /** Which side of a spread's spine the page is on; absent in single mode. */
+  side?: "left" | "right";
 }) {
   return (
     <div
       // The notch adds to the top inset on the phone rather than replacing it, so the picture never
       // sits under the status bar.
-      className="flex min-w-0 flex-1 items-center justify-center p-[12px]"
+      className={cn(
+        "flex min-w-0 flex-1 items-center py-[12px]",
+        side === "left"
+          ? "justify-end pl-[12px]"
+          : side === "right"
+            ? "justify-start pr-[12px]"
+            : "justify-center px-[12px]",
+      )}
       style={{
         height: "100%",
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)",
+        ...(side === "left" && { paddingRight: SPINE_PX }),
+        ...(side === "right" && { paddingLeft: SPINE_PX }),
       }}
     >
       {page === "end" ? (
         <div className="w-full max-w-[360px]">{endCell}</div>
       ) : (
-        <RailImage item={page} priority={priority} />
+        <RailImage item={page} priority={priority} side={side} />
       )}
     </div>
   );
@@ -199,10 +226,13 @@ function Page({
 function RailImage({
   item,
   priority,
+  side,
 }: {
   item: RailItem;
   /** The cell under the reader: fetched ahead of everything else, like the old hero. */
   priority: boolean;
+  /** In a spread, the side of the spine — the picture is pushed against it. */
+  side?: "left" | "right";
 }) {
   // Through the proxy, except for the inline `data:` pixels the e2e corpus seeds — same branch as
   // the feed's tiles. See `src/app/api/img/[itemId]/route.ts` for why the proxy exists at all.
@@ -220,7 +250,13 @@ function RailImage({
       // The whole inset box, with the picture letterboxed inside it: as big as it can be in
       // either direction, never cropped, centred by `object-fit` itself. **No radius** —
       // decision 2 of docs/DESIGN_screen-structure.md.
-      className="pointer-events-none block h-full w-full object-contain"
+      // In a spread, `object-right` / `object-left` push the letterboxed picture against the spine
+      // rather than centring it in its half — see `Page`.
+      className={cn(
+        "pointer-events-none block h-full w-full object-contain",
+        side === "left" && "object-right",
+        side === "right" && "object-left",
+      )}
     />
   );
 }

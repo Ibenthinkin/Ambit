@@ -93,6 +93,13 @@ share — it is never the left page. So there is a focus.
   justify-center`, with the **12 px inset moved from the cell to the page** (safe-area top
   inset included), so two pictures meet across a 24 px gutter and nothing else is on screen. A
   single-page cell is exactly today's cell.
+- **Amended 09-27-26 after Ben's first look** ("narrow the gap between the images in the middle,
+  try and have them fill as much space as possible"): the pictures **meet at the spine**. Each
+  page keeps the 12 px inset on its outer edge but only 3 px on the spine side (a 6 px gutter),
+  and pushes its letterboxed picture against the spine with `object-position` (`object-right` on
+  the left page, `object-left` on the right). Centred in their halves, two height-limited
+  pictures had sat with a wide dark band between them; now all the slack goes to the outer
+  margins. A lone last page is a left page and leans the same way.
 - Both pages of the current cell load with `fetchPriority="high"`; the neighbours' pages `auto`.
 - The caption row in spread mode is `grid grid-cols-2 gap-6`, one caption (title `<h2>` +
   attribution) under each page, the unfocused one at `opacity-55`. The `<h2>` rule stays: the

@@ -92,7 +92,13 @@ describe("HeroRail", () => {
     render(<Harness cells={[undefined, cell("b"), undefined]} />);
     const img = screen.getByAltText("Plate b");
     const page = img.parentElement!;
-    expect(page).toHaveClass("p-[12px]", "items-center", "justify-center");
+    expect(page).toHaveClass(
+      "px-[12px]",
+      "py-[12px]",
+      "items-center",
+      "justify-center",
+    );
+    expect(img).not.toHaveClass("object-left", "object-right");
     expect(img).toHaveClass("object-contain", "h-full", "w-full");
     expect(img).not.toHaveClass("object-top");
   });
@@ -113,9 +119,10 @@ describe("HeroRail", () => {
     expect(chrome).toHaveTextContent("caption");
   });
 
-  // docs/DESIGN_spread-mode.md D3: two pictures meet across a 24px gutter — each page carries
-  // the 12px inset the cell used to, so a spread is two of today's cells side by side.
-  it("a spread cell renders two pages, each inset 12px and half the width", () => {
+  // docs/DESIGN_spread-mode.md D3, as refined after Ben's first look (09-27-26): the two pictures
+  // meet at the spine — a thin gutter, each picture pushed against it — and the 12px inset stays on
+  // the outer edges.
+  it("a spread cell renders two pages that lean against the spine", () => {
     render(
       <Harness
         pages={2}
@@ -129,10 +136,24 @@ describe("HeroRail", () => {
     expect(
       screen.getByTestId("gallery-track").querySelectorAll("img"),
     ).toHaveLength(6);
-    for (const id of ["c", "d"]) {
-      const page = screen.getByAltText(`Plate ${id}`).parentElement!;
-      expect(page).toHaveClass("p-[12px]", "flex-1", "min-w-0");
-    }
+    const left = screen.getByAltText("Plate c");
+    const right = screen.getByAltText("Plate d");
+    expect(left.parentElement).toHaveClass(
+      "flex-1",
+      "min-w-0",
+      "pl-[12px]",
+      "justify-end",
+    );
+    expect(right.parentElement).toHaveClass(
+      "flex-1",
+      "min-w-0",
+      "pr-[12px]",
+      "justify-start",
+    );
+    expect(left.parentElement!.style.paddingRight).toBe("3px");
+    expect(right.parentElement!.style.paddingLeft).toBe("3px");
+    expect(left).toHaveClass("object-contain", "object-right");
+    expect(right).toHaveClass("object-contain", "object-left");
     // Both pages of the spread under the reader are fetched first.
     expect(screen.getByAltText("Plate c")).toHaveAttribute(
       "fetchpriority",
