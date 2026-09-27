@@ -11,7 +11,9 @@ import * as React from "react";
 // apart from one another and from the accidents (a resting thumb, a scroll, an iOS system swipe).
 // Four outcomes, distinguished by which axis won, which way it went, how far, and how fast:
 //
-//   - **tap** — no travel at all. Toggles the chrome.
+//   - **tap** — no travel at all. Toggles the chrome — or, on a desktop spread, focuses the page
+//     that was clicked, which is why the tap reports where it landed
+//     (docs/DESIGN_spread-mode.md D2).
 //   - **advance** — a horizontal drag past 15% of the screen, or a quick short flick. The rail
 //     moves one cell.
 //   - **exit** — a quick **downward** flick that began with the page scrolled to the top, or any
@@ -82,8 +84,11 @@ const EXIT_FAST_PX = 80;
 const EXIT_FAST_MS = 320;
 
 export interface UseRailGesturesOptions {
-  /** A press that never moved. */
-  onTap: () => void;
+  /**
+   * A press that never moved. `clientX` is where it was released, so a screen showing two pages
+   * side by side can tell which one was pressed.
+   */
+  onTap: (tap: { clientX: number }) => void;
   /** A committed horizontal drag. `1` moves the rail forward (finger travelled left). */
   onAdvance: (dir: 1 | -1) => void;
   /** A quick downward flick from the top of the page, or any two-finger movement. */
@@ -216,7 +221,7 @@ export function useRailGestures({
       }
 
       if (!hadMoved) {
-        cb.onTap();
+        cb.onTap({ clientX: e.clientX });
         return;
       }
 

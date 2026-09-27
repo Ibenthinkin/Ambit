@@ -11,7 +11,7 @@ const item = (id: string): RailItem => ({
   summary: null,
   body: null,
   source: "met",
-  sourceUrl: null,
+  sourceUrl: `https://example.test/o/${id}`,
   license: null,
   topicId: null,
   topicLabel: null,
