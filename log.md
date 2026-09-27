@@ -70,6 +70,45 @@ doesn't animate SVG `x`/`width`, so the glyph morph is instant in Ben's own brow
 
 *Session spend: 8.07M tok (in 1.3k · out 143.0k · cache r 7.49M / w 438.5k) · fable-5-1 · 13:56→15:44*
 
+**Door of Perception: one item per picture** (branch `feat/dop-fanout`, `docs/PLAN_dop-fanout.md`).
+Ben: "how come the DOP pictures seem to almost never come up". Measured: 387 DoP rows in a
+~190k-item corpus (0.2%), 3 of 219 sampled cards (1.4%). Nothing was missing from the walk; all
+391 posts were stored. The cause was 6.3's **D1**, "one item per post, the featured image",
+against a media library of **11,777 files, ~28 per post**. Ben reversed D1: every picture, full
+resolution.
+
+**Shipped (local):** `walk()` expands each post into its featured image (still `sourceId` = slug,
+so the 387 rows are the same rows) plus every picture the post *shows*. Those are read off
+`content.rendered`'s `<img src>`, matched by exact file name to the post's own attachments
+(`/wp/v2/media?parent=`), stored as the original upload with the published `large` rendition as
+`curationImageUrl`, and keyed `<slug>:<attachment id>`. The overnight run turned into an
+evening: **10,222 DoP rows @ 8.74, 97% ≥ 8** (the best source in the corpus), 9,835 new, 10
+un-homed, 0 floored, 2 curator empties. Walk + curation took 41 min. The warm filled all 10,222
+images with 0 failures in 3 h 7 min at 1/s. **Feed: 17 of 219 sampled cards (1 in 13), up from 3.**
+
+**Decisions:** the pictures a post *shows*, not every attachment (one post has 74 attachments
+for 63 shown pictures; the rest are alternates, header crops and the featured crop); skip
+anything under 300 px on its short edge (a 1072×118 "moon to scale" banner); skip, and count, a
+shown image attached to another post (~71 across the blog). The rights posture widens past "a
+single image" and is recorded in Ambit-Admin's log (09-27-26). `wp-rest.test.ts`'s parity
+check now compares the factory with DoP's *featured card*, over the pre-fan-out posts
+(`wp-rest-dop-posts.json`).
+
+**Findings:** a worktree's `.cache` is its own. `img:warm` and the curator write relative to
+the cwd, so everything run from `~/Dev/ambit-dop` landed in `ambit-dop/.cache/{img,curation}`
+and was rsynced into the main checkout afterwards. `img:warm` records `image_width/height` as it
+fills, so an `img:dims` run after it finds nothing left to do; that is not a failure. And **the
+local image cache cannot seed production**: files are named by item id, and production assigns
+its own ids.
+
+**Open / next:** merge `feat/dop-fanout` and push (being done from the other session). Then
+`sh .cache/dop-prod.sh push` **before** the deploy (curation envelopes to the volume; skipping
+it re-bills ~$2.65), deploy, then `sh .cache/dop-prod.sh walk` (DoP walk + warm on the VM,
+~15-20 GB from DoP's nginx, ~2 GB on the volume). Watch for three pictures from one post on a
+page; a per-post cap is the follow-up if it reads as repetitive.
+
+*Session spend: 30.81M tok (in 605 · out 208.1k · cache r 28.58M / w 2.02M) · ~≥$10.39 · opus-5-5 + opus-4-7 · 13:59→19:59*
+
 ### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
 
 **Ben's second phone look (on `fix/landing-orientation`, `e4bffb5`):** "the images are sized
