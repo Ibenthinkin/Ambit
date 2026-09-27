@@ -135,6 +135,12 @@ share — it is never the left page. So there is a focus.
   and no cookie is needed. The second page's image is not server-preloaded (the server can't
   know the mode); it loads with high priority on mount, as a neighbour does today.
 - Strangers get it too: a localStorage pick needs no account.
+- **Amended 09-27-26 evening — Ben's glyph landed** (`docs/viewTOggleTOkens/view-toggle/`).
+  `LayoutGlyph` is gone; `components/icons/view-glyph.tsx` draws two filled paths that morph
+  (CSS `d`, 420 ms) from one page into an open magazine. The label is "Magazine view", the
+  pressed state sits on a 14 % white tile, and `M` flips the mode (the design's hotkey, desktop
+  only, in `ItemScreen`'s keydown). The web component in that folder is the prototype, not
+  ported — the rail's `RailButton` stays the button.
 
 ## D5. Testing
 

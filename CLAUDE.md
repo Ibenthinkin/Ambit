@@ -300,8 +300,9 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   until a click focuses the right one** (`useRailGestures`' tap now reports `clientX`); URL, Save,
   Share, caption and facts all follow `current`, and turning the spread off lands on the focused
   page — done during render, not in an effect, so no frame shows the wrong picture. The choice is
-  per device in localStorage (`lib/hero-layout.ts`, `ambit.heroLayout.v1`). The bars glyph
-  (`icons/layout-glyph.tsx`) is **Ben's placeholder**; his replacement is a one-file swap. One
+  per device in localStorage (`lib/hero-layout.ts`, `ambit.heroLayout.v1`). The toggle is Ben's
+  **view toggle** (`docs/viewTOggleTOkens/`, 09-27-26): `icons/view-glyph.tsx` morphs one page
+  into an open magazine, labelled "Magazine view", and `M` flips it. One
   e2e trap it met: the item screen throttles its mouse-move summon to one per 250 ms, so a
   Playwright summon straight after another mouse action is swallowed — `desktop.spec.ts`'s
   spread test retries it with `toPass`.

@@ -372,7 +372,7 @@ test.describe.serial("desktop", () => {
       .locator("img");
     const alts = () =>
       current.evaluateAll((els) => els.map((e) => e.getAttribute("alt")));
-    const toggle = page.getByRole("button", { name: "Two pictures at a time" });
+    const toggle = page.getByRole("button", { name: "Magazine view" });
     // The item screen throttles its mouse-move summon to one per 250 ms, and Playwright moves
     // faster than any hand — a summon right after another mouse action can be swallowed whole. So
     // keep nudging the mouse until the rail answers.

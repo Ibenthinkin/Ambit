@@ -26,7 +26,11 @@ import { useChromeCycle } from "~/hooks/use-chrome-cycle";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
 import { DESKTOP_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { useRailGestures } from "~/hooks/use-rail-gestures";
-import { useHeroLayout, writeHeroLayout } from "~/lib/hero-layout";
+import {
+  readHeroLayout,
+  useHeroLayout,
+  writeHeroLayout,
+} from "~/lib/hero-layout";
 import { imageFileName } from "~/lib/image-filename";
 import { saveToastText } from "~/lib/save-toast";
 import { sourceLabel } from "~/lib/source-label";
@@ -353,10 +357,14 @@ export function ItemScreen({
       if (e.key === "ArrowRight") advance(1);
       else if (e.key === "ArrowLeft") advance(-1);
       else if (e.key === "Escape") leave();
+      // `M` for magazine, the view toggle's hotkey in Ben's design — desktop only, like the
+      // toggle itself. Nothing on this screen takes text, so no typing guard is needed.
+      else if (desktop && e.key.toLowerCase() === "m")
+        writeHeroLayout(readHeroLayout() === "spread" ? "single" : "spread");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sheetOpen, advance, leave]);
+  }, [sheetOpen, advance, leave, desktop]);
 
   // ── gestures ──────────────────────────────────────────────────────────────────────────────────
   const { ref, dragPx, dragging } = useRailGestures({

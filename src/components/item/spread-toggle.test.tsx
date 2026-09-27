@@ -11,7 +11,7 @@ describe("SpreadToggle", () => {
       <SpreadToggle spread={false} onToggle={onToggle} />,
     );
     const button = screen.getByRole("button", {
-      name: "Two pictures at a time",
+      name: "Magazine view",
     });
     expect(button).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(button);

@@ -526,7 +526,7 @@ describe("spread mode", () => {
     act(
       () => void track().dispatchEvent(pointer("pointermove", 10, 10, "mouse")),
     );
-    return screen.getByRole("button", { name: "Two pictures at a time" });
+    return screen.getByRole("button", { name: "Magazine view" });
   };
   /** Summon first, click after: summoning inside the click's `act` would batch the summon's
    *  render behind the query and the rail would still be hidden when it is looked for. */
@@ -557,6 +557,15 @@ describe("spread mode", () => {
     expect(currentPages()).toEqual(["Plate entry", "Plate r0"]);
     expect(toggle()).toHaveAttribute("aria-pressed", "true");
     expect(localStorage.getItem(HERO_LAYOUT_KEY)).toBe("spread");
+  });
+
+  it("M flips the spread, both ways", () => {
+    renderScreen();
+    key("m");
+    expect(currentPages()).toEqual(["Plate entry", "Plate r0"]);
+    expect(localStorage.getItem(HERO_LAYOUT_KEY)).toBe("spread");
+    key("M");
+    expect(currentPages()).toEqual(["Plate entry"]);
   });
 
   it("opens in a spread when the device remembers one", () => {
@@ -650,9 +659,7 @@ describe("spread mode", () => {
     stubMatchMedia([]);
     spreadOn();
     renderScreen();
-    expect(
-      screen.queryByRole("button", { name: "Two pictures at a time" }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Magazine view" })).toBeNull();
     expect(currentPages()).toEqual(["Plate entry"]);
   });
 
