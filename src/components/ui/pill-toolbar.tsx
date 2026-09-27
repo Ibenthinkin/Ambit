@@ -66,7 +66,10 @@ export interface PillToolbarProps {
   onProfile?: () => void;
   /** Defaults to navigating to `/feed`. In the gallery this returns to the anchored feed (5.8). */
   onHome?: () => void;
-  /** A page-specific action, rendered in the pill's own row rather than a second bar. */
+  /**
+   * A page-specific action, rendered in the bar's own row rather than a second bar — in the
+   * desktop rail, between Feed and Save (docs/DESIGN_spread-mode.md D4).
+   */
   extra?: React.ReactNode;
   className?: string;
   /**
