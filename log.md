@@ -95,10 +95,14 @@ Save), the screen wiring, one desktop e2e test, and the doc amendments. Unit 1,5
   behind the sheet can hold a "Sign in" message tile; and the explore item test opened the first
   tile, sometimes an article. The CI-shaped suite had failed three rotating tests per run.
 
-**Open / next:** Ben looks at 1440 (dev server on `:3000` was restarted on this branch), then merge
-and push; his replacement glyph; the 09-26 list.
+**Ben's first look:** "good start" — to be refined in a later session, so the branch stays unmerged
+for now.
+
+**Open / next:** refine spread mode with Ben (his notes from the look at 1440 first), then merge and
+push; his replacement glyph (`icons/layout-glyph.tsx`, a one-file swap); the 09-26 list.
 
 *Session spend: 43.50M tok (in 740 · out 179.6k · cache r 41.90M / w 1.42M) · ~≥$5.96 · opus-5-5 + opus-4-7 + fable-5-1 · 15:44→16:12*
+*Session spend: 2.88M tok (in 21 · out 11.1k · cache r 2.81M / w 61.8k) · ~≥$0.39 · opus-5-5 + opus-4-7 · 16:12→16:13*
 
 ### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
 
