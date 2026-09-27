@@ -4,8 +4,11 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { Bookmark, Logo, Share } from "~/components/icons";
+import {
+  ProfileGlyph,
+  type ProfileGlyphHandle,
+} from "~/components/icons/profile-glyph";
 import { markProfileOrigin } from "~/components/profile/profile-origin";
-import { AvatarChip } from "~/components/ui/avatar-chip";
 import {
   TOOLBAR_GLASS,
   type PillToolbarProps,
@@ -81,6 +84,8 @@ export function RailToolbar({
       router.push("/profile");
     });
   const goHome = onHome ?? (() => router.push("/feed"));
+  // Same as the pill: the 52px button, not the glyph, plays the tap (`icons/profile-glyph.tsx`).
+  const glyph = React.useRef<ProfileGlyphHandle>(null);
 
   const fade: React.CSSProperties = {
     opacity: visible ? 1 : 0,
@@ -108,8 +113,15 @@ export function RailToolbar({
           "flex flex-col items-center gap-[16px] rounded-full px-2 py-[14px]",
         )}
       >
-        <RailButton label="Profile" onClick={goProfile}>
-          <AvatarChip size={32} />
+        <RailButton
+          label="Profile"
+          onClick={() => {
+            glyph.current?.rush();
+            goProfile();
+          }}
+        >
+          {/* The pill's 29 scaled by the rail's ~1.12 (34 → 38 Logo, 28 → 32 chip before it). */}
+          <ProfileGlyph ref={glyph} size={33} />
         </RailButton>
 
         <RailButton label="Feed" onClick={goHome}>

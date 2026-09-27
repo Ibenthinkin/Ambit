@@ -4,8 +4,11 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { Bookmark, Logo, Share } from "~/components/icons";
+import {
+  ProfileGlyph,
+  type ProfileGlyphHandle,
+} from "~/components/icons/profile-glyph";
 import { markProfileOrigin } from "~/components/profile/profile-origin";
-import { AvatarChip } from "~/components/ui/avatar-chip";
 import { cn } from "~/lib/utils";
 
 // The floating pill — one of the design's two backbone components, on nearly every screen from 5.6
@@ -124,6 +127,10 @@ export function PillToolbar({
       router.push("/profile");
     });
   const goHome = onHome ?? (() => router.push("/feed"));
+  // The Profile glyph's tap (09-26-26, `icons/profile-glyph.tsx`): the whole 48px target
+  // fast-forwards the glyph's colour flow, not just the 29px drawing, which is why the button
+  // calls it rather than the glyph listening for its own click.
+  const glyph = React.useRef<ProfileGlyphHandle>(null);
 
   return (
     <div
@@ -154,8 +161,15 @@ export function PillToolbar({
           "pointer-events-auto col-start-2 flex items-center gap-[28px] rounded-full px-[22px] py-[10px]",
         )}
       >
-        <PillButton label="Profile" onClick={goProfile}>
-          <AvatarChip size={28} />
+        <PillButton
+          label="Profile"
+          onClick={() => {
+            glyph.current?.rush();
+            goProfile();
+          }}
+        >
+          {/* 29 in a 31 slot is the glyph's own spec (docs/profile-glyph/README.md). */}
+          <ProfileGlyph ref={glyph} size={29} />
         </PillButton>
 
         <PillButton label="Feed" onClick={goHome}>

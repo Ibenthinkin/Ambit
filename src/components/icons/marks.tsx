@@ -5,8 +5,9 @@
 // hue from `lib/avatar-hue.ts`, legible at 28 px in the pill and at 104 px on Edit profile, and
 // on a picture as well as on the app's ground (the rail toolbar sits over the feed).
 //
-// Ben picks on `/dev/marks`; the plan's Task 9 points `AvatarChip` at the winner and deletes the
-// other two. Until then production keeps the current chip — nothing here is wired into the app.
+// **Ben rejected all three (09-26-26) and drew his own in Claude Design instead** —
+// `icons/profile-glyph.tsx`, on the two toolbars. These stay only until the plan's Task 9 delete
+// cut removes them with `/dev/marks`; nothing here is wired into the app.
 //
 // All three share the Logo's 26 × 26 grid and 11.5 radius, so a mark sits in the toolbar exactly
 // where the chip did.

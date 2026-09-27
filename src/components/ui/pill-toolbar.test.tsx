@@ -34,6 +34,18 @@ describe("PillToolbar", () => {
     }
   });
 
+  // 09-26-26: the profile control is Ben's glyph (icons/profile-glyph.tsx), and a tap on the
+  // button — not only on the drawing — plays its fast-forward layer before navigating.
+  it("draws the profile glyph and rushes it on tap", () => {
+    renderPill();
+    const button = screen.getByRole("button", { name: "Profile" });
+    expect(button.querySelector("[data-glyph='profile']")).not.toBeNull();
+    expect(button.querySelector("svg[data-rush]")).toBeNull();
+    fireEvent.click(button);
+    expect(button.querySelector("svg[data-rush]")).not.toBeNull();
+    expect(push).toHaveBeenCalledWith("/profile");
+  });
+
   it("fires onBookmark and onShare", () => {
     const onBookmark = vi.fn();
     const onShare = vi.fn();

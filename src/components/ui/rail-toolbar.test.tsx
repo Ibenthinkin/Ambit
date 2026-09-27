@@ -36,6 +36,14 @@ describe("RailToolbar", () => {
     expect(disc).toHaveClass("rounded-full");
   });
 
+  it("draws the profile glyph in the bar and rushes it on click, like the pill", () => {
+    render(<RailToolbar onBookmark={vi.fn()} />);
+    const button = screen.getByRole("button", { name: "Profile" });
+    expect(button.querySelector("[data-glyph='profile']")).not.toBeNull();
+    fireEvent.click(button);
+    expect(button.querySelector("svg[data-rush]")).not.toBeNull();
+  });
+
   it("omits Share without a handler, like the pill", () => {
     render(<RailToolbar onBookmark={vi.fn()} />);
     expect(

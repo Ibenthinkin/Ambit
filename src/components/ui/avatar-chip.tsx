@@ -4,8 +4,10 @@ import { cn } from "~/lib/utils";
 
 // The user's stand-in avatar: a gradient disc with a hairline white ring. There is no avatar
 // upload anywhere in the product (deliberately — the design has no file picker for one, and 5.10's
-// Profile is explicitly "no avatar upload"), so this gradient *is* the avatar, everywhere it
-// appears: the pill toolbar's profile button and the Profile screen's header.
+// Profile is explicitly "no avatar upload"), so this gradient *is* the avatar where the reader's
+// own identity is shown: the Profile hub's header and Edit profile. **Not the toolbars since
+// 09-26-26** — their profile button is `icons/profile-glyph.tsx`, Ben's own head-and-shoulders
+// glyph, which is a button glyph and the same for everyone rather than an avatar.
 //
 // The gradient lives in globals.css as `.bg-avatar-gradient` rather than inline here because it
 // needed registering with tailwind-merge's `bg-image` group — a custom `bg-*` utility is otherwise

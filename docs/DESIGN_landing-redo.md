@@ -255,6 +255,18 @@ picks; the last task points `AvatarChip` at the winner, deletes the other two an
 `.bg-avatar-gradient` class if nothing else uses it. **Until he picks, production ships the
 current chip** — the mark is not on the critical path of the reel.
 
+**Resolved 09-26-26, outside the three.** Ben rejected all three candidates and drew the mark
+himself in Claude Design: a rounded head-and-shoulders filled with a slow four-colour radial flow
+(periwinkle → terracotta → sage → butter, outward from the chest, a 10 s loop) that a tap
+fast-forwards through one cycle in 900 ms. The design source — a web component and a token file
+— is `docs/profile-glyph/`; the app's port is `components/icons/profile-glyph.tsx` (React SVG
+with SMIL stops, so it is in the server's markup and needs no shadow DOM under the CSP). Two
+departures from this section's premise: **it is a button glyph, not an avatar** — no per-reader
+hue, the same for everyone — so it replaces the chip in the **two toolbars only** (pill 29 px,
+rail 33 px) and the Profile hub and Edit profile keep `AvatarChip`'s gradient; and reduced
+motion is the token file's still periwinkle, not a slower tempo (the reel's rule is for a
+slideshow). `/dev/marks` and the three candidates are now dead code for Task 9's delete cut.
+
 ### D8 — Hydration: what may and may not be in the server's markup
 
 May: the reel (server-picked, D2), the overture's markup, the tempo (server-resolved from the

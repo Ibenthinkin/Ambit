@@ -331,6 +331,46 @@ monitor: it hits `/`, which now composes a feed page for nobody rather than pick
 
 *Session spend: 19.66M tok (in 2.0k · out 102.9k · cache r 18.97M / w 582.3k) · ~≥$5.09 · fable-5-1 + opus-4-7 · 17:11→18:28*
 
+---
+
+**Evening — the profile mark is Ben's own glyph.** After rejecting all three D7 candidates Ben
+drew the mark in Claude Design and dropped the export into `docs/profile-glyph/` (a
+dependency-free web component + a token JSON, variant "6f"): a rounded head-and-shoulders whose
+fill is a slow four-colour radial flow outward from the chest (periwinkle → terracotta → sage →
+butter, 10 s loop), and a tap fast-forwards one full cycle in 900 ms cross-faded over the slow
+flow, which never restarts.
+
+**Shipped (uncommitted on `main`):** `components/icons/profile-glyph.tsx`, a React port rather
+than the web component itself — three reasons, all in the file header: the custom element builds
+its SVG in `connectedCallback` so the server would send an empty tag; its shadow `<style>` is the
+one thing that would lean on `style-src 'unsafe-inline'`; and `docs/` is not in the container
+image, so nothing in `src` may import from it (the token values are copied in, with the source
+file named). The ambient flow is SMIL `<animate>` on the gradient stops — in the server's markup,
+no JS. The tap is an imperative `rush()` the toolbar *button* calls, so the whole 48/52 px target
+plays it rather than the 29 px drawing. It replaces `AvatarChip` in `PillToolbar` (29, the spec's
+own size in the 31 slot) and `RailToolbar` (33, the rail's ~1.12×); the hub and Edit profile
+keep the gradient chip — this is a button glyph, the same for everyone, not an avatar.
+
+**Decisions:** reduced motion follows the token file (still periwinkle, no tap motion), not the
+reel's "a tempo, not a still" rule — a 29 px glyph is not a slideshow. D7 in
+`DESIGN_landing-redo.md` carries the amendment; `marks.tsx` and `/dev/marks` are dead code for
+Task 9's delete cut.
+
+**Verified:** `bun run check` green (1,495 unit; six new tests — stop lag, speed, still, rush
+mount/restart/leave, reduced motion, unique ids — plus one per toolbar). Live on the dev server
+in Playwright: the four stops read four different colours mid-cycle, a tap mounts the rush layer
+at opacity 1 by 120 ms and it is gone by 1.1 s, no console warnings at 402 or 1440. The
+Playwright browser inherits the Mac's Reduce Motion, so the animated path needed
+`emulateMedia({ reducedMotion: "no-preference" })` — worth knowing before reading a still glyph
+as a bug (the same trap as this morning's phone).
+
+**Open / next:** Ben looks at it on the phone (Reduce Motion off, or he'll see the still);
+commit; the deploy that is already queued. The 6d "flash" tap variant in the export was not
+ported — `tap="rush"` is the chosen one.
+
+*Session spend: 10.39M tok (in 2.5k · out 120.3k · cache r 9.87M / w 390.0k) · fable-5-1 · 19:10→19:17*
+*Session spend: 1.87M tok (in 384 · out 10.9k · cache r 1.83M / w 28.0k) · fable-5-1 · 19:17→19:18*
+
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
 **Decisions (Ben):** the 8.3 landing redo's open questions from 09-22, answered in order:
