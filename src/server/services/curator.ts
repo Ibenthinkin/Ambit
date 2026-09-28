@@ -18,6 +18,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { TOPICS, WALK_SOURCES } from "~/server/config/topics";
+import { writingText } from "~/server/config/writing";
 import { imageFetchHeaders } from "./image-auth";
 import { USER_AGENT } from "./sources/http";
 import type { NormalizedItem } from "./sources/types";
@@ -249,6 +250,44 @@ export function structuralFloor(items: NormalizedItem[]): {
     else dropped.push({ item, rule });
   }
 
+  return { kept, dropped };
+}
+
+/** The writing floor's one rule (docs/PLAN_writing.md Phase 1). */
+export type WritingDropRule = "thin-text";
+
+/** Below this many characters of prose there is nothing to read — a stub, a disambiguation line,
+ *  a clipping fragment. Decided 09-28-26 with no exemption: a haiku won't clear it, and that is
+ *  accepted. */
+export const WRITING_MIN_CHARS = 400;
+
+/** What the writing curator reads: the body when Ambit holds one, else the summary. */
+function writingSource(item: NormalizedItem): string {
+  return item.body?.trim() ? item.body : item.summary;
+}
+
+/**
+ * The writing floor — free, pure, per item, and articles only. `thin-text`: fewer than
+ * WRITING_MIN_CHARS characters of prose once the apparatus is stripped (`writingText`), read off
+ * the body when there is one. It sits after structuralFloor and before the curator, so nothing it
+ * drops is billed, and it runs on whatever text ingest holds at that point: once Phase 2 fetches
+ * Wikipedia bodies at ingest, that fetch goes in front of this, which is how an article whose
+ * summary is one line but whose body is long survives it.
+ */
+export function writingFloor(items: NormalizedItem[]): {
+  kept: NormalizedItem[];
+  dropped: { item: NormalizedItem; rule: WritingDropRule }[];
+} {
+  const kept: NormalizedItem[] = [];
+  const dropped: { item: NormalizedItem; rule: WritingDropRule }[] = [];
+  for (const item of items) {
+    if (
+      item.type === "article" &&
+      writingText(writingSource(item)).length < WRITING_MIN_CHARS
+    )
+      dropped.push({ item, rule: "thin-text" });
+    else kept.push(item);
+  }
   return { kept, dropped };
 }
 
