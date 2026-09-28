@@ -5,16 +5,14 @@
 //   (naming one thing is a stronger signal than taking a bundle). A group taken whole and then
 //   trimmed keeps "some" on the survivors.
 //
-// This is the *one* place that rule lives. Both hosts — `GroupPicker` here (onboarding's Pick
-// phase, `/profile/topics`) and any future picker over the same `Picks` map — call `toggleGroup`
-// / `toggleTopic` / `groupState` and never decide a weight themselves; `topic-levels.ts`'s
+// This is the *one* place that rule lives. `GroupPicker` — hosted by onboarding's Pick phase and
+// by `/profile/topics` — calls `toggleGroup` / `toggleTopic` / `groupState` and never decides a
+// weight itself; `topic-levels.ts`'s
 // `weightOf`/`pickWeight` are the only source of the actual numbers, imported and never
 // re-literalled here either.
 //
-// Every function returns a **new** `Map` and never mutates the `Picks` it was handed — the same
-// discipline `topics-screen.tsx`'s `Set`-based toggle already follows, just typed to carry a
-// weight instead of membership alone. Callers (a `useState`, a query cache) can rely on
-// reference equality to know something changed.
+// Every function returns a **new** `Map` and never mutates the `Picks` it was handed, so callers
+// (a `useState`, a query cache) can rely on reference equality to know something changed.
 import { pickWeight, weightOf } from "~/server/config/topic-levels";
 
 /** A reader's current picks: topic id → weight. `ReadonlyMap` because every mutator here returns
@@ -30,8 +28,7 @@ export type Picks = ReadonlyMap<string, number>;
  * - **Empty or mixed** (some or none present): adds every *absent* member at
  *   `pickWeight(members.length)` — the weight for "taking this whole group" — and leaves any
  *   already-present member's weight exactly as it was. A mixed group therefore "completes" on a
- *   tap rather than clearing (`topics-screen.tsx`'s existing group-tap behaviour, carried over
- *   here with weights).
+ *   tap rather than clearing — the reader who has half a group most likely wants the rest.
  */
 export function toggleGroup(
   picks: Picks,
@@ -70,8 +67,7 @@ export function toggleTopic(
 
 /**
  * A group chip's tri-state, derived fresh from `picks` on every render (never stored, so it
- * cannot drift from the member list it summarises — the same approach `topics-screen.tsx` uses
- * today): `false` when none of `members` are present (including an empty member list — there is
+ * cannot drift from the member list it summarises): `false` when none of `members` are present (including an empty member list — there is
  * nothing to be "on"), `true` when every one is, `"mixed"` otherwise.
  */
 export function groupState(

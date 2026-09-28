@@ -11,11 +11,9 @@ import type { TopicFacet } from "~/server/db/schema";
 import { groupState, toggleGroup, toggleTopic, type Picks } from "./picks";
 
 // docs/DESIGN_onboarding-interview.md §3 "GroupPicker" — one component per facet section, the
-// shared picker behind both onboarding's future Pick phase and `/profile/topics`'s eventual
-// rewrite over weighted picks. Until those hosts land (later tasks), this file is exercised only
-// by its own test — `topics-screen.tsx` still runs its own hand-rolled `Set`-based toggle, which
-// this is meant to replace once the weight-aware summary (`TopicLevels`) exists to show what a
-// pick actually wrote.
+// shared picker behind both onboarding's Pick phase (`onboarding-screen.tsx`) and the Topics tab
+// (`profile/topics-screen.tsx`). It only ever *adds or removes* picks; what weight a pick carries
+// is decided by `picks.ts` and shown by the host's `TopicLevels` summary.
 //
 // A group renders as a `Chip` (tri-state — on / off / "mixed", `groupState`) with a small round
 // disclosure button on its trailing edge, *not* nested inside the chip. **Why a sibling and not a
@@ -31,10 +29,12 @@ import { groupState, toggleGroup, toggleTopic, type Picks } from "./picks";
 // header for why CI and a just-promoted production can list fewer than this file's groups do).
 //
 // **Disclosure state is local and per group**, a `Set<string>` of open group ids in this
-// component alone. It is not persisted anywhere and a reload folds every row back closed — the
-// same "coarse by default, fine-tuning one tap away" shape `topics-screen.tsx`'s own
-// `expanded`/"Show all N topics" state already has, just scoped to one group instead of one
-// facet's whole flat list.
+// component alone. It is not persisted anywhere and a reload folds every row back closed: coarse
+// by default, fine-tuning one tap away.
+//
+// The disclosure button names its member row with `aria-controls` only while that row is open —
+// the row is unmounted when closed, and an `aria-controls` pointing at an id that isn't in the
+// document is a dangling reference to assistive tech.
 export interface PickerTopic {
   id: string;
   label: string;
@@ -96,7 +96,7 @@ export function GroupPicker({
                 <button
                   type="button"
                   aria-expanded={isOpen}
-                  aria-controls={memberRowId}
+                  aria-controls={isOpen ? memberRowId : undefined}
                   aria-label={
                     isOpen
                       ? `Hide topics in ${group.label}`

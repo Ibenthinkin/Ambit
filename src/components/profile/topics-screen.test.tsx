@@ -1,25 +1,34 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  fireEvent,
+  render as rtlRender,
+  screen,
+  within,
+} from "@testing-library/react";
+import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ProfileHubContext } from "~/components/profile/profile-hub";
 import { weightOf } from "~/server/config/topic-levels";
 
 import { TopicsScreen } from "./topics-screen";
 
-// docs/DESIGN_onboarding-interview.md §3 — Task 9's rewrite: `TopicLevels` (the summary) now sits
-// above `GroupPicker` (the four facet sections), so this mock has to model both the read side
-// (`topics.mine` carries `{ topicId, weight }[]`, unchanged since Task 4) and the two mutations
-// that write it: `setMine` (the group/topic pickers — same shape as before) and `setWeight` (the
-// summary's per-topic segmented control, new this task). `state` is the fake cache both mutations'
-// `onMutate` patch and both components' `useQuery`s read back.
+// docs/DESIGN_onboarding-interview.md §3: `TopicLevels` (the summary) sits above `GroupPicker`
+// (the four facet sections), so this mock models both the read side (`topics.mine` carries
+// `{ topicId, weight }[]`) and the two mutations that write it: `setMine` (the group/topic
+// pickers) and `setWeight` (the summary's per-topic segmented control). `state` is the fake cache
+// both mutations' `onMutate` patch and both components' `useQuery`s read back. The real mutation
+// queue — what happens when two writes wait on each other — is `topics-screen.queue.test.tsx`'s
+// job, not this file's.
 //
-// `setWeight`'s mock is the one with real work to do: unlike `setMine`, this task's review focus
-// is an `onError` path (the segmented control reverting a level when the server rejects it), and
-// `onError` is never invoked by *calling* `mutate` — a real mutation only calls it when the
-// network request fails. So the mock stashes the options object `useMutation` was called with
-// (`state.weightOpts`, reassigned on every render since the screen re-creates the mutation object
-// each time) and the `onMutate` context `mutate` produced (`state.weightCtx`), and the test
-// invokes `weightOpts.onError` directly, with exactly the arguments TanStack Query would have.
+// `setWeight`'s mock is the one with real work to do: `onError` is never invoked by *calling*
+// `mutate` — a real mutation only calls it when the network request fails. So the mock stashes
+// the options object `useMutation` was called with (`state.weightOpts`, reassigned on every
+// render since the screen re-creates the mutation object each time) and the `onMutate` context
+// `mutate` produced (`state.weightCtx`), and the test invokes `weightOpts.onError` directly, with
+// exactly the arguments TanStack Query would have.
 type Pick = { topicId: string; weight: number };
 type Level = "little" | "some" | "lot";
 type SetWeightVars = { topicId: string; level: Level };
@@ -32,21 +41,28 @@ type SetWeightOpts = {
   onError?: (err: unknown, v: SetWeightVars, ctx: WeightCtx) => void;
 };
 
-const { mutateMock, invalidateMock, resetMock, setWeightMock, state } =
-  vi.hoisted(() => ({
-    mutateMock: vi.fn<(v: { picks: Pick[] }) => void>(),
-    invalidateMock: vi.fn(),
-    resetMock: vi.fn(),
-    setWeightMock: vi.fn<(v: SetWeightVars) => void>(),
-    state: {
-      topics: [] as { id: string; label: string; facet: string }[],
-      mine: [] as Pick[],
-      // The last `setWeight.useMutation` options, and the context its last `mutate` call
-      // produced — what the onError test below drives directly.
-      weightOpts: undefined as SetWeightOpts | undefined,
-      weightCtx: undefined as WeightCtx,
-    },
-  }));
+const {
+  mutateMock,
+  invalidateMock,
+  resetMock,
+  setWeightMock,
+  toastMock,
+  state,
+} = vi.hoisted(() => ({
+  mutateMock: vi.fn<(v: { picks: Pick[] }) => void>(),
+  invalidateMock: vi.fn(),
+  resetMock: vi.fn(),
+  setWeightMock: vi.fn<(v: SetWeightVars) => void>(),
+  toastMock: vi.fn<(text: string) => void>(),
+  state: {
+    topics: [] as { id: string; label: string; facet: string }[],
+    mine: [] as Pick[],
+    // The last `setWeight.useMutation` options, and the context its last `mutate` call
+    // produced — what the onError test below drives directly.
+    weightOpts: undefined as SetWeightOpts | undefined,
+    weightCtx: undefined as WeightCtx,
+  },
+}));
 
 vi.mock("~/trpc/react", () => ({
   api: {
@@ -109,6 +125,24 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
 }));
 
+/** The tab renders inside the hub, which owns the toast — a provider stands in for it — and
+ *  under the app's `QueryClientProvider`, which the screen asks how many writes are queued. As a
+ *  `wrapper`, both survive `rerender`. */
+function Providers({ children }: { children: React.ReactNode }) {
+  const [client] = React.useState(() => new QueryClient());
+  return (
+    <QueryClientProvider client={client}>
+      <ProfileHubContext.Provider value={{ toast: toastMock }}>
+        {children}
+      </ProfileHubContext.Provider>
+    </QueryClientProvider>
+  );
+}
+
+function render(ui: React.ReactElement) {
+  return rtlRender(ui, { wrapper: Providers });
+}
+
 // Same real-id fixture as onboarding-screen.test.tsx / group-picker.test.tsx
 // (docs/DESIGN_onboarding-interview.md §1 re-cut, 09-28-26): astronomy + moon share the
 // two-member "Space" group, botany is the singleton "Plants" group, one topic per other facet.
@@ -156,6 +190,7 @@ describe("TopicsScreen", () => {
     invalidateMock.mockReset();
     resetMock.mockReset();
     setWeightMock.mockReset();
+    toastMock.mockReset();
     state.topics = TOPICS;
     state.mine = asPicks(["astronomy"]);
     state.weightOpts = undefined;
@@ -256,9 +291,7 @@ describe("TopicsScreen", () => {
       within(levelRow("Astronomy")).getByRole("button", { name: "off" }),
     );
     expect(mutateMock).not.toHaveBeenCalled();
-    expect(screen.getByRole("status").textContent).toContain(
-      "Keep at least one topic.",
-    );
+    expect(toastMock).toHaveBeenLastCalledWith("Keep at least one topic.");
 
     // The picker's own single-topic chip inside Space's disclosure.
     fireEvent.click(
@@ -302,7 +335,7 @@ describe("TopicsScreen", () => {
     expect(lastWrite()).toEqual(new Set(["astronomy"]));
   });
 
-  it("onError on setWeight restores the previous level and shows the hint", async () => {
+  it("onError on setWeight restores the previous level and toasts through the hub", async () => {
     const { rerender } = render(<TopicsScreen dev={false} />);
     const row = levelRow("Astronomy");
     expect(within(row).getByRole("button", { name: "some" })).toHaveAttribute(
@@ -329,7 +362,7 @@ describe("TopicsScreen", () => {
     expect(
       within(levelRow("Astronomy")).getByRole("button", { name: "some" }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("status").textContent).toContain(
+    expect(toastMock).toHaveBeenLastCalledWith(
       "Couldn't save that — try again.",
     );
   });

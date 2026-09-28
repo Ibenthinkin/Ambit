@@ -15,11 +15,12 @@ import type { PickerTopic } from "./group-picker";
 import type { Picks } from "./picks";
 
 // docs/DESIGN_onboarding-interview.md §3 "TopicLevels" — the *summary* half of the weighted
-// picker, complementing `GroupPicker`'s (add/remove) half. Two hosts read it: the onboarding
-// interview's confirm screen (plan 2, unbuilt yet — a reader answers questions, the interview
-// proposes topics, and this is where they see and tune what it proposed before saving) and
-// `/profile/topics`'s eventual rewrite, where every existing pick needs the same tune-or-drop
-// row `GroupPicker`'s add/remove chips don't give it.
+// picker, complementing `GroupPicker`'s (add/remove) half. Two hosts render it: onboarding's
+// Start phase (`onboarding-screen.tsx`), over the draft a reader is about to save, and the Topics
+// tab (`profile/topics-screen.tsx`), above its pickers, where every existing pick needs the
+// tune-or-drop row `GroupPicker`'s add/remove chips don't give it. Plan 2's interview
+// (docs/PLAN_onboarding-interview.md) will show it again on its confirm step, marking what it
+// proposed with `suggested`.
 //
 // **Why levels and not a raw number (D4).** The engine underneath is still a fractional
 // `user_topic.weight` — `topic-levels.ts`'s file header spells out the full arithmetic — but
@@ -27,9 +28,9 @@ import type { Picks } from "./picks";
 // precision the weighting doesn't actually have (three picks and a nudge look identical to one
 // deliberate 2.5). "A little / some / a lot" is the whole reader-facing vocabulary everywhere a
 // human sets a weight by hand; `levelOf` is how this component reads a stored weight back into
-// one of those three words, and `onLevel` hands back a `Level` for the same reason `onOff` hands
-// back nothing — the caller (`db/topics.ts`'s save path) is the only place that ever needs the
-// number again, via `weightOf`.
+// one of those three words, and `onLevel` hands back a `Level`, never a number. Turning it into a
+// weight is the host's job, always through `weightOf`: onboarding writes it into its draft, the
+// Topics tab into its optimistic cache patch, and the `setWeight` procedure into the row itself.
 //
 // **Why "off" is a fourth segment, not a separate button beside the control.** A pick a reader
 // is looking at *right now* has exactly four states — three strengths plus "not this" — and the

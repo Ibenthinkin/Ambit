@@ -21,9 +21,8 @@ export default async function ProfileTopicsPage() {
   if (!session) redirect("/");
 
   // Both input-less, so the byte-identical-input contract with the screen's `useQuery` calls is
-  // trivially satisfied. `topics.mine` now carries each pick's weight too (Task 4 of the
-  // onboarding-v2 foundation, 09-28-26), which is what retired `topics.weights` — this prefetch
-  // used to gate a second, dev-only one on it; that line is just gone now, not replaced.
+  // trivially satisfied. `topics.mine` carries each pick's weight as well as its id, which is
+  // everything the screen's summary needs to show a level — no separate weights query to fetch.
   void api.topics.list.prefetch();
   void api.topics.mine.prefetch();
 

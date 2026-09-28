@@ -23,34 +23,32 @@ export interface OnboardingScreenProps {
   topics: { id: string; label: string; facet: TopicFacet }[];
 }
 
-// docs/DESIGN_onboarding-interview.md §3 "Onboarding phases" (the 09-28-26 redesign) — the screen
-// a freshly invited sign-up lands on before ever seeing a feed.
+// docs/DESIGN_onboarding-interview.md §3 "Onboarding phases" — the screen a freshly invited
+// sign-up lands on before ever seeing a feed.
 //
-// **Two phases in the foundation plan, three in the design.** The design's progress row reads
-// "Pick · Refine · Start"; `Refine` is the interview (§4–§5) and is a *later* task's job — until
-// it lands, the flow is just Pick → Start, so `PHASES` below carries only those two entries and
-// the comment on it says where the third goes. `phase` is derived from `stage`, never stored
-// separately, so there is exactly one source of truth for "where am I".
+// **Two phases here, three in the design.** The design's progress row reads "Pick · Refine ·
+// Start"; `Refine` is the interview (§4–§5), which plan 2 (docs/PLAN_onboarding-interview.md)
+// inserts between these two. Until then the flow is Pick → Start, so `PHASES` below carries only
+// those two entries. `phase` is derived from `stage`, never stored separately, so there is exactly
+// one source of truth for "where am I".
 //
-// **Pick has no floor (a break from the old four-stage screen).** The previous cut gated the CTA
-// on a `minPicks` prop (3, counted in *groups* tapped) and showed "Pick N more" until it was met.
-// The redesign drops that entirely: every Pick stage — including the very first — can be passed
-// with nothing chosen, `Next` always reads "Next", and there is no group-tap counter anywhere in
-// the Pick phase. The only floor left is at the very end.
+// **Pick has no floor.** Every Pick stage — including the very first — can be passed with nothing
+// chosen, `Next` always reads "Next", and there is no group-tap counter anywhere in the Pick
+// phase. A reader who has no opinion about, say, places shouldn't be made to invent one. The only
+// floor is at the very end.
 //
 // **Floor of one at Start, and why nothing is written before it.** `Start` renders `TopicLevels`
 // over the draft — every pick made across all four Pick stages, editable one more time (tune a
 // level, or turn a topic off) before it becomes real. "Start exploring" is disabled while
-// `picks.size === 0`, because an empty write would leave the reader picking again on their next
-// visit anyway (`hasCompletedOnboarding` reads `user_topic` rows). Nothing is written before this
-// button — abandoning onboarding at any earlier stage, including by closing the tab, leaves no
-// rows, exactly as before.
+// `picks.size === 0`: that is the client side of `setMine`'s `.min(1)`, which answers an empty
+// write with a BAD_REQUEST — and a reader with no rows would land back here on their next visit
+// anyway (`hasCompletedOnboarding` reads `user_topic` rows). Nothing is written before this
+// button, so abandoning onboarding at any earlier stage, including by closing the tab, leaves no
+// rows.
 //
-// **`picks` is a `Map<string, number>` now, not a `Set<string>` of group ids.** The old screen
-// selected whole groups and flattened them to topic ids *at submit time*, writing every id at a
-// flat weight of 1 — a stopgap from an earlier task, now replaced. The real unit picked is a
-// topic, at a weight (`~/server/config/topic-levels`'s three reader-facing levels), and the two
-// pure functions in `~/components/topics/picks.ts` (`toggleGroup`, `toggleTopic`, wired up inside
+// **`picks` is a `Map<string, number>`: topic id → weight.** The unit picked is a topic, at a
+// weight (`~/server/config/topic-levels`'s three reader-facing levels), and the two pure
+// functions in `~/components/topics/picks.ts` (`toggleGroup`, `toggleTopic`, wired up inside
 // `GroupPicker`) are the only place a weight gets chosen on the Pick side — this file never
 // writes a weight literal itself. `TopicLevels` on Start writes the *other* way: `onLevel` reads
 // a level word off the segmented control and turns it back into a weight via `weightOf`, `onOff`
@@ -76,9 +74,9 @@ export function OnboardingScreen({ topics }: OnboardingScreenProps) {
   const phase = stage < FACETS.length ? "pick" : "start";
   const facet = phase === "pick" ? FACETS[stage]! : undefined;
 
-  // The progress row's dots — currently two, since `Refine` isn't built yet. A later task inserts
-  // `{ key: "refine", label: "Refine" }` here, between these two, once the interview exists to
-  // route to; nothing about `phase`'s derivation above needs to change to accommodate it, since
+  // The progress row's dots — two, since `Refine` isn't built yet. Plan 2
+  // (docs/PLAN_onboarding-interview.md) inserts `{ key: "refine", label: "Refine" }` here, between
+  // these two; nothing about `phase`'s derivation above needs to change to accommodate it, since
   // `phase` would just gain a third possible value alongside its own stage range.
   const PHASES = [
     { key: "pick", label: "Pick" },

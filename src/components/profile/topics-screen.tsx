@@ -2,6 +2,9 @@
 
 import * as React from "react";
 
+import { useQueryClient } from "@tanstack/react-query";
+
+import { useProfileHub } from "~/components/profile/profile-hub";
 import { GroupPicker } from "~/components/topics/group-picker";
 import { TopicLevels } from "~/components/topics/topic-levels";
 import { Rise } from "~/components/ui/rise";
@@ -13,42 +16,54 @@ import {
 import { weightOf } from "~/server/config/topic-levels";
 import { api } from "~/trpc/react";
 
-// /profile/topics — the Topics tab of the Profile hub (docs/DESIGN_topic-facets-and-personas.md §3;
-// a tab since 09-12-26, docs/DESIGN_list-screens.md §3; rewritten 09-28-26 for the weighted picker,
-// docs/DESIGN_onboarding-interview.md §3 "TopicLevels"): every pickable topic, grouped by facet,
-// every change saved at once. This is the picker Ben feel-tests the feed with, so it is built to
-// be flipped constantly: no Done button, no confirmation, an optimistic `topics.mine` so the reader
-// sees the result before the server does.
+// /profile/topics — the Topics tab of the Profile hub (docs/DESIGN_topic-facets-and-personas.md §3,
+// docs/DESIGN_list-screens.md §3, docs/DESIGN_onboarding-interview.md §3): every pickable topic,
+// grouped by facet, every change saved at once. This is the picker Ben feel-tests the feed with,
+// so it is built to be flipped constantly: no Done button, no confirmation, an optimistic
+// `topics.mine` so the reader sees the result before the server does.
 //
-// **The summary sits above the picker now.** `TopicLevels` — the same component the onboarding
-// Start phase shows over the draft — renders every current pick, grouped by facet, with a
-// four-way segmented control (*a little · some · a lot · off*) per topic. Below it, one
-// `GroupPicker` per facet (also shared with onboarding's Pick phase) is how a reader *adds* a
-// topic; `TopicLevels` is how they *tune or drop* one they already have. Two mutations follow
-// from that split: `setMine` (the picker's add/remove, unchanged in shape — the whole set,
-// weighted) and `setWeight` (the summary's per-topic level, new this task — snaps one existing
-// pick straight to a level's canonical weight without touching any other row).
+// **The summary sits above the picker.** `TopicLevels` — the same component onboarding's Start
+// phase shows over the draft — renders every current pick, grouped by facet, with a four-way
+// segmented control (*a little · some · a lot · off*) per topic. Below it, one `GroupPicker` per
+// facet (also shared with onboarding's Pick phase) is how a reader *adds* a topic; `TopicLevels`
+// is how they *tune or drop* one they already have. Two mutations follow from that split:
+// `setMine` (the picker's add/remove — the whole set, weighted) and `setWeight` (the summary's
+// per-topic level — snaps one existing pick straight to a level's canonical weight without
+// touching any other row).
 //
-// **Both mutations share one `scope`.** `setUserTopics` (behind `setMine`) is a
-// delete-then-insert transaction, so two writes in flight can interleave and leave the DB holding
-// whichever transaction committed last — not necessarily the last thing the reader did. Giving
-// `setWeight` the same `scope.id` puts every write from this screen, of either kind, into one
-// serial queue: tune a level, then immediately flip a group chip, and the second write still
-// lands after the first rather than racing it. `onMutate` still runs the instant `.mutate()` is
-// called either way, so the UI answers immediately regardless of the queue.
+// `setMine` resends every pick with the weight this screen's cache holds for it, but the server's
+// replace is weight-preserving: a topic that was already picked keeps the weight in its row (a
+// level the reader set, or what saves have nudged it to), and only a newly added topic takes the
+// weight sent. So a picker tap can never flatten the levels above it.
 //
-// The hub (`profile-hub.tsx`) owns the title, the nav and the toolbar, so this renders content
-// only.
+// **Both mutations share one `scope`, and only the last write in it refetches.** `setUserTopics`
+// (behind `setMine`) is a delete-then-insert transaction, so two writes in flight could interleave
+// and leave the database holding whichever committed last — not necessarily the last thing the
+// reader did. One `scope.id` puts every write from this screen, of either kind, into a serial
+// queue. `onMutate` still runs the instant `.mutate()` is called, so the UI answers immediately
+// regardless of the queue. The queue brings a second rule with it: a write that settles while
+// another is still waiting must not refetch `topics.mine`, or the server's rows from *between*
+// the two writes land over the waiting write's optimistic patch — and a tap in that window builds
+// its whole-set `setMine` from the stale cache and deletes the pick the waiting write added.
+// `settle()` below refetches only when this write is the last one in the scope.
 //
-// `dev` (Task 8): a `Reset weights` button, gated on FEED_DEBUG, sets every pick back to 1.0. The
-// product build never renders a raw weight number — only the three reader-facing level words the
-// segmented control already speaks (D4: the product *does* render a weight now, just never as a
-// number — the old "never renders a weight" line this comment replaced predates `TopicLevels`).
+// The hub (`profile-hub.tsx`) owns the title, the nav, the toolbar and the toast, so this renders
+// content only; its two refusals ("Keep at least one topic." and a failed save) go through the
+// hub's toast, which is fixed above the toolbar and so visible wherever on the page the reader
+// tapped.
+//
+// `dev`: a `Reset weights` button, gated on FEED_DEBUG, sets every pick back to 1.0. The product
+// build never renders a weight as a number — only the level words the segmented control speaks.
+/** The one queue both writes join — see the file header. The id is only a key: never shown, never
+ *  sent to the server. */
+const WRITE_SCOPE = { id: "topics.setMine" };
+
 export function TopicsScreen({ dev }: { dev: boolean }) {
   const utils = api.useUtils();
+  const queryClient = useQueryClient();
+  const hub = useProfileHub();
   const topics = api.topics.list.useQuery();
   const mine = api.topics.mine.useQuery();
-  const [hint, setHint] = React.useState("");
 
   // Every current pick, topic id → weight — what both `TopicLevels` (the summary) and
   // `GroupPicker` (via `groupState`/`toggleGroup`/`toggleTopic`) read to know what's on.
@@ -63,27 +78,38 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
     facet: t.facet!,
   }));
 
+  /** Refetch `topics.mine` — unless another write is still queued behind this one (file header).
+   *  `isMutating` counts mutations whose status is `pending`, and TanStack Query flips a mutation
+   *  to `success`/`error` only *after* its `onSettled` returns, so the write settling right now
+   *  still counts itself: `1` means it is the last. A queued write is `pending` from the moment
+   *  `.mutate()` is called, so it counts too, even before its request has started. */
+  function settle() {
+    const inScope = queryClient.isMutating({
+      predicate: (m) => m.options.scope?.id === WRITE_SCOPE.id,
+    });
+    if (inScope <= 1) void utils.topics.mine.invalidate();
+  }
+
   const setMine = api.topics.setMine.useMutation({
     // See the file header: one serial queue shared with `setWeight`.
-    scope: { id: "topics.setMine" },
+    scope: WRITE_SCOPE,
     // Optimistic: `topics.mine` is patched to the picks we sent, and settle re-reads the truth.
     // On error the patch is rolled back to the snapshot.
     onMutate: async ({ picks: sent }) => {
       await utils.topics.mine.cancel();
       const previous = utils.topics.mine.getData();
       utils.topics.mine.setData(undefined, sent);
-      setHint("");
       return { previous };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.previous) utils.topics.mine.setData(undefined, ctx.previous);
-      setHint("Couldn't save that — try again.");
+      hub.toast("Couldn't save that — try again.");
     },
-    onSettled: () => void utils.topics.mine.invalidate(),
+    onSettled: settle,
   });
 
   const setWeight = api.topics.setWeight.useMutation({
-    scope: { id: "topics.setMine" },
+    scope: WRITE_SCOPE,
     // Optimistic: patches just the one row's weight in the `topics.mine` cache, rather than
     // resending the whole set the way `setMine` does — the segmented control changes one topic
     // at a time and there is no reason to touch the others.
@@ -95,14 +121,13 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
           p.topicId === topicId ? { ...p, weight: weightOf(level) } : p,
         ),
       );
-      setHint("");
       return { previous };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.previous) utils.topics.mine.setData(undefined, ctx.previous);
-      setHint("Couldn't save that — try again.");
+      hub.toast("Couldn't save that — try again.");
     },
-    onSettled: () => void utils.topics.mine.invalidate(),
+    onSettled: settle,
   });
 
   const resetWeights = api.topics.resetWeights.useMutation({
@@ -114,7 +139,7 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
    *  BAD_REQUEST. */
   function commit(next: Map<string, number>) {
     if (next.size === 0) {
-      setHint("Keep at least one topic.");
+      hub.toast("Keep at least one topic.");
       return;
     }
     setMine.mutate({
@@ -185,14 +210,6 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
           </section>
         </Rise>
       ))}
-
-      <p
-        role="status"
-        aria-live="polite"
-        className="text-ink/55 px-5 pt-5 font-sans text-[12.5px]"
-      >
-        {hint}
-      </p>
 
       {dev && (
         <div className="px-5 pt-6 pb-[140px]">

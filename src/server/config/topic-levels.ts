@@ -12,8 +12,9 @@
 //   lot      2.0         weight >= 1.5
 //
 // **Why three words, not the raw number.** The engine (this file's callers, `db/topics.ts`'s
-// save nudge, the interview's `applyAnswer`) keeps writing and reading fractional weights
-// underneath — a topic saved from three times sits at 1.0 + 3×0.5 = 2.5 — but nobody picking a
+// save nudge, and — once plan 2 builds it — the onboarding interview's answers) keeps writing and
+// reading fractional weights underneath — a topic saved from three times sits at
+// 1.0 + 3×0.5 = 2.5 — but nobody picking a
 // level by hand should have to think in those units. "A little / some / a lot" is the whole
 // reader-facing vocabulary; `levelOf` is how a raw weight gets read back into it for display, and
 // `weightOf` is how a hand-picked level snaps back down to one of the three canonical numbers the

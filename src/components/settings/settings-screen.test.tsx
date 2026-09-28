@@ -23,9 +23,8 @@ const {
   purgeMock,
 } = vi.hoisted(() => ({
   topicsData: { current: [] as { id: string; label: string }[] },
-  // `topics.mine` carries a weight alongside each id since 09-28-26 (Task 4 of the onboarding-v2
-  // foundation) — this screen only reads ids off it (see `topicValue` below), but the mock has to
-  // model the real return shape.
+  // `topics.mine` carries a weight alongside each id — this screen only reads ids off it (see
+  // `topicValue` in the screen), but the mock has to model the real return shape.
   myTopicsData: { current: [] as { topicId: string; weight: number }[] },
   pushMock: vi.fn(),
   replaceMock: vi.fn(),
