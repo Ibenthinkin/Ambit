@@ -49,6 +49,50 @@ paused.
 
 *Session spend: 9.31M tok (in 160 · out 80.7k · cache r 8.93M / w 305.2k) · opus-5-5 · 13:20→14:33*
 
+**Reviewed the same afternoon (Fable), against the code, before executing.** Four parallel
+read-only sweeps checked every code-facing claim in the plan (curator/ingest, Wikipedia/config,
+feed engine, UI/schema). **The shape holds** — phase order, the calibration gate, backfill
+before re-score, Phase 3 gated on the lists having run. What a cold executor would have tripped
+on, now corrected in `PLAN_writing.md`:
+
+- **The plan was written partly from memory.** `PROMPT_VERSION` not `CURATOR_PROMPT_VERSION`;
+  the cache key is sha256'd by `curationCacheKey`; `seed_queries` is a JSONB column on `topic`,
+  not a table; the only-where-NULL pattern is `promote-topics.ts:161`, not `repair:rehome`;
+  `curationText` was used in Phase 1 but created in Phase 5 (now `body ?? summary` — and today's
+  curator never reads `body` at all, so the writing path is the first that does).
+- **Taking `wikipedia` out of `V1_SOURCES` is a type change, not a config edit**: `SeedQueries`
+  is `Record<V1Source, …>`, `adapters` is `Record<SearchSourceId, …>`, and `topics.test.ts` pins
+  both. Wikipedia stays in `SourceId`/`adapters` and gets a second query source.
+- **Writing slots need output positions**: `composePage` has no slot indices — cards append as
+  draws succeed. Positions are indices into the composed array; and `pageSize` is a knob, not 12.
+- **Three things already exist and must be reused, not rewritten**: `APPARATUS` in
+  `lib/reader-blocks.ts` (the section stripper `readingMinutes` needs), the client-side
+  `PageStats` split (where the writing readout goes; `FeedPage.debug` carries no split), and
+  `LinkOutRow` — rendered only in the *image* branch; `ReaderItemBody` has its own inline link,
+  which Phase 4 replaces rather than doubles.
+- **Dropped the partial index** (`idx_item_type` and `idx_item_unhomed_score` already cover it).
+- **Wikipedia specifics**: `Wikipedia:Unusual articles` is a hub of subpages (walk them with
+  `gplnamespace=0`); `.svg.png` must be `includes`, not `endsWith` (thumbnails carry `?utm_…`);
+  `wikipedia.ts:218`'s comment claims ingest calls `fetchBody` — it never has.
+- **Decided: the phrases file is `src/server/config/reading-phrases.ts`**, a typed module like
+  `blogs.ts`, not a `.txt` with a parser — topic ids checked as a type, nothing to parse.
+
+**One fact the plan leans on, now stated in the design:** every blog walker is `type: "image"`
+(invariant-tested), so "writing ≡ `type = 'article'`" reaches Wikipedia, PDR's essays, Loupe's
+clippings and PoetryDB — never a link card. The corollary is a switch Phase 3 now names: with
+share > 0 the ordinary pools become image-only, so PDR essays and Loupe clippings are reachable
+only through the writing slots, and `/explore` shows writing to strangers.
+
+**Found in passing, pre-existing:** `link-out-row.tsx:37-40` joins its class string without
+spaces (`transition-transformduration-150`); fix rides with Phase 4.
+
+**Open / next:** the plan has a new "Decide before the phase that needs it" list — the 400-char
+`thin-text` floor vs short poems, whether to store `timeliness`, the Good-articles draw cost,
+and the pool switch. Then Phase 1 cold. `88f62e0` (onboarding-interview design) is on this
+branch and unrelated.
+
+*Session spend: 6.53M tok (in 1.2k · out 205.3k · cache r 5.93M / w 389.3k) · fable-5-1 · 15:03→15:15*
+
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
