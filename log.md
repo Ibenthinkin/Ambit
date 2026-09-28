@@ -93,6 +93,45 @@ branch and unrelated.
 
 *Session spend: 6.53M tok (in 1.2k · out 205.3k · cache r 5.93M / w 389.3k) · fable-5-1 · 15:03→15:15*
 
+**Second session the same day (Fable) — onboarding v2 designed and planned, not built.**
+Ben: the umbrella groups are "very bad — mostly way too vague, and include things together that
+logically should not be"; onboarding should be "something special, but most of all good" — pick
+from a list, or be asked meaningful questions about aesthetic preferences ("this image or this
+one? do you like fashion? engineering? images that challenge you?"), and end on a list of
+topics/styles/vibes Ambit will start with, every one switchable off or reweighted.
+
+**Decisions (by interview, nine in `docs/DESIGN_onboarding-interview.md`):** hand-authored, **no
+LLM in v1** (an LLM back-and-forth is wanted later as another door, hence the answer log); the
+interview *refines* whatever was picked from the list — seeds weights, splits near neighbours
+(Star Wars vs Star Trek, "very different fandoms"), offers adjacent topics — and turns things
+**on**, never off; everyone gets ≤ 10 adaptive questions with a visible exit; three
+reader-facing levels (_a little · some · a lot_ = 0.5 / 1.0 / 2.0, bands at 0.75 and 1.5) over
+the real weight, which retires the topics router's "a picker must never read a weight" stance;
+**off = the row removed**, so drift can still bring it, and "never show me this" is a later hard
+exclusion; the list is two-level (a group shows its members) and **re-cut from 34 groups to 75**
+(36 Subject · 19 Medium · 14 Look · 6 Place) — drafted in the design for Ben's verdict; a whole
+group writes members at "some", a single member at "a lot", and the 09-25 flat-weight follow-up
+(divide by group size) is closed by that decision, not by division; answers are logged
+(`interview_answer`, never demographics); faces are hand-picked by `(source, sourceId)` else
+the corpus, with `/dev/faces` to override; a pair offers *either* and *neither*.
+
+**Findings that shaped the plans:** `topic-graph.json` is 1.8 MB, so it never ships —
+`topics.list` will carry five faceted neighbours per topic instead; on CI's sixteen-topic
+database every group is a singleton and only seven of the 28 drafted bank questions are askable
+cold (so a pair with an empty side is ruled unaskable, and the bank test asserts ≥ 5); the e2e
+corpus seeder writes no image dimensions, so faces *prefer* measured pictures rather than
+require them; `imageSrc` needs the URL, so a face is `{ id, imageUrl }`.
+
+**Open / next:** Ben reviews `docs/PLAN_onboarding-foundation.md` (11 tasks) and
+`docs/PLAN_onboarding-interview.md` (10 tasks; assumes plan 1 merged); his verdict on the
+cut's grain (Animals / Birds / Insects split, Plants / Fungi, Weather / Light & night) and the
+bank copy is an edit of the design's tables, which the plans copy verbatim; then execute plan 1
+cold in a cheaper session on `feat/onboarding-foundation`. BUILD_PLAN 8.4 is this, reshaped.
+A second session committed a writing doc on `main` mid-way (`ad82fff`); check the branch before
+every commit.
+
+*Session spend: 16.28M tok (in 2.2k · out 272.7k · cache r 15.38M / w 632.9k) · fable-5-1 · 13:54→15:18*
+
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
