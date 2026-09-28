@@ -53,7 +53,12 @@ export const topicsRouter = createTRPCRouter({
       z.object({
         picks: z
           .array(
-            z.object({ topicId: z.string(), weight: z.number().positive() }),
+            z.object({
+              topicId: z.string(),
+              // `.finite()` on top of `.positive()`: SuperJSON (the tRPC transformer) can carry
+              // `Infinity` as a real value over the wire, and `.positive()` alone lets it through.
+              weight: z.number().positive().finite(),
+            }),
           )
           .min(1),
       }),

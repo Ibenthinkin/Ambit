@@ -370,6 +370,15 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       await expect(
         caller.topics.setWeight({ topicId: topicA, level: "lot" }),
       ).resolves.toEqual({ topicId: topicA, weight: 2 });
+      // The procedure's return value comes from `weightOf()`, not the row — read the row back too,
+      // or an UPDATE that silently no-ops (leaving the hand-set 3 in place) would still pass.
+      const [rowAfterCap] = await db
+        .select()
+        .from(userTopic)
+        .where(
+          and(eq(userTopic.userId, userId), eq(userTopic.topicId, topicA)),
+        );
+      expect(rowAfterCap?.weight).toBe(2);
 
       await expect(
         caller.topics.setWeight({ topicId: topicB, level: "some" }),
