@@ -163,6 +163,12 @@ to it.
   assertion on the picked topics has to accept both the fixture-only shape and the real-corpus
   shape (`settings.spec.ts` shows how).
 
+**09-28-26.** Ben's next review found these 34 groups "very bad — mostly way too vague," so they
+were re-cut into 75 (36 Subject · 19 Medium · 14 Look · 6 Place) and the picker became two-level —
+a group chip with a disclosure onto its members, rather than a flat fan-out on tap. See
+`docs/DESIGN_onboarding-interview.md` §1 for the re-cut table and §3 for the two-level
+`GroupPicker`.
+
 ## 3. The topic page: `/profile/topics`
 
 - Route `src/app/profile/topics/page.tsx` → `TopicsScreen` in `components/profile/`.
