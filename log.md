@@ -191,6 +191,8 @@ caught mid-turn, spine visible) and needs that run before merge. Then merge + pu
 clicks landing mid-fold, where the toggle is ignored by design — the spec now waits for the leaf
 to land. Then 61 passed, 9 dev-only skips; the desktop file 3/3. Firefox still unchecked.
 
+*Session spend: 15.01M tok (in 145 · out 37.4k · cache r 14.75M / w 224.6k) · ~≥$1.46 · opus-5-5 + opus-4-7 · 19:54→20:31*
+
 _Session spend: 26.60M tok (in 317 · out 189.2k · cache r 25.85M / w 570.2k) · ~≥$1.29 · opus-5-5 + opus-4-7 · 18:30→19:54_
 
 ### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
