@@ -85,7 +85,8 @@ export function stratifiedSample<
     };
   });
   const next = (s: (typeof sources)[number]): T | undefined => {
-    for (let tries = 0; tries < s.queues.length; tries++) {
+    // At most one full lap of this source's bands, starting where its last turn left off.
+    for (let lap = s.queues.length; lap > 0; lap--) {
       const q = s.queues[s.turn++ % s.queues.length]!;
       const r = q.shift();
       if (r) return r;
