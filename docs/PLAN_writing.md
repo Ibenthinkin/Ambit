@@ -167,8 +167,8 @@ Ship this only after Phase 2's lists have run on production, or per-topic writin
 
 ## Decide before the phase that needs it (from the 09-28-26 review)
 
-- **Before Phase 1 — `thin-text` at 400 characters kills short poems.** The "poems survive" line is about Wikipedia bodies arriving before the floor runs. A sonnet is ~600 characters, a haiku is not. If PoetryDB is to be un-parked, exempt `poetrydb` (or lower the floor to ~200); if not, 400 stands.
-- **Before Phase 1 — `timeliness` is not stored.** `news` becomes score 1 and `dated` is lost after the re-score. Cheap to keep as a column if a later filter wants it; the plan leaves it out.
+- ~~**Before Phase 1 — `thin-text` at 400 characters kills short poems.**~~ **Decided 09-28-26: the 400 floor stands**, no `poetrydb` exemption. (The "poems survive" line is about Wikipedia bodies arriving before the floor runs; a haiku won't clear it and that is accepted.)
+- ~~**Before Phase 1 — `timeliness` is not stored.**~~ **Decided 09-28-26: not stored.** `news` becomes score 1 at re-score and is dropped at ingest; `dated` leaves no trace.
 - **Before Phase 2 — the Good-articles draw cost** (Phase 2 §3's "known costs"): accept ~80 list calls a night, or draw by a date-seeded sortkey prefix.
 - **Before Phase 3 — the pool switch** (Phase 3 "Pools"): PDR essays and Loupe clippings reachable only through writing slots, and `/explore` showing writing to strangers. Both follow from D2/D3; confirm they're wanted.
 

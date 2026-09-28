@@ -86,9 +86,12 @@ only through the writing slots, and `/explore` shows writing to strangers.
 **Found in passing, pre-existing:** `link-out-row.tsx:37-40` joins its class string without
 spaces (`transition-transformduration-150`); fix rides with Phase 4.
 
-**Open / next:** the plan has a new "Decide before the phase that needs it" list — the 400-char
-`thin-text` floor vs short poems, whether to store `timeliness`, the Good-articles draw cost,
-and the pool switch. Then Phase 1 cold. `88f62e0` (onboarding-interview design) is on this
+**Ben decided the two Phase 1 gates the same afternoon:** the 400-char `thin-text` floor stands
+(no poetry exemption), and `timeliness` is not stored. The other two (Good-articles draw cost,
+the pool switch) wait for Phases 2 and 3.
+
+**Open / next:** Phase 1 cold in a new session, from `PLAN_writing.md` as committed. The
+calibration file is the gate before any re-score. `88f62e0` (onboarding-interview design) is on this
 branch and unrelated.
 
 *Session spend: 6.53M tok (in 1.2k · out 205.3k · cache r 5.93M / w 389.3k) · fable-5-1 · 15:03→15:15*
