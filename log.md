@@ -174,6 +174,50 @@ the model. **Don't deploy `feat/writing` before Phase 2's `fetchBody` at ingest*
 
 *Session spend: 43.24M tok (in 596 · out 243.3k · cache r 41.83M / w 1.16M) · ~≥$7.43 · opus-5-5 + opus-4-7 · 15:24→15:47*
 
+**Fourth session the same day (Opus 5.5, continued) — writing Phase 2 (Wikipedia) built on
+`feat/writing`, not merged, not deployed.** Ben is marking the calibration sheet tonight or
+tomorrow morning.
+- **Bodies at ingest** (`sources/enrich.ts`): new Wikipedia survivors get their full text
+  between the structural floor and the writing floor. That closes the "0 of 3,191 production
+  bodies" bug. A fetch that *throws* drops the item for the night and warns, so tomorrow retries
+  it free. Kept, it would have been stored bodiless for good. A page with no extract is kept.
+- **Backfill** (`backfill-wikipedia-bodies.ts --only-missing`, id order, `--offset`) now also
+  writes `reading_minutes`; `.cache/backfill-wiki-prod.sh` runs it on production.
+- **Wikipedia's reading lists** (`sources/wikipedia-lists.ts`, `search("list:<name>")`). All four
+  were probed live before building:
+  - `list:unusual` reads each topical subpage's bolded row entries. The first cut used
+    `generator=links` and drew 7,369 candidates, "Cuba" and "Scottish cuisine" among them.
+  - `list:dyk` takes one day-seeded month of `Wikipedia:Did you know archive/YYYY/Month`, 2004
+    onward, and keeps the hook as the card's summary.
+  - `list:featured` / `list:good` each take one 500-page call from a day-seeded two-letter
+    sort-key start. The plan's "md5-order all 45k Good articles" would be ~90 calls a night.
+    This was the plan's open "decide before Phase 2" question, ruled on the probe.
+- **`config/reading-phrases.ts`** replaces the sixteen one-word `wikipedia` seed cells, and
+  `wikipedia` left `V1_SOURCES`. Tied phrases are claims for their topic; untied phrases and the
+  lists take the walk items' path. `db:seed` now counts a key the config dropped as a change,
+  since otherwise production would have kept the old cells forever.
+- **A local dry run of the whole lane at `--quota 3`**: 144 bodies fetched, 2 floored as
+  thin text, 1 dropped as news, 141 would be inserted.
+
+**The review (fresh reviewer, verified against the live API)** found three things, all fixed with
+a test that failed first:
+- DYK templates garbled 3–7% of hooks into stored summaries like "lost due to". Hooks now expand
+  the templates they actually use, and a hook with any other template falls back to the lede.
+- MediaWiki answers errors with HTTP 200, which the list reads took as empty lists. A
+  rate-limited night looked idle; it now throws and counts as an error.
+- The thrown-body-fetch case above.
+
+Seven minors are deferred; the costliest is ~2% of Unusual entries sitting in attribute-prefixed
+cells the parser misses.
+
+**Open / next:** Ben marks `docs/writing-calibration.md` → `writing:calibrate --read` → iterate
+the prompt, pick the model. Ben edits `config/reading-phrases.ts` whenever he likes. Once
+deployed: backfill → calibration agrees → re-score, in that order (CLAUDE.md). Phase 3 (the
+1-in-8 feed share) has its gate: confirm PDR essays and Loupe clippings become reachable only
+through writing slots, and that `/explore` shows writing to strangers.
+
+*Session spend: 74.99M tok (in 650 · out 301.8k · cache r 72.54M / w 2.15M) · ~≥$9.57 · opus-5-5 + opus-4-7 + <synthetic> · 15:47→18:55*
+
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
