@@ -90,15 +90,44 @@ export function dykArchiveMonths(titles: readonly string[]): string[] {
 /** `[[Target|label]]` → label, `[[Target]]` → Target. */
 const LINK = /\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g;
 
+/** Ship-prefix templates: `{{HMS|Victory}}` → "HMS Victory". */
+const SHIP_PREFIX = /^(HMS|USS|SS|RMS|HMAS|HMCS|HMNZS|MV|USNS|USCGC)$/i;
+
+/** Expand the few templates hooks actually use; leave anything else in place (so the caller
+ *  can see it and give up). Measured by the Phase 2 review on live archives: 3–7% of hooks carry
+ *  one, and deleting them wholesale stored "lost due to" for "lost 11 lb due to". */
+function expandTemplate(inner: string): string | null {
+  const [name = "", ...args] = inner.split("|").map((s) => s.trim());
+  if (name === "`s" || name === "'s") return "'s";
+  if (name === "`" || name === "'") return "'";
+  if (/^nowrap$/i.test(name) && args[0] !== undefined) return args[0];
+  if (/^(convert|cvt)$/i.test(name) && args.length >= 2)
+    return `${args[0]} ${args[1]}`;
+  if (SHIP_PREFIX.test(name) && args[0])
+    return `${name.toUpperCase()} ${args[0]}`;
+  return null;
+}
+
 /** One hook line as reading text: "Did you know that …?", links as their labels, no italics or
- *  bold, no "(pictured)", entities and templates gone. */
-export function cleanDykHook(line: string): string {
-  return line
+ *  bold, no "(pictured)" aside, entities gone, known templates expanded. **Null when a template
+ *  it cannot read survives** — a garbled summary is stored for good (ingest never revisits a
+ *  row), so the card falls back to the article's lede instead (`toItem`: `hook ?? lede`). */
+export function cleanDykHook(line: string): string | null {
+  const text = line
     .replace(/^\*\s*(\.\.\.|…)\s*/, "Did you know ")
-    .replace(/\{\{[^{}]*\}\}/g, "")
-    .replace(LINK, (_, target: string, label?: string) => label ?? target)
+    // Quotes first: `'''[[X]]'''{{`s}}` would otherwise glue into `''''s` and lose the apostrophe.
     .replace(/'{2,}/g, "")
-    .replace(/\s*\((?:[\w\s]*\s)?pictured\)/gi, "")
+    // An empty label (emptied by a template) is not a label: fall back to the target.
+    .replace(LINK, (_, target: string, label?: string) =>
+      label === undefined || label === "" ? target : label,
+    )
+    .replace(
+      /\{\{([^{}]*)\}\}/g,
+      (whole, inner: string) => expandTemplate(inner) ?? whole,
+    );
+  if (text.includes("{{")) return null;
+  return text
+    .replace(/\s*\([^()]*\bpictured\b[^()]*\)/gi, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&[a-z]+;/g, "")
     .replace(/\s+/g, " ")
@@ -121,18 +150,42 @@ function normTitle(t: string): string {
  *  articles yields both, sharing the hook). */
 export function parseDykHooks(
   wikitext: string,
-): { title: string; hook: string }[] {
-  const out: { title: string; hook: string }[] = [];
+): { title: string; hook?: string }[] {
+  const out: { title: string; hook?: string }[] = [];
   for (const line of wikitext.split("\n")) {
     if (!/^\*\s*(\.\.\.|…)\s*that\b/.test(line)) continue;
     const hook = cleanDykHook(line);
     for (const m of line.matchAll(BOLD_LINK))
-      out.push({ title: normTitle(m[1]!), hook });
+      out.push(
+        hook ? { title: normTitle(m[1]!), hook } : { title: normTitle(m[1]!) },
+      );
   }
   return out;
 }
 
 // ── the network ─────────────────────────────────────────────────────────────
+
+/**
+ * `fetchJson` for this module: MediaWiki answers an error with **HTTP 200** and
+ * `{ error: { code, info } }` (rate limits, maxlag, bad parameters), which `fetchJson` cannot see.
+ * Read as an empty result, a rate-limited night would report zero candidates and zero errors and
+ * look idle. So: an `error` body throws, and so does a response with neither the expected key nor
+ * `batchcomplete` — a generator with no results legitimately omits `query` but says the batch is
+ * complete. The throw reaches search(), and ingest counts it as a failed query.
+ */
+async function wikiFetch<T>(url: string, key: "query" | "parse"): Promise<T> {
+  const data = (await fetchJson(url, { delayMs: 120 })) as Record<
+    string,
+    unknown
+  > & { error?: { code?: string; info?: string } };
+  if (data.error)
+    throw new Error(
+      `MediaWiki ${data.error.code ?? "error"}: ${data.error.info ?? ""}`.trim(),
+    );
+  if (!(key in data) && !("batchcomplete" in data))
+    throw new Error(`MediaWiki response has no "${key}" and no batchcomplete`);
+  return data as T;
+}
 
 type ApiPage = {
   pageid?: number;
@@ -147,10 +200,10 @@ const articles = (pages: ApiPage[] | undefined): ListCandidate[] =>
     .map((p) => ({ pageid: p.pageid!, title: p.title }));
 
 async function allPages(prefix: string): Promise<string[]> {
-  const res = (await fetchJson(
+  const res = await wikiFetch<{ query?: { allpages?: { title: string }[] } }>(
     `${Q}&list=allpages&apnamespace=4&aplimit=max&apprefix=${encodeURIComponent(prefix)}`,
-    { delayMs: 120 },
-  )) as { query?: { allpages?: { title: string }[] } };
+    "query",
+  );
   return (res.query?.allpages ?? []).map((p) => p.title);
 }
 
@@ -194,19 +247,19 @@ async function resolveTitles(
 ): Promise<ListCandidate[]> {
   const out: ListCandidate[] = [];
   for (let i = 0; i < titles.length; i += 50) {
-    const res = (await fetchJson(
-      `${Q}&redirects=1&titles=${titles
-        .slice(i, i + 50)
-        .map(encodeURIComponent)
-        .join("|")}`,
-      { delayMs: 120 },
-    )) as {
+    const res = await wikiFetch<{
       query?: {
         pages?: ApiPage[];
         normalized?: { from: string; to: string }[];
         redirects?: { from: string; to: string }[];
       };
-    };
+    }>(
+      `${Q}&redirects=1&titles=${titles
+        .slice(i, i + 50)
+        .map(encodeURIComponent)
+        .join("|")}`,
+      "query",
+    );
     const back = new Map<string, string>();
     for (const r of [
       ...(res.query?.normalized ?? []),
@@ -227,15 +280,15 @@ async function unusualCandidates(day: string): Promise<ListCandidate[]> {
   );
   if (subpages.length === 0) return [];
   // Every subpage's current wikitext in one call (~16 titles, well under the 50-title cap).
-  const res = (await fetchJson(
-    `${Q}&prop=revisions&rvprop=content&rvslots=main` +
-      `&titles=${subpages.map(encodeURIComponent).join("|")}`,
-    { delayMs: 120 },
-  )) as {
+  const res = await wikiFetch<{
     query?: {
       pages?: { revisions?: { slots?: { main?: { content?: string } } }[] }[];
     };
-  };
+  }>(
+    `${Q}&prop=revisions&rvprop=content&rvslots=main` +
+      `&titles=${subpages.map(encodeURIComponent).join("|")}`,
+    "query",
+  );
   const entries = [
     ...new Set(
       (res.query?.pages ?? []).flatMap((p) =>
@@ -263,12 +316,12 @@ async function categoryCandidates(
   list: "featured" | "good",
   day: string,
 ): Promise<ListCandidate[]> {
-  const res = (await fetchJson(
+  const res = await wikiFetch<{ query?: { pages?: ApiPage[] } }>(
     `${Q}&generator=categorymembers&gcmtitle=${encodeURIComponent(CATEGORY[list])}` +
       `&gcmnamespace=0&gcmtype=page&gcmlimit=max` +
       `&gcmstartsortkeyprefix=${sortKeyStart(day, list)}`,
-    { delayMs: 120 },
-  )) as { query?: { pages?: ApiPage[] } };
+    "query",
+  );
   return articles(res.query?.pages);
 }
 
@@ -278,15 +331,18 @@ async function dykCandidates(day: string): Promise<ListCandidate[]> {
   );
   if (months.length === 0) return [];
   const month = months[hashSeed(`dyk|${day}`) % months.length]!;
-  const parsed = (await fetchJson(
+  const parsed = await wikiFetch<{ parse?: { wikitext?: string } }>(
     `${WIKI_API}?action=parse&format=json&formatversion=2&prop=wikitext&page=${encodeURIComponent(month)}`,
-    { delayMs: 120 },
-  )) as { parse?: { wikitext?: string } };
+    "parse",
+  );
+  const hooks = parseDykHooks(parsed.parse?.wikitext ?? "");
+  // A hook that would not clean (an unreadable template) still names its article: the page is a
+  // candidate, just without the hook, and its card uses the lede.
   const hookByTitle = new Map(
-    parseDykHooks(parsed.parse?.wikitext ?? "").map((h) => [h.title, h.hook]),
+    hooks.flatMap((h) => (h.hook ? [[h.title, h.hook] as const] : [])),
   );
   return resolveTitles(
-    drawTitles([...hookByTitle.keys()], day, MAX_RESOLVE),
+    drawTitles([...new Set(hooks.map((h) => h.title))], day, MAX_RESOLVE),
     hookByTitle,
   );
 }

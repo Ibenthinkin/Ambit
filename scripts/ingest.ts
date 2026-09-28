@@ -716,7 +716,11 @@ async function main() {
     alreadyInDb: alreadyInDb + alreadyInDbWalk,
     flooredByRule,
     thinText: thinText.length,
-    bodies: { fetched: bodies.fetched, failed: bodies.failed },
+    bodies: {
+      fetched: bodies.fetched,
+      none: bodies.none,
+      deferred: bodies.deferred,
+    },
     newsDropped,
     curatedCount: curatedSearchAll.length + curatedWalkAll.length,
     inserted,
@@ -796,8 +800,9 @@ function printSummary(args: {
   flooredByRule: Record<StructuralDropRule, number>;
   /** Articles the writing floor dropped (under 400 characters of prose). */
   thinText: number;
-  /** Article bodies fetched for new rows (Wikipedia), and fetches that found none or failed. */
-  bodies: { fetched: number; failed: number };
+  /** Article bodies fetched for new rows (Wikipedia); none = the source has no extract (kept
+   *  bodiless); deferred = the fetch threw, so the item was left for the next run. */
+  bodies: { fetched: number; none: number; deferred: number };
   /** Per source, pieces the writing curator called `news` — curated, then not stored. */
   newsDropped: Record<string, number>;
   curatedCount: number;
@@ -952,7 +957,13 @@ function printSummary(args: {
       ` (dup-title ${flooredByRule["dup-title"]}, bare-title ${flooredByRule["bare-title"]}, thin-summary ${flooredByRule["thin-summary"]})`,
   );
   console.log(
-    `article bodies fetched:   ${bodies.fetched}${bodies.failed ? ` (${bodies.failed} found none or failed)` : ""}`,
+    `article bodies fetched:   ${bodies.fetched}` +
+      (bodies.none
+        ? ` · ${bodies.none} with no extract (kept, judged on the lede)`
+        : "") +
+      (bodies.deferred
+        ? ` · ${bodies.deferred} fetch(es) failed (left for the next run)`
+        : ""),
   );
   console.log(`writing floor dropped:    ${thinText} (thin-text)`);
   console.log(

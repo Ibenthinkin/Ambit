@@ -92,7 +92,7 @@ describe("parseDykHooks", () => {
   });
 
   it("skips the timestamp and image lines", () => {
-    expect(hooks.every((h) => !h.hook.includes("UTC"))).toBe(true);
+    expect(hooks.every((h) => !h.hook?.includes("UTC"))).toBe(true);
     expect(hooks).toHaveLength(24);
   });
 });
@@ -116,6 +116,43 @@ describe("cleanDykHook", () => {
     ).toBe(
       "Did you know that Toronto dealer Billy Jamieson found the mummy of pharaoh Ramesses I in the museum?",
     );
+  });
+});
+
+// Measured on live archives by the Phase 2 review: 3–7% of hooks carry a template, and deleting
+// them wholesale stored summaries like "lost due to" and "more than people".
+describe("cleanDykHook — templates", () => {
+  it("expands the templates hooks actually use", () => {
+    expect(
+      cleanDykHook(
+        "* ... that '''[[Tan Jin Sing]]'''{{`s}} farm lost {{convert|11|lb|kg}} to {{Nowrap|200 million}} ants aboard {{HMS|Victory}}?",
+      ),
+    ).toBe(
+      "Did you know that Tan Jin Sing's farm lost 11 lb to 200 million ants aboard HMS Victory?",
+    );
+  });
+
+  it("gives up on a template it cannot read — the card keeps the lede instead", () => {
+    expect(
+      cleanDykHook(
+        "* ... that '''[[X]]''' occurred in {{start date|1979|8}}, when it rained?",
+      ),
+    ).toBeNull();
+  });
+
+  it("drops every (… pictured …) aside, punctuation and all", () => {
+    expect(
+      cleanDykHook(
+        "* ... that '''[[Y]]''' ''(artist's restoration pictured)'' and [[Z]] ''(pictured, left)'' met?",
+      ),
+    ).toBe("Did you know that Y and Z met?");
+  });
+
+  it("parseDykHooks keeps the title and drops only the unreadable hook", () => {
+    const hooks = parseDykHooks(
+      "* ... that '''[[X]]''' occurred in {{start date|1979|8}}, when it rained?",
+    );
+    expect(hooks).toEqual([{ title: "X" }]);
   });
 });
 
@@ -256,5 +293,29 @@ describe("listCandidates", () => {
     expect(resolve).toContain("redirects=1");
     const ferber = out.find((c) => c.pageid === 99);
     expect(ferber?.hook).toMatch(/^Did you know that jams/);
+  });
+});
+
+// MediaWiki answers an error with HTTP 200 and `{ error: { code } }`. Read as "no candidates",
+// a rate-limited night would report zero errors and look idle; it must throw instead, so
+// search() fails and ingest counts it (the Phase 0.2 lesson).
+describe("listCandidates — API errors are errors", () => {
+  it("throws on a MediaWiki error body", async () => {
+    fetchJson.mockResolvedValueOnce({
+      error: { code: "ratelimited", info: "You've exceeded your rate limit." },
+    });
+    await expect(listCandidates("featured", "2026-09-28")).rejects.toThrow(
+      /ratelimited/,
+    );
+  });
+
+  it("throws when the expected result is missing and the batch did not complete", async () => {
+    fetchJson.mockResolvedValueOnce({});
+    await expect(listCandidates("unusual", "2026-09-28")).rejects.toThrow();
+  });
+
+  it("an empty generator result is empty, not an error (MediaWiki omits `query`)", async () => {
+    fetchJson.mockResolvedValueOnce({ batchcomplete: true });
+    await expect(listCandidates("featured", "2026-09-28")).resolves.toEqual([]);
   });
 });

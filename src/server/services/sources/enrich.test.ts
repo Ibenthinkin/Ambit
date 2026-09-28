@@ -45,16 +45,27 @@ describe("enrichBodies", () => {
       "already",
       null,
     ]);
-    expect(out).toMatchObject({ fetched: 1, failed: 0 });
+    expect(out).toMatchObject({ fetched: 1, none: 0, deferred: 0 });
   });
 
-  it("keeps the item bodiless when a fetch fails or finds nothing, and counts it", async () => {
+  it("keeps an item bodiless when the source has no body for it — that will never change", async () => {
+    const out = await enrichBodies([makeItem({ sourceId: "empty" })], fetchers);
+    expect(out.items.map((i) => i.body)).toEqual([null]);
+    expect(out).toMatchObject({ fetched: 0, none: 1, deferred: 0 });
+  });
+
+  // A throw is a blip, not an answer. Kept, the item would be curated from its lede and stored
+  // bodiless for good (ingest never revisits a row); dropped, tomorrow's run finds it new again.
+  it("drops an item whose fetch threw, so the next run retries it, and says so", async () => {
+    const warned: string[] = [];
     const out = await enrichBodies(
-      [makeItem({ sourceId: "boom" }), makeItem({ sourceId: "empty" })],
+      [makeItem({ sourceId: "boom" }), makeItem({ sourceId: "a" })],
       fetchers,
+      (msg) => warned.push(msg),
     );
-    expect(out.items.map((i) => i.body)).toEqual([null, null]);
-    expect(out).toMatchObject({ fetched: 0, failed: 2 });
+    expect(out.items.map((i) => i.sourceId)).toEqual(["a"]);
+    expect(out).toMatchObject({ fetched: 1, none: 0, deferred: 1 });
+    expect(warned.join()).toMatch(/boom.*503/);
   });
 
   it("never touches an image", async () => {
