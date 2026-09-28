@@ -111,6 +111,8 @@ function makeItem(overrides: Partial<Item> = {}): Item & { topicId: string } {
     imageUrl: overrides.imageUrl ?? null,
     imageWidth: null,
     imageHeight: null,
+    kind: null,
+    readingMinutes: null,
     sourceUrl: overrides.sourceUrl ?? `https://example.com/${nextId}`,
     attribution: overrides.attribution ?? null,
     license: overrides.license ?? null,

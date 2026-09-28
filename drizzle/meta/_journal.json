@@ -71,6 +71,13 @@
       "when": 1790390584395,
       "tag": "0009_item_image_dims",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790623603056,
+      "tag": "0010_item_writing",
+      "breakpoints": true
     }
   ]
 }

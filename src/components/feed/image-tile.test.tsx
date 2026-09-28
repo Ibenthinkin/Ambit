@@ -21,6 +21,8 @@ const card = (id: string): FeedCard => ({
     imageUrl: "https://example.test/i.jpg",
     imageWidth: null,
     imageHeight: null,
+    kind: null,
+    readingMinutes: null,
     sourceUrl: "https://example.test/o",
     attribution: null,
     license: null,

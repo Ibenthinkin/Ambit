@@ -21,11 +21,14 @@ import {
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
+
+import type { WritingKind } from "~/server/config/writing";
 
 // ---------------------------------------------------------------------------------------------
 // Better Auth core tables (generated, then owned here — see the file header)
@@ -227,6 +230,12 @@ export const item = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    // Writing only (docs/DESIGN_writing.md D2, migration 0010): the writing curator's kind —
+    // essay / curiosity / criticism / archive (config/writing.ts) — and the body's reading time.
+    // NULL for images, for articles the writing curator has not re-scored yet, and (minutes) for
+    // a piece Ambit holds only a dek for. No index: ~3.5k article rows sit behind idx_item_type.
+    kind: text("kind").$type<WritingKind>(),
+    readingMinutes: smallint("reading_minutes"),
     fetchedAt: timestamp("fetched_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
