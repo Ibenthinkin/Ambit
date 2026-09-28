@@ -602,10 +602,13 @@ describe("curateItems classify mode", () => {
     // gemini-2.5-flash-lite) against the key's remaining budget *before* dispatch — twelve
     // in-flight calls needed ~$0.31 of headroom to send ~$0.004 of work, and kvetchlandia's
     // walk died on a 402 with $2 still on the key (09-16-26).
-    await curateItems([makeItem({ sourceId: `cap-${Date.now()}` })], {
-      classify: true,
-      force: true,
-    });
+    await curateItems(
+      [makeItem({ type: "image", sourceId: `cap-${Date.now()}` })],
+      {
+        classify: true,
+        force: true,
+      },
+    );
     expect(bodies).toHaveLength(1);
     expect(bodies[0]!.max_tokens).toBe(CURATOR_MAX_TOKENS);
     expect(CURATOR_MAX_TOKENS).toBeGreaterThanOrEqual(200);
@@ -614,7 +617,7 @@ describe("curateItems classify mode", () => {
 
   it("sends CLASSIFY_PROMPT and returns the topic when classify is on", async () => {
     const [out] = await curateItems(
-      [makeItem({ sourceId: `classify-${Date.now()}` })],
+      [makeItem({ type: "image", sourceId: `classify-${Date.now()}` })],
       { classify: true, force: true },
     );
     expect(out?.topics).toEqual(["botany"]);
@@ -623,7 +626,7 @@ describe("curateItems classify mode", () => {
 
   it("sends CURATOR_PROMPT and ignores any topic when classify is off", async () => {
     const [out] = await curateItems(
-      [makeItem({ sourceId: `score-${Date.now()}` })],
+      [makeItem({ type: "image", sourceId: `score-${Date.now()}` })],
       { force: true },
     );
     expect(out?.topics).toEqual([]);
@@ -659,6 +662,7 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
 
   it("a cached single topic becomes a one-element array", async () => {
     const it = makeItem({
+      type: "image",
       source: "doorofperception",
       sourceId: `cache-fwd-${Date.now()}-a`,
     });
@@ -669,6 +673,7 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
 
   it("a cached null topic becomes an empty array — stored un-homed, not dropped", async () => {
     const it = makeItem({
+      type: "image",
       source: "doorofperception",
       sourceId: `cache-fwd-${Date.now()}-b`,
     });
@@ -683,6 +688,7 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
   // say which if it knows how many calls were fresh.
   it("reports a cache hit through onCacheHit, so a caller can tell a free run from a clean one", async () => {
     const it = makeItem({
+      type: "image",
       source: "doorofperception",
       sourceId: `cache-fwd-${Date.now()}-d`,
     });
@@ -697,6 +703,7 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
 
   it("a Cut 1 entry round-trips its array", async () => {
     const it = makeItem({
+      type: "image",
       source: "doorofperception",
       sourceId: `cache-fwd-${Date.now()}-c`,
     });
@@ -709,6 +716,7 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
     // The 09-06/07 walks wrote runaway lists into the cache before MAX_TOPICS existed. Those
     // entries are read forward like every other one: capped to three, counted, never re-billed.
     const it = makeItem({
+      type: "image",
       source: "doorofperception",
       sourceId: `cache-fwd-${Date.now()}-d`,
     });
