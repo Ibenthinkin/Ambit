@@ -197,7 +197,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   applied to every row by **`db:seed` on each boot**, which is what puts facets on production with
   nothing copied into the container. `listTopics()` changed from `WHERE tier = 'core'` to
   `WHERE facet IS NOT NULL`, and that one line is what lets both pickers — and `setMine` — see the
-  whole vocabulary: **onboarding is four stages, one facet each** (floor of three picks in total),
+  whole vocabulary: **onboarding is four stages, one facet each** (no floor in them since 09-28-26 — one pick at Start),
   and **`/profile/topics`** is the same list as four stacked facet sections on one page, each
   under its onboarding question (`FACET_PROMPTS`; a chip-row filter until Ben's 09-12-26 review), saved on every toggle (floor of one),
   replacing Settings' deleted "What you see" sheet. `facet IS NULL` means _not pickable_: an
@@ -215,17 +215,18 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 - **The pickers show umbrella groups, not topics — 09-25-26** (design
   `docs/DESIGN_topic-facets-and-personas.md` §2a; branch `feat/topic-groups`). Ben's review of
   onboarding after round 2: 92 Subject chips was "just too many words". `src/server/config/topic-groups.ts`
-  files every faceted topic into exactly one hand-named group (12 Subject / 8 Medium / 8 Look /
-  6 Place; `topic-groups.test.ts` pins the partition, so a promotion pasted into the facet map and
+  files every faceted topic into exactly one hand-named group (36 Subject / 19 Medium / 14 Look /
+  6 Place — 75 groups since the 09-28-26 re-cut; `topic-groups.test.ts` pins the partition, so a promotion pasted into the facet map and
   not here fails `bun run test` — the only guard, `promote:topics` just prints the reminder). **A
-  group is picker-side only**: onboarding selects group ids and flattens them on submit, `setMine`
-  still receives topic ids, and the feed, weights and personas never hear of a group. Two things
+  group is picker-side only**: a group tap becomes topic picks inside the picker, `setMine`
+  receives topic ids with weights, and the feed and personas never hear of a group. Two things
   that follow: **`groupsFor()` intersects with `topics.list`** (CI seeds the sixteen originals, so
   "Space & science fiction" is one chip that picks `astronomy` there and twelve topics on
   production — an unlisted id is one `setMine` refuses), and e2e specs press `ONBOARDING_GROUPS`
   and must accept both database shapes when asserting on picked topics. `/profile/topics` leads
   each section with the group chips (tri-state; `Chip` gained `selected="mixed"`; tapping a mixed
-  group _completes_ it) and folds the flat list behind "Show all N topics". **Settled 09-28-26:**
+  group _completes_ it), and each group of more than one topic has its own disclosure listing its
+  members. **Settled 09-28-26:**
   the flat-weight-1.0 write this "Open" line used to describe is gone — `docs/DESIGN_onboarding-interview.md`
   §2 is the decision (a group writes its members at "some", a single topic at "lot"); see the
   Pick → Start bullet below.
@@ -239,7 +240,8 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   "for want of a better home"), and the Colour group's id is `color-group` — the design's
   `colour-group` was a typo against the topic's own American spelling (`color`). The design's
   three stages, `Pick → Refine → Start`, ship here as **`Pick → Start`**: `Refine` is the
-  interview (plan 2 of the same plan) and goes between once it's built; until then the progress
+  interview (plan 2, `docs/PLAN_onboarding-interview.md` — a hand-written bank plus graph-generated
+  questions, no LLM) and goes between once it's built; until then the progress
   row carries only the two real stages. **Pick has no floor at all**, not even on the first of the
   four facet stages, and there is no group-tap counter; **the one floor left is one pick at
   Start**, where `TopicLevels` — a leaf shared with `/profile/topics` — renders the whole draft as
@@ -247,8 +249,12 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   (`weightOf`/`levelOf`/`pickWeight`, a no-import leaf like `feed-knobs.ts`). Taking a whole group
   writes its members at "some"; naming a single topic writes it at "lot" (`pickWeight`, the one
   place that rule lives, `components/topics/picks.ts`'s `toggleGroup`/`toggleTopic`); **off means
-  the `user_topic` row is deleted, never a zero weight**. `GroupPicker` (Pick) and `TopicLevels`
-  (Start and `/profile/topics`) are the two components both screens share. `topics.mine` now
+  the `user_topic` row is deleted, never a zero weight**. `GroupPicker` (hosted by onboarding's Pick
+  and by `/profile/topics`) and `TopicLevels` (onboarding's Start, and `/profile/topics` above its
+  pickers) are the two components both screens share. `/profile/topics` sends `setMine` and
+  `setWeight` through one mutation `scope`, a serial queue, and **only the last write in the queue
+  refetches `topics.mine`** — a refetch between two queued writes would land the server's
+  in-between rows over the waiting write's optimistic patch (`topics-screen.queue.test.tsx`). `topics.mine` now
   answers `{ topicId, weight }[]` directly, retiring the dev-gated `topics.weights` query — a
   product build reads the number itself now — and `topics.setWeight` is the new one-topic write
   `TopicLevels`'s segmented control calls, alongside the unchanged whole-set `setMine` (SPEC §7).

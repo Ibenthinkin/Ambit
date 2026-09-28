@@ -22,11 +22,13 @@ topic's own American spelling (`color`, not `colour`). `topics.mine` now answers
 bare ids. `GroupPicker` + `TopicLevels` + `components/topics/picks.ts`'s pure
 `toggleGroup`/`toggleTopic`/`groupState` are the pieces both `OnboardingScreen` (now
 `Pick → Start` — no floor in Pick, one floor at Start) and the rewritten `/profile/topics`
-(`TopicsScreen`) share. Task 5 (a `topics-screen.tsx` follow-up) folded into Task 4's own commit —
-the type change forced it, so it was reviewed together rather than as a separate step.
+(`TopicsScreen`) share. Task 5 (the `settings-screen.tsx` follow-up — its "What you see" row reads
+ids off the new `topics.mine` shape) folded into Task 4's own commit: the type change forced it,
+so it was reviewed together rather than as a separate step.
 
-**Decisions:** no LLM in v1 — `docs/BUILD_PLAN.md`'s 8.4 is reshaped to say so; the prose-to-
-weights interview is plan 2 (`docs/PLAN_onboarding-interview.md`), deferred. "Off" in
+**Decisions:** no LLM in v1 — `docs/BUILD_PLAN.md`'s 8.4 is reshaped to say so; plan 2
+(`docs/PLAN_onboarding-interview.md`) is the interview, and it has no LLM either — a hand-written question
+bank plus offers generated from the topic graph — not the prose-to-weights path 8.4 first imagined. "Off" in
 `TopicLevels` deletes the `user_topic` row rather than writing a zero weight. A whole-group pick
 writes "some", a single topic "lot" (`pickWeight`). The e2e level-survives-reload test clicks
 "a little" rather than "a lot": CI's sixteen-topic seed makes Space a singleton group, so
