@@ -9,10 +9,11 @@ import { hasCompletedOnboarding, listTopics } from "~/server/db/topics";
 // on before ever seeing a feed. A Server Component, same shape as `/` and the `/feed` placeholder:
 // the session check here is defense in depth behind src/proxy.ts's cookie-shape-only optimistic
 // redirect (that file's matcher already covers /onboarding/:path*), and the onboarded check keeps
-// an already-set-up user from re-visiting the picker directly (Decision 10 — there is no re-pick
-// UI in v1). Onboarding has its own chrome and shares no wrapper with the landing screen — it
-// never did, and as of 5.11 there is no shared shell left to reuse anyway (`LandingShell` and its
-// drifting orbs were deleted with the Landing 2 rebuild).
+// an already-set-up user from re-visiting the picker directly (Decision 10 — there IS a re-pick
+// UI now, `/profile/topics`; this redirect just keeps a completed reader from re-running
+// onboarding itself). Onboarding has its own chrome and shares no wrapper with the landing screen
+// — it never did, and as of 5.11 there is no shared shell left to reuse anyway (`LandingShell` and
+// its drifting orbs were deleted with the Landing 2 rebuild).
 export default async function OnboardingPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
@@ -34,7 +35,6 @@ export default async function OnboardingPage() {
         label: t.label,
         facet: t.facet!,
       }))}
-      minPicks={3}
     />
   );
 }

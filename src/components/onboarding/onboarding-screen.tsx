@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { GroupPicker } from "~/components/topics/group-picker";
+import { TopicLevels } from "~/components/topics/topic-levels";
 import { Button } from "~/components/ui/button";
-import { Chip } from "~/components/ui/chip";
 import { Column } from "~/components/ui/column";
 import { Rise } from "~/components/ui/rise";
 import { cn } from "~/lib/utils";
@@ -13,45 +14,58 @@ import {
   FACET_LABELS,
   FACET_PROMPTS,
 } from "~/server/config/topic-facets";
-import { groupsFor } from "~/server/config/topic-groups";
+import { weightOf } from "~/server/config/topic-levels";
 import type { TopicFacet } from "~/server/db/schema";
 import { api } from "~/trpc/react";
 
 export interface OnboardingScreenProps {
-  /** `topics.list` (every faceted topic, label order) mapped down to what the grid needs. */
+  /** `topics.list` (every faceted topic, label order) mapped down to what the pickers need. */
   topics: { id: string; label: string; facet: TopicFacet }[];
-  /** Minimum picks — chips tapped, across all four stages — before the CTA flips to "Start
-   *  exploring" (SPEC §3.2: 3). Counted in groups since 09-25-26: three taps, whatever they fan
-   *  out to. */
-  minPicks: number;
 }
 
-// Onboarding's topic-chip picker (Ambit - Onboarding.dc.html, PHASE5_PLAN_5.3.md) — the screen a
-// freshly invited sign-up lands on before ever seeing a feed. A near-straight port of the
-// prototype's interaction model (tap chips, sticky CTA gates on a minimum count); the real
-// difference from the handoff is a real mutation instead of `localStorage` (Decision 2).
+// docs/DESIGN_onboarding-interview.md §3 "Onboarding phases" (the 09-28-26 redesign) — the screen
+// a freshly invited sign-up lands on before ever seeing a feed.
 //
-// **Four stages since 09-10-26** (docs/DESIGN_topic-facets-and-personas.md §2). The grid used to
-// be the sixteen `TOPICS` from config; it is now every faceted topic — a hundred of them — which
-// is a broken screen as one grid and a fine one as four grouped stages. Nothing is written until
-// the last stage's CTA: one `setMine` with the union, so abandoning onboarding halfway leaves no
-// rows and `hasCompletedOnboarding()` still reads false.
+// **Two phases in the foundation plan, three in the design.** The design's progress row reads
+// "Pick · Refine · Start"; `Refine` is the interview (§4–§5) and is a *later* task's job — until
+// it lands, the flow is just Pick → Start, so `PHASES` below carries only those two entries and
+// the comment on it says where the third goes. `phase` is derived from `stage`, never stored
+// separately, so there is exactly one source of truth for "where am I".
 //
-// **Umbrella groups since 09-25-26** (design doc §2a; `config/topic-groups.ts`). By round 2 the
-// Subject stage alone was 92 chips — "just too many words" — so each stage now shows its facet's
-// groups (twelve Subject chips, eight Medium, eight Look, six Place) and a tap picks every member
-// topic. The screen selects *group ids*; only on submit are they flattened to topic ids, and only
-// to the members `topics.list` actually returned (`groupsFor` intersects — CI lists sixteen topics,
-// and production can be ahead of the config between a promotion and its paste). `setMine` still
-// receives topic ids, so nothing downstream knows a group exists. Fine-tuning a single topic is
-// `/profile/topics`'s "Show all" — this screen is deliberately coarse.
-export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
+// **Pick has no floor (a break from the old four-stage screen).** The previous cut gated the CTA
+// on a `minPicks` prop (3, counted in *groups* tapped) and showed "Pick N more" until it was met.
+// The redesign drops that entirely: every Pick stage — including the very first — can be passed
+// with nothing chosen, `Next` always reads "Next", and there is no group-tap counter anywhere in
+// the Pick phase. The only floor left is at the very end.
+//
+// **Floor of one at Start, and why nothing is written before it.** `Start` renders `TopicLevels`
+// over the draft — every pick made across all four Pick stages, editable one more time (tune a
+// level, or turn a topic off) before it becomes real. "Start exploring" is disabled while
+// `picks.size === 0`, because an empty write would leave the reader picking again on their next
+// visit anyway (`hasCompletedOnboarding` reads `user_topic` rows). Nothing is written before this
+// button — abandoning onboarding at any earlier stage, including by closing the tab, leaves no
+// rows, exactly as before.
+//
+// **`picks` is a `Map<string, number>` now, not a `Set<string>` of group ids.** The old screen
+// selected whole groups and flattened them to topic ids *at submit time*, writing every id at a
+// flat weight of 1 — a stopgap from an earlier task, now replaced. The real unit picked is a
+// topic, at a weight (`~/server/config/topic-levels`'s three reader-facing levels), and the two
+// pure functions in `~/components/topics/picks.ts` (`toggleGroup`, `toggleTopic`, wired up inside
+// `GroupPicker`) are the only place a weight gets chosen on the Pick side — this file never
+// writes a weight literal itself. `TopicLevels` on Start writes the *other* way: `onLevel` reads
+// a level word off the segmented control and turns it back into a weight via `weightOf`, `onOff`
+// just deletes the entry. So the whole screen carries exactly one weight-bearing state value from
+// the first tap to the final mutation.
+export function OnboardingScreen({ topics }: OnboardingScreenProps) {
   const router = useRouter();
   const { mutateAsync } = api.topics.setMine.useMutation();
 
-  // One set of *group ids* for all four stages, so Back-and-unpick works and the final write is
-  // the union of every group's listed members.
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Every pick made so far, across every stage: topic id → weight. Nothing is flattened or
+  // resolved until submit — Start reads this map directly.
+  const [picks, setPicks] = useState<Map<string, number>>(new Map());
+  // 0..FACETS.length-1 is a Pick stage (one per facet, `FACETS` order); `stage === FACETS.length`
+  // is Start. One integer captures both "which Pick facet" and "am I on Start" — `phase` below is
+  // just a read of it, not a second piece of state that could drift out of sync.
   const [stage, setStage] = useState(0);
   // Local `submitting`, not the mutation's own `isPending` — mirrors AuthCard exactly (same
   // aria-busy + pointer-events-none opacity-80 treatment) and keeps the test's `useMutation` mock
@@ -59,58 +73,35 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const facet = FACETS[stage]!;
-  const isLast = stage === FACETS.length - 1;
-  const stageGroups = groupsFor(facet, topics);
+  const phase = stage < FACETS.length ? "pick" : "start";
+  const facet = phase === "pick" ? FACETS[stage]! : undefined;
 
-  function toggle(groupId: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      // Toggle off has to *delete*, not just add — an easy thing to get half-right and the
-      // reason this is its own function rather than inlined at the call site.
-      if (next.has(groupId)) {
-        next.delete(groupId);
-      } else {
-        next.add(groupId);
-      }
-      return next;
-    });
-  }
+  // The progress row's dots — currently two, since `Refine` isn't built yet. A later task inserts
+  // `{ key: "refine", label: "Refine" }` here, between these two, once the interview exists to
+  // route to; nothing about `phase`'s derivation above needs to change to accommodate it, since
+  // `phase` would just gain a third possible value alongside its own stage range.
+  const PHASES = [
+    { key: "pick", label: "Pick" },
+    { key: "start", label: "Start" },
+  ] as const;
 
-  /** The topic ids a submit writes: every listed member of every picked group, deduplicated. */
-  function flatten(groupIds: ReadonlySet<string>): string[] {
-    const ids = new Set<string>();
-    for (const f of FACETS) {
-      for (const { group, members } of groupsFor(f, topics)) {
-        if (groupIds.has(group.id)) for (const m of members) ids.add(m);
-      }
-    }
-    return [...ids];
-  }
-
-  const count = selected.size;
-  const remaining = minPicks - count;
+  const count = picks.size;
   const countLabel =
     count === 0
       ? "Nothing picked yet"
-      : `${count} ${count === 1 ? "interest" : "interests"} chosen`;
-  const ctaLabel = remaining > 0 ? `Pick ${remaining} more` : "Start exploring";
+      : `${count} ${count === 1 ? "topic" : "topics"} chosen`;
 
   async function handleSubmit() {
     // Guard in the handler, not just visually via `disabled` — the same "don't trust disabled
     // alone" caution AuthCard's validation already models. Also guards re-entry while a previous
     // submit is still in flight.
-    if (submitting || count < minPicks) return;
+    if (submitting || picks.size === 0) return;
 
     setError("");
     setSubmitting(true);
     try {
-      // Task 4 of the onboarding-v2 foundation moved `setMine` from bare ids to weighted picks
-      // (docs/DESIGN_onboarding-interview.md §2). Every flattened id writes at weight 1 here —
-      // this coarse group screen has no opinion on "a little / some / a lot"; the interview's own
-      // per-topic control (a later task) is what actually chooses a level.
       await mutateAsync({
-        picks: flatten(selected).map((topicId) => ({ topicId, weight: 1 })),
+        picks: [...picks].map(([topicId, weight]) => ({ topicId, weight })),
       });
       // `replace`, not `push` (Decision 9): pushing would leave /onboarding in history, and
       // backing into it just bounces forward to /feed again via the page's redirect — a dead
@@ -128,41 +119,59 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
       {/* The desktop cap (docs/DESIGN_desktop-polish.md §1). The chips keep their own `px-6`
        *inside* the column, so at 768px the grid simply stops growing rather than re-padding. */}
       <Column width="narrow">
-        {/* `key={stage}` re-mounts the header and grid per stage so <Rise> plays again — a stage
-            change should feel like a new screen, not a chip list swapping under a static title. */}
+        {/* `key={stage}` re-mounts the header and body per stage so <Rise> plays again — a stage
+            change (Pick → Pick or Pick → Start) should feel like a new screen, not content
+            swapping under a static title. */}
         <Rise key={`h-${stage}`}>
           <div className="px-6 pt-16 pb-2">
             <p className="text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase">
-              Ambit · Setup · {stage + 1} of {FACETS.length}
+              {phase === "pick"
+                ? `Ambit · Setup · ${stage + 1} of ${FACETS.length}`
+                : "Ambit · Setup · Start"}
             </p>
             <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] font-semibold tracking-[-0.4px]">
-              {FACET_PROMPTS[facet]}
+              {phase === "pick"
+                ? FACET_PROMPTS[facet!]
+                : "Here's where we'll start"}
             </h1>
             <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
-              {stage === 0
-                ? "Choose as many as you like. Ambit starts here — then wanders sideways into things you'd never think to search for."
-                : `${FACET_LABELS[facet]} — pick any, or none.`}
+              {phase === "pick"
+                ? stage === 0
+                  ? "Choose as many as you like. Ambit starts here — then wanders sideways into things you'd never think to search for."
+                  : `${FACET_LABELS[facet!]} — pick any, or none.`
+                : "Turn anything off, or say how much of it you want. You can change all of this any time from your profile."}
             </p>
           </div>
         </Rise>
 
-        {/* The grid rises as one unit (landing's 0/80/160 stagger), not per-chip — a per-chip
-          stagger would turn a long grid into a slow cascade the handoff never asks for. */}
-        <Rise key={`g-${stage}`} delayMs={80}>
-          <div
-            role="group"
-            aria-label={`${FACET_LABELS[facet]} groups`}
-            className="flex flex-wrap gap-[10px] px-6 pt-[22px] pb-[200px]"
-          >
-            {stageGroups.map(({ group }) => (
-              <Chip
-                key={group.id}
-                selected={selected.has(group.id)}
-                onClick={() => toggle(group.id)}
-              >
-                {group.label}
-              </Chip>
-            ))}
+        {/* The body rises as one unit (landing's 0/80/160 stagger), not per-chip/per-row — a
+            per-item stagger would turn a long grid or summary into a slow cascade the handoff
+            never asks for. */}
+        <Rise key={`b-${stage}`} delayMs={80}>
+          <div className="px-6 pt-[22px] pb-[200px]">
+            {phase === "pick" ? (
+              <GroupPicker
+                facet={facet!}
+                topics={topics}
+                picks={picks}
+                onChange={setPicks}
+              />
+            ) : (
+              <TopicLevels
+                topics={topics}
+                picks={picks}
+                onLevel={(id, l) =>
+                  setPicks((p) => new Map(p).set(id, weightOf(l)))
+                }
+                onOff={(id) =>
+                  setPicks((p) => {
+                    const n = new Map(p);
+                    n.delete(id);
+                    return n;
+                  })
+                }
+              />
+            )}
           </div>
         </Rise>
       </Column>
@@ -186,33 +195,35 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
               {error}
             </div>
           )}
-          {/* Four dots; the active one is the accent. `aria-current="step"` is the screen-reader
-              equivalent of the colour. */}
+          {/* One dot per phase (two today, three once `Refine` lands). `aria-current="step"` is
+              the screen-reader equivalent of the accent colour. */}
           <nav
             aria-label="Setup progress"
             className="mb-3 flex justify-center gap-2"
           >
-            {FACETS.map((f, i) => (
+            {PHASES.map((p) => (
               <span
-                key={f}
-                aria-current={i === stage ? "step" : undefined}
-                aria-label={FACET_LABELS[f]}
+                key={p.key}
+                aria-current={p.key === phase ? "step" : undefined}
+                aria-label={p.label}
                 className={cn(
                   "block h-[6px] w-[6px] rounded-full transition-colors",
-                  i === stage ? "bg-accent" : "bg-ink/20",
+                  p.key === phase ? "bg-accent" : "bg-ink/20",
                 )}
               />
             ))}
           </nav>
           {/* Label above the buttons, not beside them: at 402px the last stage carries Back AND
-              the CTA, and "Nothing picked yet" beside both wrapped to two lines and clipped
-              against the bottom edge. Stacked on every stage rather than only the last, so the
-              bar does not jump height when Back appears. */}
+              the CTA, and a long status line beside both wrapped to two lines and clipped against
+              the bottom edge. Stacked on every stage rather than only the last, so the bar does
+              not jump height when Back appears. */}
           <p
             aria-live="polite"
             className="text-ink/55 mb-2 font-sans text-[12.5px]"
           >
-            {countLabel}
+            {phase === "start" && picks.size === 0
+              ? "Pick at least one topic to start."
+              : countLabel}
           </p>
           <div className="flex items-center justify-end gap-[14px]">
             {stage > 0 && (
@@ -225,16 +236,16 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
                 Back
               </Button>
             )}
-            {isLast ? (
+            {phase === "start" ? (
               <Button
                 shape="pill"
                 size="md"
-                disabled={remaining > 0}
+                disabled={picks.size === 0}
                 aria-busy={submitting}
                 onClick={handleSubmit}
                 className={cn(submitting && "pointer-events-none opacity-80")}
               >
-                {ctaLabel}
+                Start exploring
               </Button>
             ) : (
               <Button
