@@ -52,7 +52,7 @@ describe("TOPIC_GROUPS", () => {
     }
   });
 
-  it("is the size the design recorded (09-25-26): 12 subject, 8 medium, 8 look, 6 place", () => {
+  it("is the size the design recorded (09-28-26): 36 subject, 19 medium, 14 look, 6 place", () => {
     const count = (f: string) =>
       TOPIC_GROUPS.filter((g) => g.facet === f).length;
     expect([
@@ -60,7 +60,22 @@ describe("TOPIC_GROUPS", () => {
       count("medium"),
       count("look"),
       count("place"),
-    ]).toEqual([12, 8, 8, 6]);
+    ]).toEqual([36, 19, 14, 6]);
+  });
+
+  it("the -group suffix is only ever used to dodge a real collision", () => {
+    // Rule (§1 of the design doc): a group id gets a "-group" suffix only so it doesn't collide
+    // with a topic id of the same natural slug (Cars the group vs. `cars` the topic). If the
+    // suffix is on an id whose natural slug (the id with "-group" stripped) is *not* itself a
+    // topic id, the suffix is decoration, not a dodge, and the rule has gone stale.
+    for (const g of TOPIC_GROUPS) {
+      if (!g.id.endsWith("-group")) continue;
+      const naturalSlug = g.id.replace(/-group$/, "");
+      expect(
+        TOPIC_FACETS[naturalSlug],
+        `${g.id}: "${naturalSlug}" is not a topic id, so the -group suffix isn't dodging anything`,
+      ).toBeDefined();
+    }
   });
 });
 
@@ -73,13 +88,13 @@ describe("groupsFor", () => {
   ];
 
   it("shows only groups with a listed member, and flattens to the listed members only", () => {
-    // CI's shape: the sixteen originals and nothing grown. Space & science fiction has twelve
-    // members in the config but only `astronomy` here, so that is all a pick may write.
+    // CI's shape: the sixteen originals and nothing grown. Space has six members in the config
+    // but only `astronomy` here, so that is all a pick may write.
     const subject = groupsFor("subject", listed);
     expect(subject.map((r) => r.group.label)).toEqual([
-      "Space & science fiction",
-      "Plants & fungi",
-      "Music, film & performance",
+      "Space",
+      "Plants",
+      "Music, sound & dance",
     ]);
     expect(subject[0]!.members).toEqual(["astronomy"]);
   });
@@ -88,10 +103,11 @@ describe("groupsFor", () => {
     const rows = [{ id: "textiles" }, { id: "ceramics" }, { id: "typography" }];
     const medium = groupsFor("medium", rows);
     expect(medium.map((r) => r.group.label)).toEqual([
-      "Posters, print & type",
-      "Craft & materials",
+      "Graphic design & type",
+      "Ceramics & glass",
+      "Textiles",
     ]);
-    expect(medium[1]!.members).toEqual(["textiles", "ceramics"]);
+    expect(medium[1]!.members).toEqual(["ceramics"]);
   });
 
   it("is empty for a facet with nothing listed", () => {

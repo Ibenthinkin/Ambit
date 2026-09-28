@@ -1,26 +1,36 @@
-// The umbrella groups the pickers show instead of the raw vocabulary (09-25-26, Ben's review of
-// onboarding: "too many subjects to choose from, just too many words"). By then the facet cut had
-// grown to 92 Subject chips, 41 Medium, 20 Look and 6 Place — fine as a catalogue, a wall as a
-// first screen. A group is a picker-side idea only: picking one picks every member topic, so
-// `topics.setMine` still receives topic ids, `user_topic` still holds topics, and the feed engine,
-// the personas fixture and every weight rule are untouched. Nothing about a group reaches the
-// database.
+// The umbrella groups the pickers show instead of the raw vocabulary. Re-cut 09-28-26: Ben's
+// review of onboarding v2 called the first cut (09-25-26 — 12 Subject / 8 Medium / 8 Look / 6
+// Place) "very bad — mostly way too vague, and include things together that logically should not
+// be". `myth-story-and-the-strange` had swallowed mythology, horror and humor into one shrug of a
+// chip, `everyday-things` did the same to food, fashion and toys, and `machines-and-technology`
+// buried cars and games under "technology". This file is the 75-group re-cut of
+// docs/DESIGN_onboarding-interview.md §1 (36 Subject / 19 Medium / 14 Look / 6 Place) — ids,
+// labels, members and order are copied from Ben's verdicted table, not inferred.
 //
-// Two rules the test beside this file pins:
-//   1. Every faceted topic (`TOPIC_FACETS`) is in exactly one group, and every member of a group
-//      carries that group's facet. A newly promoted topic that is pasted into the facet map and
-//      not into a group fails `bun run test` — which is the guard, since `promote:topics` can only
-//      remind (it prints the line to paste; see its closing lines).
-//   2. Group ids never collide with topic ids. The onboarding screen keeps them in separate sets,
-//      but a collision would make `groupOf`'s output ambiguous to read in a debugger.
+// Rules (§1 of the design doc):
+//   - A group is one idea a reader would say out loud. Prefer a narrower, honestly-named group to
+//     a broad one that quietly lumps unrelated things — that is what made the first cut bad.
+//   - A singleton is a group in good standing, not a leftover: Fungi, Maps, Humor and Cars are
+//     each exactly one topic, and that's fine — a reader who wants Cars shouldn't have to wade
+//     through a "Machines & technology" chip to get there.
+//   - Nothing is filed "for want of a better home". The old cut's `humor` sat inside
+//     "Myth, story & the strange" for exactly that reason; the re-cut gives it its own chip.
+//   - Every faceted topic is in exactly one group and carries its group's facet —
+//     `topic-groups.test.ts` pins both halves of that, same as before.
+//   - Group ids never collide with topic ids: a group named after a single topic (`cars`,
+//     `humor`, `soviet`...) gets a `-group` suffix so `groupOf`'s output stays unambiguous in a
+//     debugger. `topic-groups.test.ts` pins that the suffix is used *only* for that reason — never
+//     as decoration.
 //
-// Grouping is editorial, like the facet map, and is expected to be renamed and reshuffled by hand.
-// Judgement calls worth recording so they are not re-argued by accident: `science` sits with
-// machines and technology (the corpus's "science" is instruments and apparatus, not the body);
-// `humor` sits with myth and story for want of a better home; the six places stay as six
-// single-topic groups rather than one "Places" chip, because a reader who wants Japan does not
-// want Chicago. A group with one member is an ordinary group — the chip just happens to pick one
-// topic.
+// One deliberate departure from the design doc's literal text: its table spells the Colour group's
+// id `colour-group`, but the topic it dodges a collision with is spelled the American way
+// (`color`, topic-facets.ts) — `colour` is not a topic id, so `colour-group` would trip the
+// suffix-honesty test above for no reason. The id here is `color-group`; the label stays Ben's
+// British "Colour", which is copy, not a slug.
+//
+// A group is a picker-side idea only: picking one picks every member topic, so `topics.setMine`
+// still receives topic ids, `user_topic` still holds topics, and the feed engine, the personas
+// fixture and every weight rule are untouched. Nothing about a group reaches the database.
 //
 // **Groups render from what the server actually lists.** CI's database is `db:migrate` +
 // `db:seed`, which is the sixteen original topics and nothing grown, and production's rows can be
@@ -56,213 +66,229 @@ function group(
   return { id, label, facet, topics };
 }
 
-/** Display order within a facet is this array's order — broad, populated groups first. */
+/** Display order within a facet is this array's order — the design doc's table order. */
 export const TOPIC_GROUPS: readonly TopicGroup[] = [
-  // ── Subject (92 topics, 12 groups) ──────────────────────────────────────────────────────────
-  group("space-and-science-fiction", "Space & science fiction", "subject", [
+  // ── Subject (92 topics, 36 groups) ──────────────────────────────────────────────────────────
+  group("space", "Space", "subject", [
     "astronomy",
     "space-exploration",
-    "space-art",
-    "spaceship",
     "astronaut",
     "moon",
+    "spaceship",
+    "space-art",
+  ]),
+  group("science-fiction-group", "Science fiction", "subject", [
+    "science-fiction",
+    "robot",
     "alien",
     "ufo",
-    "robot",
-    "science-fiction",
-    "star-wars",
-    "star-trek",
   ]),
-  group("animals-group", "Animals", "subject", [
-    "zoology",
-    "animals",
-    "birds",
-    "cats",
-    "insects",
+  group("fandoms", "Fandoms", "subject", ["star-wars", "star-trek"]),
+  group("fantasy-and-myth", "Fantasy & myth", "subject", [
+    "mythology",
+    "fantasy",
+    "dragon",
+    "monster",
   ]),
-  group("plants-and-fungi", "Plants & fungi", "subject", [
+  group("horror-and-the-macabre", "Horror & the macabre", "subject", [
+    "horror",
+    "halloween",
+    "death",
+  ]),
+  group("ancient-world", "The ancient world", "subject", ["ancient-history"]),
+  group("animals-group", "Animals", "subject", ["zoology", "animals", "cats"]),
+  group("birds-group", "Birds", "subject", ["birds"]),
+  group("insects-group", "Insects", "subject", ["insects"]),
+  group("plants-group", "Plants", "subject", [
     "botany",
     "plants",
     "flowers",
     "trees",
-    "mushrooms",
-    "fruit",
   ]),
-  group("land-sea-and-sky", "Land, sea & sky", "subject", [
+  group("fungi", "Fungi", "subject", ["mushrooms"]),
+  group("food-group", "Food", "subject", ["food", "fruit"]),
+  group("landscapes-and-nature", "Landscapes & nature", "subject", [
     "landscapes",
-    "the-ocean",
-    "water",
-    "geology",
-    "desert",
-    "sand",
     "nature",
     "natural-history",
+    "desert",
+    "sand",
   ]),
-  group("weather-and-light", "Weather & light", "subject", [
+  group("water-and-sea", "Water & sea", "subject", ["the-ocean", "water"]),
+  group("rocks-and-earth", "Rocks & earth", "subject", ["geology"]),
+  group("weather-and-sky", "Weather & sky", "subject", [
     "clouds",
     "weather",
     "snow",
-    "fire",
+  ]),
+  group("light-fire-and-night", "Light, fire & night", "subject", [
     "light",
+    "fire",
     "night",
   ]),
-  group("body-and-mind", "Body & mind", "subject", [
+  group("anatomy-and-medicine", "Anatomy & medicine", "subject", [
     "anatomy",
     "body",
     "medicine",
+  ]),
+  group("mind-and-feeling", "Mind & feeling", "subject", [
     "consciousness",
     "emotions",
-    "death",
+  ]),
+  group("faces-and-portraits", "Faces & portraits", "subject", [
     "portraiture",
     "portraits",
   ]),
-  group("machines-and-technology", "Machines & technology", "subject", [
+  group("machines-and-engineering", "Machines & engineering", "subject", [
     "machines",
     "technology",
     "science",
-    "cars",
     "industrial",
     "industrial-design",
+  ]),
+  group("cars-group", "Cars", "subject", ["cars"]),
+  group("games-and-computers", "Games & computers", "subject", [
+    "games",
     "retro-computing",
     "retro-gaming",
-    "games",
-    "toys",
   ]),
-  group("cities-and-streets", "Cities & streets", "subject", [
+  group("toys-and-childhood", "Toys & childhood", "subject", [
+    "toys",
+    "kids",
+    "children-s-illustration",
+    "balloons",
+  ]),
+  group("architecture-and-cities", "Architecture & cities", "subject", [
     "architecture",
     "urban-landscape",
+  ]),
+  group("decay-and-the-street", "Decay & the street", "subject", [
     "urban-decay",
     "street-art",
-    "roadside-americana",
-    "travel",
-    "cartography",
   ]),
-  group("myth-story-and-the-strange", "Myth, story & the strange", "subject", [
-    "mythology",
-    "ancient-history",
-    "fantasy",
-    "dragon",
-    "monster",
-    "horror",
-    "halloween",
-    "humor",
+  group("travel-and-the-road", "Travel & the road", "subject", [
+    "travel",
+    "roadside-americana",
+  ]),
+  group("maps", "Maps", "subject", ["cartography"]),
+  group("books-and-words", "Books & words", "subject", [
     "literature",
     "poetry",
     "books",
   ]),
-  group("music-film-and-performance", "Music, film & performance", "subject", [
+  group("humor-group", "Humor", "subject", ["humor"]),
+  group("music-sound-and-dance", "Music, sound & dance", "subject", [
     "music",
     "sound",
     "dance",
+  ]),
+  group("film-and-animation", "Film & animation", "subject", [
     "film",
     "animation",
   ]),
-  group("everyday-things", "Everyday things", "subject", [
-    "food",
+  group("fashion-group", "Fashion", "subject", ["fashion", "shoes", "jewelry"]),
+  group("home-and-objects", "Home & objects", "subject", [
     "furniture",
-    "fashion",
-    "shoes",
-    "jewelry",
     "mirrors",
     "still-life",
-    "balloons",
-    "kids",
-    "children-s-illustration",
   ]),
-  group("propaganda-and-persuasion", "Propaganda & persuasion", "subject", [
-    "soviet",
-    "soviet-propaganda",
-    "activism",
+  group("soviet-group", "Soviet", "subject", ["soviet", "soviet-propaganda"]),
+  group("advertising-and-protest", "Advertising & protest", "subject", [
     "advertising",
+    "activism",
   ]),
 
-  // ── Medium (41 topics, 8 groups) ────────────────────────────────────────────────────────────
-  group("painting-and-drawing", "Painting & drawing", "medium", [
-    "painting",
-    "watercolor",
-    "drawing",
-    "ink",
-  ]),
-  group("illustration-and-comics", "Illustration & comics", "medium", [
+  // ── Medium (41 topics, 19 groups) ───────────────────────────────────────────────────────────
+  group("painting-group", "Painting", "medium", ["painting", "watercolor"]),
+  group("drawing-and-ink", "Drawing & ink", "medium", ["drawing", "ink"]),
+  group("illustration-group", "Illustration", "medium", [
     "illustration",
-    "comics",
     "concept-art",
+  ]),
+  group("comics-group", "Comics", "medium", ["comics"]),
+  group("covers-and-sleeves", "Covers & sleeves", "medium", [
     "cover-art",
     "album-art",
   ]),
-  group("posters-print-and-type", "Posters, print & type", "medium", [
+  group("graphic-design-and-type", "Graphic design & type", "medium", [
     "graphic-design",
-    "poster-art",
     "typography",
-    "postcard",
-    "engraving",
   ]),
-  group(
-    "scientific-and-technical-drawing",
-    "Scientific & technical drawing",
-    "medium",
-    [
-      "scientific-illustration",
-      "botanical-illustration",
-      "technical-drawing",
-      "diagram",
-    ],
-  ),
+  group("posters-and-postcards", "Posters & postcards", "medium", [
+    "poster-art",
+    "postcard",
+  ]),
+  group("printmaking", "Printmaking", "medium", ["engraving"]),
+  group("scientific-drawing", "Scientific drawing", "medium", [
+    "scientific-illustration",
+    "botanical-illustration",
+    "technical-drawing",
+    "diagram",
+  ]),
   group("photography-group", "Photography", "medium", [
     "photography",
     "street-photography",
   ]),
-  group("sculpture-and-installations", "Sculpture & installations", "medium", [
-    "sculpture",
-    "carving",
+  group("sculpture-group", "Sculpture", "medium", ["sculpture", "carving"]),
+  group("installations-and-murals", "Installations & murals", "medium", [
     "installation",
     "land-art",
-    "found-objects",
-    "miniature",
-    "dioramas",
     "murals",
   ]),
-  group("craft-and-materials", "Craft & materials", "medium", [
+  group("miniatures-and-dioramas", "Miniatures & dioramas", "medium", [
+    "miniature",
+    "dioramas",
+  ]),
+  group("collage-and-found-objects", "Collage & found objects", "medium", [
+    "collage",
+    "found-objects",
+    "mixed-media",
+  ]),
+  group("ceramics-and-glass", "Ceramics & glass", "medium", [
     "ceramics",
     "clay",
     "glass",
-    "metal",
+  ]),
+  group("textiles-group", "Textiles", "medium", ["textiles", "embroidery"]),
+  group("materials", "Wood, metal, paper & plastic", "medium", [
     "wood",
+    "metal",
     "paper",
     "plastic",
-    "textiles",
-    "embroidery",
   ]),
-  group("collage-and-mixed-media", "Collage & mixed media", "medium", [
-    "collage",
-    "mixed-media",
-    "digital",
-    "folk-art",
-  ]),
+  group("digital-group", "Digital", "medium", ["digital"]),
+  group("folk-art-group", "Folk art", "medium", ["folk-art"]),
 
-  // ── Look (20 topics, 8 groups) ──────────────────────────────────────────────────────────────
-  group("abstract-and-pattern", "Abstract & pattern", "look", [
+  // ── Look (20 topics, 14 groups) ─────────────────────────────────────────────────────────────
+  group("abstract-and-geometric", "Abstract & geometric", "look", [
     "abstract",
     "geometric",
     "pattern",
-    "optical-illusion",
   ]),
-  group("surreal-and-dreamlike", "Surreal & dreamlike", "look", [
+  group("optical-illusions", "Optical illusions", "look", ["optical-illusion"]),
+  group("surreal-and-psychedelic", "Surreal & psychedelic", "look", [
     "surreal",
     "psychedelic",
-    "whimsical",
   ]),
-  group("moody", "Moody", "look", ["eerie", "melancholy", "cinematic"]),
-  group("colourful", "Colourful", "look", ["color", "neon", "pastel-palette"]),
+  group("whimsical-group", "Whimsical", "look", ["whimsical"]),
+  group("eerie-and-melancholy", "Eerie & melancholy", "look", [
+    "eerie",
+    "melancholy",
+  ]),
+  group("cinematic-group", "Cinematic", "look", ["cinematic"]),
+  // See the header: the design doc's table spells this id `colour-group`, which would fail the
+  // suffix-honesty test since the topic it dodges is spelled `color`, not `colour`.
+  group("color-group", "Colour", "look", ["color", "pastel-palette"]),
+  group("neon-group", "Neon", "look", ["neon"]),
   group("black-and-white-group", "Black & white", "look", ["black-and-white"]),
   group("painterly-group", "Painterly", "look", ["painterly"]),
   group("from-above", "From above", "look", ["aerial-view"]),
-  group("period-styles", "Period styles", "look", [
+  group("mid-century-and-deco", "Mid-century & art deco", "look", [
     "mid-century-modern",
     "art-deco",
-    "brutalist",
-    "retrofuturism",
   ]),
+  group("brutalist-group", "Brutalist", "look", ["brutalist"]),
+  group("retrofuturism-group", "Retrofuturism", "look", ["retrofuturism"]),
 
   // ── Place (6 topics, 6 groups) — see the header for why these stay apart ────────────────────
   group("chicago-group", "Chicago", "place", ["chicago"]),

@@ -381,15 +381,13 @@ export async function countSeenFor(
 }
 
 /**
- * The three onboarding group chips every spec presses (09-25-26): the groups holding astronomy,
- * botany and music — the topics the specs seed their fixture items under. Their exact member
- * lists live in `config/topic-groups.ts`; only the containment matters here.
+ * The three onboarding group chips every spec presses: the groups holding astronomy, botany and
+ * music — the topics the specs seed their fixture items under. That containment survived the
+ * 09-28-26 re-cut (75 groups, `config/topic-groups.ts`) — the three still hold astronomy, botany
+ * and music on CI, only their labels changed (Space, Plants, Music, sound & dance). Their exact
+ * member lists live in `config/topic-groups.ts`; only the containment matters here.
  */
-export const ONBOARDING_GROUPS = [
-  "Space & science fiction",
-  "Plants & fungi",
-  "Music, film & performance",
-];
+export const ONBOARDING_GROUPS = ["Space", "Plants", "Music, sound & dance"];
 
 /**
  * Walks the four-stage onboarding (09-10-26), pressing every chip in `labels` on whatever
@@ -400,7 +398,7 @@ export const ONBOARDING_GROUPS = [
  * **The chips are umbrella groups since 09-25-26** (`config/topic-groups.ts`), so `labels` are
  * group labels — `ONBOARDING_GROUPS` below is the three every spec uses. A group picks every
  * member the server listed: on CI that is exactly the one original topic each of the three holds
- * (astronomy, botany, music — where the specs seed their items), on a real corpus a dozen more
+ * (astronomy, botany, music — where the specs seed their items), on a real corpus ten more
  * besides. Specs that assert on the *picked topics* have to tolerate both shapes; see
  * settings.spec.ts's "What you see" assertion.
  *

@@ -63,10 +63,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
 }));
 
-// Real topic ids, because the screen files them into the real `TOPIC_GROUPS` (09-25-26) — see
-// onboarding-screen.test.tsx for the same note. astronomy and moon share a group ("Space &
-// science fiction"), so the mixed state and "a group tap fans out" are real claims; botany is a
-// second subject group; one topic per other facet.
+// Real topic ids, because the screen files them into the real `TOPIC_GROUPS` (re-cut 09-28-26,
+// docs/DESIGN_onboarding-interview.md §1) — see onboarding-screen.test.tsx for the same note.
+// astronomy and moon share a group ("Space"), so the mixed state and "a group tap fans out" are
+// real claims; botany is a second subject group; one topic per other facet.
 const TOPICS = [
   { id: "astronomy", label: "Astronomy", facet: "subject" },
   { id: "moon", label: "Moon", facet: "subject" },
@@ -75,8 +75,8 @@ const TOPICS = [
   { id: "surreal", label: "Surreal", facet: "look" },
   { id: "japan", label: "Japan", facet: "place" },
 ];
-const SPACE = "Space & science fiction";
-const PLANTS = "Plants & fungi";
+const SPACE = "Space";
+const PLANTS = "Plants";
 
 /** The pressed chips across every facet's *topic* row — the flat lists behind "Show all". */
 function pressed() {
@@ -128,8 +128,8 @@ describe("TopicsScreen", () => {
     // topics are behind each section's "Show all", not on the page.
     for (const label of [
       PLANTS,
-      "Craft & materials",
-      "Surreal & dreamlike",
+      "Ceramics & glass",
+      "Surreal & psychedelic",
       "Japan",
     ]) {
       expect(screen.getByRole("button", { name: label })).toBeTruthy();
@@ -169,7 +169,7 @@ describe("TopicsScreen", () => {
       within(medium)
         .getAllByRole("button")
         .map((b) => b.textContent),
-    ).toEqual(["Craft & materials"]);
+    ).toEqual(["Ceramics & glass"]);
   });
 
   it("renders no title, no back link and no <main> — the hub owns those", () => {

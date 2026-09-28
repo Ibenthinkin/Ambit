@@ -25,13 +25,13 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
 }));
 
-// Real topic ids, because the screen files them into the real `TOPIC_GROUPS` (09-25-26) and a
-// made-up id would land in no group and render nothing. Still a small fixture: what each test
-// asserts is *which* group chips a stage shows, and the whole vocabulary would bury that. Two
-// subject groups, and two members of one of them (astronomy + moon are both "Space & science
-// fiction"), so "a pick flattens to every listed member" is a real claim. One topic per other
-// facet. The fixture is what `topics.list` would return — CI's is the sixteen originals, and the
-// screen must render honestly from either.
+// Real topic ids, because the screen files them into the real `TOPIC_GROUPS` (re-cut 09-28-26,
+// docs/DESIGN_onboarding-interview.md §1) and a made-up id would land in no group and render
+// nothing. Still a small fixture: what each test asserts is *which* group chips a stage shows,
+// and the whole vocabulary would bury that. Two subject groups, and two members of one of them
+// (astronomy + moon are both "Space"), so "a pick flattens to every listed member" is a real
+// claim. One topic per other facet. The fixture is what `topics.list` would return — CI's is the
+// sixteen originals, and the screen must render honestly from either.
 const FIXTURE_TOPICS = [
   { id: "astronomy", label: "Astronomy", facet: "subject" as const },
   { id: "moon", label: "Moon", facet: "subject" as const },
@@ -40,10 +40,10 @@ const FIXTURE_TOPICS = [
   { id: "surreal", label: "Surreal", facet: "look" as const },
   { id: "japan", label: "Japan", facet: "place" as const },
 ];
-const SPACE = "Space & science fiction";
-const PLANTS = "Plants & fungi";
-const CRAFT = "Craft & materials";
-const SURREAL = "Surreal & dreamlike";
+const SPACE = "Space";
+const PLANTS = "Plants";
+const CERAMICS = "Ceramics & glass";
+const SURREAL = "Surreal & psychedelic";
 
 /** The chips, and only the chips — the bar's Back/Next/CTA are buttons too. */
 function chips() {
@@ -75,7 +75,7 @@ describe("OnboardingScreen", () => {
   it("Next walks the four facets in order and the last stage shows the CTA", () => {
     render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
     next();
-    expect(chips().map((b) => b.textContent)).toEqual([CRAFT]);
+    expect(chips().map((b) => b.textContent)).toEqual([CERAMICS]);
     expect(screen.getByText("In what form?")).toBeTruthy();
     next();
     expect(chips().map((b) => b.textContent)).toEqual([SURREAL]);
@@ -110,7 +110,7 @@ describe("OnboardingScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: SPACE }));
     fireEvent.click(screen.getByRole("button", { name: PLANTS }));
     next();
-    fireEvent.click(screen.getByRole("button", { name: CRAFT }));
+    fireEvent.click(screen.getByRole("button", { name: CERAMICS }));
     next();
     next();
     // Space holds two listed topics, but the reader tapped three chips: the count is what they did.
@@ -138,7 +138,7 @@ describe("OnboardingScreen", () => {
     render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
     fireEvent.click(screen.getByRole("button", { name: SPACE }));
     next();
-    fireEvent.click(screen.getByRole("button", { name: CRAFT }));
+    fireEvent.click(screen.getByRole("button", { name: CERAMICS }));
     next();
     fireEvent.click(screen.getByRole("button", { name: SURREAL }));
     next();
@@ -149,7 +149,7 @@ describe("OnboardingScreen", () => {
       { topicIds: string[] },
     ];
     // Space flattens to both of its listed members — and to nothing the fixture did not list,
-    // though the config names twelve: an unlisted id is one `setMine` would refuse.
+    // though the config names six: an unlisted id is one `setMine` would refuse.
     expect(new Set(topicIds)).toEqual(
       new Set(["astronomy", "moon", "ceramics", "surreal"]),
     );
