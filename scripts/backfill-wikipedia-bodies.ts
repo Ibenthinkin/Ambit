@@ -16,16 +16,25 @@
  * `fetchBody`'s own 120ms pre-request delay and retry-with-backoff, so the loop is sequential on
  * purpose — this is a slow script by design, not one to parallelize.
  *
- * Run it by hand, once, after merging 5.7. Never in tests, never in CI.
+ * **Its second job (09-28-26, docs/PLAN_writing.md Phase 2 §2): production has no bodies at all.**
+ * Ingest never called `fetchBody` until then, so all ~3,191 production Wikipedia rows are
+ * bodiless; `--only-missing` fills exactly those. It now also writes `reading_minutes`, which is
+ * derived from the body and which nothing else would ever fill for an existing row. **Run it
+ * before `recurate:writing`** — the writing curator should read the article, not its lede.
+ *
+ * Never in tests, never in CI.
  *
  * Usage:
  *   bun scripts/backfill-wikipedia-bodies.ts --limit 5 --dry-run   # smoke test, no writes
- *   bun scripts/backfill-wikipedia-bodies.ts                       # the real thing
+ *   bun scripts/backfill-wikipedia-bodies.ts --only-missing        # production: NULL bodies only
+ *   bun scripts/backfill-wikipedia-bodies.ts --only-missing --offset 1200   # resume (id order)
+ *   bun scripts/backfill-wikipedia-bodies.ts                       # refresh every row
  */
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "~/server/db/client";
 import { item } from "~/server/db/schema";
+import { readingMinutes } from "~/server/config/writing";
 import { fetchBody } from "~/server/services/sources/wikipedia";
 
 // ── CLI flags ──────────────────────────────────────────────────────────────
@@ -39,6 +48,13 @@ function flagValue(name: string): string | undefined {
 const limitFlag = flagValue("limit");
 const limit = limitFlag === undefined ? undefined : Number(limitFlag);
 const dryRun = args.includes("--dry-run");
+const onlyMissing = args.includes("--only-missing");
+const offsetFlag = flagValue("offset");
+const offset = Number(offsetFlag ?? 0);
+if (!Number.isFinite(offset) || offset < 0) {
+  console.error(`--offset must be a non-negative number, got "${offsetFlag}"`);
+  process.exit(1);
+}
 
 if (limit !== undefined && (!Number.isFinite(limit) || limit <= 0)) {
   console.error(`--limit must be a positive number, got "${limitFlag}"`);
@@ -53,11 +69,19 @@ async function main() {
   const rows = await db
     .select({ id: item.id, sourceId: item.sourceId, title: item.title })
     .from(item)
-    .where(eq(item.source, "wikipedia"))
-    .limit(limit ?? Number.MAX_SAFE_INTEGER);
+    .where(
+      onlyMissing
+        ? and(eq(item.source, "wikipedia"), isNull(item.body))
+        : eq(item.source, "wikipedia"),
+    )
+    // A stable order so `--offset` resumes where a killed run stopped. Under --only-missing the
+    // rows already filled drop out of the set, so a resume there is simply a re-run.
+    .orderBy(item.id)
+    .limit(limit ?? Number.MAX_SAFE_INTEGER)
+    .offset(offset);
 
   console.log(
-    `${rows.length} wikipedia rows to refresh${dryRun ? " (--dry-run, no writes will be made)" : ""}\n`,
+    `${rows.length} wikipedia rows to ${onlyMissing ? "fill (NULL body only)" : "refresh"}${offset ? ` from offset ${offset}` : ""}${dryRun ? " (--dry-run, no writes will be made)" : ""}\n`,
   );
 
   let updated = 0;
@@ -86,7 +110,10 @@ async function main() {
         continue;
       }
       if (!dryRun) {
-        await db.update(item).set({ body }).where(eq(item.id, row.id));
+        await db
+          .update(item)
+          .set({ body, readingMinutes: readingMinutes(body) })
+          .where(eq(item.id, row.id));
       }
       updated++;
     } catch (err) {
