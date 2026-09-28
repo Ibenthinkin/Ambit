@@ -216,9 +216,10 @@ async function search(
 
 /**
  * Full-article body fetch — one page per request (whole-article extracts don't batch the way
- * intro extracts do), so this is deliberately NOT called from search(); the ingestion job calls
- * it only for items that survive the structural floor + collision resolution, to avoid paying
- * for text nobody will curate or serve.
+ * intro extracts do), so this is deliberately NOT called from search(). Ingest calls it through
+ * `enrich.ts` for new rows that survive collision resolution and the structural floor — **since
+ * 09-28-26**: this comment claimed that before it was true, and every production row until then
+ * was stored bodiless (docs/DESIGN_writing.md, Context).
  *
  * `exsectionformat=wiki` (not `plain`, as through 5.6) so the extract keeps its section markers —
  * `== Section ==` / `=== Subsection ===`. That is the only structure a plain-text extract can

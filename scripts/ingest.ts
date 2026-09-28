@@ -86,6 +86,7 @@ import {
   structuralFloor,
   writingFloor,
 } from "~/server/services/curator";
+import { enrichBodies } from "~/server/services/sources/enrich";
 import { runWalk, type WalkRunStats } from "~/server/services/walk-run";
 import { blogConfig } from "~/server/config/blogs";
 import { isSuspendedSource } from "~/server/config/suspended-sources";
@@ -454,9 +455,13 @@ async function main() {
     ...newWinners.map((w) => w.item),
     ...newWalkItems,
   ]);
+  // Then article bodies (docs/PLAN_writing.md Phase 2): one request per new Wikipedia survivor —
+  // the fetch ingest never made before 09-28-26 — so the writing floor and the curator read the
+  // article, not its lede. Only rows that are new and cleared the structural floor pay for it.
+  const bodies = await enrichBodies(keptStructural);
   // Then the writing floor (docs/PLAN_writing.md Phase 1): an article with under 400 characters
   // of prose has nothing to read, and dropping it here means it is never billed.
-  const { kept, dropped: thinText } = writingFloor(keptStructural);
+  const { kept, dropped: thinText } = writingFloor(bodies.items);
   const keptSearch = kept.filter((it) =>
     winnerByKey.has(`${it.source}:${it.sourceId}`),
   );
@@ -643,6 +648,7 @@ async function main() {
     alreadyInDb: alreadyInDb + alreadyInDbWalk,
     flooredByRule,
     thinText: thinText.length,
+    bodies: { fetched: bodies.fetched, failed: bodies.failed },
     newsDropped,
     curatedCount: curatedSearchAll.length + curatedWalkAll.length,
     inserted,
@@ -722,6 +728,8 @@ function printSummary(args: {
   flooredByRule: Record<StructuralDropRule, number>;
   /** Articles the writing floor dropped (under 400 characters of prose). */
   thinText: number;
+  /** Article bodies fetched for new rows (Wikipedia), and fetches that found none or failed. */
+  bodies: { fetched: number; failed: number };
   /** Per source, pieces the writing curator called `news` — curated, then not stored. */
   newsDropped: Record<string, number>;
   curatedCount: number;
@@ -752,6 +760,7 @@ function printSummary(args: {
     alreadyInDb,
     flooredByRule,
     thinText,
+    bodies,
     newsDropped,
     curatedCount,
     inserted,
@@ -873,6 +882,9 @@ function printSummary(args: {
   console.log(
     `structural floor dropped: ${Object.values(flooredByRule).reduce((a, b) => a + b, 0)}` +
       ` (dup-title ${flooredByRule["dup-title"]}, bare-title ${flooredByRule["bare-title"]}, thin-summary ${flooredByRule["thin-summary"]})`,
+  );
+  console.log(
+    `article bodies fetched:   ${bodies.fetched}${bodies.failed ? ` (${bodies.failed} found none or failed)` : ""}`,
   );
   console.log(`writing floor dropped:    ${thinText} (thin-text)`);
   console.log(
