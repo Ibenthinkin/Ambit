@@ -635,6 +635,20 @@ export function writingAsText(item: NormalizedItem): string {
     .join("\n");
 }
 
+/**
+ * Keep the feed news-free (D1): a piece the writing curator called `news` is not stored. Pure,
+ * so ingest's summary can count what it dropped. Images carry no timeliness and always stay.
+ */
+export function splitNews(items: CuratedItem[]): {
+  kept: CuratedItem[];
+  news: CuratedItem[];
+} {
+  const kept: CuratedItem[] = [];
+  const news: CuratedItem[] = [];
+  for (const it of items) (it.timeliness === "news" ? news : kept).push(it);
+  return { kept, news };
+}
+
 /** One writing-curator call for one article, cache-aside — scoreItem's counterpart for
  *  `type = 'article'`. Always classifies. */
 async function scoreWriting(

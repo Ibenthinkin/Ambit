@@ -9,6 +9,8 @@ import {
   CURATOR_MODEL,
   CURATOR_PROMPT,
   parseWritingResponse,
+  splitNews,
+  type CuratedItem,
   WRITING_PROMPT,
   WRITING_PROMPT_VERSION,
   writingCacheKey,
@@ -258,5 +260,27 @@ describe("curateItems dispatches by type", () => {
     expect(bodies[0]!.messages[0]!.content).toBe(CURATOR_PROMPT);
     expect(out?.topics).toEqual([]);
     expect(out?.kind).toBeUndefined();
+  });
+});
+
+describe("splitNews", () => {
+  const curated = (
+    sourceId: string,
+    over: Partial<CuratedItem>,
+  ): CuratedItem => ({
+    ...makeItem({ sourceId }),
+    curationScore: 7,
+    aestheticTags: [],
+    topics: [],
+    ...over,
+  });
+
+  it("drops a news piece and keeps timeless, dated and every image", () => {
+    const news = curated("n", { timeliness: "news" });
+    const dated = curated("d", { timeliness: "dated" });
+    const img = curated("i", { type: "image" });
+    const { kept, news: dropped } = splitNews([news, dated, img]);
+    expect(kept).toEqual([dated, img]);
+    expect(dropped).toEqual([news]);
   });
 });

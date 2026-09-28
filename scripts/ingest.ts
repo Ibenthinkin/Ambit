@@ -82,7 +82,9 @@ import {
   curateItems,
   CuratorAbortError,
   MAX_TOPICS,
+  splitNews,
   structuralFloor,
+  writingFloor,
 } from "~/server/services/curator";
 import { runWalk, type WalkRunStats } from "~/server/services/walk-run";
 import { blogConfig } from "~/server/config/blogs";
@@ -448,10 +450,13 @@ async function main() {
   );
   // Both lanes are floored together so dup-title is batch-wide, then split back apart: a walk
   // item is exactly one that no winner claimed.
-  const { kept, dropped } = structuralFloor([
+  const { kept: keptStructural, dropped } = structuralFloor([
     ...newWinners.map((w) => w.item),
     ...newWalkItems,
   ]);
+  // Then the writing floor (docs/PLAN_writing.md Phase 1): an article with under 400 characters
+  // of prose has nothing to read, and dropping it here means it is never billed.
+  const { kept, dropped: thinText } = writingFloor(keptStructural);
   const keptSearch = kept.filter((it) =>
     winnerByKey.has(`${it.source}:${it.sourceId}`),
   );
@@ -499,18 +504,29 @@ async function main() {
     aestheticTags: [],
     topics: [],
   });
-  const curatedSearch: CuratedItem[] = skipLlm
+  // The search lane passes the vocabulary too: its images ignore it (no classify), but its
+  // articles go to the writing curator, which always classifies (docs/DESIGN_writing.md D1).
+  const curatedSearchAll: CuratedItem[] = skipLlm
     ? keptSearch.map(neutral)
-    : await curateItems(keptSearch, curateOpts);
+    : await curateItems(keptSearch, {
+        ...curateOpts,
+        topics: classifyVocabulary,
+      });
   // Walk items get the classify mode. Under --skip-llm they cannot be classified at all, so the
   // walk lane writes nothing: a structural check of the walk, nothing more — see the write loop.
-  const curatedWalk: CuratedItem[] = skipLlm
+  const curatedWalkAll: CuratedItem[] = skipLlm
     ? keptWalk.map(neutral)
     : await curateItems(keptWalk, {
         ...curateOpts,
         classify: true,
         topics: classifyVocabulary,
       });
+  // News-free (D1): a piece the writing curator called `news` is not stored, in either lane.
+  const { kept: curatedSearch, news: newsSearch } = splitNews(curatedSearchAll);
+  const { kept: curatedWalk, news: newsWalk } = splitNews(curatedWalkAll);
+  const newsDropped: Record<string, number> = {};
+  for (const it of [...newsSearch, ...newsWalk])
+    newsDropped[it.source] = (newsDropped[it.source] ?? 0) + 1;
   const histogram = topicHistogram(curatedWalk);
 
   // Step 6: upsert. Under --dry-run this loop still computes exactly what WOULD be written (so
@@ -531,12 +547,17 @@ async function main() {
         [winner.topicId],
         "seed",
       );
+      // A writing item also belongs wherever the writing curator homed it; an image's `topics`
+      // is always [] here (the search lane does not classify images).
+      membershipsWritten += await addItemTopics(
+        row.id,
+        curatedItem.topics,
+        "curator",
+      );
     }
     inserted++;
-    insertedByTopic.set(
-      winner.topicId,
-      (insertedByTopic.get(winner.topicId) ?? 0) + 1,
-    );
+    for (const t of new Set([winner.topicId, ...curatedItem.topics]))
+      insertedByTopic.set(t, (insertedByTopic.get(t) ?? 0) + 1);
   }
 
   // Walk items (Cut 1): every curated item is stored. The first topic the curator listed is the
@@ -621,7 +642,9 @@ async function main() {
     overFiled,
     alreadyInDb: alreadyInDb + alreadyInDbWalk,
     flooredByRule,
-    curatedCount: curatedSearch.length + curatedWalk.length,
+    thinText: thinText.length,
+    newsDropped,
+    curatedCount: curatedSearchAll.length + curatedWalkAll.length,
     inserted,
     insertedByTopic,
     walkStatsBySource,
@@ -697,6 +720,10 @@ function printSummary(args: {
   overFiled: Record<string, number>;
   alreadyInDb: number;
   flooredByRule: Record<StructuralDropRule, number>;
+  /** Articles the writing floor dropped (under 400 characters of prose). */
+  thinText: number;
+  /** Per source, pieces the writing curator called `news` — curated, then not stored. */
+  newsDropped: Record<string, number>;
   curatedCount: number;
   inserted: number;
   insertedByTopic: Map<string, number>;
@@ -724,6 +751,8 @@ function printSummary(args: {
     overFiled,
     alreadyInDb,
     flooredByRule,
+    thinText,
+    newsDropped,
     curatedCount,
     inserted,
     insertedByTopic,
@@ -845,6 +874,7 @@ function printSummary(args: {
     `structural floor dropped: ${Object.values(flooredByRule).reduce((a, b) => a + b, 0)}` +
       ` (dup-title ${flooredByRule["dup-title"]}, bare-title ${flooredByRule["bare-title"]}, thin-summary ${flooredByRule["thin-summary"]})`,
   );
+  console.log(`writing floor dropped:    ${thinText} (thin-text)`);
   console.log(
     `curated:                  ${curatedCount}${skipLlm ? " (--skip-llm, neutral score 5)" : ""}`,
   );
@@ -853,6 +883,15 @@ function printSummary(args: {
   );
   console.log(
     `memberships written:      ${dryRun ? "0 (--dry-run)" : membershipsWritten}`,
+  );
+  const newsTotal = Object.values(newsDropped).reduce((a, b) => a + b, 0);
+  console.log(
+    `news-dropped:             ${newsTotal}` +
+      (newsTotal > 0
+        ? ` (${Object.entries(newsDropped)
+            .map(([s, n]) => `${s} ${n}`)
+            .join(", ")})`
+        : ""),
   );
 
   console.log(
