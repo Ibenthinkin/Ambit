@@ -127,8 +127,10 @@ require them; `imageSrc` needs the URL, so a face is `{ id, imageUrl }`.
 cut's grain (Animals / Birds / Insects split, Plants / Fungi, Weather / Light & night) and the
 bank copy is an edit of the design's tables, which the plans copy verbatim; then execute plan 1
 cold in a cheaper session on `feat/onboarding-foundation`. BUILD_PLAN 8.4 is this, reshaped.
-A second session committed a writing doc on `main` mid-way (`ad82fff`); check the branch before
-every commit.
+**Branch note:** this session's three commits landed on `feat/writing` — the writing session
+had moved the checkout there before the first one — so the design and both plans were
+cherry-picked onto `main` (`9faa0af`, `e3c8e1c`, not pushed) through a throwaway worktree; this
+log entry lives on `feat/writing` and reaches `main` with it. Check the branch before every commit.
 
 *Session spend: 16.28M tok (in 2.2k · out 272.7k · cache r 15.38M / w 632.9k) · fable-5-1 · 13:54→15:18*
 
