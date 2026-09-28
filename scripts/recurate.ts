@@ -96,13 +96,18 @@ const ABORT_AFTER = 10;
 const rows = await db
   .select()
   .from(item)
-  .where(eq(item.source, source))
+  // Images only (09-28-26): articles go to the writing curator now, which this script would
+  // re-bill under the sixteen-topic default and then write only half of (no kind, no reading
+  // time, no memberships, `news` at full score). `recurate:writing` is their repair.
+  .where(and(eq(item.source, source), eq(item.type, "image")))
   .orderBy(item.sourceId)
   .limit(limit ?? Number.MAX_SAFE_INTEGER)
   .offset(offset);
 
 if (rows.length === 0) {
-  console.log(`no ${source} rows in the DB — nothing to do`);
+  console.log(
+    `no ${source} image rows in the DB — nothing to do (articles: bun run recurate:writing)`,
+  );
   process.exit(0);
 }
 

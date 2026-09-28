@@ -1,9 +1,12 @@
 // The writing curator (docs/DESIGN_writing.md D1, docs/PLAN_writing.md Phase 1): the floor,
 // the parser, the cache key and the dispatch by type. Network-free — the dispatch tests stub
 // `fetch` the way curator.test.ts does.
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  CURATION_CACHE_DIR,
   curateItems,
   curationCacheKey,
   CURATOR_MODEL,
@@ -282,5 +285,58 @@ describe("splitNews", () => {
     const { kept, news: dropped } = splitNews([news, dated, img]);
     expect(kept).toEqual([dated, img]);
     expect(dropped).toEqual([news]);
+  });
+});
+
+// What makes a calibration re-run, and `recurate:writing --confirm` after its dry run, free: a
+// cached writing answer is read without any fetch, and re-validated against the vocabulary of
+// the current run. `fetch` throws, so a cache miss fails loudly.
+describe("curateItems reads a cached writing answer with no LLM call", () => {
+  const files: string[] = [];
+  beforeEach(() => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubGlobal("fetch", () => {
+      throw new Error("fetch must not be called on a cache hit");
+    });
+  });
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    await Promise.all(files.splice(0).map((f) => rm(f, { force: true })));
+  });
+
+  it("returns the cached verdict, reports the hit, and drops a topic no longer offered", async () => {
+    const it0 = makeItem({
+      sourceId: `wcache-${Date.now()}`,
+      body: "x ".repeat(300),
+    });
+    const file = path.join(CURATION_CACHE_DIR, `${writingCacheKey(it0)}.json`);
+    await mkdir(CURATION_CACHE_DIR, { recursive: true });
+    await writeFile(
+      file,
+      JSON.stringify({
+        score: 8,
+        tags: ["odd history"],
+        kind: "archive",
+        timeliness: "dated",
+        topics: ["botany", "retired-topic"],
+        overFiled: 0,
+      }),
+    );
+    files.push(file);
+
+    const hits: string[] = [];
+    const [out] = await curateItems([it0], {
+      topics: [{ id: "botany", label: "Botany" }],
+      onCacheHit: (i) => hits.push(i.sourceId),
+    });
+    expect(hits).toEqual([it0.sourceId]);
+    expect(out).toMatchObject({
+      curationScore: 8,
+      kind: "archive",
+      timeliness: "dated",
+      topics: ["botany"],
+      readingMinutes: 2,
+    });
   });
 });
