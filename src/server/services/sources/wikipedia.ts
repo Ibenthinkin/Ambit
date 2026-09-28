@@ -17,6 +17,7 @@
 import { fetchJson } from "./http";
 import { toLede, uniqueTags } from "./normalize";
 import type { NormalizedItem, SourceAdapter } from "./types";
+import { listCandidates, parseListQuery } from "./wikipedia-lists";
 
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 
@@ -61,6 +62,8 @@ export interface WikipediaRaw {
   };
   body: string | null;
   imageLicense: string | null;
+  /** A Did-you-know hook, when the page came from `list:dyk` — used as the summary (D4). */
+  hook?: string;
 }
 
 interface WikiSearchHit {
@@ -142,15 +145,29 @@ async function search(
 ): Promise<WikipediaRaw[]> {
   const limit = opts?.limit ?? 50;
 
-  const searchRes = (await fetchJson(
-    `${WIKI_API}?action=query&format=json&list=search&srnamespace=0` +
-      `&srlimit=${limit + 10}&srsearch=${encodeURIComponent(query)}`,
-    { delayMs: 120 },
-  )) as { query?: { search?: WikiSearchHit[] } };
+  // `list:<name>` is a reading list (wikipedia-lists.ts), not a keyword: the night's draw of page
+  // ids replaces the search call, and everything after it — detail, stub floor, licenses — is the
+  // same. A DYK candidate carries its hook, which becomes the item's summary in toItem().
+  const list = parseListQuery(query);
+  const hookById = new Map<number, string>();
+  let found: WikiSearchHit[];
+  if (list) {
+    const candidates = await listCandidates(
+      list,
+      new Date().toISOString().slice(0, 10),
+    );
+    for (const c of candidates) if (c.hook) hookById.set(c.pageid, c.hook);
+    found = candidates;
+  } else {
+    const searchRes = (await fetchJson(
+      `${WIKI_API}?action=query&format=json&list=search&srnamespace=0` +
+        `&srlimit=${limit + 10}&srsearch=${encodeURIComponent(query)}`,
+      { delayMs: 120 },
+    )) as { query?: { search?: WikiSearchHit[] } };
+    found = searchRes.query?.search ?? [];
+  }
 
-  const hits = (searchRes.query?.search ?? []).filter(
-    (h) => !isLowValueTitle(h.title),
-  );
+  const hits = found.filter((h) => !isLowValueTitle(h.title));
   if (hits.length === 0) return [];
 
   // Detail fetch, 20 pages per call — cllimit=max is load-bearing (a smaller value is a
@@ -210,6 +227,7 @@ async function search(
       page,
       body: null, // fetched separately by fetchBody(), only for items the caller keeps
       imageLicense: isFreeImageLicense(rawLicense) ? rawLicense : null,
+      ...(hookById.has(page.pageid) ? { hook: hookById.get(page.pageid) } : {}),
     };
   });
 }
@@ -238,7 +256,7 @@ export async function fetchBody(pageId: number): Promise<string | null> {
 }
 
 function toItem(raw: WikipediaRaw): NormalizedItem {
-  const { page, body, imageLicense } = raw;
+  const { page, body, imageLicense, hook } = raw;
   const tags = uniqueTags(
     (page.categories ?? []).map((c) => c.title?.replace(/^Category:/, "")),
   );
@@ -247,7 +265,7 @@ function toItem(raw: WikipediaRaw): NormalizedItem {
     sourceId: String(page.pageid),
     type: "article",
     title: page.title,
-    summary: toLede(page.extract),
+    summary: hook ?? toLede(page.extract),
     body,
     imageUrl: imageLicense ? (page.thumbnail?.source ?? null) : null,
     sourceUrl: `https://en.wikipedia.org/?curid=${page.pageid}`,
