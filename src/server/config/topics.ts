@@ -27,13 +27,7 @@
  *  from `config/reading-phrases.ts` now, not from seed cells, so it owes no topic a cell. It is
  *  still a search-shaped source — in `SourceId` and in `adapters` — with a different query
  *  source; ingest's processSource reads the phrases for it. */
-export const V1_SOURCES = [
-  "met",
-  "aic",
-  "cma",
-  "wellcome",
-  "archive",
-] as const;
+export const V1_SOURCES = ["met", "aic", "cma", "wellcome", "archive"] as const;
 
 export type V1Source = (typeof V1_SOURCES)[number];
 

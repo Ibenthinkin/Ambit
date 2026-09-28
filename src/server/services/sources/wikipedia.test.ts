@@ -4,6 +4,7 @@
 // filtering) and isFreeImageLicense (the per-image license resolution decided in docs/PHASE3_PLAN.md).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import fixtures from "./__fixtures__/wikipedia.json";
+import type * as WikipediaLists from "./wikipedia-lists";
 import {
   fetchBody,
   isFreeImageLicense,
@@ -25,7 +26,7 @@ vi.mock("./http", () => ({
 // The list draw is its own module (wikipedia-lists.test.ts); here only its hand-off to search().
 const listCandidates = vi.hoisted(() => vi.fn());
 vi.mock("./wikipedia-lists", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./wikipedia-lists")>()),
+  ...(await importOriginal<typeof WikipediaLists>()),
   listCandidates,
 }));
 
