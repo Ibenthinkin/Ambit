@@ -405,8 +405,10 @@ test.describe.serial("desktop", () => {
       (await current.nth(0).boundingBox())!,
       (await current.nth(1).boundingBox())!,
     ];
-    expect(left.x + left.width).toBeLessThanOrEqual(CENTRE_X);
-    expect(right.x).toBeGreaterThanOrEqual(CENTRE_X);
+    // Within a pixel: the pictures touch at the spine (D3, amended), so both edges sit on the
+    // centre line, and the track's `-33.3333%` translate lands them a fraction either side of it.
+    expect(left.x + left.width).toBeLessThanOrEqual(CENTRE_X + 1);
+    expect(right.x).toBeGreaterThanOrEqual(CENTRE_X - 1);
     const first = await alts();
 
     // A turn moves two: neither page of the new spread was on the old one.
@@ -428,14 +430,19 @@ test.describe.serial("desktop", () => {
     await expect(heading).toHaveText(turned[1]!);
 
     // Turning the spread off keeps that picture.
+    // The book folds shut first (Task 6). Mid-fold the cell already shows one picture, so the
+    // count alone can pass early — wait for the leaf to land, or the next click lands mid-motion,
+    // where the toggle is ignored (D3).
     await summon();
     await toggle.click();
+    await expect(leaf).toHaveCount(0);
     await expect(current).toHaveCount(1);
     await expect(heading).toHaveText(turned[1]!);
 
     // Back on, then a reload: the device remembers the spread.
     await summon();
     await toggle.click();
+    await expect(leaf).toHaveCount(0);
     await expect(current).toHaveCount(2);
     await page.reload();
     await expect(

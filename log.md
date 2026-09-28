@@ -34,7 +34,7 @@ it at 30. Ben: "make it bigger, to match the size of the other glyphs."
 there), commit, push, deploy. `/api/img` 429 in parallel e2e, Task 9's delete cut and
 `?tempo=`, the group names, the stale `use-overture.ts` comment — all still open from 09-26.
 
-*Session spend: 3.44M tok (in 906 · out 23.2k · cache r 3.19M / w 234.3k) · fable-5-1 · 12:17→12:20*
+_Session spend: 3.44M tok (in 906 · out 23.2k · cache r 3.19M / w 234.3k) · fable-5-1 · 12:17→12:20_
 
 **Afternoon (Fable) — the feed layout picker became spread mode on the item screen.** Ben
 arrived with a drawn control (`docs/layout-picker/`: a bars glyph that morphs 4 → 2 → 1, a
@@ -47,9 +47,9 @@ re-parents every tile and React remounts them; the server always packs page one 
 so a localStorage pick jumps on every load; and `useColumnCount` is shared with Saved and the
 square Collections grid. Ben's answer to the crop question ("real shape in 1 and 2 columns
 only") was already most of the way to the real answer, and when the magazine came up as
-row-aligned spreads he made the move himself: *"what if we forget the 1 column view and make
+row-aligned spreads he made the move himself: _"what if we forget the 1 column view and make
 the magazine view an option in the gallery view on desktop only? i feel like it makes more
-sense there anyway."* It does — the item screen already shows the picture whole, full-viewport,
+sense there anyway."_ It does — the item screen already shows the picture whole, full-viewport,
 with the rail as its sequence and every key and exit built.
 
 **Decisions:** no feed picker at all; spread mode is desktop-only on `/i/[itemId]`, two rail
@@ -62,13 +62,13 @@ column, no cookie — both stores correct during hydration as the desktop rail a
 Design `docs/DESIGN_spread-mode.md` (D1–D5), plan `docs/PLAN_spread-mode.md` (9 tasks, TDD,
 execute cold in a cheaper session on `feat/spread-mode`). One correction from the afternoon
 worth keeping: the CSP's `style-src` allows `'unsafe-inline'`, so a prototype's shadow styles
-are *not* blocked here — I said they were before checking. The Firefox point does stand: it
+are _not_ blocked here — I said they were before checking. The Firefox point does stand: it
 doesn't animate SVG `x`/`width`, so the glyph morph is instant in Ben's own browser.
 
 **Open / next:** execute the plan; Ben's replacement glyph (a one-file swap by design); then the
 09-26 list above.
 
-*Session spend: 8.07M tok (in 1.3k · out 143.0k · cache r 7.49M / w 438.5k) · fable-5-1 · 13:56→15:44*
+_Session spend: 8.07M tok (in 1.3k · out 143.0k · cache r 7.49M / w 438.5k) · fable-5-1 · 13:56→15:44_
 
 **Door of Perception: one item per picture** (branch `feat/dop-fanout`, `docs/PLAN_dop-fanout.md`).
 Ben: "how come the DOP pictures seem to almost never come up". Measured: 387 DoP rows in a
@@ -78,7 +78,7 @@ against a media library of **11,777 files, ~28 per post**. Ben reversed D1: ever
 resolution.
 
 **Shipped (local):** `walk()` expands each post into its featured image (still `sourceId` = slug,
-so the 387 rows are the same rows) plus every picture the post *shows*. Those are read off
+so the 387 rows are the same rows) plus every picture the post _shows_. Those are read off
 `content.rendered`'s `<img src>`, matched by exact file name to the post's own attachments
 (`/wp/v2/media?parent=`), stored as the original upload with the published `large` rendition as
 `curationImageUrl`, and keyed `<slug>:<attachment id>`. The overnight run turned into an
@@ -86,12 +86,12 @@ evening: **10,222 DoP rows @ 8.74, 97% ≥ 8** (the best source in the corpus), 
 un-homed, 0 floored, 2 curator empties. Walk + curation took 41 min. The warm filled all 10,222
 images with 0 failures in 3 h 7 min at 1/s. **Feed: 17 of 219 sampled cards (1 in 13), up from 3.**
 
-**Decisions:** the pictures a post *shows*, not every attachment (one post has 74 attachments
+**Decisions:** the pictures a post _shows_, not every attachment (one post has 74 attachments
 for 63 shown pictures; the rest are alternates, header crops and the featured crop); skip
 anything under 300 px on its short edge (a 1072×118 "moon to scale" banner); skip, and count, a
 shown image attached to another post (~71 across the blog). The rights posture widens past "a
 single image" and is recorded in Ambit-Admin's log (09-27-26). `wp-rest.test.ts`'s parity
-check now compares the factory with DoP's *featured card*, over the pre-fan-out posts
+check now compares the factory with DoP's _featured card_, over the pre-fan-out posts
 (`wp-rest-dop-posts.json`).
 
 **Findings:** a worktree's `.cache` is its own. `img:warm` and the curator write relative to
@@ -107,7 +107,7 @@ it re-bills ~$2.65), deploy, then `sh .cache/dop-prod.sh walk` (DoP walk + warm 
 ~15-20 GB from DoP's nginx, ~2 GB on the volume). Watch for three pictures from one post on a
 page; a per-post cap is the follow-up if it reads as repetitive.
 
-*Session spend: 30.81M tok (in 605 · out 208.1k · cache r 28.58M / w 2.02M) · ~≥$10.39 · opus-5-5 + opus-4-7 · 13:59→19:59*
+_Session spend: 30.81M tok (in 605 · out 208.1k · cache r 28.58M / w 2.02M) · ~≥$10.39 · opus-5-5 + opus-4-7 · 13:59→19:59_
 
 **Late afternoon (Opus 5.5) — spread mode built on `feat/spread-mode`.** The plan ran end to end
 in the same session: the localStorage store, the pure `buildCells`, the tap's `clientX`, `HeroRail`
@@ -116,6 +116,7 @@ Save), the screen wiring, one desktop e2e test, and the doc amendments. Unit 1,5
 `e2e:prod` 61 + 9 dev-only skips; the CI-shaped suite 61/61 twice.
 
 **Things worth knowing that the commits don't say:**
+
 - **Two sessions shared `~/Dev/ambit` and it cost ten minutes.** The doorofperception session
   checked out its own branch four seconds after this one created `feat/spread-mode`, so four
   spread commits landed on `feat/dop-fanout`, and a fifth on `main` after it switched the checkout
@@ -140,8 +141,8 @@ for now.
 **Open / next:** refine spread mode with Ben (his notes from the look at 1440 first), then merge and
 push; his replacement glyph (`icons/layout-glyph.tsx`, a one-file swap); the 09-26 list.
 
-*Session spend: 43.50M tok (in 740 · out 179.6k · cache r 41.90M / w 1.42M) · ~≥$5.96 · opus-5-5 + opus-4-7 + fable-5-1 · 15:44→16:12*
-*Session spend: 2.88M tok (in 21 · out 11.1k · cache r 2.81M / w 61.8k) · ~≥$0.39 · opus-5-5 + opus-4-7 · 16:12→16:13*
+_Session spend: 43.50M tok (in 740 · out 179.6k · cache r 41.90M / w 1.42M) · ~≥$5.96 · opus-5-5 + opus-4-7 + fable-5-1 · 15:44→16:12*
+*Session spend: 2.88M tok (in 21 · out 11.1k · cache r 2.81M / w 61.8k) · ~≥$0.39 · opus-5-5 + opus-4-7 · 16:12→16:13_
 
 **First refinements (Ben at 1440):** "narrow the gap between the images in the middle, try and
 have them fill as much space as possible", then "can we have them touch in the middle". Each
@@ -155,7 +156,7 @@ height.
 
 **Open / next:** more refinement with Ben, then merge and push; his replacement glyph.
 
-*Session spend: 9.97M tok (in 77 · out 25.4k · cache r 9.81M / w 129.3k) · ~≥$0.69 · opus-5-5 + opus-4-7 · 16:13→16:57*
+_Session spend: 9.97M tok (in 77 · out 25.4k · cache r 9.81M / w 129.3k) · ~≥$0.69 · opus-5-5 + opus-4-7 · 16:13→16:57_
 
 **Evening — the spread becomes a magazine.** Ben brought two Claude Design packages:
 `docs/viewTOggleTOkens/` (the toggle button) and `docs/turnpackage/` (a page-turn web
@@ -184,7 +185,13 @@ e2e:prod` not run** — a hand-started `next dev` held :3000 and a dev-server ru
 dev-tools button before reaching the spread test; the spec's spread test was extended (leaf
 caught mid-turn, spine visible) and needs that run before merge. Then merge + push.
 
-*Session spend: 26.60M tok (in 317 · out 189.2k · cache r 25.85M / w 570.2k) · ~≥$1.29 · opus-5-5 + opus-4-7 · 18:30→19:54*
+**Later — merged and pushed with DoP.** Ben: merge spread-mode before the deploy. `e2e:prod`
+(dev server stopped for it) found two test-only faults, no app ones: the right picture's box at
+719.97 against a `>= 720` written before the pictures touched (1 px tolerance now), and toggle
+clicks landing mid-fold, where the toggle is ignored by design — the spec now waits for the leaf
+to land. Then 61 passed, 9 dev-only skips; the desktop file 3/3. Firefox still unchecked.
+
+_Session spend: 26.60M tok (in 317 · out 189.2k · cache r 25.85M / w 570.2k) · ~≥$1.29 · opus-5-5 + opus-4-7 · 18:30→19:54_
 
 ### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
 
@@ -198,6 +205,7 @@ under `prefers-reduced-motion`: it skips the overture (`motion-reduce:hidden` pl
 log showed his visits fetching only the preloaded pictures, which only happens on that path. WebKit
 emulating an iPhone 15 without reduced motion runs everything. **First step next session:** Ben
 reads Settings → Accessibility → Motion → Reduce Motion.
+
 - **If it's on:** decide what reduced motion should get. The recommendation is to keep the
   overture as a plain fade and the reel as slow cross-fades with no zoom and no hard cuts (what iOS
   itself does), rather than a single still.
@@ -211,10 +219,10 @@ candidates "boring, uninspired, nonsensical" — start from what he wants, not f
 Task 9's tempo half, then push, deploy, and let the boot's `img:dims` run. The dev server may still
 be running on :3000 from this session; Loupe's was stopped and needs restarting.
 
-*Session spend: 4.16M tok (in 26 · out 5.3k · cache r 4.02M / w 136.0k) · ~≥$0.83 · opus-5-5 + opus-4-7 · 22:59→23:01*
+_Session spend: 4.16M tok (in 26 · out 5.3k · cache r 4.02M / w 136.0k) · ~≥$0.83 · opus-5-5 + opus-4-7 · 22:59→23:01_
 
 **Later the same day (Fable) — diagnosed: Reduce Motion, on both devices; the build's still was
-the bug.** Ben widened the report to "no text animation or slideshow at all on phone *or*
+the bug.** Ben widened the report to "no text animation or slideshow at all on phone _or_
 computer", which weakened the iOS-only hypothesis — and then confirmed it in a bigger form.
 Reproduced on his Mac: an un-emulated Chrome on this branch reports
 `matchMedia("(prefers-reduced-motion: reduce)").matches === true` with no overture element, one
@@ -227,7 +235,7 @@ cutting three-layer reel, glyph up. Ruled out by evidence, not by reading: hydra
 keyframes, image decode. Two things found on the way: **port 3000 is held by
 `~/Dev/ambit-topic-groups`'s `next start` + Playwright run since 09:05** (a production build with
 8.3 but not the shape fix, so `localhost:3000` and the tailnet show the wrong thing right now); and
-`globals.css`'s reduced-motion rule collapses *every* duration to 0.01 ms, so a gentle landing
+`globals.css`'s reduced-motion rule collapses _every_ duration to 0.01 ms, so a gentle landing
 needs an opt-out or its fades are instant.
 
 **Decision (Ben): the gentle version.** Reduced motion gets the overture as a plain fade and the
@@ -241,7 +249,7 @@ measuring computed durations, docs). Execute cold in a cheaper session on
 **Open / next:** execute the plan → Ben's phone look → merge `fix/landing-orientation` → the mark
 with Ben → Task 9 → push, deploy. Kill the stale topic-groups run on :3000 before any device pass.
 
-*Session spend: 9.04M tok (in 2.1k · out 146.1k · cache r 8.50M / w 388.6k) · fable-5-1 · 09:05→09:29*
+_Session spend: 9.04M tok (in 2.1k · out 146.1k · cache r 8.50M / w 388.6k) · fable-5-1 · 09:05→09:29_
 
 **Shipped (Opus 5.5, same session): the plan, all seven tasks, on `fix/landing-orientation`.**
 `TEMPOS.gentle` (6 s / 2.5 s, no drift, `softStart`), `.motion-gentle` exempting the reel and
@@ -276,7 +284,7 @@ black before picture 0 fades in; a stale comment in `use-overture.ts`.
 **Open / next:** Ben's phone look (Reduce Motion left on) → pick the 429 fix → merge the branch →
 the mark with Ben → Task 9 → push, deploy.
 
-*Session spend: 20.81M tok (in 619 · out 103.6k · cache r 19.85M / w 854.0k) · ~≥$2.70 · opus-5-5 + fable-5-1 + opus-4-7 · 09:29→09:50*
+_Session spend: 20.81M tok (in 619 · out 103.6k · cache r 19.85M / w 854.0k) · ~≥$2.70 · opus-5-5 + fable-5-1 + opus-4-7 · 09:29→09:50_
 
 **Afternoon — Ben tuned the landing on his phone and computer, then everything merged to `main`
 and pushed (`deb36cb`). Not deployed: he is making more UI changes first.**
@@ -314,13 +322,14 @@ topic-group names in `topic-groups.ts` if he wants to rename; group-size weighti
 `img:dims` itself; check `/api/health` reports the new commit. Stale comment in
 `use-overture.ts` ("reduced motion" disabling the overture) still to fix.
 
-*Session spend: 58.74M tok (in 544 · out 174.7k · cache r 57.63M / w 939.6k) · ~≥$5.92 · opus-5-5 + opus-4-7 · 09:50→12:26*
+_Session spend: 58.74M tok (in 544 · out 174.7k · cache r 57.63M / w 939.6k) · ~≥$5.92 · opus-5-5 + opus-4-7 · 09:50→12:26_
 
 **Afternoon (second session) — `/explore` built on `feat/explore-route`** (`docs/PLAN_explore-route.md`,
 all seven tasks, not merged, not pushed). A signed-out taste of the real feed at a separate route
 so it can be compared against `/`, which is untouched.
 
 **Shipped (on the branch):**
+
 - `feed.explore`, the **fourth public procedure**: `getFeedPage(null, cursor)` composes for nobody
   — cold-start weights, no taste keywords, no `seen_item` exclusion, nothing acked — and answers
   `{ cards: [] }` from page 24. SPEC §7/§11 updated.
@@ -336,6 +345,7 @@ so it can be compared against `/`, which is untouched.
   join card gets "Keep exploring". Shared links keep the endless rail.
 
 **Findings:**
+
 - **`.strict()` on a `useInfiniteQuery` procedure's input is a trap.** tRPC 11 sends
   `{ ...input, cursor, direction }` for every page after the first; page one only worked because
   the RSC prefetch calls the procedure with the bare `{}`. So the taste was exactly one page
@@ -358,7 +368,7 @@ from the review: functional updates in `ItemScreen.advance`; an empty state for 
 one; the 7.2 audit table and `security.spec.ts` don't list `/explore` yet. The dev server on :3000
 was stopped for the prod runs; restart it with `bun run dev`.
 
-*Session spend: 61.03M tok (in 688 · out 249.0k · cache r 59.65M / w 1.13M) · ~≥$6.55 · opus-5-5 + opus-4-7 · 13:58→14:40*
+_Session spend: 61.03M tok (in 688 · out 249.0k · cache r 59.65M / w 1.13M) · ~≥$6.55 · opus-5-5 + opus-4-7 · 13:58→14:40_
 
 **Later the same session — merged, and Ben's first phone look.** `feat/explore-route` merged to
 `main` (`eed1ca0`, `--no-ff`; check 1,472/1,472 on the merged tree; branch deleted). Ben opened
@@ -366,18 +376,19 @@ was stopped for the prod runs; restart it with `bun run dev`.
 pushed, not deployed. **Next:** keep developing `/explore` in a fresh session from this state;
 the deferred minors above still stand.
 
-*Session spend: 7.89M tok (in 91 · out 32.8k · cache r 7.71M / w 149.5k) · ~≥$2.06 · opus-5-5 + opus-4-7 · 14:40→15:20*
+_Session spend: 7.89M tok (in 91 · out 32.8k · cache r 7.71M / w 149.5k) · ~≥$2.06 · opus-5-5 + opus-4-7 · 14:40→15:20_
 
 **Later the same day (Fable) — `/explore` opens on the overture, which dissolves into the feed.**
 Ben's next `/explore` ask: play the landing's text animation on arrival, in place of the loading
 screen. Bounded — both halves existed — so no spec. `ExploreScreen` now mounts a black curtain
-with the landing's `Overture` *inside* it, on `useOverture`'s clock; the first page hydrates
+with the landing's `Overture` _inside_ it, on `useOverture`'s clock; the first page hydrates
 underneath (the spinner is only a fallback now), and at `done` the curtain — black and the
 collapsed wordmark together — dissolves into the feed. Ben watched it three times: hard cut →
 "can the transition be a smooth dissolve?" → 1 s → "a bit slower" → **1.6 s, "perfect"**. The
 number is `EXPLORE_DISSOLVE_MS` in `config/explore.ts`.
 
 **Decisions:**
+
 - **Once per document, not per mount** (`components/explore/once-per-document.ts`, a module
   variable set from an effect). The overture is the loading screen, so it belongs to a document
   load — typed URL, reload, new tab — and Back from an item page pops to a feed that is already
@@ -395,6 +406,7 @@ number is `EXPLORE_DISSOLVE_MS` in `config/explore.ts`.
 - The unmount is a timer, not `transitionend` — a background tab fires none.
 
 **Findings:**
+
 - Importing `overture.tsx` pulls `next/font` in through `lib/fonts`, which has no build step
   under vitest (`Sora is not a function`); the explore test now mocks `~/lib/fonts` as the
   landing tests do. The old header comment that avoided the import for exactly this is gone.
@@ -413,7 +425,7 @@ changed.
 minors from the `/explore` review stand. A follow-up if it reads right on the phone: nothing —
 the cut-vs-dissolve and the wordmark-into-the-header questions are both answered (dissolve; no).
 
-*Session spend: 18.12M tok (in 3.7k · out 120.5k · cache r 17.63M / w 370.6k) · fable-5-1 · 15:44→16:51*
+_Session spend: 18.12M tok (in 3.7k · out 120.5k · cache r 17.63M / w 370.6k) · fable-5-1 · 15:44→16:51_
 
 **Evening (Fable) — `/explore` gets the app's toolbar; strangers get it on item pages too.**
 Ben: drop the wordmark-and-Sign-in header, use the regular controls — Profile and Save open the
@@ -421,6 +433,7 @@ sign-up page, the logo returns to the feed, Share works as normal. Built on `fea
 (not merged, not pushed).
 
 **Shipped:**
+
 - `/explore`: no header; `Toolbar` with `onProfile` / `onBookmark` → sign-up sheet, `onHome` →
   scroll to top (the pill's default `/feed` push would bounce a stranger to the landing), no
   Share. Hidden with `visible` until the overture's dissolve starts — the pill's z-30 sits over
@@ -441,14 +454,16 @@ sign-up page, the logo returns to the feed, Share works as normal. Built on `fea
   session, and the toolbar just handed that visitor a Feed button.
 
 **Decisions:**
-- Profile *and* Save ask the same thing ("Have an invite?"), so both open the card in sign-up;
+
+- Profile _and_ Save ask the same thing ("Have an invite?"), so both open the card in sign-up;
   an account holder switches to sign-in inside the card. Sign in has no dedicated button any more
   — the rotating tile and the card's link are the ways.
 - The shared-link stranger gets the toolbar too, not only the explore visitor: one rule for a
   signed-out item page. `JoinCta`'s "Keep exploring" link is still explore-only.
 
 **Findings:**
-- On the item page a Playwright *click* on the picture toggles the chrome back off (the click's
+
+- On the item page a Playwright _click_ on the picture toggles the chrome back off (the click's
   own mouse move summons it first) — `item.spec.ts`'s `summonChrome` moves the mouse instead,
   and the explore spec now does the same. Two red runs before that was remembered.
 - Port 3000 was held by a stale `next start` from the topic-groups session; killed before the
@@ -467,7 +482,7 @@ header bullet is struck through with a pointer. The generic `AvatarChip` as the 
 reads as "your account" to a stranger — it's the mark Ben already wants replaced, so it waits
 for that. Dev server left running on :3000.
 
-*Session spend: 10.56M tok (in 2.0k · out 71.7k · cache r 10.10M / w 383.6k) · fable-5-1 · 16:58→17:11*
+_Session spend: 10.56M tok (in 2.0k · out 71.7k · cache r 10.10M / w 383.6k) · fable-5-1 · 16:58→17:11_
 
 **Later (Fable) — the explore feed is the front door.** Ben, after the phone look: "I like the
 /explore landing page, let's switch that to be the default. No need to delete the work or
@@ -475,6 +490,7 @@ components for the other landing page, we might bring it back in the future." Bu
 `feat/explore-as-landing` (not merged, not pushed).
 
 **Shipped:**
+
 - `app/page.tsx` is the explore page — same guard, prefetch and `?open=`; the "noindex" is gone
   (it was "while it's an experiment"). `app/explore/page.tsx` is a **308 to `/`**, `?open=`
   carried over, so the item page's end card in a tab opened before the deploy still lands.
@@ -490,6 +506,7 @@ components for the other landing page, we might bring it back in the future." Bu
   itself under a production build, like `dev-feed.spec.ts`. The explore spec asserts the 308.
 
 **Findings:**
+
 - The parked landing's picture preloads arrive as `<link rel="preload">` **tags** under the dev
   server, where the production build sends an HTTP `Link` header. `home.spec.ts` had only ever
   asserted the header (it ran under `e2e:prod`); now that it runs against the dev server only, it
@@ -510,7 +527,7 @@ had the overture or the tiles; signed out, `/` is the taste. **Merged to `main` 
 and pushed.** Next = deploy — the first with `/` as the taste, so watch UptimeRobot's HTTP
 monitor: it hits `/`, which now composes a feed page for nobody rather than picking a reel.
 
-*Session spend: 19.66M tok (in 2.0k · out 102.9k · cache r 18.97M / w 582.3k) · ~≥$5.09 · fable-5-1 + opus-4-7 · 17:11→18:28*
+_Session spend: 19.66M tok (in 2.0k · out 102.9k · cache r 18.97M / w 582.3k) · ~≥$5.09 · fable-5-1 + opus-4-7 · 17:11→18:28_
 
 ---
 
@@ -527,7 +544,7 @@ its SVG in `connectedCallback` so the server would send an empty tag; its shadow
 one thing that would lean on `style-src 'unsafe-inline'`; and `docs/` is not in the container
 image, so nothing in `src` may import from it (the token values are copied in, with the source
 file named). The ambient flow is SMIL `<animate>` on the gradient stops — in the server's markup,
-no JS. The tap is an imperative `rush()` the toolbar *button* calls, so the whole 48/52 px target
+no JS. The tap is an imperative `rush()` the toolbar _button_ calls, so the whole 48/52 px target
 plays it rather than the 29 px drawing. It replaces `AvatarChip` in `PillToolbar` (29, the spec's
 own size in the 31 slot) and `RailToolbar` (33, the rail's ~1.12×); the hub and Edit profile
 keep the gradient chip — this is a button glyph, the same for everyone, not an avatar.
@@ -549,8 +566,8 @@ as a bug (the same trap as this morning's phone).
 commit; the deploy that is already queued. The 6d "flash" tap variant in the export was not
 ported — `tap="rush"` is the chosen one.
 
-*Session spend: 10.39M tok (in 2.5k · out 120.3k · cache r 9.87M / w 390.0k) · fable-5-1 · 19:10→19:17*
-*Session spend: 1.87M tok (in 384 · out 10.9k · cache r 1.83M / w 28.0k) · fable-5-1 · 19:17→19:18*
+_Session spend: 10.39M tok (in 2.5k · out 120.3k · cache r 9.87M / w 390.0k) · fable-5-1 · 19:10→19:17_
+_Session spend: 1.87M tok (in 384 · out 10.9k · cache r 1.83M / w 28.0k) · fable-5-1 · 19:17→19:18_
 
 ### [[09-25-26 Fri]] — 8.3 un-parked: medium, pool, dwell and perf budget decided
 
@@ -573,13 +590,13 @@ ported — `tap="rush"` is the chosen one.
 
 **Performance budget (proposed, not yet signed off line by line):**
 
-| Line | Target |
-|---|---|
-| LCP, mid-range phone on 4G | ≤ 2.5 s (today 4.1 s) |
-| First picture | ≤ 120 KB, `<link rel=preload>` from the server-rendered HTML |
-| Bytes before the auth sheet rises | ≤ 600 KB |
-| Landing JS | ≤ 15 KB |
-| Motion | `transform`/`opacity` only, CLS 0; reduced motion → slow cross-fade or one still |
+| Line                              | Target                                                                           |
+| --------------------------------- | -------------------------------------------------------------------------------- |
+| LCP, mid-range phone on 4G        | ≤ 2.5 s (today 4.1 s)                                                            |
+| First picture                     | ≤ 120 KB, `<link rel=preload>` from the server-rendered HTML                     |
+| Bytes before the auth sheet rises | ≤ 600 KB                                                                         |
+| Landing JS                        | ≤ 15 KB                                                                          |
+| Motion                            | `transform`/`opacity` only, CLS 0; reduced motion → slow cross-fade or one still |
 
 What the budget implies for the build: the **server** must pick the first picture (so its preload
 hint is in the HTML, not discovered after hydration); prefetch **one** picture ahead, never the
@@ -594,7 +611,7 @@ beats and copy (8.3 settles the voice), skip affordance, the small-rendition que
 profile mark. Also carried: the 09-23 round 3 edits are committed with this entry; daily T6.4 reads
 (last 09-22 — one is overdue) and the 6.5 triage that ticks 8.2.
 
-*Session spend: 1.01M tok (in 24 · out 7.4k · cache r 886.6k / w 120.6k) · opus-5-5 · 17:23→17:34*
+_Session spend: 1.01M tok (in 24 · out 7.4k · cache r 886.6k / w 120.6k) · opus-5-5 · 17:23→17:34_
 
 **Later the same day (Fable) — the reference changed the design, and the design + plan are
 written.** Ben pointed at `doorofperception.com/explore` ("look like that, except you don't have
@@ -613,7 +630,7 @@ slowly growing — not a Ken Burns drift at all. Three decisions on top of the m
   click. **Inter** stands in for ABC Diatype (commercial); Sora tracked out is the recorded escape
   hatch. Built with `clip-path` + `transform`, not the reference's `width` transition, so CLS
   stays 0.
-- **The budget is restated honestly:** the overture makes LCP ≈ 3.6 s *by design*; the line is
+- **The budget is restated honestly:** the overture makes LCP ≈ 3.6 s _by design_; the line is
   now "the first picture paints on the frame the overture ends — never later", measured as zero
   wait after the overture on simulated 4G. The 960 rendition (p50 45 KB / p90 132 KB, measured
   on 120 cached files) is what makes that true for the cut's four-frame gate.
@@ -622,11 +639,11 @@ slowly growing — not a Ken Burns drift at all. Three decisions on top of the m
 Task 9 waits on Ben's two picks — tempo and mark) are committed. The plan's shape: the RSC picks
 the reel from an in-process memo of the ~2,760 landing-eligible rows (exact licence strings, as
 data), so the first pictures are `<head>` preloads and 5.11's "random can't be in server markup"
-gymnastics go; `/api/img/<id>?w=960` is a closed-set rendition *derived* from the cached master
+gymnastics go; `/api/img/<id>?w=960` is a closed-set rendition _derived_ from the cached master
 (never its own museum fetch); three candidate profile marks on `/dev/marks`, production keeping
 the Cosmos chip until Ben picks. Copy is untouched by design (D9).
 
-*Session spend: 18.98M tok (in 2.6k · out 222.0k · cache r 17.53M / w 1.23M) · fable-5-1 + opus-5-5 · 17:34→19:42*
+_Session spend: 18.98M tok (in 2.6k · out 222.0k · cache r 17.53M / w 1.23M) · fable-5-1 + opus-5-5 · 17:34→19:42_
 
 **Evening (Opus 5.5) — 8.3 built, Tasks 1–8 of the plan, on `feat/landing-redo`.** Executed
 inline; every task TDD'd, 17 rulings in the ledger (listed in the branch hand-off). The landing
@@ -652,7 +669,7 @@ sheet; both tempos run, `/dev/marks` shows the three candidate marks.
   with 7.3's 4.2. Perf 87 / 88 (done-bar: not below 87), CLS 0, a11y 95 (the pre-existing contrast
   tokens). Bytes: `cut` 12 pictures 610 KiB (budget ≤ 600 p50 — at the line, one draw had a 148 KiB
   picture); `dissolve` 2 pictures 127 KiB. Evidence JSON in `docs/phase8.3-evidence/`.
-- The measured wait after the overture was ~0.65 s locally, one gate picture being a *cold* museum
+- The measured wait after the overture was ~0.65 s locally, one gate picture being a _cold_ museum
   fetch: only ~1,100 of the 2,697 pool masters are cached on this Mac. Production's cache is warm,
   and `.cache/landing-prod.sh` pre-derives the renditions there after the deploy.
 - `fallback.webp` is 155 KB, not ~60 — the Great Wave is fine-grained (q50 is still 110 KB). It
@@ -671,7 +688,7 @@ it when you next need it.
 (flip `DEFAULT_TEMPO`, delete the loser and the `?tempo=` override, swap `AvatarChip`); merge;
 deploy; run `.cache/landing-prod.sh`. Copy is untouched (D9).
 
-*Session spend: 102.14M tok (in 934 · out 348.6k · cache r 100.10M / w 1.69M) · ~≥$8.76 · opus-5-5 + opus-4-7 + fable-5-1 · 19:42→20:15*
+_Session spend: 102.14M tok (in 934 · out 348.6k · cache r 100.10M / w 1.69M) · ~≥$8.76 · opus-5-5 + opus-4-7 + fable-5-1 · 19:42→20:15_
 
 **Night — review fixes merged to `main` (0c0e8d8); then Ben's first phone look, and the reel
 became shape-matched (`fix/landing-orientation`).** Ben: "there's no visible movement in either
@@ -699,7 +716,7 @@ Verified: `bun run test` 1,394/1,395 then the cursor-stability FK flake passed 3
 ("the options for marks are horrible — boring, uninspired, nonsensical"); Task 9's mark half waits
 on that, its tempo half on his look.
 
-*Session spend: 88.06M tok (in 392 · out 179.1k · cache r 85.41M / w 2.48M) · ~≥$5.82 · opus-5-5 + opus-4-7 + <synthetic> · 20:15→22:59*
+_Session spend: 88.06M tok (in 392 · out 179.1k · cache r 85.41M / w 2.48M) · ~≥$5.82 · opus-5-5 + opus-4-7 + <synthetic> · 20:15→22:59_
 **Evening (Fable) — onboarding regrouped into umbrella groups, on `feat/topic-groups`.** Ben,
 on the shipped four-stage picker: "too many subjects to choose from, just too many words" — 92
 Subject chips, 41 Medium, 20 Look, 6 Place after round 2. Classified bounded; Ben chose
@@ -740,8 +757,7 @@ other change); merge `feat/topic-groups` to `main` after 8.3 lands and remove th
 group-size weighting if `/dev/feed` says the flat 1.0 skews CORE. 8.3's dev server on :3000 was
 stopped for the e2e runs — `bun run dev` in `~/Dev/ambit` brings it back.
 
-*Session spend: 6.97M tok (in 1.0k · out 30.5k · cache r 6.56M / w 374.4k) · ~≥$1.22 · fable-5-1 + opus-4-7 · 22:45→09:08*
-
+_Session spend: 6.97M tok (in 1.0k · out 30.5k · cache r 6.56M / w 374.4k) · ~≥$1.22 · fable-5-1 + opus-4-7 · 22:45→09:08_
 
 ### [[09-23-26 Wed]] — Round 3 parked whole; polishpostergallery probed
 
@@ -754,7 +770,7 @@ dealer's shop, ~1,250 posters across five decade listings (20 a page), 42 named 
 per poster with `og:` meta and labelled fields (designer, year of print, technique, price). **No
 machine surface** — `/api/` robots-disallowed, no sitemap, no feed, every unknown path answers
 200 HTML — and the image is the dealer's 552 × 800 photograph with no larger rendition.
-Rights are the friendliest of the batch (site content reusable *with attribution and a link*),
+Rights are the friendliest of the batch (site content reusable _with attribution and a link_),
 and the Polish poster school is squarely the vocabulary (`poster-art`, `graphic-design`,
 `surreal`). **Recommended park** on the arabicdesignarchive ground (HTML-only walk, a shape the
 repo has never built) plus the small image; an email asking for larger images or an export is the
@@ -763,7 +779,7 @@ cheap next step. Row is under "09-23-26 addition" in the round 3 section.
 **Open / next:** unchanged from 09-22 — Ben's 8.3 research → the medium question; daily T6.4
 reads; 6.5 triage at the week's end ticks 8.2.
 
-*Session spend: 3.14M tok (in 812 · out 33.0k · cache r 2.68M / w 423.9k) · fable-5-1 · 10:47→13:18*
+_Session spend: 3.14M tok (in 812 · out 33.0k · cache r 2.68M / w 423.9k) · fable-5-1 · 10:47→13:18_
 
 ### [[09-22-26 Tue]] — T6.4 read #1 clean; 8.3 landing session opened and parked
 
@@ -787,7 +803,7 @@ gathered for the pickup, so they need not be re-derived:
 - Two backlog items ride on this session: the **logo redesign** is an input to 8.3 (vault: decide
   it here or design the landing around a mark about to change; touches favicon, install icon,
   invite mail), and **rewrite all copy** says 8.3 owns the landing copy and settles the voice.
-- The T6 gate is overtaken: 8.3 ships *into* the beta, not ahead of it — argues for a v1 inside
+- The T6 gate is overtaken: 8.3 ships _into_ the beta, not ahead of it — argues for a v1 inside
   the week with the trailer's full ambition staged.
 - First question, unanswered: the **medium** — pan-zoom over stills in CSS/JS (recommended;
   keeps the pool open to the corpus via `/api/img`), authored video (fixed asset, heavy, iOS
@@ -820,9 +836,9 @@ Sources: Ben verdicts the round 3 table; suggested order anothergraphic → type
 theleoisallinthemind, then the Blogger and Omeka factory notes.
 Daily T6.4 reads continue; 6.5 triage at the week's end ticks 8.2. 8.4 after 8.3.
 
-*Session spend: 4.29M tok (in 860 · out 29.4k · cache r 3.97M / w 285.8k) · fable-5-1 · 09:16→09:29*
-*Session spend: 4.75M tok (in 732 · out 111.6k · cache r 4.27M / w 372.3k) · fable-5-1 · 14:48→14:57*
-*Session spend: 1.37M tok (in 288 · out 7.4k · cache r 1.36M / w 9.9k) · fable-5-1 · 14:57→14:58*
+_Session spend: 4.29M tok (in 860 · out 29.4k · cache r 3.97M / w 285.8k) · fable-5-1 · 09:16→09:29_
+_Session spend: 4.75M tok (in 732 · out 111.6k · cache r 4.27M / w 372.3k) · fable-5-1 · 14:48→14:57_
+_Session spend: 1.37M tok (in 288 · out 7.4k · cache r 1.36M / w 9.9k) · fable-5-1 · 14:57→14:58_
 
 ### [[09-20-26 Sun]] — 8.2 T3–T5 done in one sitting; every alert path proven
 
@@ -871,9 +887,9 @@ fills from walks and the classifier only. The shape: a checked-in map topic id �
 applied on boot like facets; `ingest --topic <id> --source <src>` runs a cell on demand;
 `probe-adapter` vets a word first. Ben assembles the list when he has time; then design + plan.
 
-*Session spend: 4.81M tok (in 944 · out 20.9k · cache r 4.25M / w 534.7k) · fable-5-1 · 14:55→19:33*
-*Session spend: 5.16M tok (in 1.0k · out 41.9k · cache r 5.02M / w 97.6k) · fable-5-1 · 19:33→21:14*
-*Session spend: 5.64M tok (in 692 · out 20.4k · cache r 5.59M / w 30.6k) · fable-5-1 · 21:14→21:59*
+_Session spend: 4.81M tok (in 944 · out 20.9k · cache r 4.25M / w 534.7k) · fable-5-1 · 14:55→19:33_
+_Session spend: 5.16M tok (in 1.0k · out 41.9k · cache r 5.02M / w 97.6k) · fable-5-1 · 19:33→21:14_
+_Session spend: 5.64M tok (in 692 · out 20.4k · cache r 5.59M / w 30.6k) · fable-5-1 · 21:14→21:59_
 
 ### [[09-18-26 Fri]] — first health read after the 8.2 deploy; T3.0 was already done
 
@@ -903,7 +919,7 @@ URLs, task schedule), and blanks for the observed Coolify wording T7 will want.
 notifications, `fail-probe`), T4 (Monitor B only after the first `ok`), T5.1–5.2 (Beszel agent),
 then T6's install note + feedback file and the watched week.
 
-*Session spend: 5.16M tok (in 96 · out 33.9k · cache r 4.48M / w 654.9k) · fable-5-1 · 10:14→16:14*
+_Session spend: 5.16M tok (in 96 · out 33.9k · cache r 4.48M / w 654.9k) · fable-5-1 · 10:14→16:14_
 
 ### [[09-17-26 Thu]] — 8.1 closed; round 4 is on production; 8.2 T1+T2 built
 
@@ -951,7 +967,7 @@ verdict exit code, `/api/health`'s `ingest:` field, the external monitor); the `
 Coolify's backup run history for the missing 09-02–09-14 files; sources round 2 §0 (streetartnews
 after Cut 2, spoon-tamago parked).
 
-*Session spend: 11.14M tok (in 2.2k · out 86.0k · cache r 10.57M / w 475.1k) · ~≥$0.85 · fable-5-1 + opus-4-7 · 11:07→12:18*
+_Session spend: 11.14M tok (in 2.2k · out 86.0k · cache r 10.57M / w 475.1k) · ~≥$0.85 · fable-5-1 + opus-4-7 · 11:07→12:18_
 
 **Afternoon — 8.2 T1 + T2 built** (`feat/8.2-ops`, PR #20; walkthrough started in
 `docs/PHASE8_WALKTHROUGH_8.2.md`). The ingest now has a verdict: exit 2 naming the dead sources,
@@ -964,7 +980,7 @@ once an hour per error. **Re-enacting the 08-29 smoke with a fake Smithsonian ke
 **Findings — two things the handoff had wrong, both caught before they shipped, plus one addition:**
 
 - **A dead walk is `offered === 0 && errors > 0`, not `walked === 0`.** `runWalk` counts a page as
-  walked *before* asking for it, so a walk whose first page fails every retry reads `walked 1`.
+  walked _before_ asking for it, so a walk whose first page fails every retry reads `walked 1`.
   The handoff's rule would have passed the one case it was written to catch.
 - **The plan's probe route `api/_boom` can never be requested.** An App Router folder whose name
   starts with `_` is private and never becomes a route. The proof used `api/boom-probe`, which is
@@ -976,7 +992,7 @@ once an hour per error. **Re-enacting the 08-29 smoke with a fake Smithsonian ke
 daytime once `img-warm-round4` is done, and read `/api/health` (`"never"` until the next nightly
 run). After that, T3–T5.
 
-*Session spend: 20.75M tok (in 279 · out 102.0k · cache r 20.17M / w 483.9k) · ~$16.90 · opus-5 + opus-4-7 · 12:28→12:43*
+_Session spend: 20.75M tok (in 279 · out 102.0k · cache r 20.17M / w 483.9k) · ~$16.90 · opus-5 + opus-4-7 · 12:28→12:43_
 
 **CI's `e2e` job, red on `main` since 09-07 — root-caused and fixed (afternoon, Fable):**
 
@@ -996,7 +1012,7 @@ engine:**
   four hand-rolled bulk inserts. No knob override, no assertion touched.
 - **The seed counts had been sized against three-tile pages.** With full pages each round-trip
   hands over three times as much, and `feed.spec` (150) and `desktop.spec` (100) ran dry before
-  their last test — two *new* reds the first fix exposed. Measured by counting `seen_item` rows
+  their last test — two _new_ reds the first fix exposed. Measured by counting `seen_item` rows
   at cleanup with ample supply: feed 162–171, desktop 117–126, pwa 27 of 40. Now 360 / 260 / 80.
 
 **Verified:** full suite 56 passed twice on the CI-shaped database, 56 passed against the dev
@@ -1035,9 +1051,8 @@ container, all six security headers intact at the edge.
 **Open / next:** 8.2 T3 (Coolify notifications — **3.0's timeout raise first**), then T4/T5 the
 morning after health reads `"ingest":"ok"` for the first time.
 
-*Session spend: 8.78M tok (in 146 · out 38.4k · cache r 8.40M / w 336.1k) · fable-5-1 · 13:00→13:14*
-*Session spend: 9.50M tok (in 158 · out 33.2k · cache r 9.34M / w 121.8k) · ~≥$0.64 · fable-5-1 + opus-4-7 · 13:14→13:47*
-
+_Session spend: 8.78M tok (in 146 · out 38.4k · cache r 8.40M / w 336.1k) · fable-5-1 · 13:00→13:14_
+_Session spend: 9.50M tok (in 158 · out 33.2k · cache r 9.34M / w 121.8k) · ~≥$0.64 · fable-5-1 + opus-4-7 · 13:14→13:47_
 
 ### [[09-16-26 Wed]] — jareckiworld walked: 13,700 rows @ 8.60
 
@@ -1126,7 +1141,7 @@ _Session spend: 952.9k tok (in 204 · out 10.9k · cache r 764.3k / w 177.4k) ·
 _Session spend: 4.03M tok (in 662 · out 49.1k · cache r 3.91M / w 62.7k) · fable-5-1 · 11:14→12:14_
 
 **Afternoon — kvetchlandia walked: 12,500 rows @ 8.30 (the walk session, beside T8).** Two
-launches: the first died at 40% on a *third* kind of 402 — the **key's monthly spend limit**
+launches: the first died at 40% on a _third_ kind of 402 — the **key's monthly spend limit**
 ($50, used $52.15, $0.02 left; the account itself had $18) — with the message "requested up to
 65535 tokens, but can only afford…": the curator sends no `max_tokens`, so OpenRouter reserves
 the model's whole output window per call, ~$0.31 across twelve in-flight, and refuses under that
@@ -1146,19 +1161,19 @@ cache to 40% and finished in 44 min.
 
 **Findings — the capture its row predicted, measured:**
 
-| topic | kvetchlandia | total | share |
-|---|---:|---:|---:|
-| new-york | 3,542 | 6,722 | 53% |
-| literature | 1,309 | 2,835 | 46% |
-| portraits | 5,822 | 13,291 | 44% |
-| music | 1,203 | 2,772 | 43% |
-| fashion | 1,112 | 3,635 | 31% |
-| photography | 8,244 | 35,081 | 24% |
+| topic       | kvetchlandia |  total | share |
+| ----------- | -----------: | -----: | ----: |
+| new-york    |        3,542 |  6,722 |   53% |
+| literature  |        1,309 |  2,835 |   46% |
+| portraits   |        5,822 | 13,291 |   44% |
+| music       |        1,203 |  2,772 |   43% |
+| fashion     |        1,112 |  3,635 |   31% |
+| photography |        8,244 | 35,081 |   24% |
 
 `portraits` went 7,469 → 13,291; the blog is 44% of it by membership, under half, at the
 budget Ben chose for exactly this reason. `new-york` is the surprise — over half — because
-the credits say *New York City 1972* and the classifier files the place. Per-(topic, source)
-pool sampling and `sourceCap` keep a page from showing it, but `new-york`'s *meaning* is now
+the credits say _New York City 1972_ and the classifier files the place. Per-(topic, source)
+pool sampling and `sourceCap` keep a page from showing it, but `new-york`'s _meaning_ is now
 mostly mid-century portrait photography; a `/feed` read on `new-york` and `portraits`, and
 `abstract` from the morning, is the honest next look. **Cost:** $2.32 of key budget for
 ~7,500 fresh — **$0.00031/item**, the same as jareckiworld; round 3's $0.000235 was the
@@ -1169,7 +1184,7 @@ caption-less blogs. Key remaining $22.70.
 in the curator (a few hundred is plenty for its JSON) so a thin balance stops a walk only when
 it is actually thin; tag-alias §8; T8 is in the other session's hands above.
 
-*Session spend: 9.34M tok (in 740 · out 33.3k · cache r 9.15M / w 159.6k) · ~≥$1.11 · fable-5-1 + opus-4-7 · 10:28→12:46*
+_Session spend: 9.34M tok (in 740 · out 33.3k · cache r 9.15M / w 159.6k) · ~≥$1.11 · fable-5-1 + opus-4-7 · 10:28→12:46_
 
 ### [[09-15-26 Tue]] — Round 4's two keeps registered
 

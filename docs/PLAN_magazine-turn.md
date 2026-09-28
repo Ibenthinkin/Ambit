@@ -199,7 +199,7 @@ comment generously and cite the D-numbers above.
       "no-preference" })` (Playwright inherits the Mac's setting — the profile-glyph lesson),
       press ArrowRight, assert a `[data-testid="spread-leaf"]` is visible mid-turn and gone after,
       and that the pages advanced. Keep the existing assertions (they auto-retry past the turn).
-- [ ] `bun run e2e:prod` green — **not run**: a hand-started `next dev` held :3000, and a dev-server run fails on the dev-tools button before reaching the spread test (the known trap); the CI-shape run from CLAUDE.md if the fixtures were touched.
+- [x] `bun run e2e:prod` green — run after the merge to `main` (61 passed, 9 dev-only skips; the desktop file 3/3). It took two test fixes: the spine-edge check got a 1 px tolerance (the pictures now touch, so `-33.3333%` lands the right one at 719.97), and every toggle click waits for the leaf to land — mid-fold the cell already shows one picture, so a count could pass early and the next click land mid-motion, where it is ignored; the CI-shape run from CLAUDE.md if the fixtures were touched.
 - [x] `DESIGN_spread-mode.md` amendment pointing here; CLAUDE.md's spread bullet; `log.md`.
 - [x] Do not merge or push until Ben has looked at 1440.
 
