@@ -5,6 +5,50 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-28-26 Mon]] — Writing becomes a first-class part of the feed (designed, not built)
+
+**Checked first:** the Door of Perception production walk Ben ran at the end of 09-27 landed.
+The walk exited 0 at 01:58 UTC with 9,832 inserted, and curation took 7.5 min, all cache hits,
+so it was free. The warm exited 0 at 04:44 UTC: 9,817 filled, 405 already cached, 0 failures.
+The VM disk is at 66%. `~/dop-prod.log` on the VM and `/app/.cache/dop-{walk,warm}.log` in the
+container are the witnesses. Ben looked at the magazine view: "pretty good for now, tweaks later."
+
+**Ben:** "i literally never see wikipedia articles anymore." **Findings:**
+- **Share.** Articles are ~3.5k of ~208k production items (1.7%). A 240-card local probe drew 4 Wikipedia cards.
+- **Scoring.** The image-taste `CURATOR_PROMPT` scores Wikipedia at 5.2 on average against
+  7.5–8.7 for every image source, and a third of it at exactly the floor, 4. `drawWeight` gives
+  that weight 1 against 15 for a 9.
+- **Sourcing.** The seed queries are one generic word per original topic, which returns
+  definition pages. Grown topics have no Wikipedia queries at all.
+- **Bug.** **Production's 3,191 Wikipedia rows have 0 bodies.** Ingest never calls `fetchBody`,
+  and the backfill script only ever ran locally (2,169/2,170 there), so on the live site a
+  tapped Wikipedia card is one paragraph.
+
+**Decisions (by interview):** the design is `docs/DESIGN_writing.md` (D1–D8), the plan
+`docs/PLAN_writing.md`, in five phases in this order:
+1. A separate writing curator. Ben calibrates it on ~40 pieces before any re-score. It returns a
+   kind (essay / curiosity / criticism & profile / poem & archive), a reading time, topics, and
+   a `timeliness` verdict, and `news` is dropped. News-free by taste: longform contemporary
+   journalism is fine; the 24-hour cycle is not.
+2. Wikipedia: bodies at ingest plus a production backfill; list sourcing (Unusual articles,
+   DYK, Featured/Good); and a Ben-editable reading-phrases file replacing `seedQueries.wikipedia`.
+3. About 1 in 8 feed cards is writing, through dedicated writing slots with their own pools.
+   The pool weights can't do it, because articles are ~2% of memberships.
+4. A picture-led card with a `KIND · N MIN` badge; the text card keeps the same label.
+5. Contemporary publications (Aeon, Psyche, Atlas Obscura, JSTOR Daily, Longreads, Marginalian,
+   Hyperallergic, Paris Review, Noema) as **link cards**. Aeon's CC BY-ND is deliberately not
+   used. It needs an RSS/Atom factory and `NormalizedItem.curationText` (additive; record it in
+   Ambit-Admin before building).
+
+**Filed for later (D8):** the text reading experience, including reading in the desktop magazine
+mode.
+
+**Open / next:** execute Phase 1 cold on `feat/writing`. The calibration file is the gate before
+any re-score. Ben's two raw Tumblr notes in `source-candidates.md` stay uncommitted; blogs are
+paused.
+
+*Session spend: 9.31M tok (in 160 · out 80.7k · cache r 8.93M / w 305.2k) · opus-5-5 · 13:20→14:33*
+
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
