@@ -57,6 +57,38 @@ describe("GroupPicker", () => {
     ).toBeNull();
   });
 
+  it("keeps the disclosure's hairline border and colours it when open", () => {
+    // Regression pin for the bare `border` + `border-hairline` conflict: the repo's `cn()`
+    // (tailwind-merge, src/lib/utils.ts) puts both in the same border-width group, so the LAST
+    // one wins — a bare `border` after `border-hairline` silently drops the hairline width. The
+    // disclosure must carry `border-hairline` + a color modifier (`border-ink/12`, or
+    // `border-accent` when open) and never a bare `border` token.
+    render(
+      <GroupPicker
+        facet="subject"
+        topics={FIXTURE_TOPICS}
+        picks={new Map()}
+        onChange={vi.fn()}
+      />,
+    );
+    const disclosure = screen.getByRole("button", {
+      name: "Show 2 topics in Space",
+    });
+    expect(disclosure).toHaveClass("border-hairline", "border-ink/12");
+    expect(disclosure.className.split(/\s+/)).not.toContain("border");
+
+    fireEvent.click(disclosure);
+    const opened = screen.getByRole("button", {
+      name: "Hide topics in Space",
+    });
+    expect(opened).toHaveClass(
+      "border-hairline",
+      "bg-accent/10",
+      "border-accent",
+    );
+    expect(opened.className.split(/\s+/)).not.toContain("border");
+  });
+
   it("clicking an unpicked group chip adds every member at 'some'", () => {
     const onChange = vi.fn();
     render(
@@ -82,7 +114,7 @@ describe("GroupPicker", () => {
       <GroupPicker
         facet="subject"
         topics={FIXTURE_TOPICS}
-        picks={new Map([["astronomy", 1]])}
+        picks={new Map([["astronomy", weightOf("some")]])}
         onChange={onChange}
       />,
     );
@@ -100,7 +132,7 @@ describe("GroupPicker", () => {
       <GroupPicker
         facet="subject"
         topics={FIXTURE_TOPICS}
-        picks={new Map([["astronomy", 1]])}
+        picks={new Map([["astronomy", weightOf("some")]])}
         onChange={onChange}
       />,
     );
@@ -126,7 +158,7 @@ describe("GroupPicker", () => {
     fireEvent.click(within(memberRow).getByRole("button", { name: "Moon" }));
     expect(onChange).toHaveBeenLastCalledWith(
       new Map([
-        ["astronomy", 1],
+        ["astronomy", weightOf("some")],
         ["moon", weightOf("lot")],
       ]),
     );

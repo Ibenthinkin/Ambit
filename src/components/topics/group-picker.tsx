@@ -104,7 +104,7 @@ export function GroupPicker({
                   }
                   onClick={() => toggleOpen(group.id)}
                   className={cn(
-                    "border-hairline text-ink/62 flex h-[28px] w-[28px] flex-none items-center justify-center rounded-full border text-[12px] transition-colors",
+                    "border-hairline border-ink/12 text-ink/62 flex h-[28px] w-[28px] flex-none items-center justify-center rounded-full text-[12px] transition-colors",
                     isOpen && "bg-accent/10 border-accent",
                   )}
                 >

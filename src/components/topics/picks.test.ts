@@ -21,9 +21,9 @@ describe("toggleGroup", () => {
   });
 
   it("on a mixed group adds only the absent members at pickWeight(n) and leaves the present member's weight", () => {
-    const start = new Map([["moon", 2.0]]);
+    const start = new Map([["moon", weightOf("lot")]]);
     const next = toggleGroup(start, ["astronomy", "moon"]);
-    expect(next.get("moon")).toBe(2.0);
+    expect(next.get("moon")).toBe(weightOf("lot"));
     expect(next.get("astronomy")).toBe(weightOf("some"));
   });
 
