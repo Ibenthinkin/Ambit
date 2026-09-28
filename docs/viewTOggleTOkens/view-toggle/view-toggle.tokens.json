@@ -1,0 +1,61 @@
+{
+  "ambit.viewToggle": {
+    "modes": [
+      { "id": "single", "label": "Single view", "pagesPerTurn": 1 },
+      { "id": "spread", "label": "Magazine view", "pagesPerTurn": 2 }
+    ],
+    "default": "spread",
+    "storageKey": "ambit.galleryView.v1",
+    "placement": "Gallery pill, replaces the layout picker (between logo and bookmark)",
+    "glyph": {
+      "viewBox": "0 0 24 24",
+      "size": { "value": "24px" },
+      "ink": { "value": "rgba(255,255,255,0.86)" },
+      "_note": "Two filled paths (left + right page) with identical command structure so `d` can interpolate. In single mode the halves meet at x=12 and read as one page; in spread they separate by a 1.4px gutter and curve like an open magazine.",
+      "pages": {
+        "single": {
+          "left":  "M12 4C12 4 6.5 4 6.5 4V20C6.5 20 12 20 12 20Z",
+          "right": "M12 4C12 4 17.5 4 17.5 4V20C17.5 20 12 20 12 20Z"
+        },
+        "spread": {
+          "left":  "M11.3 6.4C8.8 5 5.8 4.6 2.5 5.3V18.9C5.8 18.2 8.8 18.6 11.3 20Z",
+          "right": "M12.7 6.4C15.2 5 18.2 4.6 21.5 5.3V18.9C18.2 18.2 15.2 18.6 12.7 20Z"
+        }
+      },
+      "morph": { "duration": { "value": "420ms" }, "easing": { "value": "cubic-bezier(.3,1.3,.5,1)" }, "properties": ["d"] }
+    },
+    "button": {
+      "size": { "value": "36px" },
+      "radius": { "value": "10px" },
+      "activeBg": { "value": "rgba(255,255,255,0.14)", "_note": "Shown while in spread mode" },
+      "bgTransition": { "value": "background 200ms ease" }
+    },
+    "keyboard": { "toggle": "M", "next": ["ArrowRight", "Space"], "prev": "ArrowLeft" },
+    "spread": {
+      "stageInset": { "top": "40px", "right": "120px", "bottom": "96px", "left": "120px" },
+      "perspective": { "value": "2800px" },
+      "fit": "object-fit: contain; left page object-position right center, right page left center (both hug the spine)",
+      "spine": {
+        "width": { "value": "90px" },
+        "gradient": { "value": "linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.16) 34%, rgba(0,0,0,0.42) 49%, rgba(255,255,255,0.06) 50.5%, rgba(0,0,0,0.2) 56%, rgba(0,0,0,0) 100%)" }
+      },
+      "pageTurn": {
+        "duration": { "value": "800ms" },
+        "easing": { "value": "cubic-bezier(.45,.05,.25,1)" },
+        "rotate": { "next": "0 → -180deg around left edge of right page", "prev": "0 → 180deg around right edge of left page" },
+        "commitAfter": { "value": "820ms" }
+      },
+      "folio": {
+        "bottom": { "value": "30px" },
+        "columnGap": { "value": "48px" },
+        "number": { "size": "11px", "weight": 600, "tracking": "1.2px", "color": "rgba(239,235,224,0.4)", "format": "2-digit, tabular-nums" },
+        "title": { "size": "14px", "color": "#EFEBE0" },
+        "maker": { "size": "11.5px", "color": "rgba(239,235,224,0.46)", "font": "-apple-system, system-ui, sans-serif" },
+        "hideDuringTurn": { "value": "opacity 0, 300ms ease" }
+      }
+    },
+    "single": { "enter": { "duration": { "value": "350ms" }, "easing": { "value": "ease" }, "from": "opacity 0" } },
+    "stageBg": { "value": "#0C0B09" },
+    "font": { "value": "'Sora', sans-serif" }
+  }
+}

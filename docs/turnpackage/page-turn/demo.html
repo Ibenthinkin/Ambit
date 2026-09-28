@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ambit-spread demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#0C0B09; }
+  ambit-spread { position:fixed; inset:40px 120px 30px; background:transparent; }
+  .pill { position:fixed; right:22px; top:50%; transform:translateY(-50%); padding:14px 9px; border-radius:999px; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px); border:0.5px solid rgba(255,255,255,0.22); }
+</style>
+</head>
+<body>
+<ambit-spread folios keyboard></ambit-spread>
+<div class="pill"><ambit-view-toggle persist="ambit.galleryView.v1"></ambit-view-toggle></div>
+<script type="module">
+  import './ambit-spread.js';
+  import '../view-toggle/ambit-view-toggle.js';
+  const w = f => `https://commons.wikimedia.org/wiki/Special:FilePath/${f}?width=1100`;
+  const spread = document.querySelector('ambit-spread');
+  const toggle = document.querySelector('ambit-view-toggle');
+  spread.items = [
+    { src: w('Great%20Wave%20off%20Kanagawa2.jpg'), title: 'The Great Wave off Kanagawa', maker: 'Katsushika Hokusai · c. 1831' },
+    { src: w('Van%20Gogh%20-%20Starry%20Night%20-%20Google%20Art%20Project.jpg'), title: 'The Starry Night', maker: 'Vincent van Gogh · 1889' },
+    { src: w('Rain%20Steam%20and%20Speed%20the%20Great%20Western%20Railway.jpg'), title: 'Rain, Steam and Speed', maker: 'J. M. W. Turner · 1844' },
+    { src: w('Caspar%20David%20Friedrich%20-%20Wanderer%20above%20the%20sea%20of%20fog.jpg'), title: 'Wanderer above the Sea of Fog', maker: 'Caspar David Friedrich · c. 1818' },
+    { src: w('Johannes%20Vermeer%20-%20Het%20melkmeisje%20-%20Google%20Art%20Project.jpg'), title: 'The Milkmaid', maker: 'Johannes Vermeer · c. 1660' },
+    { src: w('A%20Sunday%20on%20La%20Grande%20Jatte,%20Georges%20Seurat,%201884.jpg'), title: 'A Sunday on La Grande Jatte', maker: 'Georges Seurat · 1884–86' },
+  ];
+  spread.setAttribute('mode', toggle.value);
+  toggle.addEventListener('viewchange', e => spread.setMode(e.detail.mode));
+</script>
+</body>
+</html>

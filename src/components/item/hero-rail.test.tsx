@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RailItem } from "~/server/services/gallery-rail";
 import { HeroRail } from "./hero-rail";
+import type { HeroCells } from "./rail-cells";
 
 const cell = (id: string, over: Partial<RailItem> = {}): RailItem => ({
   id,
@@ -21,17 +22,31 @@ const cell = (id: string, over: Partial<RailItem> = {}): RailItem => ({
   ...over,
 });
 
+/** Single-mode cells, written the way the tests always did: one picture per cell. */
+const one = (
+  cells: readonly [RailItem | undefined, RailItem, RailItem | undefined],
+): HeroCells => [
+  cells[0] ? [cells[0]] : undefined,
+  [cells[1]],
+  cells[2] ? [cells[2]] : undefined,
+];
+
 function Harness({
   cells,
+  spread,
+  pages = 1,
   chromeVisible = false,
 }: {
-  cells: readonly [RailItem | undefined, RailItem, RailItem | undefined];
+  cells?: readonly [RailItem | undefined, RailItem, RailItem | undefined];
+  spread?: HeroCells;
+  pages?: 1 | 2;
   chromeVisible?: boolean;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
   return (
     <HeroRail
-      cells={cells}
+      cells={spread ?? one(cells!)}
+      pages={pages}
       trackRef={ref}
       dragPx={0}
       dragging={false}
@@ -76,8 +91,14 @@ describe("HeroRail", () => {
   it("insets the picture 12px on every side and centres it in the frame", () => {
     render(<Harness cells={[undefined, cell("b"), undefined]} />);
     const img = screen.getByAltText("Plate b");
-    const cellEl = img.parentElement!;
-    expect(cellEl).toHaveClass("p-[12px]", "items-center", "justify-center");
+    const page = img.parentElement!;
+    expect(page).toHaveClass(
+      "px-[12px]",
+      "py-[12px]",
+      "items-center",
+      "justify-center",
+    );
+    expect(img).not.toHaveClass("object-left", "object-right");
     expect(img).toHaveClass("object-contain", "h-full", "w-full");
     expect(img).not.toHaveClass("object-top");
   });
@@ -96,6 +117,73 @@ describe("HeroRail", () => {
     expect(chrome).toHaveAttribute("aria-hidden", "false");
     expect(chrome.style.visibility).toBe("visible");
     expect(chrome).toHaveTextContent("caption");
+  });
+
+  // docs/DESIGN_spread-mode.md D3, as refined after Ben's first look (09-27-26): the two pictures
+  // meet at the spine — a thin gutter, each picture pushed against it — and the 12px inset stays on
+  // the outer edges.
+  it("a spread cell renders two pages that lean against the spine", () => {
+    render(
+      <Harness
+        pages={2}
+        spread={[
+          [cell("a"), cell("b")],
+          [cell("c"), cell("d")],
+          [cell("e"), cell("f")],
+        ]}
+      />,
+    );
+    expect(
+      screen.getByTestId("gallery-track").querySelectorAll("img"),
+    ).toHaveLength(6);
+    const left = screen.getByAltText("Plate c");
+    const right = screen.getByAltText("Plate d");
+    expect(left.parentElement).toHaveClass(
+      "flex-1",
+      "min-w-0",
+      "pl-[12px]",
+      "justify-end",
+    );
+    expect(right.parentElement).toHaveClass(
+      "flex-1",
+      "min-w-0",
+      "pr-[12px]",
+      "justify-start",
+    );
+    expect(left.parentElement!.style.paddingRight).toBe("0px");
+    expect(right.parentElement!.style.paddingLeft).toBe("0px");
+    expect(left).toHaveClass("object-contain", "object-right");
+    expect(right).toHaveClass("object-contain", "object-left");
+    // Both pages of the spread under the reader are fetched first.
+    expect(screen.getByAltText("Plate c")).toHaveAttribute(
+      "fetchpriority",
+      "high",
+    );
+    expect(screen.getByAltText("Plate d")).toHaveAttribute(
+      "fetchpriority",
+      "high",
+    );
+    expect(screen.getByAltText("Plate e")).toHaveAttribute(
+      "fetchpriority",
+      "auto",
+    );
+  });
+
+  // A rail that ends on an odd count: the last spread's right page is blank, like a magazine's
+  // last verso — the lone picture stays on the left half rather than centring.
+  it("a one-page cell in a spread keeps its page on the left half", () => {
+    render(
+      <Harness
+        pages={2}
+        spread={[[cell("a"), cell("b")], [cell("c")], undefined]}
+      />,
+    );
+    const page = screen.getByAltText("Plate c").parentElement!;
+    const cellEl = page.parentElement!;
+    expect(cellEl.children).toHaveLength(2);
+    expect(cellEl.children[0]).toBe(page);
+    expect(cellEl.children[1]!.querySelector("img")).toBeNull();
+    expect(cellEl.children[1]).toHaveClass("flex-1");
   });
 
   // The merge's single most likely regression, carried over from the old item hero's test: an

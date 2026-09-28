@@ -141,7 +141,9 @@ test.describe.serial("explore", () => {
     await waitForHydration(page, "[data-feed-id] > *");
     await waitForOverture(page);
     await waitForFeedToSettle(page);
-    const tile = page.locator("[data-feed-id] > *").first();
+    // An *image* tile: an article opens the reader page, which has no "Keep exploring" link, and
+    // on the fixture corpus the draw sometimes puts an article first.
+    const tile = page.locator("[data-feed-id]:has(img) > *").first();
     await tapInPlace(page, tile);
     await page.waitForURL(/\/i\//);
     // The join card under the picture offers the way back to the taste.

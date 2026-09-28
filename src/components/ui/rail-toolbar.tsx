@@ -17,7 +17,8 @@ import { cn } from "~/lib/utils";
 
 // The desktop toolbar (docs/DESIGN_chrome-redesign.md §2, amended 09-11-26 and again 09-12-26
 // by Ben's review): a vertical **stack** fixed at the right edge and vertically centred — "the
-// buttons will be located down the right side". Profile, Feed and Save share the bar — the same
+// buttons will be located down the right side". Profile, Feed and Save share the bar (plus a
+// page's `extra` between Feed and Save — the item screen's spread toggle since 09-27-26) — the same
 // three the phone's pill holds — and **Share is the one detached disc below it**, the desktop twin
 // of the phone's detached Share. Save belongs in the bar because it is on every screen: on the
 // feed, Saved and Profile it opens the collections list (nothing to save there, so the sheet
@@ -42,20 +43,27 @@ export type RailToolbarProps = PillToolbarProps;
  *  disc matches its pill's height. */
 const DISC = "size-[68px]";
 
-/** 52px hit areas, glyphs up to 38 — bigger than the pill's 48/34, as the review asked. */
-function RailButton({
+/**
+ * 52px hit areas, glyphs up to 38 — bigger than the pill's 48/34, as the review asked. Exported
+ * for a page's `extra` control (the item screen's spread toggle), so it matches the bar exactly.
+ * `pressed` makes it a toggle button (`aria-pressed`); omitted, it is a plain button.
+ */
+export function RailButton({
   label,
   onClick,
+  pressed,
   children,
 }: {
   label: string;
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  pressed?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
+      aria-pressed={pressed}
       onClick={onClick}
       // The README's rule for every save/share control, kept here though a mouse rarely needs it.
       onPointerDown={(e) => e.stopPropagation()}
@@ -129,6 +137,11 @@ export function RailToolbar({
           <Logo size={38} className="text-white/95" />
         </RailButton>
 
+        {/* A page's own control, between the logo and the bookmark where Ben drew it
+            (docs/DESIGN_spread-mode.md D4). Only the item screen passes one — its spread
+            toggle — so every other screen's bar stays Profile, Feed, Save. */}
+        {extra}
+
         <RailButton
           label="Save to collection"
           onClick={(e) => onBookmark(e.currentTarget.getBoundingClientRect())}
@@ -143,8 +156,6 @@ export function RailToolbar({
             )}
           />
         </RailButton>
-
-        {extra}
       </nav>
 
       {/* Detached, like the phone's Share disc: a sibling of the bar, not a child of it. Omitted

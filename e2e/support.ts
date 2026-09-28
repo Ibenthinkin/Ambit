@@ -69,7 +69,13 @@ export async function signIn(page: Page, email: string, password: string) {
   await openAuthSheet(page);
   await page.getByPlaceholder("you@example.com").fill(email);
   await page.getByPlaceholder("Password").fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  // Scoped to the sheet: since `/` became the explore feed (09-26-26) the page behind it can hold
+  // a "Sign in" message tile too, and an unscoped click is a strict-mode error whenever the draw
+  // puts one on the first page.
+  await page
+    .getByTestId("auth-sheet")
+    .getByRole("button", { name: "Sign in" })
+    .click();
   await page.waitForURL("/feed");
   await expect(page).toHaveURL(/\/feed/);
 }

@@ -7,10 +7,18 @@ import { useRouter } from "next/navigation";
 import { AuthSurface, useAuthSurface } from "~/components/explore/auth-surface";
 import { MessageTile } from "~/components/explore/message-tile";
 import { cameFromExplore } from "~/components/feed/feed-origin";
-import { HeroRail, type RailCell } from "~/components/item/hero-rail";
+import { HeroRail } from "~/components/item/hero-rail";
 import { ItemFacts } from "~/components/item/item-facts";
 import { JoinCta } from "~/components/item/join-cta";
+import { buildCells } from "~/components/item/rail-cells";
 import { SharedByRow } from "~/components/item/shared-by-row";
+import { SpreadToggle } from "~/components/item/spread-toggle";
+import {
+  bookLayers,
+  folioNumber,
+  turnLayers,
+  type Motion,
+} from "~/components/item/spread-motion";
 import { WanderNext } from "~/components/item/wander-next";
 import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sheet";
 import { ShareSheet } from "~/components/sheets/share-sheet";
@@ -24,9 +32,11 @@ import { useChromeCycle } from "~/hooks/use-chrome-cycle";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
 import { DESKTOP_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { useRailGestures } from "~/hooks/use-rail-gestures";
+import { useHeroLayout, writeHeroLayout } from "~/lib/hero-layout";
 import { imageFileName } from "~/lib/image-filename";
 import { saveToastText } from "~/lib/save-toast";
 import { sourceLabel } from "~/lib/source-label";
+import { cn } from "~/lib/utils";
 import type { RailItem } from "~/server/services/gallery-rail";
 import type { WanderRow } from "~/server/services/wander";
 import { api } from "~/trpc/react";
@@ -49,6 +59,11 @@ import { api } from "~/trpc/react";
 //     whole reason it isn't `feed.page` (log.md 08-20-26). On advance the URL is `replaceState`d
 //     to the new item so the address bar, a reload and the share sheet all name what is on
 //     screen — no navigation, no server round trip, the track animates.
+//   - **On a computer the strip can be a two-page spread** (09-27-26, docs/DESIGN_spread-mode.md):
+//     the rail's toggle puts two consecutive pictures side by side, like an open magazine, and a
+//     turn moves the rail by two. The left page is *the item* — the URL, Save, Share, caption and
+//     facts all follow it — until a click on the right page focuses that one instead. Everything
+//     below reads `current`, so the spread is invisible to it.
 //   - **Every way out is `useLeaveToFeed(entryItem)`**: Escape, the down-flick, the pill's Feed.
 //     Keyed on the *entry* item, whose feed-origin marker decides pop-vs-push, so ten swipes later
 //     Back still lands on the intact feed.
@@ -181,7 +196,43 @@ export function ItemScreen({
   const capped = exploring && railCount >= EXPLORE_RAIL_CAP;
   const desktop = useMediaQuery(DESKTOP_QUERY);
 
-  const current = items[index] ?? entryItem;
+  // ── the spread (docs/DESIGN_spread-mode.md) ───────────────────────────────────────────────────
+  // Desktop only, whatever the device remembers: below `md` a spread would be two postage stamps.
+  const layout = useHeroLayout();
+  const spread = desktop && layout === "spread";
+  /** Pictures per cell, and so how far one turn moves the rail. */
+  const pages = spread ? 2 : 1;
+  // Which page of the spread is *the item* (D2). Left unless the reader clicked the right one.
+  const [focusSide, setFocusSide] = React.useState<0 | 1>(0);
+
+  // ── the magazine's motion (docs/PLAN_magazine-turn.md) ────────────────────────────────────────
+  // A page turning, or the book opening or closing. **The index moves at once** (D1): the URL,
+  // Save, Share and the facts follow the keypress, and the turn is drawn over the new spread by
+  // `HeroRail`. While one is in flight every other input — a turn, the toggle, `M` — is ignored
+  // (D3), which is what makes a held → turn a page every 800ms rather than skipping through.
+  const [motion, setMotion] = React.useState<Motion | null>(null);
+  const motionSeq = React.useRef(0);
+
+  // When the spread turns off — the toggle, or the window narrowing past `md` — land on the page
+  // that was focused, so the picture the reader was looking at stays under them. Done *during
+  // render* rather than in an effect: React's "adjust state when a value changes" pattern
+  // (react.dev, "You Might Not Need an Effect"), so there is never a frame showing the wrong
+  // picture and never a stray `replaceState` to it.
+  const [prevSpread, setPrevSpread] = React.useState(spread);
+  if (spread !== prevSpread) {
+    setPrevSpread(spread);
+    if (!spread && focusSide === 1) setIndex(index + 1);
+    setFocusSide(0);
+    // A window narrowed past `md` mid-turn: there is no spread left to turn.
+    if (!spread) setMotion(null);
+  }
+
+  const cells = buildCells({ items, index, pages, capped, atEnd });
+  /** The cell under the reader: one page, or the two of a spread. */
+  const pair = cells[1];
+  const focused = spread && !atEnd ? pair[focusSide] : undefined;
+  const current =
+    focused && focused !== "end" ? focused : (items[index] ?? entryItem);
 
   const utils = api.useUtils();
   // `enabled: authed` is the auth boundary in client form — an anonymous visitor must not fire a
@@ -251,18 +302,20 @@ export function ItemScreen({
     if (
       !exhausted.tail &&
       !capped &&
-      index >= items.length - 1 - PREFETCH_MARGIN
+      // A spread turn eats two pictures, so it starts fetching twice as far out.
+      index >= items.length - 1 - PREFETCH_MARGIN * pages
     ) {
       void extend("tail");
     }
-    if (!exhausted.head && index <= PREFETCH_MARGIN) {
+    if (!exhausted.head && index <= PREFETCH_MARGIN * pages) {
       void extend("head");
     }
-  }, [index, items.length, exhausted, capped, extend]);
+  }, [index, items.length, exhausted, capped, extend, pages]);
 
   // ── advancing ─────────────────────────────────────────────────────────────────────────────────
   const advance = React.useCallback(
     (dir: 1 | -1) => {
+      if (motion) return;
       chrome.reset();
       // The explore end card: forward from it is nowhere, back from it is the last picture.
       if (atEnd) {
@@ -273,14 +326,43 @@ export function ItemScreen({
         setAtEnd(true);
         return;
       }
-      const next = index + dir;
+      // A spread turns two pages at a time. Going back from index 1 (an odd head batch, or the
+      // spread turned on one picture in) lands on 0 rather than refusing.
+      const next = dir === 1 ? index + pages : Math.max(0, index - pages);
       // Past a loaded end: stay put. The transform snaps back on its own, which reads as a
       // rubber-band — the corpus-thin degradation, and deliberately not a wrap.
-      if (next < 0 || next >= items.length) return;
+      if (next === index || next >= items.length) return;
+      if (spread) {
+        const layers = turnLayers(dir, pair, items.slice(next, next + 2));
+        if (layers) {
+          setMotion({
+            ...layers,
+            key: ++motionSeq.current,
+            kind: "turn",
+            from: 0,
+            to: 1,
+          });
+        }
+      }
       setIndex(next);
-      if (exploring) writeRailCount(railCount + 1);
+      // Every turn starts on the left page (D2).
+      setFocusSide(0);
+      // The explore cap counts pictures, not turns, so a spread reader sees the same number.
+      if (exploring) writeRailCount(railCount + pages);
     },
-    [atEnd, capped, index, items.length, exploring, railCount, chrome],
+    [
+      atEnd,
+      capped,
+      index,
+      items,
+      exploring,
+      railCount,
+      chrome,
+      pages,
+      motion,
+      spread,
+      pair,
+    ],
   );
 
   // The address bar follows the rail. `replaceState`, not `router.replace`: this is the same page
@@ -295,6 +377,46 @@ export function ItemScreen({
     window.history.replaceState(null, "", `/i/${current.id}`);
     document.title = `${current.title} · Ambit`;
   }, [current.id, current.title, entryItem.id]);
+
+  // ── the toggle: the book opens and closes (plan Task 6) ───────────────────────────────────────
+  // Opening: the spread appears with its right page folded over the left one — whose picture is
+  // the single picture the reader was looking at — and swings it open. Closing: the page folds
+  // shut towards the focused picture first, and only then does the mode flip to single (in
+  // `onMotionEnd`), which is what lands the single view on that picture. A spread with no second
+  // page has nothing to fold, so it just switches.
+  const toggleSpread = React.useCallback(() => {
+    if (motion) return;
+    if (!spread) {
+      writeHeroLayout("spread");
+      const layers = bookLayers("open", items.slice(index, index + 2), 0);
+      if (layers) {
+        setMotion({
+          ...layers,
+          key: ++motionSeq.current,
+          kind: "open",
+          from: 1,
+          to: 0,
+        });
+      }
+      return;
+    }
+    const layers = atEnd ? null : bookLayers("close", pair, focusSide);
+    if (!layers) return writeHeroLayout("single");
+    setMotion({
+      ...layers,
+      key: ++motionSeq.current,
+      kind: "close",
+      from: 0,
+      to: 1,
+    });
+  }, [motion, spread, items, index, atEnd, pair, focusSide]);
+
+  // Not a `setMotion(m => …)` updater: an updater runs during render, and `writeHeroLayout`
+  // notifies the layout store's subscribers — a store write mid-render is a React error.
+  const onMotionEnd = React.useCallback((ended: Motion) => {
+    if (ended.kind === "close") writeHeroLayout("single");
+    setMotion(null);
+  }, []);
 
   // ── keyboard ──────────────────────────────────────────────────────────────────────────────────
   // (docs/DESIGN_desktop-polish.md §4, and Ben's 09-10 review: Escape did nothing on the old item
@@ -312,16 +434,30 @@ export function ItemScreen({
       if (e.key === "ArrowRight") advance(1);
       else if (e.key === "ArrowLeft") advance(-1);
       else if (e.key === "Escape") leave();
+      // `M` for magazine, the view toggle's hotkey in Ben's design — desktop only, like the
+      // toggle itself. Nothing on this screen takes text, so no typing guard is needed.
+      else if (desktop && e.key.toLowerCase() === "m") toggleSpread();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sheetOpen, advance, leave]);
+  }, [sheetOpen, advance, leave, desktop, toggleSpread]);
 
   // ── gestures ──────────────────────────────────────────────────────────────────────────────────
   const { ref, dragPx, dragging } = useRailGestures({
     // A tap only ever toggles the chrome now. The gallery's tap-again-for-details went with the
     // details sheet: the details are on the page, under the picture.
-    onTap: chrome.toggle,
+    // In a spread, a tap on the page that isn't the item makes it the item; any other tap is the
+    // chrome toggle it always was. The current cell fills the viewport, so its halves are the
+    // window's halves.
+    onTap: ({ clientX }) => {
+      const side = clientX < window.innerWidth / 2 ? 0 : 1;
+      const page = pair[side];
+      if (spread && !atEnd && side !== focusSide && page && page !== "end") {
+        setFocusSide(side);
+      } else {
+        chrome.toggle();
+      }
+    },
     onAdvance: advance,
     onExit: leave,
   });
@@ -354,8 +490,12 @@ export function ItemScreen({
    * `navigator.share({ files })` is the path that actually reaches an iOS camera roll; the
    * `<a download>` fallback is for desktop and browsers that can't share files.
    */
+  // Keyed on the id string, not `current`: since spreads, `current` is read out of a cell array
+  // built fresh each render, and the React Compiler can't prove such an object unchanged, so it
+  // refused to keep this memo. A string is a value, and the memo holds.
+  const currentId = current.id;
   const saveImage = React.useCallback(async () => {
-    const itemId = current.id;
+    const itemId = currentId;
     try {
       const res = await fetch(`/api/img/${itemId}`);
       if (!res.ok) throw new Error(`image ${res.status}`);
@@ -385,7 +525,7 @@ export function ItemScreen({
     } catch {
       setToast("Couldn't save that image");
     }
-  }, [current.id]);
+  }, [currentId]);
 
   // ── render ────────────────────────────────────────────────────────────────────────────────────
 
@@ -395,25 +535,44 @@ export function ItemScreen({
   //
   // `/explore`'s capped rail puts its end card where the next picture would be, and standing on it
   // shifts the three cells one along.
-  const cells: readonly [RailCell | undefined, RailCell, RailCell | undefined] =
-    atEnd
-      ? [current, "end", undefined]
-      : [items[index - 1], current, capped ? "end" : items[index + 1]];
-
-  const caption = (
+  // One caption per picture on screen. An `<h2>`, not the gallery's old `<h1>`: the page's one
+  // `<h1>` is `ItemFacts`'s, and e2e's `getByRole("heading", { level: 1 })` must find exactly one.
+  const captionFor = (item: RailItem) => (
     <>
-      {/* An `<h2>`, not the gallery's old `<h1>`: the page's one `<h1>` is `ItemFacts`'s, and e2e's
-          `getByRole("heading", { level: 1 })` must find exactly one. */}
-      <div className="pointer-events-auto">
-        <h2 className="text-ink-hi text-[22px] leading-[1.24] font-semibold">
-          {current.title}
-        </h2>
-        <p className="text-ink/52 mt-[7px] text-[12.5px] tracking-[0.15px]">
-          {current.attribution ?? sourceLabel(current.source)}
-        </p>
-      </div>
+      <h2 className="text-ink-hi text-[22px] leading-[1.24] font-semibold">
+        {item.title}
+      </h2>
+      <p className="text-ink/52 mt-[7px] text-[12.5px] tracking-[0.15px]">
+        {item.attribution ?? sourceLabel(item.source)}
+      </p>
     </>
   );
+
+  // Where the entry picture sits in the rail now — a head prepend shifts it, and the reader's
+  // index with it, so the difference below is stable.
+  const entryIndex = items.findIndex((i) => i.id === entryItem.id);
+
+  const caption =
+    spread && !atEnd ? (
+      // **Folios** (plan D7): a magazine's page footer under each page — the page number, then
+      // the title and maker, pushed to the page's *outer* edge. The page that isn't the item is
+      // dimmed, which is the only on-screen sign of which one Save and Share will act on.
+      <div className="grid grid-cols-2 gap-12">
+        {pair.map((page, side) =>
+          page === "end" ? null : (
+            <Folio
+              key={page.id}
+              item={page}
+              number={folioNumber(index + side - entryIndex + 1)}
+              side={side === 0 ? "left" : "right"}
+              dimmed={side !== focusSide}
+            />
+          ),
+        )}
+      </div>
+    ) : (
+      <div className="pointer-events-auto">{captionFor(current)}</div>
+    );
 
   return (
     // `overscroll-behavior-y: contain`: the down-flick exit must never also be a pull-to-refresh.
@@ -424,12 +583,16 @@ export function ItemScreen({
     >
       <HeroRail
         cells={cells}
+        pages={pages}
         trackRef={ref}
         dragPx={dragPx}
         dragging={dragging}
         chrome={caption}
         // The caption belongs to a picture; over the end card it would name the one before it.
         chromeVisible={chrome.visible && !atEnd}
+        spine={spread && !atEnd}
+        motion={motion}
+        onMotionEnd={onMotionEnd}
         endCell={
           exploring ? (
             <MessageTile
@@ -486,6 +649,7 @@ export function ItemScreen({
             setShareOpen(true);
           }}
           onHome={leave}
+          extra={<SpreadToggle spread={spread} onToggle={toggleSpread} />}
         />
       )}
 
@@ -552,5 +716,62 @@ export function ItemScreen({
         raised
       />
     </main>
+  );
+}
+
+/**
+ * One page's folio (docs/PLAN_magazine-turn.md D7), sized from `view-toggle.tokens.json`
+ * `spread.folio`: the number small, tracked and muted in tabular figures, the title at 14px, the
+ * maker beneath it. On the right page the number sits on the outside, so the pair reads
+ * outward from the spine like a printed spread. The title stays an `<h2>` — the page's one `<h1>`
+ * is `ItemFacts`'s.
+ */
+function Folio({
+  item,
+  number,
+  side,
+  dimmed,
+}: {
+  item: RailItem;
+  number: string;
+  side: "left" | "right";
+  dimmed: boolean;
+}) {
+  const num = (
+    <span
+      data-testid="folio-number"
+      className="text-ink/40 flex-none text-[11px] font-semibold tracking-[1.2px] tabular-nums"
+    >
+      {number}
+    </span>
+  );
+  const words = (
+    <div className="min-w-0">
+      <h2 className="text-ink-hi truncate text-[14px]">{item.title}</h2>
+      <p className="text-ink/46 mt-[3px] truncate text-[11.5px]">
+        {item.attribution ?? sourceLabel(item.source)}
+      </p>
+    </div>
+  );
+  return (
+    <div
+      className={cn(
+        "pointer-events-auto flex min-w-0 items-baseline gap-3.5 transition-opacity duration-300",
+        side === "right" && "justify-end text-right",
+        dimmed && "opacity-55",
+      )}
+    >
+      {side === "left" ? (
+        <>
+          {num}
+          {words}
+        </>
+      ) : (
+        <>
+          {words}
+          {num}
+        </>
+      )}
+    </div>
   );
 }

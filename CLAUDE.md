@@ -42,7 +42,7 @@ proxy-with-cache**. `/api/img/[itemId]` now fills a disk cache (`IMAGE_CACHE_DIR
 politely, per host). And the feed's page compose went from **138 ms to 22 ms** — `getTopicPools`
 had been dragging 9,848 full rows / 35.8 MB out of Postgres to pick twelve cards; it now returns a
 five-column projection and `getFeedPage` hydrates the winners by id. `bun run bench:feed` is the
-before/after. **8.1 shipped — public 08-29-26, closed 09-17-26. 8.2's guardrails shipped 09-20-26** — an ingest verdict (exit 2 on a dead source) + `ingest_run` rows read back by `/api/health` as `ingest: ok|stale|never|unknown`, `instrumentation.ts` mailing `OPS_EMAIL` once an hour per error signature, Coolify failure notifications through Resend (proven with a `fail-probe` task), two UptimeRobot monitors (HTTP + the `"ingest":"ok"` keyword, from Ashburn), and Beszel on VM 202; SPEC §13 has the alert map. **The beta week (8.2 T6) is open** — 3 accounts on production as of 09-20 — and its triage into Phase 9 closes the phase. **8.3, the landing redo, was built 09-25-26 on `feat/landing-redo`** (`docs/DESIGN_landing-redo.md`, `docs/PLAN_landing-redo.md`): an overture on black (`AMBIT — A quieter way to be curious.` collapsing into the wordmark), a server-picked reel of the ~2,700 score-9 public-domain pictures in two tempos (`cut` / `dissolve`, `?tempo=` honoured only under `FEED_DEBUG`), a closed-set `?w=960` image rendition derived from the cached master, and three candidate profile marks on `/dev/marks` — merged to `main` 09-25-26, **awaiting Ben's two picks** (plan Task 9). **The same night, after Ben's first phone look, the reel became shape-matched**: tall pictures for an upright phone, wide ones for a computer, at master size, read off new `item.image_width/height` columns (migration 0009, backfilled by `bun run img:dims`, which the container runs on every boot) — see the design's 09-25-26 amendment. **Reduced motion is a tempo, not a still, since 09-26-26** — Ben's "no animation on phone or computer" was Reduce Motion on at the OS level on both; a reader who asks for less gets the same overture collapse as everyone and the reel as drift-free cross-fades (`TEMPOS.gentle`), and `globals.css`'s 0.01 ms collapse exempts only `.motion-gentle`. **Ben picked the dissolve the same day** (`DEFAULT_TEMPO`), at 2 s a picture, 1 s fade, the sheet after 8, and the wordmark no longer stays over the reel. **All of it and the topic groups are merged to `main` and pushed (`deb36cb`, 09-26-26), not yet deployed** — Ben is making more UI changes first; pick up from `log.md` 09-26's last **Open / next**. The history: T1–T2 shipped 08-28-26 (`/api/health`,
+before/after. **8.1 shipped — public 08-29-26, closed 09-17-26. 8.2's guardrails shipped 09-20-26** — an ingest verdict (exit 2 on a dead source) + `ingest_run` rows read back by `/api/health` as `ingest: ok|stale|never|unknown`, `instrumentation.ts` mailing `OPS_EMAIL` once an hour per error signature, Coolify failure notifications through Resend (proven with a `fail-probe` task), two UptimeRobot monitors (HTTP + the `"ingest":"ok"` keyword, from Ashburn), and Beszel on VM 202; SPEC §13 has the alert map. **The beta week (8.2 T6) is open** — 3 accounts on production as of 09-20 — and its triage into Phase 9 closes the phase. **8.3, the landing redo, was built 09-25-26 on `feat/landing-redo`** (`docs/DESIGN_landing-redo.md`, `docs/PLAN_landing-redo.md`): an overture on black (`AMBIT — A quieter way to be curious.` collapsing into the wordmark), a server-picked reel of the ~2,700 score-9 public-domain pictures in two tempos (`cut` / `dissolve`, `?tempo=` honoured only under `FEED_DEBUG`), a closed-set `?w=960` image rendition derived from the cached master, and three candidate profile marks on `/dev/marks` — merged to `main` 09-25-26, **awaiting Ben's two picks** (plan Task 9). **The same night, after Ben's first phone look, the reel became shape-matched**: tall pictures for an upright phone, wide ones for a computer, at master size, read off new `item.image_width/height` columns (migration 0009, backfilled by `bun run img:dims`, which the container runs on every boot) — see the design's 09-25-26 amendment. **Reduced motion is a tempo, not a still, since 09-26-26** — Ben's "no animation on phone or computer" was Reduce Motion on at the OS level on both; a reader who asks for less gets the same overture collapse as everyone and the reel as drift-free cross-fades (`TEMPOS.gentle`), and `globals.css`'s 0.01 ms collapse exempts only `.motion-gentle`. **Ben picked the dissolve the same day** (`DEFAULT_TEMPO`), at 2 s a picture, 1 s fade, the sheet after 8, and the wordmark no longer stays over the reel. **All of it and the topic groups are merged to `main` and pushed (`deb36cb`, 09-26-26), not yet deployed** — Ben is making more UI changes first; pick up from `log.md` 09-26's last **Open / next**. **09-27-26: Ben's feed layout picker became spread mode on the desktop item screen** (see its Architecture bullet), built on `feat/spread-mode`. The history: T1–T2 shipped 08-28-26 (`/api/health`,
 `MAIL_FROM`, `cf-connecting-ip` for Better Auth in production, a `SOURCE_COMMIT`-first precache
 revision, and the `Dockerfile`/`.dockerignore` whose boot path — migrate, seed, `next start` — was
 proven locally against an empty database, cache volume and all). **T3 shipped 08-29-26** — Ambit is
@@ -67,7 +67,7 @@ renders refilling at ~20/min — a sustained `--rate 1` still 429s; warm it as 2
 `pg_dumpall`, which the non-superuser `ambit` role cannot run, and Coolify recorded each 215-byte
 header as a success; fixed by the toggle, restore proven in 8.5 s (SPEC §13 has the procedure). **The
 file on disk is the witness, the same way the database is for a task.** T9's closing docs landed
-09-17-26. SPEC §13 is now *what is deployed*; read `docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed
+09-17-26. SPEC §13 is now _what is deployed_; read `docs/PHASE8_WALKTHROUGH_8.1.md` for the deployed
 facts (resource UUID, volume name, DB container, backup path) rather than re-deriving them from the
 Coolify UI. **A second thread is mid-flight beside 8.1:
 source-candidates round 2** — every remaining candidate in `docs/source-candidates.md` was live-probed
@@ -288,6 +288,31 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   And one finding: **every `<img>` of an item must be `lib/image-src.ts`'s `imageSrc`** — the
   CSP is `img-src 'self' data: blob:`, so a raw museum URL is blocked outright. The old Profile
   cover had been a broken image since 7.2 for exactly that; `covers` are proxied srcs now.
+- **Spread mode on the item screen — 09-27-26** (design `docs/DESIGN_spread-mode.md`, plan
+  `docs/PLAN_spread-mode.md`; branch `feat/spread-mode`, pushed for Ben's look at 1440, not
+  merged). It began as Ben's **feed** layout picker (1 / 2 / 4 columns, drawn in
+  `docs/layout-picker/`) and was **rejected for the feed**: tiles are cropped into cycled fake
+  ratios, a column change remounts every tile, and the server always packs page one at two
+  columns. Instead, at `md` and up, a toggle in the rail (`SpreadToggle`, between Feed and Save
+  through `RailToolbar`'s `extra`) turns the hero into a **two-page spread**: `rail-cells.ts`'s
+  pure `buildCells` makes each of the three cells one or two pages, a turn moves the rail by two,
+  and the pre-fetch margin and the explore cap count two per turn. **The left page is the item
+  until a click focuses the right one** (`useRailGestures`' tap now reports `clientX`); URL, Save,
+  Share, caption and facts all follow `current`, and turning the spread off lands on the focused
+  page — done during render, not in an effect, so no frame shows the wrong picture. The choice is
+  per device in localStorage (`lib/hero-layout.ts`, `ambit.heroLayout.v1`). The toggle is Ben's
+  **view toggle** (`docs/viewTOggleTOkens/`, 09-27-26): `icons/view-glyph.tsx` morphs one page
+  into an open magazine, labelled "Magazine view", and `M` flips it. **The same evening it became a magazine**
+  (`docs/PLAN_magazine-turn.md`): in a spread the track stops sliding and a **leaf** swings 180°
+  around the spine — the index moves at once and the turn is drawn over it, a drag lifts the leaf
+  with the pointer, the toggle opens and closes the book, a spine gradient lies over the seam, and
+  the caption is two folios numbered from the entry (`01`, then `00`, `−01` going back).
+  **It runs on the Web Animations API, which `globals.css`'s reduced-motion rule does not reach —
+  deliberately, Ben wants the turn under Reduce Motion.** jsdom has no `Element.animate`, so in
+  unit tests every motion lands at once; the mid-flight tests stub it. One
+  e2e trap it met: the item screen throttles its mouse-move summon to one per 250 ms, so a
+  Playwright summon straight after another mouse action is swallowed — `desktop.spec.ts`'s
+  spread test retries it with `toPass`.
 - **The dev knob panel shipped 09-05-26** — `/dev/feed` (local, `FEED_DEBUG`; a 404 under a
   production build), every feed knob live including the two Cut 2a levers
   `grownEdgeScale`/`grownHopPenalty` (identities at `1`, so `/feed` composes exactly as before),

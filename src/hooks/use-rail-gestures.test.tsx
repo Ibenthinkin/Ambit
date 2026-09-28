@@ -81,6 +81,15 @@ describe("useRailGestures", () => {
       expect(onAdvance).not.toHaveBeenCalled();
     });
 
+    // Spread mode (docs/DESIGN_spread-mode.md D2): a tap on the unfocused page focuses it, so the
+    // screen needs to know which half of the viewport the tap landed on.
+    it("reports where the press was released", () => {
+      fire("pointerdown", { x: 310, y: 100 });
+      fire("pointerup", { x: 311, y: 101 });
+
+      expect(onTap).toHaveBeenCalledWith({ clientX: 311 });
+    });
+
     it("survives travel inside the slop, and dies just outside it", () => {
       fire("pointerdown", { x: 100, y: 100 });
       fire("pointermove", { x: 106, y: 104 }); // 6px, 4px — still a tap

@@ -5,7 +5,7 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
-### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion
+### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
 had — under `reducedMotion: no-preference` Playwright sampled the four gradient stops cycling
@@ -108,6 +108,83 @@ it re-bills ~$2.65), deploy, then `sh .cache/dop-prod.sh walk` (DoP walk + warm 
 page; a per-post cap is the follow-up if it reads as repetitive.
 
 *Session spend: 30.81M tok (in 605 · out 208.1k · cache r 28.58M / w 2.02M) · ~≥$10.39 · opus-5-5 + opus-4-7 · 13:59→19:59*
+
+**Late afternoon (Opus 5.5) — spread mode built on `feat/spread-mode`.** The plan ran end to end
+in the same session: the localStorage store, the pure `buildCells`, the tap's `clientX`, `HeroRail`
+cells of pages, the placeholder glyph and toggle in the rail's `extra` slot (moved between Feed and
+Save), the screen wiring, one desktop e2e test, and the doc amendments. Unit 1,533 green;
+`e2e:prod` 61 + 9 dev-only skips; the CI-shaped suite 61/61 twice.
+
+**Things worth knowing that the commits don't say:**
+- **Two sessions shared `~/Dev/ambit` and it cost ten minutes.** The doorofperception session
+  checked out its own branch four seconds after this one created `feat/spread-mode`, so four
+  spread commits landed on `feat/dop-fanout`, and a fifth on `main` after it switched the checkout
+  there. Repaired by moving the commits (same SHAs) under `feat/spread-mode` and resetting the
+  unpushed `main` to `2512f45`; the other session rebased its branch off them and moved to
+  `~/Dev/ambit-dop`. Check `git branch --show-current` before every commit when another session
+  is live on the machine.
+- **Focus-off lands during render, not in an effect.** Turning the spread off (or narrowing the
+  window past `md`) with the right page focused must land on that picture. React's "adjust state
+  when a value changes" pattern does it in the same render, so there is no frame and no
+  `replaceState` naming the left picture first.
+- **The React Compiler refused `saveImage`'s memo** once `current` came out of a freshly built
+  cell array; the callback is keyed on the id string now.
+- **Two e2e flakes predated this branch** and were fixed here because they held the gate: the
+  shared `signIn` helper clicked "Sign in" anywhere, and since `/` became the explore feed the page
+  behind the sheet can hold a "Sign in" message tile; and the explore item test opened the first
+  tile, sometimes an article. The CI-shaped suite had failed three rotating tests per run.
+
+**Ben's first look:** "good start" — to be refined in a later session, so the branch stays unmerged
+for now.
+
+**Open / next:** refine spread mode with Ben (his notes from the look at 1440 first), then merge and
+push; his replacement glyph (`icons/layout-glyph.tsx`, a one-file swap); the 09-26 list.
+
+*Session spend: 43.50M tok (in 740 · out 179.6k · cache r 41.90M / w 1.42M) · ~≥$5.96 · opus-5-5 + opus-4-7 + fable-5-1 · 15:44→16:12*
+*Session spend: 2.88M tok (in 21 · out 11.1k · cache r 2.81M / w 61.8k) · ~≥$0.39 · opus-5-5 + opus-4-7 · 16:12→16:13*
+
+**First refinements (Ben at 1440):** "narrow the gap between the images in the middle, try and
+have them fill as much space as possible", then "can we have them touch in the middle". Each
+picture was centred in its half, so two height-limited pictures sat with a wide dark band between
+them. Now each spread page keeps the 12 px inset on its outer edge, none on the spine side, and
+pushes its picture against the spine with `object-position` — the pictures meet edge to edge and
+all the slack goes to the outer margins. `SPINE_PX` in `hero-rail.tsx` is the one number if a
+hairline gutter comes back; D3 in the design carries both amendments. The next lever for "bigger"
+is the outer 12 px, which only helps width-limited pictures — a tall one is capped by the screen's
+height.
+
+**Open / next:** more refinement with Ben, then merge and push; his replacement glyph.
+
+*Session spend: 9.97M tok (in 77 · out 25.4k · cache r 9.81M / w 129.3k) · ~≥$0.69 · opus-5-5 + opus-4-7 · 16:13→16:57*
+
+**Evening — the spread becomes a magazine.** Ben brought two Claude Design packages:
+`docs/viewTOggleTOkens/` (the toggle button) and `docs/turnpackage/` (a page-turn web
+component). **The button** replaced the bars placeholder as `icons/view-glyph.tsx`, two paths
+morphing one page ↔ open magazine; label "Magazine view", `M` flips it (37d9fc6, with the plan).
+**The plan** (`docs/PLAN_magazine-turn.md`) named five things that make two touching pictures
+read as a magazine, in order of weight: the turn, the leaf following the hand, light on the paper,
+the spine, folios. Ben's answers: play the turn **under Reduce Motion too** (his Mac has it on —
+the profile glyph's precedent over the landing's), number pages before the entry **negatively**
+(`00`, `−01`…), and include the book opening/closing on the toggle — "if i don't like it we can
+just take it out".
+
+**Built, not merged:** one leaf does every motion (turn, drag lift, fall-back, open, close),
+described as pure data in `spread-motion.ts` and drawn by `HeroRail`. Two decisions worth
+keeping. **The index moves on the keypress** and the turn is drawn over it — the package commits
+after 820 ms, which would make the URL, Save and every test wait for nothing. And **it is the Web
+Animations API, not CSS** — it can start from a drag's angle, `finished` can't be missed like
+`transitionend`, jsdom lacks it (so unit tests land motions at once and six new ones stub it), and
+it is the reason Reduce Motion doesn't collapse it: `globals.css`'s rule only reaches CSS
+animations and transitions. Seen at 1440 in a browser mid-swing; one bug found there (a store
+write inside a `setMotion` updater — "cannot update a component while rendering") and fixed.
+
+**Open / next:** Ben looks at 1440 — in **Firefox**, which I did not check; the lighting numbers
+(`LEAF_SHADE_MAX`, `CAST_MAX`, the cast band's 18 %) are first guesses for his eye. **`bun run
+e2e:prod` not run** — a hand-started `next dev` held :3000 and a dev-server run fails on Next's
+dev-tools button before reaching the spread test; the spec's spread test was extended (leaf
+caught mid-turn, spine visible) and needs that run before merge. Then merge + push.
+
+*Session spend: 26.60M tok (in 317 · out 189.2k · cache r 25.85M / w 570.2k) · ~≥$1.29 · opus-5-5 + opus-4-7 · 18:30→19:54*
 
 ### [[09-26-26 Sat]] — Landing: pictures now fit the phone; the motion still doesn't play there
 

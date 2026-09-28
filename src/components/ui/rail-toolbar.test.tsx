@@ -36,6 +36,24 @@ describe("RailToolbar", () => {
     expect(disc).toHaveClass("rounded-full");
   });
 
+  // docs/DESIGN_spread-mode.md D4: the item screen's spread toggle sits where Ben drew it, between
+  // the logo and the bookmark. Only the item screen passes one, so the feed's bar stays three.
+  it("renders a page's extra control between Feed and Save", () => {
+    render(
+      <RailToolbar
+        onBookmark={vi.fn()}
+        extra={<button type="button" aria-label="Extra" />}
+      />,
+    );
+    const nav = screen.getByRole("navigation", { name: "Ambit toolbar" });
+    expect(labels(nav)).toEqual([
+      "Profile",
+      "Feed",
+      "Extra",
+      "Save to collection",
+    ]);
+  });
+
   it("draws the profile glyph in the bar and rushes it on click, like the pill", () => {
     render(<RailToolbar onBookmark={vi.fn()} />);
     const button = screen.getByRole("button", { name: "Profile" });
