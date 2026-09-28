@@ -1,30 +1,52 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { weightOf } from "~/server/config/topic-levels";
 
 import { TopicsScreen } from "./topics-screen";
 
-// The trpc mock models more shape than onboarding's does, because this screen writes optimistically:
-// it needs `useUtils().topics.mine` to answer `getData`/`setData`/`cancel`/`invalidate`, and the
-// mutation mock has to actually run `onMutate` so the optimistic patch is exercised rather than
-// merely declared. `state` is the fake cache the two halves share.
-// `TopicPick` (`db/topics.ts`) inlined rather than imported — this file mocks `~/trpc/react`
-// wholesale, so pulling the server-side type in would be one more thing for that mock to shadow.
+// docs/DESIGN_onboarding-interview.md §3 — Task 9's rewrite: `TopicLevels` (the summary) now sits
+// above `GroupPicker` (the four facet sections), so this mock has to model both the read side
+// (`topics.mine` carries `{ topicId, weight }[]`, unchanged since Task 4) and the two mutations
+// that write it: `setMine` (the group/topic pickers — same shape as before) and `setWeight` (the
+// summary's per-topic segmented control, new this task). `state` is the fake cache both mutations'
+// `onMutate` patch and both components' `useQuery`s read back.
+//
+// `setWeight`'s mock is the one with real work to do: unlike `setMine`, this task's review focus
+// is an `onError` path (the segmented control reverting a level when the server rejects it), and
+// `onError` is never invoked by *calling* `mutate` — a real mutation only calls it when the
+// network request fails. So the mock stashes the options object `useMutation` was called with
+// (`state.weightOpts`, reassigned on every render since the screen re-creates the mutation object
+// each time) and the `onMutate` context `mutate` produced (`state.weightCtx`), and the test
+// invokes `weightOpts.onError` directly, with exactly the arguments TanStack Query would have.
 type Pick = { topicId: string; weight: number };
+type Level = "little" | "some" | "lot";
+type SetWeightVars = { topicId: string; level: Level };
+// The `onMutate` context `setWeight`'s real implementation returns — a snapshot of the previous
+// `topics.mine` rows, restored by `onError`. Typed concretely (not `unknown`) so `state.weightCtx`
+// below can be widened from its initial `undefined` by an ordinary, non-redundant type assertion.
+type WeightCtx = { previous?: Pick[] } | undefined;
+type SetWeightOpts = {
+  onMutate?: (v: SetWeightVars) => unknown;
+  onError?: (err: unknown, v: SetWeightVars, ctx: WeightCtx) => void;
+};
 
-const { mutateMock, invalidateMock, resetMock, state } = vi.hoisted(() => ({
-  mutateMock:
-    vi.fn<(v: { picks: { topicId: string; weight: number }[] }) => void>(),
-  invalidateMock: vi.fn(),
-  resetMock: vi.fn(),
-  state: {
-    topics: [] as { id: string; label: string; facet: string }[],
-    // `topics.mine` carries a weight alongside each id since 09-28-26 (Task 4 of the
-    // onboarding-v2 foundation) — `topics.weights` is retired, so the dev readout tests below
-    // read a weight off this instead of a separate `state.weights`.
-    mine: [] as { topicId: string; weight: number }[],
-  },
-}));
+const { mutateMock, invalidateMock, resetMock, setWeightMock, state } =
+  vi.hoisted(() => ({
+    mutateMock: vi.fn<(v: { picks: Pick[] }) => void>(),
+    invalidateMock: vi.fn(),
+    resetMock: vi.fn(),
+    setWeightMock: vi.fn<(v: SetWeightVars) => void>(),
+    state: {
+      topics: [] as { id: string; label: string; facet: string }[],
+      mine: [] as Pick[],
+      // The last `setWeight.useMutation` options, and the context its last `mutate` call
+      // produced — what the onError test below drives directly.
+      weightOpts: undefined as SetWeightOpts | undefined,
+      weightCtx: undefined as WeightCtx,
+    },
+  }));
 
 vi.mock("~/trpc/react", () => ({
   api: {
@@ -37,12 +59,8 @@ vi.mock("~/trpc/react", () => ({
           setData: (_input: unknown, updater: unknown) => {
             state.mine =
               typeof updater === "function"
-                ? (
-                    updater as (
-                      p: { topicId: string; weight: number }[],
-                    ) => { topicId: string; weight: number }[]
-                  )(state.mine)
-                : (updater as { topicId: string; weight: number }[]);
+                ? (updater as (p: Pick[]) => Pick[])(state.mine)
+                : (updater as Pick[]);
           },
         },
       },
@@ -61,6 +79,25 @@ vi.mock("~/trpc/react", () => ({
           isPending: false,
         }),
       },
+      setWeight: {
+        useMutation: (opts?: SetWeightOpts) => {
+          state.weightOpts = opts;
+          return {
+            mutate: (v: SetWeightVars) => {
+              // The real `onMutate` is `async` (it `await`s `cancel()` first — file header),
+              // so it returns a Promise, not the context object itself. TanStack Query awaits
+              // that promise and hands its *resolved* value to `onError` as `ctx`; this mock
+              // does the same rather than stashing the raw Promise (which `onError`'s own
+              // `ctx?.previous` check would then silently see nothing on).
+              void Promise.resolve(opts?.onMutate?.(v)).then((ctx) => {
+                state.weightCtx = ctx as WeightCtx;
+              });
+              setWeightMock(v);
+            },
+            isPending: false,
+          };
+        },
+      },
       resetWeights: {
         useMutation: () => ({ mutate: resetMock, isPending: false }),
       },
@@ -72,10 +109,9 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
 }));
 
-// Real topic ids, because the screen files them into the real `TOPIC_GROUPS` (re-cut 09-28-26,
-// docs/DESIGN_onboarding-interview.md §1) — see onboarding-screen.test.tsx for the same note.
-// astronomy and moon share a group ("Space"), so the mixed state and "a group tap fans out" are
-// real claims; botany is a second subject group; one topic per other facet.
+// Same real-id fixture as onboarding-screen.test.tsx / group-picker.test.tsx
+// (docs/DESIGN_onboarding-interview.md §1 re-cut, 09-28-26): astronomy + moon share the
+// two-member "Space" group, botany is the singleton "Plants" group, one topic per other facet.
 const TOPICS = [
   { id: "astronomy", label: "Astronomy", facet: "subject" },
   { id: "moon", label: "Moon", facet: "subject" },
@@ -87,34 +123,31 @@ const TOPICS = [
 const SPACE = "Space";
 const PLANTS = "Plants";
 
-/** The pressed chips across every facet's *topic* row — the flat lists behind "Show all". */
-function pressed() {
-  return screen
-    .getAllByRole("group", { name: /topics$/ })
-    .flatMap((group) => within(group).getAllByRole("button"))
-    .filter((b) => b.getAttribute("aria-pressed") === "true")
-    .map((b) => b.textContent);
+/** The picked-topic fixture shape: every id at plain weight 1 (this screen's default write for a
+ *  fresh multi-pick), unless a test needs a specific weight and builds `state.mine` by hand. */
+function asPicks(ids: string[]): Pick[] {
+  return ids.map((topicId) => ({ topicId, weight: 1 }));
 }
-/** Opens one facet section's flat topic list. */
-function showAll(facet: string) {
-  const section = screen.getByRole("region", {
-    name: {
-      Subject: "What are you drawn to?",
-      Medium: "In what form?",
-      Look: "What should it feel like?",
-      Place: "Anywhere in particular?",
-    }[facet]!,
-  });
-  fireEvent.click(within(section).getByRole("button", { name: /^Show all/ }));
-  return section;
-}
+
+/** The last `setMine` call's picks, as a set of ids — order isn't a claim any of these tests
+ *  make. */
 function lastWrite() {
   return new Set(mutateMock.mock.calls.at(-1)![0].picks.map((p) => p.topicId));
 }
 
-/** The picked-topic fixture shape: every id at plain weight 1, this screen's default write. */
-function asPicks(ids: string[]): Pick[] {
-  return ids.map((topicId) => ({ topicId, weight: 1 }));
+/** A topic's row in the summary (`TopicLevels`), named the way that component labels it. */
+function levelRow(label: string) {
+  return screen.getByRole("group", { name: `${label} level` });
+}
+
+/** Both mutations' `onMutate` is `async` (it `await`s `utils.topics.mine.cancel()` before
+ *  patching the cache, matching the real screen — see its file header on why), so the patch
+ *  lands one microtask after `fireEvent.click` returns, not synchronously within it. `flush`
+ *  lets that microtask run before a test reads the (mocked, non-reactive) cache back out. */
+async function flush() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
 }
 
 describe("TopicsScreen", () => {
@@ -122,12 +155,26 @@ describe("TopicsScreen", () => {
     mutateMock.mockReset();
     invalidateMock.mockReset();
     resetMock.mockReset();
+    setWeightMock.mockReset();
     state.topics = TOPICS;
     state.mine = asPicks(["astronomy"]);
+    state.weightOpts = undefined;
+    state.weightCtx = undefined;
   });
 
-  it("shows all four facets as sections, in order, each under its onboarding question, as group chips", () => {
+  it("shows the intro count, then the summary, then the four facet sections with their group chips", () => {
     render(<TopicsScreen dev={false} />);
+
+    expect(
+      screen.getByText("1 on. Changes save as you go."),
+    ).toBeInTheDocument();
+
+    // The summary: astronomy (the one pick) at "some" (weight 1 falls in that band).
+    expect(
+      within(levelRow("Astronomy")).getByRole("button", { name: "some" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    // Four sections, each under its onboarding question, in FACETS order.
     const headings = screen.getAllByRole("heading", { level: 2 });
     expect(headings.map((h) => h.textContent)).toEqual([
       "What are you drawn to?",
@@ -135,54 +182,21 @@ describe("TopicsScreen", () => {
       "What should it feel like?",
       "Anywhere in particular?",
     ]);
-    expect(screen.queryAllByRole("tab")).toHaveLength(0);
-    expect(screen.queryByRole("group", { name: "Facets" })).toBeNull();
-    // Every facet's groups are on the page at once — no filter to flick — and the individual
-    // topics are behind each section's "Show all", not on the page.
-    for (const label of [
-      PLANTS,
-      "Ceramics & glass",
-      "Surreal & psychedelic",
-      "Japan",
-    ]) {
-      expect(screen.getByRole("button", { name: label })).toBeTruthy();
-    }
+    // Group chips, not the flat topic list — GroupPicker's own contract, exercised here through
+    // the host.
+    expect(
+      screen.getByRole("button", { name: `${SPACE} · 1 of 2` }),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: PLANTS })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Botany" })).toBeNull();
-    expect(screen.queryAllByRole("group", { name: /topics$/ })).toHaveLength(0);
-  });
 
-  it("a group with some members picked reads mixed, and says how many", () => {
-    render(<TopicsScreen dev={false} />);
-    const space = screen.getByRole("button", { name: `${SPACE} · 1 of 2` });
-    expect(space.getAttribute("aria-pressed")).toBe("mixed");
-    // A fully unpicked group is plainly off, a fully picked one plainly on.
+    // Summary before the sections, in document order.
+    const summary = levelRow("Astronomy");
+    const firstSection = screen.getByText("What are you drawn to?");
     expect(
-      screen.getByRole("button", { name: PLANTS }).getAttribute("aria-pressed"),
-    ).toBe("false");
-    state.mine = asPicks(["astronomy", "moon"]);
-    render(<TopicsScreen dev={false} />);
-    expect(
-      screen
-        .getAllByRole("button", { name: SPACE })
-        .at(-1)!
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
-  });
-
-  it("files each group under its own facet's row", () => {
-    render(<TopicsScreen dev={false} />);
-    const subject = screen.getByRole("group", { name: "Subject groups" });
-    const medium = screen.getByRole("group", { name: "Medium groups" });
-    expect(
-      within(subject)
-        .getAllByRole("button")
-        .map((b) => b.textContent),
-    ).toEqual([`${SPACE} · 1 of 2`, PLANTS]);
-    expect(
-      within(medium)
-        .getAllByRole("button")
-        .map((b) => b.textContent),
-    ).toEqual(["Ceramics & glass"]);
+      summary.compareDocumentPosition(firstSection) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("renders no title, no back link and no <main> — the hub owns those", () => {
@@ -190,105 +204,154 @@ describe("TopicsScreen", () => {
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     expect(screen.queryByText("← Profile")).toBeNull();
     expect(document.querySelector("main")).toBeNull();
-    expect(
-      screen.getByText("1 on. Changes save as you go."),
-    ).toBeInTheDocument();
   });
 
-  it("tapping an unpicked group saves the set plus every listed member, immediately", () => {
-    render(<TopicsScreen dev={false} />);
+  it("tapping Plants (a singleton group) saves the set plus botany at 'a lot', immediately", async () => {
+    const { rerender } = render(<TopicsScreen dev={false} />);
     fireEvent.click(screen.getByRole("button", { name: PLANTS }));
     expect(mutateMock).toHaveBeenCalledTimes(1);
-    expect(lastWrite()).toEqual(new Set(["astronomy", "botany"]));
+    const [{ picks }] = mutateMock.mock.calls[0]!;
+    expect(new Map(picks.map((p) => [p.topicId, p.weight]))).toEqual(
+      new Map([
+        ["astronomy", 1],
+        ["botany", weightOf("lot")],
+      ]),
+    );
+    // `onMutate` already patched `topics.mine` (before any server round trip) — `flush` +
+    // `rerender` just force this mocked, non-reactive `useQuery` to read the patched cache the
+    // way the real hook's own subscription would have done automatically.
+    await flush();
+    rerender(<TopicsScreen dev={false} />);
+    expect(screen.getByRole("group", { name: "Botany level" })).toBeTruthy();
   });
 
-  it("tapping a mixed group completes it rather than clearing it", () => {
+  it("tapping the mixed Space chip completes it, at 'some'", () => {
     render(<TopicsScreen dev={false} />);
     fireEvent.click(screen.getByRole("button", { name: `${SPACE} · 1 of 2` }));
-    expect(lastWrite()).toEqual(new Set(["astronomy", "moon"]));
+    const [{ picks }] = mutateMock.mock.calls[0]!;
+    expect(new Map(picks.map((p) => [p.topicId, p.weight]))).toEqual(
+      new Map([
+        ["astronomy", 1],
+        ["moon", weightOf("some")],
+      ]),
+    );
   });
 
-  it("tapping a full group unpicks every member", () => {
-    state.mine = asPicks(["astronomy", "moon", "botany"]);
+  it("a full group tap removes every member, when another topic stays picked", () => {
+    state.mine = [
+      { topicId: "astronomy", weight: 1 },
+      { topicId: "moon", weight: weightOf("some") },
+      { topicId: "botany", weight: weightOf("lot") },
+    ];
     render(<TopicsScreen dev={false} />);
     fireEvent.click(screen.getByRole("button", { name: SPACE }));
     expect(lastWrite()).toEqual(new Set(["botany"]));
   });
 
-  it("refuses to unpick the last topic, through a group or a chip, and says so", () => {
-    state.mine = asPicks(["botany"]);
+  it("refuses to unpick the last topic — via the summary's off, or the picker's own chip — and says so", () => {
     render(<TopicsScreen dev={false} />);
-    fireEvent.click(screen.getByRole("button", { name: PLANTS }));
+
+    // The summary's "off" segment on the one and only pick.
+    fireEvent.click(
+      within(levelRow("Astronomy")).getByRole("button", { name: "off" }),
+    );
     expect(mutateMock).not.toHaveBeenCalled();
     expect(screen.getByRole("status").textContent).toContain(
       "Keep at least one topic.",
     );
-    showAll("Subject");
-    fireEvent.click(screen.getByRole("button", { name: "Botany" }));
+
+    // The picker's own single-topic chip inside Space's disclosure.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show 2 topics in Space" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Astronomy" }));
     expect(mutateMock).not.toHaveBeenCalled();
-    expect(pressed()).toEqual(["Botany"]);
+    // Astronomy is still picked — the refusal didn't just fail to write, it left the chip alone.
+    expect(screen.getByRole("button", { name: "Astronomy" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
-  it("Show all opens a section's flat topic list, where one topic toggles alone", () => {
+  it("clicking 'a lot' on Astronomy in the summary calls setWeight, flips the segment at once, and never calls setMine", async () => {
+    const { rerender } = render(<TopicsScreen dev={false} />);
+    const row = levelRow("Astronomy");
+    fireEvent.click(within(row).getByRole("button", { name: "a lot" }));
+    expect(setWeightMock).toHaveBeenCalledWith({
+      topicId: "astronomy",
+      level: "lot",
+    });
+    // Same "already-patched cache, force the mocked hook to re-read it" move as above.
+    await flush();
+    rerender(<TopicsScreen dev={false} />);
+    expect(
+      within(levelRow("Astronomy")).getByRole("button", { name: "a lot" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(mutateMock).not.toHaveBeenCalled();
+  });
+
+  it("clicking 'off' on Botany, when two topics are picked, calls setMine with Botany absent", () => {
+    state.mine = [
+      { topicId: "astronomy", weight: 1 },
+      { topicId: "botany", weight: weightOf("lot") },
+    ];
     render(<TopicsScreen dev={false} />);
-    const section = showAll("Subject");
-    const toggle = within(section).getByRole("button", { name: /^Hide/ });
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    expect(
-      within(screen.getByRole("group", { name: "Subject topics" }))
-        .getAllByRole("button")
-        .map((b) => b.textContent),
-    ).toEqual(["Astronomy", "Moon", "Botany"]);
-    expect(pressed()).toEqual(["Astronomy"]);
-    // Other sections stay folded.
-    expect(screen.queryByRole("group", { name: "Medium topics" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Moon" }));
-    expect(lastWrite()).toEqual(new Set(["astronomy", "moon"]));
-    fireEvent.click(toggle);
-    expect(screen.queryByRole("group", { name: "Subject topics" })).toBeNull();
+    fireEvent.click(
+      within(levelRow("Botany")).getByRole("button", { name: "off" }),
+    );
+    expect(lastWrite()).toEqual(new Set(["astronomy"]));
   });
 
-  it("the Show all button counts the section's listed topics", () => {
-    render(<TopicsScreen dev={false} />);
+  it("onError on setWeight restores the previous level and shows the hint", async () => {
+    const { rerender } = render(<TopicsScreen dev={false} />);
+    const row = levelRow("Astronomy");
+    expect(within(row).getByRole("button", { name: "some" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(within(row).getByRole("button", { name: "a lot" }));
+    await flush();
+    rerender(<TopicsScreen dev={false} />);
     expect(
-      screen.getByRole("button", { name: "Show all 3 topics" }),
-    ).toBeTruthy();
+      within(levelRow("Astronomy")).getByRole("button", { name: "a lot" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    act(() => {
+      state.weightOpts!.onError!(
+        new Error("boom"),
+        { topicId: "astronomy", level: "lot" },
+        state.weightCtx,
+      );
+    });
+    rerender(<TopicsScreen dev={false} />);
+
     expect(
-      screen.getAllByRole("button", { name: "Show all 1 topic" }),
-    ).toHaveLength(3);
+      within(levelRow("Astronomy")).getByRole("button", { name: "some" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("status").textContent).toContain(
+      "Couldn't save that — try again.",
+    );
   });
 
-  it("renders no weights and no reset when dev is false", () => {
-    // `topics.mine` is where a weight lives now (`topics.weights` is retired) — astronomy has to
-    // actually be picked, at 1.5, for this to be a real claim about the dev gate rather than
-    // about an id that just isn't there.
+  it("Reset weights renders only under dev and calls the mutation; no chip carries a raw weight suffix", () => {
     state.mine = [{ topicId: "astronomy", weight: 1.5 }];
-    render(<TopicsScreen dev={false} />);
-    showAll("Subject");
+    const { unmount } = render(<TopicsScreen dev={false} />);
     expect(screen.queryByRole("button", { name: "Reset weights" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Astronomy" })).toBeTruthy();
-  });
+    expect(
+      screen
+        .getAllByRole("button")
+        .some((b) => /·\s*1\.5/.test(b.textContent ?? "")),
+    ).toBe(false);
+    unmount();
 
-  it("under dev, pressed topic chips show their weight and Reset weights calls the mutation", () => {
-    state.mine = [{ topicId: "astronomy", weight: 1.5 }];
     render(<TopicsScreen dev />);
-    showAll("Subject");
-    expect(
-      screen.getByRole("button", { name: "Astronomy · 1.5" }),
-    ).toBeTruthy();
-    // The group chip never carries a weight — it is not a topic.
-    expect(
-      screen.getByRole("button", { name: `${SPACE} · 1 of 2` }),
-    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Reset weights" }));
     expect(resetMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("an unpicked chip shows no weight even under dev", () => {
-    // Moon simply has no row in `mine` (unpicked) — since the readout is read straight off the
-    // picks now, "no row" and "no weight to show" are the same fact, not two that have to agree.
-    render(<TopicsScreen dev />);
-    showAll("Subject");
-    expect(screen.getByRole("button", { name: "Moon" })).toBeTruthy();
+    expect(
+      screen
+        .getAllByRole("button")
+        .some((b) => /·\s*1\.5/.test(b.textContent ?? "")),
+    ).toBe(false);
   });
 });
