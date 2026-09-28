@@ -8,14 +8,21 @@ import { TopicsScreen } from "./topics-screen";
 // it needs `useUtils().topics.mine` to answer `getData`/`setData`/`cancel`/`invalidate`, and the
 // mutation mock has to actually run `onMutate` so the optimistic patch is exercised rather than
 // merely declared. `state` is the fake cache the two halves share.
+// `TopicPick` (`db/topics.ts`) inlined rather than imported — this file mocks `~/trpc/react`
+// wholesale, so pulling the server-side type in would be one more thing for that mock to shadow.
+type Pick = { topicId: string; weight: number };
+
 const { mutateMock, invalidateMock, resetMock, state } = vi.hoisted(() => ({
-  mutateMock: vi.fn<(v: { topicIds: string[] }) => void>(),
+  mutateMock:
+    vi.fn<(v: { picks: { topicId: string; weight: number }[] }) => void>(),
   invalidateMock: vi.fn(),
   resetMock: vi.fn(),
   state: {
     topics: [] as { id: string; label: string; facet: string }[],
-    mine: [] as string[],
-    weights: [] as { topicId: string; weight: number }[],
+    // `topics.mine` carries a weight alongside each id since 09-28-26 (Task 4 of the
+    // onboarding-v2 foundation) — `topics.weights` is retired, so the dev readout tests below
+    // read a weight off this instead of a separate `state.weights`.
+    mine: [] as { topicId: string; weight: number }[],
   },
 }));
 
@@ -30,22 +37,24 @@ vi.mock("~/trpc/react", () => ({
           setData: (_input: unknown, updater: unknown) => {
             state.mine =
               typeof updater === "function"
-                ? (updater as (p: string[]) => string[])(state.mine)
-                : (updater as string[]);
+                ? (
+                    updater as (
+                      p: { topicId: string; weight: number }[],
+                    ) => { topicId: string; weight: number }[]
+                  )(state.mine)
+                : (updater as { topicId: string; weight: number }[]);
           },
         },
-        weights: { invalidate: vi.fn() },
       },
     }),
     topics: {
       list: { useQuery: () => ({ data: state.topics }) },
       mine: { useQuery: () => ({ data: state.mine }) },
-      weights: { useQuery: () => ({ data: state.weights }) },
       setMine: {
         useMutation: (opts?: {
-          onMutate?: (v: { topicIds: string[] }) => unknown;
+          onMutate?: (v: { picks: Pick[] }) => unknown;
         }) => ({
-          mutate: (v: { topicIds: string[] }) => {
+          mutate: (v: { picks: Pick[] }) => {
             opts?.onMutate?.(v);
             mutateMock(v);
           },
@@ -100,7 +109,12 @@ function showAll(facet: string) {
   return section;
 }
 function lastWrite() {
-  return new Set(mutateMock.mock.calls.at(-1)![0].topicIds);
+  return new Set(mutateMock.mock.calls.at(-1)![0].picks.map((p) => p.topicId));
+}
+
+/** The picked-topic fixture shape: every id at plain weight 1, this screen's default write. */
+function asPicks(ids: string[]): Pick[] {
+  return ids.map((topicId) => ({ topicId, weight: 1 }));
 }
 
 describe("TopicsScreen", () => {
@@ -109,8 +123,7 @@ describe("TopicsScreen", () => {
     invalidateMock.mockReset();
     resetMock.mockReset();
     state.topics = TOPICS;
-    state.mine = ["astronomy"];
-    state.weights = [];
+    state.mine = asPicks(["astronomy"]);
   });
 
   it("shows all four facets as sections, in order, each under its onboarding question, as group chips", () => {
@@ -146,7 +159,7 @@ describe("TopicsScreen", () => {
     expect(
       screen.getByRole("button", { name: PLANTS }).getAttribute("aria-pressed"),
     ).toBe("false");
-    state.mine = ["astronomy", "moon"];
+    state.mine = asPicks(["astronomy", "moon"]);
     render(<TopicsScreen dev={false} />);
     expect(
       screen
@@ -196,14 +209,14 @@ describe("TopicsScreen", () => {
   });
 
   it("tapping a full group unpicks every member", () => {
-    state.mine = ["astronomy", "moon", "botany"];
+    state.mine = asPicks(["astronomy", "moon", "botany"]);
     render(<TopicsScreen dev={false} />);
     fireEvent.click(screen.getByRole("button", { name: SPACE }));
     expect(lastWrite()).toEqual(new Set(["botany"]));
   });
 
   it("refuses to unpick the last topic, through a group or a chip, and says so", () => {
-    state.mine = ["botany"];
+    state.mine = asPicks(["botany"]);
     render(<TopicsScreen dev={false} />);
     fireEvent.click(screen.getByRole("button", { name: PLANTS }));
     expect(mutateMock).not.toHaveBeenCalled();
@@ -246,7 +259,10 @@ describe("TopicsScreen", () => {
   });
 
   it("renders no weights and no reset when dev is false", () => {
-    state.weights = [{ topicId: "astronomy", weight: 1.5 }];
+    // `topics.mine` is where a weight lives now (`topics.weights` is retired) — astronomy has to
+    // actually be picked, at 1.5, for this to be a real claim about the dev gate rather than
+    // about an id that just isn't there.
+    state.mine = [{ topicId: "astronomy", weight: 1.5 }];
     render(<TopicsScreen dev={false} />);
     showAll("Subject");
     expect(screen.queryByRole("button", { name: "Reset weights" })).toBeNull();
@@ -254,7 +270,7 @@ describe("TopicsScreen", () => {
   });
 
   it("under dev, pressed topic chips show their weight and Reset weights calls the mutation", () => {
-    state.weights = [{ topicId: "astronomy", weight: 1.5 }];
+    state.mine = [{ topicId: "astronomy", weight: 1.5 }];
     render(<TopicsScreen dev />);
     showAll("Subject");
     expect(
@@ -269,7 +285,8 @@ describe("TopicsScreen", () => {
   });
 
   it("an unpicked chip shows no weight even under dev", () => {
-    state.weights = [{ topicId: "moon", weight: 2 }];
+    // Moon simply has no row in `mine` (unpicked) — since the readout is read straight off the
+    // picks now, "no row" and "no weight to show" are the same fact, not two that have to agree.
     render(<TopicsScreen dev />);
     showAll("Subject");
     expect(screen.getByRole("button", { name: "Moon" })).toBeTruthy();

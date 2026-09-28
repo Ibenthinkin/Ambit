@@ -23,7 +23,10 @@ const {
   purgeMock,
 } = vi.hoisted(() => ({
   topicsData: { current: [] as { id: string; label: string }[] },
-  myTopicsData: { current: [] as string[] },
+  // `topics.mine` carries a weight alongside each id since 09-28-26 (Task 4 of the onboarding-v2
+  // foundation) — this screen only reads ids off it (see `topicValue` below), but the mock has to
+  // model the real return shape.
+  myTopicsData: { current: [] as { topicId: string; weight: number }[] },
   pushMock: vi.fn(),
   replaceMock: vi.fn(),
   backMock: vi.fn(),
@@ -89,6 +92,11 @@ const TOPICS = [
   { id: "poetry", label: "Poetry" },
 ];
 
+/** This screen never looks at the weight, so every fixture pick gets a plain 1. */
+function asPicks(ids: string[]) {
+  return ids.map((topicId) => ({ topicId, weight: 1 }));
+}
+
 /** Puts a `Notification` global in place with a given standing answer. */
 function stubNotifications(
   permission: "default" | "granted" | "denied",
@@ -104,7 +112,7 @@ function renderScreen() {
 
 beforeEach(() => {
   topicsData.current = TOPICS;
-  myTopicsData.current = ["astronomy", "botany", "music"];
+  myTopicsData.current = asPicks(["astronomy", "botany", "music"]);
   sessionStorage.clear();
   localStorage.clear();
   stubNotifications("default");
@@ -186,13 +194,13 @@ describe("SettingsScreen — What you see", () => {
     // Alphabetical, not catalog order — Cartography sorts ahead of Music even though it comes
     // after it in TOPICS. Neither `topics.list` nor `topics.mine` is ordered, so this is the only
     // thing that makes the row read the same twice running.
-    myTopicsData.current = [
+    myTopicsData.current = asPicks([
       "astronomy",
       "botany",
       "music",
       "cartography",
       "poetry",
-    ];
+    ]);
     renderScreen();
     expect(
       screen.getAllByText("Astronomy, Botany, Cartography +2").length,

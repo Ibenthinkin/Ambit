@@ -62,7 +62,14 @@ export async function seedPersonas(opts: {
     const have = new Set(await getUserTopicIds(row.id));
     const want = new Set(p.topics);
     const same = have.size === want.size && [...want].every((t) => have.has(t));
-    if (!same) await setUserTopics(row.id, [...want]);
+    // Personas are seeded flat, at weight 1.0 for every pick — §2's little/some/lot bands are a
+    // reader-facing input shape a fixture has no opinion about, so this is the one deliberate spot
+    // outside `topic-levels.ts` that writes a bare weight number.
+    if (!same)
+      await setUserTopics(
+        row.id,
+        [...want].map((topicId) => ({ topicId, weight: 1.0 })),
+      );
 
     if (isNew) created.push(p.slug);
     else if (same) unchanged.push(p.slug);

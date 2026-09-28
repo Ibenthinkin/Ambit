@@ -58,12 +58,12 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
     // mutationFn waits, `onMutate` still runs the instant `.mutate()` is called, so the chip
     // still answers immediately.
     scope: { id: "topics.setMine" },
-    // Optimistic: the chip flips now, `topics.mine` is patched to the set we sent, and settle
+    // Optimistic: the chip flips now, `topics.mine` is patched to the picks we sent, and settle
     // re-reads the truth. On error the patch is rolled back to the snapshot.
-    onMutate: async ({ topicIds }) => {
+    onMutate: async ({ picks }) => {
       await utils.topics.mine.cancel();
       const previous = utils.topics.mine.getData();
-      utils.topics.mine.setData(undefined, topicIds);
+      utils.topics.mine.setData(undefined, picks);
       setHint("");
       return { previous };
     },
@@ -74,16 +74,15 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
     onSettled: () => void utils.topics.mine.invalidate(),
   });
 
-  // Dev readout: the query only runs under the gate, and the procedure would FORBID it anyway.
-  const weights = api.topics.weights.useQuery(undefined, { enabled: dev });
+  // Dev readout (Task 8): `topics.mine` carries every pick's weight since 09-28-26, so the readout
+  // is read straight off it rather than a second, separately-gated query — `topics.weights` is
+  // retired. Resetting still invalidates `mine`, the one place the number now lives.
   const resetWeights = api.topics.resetWeights.useMutation({
-    onSuccess: () => void utils.topics.weights.invalidate(),
+    onSuccess: () => void utils.topics.mine.invalidate(),
   });
-  const weightOf = new Map(
-    (weights.data ?? []).map((w) => [w.topicId, w.weight]),
-  );
+  const weightOf = new Map((mine.data ?? []).map((p) => [p.topicId, p.weight]));
 
-  const picked = new Set(mine.data ?? []);
+  const picked = new Set((mine.data ?? []).map((p) => p.topicId));
   const all = topics.data ?? [];
   // Which sections have their flat topic list open. Local state, reset on navigation: the
   // folded page is the default view every visit, the way onboarding was coarse.
@@ -96,7 +95,14 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
       setHint("Keep at least one topic.");
       return;
     }
-    setMine.mutate({ topicIds: [...next] });
+    // Task 4 of the onboarding-v2 foundation moved `setMine` from bare ids to weighted picks
+    // (docs/DESIGN_onboarding-interview.md §2). Every write from this screen's chips and groups
+    // still lands at plain weight 1 — a topic already picked keeps its learned weight server-side
+    // (`setUserTopics`'s `onConflictDoNothing`) — the per-topic "a little / some / a lot" control
+    // (a later task) is what actually chooses a level.
+    setMine.mutate({
+      picks: [...next].map((topicId) => ({ topicId, weight: 1 })),
+    });
   }
 
   function toggle(topicId: string) {

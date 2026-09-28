@@ -21,14 +21,13 @@ export default async function ProfileTopicsPage() {
   if (!session) redirect("/");
 
   // Both input-less, so the byte-identical-input contract with the screen's `useQuery` calls is
-  // trivially satisfied.
+  // trivially satisfied. `topics.mine` now carries each pick's weight too (Task 4 of the
+  // onboarding-v2 foundation, 09-28-26), which is what retired `topics.weights` — this prefetch
+  // used to gate a second, dev-only one on it; that line is just gone now, not replaced.
   void api.topics.list.prefetch();
   void api.topics.mine.prefetch();
 
-  // Only under the gate: prefetching `weights` in a product build would fire a procedure that
-  // answers FORBIDDEN, which the screen never asks for anyway.
   const dev = await feedDebugEnabled();
-  if (dev) void api.topics.weights.prefetch();
 
   return (
     <HydrateClient>

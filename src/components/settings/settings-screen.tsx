@@ -98,7 +98,14 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
   /** Every stub row's tap. One place, so they can't drift into five different apologies. */
   const stub = (label: string) => () => setToast(`${label} · coming soon`);
 
-  const topicValue = formatTopicValue(topics.data ?? [], myTopics.data ?? []);
+  // `topics.mine` carries a weight alongside each id since 09-28-26 (Task 4 of the onboarding-v2
+  // foundation — the pickers show levels now); this row only needs which topics are picked, not
+  // how strongly, so it's stripped back down to ids here rather than teaching `formatTopicValue`
+  // a shape it has no use for.
+  const topicValue = formatTopicValue(
+    topics.data ?? [],
+    (myTopics.data ?? []).map((p) => p.topicId),
+  );
 
   const accentLabel = accent
     ? ACCENTS.find((a) => a.key === accent)?.label
