@@ -390,10 +390,12 @@ export async function countSeenFor(
 export const ONBOARDING_GROUPS = ["Space", "Plants", "Music, sound & dance"];
 
 /**
- * Walks the four-stage onboarding (09-10-26), pressing every chip in `labels` on whatever
- * stage it appears, then Start exploring. The stages are Subject / Medium / Look / Place; a
- * label that is on no stage fails the test by name rather than silently landing on /feed with
- * fewer picks — the specs' fixtures depend on exactly which topics the user has.
+ * Walks the onboarding redesign (09-10-26, rewritten 09-28-26 for the Pick → Start summary
+ * phase), pressing every chip in `labels` on whatever Pick stage it appears, advancing through
+ * all four with Next, then confirming the summary before "Start exploring". The stages are
+ * Subject / Medium / Look / Place; a label that is on no stage fails the test by name rather than
+ * silently landing on /feed with fewer picks — the specs' fixtures depend on exactly which topics
+ * the user has.
  *
  * **The chips are umbrella groups since 09-25-26** (`config/topic-groups.ts`), so `labels` are
  * group labels — `ONBOARDING_GROUPS` below is the three every spec uses. A group picks every
@@ -402,10 +404,18 @@ export const ONBOARDING_GROUPS = ["Space", "Plants", "Music, sound & dance"];
  * besides. Specs that assert on the *picked topics* have to tolerate both shapes; see
  * settings.spec.ts's "What you see" assertion.
  *
- * A stage may legitimately be empty. CI's database is `db:migrate` + `db:seed`, which is the
- * sixteen config topics and nothing else — thirteen subjects, three media, no looks and no
- * places — so two of the four stages render no chips at all there and are simply passed. The
- * screen allows that on purpose (the floor is three picks in total, not per stage).
+ * **Pick has no floor (09-28-26 redesign).** Every Pick stage's Next reads "Next" and is never
+ * disabled — there is no "Pick N more" gate anywhere in the Pick phase (`OnboardingScreen`'s own
+ * comment spells out why) — so Next is pressed on *every* stage, 0 through 3, landing on Start
+ * regardless of how many chips a stage had. A stage may legitimately be empty: CI's database is
+ * `db:migrate` + `db:seed`, the sixteen config topics and nothing else — thirteen subjects, three
+ * media, no looks and no places — so two of the four stages render no chips at all there and are
+ * simply passed through.
+ *
+ * Start is the summary phase: every pick renders as a `TopicLevels` row (`role="group"` named
+ * `"<Label> level"`) over the same draft, with the one real floor ("Start exploring" disabled at
+ * zero picks). Waiting for its heading and one such group proves this landed on Start, not a
+ * fifth Pick stage.
  */
 export async function completeOnboarding(page: Page, labels: string[]) {
   await page.waitForURL("/onboarding");
@@ -424,38 +434,47 @@ export async function completeOnboarding(page: Page, labels: string[]) {
         remaining.delete(label);
       }
     }
-    if (stage < 3) await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next" }).click();
   }
   if (remaining.size) {
     throw new Error(`onboarding: no chip for ${[...remaining].join(", ")}`);
   }
+  await expect(
+    page.getByRole("heading", { name: "Here's where we'll start" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: / level$/ }).first(),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Start exploring" }).click();
   await page.waitForURL("/feed");
 }
 
 /**
- * Resolves when a `topics.setMine` call comes back 200 — the one honest proof that a toggle on
- * /profile/topics reached Postgres. The screen is optimistic by design, so the chip's own
- * `aria-pressed` flips before the server has answered; asserting on it and then reloading tests
- * nothing, and worse, the reload cancels the in-flight request. Start this *before* the click.
+ * Resolves when a `topics.setMine` or `topics.setWeight` call comes back 200 — the one honest
+ * proof that a write from /profile/topics (or onboarding's own Start summary) reached Postgres.
+ * Both screens are optimistic by design, so a chip's or segment's own pressed state flips before
+ * the server has answered; asserting on it and then reloading tests nothing, and worse, the
+ * reload cancels the in-flight request. Start this *before* the click.
  */
-export async function waitForSetMine(page: Page) {
+export async function waitForTopicsWrite(
+  page: Page,
+  procedure: "topics.setMine" | "topics.setWeight",
+) {
   const written = await page.waitForResponse(
-    (r) => r.url().includes("topics.setMine") && r.status() === 200,
+    (r) => r.url().includes(procedure) && r.status() === 200,
   );
   // That 200 is not yet the write. The client speaks `httpBatchStreamLink` (trpc/react.tsx), and
   // a streamed response sends its status the moment the handler starts — the result, and the
   // commit it stands for, arrive in the body some milliseconds later (~8 ms idle, measured
   // 09-12-26; under a loaded machine, longer). Reloading on the headers alone raced that commit:
-  // the reloaded page's `topics.mine` read the row a beat before `setUserTopics` wrote it,
-  // rendered the previous set, and nothing refetched inside the assertion's window. That was the
-  // "lost second toggle" settings.spec.ts saw once in four full `e2e:prod` runs; the write itself
-  // always landed (checked in Postgres after every aborted request), so the proof was early, not
-  // wrong.
+  // the reloaded page's `topics.mine` read the row a beat before the write landed, rendered the
+  // previous set, and nothing refetched inside the assertion's window. That was the "lost second
+  // toggle" settings.spec.ts saw once in four full `e2e:prod` runs; the write itself always
+  // landed (checked in Postgres after every aborted request), so the proof was early, not wrong.
   //
   // Playwright cannot wait for the body: on a streamed response in Chromium `response.finished()`
   // never settles and `response.text()` throws a protocol error (both measured). The app's own
-  // signal is the honest one instead — topics-screen.tsx's `onSettled` invalidates `topics.mine`,
+  // signal is the honest one instead — both mutations' `onSettled` invalidates `topics.mine`,
   // which only runs once the result chunk has arrived, and the refetch it triggers is a GET this
   // helper can see complete. Its 200 is a read of the committed row.
   await page.waitForResponse(
@@ -466,6 +485,18 @@ export async function waitForSetMine(page: Page) {
       r.request().timing().startTime >= written.request().timing().startTime,
   );
   return written;
+}
+
+/** `waitForTopicsWrite(page, "topics.setMine")` — the picker's add/remove write, the one most
+ *  callers make. */
+export function waitForSetMine(page: Page) {
+  return waitForTopicsWrite(page, "topics.setMine");
+}
+
+/** `waitForTopicsWrite(page, "topics.setWeight")` — the summary's per-topic level change
+ *  (`TopicLevels`'s segmented control, on /profile/topics and onboarding's own Start phase). */
+export function waitForSetWeight(page: Page) {
+  return waitForTopicsWrite(page, "topics.setWeight");
 }
 
 /**

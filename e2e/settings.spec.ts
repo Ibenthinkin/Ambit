@@ -12,6 +12,7 @@ import {
   saveSession,
   seedFeedCorpus,
   waitForSetMine,
+  waitForSetWeight,
   type Connection,
 } from "./support";
 
@@ -230,56 +231,91 @@ test.describe.serial("settings", () => {
 
     // The row is a link to /profile/topics now, not a sheet (09-10-26): a hundred topics in four
     // facet sections has no room in a bottom sheet. Every section is on the page at once
-    // (09-12-26), led by its group chips, with the individual topics behind a "Show all"
-    // disclosure (09-25-26) — so the one click before a topic chip is that disclosure. "Maps" is
-    // the chip label for the `cartography` topic (the slug is a graph key — see
-    // server/config/topics.ts), a Subject.
+    // (09-12-26), led by its group chips (09-25-26). "Maps" is the chip label for the whole
+    // `maps` group, whose one member is the `cartography` topic (the slug is a graph key — see
+    // server/config/topics.ts): a singleton group is just its chip, no disclosure to open first.
     await page.getByText("What you see").click();
     await page.waitForURL("/profile/topics");
     const subject = page.getByRole("region", {
       name: "What are you drawn to?",
     });
     await expect(subject).toBeVisible({ timeout: 15_000 });
-    await subject.getByRole("button", { name: /^Show all/ }).click();
 
     // Wait for the write itself, not just the chip. The screen is optimistic on purpose — the
     // chip flips before the server answers — so asserting `pressed: true` and reloading proves
     // nothing about what was stored, and a reload mid-flight cancels the request. `setMine` is
     // the one honest signal that the toggle reached Postgres.
     const savedMaps = waitForSetMine(page);
-    await page.getByRole("button", { name: "Maps", pressed: false }).click();
+    await subject
+      .getByRole("button", { name: "Maps", pressed: false, exact: true })
+      .click();
     await expect(
-      page.getByRole("button", { name: "Maps", pressed: true }),
+      subject.getByRole("button", { name: "Maps", pressed: true, exact: true }),
     ).toBeVisible();
     await savedMaps;
 
-    // Another facet's topic is pickable in the same visit — the point of the facet cut. Ceramics,
-    // not a grown topic: CI's database is `db:migrate` + `db:seed`, which is the sixteen config
-    // topics and nothing else, so `surreal` and friends do not exist there. That grown topics are
+    // Another facet's group is pickable in the same visit — the point of the facet cut.
+    // "Ceramics & glass" is the group label; on CI's database (`db:migrate` + `db:seed`, the
+    // sixteen config topics and nothing else) `clay` and `glass` don't exist, so the group
+    // intersects down to its one listed member (`ceramics`) — a singleton here too, same as
+    // Maps, so this is the group chip directly, no disclosure. That a multi-member group is
     // acceptable to `setMine` is pinned by routers.integration.test.ts, where the fixture is real.
+    const medium = page.getByRole("region", { name: "In what form?" });
     const savedCeramics = waitForSetMine(page);
-    await page
-      .getByRole("region", { name: "In what form?" })
-      .getByRole("button", { name: /^Show all/ })
-      .click();
-    await page
-      .getByRole("button", { name: "Ceramics", pressed: false })
+    await medium
+      .getByRole("button", {
+        name: "Ceramics & glass",
+        pressed: false,
+        exact: true,
+      })
       .click();
     await expect(
-      page.getByRole("button", { name: "Ceramics", pressed: true }),
+      medium.getByRole("button", {
+        name: "Ceramics & glass",
+        pressed: true,
+        exact: true,
+      }),
     ).toBeVisible();
     await savedCeramics;
 
-    // Every toggle saved as it happened — no Done button to press, so a reload is the proof.
-    // The disclosure is local state and a reload folds it, so open Medium again to read the chip.
-    await page.reload();
+    // The summary above the picker (`TopicLevels`, the 09-28-26 weighted redesign): one
+    // `role="group"` per pick, named "<Label> level", with a four-way segmented control.
+    // Astronomy is picked on both database shapes — "Space" is in ONBOARDING_GROUPS — so tuning
+    // it here is provable everywhere this spec runs. `setWeight`, not `setMine`: this tunes one
+    // existing pick's weight without touching the others.
+    //
+    // **"a little", not "a lot" — the two database shapes start Astronomy at different levels.**
+    // `Segmented` no-ops a click on the segment that's already active (`segmented.tsx`), and
+    // `toggleGroup`'s `pickWeight` (`config/topic-levels.ts` §2) writes "a lot" for a *singleton*
+    // group's one member, "some" for a group with more than one. On CI's database (the sixteen
+    // config topics) `groupsFor` intersects "Space" down to just `astronomy` — a singleton — so
+    // onboarding's pick already wrote it at "a lot"; clicking "a lot" again would fire nothing to
+    // wait on. On the real local corpus "Space" keeps several members, so onboarding wrote "some"
+    // there instead. "a little" is the one level neither shape starts at, so the click is a real
+    // write on both.
+    const savedAstronomy = waitForSetWeight(page);
     await page
-      .getByRole("region", { name: "In what form?" })
-      .getByRole("button", { name: /^Show all/ })
-      .click({ timeout: 15_000 });
+      .getByRole("group", { name: "Astronomy level" })
+      .getByRole("button", { name: "a little" })
+      .click();
+    await savedAstronomy;
+
+    // Every toggle saved as it happened — no Done button to press, so a reload is the proof.
+    // Ceramics & glass needs no disclosure reopened first — it's a singleton group on CI, same as
+    // Maps, so the group chip itself is what a reload has to still show pressed.
+    await page.reload();
     await expect(
-      page.getByRole("button", { name: "Ceramics", pressed: true }),
+      medium.getByRole("button", {
+        name: "Ceramics & glass",
+        pressed: true,
+        exact: true,
+      }),
     ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page
+        .getByRole("group", { name: "Astronomy level" })
+        .getByRole("button", { name: "a little" }),
+    ).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
 
     // Same two shapes as above: exactly five topics on CI (astronomy, botany, music, cartography,
     // ceramics → the first three alphabetically "+2"), a long tail on the real corpus.
