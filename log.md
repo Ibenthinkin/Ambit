@@ -5,6 +5,45 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-28-26 Mon]] — Onboarding v2, plan 1: the 75-group re-cut, reader-facing levels, the two-stage picker
+
+**Shipped**, on `feat/onboarding-foundation` (worktree `~/Dev/ambit-onboarding` — another session
+held `~/Dev/ambit`): `docs/PLAN_onboarding-foundation.md`'s ten build tasks, executed task by
+task with a review between each (ledger:
+`.superpowers/sdd/PLAN_onboarding-foundation/progress.md`). `config/topic-levels.ts` is the new
+no-import leaf ("a little" / "some" / "a lot" over the real `user_topic.weight` —
+`weightOf`/`levelOf`/`pickWeight`). `topic-groups.ts` is re-cut from the 09-25 groups (34) to
+**75** (36 Subject / 19 Medium / 14 Look / 6 Place) after Ben called the first cut "very bad" —
+chips like `myth-story-and-the-strange` and `everyday-things` were lumping unrelated things into
+one shrug; the Colour group's id is `color-group`, fixing the design table's typo against the
+topic's own American spelling (`color`, not `colour`). `topics.mine` now answers
+`{ topicId, weight }[]` directly, retiring the dev-gated `topics.weights` query, and
+`topics.setWeight` is the new one-topic write; `setMine` takes `picks` (id + weight) instead of
+bare ids. `GroupPicker` + `TopicLevels` + `components/topics/picks.ts`'s pure
+`toggleGroup`/`toggleTopic`/`groupState` are the pieces both `OnboardingScreen` (now
+`Pick → Start` — no floor in Pick, one floor at Start) and the rewritten `/profile/topics`
+(`TopicsScreen`) share. Task 5 (a `topics-screen.tsx` follow-up) folded into Task 4's own commit —
+the type change forced it, so it was reviewed together rather than as a separate step.
+
+**Decisions:** no LLM in v1 — `docs/BUILD_PLAN.md`'s 8.4 is reshaped to say so; the prose-to-
+weights interview is plan 2 (`docs/PLAN_onboarding-interview.md`), deferred. "Off" in
+`TopicLevels` deletes the `user_topic` row rather than writing a zero weight. A whole-group pick
+writes "some", a single topic "lot" (`pickWeight`). The e2e level-survives-reload test clicks
+"a little" rather than "a lot": CI's sixteen-topic seed makes Space a singleton group, so
+`pickWeight` already starts it at "a lot" and a second "a lot" click would be a no-op.
+
+**Verified:** `e2e:prod` 61 passed / 9 skipped; CI-shape (fresh Postgres, `db:migrate` +
+`db:seed`, production build) the same, run on `:5434` since `:5433` is held by loupe's
+`web-postgres-1`.
+
+**Open / next:** plan 2, the interview itself — bank, generated questions, chooser, faces,
+`Refine`, `/interview`; Ben's verdict on the 75-group cut's grain against the real corpus; a phone
+look and a look at 1440; then merge. Not merged, not deployed, not yet pushed — this session's
+docs pass (SPEC §7/§3.2, `CLAUDE.md`, `BUILD_PLAN.md` 8.4) is followed by a final review and the
+gates before the push.
+
+*Session spend: 35.99M tok (in 786 · out 221.0k · cache r 33.94M / w 1.83M) · ~≥$17.01 · opus-5-5 + opus-4-7 · 15:27→17:41*
+
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It

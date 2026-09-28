@@ -225,10 +225,36 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   production — an unlisted id is one `setMine` refuses), and e2e specs press `ONBOARDING_GROUPS`
   and must accept both database shapes when asserting on picked topics. `/profile/topics` leads
   each section with the group chips (tri-state; `Chip` gained `selected="mixed"`; tapping a mixed
-  group _completes_ it) and folds the flat list behind "Show all N topics". **Open:** every picked
-  topic is still written at weight 1.0, so a twelve-topic group is drawn twelve times as often as
-  a singleton in CORE/DRIFT/JUMP — shipped flat on purpose; dividing by group size in
-  `setUserTopics` is the follow-up if `/dev/feed` says so.
+  group _completes_ it) and folds the flat list behind "Show all N topics". **Settled 09-28-26:**
+  the flat-weight-1.0 write this "Open" line used to describe is gone — `docs/DESIGN_onboarding-interview.md`
+  §2 is the decision (a group writes its members at "some", a single topic at "lot"); see the
+  Pick → Start bullet below.
+- **Onboarding is Pick → Start over 75 honest groups, and the product shows levels — 09-28-26**
+  (design `docs/DESIGN_onboarding-interview.md`, plan `docs/PLAN_onboarding-foundation.md`; built
+  in a worktree, `~/Dev/ambit-onboarding` on `feat/onboarding-foundation`, because another session
+  held `~/Dev/ambit`). Ben's look at the 09-25 groups called them "very bad" — `myth-story-and-the-strange`
+  had swallowed mythology, horror and humor into one shrug of a chip, `everyday-things` did the
+  same to food, fashion and toys — so `topic-groups.ts` is re-cut to **75 groups** (36 Subject /
+  19 Medium / 14 Look / 6 Place; a singleton like Fungi or Cars is a group in good standing, never
+  "for want of a better home"), and the Colour group's id is `color-group` — the design's
+  `colour-group` was a typo against the topic's own American spelling (`color`). The design's
+  three stages, `Pick → Refine → Start`, ship here as **`Pick → Start`**: `Refine` is the
+  interview (plan 2 of the same plan) and goes between once it's built; until then the progress
+  row carries only the two real stages. **Pick has no floor at all**, not even on the first of the
+  four facet stages, and there is no group-tap counter; **the one floor left is one pick at
+  Start**, where `TopicLevels` — a leaf shared with `/profile/topics` — renders the whole draft as
+  "a little / some / a lot / off" over `config/topic-levels.ts`'s three canonical weights
+  (`weightOf`/`levelOf`/`pickWeight`, a no-import leaf like `feed-knobs.ts`). Taking a whole group
+  writes its members at "some"; naming a single topic writes it at "lot" (`pickWeight`, the one
+  place that rule lives, `components/topics/picks.ts`'s `toggleGroup`/`toggleTopic`); **off means
+  the `user_topic` row is deleted, never a zero weight**. `GroupPicker` (Pick) and `TopicLevels`
+  (Start and `/profile/topics`) are the two components both screens share. `topics.mine` now
+  answers `{ topicId, weight }[]` directly, retiring the dev-gated `topics.weights` query — a
+  product build reads the number itself now — and `topics.setWeight` is the new one-topic write
+  `TopicLevels`'s segmented control calls, alongside the unchanged whole-set `setMine` (SPEC §7).
+  `e2e:prod` is 61 passed / 9 skipped (CI-shape the same, on `:5434` — `:5433` is loupe's
+  Postgres). **Open:** plan 2 (the interview), Ben's verdict on the cut's grain against the real
+  corpus, a phone look and a look at 1440, then merge.
 - **The item page _is_ the immersive screen — 09-10-26** (design `docs/DESIGN_screen-structure.md`,
   plan `docs/PLAN_screen-structure.md`; sub-project 2 of three from Ben's desktop review). `/i/[itemId]`
   for a picture is `ItemScreen`: `HeroRail` (the old gallery's three-cell track, square-cornered,
