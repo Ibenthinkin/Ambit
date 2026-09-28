@@ -137,6 +137,43 @@ log entry lives on `feat/writing` and reaches `main` with it. Check the branch b
 
 *Session spend: 16.28M tok (in 2.2k · out 272.7k · cache r 15.38M / w 632.9k) · fable-5-1 · 13:54→15:18*
 
+**Third session the same day (Opus 5.5) — writing Phase 1 built on `feat/writing`, not merged,
+not deployed.** Articles (`type = 'article'`) now go to a second curator, `WRITING_PROMPT`, which
+reads the body (apparatus stripped by the reader's own `parseReaderBlocks`, first 8,000 chars),
+never fetches an image, always classifies, and answers with a kind and a `timeliness`.
+`CURATOR_PROMPT` and both image cache-key namespaces are untouched (two keys pinned); the
+OpenRouter call is one shared `callCurator` now. Ingest runs a `thin-text` floor (under 400
+characters of prose) after the structural one, passes the vocabulary to the search lane too, gives
+a search-lane article its seed membership plus the curator's, and drops `news` with a per-source
+count. Migration 0010 adds `item.kind` and `item.reading_minutes`. New: `bun run recurate:writing`
+(dry run unless `--confirm`; news demoted to 1, memberships additive, display topic only where
+NULL; `.cache/recurate-writing-prod.sh push|dry|confirm` for production) and
+`bun run writing:calibrate` (`--sample 40` / `--read`).
+
+**Findings:**
+- **The calibration file is written**: `docs/writing-calibration.md`, 40 pieces (14 Loupe / 13
+  PDR / 13 Wikipedia, sources taking turns and bands within them), each scored by flash-lite and
+  flash. **Flash-lite never names `criticism` or `archive`** (23 essay / 17 curiosity); flash uses
+  all four (25 curiosity / 10 essay / 3 archive / 2 criticism) and scores lower (6.30 vs 6.97).
+  Neither called anything news. That's the model question for Ben's marks to settle.
+- A 6-row Wikipedia dry run moved 5.83 → 7.00 under the new rubric.
+- **The final review caught `scripts/recurate.ts`**: it selected every row of a source, so after
+  the dispatch it would have re-billed articles through the writing curator with the
+  sixteen-topic default and written only the score. It's images-only now.
+
+**Decisions:** migration 0010 is taken here, and `PLAN_onboarding-interview.md` also claims 0010,
+so whichever merges second regenerates. Nine review minors are deferred; the one Phase 2 must
+honour is that `upsertItem`'s conflict update refreshes `body` but not `reading_minutes`, so the
+body backfill has to write both.
+
+**Open / next:** Ben marks `docs/writing-calibration.md` (`ben-score / ben-kind / ben-news /
+note`), then `bun run writing:calibrate --read`. Iterate the prompt (bump
+`WRITING_PROMPT_VERSION`, re-sample with the same seed, marks carry over) until it agrees, and pick
+the model. **Don't deploy `feat/writing` before Phase 2's `fetchBody` at ingest**, and don't run
+`recurate:writing` before the calibration agrees. Phase 2 (Wikipedia) can be built meanwhile.
+
+*Session spend: 43.24M tok (in 596 · out 243.3k · cache r 41.83M / w 1.16M) · ~≥$7.43 · opus-5-5 + opus-4-7 · 15:24→15:47*
+
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
