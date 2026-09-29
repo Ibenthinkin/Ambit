@@ -227,6 +227,19 @@ re-read. Everything else is in `docs/HANDOFF_writing.md`.
 
 *Session spend: 6.73M tok (in 81 · out 42.7k · cache r 5.41M / w 1.27M) · ~≥$2.08 · opus-5-5 + opus-4-7 · 18:55→20:18*
 
+**The fragment rule, tried and dropped (evening).** Split by source, flash-lite v1 already sits
+close to Ben where the re-score lands: **Wikipedia MAE 0.67, PDR 0.29**. The 0.90 overall is
+Loupe (1.71). "A fragment scores 1-3" left Wikipedia alone, nudged PDR to 0.14, and made Loupe
+worse (2.14), because it took #13 (a short Whole Earth clipping Ben scored 8, "short and surreal,
+don't need context") down to 2. The follow-up "an encyclopedia entry is never an essay" fixed one
+Wikipedia kind and cost a score (#9, 7 → 5). At six marks a source that is noise, so the prompt
+stays at v1 until the other 13 are marked. What shipped instead (`dcd3c27`): a bare
+`recurate:writing` skips Loupe, and `writing:calibrate --rescore` re-scores exactly the file's
+pieces, so the marks can't drift between runs. **Open:** kind. flash-lite calls most Wikipedia
+curiosities `essay`, and the `Source: wikipedia` input line is the untried lever.
+
+*Session spend: 5.89M tok (in 106 · out 40.3k · cache r 5.63M / w 217.0k) · opus-5-5 · 20:21→20:27*
+
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
