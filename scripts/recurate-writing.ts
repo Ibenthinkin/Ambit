@@ -17,13 +17,17 @@
  * The write itself is `services/writing-rescore.ts`: fields replaced, memberships added as
  * `curator`, the display topic set only where it was NULL.
  *
+ * **Loupe is left out** unless `--source loupe` names it (Ben, calibration note on #4, 09-28-26:
+ * "i think we should exclude the archive entries for now"). Its OCR clippings are fragments the
+ * rubric cannot judge fairly yet, and Loupe is suspended on production anyway.
+ *
  * Usage:
- *   bun run recurate:writing                          # every article, dry run
+ *   bun run recurate:writing                          # every article but Loupe's, dry run
  *   bun run recurate:writing --source wikipedia --limit 20
  *   bun run recurate:writing --confirm                # write
  *   bun run recurate:writing --offset 1200 --confirm  # resume (rows are (source, sourceId)-ordered)
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 
 import { isClassifiable } from "~/server/config/topics";
 import { WRITING_KINDS } from "~/server/config/writing";
@@ -43,6 +47,8 @@ function flagValue(name: string): string | undefined {
 }
 
 const source = flagValue("source");
+/** Sources a bare run skips; naming one with --source still re-scores it. */
+const EXCLUDED_SOURCES = ["loupe"];
 const limit = flagValue("limit") ? Number(flagValue("limit")) : undefined;
 const offset = Number(flagValue("offset") ?? 0);
 const confirm = args.includes("--confirm");
@@ -73,7 +79,10 @@ const rows = await db
   .where(
     source
       ? and(eq(item.type, "article"), eq(item.source, source))
-      : eq(item.type, "article"),
+      : and(
+          eq(item.type, "article"),
+          notInArray(item.source, EXCLUDED_SOURCES),
+        ),
   )
   .orderBy(item.source, item.sourceId)
   .limit(limit ?? Number.MAX_SAFE_INTEGER)
@@ -88,7 +97,7 @@ if (rows.length === 0) {
 const vocabulary = (await db.select().from(topic)).filter(isClassifiable);
 
 console.log(
-  `${rows.length} article(s)${source ? ` from ${source}` : ""}${offset ? ` (from offset ${offset})` : ""}, ` +
+  `${rows.length} article(s)${source ? ` from ${source}` : ` (skipping ${EXCLUDED_SOURCES.join(", ")})`}${offset ? ` (from offset ${offset})` : ""}, ` +
     `model ${model}, vocabulary ${vocabulary.length} topics` +
     (confirm ? "" : " — DRY RUN (bills the curator, writes nothing)"),
 );

@@ -12,7 +12,6 @@ Read this before touching `feat/writing`. It is self-contained; the design is
 - **Phase 1 (the writing curator) — built.** Phase 2 (Wikipedia) — built. Phases 3–5 — not started.
 - **Calibration in progress.** Ben marked 20 of the 40 pieces in `docs/writing-calibration.md`
   (7 Loupe, 7 PDR, 6 Wikipedia). His marks are committed with this handoff.
-- `docs/source-candidates.md` has Ben's raw Tumblr notes, **deliberately uncommitted** — leave it.
 
 ## What was built
 
@@ -69,16 +68,25 @@ Read this before touching `feat/writing`. It is self-contained; the design is
 ## Next steps, in order
 
 1. **Ben** marks the remaining **Wikipedia and PDR** pieces (~13); skip the Loupe ones.
-2. **Exclude Loupe from the writing re-score** — `recurate:writing` selects every article; add a
-   Loupe exclusion (or `--source` runs of wikipedia + pdr only). Loupe is suspended on production
-   anyway. Ledger it as Ben's decision (his note on #4).
-3. **One prompt rule**: a fragment, OCR noise, or text that makes no sense without missing
-   context scores 1–3. Bump `WRITING_PROMPT_VERSION` to 2, then
-   `bun run writing:calibrate --sample 40` (same default seed → same pieces; Ben's marks carry over
-   by item id) and `--read`. Optionally `--models google/gemini-2.5-flash-lite` alone.
-   **Caveat:** the sample query has no `ORDER BY`, so "same pieces" is likely, not guaranteed —
-   add `.orderBy(item.source, item.sourceId)` to `scripts/writing-calibrate.ts` first (deferred
-   minor from the Phase 1 review).
+2. ~~Exclude Loupe from the writing re-score~~ — **done 09-28-26**: a bare `recurate:writing`
+   skips `loupe` (`--source loupe` still reaches it).
+3. ~~One prompt rule~~ — **tried and dropped 09-28-26; the prompt stays at v1.** Per source,
+   flash-lite v1 is already close to Ben on what the re-score touches: **Wikipedia MAE 0.67,
+   PDR 0.29** (the overall 0.90 is Loupe's 1.71 dragging it). Two edits, each run against a
+   scratch copy of the file:
+   - *"a fragment scores 1-3"*: Wikipedia unchanged, PDR 0.14, but Loupe worse (2.14) — it took
+     #13, a short Whole Earth clipping Ben scored 8, down to 2.
+   - *"an encyclopedia entry is never an essay"*: fixed one Wikipedia kind of three, and Wikipedia's
+     score MAE went 0.67 → 1.00 (#9 fell 7 → 5).
+   At six marks a source one answer moves the mean, so this is noise-chasing until the other 13
+   are marked. The live question is **kind** — flash-lite calls most Wikipedia curiosities
+   `essay`; the `Source: wikipedia` line in the prompt input is the untried lever.
+   **To re-test after a prompt change, use `bun run writing:calibrate --rescore`** (new): it
+   re-scores exactly the pieces in the file, in order, keeping Ben's marks — a fresh `--sample`
+   is ordered now too, but moves if an ingest changed the article set.
+   **Once Ben's 13 are in:** `bun run writing:calibrate --read`, and split it by source (the
+   report doesn't; the Loupe rows skew it). If Wikipedia + PDR hold near v1's numbers, that is
+   the agreement.
 4. If it agrees, decide with Ben: push `feat/writing`, merge, deploy. **Migration 0010 collides
    with `docs/PLAN_onboarding-interview.md`'s planned 0010** — whichever merges second regenerates.
 5. **Production, after the deploy, in this order** (scripts in `.cache/`, gitignored; the agent

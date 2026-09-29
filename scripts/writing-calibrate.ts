@@ -8,12 +8,16 @@
  *   (Ben fills in ben-score / ben-kind / ben-news / note for each piece)
  *   bun run writing:calibrate --read          # agreement per model: score MAE + Spearman, kind
  *                                             #   confusion, news precision/recall, five worst
+ *   bun run writing:calibrate --rescore       # after a prompt change: the pieces already in the
+ *                                             #   file, in the same order, with fresh answers
  *
  * The sample is stratified by source and by old (image-rubric) score band — services/
  * writing-calibration.ts says why. Both models are part of the curator's cache key, so the
  * comparison costs cents and a re-run is free. After a prompt change (bump
- * WRITING_PROMPT_VERSION), re-run `--sample` with the same `--seed` to get the same pieces with
- * fresh answers: Ben's marks are carried over by item.
+ * WRITING_PROMPT_VERSION), run `--rescore`: it reads the item ids out of the file rather than
+ * drawing again, so the pieces Ben marked are exactly the pieces re-scored, and his marks are
+ * carried over by item. (A fresh `--sample` with the same `--seed` draws the same pieces only
+ * while the article set is unchanged — an ingest in between moves the draw.)
  *
  * Flags: --seed <s> (default "writing-calibration"), --models <a,b> (default flash-lite,flash),
  * --file <path> (default docs/writing-calibration.md).
@@ -21,7 +25,7 @@
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { isClassifiable } from "~/server/config/topics";
 import { readingMinutes, writingText } from "~/server/config/writing";
@@ -72,9 +76,16 @@ if (args.includes("--read")) {
   process.exit(0);
 }
 
+const rescore = args.includes("--rescore");
 const n = Number(flagValue("sample"));
-if (!(n > 0)) {
-  console.error("usage: writing:calibrate --sample <n> | --read");
+if (!rescore && !(n > 0)) {
+  console.error("usage: writing:calibrate --sample <n> | --rescore | --read");
+  process.exit(1);
+}
+if (rescore && !existsSync(file)) {
+  console.error(
+    `--rescore re-scores the pieces in ${file}, and it does not exist.`,
+  );
   process.exit(1);
 }
 if (!process.env.OPENROUTER_API_KEY) {
@@ -87,17 +98,36 @@ const models = (
 const seed = flagValue("seed") ?? "writing-calibration";
 
 // Marks already in the file survive a re-sample, by item — a prompt iteration keeps Ben's work.
-const previous = existsSync(file)
-  ? new Map(
-      parseCalibration(await readFile(file, "utf-8")).map((e) => [
-        e.itemId,
-        e.ben,
-      ]),
-    )
-  : new Map<string, CalibrationEntry["ben"]>();
+const previousEntries = existsSync(file)
+  ? parseCalibration(await readFile(file, "utf-8"))
+  : [];
+const previous = new Map(previousEntries.map((e) => [e.itemId, e.ben]));
 
-const articles = await db.select().from(item).where(eq(item.type, "article"));
-const sample = stratifiedSample(articles, n, mulberry32(hashSeed(seed)));
+let sample: (typeof item.$inferSelect)[];
+if (rescore) {
+  // The file's own pieces, in the file's order: the numbering Ben's notes refer to survives.
+  const ids = previousEntries.map((e) => e.itemId);
+  const byId = new Map(
+    (await db.select().from(item).where(inArray(item.id, ids))).map((r) => [
+      r.id,
+      r,
+    ]),
+  );
+  const missing = ids.filter((id) => !byId.has(id));
+  if (missing.length) {
+    console.error(`not in the database any more: ${missing.join(", ")}`);
+    process.exit(1);
+  }
+  sample = ids.map((id) => byId.get(id)!);
+} else {
+  // Ordered, so the seeded shuffle starts from the same sequence on every run.
+  const articles = await db
+    .select()
+    .from(item)
+    .where(eq(item.type, "article"))
+    .orderBy(item.source, item.sourceId);
+  sample = stratifiedSample(articles, n, mulberry32(hashSeed(seed)));
+}
 const vocabulary = (await db.select().from(topic)).filter(isClassifiable);
 
 const normalized: NormalizedItem[] = sample.map((row) => ({
