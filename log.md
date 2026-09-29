@@ -5,6 +5,33 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-29-26 Tue]] — Writing calibration agrees: prompt v2
+
+**Findings:** Ben finished marking (34 of 40; the six blanks are Loupe). Split by source, which
+the report doesn't do, flash-lite v1 held on PDR (MAE 0.46) but slipped on Wikipedia, from 0.67
+at 20 marks to 1.23. The two biggest misses were the two shortest entries. AEGIS (1 min) and
+Spikelet (3 min) both scored 4 against Ben's 8. Ben's notes: "short articles are even better",
+"puzzle pieces, shards of the world". v1's 1-3 band named "stubs, bare definitions, dry
+reference entries" as filler, and that is the whole cause. Ben marked all 13 Wikipedia pieces
+`curiosity`, and flash-lite called the long ones `essay`.
+
+**Shipped (`274d744`):** `WRITING_PROMPT_VERSION = 2`. Short, obscure entries are out of the
+filler band and score 7-8 on subject alone. **Wikipedia's kind is now a source fact, not a
+judgment** (`SOURCE_KINDS` / `kindFor` in `config/writing.ts`). A prompt rule was the other way
+to fix kind, and it cost score agreement on 09-28. On Wikipedia + PDR, MAE went 0.85 → 0.69,
+Spearman 0.46 → 0.54, and kind 13/19 → 19/20. Spikelet went 4 → 7; AEGIS, a one-minute stub,
+stays at 4. Wikipedia's Spearman sits near 0 because Ben's marks span only 6-9, so MAE is the
+signal there. Loupe got worse (2.63) and the re-score skips it. **Ben: "looks good for now"**,
+so this is the agreement the re-score was gated on.
+
+**Open / next:** merge `feat/writing` to `main` and deploy. Migration 0010 collides with the
+onboarding plan's 0010, so whichever merges second regenerates it. Then, on production:
+`backfill-wiki-prod.sh` → `recurate-writing-prod.sh push|dry|confirm`. Then Phase 3's gate
+question for Ben. Locally, nothing has a `kind` yet (`recurate:writing` has not run here), and
+writing only shows at `/i/<id>` until Phases 3-4.
+
+*Session spend: 5.80M tok (in 120 · out 29.8k · cache r 5.56M / w 205.8k) · ~≥$0.71 · opus-5-5 + opus-4-7 · 09:26→09:49*
+
 ### [[09-28-26 Mon]] — Writing becomes a first-class part of the feed (designed, not built)
 
 **Checked first:** the Door of Perception production walk Ben ran at the end of 09-27 landed.
