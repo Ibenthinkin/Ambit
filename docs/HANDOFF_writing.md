@@ -49,6 +49,27 @@ Read this before touching `feat/writing`. It is self-contained; the design is
   the walk items' write path (`services/reading-plan.ts`: `planReadingQueries`, `mergeUnseeded`).
   `db:seed` now rewrites a row carrying a source key the config dropped.
 
+## Calibration — all marked, prompt v2 (09-29-26)
+
+Ben finished marking (34 of 40; the six unmarked are Loupe). v1 on the full marks, split by source
+(the re-score skips Loupe, so Wikipedia + PDR is the number that matters):
+
+| flash-lite | v1 | **v2** |
+|---|---|---|
+| Wikipedia MAE | 1.23 | **1.00** |
+| PDR MAE | 0.46 | **0.38** |
+| Wikipedia + PDR MAE · Spearman | 0.85 · 0.46 | **0.69 · 0.54** |
+| Wikipedia + PDR kind | 13/19 | **19/20** |
+
+v2 (`WRITING_PROMPT_VERSION = 2`) is two changes. **The rubric stops calling short entries filler**
+("stubs, bare definitions, dry reference entries" left the 1-3 band) and says short, specific
+entries on obscure things score 7-8 on subject alone — Ben: "short articles are even better",
+"puzzle pieces, shards of the world". Spikelet went 4 → 7; AEGIS (a one-minute stub) is still 4.
+**Wikipedia's kind is fixed, not judged** (`SOURCE_KINDS` / `kindFor` in `config/writing.ts`):
+Ben marked all 13 `curiosity`. Wikipedia's Spearman stays ≈ 0 because Ben's marks sit in 6-9; MAE
+is the signal there. Loupe got worse (2.63) and is skipped by the re-score. **This is the
+agreement** unless Ben says otherwise → step 4 below.
+
 ## Calibration — what 20 marks say (`bun run writing:calibrate --read`)
 
 | | flash-lite | flash |

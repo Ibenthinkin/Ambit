@@ -20,8 +20,8 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | curiosity | timeless | unusual architecture, quirky construction | architecture |
-| gemini-2.5-flash | 6 | curiosity | timeless | architecture, unusual materials, mid-century modern | architecture, balloons |
+| gemini-2.5-flash-lite | 7 | curiosity | timeless | unusual architecture, innovative materials | architecture |
+| gemini-2.5-flash | 7 | curiosity | timeless | unusual architecture, mid-century modern, ephemeral structures | architecture, balloons |
 
 - ben-score: 5
 - ben-kind: archive
@@ -38,12 +38,12 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 9 | essay | dated | photography, great depression, archives, lost history | photography, books |
-| gemini-2.5-flash | 9 | essay | timeless | photography, archive, great depression, censorship | photography, activism |
+| gemini-2.5-flash-lite | 9 | essay | timeless | photography, archive, lost history | photography, books |
+| gemini-2.5-flash | 9 | essay | timeless | photography history, archival practice, great depression, curatorial decisions | photography, books, ancient-history |
 
 - ben-score: 9
 - ben-kind: essay
-- ben-news: not
+- ben-news: no
 - note: love it
 
 ## 3. Cartographic generalization
@@ -56,8 +56,8 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | essay | timeless | map design, information theory, automation | cartography |
-| gemini-2.5-flash | 7 | curiosity | timeless | cartography, mapmaking, information theory | cartography, science, technology |
+| gemini-2.5-flash-lite | 8 | curiosity | timeless | mapmaking, design principles, automation | cartography, graphic-design |
+| gemini-2.5-flash | 7 | curiosity | timeless | cartography, mapmaking, information theory, design principles | cartography, science, graphic-design |
 
 - ben-score: 6
 - ben-kind: curiosity
@@ -70,12 +70,12 @@ The models' answers are in each table. Don't edit those.
 - source: loupe · minutes: 1 · old score: 4
 - link: https://archive.org/details/lastwholeearthca00unse/page/n138 · /i/MolloUrI-fh7B3lpIcDT7
 
-> Tamco Plastic Supplies Acrylics: new look for church windows This company makes or supplies lots of plastic laboratory & commercial stuff: graduates, trays, pipe, plexiglass sheet, sewer & water pipe etc. The catalog is free, honest. / have bought a little from them and shipment has been prompt and
+> Tamco Plastic Supplies Acrylics: new look for church windows This company makes or supplies lots of plastic laboratory & commercial stuff: graduates, trays, pipe, plexiglass sheet, sewer & water pipe etc. The catalog is free, honest. / have bought a little from them and shipment has been prompt and 
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 5 | curiosity | timeless | odd history, industrial materials | industrial-design, architecture |
-| gemini-2.5-flash | 1 | curiosity | dated | product catalog, industrial supplies |  |
+| gemini-2.5-flash-lite | 4 | curiosity | timeless | odd history, industrial materials | industrial-design |
+| gemini-2.5-flash | 4 | archive | timeless | old advertisement, industrial supplies | industrial |
 
 - ben-score: 3
 - ben-kind: archive
@@ -92,13 +92,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | essay | timeless | literary biography, jazz age, author studies | literature |
+| gemini-2.5-flash-lite | 8 | essay | timeless | literary criticism, biography, jazz age | literature, books |
 | gemini-2.5-flash | 8 | criticism | timeless | literary criticism, author biography, gender roles | literature |
 
 - ben-score: 8
-- ben-kind: essay, criticism
+- ben-kind: 
 - ben-news: no
-- note:
+- note: 
 
 ## 6. Dobruja
 
@@ -110,8 +110,8 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | essay | timeless | historical regions, geography, etymology | ancient-history |
-| gemini-2.5-flash | 4 | curiosity | timeless | geography, history, european history |  |
+| gemini-2.5-flash-lite | 7 | curiosity | timeless | historical regions, geography, etymology | travel, natural-history |
+| gemini-2.5-flash | 7 | curiosity | timeless | regional history, geography, etymology |  |
 
 - ben-score: 7
 - ben-kind: curiosity
@@ -128,8 +128,8 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | curiosity | dated | precision measurement, mechanical engineering, drafting supplies | machines, industrial-design |
-| gemini-2.5-flash | 7 | curiosity | timeless | precision tools, mechanical engineering, vintage manuals | machines, technology |
+| gemini-2.5-flash-lite | 7 | curiosity | dated | precision measurement, mechanical engineering, vintage tools | machines, industrial-design |
+| gemini-2.5-flash | 7 | curiosity | timeless | precision tools, mechanical history, industrial design | machines, technology, industrial |
 
 - ben-score: 5
 - ben-kind: archive
@@ -146,11 +146,11 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 9 | essay | timeless | odd history, true crime, literary inspiration | literature |
-| gemini-2.5-flash | 9 | curiosity | timeless | odd history, true crime, biography, french history | ancient-history |
+| gemini-2.5-flash-lite | 9 | essay | timeless | detective fiction, crime history, france | literature, books |
+| gemini-2.5-flash | 9 | curiosity | timeless | odd history, true crime, biography, french history |  |
 
 - ben-score: 9
-- ben-kind: essay, curiosity
+- ben-kind: 
 - ben-news: no
 - note: great!
 
@@ -164,13 +164,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | curiosity | timeless | observatories, astronomy, radio astronomy | astronomy |
-| gemini-2.5-flash | 3 | curiosity | timeless | astronomy, observatory | astronomy |
+| gemini-2.5-flash-lite | 7 | curiosity | timeless | observatories, radio astronomy, astronomy | astronomy |
+| gemini-2.5-flash | 7 | curiosity | timeless | astronomy, radio astronomy, polish science | astronomy, science, technology |
 
 - ben-score: 8
 - ben-kind: curiosity
 - ben-news: no
-- note:
+- note: 
 
 ## 10. Structure, energy
 
@@ -178,11 +178,11 @@ The models' answers are in each table. Don't edit those.
 - source: loupe · minutes: 1 · old score: 7
 - link: https://archive.org/details/lastwholeearthca00unse/page/n117 · /i/SC0ZYwA4bUYYuLLqvzHet
 
-> Structure, energy Everyone at first feels this kind of awe for domes and things. When you talk about energy you talk about the sun. It’s difficult to talk about the sun because we're in it all the time. You have to feel it in order to utilize it. One of the real characteristics of energy is that it
+> Structure, energy Everyone at first feels this kind of awe for domes and things. When you talk about energy you talk about the sun. It’s difficult to talk about the sun because we're in it all the time. You have to feel it in order to utilize it. One of the real characteristics of energy is that it 
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | essay | timeless | counterculture, dome-geometry, solar-energy | architecture, machines |
+| gemini-2.5-flash-lite | 7 | essay | timeless | dome-geometry, solar-energy, personal-narrative | architecture, technology |
 | gemini-2.5-flash | 7 | curiosity | timeless | geodesic domes, solar energy, counterculture, design philosophy | architecture, technology, science |
 
 - ben-score: 4
@@ -200,8 +200,8 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | essay | timeless | german literature, romanticism, tragedy, literary analysis | literature |
-| gemini-2.5-flash | 8 | criticism | timeless | german literature, romanticism, literary analysis, tragedy | literature |
+| gemini-2.5-flash-lite | 8 | essay | timeless | literary analysis, german romanticism, tragedy | literature |
+| gemini-2.5-flash | 7 | criticism | timeless | german literature, romanticism, literary analysis | literature |
 
 - ben-score: 8
 - ben-kind: curiosity
@@ -218,8 +218,8 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | curiosity | timeless | poetry, classical literature, literary terms | literature |
-| gemini-2.5-flash | 6 | curiosity | timeless | poetry, language, classical literature | literature |
+| gemini-2.5-flash-lite | 7 | curiosity | timeless | poetic meter, classical verse, literary terms | literature |
+| gemini-2.5-flash | 7 | curiosity | timeless | poetry, language, etymology | literature |
 
 - ben-score: 8
 - ben-kind: curiosity
@@ -236,8 +236,8 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | essay | timeless | melancholy, death, memory | melancholy, death |
-| gemini-2.5-flash | 7 | essay | timeless | grief, memory, stream of consciousness, family |  |
+| gemini-2.5-flash-lite | 2 | essay | dated | fragmented narrative, grief, memory |  |
+| gemini-2.5-flash | 1 | — | timeless |  |  |
 
 - ben-score: 8
 - ben-kind: essay
@@ -254,11 +254,11 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | essay | timeless | philosophy & ideas, religion, dream diary, eroticism | literature, mythology, consciousness |
-| gemini-2.5-flash | 8 | essay | timeless | dream interpretation, biography, philosophy, sexuality | literature, mythology |
+| gemini-2.5-flash-lite | 9 | essay | timeless | philosophy, religion, dreams, eroticism | literature, mythology, natural-history |
+| gemini-2.5-flash | 8 | curiosity | timeless | dream interpretation, obscure history, sexuality, philosophy | literature, body, mythology |
 
 - ben-score: 10
-- ben-kind: curiosity, essay
+- ben-kind: 
 - ben-news: no
 - note: cool
 
@@ -272,11 +272,11 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | essay | timeless | oceanography, fluid dynamics, natural history | the-ocean |
-| gemini-2.5-flash | 4 | curiosity | timeless | oceanography, fluid dynamics, physical geography | the-ocean, science |
+| gemini-2.5-flash-lite | 7 | curiosity | timeless | ocean currents, fluid dynamics, natural phenomena | the-ocean, nature |
+| gemini-2.5-flash | 7 | curiosity | timeless | oceanography, fluid dynamics, natural phenomena | the-ocean, science |
 
 - ben-score: 7
-- ben-kind: curioisty
+- ben-kind: curiosity
 - ben-news: no
 - note: great for nerds/ engineers
 
@@ -290,13 +290,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | curiosity | timeless | odd history, lost technology | industrial-design, science |
-| gemini-2.5-flash | 8 | curiosity | timeless | odd history, lost technology, quirky reference, old books | books, technology, fire |
+| gemini-2.5-flash-lite | 7 | curiosity | dated | odd history, lost technology, folk belief | books, industrial-design |
+| gemini-2.5-flash | 8 | curiosity | timeless | odd history, lost knowledge, curious books | books, fire |
 
 - ben-score: 7
 - ben-kind: curiosity
 - ben-news: no
-- note:
+- note: 
 
 ## 17. Divining the Witch of York: Propaganda and Prophecy
 
@@ -304,17 +304,17 @@ The models' answers are in each table. Don't edit those.
 - source: pdr · minutes: 12 · old score: 7
 - link: https://publicdomainreview.org/essay/divining-the-witch-of-york-propaganda-and-prophecy/ · /i/vtgt37E7GOfWEmyqw2Dk6
 
-> In 1488 during the reign of Henry VII, one year after the Dominican Heinrich Kramer wrote his notorious witch-finding manual Malleus Maleficarum, an adolescent girl named Agatha Soothtell gave birth in a cave among the dales and moors of Yorkshire to her daughter Ursula, supposedly conceived by the
+> In 1488 during the reign of Henry VII, one year after the Dominican Heinrich Kramer wrote his notorious witch-finding manual Malleus Maleficarum, an adolescent girl named Agatha Soothtell gave birth in a cave among the dales and moors of Yorkshire to her daughter Ursula, supposedly conceived by the 
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 9 | essay | timeless | folk legend, prophecy, witchcraft, media history | mythology, literature |
-| gemini-2.5-flash | 9 | essay | timeless | odd history, folk belief, propaganda, literary history | literature, ancient-history |
+| gemini-2.5-flash-lite | 9 | essay | timeless | witchcraft, folk legend, prophecy, media history | literature, mythology |
+| gemini-2.5-flash | 9 | curiosity | timeless | odd history, folk belief, literary history, propaganda | literature, ancient-history |
 
 - ben-score: 9
-- ben-kind: curiosity, essay
-- ben-news:no
-- note:
+- ben-kind: 
+- ben-news: no
+- note: 
 
 ## 18. Blue Mountain Pottery
 
@@ -326,13 +326,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | curiosity | dated | canadian history, collectors, folk art | ceramics |
-| gemini-2.5-flash | 7 | curiosity | timeless | canadian history, crafts, collecting | ceramics, found-objects |
+| gemini-2.5-flash-lite | 7 | curiosity | dated | canadian history, collectors, industrial history | ceramics |
+| gemini-2.5-flash | 7 | curiosity | timeless | canadian history, craft, industrial history, collectible | ceramics, industrial |
 
 - ben-score: 7
 - ben-kind: curiosity
-- ben-news:no
-- note:
+- ben-news: no
+- note: 
 
 ## 19. Structure, Form and Movement
 
@@ -344,8 +344,8 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | curiosity | dated | bionics, nature-inspired-design, historical-tech | nature, technology |
-| gemini-2.5-flash | 4 | curiosity | dated | natural design, biomimicry, science history | science, natural-history |
+| gemini-2.5-flash-lite | 7 | essay | dated | bionics, nature-inspired-design, historical-tech | science, nature, industrial-design |
+| gemini-2.5-flash | 7 | curiosity | timeless | biomimicry, natural design, science history | science, natural-history, technology |
 
 - ben-score: 6
 - ben-kind: curiosity
@@ -362,13 +362,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | essay | dated | odd history, animal propaganda, wwi, marketing | advertising, natural-history, animals |
-| gemini-2.5-flash | 9 | curiosity | timeless | odd history, animals, propaganda, marketing | animals, natural-history |
+| gemini-2.5-flash-lite | 8 | essay | dated | odd history, animal propaganda, wwi | advertising, natural-history, animals |
+| gemini-2.5-flash | 9 | curiosity | timeless | odd history, animals in culture, war propaganda, aquatic life | animals, natural-history |
 
 - ben-score: 8
-- ben-kind: essay, curiosity
+- ben-kind: 
 - ben-news: no
-- note:
+- note: 
 
 ## 21. Nike (mythology)
 
@@ -380,13 +380,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | curiosity | timeless | mythology, ancient history, personification | mythology |
-| gemini-2.5-flash | 6 | curiosity | timeless | greek mythology, ancient religion, personification | mythology, ancient-history |
+| gemini-2.5-flash-lite | 7 | curiosity | timeless | mythology, ancient greece, personification | mythology |
+| gemini-2.5-flash | 7 | curiosity | timeless | greek mythology, personification, ancient history | mythology, ancient-history |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 9
+- ben-kind: curiosity
+- ben-news: no
+- note: 
 
 ## 22. Hardware Products Springs
 
@@ -398,13 +398,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 4 | curiosity | timeless | odd history, lost technology | machines |
-| gemini-2.5-flash | 5 | curiosity | dated | industrial design, catalog, mechanical | machines, industrial |
+| gemini-2.5-flash-lite | 4 | curiosity | dated | odd history, lost technology | machines |
+| gemini-2.5-flash | 5 | archive | dated | old advertisement, industrial design | industrial, machines |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 
+- ben-kind: 
+- ben-news: 
+- note: 
 
 ## 23. From Snowdrop to Nightjar: Robert Marsham’s “Indications of Spring” (1789)
 
@@ -416,13 +416,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 9 | essay | timeless | phenology, natural history, old science | nature, botany, birds |
-| gemini-2.5-flash | 9 | essay | timeless | natural history, quiet biography, odd history, climate | nature, botany, animals |
+| gemini-2.5-flash-lite | 9 | essay | timeless | phenology, natural history, historical science | nature, botany, birds |
+| gemini-2.5-flash | 9 | essay | timeless | odd history, quiet biography, natural history, long-term observation | botany, nature, birds |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 7
+- ben-kind: 
+- ben-news: no
+- note: 
 
 ## 24. Syros
 
@@ -434,13 +434,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | essay | timeless | greek islands, history, architecture | travel, ancient-history, architecture |
-| gemini-2.5-flash | 4 | curiosity | timeless | greek islands, island history, cycladic civilization | ancient-history, travel |
+| gemini-2.5-flash-lite | 7 | curiosity | timeless | ancient history, greek islands, port towns | travel, ancient-history, architecture |
+| gemini-2.5-flash | 7 | curiosity | timeless | greek islands, cycladic culture, port city, island history | travel, ancient-history |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 8
+- ben-kind: curiosity
+- ben-news: no
+- note: intersting but careful not to be all old greek stuff, this is only intersting to a small number
 
 ## 25. Filtrion
 
@@ -452,13 +452,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 2 | curiosity | timeless | odd history, lost technology |  |
-| gemini-2.5-flash | 2 | archive | timeless | product description, old technology |  |
+| gemini-2.5-flash-lite | 2 | curiosity | dated | odd history, lost technology |  |
+| gemini-2.5-flash | 7 | curiosity | timeless | lost technology, water treatment, small machines | machines, water |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 
+- ben-kind: 
+- ben-news: 
+- note: 
 
 ## 26. Darwin’s Polar Bear
 
@@ -470,13 +470,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | essay | timeless | odd history, natural history, evolution | nature, science |
-| gemini-2.5-flash | 9 | essay | timeless | evolution, natural history, scientific discovery, bears | natural-history, science, animals |
+| gemini-2.5-flash-lite | 8 | essay | timeless | odd history, natural history, evolution | natural-history, science |
+| gemini-2.5-flash | 9 | curiosity | timeless | evolution, natural history, scientific discovery, bears | natural-history, animals, science |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 8
+- ben-kind: essay
+- ben-news: no
+- note: 
 
 ## 27. Architecture of Serbia
 
@@ -488,13 +488,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | essay | timeless | cultural history, architectural history, european history | architecture |
-| gemini-2.5-flash | 7 | curiosity | timeless | architectural history, serbia, cultural heritage | architecture, ancient-history |
+| gemini-2.5-flash-lite | 8 | curiosity | timeless | architectural history, european styles, medieval art | architecture |
+| gemini-2.5-flash | 7 | curiosity | timeless | architectural history, cultural heritage, regional styles | architecture |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 8
+- ben-kind: curiosity
+- ben-news: no
+- note: 
 
 ## 28. x
 
@@ -506,13 +506,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 4 | curiosity | timeless | tiny tools, craftsmanship | jewelry, machines |
-| gemini-2.5-flash | 4 | archive | dated | tools, catalog, chicago | jewelry, chicago |
+| gemini-2.5-flash-lite | 4 | curiosity | timeless | odd tools, tiny crafts | jewelry, chicago |
+| gemini-2.5-flash | 7 | curiosity | timeless | lost technology, odd tools, chicago history | chicago, jewelry, machines |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 
+- ben-kind: 
+- ben-news: 
+- note: 
 
 ## 29. The Naturalist and the Neurologist: On Charles Darwin and James Crichton-Browne
 
@@ -524,13 +524,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 9 | essay | timeless | photography, evolution, science history, victorian era | medicine, science, photography |
-| gemini-2.5-flash | 9 | essay | timeless | odd history, science history, victorian, photography | photography, science, natural-history |
+| gemini-2.5-flash-lite | 9 | essay | timeless | photography, darwin, victorian science, mental health history | medicine, science, photography |
+| gemini-2.5-flash | 9 | essay | timeless | odd history, science history, victoriana, photography history | photography, science, books |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 9
+- ben-kind: essay
+- ben-news: no
+- note: 
 
 ## 30. AEGIS (astronomy)
 
@@ -543,12 +543,12 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 4 | curiosity | dated | astronomical survey, galaxy evolution | astronomy |
-| gemini-2.5-flash | 2 | curiosity | dated | astronomy, survey | astronomy |
+| gemini-2.5-flash | 4 | curiosity | timeless | astronomy, scientific survey | astronomy, science |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 8
+- ben-kind: curiosity
+- ben-news: no
+- note: i like space stuff, i dont know why this is rated so low.  i think short articles are even better
 
 ## 31. <>
 
@@ -560,13 +560,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 2 | essay | dated | surreal, stream of consciousness |  |
-| gemini-2.5-flash | 7 | essay | timeless | stream of consciousness, grief, americana |  |
+| gemini-2.5-flash-lite | 2 | essay | dated | stream of consciousness, fragmented narrative |  |
+| gemini-2.5-flash | 7 | archive | timeless | stream of consciousness, grief, americana |  |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 8
+- ben-kind: 
+- ben-news: no
+- note: these small one off narratives in the whole earth catalogue are great, definitely worth keeping in some form later on.  but the OCR isnt very good, it messes up too much.
 
 ## 32. The Poetry of Victorian Science
 
@@ -574,17 +574,17 @@ The models' answers are in each table. Don't edit those.
 - source: pdr · minutes: 10 · old score: 8
 - link: https://publicdomainreview.org/essay/the-poetry-of-victorian-science/ · /i/thAkpXylh6bCuw0WQr8mx
 
-> In a review published in The Examiner in December 1848, Charles Dickens heaps praise on the scientific study of natural phenomena. To show that Science, truly expounding nature, can, like nature herself, restore in some new form whatever she destroys; that, instead of binding us, as some would have
+> In a review published in The Examiner in December 1848, Charles Dickens heaps praise on the scientific study of natural phenomena. To show that Science, truly expounding nature, can, like nature herself, restore in some new form whatever she destroys; that, instead of binding us, as some would have 
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | essay | timeless | victorian science, poetry and science, history of science | literature, science |
-| gemini-2.5-flash | 8 | essay | timeless | victorian, science history, literature, interdisciplinary | literature, science |
+| gemini-2.5-flash-lite | 8 | essay | dated | victorian science, poetry and science, history of science communication | literature, science |
+| gemini-2.5-flash | 8 | essay | timeless | victorian science, literature, cultural history | literature, science |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 7
+- ben-kind: essay
+- ben-news: no
+- note: it seems like we are getting a lot of 19th century writing which makes sense given that it's public domain and stuff but let's not have toooo much of that.
 
 ## 33. Turkic mythology
 
@@ -596,13 +596,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | essay | timeless | asian mythology, shamanism, nomadic culture | mythology |
+| gemini-2.5-flash-lite | 8 | curiosity | timeless | asian mythology, shamanism, nomadic culture | mythology |
 | gemini-2.5-flash | 7 | curiosity | timeless | mythology, cultural history, ancient beliefs | mythology, ancient-history |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 9
+- ben-kind: curiosity
+- ben-news: no
+- note: 
 
 ## 34. Grassland used as a car park can easily degenerate into a quagmire.
 
@@ -614,13 +614,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 5 | curiosity | timeless | earthworks, gardening, unlikely solutions | landscapes |
-| gemini-2.5-flash | 4 | curiosity | dated | materials, engineering, british history | technology |
+| gemini-2.5-flash-lite | 6 | curiosity | timeless | earthworks, gardening | landscapes, nature |
+| gemini-2.5-flash | 7 | curiosity | timeless | lost technology, materials science, british history | technology, industrial |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 
+- ben-kind: 
+- ben-news: 
+- note: 
 
 ## 35. Wild Heart Turning White: Georg Trakl and Cocaine
 
@@ -632,13 +632,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 9 | essay | dated | poetry, ww1, drugs, austria | literature, medicine |
-| gemini-2.5-flash | 8 | essay | timeless | poetry, drugs, wwi, literary history | literature, medicine |
+| gemini-2.5-flash-lite | 9 | essay | dated | poetry, drugs, first world war | literature, medicine |
+| gemini-2.5-flash | 8 | essay | timeless | literary biography, drug history, wwi, poetry | literature, medicine |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 10
+- ben-kind: essay
+- ben-news: no
+- note: 
 
 ## 36. Warner Textile Archive
 
@@ -650,13 +650,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | curiosity | timeless | textile history, design archive, industrial heritage | textiles, industrial-design, architecture |
-| gemini-2.5-flash | 4 | curiosity | timeless | textile history, design archive | textiles |
+| gemini-2.5-flash-lite | 7 | curiosity | timeless | textile history, design archive, industrial heritage | textiles, london |
+| gemini-2.5-flash | 7 | curiosity | timeless | textile history, design archive, british craft | textiles, architecture |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 7
+- ben-kind: curiosity
+- ben-news: no
+- note: 
 
 ## 37. regions of Chinese technological history and
 
@@ -668,13 +668,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 8 | essay | timeless | history of science, mechanical engineering, ancient technology, china | machines, science, ancient-history |
-| gemini-2.5-flash | 7 | curiosity | timeless | odd history, lost technology, ancient china | ancient-history, technology, machines |
+| gemini-2.5-flash-lite | 8 | essay | timeless | history of science, mechanical engineering, ancient technology | science, technology, japan |
+| gemini-2.5-flash | 7 | curiosity | timeless | odd history, lost technology, ancient china, mechanical marvels | ancient-history, technology, machines |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 
+- ben-kind: 
+- ben-news: 
+- note: 
 
 ## 38. The Myth of Blubber Town, an Arctic Metropolis
 
@@ -682,17 +682,17 @@ The models' answers are in each table. Don't edit those.
 - source: pdr · minutes: 11 · old score: 8
 - link: https://publicdomainreview.org/essay/the-myth-of-blubber-town-an-arctic-metropolis/ · /i/_iSWTX3NP0f89sQia389J
 
-> Perched on a desolate island in the Norwegian archipelago of Svalbard — 1,500 kilometers north of the Arctic Circle — sits the settlement of Smeerenburg. Founded by Dutch whalers in 1619, Smeerenburg — literally “Blubber Town” — was once the busiest polar site for rendering oil from blubber. As new
+> Perched on a desolate island in the Norwegian archipelago of Svalbard — 1,500 kilometers north of the Arctic Circle — sits the settlement of Smeerenburg. Founded by Dutch whalers in 1619, Smeerenburg — literally “Blubber Town” — was once the busiest polar site for rendering oil from blubber. As new 
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 9 | essay | timeless | odd history, arctic, legend | natural-history, travel, books |
-| gemini-2.5-flash | 9 | curiosity | timeless | odd history, arctic, mythmaking, whaling | ancient-history, the-ocean |
+| gemini-2.5-flash | 9 | curiosity | timeless | odd history, arctic exploration, folklore, whaling | the-ocean, natural-history |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 9
+- ben-kind: essay
+- ben-news: no
+- note: 
 
 ## 39. Spikelet
 
@@ -704,13 +704,13 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 4 | curiosity | timeless | plant morphology, grasses | botany |
-| gemini-2.5-flash | 3 | curiosity | timeless | plant anatomy, grasses | botany, plants |
+| gemini-2.5-flash-lite | 7 | curiosity | timeless | plant morphology, botany | plants |
+| gemini-2.5-flash | 7 | curiosity | timeless | plant anatomy, botany, obscure facts | plants, botany |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 8
+- ben-kind: curiosity
+- ben-news: no
+- note: i really like these small little facts about specific, sort of obscure stuff.  they can be like a little puzzle pieces, shards of the world that we can assemble to make a picture.
 
 ## 40. DESCRIPTION
 
@@ -722,10 +722,10 @@ The models' answers are in each table. Don't edit those.
 
 | model | score | kind | timeliness | tags | topics |
 | --- | --- | --- | --- | --- | --- |
-| gemini-2.5-flash-lite | 7 | curiosity | timeless | lost technology, odd history | machines, industrial-design |
-| gemini-2.5-flash | 7 | archive | timeless | odd technology, cold war, naval history | technology, machines |
+| gemini-2.5-flash-lite | 7 | curiosity | timeless | lost technology, odd history | machines, technology |
+| gemini-2.5-flash | 8 | curiosity | timeless | lost technology, odd materials, cold war tech | technology, industrial |
 
-- ben-score:
-- ben-kind:
-- ben-news:
-- note:
+- ben-score: 
+- ben-kind: 
+- ben-news: 
+- note: 

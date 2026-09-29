@@ -34,6 +34,25 @@ export function isWritingKind(value: unknown): value is WritingKind {
   );
 }
 
+/**
+ * Sources whose kind is a fact about the source, not a judgment about the piece: the curator's own
+ * answer is overridden. **Wikipedia is always `curiosity`** — Ben marked all thirteen calibration
+ * entries so (09-29-26), and flash-lite called the long ones `essay`, because an encyclopedia
+ * entry of 20 minutes reads like a long read to a model that is told long reads are essays. A
+ * prompt rule to fix it was tried on 09-28-26 and cost score agreement; this costs nothing.
+ */
+export const SOURCE_KINDS: Readonly<Record<string, WritingKind>> = {
+  wikipedia: "curiosity",
+};
+
+/** The kind a writing item is stored with: its source's fixed kind, else the curator's answer. */
+export function kindFor(
+  source: string,
+  curatorKind: WritingKind | null,
+): WritingKind | null {
+  return SOURCE_KINDS[source] ?? curatorKind;
+}
+
 /** A steady adult reading pace for prose. The number only has to be consistent: a badge that
  *  says 12 MIN is a comparison between pieces, not a promise. */
 export const READING_WPM = 230;

@@ -23,6 +23,7 @@ import {
   readingMinutes,
   type WritingKind,
   writingText,
+  kindFor,
 } from "~/server/config/writing";
 import { imageFetchHeaders } from "./image-auth";
 import { USER_AGENT } from "./sources/http";
@@ -165,7 +166,7 @@ export const CLASSIFY_PROMPT = classifyPrompt(TOPICS);
 
 /** Bump when WRITING_PROMPT changes. Part of the writing cache key only — the image prompt's
  *  PROMPT_VERSION and its keys are untouched by anything the writing curator does. */
-export const WRITING_PROMPT_VERSION = 1;
+export const WRITING_PROMPT_VERSION = 2;
 
 /**
  * The writing curator's rubric (docs/DESIGN_writing.md D1) — a product artifact like
@@ -182,12 +183,12 @@ export const WRITING_PROMPT_VERSION = 1;
 export const WRITING_PROMPT = `You are the editor of a beloved newsletter of long reads and curiosities — the kind people stay subscribed to for years because every piece in it was worth their evening. You read everything: encyclopedia articles, essays, criticism, profiles, poems, old magazine clippings, archival documents. Your taste: writing with a spark of "huh, I never knew that", a voice worth listening to, and staying power — a piece someone could read in five years and still be glad they did. Longform contemporary journalism from a reputable outlet is welcome when it has that staying power. You never run anything sensational, gory, or engagement-baity. And you are not a news service: a piece whose reason to exist is a recent event is news, however well written.
 
 Rate the following piece for your newsletter on a 1-10 scale:
-  1-3  = filler; you would not read past the first paragraph (stubs, bare definitions, lists of facts with no thread, dry reference entries, garbled text)
+  1-3  = filler; you would not read past the first paragraph (lists of facts with no thread, boilerplate, garbled text)
   4-6  = fine but forgettable; run it only on a slow week
   7-8  = good; your readers would be glad to find it
   9-10 = exceptional; the kind of piece your newsletter is known for
 
-Judge the writing and the idea, not the length: a short piece with a real spark can outscore a long dutiful one.
+Judge the writing and the idea, not the length: a short piece with a real spark can outscore a long dutiful one. Your readers especially love small, specific facts about obscure things — a single odd instrument, a plant part, a forgotten institution, a place they have never heard of. A short encyclopedia entry about something like that is a puzzle piece, a shard of the world, and scores 7-8 on its subject alone; being brief is never a reason to mark it down.
 
 Say what kind of piece it is — exactly one of:
   "essay" — an essay or long read: an argument, a narrative, reporting with a point of view
@@ -977,7 +978,7 @@ export async function curateItems(
             curationScore: w.score,
             aestheticTags: w.tags,
             topics: w.topics,
-            kind: w.kind,
+            kind: kindFor(item.source, w.kind),
             timeliness: w.timeliness,
             readingMinutes: readingMinutes(item.body),
           };

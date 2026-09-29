@@ -213,7 +213,7 @@ describe("curateItems dispatches by type", () => {
 
   it("sends an article to the writing curator, which always classifies — in the search lane too", async () => {
     const [out] = await curateItems(
-      [makeItem({ sourceId: `w-${Date.now()}`, body })],
+      [makeItem({ source: "pdr", sourceId: `w-${Date.now()}`, body })],
       { force: true, topics: vocab },
     );
     expect(bodies).toHaveLength(1);
@@ -226,6 +226,14 @@ describe("curateItems dispatches by type", () => {
       topics: ["botany"],
       readingMinutes: 2,
     });
+  });
+
+  it("stores a Wikipedia piece as a curiosity whatever kind the model names (SOURCE_KINDS)", async () => {
+    const [out] = await curateItems(
+      [makeItem({ sourceId: `wk-${Date.now()}`, body })],
+      { force: true, topics: vocab },
+    );
+    expect(out).toMatchObject({ kind: "curiosity", curationScore: 9 });
   });
 
   it("sends the body, its length, and no apparatus — and never an image", async () => {
@@ -307,6 +315,7 @@ describe("curateItems reads a cached writing answer with no LLM call", () => {
 
   it("returns the cached verdict, reports the hit, and drops a topic no longer offered", async () => {
     const it0 = makeItem({
+      source: "pdr",
       sourceId: `wcache-${Date.now()}`,
       body: "x ".repeat(300),
     });
