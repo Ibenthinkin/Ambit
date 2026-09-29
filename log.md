@@ -5,6 +5,268 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-29-26 Tue]] — Writing calibration agrees: prompt v2
+
+**Findings:** Ben finished marking (34 of 40; the six blanks are Loupe). Split by source, which
+the report doesn't do, flash-lite v1 held on PDR (MAE 0.46) but slipped on Wikipedia, from 0.67
+at 20 marks to 1.23. The two biggest misses were the two shortest entries. AEGIS (1 min) and
+Spikelet (3 min) both scored 4 against Ben's 8. Ben's notes: "short articles are even better",
+"puzzle pieces, shards of the world". v1's 1-3 band named "stubs, bare definitions, dry
+reference entries" as filler, and that is the whole cause. Ben marked all 13 Wikipedia pieces
+`curiosity`, and flash-lite called the long ones `essay`.
+
+**Shipped (`274d744`):** `WRITING_PROMPT_VERSION = 2`. Short, obscure entries are out of the
+filler band and score 7-8 on subject alone. **Wikipedia's kind is now a source fact, not a
+judgment** (`SOURCE_KINDS` / `kindFor` in `config/writing.ts`). A prompt rule was the other way
+to fix kind, and it cost score agreement on 09-28. On Wikipedia + PDR, MAE went 0.85 → 0.69,
+Spearman 0.46 → 0.54, and kind 13/19 → 19/20. Spikelet went 4 → 7; AEGIS, a one-minute stub,
+stays at 4. Wikipedia's Spearman sits near 0 because Ben's marks span only 6-9, so MAE is the
+signal there. Loupe got worse (2.63) and the re-score skips it. **Ben: "looks good for now"**,
+so this is the agreement the re-score was gated on.
+
+**Open / next:** merge `feat/writing` to `main` and deploy. Migration 0010 collides with the
+onboarding plan's 0010, so whichever merges second regenerates it. Then, on production:
+`backfill-wiki-prod.sh` → `recurate-writing-prod.sh push|dry|confirm`. Then Phase 3's gate
+question for Ben. Locally, nothing has a `kind` yet (`recurate:writing` has not run here), and
+writing only shows at `/i/<id>` until Phases 3-4.
+
+*Session spend: 5.80M tok (in 120 · out 29.8k · cache r 5.56M / w 205.8k) · ~≥$0.71 · opus-5-5 + opus-4-7 · 09:26→09:49*
+
+### [[09-28-26 Mon]] — Writing becomes a first-class part of the feed (designed, not built)
+
+**Checked first:** the Door of Perception production walk Ben ran at the end of 09-27 landed.
+The walk exited 0 at 01:58 UTC with 9,832 inserted, and curation took 7.5 min, all cache hits,
+so it was free. The warm exited 0 at 04:44 UTC: 9,817 filled, 405 already cached, 0 failures.
+The VM disk is at 66%. `~/dop-prod.log` on the VM and `/app/.cache/dop-{walk,warm}.log` in the
+container are the witnesses. Ben looked at the magazine view: "pretty good for now, tweaks later."
+
+**Ben:** "i literally never see wikipedia articles anymore." **Findings:**
+- **Share.** Articles are ~3.5k of ~208k production items (1.7%). A 240-card local probe drew 4 Wikipedia cards.
+- **Scoring.** The image-taste `CURATOR_PROMPT` scores Wikipedia at 5.2 on average against
+  7.5–8.7 for every image source, and a third of it at exactly the floor, 4. `drawWeight` gives
+  that weight 1 against 15 for a 9.
+- **Sourcing.** The seed queries are one generic word per original topic, which returns
+  definition pages. Grown topics have no Wikipedia queries at all.
+- **Bug.** **Production's 3,191 Wikipedia rows have 0 bodies.** Ingest never calls `fetchBody`,
+  and the backfill script only ever ran locally (2,169/2,170 there), so on the live site a
+  tapped Wikipedia card is one paragraph.
+
+**Decisions (by interview):** the design is `docs/DESIGN_writing.md` (D1–D8), the plan
+`docs/PLAN_writing.md`, in five phases in this order:
+1. A separate writing curator. Ben calibrates it on ~40 pieces before any re-score. It returns a
+   kind (essay / curiosity / criticism & profile / poem & archive), a reading time, topics, and
+   a `timeliness` verdict, and `news` is dropped. News-free by taste: longform contemporary
+   journalism is fine; the 24-hour cycle is not.
+2. Wikipedia: bodies at ingest plus a production backfill; list sourcing (Unusual articles,
+   DYK, Featured/Good); and a Ben-editable reading-phrases file replacing `seedQueries.wikipedia`.
+3. About 1 in 8 feed cards is writing, through dedicated writing slots with their own pools.
+   The pool weights can't do it, because articles are ~2% of memberships.
+4. A picture-led card with a `KIND · N MIN` badge; the text card keeps the same label.
+5. Contemporary publications (Aeon, Psyche, Atlas Obscura, JSTOR Daily, Longreads, Marginalian,
+   Hyperallergic, Paris Review, Noema) as **link cards**. Aeon's CC BY-ND is deliberately not
+   used. It needs an RSS/Atom factory and `NormalizedItem.curationText` (additive; record it in
+   Ambit-Admin before building).
+
+**Filed for later (D8):** the text reading experience, including reading in the desktop magazine
+mode.
+
+**Open / next:** execute Phase 1 cold on `feat/writing`. The calibration file is the gate before
+any re-score. Ben's two raw Tumblr notes in `source-candidates.md` stay uncommitted; blogs are
+paused.
+
+*Session spend: 9.31M tok (in 160 · out 80.7k · cache r 8.93M / w 305.2k) · opus-5-5 · 13:20→14:33*
+
+**Reviewed the same afternoon (Fable), against the code, before executing.** Four parallel
+read-only sweeps checked every code-facing claim in the plan (curator/ingest, Wikipedia/config,
+feed engine, UI/schema). **The shape holds** — phase order, the calibration gate, backfill
+before re-score, Phase 3 gated on the lists having run. What a cold executor would have tripped
+on, now corrected in `PLAN_writing.md`:
+
+- **The plan was written partly from memory.** `PROMPT_VERSION` not `CURATOR_PROMPT_VERSION`;
+  the cache key is sha256'd by `curationCacheKey`; `seed_queries` is a JSONB column on `topic`,
+  not a table; the only-where-NULL pattern is `promote-topics.ts:161`, not `repair:rehome`;
+  `curationText` was used in Phase 1 but created in Phase 5 (now `body ?? summary` — and today's
+  curator never reads `body` at all, so the writing path is the first that does).
+- **Taking `wikipedia` out of `V1_SOURCES` is a type change, not a config edit**: `SeedQueries`
+  is `Record<V1Source, …>`, `adapters` is `Record<SearchSourceId, …>`, and `topics.test.ts` pins
+  both. Wikipedia stays in `SourceId`/`adapters` and gets a second query source.
+- **Writing slots need output positions**: `composePage` has no slot indices — cards append as
+  draws succeed. Positions are indices into the composed array; and `pageSize` is a knob, not 12.
+- **Three things already exist and must be reused, not rewritten**: `APPARATUS` in
+  `lib/reader-blocks.ts` (the section stripper `readingMinutes` needs), the client-side
+  `PageStats` split (where the writing readout goes; `FeedPage.debug` carries no split), and
+  `LinkOutRow` — rendered only in the *image* branch; `ReaderItemBody` has its own inline link,
+  which Phase 4 replaces rather than doubles.
+- **Dropped the partial index** (`idx_item_type` and `idx_item_unhomed_score` already cover it).
+- **Wikipedia specifics**: `Wikipedia:Unusual articles` is a hub of subpages (walk them with
+  `gplnamespace=0`); `.svg.png` must be `includes`, not `endsWith` (thumbnails carry `?utm_…`);
+  `wikipedia.ts:218`'s comment claims ingest calls `fetchBody` — it never has.
+- **Decided: the phrases file is `src/server/config/reading-phrases.ts`**, a typed module like
+  `blogs.ts`, not a `.txt` with a parser — topic ids checked as a type, nothing to parse.
+
+**One fact the plan leans on, now stated in the design:** every blog walker is `type: "image"`
+(invariant-tested), so "writing ≡ `type = 'article'`" reaches Wikipedia, PDR's essays, Loupe's
+clippings and PoetryDB — never a link card. The corollary is a switch Phase 3 now names: with
+share > 0 the ordinary pools become image-only, so PDR essays and Loupe clippings are reachable
+only through the writing slots, and `/explore` shows writing to strangers.
+
+**Found in passing, pre-existing:** `link-out-row.tsx:37-40` joins its class string without
+spaces (`transition-transformduration-150`); fix rides with Phase 4.
+
+**Ben decided the two Phase 1 gates the same afternoon:** the 400-char `thin-text` floor stands
+(no poetry exemption), and `timeliness` is not stored. The other two (Good-articles draw cost,
+the pool switch) wait for Phases 2 and 3.
+
+**Open / next:** Phase 1 cold in a new session, from `PLAN_writing.md` as committed. The
+calibration file is the gate before any re-score. `88f62e0` (onboarding-interview design) is on this
+branch and unrelated.
+
+*Session spend: 6.53M tok (in 1.2k · out 205.3k · cache r 5.93M / w 389.3k) · fable-5-1 · 15:03→15:15*
+
+**Second session the same day (Fable) — onboarding v2 designed and planned, not built.**
+Ben: the umbrella groups are "very bad — mostly way too vague, and include things together that
+logically should not be"; onboarding should be "something special, but most of all good" — pick
+from a list, or be asked meaningful questions about aesthetic preferences ("this image or this
+one? do you like fashion? engineering? images that challenge you?"), and end on a list of
+topics/styles/vibes Ambit will start with, every one switchable off or reweighted.
+
+**Decisions (by interview, nine in `docs/DESIGN_onboarding-interview.md`):** hand-authored, **no
+LLM in v1** (an LLM back-and-forth is wanted later as another door, hence the answer log); the
+interview *refines* whatever was picked from the list — seeds weights, splits near neighbours
+(Star Wars vs Star Trek, "very different fandoms"), offers adjacent topics — and turns things
+**on**, never off; everyone gets ≤ 10 adaptive questions with a visible exit; three
+reader-facing levels (_a little · some · a lot_ = 0.5 / 1.0 / 2.0, bands at 0.75 and 1.5) over
+the real weight, which retires the topics router's "a picker must never read a weight" stance;
+**off = the row removed**, so drift can still bring it, and "never show me this" is a later hard
+exclusion; the list is two-level (a group shows its members) and **re-cut from 34 groups to 75**
+(36 Subject · 19 Medium · 14 Look · 6 Place) — drafted in the design for Ben's verdict; a whole
+group writes members at "some", a single member at "a lot", and the 09-25 flat-weight follow-up
+(divide by group size) is closed by that decision, not by division; answers are logged
+(`interview_answer`, never demographics); faces are hand-picked by `(source, sourceId)` else
+the corpus, with `/dev/faces` to override; a pair offers *either* and *neither*.
+
+**Findings that shaped the plans:** `topic-graph.json` is 1.8 MB, so it never ships —
+`topics.list` will carry five faceted neighbours per topic instead; on CI's sixteen-topic
+database every group is a singleton and only seven of the 28 drafted bank questions are askable
+cold (so a pair with an empty side is ruled unaskable, and the bank test asserts ≥ 5); the e2e
+corpus seeder writes no image dimensions, so faces *prefer* measured pictures rather than
+require them; `imageSrc` needs the URL, so a face is `{ id, imageUrl }`.
+
+**Open / next:** Ben reviews `docs/PLAN_onboarding-foundation.md` (11 tasks) and
+`docs/PLAN_onboarding-interview.md` (10 tasks; assumes plan 1 merged); his verdict on the
+cut's grain (Animals / Birds / Insects split, Plants / Fungi, Weather / Light & night) and the
+bank copy is an edit of the design's tables, which the plans copy verbatim; then execute plan 1
+cold in a cheaper session on `feat/onboarding-foundation`. BUILD_PLAN 8.4 is this, reshaped.
+**Branch note:** this session's three commits landed on `feat/writing` — the writing session
+had moved the checkout there before the first one — so the design and both plans were
+cherry-picked onto `main` (`9faa0af`, `e3c8e1c`, not pushed) through a throwaway worktree; this
+log entry lives on `feat/writing` and reaches `main` with it. Check the branch before every commit.
+
+*Session spend: 16.28M tok (in 2.2k · out 272.7k · cache r 15.38M / w 632.9k) · fable-5-1 · 13:54→15:18*
+
+**Third session the same day (Opus 5.5) — writing Phase 1 built on `feat/writing`, not merged,
+not deployed.** Articles (`type = 'article'`) now go to a second curator, `WRITING_PROMPT`, which
+reads the body (apparatus stripped by the reader's own `parseReaderBlocks`, first 8,000 chars),
+never fetches an image, always classifies, and answers with a kind and a `timeliness`.
+`CURATOR_PROMPT` and both image cache-key namespaces are untouched (two keys pinned); the
+OpenRouter call is one shared `callCurator` now. Ingest runs a `thin-text` floor (under 400
+characters of prose) after the structural one, passes the vocabulary to the search lane too, gives
+a search-lane article its seed membership plus the curator's, and drops `news` with a per-source
+count. Migration 0010 adds `item.kind` and `item.reading_minutes`. New: `bun run recurate:writing`
+(dry run unless `--confirm`; news demoted to 1, memberships additive, display topic only where
+NULL; `.cache/recurate-writing-prod.sh push|dry|confirm` for production) and
+`bun run writing:calibrate` (`--sample 40` / `--read`).
+
+**Findings:**
+- **The calibration file is written**: `docs/writing-calibration.md`, 40 pieces (14 Loupe / 13
+  PDR / 13 Wikipedia, sources taking turns and bands within them), each scored by flash-lite and
+  flash. **Flash-lite never names `criticism` or `archive`** (23 essay / 17 curiosity); flash uses
+  all four (25 curiosity / 10 essay / 3 archive / 2 criticism) and scores lower (6.30 vs 6.97).
+  Neither called anything news. That's the model question for Ben's marks to settle.
+- A 6-row Wikipedia dry run moved 5.83 → 7.00 under the new rubric.
+- **The final review caught `scripts/recurate.ts`**: it selected every row of a source, so after
+  the dispatch it would have re-billed articles through the writing curator with the
+  sixteen-topic default and written only the score. It's images-only now.
+
+**Decisions:** migration 0010 is taken here, and `PLAN_onboarding-interview.md` also claims 0010,
+so whichever merges second regenerates. Nine review minors are deferred; the one Phase 2 must
+honour is that `upsertItem`'s conflict update refreshes `body` but not `reading_minutes`, so the
+body backfill has to write both.
+
+**Open / next:** Ben marks `docs/writing-calibration.md` (`ben-score / ben-kind / ben-news /
+note`), then `bun run writing:calibrate --read`. Iterate the prompt (bump
+`WRITING_PROMPT_VERSION`, re-sample with the same seed, marks carry over) until it agrees, and pick
+the model. **Don't deploy `feat/writing` before Phase 2's `fetchBody` at ingest**, and don't run
+`recurate:writing` before the calibration agrees. Phase 2 (Wikipedia) can be built meanwhile.
+
+*Session spend: 43.24M tok (in 596 · out 243.3k · cache r 41.83M / w 1.16M) · ~≥$7.43 · opus-5-5 + opus-4-7 · 15:24→15:47*
+
+**Fourth session the same day (Opus 5.5, continued) — writing Phase 2 (Wikipedia) built on
+`feat/writing`, not merged, not deployed.** Ben is marking the calibration sheet tonight or
+tomorrow morning.
+- **Bodies at ingest** (`sources/enrich.ts`): new Wikipedia survivors get their full text
+  between the structural floor and the writing floor. That closes the "0 of 3,191 production
+  bodies" bug. A fetch that *throws* drops the item for the night and warns, so tomorrow retries
+  it free. Kept, it would have been stored bodiless for good. A page with no extract is kept.
+- **Backfill** (`backfill-wikipedia-bodies.ts --only-missing`, id order, `--offset`) now also
+  writes `reading_minutes`; `.cache/backfill-wiki-prod.sh` runs it on production.
+- **Wikipedia's reading lists** (`sources/wikipedia-lists.ts`, `search("list:<name>")`). All four
+  were probed live before building:
+  - `list:unusual` reads each topical subpage's bolded row entries. The first cut used
+    `generator=links` and drew 7,369 candidates, "Cuba" and "Scottish cuisine" among them.
+  - `list:dyk` takes one day-seeded month of `Wikipedia:Did you know archive/YYYY/Month`, 2004
+    onward, and keeps the hook as the card's summary.
+  - `list:featured` / `list:good` each take one 500-page call from a day-seeded two-letter
+    sort-key start. The plan's "md5-order all 45k Good articles" would be ~90 calls a night.
+    This was the plan's open "decide before Phase 2" question, ruled on the probe.
+- **`config/reading-phrases.ts`** replaces the sixteen one-word `wikipedia` seed cells, and
+  `wikipedia` left `V1_SOURCES`. Tied phrases are claims for their topic; untied phrases and the
+  lists take the walk items' path. `db:seed` now counts a key the config dropped as a change,
+  since otherwise production would have kept the old cells forever.
+- **A local dry run of the whole lane at `--quota 3`**: 144 bodies fetched, 2 floored as
+  thin text, 1 dropped as news, 141 would be inserted.
+
+**The review (fresh reviewer, verified against the live API)** found three things, all fixed with
+a test that failed first:
+- DYK templates garbled 3–7% of hooks into stored summaries like "lost due to". Hooks now expand
+  the templates they actually use, and a hook with any other template falls back to the lede.
+- MediaWiki answers errors with HTTP 200, which the list reads took as empty lists. A
+  rate-limited night looked idle; it now throws and counts as an error.
+- The thrown-body-fetch case above.
+
+Seven minors are deferred; the costliest is ~2% of Unusual entries sitting in attribute-prefixed
+cells the parser misses.
+
+**Open / next:** Ben marks `docs/writing-calibration.md` → `writing:calibrate --read` → iterate
+the prompt, pick the model. Ben edits `config/reading-phrases.ts` whenever he likes. Once
+deployed: backfill → calibration agrees → re-score, in that order (CLAUDE.md). Phase 3 (the
+1-in-8 feed share) has its gate: confirm PDR essays and Loupe clippings become reachable only
+through writing slots, and that `/explore` shows writing to strangers.
+
+*Session spend: 74.99M tok (in 650 · out 301.8k · cache r 72.54M / w 2.15M) · ~≥$9.57 · opus-5-5 + opus-4-7 + <synthetic> · 15:47→18:55*
+
+**Calibration, first read (same session).** Ben marked 20 of 40. flash-lite agrees best (MAE 0.90
+vs flash's 1.45, Spearman 0.64 vs 0.63), because flash under-scores Wikipedia he likes. flash-lite's
+worst misses are Loupe OCR fragments scored too high, and Ben's note says to exclude the archive
+entries for now. **Next:** Ben marks the remaining Wikipedia and PDR pieces; exclude Loupe from the
+re-score; add a "fragment / no context → 1–3" rule and bump `WRITING_PROMPT_VERSION`; re-sample and
+re-read. Everything else is in `docs/HANDOFF_writing.md`.
+
+*Session spend: 6.73M tok (in 81 · out 42.7k · cache r 5.41M / w 1.27M) · ~≥$2.08 · opus-5-5 + opus-4-7 · 18:55→20:18*
+
+**The fragment rule, tried and dropped (evening).** Split by source, flash-lite v1 already sits
+close to Ben where the re-score lands: **Wikipedia MAE 0.67, PDR 0.29**. The 0.90 overall is
+Loupe (1.71). "A fragment scores 1-3" left Wikipedia alone, nudged PDR to 0.14, and made Loupe
+worse (2.14), because it took #13 (a short Whole Earth clipping Ben scored 8, "short and surreal,
+don't need context") down to 2. The follow-up "an encyclopedia entry is never an essay" fixed one
+Wikipedia kind and cost a score (#9, 7 → 5). At six marks a source that is noise, so the prompt
+stays at v1 until the other 13 are marked. What shipped instead (`dcd3c27`): a bare
+`recurate:writing` skips Loupe, and `writing:calibrate --rescore` re-scores exactly the file's
+pieces, so the marks can't drift between runs. **Open:** kind. flash-lite calls most Wikipedia
+curiosities `essay`, and the `Source: wikipedia` input line is the untried lever.
+
+*Session spend: 5.89M tok (in 106 · out 40.3k · cache r 5.63M / w 217.0k) · opus-5-5 · 20:21→20:27*
+
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It

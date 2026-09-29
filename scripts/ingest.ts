@@ -82,8 +82,16 @@ import {
   curateItems,
   CuratorAbortError,
   MAX_TOPICS,
+  splitNews,
   structuralFloor,
+  writingFloor,
 } from "~/server/services/curator";
+import { READING_PHRASES } from "~/server/config/reading-phrases";
+import {
+  mergeUnseeded,
+  planReadingQueries,
+} from "~/server/services/reading-plan";
+import { enrichBodies } from "~/server/services/sources/enrich";
 import { runWalk, type WalkRunStats } from "~/server/services/walk-run";
 import { blogConfig } from "~/server/config/blogs";
 import { isSuspendedSource } from "~/server/config/suspended-sources";
@@ -157,6 +165,9 @@ interface SourceRunStats {
   offered: number; // raw hits successfully normalized into a Claim
   errors: number; // failed search() calls or toItem() throws — never folded into "offered: 0"
   claims: Claim[];
+  /** Wikipedia only (docs/PLAN_writing.md Phase 2 §4): hits of untied phrases and `list:` draws —
+   *  items with no seed topic, written on the walk items' path. */
+  unseeded?: NormalizedItem[];
 }
 
 /**
@@ -180,6 +191,51 @@ async function processSource(
     errors: 0,
     claims: [],
   };
+
+  // Wikipedia asks from config/reading-phrases.ts, not from seed cells (09-28-26): tied phrases
+  // are claims for their topic, exactly like a cell's query; untied phrases and `list:` draws
+  // come back as `unseeded` items for the walk path. `known` is every classifiable topic in the
+  // database, so a phrase tied to a topic this database lacks (CI seeds sixteen) is skipped.
+  if (sourceId === "wikipedia") {
+    const plan = planReadingQueries(
+      READING_PHRASES,
+      topicFlag ?? null,
+      perCellQuota,
+      new Set(topics.filter(isClassifiable).map((t) => t.id)),
+    );
+    stats.unseeded = [];
+    const run = async (
+      query: string,
+      limit: number,
+      onItem: (item: NormalizedItem, rank: number) => void,
+    ) => {
+      stats.searched++;
+      try {
+        const raws = await adapter.search(query, { limit });
+        raws.forEach((raw, rank) => {
+          try {
+            onItem(adapter.toItem(raw), rank);
+            stats.offered++;
+          } catch (err) {
+            stats.errors++;
+            console.warn(
+              `  wikipedia "${query}": toItem failed — ${String(err)}`,
+            );
+          }
+        });
+      } catch (err) {
+        stats.errors++;
+        console.warn(`  wikipedia "${query}": search FAILED — ${String(err)}`);
+      }
+    };
+    for (const q of plan.tied)
+      await run(q.query, q.limit, (item, rank) =>
+        stats.claims.push({ topicId: q.topicId, rank, item }),
+      );
+    for (const q of plan.untied)
+      await run(q.query, q.limit, (item) => stats.unseeded!.push(item));
+    return stats;
+  }
 
   for (const t of topics) {
     try {
@@ -374,11 +430,13 @@ async function main() {
 
   const statsBySource = new Map<SourceId, SourceRunStats>();
   const allClaims: Claim[] = [];
+  const unseeded: NormalizedItem[] = [];
   for (const [i, result] of searchResults.entries()) {
     const sourceId = searchIds[i]!;
     if (result.status === "fulfilled") {
       statsBySource.set(sourceId, result.value);
       allClaims.push(...result.value.claims);
+      unseeded.push(...(result.value.unseeded ?? []));
     } else {
       console.warn(
         `  ${sourceId}: SOURCE FAILED ENTIRELY — ${String(result.reason)}`,
@@ -435,10 +493,23 @@ async function main() {
   const alreadyInDb = winners.length - newWinners.length;
   // Walk items bypassed collision resolution (nothing to collide on) but share the skip: a
   // re-crawled post already in the DB costs nothing, exactly like a re-found museum object.
-  const newWalkItems = walkItems.filter(
+  // Untied reading phrases and Wikipedia's lists (docs/PLAN_writing.md Phase 2 §4) have no seed
+  // topic, so they take the walk items' write path — display topic = the curator's first home,
+  // memberships at origin `curator`, possibly un-homed. First, minus any page a tied phrase
+  // already won as a claim, and minus repeats (a page on two lists).
+  const unseededItems = mergeUnseeded(
+    unseeded,
+    new Set(winners.map((w) => `${w.item.source}:${w.item.sourceId}`)),
+  );
+  if (unseeded.length > 0)
+    console.log(
+      `wikipedia untied phrases + lists: ${unseeded.length} hit(s), ${unseededItems.length} after dedupe against claims\n`,
+    );
+  const pathless = [...walkItems, ...unseededItems];
+  const newWalkItems = pathless.filter(
     (it) => !existingKeys.has(`${it.source}:${it.sourceId}`),
   );
-  const alreadyInDbWalk = walkItems.length - newWalkItems.length;
+  const alreadyInDbWalk = pathless.length - newWalkItems.length;
 
   // Step 4: structural floor. structuralFloor() only sees NormalizedItems, so a lookup map keyed
   // on (source, sourceId) — the same key the DB's UNIQUE constraint uses — is how each surviving
@@ -448,10 +519,17 @@ async function main() {
   );
   // Both lanes are floored together so dup-title is batch-wide, then split back apart: a walk
   // item is exactly one that no winner claimed.
-  const { kept, dropped } = structuralFloor([
+  const { kept: keptStructural, dropped } = structuralFloor([
     ...newWinners.map((w) => w.item),
     ...newWalkItems,
   ]);
+  // Then article bodies (docs/PLAN_writing.md Phase 2): one request per new Wikipedia survivor —
+  // the fetch ingest never made before 09-28-26 — so the writing floor and the curator read the
+  // article, not its lede. Only rows that are new and cleared the structural floor pay for it.
+  const bodies = await enrichBodies(keptStructural);
+  // Then the writing floor (docs/PLAN_writing.md Phase 1): an article with under 400 characters
+  // of prose has nothing to read, and dropping it here means it is never billed.
+  const { kept, dropped: thinText } = writingFloor(bodies.items);
   const keptSearch = kept.filter((it) =>
     winnerByKey.has(`${it.source}:${it.sourceId}`),
   );
@@ -499,18 +577,29 @@ async function main() {
     aestheticTags: [],
     topics: [],
   });
-  const curatedSearch: CuratedItem[] = skipLlm
+  // The search lane passes the vocabulary too: its images ignore it (no classify), but its
+  // articles go to the writing curator, which always classifies (docs/DESIGN_writing.md D1).
+  const curatedSearchAll: CuratedItem[] = skipLlm
     ? keptSearch.map(neutral)
-    : await curateItems(keptSearch, curateOpts);
+    : await curateItems(keptSearch, {
+        ...curateOpts,
+        topics: classifyVocabulary,
+      });
   // Walk items get the classify mode. Under --skip-llm they cannot be classified at all, so the
   // walk lane writes nothing: a structural check of the walk, nothing more — see the write loop.
-  const curatedWalk: CuratedItem[] = skipLlm
+  const curatedWalkAll: CuratedItem[] = skipLlm
     ? keptWalk.map(neutral)
     : await curateItems(keptWalk, {
         ...curateOpts,
         classify: true,
         topics: classifyVocabulary,
       });
+  // News-free (D1): a piece the writing curator called `news` is not stored, in either lane.
+  const { kept: curatedSearch, news: newsSearch } = splitNews(curatedSearchAll);
+  const { kept: curatedWalk, news: newsWalk } = splitNews(curatedWalkAll);
+  const newsDropped: Record<string, number> = {};
+  for (const it of [...newsSearch, ...newsWalk])
+    newsDropped[it.source] = (newsDropped[it.source] ?? 0) + 1;
   const histogram = topicHistogram(curatedWalk);
 
   // Step 6: upsert. Under --dry-run this loop still computes exactly what WOULD be written (so
@@ -531,12 +620,17 @@ async function main() {
         [winner.topicId],
         "seed",
       );
+      // A writing item also belongs wherever the writing curator homed it; an image's `topics`
+      // is always [] here (the search lane does not classify images).
+      membershipsWritten += await addItemTopics(
+        row.id,
+        curatedItem.topics,
+        "curator",
+      );
     }
     inserted++;
-    insertedByTopic.set(
-      winner.topicId,
-      (insertedByTopic.get(winner.topicId) ?? 0) + 1,
-    );
+    for (const t of new Set([winner.topicId, ...curatedItem.topics]))
+      insertedByTopic.set(t, (insertedByTopic.get(t) ?? 0) + 1);
   }
 
   // Walk items (Cut 1): every curated item is stored. The first topic the curator listed is the
@@ -621,7 +715,14 @@ async function main() {
     overFiled,
     alreadyInDb: alreadyInDb + alreadyInDbWalk,
     flooredByRule,
-    curatedCount: curatedSearch.length + curatedWalk.length,
+    thinText: thinText.length,
+    bodies: {
+      fetched: bodies.fetched,
+      none: bodies.none,
+      deferred: bodies.deferred,
+    },
+    newsDropped,
+    curatedCount: curatedSearchAll.length + curatedWalkAll.length,
     inserted,
     insertedByTopic,
     walkStatsBySource,
@@ -697,6 +798,13 @@ function printSummary(args: {
   overFiled: Record<string, number>;
   alreadyInDb: number;
   flooredByRule: Record<StructuralDropRule, number>;
+  /** Articles the writing floor dropped (under 400 characters of prose). */
+  thinText: number;
+  /** Article bodies fetched for new rows (Wikipedia); none = the source has no extract (kept
+   *  bodiless); deferred = the fetch threw, so the item was left for the next run. */
+  bodies: { fetched: number; none: number; deferred: number };
+  /** Per source, pieces the writing curator called `news` — curated, then not stored. */
+  newsDropped: Record<string, number>;
   curatedCount: number;
   inserted: number;
   insertedByTopic: Map<string, number>;
@@ -724,6 +832,9 @@ function printSummary(args: {
     overFiled,
     alreadyInDb,
     flooredByRule,
+    thinText,
+    bodies,
+    newsDropped,
     curatedCount,
     inserted,
     insertedByTopic,
@@ -846,6 +957,16 @@ function printSummary(args: {
       ` (dup-title ${flooredByRule["dup-title"]}, bare-title ${flooredByRule["bare-title"]}, thin-summary ${flooredByRule["thin-summary"]})`,
   );
   console.log(
+    `article bodies fetched:   ${bodies.fetched}` +
+      (bodies.none
+        ? ` · ${bodies.none} with no extract (kept, judged on the lede)`
+        : "") +
+      (bodies.deferred
+        ? ` · ${bodies.deferred} fetch(es) failed (left for the next run)`
+        : ""),
+  );
+  console.log(`writing floor dropped:    ${thinText} (thin-text)`);
+  console.log(
     `curated:                  ${curatedCount}${skipLlm ? " (--skip-llm, neutral score 5)" : ""}`,
   );
   console.log(
@@ -853,6 +974,15 @@ function printSummary(args: {
   );
   console.log(
     `memberships written:      ${dryRun ? "0 (--dry-run)" : membershipsWritten}`,
+  );
+  const newsTotal = Object.values(newsDropped).reduce((a, b) => a + b, 0);
+  console.log(
+    `news-dropped:             ${newsTotal}` +
+      (newsTotal > 0
+        ? ` (${Object.entries(newsDropped)
+            .map(([s, n]) => `${s} ${n}`)
+            .join(", ")})`
+        : ""),
   );
 
   console.log(

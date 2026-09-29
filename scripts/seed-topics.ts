@@ -31,10 +31,19 @@ function seedQueriesEqual(a: SeedQueries, b: SeedQueries): boolean {
   // SEED_SOURCES, not V1_SOURCES: since Phase 6.2 a topic can carry trial-source cells too, and
   // walking only the v1 six would report "unchanged" for a run that in fact rewrote them — the
   // upsert would still be correct, but the summary would be lying about what it did.
-  return SEED_SOURCES.every((source) => {
-    const [x, y] = [a[source] ?? [], b[source] ?? []];
-    return x.length === y.length && x.every((q, i) => q === y[i]);
-  });
+  // A key the config no longer has is a change too: `wikipedia` left SEED_SOURCES on 09-28-26
+  // (its queries moved to config/reading-phrases.ts), and comparing only the current sources
+  // would call every row with a leftover `wikipedia` cell "unchanged" and never rewrite it.
+  const stale = Object.keys(a).some(
+    (k) => !(SEED_SOURCES as readonly string[]).includes(k),
+  );
+  return (
+    !stale &&
+    SEED_SOURCES.every((source) => {
+      const [x, y] = [a[source] ?? [], b[source] ?? []];
+      return x.length === y.length && x.every((q, i) => q === y[i]);
+    })
+  );
 }
 
 async function main() {

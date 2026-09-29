@@ -18,6 +18,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { TOPICS, WALK_SOURCES } from "~/server/config/topics";
+import {
+  isWritingKind,
+  readingMinutes,
+  type WritingKind,
+  writingText,
+  kindFor,
+} from "~/server/config/writing";
 import { imageFetchHeaders } from "./image-auth";
 import { USER_AGENT } from "./sources/http";
 import type { NormalizedItem } from "./sources/types";
@@ -157,6 +164,66 @@ Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "topics
  *  vocabulary, and what the prompt-slicing comment above is about. */
 export const CLASSIFY_PROMPT = classifyPrompt(TOPICS);
 
+/** Bump when WRITING_PROMPT changes. Part of the writing cache key only — the image prompt's
+ *  PROMPT_VERSION and its keys are untouched by anything the writing curator does. */
+export const WRITING_PROMPT_VERSION = 2;
+
+/**
+ * The writing curator's rubric (docs/DESIGN_writing.md D1) — a product artifact like
+ * CURATOR_PROMPT, and the thing Ben's calibration (`bun run writing:calibrate`) tunes. It exists
+ * because CURATOR_PROMPT is an image-taste rubric: Wikipedia averaged 5.2 under it against 7.5-8.7
+ * for picture sources, a third of it sitting at 4, the floor. Change it, bump
+ * WRITING_PROMPT_VERSION, re-run the calibration.
+ *
+ * Two things it adds beyond a score. A **kind** (D2), which is what a writing card's badge says.
+ * And a **timeliness** verdict, which is how "news-free" is kept by taste rather than by a source
+ * list: a `news` piece is dropped at ingest and demoted to 1 at re-score, and the verdict itself
+ * is not stored (decided 09-28-26).
+ */
+export const WRITING_PROMPT = `You are the editor of a beloved newsletter of long reads and curiosities — the kind people stay subscribed to for years because every piece in it was worth their evening. You read everything: encyclopedia articles, essays, criticism, profiles, poems, old magazine clippings, archival documents. Your taste: writing with a spark of "huh, I never knew that", a voice worth listening to, and staying power — a piece someone could read in five years and still be glad they did. Longform contemporary journalism from a reputable outlet is welcome when it has that staying power. You never run anything sensational, gory, or engagement-baity. And you are not a news service: a piece whose reason to exist is a recent event is news, however well written.
+
+Rate the following piece for your newsletter on a 1-10 scale:
+  1-3  = filler; you would not read past the first paragraph (lists of facts with no thread, boilerplate, garbled text)
+  4-6  = fine but forgettable; run it only on a slow week
+  7-8  = good; your readers would be glad to find it
+  9-10 = exceptional; the kind of piece your newsletter is known for
+
+Judge the writing and the idea, not the length: a short piece with a real spark can outscore a long dutiful one. Your readers especially love small, specific facts about obscure things — a single odd instrument, a plant part, a forgotten institution, a place they have never heard of. A short encyclopedia entry about something like that is a puzzle piece, a shard of the world, and scores 7-8 on its subject alone; being brief is never a reason to mark it down.
+
+Say what kind of piece it is — exactly one of:
+  "essay" — an essay or long read: an argument, a narrative, reporting with a point of view
+  "curiosity" — an odd, surprising or delightful subject explained: a strange history, an unlikely fact, a thing you never knew existed
+  "criticism" — criticism or a profile: writing about a particular work, artist, writer or maker
+  "archive" — a poem, or a document from the past read for itself: a historical text, a clipping, a primary source
+
+Say how it ages — exactly one of:
+  "timeless" — reads as well in ten years as today
+  "dated" — tied to its moment, but still worth reading
+  "news" — exists because of a recent event; its value expires with the news cycle
+
+Also give 2-4 short lowercase tags for its subject or appeal (e.g. "odd history", "lost technology", "folk belief", "quiet biography", "strange science").
+
+Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "kind": "<kind>", "timeliness": "<timeliness>", "topics": [<topic ids, best fit first, or empty>]}`;
+
+/** WRITING_PROMPT with the topic block classify mode uses, over the vocabulary given. Writing
+ *  always classifies — in the search lane too — because an article's seed topic is one keyword's
+ *  guess and the curator has read the piece. */
+export function writingPrompt(
+  topics: readonly { id: string; label: string }[],
+): string {
+  const at = WRITING_PROMPT.lastIndexOf("Reply with ONLY");
+  return (
+    WRITING_PROMPT.slice(0, at) +
+    `Also list which of these topics are an honest home for this piece — a topic a reader who chose it would be glad to find it in. Best fit first. Usually one or two, never more than three; an empty list is a correct answer. Never force a fit.
+${topics.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
+
+The list is long; most of it will not apply — pick only honest homes.
+
+` +
+    WRITING_PROMPT.slice(at)
+  );
+}
+
 export type CuratedItem = NormalizedItem & {
   curationScore: number;
   aestheticTags: string[];
@@ -166,6 +233,13 @@ export type CuratedItem = NormalizedItem & {
    *  un-homed. Always `[]` outside classify mode — a search-shaped item's topic comes from the
    *  seed query that surfaced it. */
   topics: string[];
+  /** Writing only (type 'article'): the writing curator's kind, null when it named none. */
+  kind?: WritingKind | null;
+  /** Writing only: how the piece ages. Read by ingest (a `news` piece is dropped) and by
+   *  `recurate:writing` (demoted to 1); never stored. */
+  timeliness?: Timeliness;
+  /** Writing only: `readingMinutes(body)`, null without a body. */
+  readingMinutes?: number | null;
 };
 
 /** Structural-floor drop reasons, each mapped to a Phase 0.4 finding (see phase0/NOTES.md). */
@@ -249,6 +323,44 @@ export function structuralFloor(items: NormalizedItem[]): {
     else dropped.push({ item, rule });
   }
 
+  return { kept, dropped };
+}
+
+/** The writing floor's one rule (docs/PLAN_writing.md Phase 1). */
+export type WritingDropRule = "thin-text";
+
+/** Below this many characters of prose there is nothing to read — a stub, a disambiguation line,
+ *  a clipping fragment. Decided 09-28-26 with no exemption: a haiku won't clear it, and that is
+ *  accepted. */
+export const WRITING_MIN_CHARS = 400;
+
+/** What the writing curator reads: the body when Ambit holds one, else the summary. */
+function writingSource(item: NormalizedItem): string {
+  return item.body?.trim() ? item.body : item.summary;
+}
+
+/**
+ * The writing floor — free, pure, per item, and articles only. `thin-text`: fewer than
+ * WRITING_MIN_CHARS characters of prose once the apparatus is stripped (`writingText`), read off
+ * the body when there is one. It sits after structuralFloor and before the curator, so nothing it
+ * drops is billed, and it runs on whatever text ingest holds at that point: once Phase 2 fetches
+ * Wikipedia bodies at ingest, that fetch goes in front of this, which is how an article whose
+ * summary is one line but whose body is long survives it.
+ */
+export function writingFloor(items: NormalizedItem[]): {
+  kept: NormalizedItem[];
+  dropped: { item: NormalizedItem; rule: WritingDropRule }[];
+} {
+  const kept: NormalizedItem[] = [];
+  const dropped: { item: NormalizedItem; rule: WritingDropRule }[] = [];
+  for (const item of items) {
+    if (
+      item.type === "article" &&
+      writingText(writingSource(item)).length < WRITING_MIN_CHARS
+    )
+      dropped.push({ item, rule: "thin-text" });
+    else kept.push(item);
+  }
   return { kept, dropped };
 }
 
@@ -437,6 +549,152 @@ export function curationCacheKey(
     .slice(0, 32);
 }
 
+// ── the writing curator (docs/DESIGN_writing.md D1) ─────────────────────────
+
+/** The writing curator's verdict on how a piece ages. */
+export const TIMELINESS = ["timeless", "dated", "news"] as const;
+export type Timeliness = (typeof TIMELINESS)[number];
+
+/** How much of a piece the writing curator reads — enough for its voice and its thread, well
+ *  inside a cheap model's context, and a bound on what one call can cost. */
+export const WRITING_TEXT_CHARS = 8_000;
+
+/**
+ * Parse one writing-curator reply. Everything `parseCuratorResponse` enforces still holds — the
+ * score clamp, the tag coercion, topics validated against the vocabulary and capped at
+ * MAX_TOPICS — so it is called first, then the two writing fields are read on top. An unknown
+ * kind is null (the badge falls back to plain `READ`); an unknown timeliness is `timeless`, so a
+ * model that invents a verdict never gets a piece dropped as news by accident.
+ */
+export function parseWritingResponse(
+  content: string,
+  opts: { topicIds: ReadonlySet<string> },
+): {
+  score: number;
+  tags: string[];
+  kind: WritingKind | null;
+  timeliness: Timeliness;
+  topics: string[];
+  overFiled: number;
+} {
+  const base = parseCuratorResponse(content, opts);
+  const record = JSON.parse(content) as Record<string, unknown>;
+  const timeliness = (TIMELINESS as readonly unknown[]).includes(
+    record.timeliness,
+  )
+    ? (record.timeliness as Timeliness)
+    : "timeless";
+  return {
+    score: base.score,
+    tags: base.tags,
+    kind: isWritingKind(record.kind) ? record.kind : null,
+    timeliness,
+    topics: base.topics,
+    overFiled: base.overFiled,
+  };
+}
+
+/**
+ * The writing cache key: `model | w<version> | writing | source:sourceId`, through the same
+ * sha256 as `curationCacheKey`. A namespace of its own, so no image key moves (a test pins two),
+ * and **keyed on the model** — the calibration runs flash-lite and flash side by side, and each
+ * answer is paid for once. Like the image key it is not keyed on the topic list.
+ */
+export function writingCacheKey(
+  item: Pick<NormalizedItem, "source" | "sourceId">,
+  model: string = CURATOR_MODEL,
+): string {
+  return createHash("sha256")
+    .update(
+      `${model}|w${WRITING_PROMPT_VERSION}|writing|${item.source}:${item.sourceId}`,
+    )
+    .digest("hex")
+    .slice(0, 32);
+}
+
+/**
+ * What the writing curator reads: the body when Ambit holds one, else the summary, with the
+ * encyclopedia's apparatus stripped (`writingText`), cut at WRITING_TEXT_CHARS. `Length:` is
+ * counted on the whole stripped text so the model knows a long piece is long even though it
+ * sees only its opening. The summary is sent separately only when there is a body — otherwise
+ * it IS the text. No image: writing is judged as writing, and not fetching Wikipedia's lead
+ * images keeps the curator clear of Wikimedia's thumbnail-rendering throttle.
+ */
+export function writingAsText(item: NormalizedItem): string {
+  const hasBody = Boolean(item.body?.trim());
+  const text = writingText(hasBody ? item.body! : item.summary);
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return [
+    `Source: ${item.source}`,
+    `Title: ${item.title}`,
+    item.tags.length ? `Tags: ${item.tags.slice(0, 8).join(", ")}` : null,
+    hasBody && item.summary.trim() ? `Summary: ${item.summary}` : null,
+    `Length: ~${words} words`,
+    `Text: ${text.slice(0, WRITING_TEXT_CHARS)}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * Keep the feed news-free (D1): a piece the writing curator called `news` is not stored. Pure,
+ * so ingest's summary can count what it dropped. Images carry no timeliness and always stay.
+ */
+export function splitNews(items: CuratedItem[]): {
+  kept: CuratedItem[];
+  news: CuratedItem[];
+} {
+  const kept: CuratedItem[] = [];
+  const news: CuratedItem[] = [];
+  for (const it of items) (it.timeliness === "news" ? news : kept).push(it);
+  return { kept, news };
+}
+
+/** One writing-curator call for one article, cache-aside — scoreItem's counterpart for
+ *  `type = 'article'`. Always classifies. */
+async function scoreWriting(
+  item: NormalizedItem,
+  opts: {
+    force?: boolean;
+    topics?: readonly { id: string; label: string }[];
+    model?: string;
+  },
+): Promise<{
+  score: number;
+  tags: string[];
+  kind: WritingKind | null;
+  timeliness: Timeliness;
+  topics: string[];
+  overFiled: number;
+  cached: boolean;
+}> {
+  const vocabulary = opts.topics ?? TOPICS;
+  const model = opts.model ?? CURATOR_MODEL;
+  const topicIds = new Set(vocabulary.map((t) => t.id));
+  const cacheFile = path.join(
+    CURATION_CACHE_DIR,
+    `${writingCacheKey(item, model)}.json`,
+  );
+
+  if (!opts.force) {
+    try {
+      // Re-parsed rather than trusted: the same validation a fresh answer gets.
+      const cached = await readFile(cacheFile, "utf-8");
+      return { ...parseWritingResponse(cached, { topicIds }), cached: true };
+    } catch {
+      // no cache entry yet — fall through and call the LLM
+    }
+  }
+
+  const { result } = await callCurator(
+    { model, system: writingPrompt(vocabulary), content: writingAsText(item) },
+    (reply) => parseWritingResponse(reply, { topicIds }),
+  );
+  await mkdir(CURATION_CACHE_DIR, { recursive: true });
+  await writeFile(cacheFile, JSON.stringify(result));
+  return { ...result, cached: false };
+}
+
 /**
  * One curator call for one item, cache-aside. Image items are judged by the image itself; if the
  * image can't be fetched, the curator judges on text alone (a missing thumbnail shouldn't null
@@ -537,6 +795,49 @@ async function scoreItem(
     }
   }
 
+  const { result, tokens } = await callCurator(
+    {
+      model: CURATOR_MODEL,
+      system: classify ? classifyPrompt(vocabulary) : CURATOR_PROMPT,
+      content,
+    },
+    (reply) =>
+      parseCuratorResponse(
+        reply,
+        // Validated against the vocabulary actually offered, so an id the model invented — or
+        // one from a different run's list — is dropped rather than stored.
+        classify
+          ? { topicIds: new Set(vocabulary.map((t) => t.id)) }
+          : undefined,
+      ),
+  );
+  await mkdir(CURATION_CACHE_DIR, { recursive: true });
+  await writeFile(cacheFile, JSON.stringify(result));
+  return {
+    ...result,
+    tokens,
+    imageFetchFailed,
+    cached: false,
+  };
+}
+
+type CuratorContent =
+  | string
+  | (
+      | { type: "text"; text: string }
+      | { type: "image_url"; image_url: { url: string } }
+    )[];
+
+/**
+ * One OpenRouter chat call for one curator judgement, with the retry loop and the fail-fast rule
+ * both curators share. `parse` runs inside the retry, so a reply that isn't usable JSON (or has
+ * no usable score) is retried like a network error rather than cached. An account-level status
+ * throws CuratorAbortError straight through — see CURATOR_ABORT_STATUSES.
+ */
+async function callCurator<T>(
+  req: { model: string; system: string; content: CuratorContent },
+  parse: (reply: string) => T,
+): Promise<{ result: T; tokens: number }> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -554,13 +855,10 @@ async function scoreItem(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: CURATOR_MODEL,
+          model: req.model,
           messages: [
-            {
-              role: "system",
-              content: classify ? classifyPrompt(vocabulary) : CURATOR_PROMPT,
-            },
-            { role: "user", content },
+            { role: "system", content: req.system },
+            { role: "user", content: req.content },
           ],
           // Asks the provider to guarantee syntactically valid JSON output.
           response_format: { type: "json_object" },
@@ -584,22 +882,9 @@ async function scoreItem(
         choices?: { message?: { content?: string } }[];
         usage?: { total_tokens?: number };
       };
-      const result = parseCuratorResponse(
-        json.choices?.[0]?.message?.content ?? "{}",
-        // Validated against the vocabulary actually offered, so an id the model invented — or
-        // one from a different run's list — is dropped rather than stored.
-        classify
-          ? { topicIds: new Set(vocabulary.map((t) => t.id)) }
-          : undefined,
-      );
-
-      await mkdir(CURATION_CACHE_DIR, { recursive: true });
-      await writeFile(cacheFile, JSON.stringify(result));
       return {
-        ...result,
+        result: parse(json.choices?.[0]?.message?.content ?? "{}"),
         tokens: json.usage?.total_tokens ?? 0,
-        imageFetchFailed,
-        cached: false,
       };
     } catch (err) {
       if (err instanceof CuratorAbortError) throw err;
@@ -643,6 +928,9 @@ export async function curateItems(
     /** The vocabulary classify may answer with (09-06-26). Absent ⇒ the sixteen compile-time
      *  TOPICS; ingest and stats:walk pass every topic in the database. */
     topics?: readonly { id: string; label: string }[];
+    /** The model the writing curator uses (default CURATOR_MODEL). The calibration script's
+     *  lever — the image curator never reads it. */
+    writingModel?: string;
     onProgress?: (done: number, total: number) => void;
     onImageFetchFailure?: (item: NormalizedItem) => void;
     /** Called once per item answered from the on-disk cache (09-07-26). The companion to
@@ -674,22 +962,44 @@ export async function curateItems(
       const item = items[i];
       if (!item) continue;
       try {
-        const { score, tags, topics, overFiled, imageFetchFailed, cached } =
-          await scoreItem(item, {
+        // Writing (type 'article') goes to the writing curator, which always classifies and reads
+        // the body; everything else to the image curator, exactly as before (docs/DESIGN_writing.md D1).
+        if (item.type === "article") {
+          const w = await scoreWriting(item, {
             force: opts?.force ?? false,
-            classify: opts?.classify ?? false,
             ...(opts?.topics ? { topics: opts.topics } : {}),
+            ...(opts?.writingModel ? { model: opts.writingModel } : {}),
           });
-        if (cached) opts?.onCacheHit?.(item);
-        if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
-        if (overFiled > 0) opts?.onOverFiled?.(item, overFiled);
-        consecutiveFailures = 0;
-        out[i] = {
-          ...item,
-          curationScore: score,
-          aestheticTags: tags,
-          topics,
-        };
+          if (w.cached) opts?.onCacheHit?.(item);
+          if (w.overFiled > 0) opts?.onOverFiled?.(item, w.overFiled);
+          consecutiveFailures = 0;
+          out[i] = {
+            ...item,
+            curationScore: w.score,
+            aestheticTags: w.tags,
+            topics: w.topics,
+            kind: kindFor(item.source, w.kind),
+            timeliness: w.timeliness,
+            readingMinutes: readingMinutes(item.body),
+          };
+        } else {
+          const { score, tags, topics, overFiled, imageFetchFailed, cached } =
+            await scoreItem(item, {
+              force: opts?.force ?? false,
+              classify: opts?.classify ?? false,
+              ...(opts?.topics ? { topics: opts.topics } : {}),
+            });
+          if (cached) opts?.onCacheHit?.(item);
+          if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
+          if (overFiled > 0) opts?.onOverFiled?.(item, overFiled);
+          consecutiveFailures = 0;
+          out[i] = {
+            ...item,
+            curationScore: score,
+            aestheticTags: tags,
+            topics,
+          };
+        }
       } catch (err) {
         if (err instanceof CuratorAbortError) {
           aborted = true;
@@ -709,6 +1019,9 @@ export async function curateItems(
           curationScore: 5,
           aestheticTags: [],
           topics: [],
+          ...(item.type === "article"
+            ? { kind: null, readingMinutes: readingMinutes(item.body) }
+            : {}),
         };
       }
       done++;

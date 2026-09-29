@@ -18,6 +18,8 @@ function makeItem(overrides: Partial<Item> & { id: string }): Item {
     imageUrl: "https://example.test/i.jpg",
     imageWidth: null,
     imageHeight: null,
+    kind: null,
+    readingMinutes: null,
     sourceUrl: "https://example.test/o",
     attribution: null,
     license: null,

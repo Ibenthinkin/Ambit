@@ -21,15 +21,13 @@
 
 /** The five sources with adapters landing in Phase 3, plus `archive` (Phase A.5) — Ben's own
  *  personal-archive service rather than a public museum API, ingested over its /search endpoint.
- *  Phase 6.2 adds four more behind TRIAL_SOURCES below — trialed, not committed. */
-export const V1_SOURCES = [
-  "wikipedia",
-  "met",
-  "aic",
-  "cma",
-  "wellcome",
-  "archive",
-] as const;
+ *  Phase 6.2 adds four more behind TRIAL_SOURCES below — trialed, not committed.
+ *
+ *  **`wikipedia` left this list on 09-28-26** (docs/PLAN_writing.md Phase 2 §4): its queries come
+ *  from `config/reading-phrases.ts` now, not from seed cells, so it owes no topic a cell. It is
+ *  still a search-shaped source — in `SourceId` and in `adapters` — with a different query
+ *  source; ingest's processSource reads the phrases for it. */
+export const V1_SOURCES = ["met", "aic", "cma", "wellcome", "archive"] as const;
 
 export type V1Source = (typeof V1_SOURCES)[number];
 
@@ -147,7 +145,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "ancient-history",
     label: "Ancient history",
     seedQueries: {
-      wikipedia: ["ancient history"],
       met: ["ancient"],
       aic: ["ancient"],
       cma: ["ancient"],
@@ -166,7 +163,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "architecture",
     label: "Architecture",
     seedQueries: {
-      wikipedia: ["architecture"],
       met: ["architecture"],
       aic: ["architecture"],
       cma: ["architecture"],
@@ -193,7 +189,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "astronomy",
     label: "Astronomy",
     seedQueries: {
-      wikipedia: ["astronomy"],
       met: ["astronomy"],
       aic: ["astronomy"],
       // Retuned: CMA `astronomy` returns only 23 hits. `celestial` (106) and `moon` (368) are the
@@ -215,7 +210,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "botany",
     label: "Botany",
     seedQueries: {
-      wikipedia: ["botany"],
       met: ["botanical"],
       aic: ["botanical"],
       cma: ["botanical"],
@@ -231,7 +225,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "cartography",
     label: "Maps", // The handoff's chip term. The *slug* stays `cartography` — it's a graph key.
     seedQueries: {
-      wikipedia: ["cartography"],
       met: ["map"],
       aic: ["map"],
       // Retuned, marginally: CMA simply holds few maps (`map` = 35 hits, `cartography` = 17).
@@ -256,7 +249,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "ceramics",
     label: "Ceramics",
     seedQueries: {
-      wikipedia: ["ceramic art"],
       met: ["ceramic"],
       aic: ["ceramic"],
       cma: ["ceramic"],
@@ -274,7 +266,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "geology",
     label: "Geology",
     seedQueries: {
-      wikipedia: ["geology"],
       met: ["mineral"],
       aic: ["mineral"],
       cma: ["mineral"],
@@ -290,7 +281,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "machines",
     label: "Machines",
     seedQueries: {
-      wikipedia: ["machine"],
       met: ["machine"],
       aic: ["machinery"],
       cma: ["machine"],
@@ -308,7 +298,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "music",
     label: "Music",
     seedQueries: {
-      wikipedia: ["music"],
       met: ["musical instrument"],
       aic: ["musical instrument"],
       cma: ["musical instrument"],
@@ -323,7 +312,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "mythology",
     label: "Mythology",
     seedQueries: {
-      wikipedia: ["mythology"],
       met: ["mythology"],
       aic: ["mythology"],
       cma: ["mythology"],
@@ -337,7 +325,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "poetry",
     label: "Poetry",
     seedQueries: {
-      wikipedia: ["poetry"],
       met: ["poetry"],
       aic: ["poetry"],
       cma: ["poetry"],
@@ -354,7 +341,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "portraiture",
     label: "Portraiture", // Not in the handoff's 32 — graph-validated topics win (07-17-26).
     seedQueries: {
-      wikipedia: ["portrait"],
       met: ["portrait"],
       aic: ["portrait"],
       cma: ["portrait"],
@@ -375,7 +361,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "textiles",
     label: "Textiles",
     seedQueries: {
-      wikipedia: ["textile"],
       met: ["textile"],
       aic: ["textile"],
       cma: ["textile"],
@@ -393,7 +378,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "the-ocean",
     label: "The ocean",
     seedQueries: {
-      wikipedia: ["ocean"],
       met: ["ocean"],
       aic: ["sea"],
       cma: ["sea"],
@@ -411,7 +395,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "typography",
     label: "Typography",
     seedQueries: {
-      wikipedia: ["typography"],
       // Retuned: the Met holds only 39 objects for `typography` — a real corpus limit, not a bad
       // query. The object-vocabulary terms phase0/NOTES.md:47 predicted are all far richer:
       // `letterpress` (1,044), `calligraphy` (2,665), `broadside` (256).
@@ -435,7 +418,6 @@ export const TOPICS: readonly TopicConfig[] = [
     id: "zoology",
     label: "Zoology", // Also not in the handoff's 32 — same reasoning as Portraiture.
     seedQueries: {
-      wikipedia: ["zoology"],
       met: ["animal"],
       aic: ["animal"],
       cma: ["animal"],

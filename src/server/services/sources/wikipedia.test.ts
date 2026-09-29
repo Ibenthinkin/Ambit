@@ -4,6 +4,7 @@
 // filtering) and isFreeImageLicense (the per-image license resolution decided in docs/PHASE3_PLAN.md).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import fixtures from "./__fixtures__/wikipedia.json";
+import type * as WikipediaLists from "./wikipedia-lists";
 import {
   fetchBody,
   isFreeImageLicense,
@@ -22,7 +23,17 @@ vi.mock("./http", () => ({
   USER_AGENT: "test-agent",
 }));
 
-beforeEach(() => fetchJson.mockReset());
+// The list draw is its own module (wikipedia-lists.test.ts); here only its hand-off to search().
+const listCandidates = vi.hoisted(() => vi.fn());
+vi.mock("./wikipedia-lists", async (importOriginal) => ({
+  ...(await importOriginal<typeof WikipediaLists>()),
+  listCandidates,
+}));
+
+beforeEach(() => {
+  fetchJson.mockReset();
+  listCandidates.mockReset();
+});
 
 const raws = fixtures as unknown as WikipediaRaw[];
 const byTitle = (title: string) => {
@@ -126,6 +137,47 @@ describe("wikipedia.search", () => {
     expect(detailUrl).toContain("pithumbsize=1600");
     expect(detailUrl).not.toContain("original");
     expect(wikipedia.toItem(raws[0]!).imageUrl).toBe(THUMB);
+  });
+});
+
+describe("wikipedia.search — reading lists", () => {
+  it("routes list:<name> to the list draw, skips keyword search, and keeps a DYK hook as the summary", async () => {
+    listCandidates.mockResolvedValueOnce([
+      { pageid: 7, title: "Coffin birth", hook: "Did you know that coffins…?" },
+      { pageid: 8, title: "Stub", hook: "Did you know that stubs…?" },
+    ]);
+    fetchJson.mockResolvedValueOnce({
+      query: {
+        pages: {
+          "7": {
+            pageid: 7,
+            title: "Coffin birth",
+            extract: "Coffin birth is… ".repeat(20),
+          },
+          "8": { pageid: 8, title: "Stub", extract: "Short." },
+        },
+      },
+    });
+
+    const raws = await wikipedia.search("list:dyk", { limit: 5 });
+
+    expect(listCandidates).toHaveBeenCalledWith(
+      "dyk",
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    );
+    expect(fetchJson.mock.calls[0]![0]).toContain("pageids=7|8");
+    expect(fetchJson.mock.calls[0]![0]).not.toContain("list=search");
+    expect(raws).toHaveLength(1); // the stub is floored as always
+    const item = wikipedia.toItem(raws[0]!);
+    expect(item.sourceId).toBe("7");
+    expect(item.summary).toBe("Did you know that coffins…?");
+  });
+
+  it("an ordinary query still searches", async () => {
+    fetchJson.mockResolvedValueOnce({ query: { search: [] } });
+    await wikipedia.search("history of the telescope");
+    expect(listCandidates).not.toHaveBeenCalled();
+    expect(fetchJson.mock.calls[0]![0]).toContain("list=search");
   });
 });
 
