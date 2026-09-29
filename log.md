@@ -218,6 +218,15 @@ through writing slots, and that `/explore` shows writing to strangers.
 
 *Session spend: 74.99M tok (in 650 · out 301.8k · cache r 72.54M / w 2.15M) · ~≥$9.57 · opus-5-5 + opus-4-7 + <synthetic> · 15:47→18:55*
 
+**Calibration, first read (same session).** Ben marked 20 of 40. flash-lite agrees best (MAE 0.90
+vs flash's 1.45, Spearman 0.64 vs 0.63), because flash under-scores Wikipedia he likes. flash-lite's
+worst misses are Loupe OCR fragments scored too high, and Ben's note says to exclude the archive
+entries for now. **Next:** Ben marks the remaining Wikipedia and PDR pieces; exclude Loupe from the
+re-score; add a "fragment / no context → 1–3" rule and bump `WRITING_PROMPT_VERSION`; re-sample and
+re-read. Everything else is in `docs/HANDOFF_writing.md`.
+
+*Session spend: 6.73M tok (in 81 · out 42.7k · cache r 5.41M / w 1.27M) · ~≥$2.08 · opus-5-5 + opus-4-7 · 18:55→20:18*
+
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
