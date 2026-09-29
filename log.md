@@ -46,6 +46,20 @@ gates before the push.
 
 *Session spend: 35.99M tok (in 786 · out 221.0k · cache r 33.94M / w 1.83M) · ~≥$17.01 · opus-5-5 + opus-4-7 · 15:27→17:41*
 
+**After the final review (same evening):** the whole-branch review passed the code but caught one real
+bug the per-task reviews couldn't see — on `/profile/topics` both writes (`setMine`, `setWeight`)
+share one mutation scope and each invalidated `topics.mine` on settle, so the first settle's refetch
+could land before a queued second write and un-do it in the cache, and a tap in that window built
+`commit()` from stale data and deleted the second pick. Now only the last write in the scope
+refetches (`isMutating` ≤ 1 inside `onSettled` — the settling mutation still counts itself in
+TanStack v5), pinned by `topics-screen.queue.test.tsx` against a real `QueryClient`. The page's two
+hints moved into the profile hub's toast, which had no live region, so `Toast` is now
+`role="status"` + `aria-live="polite"` app-wide. SPEC / CLAUDE.md / comments swept to match. Gates:
+unit 1,601, `e2e:prod` 60 + 1 `/api/img` 429 (the known parallel rate-limit; security spec 4/4
+alone), CI-shape 61 / 9 skipped. Pushed `99fbe42`, not merged.
+
+*Session spend: 18.14M tok (in 209 · out 52.8k · cache r 17.86M / w 225.7k) · ~≥$2.08 · opus-5-5 + opus-4-7 + <synthetic> · 17:41→20:22*
+
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
 **Ben:** "the color animation on the profile logo glyph didn't make it into the dev version." It
