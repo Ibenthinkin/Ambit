@@ -14,6 +14,16 @@ describe("Toast", () => {
     expect(screen.getByText("Saved")).toBeInTheDocument();
   });
 
+  // A toast is often the only word a failed save gets ("Couldn't save that — try again."), so
+  // it has to reach a screen reader too, not just the eye: a polite live region, announced
+  // without interrupting whatever the reader is doing.
+  it("is announced to assistive tech as a polite status", () => {
+    render(<Toast text="Saved" open onDone={vi.fn()} />);
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Saved");
+    expect(status).toHaveAttribute("aria-live", "polite");
+  });
+
   it("renders nothing when closed", () => {
     render(<Toast text="Saved" open={false} onDone={vi.fn()} />);
     expect(screen.queryByText("Saved")).not.toBeInTheDocument();
