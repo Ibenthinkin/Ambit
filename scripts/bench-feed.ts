@@ -4,6 +4,7 @@
  *
  *   bun run bench:feed
  *   bun run bench:feed --user ben@example.com --pages 20
+ *   bun run bench:feed --knob writingShare=0      # any FeedKnobs override, as probe:feed takes it
  *
  * Two measurements, because they answer two different questions:
  *
@@ -27,7 +28,7 @@ import { and, eq, notLike } from "drizzle-orm";
 import { db } from "~/server/db/client";
 import { topic, user } from "~/server/db/schema";
 import { getTopicPools } from "~/server/db/feed";
-import { getFeedPage } from "~/server/services/feed";
+import { getFeedPage, type FeedKnobs } from "~/server/services/feed";
 
 function flag(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -36,6 +37,15 @@ function flag(name: string): string | undefined {
 
 const userEmail = flag("user");
 const pages = Number(flag("pages") ?? "12");
+// `--knob key=val`, repeatable, as probe:feed takes it — so a change behind a knob can be timed
+// on and off in the same minutes (writing slots: `--knob writingShare=0` is the "before").
+const knobOverrides: Partial<FeedKnobs> = {};
+process.argv.forEach((a, i) => {
+  if (a !== "--knob") return;
+  const [key, val] = (process.argv[i + 1] ?? "").split("=");
+  if (key && val !== undefined)
+    (knobOverrides as Record<string, number>)[key] = Number(val);
+});
 
 /** Resolve the user to bench as: the named one, or the first real account on the box. */
 let userId: string;
@@ -68,7 +78,13 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))]!;
 }
 
-console.log(`bench: ${userLabel} · ${pages} pages\n`);
+console.log(
+  `bench: ${userLabel} · ${pages} pages` +
+    (Object.keys(knobOverrides).length
+      ? ` · knobs ${JSON.stringify(knobOverrides)}`
+      : "") +
+    "\n",
+);
 
 // ── 1. getFeedPage, page by page, following the cursor ───────────────────────────────────────────
 const timings: number[] = [];
@@ -81,7 +97,7 @@ let cursor: string | undefined;
 let cards = 0;
 for (let p = 0; p < pages; p++) {
   const started = performance.now();
-  const page = await getFeedPage(userId, cursor);
+  const page = await getFeedPage(userId, cursor, knobOverrides);
   timings.push(performance.now() - started);
   if (page.debug) {
     plannedTopics.push(page.debug.plannedTopics);

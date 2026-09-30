@@ -88,6 +88,15 @@ Design and decisions D1–D8: `docs/DESIGN_writing.md`. Execute cold, one phase 
 
 ## Phase 3: feed share
 
+> **Built 09-30-26 on `feat/writing-share`.** As written, with three changes found while building
+> it. (1) The last resort is not "any article": it is any article whose display topic the page
+> could *reach*, or un-homed. Every article would include other suites' fixture topics and widen
+> the known un-homed-fixture race. (2) A homed article drawn from that pool is served under its own
+> topic as DRIFT, so a WILD card still always means an un-homed item. (3) `bench:feed` gained
+> `--knob` so the before and after could be timed in the same minutes. Measured: `probe:feed
+> --uniform --pages 20` gives 27 writing in 240 (5 at share 0); `bench:feed` p50 217/259 ms off
+> vs 271/234 on (noise).
+
 Ship this only after Phase 2's lists have run on production, or per-topic writing runs dry (~12 writing cards per reader per day).
 
 - **Knobs** in `DEFAULT_KNOBS` (`services/feed-knobs.ts`), the zod schema in `routers/feed.ts`, `knob-panel.tsx` and `use-dev-knobs.ts`:
@@ -171,7 +180,7 @@ Ship this only after Phase 2's lists have run on production, or per-topic writin
 - ~~**Before Phase 1 — `timeliness` is not stored.**~~ **Decided 09-28-26: not stored.** `news` becomes score 1 at re-score and is dropped at ingest; `dated` leaves no trace.
 - **09-30-26 — the news rule is gone (Ben).** No drop at ingest, no demotion at re-score, no `ben-news` or news precision/recall in the calibration; `timeliness` left `CuratedItem`. Ben curates sources to keep news out. `WRITING_PROMPT` still asks for timeliness and stays at v2, because changing it moves the cache key; the Phase 1 lines above that mention news describe what was built, not what runs.
 - **Before Phase 2 — the Good-articles draw cost** (Phase 2 §3's "known costs"): accept ~80 list calls a night, or draw by a date-seeded sortkey prefix.
-- **Before Phase 3 — the pool switch** (Phase 3 "Pools"): PDR essays and Loupe clippings reachable only through writing slots, and `/explore` showing writing to strangers. Both follow from D2/D3; confirm they're wanted.
+- **Before Phase 3 — the pool switch** (Phase 3 "Pools"): PDR essays and Loupe clippings reachable only through writing slots, and `/explore` showing writing to strangers. Both follow from D2/D3; confirm they're wanted. **Decided 09-30-26 (Ben): yes to both, as written.** The slots give PDR's essays more reach, not less (about 30 writing cards in 240 against about 4 today, competing only with other writing), and they keep `writingShare` exact rather than a floor.
 
 ## Risks
 

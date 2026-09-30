@@ -17,7 +17,13 @@ import topicGraphData from "~/server/config/topic-graph.json";
 import { drawWeight, getItemsByIds } from "~/server/db/items";
 import { getTasteKeywords } from "~/server/db/saves";
 import { getUserTopicWeights } from "~/server/db/topics";
-import { getTopicPools, getWildPool, type PoolItem } from "~/server/db/feed";
+import {
+  getTopicPools,
+  getWildPool,
+  getWritingPools,
+  getWritingWildPool,
+  type PoolItem,
+} from "~/server/db/feed";
 import { feedDebugEnabled } from "./feed-debug";
 import { hashSeed, mulberry32, weightedPick } from "./random";
 
@@ -446,6 +452,36 @@ export function planTopics(opts: {
   return planned;
 }
 
+/**
+ * Where a page's writing cards go (09-30-26, docs/PLAN_writing.md Phase 3): indices into the
+ * composed array, ascending. `pageSize × share` of them, the fractional part becoming one more
+ * with that probability — so 12 × 0.125 is one or two, 1.5 on average. Never index 0 (a page
+ * opens on a picture) and never two adjacent. Drawn up front from the page's own writing stream,
+ * which the topic and item streams never see; that is what keeps `planTopics` exact.
+ *
+ * The count is capped at what fits without adjacency in 1..pageSize−1, and the positions are
+ * drawn by rejection with a bounded number of tries — at the shipped share a page asks for two
+ * positions among eleven, so the bound is never met; at a slider's extreme a page may get fewer.
+ */
+export function writingPositions(
+  pageSize: number,
+  share: number,
+  rng: () => number,
+): number[] {
+  if (share <= 0 || pageSize < 2) return [];
+  const exact = pageSize * share;
+  const coin = rng(); // always drawn, so the positions below never depend on whether it counted
+  const want = Math.floor(exact) + (coin < exact - Math.floor(exact) ? 1 : 0);
+  const n = Math.min(want, Math.ceil((pageSize - 1) / 2));
+  const chosen = new Set<number>();
+  for (let tries = 0; chosen.size < n && tries < 200; tries++) {
+    const p = 1 + Math.floor(rng() * (pageSize - 1));
+    if (chosen.has(p) || chosen.has(p - 1) || chosen.has(p + 1)) continue;
+    chosen.add(p);
+  }
+  return [...chosen].sort((a, b) => a - b);
+}
+
 const EMPTY_SOURCES: ReadonlySet<string> = new Set();
 const EMPTY_IDS: ReadonlySet<string> = new Set();
 
@@ -540,6 +576,14 @@ export interface ComposePageOpts {
   /** Which topics count as core for the `grownHopPenalty` lever. Injected (like everything
    *  else here) so tests can use a toy graph; getFeedPage passes nothing and gets the sixteen. */
   coreTopicIds?: ReadonlySet<string>;
+  // ── writing slots (09-30-26, docs/PLAN_writing.md Phase 3) ─────────────────────────────────
+  /** Each planned topic's articles (`getWritingPools`), drawn only at a writing position. */
+  writingPools?: Map<string, PoolItem[]>;
+  /** Any eligible article (`getWritingWildPool`) — a writing slot's last resort. */
+  writingWildPool?: PoolItem[];
+  /** The stream `writingPositions` draws from. **Absent ⇒ no writing slots at all**, so every
+   *  caller written before them composes exactly as it did. */
+  writingRng?: () => number;
 }
 
 /**
@@ -563,6 +607,9 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
     tasteKeywords = [],
     debug = false,
     coreTopicIds = CORE_TOPIC_IDS,
+    writingPools = new Map<string, PoolItem[]>(),
+    writingWildPool = [],
+    writingRng,
   } = opts;
 
   // Working copies of each topic's pool: an item drawn this page is spliced out immediately, so
@@ -592,6 +639,103 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
     if (n >= knobs.sourceCap) cappedSources.add(source);
   };
 
+  // Writing slots. The positions are fixed before the loop; `nextWriting` walks them. A position
+  // is spent the first time the page reaches it, whether or not a writing card fills it — a
+  // miss hands that index to the ordinary draw below, in the same iteration, so a writing slot can
+  // never make a page short. Writing draws use `itemRng`, like every item draw, and only when a
+  // pool has a candidate: with no writing pools the item stream is untouched, and the page is
+  // the one this function composed before writing slots existed.
+  const positions = writingRng
+    ? writingPositions(knobs.pageSize, knobs.writingShare, writingRng)
+    : [];
+  let nextWriting = 0;
+  const writingKnobs = { ...knobs, scoreFloor: knobs.writingScoreFloor };
+  const drawWriting = (pool: PoolItem[] | undefined) =>
+    pickItem(
+      pool,
+      lastSource,
+      writingKnobs,
+      tasteKeywords,
+      itemRng,
+      cappedSources,
+      drawnIds,
+    );
+  const land = (card: ComposedCard) => {
+    drawnIds.add(card.item.id);
+    lastSource = card.item.source;
+    countSource(card.item.source);
+    if (card.topicId !== null)
+      topicCounts.set(card.topicId, (topicCounts.get(card.topicId) ?? 0) + 1);
+    cards.push(card);
+  };
+  /** The writing pools of every topic still under `topicCap`, as one list, each article once
+   *  (an article can sit in three topics' pools). Map order, so the list is deterministic. */
+  const openWriting = (): PoolItem[] => {
+    const seen = new Set<string>();
+    const out: PoolItem[] = [];
+    for (const [topicId, pool] of writingPools) {
+      if ((topicCounts.get(topicId) ?? 0) >= knobs.topicCap) continue;
+      for (const it of pool) {
+        if (seen.has(it.id)) continue;
+        seen.add(it.id);
+        out.push(it);
+      }
+    }
+    return out;
+  };
+  /** Fill a writing position, or return false and leave it to the ordinary draw. In order: the
+   *  slot's own topic (the tier and topic the stream just drew, so a writing card drifts and
+   *  jumps like any other); then any topic this page planned; then any article the page could
+   *  reach (`getWritingWildPool`) — served under its own display topic as DRIFT, or as WILD when
+   *  it has none, so a WILD card is still always an un-homed item. A WILD slot has no topic, so it
+   *  tries that last pool first and the planned topics second. */
+  const fillWriting = (slot: SlotPick): boolean => {
+    const why = (s: string, it: PoolItem) =>
+      debug
+        ? { debug: { why: `WRITING · ${s}`, curationScore: it.curationScore } }
+        : {};
+    const topical = (tier: Tier, from: string) => {
+      const drawn = drawWriting(openWriting());
+      if (!drawn) return false;
+      land({
+        item: drawn,
+        tier,
+        topicId: drawn.topicId,
+        ...why(`${from} → any planned topic (${drawn.topicId})`, drawn),
+      });
+      return true;
+    };
+    const anyArticle = () => {
+      const drawn = drawWriting(writingWildPool);
+      if (!drawn) return false;
+      land({
+        item: drawn,
+        tier: drawn.topicId === null ? "WILD" : "DRIFT",
+        topicId: drawn.topicId,
+        ...why("any reachable article", drawn),
+      });
+      return true;
+    };
+
+    if (slot.tier === "WILD") return anyArticle() || topical("DRIFT", "WILD");
+
+    const pick = slot.pick;
+    if (pick && (topicCounts.get(pick.topicId) ?? 0) < knobs.topicCap) {
+      const drawn = drawWriting(writingPools.get(pick.topicId));
+      if (drawn) {
+        land({
+          item: drawn,
+          tier: slot.tier,
+          topicId: pick.topicId,
+          ...(pick.driftPath ? { driftPath: pick.driftPath } : {}),
+          ...why(pick.why, drawn),
+        });
+        return true;
+      }
+    }
+    return topical(slot.tier, pick?.why ?? slot.tier) || anyArticle();
+  };
+
   for (
     let guard = 0;
     cards.length < knobs.pageSize && guard < knobs.pageSize * 40;
@@ -602,6 +746,14 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
     const slot = pickSlot(weights, graph, knobs, rng, coreTopicIds);
     if (!slot) continue; // all tier weights <= 0 — degenerate knobs; guard bounds the retry
     const tierName = slot.tier;
+
+    if (
+      nextWriting < positions.length &&
+      cards.length === positions[nextWriting]
+    ) {
+      nextWriting++;
+      if (fillWriting(slot)) continue;
+    }
 
     // WILD short-circuits the topic step entirely: there is no topic to pick, no graph to walk,
     // no driftPath to record, and topicCap — which bounds how much of a page one TOPIC may be —
@@ -673,6 +825,33 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
       ...(driftPath ? { driftPath } : {}),
       ...(debug ? { debug: { why, curationScore: drawn.curationScore } } : {}),
     });
+  }
+
+  // **Pictures ran out before the page filled** — the writing positions past `cards.length` were
+  // never reached, and without this a page could come back short, or empty, with articles still
+  // eligible (a reader who has seen every picture in their reach; a fixture-only database). The
+  // share is a mix, not a ration: relax it rather than starve the page, the same rule every
+  // other constraint here follows. Only when writing slots are on, so `writingShare: 0` and every
+  // caller without a `writingRng` compose exactly as before. No topic stream is read — past the
+  // loop the plan has nothing left to agree with.
+  if (writingRng) {
+    while (cards.length < knobs.pageSize) {
+      const drawn = drawWriting(openWriting()) ?? drawWriting(writingWildPool);
+      if (!drawn) break;
+      land({
+        item: drawn,
+        tier: drawn.topicId === null ? "WILD" : "DRIFT",
+        topicId: drawn.topicId,
+        ...(debug
+          ? {
+              debug: {
+                why: "WRITING · top-up (no pictures left)",
+                curationScore: drawn.curationScore,
+              },
+            }
+          : {}),
+      });
+    }
   }
 
   return cards;
@@ -758,6 +937,9 @@ export async function getFeedPage(
   // plan's leftovers.)
   const topicStream = () => mulberry32(hashSeed(`${seed}:${page}`));
   const itemStream = () => mulberry32(hashSeed(`${seed}:${page}:items`));
+  // The third stream (09-30-26): where the writing slots sit. Its own, so the positions move
+  // nothing the plan replays.
+  const writingStream = () => mulberry32(hashSeed(`${seed}:${page}:writing`));
 
   // The dev gate, shared with the gallery rail, the forget mutation and the /dev/feed route —
   // see feed-debug.ts for the rule and for why it is a dynamic import underneath.
@@ -799,11 +981,42 @@ export async function getFeedPage(
   // reproduce byte-for-byte on a refetch (db/feed.ts). At `tierWild: 0` the WILD tier can never
   // be drawn, so its query is skipped entirely.
   const sampleKey = `${seed}:${page}`;
-  const wildPool =
-    knobs.tierWild > 0 ? await getWildPool({ ...eligibility, sampleKey }) : [];
+
+  // Writing slots (09-30-26, docs/PLAN_writing.md Phase 3). With any share at all, the ordinary
+  // pools — topic and WILD — are pictures only, and an article reaches the page through a
+  // writing slot and nowhere else. At `writingShare: 0` nothing below is fetched, the ordinary
+  // pools carry articles again, and the page is the one composed before writing slots existed.
+  const writingOn = knobs.writingShare > 0;
+  const ordinaryType = writingOn ? ("image" as const) : undefined;
+  const writingEligibility = {
+    ...eligibility,
+    scoreFloor: knobs.writingScoreFloor,
+    sampleKey,
+  };
+
+  const [wildPool, writingWildPool] = await Promise.all([
+    knobs.tierWild > 0
+      ? getWildPool({ ...eligibility, sampleKey, type: ordinaryType })
+      : Promise.resolve([]),
+    writingOn
+      ? getWritingWildPool({
+          ...writingEligibility,
+          topicIds: [...reachableTopics(weights, graph)],
+        })
+      : Promise.resolve([]),
+  ]);
 
   const compose = async (topicIds: string[]) => {
-    const pools = await getTopicPools(topicIds, { ...eligibility, sampleKey });
+    const [pools, writingPools] = await Promise.all([
+      getTopicPools(topicIds, {
+        ...eligibility,
+        sampleKey,
+        type: ordinaryType,
+      }),
+      writingOn
+        ? getWritingPools(topicIds, writingEligibility)
+        : Promise.resolve(new Map<string, PoolItem[]>()),
+    ]);
     return composePage({
       weights,
       graph,
@@ -814,6 +1027,9 @@ export async function getFeedPage(
       knobs,
       tasteKeywords,
       debug: debugEnabled,
+      writingPools,
+      writingWildPool,
+      ...(writingOn ? { writingRng: writingStream() } : {}),
     });
   };
 

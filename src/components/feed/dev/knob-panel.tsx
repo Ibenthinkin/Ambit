@@ -36,6 +36,7 @@ const SECTIONS = [
   "Drift shape",
   "Grown topics",
   "Diversity",
+  "Writing",
 ] as const;
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -81,6 +82,10 @@ function StatsBlock({
       <Stat
         label="original / grown / wild"
         value={`${stats.original} (${pct(stats.original)}%) / ${stats.grown} (${pct(stats.grown)}%) / ${stats.wild} (${pct(stats.wild)}%)`}
+      />
+      <Stat
+        label="writing"
+        value={`${stats.writing} (${pct(stats.writing)}%)`}
       />
       <Stat
         label="topics"

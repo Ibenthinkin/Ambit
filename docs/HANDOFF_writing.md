@@ -4,7 +4,15 @@ Read this before touching the writing code. It is self-contained; the design is
 `docs/DESIGN_writing.md` (D1–D8), the plan `docs/PLAN_writing.md` (five phases), and `log.md`
 09-28 / 09-29 have the narrative.
 
-## ▶ Pick up here (09-30-26): re-score done; disambiguation pages next, then Phase 3
+## ▶ Pick up here (09-30-26, afternoon): Phase 3 built on `feat/writing-share` — Ben looks, merge, deploy
+
+**Phase 3 (writing slots) is built on `feat/writing-share`, pushed, not merged.** The design and
+measurements are in `docs/PLAN_writing.md` Phase 3's "Built" note and SPEC §9 step 2. Log 09-30
+has the three findings. Next: Ben looks at `/dev/feed` → merge → deploy → Phase 4 (cards). Also
+open: disambiguation pages in the Wikipedia adapter; `desktop.spec` spread test compares by `alt`
+(flaky on the real corpus).
+
+## Earlier 09-30-26: re-score done; disambiguation pages next, then Phase 3
 
 **Ben's decision (09-30-26):** drop every "no news" provision. The 44 pieces the production dry
 run would have demoted as news (albums, films, *2022 FIFA World Cup*, *Malaysia Airlines Flight
