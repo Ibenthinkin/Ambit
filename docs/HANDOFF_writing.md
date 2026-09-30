@@ -4,7 +4,20 @@ Read this before touching the writing code. It is self-contained; the design is
 `docs/DESIGN_writing.md` (D1–D8), the plan `docs/PLAN_writing.md` (five phases), and `log.md`
 09-28 / 09-29 have the narrative.
 
-## ▶ Pick up here (09-30-26, late): Phase 4 merged to `main` (`7224ace`) and pushed — deploy, then Phase 5
+## ▶ Pick up here (09-30-26, evening): Phase 5 built on `feat/publications` — Ben's verdicts, then merge
+
+**Phase 5 (publications) is built on `feat/publications`, committed and not merged.** Three
+publications are registered and suspended: `themarginalian`, `jstordaily`, `noema`. The probe of
+nine candidates and the three 150-item samples are in `docs/source-candidates.md`'s new
+"Publications" section, with a recommendation per row. Ben decides:
+1. A verdict on each of the three.
+2. The **`abstract` question**: the writing curator files ideas under the `look`-facet
+   `abstract` topic (Noema 88/149).
+
+Then merge and deploy, and take the kept ones out of `SUSPENDED_SOURCES` one at a time. Phase 4
+is merged and deployed.
+
+## Earlier 09-30-26 (late): Phase 4 merged to `main` (`7224ace`) and pushed — deploy, then Phase 5
 
 **Phase 4 (cards) is merged to `main` (`7224ace`) and pushed. It is not deployed yet.** Its "Built" note
 in `docs/PLAN_writing.md` lists the four choices made while building it. `check` passes, and so

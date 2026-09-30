@@ -141,6 +141,39 @@ Ambit-Admin log before it builds.
 
 *Session spend: 25.21M tok (in 348 · out 93.3k · cache r 24.68M / w 436.4k) · ~≥$1.31 · opus-5-5 + opus-4-7 · 13:24→13:37*
 
+**Shipped (evening): writing Phase 5, publications** (`feat/publications`, 3 commits, not merged).
+Ben deployed Phase 4 first. `curationText` and the widened link-card posture were recorded in
+Ambit-Admin's log before any code. The pieces:
+- A publication is an article with `body` null. Its full text rides `curationText` to the writing
+  floor, the prompt and the reading time, and `storedItem` strips it before the upsert.
+- `wp-rest.ts` gained an article mode, and there is a new `rss.ts` with a hand-rolled `parseFeed`.
+- Three publications are registered, all suspended: The Marginalian, JSTOR Daily and Noema.
+- `check` passes, 1,716 tests.
+
+**Findings:**
+- **The probe reshaped the candidate list.** Only four of nine reach past their newest page.
+  Aeon and Psyche ship a one-line dek, which the 400-character writing floor would drop every
+  time. And Aeon, Psyche, Longreads and Paris Review name ClaudeBot or GPTBot in robots.txt, a
+  signal I left for Ben's verdict rather than turned into a rule.
+- **Samples** (150 each, table in `docs/source-candidates.md`): Marginalian 8.35 avg / 98% ≥ 8
+  / 4 min median, JSTOR 7.82 / 82% / 4 min, Noema 7.79 / 81% / 13 min, every one with a picture.
+- **A pre-existing WordPress walker bug.** `wp-rest.ts` and `doorofperception.ts` sized every
+  page from the remaining quota while the cursor is a page number. So `--quota 150` re-read posts
+  51–100 and printed a resume cursor 100 posts too far. Every WordPress trial sample (Colossal,
+  streetartnews, mossandfog) was really 100 posts with 50 counted twice. The data was never
+  harmed. Fixed: only the first page may shrink.
+- **`abstract` (a `look` topic) is catching abstract ideas.** Noema filed 88 of 149 essays
+  there, JSTOR 17. There is also no plain history topic, so JSTOR's modern history files as
+  `ancient-history`.
+
+**Open / next:** Ben verdicts the three (the recommendation is Keep Marginalian, Keep JSTOR at
+lower priority, hold Noema) and decides on `abstract`. A likely fix keeps `look`-facet topics
+out of the writing curator's vocabulary, plus a forced re-score of the affected rows. Then merge
+and deploy, and unsuspend the kept ones one at a time. Until they walk, a verdict costs nothing
+on production.
+
+*Session spend: 74.67M tok (in 546 · out 277.7k · cache r 73.54M / w 855.0k) · ~≥$4.52 · opus-5-5 + opus-4-7 · 13:37→14:23*
+
 ### [[09-29-26 Tue]] — Writing calibration agrees: prompt v2
 
 **Findings:** Ben finished marking (34 of 40; the six blanks are Loupe). Split by source, which
