@@ -116,6 +116,32 @@ at phone and 1440 before merge.
 
 *Session spend: 5.48M tok (in 90 · out 39.5k · cache r 5.18M / w 258.6k) · opus-5-5 · 10:01→10:04*
 
+**Shipped (late): writing Phase 4, the cards** (`feat/writing-cards`, not merged). An article
+with a usable picture is now a picture-led tile: its badge (`ESSAY · 12 MIN`, `LONG READ` past
+30, plain `READ` before the curator has a kind) and title sit on a scrim at the picture's foot.
+A text card's eyebrow is the same `writingLabel`, where the source name used to be. An
+SVG-derived Wikipedia lead image stays a text card (`includes(".svg.png")`). `WritingTile` is
+`ImageTile` plus a new `overlay` slot, so it shares the press handling, the retries and the
+proxied src. The reader's link-out keys on `isLinkCardSource` (a new `publications.ts`, empty
+until Phase 5) or PDR. `LinkOutRow`'s fused class string is fixed. `check` green (1,681 tests),
+CI-shape 62/62. `e2e:prod` had 61 passing and 1 failure, the known upstream `/api/img` flake
+(4/4 on rerun). I looked at `/` at 402 and 1440, and the Ganymede tile reads well at both.
+
+**Decisions:** **The words sit on the picture, not in a band below it.** So the height estimate
+is the picture's alone, and the title is clamped to three lines. **Wikipedia keeps its quiet
+"Read on Wikipedia →".** The plan said to replace it with `LinkOutRow`. That row renders nothing
+for open sources, so replacing it would have left a Wikipedia article with no link at its foot.
+Only link-card and PDR articles swap it. **e2e fixtures:** half the articles lost their picture,
+so both tiles get drawn. The specs that open a *picture* now exclude writing tiles with
+`:not(:has(h2))`. Locally every writing badge reads `READ`, because the local corpus was never
+re-scored. Production has kinds.
+
+**Open / next:** Ben looks at the badge and scrim (dev server on :3000, `/` or `/feed`). Then
+merge, deploy, and Phase 5 (publications). Phase 5 must record `curationText` in the
+Ambit-Admin log before it builds.
+
+*Session spend: 25.21M tok (in 348 · out 93.3k · cache r 24.68M / w 436.4k) · ~≥$1.31 · opus-5-5 + opus-4-7 · 13:24→13:37*
+
 ### [[09-29-26 Tue]] — Writing calibration agrees: prompt v2
 
 **Findings:** Ben finished marking (34 of 40; the six blanks are Loupe). Split by source, which

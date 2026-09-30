@@ -134,6 +134,17 @@ Ship this only after Phase 2's lists have run on production, or per-topic writin
 
 ## Phase 4: cards
 
+> **Built 09-30-26 on `feat/writing-cards`.** As written, with four choices made while building:
+> (1) the badge and title sit **on** the picture, so `estHeight` for a `writing-picture` is the
+> picture's height alone — there is no band below it to add, and the title is clamped to three
+> lines; (2) a writing picture advances the image ordinal, so the rhythm around it is unbroken;
+> (3) the reader keeps its quiet inline "Read on Wikipedia →" for open sources, and only a
+> link-card or PDR article swaps it for `LinkOutRow` — replacing it outright would have left a
+> Wikipedia article with no link at its foot; (4) `WritingTile` is `ImageTile` plus a new
+> `overlay` slot, not a copy. The tRPC outputs needed no change: both hydrate whole `item` rows.
+> `publications.ts` exists with an empty list for Phase 5 to fill. The text card's eyebrow
+> replaced the source name with the writing label.
+
 - **`src/components/feed/masonry.ts`:**
   - A new tile kind `writing-picture` for articles with a usable `imageUrl`. Not usable means an SVG-derived Wikipedia lead image — test with `includes(".svg.png")`, **not `endsWith`**: Wikipedia thumbnails carry a `?utm_…` query string (fixture at `wikipedia.test.ts:147`) — which falls back to a text card. Also retire the stale comment at `masonry.ts:39` ("The DB stores no image dimensions"); migration 0009 added them.
   - The aspect is the real `image_width/height` snapped to the nearest `IMAGE_ASPECTS` entry, falling back to the ordinal.
