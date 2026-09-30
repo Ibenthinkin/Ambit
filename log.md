@@ -102,8 +102,12 @@ about every stored row, 50 per call, and deletes the flagged ones children-first
 The twelve surprising titles (*Seljuk architecture*, *History of typography*…) are all genuine
 "may refer to" pages. Deleted locally; a re-run finds 0. `check` green, 1,660 tests.
 
-**Open / next:** merge + push → Ben deploys → `sh .cache/disambig-prod.sh`, then `… confirm`.
-Then Phase 4 (cards). It is runnable cold by a cheaper model: its file references still hold
+**Production:** deployed `f675799`, and `confirm` deleted **76** of 3,991 Wikipedia rows, 0 saves
+among them. The "eleven" were only the ones scored 1. The rest sat at 2-4 and were still
+drawable. Nearly all came from keyword phrases: *Ocean …* ×20, *… Machine* ×17, *Portrait …*
+×9, *… music* ×9. That is the pop-culture leak `reading-phrases.ts` already needs, measured.
+
+**Open / next:** Phase 4 (cards). It is runnable cold by a cheaper model: its file references still hold
 after Phase 3, and the label rules are in `DESIGN_writing.md` (`KIND · N MIN`, `LONG READ`
 over 30). The one thing it will improvise is the badge and scrim's look, so Ben should look
 at phone and 1440 before merge.
