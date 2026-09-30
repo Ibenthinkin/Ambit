@@ -41,9 +41,22 @@ intact. `WRITING_PROMPT`'s text hashes the same before and after, and it stays v
 now says the timeliness block is asked for and ignored, and should go the next time the prompt
 changes for its own reasons. `bun run check` green, 1,642 tests.
 
-**Open / next:** Ben deploys, then `sh .cache/recurate-writing-prod.sh confirm` (free, all cached;
-expect ~3,519 written, pdr ≈ 8.56, wikipedia ≈ 6.91 or a hair higher now the 44 keep their
-scores).
+**Production:** Ben deployed `d5edb29` (health confirms it) and ran `confirm`. It wrote **4,309**
+articles: pdr 318 @ **8.56**, wikipedia 3,991 @ **7.05**. Kinds: curiosity 4,027, essay 279,
+criticism 3. It was not the first confirm. The "before" means were already writing-curator
+scores (pdr 8.56 → 8.56, wikipedia 7.02 → 7.05), and it added no memberships. So an earlier
+`confirm` had written the rows, and its log was overwritten. The 44 news pieces are back at
+their real scores, which explains most of the +0.03. Wikipedia went from 3,201 rows to 3,991
+because the nightly ingest added 800 in two days, already scored by the writing curator. A
+read-only check found 0 rows without a kind and 2 without reading minutes. **12 Wikipedia rows sit
+at 1, and they are the curator's own verdict, not a demotion.** Eleven are **disambiguation
+pages** (*American Music*, *Sex*, *Modern poetry*, *This Machine*…) and one is a road stub.
+
+**Open / next:** the Wikipedia adapter lets disambiguation pages through. The structural floor
+should drop them (pageprops `disambiguation`, or the extract's "may refer to:"), and a repair
+should remove the eleven. Then Phase 3's gate (1 card in 8 is writing), which needs Ben's yes.
+
+*Session spend: 5.81M tok (in 87 · out 23.8k · cache r 5.60M / w 183.9k) · ~≥$1.77 · opus-5-5 + opus-4-7 · 10:04→10:43*
 
 *Session spend: 5.48M tok (in 90 · out 39.5k · cache r 5.18M / w 258.6k) · opus-5-5 · 10:01→10:04*
 

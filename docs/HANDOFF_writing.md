@@ -4,7 +4,7 @@ Read this before touching the writing code. It is self-contained; the design is
 `docs/DESIGN_writing.md` (D1–D8), the plan `docs/PLAN_writing.md` (five phases), and `log.md`
 09-28 / 09-29 have the narrative.
 
-## ▶ Pick up here (09-30-26): deploy, then confirm the re-score
+## ▶ Pick up here (09-30-26): re-score done; disambiguation pages next, then Phase 3
 
 **Ben's decision (09-30-26):** drop every "no news" provision. The 44 pieces the production dry
 run would have demoted as news (albums, films, *2022 FIFA World Cup*, *Malaysia Airlines Flight
@@ -32,7 +32,12 @@ scores.
 > `timeliness` left `CuratedItem` / `parseWritingResponse` (the parser ignores the field, so every
 > cached answer still reads — a test pins it), calibration lost `ben-news` and news
 > precision/recall and reads its table by header so the existing marked file still parses.
-> `WRITING_PROMPT` is byte-identical (hash checked) and stays v2. **Next is step 2: Ben deploys.**
+> `WRITING_PROMPT` is byte-identical (hash checked) and stays v2.
+>
+> **Steps 2–3 done 09-30-26:** deployed `d5edb29`, and `confirm` wrote 4,309 (pdr 318 @ 8.56,
+> wikipedia 3,991 @ 7.05). **The re-score is finished.** Next: keep disambiguation pages out
+> of the Wikipedia adapter (11 of the 12 rows at score 1 are disambiguation pages; see log
+> 09-30), then Phase 3's gate.
 
 1. **Remove the enforcement, not the prompt text**, so the cache survives. `WRITING_PROMPT` and
    `WRITING_PROMPT_VERSION = 2` stay **untouched** — changing the prompt changes the cache key,
