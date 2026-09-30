@@ -15,6 +15,9 @@ export interface PageStats {
   /** Cards the WILD tier drew — un-homed items, which belong to neither `original` nor `grown`
    *  because they belong to no topic at all. The three add up to `cards`. */
   wild: number;
+  /** Writing cards (`item.type === "article"`, 09-30-26) — across the split above, not a fourth
+   *  bucket of it: a writing card also counts as original, grown or wild by its topic. */
+  writing: number;
   topics: Map<string, number>;
   sources: Map<string, number>;
 }
@@ -36,11 +39,13 @@ export function pageStats(
     original: 0,
     grown: 0,
     wild: 0,
+    writing: 0,
     topics: new Map(),
     sources: new Map(),
   };
   for (const c of cards) {
     s.tiers[c.tier]++;
+    if (c.item.type === "article") s.writing++;
     // `topicId` is the card's *display* topic (Cut 1). Null is no longer a bug to be seen: as of
     // 09-06-26 it means, and only means, a WILD card — an un-homed item the new tier drew. It
     // gets its own bucket rather than being folded into original or grown, because "no topic fits
@@ -64,6 +69,7 @@ export function sumStats(pages: PageStats[]): PageStats {
     original: 0,
     grown: 0,
     wild: 0,
+    writing: 0,
     topics: new Map(),
     sources: new Map(),
   };
@@ -73,6 +79,7 @@ export function sumStats(pages: PageStats[]): PageStats {
     t.original += p.original;
     t.grown += p.grown;
     t.wild += p.wild;
+    t.writing += p.writing;
     for (const [k, n] of p.topics) t.topics.set(k, (t.topics.get(k) ?? 0) + n);
     for (const [k, n] of p.sources)
       t.sources.set(k, (t.sources.get(k) ?? 0) + n);

@@ -58,6 +58,18 @@ export interface FeedKnobs {
   /** Multiplier on a DRIFT hop's softmax weight when the landing topic is grown. 0 = drift
    *  stays inside the core sixteen; 1 = no penalty. JUMP is not affected. */
   grownHopPenalty: number;
+  // ── writing (09-30-26, docs/DESIGN_writing.md D3, docs/PLAN_writing.md Phase 3) ──────────────
+  /** Share of each page that is writing (`type = 'article'`): `pageSize × share` slots, the
+   *  fraction rounded up by a coin flip, at seeded positions that are never the first card and
+   *  never adjacent. 0.125 is D3's "about one card in eight". **Above 0, the ordinary pools are
+   *  pictures only** — an article reaches a page through a writing slot and no other way, which
+   *  is what makes this number exact rather than a floor. 0 turns writing slots off and composes
+   *  exactly as before them, articles back in the ordinary pools. */
+  writingShare: number;
+  /** `scoreFloor` for writing slots. Its own knob because the writing curator is a different
+   *  rubric (Wikipedia averages ~7 under it against the pictures' ~8.5); it starts equal to
+   *  `scoreFloor`. */
+  writingScoreFloor: number;
 }
 
 // Drift-heavy on purpose — Ben's Phase 0.5 verdict was "what I enjoy the most is the higher
@@ -79,4 +91,6 @@ export const DEFAULT_KNOBS: FeedKnobs = {
   pageSize: 12,
   grownEdgeScale: 1,
   grownHopPenalty: 1,
+  writingShare: 0.125,
+  writingScoreFloor: 4,
 };

@@ -15,7 +15,13 @@ import { DEFAULT_KNOBS, type FeedKnobs } from "~/server/services/feed-knobs";
 export interface KnobSpec {
   key: keyof FeedKnobs;
   label: string;
-  section: "Tier mix" | "Taste" | "Drift shape" | "Diversity" | "Grown topics";
+  section:
+    | "Tier mix"
+    | "Taste"
+    | "Drift shape"
+    | "Diversity"
+    | "Grown topics"
+    | "Writing";
   min: number;
   max: number;
   step: number;
@@ -152,6 +158,24 @@ export const KNOB_SPECS: readonly KnobSpec[] = [
     min: 6,
     max: 24,
     step: 1,
+  },
+  {
+    key: "writingShare",
+    label: "Writing share",
+    section: "Writing",
+    min: 0,
+    max: 0.5,
+    step: 0.025,
+    note: "Share of a page that is writing, never the first card. 0 = no writing slots, articles drawn like pictures.",
+  },
+  {
+    key: "writingScoreFloor",
+    label: "Writing score floor",
+    section: "Writing",
+    min: 1,
+    max: 9,
+    step: 1,
+    note: "The score floor for writing slots — the writing curator's scale, not the pictures'.",
   },
 ];
 

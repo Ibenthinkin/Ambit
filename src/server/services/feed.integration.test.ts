@@ -80,7 +80,7 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
       Array.from({ length: ITEM_COUNT }, (_, i) => ({
         source: i % 2 === 0 ? "wikipedia" : "met",
         sourceId: `${sourceIdPrefix}${i}`,
-        type: "article" as const,
+        type: "image" as const,
         title: `Integration feed item ${i}`,
         summary: "A summary long enough to be unremarkable.",
         sourceUrl: `https://example.com/${sourceIdPrefix}${i}`,
@@ -219,7 +219,7 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
       .values({
         source: "wikipedia",
         sourceId: wildSourceId,
-        type: "article" as const,
+        type: "image" as const,
         title: "An un-homed integration item",
         summary: "A summary long enough to be unremarkable.",
         sourceUrl: `https://example.com/${wildSourceId}`,

@@ -9,7 +9,7 @@
 // `getFeedPage` itself — which the DB-free spirit of this file preserves by mocking its three
 // external dependencies (`~/env`, db/topics.ts's `getUserTopicWeights`, db/feed.ts's
 // `getTopicPools`/`markSeen`) rather than reaching a real Postgres.
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PoolItem } from "~/server/db/feed";
 import type { Item } from "~/server/db/items";
@@ -26,6 +26,8 @@ const {
   mockGetTasteKeywords,
   mockGetTopicPools,
   mockGetWildPool,
+  mockGetWritingPools,
+  mockGetWritingWildPool,
   mockMarkSeen,
   mockGetItemsByIds,
   itemRegistry,
@@ -35,6 +37,8 @@ const {
   mockGetTasteKeywords: vi.fn(),
   mockGetTopicPools: vi.fn(),
   mockGetWildPool: vi.fn(),
+  mockGetWritingPools: vi.fn(),
+  mockGetWritingWildPool: vi.fn(),
   mockMarkSeen: vi.fn(),
   mockGetItemsByIds: vi.fn(),
   // Every fixture `makeItem` ever built, by id — the stand-in for the `item` table that
@@ -59,6 +63,8 @@ vi.mock("~/server/db/saves", async (importActual) => ({
 vi.mock("~/server/db/feed", () => ({
   getTopicPools: mockGetTopicPools,
   getWildPool: mockGetWildPool,
+  getWritingPools: mockGetWritingPools,
+  getWritingWildPool: mockGetWritingWildPool,
   markSeen: mockMarkSeen,
 }));
 // `drawWeight` is a pure export of this module and the taste formula these tests pin, so it stays
@@ -82,6 +88,7 @@ import {
   pickJump,
   planTopics,
   scaleGrownEdges,
+  writingPositions,
   type FeedCursor,
   type FeedKnobs,
   type Tier,
@@ -134,6 +141,14 @@ function makeUnhomed(overrides: Partial<Item> = {}): Item & { topicId: null } {
   itemRegistry.set(built.id, built);
   return built;
 }
+
+// No writing by default (09-30-26): every `getFeedPage` block below was written before writing
+// slots, and an empty writing pool leaves the slot to the ordinary draw, so those pages compose as
+// they did. The writing block at the bottom overrides these.
+mockGetWritingPools.mockImplementation((ids: string[]) =>
+  Promise.resolve(new Map(ids.map((id) => [id, []]))),
+);
+mockGetWritingWildPool.mockResolvedValue([]);
 
 // The hydrate half of `getFeedPage`, answered from the fixtures this file built. Mirrors the real
 // function's contract exactly: a Map, and an id it doesn't know about is simply absent.
@@ -1499,5 +1514,318 @@ describe("planTopics (09-11-26)", () => {
     });
     expect(planned.size).toBeLessThanOrEqual(7);
     for (const id of planned) expect(TOPIC_IDS).toContain(id);
+  });
+});
+
+// ── writing slots (09-30-26, docs/PLAN_writing.md Phase 3) ─────────────────────────────────────
+describe("writingPositions", () => {
+  it("never places writing first or two in a row, and lands on 12 × 0.125 on average", () => {
+    let total = 0;
+    for (let i = 0; i < 400; i++) {
+      const pos = writingPositions(12, 0.125, mulberry32(hashSeed(`pos:${i}`)));
+      expect(pos.length === 1 || pos.length === 2).toBe(true);
+      expect(pos).toEqual([...pos].sort((a, b) => a - b));
+      for (const [j, p] of pos.entries()) {
+        expect(p).toBeGreaterThanOrEqual(1);
+        expect(p).toBeLessThan(12);
+        if (j > 0) expect(p - pos[j - 1]!).toBeGreaterThan(1);
+      }
+      total += pos.length;
+    }
+    expect(total / 400).toBeCloseTo(1.5, 1);
+  });
+
+  it("follows pageSize, a knob — never the literal 12", () => {
+    for (let i = 0; i < 50; i++) {
+      const pos = writingPositions(24, 0.25, mulberry32(hashSeed(`p24:${i}`)));
+      expect(pos).toHaveLength(6);
+      expect(Math.max(...pos)).toBeLessThan(24);
+    }
+  });
+
+  it("is empty at share 0", () => {
+    expect(writingPositions(12, 0, mulberry32(1))).toEqual([]);
+  });
+});
+
+describe("composePage — writing slots", () => {
+  const knobs: FeedKnobs = { ...DEFAULT_KNOBS, tierWild: 0 };
+  const TOPICS_W = ["w0", "w1", "w2", "w3", "w4"];
+  const weights = new Map(TOPICS_W.map((t) => [t, 1]));
+  const pictures = () =>
+    new Map(
+      TOPICS_W.map((t) => [
+        t,
+        Array.from({ length: 30 }, () =>
+          makeItem({ topicId: t, type: "image" }),
+        ),
+      ]),
+    );
+  const essays = (topics: string[], n = 8) =>
+    new Map(
+      topics.map((t) => [
+        t,
+        Array.from({ length: n }, () =>
+          makeItem({ topicId: t, type: "article" }),
+        ),
+      ]),
+    );
+  const streams = (key: string) => ({
+    rng: mulberry32(hashSeed(key)),
+    itemRng: mulberry32(hashSeed(`${key}:items`)),
+  });
+
+  it("fills exactly the drawn positions with writing, over 200 seeded pages", () => {
+    for (let i = 0; i < 200; i++) {
+      const key = `wpage:${i}`;
+      const expected = writingPositions(
+        knobs.pageSize,
+        knobs.writingShare,
+        mulberry32(hashSeed(`${key}:writing`)),
+      );
+      const page = composePage({
+        weights,
+        graph: {},
+        pools: pictures(),
+        writingPools: essays(TOPICS_W),
+        writingRng: mulberry32(hashSeed(`${key}:writing`)),
+        knobs,
+        ...streams(key),
+      });
+      expect(page).toHaveLength(knobs.pageSize);
+      const at = page.flatMap((c, j) => (c.item.type === "article" ? [j] : []));
+      expect(at).toEqual(expected);
+    }
+  });
+
+  it("draws from the slot's own topic first, keeping its tier and topic", () => {
+    const page = composePage({
+      weights,
+      graph: {},
+      pools: pictures(),
+      writingPools: essays(TOPICS_W),
+      writingRng: mulberry32(hashSeed("own:writing")),
+      knobs,
+      debug: true,
+      ...streams("own"),
+    });
+    const w = page.filter((c) => c.item.type === "article");
+    expect(w.length).toBeGreaterThan(0);
+    for (const c of w) {
+      expect(c.topicId).toBe(c.item.topicId);
+      expect(c.debug?.why).toMatch(
+        /^WRITING · CORE|^WRITING · DRIFT|^WRITING · JUMP/,
+      );
+      expect(c.debug?.why).not.toContain("any planned topic");
+    }
+  });
+
+  it("falls back to any planned topic when the slot's own has no writing", () => {
+    // Only w4 has writing; every slot that lands elsewhere must reach it through the union.
+    let viaUnion = 0;
+    for (let i = 0; i < 40; i++) {
+      const page = composePage({
+        weights,
+        graph: {},
+        pools: pictures(),
+        writingPools: essays(["w4"], 20),
+        writingRng: mulberry32(hashSeed(`union:${i}:writing`)),
+        knobs,
+        debug: true,
+        ...streams(`union:${i}`),
+      });
+      for (const c of page.filter((x) => x.item.type === "article")) {
+        expect(c.topicId).toBe("w4");
+        if (c.debug?.why.includes("any planned topic")) viaUnion++;
+      }
+    }
+    expect(viaUnion).toBeGreaterThan(0);
+  });
+
+  it("falls back to any reachable article — WILD only when it is un-homed", () => {
+    const loose = Array.from({ length: 10 }, () =>
+      makeUnhomed({ type: "article" }),
+    );
+    const page = composePage({
+      weights,
+      graph: {},
+      pools: pictures(),
+      writingPools: new Map(),
+      writingWildPool: loose,
+      writingRng: mulberry32(hashSeed("loose:writing")),
+      knobs,
+      ...streams("loose"),
+    });
+    const w = page.filter((c) => c.item.type === "article");
+    expect(w.length).toBeGreaterThan(0);
+    for (const c of w) {
+      expect(c.tier).toBe("WILD");
+      expect(c.topicId).toBeNull();
+    }
+
+    // A homed article from that pool keeps its own topic, and is not WILD.
+    const homed = Array.from({ length: 10 }, () =>
+      makeItem({ topicId: "elsewhere", type: "article" }),
+    );
+    const page2 = composePage({
+      weights,
+      graph: {},
+      pools: pictures(),
+      writingPools: new Map(),
+      writingWildPool: homed,
+      writingRng: mulberry32(hashSeed("loose2:writing")),
+      knobs,
+      ...streams("loose2"),
+    });
+    const w2 = page2.filter((c) => c.item.type === "article");
+    expect(w2.length).toBeGreaterThan(0);
+    for (const c of w2) {
+      expect(c.tier).toBe("DRIFT");
+      expect(c.topicId).toBe("elsewhere");
+    }
+  });
+
+  it("gives an ordinary card, never a short page, when there is no writing at all", () => {
+    const page = composePage({
+      weights,
+      graph: {},
+      pools: pictures(),
+      writingPools: new Map(),
+      writingWildPool: [],
+      writingRng: mulberry32(hashSeed("none:writing")),
+      knobs,
+      ...streams("none"),
+    });
+    expect(page).toHaveLength(knobs.pageSize);
+    expect(page.every((c) => c.item.type === "image")).toBe(true);
+  });
+
+  it("tops a page up with writing when the pictures run out, rather than going short", () => {
+    const page = composePage({
+      weights,
+      graph: {},
+      pools: new Map(TOPICS_W.map((t) => [t, []])),
+      writingPools: essays(TOPICS_W),
+      writingRng: mulberry32(hashSeed("dry:writing")),
+      knobs: { ...knobs, sourceCap: 100 },
+      ...streams("dry"),
+    });
+    expect(page).toHaveLength(knobs.pageSize);
+    expect(page.every((c) => c.item.type === "article")).toBe(true);
+  });
+
+  it("composes byte-for-byte what it did before writing slots, at share 0 or with nothing to draw", () => {
+    // One set of pools for every call: `pictures()` mints fresh ids each time it runs.
+    const pools = pictures();
+    const ids = (p: ReturnType<typeof composePage>) => p.map((c) => c.item.id);
+    const before = composePage({
+      weights,
+      graph: {},
+      pools,
+      knobs,
+      ...streams("same"),
+    });
+    const shareZero = composePage({
+      weights,
+      graph: {},
+      pools,
+      writingPools: essays(TOPICS_W),
+      writingRng: mulberry32(hashSeed("same:writing")),
+      knobs: { ...knobs, writingShare: 0 },
+      ...streams("same"),
+    });
+    const nothing = composePage({
+      weights,
+      graph: {},
+      pools,
+      writingPools: new Map(),
+      writingRng: mulberry32(hashSeed("same:writing")),
+      knobs,
+      ...streams("same"),
+    });
+    expect(before).toHaveLength(knobs.pageSize);
+    expect(ids(shareZero)).toEqual(ids(before));
+    expect(ids(nothing)).toEqual(ids(before));
+  });
+});
+
+describe("getFeedPage — writing slots (09-30-26)", () => {
+  const PICKED = ["p0", "p1", "p2", "p3", "p4"];
+  const poolsFor = (topicIds: string[], type: "image" | "article", n = 12) =>
+    new Map(
+      topicIds.map((topicId) => [
+        topicId,
+        Array.from({ length: n }, (_, i) =>
+          makeItem({ id: `${type}-${topicId}-${i}`, topicId, type }),
+        ),
+      ]),
+    );
+
+  beforeEach(() => {
+    mockEnv.FEED_DEBUG = true;
+    mockEnv.NODE_ENV = "test";
+    mockGetUserTopicWeights
+      .mockReset()
+      .mockResolvedValue(new Map(PICKED.map((id) => [id, 1])));
+    mockGetTasteKeywords.mockReset().mockResolvedValue([]);
+    mockGetWildPool.mockReset().mockResolvedValue([]);
+    mockGetTopicPools
+      .mockReset()
+      .mockImplementation(async (ids: string[]) => poolsFor(ids, "image"));
+    mockGetWritingPools
+      .mockReset()
+      .mockImplementation(async (ids: string[]) => poolsFor(ids, "article", 4));
+    mockGetWritingWildPool.mockReset().mockResolvedValue([]);
+    mockGetItemsByIds.mockClear();
+  });
+
+  afterAll(() => {
+    // Back to "no writing" for anything that runs after this block.
+    mockGetWritingPools
+      .mockReset()
+      .mockImplementation((ids: string[]) =>
+        Promise.resolve(new Map(ids.map((id) => [id, []]))),
+      );
+    mockGetWritingWildPool.mockReset().mockResolvedValue([]);
+  });
+
+  it("asks for picture-only ordinary pools and article pools at the writing floor", async () => {
+    const page = await getFeedPage("user-writing");
+    const [, ordinary] = mockGetTopicPools.mock.calls[0] as [
+      string[],
+      { type?: string },
+    ];
+    expect(ordinary.type).toBe("image");
+    const [asked, writing] = mockGetWritingPools.mock.calls[0] as [
+      string[],
+      { scoreFloor: number },
+    ];
+    expect([...asked].sort()).toEqual([...PICKED].sort());
+    expect(writing.scoreFloor).toBe(DEFAULT_KNOBS.writingScoreFloor);
+    expect(mockGetWildPool.mock.calls[0]![0]).toMatchObject({ type: "image" });
+    expect(page.cards).toHaveLength(DEFAULT_KNOBS.pageSize);
+    const n = page.cards.filter((c) => c.item.type === "article").length;
+    expect(n === 1 || n === 2).toBe(true);
+    expect(page.cards[0]!.item.type).toBe("image");
+  });
+
+  it("at writingShare 0 fetches no writing and lets articles back into the ordinary pools", async () => {
+    await getFeedPage("user-no-writing", undefined, { writingShare: 0 });
+    const [, ordinary] = mockGetTopicPools.mock.calls[0] as [
+      string[],
+      { type?: string },
+    ];
+    expect(ordinary.type).toBeUndefined();
+    expect(mockGetWritingPools).not.toHaveBeenCalled();
+    expect(mockGetWritingWildPool).not.toHaveBeenCalled();
+  });
+
+  it("same cursor ⇒ same page, writing included", async () => {
+    const first = await getFeedPage("user-w-stable");
+    const a = await getFeedPage("user-w-stable", first.nextCursor);
+    const b = await getFeedPage("user-w-stable", first.nextCursor);
+    expect(b.cards.map((c) => c.item.id)).toEqual(
+      a.cards.map((c) => c.item.id),
+    );
   });
 });

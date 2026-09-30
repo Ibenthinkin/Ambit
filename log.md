@@ -58,6 +58,38 @@ should remove the eleven. Then Phase 3's gate (1 card in 8 is writing), which ne
 
 *Session spend: 5.81M tok (in 87 · out 23.8k · cache r 5.60M / w 183.9k) · ~≥$1.77 · opus-5-5 + opus-4-7 · 10:04→10:43*
 
+**Shipped (afternoon): writing Phase 3, the writing slots, built on `feat/writing-share`
+(pushed, not merged).** Ben's gate answer was yes as written: PDR essays and Loupe clippings reach
+the feed only through writing slots, and `/` gets them too. About one card in eight is writing
+(`writingShare` 0.125, `writingScoreFloor` 4, both on `/dev/feed`). The positions come from a
+third random stream, never first and never adjacent. A writing slot draws, in order, from its own
+topic's writing pool (15 per topic, 6 per source), then any planned topic, then any article the
+page could reach. Failing all three, it becomes an ordinary card. The ordinary pools are pictures
+only whenever the share is above 0, and share 0 composes byte-for-byte as before.
+`probe:feed --uniform --pages 20`: **27 writing in 240 (PDR 16, Wikipedia 11), against 5 with the
+slots off.** PDR's essays get more reach, not less. `bench:feed` p50 217/259 ms off vs 271/234 ms
+on, which is noise. It gained `--knob` so the two could be timed in the same minutes.
+
+**Findings while building:** (1) "Any article" as the last resort included every test suite's
+fixture topics. That widened the known un-homed-fixture race to *homed* articles and produced
+the same `seen_item` FK error. The last resort is now any article in a *reachable* topic, or
+un-homed. (2) It also broke "a WILD card is an un-homed item" (an existing integration test
+caught it), so a homed article drawn there is served under its own topic as DRIFT. (3) CI's
+shape found an empty feed: a writing position is only reached once `cards.length` gets there, so
+a reader whose pictures are exhausted got *zero* cards with articles still eligible. The page
+now tops up with writing when pictures run out. Green after: `check` 1,658 · CI shape 61/61
+twice · `e2e:prod` 61/61. **Two flakes that are not this branch:** `explore.spec`'s tile→item
+(3/3 on rerun), and `desktop.spec`'s spread turn (1 in 3). The spread test compares pages by
+`alt`, and two different Vault pictures share the alt "The Vault of the Atomic Space Age".
+Compare by `src` to fix it.
+
+**Open / next:** Ben looks at `/dev/feed` (the Writing sliders and the `writing` readout line),
+then merge `feat/writing-share` → deploy. Phase 4 (writing cards that look like writing) is next;
+until then a writing card renders as today's article tile. Also open: keep disambiguation pages
+out of the Wikipedia adapter, and the spread test's alt comparison.
+
+*Session spend: 34.24M tok (in 280 · out 140.8k · cache r 33.53M / w 562.2k) · opus-5-5 · 10:43→12:19*
+
 *Session spend: 5.48M tok (in 90 · out 39.5k · cache r 5.18M / w 258.6k) · opus-5-5 · 10:01→10:04*
 
 ### [[09-29-26 Tue]] — Writing calibration agrees: prompt v2

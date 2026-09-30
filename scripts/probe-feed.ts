@@ -95,6 +95,10 @@ let adjacencyViolations = 0;
 // onto `item_topic` membership (09-11-26). Zero here on a real account would mean the join
 // is not reaching the feed.
 let slotIsNotDisplay = 0;
+// Writing cards (`type = 'article'`), and the ones by source — Phase 3's verification reads
+// "~30 writing cards in 240" off this line (docs/PLAN_writing.md).
+let writing = 0;
+const writingBySource = new Map<string, number>();
 
 for (let p = 0; p < pages; p++) {
   const page = await getFeedPage(userId, cursor, knobOverrides);
@@ -122,6 +126,13 @@ for (let p = 0; p < pages; p++) {
   for (const card of page.cards) {
     tierCounts[card.tier]++;
     scores.push(card.item.curationScore);
+    if (card.item.type === "article") {
+      writing++;
+      writingBySource.set(
+        card.item.source,
+        (writingBySource.get(card.item.source) ?? 0) + 1,
+      );
+    }
     // A topic card's `topicId` is the SLOT's topic; since 09-11-26 the pools come from
     // membership, so it can differ from the item's display topic — the `display` column beside
     // it shows when. `(none)` in the topic column is a WILD card (an un-homed item).
@@ -173,6 +184,12 @@ if (total === 0) {
   );
   console.log(
     `cards served under a topic other than their display topic: ${slotIsNotDisplay} of ${scores.length}`,
+  );
+  console.log(
+    `writing: ${writing} of ${scores.length} cards` +
+      (writing
+        ? ` (${[...writingBySource].map(([s, n]) => `${s} ${n}`).join(", ")})`
+        : ""),
   );
   const sorted = [...scores].sort((a, b) => a - b);
   const mean = sorted.reduce((s, x) => s + x, 0) / sorted.length;

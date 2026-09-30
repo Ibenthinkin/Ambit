@@ -17,6 +17,7 @@ import {
   lte,
   notExists,
   notInArray,
+  or,
   sql,
 } from "drizzle-orm";
 
@@ -33,7 +34,7 @@ import { item, itemTopic, seenItem } from "./schema";
  */
 export type PoolItem = Pick<
   Item,
-  "id" | "source" | "curationScore" | "aestheticTags"
+  "id" | "source" | "curationScore" | "aestheticTags" | "type"
 > & {
   /** **The pool this row was fetched for** — `item_topic.topic_id`, since 09-11-26 — not the
    *  item's display topic. An item with three memberships can come back in three pools on one
@@ -43,6 +44,11 @@ export type PoolItem = Pick<
    *  WILD card. */
   topicId: string | null;
 };
+
+/** Which rows a pool may hold, by `item.type` (09-30-26, docs/PLAN_writing.md Phase 3). Absent
+ *  means both — the only shape before writing slots, and still what every caller gets at
+ *  `writingShare: 0`. */
+export type PoolType = "image" | "article";
 
 /**
  * One SELECT per page, not one per topic: for every id in `topicIds`, a deterministic **sample**
@@ -94,6 +100,12 @@ export async function getTopicPools(
     excludeIds: string[];
     /** `${seed}:${page}` from the cursor — what makes the sample a pure function of the page. */
     sampleKey: string;
+    /** Only rows of this type. The ordinary pools are `image` whenever the page has writing
+     *  slots; `getWritingPools` is this function at `article`. */
+    type?: PoolType;
+    /** Override `TOPIC_POOL_SAMPLE` / `TOPIC_POOL_PER_SOURCE` — writing pools are smaller. */
+    sample?: number;
+    perSource?: number;
   },
 ): Promise<Map<string, PoolItem[]>> {
   const pools = new Map<string, PoolItem[]>();
@@ -129,6 +141,7 @@ export async function getTopicPools(
       source: item.source,
       curationScore: item.curationScore,
       aestheticTags: item.aestheticTags,
+      type: item.type,
       nSrc: sql<number>`row_number() over (partition by ${itemTopic.topicId}, ${item.source} order by md5(${item.id} || ${opts.sampleKey}))`.as(
         "n_src",
       ),
@@ -162,12 +175,13 @@ export async function getTopicPools(
       source: perSource.source,
       curationScore: perSource.curationScore,
       aestheticTags: perSource.aestheticTags,
+      type: perSource.type,
       n: sql<number>`row_number() over (partition by ${perSource.topicId} order by md5(${perSource.id} || ${opts.sampleKey}))`.as(
         "n",
       ),
     })
     .from(perSource)
-    .where(lte(perSource.nSrc, TOPIC_POOL_PER_SOURCE))
+    .where(lte(perSource.nSrc, opts.perSource ?? TOPIC_POOL_PER_SOURCE))
     .as("survivors");
 
   // `ORDER BY topic_id, id` is load-bearing, not cosmetic: `composePage`'s `weightedPick` walks
@@ -200,9 +214,10 @@ export async function getTopicPools(
         source: survivors.source,
         curationScore: survivors.curationScore,
         aestheticTags: survivors.aestheticTags,
+        type: survivors.type,
       })
       .from(survivors)
-      .where(lte(survivors.n, TOPIC_POOL_SAMPLE))
+      .where(lte(survivors.n, opts.sample ?? TOPIC_POOL_SAMPLE))
       .orderBy(asc(survivors.topicId), asc(survivors.id));
   });
 
@@ -216,10 +231,37 @@ export async function getTopicPools(
   return pools;
 }
 
+/**
+ * The writing slots' pools (09-30-26, docs/PLAN_writing.md Phase 3): `getTopicPools` at
+ * `type = 'article'`, smaller — 15 per topic, 6 per (topic, source). A page has one or two
+ * writing slots, so fifteen is plenty of choice, and six per source keeps Wikipedia (~4,000
+ * articles to PDR's ~300) from filling a topic's sample on its own. Same two-stage sample, same
+ * cursor-keyed hash, so a refetched cursor gets the same writing too. `scoreFloor` here is the
+ * caller's `writingScoreFloor`.
+ */
+export async function getWritingPools(
+  topicIds: string[],
+  opts: Omit<
+    Parameters<typeof getTopicPools>[1],
+    "type" | "sample" | "perSource"
+  >,
+): Promise<Map<string, PoolItem[]>> {
+  return getTopicPools(topicIds, {
+    ...opts,
+    type: "article",
+    sample: WRITING_POOL_SAMPLE,
+    perSource: WRITING_POOL_PER_SOURCE,
+  });
+}
+
+export const WRITING_POOL_SAMPLE = 15;
+export const WRITING_POOL_PER_SOURCE = 6;
+
 /** What makes an item eligible for ANY pool, topic or wild: above the floor, not served to this
  *  user before the page anchor (when there is a user), not from a suspended source, not on the previous page. Factored
  *  out when getWildPool arrived (09-06-26) so the two pools cannot drift apart — an item that a
- *  topic pool would refuse must not reach a reader through the wild one. */
+ *  topic pool would refuse must not reach a reader through the wild one. `type`, when given,
+ *  narrows to one kind of row (09-30-26). */
 function eligibilityConditions(
   db: Awaited<typeof import("./client")>["db"],
   opts: {
@@ -228,9 +270,11 @@ function eligibilityConditions(
     anchor: Date;
     scoreFloor: number;
     excludeIds: string[];
+    type?: PoolType;
   },
 ) {
   const conditions = [gte(item.curationScore, opts.scoreFloor)];
+  if (opts.type) conditions.push(eq(item.type, opts.type));
   // A page for nobody (`/explore`, 09-26-26) has no history to exclude. Said here rather than left
   // to SQL: `user_id = NULL` is never true, so the subquery would quietly match nothing and give
   // the same answer — by accident, and at the price of a pointless anti-join per row.
@@ -309,10 +353,10 @@ export const TOPIC_POOL_PER_SOURCE = 20;
  * md5 over tens of thousands of rows is milliseconds, and `idx_item_unhomed_score` (a partial
  * index on the NULL-topic rows) is what keeps the set being hashed small as the corpus grows.
  *
- * **No `type` filter** (D7). Ben asked for pictures and the un-homed pool is overwhelmingly
- * pictures, but excluding an un-homed pdr essay would be a rule with no reason behind it. If a
- * wild article card reads wrong on real pages, add `eq(item.type, "image")` here — one line,
- * written down so nobody has to rediscover that it was a choice.
+ * **`type` follows the page** (09-30-26). Before writing slots this had no type filter (D7:
+ * excluding an un-homed pdr essay would have been a rule with no reason behind it). Now a page
+ * with writing slots passes `image`, because an article reaches such a page only through a
+ * writing slot — `getWritingWildPool` is where an un-homed essay goes instead.
  */
 export async function getWildPool(opts: {
   userId: string | null;
@@ -322,6 +366,7 @@ export async function getWildPool(opts: {
   /** `${seed}:${page}` — what makes the sample a pure function of the cursor. */
   sampleKey: string;
   limit?: number;
+  type?: PoolType;
 }): Promise<PoolItem[]> {
   const { db } = await import("./client");
 
@@ -332,12 +377,60 @@ export async function getWildPool(opts: {
       source: item.source,
       curationScore: item.curationScore,
       aestheticTags: item.aestheticTags,
+      type: item.type,
     })
     .from(item)
     .where(and(isNull(item.topicId), ...eligibilityConditions(db, opts)))
     .orderBy(sql`md5(${item.id} || ${opts.sampleKey})`)
     .limit(opts.limit ?? WILD_POOL_SIZE);
 }
+
+/**
+ * A writing slot's last resort (09-30-26, docs/PLAN_writing.md Phase 3): a cursor-keyed sample of
+ * the eligible articles whose display topic is in `topicIds` — the page's *reachable* set — or
+ * that have none. Reached only when neither the slot's own topic nor any planned topic had a
+ * writing card left. Small, because a page spends at most a couple of these. `topicId` is the
+ * article's display topic: `composePage` serves a homed one under it, and only an un-homed one
+ * as WILD, so "WILD means un-homed" still holds.
+ *
+ * Not *every* article, on purpose: a topic outside the graph (every test suite's fixture topic)
+ * must stay unreachable, or one suite's fixtures turn up on another's pages and are deleted
+ * under it — the race CLAUDE.md records for un-homed fixtures, made much wider.
+ */
+export async function getWritingWildPool(opts: {
+  userId: string | null;
+  anchor: Date;
+  scoreFloor: number;
+  excludeIds: string[];
+  sampleKey: string;
+  /** The topics the page could reach; an article homed anywhere else is not drawn. */
+  topicIds: string[];
+  limit?: number;
+}): Promise<PoolItem[]> {
+  const { db } = await import("./client");
+
+  const home =
+    opts.topicIds.length > 0
+      ? or(isNull(item.topicId), inArray(item.topicId, opts.topicIds))
+      : isNull(item.topicId);
+  return db
+    .select({
+      id: item.id,
+      topicId: item.topicId,
+      source: item.source,
+      curationScore: item.curationScore,
+      aestheticTags: item.aestheticTags,
+      type: item.type,
+    })
+    .from(item)
+    .where(
+      and(home, ...eligibilityConditions(db, { ...opts, type: "article" })),
+    )
+    .orderBy(sql`md5(${item.id} || ${opts.sampleKey})`)
+    .limit(opts.limit ?? WRITING_WILD_POOL_SIZE);
+}
+
+export const WRITING_WILD_POOL_SIZE = 40;
 
 /**
  * Batch-inserts a page's items into `seen_item`. Called from the `feed.markSeen` mutation as of

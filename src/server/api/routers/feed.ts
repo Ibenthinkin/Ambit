@@ -47,6 +47,9 @@ const feedKnobsSchema = z
     // above 1 would be a bonus, which is a different knob with a different name.
     grownEdgeScale: z.number().min(0).max(4),
     grownHopPenalty: z.number().min(0).max(1),
+    // Writing slots (09-30-26). Half a page is already more writing than the design asks for.
+    writingShare: z.number().min(0).max(0.5),
+    writingScoreFloor: z.number().min(1).max(10),
   })
   .partial();
 

@@ -19,8 +19,12 @@ import {
   forgetSeenSince,
   getTopicPools,
   getWildPool,
+  getWritingPools,
+  getWritingWildPool,
   TOPIC_POOL_PER_SOURCE,
   TOPIC_POOL_SAMPLE,
+  WRITING_POOL_PER_SOURCE,
+  WRITING_POOL_SAMPLE,
 } from "./feed";
 import { drawFromTopic } from "./items";
 import { insertHomedItems } from "./test-fixtures";
@@ -721,6 +725,127 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const pools = await getTopicPools([displayTopic, memberTopic], opts());
       expect(pools.get(displayTopic)!.map((r) => r.id)).toEqual([itemId]);
       expect(pools.get(memberTopic)!.map((r) => r.id)).toEqual([itemId]);
+    });
+  },
+);
+
+// Writing slots (09-30-26, docs/PLAN_writing.md Phase 3): the pools that feed them hold articles
+// and nothing else, within their own smaller caps, and `type: "image"` keeps articles out of the
+// ordinary pools. Every fixture is homed under a test-only topic — no un-homed rows, so nothing
+// here can reach another suite's WILD draw (CLAUDE.md's cursor-stability note).
+describe.skipIf(!process.env.DATABASE_URL)(
+  "writing pools (integration)",
+  () => {
+    const topicId = `test-writing-topic-${nanoid(8)}`;
+    const sourceIdPrefix = `test-writing-${nanoid(8)}-`;
+    const opts = {
+      userId: null,
+      anchor: new Date(),
+      scoreFloor: 1,
+      excludeIds: [],
+      sampleKey: "writing-test:0",
+    };
+
+    beforeAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { topic } = await import("~/server/db/schema");
+      await db.insert(topic).values({
+        id: topicId,
+        label: "Test writing topic",
+        seedQueries: { wikipedia: [], met: [], aic: [], cma: [], wellcome: [] },
+      });
+      // Three sources × 10 articles, plus 10 pictures: more articles than the sample and more
+      // per source than the per-source cap, so both caps have to bite.
+      const rows = [
+        ...["wikipedia", "pdr", "loupe"].flatMap((source) =>
+          Array.from({ length: 10 }, (_, i) => ({
+            source,
+            i,
+            type: "article" as const,
+          })),
+        ),
+        ...Array.from({ length: 10 }, (_, i) => ({
+          source: "met",
+          i,
+          type: "image" as const,
+        })),
+      ];
+      await insertHomedItems(
+        db,
+        rows.map(({ source, i, type }) => ({
+          source,
+          sourceId: `${sourceIdPrefix}${source}-${i}`,
+          type,
+          title: `Writing pool ${source} ${i}`,
+          sourceUrl: `https://example.com/${sourceIdPrefix}${source}-${i}`,
+          topicId,
+          curationScore: 8,
+          aestheticTags: [],
+        })),
+      );
+    });
+
+    afterAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { item, topic } = await import("~/server/db/schema");
+      const rows = await db.query.item.findMany({
+        where: (t, { eq }) => eq(t.topicId, topicId),
+        columns: { id: true },
+      });
+      if (rows.length > 0)
+        await db.delete(item).where(
+          inArray(
+            item.id,
+            rows.map((r) => r.id),
+          ),
+        );
+      await db.delete(topic).where(eq(topic.id, topicId));
+    });
+
+    it("getWritingPools returns only articles, within its caps", async () => {
+      const pool = (await getWritingPools([topicId], opts)).get(topicId) ?? [];
+      const live = pool.filter(
+        (r) => r.source !== "loupe" || !SUSPENDED_SOURCES.includes("loupe"),
+      );
+      expect(pool.every((r) => r.type === "article")).toBe(true);
+      expect(pool.length).toBeLessThanOrEqual(WRITING_POOL_SAMPLE);
+      const bySource = new Map<string, number>();
+      for (const r of live)
+        bySource.set(r.source, (bySource.get(r.source) ?? 0) + 1);
+      for (const n of bySource.values())
+        expect(n).toBeLessThanOrEqual(WRITING_POOL_PER_SOURCE);
+      expect(bySource.get("wikipedia")).toBe(WRITING_POOL_PER_SOURCE);
+    });
+
+    it("getTopicPools at type image keeps articles out", async () => {
+      const pool =
+        (await getTopicPools([topicId], { ...opts, type: "image" })).get(
+          topicId,
+        ) ?? [];
+      expect(pool).toHaveLength(10);
+      expect(pool.every((r) => r.type === "image")).toBe(true);
+    });
+
+    it("getWritingWildPool returns only articles, and only from the topics it is given", async () => {
+      const mine = await getWritingWildPool({
+        ...opts,
+        topicIds: [topicId],
+        limit: 5000,
+      });
+      expect(mine.every((r) => r.type === "article")).toBe(true);
+      expect(mine.filter((r) => r.topicId === topicId).length).toBeGreaterThan(
+        0,
+      );
+      for (const r of mine) expect([topicId, null]).toContain(r.topicId);
+
+      // The fixture topic is not in the graph, so a real page never names it: its articles stay
+      // out, which is what keeps this suite's rows off other suites' pages.
+      const elsewhere = await getWritingWildPool({
+        ...opts,
+        topicIds: ["not-this-topic"],
+        limit: 5000,
+      });
+      expect(elsewhere.some((r) => r.topicId === topicId)).toBe(false);
     });
   },
 );
