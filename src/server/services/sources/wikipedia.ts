@@ -30,6 +30,14 @@ export function isLowValueTitle(title: string): boolean {
   );
 }
 
+/** True when MediaWiki flags the page as a disambiguation page (`pageprops.disambiguation`,
+ *  present with an empty-string value). Needs the query to ask `ppprop=disambiguation`. */
+export function isDisambiguation(page: {
+  pageprops?: { disambiguation?: string };
+}): boolean {
+  return page.pageprops?.disambiguation !== undefined;
+}
+
 /**
  * The settled decision (docs/PHASE3_PLAN.md Task 1): Wikipedia article text is CC BY-SA 4.0, but
  * each lead image carries its OWN per-file license the search/extract APIs never expose — 3.1
@@ -77,6 +85,8 @@ interface WikiDetailPage {
   thumbnail?: { source: string; width: number; height: number };
   pageimage?: string;
   categories?: { title: string }[];
+  /** Present only when asked with `ppprop=disambiguation` AND the page is one (value `""`). */
+  pageprops?: { disambiguation?: string };
 }
 
 /** A WikiDetailPage that's already passed the title + extract-length check — narrows `title`
@@ -176,8 +186,8 @@ async function search(
   for (const batch of chunk(hits, 20)) {
     const ids = batch.map((h) => h.pageid);
     const detail = (await fetchJson(
-      `${WIKI_API}?action=query&format=json&prop=extracts|pageimages|categories` +
-        `&exintro=1&explaintext=1&piprop=thumbnail|name&pithumbsize=${LEAD_IMAGE_WIDTH}` +
+      `${WIKI_API}?action=query&format=json&prop=extracts|pageimages|categories|pageprops` +
+        `&ppprop=disambiguation&exintro=1&explaintext=1&piprop=thumbnail|name&pithumbsize=${LEAD_IMAGE_WIDTH}` +
         `&cllimit=max&clshow=!hidden` +
         `&pageids=${ids.join("|")}`,
       { delayMs: 120 },
@@ -185,7 +195,16 @@ async function search(
     for (const id of ids) {
       const page = detail.query?.pages?.[String(id)];
       // Stubs make poor feed cards and noisy curator judgments — same 200-char floor phase0 used.
-      if (page?.title && (page.extract ?? "").trim().length >= 200) {
+      // Disambiguation pages go too: most are titled plainly ("Sex", "Music Man"), so the
+      // `(disambiguation)` title rule misses them, and their extract clears the floor easily.
+      // Eleven reached production that way and the curator scored every one 1 (09-30-26).
+      // The page property is the authority, not the text: "Sex most commonly refers to:" and
+      // "A money machine, or ATM, is…" are both disambiguation pages.
+      if (
+        page?.title &&
+        (page.extract ?? "").trim().length >= 200 &&
+        !isDisambiguation(page)
+      ) {
         detailPages.push(page as KeptDetailPage);
       }
     }

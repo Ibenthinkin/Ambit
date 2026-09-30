@@ -90,6 +90,26 @@ out of the Wikipedia adapter, and the spread test's alt comparison.
 
 *Session spend: 34.24M tok (in 280 · out 140.8k · cache r 33.53M / w 562.2k) · opus-5-5 · 10:43→12:19*
 
+**Shipped (evening): disambiguation pages are out of Wikipedia** (`fix/wikipedia-disambiguation`).
+Ben deployed Phase 3 (`15b94a8`, health confirms it). The adapter's detail call now asks
+`ppprop=disambiguation` and drops any page MediaWiki flags. The title rule only caught
+`(disambiguation)`, and the plain-titled ones (*Sex*, *Music Man*) clear the 200-char floor
+easily. **The page property is the authority, not the text.** "may refer to:" misses *Sex*
+("most commonly refers to:") and *Money Machine* ("A money machine, or ATM, is…"), and it would
+catch a real article that quotes the phrase. `bun run repair:disambig [--confirm]` asks the API
+about every stored row, 50 per call, and deletes the flagged ones children-first, the same way
+`retire` does. **Locally it found 49, not 11** (the local corpus is older). Every one scored ≤ 4.
+The twelve surprising titles (*Seljuk architecture*, *History of typography*…) are all genuine
+"may refer to" pages. Deleted locally; a re-run finds 0. `check` green, 1,660 tests.
+
+**Open / next:** merge + push → Ben deploys → `sh .cache/disambig-prod.sh`, then `… confirm`.
+Then Phase 4 (cards). It is runnable cold by a cheaper model: its file references still hold
+after Phase 3, and the label rules are in `DESIGN_writing.md` (`KIND · N MIN`, `LONG READ`
+over 30). The one thing it will improvise is the badge and scrim's look, so Ben should look
+at phone and 1440 before merge.
+
+*Session spend: 6.69M tok (in 118 · out 33.2k · cache r 6.44M / w 214.0k) · opus-5-5 · 12:41→13:20*
+
 *Session spend: 5.48M tok (in 90 · out 39.5k · cache r 5.18M / w 258.6k) · opus-5-5 · 10:01→10:04*
 
 ### [[09-29-26 Tue]] — Writing calibration agrees: prompt v2
