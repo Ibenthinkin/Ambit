@@ -131,10 +131,18 @@ export function wpRestWalker(blog: WpRestSource): CorpusWalkAdapter<WpRaw> {
     // Page 1 is the start of a walk: check the policy file before anything else.
     if (page === 1) await assertCrawlAllowed(blog.baseUrl);
 
-    // `limit` bounds this page's size so `--quota N` can do a cheap structural check without
-    // pulling 100 posts. No `_fields=` here: it would strip `_embedded`, which is the whole
-    // reason for `_embed` (verified 08-25-26 — the filtered form returns an empty embed).
-    const perPage = Math.max(1, Math.min(PER_PAGE, opts?.limit ?? PER_PAGE));
+    // `limit` may shrink the FIRST page only, so `--quota 3` / `probe:walk --limit 3` stays a
+    // cheap structural check. Every later page is PER_PAGE, because the cursor is a page number
+    // and a page number only names the same posts if every page is the same size: before
+    // 09-30-26 a `--quota 150` run asked for page 2 at 50 a page (posts 51-100, a second time)
+    // and printed a resume cursor 100 posts past where it stopped. A run that stops mid-page is
+    // walk-run's business (it stops at the quota); the page itself is always whole. No
+    // `_fields=` here: it would strip `_embedded`, which is the whole reason for `_embed`
+    // (verified 08-25-26 — the filtered form returns an empty embed).
+    const perPage =
+      page === 1
+        ? Math.max(1, Math.min(PER_PAGE, opts?.limit ?? PER_PAGE))
+        : PER_PAGE;
     const url =
       `${blog.baseUrl}/wp-json/wp/v2/posts?per_page=${perPage}&page=${page}` +
       `&_embed=wp:featuredmedia`;

@@ -6,7 +6,7 @@
 // docs/PLAN_dop-fanout.md) the comparison is with its FEATURED card — the one item per post both
 // shapes still share — over the pre-fan-out posts, kept as __fixtures__/wp-rest-dop-posts.json. Network paths (the walk itself) are exercised by `bun run
 // probe:walk`, per the no-live-HTTP-in-unit-tests convention.
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { blogConfig } from "~/server/config/blogs";
 import { publicationConfig } from "~/server/config/publications";
@@ -88,6 +88,51 @@ describe("wpRestWalker — article mode (publications)", () => {
   it("keeps a post with no featured image as writing with no picture", () => {
     const bare = { ...marginalian[0]!, featured_media: 0, _embedded: {} };
     expect(walker.toItem(bare).imageUrl).toBeNull();
+  });
+});
+
+// A cursor is a page number, so every page after the first must be the same size, or page N
+// means different posts on different calls. Found 09-30-26: a `--quota 150` sample asked for page
+// 2 at 50 a page — posts 51-100 again, 50 duplicates in the sample — and printed a resume cursor
+// 100 posts past where it stopped.
+describe("wpRestWalker — page size", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stubPosts() {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", (input: string | URL) => {
+      urls.push(String(input));
+      return Promise.resolve(
+        new Response("[]", {
+          status: 200,
+          headers: {
+            "x-wp-totalpages": "9",
+            "content-type": "application/json",
+          },
+        }),
+      );
+    });
+    return urls;
+  }
+
+  it("asks for a full page after the first, whatever the remaining limit", async () => {
+    const urls = stubPosts();
+    await wpRestWalker(blogConfig("doorofperception")!).walk("2", {
+      limit: 50,
+    });
+    expect(urls.find((u) => u.includes("/posts?"))).toMatch(
+      /per_page=100&page=2/,
+    );
+  });
+
+  it("lets a small limit shrink the first page only, so a probe stays cheap", async () => {
+    const urls = stubPosts();
+    await wpRestWalker(blogConfig("doorofperception")!).walk(undefined, {
+      limit: 3,
+    });
+    expect(urls.find((u) => u.includes("/posts?"))).toMatch(
+      /per_page=3&page=1/,
+    );
   });
 });
 
