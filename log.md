@@ -116,7 +116,7 @@ at phone and 1440 before merge.
 
 *Session spend: 5.48M tok (in 90 · out 39.5k · cache r 5.18M / w 258.6k) · opus-5-5 · 10:01→10:04*
 
-**Shipped (late): writing Phase 4, the cards** (`feat/writing-cards`, not merged). An article
+**Shipped (late): writing Phase 4, the cards** (`feat/writing-cards`, merged to `main` as `7224ace` and pushed; not deployed). An article
 with a usable picture is now a picture-led tile: its badge (`ESSAY · 12 MIN`, `LONG READ` past
 30, plain `READ` before the curator has a kind) and title sit on a scrim at the picture's foot.
 A text card's eyebrow is the same `writingLabel`, where the source name used to be. An
@@ -136,8 +136,7 @@ so both tiles get drawn. The specs that open a *picture* now exclude writing til
 `:not(:has(h2))`. Locally every writing badge reads `READ`, because the local corpus was never
 re-scored. Production has kinds.
 
-**Open / next:** Ben looks at the badge and scrim (dev server on :3000, `/` or `/feed`). Then
-merge, deploy, and Phase 5 (publications). Phase 5 must record `curationText` in the
+**Open / next:** Deploy, then Phase 5 (publications). Phase 5 must record `curationText` in the
 Ambit-Admin log before it builds.
 
 *Session spend: 25.21M tok (in 348 · out 93.3k · cache r 24.68M / w 436.4k) · ~≥$1.31 · opus-5-5 + opus-4-7 · 13:24→13:37*
