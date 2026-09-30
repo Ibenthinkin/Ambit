@@ -1,7 +1,9 @@
 import { ChevronRight } from "~/components/icons";
 import { sourceLabel } from "~/lib/source-label";
+import { cn } from "~/lib/utils";
 import { isBlogSource } from "~/server/config/blogs";
 import { PDR } from "~/server/config/pdr";
+import { isLinkCardSource } from "~/server/config/publications";
 
 // The prominent link-out that makes a blog item read as a link preview rather than a
 // republication (Phase 6.3, docs/PHASE6_DESIGN_6.3.md §7). The credit line already links every
@@ -20,25 +22,32 @@ export interface LinkOutRowProps {
   className?: string;
 }
 
+/** Whether `LinkOutRow` renders for a source — exported so the reader knows not to add its own
+ *  inline link beside it. */
+export function hasLinkOutRow(source: string): boolean {
+  return isLinkCardSource(source) || source === PDR.id;
+}
+
 export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
-  // Blogs, and the one publication that earns the same prominent row without being a blog: a
-  // PDR collection's page holds the full gallery, an essay card's page holds the essay.
-  const isPdr = source === PDR.id;
-  if (!isBlogSource(source) && !isPdr) return null;
-  const copy = isPdr
-    ? `See it on ${PDR.label}`
-    : `Read the post on ${sourceLabel(source)}`;
+  // The link-card sources (blogs, and publications from writing Phase 5), and the one open source
+  // that earns the same prominent row without being one: a PDR collection's page holds the full
+  // gallery, an essay card's page holds the essay.
+  if (!hasLinkOutRow(source)) return null;
+  const copy =
+    source === PDR.id
+      ? `See it on ${PDR.label}`
+      : isBlogSource(source)
+        ? `Read the post on ${sourceLabel(source)}`
+        : `Read it on ${sourceLabel(source)}`;
   return (
     <a
       href={sourceUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className={
-        "bg-ink/6 text-ink-hi mt-[22px] flex h-12 w-full items-center justify-between " +
-        "rounded-[14px] px-[16px] text-[15px] font-semibold transition-transform" +
-        "duration-150 active:scale-[0.98]" +
-        (className ?? "")
-      }
+      className={cn(
+        "bg-ink/6 text-ink-hi mt-[22px] flex h-12 w-full items-center justify-between rounded-[14px] px-[16px] text-[15px] font-semibold transition-transform duration-150 active:scale-[0.98]",
+        className,
+      )}
     >
       <span>{copy}</span>
       <ChevronRight className="text-ink/50" />

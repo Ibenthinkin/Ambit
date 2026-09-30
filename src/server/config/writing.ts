@@ -81,3 +81,38 @@ export function readingMinutes(body: string | null | undefined): number | null {
   if (words === 0) return null;
   return Math.max(1, Math.ceil(words / READING_WPM));
 }
+
+/** Past this, a badge stops counting and says `LONG READ` (D5's default): nobody decides
+ *  between a 34- and a 52-minute piece by the number. */
+export const LONG_READ_MINUTES = 30;
+
+/**
+ * The words a writing card wears — the picture tile's badge and the text card's eyebrow, built in
+ * one place so the two can never disagree (D5, Phase 4). Upper-cased here, not by CSS, so a test
+ * and a screen reader see the same string the eye does.
+ *
+ * `ESSAY · 12 MIN`, `ESSAY · LONG READ`, `ARCHIVE` (no body, so no honest minutes), and plain
+ * `READ` for a piece the writing curator hasn't reached yet — `kind` is NULL until it has.
+ */
+export function writingLabel(item: {
+  kind: WritingKind | null;
+  readingMinutes: number | null;
+}): string {
+  const time =
+    item.readingMinutes === null
+      ? null
+      : item.readingMinutes > LONG_READ_MINUTES
+        ? "Long read"
+        : `${item.readingMinutes} min`;
+  const head = item.kind ? WRITING_KIND_LABELS[item.kind] : null;
+  // "READ · LONG READ" would say it twice; with no kind, the time stands alone when it can.
+  const parts = head
+    ? [head, time]
+    : time === "Long read"
+      ? [time]
+      : ["Read", time];
+  return parts
+    .filter((p): p is string => p !== null)
+    .join(" · ")
+    .toUpperCase();
+}

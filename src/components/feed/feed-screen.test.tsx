@@ -155,7 +155,13 @@ function card(
 const PAGE_ONE: FeedPage = {
   cards: [
     card("i1"),
-    card("a1", { type: "article", title: "The Heron", summary: "A lede." }),
+    // No picture: the text card. (An article with one is a writing-picture tile, writing Phase 4.)
+    card("a1", {
+      type: "article",
+      title: "The Heron",
+      summary: "A lede.",
+      imageUrl: null,
+    }),
     card("i2"),
     card("j1", { topicId: "astronomy" }, "JUMP", ["botany", "astronomy"]),
   ],
@@ -276,8 +282,8 @@ describe("FeedScreen", () => {
     // Six cards over two pages, each in a `data-feed-id` wrapper.
     expect(document.querySelectorAll("[data-feed-id]")).toHaveLength(6);
     expect(screen.getByText("The Heron")).toBeInTheDocument();
-    // The eyebrow is uppercased by CSS, so the text in the DOM is the label as authored.
-    expect(screen.getByText("The Met")).toBeInTheDocument();
+    // The text card's eyebrow is the writing label — plain READ before the curator's kind.
+    expect(screen.getByText("READ")).toBeInTheDocument();
     expect(
       screen.getByText("you've been exploring Botany"),
     ).toBeInTheDocument();

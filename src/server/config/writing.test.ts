@@ -6,6 +6,7 @@ import {
   readingMinutes,
   WRITING_KIND_LABELS,
   WRITING_KINDS,
+  writingLabel,
   writingText,
 } from "./writing";
 
@@ -72,5 +73,39 @@ describe("readingMinutes", () => {
     expect(readingMinutes(null)).toBeNull();
     expect(readingMinutes(undefined)).toBeNull();
     expect(readingMinutes("   ")).toBeNull();
+  });
+});
+
+describe("writingLabel — the badge and the eyebrow (D5)", () => {
+  it("names the kind and the minutes", () => {
+    expect(writingLabel({ kind: "essay", readingMinutes: 12 })).toBe(
+      "ESSAY · 12 MIN",
+    );
+    expect(writingLabel({ kind: "curiosity", readingMinutes: 3 })).toBe(
+      "CURIOSITY · 3 MIN",
+    );
+  });
+
+  it("says LONG READ past thirty minutes, and not at thirty", () => {
+    expect(writingLabel({ kind: "essay", readingMinutes: 31 })).toBe(
+      "ESSAY · LONG READ",
+    );
+    expect(writingLabel({ kind: "essay", readingMinutes: 30 })).toBe(
+      "ESSAY · 30 MIN",
+    );
+    expect(writingLabel({ kind: null, readingMinutes: 45 })).toBe("LONG READ");
+  });
+
+  it("reads READ when the curator has not reached it yet", () => {
+    expect(writingLabel({ kind: null, readingMinutes: 7 })).toBe(
+      "READ · 7 MIN",
+    );
+  });
+
+  it("drops the time it has no honest number for", () => {
+    expect(writingLabel({ kind: "archive", readingMinutes: null })).toBe(
+      "ARCHIVE",
+    );
+    expect(writingLabel({ kind: null, readingMinutes: null })).toBe("READ");
   });
 });

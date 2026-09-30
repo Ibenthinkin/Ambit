@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { ArticleCard } from "~/components/feed/article-card";
 import { ImageTile } from "~/components/feed/image-tile";
-import type { FeedTile } from "~/components/feed/masonry";
+import type { CardTile } from "~/components/feed/masonry";
+import { WritingTile } from "~/components/feed/writing-tile";
 import { Bookmark } from "~/components/icons";
 import { Rise } from "~/components/ui/rise";
 
@@ -20,9 +21,9 @@ import { Rise } from "~/components/ui/rise";
 // mid-scroll must not arm the tile's press underneath.
 
 export interface SavedTileProps {
-  /** Image and article tiles only — CORE cards never produce a Because tile, and Saved never asks
-   *  for message tiles (see SavedScreen). */
-  tile: Extract<FeedTile, { kind: "image" | "article" }>;
+  /** Card tiles only — CORE cards never produce a Because tile, and Saved never asks for message
+   *  tiles (see SavedScreen). */
+  tile: CardTile;
   /** Fires with no arguments — the screen already knows which item this tile is. */
   onUnsave: () => void;
 }
@@ -42,6 +43,9 @@ export function SavedTile({ tile, onUnsave }: SavedTileProps) {
     router.push(`/i/${item.id}`);
   };
 
+  // A writing tile with a picture wears the picture's glass badge: it is a picture underneath.
+  const overPicture = tile.kind !== "article";
+
   return (
     // No stagger on the Rise: the prototype rises each tile individually at a fixed delay, and
     // `animate-rise` is the house version of that entrance.
@@ -49,6 +53,12 @@ export function SavedTile({ tile, onUnsave }: SavedTileProps) {
       <div className="relative" data-saved-id={item.id}>
         {tile.kind === "image" ? (
           <ImageTile
+            card={tile.card}
+            aspectClass={tile.aspectClass}
+            onTap={openItem}
+          />
+        ) : tile.kind === "writing-picture" ? (
+          <WritingTile
             card={tile.card}
             aspectClass={tile.aspectClass}
             onTap={openItem}
@@ -65,14 +75,14 @@ export function SavedTile({ tile, onUnsave }: SavedTileProps) {
           onClick={onUnsave}
           onPointerDown={(e) => e.stopPropagation()}
           className={
-            tile.kind === "image"
+            overPicture
               ? "border-hairline border-ink/16 bg-bg-app/62 absolute top-[9px] right-[9px] flex size-[30px] items-center justify-center rounded-full backdrop-blur-[8px]"
               : "border-hairline border-ink/10 bg-ink/5 absolute top-[12px] right-[12px] flex size-[28px] items-center justify-center rounded-full"
           }
         >
           <Bookmark
             filled
-            size={tile.kind === "image" ? 14 : 13}
+            size={overPicture ? 14 : 13}
             className="text-accent"
           />
         </button>

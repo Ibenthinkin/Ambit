@@ -47,4 +47,27 @@ describe("LinkOutRow", () => {
     );
     expect(container).toBeEmptyDOMElement();
   });
+
+  // The class string used to be concatenated without spaces, so `transition-transform` and
+  // `duration-150` fused into one bogus class and the caller's class glued onto the last one.
+  it("keeps its classes separate, the caller's included", () => {
+    render(
+      <LinkOutRow
+        source="doorofperception"
+        sourceUrl="https://doorofperception.com/p/"
+        className="mt-0"
+      />,
+    );
+    const classes = screen.getByRole("link").className.split(/\s+/);
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        "transition-transform",
+        "duration-150",
+        "active:scale-[0.98]",
+        "mt-0",
+      ]),
+    );
+    // `cn` resolves the conflict: the caller's margin wins over the row's own.
+    expect(classes).not.toContain("mt-[22px]");
+  });
 });
