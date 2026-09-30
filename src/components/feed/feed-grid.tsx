@@ -9,7 +9,14 @@ import { cn } from "~/lib/utils";
 import { ArticleCard } from "./article-card";
 import { BecauseTile } from "./because-tile";
 import { ImageTile } from "./image-tile";
-import { GRID_COLS, packColumns, type FeedTile } from "./masonry";
+import {
+  GRID_COLS,
+  isCardTile,
+  packColumns,
+  type CardTile,
+  type FeedTile,
+} from "./masonry";
+import { WritingTile } from "./writing-tile";
 
 /** `/explore`'s message block tile (09-26-26). */
 export type MessageTileData = Extract<FeedTile, { kind: "message" }>;
@@ -28,8 +35,7 @@ export type MessageTileData = Extract<FeedTile, { kind: "message" }>;
 // `absolute`-vs-`fixed`, and here it has a second face: the IntersectionObserver's root must be
 // the viewport (its default), never a ref'd element.
 
-/** A tile that carries a feed card — the kinds a tap opens. */
-export type CardTile = Extract<FeedTile, { card: unknown }>;
+export type { CardTile };
 
 /** What a long-press (or a fine-pointer right-click) hands the screen: enough for the item sheet. */
 export interface PressedItem {
@@ -196,15 +202,26 @@ export function FeedGrid({
             })
         : undefined,
     };
-    return tile.kind === "image" ? (
-      <ImageTile
-        card={tile.card}
-        aspectClass={tile.aspectClass}
-        {...gestures}
-      />
-    ) : (
-      <ArticleCard card={tile.card} {...gestures} />
-    );
+    switch (tile.kind) {
+      case "image":
+        return (
+          <ImageTile
+            card={tile.card}
+            aspectClass={tile.aspectClass}
+            {...gestures}
+          />
+        );
+      case "writing-picture":
+        return (
+          <WritingTile
+            card={tile.card}
+            aspectClass={tile.aspectClass}
+            {...gestures}
+          />
+        );
+      case "article":
+        return <ArticleCard card={tile.card} {...gestures} />;
+    }
   };
 
   return (
@@ -227,7 +244,7 @@ export function FeedGrid({
                 // Because and message tiles carry no `data-feed-id`: they're not items, and
                 // `?focus=` resolves an *item*, so giving them an id would only create a second
                 // thing to scroll to.
-                const isCard = tile.kind === "image" || tile.kind === "article";
+                const isCard = isCardTile(tile);
                 const key = isCard ? tile.card.item.id : tile.key;
                 const body = (
                   <div

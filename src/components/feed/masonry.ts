@@ -9,8 +9,23 @@ import type { FeedCard, FeedPage } from "~/server/services/feed";
 export type FeedTile =
   | { kind: "image"; card: FeedCard; aspectClass: string; ratio: number }
   | { kind: "article"; card: FeedCard }
+  // Writing with a picture (docs/DESIGN_writing.md D5): picture-led, the badge and title laid over
+  // it. Writing with no usable picture stays an `article` text card.
+  | {
+      kind: "writing-picture";
+      card: FeedCard;
+      aspectClass: string;
+      ratio: number;
+    }
   | { kind: "because"; key: string; from: string; to: string }
   | { kind: "message"; key: string; message: MessageKind };
+
+/** A tile that carries a feed card — the kinds a tap opens. */
+export type CardTile = Extract<FeedTile, { card: unknown }>;
+
+export function isCardTile(tile: FeedTile): tile is CardTile {
+  return "card" in tile;
+}
 
 /**
  * `/explore`'s calm message blocks (09-26-26, docs/PLAN_explore-route.md): sign in, sign up, "what
@@ -36,9 +51,11 @@ export interface BuildTilesOptions {
 /**
  * The eight tile heights, as literal Tailwind aspect-ratio classes.
  *
- * The DB stores no image dimensions (SPEC §5.1 has no width/height columns and the adapters don't
- * fetch them), so tile height can't come from the image — the prototype's own POOL is likewise a
- * fixed set of ratios, cycled. What's ported here is that cycle.
+ * A picture tile's height is **not** its picture's: the prototype's own POOL is a fixed set of
+ * ratios, cycled, and what's ported here is that cycle — the wall's rhythm is the design, and a
+ * picture is cropped into its slot. (The DB has held real dimensions since migration 0009,
+ * `item.image_width/height`; only a writing card's picture uses them, snapped to the nearest of
+ * these — see `writingAspect`.)
  *
  * **Why aspect classes rather than the prototype's computed `colW * ratio` pixel heights:** a
  * fixed px height is only correct at the prototype's 402px frame. On a wider phone the column
@@ -69,6 +86,33 @@ export const GRID_COLS = {
   3: "grid-cols-3",
   4: "grid-cols-4",
 } as const;
+
+/**
+ * Whether an article's picture is one a card should lead with. **An SVG-derived Wikipedia lead
+ * image is not** — flags, logos, maps and diagrams, rasterised to `….svg.png` — and the card falls
+ * back to text (D5's default). `includes`, never `endsWith`: Wikipedia's thumbnail URLs carry a
+ * `?utm_…` query string after the extension.
+ */
+export function hasLeadPicture(item: FeedCard["item"]): boolean {
+  return item.imageUrl !== null && !item.imageUrl.includes(".svg.png");
+}
+
+/**
+ * A writing card's aspect: the picture's real shape snapped to the nearest `IMAGE_ASPECTS` entry
+ * (so the class stays a literal), or the ordinal's when the row has no dimensions yet —
+ * `img:dims` fills them on each boot, but a row ingested since hasn't been measured.
+ */
+function writingAspect(
+  item: FeedCard["item"],
+  ordinal: number,
+): (typeof IMAGE_ASPECTS)[number] {
+  const { imageWidth: w, imageHeight: h } = item;
+  if (!w || !h) return IMAGE_ASPECTS[ordinal % IMAGE_ASPECTS.length]!;
+  const ratio = h / w;
+  return IMAGE_ASPECTS.reduce((best, a) =>
+    Math.abs(a.ratio - ratio) < Math.abs(best.ratio - ratio) ? a : best,
+  );
+}
 
 /**
  * A JUMP whose walk actually has a from→to pair to name. See `buildTiles`. Written as a type
@@ -151,6 +195,17 @@ export function buildTiles(
           aspectClass: aspect.className,
           ratio: aspect.ratio,
         });
+      } else if (hasLeadPicture(card.item)) {
+        // A writing picture keeps the rhythm going even when its own shape sets its height, so
+        // the images either side of it are spaced as though it were one of them.
+        const aspect = writingAspect(card.item, imageOrdinal);
+        imageOrdinal += 1;
+        tiles.push({
+          kind: "writing-picture",
+          card,
+          aspectClass: aspect.className,
+          ratio: aspect.ratio,
+        });
       } else {
         tiles.push({ kind: "article", card });
       }
@@ -187,6 +242,9 @@ const ARTICLE_LEDE_MAX_LINES = 5;
 function estHeight(tile: FeedTile): number {
   switch (tile.kind) {
     case "image":
+    // The badge and title sit *on* the picture, over its bottom scrim, so the tile is exactly the
+    // picture's height — no band below it to add.
+    case "writing-picture":
       return COL_W * tile.ratio;
     case "because":
     // A message block is a Because tile's shape: a label, a line, a button.

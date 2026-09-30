@@ -96,3 +96,20 @@ describe("ArticleCard — desktop input", () => {
     ).toBe(true);
   });
 });
+
+// Writing Phase 4 (docs/DESIGN_writing.md D5): the text card's eyebrow is the writing label, the
+// same words a picture-led writing tile wears as its badge.
+describe("ArticleCard — eyebrow", () => {
+  it("names the kind and the reading time", () => {
+    const c = card("a");
+    c.item.kind = "essay";
+    c.item.readingMinutes = 9;
+    render(<ArticleCard card={c} onTap={vi.fn()} />);
+    expect(screen.getByText("ESSAY · 9 MIN")).toBeInTheDocument();
+  });
+
+  it("reads plain READ before the curator has reached it", () => {
+    render(<ArticleCard card={card("a")} onTap={vi.fn()} />);
+    expect(screen.getByText("READ")).toBeInTheDocument();
+  });
+});

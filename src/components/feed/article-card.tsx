@@ -3,12 +3,13 @@
 import * as React from "react";
 
 import { useDesktopPress, usePress } from "~/hooks/use-press";
-import { sourceLabel } from "~/lib/source-label";
 import { cn } from "~/lib/utils";
+import { writingLabel } from "~/server/config/writing";
 import type { FeedCard } from "~/server/services/feed";
 import { DebugBadge } from "./debug-badge";
 
-// The feed's text tile: source eyebrow, headline, lede. **No body, no "read more", no per-card
+// The feed's text tile: writing-label eyebrow, headline, lede — writing with no picture to lead
+// with (a picture's gets `WritingTile`). **No body, no "read more", no per-card
 // buttons** — like `ImageTile`, this is a doorway, not a destination; the article itself is one
 // tap deeper.
 //
@@ -76,8 +77,11 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
       )}
       style={{ WebkitTouchCallout: "none" }}
     >
-      <p className="text-ink/34 text-[9.5px] font-semibold tracking-[1.3px] uppercase">
-        {sourceLabel(item.source)}
+      {/* The writing label (docs/DESIGN_writing.md D5, 09-30-26) — what kind of read this is and
+          how long, the same words a picture-led writing tile wears. It replaced the source name:
+          "Wikipedia" says where, `CURIOSITY · 4 MIN` says whether to open it now. */}
+      <p className="text-ink/34 text-[9.5px] font-semibold tracking-[1.3px]">
+        {writingLabel(item)}
       </p>
       <h2 className="text-ink-hi mt-[10px] text-[19px] leading-[1.25] font-semibold">
         {item.title}

@@ -43,6 +43,12 @@ export interface ImageTileProps {
    * own image callout undisturbed there — the same reasoning as `hero-gallery-link.tsx`.
    */
   onLongPress?: () => void;
+  /**
+   * Drawn over the picture, inside the pressable tile (writing Phase 4): `WritingTile`'s badge and
+   * title on their scrim. It must not take pointer events of its own — the tile's press handlers
+   * are what open the item. Absent on every plain picture, which is the feed's rule (no chrome).
+   */
+  overlay?: React.ReactNode;
 }
 
 export function ImageTile({
@@ -50,6 +56,7 @@ export function ImageTile({
   aspectClass,
   onTap,
   onLongPress,
+  overlay,
 }: ImageTileProps) {
   const press = usePress({ onTap, onLongPress });
   const desktop = useDesktopPress({ onTap, onLongPress });
@@ -146,6 +153,7 @@ export function ImageTile({
           className="pointer-events-none block h-full w-full object-cover"
         />
       )}
+      {overlay}
       <DebugBadge card={card} />
     </div>
   );

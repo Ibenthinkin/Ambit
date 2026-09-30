@@ -75,6 +75,23 @@ describe("ReaderItemBody", () => {
     );
   });
 
+  // Writing Phase 4: a link-card or PDR article's link-out is the prominent row, not a second
+  // inline link beside it.
+  it("gives a PDR essay the link-out row, and only that", () => {
+    render(
+      <ReaderItemBody
+        item={makeItem({
+          source: "pdr",
+          sourceUrl: "https://publicdomainreview.org/essay/x/",
+        })}
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: /See it on The Public Domain Review/ }),
+    ).toHaveAttribute("href", "https://publicdomainreview.org/essay/x/");
+    expect(screen.queryByRole("link", { name: /^Read on / })).toBeNull();
+  });
+
   it("still reads as an article when there's no stored body at all", () => {
     render(<ReaderItemBody item={makeItem({ body: null })} />);
 

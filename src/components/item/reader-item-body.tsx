@@ -1,6 +1,7 @@
 import { sourceLabel } from "~/lib/source-label";
 import type { Item } from "~/server/db/items";
 import { CreditLine } from "./credit-line";
+import { hasLinkOutRow, LinkOutRow } from "./link-out-row";
 import { ReaderBlocks } from "./reader-blocks";
 import { ReuseNotice } from "./reuse-notice";
 
@@ -49,14 +50,22 @@ export function ReaderItemBody({ item }: ReaderItemBodyProps) {
         {item.body ? <ReaderBlocks body={item.body} /> : null}
       </div>
 
-      <a
-        href={item.sourceUrl}
-        target="_blank"
-        rel="noopener"
-        className="text-accent mt-[6px] inline-block text-[14px] font-medium"
-      >
-        Read on {sourceLabel(item.source)} →
-      </a>
+      {/* One link out at the foot, never two (writing Phase 4). A link-card or PDR piece gets the
+          prominent row the image page uses; an open source's article (Wikipedia, PoetryDB,
+          Loupe) keeps the quiet inline link — its body is the whole read, and the row's
+          "go there instead" weight would be wrong for it. */}
+      {hasLinkOutRow(item.source) ? (
+        <LinkOutRow source={item.source} sourceUrl={item.sourceUrl} />
+      ) : (
+        <a
+          href={item.sourceUrl}
+          target="_blank"
+          rel="noopener"
+          className="text-accent mt-[6px] inline-block text-[14px] font-medium"
+        >
+          Read on {sourceLabel(item.source)} →
+        </a>
+      )}
     </article>
   );
 }

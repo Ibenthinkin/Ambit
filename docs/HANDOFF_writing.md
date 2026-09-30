@@ -4,7 +4,15 @@ Read this before touching the writing code. It is self-contained; the design is
 `docs/DESIGN_writing.md` (D1–D8), the plan `docs/PLAN_writing.md` (five phases), and `log.md`
 09-28 / 09-29 have the narrative.
 
-## ▶ Pick up here (09-30-26, afternoon): Phase 3 built on `feat/writing-share` — Ben looks, merge, deploy
+## ▶ Pick up here (09-30-26, late): Phase 4 built on `feat/writing-cards` — Ben looks, merge, deploy
+
+**Phase 4 (cards) is built on `feat/writing-cards`, committed and not merged.** Its "Built" note
+in `docs/PLAN_writing.md` lists the four choices made while building it. `check` passes, and so
+does the CI-shape e2e (62/62). Next: Ben looks at the badge and scrim at phone and 1440 widths.
+Then merge, deploy, and Phase 5 (publications). Record `curationText` in the Ambit-Admin log
+before Phase 5 builds anything.
+
+## Earlier 09-30-26 (afternoon): Phase 3 built on `feat/writing-share` — Ben looks, merge, deploy
 
 **Phase 3 (writing slots) is merged to `main` (`34eb714`) and pushed; Ben saw the mix on `/dev/feed` and approved it. Not deployed yet.** The design and
 measurements are in `docs/PLAN_writing.md` Phase 3's "Built" note and SPEC §9 step 2. Log 09-30

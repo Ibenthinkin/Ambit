@@ -49,7 +49,9 @@ const TOPICS = ["astronomy", "botany", "music"] as const;
 // when `sourceCap` held a CI page to three tiles. With FIXTURE_SOURCES a page is full, each
 // round-trip hands the reader three times as much, and the file measured **162–171 rows**
 // consumed on a fixtures-only database — 150 ran dry before the last test. 360 is that, doubled.
-const SEED_COUNT = 360;
+//
+// 09-30-26: 420, for the writing-tile test's scrolling (it may pull a few pages to meet one).
+const SEED_COUNT = 420;
 
 // See support.ts's connect() for why the DB handle is loaded here rather than imported statically.
 let conn: Connection;
@@ -81,8 +83,15 @@ test.describe.serial("feed", () => {
           title: `E2E fixture item ${i}`,
           summary: `A lede for fixture ${i}, long enough to occupy a couple of lines.`,
           // Two rows point at a host that cannot resolve, so the broken-image fallback is a path
-          // this suite actually walks rather than one that only exists in unit tests.
-          imageUrl: i % 13 === 0 ? "https://invalid.example/x.jpg" : PIXEL,
+          // this suite actually walks rather than one that only exists in unit tests. Half the
+          // articles have no picture (writing Phase 4): an article with one is a picture-led
+          // writing tile, one without is the text card, and both have to be drawn.
+          imageUrl:
+            i % 6 === 3
+              ? null
+              : i % 13 === 0
+                ? "https://invalid.example/x.jpg"
+                : PIXEL,
           sourceUrl: `https://example.test/e2e/${i}`,
           topicId: TOPICS[i % TOPICS.length]!,
           // Comfortably above the engine's default `scoreFloor` of 4, so these are drawable.
@@ -176,6 +185,39 @@ test.describe.serial("feed", () => {
     await expect
       .poll(() => page.locator("[data-feed-id]").count(), { timeout: 15_000 })
       .toBeGreaterThan(before);
+  });
+
+  // Writing Phase 4 (docs/DESIGN_writing.md D5): writing with a picture leads with it, its badge
+  // and title over the picture's foot. About one card in eight is writing, so the test scrolls
+  // until one arrives rather than assuming page one holds it.
+  test("a writing tile leads with its picture, wears its title, and opens the reader", async ({
+    page,
+  }) => {
+    await onFeed(page);
+    // A card with a picture *and* a title heading is a writing tile: a plain picture carries no
+    // words, and the text card has no picture.
+    const writing = page
+      .locator("[data-feed-id]")
+      .filter({ has: page.locator("img") })
+      .filter({ has: page.locator("h2") });
+    await expect(async () => {
+      if ((await writing.count()) === 0) {
+        await page.evaluate(() =>
+          window.scrollTo(0, document.body.scrollHeight),
+        );
+      }
+      expect(await writing.count()).toBeGreaterThan(0);
+    }).toPass({ timeout: 30_000 });
+
+    const tile = writing.first();
+    const itemId = (await tile.getAttribute("data-feed-id"))!;
+    const title = (await tile.locator("h2").textContent())!;
+    await tile.scrollIntoViewIfNeeded();
+    await tapInPlace(page, tile.locator("> *").first());
+    await page.waitForURL(`/i/${itemId}`);
+    await expect(
+      page.getByRole("heading", { level: 1, name: title }),
+    ).toBeVisible();
   });
 
   test("a long press opens the item sheet, and picking a collection saves", async ({

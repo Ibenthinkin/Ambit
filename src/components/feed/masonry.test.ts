@@ -43,14 +43,28 @@ function card(
     driftPath?: string[];
     title?: string;
     summary?: string | null;
+    // An article has no picture unless a test gives it one — the text card is the old default,
+    // and a picture turns it into a `writing-picture` tile (Phase 4).
+    imageUrl?: string | null;
+    imageWidth?: number | null;
+    imageHeight?: number | null;
   } = {},
 ): FeedCard {
+  const type = opts.type ?? "image";
   return {
     item: makeItem({
       id,
-      type: opts.type ?? "image",
+      type,
       title: opts.title ?? `Item ${id}`,
       summary: opts.summary ?? null,
+      imageUrl:
+        opts.imageUrl !== undefined
+          ? opts.imageUrl
+          : type === "image"
+            ? "https://example.test/i.jpg"
+            : null,
+      imageWidth: opts.imageWidth ?? null,
+      imageHeight: opts.imageHeight ?? null,
       topicId: opts.topicId === undefined ? "botany" : opts.topicId,
     }),
     tier: opts.tier ?? "CORE",
@@ -208,6 +222,107 @@ describe("buildTiles", () => {
       LABELS,
     );
     expect(tiles[0]).toMatchObject({ from: "typography", to: "cartography" });
+  });
+});
+
+describe("buildTiles — writing with a picture (writing Phase 4)", () => {
+  const wiki = "https://upload.wikimedia.org/wikipedia/commons/thumb";
+
+  it("routes an article with a usable picture to a writing-picture tile", () => {
+    const tiles = buildTiles(
+      [
+        page([
+          card("w", {
+            type: "article",
+            imageUrl: `${wiki}/a/ab/Owl.jpg/1600px-Owl.jpg`,
+          }),
+        ]),
+      ],
+      LABELS,
+    );
+    expect(tiles[0]).toMatchObject({ kind: "writing-picture" });
+  });
+
+  it("keeps an article with no picture as a text card", () => {
+    const tiles = buildTiles([page([card("w", { type: "article" })])], LABELS);
+    expect(tiles[0]).toMatchObject({ kind: "article" });
+  });
+
+  it("treats an SVG-derived lead image as no picture, query string and all", () => {
+    // Wikipedia's thumbnails carry a `?utm_…` tail, so `endsWith(".svg.png")` would miss it.
+    const flag = `${wiki}/f/fa/Flag.svg/1600px-Flag.svg.png?utm_source=ambit`;
+    const tiles = buildTiles(
+      [page([card("w", { type: "article", imageUrl: flag })])],
+      LABELS,
+    );
+    expect(tiles[0]).toMatchObject({ kind: "article" });
+  });
+
+  it("snaps the picture's real shape to the nearest aspect", () => {
+    // 1000 × 1410 is 1.41 — nearest is 1.42.
+    const tiles = buildTiles(
+      [
+        page([
+          card("w", {
+            type: "article",
+            imageUrl: `${wiki}/x.jpg`,
+            imageWidth: 1000,
+            imageHeight: 1410,
+          }),
+        ]),
+      ],
+      LABELS,
+    );
+    expect(tiles[0]).toMatchObject({
+      kind: "writing-picture",
+      aspectClass: "aspect-[100/142]",
+      ratio: 1.42,
+    });
+  });
+
+  it("falls back to the ordinal rhythm without dimensions, and keeps the rhythm going", () => {
+    const tiles = buildTiles(
+      [
+        page([
+          card("a"),
+          card("w", { type: "article", imageUrl: `${wiki}/x.jpg` }),
+          card("c"),
+        ]),
+      ],
+      LABELS,
+    );
+    const classes = tiles.map((t) =>
+      t.kind === "image" || t.kind === "writing-picture" ? t.aspectClass : null,
+    );
+    expect(classes).toEqual([
+      IMAGE_ASPECTS[0].className,
+      IMAGE_ASPECTS[1].className,
+      IMAGE_ASPECTS[2].className,
+    ]);
+  });
+
+  it("estimates a writing-picture tile by its picture alone — the words sit on it", () => {
+    const pic = card("w", {
+      type: "article",
+      imageUrl: `${wiki}/x.jpg`,
+      imageWidth: 100,
+      imageHeight: 100,
+      title: "A".repeat(200),
+    });
+    const square = card("s", { imageUrl: "https://example.test/i.jpg" });
+    const [w] = buildTiles([page([pic])], LABELS);
+    // Two equal-height tiles in two columns, then a third: it goes left (ties left) only if the
+    // estimates really are equal, whatever the title's length.
+    const tiles: FeedTile[] = [
+      w!,
+      { kind: "image", card: square, aspectClass: "aspect-square", ratio: 1 },
+      card0("z"),
+    ];
+    const [left] = packColumns(tiles);
+    expect(left!.map((t) => ("card" in t ? t.card.item.id : null))).toEqual([
+      "w",
+      "z",
+    ]);
   });
 });
 

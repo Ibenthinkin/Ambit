@@ -308,7 +308,10 @@ test.describe.serial("desktop", () => {
   }) => {
     await page.goto("/");
     await signIn(page, EMAIL, PASSWORD);
-    const imageTile = page.locator("[data-feed-id]:has(img)").first();
+    // `:not(:has(h2))`: a writing tile has a picture too, and opens the reader (writing Phase 4).
+    const imageTile = page
+      .locator("[data-feed-id]:has(img):not(:has(h2))")
+      .first();
     await expect(imageTile).toBeVisible();
     // `.first()`: the wrapper holds the tile and, on a mouse, its hover strip.
     await imageTile.locator("> *").first().click();
@@ -358,7 +361,10 @@ test.describe.serial("desktop", () => {
   }) => {
     await page.goto("/");
     await signIn(page, EMAIL, PASSWORD);
-    const imageTile = page.locator("[data-feed-id]:has(img)").first();
+    // `:not(:has(h2))`: a writing tile has a picture too, and opens the reader (writing Phase 4).
+    const imageTile = page
+      .locator("[data-feed-id]:has(img):not(:has(h2))")
+      .first();
     await expect(imageTile).toBeVisible();
     await imageTile.locator("> *").first().click();
     await page.waitForURL(/\/i\//);

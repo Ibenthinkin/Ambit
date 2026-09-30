@@ -498,7 +498,10 @@ test.describe.serial("item pages", () => {
 
     // The first *image* tile, not simply the first tile: an article opens the reader, which has no
     // rail to swipe. Scrolled to *before* the snapshot, and tapped in place — see `tapInPlace`.
-    const imageTile = page.locator("[data-feed-id]:has(img)").first();
+    // `:not(:has(h2))`: a writing tile has a picture too, and opens the reader (writing Phase 4).
+    const imageTile = page
+      .locator("[data-feed-id]:has(img):not(:has(h2))")
+      .first();
     await imageTile.scrollIntoViewIfNeeded();
     await waitForFeedToSettle(page);
     const before = await feedIds();

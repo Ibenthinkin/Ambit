@@ -142,8 +142,11 @@ test.describe.serial("explore", () => {
     await waitForOverture(page);
     await waitForFeedToSettle(page);
     // An *image* tile: an article opens the reader page, which has no "Keep exploring" link, and
-    // on the fixture corpus the draw sometimes puts an article first.
-    const tile = page.locator("[data-feed-id]:has(img) > *").first();
+    // on the fixture corpus the draw sometimes puts an article first. `:not(:has(h2))` because a
+    // writing tile has a picture too, with its title over it (writing Phase 4).
+    const tile = page
+      .locator("[data-feed-id]:has(img):not(:has(h2)) > *")
+      .first();
     await tapInPlace(page, tile);
     await page.waitForURL(/\/i\//);
     // The join card under the picture offers the way back to the taste.
