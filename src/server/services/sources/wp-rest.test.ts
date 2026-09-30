@@ -9,6 +9,9 @@
 import { describe, expect, it } from "vitest";
 
 import { blogConfig } from "~/server/config/blogs";
+import { publicationConfig } from "~/server/config/publications";
+import jstorFixtures from "./__fixtures__/jstordaily.json";
+import marginalianFixtures from "./__fixtures__/themarginalian.json";
 import fixtures from "./__fixtures__/wp-rest-dop-posts.json";
 import { doorofperception, expandPictures } from "./doorofperception";
 import { nextCursor, wpRestWalker, type WpRaw } from "./wp-rest";
@@ -39,6 +42,52 @@ describe("wpRestWalker", () => {
     expect(() => walker.toItem(bySlug("no-featured-image"))).toThrow(
       /doorofperception: post "no-featured-image" has no featured image/,
     );
+  });
+});
+
+// Writing Phase 5: a publication on WordPress is walked by the same factory, as writing. The
+// fixtures are real posts (09-30-26) with `content.rendered` cut to 6,000 characters.
+describe("wpRestWalker — article mode (publications)", () => {
+  const walker = wpRestWalker({
+    ...publicationConfig("themarginalian")!,
+    itemType: "article",
+  });
+  const marginalian = marginalianFixtures as unknown as WpRaw[];
+
+  it("normalizes a post to an article that is a link card: no body, ever", () => {
+    for (const raw of [
+      ...marginalian,
+      ...(jstorFixtures as unknown as WpRaw[]),
+    ]) {
+      const item = walker.toItem(raw);
+      expect(item.type).toBe("article");
+      expect(item.body).toBeNull();
+    }
+  });
+
+  it("hands the curator the piece's full text as plain text, and shows only the excerpt", () => {
+    const item = walker.toItem(marginalian[0]!);
+    expect(item.curationText!.length).toBeGreaterThan(2_000);
+    expect(item.curationText).not.toMatch(/<\/?p[ >]/);
+    expect(item.summary.length).toBeLessThan(item.curationText!.length);
+    expect(item.summary).not.toMatch(/<\/?p[ >]/);
+  });
+
+  it("credits the publication, with its license, and keeps the featured image", () => {
+    const item = walker.toItem(marginalian[0]!);
+    expect(item).toMatchObject({
+      source: "themarginalian",
+      sourceId: "c-s-lewis-schedule",
+      attribution: "The Marginalian",
+      license:
+        "Rights retained by original authors — displayed with credit and link",
+    });
+    expect(item.imageUrl).toMatch(/^https:\/\/www\.themarginalian\.org\//);
+  });
+
+  it("keeps a post with no featured image as writing with no picture", () => {
+    const bare = { ...marginalian[0]!, featured_media: 0, _embedded: {} };
+    expect(walker.toItem(bare).imageUrl).toBeNull();
   });
 });
 

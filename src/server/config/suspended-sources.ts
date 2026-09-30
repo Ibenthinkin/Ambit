@@ -104,6 +104,11 @@ import type { SourceId } from "~/server/services/sources/types";
 // writes nothing to the DB; its curation cache is warm for all nine, so re-running any of them is
 // free. The full table is docs/HANDOFF_tumblr-round3.md §2.
 export const SUSPENDED_SOURCES: SourceId[] = [
+  // Writing Phase 5 (09-30-26): every publication ships here and leaves on Ben's verdict, one at
+  // a time — config/publications.ts.
+  "themarginalian",
+  "jstordaily",
+  "noema",
   "aic",
   "mossandfog",
   "streetartnews",

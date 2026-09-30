@@ -124,3 +124,17 @@ export function decodeEntities(text: string): string {
 export function htmlToText(html: string): string {
   return decodeEntities(stripHtml(html)).replace(/\s+/g, " ").trim();
 }
+
+/**
+ * A piece's full HTML as plain text, for the writing curator only (`curationText`, writing
+ * Phase 5) — `htmlToText` after removing what is never prose: comments (`<!-- Main Image -->`,
+ * which Noema's templates leave in its feed), and `<script>`/`<style>`/`<noscript>` blocks whose
+ * *contents* would otherwise survive as words. Never displayed, so it keeps no paragraph breaks.
+ */
+export function fullText(html: string): string {
+  return htmlToText(
+    html
+      .replace(/<!--[\s\S]*?-->/g, " ")
+      .replace(/<(script|style|noscript)(?:\s[^>]*)?>[\s\S]*?<\/\1>/gi, " "),
+  );
+}

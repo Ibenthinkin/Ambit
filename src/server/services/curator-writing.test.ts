@@ -14,6 +14,7 @@ import {
   parseWritingResponse,
   WRITING_PROMPT,
   WRITING_PROMPT_VERSION,
+  writingAsText,
   writingCacheKey,
   writingFloor,
   WRITING_MIN_CHARS,
@@ -64,6 +65,17 @@ describe("writingFloor — thin-text", () => {
     expect(writingFloor([ok]).kept).toEqual([ok]);
   });
 
+  // Writing Phase 5: a publication ships its full text for scoring only (`curationText`), and
+  // keeps `body` NULL — a link card never displays it. The floor reads it all the same.
+  it("reads curationText when there is no body, so a publication's short dek survives", () => {
+    const ok = makeItem({
+      source: "themarginalian",
+      summary: "Short dek.",
+      curationText: text(WRITING_MIN_CHARS + 50),
+    });
+    expect(writingFloor([ok]).kept).toEqual([ok]);
+  });
+
   it("does not count the apparatus toward the floor", () => {
     const padded = makeItem({
       body: `${text(100)}\n== References ==\n${text(WRITING_MIN_CHARS * 2)}`,
@@ -74,6 +86,27 @@ describe("writingFloor — thin-text", () => {
   it("never touches an image", () => {
     const img = makeItem({ type: "image", summary: "" });
     expect(writingFloor([img]).kept).toEqual([img]);
+  });
+});
+
+describe("writingAsText — curationText", () => {
+  it("scores a publication on its full text, and sends the dek as the summary", () => {
+    const out = writingAsText(
+      makeItem({
+        summary: "The dek.",
+        curationText: "The whole essay, never stored.",
+      }),
+    );
+    expect(out).toContain("Text: The whole essay, never stored.");
+    expect(out).toContain("Summary: The dek.");
+  });
+
+  it("prefers a stored body to curationText", () => {
+    const out = writingAsText(
+      makeItem({ body: "The body.", curationText: "Not this." }),
+    );
+    expect(out).toContain("Text: The body.");
+    expect(out).not.toContain("Not this.");
   });
 });
 
@@ -233,6 +266,20 @@ describe("curateItems dispatches by type", () => {
       topics: ["botany"],
       readingMinutes: 2,
     });
+  });
+
+  it("counts a publication's reading time from its curationText", async () => {
+    const [out] = await curateItems(
+      [
+        makeItem({
+          source: "themarginalian",
+          sourceId: `ct-${Date.now()}`,
+          curationText: "word ".repeat(700),
+        }),
+      ],
+      { force: true, topics: vocab },
+    );
+    expect(out).toMatchObject({ readingMinutes: 4 });
   });
 
   it("stores a Wikipedia piece as a curiosity whatever kind the model names (SOURCE_KINDS)", async () => {
