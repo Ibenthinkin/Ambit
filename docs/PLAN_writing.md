@@ -169,6 +169,7 @@ Ship this only after Phase 2's lists have run on production, or per-topic writin
 
 - ~~**Before Phase 1 — `thin-text` at 400 characters kills short poems.**~~ **Decided 09-28-26: the 400 floor stands**, no `poetrydb` exemption. (The "poems survive" line is about Wikipedia bodies arriving before the floor runs; a haiku won't clear it and that is accepted.)
 - ~~**Before Phase 1 — `timeliness` is not stored.**~~ **Decided 09-28-26: not stored.** `news` becomes score 1 at re-score and is dropped at ingest; `dated` leaves no trace.
+- **09-30-26 — the news rule is gone (Ben).** No drop at ingest, no demotion at re-score, no `ben-news` or news precision/recall in the calibration; `timeliness` left `CuratedItem`. Ben curates sources to keep news out. `WRITING_PROMPT` still asks for timeliness and stays at v2, because changing it moves the cache key; the Phase 1 lines above that mention news describe what was built, not what runs.
 - **Before Phase 2 — the Good-articles draw cost** (Phase 2 §3's "known costs"): accept ~80 list calls a night, or draw by a date-seeded sortkey prefix.
 - **Before Phase 3 — the pool switch** (Phase 3 "Pools"): PDR essays and Loupe clippings reachable only through writing slots, and `/explore` showing writing to strangers. Both follow from D2/D3; confirm they're wanted.
 

@@ -19,7 +19,7 @@ Ben wants writing to be a real, visibly distinct part of the feed. That means Wi
 
 | # | Decision |
 |---|---|
-| D1 | A separate **writing curator** for `type = 'article'`. Ben calibrates it by rating ~40 pieces **before** any re-score. News-free is judged by taste: the curator gives a `timeliness` verdict, and `news` is dropped. |
+| D1 | A separate **writing curator** for `type = 'article'`. Ben calibrates it by rating ~40 pieces **before** any re-score. News-free is judged by taste: the curator gives a `timeliness` verdict, and `news` is dropped. **Reversed 09-30-26 (Ben):** no news rule at all — he keeps news out by choosing sources, and the 44 pieces production's dry run would have demoted were contemporary subjects (albums, films, a World Cup), not news. The prompt still asks for timeliness (it is the cache key); nothing acts on it. |
 | D2 | Every writing item carries a **kind**: `essay` (Essay / long read), `curiosity`, `criticism` (Criticism & profile), `archive` (Poem & archive). It also carries tags and topic memberships like images do, plus a **reading time**. |
 | D3 | About **1 in 8** feed cards is writing (1–2 per 12-card page). |
 | D4 | **Wikipedia** gets bodies at ingest plus a production backfill. It is sourced from the Unusual articles list, Did-you-know archives, and the Featured/Good lists, **plus a Ben-editable module of reading search phrases** (`src/server/config/reading-phrases.ts` — a typed `.ts` like `blogs.ts`, decided 09-28-26) that replaces the `wikipedia` cells in `seedQueries`. |

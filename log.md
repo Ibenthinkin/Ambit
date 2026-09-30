@@ -30,6 +30,23 @@ them for free). Until that deploy, the nightly ingest still drops pieces it call
 
 *Session spend: 7.34M tok (in 110 · out 37.3k · cache r 6.50M / w 803.0k) · opus-5-5 · 09:49→09:51*
 
+**Shipped (later session):** the news rule is out, on `fix/writing-no-news`, merged to `main`.
+`splitNews` and the ingest summary's `news-dropped` line are gone. `planWritingRescore` writes the
+curator's score, whatever it said about timeliness. `timeliness` left `CuratedItem` and
+`parseWritingResponse` altogether. The parser ignores the field, so every cached answer on the
+volume still reads, and a test pins that with a cache file carrying `timeliness`. The calibration
+lost `ben-news` and news precision/recall. It now reads its table by the header row, so
+`docs/writing-calibration.md` (old `timeliness` column and all) still parses with Ben's marks
+intact. `WRITING_PROMPT`'s text hashes the same before and after, and it stays v2. Its doc comment
+now says the timeliness block is asked for and ignored, and should go the next time the prompt
+changes for its own reasons. `bun run check` green, 1,642 tests.
+
+**Open / next:** Ben deploys, then `sh .cache/recurate-writing-prod.sh confirm` (free, all cached;
+expect ~3,519 written, pdr ≈ 8.56, wikipedia ≈ 6.91 or a hair higher now the 44 keep their
+scores).
+
+*Session spend: 5.48M tok (in 90 · out 39.5k · cache r 5.18M / w 258.6k) · opus-5-5 · 10:01→10:04*
+
 ### [[09-29-26 Tue]] — Writing calibration agrees: prompt v2
 
 **Findings:** Ben finished marking (34 of 40; the six blanks are Loupe). Split by source, which

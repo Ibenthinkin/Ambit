@@ -3,9 +3,9 @@
 // below are integration-tested rather than trusted.
 //
 //  - **Score, tags, kind and reading time are replaced.** They are the writing curator's answer
-//    and nothing else writes them for an article.
-//  - **A `news` piece is demoted to 1, never deleted** — saves and seen rows may point at it, and
-//    a 1 is as good as gone from the feed's curated-weighted draw. The script lists each one.
+//    and nothing else writes them for an article. The score is always the curator's own — a piece
+//    it called `news` was demoted to 1 until Ben dropped that rule (09-30-26); he keeps news out by
+//    choosing sources.
 //  - **Memberships are additive** (`origin: "curator"`, ON CONFLICT DO NOTHING): the seed topic
 //    that surfaced an article stays, the curator's homes join it.
 //  - **The display topic is set only where it is NULL** — `scripts/promote-topics.ts`'s pattern
@@ -29,8 +29,6 @@ export type WritingRescore = {
   kind: WritingKind | null;
   readingMinutes: number | null;
   topics: string[];
-  /** The curator called it news; `score` is already 1. */
-  news: boolean;
 };
 
 /** Pure: one curated answer → what gets written. */
@@ -38,23 +36,16 @@ export function planWritingRescore(
   itemId: string,
   curated: Pick<
     CuratedItem,
-    | "curationScore"
-    | "aestheticTags"
-    | "kind"
-    | "timeliness"
-    | "topics"
-    | "readingMinutes"
+    "curationScore" | "aestheticTags" | "kind" | "topics" | "readingMinutes"
   >,
 ): WritingRescore {
-  const news = curated.timeliness === "news";
   return {
     itemId,
-    score: news ? 1 : curated.curationScore,
+    score: curated.curationScore,
     tags: curated.aestheticTags,
     kind: curated.kind ?? null,
     readingMinutes: curated.readingMinutes ?? null,
     topics: curated.topics,
-    news,
   };
 }
 

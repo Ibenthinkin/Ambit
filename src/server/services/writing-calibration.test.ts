@@ -103,12 +103,11 @@ const entry = (
       model: "flash-lite",
       score: 7,
       kind: "curiosity",
-      timeliness: "timeless",
       tags: ["a", "b"],
       topics: ["maps"],
     },
   ],
-  ben: { score: null, kind: null, news: null, note: "" },
+  ben: { score: null, kind: null, note: "" },
   ...over,
 });
 
@@ -117,7 +116,7 @@ describe("renderCalibration / parseCalibration", () => {
     const entries = [
       entry(1),
       entry(2, {
-        ben: { score: 3, kind: "essay", news: true, note: "a stub" },
+        ben: { score: 3, kind: "essay", note: "a stub" },
       }),
     ];
     const parsed = parseCalibration(renderCalibration(entries));
@@ -127,32 +126,62 @@ describe("renderCalibration / parseCalibration", () => {
   it("reads hand-typed marks leniently", () => {
     const md = renderCalibration([entry(1)])
       .replace("- ben-score: ", "- ben-score: 8")
-      .replace("- ben-kind: ", "- ben-kind: Criticism")
-      .replace("- ben-news: ", "- ben-news: n");
+      .replace("- ben-kind: ", "- ben-kind: Criticism");
     expect(parseCalibration(md)[0]!.ben).toEqual({
       score: 8,
       kind: "criticism",
-      news: false,
       note: "",
     });
+  });
+
+  // docs/writing-calibration.md was written with a `timeliness` column and `ben-news` lines;
+  // Ben's marks in it must still read after the news rule went (09-30-26).
+  it("reads a file written before the news rule went", () => {
+    const old = `## 1. Spikelet
+
+- item: wikipedia:Spikelet · abc
+- source: wikipedia · minutes: 1 · old score: 4
+- link: https://en.wikipedia.org/wiki/Spikelet · /i/abc
+
+> An excerpt.
+
+| model | score | kind | timeliness | tags | topics |
+| --- | --- | --- | --- | --- | --- |
+| flash-lite | 7 | curiosity | timeless | botany, odd | botany |
+
+- ben-score: 8
+- ben-kind: curiosity
+- ben-news: no
+- note: a shard
+`;
+    const [e] = parseCalibration(old);
+    expect(e!.answers).toEqual([
+      {
+        model: "flash-lite",
+        score: 7,
+        kind: "curiosity",
+        tags: ["botany", "odd"],
+        topics: ["botany"],
+      },
+    ]);
+    expect(e!.ben).toEqual({ score: 8, kind: "curiosity", note: "a shard" });
   });
 });
 
 describe("calibrationReport", () => {
   const marked = [
-    entry(1, { ben: { score: 7, kind: "curiosity", news: false, note: "" } }),
+    entry(1, { ben: { score: 7, kind: "curiosity", note: "" } }),
     entry(2, {
       answers: [
         {
           model: "flash-lite",
           score: 9,
           kind: "essay",
-          timeliness: "news",
           tags: [],
           topics: [],
         },
       ],
-      ben: { score: 3, kind: "essay", news: true, note: "" },
+      ben: { score: 3, kind: "essay", note: "" },
     }),
     entry(3, {
       answers: [
@@ -160,12 +189,11 @@ describe("calibrationReport", () => {
           model: "flash-lite",
           score: 2,
           kind: "archive",
-          timeliness: "timeless",
           tags: [],
           topics: [],
         },
       ],
-      ben: { score: 4, kind: "curiosity", news: true, note: "" },
+      ben: { score: 4, kind: "curiosity", note: "" },
     }),
     entry(4), // unmarked — ignored
   ];
@@ -175,7 +203,6 @@ describe("calibrationReport", () => {
     expect(r!.model).toBe("flash-lite");
     expect(r!.marked).toBe(3);
     expect(r!.mae).toBeCloseTo((0 + 6 + 2) / 3);
-    expect(r!.news).toEqual({ precision: 1, recall: 0.5 });
     expect(r!.confusion.curiosity.archive).toBe(1);
     expect(r!.confusion.essay.essay).toBe(1);
     expect(r!.worst[0]!.n).toBe(2);

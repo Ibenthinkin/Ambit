@@ -4,7 +4,7 @@ Read this before touching the writing code. It is self-contained; the design is
 `docs/DESIGN_writing.md` (D1–D8), the plan `docs/PLAN_writing.md` (five phases), and `log.md`
 09-28 / 09-29 have the narrative.
 
-## ▶ Pick up here (09-30-26): remove the news rule, then confirm the re-score
+## ▶ Pick up here (09-30-26): deploy, then confirm the re-score
 
 **Ben's decision (09-30-26):** drop every "no news" provision. The 44 pieces the production dry
 run would have demoted as news (albums, films, *2022 FIFA World Cup*, *Malaysia Airlines Flight
@@ -27,6 +27,13 @@ scores.
   mistake nothing is lost: re-running `confirm` after the fix rewrites them from the cache, free.)
 
 ### The work, in order
+> **Step 1 done 09-30-26** on `fix/writing-no-news`, merged to `main`: `splitNews` and the
+> ingest's `news-dropped` line are gone, `planWritingRescore` always writes the curator's score,
+> `timeliness` left `CuratedItem` / `parseWritingResponse` (the parser ignores the field, so every
+> cached answer still reads — a test pins it), calibration lost `ben-news` and news
+> precision/recall and reads its table by header so the existing marked file still parses.
+> `WRITING_PROMPT` is byte-identical (hash checked) and stays v2. **Next is step 2: Ben deploys.**
+
 1. **Remove the enforcement, not the prompt text**, so the cache survives. `WRITING_PROMPT` and
    `WRITING_PROMPT_VERSION = 2` stay **untouched** — changing the prompt changes the cache key,
    throws away the ~3,500 answers production already paid for, and re-opens calibration. Find every

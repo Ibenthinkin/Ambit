@@ -1,5 +1,5 @@
 // `recurate:writing`'s write (docs/PLAN_writing.md Phase 1): additive memberships, a display
-// topic only where there was none, news demoted to 1, and the writing fields stored. Against a
+// topic only where there was none, and the writing fields stored — the score always the curator's. Against a
 // real Postgres; self-skips without DATABASE_URL like every *.integration.test.ts.
 //
 // One fixture is un-homed (topic_id NULL) because that is the case under test. It is scored 1 so
@@ -84,7 +84,6 @@ describe.skipIf(!process.env.DATABASE_URL)(
       curationScore: 8,
       aestheticTags: ["odd history"],
       kind: "curiosity" as const,
-      timeliness: "timeless" as const,
       topics: [curatorTopic],
       readingMinutes: 7,
     };
@@ -138,34 +137,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
       );
       expect(out.membershipsAdded).toBe(0);
     });
-
-    it("demotes a news piece to 1 rather than deleting it", async () => {
-      const { db } = await import("~/server/db/client");
-      await applyWritingRescore(
-        db,
-        planWritingRescore(ids.homed, { ...verdict, timeliness: "news" }),
-      );
-      const [row] = await db.select().from(item).where(eq(item.id, ids.homed));
-      expect(row?.curationScore).toBe(1);
-    });
   },
 );
 
 describe("planWritingRescore", () => {
-  it("demotes news to 1 and flags it", () => {
-    const p = planWritingRescore("x", {
-      curationScore: 9,
-      aestheticTags: [],
-      kind: "essay",
-      timeliness: "news",
-      topics: [],
-      readingMinutes: null,
-    });
-    expect(p.score).toBe(1);
-    expect(p.news).toBe(true);
-  });
-
-  it("keeps the curator's score otherwise", () => {
+  // No news demotion since 09-30-26 (Ben keeps news out by choosing sources): the score written
+  // is always the curator's own.
+  it("writes the curator's score", () => {
     const p = planWritingRescore("x", {
       curationScore: 9,
       aestheticTags: [],
@@ -174,7 +152,6 @@ describe("planWritingRescore", () => {
     });
     expect(p).toMatchObject({
       score: 9,
-      news: false,
       kind: null,
       readingMinutes: null,
     });
