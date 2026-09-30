@@ -83,8 +83,8 @@ twice · `e2e:prod` 61/61. **Two flakes that are not this branch:** `explore.spe
 `alt`, and two different Vault pictures share the alt "The Vault of the Atomic Space Age".
 Compare by `src` to fix it.
 
-**Open / next:** Ben looks at `/dev/feed` (the Writing sliders and the `writing` readout line),
-then merge `feat/writing-share` → deploy. Phase 4 (writing cards that look like writing) is next;
+**Open / next:** Ben looked at `/dev/feed` ("looks good"); merged to `main` (`34eb714`) and
+pushed → Ben deploys. Phase 4 (writing cards that look like writing) is next;
 until then a writing card renders as today's article tile. Also open: keep disambiguation pages
 out of the Wikipedia adapter, and the spread test's alt comparison.
 

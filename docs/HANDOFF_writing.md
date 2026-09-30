@@ -6,7 +6,7 @@ Read this before touching the writing code. It is self-contained; the design is
 
 ## ▶ Pick up here (09-30-26, afternoon): Phase 3 built on `feat/writing-share` — Ben looks, merge, deploy
 
-**Phase 3 (writing slots) is built on `feat/writing-share`, pushed, not merged.** The design and
+**Phase 3 (writing slots) is merged to `main` (`34eb714`) and pushed; Ben saw the mix on `/dev/feed` and approved it. Not deployed yet.** The design and
 measurements are in `docs/PLAN_writing.md` Phase 3's "Built" note and SPEC §9 step 2. Log 09-30
 has the three findings. Next: Ben looks at `/dev/feed` → merge → deploy → Phase 4 (cards). Also
 open: disambiguation pages in the Wikipedia adapter; `desktop.spec` spread test compares by `alt`
