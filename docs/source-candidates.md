@@ -177,6 +177,49 @@ Individual articles, not whole blogs — the kind of thing that seeds one item o
 | --------- | ----------- | --------- | -------- |
 | **polishpostergallery.com** (= poster.pl) | Custom PHP **shop** — *Antykwariat Polska Sztuka Plakatu*, a Warsaw dealer 30 years in (ran a gallery at the University of Warsaw Library 2009–2024). **No machine surface:** `/api/` and `/searchhtml/` are robots-disallowed, no sitemap, no feed, and every unknown path answers `200` HTML. Robots otherwise permissive. Active (poster image files revised 03-2026). | 🟡 **Park — a dealer's catalogue reachable only by HTML, with a small image** | **Corpus:** ~1,250 posters across five decade listings at 20 a page (1950–69: 5 pp · 1970s: 13 · 1980s: 14 · 1990s: 8 · 2000s: 25), 42 named artists (Lenica, Tomaszewski, Świerzy, Starowieyski, Sadowski, Olbiński …), plus film / theater / music listings and a new-arrivals page. **Content unit:** one page per poster at `/poster/<artist>_<title>` with `og:` title / description / image and labelled fields — title, designer, category, author of the work, year of print, dimensions, technique, signature, price (`Poster ID` is the slug, a stable key). No essay; one templated sentence. The image is the dealer's photograph at **552 × 800 px** (~270 KB JPEG, `/posters/<slug>.jpg`), the smallest of any candidate probed. **Rights:** the posters are the artists'/heirs' (stated on the terms page, and "purchase grants ownership of the physical item only"); the site's own photographs and text may be used *"with proper attribution, including a link to the original source"* — the friendliest clause in the batch, and exactly the link-card shape. **Why park.** (1) No machine surface: a walk is ~1,250 HTML page parses, the shape arabicdesignarchive is parked on and the repo has never built (`og:` meta makes it tractable, but it is still a scraper). (2) 552 px: `HeroRail` is full-viewport, and unlike ajourneyroundmyskull's 640 px there is no larger rendition to ask for. (3) Posture: `from: Poster.pl` links to a sale page; credit chain is dealer → designer, as with anothergraphic. **What it has going for it:** the Polish poster school is squarely the vocabulary (`poster-art`, `graphic-design`, `illustration`, `surreal`, `film`, `typography`) and the metadata is the best-structured of any blog-shaped candidate. **Cheap next step if wanted:** an email asking for larger images or an export — a dealer who ran a university gallery is the kind that answers, and the terms already say yes to attribution + link. |
 
+## Publications — writing Phase 5 (09-30-26)
+
+> Link cards of **writing** (docs/DESIGN_writing.md D6): the lead picture, the publication's own
+> dek, a `from:` credit and the link. Full text is scored and never stored. Nine candidates were
+> probed live on 09-30-26 (feed shape, full text, pictures, paging, WordPress REST, robots).
+> Three are **registered and sampled** (`config/publications.ts`, all in `SUSPENDED_SOURCES`), and
+> the other six are here with the reason they weren't. **Verdicts are Ben's**, one at a time. Keep
+> means it leaves `SUSPENDED_SOURCES` and its `walkQuota` (1,500 / 1,500 / 500 by default) is
+> what the nightly walks.
+>
+> The samples are `bun run stats:walk <id> --quota 150` (150 unique posts, after the 09-30-26
+> page-size fix below). They write nothing, and re-running them is free from the curation cache.
+
+| Candidate | Reached by | Sample (150) | Recommendation |
+|---|---|---|---|
+| **The Marginalian** (`themarginalian`) | WordPress REST, 6,690 posts, full text | **8.35 avg, 98% ≥ 8**, 5–9 · essay 137 / curiosity 7 / archive 3 / criticism 3 · **4 min p50, 7 p90** · picture 100% · 0 floored · topics consciousness 61, literature 59, books 51, science 28, emotions 21 · un-homed 2 | **Keep.** The strongest sample of any source; robots names no AI crawler. Pieces are short (4 min median), and the corpus leans heavily on books, literature and consciousness. The weakest item is a "best of" round-up at 5. |
+| **JSTOR Daily** (`jstordaily`) | WordPress REST, 8,120 posts, full text | **7.82 avg, 82% ≥ 8**, 4–9 · essay 124 / curiosity 21 / criticism 3 / archive 2 · **4 min p50, 8 p90** · picture 100% · 0 floored · 42 topics · un-homed 11 | **Keep, lower priority.** Broad and well-pictured. Its two 4s are JSTOR's own search how-tos ("How to Refine Your JSTOR Search"), which the curator handles on its own. Its modern history lands in `ancient-history` (30), which is a vocabulary gap, below. |
+| **Noema** (`noema`) | Paged RSS (WordPress REST reports 0 posts), full text, `media:thumbnail` | **7.79 avg, 81% ≥ 8**, 3–9 · essay 147 · **13 min p50, 26 p90** · picture 100% · 1 floored · topics **abstract 88**, technology 60, science 28, consciousness 27 · un-homed 4 | **Hold until the `abstract` question is answered.** These are the only true long reads (13 min median). The low scores are house items: a reading list, a prize announcement, a top-ten, a news piece on Iran. Its `<description>` is only WordPress's footer, so the dek is the first paragraph. AI and technology dominate the topics. |
+| Aeon | RSS, newest 20, **dek only** (~27 words) | — | **Park (not registered).** robots.txt names ClaudeBot, GPTBot, CCBot, Google-Extended and Bytespider. With only a dek, the writing floor (400 characters) would drop every piece unless Ambit fetched the page, which is the one thing those lines ask crawlers not to do. The feed also carries videos (`/videos/`). |
+| Psyche | Same as Aeon (same publisher) | — | **Park (not registered)**, for the same reasons. |
+| Longreads | WordPress REST, 24,257 posts | — | **Park (not registered).** Mostly recommends pieces elsewhere (the walker refuses off-site links); 5 of 25 feed items had a picture; robots names GPTBot, CCBot and Google-Extended. |
+| The Paris Review | RSS, newest 10 only, full text | — | **Park (not registered).** Only a window (accumulates nightly, no archive); robots names GPTBot and Google-Extended. |
+| Atlas Obscura | RSS, newest 27, full text in `<description>`, 300 × 200 crops | — | **Not now.** The pictures are tile-grade crops. The originals are recoverable from the imgproxy URL, but that is guessing at a URL, which the adapters don't do. It's a window with no archive. No AI crawler named. |
+| Hyperallergic | RSS, newest 15 | — | **Stays cut** (09-01-26, content fit: reported journalism). |
+
+**Two vocabulary findings for Ben, from these samples.** They aren't source verdicts, but they
+shape how these sources land:
+1. **`abstract` (facet `look`, label "Abstract") is being used for abstract *ideas*.** Noema has
+   88 of 149 there, JSTOR 17, the Marginalian 7. Locally, 36 Wikipedia articles sit there too
+   (*Machine learning*, *Artificial intelligence*). A reader who picked Abstract for pictures
+   gets essays on AI. A likely fix: keep `look`-facet topics out of the writing curator's
+   vocabulary. The cache key ignores the vocabulary, so the affected rows would need a forced
+   re-score (cents).
+2. **There is no plain history topic.** JSTOR's twentieth-century pieces file under
+   `ancient-history`.
+
+**A bug the samples found, fixed 09-30-26:** `wp-rest.ts` and `doorofperception.ts` sized every
+page from the remaining quota. A `--quota 150` run fetched page 2 at 50 a page, which returned
+posts 51–100 again, and printed a resume cursor 100 posts past where it stopped. **Every WordPress
+trial sample before 09-30-26 (thisiscolossal, streetartnews, mossandfog) counted 100 posts, 50 of
+them twice**, so read those numbers as a 100-post sample. The data was never harmed: upserts
+dedupe. Only the first page may shrink now.
+
 ## Untriaged raw notes
 https://newyorkthegoldenage.tumblr.com/
 https://route22ny.tumblr.com/
