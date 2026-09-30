@@ -175,10 +175,15 @@ export const WRITING_PROMPT_VERSION = 2;
  * for picture sources, a third of it sitting at 4, the floor. Change it, bump
  * WRITING_PROMPT_VERSION, re-run the calibration.
  *
- * Two things it adds beyond a score. A **kind** (D2), which is what a writing card's badge says.
- * And a **timeliness** verdict, which is how "news-free" is kept by taste rather than by a source
- * list: a `news` piece is dropped at ingest and demoted to 1 at re-score, and the verdict itself
- * is not stored (decided 09-28-26).
+ * What it adds beyond a score is a **kind** (D2), which is what a writing card's badge says.
+ *
+ * It also asks how a piece ages ("timeless" / "dated" / "news"), and **nothing reads the answer
+ * any more**. That verdict was how the feed stayed news-free — a `news` piece was dropped at
+ * ingest and demoted to 1 at re-score — until Ben dropped the rule on 09-30-26: he keeps news out
+ * by choosing sources, and what the curator called news was mostly contemporary subjects (albums,
+ * films, a World Cup). The text stays in the prompt only because the prompt is the cache key:
+ * editing it re-bills every answer production holds and re-opens the calibration. Strip it the
+ * next time the prompt changes for a reason of its own.
  */
 export const WRITING_PROMPT = `You are the editor of a beloved newsletter of long reads and curiosities — the kind people stay subscribed to for years because every piece in it was worth their evening. You read everything: encyclopedia articles, essays, criticism, profiles, poems, old magazine clippings, archival documents. Your taste: writing with a spark of "huh, I never knew that", a voice worth listening to, and staying power — a piece someone could read in five years and still be glad they did. Longform contemporary journalism from a reputable outlet is welcome when it has that staying power. You never run anything sensational, gory, or engagement-baity. And you are not a news service: a piece whose reason to exist is a recent event is news, however well written.
 
@@ -235,9 +240,6 @@ export type CuratedItem = NormalizedItem & {
   topics: string[];
   /** Writing only (type 'article'): the writing curator's kind, null when it named none. */
   kind?: WritingKind | null;
-  /** Writing only: how the piece ages. Read by ingest (a `news` piece is dropped) and by
-   *  `recurate:writing` (demoted to 1); never stored. */
-  timeliness?: Timeliness;
   /** Writing only: `readingMinutes(body)`, null without a body. */
   readingMinutes?: number | null;
 };
@@ -551,10 +553,6 @@ export function curationCacheKey(
 
 // ── the writing curator (docs/DESIGN_writing.md D1) ─────────────────────────
 
-/** The writing curator's verdict on how a piece ages. */
-export const TIMELINESS = ["timeless", "dated", "news"] as const;
-export type Timeliness = (typeof TIMELINESS)[number];
-
 /** How much of a piece the writing curator reads — enough for its voice and its thread, well
  *  inside a cheap model's context, and a bound on what one call can cost. */
 export const WRITING_TEXT_CHARS = 8_000;
@@ -562,9 +560,9 @@ export const WRITING_TEXT_CHARS = 8_000;
 /**
  * Parse one writing-curator reply. Everything `parseCuratorResponse` enforces still holds — the
  * score clamp, the tag coercion, topics validated against the vocabulary and capped at
- * MAX_TOPICS — so it is called first, then the two writing fields are read on top. An unknown
- * kind is null (the badge falls back to plain `READ`); an unknown timeliness is `timeless`, so a
- * model that invents a verdict never gets a piece dropped as news by accident.
+ * MAX_TOPICS — so it is called first, then the kind is read on top. An unknown kind is null (the
+ * badge falls back to plain `READ`). The reply's `timeliness` is ignored — the prompt still asks
+ * for it, nothing acts on it (see WRITING_PROMPT).
  */
 export function parseWritingResponse(
   content: string,
@@ -573,22 +571,15 @@ export function parseWritingResponse(
   score: number;
   tags: string[];
   kind: WritingKind | null;
-  timeliness: Timeliness;
   topics: string[];
   overFiled: number;
 } {
   const base = parseCuratorResponse(content, opts);
   const record = JSON.parse(content) as Record<string, unknown>;
-  const timeliness = (TIMELINESS as readonly unknown[]).includes(
-    record.timeliness,
-  )
-    ? (record.timeliness as Timeliness)
-    : "timeless";
   return {
     score: base.score,
     tags: base.tags,
     kind: isWritingKind(record.kind) ? record.kind : null,
-    timeliness,
     topics: base.topics,
     overFiled: base.overFiled,
   };
@@ -636,20 +627,6 @@ export function writingAsText(item: NormalizedItem): string {
     .join("\n");
 }
 
-/**
- * Keep the feed news-free (D1): a piece the writing curator called `news` is not stored. Pure,
- * so ingest's summary can count what it dropped. Images carry no timeliness and always stay.
- */
-export function splitNews(items: CuratedItem[]): {
-  kept: CuratedItem[];
-  news: CuratedItem[];
-} {
-  const kept: CuratedItem[] = [];
-  const news: CuratedItem[] = [];
-  for (const it of items) (it.timeliness === "news" ? news : kept).push(it);
-  return { kept, news };
-}
-
 /** One writing-curator call for one article, cache-aside — scoreItem's counterpart for
  *  `type = 'article'`. Always classifies. */
 async function scoreWriting(
@@ -663,7 +640,6 @@ async function scoreWriting(
   score: number;
   tags: string[];
   kind: WritingKind | null;
-  timeliness: Timeliness;
   topics: string[];
   overFiled: number;
   cached: boolean;
@@ -979,7 +955,6 @@ export async function curateItems(
             aestheticTags: w.tags,
             topics: w.topics,
             kind: kindFor(item.source, w.kind),
-            timeliness: w.timeliness,
             readingMinutes: readingMinutes(item.body),
           };
         } else {

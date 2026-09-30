@@ -5,9 +5,9 @@
  *
  *   bun run writing:calibrate --sample 40     # draw 40 articles, score each with both models,
  *                                             #   write docs/writing-calibration.md
- *   (Ben fills in ben-score / ben-kind / ben-news / note for each piece)
+ *   (Ben fills in ben-score / ben-kind / note for each piece)
  *   bun run writing:calibrate --read          # agreement per model: score MAE + Spearman, kind
- *                                             #   confusion, news precision/recall, five worst
+ *                                             #   confusion, five worst
  *   bun run writing:calibrate --rescore       # after a prompt change: the pieces already in the
  *                                             #   file, in the same order, with fresh answers
  *
@@ -55,9 +55,6 @@ if (args.includes("--read")) {
   for (const r of calibrationReport(entries)) {
     console.log(`\n${r.model} — ${r.marked} of ${entries.length} marked`);
     console.log(`  score MAE ${f(r.mae)} · Spearman ${f(r.spearman)}`);
-    console.log(
-      `  news precision ${f(r.news.precision)} · recall ${f(r.news.recall)}`,
-    );
     console.log("  kind confusion (rows Ben, columns model):");
     const cols = Object.keys(r.confusion);
     console.log(
@@ -171,7 +168,6 @@ const entries: CalibrationEntry[] = sample.map((row, i) => ({
       model: model.replace(/^google\//, ""),
       score: a.curationScore,
       kind: a.kind ?? null,
-      timeliness: a.timeliness ?? "timeless",
       tags: a.aestheticTags,
       topics: a.topics,
     };
@@ -179,7 +175,6 @@ const entries: CalibrationEntry[] = sample.map((row, i) => ({
   ben: previous.get(row.id) ?? {
     score: null,
     kind: null,
-    news: null,
     note: "",
   },
 }));

@@ -82,7 +82,6 @@ import {
   curateItems,
   CuratorAbortError,
   MAX_TOPICS,
-  splitNews,
   structuralFloor,
   writingFloor,
 } from "~/server/services/curator";
@@ -579,7 +578,7 @@ async function main() {
   });
   // The search lane passes the vocabulary too: its images ignore it (no classify), but its
   // articles go to the writing curator, which always classifies (docs/DESIGN_writing.md D1).
-  const curatedSearchAll: CuratedItem[] = skipLlm
+  const curatedSearch: CuratedItem[] = skipLlm
     ? keptSearch.map(neutral)
     : await curateItems(keptSearch, {
         ...curateOpts,
@@ -587,19 +586,13 @@ async function main() {
       });
   // Walk items get the classify mode. Under --skip-llm they cannot be classified at all, so the
   // walk lane writes nothing: a structural check of the walk, nothing more — see the write loop.
-  const curatedWalkAll: CuratedItem[] = skipLlm
+  const curatedWalk: CuratedItem[] = skipLlm
     ? keptWalk.map(neutral)
     : await curateItems(keptWalk, {
         ...curateOpts,
         classify: true,
         topics: classifyVocabulary,
       });
-  // News-free (D1): a piece the writing curator called `news` is not stored, in either lane.
-  const { kept: curatedSearch, news: newsSearch } = splitNews(curatedSearchAll);
-  const { kept: curatedWalk, news: newsWalk } = splitNews(curatedWalkAll);
-  const newsDropped: Record<string, number> = {};
-  for (const it of [...newsSearch, ...newsWalk])
-    newsDropped[it.source] = (newsDropped[it.source] ?? 0) + 1;
   const histogram = topicHistogram(curatedWalk);
 
   // Step 6: upsert. Under --dry-run this loop still computes exactly what WOULD be written (so
@@ -721,8 +714,7 @@ async function main() {
       none: bodies.none,
       deferred: bodies.deferred,
     },
-    newsDropped,
-    curatedCount: curatedSearchAll.length + curatedWalkAll.length,
+    curatedCount: curatedSearch.length + curatedWalk.length,
     inserted,
     insertedByTopic,
     walkStatsBySource,
@@ -803,8 +795,6 @@ function printSummary(args: {
   /** Article bodies fetched for new rows (Wikipedia); none = the source has no extract (kept
    *  bodiless); deferred = the fetch threw, so the item was left for the next run. */
   bodies: { fetched: number; none: number; deferred: number };
-  /** Per source, pieces the writing curator called `news` — curated, then not stored. */
-  newsDropped: Record<string, number>;
   curatedCount: number;
   inserted: number;
   insertedByTopic: Map<string, number>;
@@ -834,7 +824,6 @@ function printSummary(args: {
     flooredByRule,
     thinText,
     bodies,
-    newsDropped,
     curatedCount,
     inserted,
     insertedByTopic,
@@ -974,15 +963,6 @@ function printSummary(args: {
   );
   console.log(
     `memberships written:      ${dryRun ? "0 (--dry-run)" : membershipsWritten}`,
-  );
-  const newsTotal = Object.values(newsDropped).reduce((a, b) => a + b, 0);
-  console.log(
-    `news-dropped:             ${newsTotal}` +
-      (newsTotal > 0
-        ? ` (${Object.entries(newsDropped)
-            .map(([s, n]) => `${s} ${n}`)
-            .join(", ")})`
-        : ""),
   );
 
   console.log(

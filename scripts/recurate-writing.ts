@@ -11,8 +11,7 @@
  * Unlike `recurate` (image repair, writes by default) this one is the other way round, like the
  * repair scripts: **a dry run unless `--confirm`**. A dry run still bills the curator — the
  * answers land in `.cache/curation`, so the `--confirm` run that follows is free — and prints
- * what would change: the mean score per source before and after, the kind histogram, and every
- * piece the curator called `news` (demoted to 1 on write, never deleted).
+ * what would change: the mean score per source before and after, and the kind histogram.
  *
  * The write itself is `services/writing-rescore.ts`: fields replaced, memberships added as
  * `curator`, the display topic set only where it was NULL.
@@ -123,7 +122,6 @@ const CHUNK = 50;
 type Tally = { n: number; before: number; after: number };
 const bySource = new Map<string, Tally>();
 const kinds: Record<string, number> = {};
-const news: string[] = [];
 let skippedFallback = 0;
 let membershipsAdded = 0;
 let gainedDisplay = 0;
@@ -156,7 +154,6 @@ for (let at = 0; at < rows.length; at += CHUNK) {
     t.after += plan.score;
     bySource.set(row.source, t);
     kinds[plan.kind ?? "(none)"] = (kinds[plan.kind ?? "(none)"] ?? 0) + 1;
-    if (plan.news) news.push(`${row.source}:${row.sourceId}  ${row.title}`);
 
     if (confirm) {
       const out = await applyWritingRescore(db, plan);
@@ -176,10 +173,6 @@ for (const [s, t] of bySource)
 console.log(
   `\nkinds: ${[...WRITING_KINDS, "(none)"].map((k) => `${k} ${kinds[k] ?? 0}`).join(" · ")}`,
 );
-console.log(
-  `\nnews (${news.length}) — ${confirm ? "demoted to 1" : "would be demoted to 1"}:`,
-);
-for (const n of news) console.log(`  ${n}`);
 if (skippedFallback)
   console.log(`\nkept old row (curator fallback): ${skippedFallback}`);
 console.log(

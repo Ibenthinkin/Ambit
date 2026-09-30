@@ -98,7 +98,7 @@ const rows = await db
   .from(item)
   // Images only (09-28-26): articles go to the writing curator now, which this script would
   // re-bill under the sixteen-topic default and then write only half of (no kind, no reading
-  // time, no memberships, `news` at full score). `recurate:writing` is their repair.
+  // time, no memberships). `recurate:writing` is their repair.
   .where(and(eq(item.source, source), eq(item.type, "image")))
   .orderBy(item.sourceId)
   .limit(limit ?? Number.MAX_SAFE_INTEGER)

@@ -12,8 +12,6 @@ import {
   CURATOR_MODEL,
   CURATOR_PROMPT,
   parseWritingResponse,
-  splitNews,
-  type CuratedItem,
   WRITING_PROMPT,
   WRITING_PROMPT_VERSION,
   writingCacheKey,
@@ -82,7 +80,7 @@ describe("writingFloor — thin-text", () => {
 describe("parseWritingResponse", () => {
   const ids = new Set(["botany", "zoology", "maps", "myth"]);
 
-  it("reads score, tags, kind, timeliness and known topics", () => {
+  it("reads score, tags, kind and known topics, and ignores timeliness", () => {
     const out = parseWritingResponse(
       '{"score": 8, "tags": ["Odd History", "x"], "kind": "curiosity", "timeliness": "dated", "topics": ["botany", "invented"]}',
       { topicIds: ids },
@@ -91,19 +89,28 @@ describe("parseWritingResponse", () => {
       score: 8,
       tags: ["odd history", "x"],
       kind: "curiosity",
-      timeliness: "dated",
       topics: ["botany"],
       overFiled: 0,
     });
   });
 
-  it("turns an unknown kind into null and an unknown timeliness into timeless", () => {
+  it("turns an unknown kind into null", () => {
     const out = parseWritingResponse(
       '{"score": 5, "tags": [], "kind": "listicle", "timeliness": "evergreen"}',
       { topicIds: ids },
     );
     expect(out.kind).toBeNull();
-    expect(out.timeliness).toBe("timeless");
+  });
+
+  // Ben dropped the news rule 09-30-26: he keeps news out by choosing sources. The prompt still
+  // asks (it is the cache key), and a `news` answer is scored like any other.
+  it("keeps a piece the model called news at its own score", () => {
+    const out = parseWritingResponse(
+      '{"score": 7, "tags": ["film"], "kind": "criticism", "timeliness": "news", "topics": []}',
+      { topicIds: ids },
+    );
+    expect(out.score).toBe(7);
+    expect(out).not.toHaveProperty("timeliness");
   });
 
   it("caps topics at three and counts the rest", () => {
@@ -113,7 +120,6 @@ describe("parseWritingResponse", () => {
     );
     expect(out.topics).toEqual(["botany", "zoology", "maps"]);
     expect(out.overFiled).toBe(1);
-    expect(out.timeliness).toBe("news");
   });
 
   it("rejects an unusable score, like the image parser", () => {
@@ -124,6 +130,8 @@ describe("parseWritingResponse", () => {
 });
 
 describe("writing prompt", () => {
+  // The timeliness verdicts are asked for and ignored: the prompt text is the cache key, so it
+  // stays byte-identical until the prompt changes for a reason of its own (see WRITING_PROMPT).
   it("names the four kinds, the three timeliness verdicts, and welcomes longform journalism", () => {
     for (const k of ["essay", "curiosity", "criticism", "archive"])
       expect(WRITING_PROMPT).toContain(`"${k}"`);
@@ -222,7 +230,6 @@ describe("curateItems dispatches by type", () => {
       curationScore: 9,
       aestheticTags: ["odd"],
       kind: "essay",
-      timeliness: "timeless",
       topics: ["botany"],
       readingMinutes: 2,
     });
@@ -274,28 +281,6 @@ describe("curateItems dispatches by type", () => {
   });
 });
 
-describe("splitNews", () => {
-  const curated = (
-    sourceId: string,
-    over: Partial<CuratedItem>,
-  ): CuratedItem => ({
-    ...makeItem({ sourceId }),
-    curationScore: 7,
-    aestheticTags: [],
-    topics: [],
-    ...over,
-  });
-
-  it("drops a news piece and keeps timeless, dated and every image", () => {
-    const news = curated("n", { timeliness: "news" });
-    const dated = curated("d", { timeliness: "dated" });
-    const img = curated("i", { type: "image" });
-    const { kept, news: dropped } = splitNews([news, dated, img]);
-    expect(kept).toEqual([dated, img]);
-    expect(dropped).toEqual([news]);
-  });
-});
-
 // What makes a calibration re-run, and `recurate:writing --confirm` after its dry run, free: a
 // cached writing answer is read without any fetch, and re-validated against the vocabulary of
 // the current run. `fetch` throws, so a cache miss fails loudly.
@@ -313,6 +298,7 @@ describe("curateItems reads a cached writing answer with no LLM call", () => {
     await Promise.all(files.splice(0).map((f) => rm(f, { force: true })));
   });
 
+  // The cached file carries `timeliness`, as every answer production holds does — it must read.
   it("returns the cached verdict, reports the hit, and drops a topic no longer offered", async () => {
     const it0 = makeItem({
       source: "pdr",
@@ -343,9 +329,9 @@ describe("curateItems reads a cached writing answer with no LLM call", () => {
     expect(out).toMatchObject({
       curationScore: 8,
       kind: "archive",
-      timeliness: "dated",
       topics: ["botany"],
       readingMinutes: 2,
     });
+    expect(out).not.toHaveProperty("timeliness");
   });
 });
