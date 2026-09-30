@@ -7,6 +7,7 @@ import fixtures from "./__fixtures__/wikipedia.json";
 import type * as WikipediaLists from "./wikipedia-lists";
 import {
   fetchBody,
+  isDisambiguation,
   isFreeImageLicense,
   isLowValueTitle,
   leadImageFileName,
@@ -137,6 +138,50 @@ describe("wikipedia.search", () => {
     expect(detailUrl).toContain("pithumbsize=1600");
     expect(detailUrl).not.toContain("original");
     expect(wikipedia.toItem(raws[0]!).imageUrl).toBe(THUMB);
+  });
+
+  // 09-30-26: eleven plainly-titled disambiguation pages ("Sex", "Music Man") reached production
+  // past isLowValueTitle and a 200-char floor they clear easily. The page property catches them.
+  it("drops pages MediaWiki flags as disambiguation, whatever their title", async () => {
+    fetchJson
+      .mockResolvedValueOnce({
+        query: {
+          search: [
+            { pageid: 1, title: "Music Man" },
+            { pageid: 2, title: "The Music Man" },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        query: {
+          pages: {
+            "1": {
+              pageid: 1,
+              title: "Music Man",
+              extract: "Music Man may refer to: a musical, a film… ".repeat(8),
+              pageprops: { disambiguation: "" },
+            },
+            "2": {
+              pageid: 2,
+              title: "The Music Man",
+              extract: "The Music Man is a 1957 musical. ".repeat(8),
+            },
+          },
+        },
+      });
+
+    const raws = await wikipedia.search("music", { limit: 5 });
+
+    expect(fetchJson.mock.calls[1]![0]).toContain("ppprop=disambiguation");
+    expect(raws.map((r) => r.page.title)).toEqual(["The Music Man"]);
+  });
+});
+
+describe("isDisambiguation", () => {
+  it("reads the page property, which MediaWiki sends as an empty string", () => {
+    expect(isDisambiguation({ pageprops: { disambiguation: "" } })).toBe(true);
+    expect(isDisambiguation({ pageprops: {} })).toBe(false);
+    expect(isDisambiguation({})).toBe(false);
   });
 });
 
