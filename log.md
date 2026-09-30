@@ -5,6 +5,31 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-09
 
+### [[09-30-26 Wed]] — Writing live on production; the news rule goes
+
+**Shipped:** `feat/writing` merged to `main` (`39657f6`) and deployed. On production, the Wikipedia
+body backfill finished in 961 s with 0 errors, and the curation cache went to the volume. The
+push flooded Ben's terminal with `LIBARCHIVE.xattr.com.apple.provenance` warnings, one per file.
+They were harmless: all 117 new envelopes landed. The four `.cache/` push scripts now pass
+`--no-xattrs` on the Mac side and `--warning=no-unknown-keyword` on the server side. The
+re-score's dry run: pdr 7.93 → 8.56, wikipedia 5.23 → 6.91 over 3,201 rows, 3,237 curiosity /
+279 essay / 3 criticism, and 44 pieces flagged as news.
+
+**Decisions:** **Ben dropped the news rule entirely.** The 44 (albums, films, the 2022 World
+Cup, MH370, *Modern poetry*) "are not really news, just contemporary concepts". Ben curates the
+sources and keeps news out that way. The removal is enforcement-only: the ingest drop, the
+demote-to-1 and the calibration's news metrics go. `WRITING_PROMPT` v2 stays byte-identical, so
+the ~3,500 cached production answers stay valid and `confirm` stays free. The dry run also showed
+that the Wikipedia keyword search pulls pop culture through phrases like "ocean", "machine" and
+"portrait". `reading-phrases.ts` is Ben's lever for that.
+
+**Open / next:** `docs/HANDOFF_writing.md` "Pick up here". Remove the news enforcement on
+`fix/writing-no-news` → merge → Ben deploys → Ben runs `recurate-writing-prod.sh confirm`.
+**Don't `confirm` before the deploy**, or the 44 are written at 1 (a later `confirm` restores
+them for free). Until that deploy, the nightly ingest still drops pieces it calls news.
+
+*Session spend: 7.34M tok (in 110 · out 37.3k · cache r 6.50M / w 803.0k) · opus-5-5 · 09:49→09:51*
+
 ### [[09-29-26 Tue]] — Writing calibration agrees: prompt v2
 
 **Findings:** Ben finished marking (34 of 40; the six blanks are Loupe). Split by source, which

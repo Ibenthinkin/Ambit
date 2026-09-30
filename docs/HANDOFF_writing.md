@@ -1,17 +1,70 @@
-# Handoff — writing as a first-class part of the feed (09-28-26)
+# Handoff — writing as a first-class part of the feed (updated 09-30-26)
 
-Read this before touching `feat/writing`. It is self-contained; the design is
+Read this before touching the writing code. It is self-contained; the design is
 `docs/DESIGN_writing.md` (D1–D8), the plan `docs/PLAN_writing.md` (five phases), and `log.md`
-09-28 has the narrative.
+09-28 / 09-29 have the narrative.
 
-## Where things stand
+## ▶ Pick up here (09-30-26): remove the news rule, then confirm the re-score
 
-- **Branch `feat/writing`**, ~19 commits ahead of `origin/feat/writing`, **not pushed** (Ben's
-  instruction: commit, don't push), **not merged, not deployed**. Branched from `main` at
-  `61ed491`. `bun run check` green at the last commit (1,642 tests).
+**Ben's decision (09-30-26):** drop every "no news" provision. The 44 pieces the production dry
+run would have demoted as news (albums, films, *2022 FIFA World Cup*, *Malaysia Airlines Flight
+370*, *Modern poetry*, …) "are not really news, just contemporary concepts." **Ben curates the
+sources and keeps news out that way; the curator does not police it.** The 44 keep their real
+scores.
+
+### Where production is right now
+- **Deployed at `39657f6`** (merge of `feat/writing` into `main`; `main` = `origin/main`).
+  Migration 0010 ran. **The deployed ingest still drops `news` pieces every night** (`splitNews`)
+  until the change below ships.
+- `backfill-wiki-prod.sh` **done** — 961 s, 0 errors, 2 skipped (no extract).
+- `recurate-writing-prod.sh push` **done**. The per-file `LIBARCHIVE.xattr.com.apple.provenance`
+  tar warnings are fixed in all four `.cache/` push scripts (`--no-xattrs` /
+  `--warning=no-unknown-keyword`).
+- `dry` **done** — `/app/.cache/recurate-writing-dry.log` in the container: pdr 318 rows
+  7.93 → 8.56 · wikipedia 3,201 rows 5.23 → 6.91 · kinds essay 279 / curiosity 3,237 /
+  criticism 3 · 44 news. **Every answer is in the production cache under prompt v2.**
+- **`confirm` has NOT run.** Don't run it until step 3 — it would write the 44 at 1. (If it runs by
+  mistake nothing is lost: re-running `confirm` after the fix rewrites them from the cache, free.)
+
+### The work, in order
+1. **Remove the enforcement, not the prompt text**, so the cache survives. `WRITING_PROMPT` and
+   `WRITING_PROMPT_VERSION = 2` stay **untouched** — changing the prompt changes the cache key,
+   throws away the ~3,500 answers production already paid for, and re-opens calibration. Find every
+   touchpoint: `grep -rn -iE "splitNews|timeliness|\bnews\b" src scripts | grep -v newsletter`.
+   Known ones:
+   - `splitNews` (ingest) — the nightly drop. Delete it.
+   - `services/writing-rescore.ts` — `planWritingRescore`'s `news` flag and demote-to-1. The
+     written score is always the curator's score.
+   - `scripts/recurate-writing.ts` — the news list in the summary (~lines 126, 159, 179-182) and
+     the header comment.
+   - `services/curator.ts` — `CuratedItem.timeliness` / `parseWritingResponse`'s timeliness can go;
+     the model will still send the field, so the parser must tolerate it. Update the
+     `WRITING_PROMPT` doc comment's news-free paragraph: the verdict is **no longer acted on**.
+   - `services/writing-calibration.ts` + the calibration file header — `ben-news`, news
+     precision/recall. Drop them.
+   - Tests pinning the drop/demotion (`curator-writing.test.ts`, writing-rescore and ingest tests):
+     delete or invert; add one that a `news` answer is written at its own score.
+   - `docs/DESIGN_writing.md` (D1 "news-free by taste") and `docs/PLAN_writing.md`: one dated line
+     each recording the reversal; SPEC too if it mentions it.
+   `bun run check` green → branch off `main` (`fix/writing-no-news`) → merge → push.
+2. **Ben deploys.**
+3. **Ben runs `sh .cache/recurate-writing-prod.sh confirm`** — free, all cached. Expect ~3,519
+   written, pdr ≈ 8.56, wikipedia ≈ 6.91 or a hair higher.
+4. **Optional, only if Ben wants it:** strip the timeliness block and "you are not a news service"
+   from `WRITING_PROMPT` itself → `WRITING_PROMPT_VERSION = 3` → `writing:calibrate --rescore` +
+   `--read` split by source → fresh production dry run (~$1). Not needed for step 3.
+
+### A note from the dry run
+The Wikipedia keyword search pulls pop culture — *Ocean Flame*, *Machine Vendetta*, *Portrait of a
+Chameleon*, *Spy in the Ocean* come from phrases like "ocean", "machine", "portrait". Ben's lever is
+`src/server/config/reading-phrases.ts`: that is where "Ben curates the sources" happens for
+Wikipedia.
+
+## Where things stood before 09-30 (history)
+
+- `feat/writing` merged to `main` 09-29-26 (`39657f6`) and deployed; the branch is kept.
 - **Phase 1 (the writing curator) — built.** Phase 2 (Wikipedia) — built. Phases 3–5 — not started.
-- **Calibration in progress.** Ben marked 20 of the 40 pieces in `docs/writing-calibration.md`
-  (7 Loupe, 7 PDR, 6 Wikipedia). His marks are committed with this handoff.
+- Calibration: Ben marked 34 of 40 (the six blanks are Loupe); prompt v2 agreed — below.
 
 ## What was built
 
@@ -86,7 +139,7 @@ agreement** unless Ben says otherwise → step 4 below.
 - flash-lite calls 3 of Ben's 8 curiosities `essay`.
 - Not yet measured: **news** (nothing in the sample is news) and **criticism** (Ben marked none).
 
-## Next steps, in order
+## Next steps as written 09-28 (done through the dry run; `confirm` is superseded by "Pick up here")
 
 1. **Ben** marks the remaining **Wikipedia and PDR** pieces (~13); skip the Loupe ones.
 2. ~~Exclude Loupe from the writing re-score~~ — **done 09-28-26**: a bare `recurate:writing`
