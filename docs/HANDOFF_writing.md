@@ -20,6 +20,30 @@ Read this before touching the writing code. It is self-contained; the design is
 4. If Ben keeps any of the four pending ones, build it then. Aeon and Psyche need a decision on
    the dek-only problem (their feeds carry no text past the dek).
 
+**State of the branch:** `feat/publications` is off `main` at `9ff7cd2` (Phase 4 merged and
+deployed), committed and not pushed. Its commits:
+- `49b290f`: publications, `curationText`, `rss.ts`, wp-rest article mode
+- `595f27f`: the WordPress page-size fix
+- docs commits after that
+
+`check` passed (1,716 tests) at `0dff7b2`. Ben's uncommitted `src/server/config/topic-groups.ts`
+edit is his; leave it alone.
+
+**Sample stories Ben is reading** (pulled from the feeds on 09-30-26):
+- Aeon: [Don't use the 'C-word'](https://aeon.co/essays/we-need-a-better-way-to-describe-what-is-often-called-cancer) · [Toadstools and toxins](https://aeon.co/essays/a-scientists-search-for-answers-about-amanita-muscaria-gummies) · [Cosmic amnesia](https://aeon.co/essays/black-holes-ring-like-bells-what-happens-next-is-stranger)
+- Psyche: [The evil eye is irrational](https://psyche.co/ideas/the-evil-eye-is-irrational-abandon-it-at-your-peril) · [Maxxing treats life as a problem](https://psyche.co/ideas/maxxing-treats-life-as-a-problem-when-its-a-mystery) · [The full-service grandad](https://psyche.co/turning-points/i-am-a-full-service-grandad-where-are-the-others)
+- Longreads: [A Record of Breath](https://longreads.com/2026/09/30/preservation-oxford-american/) · [Britain's Gen Z Undertakers](https://longreads.com/2026/09/28/gen-z-undertakers-britain/) · [Labyrinths reading list](https://longreads.com/2026/09/29/labyrinths-mazes-kanya-kanchana/)
+- Paris Review: [On "Derek"](https://www.theparisreview.org/blog/2026/09/21/on-derek-captain-ahabs-evil-half-brother/) · [My Larval Roommates](https://www.theparisreview.org/blog/2026/09/18/my-larval-roommates-sarah-nicole-prickett/) · [John Berger, Death's Secretary](https://www.theparisreview.org/blog/2026/09/24/john-berger-deaths-secretary-a-conversation-with-tom-overton/)
+
+**What keeping each would take** (none is built):
+- **Aeon and Psyche:** a dek-only feed. Every piece fails the 400-character writing floor unless
+  Ambit fetches the page, which is what their robots lines ask AI crawlers not to do. They need a
+  decision first.
+- **Longreads:** its posts are excerpts of other outlets' stories. `rss.ts` already refuses
+  off-site links; whether an excerpt-of-an-excerpt fits the link-card posture is the question.
+- **The Paris Review:** newest 10 only, so it accumulates nightly with a `walkQuota`. Its
+  `content:encoded` is full text.
+
 ## Earlier 09-30-26 (evening): Phase 5 built on `feat/publications` — Ben's verdicts, then merge
 
 **Phase 5 (publications) is built on `feat/publications`, committed and not merged.** Three

@@ -18,6 +18,18 @@ messages. `/brief` reads this. Newest on top.
   sample stories first.
 - No code yet: the three stay suspended on `feat/publications` until he says go.
 
+**Open / next (a fresh session, cold):** read `docs/HANDOFF_writing.md` "Pick up here (10-01-26)".
+1. Unsuspend `themarginalian`, `jstordaily` and `noema` (`config/suspended-sources.ts`, and
+   update `publications.test.ts`'s "ships every publication suspended" test).
+2. `bun run check`, then merge `feat/publications` into `main`, push and deploy.
+3. On production, walk them one at a time with a readout between: `docs/source-candidates.md`'s
+   rule, as short `.cache/` scripts for Ben (the agent may not write to the production database).
+4. Ben's verdicts on Aeon, Psyche, Longreads and Paris Review once he has read the sample stories
+   (links in the handoff).
+5. The plain-history topic gap stays open.
+
+*Session spend: 6.06M tok (in 67 · out 27.3k · cache r 5.17M / w 856.3k) · ~≥$1.37 · opus-5-5 + opus-4-7 · 14:23→09:58*
+
 ## 2026-09
 
 ### [[09-30-26 Wed]] — Writing live on production; the news rule goes
