@@ -25,6 +25,7 @@ import {
   writingText,
   kindFor,
 } from "~/server/config/writing";
+import { CuratorAbortError } from "./curator-errors";
 import { imageFetchHeaders } from "./image-auth";
 import { USER_AGENT } from "./sources/http";
 import type { NormalizedItem } from "./sources/types";
@@ -76,23 +77,8 @@ export const CURATOR_ABORT_STATUSES: ReadonlySet<number> = new Set([401, 402]);
  */
 export const MAX_CONSECUTIVE_FAILURES = 20;
 
-/**
- * Thrown by curateItems when the batch cannot continue — an account-level HTTP status
- * (CURATOR_ABORT_STATUSES) or MAX_CONSECUTIVE_FAILURES fallbacks in a row. Deliberately not a
- * plain Error: the per-item fallback in curateItems catches everything else, and this is the one
- * kind of failure it must let through. Ingest's top-level catch turns it into exit 1; nothing has
- * been written, so the re-run resumes free through the curation cache.
- */
-export class CuratorAbortError extends Error {
-  constructor(
-    message: string,
-    /** The HTTP status that caused the abort, when one did. */
-    readonly status?: number,
-  ) {
-    super(message);
-    this.name = "CuratorAbortError";
-  }
-}
+// Lives in a leaf module so claude-judge.ts can throw it without importing this file back.
+export { CuratorAbortError } from "./curator-errors";
 
 /** Copied verbatim from phase0/curate.ts — this prompt is a product artifact (Ben's taste
  *  calibration lands here, SPEC §15), not implementation detail to be casually reworded. */
