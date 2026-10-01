@@ -3,6 +3,21 @@
 Narrative record of decisions, findings, and dead-ends that don't live in commit
 messages. `/brief` reads this. Newest on top.
 
+## 2026-10
+
+### [[10-01-26 Thu]] — Publications verdicted
+
+**Decisions (Ben):**
+- **Keep The Marginalian, JSTOR Daily and Noema.** Noema too, despite the hold I recommended:
+  "I like it a lot."
+- **`abstract` stays vague**, applying to pictures and writing alike. The curator filing Noema's
+  essays on ideas there is fine, because showing readers what their own picks would never reach
+  is the mission. The fix I proposed (keeping look topics out of the writing vocabulary) is not
+  wanted.
+- **Aeon, Psyche, Longreads and The Paris Review are pending, not parked.** Ben is reading
+  sample stories first.
+- No code yet: the three stay suspended on `feat/publications` until he says go.
+
 ## 2026-09
 
 ### [[09-30-26 Wed]] — Writing live on production; the news rule goes

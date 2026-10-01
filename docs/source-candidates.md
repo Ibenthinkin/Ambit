@@ -190,6 +190,16 @@ Individual articles, not whole blogs — the kind of thing that seeds one item o
 > The samples are `bun run stats:walk <id> --quota 150` (150 unique posts, after the 09-30-26
 > page-size fix below). They write nothing, and re-running them is free from the curation cache.
 
+> **Ben's verdicts, 10-01-26:** **Keep all three** — The Marginalian, JSTOR Daily and **Noema**
+> ("I like it a lot"). **`abstract` stays as it is**, covering pictures and ideas alike: "part of
+> our mission is to have an idea of what people like/want but to also show them things they
+> wouldn't see within their normal algorithm." So the vocabulary finding below is closed, not a
+> fix to make. **Aeon, Psyche, Longreads and The Paris Review are not excluded.** "Not
+> registered" meant only that no adapter was built and nothing was walked. Ben is reading a few
+> stories on each before he decides, and the rights signal (robots naming AI crawlers) is one
+> input to that, not a rule. **No code has changed for any of this yet** (Ben: hold off). The
+> three are still in `SUSPENDED_SOURCES` on `feat/publications`.
+
 | Candidate | Reached by | Sample (150) | Recommendation |
 |---|---|---|---|
 | **The Marginalian** (`themarginalian`) | WordPress REST, 6,690 posts, full text | **8.35 avg, 98% ≥ 8**, 5–9 · essay 137 / curiosity 7 / archive 3 / criticism 3 · **4 min p50, 7 p90** · picture 100% · 0 floored · topics consciousness 61, literature 59, books 51, science 28, emotions 21 · un-homed 2 | **Keep.** The strongest sample of any source; robots names no AI crawler. Pieces are short (4 min median), and the corpus leans heavily on books, literature and consciousness. The weakest item is a "best of" round-up at 5. |
@@ -203,7 +213,8 @@ Individual articles, not whole blogs — the kind of thing that seeds one item o
 | Hyperallergic | RSS, newest 15 | — | **Stays cut** (09-01-26, content fit: reported journalism). |
 
 **Two vocabulary findings for Ben, from these samples.** They aren't source verdicts, but they
-shape how these sources land:
+shape how these sources land. **(1) is closed by Ben's 10-01-26 decision: `abstract` stays vague
+on purpose.** (2) is still open.
 1. **`abstract` (facet `look`, label "Abstract") is being used for abstract *ideas*.** Noema has
    88 of 149 there, JSTOR 17, the Marginalian 7. Locally, 36 Wikipedia articles sit there too
    (*Machine learning*, *Artificial intelligence*). A reader who picked Abstract for pictures

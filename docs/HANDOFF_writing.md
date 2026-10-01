@@ -4,7 +4,23 @@ Read this before touching the writing code. It is self-contained; the design is
 `docs/DESIGN_writing.md` (D1–D8), the plan `docs/PLAN_writing.md` (five phases), and `log.md`
 09-28 / 09-29 have the narrative.
 
-## ▶ Pick up here (09-30-26, evening): Phase 5 built on `feat/publications` — Ben's verdicts, then merge
+## ▶ Pick up here (10-01-26): verdicts are in — unsuspend the three, merge, deploy (Ben said hold off coding until he says go)
+
+**Ben's answers, 10-01-26:**
+- **Keep all three:** The Marginalian, JSTOR Daily, Noema.
+- **`abstract` stays vague**, covering pictures and writing alike: showing people what they
+  wouldn't otherwise see is part of the mission. No vocabulary change and no re-score.
+- **Aeon, Psyche, Longreads and The Paris Review are pending, not excluded.** Ben is reading
+  sample stories first.
+
+**The code still to do, when Ben says go:**
+1. Take the three out of `SUSPENDED_SOURCES`.
+2. Merge `feat/publications`, then deploy.
+3. Walk the three one at a time on production.
+4. If Ben keeps any of the four pending ones, build it then. Aeon and Psyche need a decision on
+   the dek-only problem (their feeds carry no text past the dek).
+
+## Earlier 09-30-26 (evening): Phase 5 built on `feat/publications` — Ben's verdicts, then merge
 
 **Phase 5 (publications) is built on `feat/publications`, committed and not merged.** Three
 publications are registered and suspended: `themarginalian`, `jstordaily`, `noema`. The probe of
