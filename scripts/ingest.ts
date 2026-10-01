@@ -576,6 +576,7 @@ async function main() {
     "dup-title": 0,
     "bare-title": 0,
     "thin-summary": 0,
+    donation: 0,
   };
   for (const d of dropped) flooredByRule[d.rule]++;
 
@@ -986,7 +987,7 @@ function printSummary(args: {
   }
   console.log(
     `structural floor dropped: ${Object.values(flooredByRule).reduce((a, b) => a + b, 0)}` +
-      ` (dup-title ${flooredByRule["dup-title"]}, bare-title ${flooredByRule["bare-title"]}, thin-summary ${flooredByRule["thin-summary"]})`,
+      ` (dup-title ${flooredByRule["dup-title"]}, bare-title ${flooredByRule["bare-title"]}, thin-summary ${flooredByRule["thin-summary"]}, donation ${flooredByRule.donation})`,
   );
   console.log(
     `article bodies fetched:   ${bodies.fetched}` +

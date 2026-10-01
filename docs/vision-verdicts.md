@@ -63,7 +63,19 @@ flash-lite opinion.
   funny idea in an ordinary snapshot (12, most of `thisiscolossal`'s −1.4 shift).
 - **Undersells strong photographs** (17), and its fallback 5s hide real 7–9s (8, 19).
 
-## What follows (proposed, not built)
+## Built the same day (10-01-26)
+
+- **`CLAUDE_CURATOR_PROMPT` v1** (`curator.ts`): the picture rubric the Claude judge reads,
+  carrying the rulings above, with its own cache version (`vc<n>`). `CURATOR_PROMPT` is
+  untouched. **Not yet checked against these verdicts** — the first attempt stopped at the
+  five-hour usage ceiling (86%) before scoring anything.
+- **`SOURCE_SCORE_FLOOR = { doorofperception: 8 }`**, applied to every newly judged item under
+  either judge. Existing rows keep their scores until the rescore.
+- **Donation posts are dropped by the structural floor** (rule `donation`) before any judge is
+  asked. **22 such rows are already stored**, all from `thevaultoftheatomicspaceage`; removing
+  them is a separate, deliberate step, not done.
+
+## What followed (as proposed at the time)
 
 - A picture prompt of its own for the Claude judge (as writing has), saying: judge what is
   visible, not what the caption says about the object; age earns a second look; popular or

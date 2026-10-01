@@ -29,6 +29,10 @@ import {
   TOPIC_IDS,
   CURATOR_MAX_TOKENS,
   CURATOR_MODEL,
+  CLAUDE_CURATOR_PROMPT,
+  CLAUDE_PROMPT_VERSION,
+  curatorPrompt,
+  SOURCE_SCORE_FLOOR,
   judgeModel,
   judgePreflight,
 } from "./curator";
@@ -679,7 +683,9 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
     });
     await seedCache(it, { score: 7, tags: ["a"], topicId: "botany" });
     const [out] = await curateItems([it], { classify: true });
-    expect(out).toMatchObject({ curationScore: 7, topics: ["botany"] });
+    // 8, not the cached 7: the item is a Door of Perception post, and that source has had a
+    // score floor since 10-01-26 (SOURCE_SCORE_FLOOR). The topic read-forward is what this pins.
+    expect(out).toMatchObject({ curationScore: 8, topics: ["botany"] });
   });
 
   it("a cached null topic becomes an empty array — stored un-homed, not dropped", async () => {
@@ -1027,7 +1033,7 @@ describe("curateItems on the Claude judge", () => {
     expect(out?.aestheticTags).toEqual(["ink wash"]);
     expect(runs).toHaveLength(1);
     const system = runs[0]!.args[runs[0]!.args.indexOf("--system-prompt") + 1];
-    expect(system).toBe(CURATOR_PROMPT);
+    expect(system).toBe(CLAUDE_CURATOR_PROMPT);
   });
 
   it("sends a picture as a downscaled JPEG, whatever the source served", async () => {
@@ -1254,6 +1260,131 @@ describe("judgePreflight on the Claude judge", () => {
     claudeRuntime.run = () => Promise.reject(new Error("spawn claude ENOENT"));
     expect(await judgePreflight([CLAUDE_JUDGE_MODEL])).toMatch(
       /Claude judge is not usable.*ENOENT/,
+    );
+  });
+});
+
+describe("structuralFloor — donation posts", () => {
+  it("drops a post that is only a donation link, from any source, before it is scored", () => {
+    const kofi = makeItem({
+      source: "thevaultoftheatomicspaceage",
+      sourceId: "kofi",
+      type: "image",
+      title: "https://ko-fi.com/thevault",
+      summary: "https://ko-fi.com/thevault",
+      imageUrl: "https://example.com/banner.jpg",
+    });
+    const { kept, dropped } = structuralFloor([kofi]);
+    expect(kept).toEqual([]);
+    expect(dropped).toEqual([{ item: kofi, rule: "donation" }]);
+  });
+
+  it("keeps a real post whose long caption happens to mention a Patreon", () => {
+    const post = makeItem({
+      source: "thevaultoftheatomicspaceage",
+      sourceId: "real",
+      type: "image",
+      title: "Atomic Age kitchen, 1956",
+      summary:
+        "A General Electric advertisement from 1956, scanned from Life. More scans like this are on patreon.com/thevault for supporters.",
+      imageUrl: "https://example.com/kitchen.jpg",
+    });
+    expect(structuralFloor([post]).kept).toEqual([post]);
+  });
+});
+
+describe("a designated source's score floor", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+  function stubScore(score: number) {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubGlobal("fetch", (input: string | URL) =>
+      String(input).includes("openrouter.ai")
+        ? Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                choices: [
+                  {
+                    message: { content: `{"score": ${score}, "tags": ["a"]}` },
+                  },
+                ],
+                usage: { total_tokens: 1 },
+              }),
+          })
+        : Promise.resolve({ ok: false, status: 404 }),
+    );
+  }
+  const dop = (id: string) =>
+    makeItem({ source: "doorofperception", sourceId: id, type: "image" });
+
+  it("names Door of Perception at 8", () => {
+    expect(SOURCE_SCORE_FLOOR.doorofperception).toBe(8);
+  });
+  it("lifts a Door of Perception picture the judge scored low", async () => {
+    stubScore(3);
+    const [out] = await curateItems([dop(`floor-${Date.now()}`)], {
+      force: true,
+    });
+    expect(out?.curationScore).toBe(8);
+    expect(out?.aestheticTags).toEqual(["a"]);
+  });
+  it("keeps a judge's higher score", async () => {
+    stubScore(9);
+    const [out] = await curateItems([dop(`floor-hi-${Date.now()}`)], {
+      force: true,
+    });
+    expect(out?.curationScore).toBe(9);
+  });
+  it("leaves every other source alone", async () => {
+    stubScore(3);
+    const [out] = await curateItems(
+      [
+        makeItem({
+          source: "met",
+          sourceId: `floor-met-${Date.now()}`,
+          type: "image",
+        }),
+      ],
+      { force: true },
+    );
+    expect(out?.curationScore).toBe(3);
+  });
+});
+
+describe("the Claude judge has a picture rubric of its own", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const vocab = [{ id: "botany", label: "Botany" }];
+  const piece = { source: "met" as const, sourceId: "42" };
+
+  it("leaves the OpenRouter prompts exactly as they were", () => {
+    vi.stubEnv("CURATOR_JUDGE", "");
+    expect(curatorPrompt()).toBe(CURATOR_PROMPT);
+    expect(classifyPrompt(TOPICS)).toBe(CLASSIFY_PROMPT);
+    expect(
+      classifyPrompt(vocab, CURATOR_MODEL).startsWith(
+        CURATOR_PROMPT.slice(0, 200),
+      ),
+    ).toBe(true);
+  });
+  it("gives a claude-* model the Claude rubric, in both modes", () => {
+    expect(curatorPrompt(CLAUDE_JUDGE_MODEL)).toBe(CLAUDE_CURATOR_PROMPT);
+    const p = classifyPrompt(vocab, CLAUDE_JUDGE_MODEL);
+    expect(p.startsWith(CLAUDE_CURATOR_PROMPT.slice(0, 200))).toBe(true);
+    expect(p).toContain("botany — Botany");
+    expect(p).toContain('"topics"');
+  });
+  it("keys the Claude cache on the Claude rubric's version", async () => {
+    const { createHash } = await import("node:crypto");
+    const sha = (s: string) =>
+      createHash("sha256").update(s).digest("hex").slice(0, 32);
+    expect(curationCacheKey(piece, true, CLAUDE_JUDGE_MODEL)).toBe(
+      sha(`${CLAUDE_JUDGE_MODEL}|vc${CLAUDE_PROMPT_VERSION}|classify|met:42`),
+    );
+    expect(curationCacheKey(piece, false, CURATOR_MODEL)).toBe(
+      sha(`${CURATOR_MODEL}|v${PROMPT_VERSION}|met:42`),
     );
   });
 });

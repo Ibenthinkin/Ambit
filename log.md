@@ -157,6 +157,13 @@ run anyway as a read-only measurement.
   posts. Ben's rulings: **Door of Perception passes whole (floor 8) — rescore its rows later**;
   a photo 25+ years old gets a second look before "engagement bait"; popular is not a fault.
   Next: a picture prompt for the Claude judge carrying those rulings, and the DoP floor.
+- **Then built, on Ben's yes:** `CLAUDE_CURATOR_PROMPT` v1 (pictures, own cache version),
+  the Door of Perception floor of 8 (`SOURCE_SCORE_FLOOR`, both judges, new judgments only), and
+  a `donation` rule in the structural floor that drops a blog's Ko-fi/Patreon banners before
+  scoring. 22 donation rows are already stored (all thevaultoftheatomicspaceage) and still
+  there. **The picture prompt is unverified**: the check against Ben's twenty stopped at the
+  five-hour ceiling (86%, the clean stop working as designed). To run after the reset:
+  the twenty, then `vision:compare --sample 300`.
 - **WORK ITEM: move the judge to VM 202** once Ben has freed RAM and disk there (design doc,
   "Open"): where `claude` is installed, the subscription token as a Coolify secret, ~236 MB a
   judge call, the weekly two-job split, the health threshold.

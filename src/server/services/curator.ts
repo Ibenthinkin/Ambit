@@ -168,6 +168,71 @@ Also give 2-4 short lowercase aesthetic tags describing its look or appeal (e.g.
 
 Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."]}`;
 
+/** Bump when CLAUDE_CURATOR_PROMPT changes — the Claude judge's picture cache version (`vc<n>`
+ *  in curationCacheKey), separate from PROMPT_VERSION so that iterating this rubric never
+ *  invalidates a score production holds from the OpenRouter judge. */
+export const CLAUDE_PROMPT_VERSION = 1;
+
+/**
+ * The picture rubric the Claude judge reads (10-01-26). It comes out of Ben going through the
+ * twenty largest disagreements between Haiku and the stored flash-lite scores, one at a time
+ * (docs/vision-verdicts.md). Haiku under CURATOR_PROMPT was closer to Ben than flash-lite on 13
+ * of 20, and wrong in a few specific ways, each of which is a line here: it scored the caption
+ * instead of the photograph (a plain drawer and a glass blob at 8; Ben gave 2), it marked bold
+ * popular pictures down (a tiger, a reef painting), and it read a 1960s swimsuit slide as bait.
+ * The rest are Ben's rulings from the same sitting: age earns a second look, popular is not a
+ * fault, promotional posts score 1.
+ *
+ * Same curator, same scale, same tags as CURATOR_PROMPT — that string is untouched and still
+ * what OpenRouter reads. Check a change with `CURATOR_JUDGE=claude bun run vision:compare`
+ * and against the verdicts file, and bump the version above.
+ */
+export const CLAUDE_CURATOR_PROMPT = `You are the curator of a beloved, long-running art and ideas blog — the kind people used to follow on old Tumblr because every single post was worth stopping for. Your taste: visually striking or quietly beautiful images (strong composition, texture, color, oddness, wit). You post museum objects, illustrations, diagrams, paintings and photographs. Most things a museum digitizes are catalog filler and you skip them without guilt. You never post anything sensational, gory, or engagement-baity.
+
+Rate the following item for your blog on a 1-10 scale:
+  1-3  = filler; you would scroll past it (fragments, routine catalog shots, a page of plain text, a shop's product photo, anything promotional)
+  4-6  = fine but forgettable; post only on a slow day
+  7-8  = good; a solid post your followers would enjoy
+  9-10 = exceptional; the kind of find your blog is known for
+
+How to judge — read these carefully:
+- Judge the PICTURE you are shown, not what the text says about it. The title and text tell you what you are looking at; they earn nothing by themselves. A dull photograph of an object with a fascinating history — a plain wooden box, a lump of glass with an inventory tag, a title page with no ornament — is still a dull photograph and scores 1-3. Never tag a quality you cannot see in the image.
+- If the picture does not match its title, judge the picture for what it is.
+- Bold, colourful, popular or crowd-pleasing is not a fault. A striking wildlife photograph, a dense decorative painting, a glossy science-fiction cover: if it would make someone stop scrolling it is a 7-8, however familiar the genre.
+- Age earns a second look. A photograph more than about 25 years old — a family slide, a holiday snapshot, a beach picture — is a document of its time, and its period feel and personal quality are its appeal; it is not engagement bait because someone in it wears a swimsuit. A recent picture whose only appeal is an attractive person is still bait. A formally strong photograph of a body — cropped to pattern, shape and shadow — is a photograph first, whatever its date.
+- Promotional posts score 1, however nice the image underneath: a request for donations or support, a sponsored announcement or advertisement for a school, product or sale, a banner carrying a link.
+- A clever idea in an ordinary snapshot is a 4-6: the picture has to carry it.
+- A scrap of text with nothing to look at — a cropped paragraph, a caption — scores 1-3, unless the lettering itself is the picture.
+- An unfinished or rough work is judged as it looks, neither up nor down for being unfinished.
+- Give every item 2-4 tags, including the ones you score low.
+
+Also give 2-4 short lowercase aesthetic tags describing its look or appeal (e.g. "botanical plate", "hand-lettered", "brutalist", "lurid palette", "quiet portrait", "strange diagram").
+
+Reply with ONLY a JSON object, no code fence and no other text: {"score": <1-10>, "tags": ["...", "..."]}`;
+
+/** The picture rubric for a judge: a `claude-*` model reads CLAUDE_CURATOR_PROMPT. */
+export function curatorPrompt(model: string = judgeModel()): string {
+  return isClaudeModel(model) ? CLAUDE_CURATOR_PROMPT : CURATOR_PROMPT;
+}
+
+/**
+ * Sources whose every item passes, whatever a judge says (Ben, 10-01-26): "I would just
+ * automatically pass everything from the DOP blog. Every last post and image." A blog is
+ * designated because the *blog* was judged worth having, and for this one that judgment
+ * outranks any model's opinion of a single post — flash-lite gave a Toshio Saeki a 3. The floor
+ * is the score an item is stored with when the judge said less; a higher score is kept, and so
+ * are the judge's tags and topics. It applies under either judge, and to the neutral fallback a
+ * failed judgment gets. Rows stored before this date keep their old scores until they are
+ * rescored (a to-do in docs/vision-verdicts.md).
+ */
+export const SOURCE_SCORE_FLOOR: Partial<Record<string, number>> = {
+  doorofperception: 8,
+};
+
+function floored(source: string, score: number): number {
+  return Math.max(score, SOURCE_SCORE_FLOOR[source] ?? 0);
+}
+
 /** The sixteen COMPILE-TIME topic ids — the classify mode's FALLBACK vocabulary, and what it
  *  validates against when a caller names no other. Since 09-06-26 both ingest and stats:walk
  *  pass the live vocabulary instead (`listAllTopics()`, 99 topics today), so this is the floor
@@ -208,9 +273,12 @@ export const TOPIC_IDS: ReadonlySet<string> = new Set(TOPICS.map((t) => t.id));
  */
 export function classifyPrompt(
   topics: readonly { id: string; label: string }[],
+  /** Which judge will read it: a `claude-*` model gets CLAUDE_CURATOR_PROMPT underneath. */
+  model: string = judgeModel(),
 ): string {
+  const base = curatorPrompt(model);
   return (
-    CURATOR_PROMPT.slice(0, CURATOR_PROMPT.lastIndexOf("Reply with ONLY")) +
+    base.slice(0, base.lastIndexOf("Reply with ONLY")) +
     `Also list which of these topics are an honest home for this item — a topic a reader who chose it would be glad to find this in. Best fit first. Usually one or two, never more than three; an empty list is a correct answer. Never force a fit: if none of them is honest, answer [].
 ${topics.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
 
@@ -222,7 +290,7 @@ Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "topics
 
 /** The prompt over the sixteen compile-time topics — the default when a caller names no
  *  vocabulary, and what the prompt-slicing comment above is about. */
-export const CLASSIFY_PROMPT = classifyPrompt(TOPICS);
+export const CLASSIFY_PROMPT = classifyPrompt(TOPICS, CURATOR_MODEL);
 
 /** Bump when WRITING_PROMPT changes. Part of the writing cache key only — the image prompt's
  *  PROMPT_VERSION and its keys are untouched by anything the writing curator does. */
@@ -354,7 +422,25 @@ export type CuratedItem = NormalizedItem & {
 };
 
 /** Structural-floor drop reasons, each mapped to a Phase 0.4 finding (see phase0/NOTES.md). */
-export type StructuralDropRule = "dup-title" | "bare-title" | "thin-summary";
+export type StructuralDropRule =
+  "dup-title" | "bare-title" | "thin-summary" | "donation";
+
+/** Where a blog asks for money. */
+const DONATION_LINK = /(ko-fi\.com|patreon\.com|buymeacoffee\.com|paypal\.me)/i;
+
+/**
+ * A post that is only a request for donations (Ben, 10-01-26): a blog's "support this page"
+ * banner, titled and captioned with its Ko-fi link. Two of them sat in the feed at score 6 —
+ * flash-lite saw vintage imagery and missed that it was a banner. A judge could score them 1,
+ * but there is nothing to judge: they are dropped here, free, before any model is asked. Narrow
+ * on purpose — the link has to be the TITLE, or the whole summary — so a real post whose long
+ * caption ends "more on patreon.com/…" is untouched.
+ */
+function isDonationPost(item: NormalizedItem): boolean {
+  if (DONATION_LINK.test(item.title)) return true;
+  const summary = item.summary.trim();
+  return !/\s/.test(summary) && DONATION_LINK.test(summary);
+}
 
 /** Titles are compared in a normalized form so "Textile", "textile " and "Textile." all count
  *  as the same title — the 0.4 duplicates were exact-after-normalization, not fuzzy. */
@@ -421,8 +507,9 @@ export function structuralFloor(items: NormalizedItem[]): {
     // The exemption above, computed once per item: a picture from a designated blog or any
     // other walk source. Only the last two rules read it; dup-title has its own walk clause.
     const walkImage = isWalkSource(item.source) && item.type === "image";
-    const rule: StructuralDropRule | null =
-      (titleCounts.get(norm) ?? 0) > 2 && !isWalkSource(item.source)
+    const rule: StructuralDropRule | null = isDonationPost(item)
+      ? "donation"
+      : (titleCounts.get(norm) ?? 0) > 2 && !isWalkSource(item.source)
         ? "dup-title"
         : item.type === "image" && norm.split(" ").length <= 1 && !walkImage
           ? "bare-title"
@@ -690,7 +777,8 @@ export function curationCacheKey(
   const mode = classify ? "classify|" : "";
   return createHash("sha256")
     .update(
-      `${model}|v${PROMPT_VERSION}|${mode}${item.source}:${item.sourceId}`,
+      // `vc<n>` for a Claude model: its picture rubric has a version of its own.
+      `${model}|${isClaudeModel(model) ? `vc${CLAUDE_PROMPT_VERSION}` : `v${PROMPT_VERSION}`}|${mode}${item.source}:${item.sourceId}`,
     )
     .digest("hex")
     .slice(0, 32);
@@ -932,7 +1020,9 @@ async function scoreItem(
   const { result, tokens } = await callCurator(
     {
       model,
-      system: classify ? classifyPrompt(vocabulary) : CURATOR_PROMPT,
+      system: classify
+        ? classifyPrompt(vocabulary, model)
+        : curatorPrompt(model),
       content,
     },
     (reply) =>
@@ -1135,7 +1225,7 @@ export async function curateItems(
           consecutiveFailures = 0;
           out[i] = {
             ...item,
-            curationScore: w.score,
+            curationScore: floored(item.source, w.score),
             aestheticTags: w.tags,
             topics: w.topics,
             kind: kindFor(item.source, w.kind),
@@ -1162,7 +1252,7 @@ export async function curateItems(
           consecutiveFailures = 0;
           out[i] = {
             ...item,
-            curationScore: score,
+            curationScore: floored(item.source, score),
             aestheticTags: tags,
             topics,
           };
@@ -1183,7 +1273,7 @@ export async function curateItems(
         }
         out[i] = {
           ...item,
-          curationScore: 5,
+          curationScore: floored(item.source, 5),
           aestheticTags: [],
           topics: [],
           ...(item.type === "article"
