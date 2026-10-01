@@ -37,7 +37,7 @@ flash-lite opinion.
 - **Everything from Door of Perception passes, every post and every image.** The blog was
   designated because the blog is trusted; a judge does not get a veto. Agreed mechanism: a
   score floor of 8 for `doorofperception`, keeping a judge's score when it is higher.
-  **To do, later: rescore every Door of Perception row to reflect this.** Not built.
+  Stored rows are lifted by `bun run floor:sources --confirm` (see below).
 - **Age buys a second look.** A photograph 25 or more years old is not engagement bait for
   showing a swimsuit; its interest is as a personal, historical document. Plain modern swimsuit
   shots still stay out. To go into the picture prompt.
@@ -54,6 +54,14 @@ flash-lite opinion.
 - **FUTURE WORK ITEM (Ben): a per-reader tolerance setting for dark material**, "on a spectrum",
   so each reader finds their own line. Not built. The `grotesque` and `gore` tags are written
   now so that setting has something to filter on.
+
+- **Shop listings score low** (Ben, asked about sovietpostcards' "Full set of 32 vintage
+  postcards", stored 9): a listing is promotional however good its picture. That is what the
+  prompt's promotional rule already does (it scores 1).
+- **Door of Perception's floor holds for everything**, dark pieces included: "bump ALL DOP POSTS
+  up to the 8 threshold whether you think they are dark or not." `bun run floor:sources
+  --confirm` applies it to rows already stored; done on the local database 10-01-26, **to run
+  in the production container after the deploy that carries it**.
 
 ## Where each judge goes wrong
 

@@ -172,7 +172,9 @@ run anyway as a read-only measurement.
   0.68, mean 6.27 → 5.80. **FUTURE WORK ITEM (Ben): a per-reader tolerance setting for dark
   material, on a spectrum** — the two tags are what it would filter on. Open: seller-blog
   listings with good pictures, and whether Door of Perception's floor holds for its grotesque
-  pieces.
+  pieces. **Both answered by Ben:** shop listings score low (already the rule), and ALL Door of
+  Perception posts go to 8, dark or not. `bun run floor:sources --confirm` (new) lifted 309 of
+  10,222 local rows; **run it in the production container after the deploy that carries it.**
 - **WORK ITEM: move the judge to VM 202** once Ben has freed RAM and disk there (design doc,
   "Open"): where `claude` is installed, the subscription token as a Coolify secret, ~236 MB a
   judge call, the weekly two-job split, the health threshold.

@@ -228,8 +228,9 @@ export function curatorPrompt(model: string = judgeModel()): string {
  * outranks any model's opinion of a single post — flash-lite gave a Toshio Saeki a 3. The floor
  * is the score an item is stored with when the judge said less; a higher score is kept, and so
  * are the judge's tags and topics. It applies under either judge, and to the neutral fallback a
- * failed judgment gets. Rows stored before this date keep their old scores until they are
- * rescored (a to-do in docs/vision-verdicts.md).
+ * failed judgment gets. It beats the dark-material rule in CLAUDE_CURATOR_PROMPT too — Ben, asked
+ * directly: "bump ALL DOP POSTS up to the 8 threshold whether you think they are dark or not".
+ * Rows stored before this date are lifted by `bun run floor:sources --confirm`.
  */
 export const SOURCE_SCORE_FLOOR: Partial<Record<string, number>> = {
   doorofperception: 8,
