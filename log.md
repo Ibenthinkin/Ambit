@@ -25,9 +25,14 @@ there is no cookie and nothing stored; a reload deals again.
 
 **Open / next:**
 
-- **Not run here:** the seven database-backed suites, `e2e:prod`, the CI-shape run and
-  `bench:feed`. The worktree has no `.env` (copying it was denied), so they self-skipped. Unit
-  suite, typecheck, lint and format are green.
+- **Verified after Ben copied `.env` in:** `bun run test` 1,690 passed with the database suites;
+  four signed-out pages against the real corpus were dealt sam, pilar, dev and yuki, each in
+  character, 127–371 ms, no fallback; `db:seed` re-synced 19 local persona accounts; CI-shape
+  e2e 62 passed (a first run lost `item.spec.ts`'s "from the feed" test once, not repeated).
+- **`e2e:prod` is not clean, and not because of this branch:** `feed.spec.ts`'s "a writing tile
+  leads with its picture" fails 3 of 3 run alone against the local corpus — on plain `main` too
+  — and passes inside a full run; the desktop spread test flaked once. Worth a look on its own.
+- `bench:feed` only measures a signed-in reader (p50 266 ms), so it says nothing about this path.
 - Ben's uncommitted rename in the main checkout (`propaganda-and-persuasion` →
   `propaganda-and-advertising`) will fail `personas.test.ts` once both land: June's `groups`
   needs the new id in the same commit.
@@ -38,6 +43,7 @@ there is no cookie and nothing stored; a reload deals again.
 - Ben looks at `/` a few times signed out, then merge and deploy.
 
 *Session spend: 8.35M tok (in 143 · out 100.6k · cache r 7.21M / w 1.04M) · ~≥$6.20 · opus-5-5 + opus-4-7 · 09:59→10:39*
+*Session spend: 4.38M tok (in 79 · out 15.1k · cache r 4.23M / w 126.7k) · ~≥$0.80 · opus-5-5 + opus-4-7 · 10:39→10:53*
 
 ## 2026-09
 
