@@ -66,7 +66,8 @@ down and batched; production's Postgres has no public port; the 30-hour health t
 Ben under a weekly schedule).
 
 **Open / next:** Ben pushes, merges and deploys, then `sh .cache/publications-backfill-prod.sh
-run` (~$5–6 on OpenRouter, a few hours, ~1 GB) — or waits for the Claude judge. Handoff: "Pick up
+run` — **no: Ben will wait for the Claude judge**, so all seven are held in `SUSPENDED_SOURCES`
+and `feat/publications` is merged with them suspended. Handoff: "Pick up
 here (10-01-26, later)".
 
 *Session spend: 14.34M tok (in 200 · out 95.2k · cache r 13.90M / w 340.3k) · opus-5-5 · 10:04→10:14*

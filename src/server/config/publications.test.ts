@@ -28,9 +28,10 @@ describe("isLinkCardSource", () => {
     expect(isPublicationSource("atlasobscura")).toBe(false);
   });
 
-  it("walks every verdicted publication nightly (Ben kept all seven, 10-01-26)", () => {
+  // Kept, but held until the Claude judge exists (Ben, 10-01-26) — flip this when they leave.
+  it("holds every publication suspended until the Claude judge exists", () => {
     for (const p of PUBLICATIONS)
-      expect(isSuspendedSource(p.id), p.id).toBe(false);
+      expect(isSuspendedSource(p.id), p.id).toBe(true);
   });
 
   // A walk with a quota is never `complete`, so `--prune` never acts on it. For a feed that

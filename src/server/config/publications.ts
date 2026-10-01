@@ -12,7 +12,8 @@ import type { WalkSourceId } from "./topics";
 // which is why this is a registry of ids and not a column.
 //
 // **A row ships suspended** (config/suspended-sources.ts) until Ben's verdict in
-// docs/source-candidates.md. All seven below are verdicted KEEP (10-01-26) and none is suspended.
+// docs/source-candidates.md. All seven below are verdicted KEEP (10-01-26) and all are held
+// suspended until the Claude judge exists (Ben, 10-01-26; docs/HANDOFF_claude-judge-ingest.md).
 //
 // **Two budgets per publication (10-01-26).** `walkQuota` bounds every scheduled run: the newest
 // few dozen to few hundred, which is all a run can add. `backfillQuota` bounds the one-time

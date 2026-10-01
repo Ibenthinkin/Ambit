@@ -105,8 +105,17 @@ import type { SourceId } from "~/server/services/sources/types";
 // free. The full table is docs/HANDOFF_tumblr-round3.md §2.
 export const SUSPENDED_SOURCES: SourceId[] = [
   // Writing Phase 5 (09-30-26): a publication ships here and leaves on Ben's verdict
-  // (config/publications.ts). The Marginalian, JSTOR Daily and Noema left 10-01-26, and the four
-  // of round 2 were verdicted before they were registered, so none is here now.
+  // (config/publications.ts). All seven are verdicted KEEP (10-01-26) and are held here anyway,
+  // by Ben's call the same day: nothing from them is ingested until the Claude judge exists
+  // (docs/HANDOFF_claude-judge-ingest.md), so they are judged by it rather than by OpenRouter.
+  // Then remove these lines and run the backfill (.cache/publications-backfill-prod.sh).
+  "themarginalian",
+  "jstordaily",
+  "noema",
+  "aeon",
+  "psyche",
+  "longreads",
+  "theparisreview",
   "aic",
   "mossandfog",
   "streetartnews",

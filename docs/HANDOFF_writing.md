@@ -16,7 +16,11 @@ the page), and all seven out of `SUSPENDED_SOURCES`. `walkQuota` is now the **ni
 findings and the four samples are in `docs/source-candidates.md`'s Publications section.
 
 **Next, in order:**
-1. Ben: push, merge `feat/publications` into `main`, deploy.
+1. ~~Push, merge~~ (done 10-01-26); Ben deploys. **All seven are held in `SUSPENDED_SOURCES`**
+   until the Claude judge exists (Ben's call) — the nightly ingest walks none of them.
+   When the judge lands: remove the seven lines from `config/suspended-sources.ts`, flip
+   `publications.test.ts`'s "holds every publication suspended" test, deploy, then step 2
+   through the Mac.
 2. Ben: `sh .cache/publications-backfill-prod.sh run` — one publication at a time, each walked
    newest first to its `backfillQuota` (~10,750 pieces in all, Ben's quarter-size cut) and its
    pictures warmed; `status` shows where it is. ~$5–6 of OpenRouter, a few hours, ~1 GB. Or wait

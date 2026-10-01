@@ -175,9 +175,11 @@ Piece 1 is useful on its own (backfills and re-scores from the dev Mac), so it c
 - The publications session is setting **newest-first backfill budgets**: Marginalian 2,000,
   JSTOR Daily 2,000, Longreads 2,500, Aeon 2,000, Psyche 1,000, Noema 1,250, Paris Review the
   newest ten. That's about 10,750 pieces, and `walkQuota` becomes the per-run (weekly) bound.
-  The backfill script there (`.cache/publications-backfill-prod.sh`) currently judges on
-  OpenRouter, at roughly **$5–6** for 10,750 pieces. Ben may run it before this lands or wait
-  for the Haiku judge; this work doesn't need to block on it.
+  **Ben decided to wait for this judge**: `feat/publications` is merged (10-01-26) with all
+  seven publications held in `SUSPENDED_SOURCES`, so nothing from them is ingested yet. Once the
+  judge works, un-suspend them (seven lines in `config/suspended-sources.ts` plus the
+  "holds every publication suspended" test) and run their backfill (`ingest --source <id>
+  --backfill`, ~10,750 pieces) through the Claude judge. It's this judge's first big run.
 - `feat/publications` adds `sources/sitemap.ts` and four publications. No curator changes, so
   there's no conflict with piece 1 here.
 - Ben's uncommitted `src/server/config/topic-groups.ts` edit in the main checkout is his; leave
