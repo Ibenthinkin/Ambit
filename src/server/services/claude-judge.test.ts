@@ -1,16 +1,22 @@
 // The Claude judge's pure half (docs/DESIGN_claude-judge-ingest.md). No process is spawned here.
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CLAUDE_JUDGE_MODEL,
   claudeArgs,
+  claudeComplete,
+  claudeEnv,
   claudeModelSpec,
+  claudeRuntime,
   claudeStdin,
+  claudeUsage,
   isClaudeModel,
   limitVerdict,
   parseClaudeStream,
+  resetClaudeJudge,
   stripFence,
 } from "./claude-judge";
+import { CuratorAbortError } from "./curator-errors";
 
 /** The three lines a successful call prints, as captured 10-01-26 (trimmed to the fields read). */
 export function stream(
@@ -178,5 +184,117 @@ describe("limitVerdict", () => {
   });
   it("stops on a rejected status whatever the utilization says", () => {
     expect(limitVerdict(info(0.1, 0.1, "rejected"), 0.8)).toMatch(/reached/);
+  });
+});
+
+describe("claudeEnv", () => {
+  it("never passes an API key to the child — the CLI would bill it instead of the subscription", () => {
+    const env = claudeEnv(
+      { PATH: "/bin", ANTHROPIC_API_KEY: "sk-x", ANTHROPIC_AUTH_TOKEN: "t" },
+      false,
+    );
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
+    expect(env.PATH).toBe("/bin");
+  });
+  it("turns thinking off unless asked", () => {
+    expect(claudeEnv({}, false).MAX_THINKING_TOKENS).toBe("0");
+    expect(claudeEnv({}, true).MAX_THINKING_TOKENS).toBeUndefined();
+  });
+});
+
+describe("claudeComplete", () => {
+  const realRun = claudeRuntime.run;
+  let runs: { args: string[]; stdin: string; thinking: boolean }[];
+  function respond(stdout: string, code = 0) {
+    claudeRuntime.run = (args, stdin, opts) => {
+      runs.push({ args, stdin, thinking: opts.thinking });
+      return Promise.resolve({ code, stdout, stderr: "boom" });
+    };
+  }
+  const req = { model: CLAUDE_JUDGE_MODEL, system: "S", content: "hello" };
+
+  beforeEach(() => {
+    runs = [];
+    resetClaudeJudge();
+  });
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+    vi.unstubAllEnvs();
+  });
+
+  it("returns the reply with its fence removed", async () => {
+    respond(stream('```json\n{"score": 7}\n```'));
+    expect(await claudeComplete(req)).toEqual({
+      reply: '{"score": 7}',
+      tokens: 446,
+    });
+    expect(runs[0]?.args).toContain("claude-haiku-4-5-20251001");
+    expect(runs[0]?.thinking).toBe(false);
+  });
+
+  it("passes +think through as thinking on, with the bare model id", async () => {
+    respond(stream("{}"));
+    await claudeComplete({ ...req, model: `${CLAUDE_JUDGE_MODEL}+think` });
+    expect(runs[0]?.thinking).toBe(true);
+    expect(runs[0]?.args).not.toContain(`${CLAUDE_JUDGE_MODEL}+think`);
+  });
+
+  it("throws an ordinary error on a failed call, so the caller retries it", async () => {
+    respond("", 1);
+    await expect(claudeComplete(req)).rejects.not.toBeInstanceOf(
+      CuratorAbortError,
+    );
+  });
+
+  it("keeps the answer that crossed the ceiling, then refuses to spawn again", async () => {
+    respond(stream('{"score": 7}', { five: 0.3, seven: 0.85 }));
+    expect((await claudeComplete(req)).reply).toBe('{"score": 7}');
+    await expect(claudeComplete(req)).rejects.toBeInstanceOf(CuratorAbortError);
+    await expect(claudeComplete(req)).rejects.toThrow(
+      /seven_day window is at 85%/,
+    );
+    expect(runs).toHaveLength(1);
+  });
+
+  it("reads the ceiling from CLAUDE_JUDGE_MAX_UTILIZATION", async () => {
+    vi.stubEnv("CLAUDE_JUDGE_MAX_UTILIZATION", "0.2");
+    respond(stream("{}"));
+    await claudeComplete(req);
+    await expect(claudeComplete(req)).rejects.toBeInstanceOf(CuratorAbortError);
+  });
+
+  it("aborts at once when the subscription rejects the call", async () => {
+    const rejected = [
+      JSON.stringify({
+        type: "rate_limit_event",
+        rate_limit_info: {
+          status: "rejected",
+          rateLimitType: "seven_day",
+          resetsAt: 1791183600,
+        },
+      }),
+      JSON.stringify({
+        type: "result",
+        is_error: true,
+        result: "limit reached",
+      }),
+    ].join("\n");
+    respond(rejected, 1);
+    await expect(claudeComplete(req)).rejects.toBeInstanceOf(CuratorAbortError);
+  });
+
+  it("remembers the first and the latest usage report of the process", async () => {
+    expect(claudeUsage()).toBeNull();
+    respond(stream("{}", { five: 0.1, seven: 0.2 }));
+    await claudeComplete(req);
+    respond(stream("{}", { five: 0.15, seven: 0.25 }));
+    await claudeComplete(req);
+    expect(claudeUsage()?.first.unifiedWindows?.seven_day?.utilization).toBe(
+      0.2,
+    );
+    expect(claudeUsage()?.last.unifiedWindows?.seven_day?.utilization).toBe(
+      0.25,
+    );
   });
 });

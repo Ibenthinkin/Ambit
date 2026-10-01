@@ -6,6 +6,11 @@
 // it: the same call is 432 input tokens and about a second. Those tokens are not billed, but they
 // count against the subscription's five-hour and seven-day limits, which Ben's own sessions share.
 
+import { spawn, spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+
+import { CuratorAbortError } from "./curator-errors";
+
 /** Haiku 4.5 — the cheapest current Claude, and the one calibration is run against (D3). */
 export const CLAUDE_JUDGE_MODEL = "claude-haiku-4-5-20251001";
 
@@ -171,4 +176,135 @@ export function limitVerdict(
     if (window.utilization >= ceiling)
       return `the ${name} window is at ${Math.round(window.utilization * 100)}% (ceiling ${Math.round(ceiling * 100)}%) — resets ${when(window.resetsAt)}`;
   return null;
+}
+
+// ── the impure half ─────────────────────────────────────────────────────────
+
+/** How many `claude` processes run at once. Each is a whole Node process, not a socket, so the
+ *  pool is half the OpenRouter one (curator.ts's CONCURRENCY). */
+export const CLAUDE_CONCURRENCY = 4;
+
+/** One judgment is a second or two; a call still running after this is hung, and is killed. */
+const CLAUDE_TIMEOUT_MS = 120_000;
+
+/** The default ceiling (D7): the ingest stops when a window is four-fifths spent. */
+const DEFAULT_MAX_UTILIZATION = 0.8;
+
+export type ClaudeRunner = (
+  args: string[],
+  stdin: string,
+  opts: { thinking: boolean },
+) => Promise<{ code: number; stdout: string; stderr: string }>;
+
+/**
+ * The child's environment. Two edits. `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` are removed:
+ * with either set the CLI authenticates with that key and *bills it*, silently, instead of using
+ * the subscription login — the same shell-shadowing trap CLAUDE.md records for OpenRouter.
+ * `MAX_THINKING_TOKENS=0` turns extended thinking off: a 1–10 score does not need it, and it was
+ * most of the output tokens and most of the latency in the 10-01-26 probe (354 of 400 tokens).
+ */
+export function claudeEnv(
+  env: Record<string, string | undefined>,
+  thinking: boolean,
+): Record<string, string | undefined> {
+  const child = { ...env };
+  delete child.ANTHROPIC_API_KEY;
+  delete child.ANTHROPIC_AUTH_TOKEN;
+  if (!thinking) child.MAX_THINKING_TOKENS = "0";
+  return child;
+}
+
+/** Run the CLI once. cwd is the temp dir, so no project's CLAUDE.md is anywhere near it. */
+const spawnClaude: ClaudeRunner = (args, stdin, opts) =>
+  new Promise((resolve, reject) => {
+    const child = spawn("claude", args, {
+      cwd: tmpdir(),
+      // Next's types make NODE_ENV a required key of ProcessEnv; a copy of process.env has it.
+      env: claudeEnv(process.env, opts.thinking) as NodeJS.ProcessEnv,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    const timer = setTimeout(() => child.kill("SIGKILL"), CLAUDE_TIMEOUT_MS);
+    child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
+    child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+    // `error` is the CLI not being found at all (ENOENT); `close` is every other ending.
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ code: code ?? 1, stdout, stderr });
+    });
+    child.stdin.end(`${stdin}\n`);
+  });
+
+/** Swappable so tests never spawn a process: `claudeRuntime.run = fake`. */
+export const claudeRuntime: { run: ClaudeRunner } = { run: spawnClaude };
+
+// Process-wide state. `stop` is set by the call that crossed the ceiling and read by every call
+// after it: the crossing call's own answer is good and is returned (the caller caches it), and
+// the *next* call is the one that aborts. With four workers, at most four answers land after the
+// ceiling — all cached, none wasted.
+let stop: string | null = null;
+let usage: { first: RateLimitInfo; last: RateLimitInfo } | null = null;
+
+/** The subscription's usage as first and last reported in this process — the ingest summary
+ *  prints the pair, which is how a run's share of the weekly limit is measured. */
+export function claudeUsage(): typeof usage {
+  return usage;
+}
+
+/** Tests only: forget the stop and the usage between cases. */
+export function resetClaudeJudge(): void {
+  stop = null;
+  usage = null;
+}
+
+/** True when the `claude` CLI is on PATH and runs. A script's first line of defence, so a missing
+ *  install is one sentence at the start rather than twenty failed judgments in. */
+export function claudeAvailable(): boolean {
+  return spawnSync("claude", ["--version"], { stdio: "ignore" }).status === 0;
+}
+
+function maxUtilization(): number {
+  const value = Number(process.env.CLAUDE_JUDGE_MAX_UTILIZATION);
+  return value > 0 && value <= 1 ? value : DEFAULT_MAX_UTILIZATION;
+}
+
+const abort = (reason: string) =>
+  new CuratorAbortError(
+    `Claude judge stopped: ${reason}. Nothing written; every judgment so far is cached, so the re-run resumes where this one stopped`,
+  );
+
+/**
+ * One judgment through `claude -p`. Throws CuratorAbortError when the subscription's limit says
+ * stop (curateItems lets that through and the batch ends); throws a plain Error for anything
+ * else, which callCurator's retry loop treats like a failed HTTP call.
+ */
+export async function claudeComplete(req: {
+  model: string;
+  system: string;
+  content: JudgeContent;
+}): Promise<{ reply: string; tokens: number }> {
+  if (stop) throw abort(stop);
+  const spec = claudeModelSpec(req.model);
+  const run = await claudeRuntime.run(
+    claudeArgs(spec.id, req.system),
+    claudeStdin(req.content),
+    { thinking: spec.thinking },
+  );
+  const out = parseClaudeStream(run.stdout);
+  if (out.rateLimit) {
+    usage = { first: usage?.first ?? out.rateLimit, last: out.rateLimit };
+    stop = limitVerdict(out.rateLimit, maxUtilization());
+    // Refused outright: there is no answer to keep, so this call is the one that aborts.
+    if (out.rateLimit.status === "rejected" && stop) throw abort(stop);
+  }
+  if (run.code !== 0 || out.isError || out.reply === null)
+    throw new Error(
+      `claude -p failed (exit ${run.code}): ${(out.reply ?? run.stderr).slice(0, 200)}`,
+    );
+  return { reply: stripFence(out.reply), tokens: out.tokens };
 }
