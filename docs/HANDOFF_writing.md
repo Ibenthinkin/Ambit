@@ -17,9 +17,11 @@ findings and the four samples are in `docs/source-candidates.md`'s Publications 
 
 **Next, in order:**
 1. Ben: push, merge `feat/publications` into `main`, deploy.
-2. Ben: top up OpenRouter if needed (~$20–25 for ~45,000 pieces), then
-   `sh .cache/publications-backfill-prod.sh run` — one publication at a time, each walked whole
-   and its pictures warmed; `status` shows where it is. Most of a night; ~4.5 GB of pictures.
+2. Ben: `sh .cache/publications-backfill-prod.sh run` — one publication at a time, each walked
+   newest first to its `backfillQuota` (~10,750 pieces in all, Ben's quarter-size cut) and its
+   pictures warmed; `status` shows where it is. ~$5–6 of OpenRouter, a few hours, ~1 GB. Or wait
+   for the Claude judge (`docs/HANDOFF_claude-judge-ingest.md`, a parallel session) and run it
+   through the Mac on the subscription.
 3. Read each walk log's summary (stored, floored, un-homed, topics) — that is the readout.
    The Paris Review is the newest ten only (Cloudflare blocks everything else); it grows nightly.
 

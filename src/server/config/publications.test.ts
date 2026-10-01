@@ -40,6 +40,14 @@ describe("isLinkCardSource", () => {
     for (const p of PUBLICATIONS) expect(p.walkQuota, p.id).toBeGreaterThan(0);
   });
 
+  it("backfills at least what a scheduled run walks, about a quarter of the archives in all", () => {
+    for (const p of PUBLICATIONS)
+      expect(p.backfillQuota, p.id).toBeGreaterThanOrEqual(p.walkQuota ?? 0);
+    // Ben's cut, 10-01-26: ~45,000 pieces in the seven archives, a quarter of that kept.
+    const total = PUBLICATIONS.reduce((n, p) => n + p.backfillQuota, 0);
+    expect(total).toBeLessThanOrEqual(12_000);
+  });
+
   it("gives every publication its credit-line label", () => {
     for (const p of PUBLICATIONS) expect(sourceLabel(p.id), p.id).toBe(p.label);
   });

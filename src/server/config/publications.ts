@@ -14,11 +14,13 @@ import type { WalkSourceId } from "./topics";
 // **A row ships suspended** (config/suspended-sources.ts) until Ben's verdict in
 // docs/source-candidates.md. All seven below are verdicted KEEP (10-01-26) and none is suspended.
 //
-// **Two budgets per publication (10-01-26, Ben: "bring in as much as you can … let the feed sort
-// them out").** `walkQuota` is the NIGHTLY bound — the newest few hundred, which is all a night
-// can add. The archive comes in once, by a backfill run with no bound (`bun run ingest --source
-// <id> --quota 1000000`; `.cache/publications-backfill-prod.sh` on production), one publication
-// at a time. Re-running either is free from the curation cache.
+// **Two budgets per publication (10-01-26).** `walkQuota` bounds every scheduled run: the newest
+// few dozen to few hundred, which is all a run can add. `backfillQuota` bounds the one-time
+// archive run (`bun run ingest --source <id> --backfill`; `.cache/publications-backfill-prod.sh`
+// on production), newest first. Ben first asked for everything ("bring in as much as you can …
+// let the feed sort them out"), ~45,000 pieces; on seeing the size he cut it to about a quarter,
+// newest first — ~10,750, the budgets below. Raising one later is free up to where the last run
+// stopped (the curation cache) and the run prints a resume cursor for the rest.
 //
 // **Not registered:** Atlas Obscura (newest 27 only, 300 px images) and Hyperallergic (cut
 // 09-01-26 on content fit; newest 15 only).
@@ -42,6 +44,8 @@ interface PublicationBase {
    * there, "not in the feed" means "older", never "gone".
    */
   walkQuota?: number;
+  /** The one-time archive run's bound, newest first (`ingest --backfill`). */
+  backfillQuota: number;
 }
 
 export type PublicationConfig = PublicationBase &
@@ -84,6 +88,7 @@ export const PUBLICATIONS: readonly PublicationConfig[] = [
     walk: "wp-rest",
     // 6,690 posts on 09-30-26, ~1,080 words each, a featured image on every one sampled.
     walkQuota: 200,
+    backfillQuota: 2_000,
   },
   {
     id: "jstordaily",
@@ -95,6 +100,7 @@ export const PUBLICATIONS: readonly PublicationConfig[] = [
     walk: "wp-rest",
     // 8,120 posts on 09-30-26, ~720 words each, every one with a 1050 × 700 featured image.
     walkQuota: 200,
+    backfillQuota: 2_000,
   },
   {
     id: "noema",
@@ -113,6 +119,7 @@ export const PUBLICATIONS: readonly PublicationConfig[] = [
     paged: "wp",
     // ~2,500 essays (page 200 of the feed answers, 300 is a 404, ten a page).
     walkQuota: 100,
+    backfillQuota: 1_250,
   },
   {
     id: "aeon",
@@ -131,6 +138,7 @@ export const PUBLICATIONS: readonly PublicationConfig[] = [
     sitemapUrl: "https://assets.aeon.co/sitemaps/aeon/main.xml",
     sections: ["essays", "ideas", "classics"],
     walkQuota: 60,
+    backfillQuota: 2_000,
   },
   {
     id: "psyche",
@@ -151,6 +159,7 @@ export const PUBLICATIONS: readonly PublicationConfig[] = [
       "portraits",
     ],
     walkQuota: 60,
+    backfillQuota: 1_000,
   },
   {
     id: "longreads",
@@ -167,6 +176,7 @@ export const PUBLICATIONS: readonly PublicationConfig[] = [
     // cards. Quote posts and reading lists are in there too — the curator and the writing floor
     // sort them (Ben, 10-01-26).
     walkQuota: 200,
+    backfillQuota: 2_500,
   },
   {
     id: "theparisreview",
@@ -185,6 +195,7 @@ export const PUBLICATIONS: readonly PublicationConfig[] = [
     feedUrl: "https://www.theparisreview.org/blog/feed/",
     fullText: "content-encoded",
     walkQuota: 10,
+    backfillQuota: 10,
   },
 ];
 

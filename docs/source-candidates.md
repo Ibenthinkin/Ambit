@@ -218,6 +218,11 @@ Individual articles, not whole blogs — the kind of thing that seeds one item o
 >   API, every sitemap and `/blog/page/2`, and the feed ignores `?paged=`, so it accumulates one
 >   night at a time from now.
 >
+> **Then cut to a quarter, newest first (Ben, same day, on seeing the size):** `backfillQuota`
+> per publication — Marginalian 2,000 · JSTOR Daily 2,000 · Longreads 2,500 · Aeon 2,000 · Psyche
+> 1,000 · Noema 1,250 · Paris Review 10 — ~10,750 pieces, ~1 GB of pictures. Raising one later is
+> free up to where the last run stopped.
+>
 > Samples (`stats:walk`, 10-01-26): **Paris Review 10 → 9 stored @ 8.00**, 9 min p50 · **Aeon 20 @
 > 8.15**, 16 min p50 · **Psyche 20 @ 7.65**, 10 min p50 · **Longreads 40 → 28 stored @ 7.48**, 2 min
 > p50 (an excerpt is short), 18% pictured.

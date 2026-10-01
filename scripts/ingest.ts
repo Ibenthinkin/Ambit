@@ -49,6 +49,8 @@
  *                                                         # has removed (complete walks only)
  *   bun run ingest --source sovietpostcards              # bounded by that blog's walkQuota
  *                                                         # (blogs.ts); prints a resume cursor
+ *   bun run ingest --source aeon --backfill              # a publication's archive, newest first,
+ *                                                         # to its backfillQuota (publications.ts)
  *   bun run ingest --source sovietpostcards --cursor 12900   # the rest of the archive, from where
  *                                                             # the budgeted walk stopped
  *   (* --dry-run alone still calls the curator unless paired with --skip-llm; combine both for a
@@ -125,6 +127,10 @@ const prune = args.includes("--prune");
 // only makes sense for exactly one walk source at a time — and, like --quota, it makes the run
 // incomplete, because a walk that did not start at the beginning cannot say a row is gone.
 const cursorFlag = flagValue("cursor");
+// A publication's one-time archive run (config/publications.ts, 10-01-26): each walk is bounded
+// by its `backfillQuota` instead of its per-run `walkQuota`. Bounded either way, so never
+// `complete` and never prunable.
+const backfill = args.includes("--backfill");
 
 if (!Number.isFinite(quota) || quota <= 0) {
   console.error(
@@ -381,7 +387,9 @@ async function main() {
   const walkBound = (id: WalkSourceId): number | undefined =>
     args.includes("--quota")
       ? quota
-      : (blogConfig(id)?.walkQuota ?? publicationConfig(id)?.walkQuota);
+      : backfill && publicationConfig(id)
+        ? publicationConfig(id)!.backfillQuota
+        : (blogConfig(id)?.walkQuota ?? publicationConfig(id)?.walkQuota);
 
   if (topicFlag && sourceFlag && sourceFlag in walkers) {
     console.log(

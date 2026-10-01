@@ -54,9 +54,20 @@ we will let the feed sort them out downstream." Built on `feat/publications`:
   the quote posts).
 - **Samples:** Paris Review 8.00 (9 of 10 stored) · Aeon 8.15 · Psyche 7.65 · Longreads 7.48.
 
+**Then cut to a quarter.** On seeing ~45,000 pieces and ~4.5 GB, Ben asked for about 25%,
+newest first: a `backfillQuota` per publication (2,000 / 2,000 / 2,500 / 2,000 / 1,000 / 1,250 /
+10, ~10,750 in all) read by a new `ingest --backfill`, with `walkQuota` left as the per-run
+bound. **And a second thread opened:** judge with Haiku through `claude -p` on Ben's Max
+subscription instead of OpenRouter, for writing and pictures, and move ingest to a weekly pair
+of jobs (pictures one night, writing another) on an always-on Mac. That is its own design,
+handed off to a parallel session: `docs/HANDOFF_claude-judge-ingest.md` (probe: `claude -p`
+works at ~4 s a call but carries ~54k tokens of Claude Code overhead, so it has to be stripped
+down and batched; production's Postgres has no public port; the 30-hour health threshold pages
+Ben under a weekly schedule).
+
 **Open / next:** Ben pushes, merges and deploys, then `sh .cache/publications-backfill-prod.sh
-run` (~$20–25 of curator credit, most of a night, ~4.5 GB of pictures). Handoff: "Pick up here
-(10-01-26, later)".
+run` (~$5–6 on OpenRouter, a few hours, ~1 GB) — or waits for the Claude judge. Handoff: "Pick up
+here (10-01-26, later)".
 
 *Session spend: 14.34M tok (in 200 · out 95.2k · cache r 13.90M / w 340.3k) · opus-5-5 · 10:04→10:14*
 
