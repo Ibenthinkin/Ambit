@@ -44,6 +44,17 @@ flash-lite opinion.
 - **Popular is not a fault.** "Wildlife photography is always kind of formulaic, popular" — and
   the tiger is an 8. A bold, crowd-pleasing picture is not marked down for being one.
 
+- **Dark material (from the first 300-picture run under the new prompt).** Five `jareckiworld`
+  paintings flash-lite had scored 2 came back from Haiku at 7–8. Ben: "we want to allow for
+  grotesque in the sense of weird, rather than violent", and "keep the scoring low even on the
+  ones we intend to keep, like a 4 or 5 … keep it out or suppress the frequency a bit with a low
+  score". Of the five, only Zademack's *Four Dialecticians, Posing* is one he would want to see.
+  In the prompt (v4): grotesque-as-weird scores 4–5 and is tagged `grotesque`; violent gore
+  scores 1–2 and is tagged `gore`, in a painting as much as a photograph.
+- **FUTURE WORK ITEM (Ben): a per-reader tolerance setting for dark material**, "on a spectrum",
+  so each reader finds their own line. Not built. The `grotesque` and `gore` tags are written
+  now so that setting has something to filter on.
+
 ## Where each judge goes wrong
 
 **Haiku:**
@@ -71,6 +82,14 @@ flash-lite opinion.
   error 0.88 (Haiku under the old prompt 2.29, flash-lite 2.53 — on pictures chosen *because*
   the two disagreed, and the prompt was tuned on them, so this flatters it). Still wrong on the
   two caption-scored museum objects (5 → 5, 11 → 6; Ben gave 2).
+- **v4 (the dark-material rule, a narrower promotional rule)**: the five paintings score 2, 5
+  (Zademack), 2, 2, 5 (Vytiska); error against the 17 verdicts 0.94. The 300-picture comparison
+  under v4: Spearman 0.68, mean 6.27 → 5.80, 34% at 8 or more (stored 43%). `jareckiworld` is
+  back to +0.18 and `thingsorganizedneatly` to −0.40. `thisiscolossal` is still −2.44 — shop,
+  sale and sponsored posts at 1, snapshots of clever ideas at 4. **Open:** a seller blog's
+  listing with a good picture (sovietpostcards' "Full set of 32 vintage postcards", stored 9,
+  now 1) — promotional, or a picture? And whether Door of Perception's floor of 8 should hold
+  for its grotesque pieces.
 - **The 300-picture comparison under v2** (`docs/vision-comparison.md`, regenerated): Spearman
   0.64 (was 0.72), mean 6.27 → 5.98, MAE 1.42 (was 1.20). It moved *away* from flash-lite, as
   intended in places and not in others. The new largest disagreements are of three kinds:

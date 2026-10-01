@@ -155,6 +155,11 @@ window's rounded figure (25%). A judge call peaks at ~236 MB resident.
 
 ## Open, for the piece 2/3 plan
 
+- **FUTURE WORK ITEM — a reader's own tolerance for dark material (Ben, 10-01-26).** A setting
+  "on a spectrum" so each reader finds their own line. Until it exists the picture prompt keeps
+  grotesque-as-weird rare (4–5) and violent gore out (1–2), and tags each (`grotesque`, `gore`)
+  so the setting has something to read. `docs/vision-verdicts.md`.
+
 - **WORK ITEM — move the judge to VM 202 (Ben, 10-01-26).** The judge is built and run on the
   dev Mac first. It moves to the VM once Ben has freed RAM and disk there, which he has not yet
   done. Until then production's nightly stays on OpenRouter and the publications stay

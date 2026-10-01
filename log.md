@@ -165,8 +165,14 @@ run anyway as a read-only measurement.
   designed). After the reset, **v2**: error against Ben's 17 verdicts 2.29 → 0.88 (tuned on
   them). The 300-picture comparison moved *away* from flash-lite (Spearman 0.72 → 0.64): Haiku
   now rates dark/grotesque art 7–8 where flash-lite gave 2, scores promotional posts 1, and
-  over-fires that rule on a seller-blog postcard and on reader submissions. Open for Ben: the
-  dark art, and narrowing the promotional rule.
+  over-fires that rule on a seller-blog postcard and on reader submissions. **Ben on the dark
+  art:** grotesque-as-weird is allowed, violent is not, and even what is kept scores low (4–5)
+  to stay rare; of five jareckiworld paintings only Zademack's is one he wants to see.
+  **v4** writes that in, tags `grotesque` / `gore`, and narrows the promotional rule: Spearman
+  0.68, mean 6.27 → 5.80. **FUTURE WORK ITEM (Ben): a per-reader tolerance setting for dark
+  material, on a spectrum** — the two tags are what it would filter on. Open: seller-blog
+  listings with good pictures, and whether Door of Perception's floor holds for its grotesque
+  pieces.
 - **WORK ITEM: move the judge to VM 202** once Ben has freed RAM and disk there (design doc,
   "Open"): where `claude` is installed, the subscription token as a Coolify secret, ~236 MB a
   judge call, the weekly two-job split, the health threshold.
@@ -180,6 +186,7 @@ run anyway as a read-only measurement.
 *Session spend: 24.45M tok (in 315 · out 212.2k · cache r 23.13M / w 1.10M) · ~≥$10.19 · fable-5-1 + opus-4-7 · 11:05→11:57*
 *Session spend: 8.11M tok (in 65 · out 58.1k · cache r 7.80M / w 250.9k) · ~≥$2.01 · fable-5-1 + opus-4-7 · 11:57→12:08*
 *Session spend: 23.31M tok (in 162 · out 52.2k · cache r 22.88M / w 377.6k) · ~≥$3.06 · fable-5-1 + opus-4-7 · 12:08→13:58*
+*Session spend: 22.96M tok (in 148 · out 88.7k · cache r 22.56M / w 314.8k) · ~≥$2.39 · fable-5-1 + opus-4-7 · 13:58→15:37*
 
 ## 2026-09
 

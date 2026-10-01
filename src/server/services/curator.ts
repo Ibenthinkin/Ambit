@@ -171,7 +171,7 @@ Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."]}`;
 /** Bump when CLAUDE_CURATOR_PROMPT changes — the Claude judge's picture cache version (`vc<n>`
  *  in curationCacheKey), separate from PROMPT_VERSION so that iterating this rubric never
  *  invalidates a score production holds from the OpenRouter judge. */
-export const CLAUDE_PROMPT_VERSION = 2;
+export const CLAUDE_PROMPT_VERSION = 4;
 
 /**
  * The picture rubric the Claude judge reads (10-01-26). It comes out of Ben going through the
@@ -181,7 +181,10 @@ export const CLAUDE_PROMPT_VERSION = 2;
  * instead of the photograph (a plain drawer and a glass blob at 8; Ben gave 2), it marked bold
  * popular pictures down (a tiger, a reef painting), and it read a 1960s swimsuit slide as bait.
  * The rest are Ben's rulings from the same sitting: age earns a second look, popular is not a
- * fault, promotional posts score 1.
+ * fault, promotional posts score 1. And one more, from the 300-picture comparison (v3): grotesque
+ * in the sense of weird is allowed but scored 4-5 so it stays rare, violent gore scores 1-2, and
+ * each is TAGGED ("grotesque" / "gore") — the tags are there so a reader's own tolerance can
+ * be a setting one day (Ben, 10-01-26; not built).
  *
  * Same curator, same scale, same tags as CURATOR_PROMPT — that string is untouched and still
  * what OpenRouter reads. Check a change with `CURATOR_JUDGE=claude bun run vision:compare`
@@ -200,7 +203,10 @@ How to judge — read these carefully:
 - If the picture does not match its title, judge the picture for what it is.
 - Bold, colourful, popular or crowd-pleasing is not a fault, and neither is a familiar genre. A dramatic animal photograph — a big cat staring into the lens, teeth bared — is a 7-8: wildlife photography is always a little formulaic and people love it anyway. A dense, saturated painting in a folk, naive or decorative style is a 7-8 when it is vivid and well made; that style is a choice, not a lack of skill. If a picture would make someone stop scrolling, do not score it below 7 for being the kind of thing that is popular.
 - Age earns a second look. A photograph that is visibly more than about 25 years old — faded colour, slide or print grain, period clothes and hair — is a document of its time. A family slide, a holiday snapshot, a young woman in a bikini on a beach in the 1960s: these are personal, historical pictures, they score 6-7, and they are NOT engagement bait and must not be tagged as such. Only a recent picture whose sole appeal is an attractive person is bait. A formally strong photograph of a body — cropped to pattern, shape and shadow — is a photograph first, whatever its date.
-- Promotional posts score 1, however nice the image underneath: a request for donations or support, a sponsored announcement or advertisement for a school, product or sale, a banner carrying a link.
+- Dark material, two cases, and always say which in the tags:
+    Grotesque in the sense of WEIRD — surreal, uncanny, macabre, satirical, horror-film imagery, distorted or monstrous bodies with no real bloodshed — is allowed but kept rare: score it 4-5 however well made, and include the tag "grotesque".
+    VIOLENT — explicit gore, mutilation, dismemberment, torture, open wounds, stitched or flayed flesh, exposed viscera — scores 1-2, and include the tag "gore". This holds for a painting as much as a photograph: an allegorical, religious or art-historical frame does not turn gore into grotesque. If there is blood and torn flesh, it is gore.
+- Promotional posts score 1, however nice the image underneath: a request for donations or support, a sponsored announcement or advertisement for a school, product or sale, a shop or sale announcement, a banner carrying a link. This is about what the POST is, not who posted it: a reader's submission is not promotional, and a picture from a blog that also sells prints or postcards is judged as a picture unless the post itself is announcing something for sale.
 - A clever idea in an ordinary snapshot is a 4-6: the picture has to carry it.
 - A scrap of text with nothing to look at — a cropped paragraph, a caption — scores 1-3, unless the lettering itself is the picture.
 - An unfinished or rough work is judged as it looks, neither up nor down for being unfinished.
