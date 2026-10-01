@@ -9,8 +9,70 @@
 // cannot be imported by a test — the same split as every other script in this repo.
 import { eq } from "drizzle-orm";
 
-import { PERSONAS, personaEmail, type Persona } from "~/server/config/personas";
-import { getUserTopicIds, setUserTopics } from "~/server/db/topics";
+import {
+  PERSONAS,
+  personaEmail,
+  personaTopics,
+  type Persona,
+} from "~/server/config/personas";
+import { getUserTopicIds, listTopics, setUserTopics } from "~/server/db/topics";
+
+/** Brings one account's picks to what its persona resolves to (groups flattened, single topics
+ *  added), keeping only ids `pickable` holds — `user_topic` has a foreign key, and a database can
+ *  trail the config (a fresh one has the sixteen originals). Writes only on a real difference,
+ *  and returns whether the rows already agreed. */
+async function syncPicks(
+  userId: string,
+  p: Persona,
+  pickable: ReadonlySet<string>,
+): Promise<boolean> {
+  const have = new Set(await getUserTopicIds(userId));
+  const want = new Set(personaTopics(p).filter((t) => pickable.has(t)));
+  const same = have.size === want.size && [...want].every((t) => have.has(t));
+  if (!same) await setUserTopics(userId, [...want]);
+  return same;
+}
+
+/**
+ * The boot-time half (10-01-26): re-applies each persona's picks to the accounts that **already
+ * exist**, and creates nothing — no invite, no sign-up, so no password. `db:seed` calls it on
+ * every container boot, which is what keeps a signed-in persona and the signed-out feed dealt
+ * that persona (services/feed.ts) reading the same picks as the vocabulary grows. On a database
+ * with no persona accounts (CI, a fresh machine) it is two reads and no writes.
+ */
+export async function syncPersonaTopics(opts?: {
+  personas?: readonly Persona[];
+}): Promise<{ updated: string[]; unchanged: string[]; absent: string[] }> {
+  const personas = opts?.personas ?? PERSONAS;
+  const { db } = await import("~/server/db/client");
+  const { user } = await import("~/server/db/schema");
+  const { inArray } = await import("drizzle-orm");
+
+  const rows = await db
+    .select({ id: user.id, email: user.email })
+    .from(user)
+    .where(
+      inArray(
+        user.email,
+        personas.map((p) => personaEmail(p.slug)),
+      ),
+    );
+  const idByEmail = new Map(rows.map((r) => [r.email, r.id]));
+  const updated: string[] = [];
+  const unchanged: string[] = [];
+  const absent: string[] = [];
+  if (rows.length === 0)
+    return { updated, unchanged, absent: personas.map((p) => p.slug) };
+
+  const pickable = new Set((await listTopics()).map((t) => t.id));
+  for (const p of personas) {
+    const id = idByEmail.get(personaEmail(p.slug));
+    if (!id) absent.push(p.slug);
+    else if (await syncPicks(id, p, pickable)) unchanged.push(p.slug);
+    else updated.push(p.slug);
+  }
+  return { updated, unchanged, absent };
+}
 
 export async function seedPersonas(opts: {
   password: string;
@@ -21,6 +83,8 @@ export async function seedPersonas(opts: {
   const { db } = await import("~/server/db/client");
   const { invite, user } = await import("~/server/db/schema");
   const { auth } = await import("~/lib/auth");
+
+  const pickable = new Set((await listTopics()).map((t) => t.id));
 
   const created: string[] = [];
   const updated: string[] = [];
@@ -59,10 +123,7 @@ export async function seedPersonas(opts: {
 
     // Only write when the fixture and the rows actually disagree, so the summary's
     // created/updated/unchanged is a real answer rather than "twenty writes, every time".
-    const have = new Set(await getUserTopicIds(row.id));
-    const want = new Set(p.topics);
-    const same = have.size === want.size && [...want].every((t) => have.has(t));
-    if (!same) await setUserTopics(row.id, [...want]);
+    const same = await syncPicks(row.id, p, pickable);
 
     if (isNew) created.push(p.slug);
     else if (same) unchanged.push(p.slug);

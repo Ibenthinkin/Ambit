@@ -5,7 +5,7 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
-### [[10-01-26 Thu]] — Publications verdicted
+### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**
 - **Keep The Marginalian, JSTOR Daily and Noema.** Noema too, despite the hold I recommended:
@@ -194,6 +194,46 @@ run anyway as a read-only measurement.
 *Session spend: 23.31M tok (in 162 · out 52.2k · cache r 22.88M / w 377.6k) · ~≥$3.06 · fable-5-1 + opus-4-7 · 12:08→13:58*
 *Session spend: 22.96M tok (in 148 · out 88.7k · cache r 22.56M / w 314.8k) · ~≥$2.39 · fable-5-1 + opus-4-7 · 13:58→15:37*
 *Session spend: 5.68M tok (in 82 · out 26.5k · cache r 5.19M / w 460.3k) · ~≥$1.75 · fable-5-1 + opus-4-7 · 15:37→16:44*
+
+**Also today, a separate thread — a persona for every signed-out visit:**
+
+**Shipped (branch `feat/explore-personas`, worktree `~/Dev/ambit-explore-personas`, not merged):**
+the front door no longer composes for "nobody". Ben: "the generic feed is just boring". Each
+signed-out visit is dealt one of the twenty personas by the seed its cursor already carries, so
+there is no cookie and nothing stored; a reload deals again.
+
+**Decisions:**
+
+- Personas over a random handful of topics: a hand-written taste has a centre, five random topics
+  usually do not.
+- Ben asked that the personas keep up as the vocabulary changes. They now name **umbrella groups**
+  plus a few single topics, so a promoted topic filed into a group reaches them with no edit, and
+  a test fails when a group has no persona. The twenty were re-cast by hand onto the 35 groups;
+  who holds what is editorial and Ben's to reshuffle (June now carries the Soviet poster groups
+  and both Russia and Ukraine, which is the weakest fit).
+- The seeded persona accounts re-sync on every boot (`db:seed`), never creating an account.
+
+**Open / next:**
+
+- **Verified after Ben copied `.env` in:** `bun run test` 1,690 passed with the database suites;
+  four signed-out pages against the real corpus were dealt sam, pilar, dev and yuki, each in
+  character, 127–371 ms, no fallback; `db:seed` re-synced 19 local persona accounts; CI-shape
+  e2e 62 passed (a first run lost `item.spec.ts`'s "from the feed" test once, not repeated).
+- **`e2e:prod` is not clean, and not because of this branch:** `feed.spec.ts`'s "a writing tile
+  leads with its picture" fails 3 of 3 run alone against the local corpus — on plain `main` too
+  — and passes inside a full run; the desktop spread test flaked once. Worth a look on its own.
+- `bench:feed` only measures a signed-in reader (p50 266 ms), so it says nothing about this path.
+- Ben's uncommitted rename in the main checkout (`propaganda-and-persuasion` →
+  `propaganda-and-advertising`) will fail `personas.test.ts` once both land: June's `groups`
+  needs the new id in the same commit.
+- Flat weights: a persona holding a ten-topic group draws from it ten times as often as from a
+  single topic. Same open item as for real readers; the persona feeds are a second place to
+  judge it.
+- `log.md` gains a `## 2026-10` heading here; `feat/publications` has one too — merge by hand.
+- Ben looks at `/` a few times signed out, then merge and deploy.
+
+*Session spend: 8.35M tok (in 143 · out 100.6k · cache r 7.21M / w 1.04M) · ~≥$6.20 · opus-5-5 + opus-4-7 · 09:59→10:39*
+*Session spend: 4.38M tok (in 79 · out 15.1k · cache r 4.23M / w 126.7k) · ~≥$0.80 · opus-5-5 + opus-4-7 · 10:39→10:53*
 
 ## 2026-09
 

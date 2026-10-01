@@ -12,11 +12,16 @@
 // the thin, impure shell around it that actually talks to the database and the request-scoped
 // environment (§ orchestration below).
 import type { Item } from "~/server/db/items";
+import {
+  PERSONAS,
+  personaTopics,
+  type Persona,
+} from "~/server/config/personas";
 import { TOPICS } from "~/server/config/topics";
 import topicGraphData from "~/server/config/topic-graph.json";
 import { drawWeight, getItemsByIds } from "~/server/db/items";
 import { getTasteKeywords } from "~/server/db/saves";
-import { getUserTopicWeights } from "~/server/db/topics";
+import { getUserTopicWeights, listTopics } from "~/server/db/topics";
 import {
   getTopicPools,
   getWildPool,
@@ -134,7 +139,13 @@ export interface FeedPage {
   /** Only when the dev gate is on (`feedDebugEnabled()`), like every card's `debug`: how many
    *  topic pools the page asked for, and whether the planned fetch composed short and the full
    *  reachable fetch had to be made (09-11-26). `bench:feed` and `probe:feed` read it. */
-  debug?: { plannedTopics: number; fallback: boolean };
+  debug?: {
+    plannedTopics: number;
+    fallback: boolean;
+    /** Signed-out pages only: the persona the seed dealt, or null when too few of its topics
+     *  exist here and the page fell back to the uniform cold start. */
+    persona?: string | null;
+  };
 }
 
 // ── cursor (SPEC §7) ────────────────────────────────────────────────────────────────────────────
@@ -224,6 +235,42 @@ export function coldStartWeights(
   topicIds: readonly string[] = TOPICS.map((t) => t.id),
 ): Map<string, number> {
   return new Map(topicIds.map((id) => [id, 1]));
+}
+
+// ── the signed-out visitor (10-01-26, docs/PLAN_explore-personas.md) ───────────────────────────
+// `/` composes for no account, and until now that meant the uniform cold start above — an even
+// smear of everything, which Ben called boring. Instead each visit is **dealt one of the twenty
+// personas** (config/personas.ts) and composes from that reader's picks, so the first page a
+// stranger sees has a centre of gravity, and a reload has a different one.
+//
+// The deal is `seed % 20`, and the seed is the one the cursor already carries: every page of a
+// visit is the same reader, with no cookie and nothing stored — `feed.explore` still reads and
+// writes nothing about the caller.
+
+/** Fewer existing picks than this and a persona is not a taste — the onboarding floor. */
+const EXPLORE_MIN_TOPICS = 3;
+
+/** The persona a cursor seed deals. Pure; `seed` is the unsigned 32-bit page seed. */
+export function personaForSeed(seed: number): Persona {
+  return PERSONAS[seed % PERSONAS.length]!;
+}
+
+/**
+ * The weights a signed-out page composes from: the dealt persona's topics at weight 1 each —
+ * flat, exactly as `setUserTopics` writes a real reader's picks — keeping only ids that are rows
+ * in this database. CI's database is the sixteen originals, and production can trail the config
+ * between a deploy and a promotion; a weight on a topic with no rows is a slot that draws
+ * nothing. If too few survive, `persona` is null and the page is the uniform cold start.
+ */
+export function exploreWeights(
+  seed: number,
+  existingTopicIds: ReadonlySet<string>,
+): { weights: Map<string, number>; persona: string | null } {
+  const persona = personaForSeed(seed);
+  const ids = personaTopics(persona).filter((id) => existingTopicIds.has(id));
+  if (ids.length < EXPLORE_MIN_TOPICS)
+    return { weights: coldStartWeights(), persona: null };
+  return { weights: coldStartWeights(ids), persona: persona.slug };
 }
 
 // ── topic pick (SPEC §9.1) ──────────────────────────────────────────────────────────────────────
@@ -947,16 +994,25 @@ export async function getFeedPage(
 
   // Two independent single-user reads — weights for the topic draws, taste keywords for the
   // item-draw boost (Phase 6.1) — fetched in parallel since neither depends on the other.
-  // A null user is `/explore`'s signed-out visitor (09-26-26): no weights and no saves to read,
-  // so the page is the cold-start sampler every new reader's first page already is.
-  const [rawWeights, tasteKeywords] =
-    userId === null
-      ? [new Map<string, number>(), [] as string[]]
-      : await Promise.all([
-          getUserTopicWeights(userId),
-          getTasteKeywords(userId),
-        ]);
-  const weights = rawWeights.size > 0 ? rawWeights : coldStartWeights();
+  // A null user is the signed-out visitor on `/`: no account, so no weights and no saves to
+  // read — the page composes as the persona its seed deals (see `exploreWeights`). The one read
+  // is the list of pickable topics, ~160 small rows, to drop picks this database does not have.
+  let weights: Map<string, number>;
+  let tasteKeywords: string[] = [];
+  let dealt: string | null | undefined;
+  if (userId === null) {
+    const existing = new Set((await listTopics()).map((t) => t.id));
+    const explore = exploreWeights(seed, existing);
+    weights = explore.weights;
+    dealt = explore.persona;
+  } else {
+    const [rawWeights, keywords] = await Promise.all([
+      getUserTopicWeights(userId),
+      getTasteKeywords(userId),
+    ]);
+    weights = rawWeights.size > 0 ? rawWeights : coldStartWeights();
+    tasteKeywords = keywords;
+  }
 
   const knobs: FeedKnobs = {
     ...DEFAULT_KNOBS,
@@ -1090,7 +1146,13 @@ export async function getFeedPage(
     cards,
     nextCursor,
     ...(debugEnabled
-      ? { debug: { plannedTopics: planned.length, fallback } }
+      ? {
+          debug: {
+            plannedTopics: planned.length,
+            fallback,
+            ...(dealt !== undefined ? { persona: dealt } : {}),
+          },
+        }
       : {}),
   };
 }

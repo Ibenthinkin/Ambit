@@ -93,8 +93,9 @@ export const feedRouter = createTRPCRouter({
 
   // `/explore` (09-26-26, docs/PLAN_explore-route.md): the real feed, readable without an account
   // — the fourth deliberate public procedure, after `items.byId`, `items.wanderNext` and
-  // `items.galleryRail`. It composes for **nobody**, even when a session is present: the page is
-  // the cold-start sampler (uniform over the sixteen originals, DRIFT/JUMP/WILD reach the rest),
+  // `items.galleryRail`. It composes for **no account**, even when a session is present: since
+  // 10-01-26 the page is dealt one of the twenty personas by its cursor's seed
+  // (`exploreWeights` in services/feed.ts; the uniform cold start is only its fallback),
   // nothing is read about the caller and nothing is written — there is no `markSeen` for it, and
   // repeats between non-adjacent pages are the price (the client dedupes by id).
   //

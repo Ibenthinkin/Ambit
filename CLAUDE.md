@@ -288,6 +288,18 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   And one finding: **every `<img>` of an item must be `lib/image-src.ts`'s `imageSrc`** — the
   CSP is `img-src 'self' data: blob:`, so a raw museum URL is blocked outright. The old Profile
   cover had been a broken image since 7.2 for exactly that; `covers` are proxied srcs now.
+- **A signed-out visit is dealt a persona — 10-01-26** (plan `docs/PLAN_explore-personas.md`;
+  branch `feat/explore-personas`, built in the worktree `~/Dev/ambit-explore-personas`, not
+  merged). `/` composed on the uniform cold start and Ben found it boring; now
+  `getFeedPage(null)` takes `PERSONAS[seed % 20]` — the seed the cursor already carries, so a
+  visit is one reader, a reload another, and nothing is stored — and composes from
+  `exploreWeights()`, which falls back to the cold start when fewer than three of the persona's
+  topics are rows in the database (CI's sixteen). **Personas name umbrella groups plus single
+  topics** (`personaTopics()` flattens them), which is how they keep up with the vocabulary:
+  `personas.test.ts` fails on a dead group/topic id and on **a group no persona holds**, so
+  renaming a group id or adding a group means touching `personas.ts` in the same commit.
+  `db:seed` re-applies the picks to existing persona accounts on every boot
+  (`syncPersonaTopics`; creates nothing, needs no password).
 - **Spread mode on the item screen — 09-27-26** (design `docs/DESIGN_spread-mode.md`, plan
   `docs/PLAN_spread-mode.md`; branch `feat/spread-mode`, pushed for Ben's look at 1440, not
   merged). It began as Ben's **feed** layout picker (1 / 2 / 4 columns, drawn in
