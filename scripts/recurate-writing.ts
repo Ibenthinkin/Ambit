@@ -34,7 +34,7 @@ import { db } from "~/server/db/client";
 import { item, topic } from "~/server/db/schema";
 import {
   curateItems,
-  judgeModel,
+  writingJudgeModel,
   judgePreflight,
 } from "~/server/services/curator";
 import type { NormalizedItem } from "~/server/services/sources/types";
@@ -55,7 +55,7 @@ const EXCLUDED_SOURCES = ["loupe"];
 const limit = flagValue("limit") ? Number(flagValue("limit")) : undefined;
 const offset = Number(flagValue("offset") ?? 0);
 const confirm = args.includes("--confirm");
-const model = flagValue("model") ?? judgeModel();
+const model = flagValue("model") ?? writingJudgeModel();
 
 if (limit !== undefined && !(limit > 0)) {
   console.error(

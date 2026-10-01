@@ -64,6 +64,20 @@ export function judgeModel(): string {
 }
 
 /**
+ * The Claude judge's model for WRITING (Ben, 10-01-26). Pictures stay on Haiku; writing goes to
+ * Sonnet because the calibration said so: under CLAUDE_WRITING_PROMPT v2 Sonnet's error against
+ * Ben's marks was 0.88 to Haiku's 1.29 (flash-lite: 1.15), and Haiku gave nearly every essay
+ * the same 8, which makes a score useless for ranking essays against each other. Writing is the
+ * small half of the corpus, so the dearer model is spent where it is cheap to spend.
+ */
+export const CLAUDE_WRITING_MODEL = "claude-sonnet-5-5";
+
+/** The model that judges writing under the run's judge — `judgeModel()` for articles. */
+export function writingJudgeModel(): string {
+  return isClaudeModel(judgeModel()) ? CLAUDE_WRITING_MODEL : CURATOR_MODEL;
+}
+
+/**
  * Can these models be called at all? One sentence when not, null when fine — for a script to
  * print and exit on before any walk starts. An OpenRouter model needs the key. A Claude model is
  * asked one tiny question: `claude --version` succeeds on a machine that is logged out or whose
@@ -71,7 +85,7 @@ export function judgeModel(): string {
  * whole walk, eighty failed spawns in. It costs ~400 tokens of the subscription per run.
  */
 export async function judgePreflight(
-  models: readonly string[] = [judgeModel()],
+  models: readonly string[] = [judgeModel(), writingJudgeModel()],
 ): Promise<string | null> {
   if (models.some((m) => !isClaudeModel(m)) && !process.env.OPENROUTER_API_KEY)
     return "OPENROUTER_API_KEY is not set — required for the OpenRouter judge (add it to .env, or set CURATOR_JUDGE=claude).";
@@ -308,7 +322,7 @@ Reply with ONLY a JSON object, no code fence and no other text: {"score": <1-10>
 export function writingPrompt(
   topics: readonly { id: string; label: string }[],
   /** Which judge will read it: a `claude-*` model gets CLAUDE_WRITING_PROMPT. */
-  model: string = judgeModel(),
+  model: string = writingJudgeModel(),
 ): string {
   const base = isClaudeModel(model) ? CLAUDE_WRITING_PROMPT : WRITING_PROMPT;
   const at = base.lastIndexOf("Reply with ONLY");
@@ -724,7 +738,7 @@ export function parseWritingResponse(
  */
 export function writingCacheKey(
   item: Pick<NormalizedItem, "source" | "sourceId">,
-  model: string = judgeModel(),
+  model: string = writingJudgeModel(),
 ): string {
   return createHash("sha256")
     .update(
@@ -778,7 +792,7 @@ async function scoreWriting(
   cached: boolean;
 }> {
   const vocabulary = opts.topics ?? TOPICS;
-  const model = opts.model ?? judgeModel();
+  const model = opts.model ?? writingJudgeModel();
   const topicIds = new Set(vocabulary.map((t) => t.id));
   const cacheFile = path.join(
     CURATION_CACHE_DIR,
@@ -1185,7 +1199,7 @@ export async function curateItems(
   // A Claude judgment is a process, not a socket — half the pool (claude-judge.ts).
   const claude =
     isClaudeModel(judgeModel()) ||
-    isClaudeModel(opts?.writingModel ?? judgeModel());
+    isClaudeModel(opts?.writingModel ?? writingJudgeModel());
   // allSettled, not all (10-01-26): when one worker aborts, the others may be mid-judgment.
   // Promise.all would reject at once and the script would exit with their answers unwritten;
   // waiting lets each finish its item and cache it (`aborted` stops them taking another), so

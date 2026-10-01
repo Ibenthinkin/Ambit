@@ -15,10 +15,13 @@ import {
   curateItems,
   curationCacheKey,
   CURATOR_MODEL,
+  CLAUDE_WRITING_MODEL,
   CLAUDE_WRITING_PROMPT,
   CLAUDE_WRITING_PROMPT_VERSION,
   CURATOR_PROMPT,
+  judgeModel,
   parseWritingResponse,
+  writingJudgeModel,
   WRITING_PROMPT,
   WRITING_PROMPT_VERSION,
   writingAsText,
@@ -393,8 +396,10 @@ describe("curateItems reads a cached writing answer with no LLM call", () => {
 describe("the writing curator on the Claude judge", () => {
   const realRun = claudeRuntime.run;
   let systems: string[];
+  let models: string[];
   beforeEach(() => {
     systems = [];
+    models = [];
     resetClaudeJudge();
     vi.stubEnv("CURATOR_JUDGE", "claude");
     vi.stubGlobal("fetch", () =>
@@ -402,6 +407,7 @@ describe("the writing curator on the Claude judge", () => {
     );
     claudeRuntime.run = (args) => {
       systems.push(args[args.indexOf("--system-prompt") + 1] ?? "");
+      models.push(args[args.indexOf("--model") + 1] ?? "");
       return Promise.resolve({
         code: 0,
         stdout: [
@@ -449,10 +455,27 @@ describe("the writing curator on the Claude judge", () => {
     expect(systems[0]).toContain("botany — Botany");
   });
 
-  it("an explicit writingModel overrides the env's judge", () => {
+  it("judges writing with Sonnet under CURATOR_JUDGE=claude — pictures stay on Haiku", () => {
+    expect(writingJudgeModel()).toBe(CLAUDE_WRITING_MODEL);
+    expect(CLAUDE_WRITING_MODEL).toBe("claude-sonnet-5-5");
+    expect(judgeModel()).toBe(CLAUDE_JUDGE_MODEL);
     expect(writingCacheKey({ source: "pdr", sourceId: "1" })).toBe(
-      writingCacheKey({ source: "pdr", sourceId: "1" }, CLAUDE_JUDGE_MODEL),
+      writingCacheKey({ source: "pdr", sourceId: "1" }, CLAUDE_WRITING_MODEL),
     );
+  });
+
+  it("sends the piece to Sonnet", async () => {
+    await curateItems(
+      [
+        makeItem({
+          source: "pdr",
+          sourceId: `cw-s-${Date.now()}`,
+          body: "word ".repeat(460),
+        }),
+      ],
+      { force: true, topics: vocab },
+    );
+    expect(models[0]).toBe(CLAUDE_WRITING_MODEL);
   });
 });
 

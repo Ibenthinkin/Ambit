@@ -86,6 +86,7 @@ import {
   CuratorAbortError,
   judgeModel,
   judgePreflight,
+  writingJudgeModel,
   MAX_TOPICS,
   structuralFloor,
   writingFloor,
@@ -180,7 +181,10 @@ function judgeLine(): string {
         return `${name} ${pct(usage.first)} → ${pct(usage.last)}`;
       })
     : [];
-  return [judgeModel(), ...windows].join(" · ");
+  return [
+    `${judgeModel()} (pictures), ${writingJudgeModel()} (writing)`,
+    ...windows,
+  ].join(" · ");
 }
 
 // ── per-source search + normalize ───────────────────────────────────────────
