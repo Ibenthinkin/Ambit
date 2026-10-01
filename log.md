@@ -72,6 +72,34 @@ here (10-01-26, later)".
 
 *Session spend: 14.34M tok (in 200 · out 95.2k · cache r 13.90M / w 340.3k) · opus-5-5 · 10:04→10:14*
 
+**The Claude judge, designed and planned (not built).** `docs/DESIGN_claude-judge-ingest.md`
+(D1–D11) and `docs/PLAN_claude-judge.md` (seven tasks, piece 1 only: the judge). The split and
+the Mac host get a second plan once Ben has described the always-on Mac.
+
+**Findings:** the handoff's ~54k-token overhead is not inherent. With Claude Code's prompt
+replaced and tools, settings, MCP and skills off, a Haiku judgment is **432 input tokens and
+~1.2 s** (0.5 s with thinking off), so no batching is needed. A picture goes in as base64 through
+`--input-format stream-json`, no tools. Every call's stream carries a `rate_limit_event` with the
+five-hour and seven-day utilization, which is the pacing signal and the clean stop. Haiku fences
+its JSON regardless of instructions. `--bare` cannot use the subscription login.
+
+**Decisions (Ben):** OpenRouter stays as a manual switch (`CURATOR_JUDGE`), never an automatic
+fallback; the two judges coexist and a full re-score is decided after calibration measures drift
+and cost; the Mac reaches production's Postgres by SSH tunnel; pictures Monday, writing Thursday.
+**Mine, for Ben to overrule:** stop at 80% of either window; pictures downscaled to 1024 px JPEG
+for Claude; thinking off; the publications stay suspended until the Mac plan ships, their
+backfill run locally first.
+
+**Terms:** unattended `claude -p` on the Max plan reads as permitted (own use, unmodified CLI,
+"ordinary, individual usage"). Anthropic's 06-15-26 move of `claude -p` onto a separate
+API-rate credit ($100/$200 a month on Max) was **paused on the day**; if it un-pauses, the
+judge's budget becomes dollars, not a share of the weekly window.
+
+**Open / next:** Ben reviews the plan and describes the Mac; execute `PLAN_claude-judge.md` cold
+in a cheaper session on `feat/claude-judge`; then the piece 2/3 plan.
+
+*Session spend: 7.70M tok (in 100 · out 165.0k · cache r 6.95M / w 584.2k) · fable-5-1 · 10:43→11:00*
+
 ## 2026-09
 
 ### [[09-30-26 Wed]] — Writing live on production; the news rule goes
