@@ -39,6 +39,7 @@
     "trim:memberships": "bun run scripts/trim-memberships.ts",
     "repair:periods": "bun run scripts/repair-period-topics.ts",
     "repair:rehome": "bun run scripts/repair-rehome.ts",
+    "drop:donations": "bun run scripts/drop-donation-posts.ts",
     "floor:sources": "bun run scripts/apply-score-floors.ts",
     "repair:disambig": "bun run scripts/repair-disambiguation.ts",
     "graph:rebuild": "bun run scripts/rebuild-topic-graph.ts",

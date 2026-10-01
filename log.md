@@ -175,6 +175,10 @@ run anyway as a read-only measurement.
   pieces. **Both answered by Ben:** shop listings score low (already the rule), and ALL Door of
   Perception posts go to 8, dark or not. `bun run floor:sources --confirm` (new) lifted 309 of
   10,222 local rows; **run it in the production container after the deploy that carries it.**
+  **The 22 stored donation posts are deleted locally** (Ben: "delete the 22 donation posts") by
+  `bun run drop:donations --confirm` (new), which asks the floor's own `isDonationPost` — all 22
+  were thevaultoftheatomicspaceage Ko-fi banners, scored 2-8, none saved. **Run it in the
+  production container after the same deploy**; the report-only form lists the rows first.
 - **WORK ITEM: move the judge to VM 202** once Ben has freed RAM and disk there (design doc,
   "Open"): where `claude` is installed, the subscription token as a Coolify secret, ~236 MB a
   judge call, the weekly two-job split, the health threshold.
@@ -189,6 +193,7 @@ run anyway as a read-only measurement.
 *Session spend: 8.11M tok (in 65 · out 58.1k · cache r 7.80M / w 250.9k) · ~≥$2.01 · fable-5-1 + opus-4-7 · 11:57→12:08*
 *Session spend: 23.31M tok (in 162 · out 52.2k · cache r 22.88M / w 377.6k) · ~≥$3.06 · fable-5-1 + opus-4-7 · 12:08→13:58*
 *Session spend: 22.96M tok (in 148 · out 88.7k · cache r 22.56M / w 314.8k) · ~≥$2.39 · fable-5-1 + opus-4-7 · 13:58→15:37*
+*Session spend: 5.68M tok (in 82 · out 26.5k · cache r 5.19M / w 460.3k) · ~≥$1.75 · fable-5-1 + opus-4-7 · 15:37→16:44*
 
 ## 2026-09
 

@@ -441,9 +441,12 @@ const DONATION_LINK = /(ko-fi\.com|patreon\.com|buymeacoffee\.com|paypal\.me)/i;
  * flash-lite saw vintage imagery and missed that it was a banner. A judge could score them 1,
  * but there is nothing to judge: they are dropped here, free, before any model is asked. Narrow
  * on purpose — the link has to be the TITLE, or the whole summary — so a real post whose long
- * caption ends "more on patreon.com/…" is untouched.
+ * caption ends "more on patreon.com/…" is untouched. Exported for `bun run drop:donations`,
+ * which removes the rows stored before this rule existed.
  */
-function isDonationPost(item: NormalizedItem): boolean {
+export function isDonationPost(
+  item: Pick<NormalizedItem, "title" | "summary">,
+): boolean {
   if (DONATION_LINK.test(item.title)) return true;
   const summary = item.summary.trim();
   return !/\s/.test(summary) && DONATION_LINK.test(summary);
