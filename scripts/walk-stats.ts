@@ -35,6 +35,7 @@ import type { WalkSourceId } from "~/server/config/topics";
 import {
   type CuratedItem,
   curateItems,
+  judgePreflight,
   structuralFloor,
   writingFloor,
 } from "~/server/services/curator";
@@ -107,6 +108,11 @@ let overFiled = 0;
 // zero whether or not the images are reachable. The line says how many calls actually fetched.
 let imageFetchFailed = 0;
 let cacheHits = 0;
+const judgeProblem = judgePreflight();
+if (judgeProblem) {
+  console.error(judgeProblem);
+  process.exit(1);
+}
 const curated = await curateItems(kept, {
   classify: true,
   topics: classifyVocabulary,

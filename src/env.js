@@ -43,6 +43,10 @@ export const env = createEnv({
     // there's no reason to fail app boot over it. curator.ts checks for its own presence at call
     // time and throws a clear error there instead.
     OPENROUTER_API_KEY: z.string().min(1).optional(),
+    // Which judge the curator uses, and the Claude judge's usage ceiling — read by scripts through
+    // curator.ts / claude-judge.ts, never on a request path (docs/DESIGN_claude-judge-ingest.md).
+    CURATOR_JUDGE: z.enum(["openrouter", "claude"]).optional(),
+    CLAUDE_JUDGE_MAX_UTILIZATION: z.coerce.number().gt(0).max(1).optional(),
     // The shared password for the twenty seeded personas — scripts/seed-personas.ts. Optional so
     // the app boots without it (nothing on a request path reads it); the script itself refuses to
     // run when it is unset or under twelve characters, since twenty accounts behind a guessable
@@ -112,6 +116,8 @@ export const env = createEnv({
     MAIL_FROM: process.env.MAIL_FROM,
     OPS_EMAIL: process.env.OPS_EMAIL,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    CURATOR_JUDGE: process.env.CURATOR_JUDGE,
+    CLAUDE_JUDGE_MAX_UTILIZATION: process.env.CLAUDE_JUDGE_MAX_UTILIZATION,
     PERSONA_PASSWORD: process.env.PERSONA_PASSWORD,
     ARCHIVE_URL: process.env.ARCHIVE_URL,
     ARCHIVE_API_KEY: process.env.ARCHIVE_API_KEY,

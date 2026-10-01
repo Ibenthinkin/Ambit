@@ -39,7 +39,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "~/server/db/client";
 import { item } from "~/server/db/schema";
-import { curateItems } from "~/server/services/curator";
+import { curateItems, judgePreflight } from "~/server/services/curator";
 import type { NormalizedItem } from "~/server/services/sources/types";
 import { ALL_SOURCE_IDS } from "~/server/services/sources";
 import type { SourceId } from "~/server/services/sources";
@@ -77,10 +77,9 @@ if (!Number.isFinite(offset) || offset < 0) {
   process.exit(1);
 }
 
-if (!process.env.OPENROUTER_API_KEY) {
-  console.error(
-    "OPENROUTER_API_KEY is not set — required for re-curation (add it to .env).",
-  );
+const judgeProblem = judgePreflight();
+if (judgeProblem) {
+  console.error(judgeProblem);
   process.exit(1);
 }
 
