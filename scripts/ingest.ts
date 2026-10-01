@@ -159,7 +159,7 @@ if (sourceFlag && !knownSources.includes(sourceFlag as SourceId)) {
 // Fail fast, before any network calls: a curator call 800 items into a run is a much worse place
 // to discover this than the first line of output. Which judge is asked depends on CURATOR_JUDGE
 // (curator.ts's judgeModel): the OpenRouter key, or the Claude Code CLI.
-const judgeProblem = skipLlm ? null : judgePreflight();
+const judgeProblem = skipLlm ? null : await judgePreflight();
 if (judgeProblem) {
   console.error(`${judgeProblem} (Or pass --skip-llm for a free dry run.)`);
   process.exit(1);

@@ -108,7 +108,7 @@ let overFiled = 0;
 // zero whether or not the images are reachable. The line says how many calls actually fetched.
 let imageFetchFailed = 0;
 let cacheHits = 0;
-const judgeProblem = judgePreflight();
+const judgeProblem = await judgePreflight();
 if (judgeProblem) {
   console.error(judgeProblem);
   process.exit(1);

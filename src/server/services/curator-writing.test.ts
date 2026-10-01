@@ -402,13 +402,19 @@ describe("the writing curator on the Claude judge", () => {
       systems.push(args[args.indexOf("--system-prompt") + 1] ?? "");
       return Promise.resolve({
         code: 0,
-        stdout: JSON.stringify({
-          type: "result",
-          is_error: false,
-          result:
-            '```json\n{"score": 9, "tags": ["odd"], "kind": "essay", "timeliness": "timeless", "topics": ["botany"]}\n```',
-          usage: { input_tokens: 2000, output_tokens: 30 },
-        }),
+        stdout: [
+          JSON.stringify({
+            type: "rate_limit_event",
+            rate_limit_info: { status: "allowed", unifiedWindows: {} },
+          }),
+          JSON.stringify({
+            type: "result",
+            is_error: false,
+            result:
+              '```json\n{"score": 9, "tags": ["odd"], "kind": "essay", "timeliness": "timeless", "topics": ["botany"]}\n```',
+            usage: { input_tokens: 2000, output_tokens: 30 },
+          }),
+        ].join("\n"),
         stderr: "",
       });
     };

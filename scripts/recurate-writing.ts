@@ -69,7 +69,7 @@ if (!(offset >= 0)) {
   );
   process.exit(1);
 }
-const judgeProblem = judgePreflight([model]);
+const judgeProblem = await judgePreflight([model]);
 if (judgeProblem) {
   console.error(judgeProblem);
   process.exit(1);

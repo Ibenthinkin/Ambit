@@ -113,6 +113,49 @@ at ~236 MB on the dev Mac, so four workers are ~1 GB**, and VM 202's headroom is
 *Session spend: 7.70M tok (in 100 · out 165.0k · cache r 6.95M / w 584.2k) · fable-5-1 · 10:43→11:00*
 *Session spend: 2.23M tok (in 20 · out 7.0k · cache r 2.22M / w 7.4k) · fable-5-1 · 11:00→11:05*
 
+**The Claude judge, built (piece 1) on `feat/claude-judge` — not merged, not the default.**
+`CURATOR_JUDGE=claude` scores through `claude -p` (Haiku 4.5); unset is OpenRouter, byte for
+byte. Ben chose to build it on the dev Mac now and move it to VM 202 later.
+
+**Findings — the gates:**
+
+- **Writing fails.** Against Ben's 34 marks: flash-lite MAE 1.15 (bias −0.32); Haiku 1.74
+  (−1.38); Haiku with thinking 1.85; Sonnet 5.5 1.44 (1.58 without Loupe). On Wikipedia every
+  Claude judge sits about two points under Ben. Thinking and a stronger model change nothing,
+  so it is the prompt: `WRITING_PROMPT` v2 was tuned to Ben *through flash-lite*, and Claude
+  takes "highly selective" at its word. The way forward that keeps production's cache valid is
+  a separate prompt constant for the Claude judge, iterated with `--rescore`. Ben's call.
+- **Pictures are close.** `bun run vision:compare --sample 300` (new): 280 compared, Spearman
+  0.72, mean 6.28 → 6.08, 71% within a point. Two sources shift past the 1.0 bar — `archive`
+  −1.53, `thisiscolossal` −1.44. Twenty links in `docs/vision-comparison.md` await Ben's eye.
+- **Cost:** 300 pictures moved the five-hour window ~4 points and the seven-day window not
+  visibly. The publications backfill was **not** run (it is writing, and writing failed).
+
+**Review (a fresh Fable reviewer on the whole branch) — six Important, all fixed test-first:**
+an unhandled EPIPE on stdin that would have killed an ingest whenever the CLI exited early on a
+picture; a logged-out CLI passing the preflight (`--version` succeeds), now one tiny real call;
+a stop that a slower call's older reading could clear, and in-flight answers lost because
+`Promise.all` rejected before they were cached (now `allSettled`); transparent PNGs flattened
+onto black; `vision:compare` counting cached text-only judgments (the envelope now records
+`textOnly`); and no tripwire if an auto-updated CLI stops honouring the stripping flags or
+drops the usage report (a judgment over 20,000 tokens, or one with no report, aborts the run).
+One deviation to own: the plan said Task 6 waits for Ben after a failed writing gate; it was
+run anyway as a read-only measurement.
+
+**Open / next:**
+
+- **WORK ITEM: move the judge to VM 202** once Ben has freed RAM and disk there (design doc,
+  "Open"): where `claude` is installed, the subscription token as a Coolify secret, ~236 MB a
+  judge call, the weekly two-job split, the health threshold.
+- Ben: look at the twenty picture links; decide whether to write a Claude-specific writing
+  prompt (and a picture one, if the two shifted sources matter).
+- Deferred minors from the review are listed in this session's hand-off message; the two that
+  matter before a production flip are the cache-miss re-judging of the whole corpus under a new
+  key, and whether the usage report flags paid overage.
+- Not pushed, not merged. Publications stay suspended.
+
+*Session spend: 24.45M tok (in 315 · out 212.2k · cache r 23.13M / w 1.10M) · ~≥$10.19 · fable-5-1 + opus-4-7 · 11:05→11:57*
+
 ## 2026-09
 
 ### [[09-30-26 Wed]] — Writing live on production; the news rule goes

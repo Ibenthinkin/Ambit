@@ -99,6 +99,36 @@ claude -p --model <id> --input-format stream-json --output-format stream-json --
   tunnel, no published port, no second host. The Coolify scheduled task, its failure
   notification, `img:warm` and both caches stay where they are.
 
+## Results (10-01-26, piece 1 built on the dev Mac)
+
+Built on `feat/claude-judge`: the transport, the switch, `vision:compare`. Both gates were run.
+
+**Writing: the gate fails.** Against Ben's 34 marks (`docs/writing-calibration.md`):
+
+| Judge | MAE | Bias | MAE without Loupe | Wikipedia MAE / bias |
+| --- | --- | --- | --- | --- |
+| flash-lite (today's) | 1.15 | −0.32 | 0.69 | 1.00 / −0.69 |
+| Haiku 4.5 | 1.74 | −1.38 | 1.54 | 2.15 / −2.15 |
+| Haiku 4.5 `+think` | 1.85 | −1.26 | 1.69 | 2.23 / −2.08 |
+| Sonnet 5.5 | 1.44 | −0.97 | 1.58 | 2.08 / −2.08 |
+
+Every Claude judge scores well below Ben, and by about two points on Wikipedia. Thinking does
+not help and a stronger model does not either, so it is not a capability gap: `WRITING_PROMPT`
+v2 was tuned against Ben's marks *through flash-lite*, and Claude reads "highly selective" more
+literally. The fix is a prompt calibrated for Claude, which D5 forbids for the shared constant.
+The way through that keeps production's cache valid is a **separate prompt constant for the
+Claude judge** (its own version in its own cache namespace), iterated with `--rescore` exactly as
+v1 → v2 was. Not built; Ben's decision. **The publications backfill was not run.**
+
+**Pictures: close, two sources out.** 300 sampled, 280 compared (`docs/vision-comparison.md`):
+Spearman **0.72** (bar 0.60), mean 6.28 → 6.08 (shift −0.20, bar ±0.5), 71% within one point,
+share ≥ 8 down from 44% to 38%. Two sources shift more than the 1.0 bar: `archive` −1.53 and
+`thisiscolossal` −1.44. The verdict needs Ben's eye on the twenty links.
+
+**Cost against the subscription:** 300 pictures moved the five-hour window about four points
+(55% → 59%, with an interactive session running beside it) and did not move the seven-day
+window's rounded figure (25%). A judge call peaks at ~236 MB resident.
+
 ## Open, for the piece 2/3 plan
 
 - **WORK ITEM — move the judge to VM 202 (Ben, 10-01-26).** The judge is built and run on the

@@ -30,8 +30,8 @@ import sharp from "sharp";
 import {
   CLAUDE_CONCURRENCY,
   CLAUDE_JUDGE_MODEL,
-  claudeAvailable,
   claudeComplete,
+  claudeModelSpec,
   isClaudeModel,
 } from "./claude-judge";
 import { CuratorAbortError } from "./curator-errors";
@@ -65,16 +65,28 @@ export function judgeModel(): string {
 
 /**
  * Can these models be called at all? One sentence when not, null when fine — for a script to
- * print and exit on before any walk starts. An OpenRouter model needs the key; a Claude model
- * needs the CLI installed.
+ * print and exit on before any walk starts. An OpenRouter model needs the key. A Claude model is
+ * asked one tiny question: `claude --version` succeeds on a machine that is logged out or whose
+ * token has expired, and the alternative to finding that out here is finding it out after the
+ * whole walk, eighty failed spawns in. It costs ~400 tokens of the subscription per run.
  */
-export function judgePreflight(
+export async function judgePreflight(
   models: readonly string[] = [judgeModel()],
-): string | null {
+): Promise<string | null> {
   if (models.some((m) => !isClaudeModel(m)) && !process.env.OPENROUTER_API_KEY)
     return "OPENROUTER_API_KEY is not set — required for the OpenRouter judge (add it to .env, or set CURATOR_JUDGE=claude).";
-  if (models.some(isClaudeModel) && !claudeAvailable())
-    return "the `claude` CLI is not installed or not on PATH — required for CURATOR_JUDGE=claude (install Claude Code and log in with the subscription).";
+  const claude = models.find(isClaudeModel);
+  if (claude) {
+    try {
+      await claudeComplete({
+        model: claudeModelSpec(claude).id,
+        system: "Reply with ONLY one JSON object.",
+        content: 'Give {"ok":true}',
+      });
+    } catch (err) {
+      return `the Claude judge is not usable — ${err instanceof Error ? err.message : String(err)} (is Claude Code installed, on PATH, and logged in with the subscription?)`;
+    }
+  }
   return null;
 }
 
@@ -468,6 +480,9 @@ async function imageAsDataUrl(
           const jpeg = await sharp(bytes)
             .rotate()
             .resize(fit, fit, { fit: "inside", withoutEnlargement: true })
+            // JPEG has no alpha, and sharp's default ground is black: line art or a diagram on
+            // a transparent PNG would reach the model as a black rectangle.
+            .flatten({ background: "#ffffff" })
             .jpeg({ quality: 80 })
             .toBuffer();
           return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
@@ -767,6 +782,8 @@ async function scoreItem(
   topics: string[];
   tokens: number;
   imageFetchFailed: boolean;
+  /** True when the score was reached from text alone — now, or when the cached answer was made. */
+  textOnly: boolean;
   /** True when the answer came from the on-disk cache and no fetch of any kind was made. */
   cached: boolean;
 }> {
@@ -787,6 +804,8 @@ async function scoreItem(
         topicId?: string | null;
         /** Cut 1 entries: the array. */
         topics?: string[];
+        /** 10-01-26: the picture could not be looked at when this was judged. */
+        textOnly?: boolean;
       };
       return {
         score: cached.score,
@@ -798,6 +817,7 @@ async function scoreItem(
         ...capTopics(cached.topics ?? (cached.topicId ? [cached.topicId] : [])),
         tokens: 0,
         imageFetchFailed: false,
+        textOnly: cached.textOnly === true,
         cached: true,
       };
     } catch {
@@ -858,11 +878,19 @@ async function scoreItem(
       ),
   );
   await mkdir(CURATION_CACHE_DIR, { recursive: true });
-  await writeFile(cacheFile, JSON.stringify(result));
+  // `textOnly` is remembered in the envelope (10-01-26). `imageFetchFailed` cannot be: it means
+  // "a fetch failed in THIS run", and a cache hit makes no fetch. But a score reached without
+  // looking at the picture is a different measurement for as long as it is cached, and
+  // `vision:compare` has to be able to leave it out on a second run as well as on the first.
+  await writeFile(
+    cacheFile,
+    JSON.stringify(imageFetchFailed ? { ...result, textOnly: true } : result),
+  );
   return {
     ...result,
     tokens,
     imageFetchFailed,
+    textOnly: imageFetchFailed,
     cached: false,
   };
 }
@@ -994,6 +1022,9 @@ export async function curateItems(
     writingModel?: string;
     onProgress?: (done: number, total: number) => void;
     onImageFetchFailure?: (item: NormalizedItem) => void;
+    /** Called for every image item whose score was reached without the picture — on the fresh
+     *  call (alongside `onImageFetchFailure`) and on every later cache hit of that answer. */
+    onTextOnly?: (item: NormalizedItem) => void;
     /** Called once per item answered from the on-disk cache (09-07-26). The companion to
      *  `onImageFetchFailure`: a cache hit reports no failure because it made no fetch, so a
      *  caller that prints "N images failed" can only call zero a *clean* number rather than an
@@ -1043,14 +1074,22 @@ export async function curateItems(
             readingMinutes: readingMinutes(writingBody(item)),
           };
         } else {
-          const { score, tags, topics, overFiled, imageFetchFailed, cached } =
-            await scoreItem(item, {
-              force: opts?.force ?? false,
-              classify: opts?.classify ?? false,
-              ...(opts?.topics ? { topics: opts.topics } : {}),
-            });
+          const {
+            score,
+            tags,
+            topics,
+            overFiled,
+            imageFetchFailed,
+            textOnly,
+            cached,
+          } = await scoreItem(item, {
+            force: opts?.force ?? false,
+            classify: opts?.classify ?? false,
+            ...(opts?.topics ? { topics: opts.topics } : {}),
+          });
           if (cached) opts?.onCacheHit?.(item);
           if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
+          if (textOnly) opts?.onTextOnly?.(item);
           if (overFiled > 0) opts?.onOverFiled?.(item, overFiled);
           consecutiveFailures = 0;
           out[i] = {
@@ -1093,7 +1132,11 @@ export async function curateItems(
   const claude =
     isClaudeModel(judgeModel()) ||
     isClaudeModel(opts?.writingModel ?? judgeModel());
-  await Promise.all(
+  // allSettled, not all (10-01-26): when one worker aborts, the others may be mid-judgment.
+  // Promise.all would reject at once and the script would exit with their answers unwritten;
+  // waiting lets each finish its item and cache it (`aborted` stops them taking another), so
+  // the re-run really does resume where this one stopped.
+  const settled = await Promise.allSettled(
     Array.from(
       {
         length: Math.min(
@@ -1104,5 +1147,7 @@ export async function curateItems(
       worker,
     ),
   );
+  const failed = settled.find((s) => s.status === "rejected");
+  if (failed) throw failed.reason;
   return out;
 }

@@ -6,7 +6,7 @@
 // it: the same call is 432 input tokens and about a second. Those tokens are not billed, but they
 // count against the subscription's five-hour and seven-day limits, which Ben's own sessions share.
 
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 
 import { CuratorAbortError } from "./curator-errors";
@@ -214,10 +214,19 @@ export function claudeEnv(
   return child;
 }
 
-/** Run the CLI once. cwd is the temp dir, so no project's CLAUDE.md is anywhere near it. */
-const spawnClaude: ClaudeRunner = (args, stdin, opts) =>
-  new Promise((resolve, reject) => {
-    const child = spawn("claude", args, {
+/**
+ * Run a CLI once and collect what it printed. cwd is the temp dir, so no project's CLAUDE.md is
+ * anywhere near it. The binary is a parameter only so the tests can point it at `true` and at a
+ * path that does not exist; the judge always passes "claude".
+ */
+export function runCli(
+  bin: string,
+  args: string[],
+  stdin: string,
+  opts: { thinking: boolean },
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(bin, args, {
       cwd: tmpdir(),
       // Next's types make NODE_ENV a required key of ProcessEnv; a copy of process.env has it.
       env: claudeEnv(process.env, opts.thinking) as NodeJS.ProcessEnv,
@@ -237,8 +246,17 @@ const spawnClaude: ClaudeRunner = (args, stdin, opts) =>
       clearTimeout(timer);
       resolve({ code: code ?? 1, stdout, stderr });
     });
+    // A child that exits without reading (logged out, a flag it rejects, a crash) breaks the
+    // pipe under a picture-sized payload — bigger than the 64 KB pipe buffer — and an EPIPE with no
+    // listener is an uncaught exception that kills the whole ingest. Swallowed here on purpose:
+    // `close` (or `error`) still settles the promise with the real outcome.
+    child.stdin.on("error", () => undefined);
     child.stdin.end(`${stdin}\n`);
   });
+}
+
+const spawnClaude: ClaudeRunner = (args, stdin, opts) =>
+  runCli("claude", args, stdin, opts);
 
 /** Swappable so tests never spawn a process: `claudeRuntime.run = fake`. */
 export const claudeRuntime: { run: ClaudeRunner } = { run: spawnClaude };
@@ -246,7 +264,9 @@ export const claudeRuntime: { run: ClaudeRunner } = { run: spawnClaude };
 // Process-wide state. `stop` is set by the call that crossed the ceiling and read by every call
 // after it: the crossing call's own answer is good and is returned (the caller caches it), and
 // the *next* call is the one that aborts. With four workers, at most four answers land after the
-// ceiling — all cached, none wasted.
+// ceiling. curateItems waits for them (Promise.allSettled) so each is cached before the abort
+// leaves the batch. **Sticky**: once set it is never cleared by a later report — a slower call
+// carries an *older* reading, and letting that reset the stop spent calls past the ceiling.
 let stop: string | null = null;
 let usage: { first: RateLimitInfo; last: RateLimitInfo } | null = null;
 
@@ -262,11 +282,18 @@ export function resetClaudeJudge(): void {
   usage = null;
 }
 
-/** True when the `claude` CLI is on PATH and runs. A script's first line of defence, so a missing
- *  install is one sentence at the start rather than twenty failed judgments in. */
-export function claudeAvailable(): boolean {
-  return spawnSync("claude", ["--version"], { stdio: "ignore" }).status === 0;
-}
+/**
+ * The most tokens one judgment may plausibly cost: a 160-topic classify prompt, 8,000 characters
+ * of text and a 1024 px picture come to well under ten thousand. Past this the stripping flags
+ * have stopped working — an auto-updated CLI reading `--tools ""` as "unset", say — and every
+ * call is carrying Claude Code's own ~54,000 tokens against the subscription.
+ */
+const MAX_PLAUSIBLE_TOKENS = 20_000;
+
+/** What a logged-out or refused CLI says in its result (10-01-26: "Invalid API key · Please run
+ *  /login"; the stream's error categories are `authentication_failed`, `oauth_org_not_allowed`). */
+const AUTH_FAILURE =
+  /\/login|log ?in|authenticat|oauth|invalid api key|unauthori[sz]ed/i;
 
 function maxUtilization(): number {
   const value = Number(process.env.CLAUDE_JUDGE_MAX_UTILIZATION);
@@ -298,13 +325,31 @@ export async function claudeComplete(req: {
   const out = parseClaudeStream(run.stdout);
   if (out.rateLimit) {
     usage = { first: usage?.first ?? out.rateLimit, last: out.rateLimit };
-    stop = limitVerdict(out.rateLimit, maxUtilization());
+    // `??=`: set once, never cleared (see `stop`).
+    stop ??= limitVerdict(out.rateLimit, maxUtilization());
     // Refused outright: there is no answer to keep, so this call is the one that aborts.
     if (out.rateLimit.status === "rejected" && stop) throw abort(stop);
   }
-  if (run.code !== 0 || out.isError || out.reply === null)
-    throw new Error(
-      `claude -p failed (exit ${run.code}): ${(out.reply ?? run.stderr).slice(0, 200)}`,
-    );
+  if (run.code !== 0 || out.isError || out.reply === null) {
+    const detail = (out.reply ?? run.stderr).slice(0, 200);
+    // An account-level failure, like OpenRouter's 401: no item will ever succeed, so stop the
+    // run now instead of retrying every one of them four times.
+    if (AUTH_FAILURE.test(detail)) {
+      stop = `the Claude Code CLI is not logged in (${detail})`;
+      throw abort(stop);
+    }
+    throw new Error(`claude -p failed (exit ${run.code}): ${detail}`);
+  }
+  // Two tripwires on a *successful* call, both for a CLI that has changed under us. Without a
+  // usage report the ceiling is blind; with the overhead back, a run spends the subscription
+  // a hundred times faster than it was measured to.
+  if (!out.rateLimit) {
+    stop = "a call carried no usage report, so the ceiling cannot be enforced";
+    throw abort(stop);
+  }
+  if (out.tokens > MAX_PLAUSIBLE_TOKENS) {
+    stop = `one judgment cost ${out.tokens} tokens — Claude Code's own overhead is no longer being stripped (check the flags in claudeArgs against \`claude --help\`)`;
+    throw abort(stop);
+  }
   return { reply: stripFence(out.reply), tokens: out.tokens };
 }

@@ -88,7 +88,7 @@ if (rescore && !existsSync(file)) {
 const models = (
   flagValue("models") ?? "google/gemini-2.5-flash-lite,google/gemini-2.5-flash"
 ).split(",");
-const judgeProblem = judgePreflight(models);
+const judgeProblem = await judgePreflight(models);
 if (judgeProblem) {
   console.error(judgeProblem);
   process.exit(1);

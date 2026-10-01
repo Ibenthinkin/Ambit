@@ -54,7 +54,7 @@ if (!(n > 0)) {
   console.error("usage: vision:compare --sample <n>");
   process.exit(1);
 }
-const problem = judgePreflight();
+const problem = await judgePreflight();
 if (problem) {
   console.error(problem);
   process.exit(1);
@@ -108,7 +108,9 @@ const unseen = new Set<string>();
 const curated = await curateItems(normalized, {
   classify: true,
   topics: vocabulary,
-  onImageFetchFailure: (it) => unseen.add(`${it.source}:${it.sourceId}`),
+  // onTextOnly, not onImageFetchFailure: it also fires for a cached text-only answer, so a
+  // re-run after a ceiling stop leaves out the same pictures the first run would have.
+  onTextOnly: (it) => unseen.add(`${it.source}:${it.sourceId}`),
   onProgress: (done, total) => {
     if (done % 25 === 0 || done === total) console.log(`  ${done}/${total}`);
   },

@@ -14,6 +14,7 @@ import {
   limitVerdict,
   parseClaudeStream,
   resetClaudeJudge,
+  runCli,
   stripFence,
 } from "./claude-judge";
 import { CuratorAbortError } from "./curator-errors";
@@ -296,5 +297,92 @@ describe("claudeComplete", () => {
     expect(claudeUsage()?.last.unifiedWindows?.seven_day?.utilization).toBe(
       0.25,
     );
+  });
+});
+
+describe("runCli", () => {
+  it("survives a child that exits without reading a large stdin (no uncaught EPIPE)", async () => {
+    // A picture payload is far bigger than the 64 KB pipe buffer; `true` exits without reading.
+    const run = await runCli("true", [], "x".repeat(2_000_000), {
+      thinking: false,
+    });
+    expect(run.code).toBe(0);
+  });
+  it("rejects when the binary does not exist", async () => {
+    await expect(
+      runCli("/nonexistent/claude-cli", [], "x".repeat(2_000_000), {
+        thinking: false,
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("claudeComplete — the review's tripwires", () => {
+  const realRun = claudeRuntime.run;
+  const req = { model: CLAUDE_JUDGE_MODEL, system: "S", content: "hello" };
+  beforeEach(() => resetClaudeJudge());
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+  });
+
+  it("a stop is sticky: a slower call with an older, lower reading cannot clear it", async () => {
+    const release: (() => void)[] = [];
+    const readings = [
+      { five: 0.3, seven: 0.85 },
+      { five: 0.3, seven: 0.5 },
+    ];
+    claudeRuntime.run = () => {
+      const reading = readings.shift()!;
+      return new Promise((resolve) =>
+        release.push(() =>
+          resolve({ code: 0, stdout: stream("{}", reading), stderr: "" }),
+        ),
+      );
+    };
+    const a = claudeComplete(req);
+    const b = claudeComplete(req);
+    release[0]!();
+    await a;
+    release[1]!();
+    await b;
+    await expect(claudeComplete(req)).rejects.toBeInstanceOf(CuratorAbortError);
+  });
+
+  it("aborts when a successful call carries no usage report — the ceiling would be blind", async () => {
+    claudeRuntime.run = () =>
+      Promise.resolve({
+        code: 0,
+        stdout: JSON.stringify({
+          type: "result",
+          is_error: false,
+          result: "{}",
+        }),
+        stderr: "",
+      });
+    await expect(claudeComplete(req)).rejects.toThrow(/no usage report/);
+  });
+
+  it("aborts when a call costs tens of thousands of tokens — the overhead is back", async () => {
+    const heavy = stream("{}").replace(
+      '"input_tokens":432',
+      '"input_tokens":54000',
+    );
+    claudeRuntime.run = () =>
+      Promise.resolve({ code: 0, stdout: heavy, stderr: "" });
+    await expect(claudeComplete(req)).rejects.toThrow(/overhead/);
+  });
+
+  it("aborts at once on an authentication failure instead of retrying every item", async () => {
+    claudeRuntime.run = () =>
+      Promise.resolve({
+        code: 1,
+        stdout: JSON.stringify({
+          type: "result",
+          is_error: true,
+          result: "Invalid API key · Please run /login",
+        }),
+        stderr: "",
+      });
+    await expect(claudeComplete(req)).rejects.toBeInstanceOf(CuratorAbortError);
   });
 });

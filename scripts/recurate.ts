@@ -77,7 +77,7 @@ if (!Number.isFinite(offset) || offset < 0) {
   process.exit(1);
 }
 
-const judgeProblem = judgePreflight();
+const judgeProblem = await judgePreflight();
 if (judgeProblem) {
   console.error(judgeProblem);
   process.exit(1);

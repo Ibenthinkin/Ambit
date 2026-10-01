@@ -2,6 +2,7 @@
 // parsing are both deterministic and network-free, so they're covered here on literals; the
 // live LLM call path (curateItems' network branch) is exercised by the Phase 3.3 curator smoke
 // script instead — no live HTTP in unit tests (CLAUDE.md / PHASE3_PLAN.md convention).
+import { existsSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
@@ -960,11 +961,11 @@ describe("cache keys under the two judges", () => {
 
 describe("judgePreflight", () => {
   afterEach(() => vi.unstubAllEnvs());
-  it("asks for the OpenRouter key only when an OpenRouter model is in play", () => {
+  it("asks for the OpenRouter key only when an OpenRouter model is in play", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "");
-    expect(judgePreflight([CURATOR_MODEL])).toMatch(/OPENROUTER_API_KEY/);
+    expect(await judgePreflight([CURATOR_MODEL])).toMatch(/OPENROUTER_API_KEY/);
     vi.stubEnv("OPENROUTER_API_KEY", "k");
-    expect(judgePreflight([CURATOR_MODEL])).toBeNull();
+    expect(await judgePreflight([CURATOR_MODEL])).toBeNull();
   });
 });
 
@@ -1079,5 +1080,180 @@ describe("curateItems on the Claude judge", () => {
     expect(out?.curationScore).toBe(8);
     expect(runs[0]!.stdin).toContain("could not be fetched");
     expect(runs[0]!.stdin).not.toContain('"type":"image"');
+  });
+});
+
+describe("curateItems on the Claude judge — the review's fixes", () => {
+  const realRun = claudeRuntime.run;
+  beforeEach(() => {
+    resetClaudeJudge();
+    vi.stubEnv("CURATOR_JUDGE", "claude");
+  });
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("a transparent picture reaches the model on white, not black", async () => {
+    const png = await sharp({
+      create: {
+        width: 40,
+        height: 40,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .png()
+      .toBuffer();
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve({
+        ok: true,
+        headers: new Headers({ "content-type": "image/png" }),
+        arrayBuffer: () =>
+          Promise.resolve(
+            png.buffer.slice(png.byteOffset, png.byteOffset + png.byteLength),
+          ),
+      }),
+    );
+    let stdin = "";
+    claudeRuntime.run = (_args, input) => {
+      stdin = input;
+      return Promise.resolve({
+        code: 0,
+        stdout: claudeStream('{"score": 6, "tags": ["a"]}'),
+        stderr: "",
+      });
+    };
+    await curateItems(
+      [
+        makeItem({
+          sourceId: `claude-alpha-${Date.now()}`,
+          type: "image",
+          imageUrl: "https://museum.example/line-art.png",
+        }),
+      ],
+      { force: true },
+    );
+    const message = JSON.parse(stdin) as {
+      message: { content: { type: string; source?: { data: string } }[] };
+    };
+    const image = message.message.content.find((b) => b.type === "image");
+    const { data } = await sharp(Buffer.from(image!.source!.data, "base64"))
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    expect(data[0]).toBeGreaterThan(240);
+  });
+
+  it("answers in flight when the ceiling stops the run are still cached", async () => {
+    vi.stubGlobal("fetch", () => Promise.resolve({ ok: false, status: 404 }));
+    const stamp = Date.now();
+    const items = [0, 1, 2, 3, 4].map((n) =>
+      makeItem({ sourceId: `claude-inflight-${stamp}-${n}`, type: "image" }),
+    );
+    let call = 0;
+    claudeRuntime.run = () => {
+      const first = call++ === 0;
+      const stdout = [
+        {
+          type: "rate_limit_event",
+          rate_limit_info: {
+            status: "allowed",
+            unifiedWindows: { seven_day: { utilization: first ? 0.9 : 0.5 } },
+          },
+        },
+        {
+          type: "result",
+          is_error: false,
+          result: '{"score": 7, "tags": ["a"]}',
+          usage: { input_tokens: 400, output_tokens: 14 },
+        },
+      ]
+        .map((l) => JSON.stringify(l))
+        .join("\n");
+      // The first answer crosses the ceiling at once; the other three are still in flight.
+      return new Promise((resolve) =>
+        setTimeout(
+          () => resolve({ code: 0, stdout, stderr: "" }),
+          first ? 0 : 60,
+        ),
+      );
+    };
+    await expect(curateItems(items, { force: true })).rejects.toBeInstanceOf(
+      CuratorAbortError,
+    );
+    for (const it of items.slice(0, 4))
+      expect(
+        existsSync(
+          path.join(CURATION_CACHE_DIR, `${curationCacheKey(it, false)}.json`),
+        ),
+      ).toBe(true);
+  });
+});
+
+describe("curateItems remembers a text-only judgment in the cache", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+  it("reports it on the fresh call and again on the cache hit", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubGlobal("fetch", (input: string | URL) =>
+      String(input).includes("openrouter.ai")
+        ? Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                choices: [
+                  { message: { content: '{"score": 7, "tags": ["a"]}' } },
+                ],
+                usage: { total_tokens: 1 },
+              }),
+          })
+        : Promise.resolve({ ok: false, status: 429 }),
+    );
+    const item = makeItem({
+      sourceId: `text-only-${Date.now()}`,
+      type: "image",
+      imageUrl: "https://tile.example.gov/x.jpg",
+    });
+    const textOnly: string[] = [];
+    const fetchFailed: string[] = [];
+    const opts = {
+      onTextOnly: (it: NormalizedItem) => textOnly.push(it.sourceId),
+      onImageFetchFailure: (it: NormalizedItem) =>
+        fetchFailed.push(it.sourceId),
+    };
+    await curateItems([item], { ...opts, force: true });
+    await curateItems([item], opts);
+    expect(textOnly).toHaveLength(2);
+    expect(fetchFailed).toHaveLength(1);
+  });
+});
+
+describe("judgePreflight on the Claude judge", () => {
+  const realRun = claudeRuntime.run;
+  beforeEach(() => resetClaudeJudge());
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+  });
+  it("makes one tiny call and passes when it answers", async () => {
+    let calls = 0;
+    claudeRuntime.run = () => {
+      calls++;
+      return Promise.resolve({
+        code: 0,
+        stdout: claudeStream("{}"),
+        stderr: "",
+      });
+    };
+    expect(await judgePreflight([CLAUDE_JUDGE_MODEL])).toBeNull();
+    expect(calls).toBe(1);
+  });
+  it("says so in one sentence when the CLI is missing or logged out", async () => {
+    claudeRuntime.run = () => Promise.reject(new Error("spawn claude ENOENT"));
+    expect(await judgePreflight([CLAUDE_JUDGE_MODEL])).toMatch(
+      /Claude judge is not usable.*ENOENT/,
+    );
   });
 });

@@ -1,6 +1,6 @@
 # Handoff — the Claude judge and the weekly Mac ingest (10-01-26)
 
-**Status (10-01-26, later):** designed and planned, not built — `docs/DESIGN_claude-judge-ingest.md`
+**Status (10-01-26, evening):** piece 1 is **built on `feat/claude-judge`** and runs on the dev Mac; the writing gate **failed** (Claude judges ~1.4 points harsher than Ben) and the picture gate is close — results in the design doc. Earlier status: designed and planned — `docs/DESIGN_claude-judge-ingest.md`
 and `docs/PLAN_claude-judge.md` (piece 1, the judge). **The Mac host is off:** Ben ruled the
 always-on Mac out; the ingest stays on VM 202 with headless Claude Code there (design D11).
 Everything below about a Mac-run ingest (the DB route, the SSH tunnel, launchd) is history.
