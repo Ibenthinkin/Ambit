@@ -20,16 +20,34 @@
 // 500 ms apart and sequential, and a 401/403 ends the walk on the first response (fetchJson's
 // noRetryOn). spoon-tamago's Sucuri WAF is the reason the pace is not a per-blog knob: it passed
 // clean at this rate, and a faster blog gains nothing worth a second code path.
-import type { BlogConfig } from "~/server/config/blogs";
 import { fetchJsonResponse } from "./http";
-import { htmlToText, uniqueTags } from "./normalize";
+import { fullText, htmlToText, uniqueTags } from "./normalize";
 import { assertCrawlAllowed } from "./robots";
 import type {
   CorpusWalkAdapter,
   FetchOpts,
   NormalizedItem,
+  SourceId,
   WalkPage,
 } from "./types";
+
+/**
+ * What the factory needs to know about a WordPress source — a `BlogConfig` row fits it as is,
+ * and so does a `PublicationConfig` (writing Phase 5, 09-30-26) with `itemType: "article"`.
+ */
+export interface WpRestSource {
+  id: SourceId;
+  label: string;
+  baseUrl: string;
+  license: string;
+  /**
+   * `image` (the default, every blog): a post is a picture — the featured image — and one with no
+   * picture is an error. `article` (a publication): a post is writing, a link card of it. Its
+   * `content.rendered` becomes the curator's `curationText` and is never stored, `body` stays
+   * null, and a post with no featured image is still writing, only without a picture.
+   */
+  itemType?: "image" | "article";
+}
 
 const PER_PAGE = 100;
 /** The /tags endpoint's own per_page ceiling; also the `include=` chunk size. */
@@ -44,6 +62,9 @@ export interface WpPostRaw {
   date: string;
   title: { rendered: string };
   excerpt: { rendered: string };
+  /** The post's full HTML. Read in article mode only, and only as the curator's text. Optional
+   *  because the blog fixtures were recorded before anything read it. */
+  content?: { rendered: string };
   tags: number[];
   categories: number[];
   /** 0 when the post has no featured image. */
@@ -70,7 +91,8 @@ export function nextCursor(
   return page < totalPages ? String(page + 1) : undefined;
 }
 
-export function wpRestWalker(blog: BlogConfig): CorpusWalkAdapter<WpRaw> {
+export function wpRestWalker(blog: WpRestSource): CorpusWalkAdapter<WpRaw> {
+  const article = blog.itemType === "article";
   // Tag names, resolved lazily per page and memoized for the process. WordPress exposes tags as
   // numeric ids on a post and names on a separate endpoint. doorofperception fetches its whole
   // tag list up front (~200 tags, two requests); that does not survive a WordPress.com-hosted
@@ -109,10 +131,18 @@ export function wpRestWalker(blog: BlogConfig): CorpusWalkAdapter<WpRaw> {
     // Page 1 is the start of a walk: check the policy file before anything else.
     if (page === 1) await assertCrawlAllowed(blog.baseUrl);
 
-    // `limit` bounds this page's size so `--quota N` can do a cheap structural check without
-    // pulling 100 posts. No `_fields=` here: it would strip `_embedded`, which is the whole
-    // reason for `_embed` (verified 08-25-26 — the filtered form returns an empty embed).
-    const perPage = Math.max(1, Math.min(PER_PAGE, opts?.limit ?? PER_PAGE));
+    // `limit` may shrink the FIRST page only, so `--quota 3` / `probe:walk --limit 3` stays a
+    // cheap structural check. Every later page is PER_PAGE, because the cursor is a page number
+    // and a page number only names the same posts if every page is the same size: before
+    // 09-30-26 a `--quota 150` run asked for page 2 at 50 a page (posts 51-100, a second time)
+    // and printed a resume cursor 100 posts past where it stopped. A run that stops mid-page is
+    // walk-run's business (it stops at the quota); the page itself is always whole. No
+    // `_fields=` here: it would strip `_embedded`, which is the whole reason for `_embed`
+    // (verified 08-25-26 — the filtered form returns an empty embed).
+    const perPage =
+      page === 1
+        ? Math.max(1, Math.min(PER_PAGE, opts?.limit ?? PER_PAGE))
+        : PER_PAGE;
     const url =
       `${blog.baseUrl}/wp-json/wp/v2/posts?per_page=${perPage}&page=${page}` +
       `&_embed=wp:featuredmedia`;
@@ -136,6 +166,7 @@ export function wpRestWalker(blog: BlogConfig): CorpusWalkAdapter<WpRaw> {
 
   function toItem(raw: WpRaw): NormalizedItem {
     const hero = raw._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
+    if (article) return toArticle(raw, raw.featured_media ? hero : undefined);
     if (!raw.featured_media || !hero) {
       // Thrown, not null: ingest counts a toItem failure per item and prints it. A post with no
       // picture is not a link card, and a silent skip would hide the count.
@@ -156,6 +187,30 @@ export function wpRestWalker(blog: BlogConfig): CorpusWalkAdapter<WpRaw> {
       // reason blog items can never reach the reader view.
       body: null,
       imageUrl: hero,
+      sourceUrl: raw.link,
+      attribution: blog.label,
+      license: blog.license,
+      tags: uniqueTags(raw.tagNames.map((t) => t.toLowerCase())),
+    };
+  }
+
+  /**
+   * A publication's post as writing (article mode): the excerpt is what a reader sees, the full
+   * text is what the curator reads. Same identity, title and tag rules as a blog post.
+   */
+  function toArticle(raw: WpRaw, hero: string | undefined): NormalizedItem {
+    const text = raw.content ? fullText(raw.content.rendered) : "";
+    return {
+      source: blog.id,
+      sourceId: raw.slug,
+      type: "article",
+      title: htmlToText(raw.title.rendered),
+      // The publication's own excerpt, and nothing more of the piece — the link-card posture.
+      summary: htmlToText(raw.excerpt.rendered),
+      // Never stored for a link card (source-invariants.test.ts); the text rides in curationText.
+      body: null,
+      ...(text ? { curationText: text } : {}),
+      imageUrl: hero ?? null,
       sourceUrl: raw.link,
       attribution: blog.label,
       license: blog.license,

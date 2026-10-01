@@ -336,9 +336,20 @@ export type WritingDropRule = "thin-text";
  *  accepted. */
 export const WRITING_MIN_CHARS = 400;
 
-/** What the writing curator reads: the body when Ambit holds one, else the summary. */
+/**
+ * The full text of a writing item, when ingest holds one: the stored `body`, else a link-card
+ * publication's never-stored `curationText` (types.ts, writing Phase 5). NULL for a piece Ambit
+ * has only a dek for. What the floor, the curator and the reading time all read.
+ */
+export function writingBody(item: NormalizedItem): string | null {
+  if (item.body?.trim()) return item.body;
+  if (item.curationText?.trim()) return item.curationText;
+  return null;
+}
+
+/** What the writing curator reads: the full text when ingest holds one, else the summary. */
 function writingSource(item: NormalizedItem): string {
-  return item.body?.trim() ? item.body : item.summary;
+  return writingBody(item) ?? item.summary;
 }
 
 /**
@@ -604,16 +615,17 @@ export function writingCacheKey(
 }
 
 /**
- * What the writing curator reads: the body when Ambit holds one, else the summary, with the
- * encyclopedia's apparatus stripped (`writingText`), cut at WRITING_TEXT_CHARS. `Length:` is
+ * What the writing curator reads: the full text when ingest holds one (`writingBody`: the body,
+ * else a publication's `curationText`), else the summary, with the encyclopedia's apparatus stripped (`writingText`), cut at WRITING_TEXT_CHARS. `Length:` is
  * counted on the whole stripped text so the model knows a long piece is long even though it
  * sees only its opening. The summary is sent separately only when there is a body — otherwise
  * it IS the text. No image: writing is judged as writing, and not fetching Wikipedia's lead
  * images keeps the curator clear of Wikimedia's thumbnail-rendering throttle.
  */
 export function writingAsText(item: NormalizedItem): string {
-  const hasBody = Boolean(item.body?.trim());
-  const text = writingText(hasBody ? item.body! : item.summary);
+  const full = writingBody(item);
+  const hasBody = full !== null;
+  const text = writingText(full ?? item.summary);
   const words = text.split(/\s+/).filter(Boolean).length;
   return [
     `Source: ${item.source}`,
@@ -955,7 +967,7 @@ export async function curateItems(
             aestheticTags: w.tags,
             topics: w.topics,
             kind: kindFor(item.source, w.kind),
-            readingMinutes: readingMinutes(item.body),
+            readingMinutes: readingMinutes(writingBody(item)),
           };
         } else {
           const { score, tags, topics, overFiled, imageFetchFailed, cached } =
@@ -995,7 +1007,7 @@ export async function curateItems(
           aestheticTags: [],
           topics: [],
           ...(item.type === "article"
-            ? { kind: null, readingMinutes: readingMinutes(item.body) }
+            ? { kind: null, readingMinutes: readingMinutes(writingBody(item)) }
             : {}),
         };
       }

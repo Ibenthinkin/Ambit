@@ -104,6 +104,18 @@ import type { SourceId } from "~/server/services/sources/types";
 // writes nothing to the DB; its curation cache is warm for all nine, so re-running any of them is
 // free. The full table is docs/HANDOFF_tumblr-round3.md §2.
 export const SUSPENDED_SOURCES: SourceId[] = [
+  // Writing Phase 5 (09-30-26): a publication ships here and leaves on Ben's verdict
+  // (config/publications.ts). All seven are verdicted KEEP (10-01-26) and are held here anyway,
+  // by Ben's call the same day: nothing from them is ingested until the Claude judge exists
+  // (docs/HANDOFF_claude-judge-ingest.md), so they are judged by it rather than by OpenRouter.
+  // Then remove these lines and run the backfill (.cache/publications-backfill-prod.sh).
+  "themarginalian",
+  "jstordaily",
+  "noema",
+  "aeon",
+  "psyche",
+  "longreads",
+  "theparisreview",
   "aic",
   "mossandfog",
   "streetartnews",

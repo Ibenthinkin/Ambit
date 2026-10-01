@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   decodeEntities,
+  fullText,
   htmlToText,
   stripHtml,
   toLede,
@@ -160,5 +161,15 @@ describe("htmlToText", () => {
     );
     // A double-escaped sequence resolves ONE level, never two.
     expect(htmlToText("&amp;#8217;")).toBe("&#8217;");
+  });
+});
+
+describe("fullText (writing Phase 5)", () => {
+  it("drops comments and script/style contents, then reads as htmlToText", () => {
+    expect(
+      fullText(
+        "<!-- Main Image --><p>Salt &amp; light.</p><script>var x = 1;</script><style>p{}</style><p>Two.</p>",
+      ),
+    ).toBe("Salt & light. Two.");
   });
 });

@@ -92,6 +92,23 @@ describe("ReaderItemBody", () => {
     expect(screen.queryByRole("link", { name: /^Read on / })).toBeNull();
   });
 
+  // Writing Phase 5: a publication's piece is a link card — its dek, and the prominent way out.
+  it("gives a publication's piece the link-out row, naming the publication", () => {
+    render(
+      <ReaderItemBody
+        item={makeItem({
+          source: "themarginalian",
+          body: null,
+          sourceUrl: "https://www.themarginalian.org/2026/09/30/x/",
+        })}
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: /Read it on The Marginalian/ }),
+    ).toHaveAttribute("href", "https://www.themarginalian.org/2026/09/30/x/");
+    expect(screen.queryByRole("link", { name: /^Read on / })).toBeNull();
+  });
+
   it("still reads as an article when there's no stored body at all", () => {
     render(<ReaderItemBody item={makeItem({ body: null })} />);
 

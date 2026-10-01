@@ -56,7 +56,18 @@ export type SourceId =
   | "thisisnthappiness"
   // Sources round 4 (09-13-26): the two kept of eight Tumblr blogs, same factory, same registry.
   | "jareckiworld"
-  | "kvetchlandia";
+  | "kvetchlandia"
+  // Writing Phase 5 (09-30-26): publications — link cards of writing, registered in
+  // server/config/publications.ts, walked by wp-rest.ts (article mode) or rss.ts.
+  | "themarginalian"
+  | "jstordaily"
+  | "noema"
+  // Publications round 2 (10-01-26): two on the sitemap walker (sitemap.ts), one WordPress, one
+  // feed — same registry.
+  | "aeon"
+  | "psyche"
+  | "longreads"
+  | "theparisreview";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds
@@ -84,6 +95,15 @@ export interface NormalizedItem {
    *  and loupe are unaffected by its arrival. Only set it when the source *publishes* the smaller
    *  URL; a guessed one trades a real picture for a 404. */
   curationImageUrl?: string;
+  /** OPTIONAL: a piece's full text, for the writing curator and the reading time only (writing
+   *  Phase 5, 09-30-26, recorded in Ambit-Admin's log that day). A **publication** ships its
+   *  text in its feed (`content:encoded`, WordPress's `content.rendered`) but is a link card:
+   *  Ambit may score the piece on it and never display it, so `body` stays null and this carries
+   *  it instead. Plain text, never markup. **Never stored** — ingest strips it before the upsert
+   *  (`storedItem`, db/items.ts) — and never rendered. The curator reads `body` first when an item
+   *  has one. Additive and optional like `curationImageUrl`: ambit-archive and loupe are
+   *  unaffected. */
+  curationText?: string;
   sourceUrl: string;
   attribution: string;
   license: string;

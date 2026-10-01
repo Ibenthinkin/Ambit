@@ -9,16 +9,23 @@ import { sourceLabel } from "~/lib/source-label";
 import { BLOG_LICENSE, BLOGS, blogConfig, isBlogSource } from "./blogs";
 import { LOUPE } from "./loupe";
 import { PDR } from "./pdr";
+import { PUBLICATIONS } from "./publications";
 import { WALK_SOURCES } from "./topics";
 
 describe("designated-blog registry", () => {
-  // Every blog is a walk source, and every walk source is a blog — except the two that walk
-  // without being blogs: the Public Domain Review (config/pdr.ts) and Loupe (config/loupe.ts).
-  // Named here so a third non-blog walker is a deliberate edit to this list, not a silent hole.
-  it("lists every walk source that is not PDR or Loupe", () => {
-    expect([...BLOGS.map((b) => b.id), PDR.id, LOUPE.id].sort()).toEqual(
-      [...WALK_SOURCES].sort(),
-    );
+  // Every blog is a walk source, and every walk source is a blog — except the ones that walk
+  // without being blogs: the Public Domain Review (config/pdr.ts), Loupe (config/loupe.ts), and
+  // since writing Phase 5 the publications (config/publications.ts). Named here so another
+  // non-blog walker is a deliberate edit to this list, not a silent hole.
+  it("lists every walk source that is not PDR, Loupe or a publication", () => {
+    expect(
+      [
+        ...BLOGS.map((b) => b.id),
+        ...PUBLICATIONS.map((p) => p.id),
+        PDR.id,
+        LOUPE.id,
+      ].sort(),
+    ).toEqual([...WALK_SOURCES].sort());
   });
 
   it("gives every blog a real credit-line label, never the title-case fallback", () => {

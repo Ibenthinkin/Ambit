@@ -11,7 +11,7 @@
 //
 // No walk() test, consistent with every other adapter: I/O is not the unit-test surface. The
 // cursor arithmetic is pure and tested separately below.
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BLOG_LICENSE } from "~/server/config/blogs";
 import recorded from "./__fixtures__/doorofperception-post.json";
@@ -165,6 +165,35 @@ describe("pictureSrcs", () => {
         '<p>x</p><img alt="" src="a.jpg"><a href="b.jpg"><img decoding="async" src="b-1x1.jpg" /></a><img src="a.jpg">',
       ),
     ).toEqual(["a.jpg", "b-1x1.jpg"]);
+  });
+});
+
+// Same finding as wp-rest.test.ts (09-30-26): the cursor is a page number, so only the first page
+// may be shrunk by `limit`.
+describe("doorofperception.walk — page size", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("asks for a full page after the first, whatever the remaining limit", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", (input: string | URL) => {
+      urls.push(String(input));
+      return Promise.resolve(
+        new Response("[]", {
+          status: 200,
+          // One page: DoP reads its whole tag list first, a page at a time, 500 ms apart.
+          headers: {
+            "x-wp-totalpages": "1",
+            "content-type": "application/json",
+          },
+        }),
+      );
+    });
+    // DoP's page is 20 posts (it fans each out to its pictures); a limit under that must not
+    // shrink page 2.
+    await doorofperception.walk("2", { limit: 5 });
+    expect(urls.find((u) => u.includes("/posts?"))).toMatch(
+      /per_page=20&page=2/,
+    );
   });
 });
 

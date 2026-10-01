@@ -35,6 +35,22 @@ export type { ItemTopicOrigin } from "./schema";
  *     happens deliberately, by bumping curator.ts's PROMPT_VERSION, which the curation cache keys
  *     on — never as a side effect of an item's catalog record changing upstream.
  */
+/**
+ * An ingest item as a row: the two fields a source hands the curator and nothing else are
+ * dropped here — `curationImageUrl` (a smaller rendition to score) and `curationText` (a link-card
+ * publication's full text, which Ambit may score and never display; writing Phase 5). Drizzle
+ * would ignore both as unknown keys anyway; this makes "never stored" a line of code and a test
+ * rather than a property of the ORM.
+ */
+export function storedItem<T extends object>(
+  item: T & { curationText?: string; curationImageUrl?: string },
+): Omit<T, "curationText" | "curationImageUrl"> {
+  const row: Partial<typeof item> = { ...item };
+  delete row.curationText;
+  delete row.curationImageUrl;
+  return row as Omit<T, "curationText" | "curationImageUrl">;
+}
+
 export async function upsertItem(values: NewItem): Promise<Item> {
   // Dynamic import for the same reason drawFromTopic below uses one: importing "./client" at
   // module scope pulls in "~/env"'s Zod validation, which crashes `bun run test` in CI (no env

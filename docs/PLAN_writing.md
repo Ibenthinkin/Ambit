@@ -165,6 +165,26 @@ Ship this only after Phase 2's lists have run on production, or per-topic writin
 
 ## Phase 5: publications
 
+> **Built 09-30-26 on `feat/publications`.** `curationText` was recorded in Ambit-Admin's log
+> first. Nine candidates were probed live; the table is in `docs/source-candidates.md`.
+> Differences from the plan:
+> 1. **`PublicationConfig` is a union on `walk`**: `wp-rest` (article mode) or `rss` (`feedUrl`,
+>    `fullText`, `paged`). The probe favoured WordPress REST wherever it is open: 100 posts a page,
+>    the whole archive, `content.rendered` as the curator's text.
+> 2. **`fullText` is `content-encoded | none`**. There is no page fetch: a dek-only feed is scored
+>    on its dek.
+> 3. **The dek** is the feed's `<description>` less WordPress's "appeared first on" footer. When
+>    only the footer is there (Noema), the piece's first paragraph of ≥ 80 characters is used,
+>    capped at 600.
+> 4. **`normalize.ts` `fullText()`** drops HTML comments and script/style blocks before
+>    `htmlToText`, because Noema's templates leave comments in the feed.
+> 5. **No prune guard in code.** Every publication has a `walkQuota`, which already makes a walk
+>    never `complete`.
+> 6. **`stats:walk` runs the writing floor** as ingest does, and prints kinds, minutes p25/p50/p90
+>    and the share with a picture. The news and dated counts were dropped with the news rule.
+> 7. **An RSS entry linking off-site is a `toItem` error**, counted per item: a recommendation of
+>    someone else's piece is not publishing one.
+
 - **`src/server/config/publications.ts`**:
   - `PublicationConfig { id, label, feedUrl, baseUrl, license, robotsCheckedOn, walkQuota, fullText: 'content-encoded'|'none', paged?: 'wp' }`.
   - The license string matches the blogs': "Rights retained by original authors — displayed with credit and link".

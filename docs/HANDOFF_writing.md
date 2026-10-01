@@ -4,7 +4,85 @@ Read this before touching the writing code. It is self-contained; the design is
 `docs/DESIGN_writing.md` (D1–D8), the plan `docs/PLAN_writing.md` (five phases), and `log.md`
 09-28 / 09-29 have the narrative.
 
-## ▶ Pick up here (09-30-26, late): Phase 4 merged to `main` (`7224ace`) and pushed — deploy, then Phase 5
+## ▶ Pick up here (10-01-26, later): all seven publications kept and built — merge, deploy, backfill
+
+**Ben, 10-01-26:** include Aeon, Psyche, Longreads and The Paris Review; "bring in as much as you
+can from all approved publications — we will let the feed sort them out downstream."
+
+**Built on `feat/publications`** (committed, not pushed): the four registered, a new
+`sources/sitemap.ts` walker for Aeon and Psyche (their archive through the sitemap, text from
+the page), and all seven out of `SUSPENDED_SOURCES`. `walkQuota` is now the **nightly** bound
+(60–200 newest); the archives come in once, by backfill. `check` green (1,729 tests). The probe
+findings and the four samples are in `docs/source-candidates.md`'s Publications section.
+
+**Next, in order:**
+1. ~~Push, merge~~ (done 10-01-26); Ben deploys. **All seven are held in `SUSPENDED_SOURCES`**
+   until the Claude judge exists (Ben's call) — the nightly ingest walks none of them.
+   When the judge lands: remove the seven lines from `config/suspended-sources.ts`, flip
+   `publications.test.ts`'s "holds every publication suspended" test, deploy, then step 2
+   through the Mac.
+2. Ben: `sh .cache/publications-backfill-prod.sh run` — one publication at a time, each walked
+   newest first to its `backfillQuota` (~10,750 pieces in all, Ben's quarter-size cut) and its
+   pictures warmed; `status` shows where it is. ~$5–6 of OpenRouter, a few hours, ~1 GB. Or wait
+   for the Claude judge (`docs/HANDOFF_claude-judge-ingest.md`, a parallel session) and run it
+   through the Mac on the subscription.
+3. Read each walk log's summary (stored, floored, un-homed, topics) — that is the readout.
+   The Paris Review is the newest ten only (Cloudflare blocks everything else); it grows nightly.
+
+## Earlier 10-01-26: verdicts are in — unsuspend the three, merge, deploy (Ben said hold off coding until he says go)
+
+**Ben's answers, 10-01-26:**
+- **Keep all three:** The Marginalian, JSTOR Daily, Noema.
+- **`abstract` stays vague**, covering pictures and writing alike: showing people what they
+  wouldn't otherwise see is part of the mission. No vocabulary change and no re-score.
+- **Aeon, Psyche, Longreads and The Paris Review are pending, not excluded.** Ben is reading
+  sample stories first.
+
+**The code still to do, when Ben says go:**
+1. Take the three out of `SUSPENDED_SOURCES`.
+2. Merge `feat/publications`, then deploy.
+3. Walk the three one at a time on production.
+4. If Ben keeps any of the four pending ones, build it then. Aeon and Psyche need a decision on
+   the dek-only problem (their feeds carry no text past the dek).
+
+**State of the branch:** `feat/publications` is off `main` at `9ff7cd2` (Phase 4 merged and
+deployed), committed and not pushed. Its commits:
+- `49b290f`: publications, `curationText`, `rss.ts`, wp-rest article mode
+- `595f27f`: the WordPress page-size fix
+- docs commits after that
+
+`check` passed (1,716 tests) at `0dff7b2`. Ben's uncommitted `src/server/config/topic-groups.ts`
+edit is his; leave it alone.
+
+**Sample stories Ben is reading** (pulled from the feeds on 09-30-26):
+- Aeon: [Don't use the 'C-word'](https://aeon.co/essays/we-need-a-better-way-to-describe-what-is-often-called-cancer) · [Toadstools and toxins](https://aeon.co/essays/a-scientists-search-for-answers-about-amanita-muscaria-gummies) · [Cosmic amnesia](https://aeon.co/essays/black-holes-ring-like-bells-what-happens-next-is-stranger)
+- Psyche: [The evil eye is irrational](https://psyche.co/ideas/the-evil-eye-is-irrational-abandon-it-at-your-peril) · [Maxxing treats life as a problem](https://psyche.co/ideas/maxxing-treats-life-as-a-problem-when-its-a-mystery) · [The full-service grandad](https://psyche.co/turning-points/i-am-a-full-service-grandad-where-are-the-others)
+- Longreads: [A Record of Breath](https://longreads.com/2026/09/30/preservation-oxford-american/) · [Britain's Gen Z Undertakers](https://longreads.com/2026/09/28/gen-z-undertakers-britain/) · [Labyrinths reading list](https://longreads.com/2026/09/29/labyrinths-mazes-kanya-kanchana/)
+- Paris Review: [On "Derek"](https://www.theparisreview.org/blog/2026/09/21/on-derek-captain-ahabs-evil-half-brother/) · [My Larval Roommates](https://www.theparisreview.org/blog/2026/09/18/my-larval-roommates-sarah-nicole-prickett/) · [John Berger, Death's Secretary](https://www.theparisreview.org/blog/2026/09/24/john-berger-deaths-secretary-a-conversation-with-tom-overton/)
+
+**What keeping each would take** (none is built):
+- **Aeon and Psyche:** a dek-only feed. Every piece fails the 400-character writing floor unless
+  Ambit fetches the page, which is what their robots lines ask AI crawlers not to do. They need a
+  decision first.
+- **Longreads:** its posts are excerpts of other outlets' stories. `rss.ts` already refuses
+  off-site links; whether an excerpt-of-an-excerpt fits the link-card posture is the question.
+- **The Paris Review:** newest 10 only, so it accumulates nightly with a `walkQuota`. Its
+  `content:encoded` is full text.
+
+## Earlier 09-30-26 (evening): Phase 5 built on `feat/publications` — Ben's verdicts, then merge
+
+**Phase 5 (publications) is built on `feat/publications`, committed and not merged.** Three
+publications are registered and suspended: `themarginalian`, `jstordaily`, `noema`. The probe of
+nine candidates and the three 150-item samples are in `docs/source-candidates.md`'s new
+"Publications" section, with a recommendation per row. Ben decides:
+1. A verdict on each of the three.
+2. The **`abstract` question**: the writing curator files ideas under the `look`-facet
+   `abstract` topic (Noema 88/149).
+
+Then merge and deploy, and take the kept ones out of `SUSPENDED_SOURCES` one at a time. Phase 4
+is merged and deployed.
+
+## Earlier 09-30-26 (late): Phase 4 merged to `main` (`7224ace`) and pushed — deploy, then Phase 5
 
 **Phase 4 (cards) is merged to `main` (`7224ace`) and pushed. It is not deployed yet.** Its "Built" note
 in `docs/PLAN_writing.md` lists the four choices made while building it. `check` passes, and so

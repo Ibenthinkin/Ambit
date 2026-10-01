@@ -81,6 +81,15 @@ export const WALK_SOURCES = [
   // Sources round 4 (09-13-26): the two kept of eight, also on the factory.
   "jareckiworld",
   "kvetchlandia",
+  // Writing Phase 5 (09-30-26): publications, link cards of writing (config/publications.ts).
+  "themarginalian",
+  "jstordaily",
+  "noema",
+  // Publications round 2 (10-01-26): Ben's verdict, all four kept.
+  "aeon",
+  "psyche",
+  "longreads",
+  "theparisreview",
 ] as const;
 
 export type WalkSourceId = (typeof WALK_SOURCES)[number];

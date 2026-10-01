@@ -8,7 +8,16 @@
 import { and, inArray, isNotNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { BLOGS, isBlogSource } from "~/server/config/blogs";
+import {
+  isPublicationSource,
+  PUBLICATIONS,
+  publicationConfig,
+} from "~/server/config/publications";
+import { storedItem } from "~/server/db/items";
 import dopFixtures from "./__fixtures__/doorofperception.json";
 import loupeFixtures from "./__fixtures__/loupe.json";
 import mafFixtures from "./__fixtures__/mossandfog.json";
@@ -29,6 +38,13 @@ import toiichFixtures from "./__fixtures__/toiich.json";
 import vgcFixtures from "./__fixtures__/vintagegeekculture.json";
 import tonFixtures from "./__fixtures__/things-organized-neatly.json";
 import ticFixtures from "./__fixtures__/thisiscolossal.json";
+// Writing Phase 5 (09-30-26) — the publications.
+import jstorFixtures from "./__fixtures__/jstordaily.json";
+import marginalianFixtures from "./__fixtures__/themarginalian.json";
+// Publications round 2 (10-01-26).
+import lrFixtures from "./__fixtures__/longreads.json";
+import { parseFeed } from "./rss";
+import { parseArticlePage } from "./sitemap";
 import { walkers } from "./index";
 
 const fixturesByWalker: Record<string, unknown[]> = {
@@ -50,7 +66,96 @@ const fixturesByWalker: Record<string, unknown[]> = {
   thisisnthappiness: tihFixtures,
   jareckiworld: jareckiFixtures,
   kvetchlandia: kvetchFixtures,
+  themarginalian: marginalianFixtures,
+  jstordaily: jstorFixtures,
+  noema: parseFeed(
+    readFileSync(path.join(__dirname, "__fixtures__", "rss-noema.xml"), "utf8"),
+  ),
+  aeon: [
+    {
+      url: "https://aeon.co/essays/we-need-a-better-way-to-describe-what-is-often-called-cancer",
+      ...parseArticlePage(fixtureText("sitemap-aeon-essay.html")),
+    },
+  ],
+  psyche: [
+    {
+      url: "https://psyche.co/ideas/the-evil-eye-is-irrational-abandon-it-at-your-peril",
+      ...parseArticlePage(fixtureText("sitemap-psyche-idea.html")),
+    },
+    {
+      url: "https://psyche.co/guides/how-to-cultivate-shoshin-or-a-beginners-mind",
+      ...parseArticlePage(fixtureText("sitemap-psyche-guide.html")),
+    },
+  ],
+  longreads: lrFixtures,
+  theparisreview: parseFeed(fixtureText("rss-theparisreview.xml")),
 };
+
+function fixtureText(name: string): string {
+  return readFileSync(path.join(__dirname, "__fixtures__", name), "utf8");
+}
+
+/** Every fixture row a walker accepts, normalized. A row toItem rejects is not an item. */
+function itemsOf(id: string) {
+  const walker = walkers[id as keyof typeof walkers];
+  return (fixturesByWalker[id] ?? []).flatMap((raw) => {
+    try {
+      return [walker.toItem(raw)];
+    } catch {
+      return [];
+    }
+  });
+}
+
+// Writing Phase 5: a publication is a link card of writing. Its full text reaches the curator
+// (`curationText`) and never the database or the screen — the same promise a blog's `body: null`
+// makes, extended to text Ambit holds for a moment at ingest.
+describe("publication invariants (unit)", () => {
+  it("every publication walker normalizes to an article with body null", () => {
+    for (const p of PUBLICATIONS) {
+      const items = itemsOf(p.id);
+      expect(items.length, p.id).toBeGreaterThan(0);
+      for (const item of items) {
+        expect(item.type, p.id).toBe("article");
+        expect(item.body, p.id).toBeNull();
+      }
+    }
+  });
+
+  it("credits the publication and carries its license, as its config says", () => {
+    for (const p of PUBLICATIONS)
+      for (const item of itemsOf(p.id)) {
+        expect(item.attribution, p.id).toBe(p.label);
+        expect(item.license, p.id).toBe(p.license);
+      }
+  });
+
+  it("links every item to the publication's own host", () => {
+    for (const p of PUBLICATIONS)
+      for (const item of itemsOf(p.id))
+        expect(new URL(item.sourceUrl).host, p.id).toBe(
+          new URL(p.baseUrl).host,
+        );
+  });
+
+  it("carries the full text for the curator, and storedItem strips it before the upsert", () => {
+    for (const p of PUBLICATIONS)
+      for (const item of itemsOf(p.id)) {
+        expect(item.curationText, p.id).toBeTruthy();
+        const row = storedItem(item);
+        expect(row, p.id).not.toHaveProperty("curationText");
+        expect(row, p.id).not.toHaveProperty("curationImageUrl");
+        expect(row.summary.length, p.id).toBeLessThan(
+          item.curationText!.length,
+        );
+      }
+  });
+
+  it("names only registered publications as publications", () => {
+    expect(isPublicationSource("wikipedia")).toBe(false);
+    expect(publicationConfig("doorofperception")).toBeUndefined();
+  });
+});
 
 describe("walk-source invariants (unit)", () => {
   it("every registered walker has a fixture here", () => {
@@ -112,7 +217,7 @@ const TAG_PATTERN = [
 describe.skipIf(!process.env.DATABASE_URL)(
   "walk-source invariants (integration)",
   () => {
-    it("no blog row in the DB carries a body", async () => {
+    it("no link-card row — blog or publication — in the DB carries a body", async () => {
       const { db } = await import("~/server/db/client");
       const { item } = await import("~/server/db/schema");
       const rows = await db
@@ -120,10 +225,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
         .from(item)
         .where(
           and(
-            inArray(
-              item.source,
-              BLOGS.map((b) => b.id),
-            ),
+            inArray(item.source, [
+              ...BLOGS.map((b) => b.id),
+              ...PUBLICATIONS.map((p) => p.id),
+            ]),
             isNotNull(item.body),
           ),
         );

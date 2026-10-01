@@ -49,6 +49,8 @@
  *                                                         # has removed (complete walks only)
  *   bun run ingest --source sovietpostcards              # bounded by that blog's walkQuota
  *                                                         # (blogs.ts); prints a resume cursor
+ *   bun run ingest --source aeon --backfill              # a publication's archive, newest first,
+ *                                                         # to its backfillQuota (publications.ts)
  *   bun run ingest --source sovietpostcards --cursor 12900   # the rest of the archive, from where
  *                                                             # the budgeted walk stopped
  *   (* --dry-run alone still calls the curator unless paired with --skip-llm; combine both for a
@@ -58,7 +60,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "~/server/db/client";
 import { recordIngestRun } from "~/server/db/ingest-runs";
-import { addItemTopics, upsertItem } from "~/server/db/items";
+import { addItemTopics, storedItem, upsertItem } from "~/server/db/items";
 import {
   item,
   savedItem,
@@ -93,6 +95,7 @@ import {
 import { enrichBodies } from "~/server/services/sources/enrich";
 import { runWalk, type WalkRunStats } from "~/server/services/walk-run";
 import { blogConfig } from "~/server/config/blogs";
+import { publicationConfig } from "~/server/config/publications";
 import { isSuspendedSource } from "~/server/config/suspended-sources";
 import { adapters, ALL_SOURCE_IDS, walkers } from "~/server/services/sources";
 import type {
@@ -124,6 +127,10 @@ const prune = args.includes("--prune");
 // only makes sense for exactly one walk source at a time — and, like --quota, it makes the run
 // incomplete, because a walk that did not start at the beginning cannot say a row is gone.
 const cursorFlag = flagValue("cursor");
+// A publication's one-time archive run (config/publications.ts, 10-01-26): each walk is bounded
+// by its `backfillQuota` instead of its per-run `walkQuota`. Bounded either way, so never
+// `complete` and never prunable.
+const backfill = args.includes("--backfill");
 
 if (!Number.isFinite(quota) || quota <= 0) {
   console.error(
@@ -375,9 +382,14 @@ async function main() {
   // For a walker, --quota is a TOTAL item bound (there are no cells to be "per" of). Absent, the
   // blog's own `walkQuota` applies (blogs.ts, 09-06-26) — which is what keeps un-parking a
   // 108,982-post archive in the nightly ingest from walking all of it. Absent from both, the walk
-  // runs to exhaustion, which is the only kind of walk --prune may trust.
+  // runs to exhaustion, which is the only kind of walk --prune may trust. A publication's budget
+  // (config/publications.ts, writing Phase 5) is the same lever.
   const walkBound = (id: WalkSourceId): number | undefined =>
-    args.includes("--quota") ? quota : blogConfig(id)?.walkQuota;
+    args.includes("--quota")
+      ? quota
+      : backfill && publicationConfig(id)
+        ? publicationConfig(id)!.backfillQuota
+        : (blogConfig(id)?.walkQuota ?? publicationConfig(id)?.walkQuota);
 
   if (topicFlag && sourceFlag && sourceFlag in walkers) {
     console.log(
@@ -607,7 +619,10 @@ async function main() {
     );
     if (!winner) continue; // unreachable in practice — every curated item came from winnerByKey's own keys
     if (!dryRun) {
-      const row = await upsertItem({ ...curatedItem, topicId: winner.topicId });
+      const row = await upsertItem({
+        ...storedItem(curatedItem),
+        topicId: winner.topicId,
+      });
       membershipsWritten += await addItemTopics(
         row.id,
         [winner.topicId],
@@ -644,7 +659,10 @@ async function main() {
     }
     const primary = curatedItem.topics[0] ?? null;
     if (!dryRun) {
-      const row = await upsertItem({ ...curatedItem, topicId: primary });
+      const row = await upsertItem({
+        ...storedItem(curatedItem),
+        topicId: primary,
+      });
       membershipsWritten += await addItemTopics(
         row.id,
         curatedItem.topics,

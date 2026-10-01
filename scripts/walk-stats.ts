@@ -10,7 +10,7 @@
  * made permanent.
  *
  * What it does: walks the source exactly the way ingest's walk lane does (newest first, up to
- * `--quota` offered), runs structuralFloor, then curateItems in classify mode. Since Cut 1 the
+ * `--quota` offered), runs structuralFloor and writingFloor, then curateItems in classify mode. Since Cut 1 the
  * split is classified / **un-homed** rather than classified / refused — every curated item is
  * stored either way, so the un-homed share is a fact about the *vocabulary*, not about the
  * source, and the `un-homed tags` line is what a new topic gets proposed from. Run it AFTER the
@@ -36,6 +36,7 @@ import {
   type CuratedItem,
   curateItems,
   structuralFloor,
+  writingFloor,
 } from "~/server/services/curator";
 import { tagHistogram } from "~/server/services/ingest-plan";
 import { type NormalizedItem, walkers } from "~/server/services/sources";
@@ -77,7 +78,13 @@ do {
   cursor = page.next;
 } while (cursor !== undefined && offered.length < quota);
 
-const { kept, dropped } = structuralFloor(offered);
+// Both floors, in ingest's order: the structural one, then (writing Phase 1) the writing floor's
+// `thin-text` for articles — which reads a publication's `curationText`, so a short dek over a
+// long piece survives it.
+const structural = structuralFloor(offered);
+const writing = writingFloor(structural.kept);
+const kept = writing.kept;
+const dropped = [...structural.dropped, ...writing.dropped];
 const byRule = new Map<string, number>();
 for (const d of dropped) byRule.set(d.rule, (byRule.get(d.rule) ?? 0) + 1);
 
@@ -167,6 +174,38 @@ console.log(
       .map(({ tag, n }) => `${tag} ${n}`)
       .join(" · "),
 );
+
+// Writing (Phase 5, for a publication's verdict): what kinds the curator named, how long the
+// pieces run, and how many cards would lead with a picture (Phase 4's writing tile) rather than
+// fall back to text — an SVG-derived lead image is no picture (masonry.ts `hasLeadPicture`).
+const articles = curated.filter((c) => c.type === "article");
+if (articles.length > 0) {
+  const kinds = new Map<string, number>();
+  for (const c of articles) {
+    const k = c.kind ?? "(none)";
+    kinds.set(k, (kinds.get(k) ?? 0) + 1);
+  }
+  const minutes = articles
+    .map((c) => c.readingMinutes)
+    .filter((m): m is number => typeof m === "number")
+    .sort((a, b) => a - b);
+  const at = (q: number) =>
+    minutes.length
+      ? minutes[Math.min(minutes.length - 1, Math.floor(q * minutes.length))]
+      : "–";
+  const pictured = articles.filter(
+    (c) => c.imageUrl !== null && !c.imageUrl.includes(".svg.png"),
+  ).length;
+  console.log(
+    `  writing: kinds ` +
+      [...kinds]
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, n]) => `${k} ${n}`)
+        .join(", ") +
+      ` · minutes p25 ${at(0.25)} / p50 ${at(0.5)} / p90 ${at(0.9)} (${minutes.length} timed)` +
+      ` · with a picture ${pct(pictured, articles.length)}`,
+  );
+}
 
 const line = (c: CuratedItem) =>
   `    ${c.curationScore}  ${c.topics.join("+") || "(un-homed)"}`.padEnd(24) +

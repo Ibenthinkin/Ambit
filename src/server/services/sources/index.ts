@@ -9,6 +9,15 @@ import { mossandfog } from "./mossandfog";
 import { nasaImages } from "./nasa-images";
 import { pdr } from "./pdr";
 import { poetrydb } from "./poetrydb";
+import {
+  aeon,
+  jstordaily,
+  longreads,
+  noema,
+  psyche,
+  themarginalian,
+  theparisreview,
+} from "./publications";
 import { smithsonian } from "./smithsonian";
 import { streetartnews } from "./streetartnews";
 import { thingsorganizedneatly } from "./things-organized-neatly";
@@ -73,6 +82,15 @@ export const walkers: Record<WalkSourceId, CorpusWalkAdapter<unknown>> = {
   // Sources round 4 (09-13-26) — the two kept of eight.
   jareckiworld,
   kvetchlandia,
+  // Writing Phase 5 (09-30-26) — publications, link cards of writing (config/publications.ts).
+  themarginalian,
+  jstordaily,
+  noema,
+  // Publications round 2 (10-01-26).
+  aeon,
+  psyche,
+  longreads,
+  theparisreview,
 };
 
 /** For CLIs that validate a `--source` flag: everything ingest knows how to reach. */

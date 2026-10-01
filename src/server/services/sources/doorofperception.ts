@@ -246,10 +246,15 @@ async function walk(
   // Page 1 is the start of a walk: check the policy file before anything else.
   if (page === 1) await assertCrawlAllowed(BLOG.baseUrl);
 
-  // `limit` bounds this page's size so `--quota N` can do a cheap structural check without
-  // pulling 100 posts. No `_fields=` here: it would strip `_embedded`, which is the whole reason
-  // for `_embed` (verified 08-25-26 — the filtered form returns an empty embed).
-  const perPage = Math.max(1, Math.min(PER_PAGE, opts?.limit ?? PER_PAGE));
+  // `limit` may shrink the FIRST page only (a cheap `--quota N` check); every later page is
+  // PER_PAGE, because the cursor is a page number and page N only names the same posts if every
+  // page is the same size — wp-rest.ts has the 09-30-26 finding. No `_fields=` here: it would
+  // strip `_embedded`, which is the whole reason for `_embed` (verified 08-25-26 — the filtered
+  // form returns an empty embed).
+  const perPage =
+    page === 1
+      ? Math.max(1, Math.min(PER_PAGE, opts?.limit ?? PER_PAGE))
+      : PER_PAGE;
   const url =
     `${BLOG.baseUrl}/wp-json/wp/v2/posts?per_page=${perPage}&page=${page}` +
     `&_embed=wp:featuredmedia`;
