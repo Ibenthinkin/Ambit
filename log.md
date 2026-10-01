@@ -144,6 +144,12 @@ run anyway as a read-only measurement.
 
 **Open / next:**
 
+- **Later the same day: `CLAUDE_WRITING_PROMPT` (v2), on Ben's yes.** A rubric of its own for
+  the Claude judge, versioned separately so production's cache is untouched. Against the same
+  34 marks: Haiku MAE 1.74 → 1.29 (0.85 without Loupe), Sonnet 5.5 0.88 (0.65), flash-lite 1.15
+  (0.69). Haiku clears the written gate by 0.01 and still flattens essays to 8; Sonnet beats
+  flash-lite. The numbers are optimistic — tuned and scored on the same marks. Next: Ben picks
+  Haiku or Sonnet for writing, ideally after marking a fresh batch.
 - **WORK ITEM: move the judge to VM 202** once Ben has freed RAM and disk there (design doc,
   "Open"): where `claude` is installed, the subscription token as a Coolify secret, ~236 MB a
   judge call, the weekly two-job split, the health threshold.
@@ -155,6 +161,7 @@ run anyway as a read-only measurement.
 - Not pushed, not merged. Publications stay suspended.
 
 *Session spend: 24.45M tok (in 315 · out 212.2k · cache r 23.13M / w 1.10M) · ~≥$10.19 · fable-5-1 + opus-4-7 · 11:05→11:57*
+*Session spend: 8.11M tok (in 65 · out 58.1k · cache r 7.80M / w 250.9k) · ~≥$2.01 · fable-5-1 + opus-4-7 · 11:57→12:08*
 
 ## 2026-09
 

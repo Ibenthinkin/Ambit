@@ -20,9 +20,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | unusual architecture, innovative materials | architecture |
-| claude-haiku-4-5-20251001 | 7 | curiosity | odd architecture, experimental building, 1960s-70s design, religious space | architecture, balloons, industrial-design |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | weather balloons, unconventional architecture, construction method | balloons, architecture |
-| claude-sonnet-5-5 | 7 | curiosity | odd history, balloon-built architecture, lost technology | architecture, balloons, industrial |
+| claude-haiku-4-5-20251001 | 7 | curiosity | odd architecture, experimental building, 1970s design | architecture, balloons, industrial-design |
+| claude-sonnet-5-5 | 7 | curiosity | odd construction, mid-century architecture, lost technology, inflated forms | architecture, balloons, technology |
 
 - ben-score: 5
 - ben-kind: archive
@@ -39,9 +38,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 9 | essay | photography, archive, lost history | photography, books |
-| claude-haiku-4-5-20251001 | 8 | essay | photography history, archive, new deal, lost images | photography |
-| claude-haiku-4-5-20251001+think | 8 | essay | destroyed photographs, great depression, editorial control | photography |
-| claude-sonnet-5-5 | 9 | essay | killed negatives, farm security administration, archive and absence, odd history | photography, portraits, melancholy |
+| claude-haiku-4-5-20251001 | 9 | essay | archival history, visual culture, censorship and curation, depression-era america | photography, activism |
+| claude-sonnet-5-5 | 9 | essay | killed negatives, fsa photography, archival absence, odd history | photography, portraits, black-and-white |
 
 - ben-score: 9
 - ben-kind: essay
@@ -58,9 +56,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 8 | curiosity | mapmaking, design principles, automation | cartography, graphic-design |
-| claude-haiku-4-5-20251001 | 5 | curiosity | cartographic design, information theory, map-making | cartography |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | map simplification, design theory, visual hierarchy | cartography |
-| claude-sonnet-5-5 | 6 | curiosity | map design, information theory, cartography history | cartography |
+| claude-haiku-4-5-20251001 | 7 | curiosity | cartography basics, design process, information theory | cartography |
+| claude-sonnet-5-5 | 7 | curiosity | map design, cartography, information theory | cartography, diagram, graphic-design |
 
 - ben-score: 6
 - ben-kind: curiosity
@@ -77,9 +74,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 4 | curiosity | odd history, industrial materials | industrial-design |
-| claude-haiku-4-5-20251001 | 2 | archive | vintage catalog, obscure commerce, garbled text |  |
-| claude-haiku-4-5-20251001+think | 2 | archive | vintage advertising, industrial, product catalog |  |
-| claude-sonnet-5-5 | 3 | archive | catalog listing, plastics, whole earth |  |
+| claude-haiku-4-5-20251001 | 2 | archive | garbled text, catalog fragment, vintage advertising |  |
+| claude-sonnet-5-5 | 4 | archive | catalog clipping, plastics, whole earth style |  |
 
 - ben-score: 3
 - ben-kind: archive
@@ -96,9 +92,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 8 | essay | literary criticism, biography, jazz age | literature, books |
-| claude-haiku-4-5-20251001 | 8 | criticism | literary biography, quiet biography, zelda fitzgerald, lost legend | literature, books |
-| claude-haiku-4-5-20251001+think | 7 | criticism | scott fitzgerald, biography and fiction, literary analysis | literature, books |
-| claude-sonnet-5-5 | 7 | essay | f scott fitzgerald, literary biography, legend vs work, gender and charm | literature, books, portraits |
+| claude-haiku-4-5-20251001 | 8 | essay | literary biography, zelda fitzgerald, artistic legend vs. life, gender and influence | literature, books |
+| claude-sonnet-5-5 | 8 | essay | quiet biography, literary legend, writers' lives | literature, books |
 
 - ben-score: 8
 - ben-kind: 
@@ -115,9 +110,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | historical regions, geography, etymology | travel, natural-history |
-| claude-haiku-4-5-20251001 | 4 | curiosity | regional history, geography, etymology |  |
-| claude-haiku-4-5-20251001+think | 5 | curiosity | obscure region, etymology, ancient colonization | ancient-history |
-| claude-sonnet-5-5 | 5 | curiosity | historical region, black sea, etymology | landscapes, ancient-history |
+| claude-haiku-4-5-20251001 | 7 | curiosity | regional history, geography, divided territory | ancient-history |
+| claude-sonnet-5-5 | 8 | curiosity | historical region, etymology, black sea, danube delta | landscapes, ancient-history, travel |
 
 - ben-score: 7
 - ben-kind: curiosity
@@ -134,9 +128,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | precision measurement, mechanical engineering, vintage tools | machines, industrial-design |
-| claude-haiku-4-5-20251001 | 5 | archive | precision tools, mechanical instruction, vintage handbook | machines, industrial-design |
-| claude-haiku-4-5-20251001+think | 5 | archive | vintage handbooks, precision tools, mechanical engineering, technical heritage | machines, industrial |
-| claude-sonnet-5-5 | 6 | archive | precision measurement, workshop handbooks, micrometers, whole earth catalog | machines, technology |
+| claude-haiku-4-5-20251001 | 4 | curiosity | technical manual, measuring instruments, vintage instructional | machines, industrial, technology |
+| claude-sonnet-5-5 | 7 | curiosity | precision measurement, machine tools, vintage handbook, micrometers | machines, technology, technical-drawing |
 
 - ben-score: 5
 - ben-kind: archive
@@ -153,9 +146,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 9 | essay | detective fiction, crime history, france | literature, books |
-| claude-haiku-4-5-20251001 | 8 | essay | odd history, crime and detection, self-invention, french criminal underworld |  |
-| claude-haiku-4-5-20251001+think | 8 | essay | detective history, criminal biography, literary inspiration | literature |
-| claude-sonnet-5-5 | 8 | curiosity | quiet biography, odd history, crime and policing, literary origins | books, literature |
+| claude-haiku-4-5-20251001 | 8 | essay | biography, crime history, french history, detective origins | books |
+| claude-sonnet-5-5 | 9 | essay | quiet biography, odd history, crime and policing, literary origins | books, literature |
 
 - ben-score: 9
 - ben-kind: 
@@ -172,9 +164,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | observatories, radio astronomy, astronomy | astronomy |
-| claude-haiku-4-5-20251001 | 4 | curiosity | observatory, polish science, radio astronomy | astronomy |
-| claude-haiku-4-5-20251001+think | 3 | curiosity | obscure observatory, radio astronomy | astronomy |
-| claude-sonnet-5-5 | 6 | curiosity | radio astronomy, observatory, polish science | astronomy, science |
+| claude-haiku-4-5-20251001 | 6 | curiosity | astronomical observatory, polish science, radio astronomy | astronomy |
+| claude-sonnet-5-5 | 7 | curiosity | radio astronomy, observatory, polish science, vlbi | astronomy, science, machines |
 
 - ben-score: 8
 - ben-kind: curiosity
@@ -191,9 +182,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | essay | dome-geometry, solar-energy, personal-narrative | architecture, technology |
-| claude-haiku-4-5-20251001 | 7 | archive | counterculture, geodesic geometry, solar energy, maker philosophy | architecture, technology, industrial-design |
-| claude-haiku-4-5-20251001+think | 7 | archive | counterculture, geodesic domes, design philosophy, oral history | architecture, industrial-design |
-| claude-sonnet-5-5 | 7 | archive | counterculture, steve baer, solar energy, domes | architecture, light |
+| claude-haiku-4-5-20251001 | 7 | archive | counterculture, geodesic design, solar energy, vernacular philosophy | architecture, technology |
+| claude-sonnet-5-5 | 8 | archive | counterculture, solar energy, domes, oral voice | architecture, technology, science |
 
 - ben-score: 4
 - ben-kind: archive
@@ -210,9 +200,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 8 | essay | literary analysis, german romanticism, tragedy | literature |
-| claude-haiku-4-5-20251001 | 7 | criticism | literary criticism, german romanticism, philosophical themes, lost masterpiece | literature |
-| claude-haiku-4-5-20251001+think | 8 | criticism | kleist, obscure play, tragic error, romanticism | literature |
-| claude-sonnet-5-5 | 5 | criticism | kleist, german drama, literary criticism, early work | literature |
+| claude-haiku-4-5-20251001 | 8 | criticism | literary analysis, german romanticism, kleist, tragic drama | literature |
+| claude-sonnet-5-5 | 8 | criticism | german drama, kleist, literary criticism, fate and error | literature |
 
 - ben-score: 8
 - ben-kind: curiosity
@@ -229,9 +218,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | poetic meter, classical verse, literary terms | literature |
-| claude-haiku-4-5-20251001 | 7 | curiosity | metrical history, word origins, poetic form, classical roots | poetry, literature |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | etymology, meter, obscure history | literature |
-| claude-sonnet-5-5 | 5 | curiosity | poetic meter, prosody, verse | poetry, literature |
+| claude-haiku-4-5-20251001 | 7 | curiosity | poetry technique, classical meter, etymology | poetry, literature |
+| claude-sonnet-5-5 | 7 | curiosity | poetic meter, prosody, etymology, verse | poetry, literature, ancient-history |
 
 - ben-score: 8
 - ben-kind: curiosity
@@ -248,9 +236,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 2 | essay | fragmented narrative, grief, memory |  |
-| claude-haiku-4-5-20251001 | 2 | essay | garbled text, incoherent narrative |  |
-| claude-haiku-4-5-20251001+think | 1 | essay | death, grief, stream of consciousness |  |
-| claude-sonnet-5-5 | 7 | archive | stream of consciousness, grief, american prose poem | literature, melancholy, death |
+| claude-haiku-4-5-20251001 | 2 | archive | fragmentary text, corrupted |  |
+| claude-sonnet-5-5 | 7 | archive | beat prose, grief, funeral, american vernacular | literature, melancholy |
 
 - ben-score: 8
 - ben-kind: essay
@@ -267,9 +254,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 9 | essay | philosophy, religion, dreams, eroticism | literature, mythology, natural-history |
-| claude-haiku-4-5-20251001 | 8 | curiosity | odd history, dream interpretation, religious visionary, sexual philosophy | literature, mythology |
-| claude-haiku-4-5-20251001+think | 8 | criticism | dream diary, censored sexuality, psychological interpretation | literature, consciousness |
-| claude-sonnet-5-5 | 8 | curiosity | dream diary, odd history, swedenborg, religious visions | literature, medicine, mythology |
+| claude-haiku-4-5-20251001 | 8 | curiosity | strange history, dream interpretation, sexuality and spirituality, forgotten figure | mythology |
+| claude-sonnet-5-5 | 9 | essay | dream diary, odd history, visionary scientist, suppressed text | literature, books, mythology |
 
 - ben-score: 10
 - ben-kind: 
@@ -286,9 +272,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | ocean currents, fluid dynamics, natural phenomena | the-ocean, nature |
-| claude-haiku-4-5-20251001 | 5 | curiosity | oceanography, ocean currents, physics of water | the-ocean |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | ocean circulation, coriolis effect, five major gyres | the-ocean, science |
-| claude-sonnet-5-5 | 5 | curiosity | oceanography, fluid dynamics, ocean currents | the-ocean, science, water |
+| claude-haiku-4-5-20251001 | 7 | curiosity | ocean systems, fluid dynamics, planetary science | the-ocean, science |
+| claude-sonnet-5-5 | 8 | curiosity | ocean currents, physical oceanography, natural phenomena, fluid dynamics | the-ocean, science, water |
 
 - ben-score: 7
 - ben-kind: curiosity
@@ -305,9 +290,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | odd history, lost technology, folk belief | books, industrial-design |
-| claude-haiku-4-5-20251001 | 7 | curiosity | obscure reference work, forgotten formulas, curious history, practical oddities | books |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | forgotten reference, obsolete formulas, practical oddities | books |
-| claude-sonnet-5-5 | 7 | criticism | odd books, lost formulas, whole earth catalog, dry wit | books, science, fire |
+| claude-haiku-4-5-20251001 | 5 | curiosity | obsolete reference, curious catalog, vintage formulas |  |
+| claude-sonnet-5-5 | 7 | curiosity | odd history, formula books, counterculture review, obsolete know-how | books, science, whimsical |
 
 - ben-score: 7
 - ben-kind: curiosity
@@ -324,9 +308,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 9 | essay | witchcraft, folk legend, prophecy, media history | literature, mythology |
-| claude-haiku-4-5-20251001 | 8 | essay | odd history, folk legend, propaganda and myth-making, witch lore | literature, mythology, ancient-history |
-| claude-haiku-4-5-20251001+think | 8 | essay | odd history, folk legend, prophecy, propaganda | mythology, poetry |
-| claude-sonnet-5-5 | 8 | essay | odd history, folk prophecy, print culture, witch legend | mythology, literature, natural-history |
+| claude-haiku-4-5-20251001 | 8 | essay | forgotten legend, propaganda & belief, english history, print culture | mythology, literature |
+| claude-sonnet-5-5 | 9 | essay | odd history, folk belief, prophecy, invented legend | mythology, books, ancient-history |
 
 - ben-score: 9
 - ben-kind: 
@@ -343,9 +326,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | canadian history, collectors, industrial history | ceramics |
-| claude-haiku-4-5-20251001 | 7 | curiosity | canadian ceramics, mid-century manufacturing, collector's culture, immigrant enterprise | ceramics |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | lost pottery, craft heritage, collector culture | ceramics, industrial-design |
-| claude-sonnet-5-5 | 7 | curiosity | odd history, canadian pottery, ski hill origins, collectibles | ceramics, clay, whimsical |
+| claude-haiku-4-5-20251001 | 7 | curiosity | canadian ceramics, mid-century manufacturing, collector culture | ceramics, industrial-design |
+| claude-sonnet-5-5 | 7 | curiosity | art pottery, odd history, canadian industry, collectibles | ceramics, clay |
 
 - ben-score: 7
 - ben-kind: curiosity
@@ -362,9 +344,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | essay | bionics, nature-inspired-design, historical-tech | science, nature, industrial-design |
-| claude-haiku-4-5-20251001 | 6 | archive | biomimicry, design history, lost book, 1960s science | science |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | biomimicry, design philosophy, innovation | industrial-design, natural-history |
-| claude-sonnet-5-5 | 7 | archive | bionics, whole earth catalog, nature as design | science, technology, industrial-design |
+| claude-haiku-4-5-20251001 | 5 | archive | biomimicry, design history, natural patterns |  |
+| claude-sonnet-5-5 | 7 | archive | bionics, whole earth catalog, biological design, period review | science, technology, nature |
 
 - ben-score: 6
 - ben-kind: curiosity
@@ -381,9 +362,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 8 | essay | odd history, animal propaganda, wwi | advertising, natural-history, animals |
-| claude-haiku-4-5-20251001 | 8 | curiosity | odd history, propaganda, animal breeding, world war i | animals, advertising |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | odd history, propaganda, animal breeding | animals |
-| claude-sonnet-5-5 | 8 | curiosity | odd history, wwi propaganda, goldfish breeding, liberty bonds | animals, advertising, natural-history |
+| claude-haiku-4-5-20251001 | 8 | curiosity | odd history, wartime propaganda, fish breeding, marketing | animals, advertising |
+| claude-sonnet-5-5 | 9 | essay | odd history, wwi propaganda, goldfish breeding, forgotten episode | animals, advertising, natural-history |
 
 - ben-score: 8
 - ben-kind: 
@@ -400,9 +380,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | mythology, ancient greece, personification | mythology |
-| claude-haiku-4-5-20251001 | 7 | curiosity | greek mythology, personification, minor deity, ancient religion | mythology, ancient-history |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | minor goddess, greek mythology, odd history | mythology, ancient-history |
-| claude-sonnet-5-5 | 5 | curiosity | greek mythology, personification, victory goddess | mythology, ancient-history |
+| claude-haiku-4-5-20251001 | 8 | curiosity | greek mythology, personification, victory concept, ancient religion | mythology, ancient-history |
+| claude-sonnet-5-5 | 8 | curiosity | greek mythology, personification, etymology, ancient religion | mythology, ancient-history, literature |
 
 - ben-score: 9
 - ben-kind: curiosity
@@ -419,9 +398,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 4 | curiosity | odd history, lost technology | machines |
-| claude-haiku-4-5-20251001 | 4 | archive | industrial design, vintage catalog, useful obscurity | industrial-design, technology |
-| claude-haiku-4-5-20251001+think | 3 | curiosity | lost catalog, practical engineering, springs |  |
-| claude-sonnet-5-5 | 5 | archive | lost technology, catalog, springs | machines |
+| claude-haiku-4-5-20251001 | 4 | archive | vintage catalog, industrial design, practical reference | machines, industrial-design |
+| claude-sonnet-5-5 | 5 | archive | whole earth catalog, springs, mail-order hardware | machines |
 
 - ben-score: 
 - ben-kind: 
@@ -438,9 +416,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 9 | essay | phenology, natural history, historical science | nature, botany, birds |
-| claude-haiku-4-5-20251001 | 8 | curiosity | quiet biography, phenology, lost data, naturalist obsession | nature, science, trees |
-| claude-haiku-4-5-20251001+think | 9 | essay | quiet biography, phenology, naturalist records | natural-history, botany |
-| claude-sonnet-5-5 | 8 | essay | phenology, quiet biography, nature diary, odd history | nature, natural-history, trees |
+| claude-haiku-4-5-20251001 | 8 | curiosity | phenology, natural history, long observation, quiet biography | nature, science, trees |
+| claude-sonnet-5-5 | 9 | essay | phenology, quiet biography, natural history, odd history | natural-history, nature, trees |
 
 - ben-score: 7
 - ben-kind: 
@@ -457,9 +434,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | ancient history, greek islands, port towns | travel, ancient-history, architecture |
-| claude-haiku-4-5-20251001 | 5 | curiosity | island history, cycladic culture, mediterranean | ancient-history, travel |
-| claude-haiku-4-5-20251001+think | 4 | curiosity | ancient cyclades, venetian citadel, forgotten port, bronze age settlement | ancient-history, architecture |
-| claude-sonnet-5-5 | 6 | curiosity | greek islands, cycladic history, refugee city | landscapes, ancient-history, architecture |
+| claude-haiku-4-5-20251001 | 7 | curiosity | island history, mediterranean geography, cycladic culture | landscapes, ancient-history, travel |
+| claude-sonnet-5-5 | 8 | curiosity | greek islands, bronze age, port city history, cyclades | landscapes, ancient-history, architecture |
 
 - ben-score: 8
 - ben-kind: curiosity
@@ -476,9 +452,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 2 | curiosity | odd history, lost technology |  |
-| claude-haiku-4-5-20251001 | 5 | archive | vintage product, industrial design, forgotten technology | technology, industrial-design |
-| claude-haiku-4-5-20251001+think | 5 | archive | forgotten technology, vintage products, industrial products | technology, industrial |
-| claude-sonnet-5-5 | 4 | archive | lab equipment, catalog entry, water purification | machines |
+| claude-haiku-4-5-20251001 | 3 | archive | vintage product, mid-century industrial, forgotten technology |  |
+| claude-sonnet-5-5 | 4 | archive | lab equipment, catalog fragment, water purification |  |
 
 - ben-score: 
 - ben-kind: 
@@ -495,9 +470,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 8 | essay | odd history, natural history, evolution | natural-history, science |
-| claude-haiku-4-5-20251001 | 8 | curiosity | evolutionary thinking, natural history, scientific detective work, forgotten precedents | natural-history, science, animals |
-| claude-haiku-4-5-20251001+think | 8 | essay | overlooked history, history of science, polar bears | natural-history, science |
-| claude-sonnet-5-5 | 8 | curiosity | darwin's bear, history of science, polar bears, odd history | natural-history, zoology, animals |
+| claude-haiku-4-5-20251001 | 8 | curiosity | evolutionary theory, natural history, animal adaptation, darwin's thinking | natural-history, science, animals |
+| claude-sonnet-5-5 | 9 | essay | odd history, evolution, natural history, darwin | natural-history, zoology, animals |
 
 - ben-score: 8
 - ben-kind: essay
@@ -514,9 +488,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 8 | curiosity | architectural history, european styles, medieval art | architecture |
-| claude-haiku-4-5-20251001 | 5 | curiosity | architectural history, regional styles, medieval churches | architecture |
-| claude-haiku-4-5-20251001+think | 5 | curiosity | architectural history, medieval monasteries, regional styles | architecture |
-| claude-sonnet-5-5 | 4 | curiosity | serbian architecture, survey, medieval churches | architecture |
+| claude-haiku-4-5-20251001 | 7 | curiosity | architectural history, regional diversity, medieval heritage | architecture, ancient-history |
+| claude-sonnet-5-5 | 8 | curiosity | architectural history, medieval monasteries, balkan heritage, regional styles | architecture, ancient-history |
 
 - ben-score: 8
 - ben-kind: curiosity
@@ -533,9 +506,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 4 | curiosity | odd tools, tiny crafts | jewelry, chicago |
-| claude-haiku-4-5-20251001 | 5 | curiosity | lost tools, vintage catalog, craftspeople, chicago | jewelry, machines, chicago |
-| claude-haiku-4-5-20251001+think | 5 | archive | vintage ephemera, lost business, specialized craftsmanship, whimsy |  |
-| claude-sonnet-5-5 | 4 | archive | whole earth catalog, watchmaking tools, forgotten institution | chicago |
+| claude-haiku-4-5-20251001 | 3 | archive | tools, catalog excerpt, chicago | chicago |
+| claude-sonnet-5-5 | 5 | archive | whole earth catalog, tool suppliers, ephemera | chicago |
 
 - ben-score: 
 - ben-kind: 
@@ -552,9 +524,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 9 | essay | photography, darwin, victorian science, mental health history | medicine, science, photography |
-| claude-haiku-4-5-20251001 | 8 | essay | odd history, victorian science, photography as evidence, mental illness & emotion | science, photography, medicine |
-| claude-haiku-4-5-20251001+think | 8 | essay | victorian science, psychiatric photography, odd history | photography, science, medicine |
-| claude-sonnet-5-5 | 8 | essay | darwin, victorian photography, history of science, asylum portraits | photography, medicine, emotions |
+| claude-haiku-4-5-20251001 | 8 | essay | odd history, scientific photography, evolution of emotion, victorian science | photography, science, medicine |
+| claude-sonnet-5-5 | 9 | essay | darwin, psychiatric photography, history of emotions, victorian science | photography, science, medicine |
 
 - ben-score: 9
 - ben-kind: essay
@@ -571,9 +542,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 4 | curiosity | astronomical survey, galaxy evolution | astronomy |
-| claude-haiku-4-5-20251001 | 3 | curiosity | astronomical survey, technical reference, galaxy evolution | astronomy |
-| claude-haiku-4-5-20251001+think | 2 | curiosity | astronomical survey, galaxy evolution | astronomy |
-| claude-sonnet-5-5 | 5 | curiosity | deep sky survey, galaxy evolution, observational astronomy | astronomy, science |
+| claude-haiku-4-5-20251001 | 5 | curiosity | astronomical survey, galaxy evolution, multi-wavelength observation | astronomy |
+| claude-sonnet-5-5 | 7 | curiosity | deep-sky survey, galaxy evolution, observatories | astronomy, science |
 
 - ben-score: 8
 - ben-kind: curiosity
@@ -590,9 +560,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 2 | essay | stream of consciousness, fragmented narrative |  |
-| claude-haiku-4-5-20251001 | 1 | archive |  |  |
-| claude-haiku-4-5-20251001+think | 3 | archive | stream of consciousness, 1960s counterculture, economic precarity, experimental prose |  |
-| claude-sonnet-5-5 | 8 | archive | beat prose, stream of consciousness, grief and drift, american underground | literature, melancholy, shoes |
+| claude-haiku-4-5-20251001 | 2 | archive | fragmentary text, incoherent |  |
+| claude-sonnet-5-5 | 6 | archive | beat prose, stream of consciousness, 1970s counterculture, fragment | literature |
 
 - ben-score: 8
 - ben-kind: 
@@ -609,9 +578,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 8 | essay | victorian science, poetry and science, history of science communication | literature, science |
-| claude-haiku-4-5-20251001 | 7 | essay | victorian intellectual history, science & poetry, forgotten polymaths, cultural history | literature, science |
-| claude-haiku-4-5-20251001+think | 8 | essay | victorian science, science and poetry, intellectual history | literature, poetry |
-| claude-sonnet-5-5 | 7 | essay | victorian science, poetry and science, forgotten books, intellectual history | poetry, science, literature |
+| claude-haiku-4-5-20251001 | 8 | essay | victorian intellectual history, science and poetry, cultural reconciliation | literature, science, poetry |
+| claude-sonnet-5-5 | 8 | essay | victorian science, poetry and science, forgotten books, intellectual history | poetry, science, literature |
 
 - ben-score: 7
 - ben-kind: essay
@@ -628,9 +596,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 8 | curiosity | asian mythology, shamanism, nomadic culture | mythology |
-| claude-haiku-4-5-20251001 | 6 | curiosity | mythology, cultural history, belief systems | mythology |
-| claude-haiku-4-5-20251001+think | 5 | curiosity | mythology, ancient belief systems, turkic culture, odd history | mythology, ancient-history |
-| claude-sonnet-5-5 | 6 | curiosity | turkic myth, tengrism, religious syncretism | mythology, ancient-history |
+| claude-haiku-4-5-20251001 | 8 | curiosity | mythology, religious history, cultural syncretism | mythology, ancient-history |
+| claude-sonnet-5-5 | 8 | curiosity | mythology, turkic peoples, tengrism, language and etymology | mythology, ancient-history, monster |
 
 - ben-score: 9
 - ben-kind: curiosity
@@ -647,9 +614,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 6 | curiosity | earthworks, gardening | landscapes, nature |
-| claude-haiku-4-5-20251001 | 7 | curiosity | forgotten technology, practical ingenuity, grassland management, 1970s innovation | machines, nature, technology |
-| claude-haiku-4-5-20251001+think | 6 | curiosity | practical invention, mid-century oddity, forgotten product |  |
-| claude-sonnet-5-5 | 5 | archive | lost technology, mid-century engineering, grass reinforcement | industrial |
+| claude-haiku-4-5-20251001 | 7 | curiosity | practical innovation, grassland management, industrial solution | machines, nature |
+| claude-sonnet-5-5 | 6 | archive | period clipping, odd engineering, mid-century technology | technology, industrial |
 
 - ben-score: 
 - ben-kind: 
@@ -666,9 +632,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 9 | essay | poetry, drugs, first world war | literature, medicine |
-| claude-haiku-4-5-20251001 | 7 | essay | poet's biography, drug history, world war i, cocaine culture | literature, poetry, death |
-| claude-haiku-4-5-20251001+think | 8 | essay | war trauma, cocaine history, tragic biography | literature, poetry |
-| claude-sonnet-5-5 | 7 | essay | quiet biography, poetry and drugs, first world war, medical history | poetry, medicine, literature |
+| claude-haiku-4-5-20251001 | 8 | essay | poet biography, drug history, war trauma, early modernism | literature, death, poetry |
+| claude-sonnet-5-5 | 8 | essay | quiet biography, wwi poetry, drugs and medicine, austrian literature | poetry, literature, medicine |
 
 - ben-score: 10
 - ben-kind: essay
@@ -685,9 +650,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | textile history, design archive, industrial heritage | textiles, london |
-| claude-haiku-4-5-20251001 | 7 | curiosity | obscure institution, textile history, british manufacturing | textiles, architecture |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | textile design heritage, industrial archives, forgotten institutions | textiles, architecture |
-| claude-sonnet-5-5 | 7 | curiosity | textile archive, forgotten institution, british design | textiles, pattern, architecture |
+| claude-haiku-4-5-20251001 | 7 | curiosity | industrial heritage, british design, textile history | textiles, architecture, natural-history |
+| claude-sonnet-5-5 | 7 | curiosity | textile history, design archive, silk weaving, british industry | textiles, pattern, architecture |
 
 - ben-score: 7
 - ben-kind: curiosity
@@ -704,9 +668,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 8 | essay | history of science, mechanical engineering, ancient technology | science, technology, japan |
-| claude-haiku-4-5-20251001 | 1 | curiosity |  |  |
-| claude-haiku-4-5-20251001+think | 2 | criticism | mechanical innovation, technological history, lost knowledge | technology, machines |
-| claude-sonnet-5-5 | 6 | archive | whole earth catalog, joseph needham, chinese engineering, counterculture | technology, machines |
+| claude-haiku-4-5-20251001 | 1 | archive |  |  |
+| claude-sonnet-5-5 | 7 | archive | whole earth catalog, joseph needham, chinese technology, odd history | technology, machines, ancient-history |
 
 - ben-score: 
 - ben-kind: 
@@ -723,9 +686,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 9 | essay | odd history, arctic, legend | natural-history, travel, books |
-| claude-haiku-4-5-20251001 | 8 | curiosity | lost history, arctic exploration, legend-making, dutch golden age |  |
-| claude-haiku-4-5-20251001+think | 7 | essay | lost legend, arctic whaling, myth-making | animals, travel |
-| claude-sonnet-5-5 | 8 | curiosity | odd history, legend, whaling, arctic | natural-history, ancient-history, the-ocean |
+| claude-haiku-4-5-20251001 | 8 | curiosity | lost history, arctic exploration, myth-making, whaling | travel |
+| claude-sonnet-5-5 | 9 | essay | odd history, arctic legend, whaling, myth-making | natural-history, travel, mythology |
 
 - ben-score: 9
 - ben-kind: essay
@@ -742,9 +704,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | plant morphology, botany | plants |
-| claude-haiku-4-5-20251001 | 7 | curiosity | botany, plant morphology, taxonomic detail, grass structure | botany, plants, natural-history |
-| claude-haiku-4-5-20251001+think | 7 | curiosity | plant anatomy, grass flowers, botanical terminology | botany, plants |
-| claude-sonnet-5-5 | 6 | curiosity | grass anatomy, plant morphology, botanical terms | botany, plants, flowers |
+| claude-haiku-4-5-20251001 | 7 | curiosity | plant morphology, botany, grass anatomy | botany, plants, natural-history |
+| claude-sonnet-5-5 | 7 | curiosity | plant anatomy, grasses, small odd structures, botany | botany, plants, flowers |
 
 - ben-score: 8
 - ben-kind: curiosity
@@ -761,9 +722,8 @@ The models' answers are in each table. Don't edit those.
 | model | score | kind | tags | topics |
 | --- | --- | --- | --- | --- |
 | gemini-2.5-flash-lite | 7 | curiosity | lost technology, odd history | machines, technology |
-| claude-haiku-4-5-20251001 | 3 | archive | lost technology, industrial oddity, vintage advertising | technology, industrial |
-| claude-haiku-4-5-20251001+think | 4 | archive | lost adhesive, naval engineering, mid-century ephemera | technology, industrial |
-| claude-sonnet-5-5 | 6 | archive | lost technology, naval repair, vintage product sheet | industrial, metal |
+| claude-haiku-4-5-20251001 | 4 | archive | lost technology, vintage product, industrial adhesive | technology, industrial |
+| claude-sonnet-5-5 | 6 | archive | lost technology, odd history, navy repair, ephemera | machines |
 
 - ben-score: 
 - ben-kind: 

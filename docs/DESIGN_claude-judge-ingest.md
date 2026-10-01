@@ -120,6 +120,23 @@ The way through that keeps production's cache valid is a **separate prompt const
 Claude judge** (its own version in its own cache namespace), iterated with `--rescore` exactly as
 v1 → v2 was. Not built; Ben's decision. **The publications backfill was not run.**
 
+**Update, same day: a Claude-specific writing prompt (Ben said yes).** `CLAUDE_WRITING_PROMPT`
+in `curator.ts`, with its own version (`wc<n>` in the cache key), so the shared prompt and
+production's cache are untouched. Two rounds against the same 34 marks:
+
+| Judge, Claude prompt v2 | MAE | Bias | MAE without Loupe | Spearman |
+| --- | --- | --- | --- | --- |
+| flash-lite (shared prompt, for reference) | 1.15 | −0.32 | 0.69 | 0.55 |
+| Haiku 4.5 | 1.29 | −0.82 | 0.85 | 0.61 |
+| Sonnet 5.5 | 0.88 | +0.18 | 0.65 | 0.57 |
+
+Haiku now clears the gate as written (within 0.15 of flash-lite overall), barely; it still
+gives almost every essay an 8 and reads short encyclopedia entries low. Sonnet beats flash-lite
+outright. **Caveat: the prompt was tuned on the same 34 marks it is scored against**, and its
+examples of what earns a 7 or an 8 echo subjects in that set, so these numbers flatter it. A
+fair test needs fresh marks. Which model judges writing is Ben's call (Sonnet spends more of
+the subscription per piece; not yet measured).
+
 **Pictures: close, two sources out.** 300 sampled, 280 compared (`docs/vision-comparison.md`):
 Spearman **0.72** (bar 0.60), mean 6.28 → 6.08 (shift −0.20, bar ±0.5), 71% within one point,
 share ≥ 8 down from 44% to 38%. Two sources shift more than the 1.0 bar: `archive` −1.53 and

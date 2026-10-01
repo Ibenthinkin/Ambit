@@ -256,22 +256,71 @@ Also give 2-4 short lowercase tags for its subject or appeal (e.g. "odd history"
 
 Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "kind": "<kind>", "timeliness": "<timeliness>", "topics": [<topic ids, best fit first, or empty>]}`;
 
+/** Bump when CLAUDE_WRITING_PROMPT changes — it is the Claude judge's writing cache version
+ *  (`wc<n>` in writingCacheKey), separate from WRITING_PROMPT_VERSION on purpose: iterating this
+ *  rubric must never invalidate an answer production holds from the OpenRouter judge. */
+export const CLAUDE_WRITING_PROMPT_VERSION = 2;
+
+/**
+ * The writing rubric the Claude judge reads (docs/DESIGN_claude-judge-ingest.md, Results;
+ * 10-01-26). It exists because WRITING_PROMPT failed its calibration under Claude: against Ben's
+ * 34 marks Haiku was 1.4 points harsher on average and two points harsher on Wikipedia, and
+ * neither thinking nor Sonnet moved it. WRITING_PROMPT v2 was tuned to Ben's marks *through
+ * flash-lite*, a generous reader; Claude takes "highly selective" and "fine but forgettable" at
+ * their word and files a sound encyclopedia entry at 4-5, where Ben put 7-8.
+ *
+ * So this is the same editor with the scale spelled out the way Ben used it: the subject is
+ * what is judged, an encyclopedia's plain tone is not a fault, length moves nothing, and the top
+ * of the scale is meant to be used. It drops the `timeliness` question, which nothing has read
+ * since 09-30-26 (WRITING_PROMPT keeps it only for its cache). Tune it with
+ * `bun run writing:calibrate --rescore --models …,claude-haiku-4-5-20251001`, and bump the
+ * version above with every edit.
+ */
+export const CLAUDE_WRITING_PROMPT = `You are choosing pieces for a beloved newsletter of long reads and curiosities — the kind people stay subscribed to for years. Its readers are curious generalists: they like learning that a thing exists. They read encyclopedia articles for pleasure as readily as essays. You read everything for them: encyclopedia articles, essays, criticism, profiles, poems, old magazine clippings, archival documents. You never run anything sensational, gory, or engagement-baity.
+
+Rate the following piece for the newsletter on a 1-10 scale. The question is "would a curious reader be glad they found this?" — not "is this fine prose?".
+  1-3  = unusable: garbled or fragmentary text, boilerplate, a bare list with nothing to follow
+  4-5  = readable but nothing in it: no subject a reader would remember tomorrow
+  6    = worth running for a narrow audience: accurate and specialist, of interest mainly to people already in the field
+  7-8  = good; readers would be glad to find it. This is where a sound piece about an interesting subject belongs
+  9-10 = the kind of piece the newsletter is known for: a rich subject told well, or an essay with a real voice and a story
+
+How to use the scale — read this carefully, because the common mistake is to score too low:
+- Judge the SUBJECT and what a reader learns, not the tone. An encyclopedia article is plain and neutral on purpose. Never mark a piece down for reading like an encyclopedia, for lacking a narrative voice, or for being a survey.
+- An encyclopedia article about a real, specific thing — a place, an institution, a natural phenomenon, a technique, a plant part, an instrument, a mythology — scores 7-8 on its subject alone: 8 when the subject has pull of its own (space, myth, language and etymology, a place with a long history, a small odd fact about the natural world), 7 when it is solid but plainer (a pottery, a company archive, an engineering concept). Go to 9 when the subject is broad and rich enough to get lost in (a whole mythology, a famous figure of legend). Drop to 6 only when it is technical enough that most readers would bounce off it.
+- Length is not a reason to move a score in either direction. A two-paragraph entry about an obscure observatory project or a survey of asteroids is a small shard of the world and scores 7-8 exactly as a long one would; a stub is only a problem when it says nothing at all. A long country or regional history is not "dutiful"; it is a place the reader has never been.
+- A well-made essay from a literary or historical review starts at 8, and 8 is for the ones that are competent and no more: an appreciation of a writer, a survey of a theme. Give 9 when the essay tells a story — a strange life, a hoax, a forgotten episode, a mystery followed to its end — which most good essays of this kind do. Give 10 to the rare one you would send to a friend that night. Do not give every essay the same score.
+- Most pieces you are shown have already passed a filter. Expect most scores to be 7 or higher; scores below 6 are for text that is broken, empty, or genuinely dull.
+
+Say what kind of piece it is — exactly one of:
+  "essay" — an essay or long read: an argument, a narrative, reporting with a point of view
+  "curiosity" — a subject explained: a strange history, an unlikely fact, a thing you never knew existed. Encyclopedia articles are almost always this
+  "criticism" — criticism or a profile: writing about a particular work, artist, writer or maker
+  "archive" — a poem, or a document from the past read for itself: a historical text, a clipping, a primary source
+
+Also give 2-4 short lowercase tags for its subject or appeal (e.g. "odd history", "lost technology", "folk belief", "quiet biography", "strange science").
+
+Reply with ONLY a JSON object, no code fence and no other text: {"score": <1-10>, "tags": ["...", "..."], "kind": "<kind>", "topics": [<topic ids, best fit first, or empty>]}`;
+
 /** WRITING_PROMPT with the topic block classify mode uses, over the vocabulary given. Writing
  *  always classifies — in the search lane too — because an article's seed topic is one keyword's
  *  guess and the curator has read the piece. */
 export function writingPrompt(
   topics: readonly { id: string; label: string }[],
+  /** Which judge will read it: a `claude-*` model gets CLAUDE_WRITING_PROMPT. */
+  model: string = judgeModel(),
 ): string {
-  const at = WRITING_PROMPT.lastIndexOf("Reply with ONLY");
+  const base = isClaudeModel(model) ? CLAUDE_WRITING_PROMPT : WRITING_PROMPT;
+  const at = base.lastIndexOf("Reply with ONLY");
   return (
-    WRITING_PROMPT.slice(0, at) +
+    base.slice(0, at) +
     `Also list which of these topics are an honest home for this piece — a topic a reader who chose it would be glad to find it in. Best fit first. Usually one or two, never more than three; an empty list is a correct answer. Never force a fit.
 ${topics.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
 
 The list is long; most of it will not apply — pick only honest homes.
 
 ` +
-    WRITING_PROMPT.slice(at)
+    base.slice(at)
   );
 }
 
@@ -679,7 +728,8 @@ export function writingCacheKey(
 ): string {
   return createHash("sha256")
     .update(
-      `${model}|w${WRITING_PROMPT_VERSION}|writing|${item.source}:${item.sourceId}`,
+      // `wc<n>` for a Claude model: its rubric has a version of its own (CLAUDE_WRITING_PROMPT).
+      `${model}|${isClaudeModel(model) ? `wc${CLAUDE_WRITING_PROMPT_VERSION}` : `w${WRITING_PROMPT_VERSION}`}|writing|${item.source}:${item.sourceId}`,
     )
     .digest("hex")
     .slice(0, 32);
@@ -746,7 +796,11 @@ async function scoreWriting(
   }
 
   const { result } = await callCurator(
-    { model, system: writingPrompt(vocabulary), content: writingAsText(item) },
+    {
+      model,
+      system: writingPrompt(vocabulary, model),
+      content: writingAsText(item),
+    },
     (reply) => parseWritingResponse(reply, { topicIds }),
   );
   await mkdir(CURATION_CACHE_DIR, { recursive: true });

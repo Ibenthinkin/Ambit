@@ -15,6 +15,8 @@ import {
   curateItems,
   curationCacheKey,
   CURATOR_MODEL,
+  CLAUDE_WRITING_PROMPT,
+  CLAUDE_WRITING_PROMPT_VERSION,
   CURATOR_PROMPT,
   parseWritingResponse,
   WRITING_PROMPT,
@@ -425,6 +427,8 @@ describe("the writing curator on the Claude judge", () => {
     vi.unstubAllEnvs();
   });
 
+  const vocab = [{ id: "botany", label: "Botany" }];
+
   it("reads a fenced writing reply: score, kind and topics", async () => {
     const [out] = await curateItems(
       [
@@ -434,17 +438,60 @@ describe("the writing curator on the Claude judge", () => {
           body: "word ".repeat(460),
         }),
       ],
-      { force: true, topics: [{ id: "botany", label: "Botany" }] },
+      { force: true, topics: vocab },
     );
     expect(out?.curationScore).toBe(9);
     expect(out?.kind).toBe("essay");
     expect(out?.topics).toEqual(["botany"]);
-    expect(systems[0]).toContain("timeliness");
+    // Its own rubric, not the OpenRouter one: no timeliness question, the topic block still in.
+    expect(systems[0]).toBe(writingPrompt(vocab, CLAUDE_JUDGE_MODEL));
+    expect(systems[0]).not.toContain("timeliness");
+    expect(systems[0]).toContain("botany — Botany");
   });
 
   it("an explicit writingModel overrides the env's judge", () => {
     expect(writingCacheKey({ source: "pdr", sourceId: "1" })).toBe(
       writingCacheKey({ source: "pdr", sourceId: "1" }, CLAUDE_JUDGE_MODEL),
+    );
+  });
+});
+
+describe("the Claude judge has a writing rubric of its own", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const vocab = [{ id: "botany", label: "Botany" }];
+  const piece = { source: "pdr" as const, sourceId: "1" };
+
+  it("leaves the OpenRouter prompt exactly as it was", () => {
+    vi.stubEnv("CURATOR_JUDGE", "");
+    expect(writingPrompt(vocab)).toBe(writingPrompt(vocab, CURATOR_MODEL));
+    expect(writingPrompt(vocab)).toContain("timeliness");
+    expect(writingPrompt(vocab)).not.toContain(
+      CLAUDE_WRITING_PROMPT.slice(0, 60),
+    );
+  });
+
+  it("gives a claude-* model the Claude rubric, thinking or not", () => {
+    for (const model of [CLAUDE_JUDGE_MODEL, `${CLAUDE_JUDGE_MODEL}+think`]) {
+      const p = writingPrompt(vocab, model);
+      expect(p.startsWith(CLAUDE_WRITING_PROMPT.slice(0, 200))).toBe(true);
+      expect(p).toContain("botany — Botany");
+      expect(
+        p.trimEnd().endsWith(CLAUDE_WRITING_PROMPT.slice(-40).trimEnd()),
+      ).toBe(true);
+    }
+  });
+
+  it("keys the Claude cache on the Claude rubric's version, not the shared one", async () => {
+    const { createHash } = await import("node:crypto");
+    const sha = (s: string) =>
+      createHash("sha256").update(s).digest("hex").slice(0, 32);
+    expect(writingCacheKey(piece, CLAUDE_JUDGE_MODEL)).toBe(
+      sha(
+        `${CLAUDE_JUDGE_MODEL}|wc${CLAUDE_WRITING_PROMPT_VERSION}|writing|pdr:1`,
+      ),
+    );
+    expect(writingCacheKey(piece, CURATOR_MODEL)).toBe(
+      sha(`${CURATOR_MODEL}|w${WRITING_PROMPT_VERSION}|writing|pdr:1`),
     );
   });
 });
