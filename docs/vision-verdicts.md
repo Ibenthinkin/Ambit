@@ -67,8 +67,20 @@ flash-lite opinion.
 
 - **`CLAUDE_CURATOR_PROMPT` v1** (`curator.ts`): the picture rubric the Claude judge reads,
   carrying the rulings above, with its own cache version (`vc<n>`). `CURATOR_PROMPT` is
-  untouched. **Not yet checked against these verdicts** — the first attempt stopped at the
-  five-hour usage ceiling (86%) before scoring anything.
+  untouched. **v2, checked after the usage window reset:** against the 17 verdicts above, mean
+  error 0.88 (Haiku under the old prompt 2.29, flash-lite 2.53 — on pictures chosen *because*
+  the two disagreed, and the prompt was tuned on them, so this flatters it). Still wrong on the
+  two caption-scored museum objects (5 → 5, 11 → 6; Ben gave 2).
+- **The 300-picture comparison under v2** (`docs/vision-comparison.md`, regenerated): Spearman
+  0.64 (was 0.72), mean 6.27 → 5.98, MAE 1.42 (was 1.20). It moved *away* from flash-lite, as
+  intended in places and not in others. The new largest disagreements are of three kinds:
+  dark or grotesque art that flash-lite scored 2 and Haiku 7–8 (five `jareckiworld` paintings,
+  the Door of Perception three); promotional posts Haiku now scores 1 (shop and sale
+  announcements, the sponsored post, the Ko-fi banners); and **the promotional rule
+  over-firing** — a 1967 Leningrad postcard from a blog that also sells postcards, and reader
+  "SUBMISSION:" posts on thingsorganizedneatly, scored 1–2 as adverts. `thisiscolossal` is
+  −2.25 and `thingsorganizedneatly` −1.40. Open for Ben: is the dark art a 7–8, and should the
+  promotional rule be narrowed.
 - **`SOURCE_SCORE_FLOOR = { doorofperception: 8 }`**, applied to every newly judged item under
   either judge. Existing rows keep their scores until the rescore.
 - **Donation posts are dropped by the structural floor** (rule `donation`) before any judge is

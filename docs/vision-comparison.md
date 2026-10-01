@@ -1,12 +1,12 @@
 # Vision comparison — claude-haiku-4-5-20251001 against the stored scores (10-01-26)
 
-280 pictures compared, 20 excluded (image not fetched, or the judgment failed).
+279 pictures compared, 21 excluded (image not fetched, or the judgment failed).
 
-- mean score: stored 6.28 → new 6.08
-- mean absolute difference: 1.20
-- Spearman rank agreement: 0.72
-- within one point: 71%
-- scoring 8 or more: stored 44% → new 38%
+- mean score: stored 6.27 → new 5.98
+- mean absolute difference: 1.42
+- Spearman rank agreement: 0.64
+- within one point: 69%
+- scoring 8 or more: stored 43% → new 37%
 
 Proposed bar (D8): Spearman ≥ 0.60, mean shift within ±0.5, no source shifting more than 1.0. The verdict is Ben's.
 
@@ -14,44 +14,43 @@ Proposed bar (D8): Spearman ≥ 0.60, mean shift within ±0.5, no source shiftin
 
 | source | n | shift | MAE |
 | --- | --- | --- | --- |
-| archive | 17 | -1.53 | 1.53 |
-| thisiscolossal | 16 | -1.44 | 1.94 |
-| aic | 1 | -1.00 | 1.00 |
-| 70sscifiart | 17 | +0.88 | 1.35 |
-| nasa-images | 17 | -0.71 | 0.94 |
-| wellcome | 16 | -0.69 | 1.44 |
-| thevaultoftheatomicspaceage | 16 | -0.63 | 1.13 |
-| thisisnthappiness | 16 | -0.63 | 1.38 |
-| sovietpostcards | 16 | +0.56 | 1.06 |
-| doorofperception | 17 | +0.24 | 2.12 |
-| pdr | 17 | +0.18 | 0.76 |
-| met | 14 | +0.14 | 0.71 |
-| cma | 17 | +0.12 | 0.94 |
-| kvetchlandia | 17 | +0.12 | 1.29 |
-| loc | 17 | -0.12 | 0.24 |
-| thingsorganizedneatly | 15 | +0.07 | 1.40 |
-| smithsonian | 17 | +0.06 | 1.35 |
-| jareckiworld | 17 | +0.00 | 0.82 |
+| thisiscolossal | 16 | -2.25 | 2.63 |
+| doorofperception | 17 | +2.12 | 2.59 |
+| jareckiworld | 17 | +1.65 | 2.35 |
+| thingsorganizedneatly | 15 | -1.40 | 2.07 |
+| archive | 17 | -1.24 | 1.24 |
+| thevaultoftheatomicspaceage | 16 | -1.13 | 1.50 |
+| wellcome | 16 | -1.00 | 1.38 |
+| nasa-images | 17 | -0.94 | 1.06 |
+| 70sscifiart | 17 | +0.71 | 1.29 |
+| sovietpostcards | 16 | -0.56 | 1.31 |
+| thisisnthappiness | 16 | -0.31 | 1.31 |
+| loc | 17 | -0.29 | 0.29 |
+| cma | 17 | -0.24 | 0.82 |
+| pdr | 17 | -0.18 | 1.24 |
+| met | 14 | -0.14 | 0.71 |
+| kvetchlandia | 17 | -0.06 | 1.71 |
+| smithsonian | 17 | +0.00 | 0.59 |
 
 ## The largest disagreements — look at these
 
-- stored **8**, new **2** — doorofperception: [Sasha Shulgin’s Notebooks and lab records](http://localhost:3000/i/DZkpjw4I0W-aWKDBEJArL)
+- stored **2**, new **8** — doorofperception: [Toshio Saeki Nothing is True Everything is Permitted](http://localhost:3000/i/lrAKkoFyHFDjJPDStAlpQ)
+- stored **2**, new **8** — jareckiworld: [Curt Stenvert (1920-1992) — “Victory!](http://localhost:3000/i/H4mGZDGTy6UTiHaFOZNc8)
+- stored **2**, new **8** — jareckiworld: [Tapio Tuominen—Untitled (from series “Baroque”) oil on panel, 2015.](http://localhost:3000/i/Ycj_QSo6pw_OB8VLnmTPS)
+- stored **2**, new **8** — jareckiworld: [Dr. Jack Kevorkian (1928-2011) — Nearer, My God to Thee [oil and mixed](http://localhost:3000/i/go03tOVecLrJUKi2NkW04)
+- stored **2**, new **7** — jareckiworld: [Siegfried Zademack — Four Dialecticians, Posing (oil on canvas, 1982)](http://localhost:3000/i/9In9JcBAqGs_ION16UOM5)
+- stored **2**, new **7** — thisisnthappiness: [Something happening somewhere](http://localhost:3000/i/2qpEFeiteCv_Eo-2COtIs)
+- stored **6**, new **1** — sovietpostcards: [Leningrad (1967)](http://localhost:3000/i/bx21_pKPfh_ATd80jGGVw)
+- stored **3**, new **8** — doorofperception: [Yoshifumi Hayashi The Eternal Hunger of All Things](http://localhost:3000/i/LebEJMsxxuJFH1QjRn8Hw)
+- stored **6**, new **1** — thingsorganizedneatly: [SUBMISSION: PEDRALI ADV DESIGNED BY LEFTLOFT PHOTO BY PAOLO SPINAZZE](http://localhost:3000/i/Hd41v9axsgQpMo-u_YONz)
 - stored **3**, new **8** — doorofperception: [Alexey Kashpersky The Uncanny Body](http://localhost:3000/i/Qt6Qpf292tZsCkSwYsBTO)
-- stored **8**, new **3** — archive: [Underwater coral reef scene with sea turtles](http://localhost:3000/i/rliJ9-k0fzcQcHMNLOyc-)
+- stored **2**, new **7** — jareckiworld: [Jan Vytiska — Untitled (acrylic on canvas, 2013)](http://localhost:3000/i/xeGlmxnXwlT-5QbXiJeU3)
+- stored **6**, new **1** — sovietpostcards: [A whole bunch of envelopes is available in my shop.](http://localhost:3000/i/UjEWad3T-1EX3AKxhwj9v)
+- stored **6**, new **1** — thevaultoftheatomicspaceage: [https://ko-fi.com/thevault](http://localhost:3000/i/CsiBtSEgCquPQzYt-6heX)
+- stored **6**, new **1** — thevaultoftheatomicspaceage: [https://ko-fi.com/thevault](http://localhost:3000/i/Lt9ZoBinoAe29nhOx1Kj6)
+- stored **6**, new **1** — thisiscolossal: [Shape the Future of Art, Design, and Architecture at Cranbrook Academy](http://localhost:3000/i/TZvaFDZ1c2EekatbB9Npa)
+- stored **7**, new **2** — thingsorganizedneatly: [SUBMISSION: My daily essentials as a graduating senior in a vigorous V](http://localhost:3000/i/RwwhV6-hB6iIeiSvPNnbD)
 - stored **3**, new **8** — doorofperception: [Toshio Saeki Nothing is True Everything is Permitted](http://localhost:3000/i/foT_wC3MLCnZX1gOtG0pp)
-- stored **4**, new **8** — cma: [Concealed Drawer for a Globe Work Table (Globustisch)](http://localhost:3000/i/6qHmc17soQVEG3fIIwek_)
-- stored **6**, new **2** — thisisnthappiness: [How I met your mother, Caroline Furneaux](http://localhost:3000/i/uoWd0DpWCUzwMCN2uGIXx)
-- stored **2**, new **6** — 70sscifiart: [70s Sci-Fi Art](http://localhost:3000/i/cKfcJfYmD-q-zi8dEa73l)
-- stored **5**, new **9** — kvetchlandia: [Roman Vishniac Mara Vishniac, Roman’s Daughter, Posing in Front of An ](http://localhost:3000/i/PyfjOhu59-lpGteC8BN0g)
-- stored **8**, new **4** — archive: [Tiger snarling in the snow](http://localhost:3000/i/I163JJ72nwCST6tsLGPSF)
-- stored **3**, new **7** — doorofperception: [Yoshifumi Hayashi The Eternal Hunger of All Things](http://localhost:3000/i/LebEJMsxxuJFH1QjRn8Hw)
-- stored **4**, new **8** — smithsonian: [Pendant in Shape of Two Heads (Bacchus and Hermes) Back to Back](http://localhost:3000/i/YFj7ZAqle2rov9FEgCwvr)
-- stored **8**, new **4** — thisiscolossal: [Art Historical Masterworks Come Alive at Annual Halloween Parade in Ka](http://localhost:3000/i/_sOiLtkKvZqlJl8fWOhxh)
-- stored **7**, new **3** — wellcome: [A junior course of practical zoology / by the late A. Milnes Marshall ](http://localhost:3000/i/kpw4_UH5skEE-iUNvmefv)
-- stored **6**, new **2** — thevaultoftheatomicspaceage: [https://ko-fi.com/thevault](http://localhost:3000/i/CsiBtSEgCquPQzYt-6heX)
-- stored **6**, new **2** — thevaultoftheatomicspaceage: [https://ko-fi.com/thevault](http://localhost:3000/i/Lt9ZoBinoAe29nhOx1Kj6)
-- stored **6**, new **2** — thisiscolossal: [Shape the Future of Art, Design, and Architecture at Cranbrook Academy](http://localhost:3000/i/TZvaFDZ1c2EekatbB9Npa)
-- stored **4**, new **8** — kvetchlandia: [Jeff Pott Shirley, Los Angeles 2017](http://localhost:3000/i/wLBHBfdUmRuTtDMTGR3vM)
-- stored **8**, new **5** — thisisnthappiness: [Work in progress, David Molesky](http://localhost:3000/i/2wFjipLwnXDwzTjJBmVDa)
-- stored **5**, new **8** — 70sscifiart: [Bob Eggleton](http://localhost:3000/i/zrIilDKjZaBHjIJ1E_33F)
-- stored **6**, new **3** — kvetchlandia: [This is the Bass I’ve Been Playing Lately, a Gretsch G2202.](http://localhost:3000/i/kDKkLXh1YKLjUUL83EsfF)
+- stored **6**, new **2** — kvetchlandia: [This is the Bass I’ve Been Playing Lately, a Gretsch G2202.](http://localhost:3000/i/kDKkLXh1YKLjUUL83EsfF)
+- stored **5**, new **1** — thisiscolossal: [The Colossal Shop Is Moving: As We Pack Up, Take Something with You](http://localhost:3000/i/KteEzRHVOEsn1ehe58ajl)
+- stored **8**, new **4** — nasa-images: [Approaching the 2015 Arctic Sea Ice Minimum](http://localhost:3000/i/VTDeiGQAXUo8JGPsXdpKC)

@@ -171,7 +171,7 @@ Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."]}`;
 /** Bump when CLAUDE_CURATOR_PROMPT changes — the Claude judge's picture cache version (`vc<n>`
  *  in curationCacheKey), separate from PROMPT_VERSION so that iterating this rubric never
  *  invalidates a score production holds from the OpenRouter judge. */
-export const CLAUDE_PROMPT_VERSION = 1;
+export const CLAUDE_PROMPT_VERSION = 2;
 
 /**
  * The picture rubric the Claude judge reads (10-01-26). It comes out of Ben going through the
@@ -196,10 +196,10 @@ Rate the following item for your blog on a 1-10 scale:
   9-10 = exceptional; the kind of find your blog is known for
 
 How to judge — read these carefully:
-- Judge the PICTURE you are shown, not what the text says about it. The title and text tell you what you are looking at; they earn nothing by themselves. A dull photograph of an object with a fascinating history — a plain wooden box, a lump of glass with an inventory tag, a title page with no ornament — is still a dull photograph and scores 1-3. Never tag a quality you cannot see in the image.
+- Judge the PICTURE you are shown, not what the text says about it. The title and text tell you what you are looking at; they earn nothing by themselves. A dull photograph of an object with a fascinating history — a plain wooden box, a lump of glass with an inventory tag, a title page with no ornament — is still a dull photograph and scores 1-3. The test: cover the title. If you could not tell what the thing is or why it matters from the image alone — a small shapeless object on a white ground, a detail too faint to read — it is a 1-3, whatever the title claims is carved or painted on it. Never tag a quality you cannot see in the image.
 - If the picture does not match its title, judge the picture for what it is.
-- Bold, colourful, popular or crowd-pleasing is not a fault. A striking wildlife photograph, a dense decorative painting, a glossy science-fiction cover: if it would make someone stop scrolling it is a 7-8, however familiar the genre.
-- Age earns a second look. A photograph more than about 25 years old — a family slide, a holiday snapshot, a beach picture — is a document of its time, and its period feel and personal quality are its appeal; it is not engagement bait because someone in it wears a swimsuit. A recent picture whose only appeal is an attractive person is still bait. A formally strong photograph of a body — cropped to pattern, shape and shadow — is a photograph first, whatever its date.
+- Bold, colourful, popular or crowd-pleasing is not a fault, and neither is a familiar genre. A dramatic animal photograph — a big cat staring into the lens, teeth bared — is a 7-8: wildlife photography is always a little formulaic and people love it anyway. A dense, saturated painting in a folk, naive or decorative style is a 7-8 when it is vivid and well made; that style is a choice, not a lack of skill. If a picture would make someone stop scrolling, do not score it below 7 for being the kind of thing that is popular.
+- Age earns a second look. A photograph that is visibly more than about 25 years old — faded colour, slide or print grain, period clothes and hair — is a document of its time. A family slide, a holiday snapshot, a young woman in a bikini on a beach in the 1960s: these are personal, historical pictures, they score 6-7, and they are NOT engagement bait and must not be tagged as such. Only a recent picture whose sole appeal is an attractive person is bait. A formally strong photograph of a body — cropped to pattern, shape and shadow — is a photograph first, whatever its date.
 - Promotional posts score 1, however nice the image underneath: a request for donations or support, a sponsored announcement or advertisement for a school, product or sale, a banner carrying a link.
 - A clever idea in an ordinary snapshot is a 4-6: the picture has to carry it.
 - A scrap of text with nothing to look at — a cropped paragraph, a caption — scores 1-3, unless the lettering itself is the picture.

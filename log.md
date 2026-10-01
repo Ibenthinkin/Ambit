@@ -161,9 +161,12 @@ run anyway as a read-only measurement.
   the Door of Perception floor of 8 (`SOURCE_SCORE_FLOOR`, both judges, new judgments only), and
   a `donation` rule in the structural floor that drops a blog's Ko-fi/Patreon banners before
   scoring. 22 donation rows are already stored (all thevaultoftheatomicspaceage) and still
-  there. **The picture prompt is unverified**: the check against Ben's twenty stopped at the
-  five-hour ceiling (86%, the clean stop working as designed). To run after the reset:
-  the twenty, then `vision:compare --sample 300`.
+  there. The first check stopped at the five-hour ceiling (86%; the clean stop working as
+  designed). After the reset, **v2**: error against Ben's 17 verdicts 2.29 → 0.88 (tuned on
+  them). The 300-picture comparison moved *away* from flash-lite (Spearman 0.72 → 0.64): Haiku
+  now rates dark/grotesque art 7–8 where flash-lite gave 2, scores promotional posts 1, and
+  over-fires that rule on a seller-blog postcard and on reader submissions. Open for Ben: the
+  dark art, and narrowing the promotional rule.
 - **WORK ITEM: move the judge to VM 202** once Ben has freed RAM and disk there (design doc,
   "Open"): where `claude` is installed, the subscription token as a Coolify secret, ~236 MB a
   judge call, the weekly two-job split, the health threshold.
