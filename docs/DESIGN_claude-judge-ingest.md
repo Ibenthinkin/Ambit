@@ -142,6 +142,13 @@ Spearman **0.72** (bar 0.60), mean 6.28 → 6.08 (shift −0.20, bar ±0.5), 71%
 share ≥ 8 down from 44% to 38%. Two sources shift more than the 1.0 bar: `archive` −1.53 and
 `thisiscolossal` −1.44. The verdict needs Ben's eye on the twenty links.
 
+**Ben's item-by-item verdicts (same day, `docs/vision-verdicts.md`):** of the twenty largest
+disagreements Haiku was closer on 13, flash-lite on 7. Haiku's faults are specific and
+promptable (it scores the caption instead of the photograph; it is harsh on bold popular
+pictures; it reads an old swimsuit photo as bait); it catches promotional posts flash-lite
+misses. Decided there: **Door of Perception passes whole, floor 8, rescore later**; age buys a
+second look; popular is not a fault. **Writing goes to Sonnet 5.5** (`CLAUDE_WRITING_MODEL`).
+
 **Cost against the subscription:** 300 pictures moved the five-hour window about four points
 (55% → 59%, with an interactive session running beside it) and did not move the seven-day
 window's rounded figure (25%). A judge call peaks at ~236 MB resident.

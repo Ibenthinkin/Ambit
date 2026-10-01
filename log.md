@@ -150,6 +150,13 @@ run anyway as a read-only measurement.
   (0.69). Haiku clears the written gate by 0.01 and still flattens essays to 8; Sonnet beats
   flash-lite. The numbers are optimistic — tuned and scored on the same marks. Next: Ben picks
   Haiku or Sonnet for writing, ideally after marking a fresh batch.
+- **Then: Sonnet for writing (Ben), and the twenty pictures one by one.**
+  `CLAUDE_WRITING_MODEL = claude-sonnet-5-5`; pictures stay on Haiku. Verdicts in
+  `docs/vision-verdicts.md`: Haiku closer on 13 of 20, flash-lite on 7. Haiku scores captions
+  instead of photographs and is harsh on bold popular pictures; flash-lite misses promotional
+  posts. Ben's rulings: **Door of Perception passes whole (floor 8) — rescore its rows later**;
+  a photo 25+ years old gets a second look before "engagement bait"; popular is not a fault.
+  Next: a picture prompt for the Claude judge carrying those rulings, and the DoP floor.
 - **WORK ITEM: move the judge to VM 202** once Ben has freed RAM and disk there (design doc,
   "Open"): where `claude` is installed, the subscription token as a Coolify secret, ~236 MB a
   judge call, the weekly two-job split, the health threshold.
@@ -162,6 +169,7 @@ run anyway as a read-only measurement.
 
 *Session spend: 24.45M tok (in 315 · out 212.2k · cache r 23.13M / w 1.10M) · ~≥$10.19 · fable-5-1 + opus-4-7 · 11:05→11:57*
 *Session spend: 8.11M tok (in 65 · out 58.1k · cache r 7.80M / w 250.9k) · ~≥$2.01 · fable-5-1 + opus-4-7 · 11:57→12:08*
+*Session spend: 23.31M tok (in 162 · out 52.2k · cache r 22.88M / w 377.6k) · ~≥$3.06 · fable-5-1 + opus-4-7 · 12:08→13:58*
 
 ## 2026-09
 
