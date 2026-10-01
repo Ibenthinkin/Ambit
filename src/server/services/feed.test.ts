@@ -14,6 +14,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PoolItem } from "~/server/db/feed";
 import type { Item } from "~/server/db/items";
 import { WEIGHT_CAP } from "~/server/db/topics";
+import { PERSONAS, personaTopics } from "~/server/config/personas";
 import { TOPICS } from "~/server/config/topics";
 import { hashSeed, mulberry32 } from "./random";
 
@@ -79,6 +80,8 @@ import {
   CORE_TOPIC_IDS,
   DEFAULT_KNOBS,
   coldStartWeights,
+  exploreWeights,
+  personaForSeed,
   composePage,
   decodeCursor,
   encodeCursor,
@@ -841,6 +844,44 @@ describe("composePage", () => {
     });
     expect(withDebug[0]?.debug).toBeDefined();
     expect(withoutDebug[0]?.debug).toBeUndefined();
+  });
+});
+
+describe("the signed-out visitor's persona (10-01-26)", () => {
+  it("deals the same persona for the same seed, and all twenty across twenty seeds", () => {
+    expect(personaForSeed(7)).toBe(personaForSeed(7));
+    const dealt = new Set(PERSONAS.map((_, seed) => personaForSeed(seed).slug));
+    expect(dealt.size).toBe(PERSONAS.length);
+    // The real seeds are unsigned 32-bit, far past the array.
+    expect(personaForSeed(0xffffffff)).toBe(
+      PERSONAS[0xffffffff % PERSONAS.length],
+    );
+  });
+
+  it("weights the dealt persona's topics at 1 each, keeping only ids that exist", () => {
+    const persona = personaForSeed(0);
+    const all = personaTopics(persona);
+    const existing = new Set(all.slice(0, 4));
+    const { weights, persona: slug } = exploreWeights(0, existing);
+    expect(slug).toBe(persona.slug);
+    expect([...weights.keys()].sort()).toEqual([...existing].sort());
+    for (const w of weights.values()) expect(w).toBe(1);
+  });
+
+  it("falls back to the uniform cold start when fewer than three of its topics exist", () => {
+    const two = new Set(personaTopics(personaForSeed(0)).slice(0, 2));
+    const { weights, persona } = exploreWeights(0, two);
+    expect(persona).toBeNull();
+    expect(weights).toEqual(coldStartWeights());
+  });
+
+  it("every persona clears the fallback on the full vocabulary", () => {
+    // If this fails a persona has been edited down to under three topics; personas.test.ts
+    // pins the same floor from the fixture's side.
+    for (let seed = 0; seed < PERSONAS.length; seed++) {
+      const everything = new Set(PERSONAS.flatMap((p) => personaTopics(p)));
+      expect(exploreWeights(seed, everything).persona).not.toBeNull();
+    }
   });
 });
 

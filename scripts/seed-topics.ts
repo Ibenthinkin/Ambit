@@ -114,6 +114,16 @@ async function main() {
     );
   }
 
+  // Personas (10-01-26): their picks are groups now, so they move whenever the vocabulary does.
+  // Re-apply them to the persona accounts that exist — never creating one — so signing in as a
+  // persona shows what a signed-out visitor dealt that persona sees. After the facets on purpose:
+  // a pick has to be pickable to be written.
+  const { syncPersonaTopics } = await import("~/server/services/persona-seed");
+  const personas = await syncPersonaTopics();
+  console.log(
+    `Personas: ${personas.updated.length} re-synced, ${personas.unchanged.length} unchanged, ${personas.absent.length} not seeded.`,
+  );
+
   const unchanged = TOPICS.length - isNew.length - changed.length;
   if (isNew.length === 0 && changed.length === 0) {
     console.log(`${TOPICS.length} topics already up to date — nothing to do.`);

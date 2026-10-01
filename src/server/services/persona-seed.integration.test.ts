@@ -12,7 +12,11 @@ import { inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { personaEmail, type Persona } from "~/server/config/personas";
+import {
+  personaEmail,
+  personaTopics,
+  type Persona,
+} from "~/server/config/personas";
 
 const password = "correct horse battery staple";
 
@@ -28,6 +32,7 @@ const FIXTURES: readonly Persona[] = [
     location: "Nowhere",
     profession: "Tester",
     taste: "Fixtures.",
+    groups: [],
     topics: ["botany", "astronomy"],
   },
   {
@@ -38,6 +43,7 @@ const FIXTURES: readonly Persona[] = [
     location: "Nowhere",
     profession: "Tester",
     taste: "Fixtures.",
+    groups: [],
     topics: ["music"],
   },
 ];
@@ -99,6 +105,50 @@ describe.skipIf(!process.env.DATABASE_URL)("seedPersonas (integration)", () => {
     expect(third.updated).toEqual([FIXTURES[0]!.slug]);
     expect(third.unchanged).toEqual([FIXTURES[1]!.slug]);
     expect(await getUserTopicIds(a!.id)).toEqual(["botany"]);
+  });
+
+  it("syncPersonaTopics updates accounts that exist and creates none", async () => {
+    const { syncPersonaTopics } = await import("./persona-seed");
+    const { getUserTopicIds, listTopics } = await import("~/server/db/topics");
+    const { db } = await import("~/server/db/client");
+    const { user } = await import("~/server/db/schema");
+    const { eq } = await import("drizzle-orm");
+
+    // A is seeded (by the test above) and gets a group this time; C has no account at all.
+    // What the group flattens to depends on the database (CI has the sixteen originals, where
+    // "Animals" is `zoology` alone; a real corpus has five), so the expectation is computed.
+    const stranger: Persona = {
+      ...FIXTURES[1]!,
+      slug: `test-c-${suffix}`,
+    };
+    const edited: Persona = {
+      ...FIXTURES[0]!,
+      groups: ["animals-group"],
+      topics: ["botany", "not-a-topic"],
+    };
+    const r = await syncPersonaTopics({ personas: [edited, stranger] });
+    expect(r.updated).toEqual([edited.slug]);
+    expect(r.absent).toEqual([stranger.slug]);
+
+    const [a] = await db
+      .select()
+      .from(user)
+      .where(eq(user.email, personaEmail(edited.slug)));
+    // The group flattened to its topic, and the id that is no row was dropped, not thrown on.
+    const pickable = new Set((await listTopics()).map((t) => t.id));
+    const want = personaTopics(edited).filter((t) => pickable.has(t));
+    expect(want).toContain("zoology");
+    expect(want).toContain("botany");
+    expect(want).not.toContain("not-a-topic");
+    expect(new Set(await getUserTopicIds(a!.id))).toEqual(new Set(want));
+    const none = await db
+      .select()
+      .from(user)
+      .where(eq(user.email, personaEmail(stranger.slug)));
+    expect(none).toEqual([]);
+
+    const again = await syncPersonaTopics({ personas: [edited] });
+    expect(again.unchanged).toEqual([edited.slug]);
   });
 
   it("signs in with the shared password — the account is a real one, hashed the real way", async () => {

@@ -3,6 +3,42 @@
 Narrative record of decisions, findings, and dead-ends that don't live in commit
 messages. `/brief` reads this. Newest on top.
 
+## 2026-10
+
+### [[10-01-26 Thu]] — A persona for every signed-out visit
+
+**Shipped (branch `feat/explore-personas`, worktree `~/Dev/ambit-explore-personas`, not merged):**
+the front door no longer composes for "nobody". Ben: "the generic feed is just boring". Each
+signed-out visit is dealt one of the twenty personas by the seed its cursor already carries, so
+there is no cookie and nothing stored; a reload deals again.
+
+**Decisions:**
+
+- Personas over a random handful of topics: a hand-written taste has a centre, five random topics
+  usually do not.
+- Ben asked that the personas keep up as the vocabulary changes. They now name **umbrella groups**
+  plus a few single topics, so a promoted topic filed into a group reaches them with no edit, and
+  a test fails when a group has no persona. The twenty were re-cast by hand onto the 35 groups;
+  who holds what is editorial and Ben's to reshuffle (June now carries the Soviet poster groups
+  and both Russia and Ukraine, which is the weakest fit).
+- The seeded persona accounts re-sync on every boot (`db:seed`), never creating an account.
+
+**Open / next:**
+
+- **Not run here:** the seven database-backed suites, `e2e:prod`, the CI-shape run and
+  `bench:feed`. The worktree has no `.env` (copying it was denied), so they self-skipped. Unit
+  suite, typecheck, lint and format are green.
+- Ben's uncommitted rename in the main checkout (`propaganda-and-persuasion` →
+  `propaganda-and-advertising`) will fail `personas.test.ts` once both land: June's `groups`
+  needs the new id in the same commit.
+- Flat weights: a persona holding a ten-topic group draws from it ten times as often as from a
+  single topic. Same open item as for real readers; the persona feeds are a second place to
+  judge it.
+- `log.md` gains a `## 2026-10` heading here; `feat/publications` has one too — merge by hand.
+- Ben looks at `/` a few times signed out, then merge and deploy.
+
+*Session spend: 8.35M tok (in 143 · out 100.6k · cache r 7.21M / w 1.04M) · ~≥$6.20 · opus-5-5 + opus-4-7 · 09:59→10:39*
+
 ## 2026-09
 
 ### [[09-30-26 Wed]] — Writing live on production; the news rule goes

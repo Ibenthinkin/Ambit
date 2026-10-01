@@ -187,6 +187,15 @@ to it.
 
 ## 4. Personas and `seed:personas`
 
+> **Amended 10-01-26** (`docs/PLAN_explore-personas.md`). Three things changed. **A persona names
+> groups first**: `Persona` gained `groups` (ids from `topic-groups.ts`), `topics` became "single
+> topics on top", and `personaTopics()` is the one place a persona becomes topic ids — so a
+> promoted topic filed into a group reaches every persona holding it. The unit test now also
+> requires every group to be held by at least one persona. **The personas are the signed-out
+> feed**: each visit to `/` is dealt one by the cursor's seed (SPEC §9). **The accounts follow on
+> boot**: `db:seed` calls `syncPersonaTopics()`, which re-applies picks to accounts that exist and
+> creates none, so it needs no password; `seed:personas` is still what creates them.
+
 **Fixture:** `src/server/config/personas.ts`, `PERSONAS: readonly Persona[]`, where
 `Persona = { slug, name, age, gender, location, profession, taste, topics: string[] }`. The
 demographics are documentation for Ben and are not written anywhere. A unit test asserts every

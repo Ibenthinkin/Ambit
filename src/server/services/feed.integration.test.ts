@@ -31,7 +31,7 @@ import { nanoid } from "nanoid";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { insertHomedItems } from "~/server/db/test-fixtures";
-import { getFeedPage, type FeedPage } from "./feed";
+import { decodeCursor, getFeedPage, type FeedPage } from "./feed";
 
 describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
   const topicId = `test-feed-topic-${nanoid(8)}`;
@@ -292,9 +292,18 @@ describe.skipIf(!process.env.DATABASE_URL)("getFeedPage (integration)", () => {
     expect(forNobody.get(topicId)).toHaveLength(ITEM_COUNT);
   });
 
-  it("composes a page for a null user on the cold-start weights", async () => {
-    const page = await getFeedPage(null);
-    expect(page).toHaveProperty("cards");
+  it("composes a page for a null user, and every page of a visit is the same persona", async () => {
+    // 10-01-26: the signed-out page is dealt a persona by the cursor's seed (or, on a database
+    // with too few of its topics, the uniform cold start — `persona: null`). Either way the
+    // deal must not change between pages: the seed rides the cursor.
+    const first = await getFeedPage(null);
+    expect(first).toHaveProperty("cards");
+    if (!first.nextCursor) return; // an empty corpus has no second page to compare
+    const second = await getFeedPage(null, first.nextCursor);
+    expect(second.debug?.persona).toEqual(first.debug?.persona);
+    expect(decodeCursor(first.nextCursor).seed).toBe(
+      decodeCursor(second.nextCursor ?? first.nextCursor).seed,
+    );
   });
 
   it("degrades gracefully to uniform cold-start weights for a user with no user_topic rows", async () => {

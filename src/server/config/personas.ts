@@ -17,8 +17,16 @@
 // does the feed serve *music* and *poetry* from an image corpus?); 7 and 4 (both graphic, opposite
 // temperaments).
 //
-// Every `topics` entry must be a key of TOPIC_FACETS; personas.test.ts pins that, because a pick
-// that is not pickable is one `setMine` would refuse.
+// **A persona names groups first, topics second (10-01-26).** The vocabulary grows; a hand list of
+// topic ids does not. So each reader holds a few umbrella groups (`topic-groups.ts`) whole, and a
+// newly promoted topic filed into one of them is theirs from the next deploy. personas.test.ts
+// pins the rest: every group id and topic id here must exist, and **every group must be held by
+// at least one persona** — so a new group fails `bun run test` until someone decides whose taste
+// it is. Two things read `personaTopics()`: the seeded accounts (re-synced by `db:seed` on every
+// boot) and, since the same day, the signed-out feed — each visit to `/` is dealt one of these
+// twenty by the cursor's seed (services/feed.ts, `exploreWeights`).
+
+import { TOPIC_GROUPS } from "./topic-groups";
 
 export interface Persona {
   /** The url-safe half of the email, and how the seed reports one. */
@@ -30,7 +38,24 @@ export interface Persona {
   location: string;
   profession: string;
   taste: string;
+  /** Umbrella groups (ids from `TOPIC_GROUPS`) this reader holds whole. A topic promoted and
+   *  filed into one of these reaches the persona with no edit here — which is the point. */
+  groups: readonly string[];
+  /** Single topics on top of the groups, for a taste a whole group would blur (Maren wants
+   *  `furniture`, not all of "Everyday things"). Never one already inside one of `groups`. */
   topics: readonly string[];
+}
+
+/** A persona as the feed and the seed see one: every member of each group it names, plus its
+ *  single topics, each id once. The only place a persona becomes topic ids. A group id that no
+ *  longer exists contributes nothing here; personas.test.ts is what refuses it. */
+export function personaTopics(p: Persona): string[] {
+  const ids = new Set<string>();
+  for (const g of TOPIC_GROUPS) {
+    if (p.groups.includes(g.id)) for (const t of g.topics) ids.add(t);
+  }
+  for (const t of p.topics) ids.add(t);
+  return [...ids];
 }
 
 /** The seeded account for a persona. `@ambit.local` is deliberately not a deliverable domain and
@@ -49,13 +74,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Copenhagen",
     profession: "Architect",
     taste: "Clean lines, concrete, cold light.",
-    topics: [
-      "architecture",
-      "geometric",
-      "black-and-white",
-      "photography",
-      "furniture",
-    ],
+    groups: ["black-and-white-group", "period-styles", "photography-group"],
+    topics: ["architecture", "geometric", "furniture"],
   },
   {
     slug: "dev",
@@ -65,14 +85,12 @@ export const PERSONAS: readonly Persona[] = [
     location: "Bangalore",
     profession: "Backend engineer",
     taste: "Space, old machines, anything with a schematic.",
-    topics: [
-      "astronomy",
-      "machines",
-      "technology",
-      "science-fiction",
-      "retrofuturism",
-      "digital",
+    groups: [
+      "space-and-science-fiction",
+      "machines-and-technology",
+      "scientific-and-technical-drawing",
     ],
+    topics: ["retrofuturism", "digital"],
   },
   {
     slug: "rosa",
@@ -82,7 +100,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Lisbon",
     profession: "Retired botanist",
     taste: "Plants first, then everything that grows around them.",
-    topics: ["botany", "plants", "flowers", "trees", "insects", "watercolor"],
+    groups: ["plants-and-fungi", "painting-and-drawing", "painterly-group"],
+    topics: ["insects", "botanical-illustration"],
   },
   {
     slug: "theo",
@@ -92,14 +111,13 @@ export const PERSONAS: readonly Persona[] = [
     location: "Bologna",
     profession: "Art student",
     taste: "Loud color, collage, anything that looks cut and pasted.",
-    topics: [
-      "collage",
-      "psychedelic",
-      "color",
-      "illustration",
-      "murals",
-      "surreal",
+    groups: [
+      "collage-and-mixed-media",
+      "illustration-and-comics",
+      "colourful",
+      "surreal-and-dreamlike",
     ],
+    topics: ["murals"],
   },
   {
     slug: "ines",
@@ -109,7 +127,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Amsterdam",
     profession: "Textile designer",
     taste: "Weave, stitch, pattern, repeat.",
-    topics: ["textiles", "embroidery", "pattern", "ceramics", "japan"],
+    groups: ["craft-and-materials"],
+    topics: ["pattern", "japan"],
   },
   {
     slug: "kwame",
@@ -119,7 +138,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Accra",
     profession: "Cartographer",
     taste: "Maps, coastlines, and the weather that moves over them.",
-    topics: ["cartography", "the-ocean", "weather", "clouds", "landscapes"],
+    groups: ["weather-and-light", "from-above"],
+    topics: ["cartography", "the-ocean", "landscapes"],
   },
   {
     slug: "june",
@@ -129,7 +149,13 @@ export const PERSONAS: readonly Persona[] = [
     location: "Seoul",
     profession: "Type designer",
     taste: "Letters, ink, paper, and the occasional poster.",
-    topics: ["typography", "ink", "paper", "advertising", "books"],
+    groups: [
+      "posters-print-and-type",
+      "propaganda-and-persuasion",
+      "russia-group",
+      "ukraine-group",
+    ],
+    topics: ["ink", "paper", "books"],
   },
   {
     slug: "harold",
@@ -139,7 +165,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Manchester",
     profession: "Retired railway engineer",
     taste: "Steam, steel, and the century that built them.",
-    topics: ["machines", "metal", "cars", "london", "black-and-white"],
+    groups: ["london-group", "black-and-white-group"],
+    topics: ["machines", "metal", "cars", "industrial"],
   },
   {
     slug: "amira",
@@ -149,7 +176,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Beirut",
     profession: "Archaeologist",
     taste: "Old stones and older stories.",
-    topics: ["ancient-history", "mythology", "carving", "sand", "portraiture"],
+    groups: ["sculpture-and-installations"],
+    topics: ["ancient-history", "mythology", "sand", "portraiture"],
   },
   {
     slug: "lucas",
@@ -159,7 +187,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "São Paulo",
     profession: "Skateboarder / barista",
     taste: "Street walls, shoes, cars, motion.",
-    topics: ["murals", "shoes", "cars", "activism", "photography"],
+    groups: ["cities-and-streets"],
+    topics: ["murals", "shoes", "cars", "activism", "street-photography"],
   },
   {
     slug: "greta",
@@ -169,7 +198,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Stockholm",
     profession: "Pediatric nurse",
     taste: "Kids' things, toys, the small and the handmade.",
-    topics: ["kids", "toys", "miniature", "dioramas", "dance"],
+    groups: ["everyday-things"],
+    topics: ["toys", "miniature", "dioramas", "dance"],
   },
   {
     slug: "omar",
@@ -179,7 +209,13 @@ export const PERSONAS: readonly Persona[] = [
     location: "Chicago",
     profession: "Jazz pianist",
     taste: "Sound, the city, the night.",
-    topics: ["music", "sound", "chicago", "new-york", "light"],
+    groups: [
+      "music-film-and-performance",
+      "chicago-group",
+      "new-york-group",
+      "moody",
+    ],
+    topics: ["light", "night"],
   },
   {
     slug: "yuki",
@@ -189,7 +225,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Osaka",
     profession: "Ceramicist",
     taste: "Clay and glaze, wood and water.",
-    topics: ["ceramics", "clay", "glass", "wood", "japan", "still-life"],
+    groups: ["japan-group"],
+    topics: ["ceramics", "clay", "glass", "wood", "still-life"],
   },
   {
     slug: "silas",
@@ -199,7 +236,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Lagos",
     profession: "Surgeon",
     taste: "Anatomy, medicine, the body as diagram.",
-    topics: ["anatomy", "medicine", "body", "science", "drawing"],
+    groups: ["body-and-mind", "scientific-and-technical-drawing"],
+    topics: ["science", "drawing"],
   },
   {
     slug: "pilar",
@@ -209,7 +247,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Mexico City",
     profession: "Film editor",
     taste: "Faces, film stills, and the dead.",
-    topics: ["film", "portraits", "death", "mirrors", "black-and-white"],
+    groups: ["moody", "black-and-white-group"],
+    topics: ["film", "portraits", "death", "mirrors"],
   },
   {
     slug: "eli",
@@ -219,7 +258,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Vermont",
     profession: "Woodworker",
     taste: "Trees standing and trees cut.",
-    topics: ["wood", "trees", "furniture", "nature", "carving"],
+    groups: ["land-sea-and-sky"],
+    topics: ["wood", "trees", "furniture", "carving"],
   },
   {
     slug: "noor",
@@ -229,6 +269,7 @@ export const PERSONAS: readonly Persona[] = [
     location: "Cairo",
     profession: "Poet",
     taste: "Words, birds, and weather; nothing built by hand.",
+    groups: ["weather-and-light"],
     topics: ["poetry", "literature", "birds", "emotions", "consciousness"],
   },
   {
@@ -239,7 +280,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Berlin",
     profession: "Geologist",
     taste: "Rock, fire, ice; the planet at work.",
-    topics: ["geology", "fire", "snow", "water", "land-art"],
+    groups: ["land-sea-and-sky"],
+    topics: ["fire", "snow", "land-art"],
   },
   {
     slug: "chloe",
@@ -249,7 +291,8 @@ export const PERSONAS: readonly Persona[] = [
     location: "Paris",
     profession: "Fashion buyer",
     taste: "Clothes, jewels, and abstraction.",
-    topics: ["fashion", "jewelry", "abstract", "color", "photography"],
+    groups: ["abstract-and-pattern", "colourful", "photography-group"],
+    topics: ["fashion", "jewelry"],
   },
   {
     slug: "sam",
@@ -259,6 +302,7 @@ export const PERSONAS: readonly Persona[] = [
     location: "Portland",
     profession: "Game designer",
     taste: "Games, illusions, animals, cats specifically.",
-    topics: ["games", "optical-illusion", "animals", "cats", "toys", "zoology"],
+    groups: ["animals-group", "myth-story-and-the-strange"],
+    topics: ["games", "optical-illusion", "toys"],
   },
 ];

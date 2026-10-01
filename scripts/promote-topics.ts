@@ -183,5 +183,10 @@ if (confirm) {
     "\nThen file each under a group in src/server/config/topic-groups.ts (its test fails until you do):",
   );
   for (const p of picks) console.log(`  "${p.id}",  // → a ${p.facet} group`);
+  // The personas hold groups, so a topic filed into an existing group reaches them with no edit.
+  // A *new* group is the exception: personas.test.ts fails until one persona names it.
+  console.log(
+    "\nA new group also needs a persona to hold it — src/server/config/personas.ts (its test fails until one does).",
+  );
 }
 process.exit(0);
