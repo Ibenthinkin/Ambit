@@ -6,6 +6,11 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  CLAUDE_JUDGE_MODEL,
+  claudeRuntime,
+  resetClaudeJudge,
+} from "./claude-judge";
+import {
   CURATION_CACHE_DIR,
   curateItems,
   curationCacheKey,
@@ -380,5 +385,60 @@ describe("curateItems reads a cached writing answer with no LLM call", () => {
       readingMinutes: 2,
     });
     expect(out).not.toHaveProperty("timeliness");
+  });
+});
+
+describe("the writing curator on the Claude judge", () => {
+  const realRun = claudeRuntime.run;
+  let systems: string[];
+  beforeEach(() => {
+    systems = [];
+    resetClaudeJudge();
+    vi.stubEnv("CURATOR_JUDGE", "claude");
+    vi.stubGlobal("fetch", () =>
+      Promise.reject(new Error("no HTTP call is expected")),
+    );
+    claudeRuntime.run = (args) => {
+      systems.push(args[args.indexOf("--system-prompt") + 1] ?? "");
+      return Promise.resolve({
+        code: 0,
+        stdout: JSON.stringify({
+          type: "result",
+          is_error: false,
+          result:
+            '```json\n{"score": 9, "tags": ["odd"], "kind": "essay", "timeliness": "timeless", "topics": ["botany"]}\n```',
+          usage: { input_tokens: 2000, output_tokens: 30 },
+        }),
+        stderr: "",
+      });
+    };
+  });
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("reads a fenced writing reply: score, kind and topics", async () => {
+    const [out] = await curateItems(
+      [
+        makeItem({
+          source: "pdr",
+          sourceId: `cw-${Date.now()}`,
+          body: "word ".repeat(460),
+        }),
+      ],
+      { force: true, topics: [{ id: "botany", label: "Botany" }] },
+    );
+    expect(out?.curationScore).toBe(9);
+    expect(out?.kind).toBe("essay");
+    expect(out?.topics).toEqual(["botany"]);
+    expect(systems[0]).toContain("timeliness");
+  });
+
+  it("an explicit writingModel overrides the env's judge", () => {
+    expect(writingCacheKey({ source: "pdr", sourceId: "1" })).toBe(
+      writingCacheKey({ source: "pdr", sourceId: "1" }, CLAUDE_JUDGE_MODEL),
+    );
   });
 });

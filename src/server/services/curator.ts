@@ -25,6 +25,15 @@ import {
   writingText,
   kindFor,
 } from "~/server/config/writing";
+import sharp from "sharp";
+
+import {
+  CLAUDE_CONCURRENCY,
+  CLAUDE_JUDGE_MODEL,
+  claudeAvailable,
+  claudeComplete,
+  isClaudeModel,
+} from "./claude-judge";
 import { CuratorAbortError } from "./curator-errors";
 import { imageFetchHeaders } from "./image-auth";
 import { USER_AGENT } from "./sources/http";
@@ -34,6 +43,45 @@ import type { NormalizedItem } from "./sources/types";
  *  Swappable on purpose: the cache key below includes the model, so trying a different judge
  *  never clobbers scores already paid for. */
 export const CURATOR_MODEL = "google/gemini-2.5-flash-lite";
+
+/**
+ * Which judge a run uses by default (docs/DESIGN_claude-judge-ingest.md D2). `CURATOR_JUDGE=claude`
+ * is Haiku through the Claude Code CLI on Ben's subscription; unset or `openrouter` is
+ * CURATOR_MODEL, exactly as before. Read at call time, not import time, so a script and a test
+ * can both set it. Nothing ever falls back from one to the other on its own: the cache is keyed
+ * on the model, and a run that quietly mixed two judges would store scores from two rubrics
+ * under one summary.
+ */
+export function judgeModel(): string {
+  // An empty string is "unset" too: that is how a blank line in .env arrives.
+  const raw = process.env.CURATOR_JUDGE;
+  const judge = raw === undefined || raw === "" ? "openrouter" : raw;
+  if (judge === "claude") return CLAUDE_JUDGE_MODEL;
+  if (judge === "openrouter") return CURATOR_MODEL;
+  throw new Error(
+    `CURATOR_JUDGE must be "openrouter" or "claude", got "${judge}"`,
+  );
+}
+
+/**
+ * Can these models be called at all? One sentence when not, null when fine — for a script to
+ * print and exit on before any walk starts. An OpenRouter model needs the key; a Claude model
+ * needs the CLI installed.
+ */
+export function judgePreflight(
+  models: readonly string[] = [judgeModel()],
+): string | null {
+  if (models.some((m) => !isClaudeModel(m)) && !process.env.OPENROUTER_API_KEY)
+    return "OPENROUTER_API_KEY is not set — required for the OpenRouter judge (add it to .env, or set CURATOR_JUDGE=claude).";
+  if (models.some(isClaudeModel) && !claudeAvailable())
+    return "the `claude` CLI is not installed or not on PATH — required for CURATOR_JUDGE=claude (install Claude Code and log in with the subscription).";
+  return null;
+}
+
+/** The longest side a picture is sent to Claude at (D6). The API refuses images over 5 MB and
+ *  anything but JPEG/PNG/GIF/WebP; museum originals are routinely both. 1024 px is ~1,400 image
+ *  tokens, and a 1–10 score does not improve past it. */
+export const CLAUDE_IMAGE_FIT = 1024;
 
 /** Output cap sent on every curator call. The reply is one small JSON object — a score, two to
  *  four short tags, up to three topic ids — well under 100 tokens, so 400 is generous. The number
@@ -396,6 +444,8 @@ function itemAsText(item: NormalizedItem): string {
 async function imageAsDataUrl(
   url: string,
   headers: Record<string, string> = {},
+  /** Claude path only: downscale to fit inside this many pixels and re-encode as JPEG. */
+  fit?: number,
 ): Promise<string | null> {
   for (const candidate of [url, encodeURI(url)]) {
     try {
@@ -408,8 +458,24 @@ async function imageAsDataUrl(
       const mime =
         res.headers.get("content-type")?.split(";")[0] ?? "image/jpeg";
       if (!mime.startsWith("image/")) continue;
-      const b64 = Buffer.from(await res.arrayBuffer()).toString("base64");
-      return `data:${mime};base64,${b64}`;
+      const bytes = Buffer.from(await res.arrayBuffer());
+      if (fit) {
+        // The Claude path (D6): one known format at one bounded size. `rotate()` applies the
+        // EXIF orientation before the metadata is dropped. A file sharp cannot decode returns
+        // null — the caller's "judge from the text alone" branch, counted per source like any
+        // other picture the curator could not look at.
+        try {
+          const jpeg = await sharp(bytes)
+            .rotate()
+            .resize(fit, fit, { fit: "inside", withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+          return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+        } catch {
+          return null;
+        }
+      }
+      return `data:${mime};base64,${bytes.toString("base64")}`;
     } catch {
       // try the encoded variant, then give up
     }
@@ -534,15 +600,19 @@ export const CURATION_CACHE_DIR = path.join(
  * promoted, and keying on it would re-bill the entire corpus for a change to a *list*. An item
  * classified under the sixteen keeps that answer, and `promote:topics` is its backfill. That is
  * the whole reason `PROMPT_VERSION` did not move.
+ *
+ * `model` defaults to the run's judge (`judgeModel()`), which under the unset default is
+ * `CURATOR_MODEL`, so every key written before 10-01-26 is unchanged.
  */
 export function curationCacheKey(
   item: Pick<NormalizedItem, "source" | "sourceId">,
   classify: boolean,
+  model: string = judgeModel(),
 ): string {
   const mode = classify ? "classify|" : "";
   return createHash("sha256")
     .update(
-      `${CURATOR_MODEL}|v${PROMPT_VERSION}|${mode}${item.source}:${item.sourceId}`,
+      `${model}|v${PROMPT_VERSION}|${mode}${item.source}:${item.sourceId}`,
     )
     .digest("hex")
     .slice(0, 32);
@@ -590,7 +660,7 @@ export function parseWritingResponse(
  */
 export function writingCacheKey(
   item: Pick<NormalizedItem, "source" | "sourceId">,
-  model: string = CURATOR_MODEL,
+  model: string = judgeModel(),
 ): string {
   return createHash("sha256")
     .update(
@@ -643,7 +713,7 @@ async function scoreWriting(
   cached: boolean;
 }> {
   const vocabulary = opts.topics ?? TOPICS;
-  const model = opts.model ?? CURATOR_MODEL;
+  const model = opts.model ?? judgeModel();
   const topicIds = new Set(vocabulary.map((t) => t.id));
   const cacheFile = path.join(
     CURATION_CACHE_DIR,
@@ -702,9 +772,10 @@ async function scoreItem(
 }> {
   const classify = opts.classify ?? false;
   const vocabulary = opts.topics ?? TOPICS;
+  const model = judgeModel();
   const cacheFile = path.join(
     CURATION_CACHE_DIR,
-    `${curationCacheKey(item, classify)}.json`,
+    `${curationCacheKey(item, classify, model)}.json`,
   );
 
   if (!opts.force) {
@@ -759,6 +830,7 @@ async function scoreItem(
     const dataUrl = await imageAsDataUrl(
       item.curationImageUrl ?? item.imageUrl,
       imageFetchHeaders(item.source),
+      isClaudeModel(model) ? CLAUDE_IMAGE_FIT : undefined,
     );
     if (dataUrl)
       content.push({ type: "image_url", image_url: { url: dataUrl } });
@@ -771,7 +843,7 @@ async function scoreItem(
 
   const { result, tokens } = await callCurator(
     {
-      model: CURATOR_MODEL,
+      model,
       system: classify ? classifyPrompt(vocabulary) : CURATOR_PROMPT,
       content,
     },
@@ -802,64 +874,79 @@ type CuratorContent =
       | { type: "image_url"; image_url: { url: string } }
     )[];
 
-/**
- * One OpenRouter chat call for one curator judgement, with the retry loop and the fail-fast rule
- * both curators share. `parse` runs inside the retry, so a reply that isn't usable JSON (or has
- * no usable score) is retried like a network error rather than cached. An account-level status
- * throws CuratorAbortError straight through — see CURATOR_ABORT_STATUSES.
- */
-async function callCurator<T>(
-  req: { model: string; system: string; content: CuratorContent },
-  parse: (reply: string) => T,
-): Promise<{ result: T; tokens: number }> {
+/** The OpenRouter transport: one chat completion. An account-level status throws
+ *  CuratorAbortError — see CURATOR_ABORT_STATUSES. */
+async function openRouterComplete(req: {
+  model: string;
+  system: string;
+  content: CuratorContent;
+}): Promise<{ reply: string; tokens: number }> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error(
       "OPENROUTER_API_KEY is not set — required for curateItems() (add it to .env).",
     );
   }
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: req.model,
+      messages: [
+        { role: "system", content: req.system },
+        { role: "user", content: req.content },
+      ],
+      // Asks the provider to guarantee syntactically valid JSON output.
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+      // Reserved against the key's budget before dispatch — see CURATOR_MAX_TOKENS.
+      max_tokens: CURATOR_MAX_TOKENS,
+    }),
+  });
+  if (!res.ok) {
+    const detail = `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
+    // Account-level, not item-level: thrown past the retry in callCurator and past the fallback
+    // in curateItems. Retrying a 402 four times per item is how walk 3 ran for eighteen hours.
+    if (CURATOR_ABORT_STATUSES.has(res.status))
+      throw new CuratorAbortError(
+        `OpenRouter ${detail} — ${res.status === 402 ? "the account is out of credits" : "the API key was rejected"}; nothing written, re-run after fixing the account`,
+        res.status,
+      );
+    throw new Error(detail);
+  }
+  const json = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+    usage?: { total_tokens?: number };
+  };
+  return {
+    reply: json.choices?.[0]?.message?.content ?? "{}",
+    tokens: json.usage?.total_tokens ?? 0,
+  };
+}
 
+/**
+ * One curator judgement, with the retry loop and the fail-fast rule both curators and both
+ * transports share. The transport is chosen by the model's name (D1): `claude-*` is the Claude
+ * Code CLI on the subscription, anything else OpenRouter. `parse` runs inside the retry, so a
+ * reply that isn't usable JSON (or has no usable score) is retried like a network error rather
+ * than cached. CuratorAbortError goes straight through — an empty wallet on one side, the
+ * subscription's ceiling on the other.
+ */
+async function callCurator<T>(
+  req: { model: string; system: string; content: CuratorContent },
+  parse: (reply: string) => T,
+): Promise<{ result: T; tokens: number }> {
+  const complete = isClaudeModel(req.model)
+    ? claudeComplete
+    : openRouterComplete;
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: req.model,
-          messages: [
-            { role: "system", content: req.system },
-            { role: "user", content: req.content },
-          ],
-          // Asks the provider to guarantee syntactically valid JSON output.
-          response_format: { type: "json_object" },
-          temperature: 0.2,
-          // Reserved against the key's budget before dispatch — see CURATOR_MAX_TOKENS.
-          max_tokens: CURATOR_MAX_TOKENS,
-        }),
-      });
-      if (!res.ok) {
-        const detail = `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
-        // Account-level, not item-level: thrown past the retry below and past the fallback in
-        // curateItems. Retrying a 402 four times per item is how walk 3 ran for eighteen hours.
-        if (CURATOR_ABORT_STATUSES.has(res.status))
-          throw new CuratorAbortError(
-            `OpenRouter ${detail} — ${res.status === 402 ? "the account is out of credits" : "the API key was rejected"}; nothing written, re-run after fixing the account`,
-            res.status,
-          );
-        throw new Error(detail);
-      }
-      const json = (await res.json()) as {
-        choices?: { message?: { content?: string } }[];
-        usage?: { total_tokens?: number };
-      };
-      return {
-        result: parse(json.choices?.[0]?.message?.content ?? "{}"),
-        tokens: json.usage?.total_tokens ?? 0,
-      };
+      const { reply, tokens } = await complete(req);
+      return { result: parse(reply), tokens };
     } catch (err) {
       if (err instanceof CuratorAbortError) throw err;
       lastErr = err;
@@ -1002,8 +1089,20 @@ export async function curateItems(
     }
   }
 
+  // A Claude judgment is a process, not a socket — half the pool (claude-judge.ts).
+  const claude =
+    isClaudeModel(judgeModel()) ||
+    isClaudeModel(opts?.writingModel ?? judgeModel());
   await Promise.all(
-    Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker),
+    Array.from(
+      {
+        length: Math.min(
+          claude ? CLAUDE_CONCURRENCY : CONCURRENCY,
+          items.length,
+        ),
+      },
+      worker,
+    ),
   );
   return out;
 }

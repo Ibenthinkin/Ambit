@@ -4,7 +4,14 @@
 // script instead — no live HTTP in unit tests (CLAUDE.md / PHASE3_PLAN.md convention).
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  CLAUDE_JUDGE_MODEL,
+  claudeRuntime,
+  resetClaudeJudge,
+} from "./claude-judge";
 
 import {
   CLASSIFY_PROMPT,
@@ -20,6 +27,9 @@ import {
   structuralFloor,
   TOPIC_IDS,
   CURATOR_MAX_TOKENS,
+  CURATOR_MODEL,
+  judgeModel,
+  judgePreflight,
 } from "./curator";
 import { TOPICS } from "~/server/config/topics";
 import type { NormalizedItem } from "./sources/types";
@@ -888,5 +898,186 @@ describe("curateItems fails fast on an account-level error", () => {
     expect(r.v.filter((it) => it.curationScore === 5)).toHaveLength(
       MAX_CONSECUTIVE_FAILURES + 1,
     );
+  });
+});
+
+/** A successful CLI stream carrying `reply` (the shape captured 10-01-26). */
+function claudeStream(reply: string) {
+  return [
+    {
+      type: "rate_limit_event",
+      rate_limit_info: {
+        status: "allowed",
+        unifiedWindows: { seven_day: { utilization: 0.2 } },
+      },
+    },
+    {
+      type: "result",
+      is_error: false,
+      result: reply,
+      usage: { input_tokens: 400, output_tokens: 14 },
+    },
+  ]
+    .map((l) => JSON.stringify(l))
+    .join("\n");
+}
+
+describe("judgeModel", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("is the OpenRouter model when CURATOR_JUDGE is unset", () => {
+    vi.stubEnv("CURATOR_JUDGE", "");
+    expect(judgeModel()).toBe(CURATOR_MODEL);
+  });
+  it("is Haiku under CURATOR_JUDGE=claude", () => {
+    vi.stubEnv("CURATOR_JUDGE", "claude");
+    expect(judgeModel()).toBe(CLAUDE_JUDGE_MODEL);
+  });
+  it("refuses a value it does not know rather than guessing", () => {
+    vi.stubEnv("CURATOR_JUDGE", "gemini");
+    expect(() => judgeModel()).toThrow(/CURATOR_JUDGE/);
+  });
+});
+
+describe("cache keys under the two judges", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const it1 = { source: "met" as const, sourceId: "42" };
+  it("an explicit OpenRouter model gives the key the unset default gives", () => {
+    vi.stubEnv("CURATOR_JUDGE", "");
+    expect(curationCacheKey(it1, false, CURATOR_MODEL)).toBe(
+      curationCacheKey(it1, false),
+    );
+  });
+  it("the Claude judge has a namespace of its own", () => {
+    vi.stubEnv("CURATOR_JUDGE", "");
+    const openrouter = curationCacheKey(it1, true);
+    vi.stubEnv("CURATOR_JUDGE", "claude");
+    expect(curationCacheKey(it1, true)).not.toBe(openrouter);
+    expect(curationCacheKey(it1, true)).toBe(
+      curationCacheKey(it1, true, CLAUDE_JUDGE_MODEL),
+    );
+  });
+});
+
+describe("judgePreflight", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("asks for the OpenRouter key only when an OpenRouter model is in play", () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "");
+    expect(judgePreflight([CURATOR_MODEL])).toMatch(/OPENROUTER_API_KEY/);
+    vi.stubEnv("OPENROUTER_API_KEY", "k");
+    expect(judgePreflight([CURATOR_MODEL])).toBeNull();
+  });
+});
+
+describe("curateItems on the Claude judge", () => {
+  const realRun = claudeRuntime.run;
+  let runs: { args: string[]; stdin: string }[];
+  let imageBytes: Buffer | null;
+
+  beforeEach(() => {
+    runs = [];
+    imageBytes = null;
+    resetClaudeJudge();
+    vi.stubEnv("CURATOR_JUDGE", "claude");
+    vi.stubEnv("OPENROUTER_API_KEY", "");
+    vi.stubGlobal("fetch", (input: string | URL) => {
+      // An OpenRouter call here would reject, be absorbed as a failed judgment, and come back as
+      // the neutral score 5 — so asserting on the real score below proves none was made.
+      if (String(input).includes("openrouter.ai"))
+        return Promise.reject(
+          new Error("the Claude judge must not call OpenRouter"),
+        );
+      if (!imageBytes) return Promise.resolve({ ok: false, status: 404 });
+      const bytes = imageBytes;
+      return Promise.resolve({
+        ok: true,
+        headers: new Headers({ "content-type": "image/png" }),
+        arrayBuffer: () =>
+          Promise.resolve(
+            bytes.buffer.slice(
+              bytes.byteOffset,
+              bytes.byteOffset + bytes.byteLength,
+            ),
+          ),
+      });
+    });
+    claudeRuntime.run = (args, stdin) => {
+      runs.push({ args, stdin });
+      return Promise.resolve({
+        code: 0,
+        stdout: claudeStream(
+          '```json\n{"score": 8, "tags": ["Ink Wash"]}\n```',
+        ),
+        stderr: "",
+      });
+    };
+  });
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("scores through the CLI with the curator's own prompt, never OpenRouter", async () => {
+    const [out] = await curateItems(
+      [makeItem({ sourceId: `claude-${Date.now()}`, type: "image" })],
+      { force: true },
+    );
+    expect(out?.curationScore).toBe(8);
+    expect(out?.aestheticTags).toEqual(["ink wash"]);
+    expect(runs).toHaveLength(1);
+    const system = runs[0]!.args[runs[0]!.args.indexOf("--system-prompt") + 1];
+    expect(system).toBe(CURATOR_PROMPT);
+  });
+
+  it("sends a picture as a downscaled JPEG, whatever the source served", async () => {
+    imageBytes = await sharp({
+      create: { width: 3000, height: 1500, channels: 3, background: "#884422" },
+    })
+      .png()
+      .toBuffer();
+    await curateItems(
+      [
+        makeItem({
+          sourceId: `claude-img-${Date.now()}`,
+          type: "image",
+          imageUrl: "https://museum.example/big.png",
+        }),
+      ],
+      { force: true },
+    );
+    const message = JSON.parse(runs[0]!.stdin) as {
+      message: {
+        content: {
+          type: string;
+          source?: { media_type: string; data: string };
+        }[];
+      };
+    };
+    const image = message.message.content.find((b) => b.type === "image");
+    expect(image?.source?.media_type).toBe("image/jpeg");
+    const meta = await sharp(
+      Buffer.from(image!.source!.data, "base64"),
+    ).metadata();
+    expect(meta.width).toBe(1024);
+    expect(meta.height).toBe(512);
+  });
+
+  it("judges from text, and says so, when the bytes are not a picture sharp can read", async () => {
+    imageBytes = Buffer.from("this is not an image");
+    const failures: string[] = [];
+    const [out] = await curateItems(
+      [
+        makeItem({
+          sourceId: `claude-bad-${Date.now()}`,
+          type: "image",
+          imageUrl: "https://museum.example/odd.tiff",
+        }),
+      ],
+      { force: true, onImageFetchFailure: (it) => failures.push(it.sourceId) },
+    );
+    expect(failures).toHaveLength(1);
+    expect(out?.curationScore).toBe(8);
+    expect(runs[0]!.stdin).toContain("could not be fetched");
+    expect(runs[0]!.stdin).not.toContain('"type":"image"');
   });
 });
