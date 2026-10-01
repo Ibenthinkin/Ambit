@@ -6,12 +6,22 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  CLAUDE_JUDGE_MODEL,
+  claudeRuntime,
+  resetClaudeJudge,
+} from "./claude-judge";
+import {
   CURATION_CACHE_DIR,
   curateItems,
   curationCacheKey,
   CURATOR_MODEL,
+  CLAUDE_WRITING_MODEL,
+  CLAUDE_WRITING_PROMPT,
+  CLAUDE_WRITING_PROMPT_VERSION,
   CURATOR_PROMPT,
+  judgeModel,
   parseWritingResponse,
+  writingJudgeModel,
   WRITING_PROMPT,
   WRITING_PROMPT_VERSION,
   writingAsText,
@@ -380,5 +390,131 @@ describe("curateItems reads a cached writing answer with no LLM call", () => {
       readingMinutes: 2,
     });
     expect(out).not.toHaveProperty("timeliness");
+  });
+});
+
+describe("the writing curator on the Claude judge", () => {
+  const realRun = claudeRuntime.run;
+  let systems: string[];
+  let models: string[];
+  beforeEach(() => {
+    systems = [];
+    models = [];
+    resetClaudeJudge();
+    vi.stubEnv("CURATOR_JUDGE", "claude");
+    vi.stubGlobal("fetch", () =>
+      Promise.reject(new Error("no HTTP call is expected")),
+    );
+    claudeRuntime.run = (args) => {
+      systems.push(args[args.indexOf("--system-prompt") + 1] ?? "");
+      models.push(args[args.indexOf("--model") + 1] ?? "");
+      return Promise.resolve({
+        code: 0,
+        stdout: [
+          JSON.stringify({
+            type: "rate_limit_event",
+            rate_limit_info: { status: "allowed", unifiedWindows: {} },
+          }),
+          JSON.stringify({
+            type: "result",
+            is_error: false,
+            result:
+              '```json\n{"score": 9, "tags": ["odd"], "kind": "essay", "timeliness": "timeless", "topics": ["botany"]}\n```',
+            usage: { input_tokens: 2000, output_tokens: 30 },
+          }),
+        ].join("\n"),
+        stderr: "",
+      });
+    };
+  });
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  const vocab = [{ id: "botany", label: "Botany" }];
+
+  it("reads a fenced writing reply: score, kind and topics", async () => {
+    const [out] = await curateItems(
+      [
+        makeItem({
+          source: "pdr",
+          sourceId: `cw-${Date.now()}`,
+          body: "word ".repeat(460),
+        }),
+      ],
+      { force: true, topics: vocab },
+    );
+    expect(out?.curationScore).toBe(9);
+    expect(out?.kind).toBe("essay");
+    expect(out?.topics).toEqual(["botany"]);
+    // Its own rubric, not the OpenRouter one: no timeliness question, the topic block still in.
+    expect(systems[0]).toBe(writingPrompt(vocab, CLAUDE_JUDGE_MODEL));
+    expect(systems[0]).not.toContain("timeliness");
+    expect(systems[0]).toContain("botany — Botany");
+  });
+
+  it("judges writing with Sonnet under CURATOR_JUDGE=claude — pictures stay on Haiku", () => {
+    expect(writingJudgeModel()).toBe(CLAUDE_WRITING_MODEL);
+    expect(CLAUDE_WRITING_MODEL).toBe("claude-sonnet-5-5");
+    expect(judgeModel()).toBe(CLAUDE_JUDGE_MODEL);
+    expect(writingCacheKey({ source: "pdr", sourceId: "1" })).toBe(
+      writingCacheKey({ source: "pdr", sourceId: "1" }, CLAUDE_WRITING_MODEL),
+    );
+  });
+
+  it("sends the piece to Sonnet", async () => {
+    await curateItems(
+      [
+        makeItem({
+          source: "pdr",
+          sourceId: `cw-s-${Date.now()}`,
+          body: "word ".repeat(460),
+        }),
+      ],
+      { force: true, topics: vocab },
+    );
+    expect(models[0]).toBe(CLAUDE_WRITING_MODEL);
+  });
+});
+
+describe("the Claude judge has a writing rubric of its own", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const vocab = [{ id: "botany", label: "Botany" }];
+  const piece = { source: "pdr" as const, sourceId: "1" };
+
+  it("leaves the OpenRouter prompt exactly as it was", () => {
+    vi.stubEnv("CURATOR_JUDGE", "");
+    expect(writingPrompt(vocab)).toBe(writingPrompt(vocab, CURATOR_MODEL));
+    expect(writingPrompt(vocab)).toContain("timeliness");
+    expect(writingPrompt(vocab)).not.toContain(
+      CLAUDE_WRITING_PROMPT.slice(0, 60),
+    );
+  });
+
+  it("gives a claude-* model the Claude rubric, thinking or not", () => {
+    for (const model of [CLAUDE_JUDGE_MODEL, `${CLAUDE_JUDGE_MODEL}+think`]) {
+      const p = writingPrompt(vocab, model);
+      expect(p.startsWith(CLAUDE_WRITING_PROMPT.slice(0, 200))).toBe(true);
+      expect(p).toContain("botany — Botany");
+      expect(
+        p.trimEnd().endsWith(CLAUDE_WRITING_PROMPT.slice(-40).trimEnd()),
+      ).toBe(true);
+    }
+  });
+
+  it("keys the Claude cache on the Claude rubric's version, not the shared one", async () => {
+    const { createHash } = await import("node:crypto");
+    const sha = (s: string) =>
+      createHash("sha256").update(s).digest("hex").slice(0, 32);
+    expect(writingCacheKey(piece, CLAUDE_JUDGE_MODEL)).toBe(
+      sha(
+        `${CLAUDE_JUDGE_MODEL}|wc${CLAUDE_WRITING_PROMPT_VERSION}|writing|pdr:1`,
+      ),
+    );
+    expect(writingCacheKey(piece, CURATOR_MODEL)).toBe(
+      sha(`${CURATOR_MODEL}|w${WRITING_PROMPT_VERSION}|writing|pdr:1`),
+    );
   });
 });

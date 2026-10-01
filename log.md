@@ -72,6 +72,129 @@ here (10-01-26, later)".
 
 *Session spend: 14.34M tok (in 200 · out 95.2k · cache r 13.90M / w 340.3k) · opus-5-5 · 10:04→10:14*
 
+**The Claude judge, designed and planned (not built).** `docs/DESIGN_claude-judge-ingest.md`
+(D1–D11) and `docs/PLAN_claude-judge.md` (seven tasks, piece 1 only: the judge). The split and
+the Mac host get a second plan once Ben has described the always-on Mac.
+
+**Findings:** the handoff's ~54k-token overhead is not inherent. With Claude Code's prompt
+replaced and tools, settings, MCP and skills off, a Haiku judgment is **432 input tokens and
+~1.2 s** (0.5 s with thinking off), so no batching is needed. A picture goes in as base64 through
+`--input-format stream-json`, no tools. Every call's stream carries a `rate_limit_event` with the
+five-hour and seven-day utilization, which is the pacing signal and the clean stop. Haiku fences
+its JSON regardless of instructions. `--bare` cannot use the subscription login.
+
+**Decisions (Ben):** OpenRouter stays as a manual switch (`CURATOR_JUDGE`), never an automatic
+fallback; the two judges coexist and a full re-score is decided after calibration measures drift
+and cost; the Mac reaches production's Postgres by SSH tunnel; pictures Monday, writing Thursday.
+**Mine, for Ben to overrule:** stop at 80% of either window; pictures downscaled to 1024 px JPEG
+for Claude; thinking off; the publications stay suspended until the Mac plan ships, their
+backfill run locally first.
+
+**Terms:** unattended `claude -p` on the Max plan reads as permitted (own use, unmodified CLI,
+"ordinary, individual usage"). Anthropic's 06-15-26 move of `claude -p` onto a separate
+API-rate credit ($100/$200 a month on Max) was **paused on the day**; if it un-pauses, the
+judge's budget becomes dollars, not a share of the weekly window.
+
+**Open / next:** Ben reviews the plan and describes the Mac; execute `PLAN_claude-judge.md` cold
+in a cheaper session on `feat/claude-judge`; then the piece 2/3 plan.
+
+**Later: the host is VM 202, not the Mac.** Ben's verdict on the always-on Mac is no. A session
+in his homelab context recommended headless Claude Code on VM 202 itself: the scheduled task
+already runs there, the database is local, and no database credential crosses hosts. Design D11
+is rewritten and D9 amended; the SSH tunnel, launchd and the cross-host cache question all go.
+The judge plan was host-agnostic and does not change. What the move adds for the next plan:
+where `claude` runs (in the image, which is Debian, or on the host), the subscription token as
+a Coolify secret (a Claude credential does land on the VM), and RAM — **one judge call peaked
+at ~236 MB on the dev Mac, so four workers are ~1 GB**, and VM 202's headroom is unchecked.
+
+**Open / next (supersedes the line above):** check VM 202's free RAM; execute
+`PLAN_claude-judge.md` cold on `feat/claude-judge`; then plan pieces 2–3 for VM 202.
+
+*Session spend: 7.70M tok (in 100 · out 165.0k · cache r 6.95M / w 584.2k) · fable-5-1 · 10:43→11:00*
+*Session spend: 2.23M tok (in 20 · out 7.0k · cache r 2.22M / w 7.4k) · fable-5-1 · 11:00→11:05*
+
+**The Claude judge, built (piece 1) on `feat/claude-judge` — not merged, not the default.**
+`CURATOR_JUDGE=claude` scores through `claude -p` (Haiku 4.5); unset is OpenRouter, byte for
+byte. Ben chose to build it on the dev Mac now and move it to VM 202 later.
+
+**Findings — the gates:**
+
+- **Writing fails.** Against Ben's 34 marks: flash-lite MAE 1.15 (bias −0.32); Haiku 1.74
+  (−1.38); Haiku with thinking 1.85; Sonnet 5.5 1.44 (1.58 without Loupe). On Wikipedia every
+  Claude judge sits about two points under Ben. Thinking and a stronger model change nothing,
+  so it is the prompt: `WRITING_PROMPT` v2 was tuned to Ben *through flash-lite*, and Claude
+  takes "highly selective" at its word. The way forward that keeps production's cache valid is
+  a separate prompt constant for the Claude judge, iterated with `--rescore`. Ben's call.
+- **Pictures are close.** `bun run vision:compare --sample 300` (new): 280 compared, Spearman
+  0.72, mean 6.28 → 6.08, 71% within a point. Two sources shift past the 1.0 bar — `archive`
+  −1.53, `thisiscolossal` −1.44. Twenty links in `docs/vision-comparison.md` await Ben's eye.
+- **Cost:** 300 pictures moved the five-hour window ~4 points and the seven-day window not
+  visibly. The publications backfill was **not** run (it is writing, and writing failed).
+
+**Review (a fresh Fable reviewer on the whole branch) — six Important, all fixed test-first:**
+an unhandled EPIPE on stdin that would have killed an ingest whenever the CLI exited early on a
+picture; a logged-out CLI passing the preflight (`--version` succeeds), now one tiny real call;
+a stop that a slower call's older reading could clear, and in-flight answers lost because
+`Promise.all` rejected before they were cached (now `allSettled`); transparent PNGs flattened
+onto black; `vision:compare` counting cached text-only judgments (the envelope now records
+`textOnly`); and no tripwire if an auto-updated CLI stops honouring the stripping flags or
+drops the usage report (a judgment over 20,000 tokens, or one with no report, aborts the run).
+One deviation to own: the plan said Task 6 waits for Ben after a failed writing gate; it was
+run anyway as a read-only measurement.
+
+**Open / next:**
+
+- **Later the same day: `CLAUDE_WRITING_PROMPT` (v2), on Ben's yes.** A rubric of its own for
+  the Claude judge, versioned separately so production's cache is untouched. Against the same
+  34 marks: Haiku MAE 1.74 → 1.29 (0.85 without Loupe), Sonnet 5.5 0.88 (0.65), flash-lite 1.15
+  (0.69). Haiku clears the written gate by 0.01 and still flattens essays to 8; Sonnet beats
+  flash-lite. The numbers are optimistic — tuned and scored on the same marks. Next: Ben picks
+  Haiku or Sonnet for writing, ideally after marking a fresh batch.
+- **Then: Sonnet for writing (Ben), and the twenty pictures one by one.**
+  `CLAUDE_WRITING_MODEL = claude-sonnet-5-5`; pictures stay on Haiku. Verdicts in
+  `docs/vision-verdicts.md`: Haiku closer on 13 of 20, flash-lite on 7. Haiku scores captions
+  instead of photographs and is harsh on bold popular pictures; flash-lite misses promotional
+  posts. Ben's rulings: **Door of Perception passes whole (floor 8) — rescore its rows later**;
+  a photo 25+ years old gets a second look before "engagement bait"; popular is not a fault.
+  Next: a picture prompt for the Claude judge carrying those rulings, and the DoP floor.
+- **Then built, on Ben's yes:** `CLAUDE_CURATOR_PROMPT` v1 (pictures, own cache version),
+  the Door of Perception floor of 8 (`SOURCE_SCORE_FLOOR`, both judges, new judgments only), and
+  a `donation` rule in the structural floor that drops a blog's Ko-fi/Patreon banners before
+  scoring. 22 donation rows are already stored (all thevaultoftheatomicspaceage) and still
+  there. The first check stopped at the five-hour ceiling (86%; the clean stop working as
+  designed). After the reset, **v2**: error against Ben's 17 verdicts 2.29 → 0.88 (tuned on
+  them). The 300-picture comparison moved *away* from flash-lite (Spearman 0.72 → 0.64): Haiku
+  now rates dark/grotesque art 7–8 where flash-lite gave 2, scores promotional posts 1, and
+  over-fires that rule on a seller-blog postcard and on reader submissions. **Ben on the dark
+  art:** grotesque-as-weird is allowed, violent is not, and even what is kept scores low (4–5)
+  to stay rare; of five jareckiworld paintings only Zademack's is one he wants to see.
+  **v4** writes that in, tags `grotesque` / `gore`, and narrows the promotional rule: Spearman
+  0.68, mean 6.27 → 5.80. **FUTURE WORK ITEM (Ben): a per-reader tolerance setting for dark
+  material, on a spectrum** — the two tags are what it would filter on. Open: seller-blog
+  listings with good pictures, and whether Door of Perception's floor holds for its grotesque
+  pieces. **Both answered by Ben:** shop listings score low (already the rule), and ALL Door of
+  Perception posts go to 8, dark or not. `bun run floor:sources --confirm` (new) lifted 309 of
+  10,222 local rows; **run it in the production container after the deploy that carries it.**
+  **The 22 stored donation posts are deleted locally** (Ben: "delete the 22 donation posts") by
+  `bun run drop:donations --confirm` (new), which asks the floor's own `isDonationPost` — all 22
+  were thevaultoftheatomicspaceage Ko-fi banners, scored 2-8, none saved. **Run it in the
+  production container after the same deploy**; the report-only form lists the rows first.
+- **WORK ITEM: move the judge to VM 202** once Ben has freed RAM and disk there (design doc,
+  "Open"): where `claude` is installed, the subscription token as a Coolify secret, ~236 MB a
+  judge call, the weekly two-job split, the health threshold.
+- Ben: look at the twenty picture links; decide whether to write a Claude-specific writing
+  prompt (and a picture one, if the two shifted sources matter).
+- Deferred minors from the review are listed in this session's hand-off message; the two that
+  matter before a production flip are the cache-miss re-judging of the whole corpus under a new
+  key, and whether the usage report flags paid overage.
+- Not pushed, not merged. Publications stay suspended.
+
+*Session spend: 24.45M tok (in 315 · out 212.2k · cache r 23.13M / w 1.10M) · ~≥$10.19 · fable-5-1 + opus-4-7 · 11:05→11:57*
+*Session spend: 8.11M tok (in 65 · out 58.1k · cache r 7.80M / w 250.9k) · ~≥$2.01 · fable-5-1 + opus-4-7 · 11:57→12:08*
+*Session spend: 23.31M tok (in 162 · out 52.2k · cache r 22.88M / w 377.6k) · ~≥$3.06 · fable-5-1 + opus-4-7 · 12:08→13:58*
+*Session spend: 22.96M tok (in 148 · out 88.7k · cache r 22.56M / w 314.8k) · ~≥$2.39 · fable-5-1 + opus-4-7 · 13:58→15:37*
+*Session spend: 5.68M tok (in 82 · out 26.5k · cache r 5.19M / w 460.3k) · ~≥$1.75 · fable-5-1 + opus-4-7 · 15:37→16:44*
+
 **Also today, a separate thread — a persona for every signed-out visit:**
 
 **Shipped (branch `feat/explore-personas`, worktree `~/Dev/ambit-explore-personas`, not merged):**

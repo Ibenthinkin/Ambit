@@ -25,6 +25,16 @@ import {
   writingText,
   kindFor,
 } from "~/server/config/writing";
+import sharp from "sharp";
+
+import {
+  CLAUDE_CONCURRENCY,
+  CLAUDE_JUDGE_MODEL,
+  claudeComplete,
+  claudeModelSpec,
+  isClaudeModel,
+} from "./claude-judge";
+import { CuratorAbortError } from "./curator-errors";
 import { imageFetchHeaders } from "./image-auth";
 import { USER_AGENT } from "./sources/http";
 import type { NormalizedItem } from "./sources/types";
@@ -33,6 +43,71 @@ import type { NormalizedItem } from "./sources/types";
  *  Swappable on purpose: the cache key below includes the model, so trying a different judge
  *  never clobbers scores already paid for. */
 export const CURATOR_MODEL = "google/gemini-2.5-flash-lite";
+
+/**
+ * Which judge a run uses by default (docs/DESIGN_claude-judge-ingest.md D2). `CURATOR_JUDGE=claude`
+ * is Haiku through the Claude Code CLI on Ben's subscription; unset or `openrouter` is
+ * CURATOR_MODEL, exactly as before. Read at call time, not import time, so a script and a test
+ * can both set it. Nothing ever falls back from one to the other on its own: the cache is keyed
+ * on the model, and a run that quietly mixed two judges would store scores from two rubrics
+ * under one summary.
+ */
+export function judgeModel(): string {
+  // An empty string is "unset" too: that is how a blank line in .env arrives.
+  const raw = process.env.CURATOR_JUDGE;
+  const judge = raw === undefined || raw === "" ? "openrouter" : raw;
+  if (judge === "claude") return CLAUDE_JUDGE_MODEL;
+  if (judge === "openrouter") return CURATOR_MODEL;
+  throw new Error(
+    `CURATOR_JUDGE must be "openrouter" or "claude", got "${judge}"`,
+  );
+}
+
+/**
+ * The Claude judge's model for WRITING (Ben, 10-01-26). Pictures stay on Haiku; writing goes to
+ * Sonnet because the calibration said so: under CLAUDE_WRITING_PROMPT v2 Sonnet's error against
+ * Ben's marks was 0.88 to Haiku's 1.29 (flash-lite: 1.15), and Haiku gave nearly every essay
+ * the same 8, which makes a score useless for ranking essays against each other. Writing is the
+ * small half of the corpus, so the dearer model is spent where it is cheap to spend.
+ */
+export const CLAUDE_WRITING_MODEL = "claude-sonnet-5-5";
+
+/** The model that judges writing under the run's judge — `judgeModel()` for articles. */
+export function writingJudgeModel(): string {
+  return isClaudeModel(judgeModel()) ? CLAUDE_WRITING_MODEL : CURATOR_MODEL;
+}
+
+/**
+ * Can these models be called at all? One sentence when not, null when fine — for a script to
+ * print and exit on before any walk starts. An OpenRouter model needs the key. A Claude model is
+ * asked one tiny question: `claude --version` succeeds on a machine that is logged out or whose
+ * token has expired, and the alternative to finding that out here is finding it out after the
+ * whole walk, eighty failed spawns in. It costs ~400 tokens of the subscription per run.
+ */
+export async function judgePreflight(
+  models: readonly string[] = [judgeModel(), writingJudgeModel()],
+): Promise<string | null> {
+  if (models.some((m) => !isClaudeModel(m)) && !process.env.OPENROUTER_API_KEY)
+    return "OPENROUTER_API_KEY is not set — required for the OpenRouter judge (add it to .env, or set CURATOR_JUDGE=claude).";
+  const claude = models.find(isClaudeModel);
+  if (claude) {
+    try {
+      await claudeComplete({
+        model: claudeModelSpec(claude).id,
+        system: "Reply with ONLY one JSON object.",
+        content: 'Give {"ok":true}',
+      });
+    } catch (err) {
+      return `the Claude judge is not usable — ${err instanceof Error ? err.message : String(err)} (is Claude Code installed, on PATH, and logged in with the subscription?)`;
+    }
+  }
+  return null;
+}
+
+/** The longest side a picture is sent to Claude at (D6). The API refuses images over 5 MB and
+ *  anything but JPEG/PNG/GIF/WebP; museum originals are routinely both. 1024 px is ~1,400 image
+ *  tokens, and a 1–10 score does not improve past it. */
+export const CLAUDE_IMAGE_FIT = 1024;
 
 /** Output cap sent on every curator call. The reply is one small JSON object — a score, two to
  *  four short tags, up to three topic ids — well under 100 tokens, so 400 is generous. The number
@@ -76,23 +151,8 @@ export const CURATOR_ABORT_STATUSES: ReadonlySet<number> = new Set([401, 402]);
  */
 export const MAX_CONSECUTIVE_FAILURES = 20;
 
-/**
- * Thrown by curateItems when the batch cannot continue — an account-level HTTP status
- * (CURATOR_ABORT_STATUSES) or MAX_CONSECUTIVE_FAILURES fallbacks in a row. Deliberately not a
- * plain Error: the per-item fallback in curateItems catches everything else, and this is the one
- * kind of failure it must let through. Ingest's top-level catch turns it into exit 1; nothing has
- * been written, so the re-run resumes free through the curation cache.
- */
-export class CuratorAbortError extends Error {
-  constructor(
-    message: string,
-    /** The HTTP status that caused the abort, when one did. */
-    readonly status?: number,
-  ) {
-    super(message);
-    this.name = "CuratorAbortError";
-  }
-}
+// Lives in a leaf module so claude-judge.ts can throw it without importing this file back.
+export { CuratorAbortError } from "./curator-errors";
 
 /** Copied verbatim from phase0/curate.ts — this prompt is a product artifact (Ben's taste
  *  calibration lands here, SPEC §15), not implementation detail to be casually reworded. */
@@ -107,6 +167,78 @@ Rate the following item for your blog on a 1-10 scale:
 Also give 2-4 short lowercase aesthetic tags describing its look or appeal (e.g. "botanical plate", "hand-lettered", "brutalist", "lurid palette", "quiet portrait", "strange diagram").
 
 Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."]}`;
+
+/** Bump when CLAUDE_CURATOR_PROMPT changes — the Claude judge's picture cache version (`vc<n>`
+ *  in curationCacheKey), separate from PROMPT_VERSION so that iterating this rubric never
+ *  invalidates a score production holds from the OpenRouter judge. */
+export const CLAUDE_PROMPT_VERSION = 4;
+
+/**
+ * The picture rubric the Claude judge reads (10-01-26). It comes out of Ben going through the
+ * twenty largest disagreements between Haiku and the stored flash-lite scores, one at a time
+ * (docs/vision-verdicts.md). Haiku under CURATOR_PROMPT was closer to Ben than flash-lite on 13
+ * of 20, and wrong in a few specific ways, each of which is a line here: it scored the caption
+ * instead of the photograph (a plain drawer and a glass blob at 8; Ben gave 2), it marked bold
+ * popular pictures down (a tiger, a reef painting), and it read a 1960s swimsuit slide as bait.
+ * The rest are Ben's rulings from the same sitting: age earns a second look, popular is not a
+ * fault, promotional posts score 1. And one more, from the 300-picture comparison (v3): grotesque
+ * in the sense of weird is allowed but scored 4-5 so it stays rare, violent gore scores 1-2, and
+ * each is TAGGED ("grotesque" / "gore") — the tags are there so a reader's own tolerance can
+ * be a setting one day (Ben, 10-01-26; not built).
+ *
+ * Same curator, same scale, same tags as CURATOR_PROMPT — that string is untouched and still
+ * what OpenRouter reads. Check a change with `CURATOR_JUDGE=claude bun run vision:compare`
+ * and against the verdicts file, and bump the version above.
+ */
+export const CLAUDE_CURATOR_PROMPT = `You are the curator of a beloved, long-running art and ideas blog — the kind people used to follow on old Tumblr because every single post was worth stopping for. Your taste: visually striking or quietly beautiful images (strong composition, texture, color, oddness, wit). You post museum objects, illustrations, diagrams, paintings and photographs. Most things a museum digitizes are catalog filler and you skip them without guilt. You never post anything sensational, gory, or engagement-baity.
+
+Rate the following item for your blog on a 1-10 scale:
+  1-3  = filler; you would scroll past it (fragments, routine catalog shots, a page of plain text, a shop's product photo, anything promotional)
+  4-6  = fine but forgettable; post only on a slow day
+  7-8  = good; a solid post your followers would enjoy
+  9-10 = exceptional; the kind of find your blog is known for
+
+How to judge — read these carefully:
+- Judge the PICTURE you are shown, not what the text says about it. The title and text tell you what you are looking at; they earn nothing by themselves. A dull photograph of an object with a fascinating history — a plain wooden box, a lump of glass with an inventory tag, a title page with no ornament — is still a dull photograph and scores 1-3. The test: cover the title. If you could not tell what the thing is or why it matters from the image alone — a small shapeless object on a white ground, a detail too faint to read — it is a 1-3, whatever the title claims is carved or painted on it. Never tag a quality you cannot see in the image.
+- If the picture does not match its title, judge the picture for what it is.
+- Bold, colourful, popular or crowd-pleasing is not a fault, and neither is a familiar genre. A dramatic animal photograph — a big cat staring into the lens, teeth bared — is a 7-8: wildlife photography is always a little formulaic and people love it anyway. A dense, saturated painting in a folk, naive or decorative style is a 7-8 when it is vivid and well made; that style is a choice, not a lack of skill. If a picture would make someone stop scrolling, do not score it below 7 for being the kind of thing that is popular.
+- Age earns a second look. A photograph that is visibly more than about 25 years old — faded colour, slide or print grain, period clothes and hair — is a document of its time. A family slide, a holiday snapshot, a young woman in a bikini on a beach in the 1960s: these are personal, historical pictures, they score 6-7, and they are NOT engagement bait and must not be tagged as such. Only a recent picture whose sole appeal is an attractive person is bait. A formally strong photograph of a body — cropped to pattern, shape and shadow — is a photograph first, whatever its date.
+- Dark material, two cases, and always say which in the tags:
+    Grotesque in the sense of WEIRD — surreal, uncanny, macabre, satirical, horror-film imagery, distorted or monstrous bodies with no real bloodshed — is allowed but kept rare: score it 4-5 however well made, and include the tag "grotesque".
+    VIOLENT — explicit gore, mutilation, dismemberment, torture, open wounds, stitched or flayed flesh, exposed viscera — scores 1-2, and include the tag "gore". This holds for a painting as much as a photograph: an allegorical, religious or art-historical frame does not turn gore into grotesque. If there is blood and torn flesh, it is gore.
+- Promotional posts score 1, however nice the image underneath: a request for donations or support, a sponsored announcement or advertisement for a school, product or sale, a shop or sale announcement, a banner carrying a link. This is about what the POST is, not who posted it: a reader's submission is not promotional, and a picture from a blog that also sells prints or postcards is judged as a picture unless the post itself is announcing something for sale.
+- A clever idea in an ordinary snapshot is a 4-6: the picture has to carry it.
+- A scrap of text with nothing to look at — a cropped paragraph, a caption — scores 1-3, unless the lettering itself is the picture.
+- An unfinished or rough work is judged as it looks, neither up nor down for being unfinished.
+- Give every item 2-4 tags, including the ones you score low.
+
+Also give 2-4 short lowercase aesthetic tags describing its look or appeal (e.g. "botanical plate", "hand-lettered", "brutalist", "lurid palette", "quiet portrait", "strange diagram").
+
+Reply with ONLY a JSON object, no code fence and no other text: {"score": <1-10>, "tags": ["...", "..."]}`;
+
+/** The picture rubric for a judge: a `claude-*` model reads CLAUDE_CURATOR_PROMPT. */
+export function curatorPrompt(model: string = judgeModel()): string {
+  return isClaudeModel(model) ? CLAUDE_CURATOR_PROMPT : CURATOR_PROMPT;
+}
+
+/**
+ * Sources whose every item passes, whatever a judge says (Ben, 10-01-26): "I would just
+ * automatically pass everything from the DOP blog. Every last post and image." A blog is
+ * designated because the *blog* was judged worth having, and for this one that judgment
+ * outranks any model's opinion of a single post — flash-lite gave a Toshio Saeki a 3. The floor
+ * is the score an item is stored with when the judge said less; a higher score is kept, and so
+ * are the judge's tags and topics. It applies under either judge, and to the neutral fallback a
+ * failed judgment gets. It beats the dark-material rule in CLAUDE_CURATOR_PROMPT too — Ben, asked
+ * directly: "bump ALL DOP POSTS up to the 8 threshold whether you think they are dark or not".
+ * Rows stored before this date are lifted by `bun run floor:sources --confirm`.
+ */
+export const SOURCE_SCORE_FLOOR: Partial<Record<string, number>> = {
+  doorofperception: 8,
+};
+
+function floored(source: string, score: number): number {
+  return Math.max(score, SOURCE_SCORE_FLOOR[source] ?? 0);
+}
 
 /** The sixteen COMPILE-TIME topic ids — the classify mode's FALLBACK vocabulary, and what it
  *  validates against when a caller names no other. Since 09-06-26 both ingest and stats:walk
@@ -148,9 +280,12 @@ export const TOPIC_IDS: ReadonlySet<string> = new Set(TOPICS.map((t) => t.id));
  */
 export function classifyPrompt(
   topics: readonly { id: string; label: string }[],
+  /** Which judge will read it: a `claude-*` model gets CLAUDE_CURATOR_PROMPT underneath. */
+  model: string = judgeModel(),
 ): string {
+  const base = curatorPrompt(model);
   return (
-    CURATOR_PROMPT.slice(0, CURATOR_PROMPT.lastIndexOf("Reply with ONLY")) +
+    base.slice(0, base.lastIndexOf("Reply with ONLY")) +
     `Also list which of these topics are an honest home for this item — a topic a reader who chose it would be glad to find this in. Best fit first. Usually one or two, never more than three; an empty list is a correct answer. Never force a fit: if none of them is honest, answer [].
 ${topics.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
 
@@ -162,7 +297,7 @@ Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "topics
 
 /** The prompt over the sixteen compile-time topics — the default when a caller names no
  *  vocabulary, and what the prompt-slicing comment above is about. */
-export const CLASSIFY_PROMPT = classifyPrompt(TOPICS);
+export const CLASSIFY_PROMPT = classifyPrompt(TOPICS, CURATOR_MODEL);
 
 /** Bump when WRITING_PROMPT changes. Part of the writing cache key only — the image prompt's
  *  PROMPT_VERSION and its keys are untouched by anything the writing curator does. */
@@ -210,22 +345,71 @@ Also give 2-4 short lowercase tags for its subject or appeal (e.g. "odd history"
 
 Reply with ONLY a JSON object: {"score": <1-10>, "tags": ["...", "..."], "kind": "<kind>", "timeliness": "<timeliness>", "topics": [<topic ids, best fit first, or empty>]}`;
 
+/** Bump when CLAUDE_WRITING_PROMPT changes — it is the Claude judge's writing cache version
+ *  (`wc<n>` in writingCacheKey), separate from WRITING_PROMPT_VERSION on purpose: iterating this
+ *  rubric must never invalidate an answer production holds from the OpenRouter judge. */
+export const CLAUDE_WRITING_PROMPT_VERSION = 2;
+
+/**
+ * The writing rubric the Claude judge reads (docs/DESIGN_claude-judge-ingest.md, Results;
+ * 10-01-26). It exists because WRITING_PROMPT failed its calibration under Claude: against Ben's
+ * 34 marks Haiku was 1.4 points harsher on average and two points harsher on Wikipedia, and
+ * neither thinking nor Sonnet moved it. WRITING_PROMPT v2 was tuned to Ben's marks *through
+ * flash-lite*, a generous reader; Claude takes "highly selective" and "fine but forgettable" at
+ * their word and files a sound encyclopedia entry at 4-5, where Ben put 7-8.
+ *
+ * So this is the same editor with the scale spelled out the way Ben used it: the subject is
+ * what is judged, an encyclopedia's plain tone is not a fault, length moves nothing, and the top
+ * of the scale is meant to be used. It drops the `timeliness` question, which nothing has read
+ * since 09-30-26 (WRITING_PROMPT keeps it only for its cache). Tune it with
+ * `bun run writing:calibrate --rescore --models …,claude-haiku-4-5-20251001`, and bump the
+ * version above with every edit.
+ */
+export const CLAUDE_WRITING_PROMPT = `You are choosing pieces for a beloved newsletter of long reads and curiosities — the kind people stay subscribed to for years. Its readers are curious generalists: they like learning that a thing exists. They read encyclopedia articles for pleasure as readily as essays. You read everything for them: encyclopedia articles, essays, criticism, profiles, poems, old magazine clippings, archival documents. You never run anything sensational, gory, or engagement-baity.
+
+Rate the following piece for the newsletter on a 1-10 scale. The question is "would a curious reader be glad they found this?" — not "is this fine prose?".
+  1-3  = unusable: garbled or fragmentary text, boilerplate, a bare list with nothing to follow
+  4-5  = readable but nothing in it: no subject a reader would remember tomorrow
+  6    = worth running for a narrow audience: accurate and specialist, of interest mainly to people already in the field
+  7-8  = good; readers would be glad to find it. This is where a sound piece about an interesting subject belongs
+  9-10 = the kind of piece the newsletter is known for: a rich subject told well, or an essay with a real voice and a story
+
+How to use the scale — read this carefully, because the common mistake is to score too low:
+- Judge the SUBJECT and what a reader learns, not the tone. An encyclopedia article is plain and neutral on purpose. Never mark a piece down for reading like an encyclopedia, for lacking a narrative voice, or for being a survey.
+- An encyclopedia article about a real, specific thing — a place, an institution, a natural phenomenon, a technique, a plant part, an instrument, a mythology — scores 7-8 on its subject alone: 8 when the subject has pull of its own (space, myth, language and etymology, a place with a long history, a small odd fact about the natural world), 7 when it is solid but plainer (a pottery, a company archive, an engineering concept). Go to 9 when the subject is broad and rich enough to get lost in (a whole mythology, a famous figure of legend). Drop to 6 only when it is technical enough that most readers would bounce off it.
+- Length is not a reason to move a score in either direction. A two-paragraph entry about an obscure observatory project or a survey of asteroids is a small shard of the world and scores 7-8 exactly as a long one would; a stub is only a problem when it says nothing at all. A long country or regional history is not "dutiful"; it is a place the reader has never been.
+- A well-made essay from a literary or historical review starts at 8, and 8 is for the ones that are competent and no more: an appreciation of a writer, a survey of a theme. Give 9 when the essay tells a story — a strange life, a hoax, a forgotten episode, a mystery followed to its end — which most good essays of this kind do. Give 10 to the rare one you would send to a friend that night. Do not give every essay the same score.
+- Most pieces you are shown have already passed a filter. Expect most scores to be 7 or higher; scores below 6 are for text that is broken, empty, or genuinely dull.
+
+Say what kind of piece it is — exactly one of:
+  "essay" — an essay or long read: an argument, a narrative, reporting with a point of view
+  "curiosity" — a subject explained: a strange history, an unlikely fact, a thing you never knew existed. Encyclopedia articles are almost always this
+  "criticism" — criticism or a profile: writing about a particular work, artist, writer or maker
+  "archive" — a poem, or a document from the past read for itself: a historical text, a clipping, a primary source
+
+Also give 2-4 short lowercase tags for its subject or appeal (e.g. "odd history", "lost technology", "folk belief", "quiet biography", "strange science").
+
+Reply with ONLY a JSON object, no code fence and no other text: {"score": <1-10>, "tags": ["...", "..."], "kind": "<kind>", "topics": [<topic ids, best fit first, or empty>]}`;
+
 /** WRITING_PROMPT with the topic block classify mode uses, over the vocabulary given. Writing
  *  always classifies — in the search lane too — because an article's seed topic is one keyword's
  *  guess and the curator has read the piece. */
 export function writingPrompt(
   topics: readonly { id: string; label: string }[],
+  /** Which judge will read it: a `claude-*` model gets CLAUDE_WRITING_PROMPT. */
+  model: string = writingJudgeModel(),
 ): string {
-  const at = WRITING_PROMPT.lastIndexOf("Reply with ONLY");
+  const base = isClaudeModel(model) ? CLAUDE_WRITING_PROMPT : WRITING_PROMPT;
+  const at = base.lastIndexOf("Reply with ONLY");
   return (
-    WRITING_PROMPT.slice(0, at) +
+    base.slice(0, at) +
     `Also list which of these topics are an honest home for this piece — a topic a reader who chose it would be glad to find it in. Best fit first. Usually one or two, never more than three; an empty list is a correct answer. Never force a fit.
 ${topics.map((t) => `  ${t.id} — ${t.label}`).join("\n")}
 
 The list is long; most of it will not apply — pick only honest homes.
 
 ` +
-    WRITING_PROMPT.slice(at)
+    base.slice(at)
   );
 }
 
@@ -245,7 +429,28 @@ export type CuratedItem = NormalizedItem & {
 };
 
 /** Structural-floor drop reasons, each mapped to a Phase 0.4 finding (see phase0/NOTES.md). */
-export type StructuralDropRule = "dup-title" | "bare-title" | "thin-summary";
+export type StructuralDropRule =
+  "dup-title" | "bare-title" | "thin-summary" | "donation";
+
+/** Where a blog asks for money. */
+const DONATION_LINK = /(ko-fi\.com|patreon\.com|buymeacoffee\.com|paypal\.me)/i;
+
+/**
+ * A post that is only a request for donations (Ben, 10-01-26): a blog's "support this page"
+ * banner, titled and captioned with its Ko-fi link. Two of them sat in the feed at score 6 —
+ * flash-lite saw vintage imagery and missed that it was a banner. A judge could score them 1,
+ * but there is nothing to judge: they are dropped here, free, before any model is asked. Narrow
+ * on purpose — the link has to be the TITLE, or the whole summary — so a real post whose long
+ * caption ends "more on patreon.com/…" is untouched. Exported for `bun run drop:donations`,
+ * which removes the rows stored before this rule existed.
+ */
+export function isDonationPost(
+  item: Pick<NormalizedItem, "title" | "summary">,
+): boolean {
+  if (DONATION_LINK.test(item.title)) return true;
+  const summary = item.summary.trim();
+  return !/\s/.test(summary) && DONATION_LINK.test(summary);
+}
 
 /** Titles are compared in a normalized form so "Textile", "textile " and "Textile." all count
  *  as the same title — the 0.4 duplicates were exact-after-normalization, not fuzzy. */
@@ -312,8 +517,9 @@ export function structuralFloor(items: NormalizedItem[]): {
     // The exemption above, computed once per item: a picture from a designated blog or any
     // other walk source. Only the last two rules read it; dup-title has its own walk clause.
     const walkImage = isWalkSource(item.source) && item.type === "image";
-    const rule: StructuralDropRule | null =
-      (titleCounts.get(norm) ?? 0) > 2 && !isWalkSource(item.source)
+    const rule: StructuralDropRule | null = isDonationPost(item)
+      ? "donation"
+      : (titleCounts.get(norm) ?? 0) > 2 && !isWalkSource(item.source)
         ? "dup-title"
         : item.type === "image" && norm.split(" ").length <= 1 && !walkImage
           ? "bare-title"
@@ -410,6 +616,8 @@ function itemAsText(item: NormalizedItem): string {
 async function imageAsDataUrl(
   url: string,
   headers: Record<string, string> = {},
+  /** Claude path only: downscale to fit inside this many pixels and re-encode as JPEG. */
+  fit?: number,
 ): Promise<string | null> {
   for (const candidate of [url, encodeURI(url)]) {
     try {
@@ -422,8 +630,27 @@ async function imageAsDataUrl(
       const mime =
         res.headers.get("content-type")?.split(";")[0] ?? "image/jpeg";
       if (!mime.startsWith("image/")) continue;
-      const b64 = Buffer.from(await res.arrayBuffer()).toString("base64");
-      return `data:${mime};base64,${b64}`;
+      const bytes = Buffer.from(await res.arrayBuffer());
+      if (fit) {
+        // The Claude path (D6): one known format at one bounded size. `rotate()` applies the
+        // EXIF orientation before the metadata is dropped. A file sharp cannot decode returns
+        // null — the caller's "judge from the text alone" branch, counted per source like any
+        // other picture the curator could not look at.
+        try {
+          const jpeg = await sharp(bytes)
+            .rotate()
+            .resize(fit, fit, { fit: "inside", withoutEnlargement: true })
+            // JPEG has no alpha, and sharp's default ground is black: line art or a diagram on
+            // a transparent PNG would reach the model as a black rectangle.
+            .flatten({ background: "#ffffff" })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+          return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+        } catch {
+          return null;
+        }
+      }
+      return `data:${mime};base64,${bytes.toString("base64")}`;
     } catch {
       // try the encoded variant, then give up
     }
@@ -548,15 +775,20 @@ export const CURATION_CACHE_DIR = path.join(
  * promoted, and keying on it would re-bill the entire corpus for a change to a *list*. An item
  * classified under the sixteen keeps that answer, and `promote:topics` is its backfill. That is
  * the whole reason `PROMPT_VERSION` did not move.
+ *
+ * `model` defaults to the run's judge (`judgeModel()`), which under the unset default is
+ * `CURATOR_MODEL`, so every key written before 10-01-26 is unchanged.
  */
 export function curationCacheKey(
   item: Pick<NormalizedItem, "source" | "sourceId">,
   classify: boolean,
+  model: string = judgeModel(),
 ): string {
   const mode = classify ? "classify|" : "";
   return createHash("sha256")
     .update(
-      `${CURATOR_MODEL}|v${PROMPT_VERSION}|${mode}${item.source}:${item.sourceId}`,
+      // `vc<n>` for a Claude model: its picture rubric has a version of its own.
+      `${model}|${isClaudeModel(model) ? `vc${CLAUDE_PROMPT_VERSION}` : `v${PROMPT_VERSION}`}|${mode}${item.source}:${item.sourceId}`,
     )
     .digest("hex")
     .slice(0, 32);
@@ -604,11 +836,12 @@ export function parseWritingResponse(
  */
 export function writingCacheKey(
   item: Pick<NormalizedItem, "source" | "sourceId">,
-  model: string = CURATOR_MODEL,
+  model: string = writingJudgeModel(),
 ): string {
   return createHash("sha256")
     .update(
-      `${model}|w${WRITING_PROMPT_VERSION}|writing|${item.source}:${item.sourceId}`,
+      // `wc<n>` for a Claude model: its rubric has a version of its own (CLAUDE_WRITING_PROMPT).
+      `${model}|${isClaudeModel(model) ? `wc${CLAUDE_WRITING_PROMPT_VERSION}` : `w${WRITING_PROMPT_VERSION}`}|writing|${item.source}:${item.sourceId}`,
     )
     .digest("hex")
     .slice(0, 32);
@@ -657,7 +890,7 @@ async function scoreWriting(
   cached: boolean;
 }> {
   const vocabulary = opts.topics ?? TOPICS;
-  const model = opts.model ?? CURATOR_MODEL;
+  const model = opts.model ?? writingJudgeModel();
   const topicIds = new Set(vocabulary.map((t) => t.id));
   const cacheFile = path.join(
     CURATION_CACHE_DIR,
@@ -675,7 +908,11 @@ async function scoreWriting(
   }
 
   const { result } = await callCurator(
-    { model, system: writingPrompt(vocabulary), content: writingAsText(item) },
+    {
+      model,
+      system: writingPrompt(vocabulary, model),
+      content: writingAsText(item),
+    },
     (reply) => parseWritingResponse(reply, { topicIds }),
   );
   await mkdir(CURATION_CACHE_DIR, { recursive: true });
@@ -711,14 +948,17 @@ async function scoreItem(
   topics: string[];
   tokens: number;
   imageFetchFailed: boolean;
+  /** True when the score was reached from text alone — now, or when the cached answer was made. */
+  textOnly: boolean;
   /** True when the answer came from the on-disk cache and no fetch of any kind was made. */
   cached: boolean;
 }> {
   const classify = opts.classify ?? false;
   const vocabulary = opts.topics ?? TOPICS;
+  const model = judgeModel();
   const cacheFile = path.join(
     CURATION_CACHE_DIR,
-    `${curationCacheKey(item, classify)}.json`,
+    `${curationCacheKey(item, classify, model)}.json`,
   );
 
   if (!opts.force) {
@@ -730,6 +970,8 @@ async function scoreItem(
         topicId?: string | null;
         /** Cut 1 entries: the array. */
         topics?: string[];
+        /** 10-01-26: the picture could not be looked at when this was judged. */
+        textOnly?: boolean;
       };
       return {
         score: cached.score,
@@ -741,6 +983,7 @@ async function scoreItem(
         ...capTopics(cached.topics ?? (cached.topicId ? [cached.topicId] : [])),
         tokens: 0,
         imageFetchFailed: false,
+        textOnly: cached.textOnly === true,
         cached: true,
       };
     } catch {
@@ -773,6 +1016,7 @@ async function scoreItem(
     const dataUrl = await imageAsDataUrl(
       item.curationImageUrl ?? item.imageUrl,
       imageFetchHeaders(item.source),
+      isClaudeModel(model) ? CLAUDE_IMAGE_FIT : undefined,
     );
     if (dataUrl)
       content.push({ type: "image_url", image_url: { url: dataUrl } });
@@ -785,8 +1029,10 @@ async function scoreItem(
 
   const { result, tokens } = await callCurator(
     {
-      model: CURATOR_MODEL,
-      system: classify ? classifyPrompt(vocabulary) : CURATOR_PROMPT,
+      model,
+      system: classify
+        ? classifyPrompt(vocabulary, model)
+        : curatorPrompt(model),
       content,
     },
     (reply) =>
@@ -800,11 +1046,19 @@ async function scoreItem(
       ),
   );
   await mkdir(CURATION_CACHE_DIR, { recursive: true });
-  await writeFile(cacheFile, JSON.stringify(result));
+  // `textOnly` is remembered in the envelope (10-01-26). `imageFetchFailed` cannot be: it means
+  // "a fetch failed in THIS run", and a cache hit makes no fetch. But a score reached without
+  // looking at the picture is a different measurement for as long as it is cached, and
+  // `vision:compare` has to be able to leave it out on a second run as well as on the first.
+  await writeFile(
+    cacheFile,
+    JSON.stringify(imageFetchFailed ? { ...result, textOnly: true } : result),
+  );
   return {
     ...result,
     tokens,
     imageFetchFailed,
+    textOnly: imageFetchFailed,
     cached: false,
   };
 }
@@ -816,64 +1070,79 @@ type CuratorContent =
       | { type: "image_url"; image_url: { url: string } }
     )[];
 
-/**
- * One OpenRouter chat call for one curator judgement, with the retry loop and the fail-fast rule
- * both curators share. `parse` runs inside the retry, so a reply that isn't usable JSON (or has
- * no usable score) is retried like a network error rather than cached. An account-level status
- * throws CuratorAbortError straight through — see CURATOR_ABORT_STATUSES.
- */
-async function callCurator<T>(
-  req: { model: string; system: string; content: CuratorContent },
-  parse: (reply: string) => T,
-): Promise<{ result: T; tokens: number }> {
+/** The OpenRouter transport: one chat completion. An account-level status throws
+ *  CuratorAbortError — see CURATOR_ABORT_STATUSES. */
+async function openRouterComplete(req: {
+  model: string;
+  system: string;
+  content: CuratorContent;
+}): Promise<{ reply: string; tokens: number }> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error(
       "OPENROUTER_API_KEY is not set — required for curateItems() (add it to .env).",
     );
   }
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: req.model,
+      messages: [
+        { role: "system", content: req.system },
+        { role: "user", content: req.content },
+      ],
+      // Asks the provider to guarantee syntactically valid JSON output.
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+      // Reserved against the key's budget before dispatch — see CURATOR_MAX_TOKENS.
+      max_tokens: CURATOR_MAX_TOKENS,
+    }),
+  });
+  if (!res.ok) {
+    const detail = `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
+    // Account-level, not item-level: thrown past the retry in callCurator and past the fallback
+    // in curateItems. Retrying a 402 four times per item is how walk 3 ran for eighteen hours.
+    if (CURATOR_ABORT_STATUSES.has(res.status))
+      throw new CuratorAbortError(
+        `OpenRouter ${detail} — ${res.status === 402 ? "the account is out of credits" : "the API key was rejected"}; nothing written, re-run after fixing the account`,
+        res.status,
+      );
+    throw new Error(detail);
+  }
+  const json = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+    usage?: { total_tokens?: number };
+  };
+  return {
+    reply: json.choices?.[0]?.message?.content ?? "{}",
+    tokens: json.usage?.total_tokens ?? 0,
+  };
+}
 
+/**
+ * One curator judgement, with the retry loop and the fail-fast rule both curators and both
+ * transports share. The transport is chosen by the model's name (D1): `claude-*` is the Claude
+ * Code CLI on the subscription, anything else OpenRouter. `parse` runs inside the retry, so a
+ * reply that isn't usable JSON (or has no usable score) is retried like a network error rather
+ * than cached. CuratorAbortError goes straight through — an empty wallet on one side, the
+ * subscription's ceiling on the other.
+ */
+async function callCurator<T>(
+  req: { model: string; system: string; content: CuratorContent },
+  parse: (reply: string) => T,
+): Promise<{ result: T; tokens: number }> {
+  const complete = isClaudeModel(req.model)
+    ? claudeComplete
+    : openRouterComplete;
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: req.model,
-          messages: [
-            { role: "system", content: req.system },
-            { role: "user", content: req.content },
-          ],
-          // Asks the provider to guarantee syntactically valid JSON output.
-          response_format: { type: "json_object" },
-          temperature: 0.2,
-          // Reserved against the key's budget before dispatch — see CURATOR_MAX_TOKENS.
-          max_tokens: CURATOR_MAX_TOKENS,
-        }),
-      });
-      if (!res.ok) {
-        const detail = `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
-        // Account-level, not item-level: thrown past the retry below and past the fallback in
-        // curateItems. Retrying a 402 four times per item is how walk 3 ran for eighteen hours.
-        if (CURATOR_ABORT_STATUSES.has(res.status))
-          throw new CuratorAbortError(
-            `OpenRouter ${detail} — ${res.status === 402 ? "the account is out of credits" : "the API key was rejected"}; nothing written, re-run after fixing the account`,
-            res.status,
-          );
-        throw new Error(detail);
-      }
-      const json = (await res.json()) as {
-        choices?: { message?: { content?: string } }[];
-        usage?: { total_tokens?: number };
-      };
-      return {
-        result: parse(json.choices?.[0]?.message?.content ?? "{}"),
-        tokens: json.usage?.total_tokens ?? 0,
-      };
+      const { reply, tokens } = await complete(req);
+      return { result: parse(reply), tokens };
     } catch (err) {
       if (err instanceof CuratorAbortError) throw err;
       lastErr = err;
@@ -921,6 +1190,9 @@ export async function curateItems(
     writingModel?: string;
     onProgress?: (done: number, total: number) => void;
     onImageFetchFailure?: (item: NormalizedItem) => void;
+    /** Called for every image item whose score was reached without the picture — on the fresh
+     *  call (alongside `onImageFetchFailure`) and on every later cache hit of that answer. */
+    onTextOnly?: (item: NormalizedItem) => void;
     /** Called once per item answered from the on-disk cache (09-07-26). The companion to
      *  `onImageFetchFailure`: a cache hit reports no failure because it made no fetch, so a
      *  caller that prints "N images failed" can only call zero a *clean* number rather than an
@@ -963,26 +1235,34 @@ export async function curateItems(
           consecutiveFailures = 0;
           out[i] = {
             ...item,
-            curationScore: w.score,
+            curationScore: floored(item.source, w.score),
             aestheticTags: w.tags,
             topics: w.topics,
             kind: kindFor(item.source, w.kind),
             readingMinutes: readingMinutes(writingBody(item)),
           };
         } else {
-          const { score, tags, topics, overFiled, imageFetchFailed, cached } =
-            await scoreItem(item, {
-              force: opts?.force ?? false,
-              classify: opts?.classify ?? false,
-              ...(opts?.topics ? { topics: opts.topics } : {}),
-            });
+          const {
+            score,
+            tags,
+            topics,
+            overFiled,
+            imageFetchFailed,
+            textOnly,
+            cached,
+          } = await scoreItem(item, {
+            force: opts?.force ?? false,
+            classify: opts?.classify ?? false,
+            ...(opts?.topics ? { topics: opts.topics } : {}),
+          });
           if (cached) opts?.onCacheHit?.(item);
           if (imageFetchFailed) opts?.onImageFetchFailure?.(item);
+          if (textOnly) opts?.onTextOnly?.(item);
           if (overFiled > 0) opts?.onOverFiled?.(item, overFiled);
           consecutiveFailures = 0;
           out[i] = {
             ...item,
-            curationScore: score,
+            curationScore: floored(item.source, score),
             aestheticTags: tags,
             topics,
           };
@@ -1003,7 +1283,7 @@ export async function curateItems(
         }
         out[i] = {
           ...item,
-          curationScore: 5,
+          curationScore: floored(item.source, 5),
           aestheticTags: [],
           topics: [],
           ...(item.type === "article"
@@ -1016,8 +1296,26 @@ export async function curateItems(
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker),
+  // A Claude judgment is a process, not a socket — half the pool (claude-judge.ts).
+  const claude =
+    isClaudeModel(judgeModel()) ||
+    isClaudeModel(opts?.writingModel ?? writingJudgeModel());
+  // allSettled, not all (10-01-26): when one worker aborts, the others may be mid-judgment.
+  // Promise.all would reject at once and the script would exit with their answers unwritten;
+  // waiting lets each finish its item and cache it (`aborted` stops them taking another), so
+  // the re-run really does resume where this one stopped.
+  const settled = await Promise.allSettled(
+    Array.from(
+      {
+        length: Math.min(
+          claude ? CLAUDE_CONCURRENCY : CONCURRENCY,
+          items.length,
+        ),
+      },
+      worker,
+    ),
   );
+  const failed = settled.find((s) => s.status === "rejected");
+  if (failed) throw failed.reason;
   return out;
 }

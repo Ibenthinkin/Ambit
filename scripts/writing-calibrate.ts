@@ -31,7 +31,7 @@ import { isClassifiable } from "~/server/config/topics";
 import { readingMinutes, writingText } from "~/server/config/writing";
 import { db } from "~/server/db/client";
 import { item, topic } from "~/server/db/schema";
-import { curateItems } from "~/server/services/curator";
+import { curateItems, judgePreflight } from "~/server/services/curator";
 import { hashSeed, mulberry32 } from "~/server/services/random";
 import type { NormalizedItem } from "~/server/services/sources/types";
 import {
@@ -85,13 +85,14 @@ if (rescore && !existsSync(file)) {
   );
   process.exit(1);
 }
-if (!process.env.OPENROUTER_API_KEY) {
-  console.error("OPENROUTER_API_KEY is not set (add it to .env).");
-  process.exit(1);
-}
 const models = (
   flagValue("models") ?? "google/gemini-2.5-flash-lite,google/gemini-2.5-flash"
 ).split(",");
+const judgeProblem = await judgePreflight(models);
+if (judgeProblem) {
+  console.error(judgeProblem);
+  process.exit(1);
+}
 const seed = flagValue("seed") ?? "writing-calibration";
 
 // Marks already in the file survive a re-sample, by item — a prompt iteration keeps Ben's work.

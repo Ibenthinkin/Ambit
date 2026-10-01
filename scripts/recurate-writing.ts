@@ -32,7 +32,11 @@ import { isClassifiable } from "~/server/config/topics";
 import { WRITING_KINDS } from "~/server/config/writing";
 import { db } from "~/server/db/client";
 import { item, topic } from "~/server/db/schema";
-import { curateItems, CURATOR_MODEL } from "~/server/services/curator";
+import {
+  curateItems,
+  writingJudgeModel,
+  judgePreflight,
+} from "~/server/services/curator";
 import type { NormalizedItem } from "~/server/services/sources/types";
 import {
   applyWritingRescore,
@@ -51,7 +55,7 @@ const EXCLUDED_SOURCES = ["loupe"];
 const limit = flagValue("limit") ? Number(flagValue("limit")) : undefined;
 const offset = Number(flagValue("offset") ?? 0);
 const confirm = args.includes("--confirm");
-const model = flagValue("model") ?? CURATOR_MODEL;
+const model = flagValue("model") ?? writingJudgeModel();
 
 if (limit !== undefined && !(limit > 0)) {
   console.error(
@@ -65,10 +69,9 @@ if (!(offset >= 0)) {
   );
   process.exit(1);
 }
-if (!process.env.OPENROUTER_API_KEY) {
-  console.error(
-    "OPENROUTER_API_KEY is not set — required for re-curation (add it to .env).",
-  );
+const judgeProblem = await judgePreflight([model]);
+if (judgeProblem) {
+  console.error(judgeProblem);
   process.exit(1);
 }
 

@@ -2,9 +2,17 @@
 // parsing are both deterministic and network-free, so they're covered here on literals; the
 // live LLM call path (curateItems' network branch) is exercised by the Phase 3.3 curator smoke
 // script instead — no live HTTP in unit tests (CLAUDE.md / PHASE3_PLAN.md convention).
+import { existsSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  CLAUDE_JUDGE_MODEL,
+  claudeRuntime,
+  resetClaudeJudge,
+} from "./claude-judge";
 
 import {
   CLASSIFY_PROMPT,
@@ -20,6 +28,13 @@ import {
   structuralFloor,
   TOPIC_IDS,
   CURATOR_MAX_TOKENS,
+  CURATOR_MODEL,
+  CLAUDE_CURATOR_PROMPT,
+  CLAUDE_PROMPT_VERSION,
+  curatorPrompt,
+  SOURCE_SCORE_FLOOR,
+  judgeModel,
+  judgePreflight,
 } from "./curator";
 import { TOPICS } from "~/server/config/topics";
 import type { NormalizedItem } from "./sources/types";
@@ -668,7 +683,9 @@ describe("curateItems reads pre-Cut-1 cache entries forward, with no LLM call", 
     });
     await seedCache(it, { score: 7, tags: ["a"], topicId: "botany" });
     const [out] = await curateItems([it], { classify: true });
-    expect(out).toMatchObject({ curationScore: 7, topics: ["botany"] });
+    // 8, not the cached 7: the item is a Door of Perception post, and that source has had a
+    // score floor since 10-01-26 (SOURCE_SCORE_FLOOR). The topic read-forward is what this pins.
+    expect(out).toMatchObject({ curationScore: 8, topics: ["botany"] });
   });
 
   it("a cached null topic becomes an empty array — stored un-homed, not dropped", async () => {
@@ -887,6 +904,487 @@ describe("curateItems fails fast on an account-level error", () => {
     if (!r.ok) return;
     expect(r.v.filter((it) => it.curationScore === 5)).toHaveLength(
       MAX_CONSECUTIVE_FAILURES + 1,
+    );
+  });
+});
+
+/** A successful CLI stream carrying `reply` (the shape captured 10-01-26). */
+function claudeStream(reply: string) {
+  return [
+    {
+      type: "rate_limit_event",
+      rate_limit_info: {
+        status: "allowed",
+        unifiedWindows: { seven_day: { utilization: 0.2 } },
+      },
+    },
+    {
+      type: "result",
+      is_error: false,
+      result: reply,
+      usage: { input_tokens: 400, output_tokens: 14 },
+    },
+  ]
+    .map((l) => JSON.stringify(l))
+    .join("\n");
+}
+
+describe("judgeModel", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("is the OpenRouter model when CURATOR_JUDGE is unset", () => {
+    vi.stubEnv("CURATOR_JUDGE", "");
+    expect(judgeModel()).toBe(CURATOR_MODEL);
+  });
+  it("is Haiku under CURATOR_JUDGE=claude", () => {
+    vi.stubEnv("CURATOR_JUDGE", "claude");
+    expect(judgeModel()).toBe(CLAUDE_JUDGE_MODEL);
+  });
+  it("refuses a value it does not know rather than guessing", () => {
+    vi.stubEnv("CURATOR_JUDGE", "gemini");
+    expect(() => judgeModel()).toThrow(/CURATOR_JUDGE/);
+  });
+});
+
+describe("cache keys under the two judges", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const it1 = { source: "met" as const, sourceId: "42" };
+  it("an explicit OpenRouter model gives the key the unset default gives", () => {
+    vi.stubEnv("CURATOR_JUDGE", "");
+    expect(curationCacheKey(it1, false, CURATOR_MODEL)).toBe(
+      curationCacheKey(it1, false),
+    );
+  });
+  it("the Claude judge has a namespace of its own", () => {
+    vi.stubEnv("CURATOR_JUDGE", "");
+    const openrouter = curationCacheKey(it1, true);
+    vi.stubEnv("CURATOR_JUDGE", "claude");
+    expect(curationCacheKey(it1, true)).not.toBe(openrouter);
+    expect(curationCacheKey(it1, true)).toBe(
+      curationCacheKey(it1, true, CLAUDE_JUDGE_MODEL),
+    );
+  });
+});
+
+describe("judgePreflight", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("asks for the OpenRouter key only when an OpenRouter model is in play", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "");
+    expect(await judgePreflight([CURATOR_MODEL])).toMatch(/OPENROUTER_API_KEY/);
+    vi.stubEnv("OPENROUTER_API_KEY", "k");
+    expect(await judgePreflight([CURATOR_MODEL])).toBeNull();
+  });
+});
+
+describe("curateItems on the Claude judge", () => {
+  const realRun = claudeRuntime.run;
+  let runs: { args: string[]; stdin: string }[];
+  let imageBytes: Buffer | null;
+
+  beforeEach(() => {
+    runs = [];
+    imageBytes = null;
+    resetClaudeJudge();
+    vi.stubEnv("CURATOR_JUDGE", "claude");
+    vi.stubEnv("OPENROUTER_API_KEY", "");
+    vi.stubGlobal("fetch", (input: string | URL) => {
+      // An OpenRouter call here would reject, be absorbed as a failed judgment, and come back as
+      // the neutral score 5 — so asserting on the real score below proves none was made.
+      if (String(input).includes("openrouter.ai"))
+        return Promise.reject(
+          new Error("the Claude judge must not call OpenRouter"),
+        );
+      if (!imageBytes) return Promise.resolve({ ok: false, status: 404 });
+      const bytes = imageBytes;
+      return Promise.resolve({
+        ok: true,
+        headers: new Headers({ "content-type": "image/png" }),
+        arrayBuffer: () =>
+          Promise.resolve(
+            bytes.buffer.slice(
+              bytes.byteOffset,
+              bytes.byteOffset + bytes.byteLength,
+            ),
+          ),
+      });
+    });
+    claudeRuntime.run = (args, stdin) => {
+      runs.push({ args, stdin });
+      return Promise.resolve({
+        code: 0,
+        stdout: claudeStream(
+          '```json\n{"score": 8, "tags": ["Ink Wash"]}\n```',
+        ),
+        stderr: "",
+      });
+    };
+  });
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("scores through the CLI with the curator's own prompt, never OpenRouter", async () => {
+    const [out] = await curateItems(
+      [makeItem({ sourceId: `claude-${Date.now()}`, type: "image" })],
+      { force: true },
+    );
+    expect(out?.curationScore).toBe(8);
+    expect(out?.aestheticTags).toEqual(["ink wash"]);
+    expect(runs).toHaveLength(1);
+    const system = runs[0]!.args[runs[0]!.args.indexOf("--system-prompt") + 1];
+    expect(system).toBe(CLAUDE_CURATOR_PROMPT);
+  });
+
+  it("sends a picture as a downscaled JPEG, whatever the source served", async () => {
+    imageBytes = await sharp({
+      create: { width: 3000, height: 1500, channels: 3, background: "#884422" },
+    })
+      .png()
+      .toBuffer();
+    await curateItems(
+      [
+        makeItem({
+          sourceId: `claude-img-${Date.now()}`,
+          type: "image",
+          imageUrl: "https://museum.example/big.png",
+        }),
+      ],
+      { force: true },
+    );
+    const message = JSON.parse(runs[0]!.stdin) as {
+      message: {
+        content: {
+          type: string;
+          source?: { media_type: string; data: string };
+        }[];
+      };
+    };
+    const image = message.message.content.find((b) => b.type === "image");
+    expect(image?.source?.media_type).toBe("image/jpeg");
+    const meta = await sharp(
+      Buffer.from(image!.source!.data, "base64"),
+    ).metadata();
+    expect(meta.width).toBe(1024);
+    expect(meta.height).toBe(512);
+  });
+
+  it("judges from text, and says so, when the bytes are not a picture sharp can read", async () => {
+    imageBytes = Buffer.from("this is not an image");
+    const failures: string[] = [];
+    const [out] = await curateItems(
+      [
+        makeItem({
+          sourceId: `claude-bad-${Date.now()}`,
+          type: "image",
+          imageUrl: "https://museum.example/odd.tiff",
+        }),
+      ],
+      { force: true, onImageFetchFailure: (it) => failures.push(it.sourceId) },
+    );
+    expect(failures).toHaveLength(1);
+    expect(out?.curationScore).toBe(8);
+    expect(runs[0]!.stdin).toContain("could not be fetched");
+    expect(runs[0]!.stdin).not.toContain('"type":"image"');
+  });
+});
+
+describe("curateItems on the Claude judge — the review's fixes", () => {
+  const realRun = claudeRuntime.run;
+  beforeEach(() => {
+    resetClaudeJudge();
+    vi.stubEnv("CURATOR_JUDGE", "claude");
+  });
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("a transparent picture reaches the model on white, not black", async () => {
+    const png = await sharp({
+      create: {
+        width: 40,
+        height: 40,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .png()
+      .toBuffer();
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve({
+        ok: true,
+        headers: new Headers({ "content-type": "image/png" }),
+        arrayBuffer: () =>
+          Promise.resolve(
+            png.buffer.slice(png.byteOffset, png.byteOffset + png.byteLength),
+          ),
+      }),
+    );
+    let stdin = "";
+    claudeRuntime.run = (_args, input) => {
+      stdin = input;
+      return Promise.resolve({
+        code: 0,
+        stdout: claudeStream('{"score": 6, "tags": ["a"]}'),
+        stderr: "",
+      });
+    };
+    await curateItems(
+      [
+        makeItem({
+          sourceId: `claude-alpha-${Date.now()}`,
+          type: "image",
+          imageUrl: "https://museum.example/line-art.png",
+        }),
+      ],
+      { force: true },
+    );
+    const message = JSON.parse(stdin) as {
+      message: { content: { type: string; source?: { data: string } }[] };
+    };
+    const image = message.message.content.find((b) => b.type === "image");
+    const { data } = await sharp(Buffer.from(image!.source!.data, "base64"))
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    expect(data[0]).toBeGreaterThan(240);
+  });
+
+  it("answers in flight when the ceiling stops the run are still cached", async () => {
+    vi.stubGlobal("fetch", () => Promise.resolve({ ok: false, status: 404 }));
+    const stamp = Date.now();
+    const items = [0, 1, 2, 3, 4].map((n) =>
+      makeItem({ sourceId: `claude-inflight-${stamp}-${n}`, type: "image" }),
+    );
+    let call = 0;
+    claudeRuntime.run = () => {
+      const first = call++ === 0;
+      const stdout = [
+        {
+          type: "rate_limit_event",
+          rate_limit_info: {
+            status: "allowed",
+            unifiedWindows: { seven_day: { utilization: first ? 0.9 : 0.5 } },
+          },
+        },
+        {
+          type: "result",
+          is_error: false,
+          result: '{"score": 7, "tags": ["a"]}',
+          usage: { input_tokens: 400, output_tokens: 14 },
+        },
+      ]
+        .map((l) => JSON.stringify(l))
+        .join("\n");
+      // The first answer crosses the ceiling at once; the other three are still in flight.
+      return new Promise((resolve) =>
+        setTimeout(
+          () => resolve({ code: 0, stdout, stderr: "" }),
+          first ? 0 : 60,
+        ),
+      );
+    };
+    await expect(curateItems(items, { force: true })).rejects.toBeInstanceOf(
+      CuratorAbortError,
+    );
+    for (const it of items.slice(0, 4))
+      expect(
+        existsSync(
+          path.join(CURATION_CACHE_DIR, `${curationCacheKey(it, false)}.json`),
+        ),
+      ).toBe(true);
+  });
+});
+
+describe("curateItems remembers a text-only judgment in the cache", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+  it("reports it on the fresh call and again on the cache hit", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubGlobal("fetch", (input: string | URL) =>
+      String(input).includes("openrouter.ai")
+        ? Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                choices: [
+                  { message: { content: '{"score": 7, "tags": ["a"]}' } },
+                ],
+                usage: { total_tokens: 1 },
+              }),
+          })
+        : Promise.resolve({ ok: false, status: 429 }),
+    );
+    const item = makeItem({
+      sourceId: `text-only-${Date.now()}`,
+      type: "image",
+      imageUrl: "https://tile.example.gov/x.jpg",
+    });
+    const textOnly: string[] = [];
+    const fetchFailed: string[] = [];
+    const opts = {
+      onTextOnly: (it: NormalizedItem) => textOnly.push(it.sourceId),
+      onImageFetchFailure: (it: NormalizedItem) =>
+        fetchFailed.push(it.sourceId),
+    };
+    await curateItems([item], { ...opts, force: true });
+    await curateItems([item], opts);
+    expect(textOnly).toHaveLength(2);
+    expect(fetchFailed).toHaveLength(1);
+  });
+});
+
+describe("judgePreflight on the Claude judge", () => {
+  const realRun = claudeRuntime.run;
+  beforeEach(() => resetClaudeJudge());
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+  });
+  it("makes one tiny call and passes when it answers", async () => {
+    let calls = 0;
+    claudeRuntime.run = () => {
+      calls++;
+      return Promise.resolve({
+        code: 0,
+        stdout: claudeStream("{}"),
+        stderr: "",
+      });
+    };
+    expect(await judgePreflight([CLAUDE_JUDGE_MODEL])).toBeNull();
+    expect(calls).toBe(1);
+  });
+  it("says so in one sentence when the CLI is missing or logged out", async () => {
+    claudeRuntime.run = () => Promise.reject(new Error("spawn claude ENOENT"));
+    expect(await judgePreflight([CLAUDE_JUDGE_MODEL])).toMatch(
+      /Claude judge is not usable.*ENOENT/,
+    );
+  });
+});
+
+describe("structuralFloor — donation posts", () => {
+  it("drops a post that is only a donation link, from any source, before it is scored", () => {
+    const kofi = makeItem({
+      source: "thevaultoftheatomicspaceage",
+      sourceId: "kofi",
+      type: "image",
+      title: "https://ko-fi.com/thevault",
+      summary: "https://ko-fi.com/thevault",
+      imageUrl: "https://example.com/banner.jpg",
+    });
+    const { kept, dropped } = structuralFloor([kofi]);
+    expect(kept).toEqual([]);
+    expect(dropped).toEqual([{ item: kofi, rule: "donation" }]);
+  });
+
+  it("keeps a real post whose long caption happens to mention a Patreon", () => {
+    const post = makeItem({
+      source: "thevaultoftheatomicspaceage",
+      sourceId: "real",
+      type: "image",
+      title: "Atomic Age kitchen, 1956",
+      summary:
+        "A General Electric advertisement from 1956, scanned from Life. More scans like this are on patreon.com/thevault for supporters.",
+      imageUrl: "https://example.com/kitchen.jpg",
+    });
+    expect(structuralFloor([post]).kept).toEqual([post]);
+  });
+});
+
+describe("a designated source's score floor", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+  function stubScore(score: number) {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubGlobal("fetch", (input: string | URL) =>
+      String(input).includes("openrouter.ai")
+        ? Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                choices: [
+                  {
+                    message: { content: `{"score": ${score}, "tags": ["a"]}` },
+                  },
+                ],
+                usage: { total_tokens: 1 },
+              }),
+          })
+        : Promise.resolve({ ok: false, status: 404 }),
+    );
+  }
+  const dop = (id: string) =>
+    makeItem({ source: "doorofperception", sourceId: id, type: "image" });
+
+  it("names Door of Perception at 8", () => {
+    expect(SOURCE_SCORE_FLOOR.doorofperception).toBe(8);
+  });
+  it("lifts a Door of Perception picture the judge scored low", async () => {
+    stubScore(3);
+    const [out] = await curateItems([dop(`floor-${Date.now()}`)], {
+      force: true,
+    });
+    expect(out?.curationScore).toBe(8);
+    expect(out?.aestheticTags).toEqual(["a"]);
+  });
+  it("keeps a judge's higher score", async () => {
+    stubScore(9);
+    const [out] = await curateItems([dop(`floor-hi-${Date.now()}`)], {
+      force: true,
+    });
+    expect(out?.curationScore).toBe(9);
+  });
+  it("leaves every other source alone", async () => {
+    stubScore(3);
+    const [out] = await curateItems(
+      [
+        makeItem({
+          source: "met",
+          sourceId: `floor-met-${Date.now()}`,
+          type: "image",
+        }),
+      ],
+      { force: true },
+    );
+    expect(out?.curationScore).toBe(3);
+  });
+});
+
+describe("the Claude judge has a picture rubric of its own", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const vocab = [{ id: "botany", label: "Botany" }];
+  const piece = { source: "met" as const, sourceId: "42" };
+
+  it("leaves the OpenRouter prompts exactly as they were", () => {
+    vi.stubEnv("CURATOR_JUDGE", "");
+    expect(curatorPrompt()).toBe(CURATOR_PROMPT);
+    expect(classifyPrompt(TOPICS)).toBe(CLASSIFY_PROMPT);
+    expect(
+      classifyPrompt(vocab, CURATOR_MODEL).startsWith(
+        CURATOR_PROMPT.slice(0, 200),
+      ),
+    ).toBe(true);
+  });
+  it("gives a claude-* model the Claude rubric, in both modes", () => {
+    expect(curatorPrompt(CLAUDE_JUDGE_MODEL)).toBe(CLAUDE_CURATOR_PROMPT);
+    const p = classifyPrompt(vocab, CLAUDE_JUDGE_MODEL);
+    expect(p.startsWith(CLAUDE_CURATOR_PROMPT.slice(0, 200))).toBe(true);
+    expect(p).toContain("botany — Botany");
+    expect(p).toContain('"topics"');
+  });
+  it("keys the Claude cache on the Claude rubric's version", async () => {
+    const { createHash } = await import("node:crypto");
+    const sha = (s: string) =>
+      createHash("sha256").update(s).digest("hex").slice(0, 32);
+    expect(curationCacheKey(piece, true, CLAUDE_JUDGE_MODEL)).toBe(
+      sha(`${CLAUDE_JUDGE_MODEL}|vc${CLAUDE_PROMPT_VERSION}|classify|met:42`),
+    );
+    expect(curationCacheKey(piece, false, CURATOR_MODEL)).toBe(
+      sha(`${CURATOR_MODEL}|v${PROMPT_VERSION}|met:42`),
     );
   });
 });

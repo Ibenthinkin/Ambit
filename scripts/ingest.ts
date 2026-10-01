@@ -60,6 +60,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "~/server/db/client";
 import { recordIngestRun } from "~/server/db/ingest-runs";
+import { claudeUsage } from "~/server/services/claude-judge";
 import { addItemTopics, storedItem, upsertItem } from "~/server/db/items";
 import {
   item,
@@ -83,6 +84,9 @@ import type {
 import {
   curateItems,
   CuratorAbortError,
+  judgeModel,
+  judgePreflight,
+  writingJudgeModel,
   MAX_TOPICS,
   structuralFloor,
   writingFloor,
@@ -154,12 +158,33 @@ if (sourceFlag && !knownSources.includes(sourceFlag as SourceId)) {
 }
 
 // Fail fast, before any network calls: a curator call 800 items into a run is a much worse place
-// to discover this than the first line of output.
-if (!skipLlm && !process.env.OPENROUTER_API_KEY) {
-  console.error(
-    "OPENROUTER_API_KEY is not set — required for LLM curation (add it to .env, or pass --skip-llm for a free dry run).",
-  );
+// to discover this than the first line of output. Which judge is asked depends on CURATOR_JUDGE
+// (curator.ts's judgeModel): the OpenRouter key, or the Claude Code CLI.
+const judgeProblem = skipLlm ? null : await judgePreflight();
+if (judgeProblem) {
+  console.error(`${judgeProblem} (Or pass --skip-llm for a free dry run.)`);
   process.exit(1);
+}
+
+/**
+ * "claude-haiku-4-5-20251001 · five-hour 23% → 31% · seven-day 22% → 24%": which judge scored this
+ * run, and — for the Claude judge — how much of each subscription window the run moved. The
+ * pair is the only measure there is of what an ingest costs against Ben's weekly limit, since
+ * nothing is billed. Empty windows (an all-cache-hit run made no call) print the model alone.
+ */
+function judgeLine(): string {
+  const usage = claudeUsage();
+  const windows = usage
+    ? Object.keys(usage.last.unifiedWindows ?? {}).map((name) => {
+        const pct = (info: typeof usage.first) =>
+          `${Math.round((info.unifiedWindows?.[name]?.utilization ?? 0) * 100)}%`;
+        return `${name} ${pct(usage.first)} → ${pct(usage.last)}`;
+      })
+    : [];
+  return [
+    `${judgeModel()} (pictures), ${writingJudgeModel()} (writing)`,
+    ...windows,
+  ].join(" · ");
 }
 
 // ── per-source search + normalize ───────────────────────────────────────────
@@ -551,6 +576,7 @@ async function main() {
     "dup-title": 0,
     "bare-title": 0,
     "thin-summary": 0,
+    donation: 0,
   };
   for (const d of dropped) flooredByRule[d.rule]++;
 
@@ -961,7 +987,7 @@ function printSummary(args: {
   }
   console.log(
     `structural floor dropped: ${Object.values(flooredByRule).reduce((a, b) => a + b, 0)}` +
-      ` (dup-title ${flooredByRule["dup-title"]}, bare-title ${flooredByRule["bare-title"]}, thin-summary ${flooredByRule["thin-summary"]})`,
+      ` (dup-title ${flooredByRule["dup-title"]}, bare-title ${flooredByRule["bare-title"]}, thin-summary ${flooredByRule["thin-summary"]}, donation ${flooredByRule.donation})`,
   );
   console.log(
     `article bodies fetched:   ${bodies.fetched}` +
@@ -976,6 +1002,7 @@ function printSummary(args: {
   console.log(
     `curated:                  ${curatedCount}${skipLlm ? " (--skip-llm, neutral score 5)" : ""}`,
   );
+  if (!skipLlm) console.log(`judge:                    ${judgeLine()}`);
   console.log(
     `${dryRun ? "would insert" : "inserted"}:${dryRun ? "" : "              "} ${inserted}${dryRun ? " (--dry-run, no writes made)" : ""}`,
   );
@@ -998,7 +1025,7 @@ main().catch(async (err: unknown) => {
   // not a bug: its message says so, and a stack trace would only bury it. Nothing was written —
   // the abort happens before the upsert loop — so the re-run resumes free through the cache.
   if (err instanceof CuratorAbortError)
-    console.error(`\ningest aborted: ${err.message}`);
+    console.error(`\ningest aborted: ${err.message}\njudge: ${judgeLine()}`);
   else console.error("ingest script failed:", err);
   // Phase 8.2: a run that threw is still a run — record it, with the message, so the database
   // shows the night a 402 stopped the curator rather than a gap. inserted is recorded as 0: the
