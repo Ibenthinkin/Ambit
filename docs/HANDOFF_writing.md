@@ -4,7 +4,26 @@ Read this before touching the writing code. It is self-contained; the design is
 `docs/DESIGN_writing.md` (D1–D8), the plan `docs/PLAN_writing.md` (five phases), and `log.md`
 09-28 / 09-29 have the narrative.
 
-## ▶ Pick up here (10-01-26): verdicts are in — unsuspend the three, merge, deploy (Ben said hold off coding until he says go)
+## ▶ Pick up here (10-01-26, later): all seven publications kept and built — merge, deploy, backfill
+
+**Ben, 10-01-26:** include Aeon, Psyche, Longreads and The Paris Review; "bring in as much as you
+can from all approved publications — we will let the feed sort them out downstream."
+
+**Built on `feat/publications`** (committed, not pushed): the four registered, a new
+`sources/sitemap.ts` walker for Aeon and Psyche (their archive through the sitemap, text from
+the page), and all seven out of `SUSPENDED_SOURCES`. `walkQuota` is now the **nightly** bound
+(60–200 newest); the archives come in once, by backfill. `check` green (1,729 tests). The probe
+findings and the four samples are in `docs/source-candidates.md`'s Publications section.
+
+**Next, in order:**
+1. Ben: push, merge `feat/publications` into `main`, deploy.
+2. Ben: top up OpenRouter if needed (~$20–25 for ~45,000 pieces), then
+   `sh .cache/publications-backfill-prod.sh run` — one publication at a time, each walked whole
+   and its pictures warmed; `status` shows where it is. Most of a night; ~4.5 GB of pictures.
+3. Read each walk log's summary (stored, floored, un-homed, topics) — that is the readout.
+   The Paris Review is the newest ten only (Cloudflare blocks everything else); it grows nightly.
+
+## Earlier 10-01-26: verdicts are in — unsuspend the three, merge, deploy (Ben said hold off coding until he says go)
 
 **Ben's answers, 10-01-26:**
 - **Keep all three:** The Marginalian, JSTOR Daily, Noema.

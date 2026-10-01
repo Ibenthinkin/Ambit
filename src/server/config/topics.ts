@@ -85,6 +85,11 @@ export const WALK_SOURCES = [
   "themarginalian",
   "jstordaily",
   "noema",
+  // Publications round 2 (10-01-26): Ben's verdict, all four kept.
+  "aeon",
+  "psyche",
+  "longreads",
+  "theparisreview",
 ] as const;
 
 export type WalkSourceId = (typeof WALK_SOURCES)[number];

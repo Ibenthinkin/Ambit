@@ -61,7 +61,13 @@ export type SourceId =
   // server/config/publications.ts, walked by wp-rest.ts (article mode) or rss.ts.
   | "themarginalian"
   | "jstordaily"
-  | "noema";
+  | "noema"
+  // Publications round 2 (10-01-26): two on the sitemap walker (sitemap.ts), one WordPress, one
+  // feed — same registry.
+  | "aeon"
+  | "psyche"
+  | "longreads"
+  | "theparisreview";
 
 /**
  * What toItem() produces: the `item` table's insert shape, minus the four fields ingestion adds

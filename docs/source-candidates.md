@@ -200,15 +200,37 @@ Individual articles, not whole blogs — the kind of thing that seeds one item o
 > input to that, not a rule. **No code has changed for any of this yet** (Ben: hold off). The
 > three are still in `SUSPENDED_SOURCES` on `feat/publications`.
 
+> **Ben, 10-01-26 (later): "include aeon, psyche, longreads, and paris review. bring in as much as
+> you can from all approved publications — we will let the feed sort them out downstream."** All
+> four are registered and kept, and all seven leave `SUSPENDED_SOURCES`. "As much as you can",
+> per publication: the whole archive once, by a backfill run, then the newest few hundred nightly
+> (`config/publications.ts`, "Two budgets"). What that reaches, probed 10-01-26:
+> - **Aeon** (~3,660: essays, ideas, classics) and **Psyche** (~1,450: ideas, guides, turning
+>   points, notes to self, portraits) through their sitemaps and the pages themselves — the new
+>   `sitemap.ts`. The dek-only problem is solved by reading the page, which `*` in their
+>   robots.txt allows; the AI crawlers it names are training crawlers, and Ambit is a link-card
+>   reader that sends people to the piece. Videos and theme hubs are never fetched.
+> - **Longreads**, all 24,261 posts through WordPress REST. Most are its own excerpt of a story
+>   published elsewhere — a longreads.com page, so a card of Longreads. ~22% of recent posts carry
+>   a picture (~53% in 2018); the rest are text-only writing cards. Quote posts fall to the
+>   writing floor (30% of a 40-post sample).
+> - **The Paris Review**: the newest ten and nothing more. Cloudflare answers 403 to the REST
+>   API, every sitemap and `/blog/page/2`, and the feed ignores `?paged=`, so it accumulates one
+>   night at a time from now.
+>
+> Samples (`stats:walk`, 10-01-26): **Paris Review 10 → 9 stored @ 8.00**, 9 min p50 · **Aeon 20 @
+> 8.15**, 16 min p50 · **Psyche 20 @ 7.65**, 10 min p50 · **Longreads 40 → 28 stored @ 7.48**, 2 min
+> p50 (an excerpt is short), 18% pictured.
+
 | Candidate | Reached by | Sample (150) | Recommendation |
 |---|---|---|---|
 | **The Marginalian** (`themarginalian`) | WordPress REST, 6,690 posts, full text | **8.35 avg, 98% ≥ 8**, 5–9 · essay 137 / curiosity 7 / archive 3 / criticism 3 · **4 min p50, 7 p90** · picture 100% · 0 floored · topics consciousness 61, literature 59, books 51, science 28, emotions 21 · un-homed 2 | **Keep.** The strongest sample of any source; robots names no AI crawler. Pieces are short (4 min median), and the corpus leans heavily on books, literature and consciousness. The weakest item is a "best of" round-up at 5. |
 | **JSTOR Daily** (`jstordaily`) | WordPress REST, 8,120 posts, full text | **7.82 avg, 82% ≥ 8**, 4–9 · essay 124 / curiosity 21 / criticism 3 / archive 2 · **4 min p50, 8 p90** · picture 100% · 0 floored · 42 topics · un-homed 11 | **Keep, lower priority.** Broad and well-pictured. Its two 4s are JSTOR's own search how-tos ("How to Refine Your JSTOR Search"), which the curator handles on its own. Its modern history lands in `ancient-history` (30), which is a vocabulary gap, below. |
 | **Noema** (`noema`) | Paged RSS (WordPress REST reports 0 posts), full text, `media:thumbnail` | **7.79 avg, 81% ≥ 8**, 3–9 · essay 147 · **13 min p50, 26 p90** · picture 100% · 1 floored · topics **abstract 88**, technology 60, science 28, consciousness 27 · un-homed 4 | **Hold until the `abstract` question is answered.** These are the only true long reads (13 min median). The low scores are house items: a reading list, a prize announcement, a top-ten, a news piece on Iran. Its `<description>` is only WordPress's footer, so the dek is the first paragraph. AI and technology dominate the topics. |
-| Aeon | RSS, newest 20, **dek only** (~27 words) | — | **Park (not registered).** robots.txt names ClaudeBot, GPTBot, CCBot, Google-Extended and Bytespider. With only a dek, the writing floor (400 characters) would drop every piece unless Ambit fetched the page, which is the one thing those lines ask crawlers not to do. The feed also carries videos (`/videos/`). |
-| Psyche | Same as Aeon (same publisher) | — | **Park (not registered)**, for the same reasons. |
-| Longreads | WordPress REST, 24,257 posts | — | **Park (not registered).** Mostly recommends pieces elsewhere (the walker refuses off-site links); 5 of 25 feed items had a picture; robots names GPTBot, CCBot and Google-Extended. |
-| The Paris Review | RSS, newest 10 only, full text | — | **Park (not registered).** Only a window (accumulates nightly, no archive); robots names GPTBot and Google-Extended. |
+| Aeon | ~~RSS, newest 20, **dek only**~~ → **sitemap + page** (10-01-26) | 20: 8.15 | **KEPT 10-01-26** (above). Was: **Park (not registered).** robots.txt names ClaudeBot, GPTBot, CCBot, Google-Extended and Bytespider. With only a dek, the writing floor (400 characters) would drop every piece unless Ambit fetched the page, which is the one thing those lines ask crawlers not to do. The feed also carries videos (`/videos/`). |
+| Psyche | Same as Aeon (same publisher) | 20: 7.65 | **KEPT 10-01-26.** Was: **Park (not registered)**, for the same reasons. |
+| Longreads | WordPress REST, 24,261 posts | 40: 7.48 | **KEPT 10-01-26.** Was: **Park (not registered).** Mostly recommends pieces elsewhere (the walker refuses off-site links); 5 of 25 feed items had a picture; robots names GPTBot, CCBot and Google-Extended. |
+| The Paris Review | RSS, newest 10 only, full text | 10: 8.00 | **KEPT 10-01-26.** Was: **Park (not registered).** Only a window (accumulates nightly, no archive); robots names GPTBot and Google-Extended. |
 | Atlas Obscura | RSS, newest 27, full text in `<description>`, 300 × 200 crops | — | **Not now.** The pictures are tile-grade crops. The originals are recoverable from the imgproxy URL, but that is guessing at a URL, which the adapters don't do. It's a window with no archive. No AI crawler named. |
 | Hyperallergic | RSS, newest 15 | — | **Stays cut** (09-01-26, content fit: reported journalism). |
 

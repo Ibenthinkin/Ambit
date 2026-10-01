@@ -30,6 +30,36 @@ messages. `/brief` reads this. Newest on top.
 
 *Session spend: 6.06M tok (in 67 · out 27.3k · cache r 5.17M / w 856.3k) · ~≥$1.37 · opus-5-5 + opus-4-7 · 14:23→09:58*
 
+**Later the same day — the other four kept, and "as much as you can":** Ben: "include aeon,
+psyche, longreads, and paris review. bring in as much as you can from all approved publications
+we will let the feed sort them out downstream." Built on `feat/publications`:
+
+- **What "as much as you can" reaches, per publication (probed live):** Aeon ~3,660 pieces and
+  Psyche ~1,450 through their **sitemaps**; Longreads all 24,261 through WordPress REST; The
+  Marginalian 6,690, JSTOR Daily 8,120, Noema ~2,500 as before. **The Paris Review is the newest
+  ten and nothing else** — Cloudflare 403s the REST API, every sitemap and `/blog/page/2`, and the
+  feed ignores `?paged=`. It accumulates nightly; the Wayback Machine would get round the block,
+  and getting round a block is not something the adapters do.
+- **Aeon and Psyche's dek-only problem is solved by reading the page.** Their robots.txt allows
+  `*` every article path and names AI-training crawlers (ClaudeBot among them); Ambit is not
+  one. New `sources/sitemap.ts`: the sitemap's pieces under named sections, newest first,
+  cursor an offset, each page read from its `Article` JSON-LD, `<h1>`, breadcrumbs and `<main>`
+  paragraphs. A video page has no `Article` JSON-LD and is a counted error.
+- **Two budgets.** `walkQuota` is now the nightly bound (60–200 newest), and the archive is one
+  backfill run per publication at `--quota 1000000`. A bounded run is never `complete`, so
+  `--prune` can never delete the Paris Review pieces that have scrolled out of its window — the
+  reason it has a `walkQuota` at all, now pinned by a test.
+- **Longreads is mostly its own excerpts of other outlets' stories**, ~22% pictured lately. Kept
+  anyway, as Ben said: the curator and the writing floor sort it (30% of a 40-post sample floored,
+  the quote posts).
+- **Samples:** Paris Review 8.00 (9 of 10 stored) · Aeon 8.15 · Psyche 7.65 · Longreads 7.48.
+
+**Open / next:** Ben pushes, merges and deploys, then `sh .cache/publications-backfill-prod.sh
+run` (~$20–25 of curator credit, most of a night, ~4.5 GB of pictures). Handoff: "Pick up here
+(10-01-26, later)".
+
+*Session spend: 14.34M tok (in 200 · out 95.2k · cache r 13.90M / w 340.3k) · opus-5-5 · 10:04→10:14*
+
 ## 2026-09
 
 ### [[09-30-26 Wed]] — Writing live on production; the news rule goes

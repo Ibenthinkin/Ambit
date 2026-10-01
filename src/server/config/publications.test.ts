@@ -25,12 +25,19 @@ describe("isLinkCardSource", () => {
   });
 
   it("knows only what is registered — a probed-and-passed candidate is not one", () => {
-    expect(isPublicationSource("aeon")).toBe(false);
+    expect(isPublicationSource("atlasobscura")).toBe(false);
   });
 
-  it("ships every publication suspended until Ben's verdict", () => {
+  it("walks every verdicted publication nightly (Ben kept all seven, 10-01-26)", () => {
     for (const p of PUBLICATIONS)
-      expect(isSuspendedSource(p.id), p.id).toBe(true);
+      expect(isSuspendedSource(p.id), p.id).toBe(false);
+  });
+
+  // A walk with a quota is never `complete`, so `--prune` never acts on it. For a feed that
+  // shows only its newest page (The Paris Review) that is the difference between keeping the
+  // archive it has accumulated and deleting everything that scrolled out of the window.
+  it("bounds every nightly walk, so no publication run can ever prune", () => {
+    for (const p of PUBLICATIONS) expect(p.walkQuota, p.id).toBeGreaterThan(0);
   });
 
   it("gives every publication its credit-line label", () => {

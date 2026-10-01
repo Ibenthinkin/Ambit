@@ -41,7 +41,10 @@ import ticFixtures from "./__fixtures__/thisiscolossal.json";
 // Writing Phase 5 (09-30-26) — the publications.
 import jstorFixtures from "./__fixtures__/jstordaily.json";
 import marginalianFixtures from "./__fixtures__/themarginalian.json";
+// Publications round 2 (10-01-26).
+import lrFixtures from "./__fixtures__/longreads.json";
 import { parseFeed } from "./rss";
+import { parseArticlePage } from "./sitemap";
 import { walkers } from "./index";
 
 const fixturesByWalker: Record<string, unknown[]> = {
@@ -68,7 +71,29 @@ const fixturesByWalker: Record<string, unknown[]> = {
   noema: parseFeed(
     readFileSync(path.join(__dirname, "__fixtures__", "rss-noema.xml"), "utf8"),
   ),
+  aeon: [
+    {
+      url: "https://aeon.co/essays/we-need-a-better-way-to-describe-what-is-often-called-cancer",
+      ...parseArticlePage(fixtureText("sitemap-aeon-essay.html")),
+    },
+  ],
+  psyche: [
+    {
+      url: "https://psyche.co/ideas/the-evil-eye-is-irrational-abandon-it-at-your-peril",
+      ...parseArticlePage(fixtureText("sitemap-psyche-idea.html")),
+    },
+    {
+      url: "https://psyche.co/guides/how-to-cultivate-shoshin-or-a-beginners-mind",
+      ...parseArticlePage(fixtureText("sitemap-psyche-guide.html")),
+    },
+  ],
+  longreads: lrFixtures,
+  theparisreview: parseFeed(fixtureText("rss-theparisreview.xml")),
 };
+
+function fixtureText(name: string): string {
+  return readFileSync(path.join(__dirname, "__fixtures__", name), "utf8");
+}
 
 /** Every fixture row a walker accepts, normalized. A row toItem rejects is not an item. */
 function itemsOf(id: string) {

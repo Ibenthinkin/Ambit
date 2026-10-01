@@ -11,15 +11,17 @@ import type { WalkSourceId } from "./topics";
 // A rights posture belongs to the *source*, not the item — the same rule `isBlogSource` follows —
 // which is why this is a registry of ids and not a column.
 //
-// **Every row ships suspended** (config/suspended-sources.ts) and leaves that list only on Ben's
-// verdict in docs/source-candidates.md, one publication at a time: a `probe-walk`, then a
-// 150-item sample (`bun run stats:walk <id> --quota 150`).
+// **A row ships suspended** (config/suspended-sources.ts) until Ben's verdict in
+// docs/source-candidates.md. All seven below are verdicted KEEP (10-01-26) and none is suspended.
 //
-// **Probed 09-30-26 and not registered here**, for the verdict table rather than silently:
-// Aeon and Psyche (dek-only feeds, and their robots.txt names ClaudeBot/GPTBot/CCBot),
-// Longreads (mostly links out to other outlets, few pictures; names GPTBot/CCBot), The Paris
-// Review (newest ten only; names GPTBot/Google-Extended), Atlas Obscura (newest 27 only, 300 px
-// images) and Hyperallergic (cut 09-01-26 on content fit; newest 15 only).
+// **Two budgets per publication (10-01-26, Ben: "bring in as much as you can … let the feed sort
+// them out").** `walkQuota` is the NIGHTLY bound — the newest few hundred, which is all a night
+// can add. The archive comes in once, by a backfill run with no bound (`bun run ingest --source
+// <id> --quota 1000000`; `.cache/publications-backfill-prod.sh` on production), one publication
+// at a time. Re-running either is free from the curation cache.
+//
+// **Not registered:** Atlas Obscura (newest 27 only, 300 px images) and Hyperallergic (cut
+// 09-01-26 on content fit; newest 15 only).
 
 /** The one license string every link-card source shares — the blogs' own, verbatim. */
 export const PUBLICATION_LICENSE = BLOG_LICENSE;
@@ -51,6 +53,14 @@ export type PublicationConfig = PublicationBase &
         walk: "wp-rest";
       }
     | {
+        /** The publication's sitemap (`sources/sitemap.ts`): every piece it lists under one of
+         *  `sections`, newest first, each fetched as the page a reader would open. For an archive
+         *  whose feed is a dek-only window (Aeon, Psyche). */
+        walk: "sitemap";
+        sitemapUrl: string;
+        sections: readonly string[];
+      }
+    | {
         /** An RSS 2.0 or Atom feed (`sources/rss.ts`). */
         walk: "rss";
         feedUrl: string;
@@ -72,9 +82,8 @@ export const PUBLICATIONS: readonly PublicationConfig[] = [
     // Verified 09-30-26: no `Disallow: /` for `*`, and no AI crawler named at all.
     robotsCheckedOn: "2026-09-30",
     walk: "wp-rest",
-    // 6,690 posts on 09-30-26, ~1,080 words each, a featured image on every one sampled. The
-    // newest 1,500 is a first budget for Ben to move; the rest is a `--cursor` run away.
-    walkQuota: 1_500,
+    // 6,690 posts on 09-30-26, ~1,080 words each, a featured image on every one sampled.
+    walkQuota: 200,
   },
   {
     id: "jstordaily",
@@ -85,7 +94,7 @@ export const PUBLICATIONS: readonly PublicationConfig[] = [
     robotsCheckedOn: "2026-09-30",
     walk: "wp-rest",
     // 8,120 posts on 09-30-26, ~720 words each, every one with a 1050 × 700 featured image.
-    walkQuota: 1_500,
+    walkQuota: 200,
   },
   {
     id: "noema",
@@ -102,7 +111,80 @@ export const PUBLICATIONS: readonly PublicationConfig[] = [
     feedUrl: "https://www.noemamag.com/feed/",
     fullText: "content-encoded",
     paged: "wp",
-    walkQuota: 500,
+    // ~2,500 essays (page 200 of the feed answers, 300 is a 404, ten a page).
+    walkQuota: 100,
+  },
+  {
+    id: "aeon",
+    label: "Aeon",
+    baseUrl: "https://aeon.co",
+    license: PUBLICATION_LICENSE,
+    // Verified 10-01-26: `*` may fetch every article path (only /api, /search, previews and
+    // syndication are disallowed). The file names ClaudeBot, GPTBot, CCBot, Google-Extended and
+    // five more with `Disallow: /` — AI-training crawlers, which Ambit is not. Ben's verdict,
+    // 10-01-26, made knowing that; recorded in docs/source-candidates.md.
+    robotsCheckedOn: "2026-10-01",
+    walk: "sitemap",
+    // ~3,660 pieces on 10-01-26: 2,758 essays, 904 ideas, a handful of classics. Its feed is the
+    // newest twenty with a 27-word dek, so the sitemap is the only way to the archive — and the
+    // page is the only way to the text the curator reads.
+    sitemapUrl: "https://assets.aeon.co/sitemaps/aeon/main.xml",
+    sections: ["essays", "ideas", "classics"],
+    walkQuota: 60,
+  },
+  {
+    id: "psyche",
+    label: "Psyche",
+    baseUrl: "https://psyche.co",
+    license: PUBLICATION_LICENSE,
+    // Verified 10-01-26: Aeon's publisher, Aeon's robots.txt, Aeon's verdict.
+    robotsCheckedOn: "2026-10-01",
+    walk: "sitemap",
+    // ~1,450 pieces on 10-01-26: 954 ideas, 299 guides, 111 turning points, 78 notes to self, 10
+    // portraits. `heal`/`understand`/`relate`/`transcend` are theme hubs and never fetched.
+    sitemapUrl: "https://assets.psyche.co/sitemaps/psyche/main.xml",
+    sections: [
+      "ideas",
+      "guides",
+      "turning-points",
+      "notes-to-self",
+      "portraits",
+    ],
+    walkQuota: 60,
+  },
+  {
+    id: "longreads",
+    label: "Longreads",
+    baseUrl: "https://longreads.com",
+    license: PUBLICATION_LICENSE,
+    // Verified 10-01-26: `*` is allowed everything; GPTBot, ChatGPT-User, CCBot, Google-Extended
+    // and ImagesiftBot are named with `Disallow: /`.
+    robotsCheckedOn: "2026-10-01",
+    walk: "wp-rest",
+    // 24,261 posts on 10-01-26. Most are Longreads' own excerpt of a story published elsewhere,
+    // with its recommendation — a longreads.com page, so a link card of Longreads, which is what
+    // it is. ~22% of recent posts have a picture (~53% in 2018); the rest are text-only writing
+    // cards. Quote posts and reading lists are in there too — the curator and the writing floor
+    // sort them (Ben, 10-01-26).
+    walkQuota: 200,
+  },
+  {
+    id: "theparisreview",
+    label: "The Paris Review",
+    baseUrl: "https://www.theparisreview.org",
+    license: PUBLICATION_LICENSE,
+    // Verified 10-01-26: `*` is allowed /blog/ posts; Google-Extended and GPTBot are named.
+    robotsCheckedOn: "2026-10-01",
+    walk: "rss",
+    // **A window, not an archive.** Cloudflare answers 403 to everything on the site except the
+    // feed (the REST API, sitemaps, /blog/page/2 — probed 10-01-26), and the feed ignores
+    // `?paged=`. So it is the newest ten, full text in `content:encoded`, accumulating one
+    // night at a time. Its `walkQuota` bounds nothing (the walk is one request); it is there so
+    // the run is never `complete`, because a pruning run would otherwise delete every piece that
+    // has scrolled out of the window.
+    feedUrl: "https://www.theparisreview.org/blog/feed/",
+    fullText: "content-encoded",
+    walkQuota: 10,
   },
 ];
 

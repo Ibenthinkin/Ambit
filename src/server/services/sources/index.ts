@@ -9,7 +9,15 @@ import { mossandfog } from "./mossandfog";
 import { nasaImages } from "./nasa-images";
 import { pdr } from "./pdr";
 import { poetrydb } from "./poetrydb";
-import { jstordaily, noema, themarginalian } from "./publications";
+import {
+  aeon,
+  jstordaily,
+  longreads,
+  noema,
+  psyche,
+  themarginalian,
+  theparisreview,
+} from "./publications";
 import { smithsonian } from "./smithsonian";
 import { streetartnews } from "./streetartnews";
 import { thingsorganizedneatly } from "./things-organized-neatly";
@@ -78,6 +86,11 @@ export const walkers: Record<WalkSourceId, CorpusWalkAdapter<unknown>> = {
   themarginalian,
   jstordaily,
   noema,
+  // Publications round 2 (10-01-26).
+  aeon,
+  psyche,
+  longreads,
+  theparisreview,
 };
 
 /** For CLIs that validate a `--source` flag: everything ingest knows how to reach. */
