@@ -101,6 +101,11 @@ claude -p --model <id> --input-format stream-json --output-format stream-json --
 
 ## Open, for the piece 2/3 plan
 
+- **WORK ITEM — move the judge to VM 202 (Ben, 10-01-26).** The judge is built and run on the
+  dev Mac first. It moves to the VM once Ben has freed RAM and disk there, which he has not yet
+  done. Until then production's nightly stays on OpenRouter and the publications stay
+  suspended. Everything else in this list is part of that move.
+
 - **Where `claude` runs on VM 202.** The ingest is `docker exec` into the app container
   (`oven/bun:1.4.0-debian`, so glibc). Either Claude Code is installed in the image, or the
   ingest runs on the host beside the container. In the image is the smaller change: the task,
