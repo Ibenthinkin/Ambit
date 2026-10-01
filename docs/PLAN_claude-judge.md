@@ -19,7 +19,7 @@
 - **No live `claude` or HTTP calls in unit tests.** The CLI is reached through `claudeRuntime.run`, which tests replace.
 - **Never send an image URL to the model.** Bytes only.
 - **The child process must not see `ANTHROPIC_API_KEY`**, or the CLI bills an API key instead of the subscription.
-- **The agent does not write to production.** Everything in this plan runs against the local database.
+- **The agent does not write to production.** Everything in this plan runs against the local database. (Production's host is decided — VM 202, design D11 — and is the next plan's subject; nothing here depends on it.)
 - Comment the way the surrounding files do: explain why, at length where a decision is not obvious (the repo is a teaching tool for Ben).
 - After `bun add`/`bun remove` (none is expected), `rm -rf node_modules/.vite node_modules/.cache/vite`.
 - Commit messages end with the attribution lines your session's instructions give.

@@ -1,5 +1,10 @@
 # Handoff — the Claude judge and the weekly Mac ingest (10-01-26)
 
+**Status (10-01-26, later):** designed and planned, not built — `docs/DESIGN_claude-judge-ingest.md`
+and `docs/PLAN_claude-judge.md` (piece 1, the judge). **The Mac host is off:** Ben ruled the
+always-on Mac out; the ingest stays on VM 202 with headless Claude Code there (design D11).
+Everything below about a Mac-run ingest (the DB route, the SSH tunnel, launchd) is history.
+
 **What this is:** the pickup for a **separate session** that designs and plans this work. It is
 written cold: everything Ben decided, everything measured so far, and the open questions. Nothing
 in it is built. This is an **architectural** change: brainstorm → `docs/DESIGN_*.md` → Ben

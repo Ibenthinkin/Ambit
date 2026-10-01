@@ -98,7 +98,20 @@ judge's budget becomes dollars, not a share of the weekly window.
 **Open / next:** Ben reviews the plan and describes the Mac; execute `PLAN_claude-judge.md` cold
 in a cheaper session on `feat/claude-judge`; then the piece 2/3 plan.
 
+**Later: the host is VM 202, not the Mac.** Ben's verdict on the always-on Mac is no. A session
+in his homelab context recommended headless Claude Code on VM 202 itself: the scheduled task
+already runs there, the database is local, and no database credential crosses hosts. Design D11
+is rewritten and D9 amended; the SSH tunnel, launchd and the cross-host cache question all go.
+The judge plan was host-agnostic and does not change. What the move adds for the next plan:
+where `claude` runs (in the image, which is Debian, or on the host), the subscription token as
+a Coolify secret (a Claude credential does land on the VM), and RAM — **one judge call peaked
+at ~236 MB on the dev Mac, so four workers are ~1 GB**, and VM 202's headroom is unchecked.
+
+**Open / next (supersedes the line above):** check VM 202's free RAM; execute
+`PLAN_claude-judge.md` cold on `feat/claude-judge`; then plan pieces 2–3 for VM 202.
+
 *Session spend: 7.70M tok (in 100 · out 165.0k · cache r 6.95M / w 584.2k) · fable-5-1 · 10:43→11:00*
+*Session spend: 2.23M tok (in 20 · out 7.0k · cache r 2.22M / w 7.4k) · fable-5-1 · 11:00→11:05*
 
 ## 2026-09
 

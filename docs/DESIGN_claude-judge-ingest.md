@@ -2,7 +2,13 @@
 
 **Source:** `docs/HANDOFF_claude-judge-ingest.md` (what Ben asked for, what exists, the open
 questions). This file records the decisions; `docs/PLAN_claude-judge.md` builds piece 1.
-Pieces 2 and 3 (the split, the host) get their own plan once Ben has described the always-on Mac.
+Pieces 2 and 3 (the split, the host) get their own plan.
+
+**Update, 10-01-26 (later): the host is VM 202, not a Mac.** Ben ruled the always-on Mac out. A
+session in his homelab context recommended headless Claude Code on VM 202 itself: the scheduled
+task already runs there, the database is local, and no database credential crosses hosts. D9
+and D11 below are amended; D1–D8, and all of `docs/PLAN_claude-judge.md`, are host-agnostic and
+stand as written.
 
 ## What was measured (this Mac, Claude Code 2.1.286, Haiku 4.5)
 
@@ -79,21 +85,39 @@ claude -p --model <id> --input-format stream-json --output-format stream-json --
   rank agreement and the twenty largest disagreements to `docs/vision-comparison.md`. Proposed
   bar: Spearman ≥ 0.6, overall mean shift within ±0.5, no source shifting more than 1.0. The
   verdict is Ben's.
-- **D9. The publications stay suspended until piece 3.** Their backfill (~10,750 pieces) is the
-  judge's first big run, done **locally** with explicit `--source … --backfill`. It fills the
-  Mac's curation cache, which becomes the canonical one. Un-suspending them while production
-  still runs flash-lite nightly would score the same pieces under two judges.
+- **D9. The publications stay suspended until production's judge is Claude.** Their backfill
+  (~10,750 pieces) is the judge's first big run, done **locally** on the dev Mac with explicit
+  `--source … --backfill`, which proves the judge at scale before anything is installed on the
+  VM. Un-suspending them while production still runs flash-lite nightly would score the same
+  pieces under two judges. *(Amended: with VM 202 as the host, production's cache volume stays
+  the canonical curation cache, as today. The local run's Haiku envelopes are pushed to it with
+  `.cache/push-caches.sh`, so production's first walk of the publications is all cache hits.)*
 - **D10. Weekly, as two jobs** (piece 2): pictures on **Monday**, writing on **Thursday**, 01:30
   UTC (Ben, 10-01-26). Split by item type after normalization, since PDR carries both.
-- **D11. The Mac reaches production's Postgres through an SSH tunnel** via VM 202 (Ben,
-  10-01-26). No port is published.
+- **D11. The ingest stays on VM 202; the judge is headless Claude Code there** (Ben, 10-01-26,
+  later). This supersedes the earlier D11 (a Mac reaching Postgres through an SSH tunnel): no
+  tunnel, no published port, no second host. The Coolify scheduled task, its failure
+  notification, `img:warm` and both caches stay where they are.
 
 ## Open, for the piece 2/3 plan
 
-- The always-on Mac: chip, RAM, macOS, hostname/IP, SSH, sleep settings, same LAN as VM 202,
-  Claude Code logged in.
-- The health witness: `INGEST_STALE_AFTER_MS` is 30 h and a weekly cadence would read `stale`
-  six days in seven. Needs a per-kind witness and a threshold near eight days.
-- What replaces Coolify's failure notification (launchd plus a failure hook), where `img:warm`
-  runs after a Mac ingest, and which cache is pushed where.
+- **Where `claude` runs on VM 202.** The ingest is `docker exec` into the app container
+  (`oven/bun:1.4.0-debian`, so glibc). Either Claude Code is installed in the image, or the
+  ingest runs on the host beside the container. In the image is the smaller change: the task,
+  the env and the caches are already there.
+- **The subscription credential lands on the VM.** No database credential crosses hosts, but a
+  Claude login does: `claude setup-token` gives a long-lived token for headless use, to be held
+  as a Coolify secret. It must survive redeploys, and it is a credential for Ben's whole
+  subscription, not just the judge.
+- **RAM headroom on VM 202 is unchecked.** One judge call peaked at **~236 MB** resident on the
+  dev Mac (10-01-26), so four workers are about 1 GB at peak, on top of the ingest and the app.
+  `CLAUDE_CONCURRENCY` is the lever if the VM is tight; measure before the first run.
+- **The health witness.** `INGEST_STALE_AFTER_MS` is 30 h and a weekly cadence would read
+  `stale` six days in seven. Needs a per-kind witness and a threshold near eight days.
+- **Two scheduled tasks** (pictures Monday, writing Thursday) in place of the nightly one, and
+  the `--kind` split in `scripts/ingest.ts`.
+- **Flipping production's judge**: `CURATOR_JUDGE=claude` in Coolify's env, after the gates
+  pass and the local Haiku cache is pushed.
 - Whether a five-hour stop should wait for the reset and resume by itself on a weekly night.
+- **Big runs.** Ben's original ask had backfills on a Mac. They still can be: the dev Mac runs
+  them locally and pushes the cache, the pattern every walk source has used.
