@@ -151,7 +151,7 @@ export const PERSONAS: readonly Persona[] = [
     taste: "Letters, ink, paper, and the occasional poster.",
     groups: [
       "posters-print-and-type",
-      "propaganda-and-persuasion",
+      "propaganda-and-advertising",
       "russia-group",
       "ukraine-group",
     ],
