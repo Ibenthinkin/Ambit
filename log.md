@@ -179,6 +179,9 @@ run anyway as a read-only measurement.
   `bun run drop:donations --confirm` (new), which asks the floor's own `isDonationPost` — all 22
   were thevaultoftheatomicspaceage Ko-fi banners, scored 2-8, none saved. **Run it in the
   production container after the same deploy**; the report-only form lists the rows first.
+  **Done the same evening:** `feat/claude-judge` merged to `main` and pushed (`92c3a92`), Ben
+  deployed it (health reports that commit) and ran `sh .cache/judge-rulings-prod.sh confirm`,
+  which is both scripts. Production still judges through OpenRouter — `CURATOR_JUDGE` is unset.
 - **WORK ITEM: move the judge to VM 202** once Ben has freed RAM and disk there (design doc,
   "Open"): where `claude` is installed, the subscription token as a Coolify secret, ~236 MB a
   judge call, the weekly two-job split, the health threshold.
@@ -194,6 +197,7 @@ run anyway as a read-only measurement.
 *Session spend: 23.31M tok (in 162 · out 52.2k · cache r 22.88M / w 377.6k) · ~≥$3.06 · fable-5-1 + opus-4-7 · 12:08→13:58*
 *Session spend: 22.96M tok (in 148 · out 88.7k · cache r 22.56M / w 314.8k) · ~≥$2.39 · fable-5-1 + opus-4-7 · 13:58→15:37*
 *Session spend: 5.68M tok (in 82 · out 26.5k · cache r 5.19M / w 460.3k) · ~≥$1.75 · fable-5-1 + opus-4-7 · 15:37→16:44*
+*Session spend: 4.51M tok (in 99 · out 46.3k · cache r 3.84M / w 620.6k) · ~≥$3.61 · fable-5-1 + opus-4-7 · 16:44→20:37*
 
 **Also today, a separate thread — a persona for every signed-out visit:**
 
