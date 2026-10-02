@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import {
   Bell,
+  BookOpen,
   ChatBubble,
   Contrast,
   Download,
@@ -23,6 +24,8 @@ import { ACCENTS, setAccent, useAccent } from "~/lib/accent";
 import { api } from "~/trpc/react";
 import { AboutSheet } from "./about-sheet";
 import { AccentSheet } from "./accent-sheet";
+import { DEFAULT_READING, ReadingSheet } from "./reading-sheet";
+import { READING_LABELS } from "~/server/config/reading-amount";
 import { InstallSheet } from "~/components/install/install-sheet";
 import { isStandalone, useInstall } from "~/lib/install-store";
 import { purgePagesCache } from "~/lib/sw-rules";
@@ -57,7 +60,7 @@ const subscribeToNothing = () => () => undefined;
 const CONTACT_EMAIL = "benjamin.reilly@gmail.com";
 
 /** The one sheet open at a time, as a discriminant rather than four booleans that could disagree. */
-type OpenSheet = "accent" | "about" | "install" | null;
+type OpenSheet = "accent" | "about" | "install" | "reading" | null;
 
 export interface SettingsScreenProps {
   /** "v0.4" — derived from package.json server-side (`app/profile/settings/page.tsx`). */
@@ -71,6 +74,22 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
   // trivially satisfied, and a hard reload paints filled.
   const topics = api.topics.list.useQuery();
   const myTopics = api.topics.mine.useQuery();
+
+  // How much writing the feed mixes in (10-02-26) — the questionnaire's last question, changeable
+  // here. `null` is "never said": the engine's default share, which is what "Some" buys, so that
+  // is what the row and the sheet show. A pick refreshes the amount and drops every cached feed
+  // page, since those were composed at the old share.
+  const utils = api.useUtils();
+  const reading = api.user.readingAmount.useQuery();
+  const setReading = api.user.setReadingAmount.useMutation({
+    // Optimistic, so the pressed segment answers the tap rather than the round trip.
+    onMutate: ({ amount }) =>
+      utils.user.readingAmount.setData(undefined, amount),
+    onSuccess: () => {
+      void utils.user.readingAmount.invalidate();
+      void utils.feed.invalidate();
+    },
+  });
 
   const [openSheet, setOpenSheet] = React.useState<OpenSheet>(null);
   const [toast, setToast] = React.useState<string | null>(null);
@@ -181,6 +200,12 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
               onClick={() => router.replace("/profile/topics")}
             />
             <SettingsRow
+              icon={<BookOpen size={17} />}
+              label="Reading"
+              value={READING_LABELS[reading.data ?? DEFAULT_READING]}
+              onClick={() => setOpenSheet("reading")}
+            />
+            <SettingsRow
               icon={<Mute size={17} />}
               label="Muted sources"
               // True today, and will stay true until muting is built: nothing anywhere in the app
@@ -254,6 +279,13 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
           </p>
         </div>
       </div>
+
+      <ReadingSheet
+        open={openSheet === "reading"}
+        onClose={() => setOpenSheet(null)}
+        current={reading.data ?? null}
+        onPick={(amount) => setReading.mutate({ amount })}
+      />
 
       <AccentSheet
         open={openSheet === "accent"}

@@ -474,6 +474,26 @@ export function FeedLines({ size = 17, className, ...rest }: IconProps) {
   );
 }
 
+/** BookOpen — "Reading", how much writing the feed mixes in. Two pages off a spine. */
+export function BookOpen({ size = 17, className, ...rest }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...rest}
+    >
+      <path d="M12 6.5v13M12 6.5C10.2 5.2 7.4 4.6 3.5 5v13c3.9-.4 6.7.2 8.5 1.5M12 6.5c1.8-1.3 4.6-1.9 8.5-1.5v13c-3.9-.4-6.7.2-8.5 1.5" />
+    </svg>
+  );
+}
+
 /** Mute — "Muted sources". A speaker with the slash the row's name implies. */
 export function Mute({ size = 17, className, ...rest }: IconProps) {
   return (
