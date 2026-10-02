@@ -90,18 +90,25 @@ export async function judgePreflight(
 ): Promise<string | null> {
   if (models.some((m) => !isClaudeModel(m)) && !process.env.OPENROUTER_API_KEY)
     return "OPENROUTER_API_KEY is not set — required for the OpenRouter judge (add it to .env, or set CURATOR_JUDGE=claude).";
-  const claude = models.find(isClaudeModel);
-  if (claude) {
-    try {
-      await claudeComplete({
-        model: claudeModelSpec(claude).id,
-        system: "Reply with ONLY one JSON object.",
-        content: 'Give {"ok":true}',
-      });
-    } catch (err) {
-      return `the Claude judge is not usable — ${err instanceof Error ? err.message : String(err)} (is Claude Code installed, on PATH, and logged in with the subscription?)`;
+  // Every distinct Claude model the run will judge with gets its own tiny call, in order. Proving
+  // only the first is not enough: a `--kind writing` night judges with Sonnet alone, and a
+  // subscription that refuses Sonnet would let the run walk every writing source and then fail on
+  // its first judgment. A model named twice is asked once, and a failure names the model so the
+  // message says which one to go and fix.
+  const claudeModels = [...new Set(models.filter(isClaudeModel))];
+  if (claudeModels.length) {
+    for (const claude of claudeModels) {
+      try {
+        await claudeComplete({
+          model: claudeModelSpec(claude).id,
+          system: "Reply with ONLY one JSON object.",
+          content: 'Give {"ok":true}',
+        });
+      } catch (err) {
+        return `the Claude judge is not usable with ${claude} — ${err instanceof Error ? err.message : String(err)} (is Claude Code installed, on PATH, and logged in with the subscription?)`;
+      }
     }
-    // The call above succeeded, and it is also the first reading of the subscription's usage.
+    // The calls above succeeded, and they are also the first reading of the subscription's usage.
     // If that reading is already past the ceiling there is nothing this run can judge.
     const stopped = claudeStopReason();
     if (stopped)
