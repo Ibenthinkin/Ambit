@@ -169,7 +169,7 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "kids",
     "children-s-illustration",
   ]),
-  group("propaganda-and-persuasion", "Propaganda & persuasion", "subject", [
+  group("propaganda-and-advertising", "Propaganda & advertising", "subject", [
     "soviet",
     "soviet-propaganda",
     "activism",
