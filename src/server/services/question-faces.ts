@@ -18,26 +18,20 @@
 // the next visit rather than ten minutes later.
 import { imageSrc } from "~/lib/image-src";
 import { QUESTIONS } from "~/lib/interview/bank";
+import {
+  faceKey,
+  type QuestionFace,
+  type QuestionFaces,
+} from "~/lib/interview/faces";
 import type { Question } from "~/lib/interview/types";
 import { facePicks, topFacesForTopics } from "~/server/db/items";
 
-export interface QuestionFace {
-  /** The item shown — `/dev/faces` prints it, and it is the `<img>`'s key. */
-  itemId: string;
-  /** What the `<img src>` is: the proxied 960 px rendition, or a `data:` URL verbatim. */
-  src: string;
-}
-
-/** Faces keyed by `faceKey(questionId, optionKey)`; an answer with no picture is absent. */
-export type QuestionFaces = Record<string, QuestionFace>;
+// The types and the key live in a client-safe leaf; re-exported so server callers have one import.
+export { faceKey, type QuestionFace, type QuestionFaces };
 
 export const FACES_TTL_MS = 10 * 60 * 1000;
 /** Two per topic — the spare is what a pair falls back to when its sides share a top picture. */
 const PER_TOPIC = 2;
-
-export function faceKey(questionId: string, optionKey: string): string {
-  return `${questionId}/${optionKey}`;
-}
 
 /** A card is at most half a desktop screen wide, so the closed-set 960 px rendition (see
  *  services/image-cache.ts) is plenty; the e2e corpus's inline `data:` pixels pass through. */
