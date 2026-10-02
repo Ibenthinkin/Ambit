@@ -21,8 +21,8 @@ describe("answersToward", () => {
   });
 
   it("chooses every multi answer that adds a wanted topic, up to the question's max", () => {
-    expect(byId(WIDE, ["music"])["evening"]).toEqual(["music"]);
-    expect(byId(WIDE, ["music", "poetry", "food"])["evening"]).toEqual([
+    expect(byId(WIDE, ["music"]).evening).toEqual(["music"]);
+    expect(byId(WIDE, ["music", "poetry", "food"]).evening).toEqual([
       "music",
       "books",
     ]);
@@ -30,12 +30,12 @@ describe("answersToward", () => {
 
   it("never steers by an answer that only subtracts", () => {
     // "Not really" touches eerie but adds nothing; "Yes" is the one that adds it.
-    expect(byId(WIDE, ["eerie"])["unsettle"]).toEqual(["yes"]);
+    expect(byId(WIDE, ["eerie"]).unsettle).toEqual(["yes"]);
   });
 
   it("skips what it has no use for — text and amount questions always", () => {
     const a = byId(WIDE, ["music"]);
-    expect(a["words"]).toEqual([SKIP]);
+    expect(a.words).toEqual([SKIP]);
     expect(a["reading-amount"]).toEqual([SKIP]);
     expect(a["space-or-garden"]).toEqual([SKIP]);
   });

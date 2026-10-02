@@ -32,7 +32,7 @@ const aboutField = (max: number) =>
     .trim()
     .max(max)
     .nullish()
-    .transform((v) => (v ? v : null));
+    .transform((v) => (v == null || v === "" ? null : v));
 
 const answerSchema = z.object({
   questionId: z.string().min(1).max(64),
