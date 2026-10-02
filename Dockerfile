@@ -42,6 +42,37 @@ RUN test -n "$BETTER_AUTH_URL" || (echo "BETTER_AUTH_URL build arg is required" 
 RUN bun run build
 
 FROM base AS runtime
+# ── The Claude judge's CLI (10-02-26, docs/PLAN_judge-on-vm202.md) ──
+#
+# The ingest is `docker exec`'d into this container, and with CURATOR_JUDGE=claude the curator
+# spawns `claude -p` for every judgment, on Ben's subscription. So the CLI lives here.
+#
+# **Pinned, and it stays pinned.** The judge passes a row of flags that strip Claude Code's own
+# ~54,000-token overhead down to ~400 per judgment; it has tripwires for a CLI that stops
+# honouring them, and an auto-update inside a container is the way to trip them at 4 am. To move
+# to a newer CLI: change the ARG, deploy, run `bun run judge:probe` in the container, read the
+# token count. The installer is Anthropic's native one (code.claude.com/docs/en/setup); it needs
+# curl. **curl stays in the image** (Ben, 10-02-26): the ingest needs it at run time too, so do
+# not purge it to save a few MB — a container without it fails at 4 am, not at build time. The
+# binary lands in /root/.local/bin — the container runs as root.
+#
+# No credential is here or anywhere in the build: the login is CLAUDE_CODE_OAUTH_TOKEN, a
+# *runtime* variable in Coolify (never tick "Build Variable" on it — a build ARG is readable in
+# the image's history).
+#
+# This sits before the first COPY so a code change never re-runs the install.
+ARG CLAUDE_CODE_VERSION=2.1.287
+ENV DISABLE_AUTOUPDATER=1
+ENV PATH="/root/.local/bin:${PATH}"
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates \
+ && curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh \
+ && bash /tmp/claude-install.sh "$CLAUDE_CODE_VERSION" \
+ && rm /tmp/claude-install.sh \
+ && rm -rf /var/lib/apt/lists/* \
+ && curl --version \
+ && claude --version | grep -F "$CLAUDE_CODE_VERSION"
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
@@ -60,8 +91,9 @@ COPY drizzle ./drizzle
 EXPOSE 3000
 
 # Docker's own healthcheck, which Coolify honours in preference to its UI check. `bun -e` rather
-# than curl/wget: neither is in oven/bun, and adding one to get a healthcheck would be a package
-# in the image for no other reason. 60s start period covers migrate + seed + first render.
+# than curl: curl is in the image now (the judge's installer and the ingest need it, see the
+# runtime stage's top), but the healthcheck does not depend on it — `bun -e` is the proven check
+# and needs nothing beyond the runtime the app already runs on. 60s start period covers migrate + seed + first render.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD bun -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
