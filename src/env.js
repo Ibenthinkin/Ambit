@@ -47,7 +47,11 @@ export const env = createEnv({
     // curator.ts / claude-judge.ts, never on a request path (docs/DESIGN_claude-judge-ingest.md).
     CURATOR_JUDGE: z.enum(["openrouter", "claude"]).optional(),
     CLAUDE_JUDGE_MAX_UTILIZATION: z.coerce.number().gt(0).max(1).optional(),
-    CLAUDE_JUDGE_CONCURRENCY: z.coerce.number().int().min(1).max(8).optional(),
+    // A plain string on purpose: claudeConcurrency() in services/claude-judge.ts is the one
+    // validator, and it falls back to the default (four) on anything that is not a whole number
+    // from 1 to 8. A strict schema here would throw at startup on a typo — for the ingest and
+    // for the web app alike, since both import this file.
+    CLAUDE_JUDGE_CONCURRENCY: z.string().optional(),
     // The shared password for the twenty seeded personas — scripts/seed-personas.ts. Optional so
     // the app boots without it (nothing on a request path reads it); the script itself refuses to
     // run when it is unset or under twelve characters, since twenty accounts behind a guessable
