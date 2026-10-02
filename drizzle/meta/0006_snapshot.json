@@ -110,12 +110,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -178,12 +174,8 @@
           "name": "collection_user_id_user_id_fk",
           "tableFrom": "collection",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -193,10 +185,7 @@
         "uq_collection_user_name": {
           "name": "uq_collection_user_name",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "name"
-          ]
+          "columns": ["user_id", "name"]
         }
       },
       "policies": {},
@@ -241,9 +230,7 @@
         "invite_email_unique": {
           "name": "invite_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -458,12 +445,8 @@
           "name": "item_topic_id_topic_id_fk",
           "tableFrom": "item",
           "tableTo": "topic",
-          "columnsFrom": [
-            "topic_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["topic_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -473,10 +456,7 @@
         "item_source_sourceId_unique": {
           "name": "item_source_sourceId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "source",
-            "source_id"
-          ]
+          "columns": ["source", "source_id"]
         }
       },
       "policies": {},
@@ -528,12 +508,8 @@
           "name": "item_topic_item_id_item_id_fk",
           "tableFrom": "item_topic",
           "tableTo": "item",
-          "columnsFrom": [
-            "item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["item_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -541,12 +517,8 @@
           "name": "item_topic_topic_id_topic_id_fk",
           "tableFrom": "item_topic",
           "tableTo": "topic",
-          "columnsFrom": [
-            "topic_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["topic_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -554,10 +526,7 @@
       "compositePrimaryKeys": {
         "item_topic_item_id_topic_id_pk": {
           "name": "item_topic_item_id_topic_id_pk",
-          "columns": [
-            "item_id",
-            "topic_id"
-          ]
+          "columns": ["item_id", "topic_id"]
         }
       },
       "uniqueConstraints": {},
@@ -617,12 +586,8 @@
           "name": "saved_item_user_id_user_id_fk",
           "tableFrom": "saved_item",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -630,12 +595,8 @@
           "name": "saved_item_item_id_item_id_fk",
           "tableFrom": "saved_item",
           "tableTo": "item",
-          "columnsFrom": [
-            "item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["item_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -643,12 +604,8 @@
           "name": "saved_item_collection_id_collection_id_fk",
           "tableFrom": "saved_item",
           "tableTo": "collection",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -656,10 +613,7 @@
       "compositePrimaryKeys": {
         "saved_item_user_id_item_id_pk": {
           "name": "saved_item_user_id_item_id_pk",
-          "columns": [
-            "user_id",
-            "item_id"
-          ]
+          "columns": ["user_id", "item_id"]
         }
       },
       "uniqueConstraints": {},
@@ -696,12 +650,8 @@
           "name": "seen_item_user_id_user_id_fk",
           "tableFrom": "seen_item",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -709,12 +659,8 @@
           "name": "seen_item_item_id_item_id_fk",
           "tableFrom": "seen_item",
           "tableTo": "item",
-          "columnsFrom": [
-            "item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["item_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -722,10 +668,7 @@
       "compositePrimaryKeys": {
         "seen_item_user_id_item_id_pk": {
           "name": "seen_item_user_id_item_id_pk",
-          "columns": [
-            "user_id",
-            "item_id"
-          ]
+          "columns": ["user_id", "item_id"]
         }
       },
       "uniqueConstraints": {},
@@ -809,12 +752,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -824,9 +763,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -940,16 +877,12 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         },
         "user_handle_unique": {
           "name": "user_handle_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "handle"
-          ]
+          "columns": ["handle"]
         }
       },
       "policies": {},
@@ -986,12 +919,8 @@
           "name": "user_topic_user_id_user_id_fk",
           "tableFrom": "user_topic",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -999,12 +928,8 @@
           "name": "user_topic_topic_id_topic_id_fk",
           "tableFrom": "user_topic",
           "tableTo": "topic",
-          "columnsFrom": [
-            "topic_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["topic_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1012,10 +937,7 @@
       "compositePrimaryKeys": {
         "user_topic_user_id_topic_id_pk": {
           "name": "user_topic_user_id_topic_id_pk",
-          "columns": [
-            "user_id",
-            "topic_id"
-          ]
+          "columns": ["user_id", "topic_id"]
         }
       },
       "uniqueConstraints": {},
