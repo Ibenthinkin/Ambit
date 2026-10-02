@@ -164,4 +164,47 @@ describe("TopicLevels", () => {
       .map((el) => el.getAttribute("aria-label"));
     expect(subjectGroups).toEqual(["Astronomy level", "Moon level"]);
   });
+
+  // The questionnaire's reveal keeps a switched-off proposal on screen, so a stray tap on "off"
+  // can be taken back without leaving the page.
+  it("shows an `off` topic as a row with off pressed, and turns it back on through onLevel", () => {
+    const onLevel = vi.fn();
+    const onOff = vi.fn();
+    render(
+      <TopicLevels
+        topics={FIXTURE_TOPICS}
+        picks={new Map([["astronomy", 1]])}
+        off={new Set(["botany"])}
+        onLevel={onLevel}
+        onOff={onOff}
+      />,
+    );
+    expect(
+      screen.getAllByRole("group").map((el) => el.getAttribute("aria-label")),
+    ).toEqual(["Astronomy level", "Botany level"]);
+    const row = screen.getByRole("group", { name: "Botany level" });
+    expect(within(row).getByRole("button", { name: "off" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // Already off: pressing it again says nothing.
+    fireEvent.click(within(row).getByRole("button", { name: "off" }));
+    expect(onOff).not.toHaveBeenCalled();
+    fireEvent.click(within(row).getByRole("button", { name: "a little" }));
+    expect(onLevel).toHaveBeenCalledExactlyOnceWith("botany", "little");
+  });
+
+  it("with only `off` topics it still lists them rather than saying nothing is picked", () => {
+    render(
+      <TopicLevels
+        topics={FIXTURE_TOPICS}
+        picks={new Map()}
+        off={new Set(["botany"])}
+        onLevel={vi.fn()}
+        onOff={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Nothing picked yet.")).toBeNull();
+    expect(screen.getAllByRole("group")).toHaveLength(1);
+  });
 });

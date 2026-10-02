@@ -46,6 +46,10 @@ export interface TopicLevelsProps {
   /** `topics.list` rows — where the labels come from. */
   topics: readonly LevelTopic[];
   picks: Picks;
+  /** Topics to keep on the page with "off" pressed — the questionnaire's reveal uses this so a
+   *  switched-off proposal can be switched back on. `/profile/topics` passes none: there, off
+   *  is a write, the row goes, and the search box is how a topic comes back. */
+  off?: ReadonlySet<string>;
   /** Topics Ambit proposed rather than the reader — marked "suggested" so they can tell. */
   suggested?: ReadonlySet<string>;
   onLevel: (topicId: string, level: Level) => void;
@@ -62,11 +66,12 @@ const LEVEL_OPTIONS = [
 export function TopicLevels({
   topics,
   picks,
+  off,
   suggested,
   onLevel,
   onOff,
 }: TopicLevelsProps) {
-  if (picks.size === 0) {
+  if (picks.size === 0 && !off?.size) {
     return <p className="text-ink/62 text-[15px]">Nothing picked yet.</p>;
   }
 
@@ -74,13 +79,15 @@ export function TopicLevels({
   // re-picked something. A pick the list doesn't hold (a topic retired since) has no label to
   // show and is left out.
   const rows = topics
-    .filter((t) => picks.has(t.id))
+    .filter((t) => picks.has(t.id) || off?.has(t.id))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   return (
     <div className="flex flex-col">
       {rows.map((topic) => {
-        const level = levelOf(picks.get(topic.id) ?? 0);
+        // A picked topic reads its level off its weight; an `off` one presses the fourth segment.
+        const weight = picks.get(topic.id);
+        const level = weight === undefined ? "off" : levelOf(weight);
         return (
           <div
             key={topic.id}
