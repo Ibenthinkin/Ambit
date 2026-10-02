@@ -771,6 +771,27 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
     });
   });
 
+  // The questionnaire's per-person reading amount (10-02-26): one nullable word on the user row.
+  describe("user.readingAmount + user.setReadingAmount", () => {
+    it("is null for a reader who has never said", async () => {
+      const caller = createCaller(authedContext(otherUserId));
+      expect(await caller.user.readingAmount()).toBeNull();
+    });
+
+    it("round-trips a level, per user, and null clears it back to the default", async () => {
+      const mine = createCaller(authedContext(userId));
+      const theirs = createCaller(authedContext(otherUserId));
+
+      expect(await mine.user.setReadingAmount({ amount: "lot" })).toBe("lot");
+      expect(await mine.user.readingAmount()).toBe("lot");
+      // The `userId` filter: my answer is not anybody else's.
+      expect(await theirs.user.readingAmount()).toBeNull();
+
+      await mine.user.setReadingAmount({ amount: null });
+      expect(await mine.user.readingAmount()).toBeNull();
+    });
+  });
+
   // Phase 6.1: a *new* save bumps the saved item's topic weight (and creates the row when the
   // user never picked that topic). Driven as `otherUserId` deliberately — they have no
   // `user_topic` rows at all, so the row-creation path is what's exercised, and the topics-block

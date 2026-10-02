@@ -238,6 +238,19 @@ describe("protected procedures reject a null session", () => {
       caller.user.updateProfile({ name: "Ben", handle: null, bio: null }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
+
+  // The questionnaire's per-person reading amount (10-02-26) — a preference, so signed-in only.
+  it("user.readingAmount throws UNAUTHORIZED", async () => {
+    await expect(caller.user.readingAmount()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  it("user.setReadingAmount throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.user.setReadingAmount({ amount: "lot" }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
 });
 
 describe("the three public procedures", () => {
@@ -424,6 +437,14 @@ describe("zod input validation", () => {
     }
   });
 
+  it("user.setReadingAmount rejects a word that is not one of the four amounts", async () => {
+    const caller = createCaller(authedContext());
+    await expect(
+      // @ts-expect-error — deliberately outside the enum
+      caller.user.setReadingAmount({ amount: "loads" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
   it("user.updateProfile rejects a bio past 280 characters", async () => {
     const caller = createCaller(authedContext());
     await expect(
@@ -586,8 +607,9 @@ describe("appRouter shape", () => {
   // twenty-first, `saves.ids` — the feed's tile strips light their glyphs from it. `/explore`
   // (09-26-26) adds the twenty-second, `feed.explore` — the fourth deliberate public procedure.
   // 09-28-26 retires `topics.weights` — the product reads weights through `topics.mine` now —
-  // and adds `topics.setWeight`, so the count stays twenty-two.
-  it("exposes exactly the twenty-two SPEC §7 procedures, no leftover post router", () => {
+  // and adds `topics.setWeight`, so the count stays twenty-two. The questionnaire (10-02-26) adds
+  // `user.readingAmount` and `user.setReadingAmount` — twenty-four.
+  it("exposes exactly the twenty-four SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -611,6 +633,8 @@ describe("appRouter shape", () => {
         "topics.mine",
         "user.me",
         "user.updateProfile",
+        "user.readingAmount",
+        "user.setReadingAmount",
         "topics.setWeight",
         "topics.resetWeights",
       ].sort(),
