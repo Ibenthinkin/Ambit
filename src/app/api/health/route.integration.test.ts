@@ -21,38 +21,66 @@ describe.skipIf(!process.env.DATABASE_URL)(
       });
     });
 
-    // Phase 8.2: a real ingest_run row read back through the real query. The row is stamped a
-    // minute in the future so it is the newest whatever else the local database holds, and is
-    // deleted afterwards.
+    // Real ingest_run rows read back through the real query. Stamped in the future so they are
+    // the newest whatever else the local database holds, and deleted afterwards.
     describe("ingest", () => {
-      const runId = `test-ingest-run-${Date.now()}`;
+      const stamp = Date.now();
+      const ids = [`test-run-pictures-${stamp}`, `test-run-any-${stamp}`];
 
       afterAll(async () => {
         const { db } = await import("~/server/db/client");
         const { ingestRun } = await import("~/server/db/schema");
-        await db.delete(ingestRun).where(eq(ingestRun.id, runId));
+        for (const id of ids)
+          await db.delete(ingestRun).where(eq(ingestRun.id, id));
       });
 
-      it("reports ok after a successful run is recorded", async () => {
-        const { recordIngestRun } = await import("~/server/db/ingest-runs");
-        const finishedAt = new Date(Date.now() + 60_000);
-        await recordIngestRun({
-          id: runId,
-          startedAt: new Date(),
-          finishedAt,
-          exitCode: 0,
-          inserted: 3,
-          dryRun: false,
-          perSource: null,
-          error: null,
-        });
+      const row = (id: string, finishedAt: Date, kind: "pictures" | null) => ({
+        id,
+        startedAt: new Date(),
+        finishedAt,
+        exitCode: 0,
+        inserted: 3,
+        dryRun: false,
+        perSource: null,
+        error: null,
+        kind,
+      });
+
+      it("counts a pictures run toward pictures only", async () => {
+        const { recordIngestRun, lastSuccessfulIngestAt } =
+          await import("~/server/db/ingest-runs");
+        const at = new Date(stamp + 60_000);
+        await recordIngestRun(row(ids[0]!, at, "pictures"));
+
+        expect((await lastSuccessfulIngestAt("pictures"))?.getTime()).toBe(
+          at.getTime(),
+        );
+        expect((await lastSuccessfulIngestAt("writing"))?.getTime()).not.toBe(
+          at.getTime(),
+        );
+      });
+
+      it("counts a run with no kind — every row written before 10-02-26 — toward both", async () => {
+        const { recordIngestRun, lastSuccessfulIngestAt } =
+          await import("~/server/db/ingest-runs");
+        const at = new Date(stamp + 120_000);
+        await recordIngestRun(row(ids[1]!, at, null));
+
+        expect((await lastSuccessfulIngestAt("pictures"))?.getTime()).toBe(
+          at.getTime(),
+        );
+        expect((await lastSuccessfulIngestAt("writing"))?.getTime()).toBe(
+          at.getTime(),
+        );
 
         const res = await GET();
-
-        expect(res.status).toBe(200);
         expect(await res.json()).toMatchObject({
           ingest: "ok",
-          lastIngestAt: finishedAt.toISOString(),
+          lastIngestAt: at.toISOString(),
+          ingestKinds: {
+            pictures: { status: "ok", lastAt: at.toISOString() },
+            writing: { status: "ok", lastAt: at.toISOString() },
+          },
         });
       });
     });

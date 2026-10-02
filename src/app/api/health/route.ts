@@ -11,8 +11,9 @@
 //   3. Whatever uptime monitoring Phase 8.2 adds.
 //
 // **Phase 8.2 added a third thing it reports, and it is deliberately not a check.** `ingest` says
-// whether the nightly ingest has *succeeded* in the last 30 hours (`ok | stale | never`, or
-// `unknown` if the record could not be read), and `lastIngestAt` says when. An outside monitor
+// whether each weekly ingest (pictures, writing) has *succeeded* within eight days and six
+// hours (`ok | stale | never`, or `unknown` if the record could not be read) — `ingest` is the worst
+// of the two, `ingestKinds` names each — and `lastIngestAt` says when. An outside monitor
 // keyword-matches `"ingest":"ok"`; a human reads the time. It never feeds `ok` or the status code:
 // this route is the Docker HEALTHCHECK, and a cron job that ran late is no reason for Docker to
 // restart an app that is serving perfectly well (PHASE8_PLAN_8.2.md, Global Constraints).
@@ -37,8 +38,10 @@ import { lastSuccessfulIngestAt } from "~/server/db/ingest-runs";
 import { imageCacheDir } from "~/server/services/image-cache";
 import {
   ingestStatus,
+  worstIngestStatus,
   type IngestStatus,
 } from "~/server/services/ingest-health";
+import { INGEST_KINDS, type IngestKind } from "~/server/services/ingest-kind";
 
 /** Fixed vocabulary — never a message, never a path (see the note above). */
 type Check = "ok" | "error";
@@ -75,23 +78,43 @@ async function checkImageCache(): Promise<Check> {
   }
 }
 
+type KindReport = { status: IngestStatus; lastAt: string | null };
+
 /**
- * The ingest's recency. A failed read is `unknown` — not `never`, which would claim the corpus has
- * never been filled, and not an error in the status code, for the reason in the header. Like the
- * checks above it names nothing: no driver message leaves this function.
+ * The ingests' recency, per weekly job. A failed read is `unknown` — not `never`, which would
+ * claim the corpus has never been filled, and not an error in the status code, for the reason in
+ * the header. Like the checks above it names nothing: no driver message leaves this function.
  */
 async function checkIngest(): Promise<{
   ingest: IngestStatus | "unknown";
   lastIngestAt: string | null;
+  ingestKinds: Record<IngestKind, KindReport> | null;
 }> {
   try {
-    const last = await lastSuccessfulIngestAt();
+    const now = new Date();
+    const lasts = await Promise.all(
+      INGEST_KINDS.map((kind) => lastSuccessfulIngestAt(kind)),
+    );
+    const reports = INGEST_KINDS.map((kind, i): [IngestKind, KindReport] => [
+      kind,
+      {
+        status: ingestStatus(lasts[i] ?? null, now),
+        lastAt: lasts[i]?.toISOString() ?? null,
+      },
+    ]);
+    const newest = lasts
+      .filter((d): d is Date => d !== null)
+      .sort((a, b) => b.getTime() - a.getTime())[0];
     return {
-      ingest: ingestStatus(last, new Date()),
-      lastIngestAt: last?.toISOString() ?? null,
+      ingest: worstIngestStatus(reports.map(([, r]) => r.status)),
+      lastIngestAt: newest?.toISOString() ?? null,
+      ingestKinds: Object.fromEntries(reports) as Record<
+        IngestKind,
+        KindReport
+      >,
     };
   } catch {
-    return { ingest: "unknown", lastIngestAt: null };
+    return { ingest: "unknown", lastIngestAt: null, ingestKinds: null };
   }
 }
 
@@ -117,6 +140,7 @@ export async function GET() {
       // Reported, never judged — `ok` above does not read it (see the header).
       ingest: ingest.ingest,
       lastIngestAt: ingest.lastIngestAt,
+      ingestKinds: ingest.ingestKinds,
     },
     {
       // 503, not 500: the app is *unable to serve*, which is what a load balancer, an orchestrator

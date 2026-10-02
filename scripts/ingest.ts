@@ -67,6 +67,7 @@ import {
   itemKind,
   ofKind,
   parseKind,
+  recordedKind,
   sourceYields,
   type IngestKind,
 } from "~/server/services/ingest-kind";
@@ -388,6 +389,8 @@ async function recordRun(
       startedAt: runStartedAt,
       finishedAt: new Date(),
       dryRun: false,
+      // What /api/health counts this run toward (services/ingest-kind.ts's recordedKind).
+      kind: recordedKind(kind, sourceFlag),
     });
   } catch (err) {
     console.error(
