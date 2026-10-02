@@ -16,6 +16,7 @@ import {
 } from "~/server/config/reading-amount";
 import { completeOnboarding } from "~/server/db/onboarding";
 import { listTopics } from "~/server/db/topics";
+import { interpretTexts } from "~/server/services/interview-interpret";
 
 /** The reveal's floor, and a ceiling comfortably above the questionnaire's own MAX_PICKS (12) —
  *  the reader can add back what they like on the reveal, but not the whole vocabulary. */
@@ -114,5 +115,35 @@ export const onboardingRouter = createTRPCRouter({
         bankVersion: input.bankVersion,
         about: input.about,
       });
+    }),
+
+  /**
+   * Maps the free-text answers to topic ids — one model call, made once as the reader leaves the
+   * last question (services/interview-interpret.ts has the four rules). A mutation because it
+   * costs money and must never be retried or refetched by the query cache. Signed-in only: the
+   * model call is on Ambit's account, and `/onboarding` is behind the session anyway.
+   *
+   * **Never an error the screen has to handle**: the service answers empty lists on any failure.
+   * Writes nothing — the words are stored by `complete`, if the reader gets that far.
+   */
+  interpret: protectedProcedure
+    .input(
+      z.object({
+        texts: z
+          .array(
+            z.object({
+              questionId: z.string().min(1).max(64),
+              text: z.string().trim().max(MAX_ANSWER_TEXT),
+            }),
+          )
+          .max(3),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const topics = await listTopics();
+      return interpretTexts(
+        input.texts,
+        topics.map((t) => ({ id: t.id, label: t.label })),
+      );
     }),
 });

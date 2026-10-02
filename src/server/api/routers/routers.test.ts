@@ -46,8 +46,16 @@ vi.mock("~/server/db/topics", async (importOriginal) => {
   return {
     ...actual,
     resetUserTopicWeights: vi.fn(),
+    // Wrapped, not replaced: real unless a test gives it a value (`onboarding.interpret` does).
+    listTopics: vi.fn(actual.listTopics),
   };
 });
+
+// `onboarding.interpret` makes a model call through this service; what this file pins is the
+// input bounds and the forwarding (interview-interpret.test.ts owns the call itself).
+vi.mock("~/server/services/interview-interpret", () => ({
+  interpretTexts: vi.fn(),
+}));
 
 vi.mock("~/server/db/feed", async (importOriginal) => {
   const actual = await importOriginal<typeof FeedRepo>();
@@ -69,8 +77,12 @@ const { markSeen: mockedMarkSeen, forgetSeenSince: mockedForgetSeenSince } =
   await import("~/server/db/feed");
 const { feedDebugEnabled: mockedFeedDebugEnabled } =
   await import("~/server/services/feed-debug");
-const { resetUserTopicWeights: mockedResetUserTopicWeights } =
-  await import("~/server/db/topics");
+const {
+  resetUserTopicWeights: mockedResetUserTopicWeights,
+  listTopics: mockedListTopics,
+} = await import("~/server/db/topics");
+const { interpretTexts: mockedInterpretTexts } =
+  await import("~/server/services/interview-interpret");
 
 // `items.wanderNext` reaches Postgres through services/wander.ts; mocked here for the same reason
 // as `getFeedPage` — this file's subject is the auth boundary and argument forwarding, not the
@@ -253,6 +265,14 @@ describe("protected procedures reject a null session", () => {
         writingAmount: null,
         answers: [],
         bankVersion: 1,
+      }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("onboarding.interpret throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.onboarding.interpret({
+        texts: [{ questionId: "look-at", text: "maps" }],
       }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
@@ -493,6 +513,43 @@ describe("zod input validation", () => {
     });
   });
 
+  describe("onboarding.interpret", () => {
+    const caller = createCaller(authedContext());
+
+    it("refuses a text past 500 characters and more than three texts", async () => {
+      await expect(
+        caller.onboarding.interpret({
+          texts: [{ questionId: "look-at", text: "x".repeat(501) }],
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      await expect(
+        caller.onboarding.interpret({
+          texts: Array.from({ length: 4 }, (_, i) => ({
+            questionId: `q${i}`,
+            text: "maps",
+          })),
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+
+    it("hands the texts and the pickable topics to the interpreter and returns its answer", async () => {
+      vi.mocked(mockedListTopics).mockResolvedValue([
+        { id: "astronomy", label: "Astronomy" },
+      ] as never);
+      vi.mocked(mockedInterpretTexts).mockResolvedValue([
+        { questionId: "look-at", topicIds: ["astronomy"] },
+      ]);
+      const out = await caller.onboarding.interpret({
+        texts: [{ questionId: "look-at", text: "  the night sky " }],
+      });
+      expect(out).toEqual([{ questionId: "look-at", topicIds: ["astronomy"] }]);
+      expect(vi.mocked(mockedInterpretTexts)).toHaveBeenCalledWith(
+        [{ questionId: "look-at", text: "the night sky" }],
+        [{ id: "astronomy", label: "Astronomy" }],
+      );
+    });
+  });
+
   it("user.setReadingAmount rejects a word that is not one of the four amounts", async () => {
     const caller = createCaller(authedContext());
     await expect(
@@ -664,8 +721,8 @@ describe("appRouter shape", () => {
   // (09-26-26) adds the twenty-second, `feed.explore` — the fourth deliberate public procedure.
   // 09-28-26 retires `topics.weights` — the product reads weights through `topics.mine` now —
   // and adds `topics.setWeight`, so the count stays twenty-two. The questionnaire (10-02-26) adds
-  // `user.readingAmount`, `user.setReadingAmount` and `onboarding.complete` — twenty-five.
-  it("exposes exactly the twenty-five SPEC §7 procedures, no leftover post router", () => {
+  // `user.readingAmount`, `user.setReadingAmount`, `onboarding.complete` and `onboarding.interpret` — twenty-six.
+  it("exposes exactly the twenty-six SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -692,6 +749,7 @@ describe("appRouter shape", () => {
         "user.readingAmount",
         "user.setReadingAmount",
         "onboarding.complete",
+        "onboarding.interpret",
         "topics.setWeight",
         "topics.resetWeights",
       ].sort(),
