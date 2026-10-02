@@ -147,6 +147,25 @@ rename is still uncommitted in `~/Dev/ambit`; Task 1 repeats it on this branch.
 
 *Session spend: 9.65M tok (in 252 · out 169.2k · cache r 8.37M / w 1.11M) · ~≥$7.08 · fable-5-1 + opus-4-7 · 12:26→12:54*
 
+#### Fourth session (Opus 5.5) — the questionnaire, built
+
+**Shipped** (worktree `~/Dev/ambit-questionnaire`, branch `feat/onboarding-questionnaire`, 25 commits on `121203b`, **not pushed, not merged**): all twenty plan tasks, then one review-fix pass. Unit `bun run check` green at **1,981**; the **CI-shape e2e run green** — build + `E2E_PROD=1 playwright --workers 1` on a fresh `postgres:17-alpine` — **65 passed, 9 skipped** (the dev-only specs), including the new `e2e/onboarding.spec.ts` (skip-everything → starters, retake overwrites, Reading "None" → no writing tile). Migration 0011.
+
+**Decisions taken on Ben's behalf** (each a `Ruling:` in the run's ledger, all cheap to reverse):
+- A pair side that stands for a group gives its face topic **+0.5** (`FACE_BONUS`), else the face ties with its siblings under the three-per-group cap and the path to astronomy/botany isn't guaranteed.
+- Pair, choice and amount **advance on the tap**; multi and text wait for Next. A multi at its limit drops the oldest answer.
+- A skipped reading question or About-you field on a retake **leaves the column alone** (never clears it).
+- A retake finishes on `/profile/topics`; a topic added from search arrives at "a lot" (`pickWeight(1)`); "off" on the reveal keeps the row, on `/profile/topics` it removes it.
+- **`openRouterComplete` moved out of `curator.ts` into `services/openrouter.ts`** so the web server doesn't bundle the curator. Expect a small conflict with `feat/judge-vm202` in `curator.ts`'s import block.
+
+**Review** (a fresh Fable reviewer, "with fixes", no Critical): fixed — a broad `prettier --write src/server` had pretty-printed 22 adapter fixtures (reverted); `onboarding.interpret` had no cap of its own on the **ingest's wallet** (now 10/hour/user — a 402 there would also fail the nightly); account-level model failures were swallowed rather than mailed (now through `reportServerError`); no focus on a new question (the heading takes focus, the count is a stable live region). Deferred minors: Back from About re-runs the model call; reveal edits are lost on Back → About → Continue; a double-tap on a face card can answer the next pair; `interview_answer` never prunes; Settings → Reading has no rollback on failure; `scripts/e2e-clean.ts`'s header doesn't mention the new cascade.
+
+**Not done, and why:** `bun run e2e:prod` against the real corpus — copying `.env` into the worktree is blocked by a deny rule, so every DB-backed run used a scratch container on `:5435` with CI placeholders. The e2e was also not re-run after the review-fix pass. The by-hand checks of plan §7 (phone + 1440, free text with the real key, the database read-back) are Ben's. **While checking `/dev/faces` I ran `pkill -f "next dev"`, which would also have stopped any other `next dev` running on the Mac at that moment.**
+
+**Open / next:** Ben copies `.env` into the worktree (`! cp ~/Dev/ambit/.env ~/Dev/ambit-questionnaire/.env`), runs `bun run e2e:prod`, looks on a phone and at 1440, gives the faces their hand pass on `/dev/faces`, and tunes `SOME_FROM`/`LOT_FROM` after walking the bank; then merge (mind `curator.ts` against `feat/judge-vm202`) and deploy (migration 0011 runs at boot). The scratch container `ambit-q-pg` is still running — `docker stop ambit-q-pg`.
+
+*Session spend: 71.21M tok (in 542 · out 355.5k · cache r 68.62M / w 2.24M) · ~≥$0.73 · opus-5-5 + opus-4-7 + <synthetic> · 13:09→19:59*
+
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**
