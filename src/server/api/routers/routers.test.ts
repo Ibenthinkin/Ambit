@@ -516,6 +516,30 @@ describe("zod input validation", () => {
   describe("onboarding.interpret", () => {
     const caller = createCaller(authedContext());
 
+    // Review finding (10-02-26): each call is a paid model call on the ingest's wallet, so it has
+    // a cap of its own far below the global 120/min. A fresh user id keeps this test's budget its own.
+    it("stops a reader after INTERPRET_PER_HOUR calls in an hour", async () => {
+      const { INTERPRET_PER_HOUR } =
+        await import("~/server/api/routers/onboarding");
+      const busy = createCaller(authedContext("interpret-heavy-user"));
+      vi.mocked(mockedListTopics).mockResolvedValue([] as never);
+      vi.mocked(mockedInterpretTexts).mockResolvedValue([]);
+      const input = { texts: [{ questionId: "look-at", text: "maps" }] };
+      for (let i = 0; i < INTERPRET_PER_HOUR; i++)
+        await busy.onboarding.interpret(input);
+      await expect(busy.onboarding.interpret(input)).rejects.toMatchObject({
+        code: "TOO_MANY_REQUESTS",
+      });
+    });
+
+    it("refuses a question id that is not a plain slug", async () => {
+      await expect(
+        caller.onboarding.interpret({
+          texts: [{ questionId: 'x" injected="1', text: "maps" }],
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+
     it("refuses a text past 500 characters and more than three texts", async () => {
       await expect(
         caller.onboarding.interpret({
@@ -546,6 +570,7 @@ describe("zod input validation", () => {
       expect(vi.mocked(mockedInterpretTexts)).toHaveBeenCalledWith(
         [{ questionId: "look-at", text: "the night sky" }],
         [{ id: "astronomy", label: "Astronomy" }],
+        { onAccountFailure: expect.any(Function) as unknown },
       );
     });
   });

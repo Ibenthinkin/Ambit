@@ -94,6 +94,12 @@ function parse(
 export async function interpretTexts(
   texts: readonly { questionId: string; text: string }[],
   topics: readonly { id: string; label: string }[],
+  opts: {
+    /** Called with a 401/402 (CuratorAbortError) — a bad key or an empty wallet, which is the
+     *  ingest's wallet too, so the caller mails it (routers/onboarding.ts). Never with an
+     *  ordinary failure: a slow or flaky provider is not worth an email. */
+    onAccountFailure?: (err: CuratorAbortError) => void;
+  } = {},
 ): Promise<InterpretedText[]> {
   const empty = () =>
     texts.map((t) => ({ questionId: t.questionId, topicIds: [] }));
@@ -129,13 +135,14 @@ export async function interpretTexts(
       topicIds: mapped.get(t.questionId) ?? [],
     }));
   } catch (err) {
-    // Rule 1. Logged because an empty wallet (CuratorAbortError) silently degrades every
-    // sign-up until someone tops it up — instrumentation mails a server-side console.error
-    // signature once an hour on production.
+    // Rule 1: log and carry on. The reader's text is never in the log — only the error message.
     console.error(
       `[interview-interpret] ${err instanceof CuratorAbortError ? "account-level failure" : "failed"} — the questionnaire continues without it:`,
       err instanceof Error ? err.message : err,
     );
+    // A swallowed error never reaches instrumentation.ts, so an account-level one is handed up
+    // explicitly — otherwise an empty wallet degrades every sign-up with nobody told.
+    if (err instanceof CuratorAbortError) opts.onAccountFailure?.(err);
     return empty();
   } finally {
     clearTimeout(timer);

@@ -15,8 +15,10 @@ import {
   type ReadingAmount,
 } from "~/server/config/reading-amount";
 import { completeOnboarding } from "~/server/db/onboarding";
+import type { ErrorThrottle } from "~/server/services/error-report";
 import { listTopics } from "~/server/db/topics";
 import { interpretTexts } from "~/server/services/interview-interpret";
+import { RateLimiter } from "~/server/services/rate-limit";
 
 /** The reveal's floor, and a ceiling comfortably above the questionnaire's own MAX_PICKS (12) —
  *  the reader can add back what they like on the reveal, but not the whole vocabulary. */
@@ -24,6 +26,43 @@ const MIN_PICKS = 3;
 const MAX_PICKS = 24;
 /** A free-text answer's cap — enough for a list of favourites, too short to be an essay. */
 export const MAX_ANSWER_TEXT = 500;
+
+/**
+ * `onboarding.interpret`'s own cap, far below the global 120/min (api/trpc.ts). Each call is a paid
+ * model call on the same OpenRouter wallet the nightly ingest spends — a client looping it could
+ * empty the wallet, and a 402 then fails the ingest too. A reader needs one call per pass; ten an
+ * hour leaves room for retakes and Back-and-forth. Per process, like the global limiter.
+ */
+export const INTERPRET_PER_HOUR = 10;
+const interpretLimiter = new RateLimiter({
+  limit: INTERPRET_PER_HOUR,
+  windowMs: 60 * 60 * 1000,
+});
+
+/** Mails an account-level model failure the way instrumentation.ts mails a thrown error — same
+ *  reporter, same once-an-hour-per-signature throttle (shared across calls by module scope). */
+let throttle: ErrorThrottle | undefined;
+async function reportAccountFailure(err: Error): Promise<void> {
+  const [{ ErrorThrottle, reportServerError }, { getMailer }, { env }] =
+    await Promise.all([
+      import("~/server/services/error-report"),
+      import("~/server/services/mailer"),
+      import("~/env"),
+    ]);
+  throttle ??= new ErrorThrottle();
+  await reportServerError(
+    err,
+    { path: "/api/trpc/onboarding.interpret", method: "POST" },
+    { routePath: "onboarding.interpret", routeType: "route" },
+    {
+      log: (line) => console.error(line),
+      getMailer,
+      opsEmail: env.OPS_EMAIL,
+      throttle,
+      now: () => new Date(),
+    },
+  );
+}
 
 /** An optional About-you field: trimmed, capped, and "" read as "not given" (null). */
 const aboutField = (max: number) =>
@@ -132,18 +171,27 @@ export const onboardingRouter = createTRPCRouter({
         texts: z
           .array(
             z.object({
-              questionId: z.string().min(1).max(64),
+              // A bank id is a slug. It is written into the prompt's delimiter attribute, so
+              // nothing else gets in.
+              questionId: z.string().regex(/^[a-z0-9-]{1,64}$/),
               text: z.string().trim().max(MAX_ANSWER_TEXT),
             }),
           )
           .max(3),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      if (!interpretLimiter.allow(ctx.user.id)) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: "Too many interpretations this hour.",
+        });
+      }
       const topics = await listTopics();
       return interpretTexts(
         input.texts,
         topics.map((t) => ({ id: t.id, label: t.label })),
+        { onAccountFailure: (err) => void reportAccountFailure(err) },
       );
     }),
 });

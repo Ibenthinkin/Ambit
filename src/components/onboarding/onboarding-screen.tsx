@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Column } from "~/components/ui/column";
@@ -93,6 +93,14 @@ export function OnboardingScreen({
   const [error, setError] = useState("");
 
   const current = asked[answers.length];
+
+  // A question that arrives takes focus on its heading. The one it replaced was unmounted by the
+  // tap that answered it, which drops focus to <body> — and a screen-reader user would get no cue
+  // that anything changed. Keyed on the question, so typing into a text box never steals focus.
+  const currentId = phase === "questions" ? current?.id : undefined;
+  useEffect(() => {
+    if (currentId) document.getElementById(`q-${currentId}`)?.focus();
+  }, [currentId]);
 
   /** Leaves the question on screen with `answer` (or a skip) and moves on. */
   function advance(answer: Answer | undefined) {
@@ -226,13 +234,15 @@ export function OnboardingScreen({
         {phase === "questions" && current && (
           <>
             {/* Keyed by question so <Rise> plays again: each one should arrive, not swap. */}
+            {/* Outside the keyed <Rise> on purpose: a live region created with its content is not
+                announced, so this one stays mounted and only its text changes. */}
+            <p
+              aria-live="polite"
+              className="text-accent mb-[14px] font-sans text-[11px] font-semibold tracking-[1.8px] uppercase"
+            >
+              {answers.length + 1} of {asked.length}
+            </p>
             <Rise key={current.id}>
-              <p
-                aria-live="polite"
-                className="text-accent mb-[14px] font-sans text-[11px] font-semibold tracking-[1.8px] uppercase"
-              >
-                {answers.length + 1} of {asked.length}
-              </p>
               <QuestionStep
                 question={current}
                 listed={listed}

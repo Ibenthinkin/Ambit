@@ -71,9 +71,12 @@ export function QuestionStep({
       data-question-kind={question.kind}
       data-max={question.max}
     >
+      {/* `tabIndex={-1}`: focusable by script, not in the tab order — the screen moves focus here
+          when a question arrives, so a screen reader reads the new prompt. */}
       <h1
         id={id}
-        className="text-ink-hi text-[30px] leading-[1.15] font-semibold tracking-[-0.4px]"
+        tabIndex={-1}
+        className="text-ink-hi text-[30px] leading-[1.15] font-semibold tracking-[-0.4px] outline-none"
       >
         {question.prompt}
       </h1>

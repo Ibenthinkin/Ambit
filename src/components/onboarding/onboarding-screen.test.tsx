@@ -308,4 +308,24 @@ describe("OnboardingScreen", () => {
     click("Skip");
     expect(questionId()).toBe("reading-amount");
   });
+
+  // Review finding (10-02-26): a tap that answers a question unmounts it, and focus fell to
+  // <body> — a screen-reader user had no cue a new question had arrived.
+  it("moves focus to each new question's heading, and announces the count from a stable region", () => {
+    show();
+    click("Begin");
+    expect(document.activeElement).toBe(
+      screen.getByRole("heading", { name: "What do you like?" }),
+    );
+    click("Skip");
+    click("Space");
+    expect(document.activeElement).toBe(
+      screen.getByRole("heading", { name: "What do you lose an evening to?" }),
+    );
+    const live = screen.getByText("3 of 5");
+    expect(live).toHaveAttribute("aria-live", "polite");
+    // The same element announces the next count: it is not re-created with the question.
+    click("Skip");
+    expect(screen.getByText("4 of 5")).toBe(live);
+  });
 });

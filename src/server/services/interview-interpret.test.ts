@@ -174,4 +174,23 @@ describe("interpretTexts", () => {
     expect(await pending).toEqual(EMPTY);
     expect(signal?.aborted).toBe(true);
   });
+
+  // Review finding (10-02-26): an empty wallet here silently degrades every sign-up, and the same
+  // wallet runs the nightly ingest — so an account-level failure must reach Ben, not just stderr.
+  it("hands an account-level failure (401/402) to onAccountFailure, and nothing else", async () => {
+    const onAccountFailure = vi.fn();
+    openRouterComplete.mockRejectedValue(new CuratorAbortError("402", 402));
+    expect(await interpretTexts(TEXTS, TOPICS, { onAccountFailure })).toEqual(
+      EMPTY,
+    );
+    expect(onAccountFailure).toHaveBeenCalledTimes(1);
+    expect(onAccountFailure.mock.calls[0]![0]).toBeInstanceOf(
+      CuratorAbortError,
+    );
+
+    onAccountFailure.mockClear();
+    openRouterComplete.mockRejectedValue(new Error("ECONNRESET"));
+    await interpretTexts(TEXTS, TOPICS, { onAccountFailure });
+    expect(onAccountFailure).not.toHaveBeenCalled();
+  });
 });
