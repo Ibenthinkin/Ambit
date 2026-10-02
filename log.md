@@ -5,6 +5,47 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
+### [[10-02-26 Fri]] — The Met retires its search; its crawl is paused
+
+**Findings:**
+
+- **The 10-02 nightly failed on one source.** `/api/health` read `ingest: stale`; Coolify's task
+  was enabled and had run 01:30–01:52 UTC, ending `FAILED — dead sources: met` (exit 2, 206 rows
+  inserted from the others). The Met retired `/public/collection/v1/search` on 2026-10-01: every
+  query answers `410 Gone` and names the paginated `/public/collection/v1.1/search`. The object
+  endpoint still answers 200.
+- **Ingests were never stopped.** Ben remembered a decision to stop them until the new system
+  exists; nothing in the log, the docs or the sessions since 09-30 says so, and the task ran.
+  What was decided on 10-01 was holding the seven publications for the Claude judge.
+- **VM 202, measured idle:** 1 vCPU (the tight one for four concurrent `claude` processes),
+  7.9 GB RAM with ~6.0 GB available (all containers together ~0.8 GB), 41 GB of 116 GB disk
+  free, the image cache 29 GB. `claude` is installed neither on the host nor in the container.
+  Memory at the 01:30 ingest peak was not measured.
+
+**Decisions (Ben):**
+
+- **The Met crawl is paused, and stays paused after the ingest moves host** — the first cut to
+  conserve disk on VM 202. Not ported to v1.1.
+- **The goal, restated:** run the ingest overnight on one of his computers so it spends his
+  Claude subscription. Moving it to VM 202 is not required, and nothing there can be stopped to
+  free space. Candidates: this MacBook Air M5, or a new VM on the NUC (a homelab session is
+  checking that one).
+
+**Shipped:** `INGEST_PAUSED_SOURCES` beside `SUSPENDED_SOURCES` — a default ingest skips the
+source, its stored rows stay in the feed. `SUSPENDED_SOURCES` would have pulled the Met's
+pictures out of the feed too.
+
+**Open / next:**
+
+- Ben deploys; the next nightly should end green and health return to `ok`.
+- The host: wait for the homelab session's recommendation, then plan pieces 2–3. A Mac needs a
+  route to production's Postgres (no public port — the SSH tunnel the first design had).
+- Disk: the Met adds little a night. The image cache and the held publications backfill are
+  where a real cut would be.
+- Ben's uncommitted `topic-groups.ts` rename still needs June's persona changed with it.
+
+*Session spend: 6.49M tok (in 114 · out 36.6k · cache r 6.09M / w 367.4k) · opus-5-5 · 11:19→11:52*
+
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**

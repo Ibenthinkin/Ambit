@@ -100,7 +100,11 @@ import { enrichBodies } from "~/server/services/sources/enrich";
 import { runWalk, type WalkRunStats } from "~/server/services/walk-run";
 import { blogConfig } from "~/server/config/blogs";
 import { publicationConfig } from "~/server/config/publications";
-import { isSuspendedSource } from "~/server/config/suspended-sources";
+import {
+  INGEST_PAUSED_SOURCES,
+  isIngestSkipped,
+  isSuspendedSource,
+} from "~/server/config/suspended-sources";
 import { adapters, ALL_SOURCE_IDS, walkers } from "~/server/services/sources";
 import type {
   NormalizedItem,
@@ -390,11 +394,12 @@ async function main() {
   // An explicit `--source aic` still runs — the flag is how you re-test one, which is exactly what
   // you need the day the reason for the suspension is supposedly fixed — but it says so, so nobody
   // reads the resulting rows as evidence the source is back in the feed. (It isn't: the feed
-  // filters suspended sources at draw time too.)
+  // filters suspended sources at draw time too.) A crawl-paused source (INGEST_PAUSED_SOURCES) is
+  // skipped the same way and for the same flag, but its stored rows stay in the feed.
   const sourceIds = (
     sourceFlag
       ? [sourceFlag]
-      : knownSources.filter((id) => !isSuspendedSource(id))
+      : knownSources.filter((id) => !isIngestSkipped(id))
   ) as SourceId[];
 
   // Phase 6.3: the run has two lanes, because there are now two adapter shapes. `adapters` is
@@ -431,6 +436,11 @@ async function main() {
     const skipped = knownSources.filter((id) => isSuspendedSource(id));
     if (skipped.length > 0) {
       console.log(`Skipping suspended source(s): ${skipped.join(", ")}\n`);
+    }
+    if (INGEST_PAUSED_SOURCES.length > 0) {
+      console.log(
+        `Skipping crawl-paused source(s): ${INGEST_PAUSED_SOURCES.join(", ")}\n`,
+      );
     }
   }
 

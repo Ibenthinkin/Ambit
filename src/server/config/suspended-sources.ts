@@ -164,3 +164,28 @@ export const SUSPENDED_SOURCES: SourceId[] = [
 export function isSuspendedSource(source: string): boolean {
   return (SUSPENDED_SOURCES as string[]).includes(source);
 }
+
+// Sources whose **crawl** is paused while their stored rows stay in the feed. This is the half of
+// a suspension the header above warns against, on purpose: there the rows could not be shown
+// (aic's images never load), here they are fine and only the fetching has stopped. One consumer,
+// `scripts/ingest.ts`; the feed, the item page and `img:warm` never read this list. An explicit
+// `--source met` still runs, the same way it does for a suspended source.
+//
+// **met** (the Met, **paused** 10-02-26, Ben's call). The trigger: the Met retired
+// `/public/collection/v1/search` on 2026-10-01 — every query answers `410 Gone` and names the
+// paginated `/public/collection/v1.1/search` as the replacement — so the 10-02 nightly ended
+// `FAILED — dead sources: met` and `/api/health` went `stale` although every other source had
+// ingested. The reason it is paused rather than ported: Ben is cutting what the ingest adds, to
+// conserve disk on VM 202, and the pause holds **even after the ingest moves to its new host**.
+// Un-pausing is two things, not one: port `sources/met.ts` to v1.1 (offset + limit), then remove
+// the line below. The object endpoint (`/v1/objects/<id>`) still answers 200, so stored rows and
+// their images are unaffected.
+export const INGEST_PAUSED_SOURCES: SourceId[] = ["met"];
+
+/** Whether a default ingest run should skip `source`: suspended end to end, or crawl-paused. */
+export function isIngestSkipped(source: string): boolean {
+  return (
+    isSuspendedSource(source) ||
+    (INGEST_PAUSED_SOURCES as string[]).includes(source)
+  );
+}
