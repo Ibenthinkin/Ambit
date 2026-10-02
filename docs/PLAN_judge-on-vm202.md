@@ -1024,6 +1024,11 @@ describe("Dockerfile — the Claude Code CLI", () => {
   it("turns the auto-updater off", () => {
     expect(dockerfile).toMatch(/^ENV DISABLE_AUTOUPDATER=1$/m);
   });
+  it("installs curl and never removes it", () => {
+    // Ben, 10-02-26: the ingest needs curl at run time, so it is a permanent part of the image.
+    expect(dockerfile).toMatch(/apt-get install[^\n]*\bcurl\b/);
+    expect(dockerfile).not.toMatch(/apt-get (purge|remove|autoremove)/);
+  });
   it("never bakes a credential into the image", () => {
     expect(dockerfile).not.toMatch(/CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY/);
   });
@@ -1033,7 +1038,7 @@ describe("Dockerfile — the Claude Code CLI", () => {
 - [ ] **Step 2: Run to verify it fails**
 
 Run: `bunx vitest run src/dockerfile.test.ts`
-Expected: three FAIL (no `CLAUDE_CODE_VERSION`), the credential test passes.
+Expected: four FAIL (no `CLAUDE_CODE_VERSION`, no curl install), the credential test passes.
 
 - [ ] **Step 3: Edit the Dockerfile**
 
@@ -1050,8 +1055,9 @@ In the `runtime` stage, directly after `FROM base AS runtime` and before the fir
 # honouring them, and an auto-update inside a container is the way to trip them at 4 am. To move
 # to a newer CLI: change the ARG, deploy, run `bun run judge:probe` in the container, read the
 # token count. The installer is Anthropic's native one (code.claude.com/docs/en/setup); it needs
-# curl, which this image otherwise does without, so curl is installed for this one layer and
-# removed in it. The binary lands in /root/.local/bin — the container runs as root.
+# curl. **curl stays in the image** (Ben, 10-02-26): the ingest needs it at run time too, so do
+# not purge it to save a few MB — a container without it fails at 4 am, not at build time. The
+# binary lands in /root/.local/bin — the container runs as root.
 #
 # No credential is here or anywhere in the build: the login is CLAUDE_CODE_OAUTH_TOKEN, a
 # *runtime* variable in Coolify (never tick "Build Variable" on it — a build ARG is readable in
@@ -1064,13 +1070,16 @@ RUN apt-get update \
  && curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh \
  && bash /tmp/claude-install.sh "$CLAUDE_CODE_VERSION" \
  && rm /tmp/claude-install.sh \
- && apt-get purge -y curl \
- && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/* \
+ && curl --version \
  && claude --version | grep -F "$CLAUDE_CODE_VERSION"
 ```
 
-**If another session has already put `curl` into the image permanently** (Ben was arranging that separately on 10-02-26): read the Dockerfile first. If an earlier layer or stage installs curl, drop `apt-get install … curl`, `apt-get purge -y curl` and `apt-get autoremove -y` from the `RUN` above and keep the rest; Step 4's `curl: gone` expectation then reads a path instead, which is correct.
+**curl is permanent (Ben, 10-02-26, amended from a homelab session).** The first draft of this step purged curl in the same layer. Ben's ruling is that the ingest needs it at run time, so the purge and the autoremove are gone, the build proves `curl --version`, and Step 1's test fails if anyone adds a purge back. Because it is a layer of the image, every Coolify redeploy rebuilds it in — nothing is installed by hand in the running container, where a redeploy would lose it. No other session is changing the Dockerfile for this; this step is the whole change.
+
+Also in this edit, correct the `HEALTHCHECK` comment further down the Dockerfile: it says neither curl nor wget is in the image. Keep `bun -e` as the check (it is proven), and change the comment to say curl is now present for the judge and the ingest but the healthcheck does not depend on it.
+
+On VM 202 itself (the host, outside the container) nothing is needed: curl 8.5.0 is installed and marked manually-installed in apt, so an `autoremove` there will not take it (read live 10-02-26).
 
 - [ ] **Step 4: Run the test, then build the image**
 
@@ -1087,7 +1096,7 @@ docker run --rm ambit-judge-test sh -c 'printenv DISABLE_AUTOUPDATER; which clau
 docker images ambit-judge-test --format '{{.Size}}'
 ```
 
-Expected: the build succeeds; `2.1.287 (Claude Code)`; `1`, `/root/.local/bin/claude`, `curl: gone`. **Write down the image size** (the last line; it was 1.58 GB before this layer) — Task 10's SPEC edit needs the number, and it is what the deploy adds to VM 202's root disk. If the installer refuses the version or the `grep` fails, stop and report the build output; do not loosen the pin.
+Expected: the build succeeds; `2.1.287 (Claude Code)`; `1`, `/root/.local/bin/claude`, `/usr/bin/curl` (if this prints `curl: gone`, stop — the purge is back). **Write down the image size** (the last line; it was 1.58 GB before this layer) — Task 10's SPEC edit needs the number, and it is what the deploy adds to VM 202's root disk. If the installer refuses the version or the `grep` fails, stop and report the build output; do not loosen the pin.
 
 Run: `docker rmi ambit-judge-test`
 

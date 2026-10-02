@@ -18,6 +18,7 @@
     "img:dims": "bun run scripts/measure-images.ts",
     "img:warm": "bun run scripts/warm-images.ts",
     "ingest": "bun run scripts/ingest.ts",
+    "judge:probe": "bun run scripts/judge-probe.ts",
     "retire": "bun run scripts/retire-source-rows.ts",
     "invite": "bun run scripts/invite.ts",
     "seed:personas": "bun run scripts/seed-personas.ts",

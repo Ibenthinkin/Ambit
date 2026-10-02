@@ -1264,6 +1264,61 @@ describe("judgePreflight on the Claude judge", () => {
   });
 });
 
+// A `--kind writing` night judges with the writing model only, so a preflight that proved just the
+// first Claude model would pass on Haiku and then fail on Sonnet's first judgment, after the whole
+// walk. Each distinct Claude model gets its own tiny call; the run's replies are scripted by call
+// order because the runtime's argv is not what is under test.
+describe("judgePreflight proves every Claude model", () => {
+  const realRun = claudeRuntime.run;
+  const SECOND = "claude-sonnet-5-5";
+  beforeEach(() => resetClaudeJudge());
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+  });
+  it("calls once per distinct model and passes when both answer", async () => {
+    let calls = 0;
+    claudeRuntime.run = () => {
+      calls++;
+      return Promise.resolve({
+        code: 0,
+        stdout: claudeStream("{}"),
+        stderr: "",
+      });
+    };
+    expect(await judgePreflight([CLAUDE_JUDGE_MODEL, SECOND])).toBeNull();
+    expect(calls).toBe(2);
+  });
+  it("names the second model when only it is refused", async () => {
+    let calls = 0;
+    claudeRuntime.run = () => {
+      if (++calls === 2) return Promise.reject(new Error("model not allowed"));
+      return Promise.resolve({
+        code: 0,
+        stdout: claudeStream("{}"),
+        stderr: "",
+      });
+    };
+    const message = await judgePreflight([CLAUDE_JUDGE_MODEL, SECOND]);
+    expect(message).toMatch(/model not allowed/);
+    expect(message).toContain(SECOND);
+  });
+  it("makes one call when the same model is listed twice", async () => {
+    let calls = 0;
+    claudeRuntime.run = () => {
+      calls++;
+      return Promise.resolve({
+        code: 0,
+        stdout: claudeStream("{}"),
+        stderr: "",
+      });
+    };
+    expect(
+      await judgePreflight([CLAUDE_JUDGE_MODEL, CLAUDE_JUDGE_MODEL]),
+    ).toBeNull();
+    expect(calls).toBe(1);
+  });
+});
+
 describe("structuralFloor — donation posts", () => {
   it("drops a post that is only a donation link, from any source, before it is scored", () => {
     const kofi = makeItem({
@@ -1385,6 +1440,47 @@ describe("the Claude judge has a picture rubric of its own", () => {
     );
     expect(curationCacheKey(piece, false, CURATOR_MODEL)).toBe(
       sha(`${CURATOR_MODEL}|v${PROMPT_VERSION}|met:42`),
+    );
+  });
+});
+
+describe("judgePreflight at the ceiling", () => {
+  const realRun = claudeRuntime.run;
+  beforeEach(() => resetClaudeJudge());
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+    vi.unstubAllEnvs();
+  });
+
+  // The preflight's own call succeeds — it is the call that *reads* the usage. Without this
+  // check the run would walk every source for an hour and abort on its first judgment.
+  it("refuses before any walk when a window is already past it", async () => {
+    claudeRuntime.run = () =>
+      Promise.resolve({
+        code: 0,
+        stdout: [
+          {
+            type: "rate_limit_event",
+            rate_limit_info: {
+              status: "allowed",
+              unifiedWindows: {
+                five_hour: { utilization: 0.91, resetsAt: 1790880000 },
+              },
+            },
+          },
+          {
+            type: "result",
+            is_error: false,
+            result: '{"ok":true}',
+            usage: { input_tokens: 400, output_tokens: 6 },
+          },
+        ]
+          .map((l) => JSON.stringify(l))
+          .join("\n"),
+        stderr: "",
+      });
+    expect(await judgePreflight([CLAUDE_JUDGE_MODEL])).toMatch(
+      /already at its ceiling.*five_hour window is at 91%/,
     );
   });
 });

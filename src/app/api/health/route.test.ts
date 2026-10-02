@@ -65,6 +65,10 @@ describe("GET /api/health", () => {
       commit: null,
       ingest: "never",
       lastIngestAt: null,
+      ingestKinds: {
+        pictures: { status: "never", lastAt: null },
+        writing: { status: "never", lastAt: null },
+      },
     });
   });
 
@@ -143,6 +147,7 @@ describe("GET /api/health", () => {
       "db",
       "imageCache",
       "ingest",
+      "ingestKinds",
       "lastIngestAt",
       "ok",
     ]);
@@ -176,7 +181,7 @@ describe("GET /api/health", () => {
     // job must never make Docker restart a healthy app. The body says stale; the code stays 200.
     it("reports stale but still answers 200 when db and cache are fine", async () => {
       lastSuccessfulIngestAt.mockResolvedValue(
-        new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
       );
 
       const res = await GET();
@@ -195,6 +200,24 @@ describe("GET /api/health", () => {
       });
     });
 
+    it("reports each kind, and is not ok while either is stale", async () => {
+      const fresh = new Date(Date.now() - 60 * 60 * 1000);
+      const old = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+      lastSuccessfulIngestAt.mockImplementation((kind?: string) =>
+        Promise.resolve(kind === "writing" ? old : fresh),
+      );
+
+      const body = (await (await GET()).json()) as Record<string, unknown>;
+
+      expect(body.ingest).toBe("stale");
+      // The newest success of either kind: what a human reads as "when did anything last land".
+      expect(body.lastIngestAt).toBe(fresh.toISOString());
+      expect(body.ingestKinds).toEqual({
+        pictures: { status: "ok", lastAt: fresh.toISOString() },
+        writing: { status: "stale", lastAt: old.toISOString() },
+      });
+    });
+
     // A read that fails (say the ingest_run migration has not run) is not "never" — that would be
     // a lie about the corpus — and it is not a reason to call the container unhealthy either.
     it("reports unknown when the ingest record cannot be read, without changing the status code", async () => {
@@ -206,7 +229,11 @@ describe("GET /api/health", () => {
 
       expect(res.status).toBe(200);
       const body = (await res.json()) as Record<string, unknown>;
-      expect(body).toMatchObject({ ingest: "unknown", lastIngestAt: null });
+      expect(body).toMatchObject({
+        ingest: "unknown",
+        lastIngestAt: null,
+        ingestKinds: null,
+      });
       expect(JSON.stringify(body)).not.toContain("ingest_run");
     });
   });

@@ -184,6 +184,17 @@ export function limitVerdict(
  *  pool is half the OpenRouter one (curator.ts's CONCURRENCY). */
 export const CLAUDE_CONCURRENCY = 4;
 
+/**
+ * The pool size a run actually uses. `CLAUDE_JUDGE_CONCURRENCY` (a whole number, 1 to 8) is the
+ * lever for a small host: each worker is a ~236 MB process (10-01-26), and VM 202's first runs
+ * were made at two before four was trusted. Anything else — unset, zero, a typo — is the
+ * constant: a pool of zero would finish instantly having judged nothing.
+ */
+export function claudeConcurrency(): number {
+  const n = Number(process.env.CLAUDE_JUDGE_CONCURRENCY);
+  return Number.isInteger(n) && n >= 1 && n <= 8 ? n : CLAUDE_CONCURRENCY;
+}
+
 /** One judgment is a second or two; a call still running after this is hung, and is killed. */
 const CLAUDE_TIMEOUT_MS = 120_000;
 
@@ -280,6 +291,13 @@ export function claudeUsage(): typeof usage {
 export function resetClaudeJudge(): void {
   stop = null;
   usage = null;
+}
+
+/** Why the judge has stopped, or null while it has not. judgePreflight reads it after its one
+ *  small call, so a run that starts with a window already past the ceiling ends there instead
+ *  of after a full walk. */
+export function claudeStopReason(): string | null {
+  return stop;
 }
 
 /**

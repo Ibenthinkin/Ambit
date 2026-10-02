@@ -107,6 +107,95 @@ already there. Health reads `stale` until tonight's nightly, the first since the
 *Session spend: 6.82M tok (in 76 · out 146.2k · cache r 5.98M / w 696.3k) · fable-5-1 · 12:02→12:19*
 *Session spend: 2.14M tok (in 48 · out 20.2k · cache r 1.95M / w 166.2k) · ~≥$1.28 · opus-5-5 + opus-4-7 · 11:52→12:00*
 
+**Later the same day — curl stays in the image (plan amended, not built).** From a homelab
+session, answering the open question two paragraphs up.
+
+- **Decision (Ben):** the ingest needs `curl` at run time, so it is a permanent part of the
+  image, not something installed for the CLI's installer and purged.
+- **Read live on VM 202:** the host has curl 8.5.0, marked manually-installed, so nothing is
+  needed there. The app container has neither curl nor wget.
+- **What changed:** `docs/PLAN_judge-on-vm202.md` Task 4 only. The `RUN` no longer purges or
+  autoremoves, the build proves `curl --version`, a fifth test fails if a purge returns, and
+  Step 4 expects `/usr/bin/curl`. The "if another session already added curl" branch is gone:
+  no other session touches the Dockerfile, Task 4 is the whole change.
+
+**Open / next:** unchanged — Part A on `feat/judge-vm202`, with Task 4 as amended.
+
+*Session spend: 2.61M tok (in 44 · out 27.8k · cache r 2.53M / w 54.2k) · opus-5-5 · 12:10→12:37*
+
+**Later still — Part A of the judge's move is built (`feat/judge-vm202`, pushed, not merged).**
+
+**Shipped:**
+
+- `--kind pictures|writing` on the ingest: a source that cannot yield the night's kind is not
+  walked, and every item is filtered by its own type after normalization (PDR and Loupe carry
+  both). `SOURCE_KINDS` is a `Record<SourceId, …>`, so a new source without a kind does not compile.
+- `ingest_run.kind` (migration 0011) and a per-kind `/api/health`: `ingestKinds` names each job,
+  `ingest` is the worst of the two, stale after 8 days + 6 hours. Rows without a kind count for both.
+- Judge concurrency from `CLAUDE_JUDGE_CONCURRENCY`, a refusal at the preflight when a window is
+  already past the ceiling, and `bun run judge:probe` (one live judgment, printed raw).
+- The Claude Code CLI in the image, pinned to 2.1.287 with auto-update off, **and curl kept in
+  the image for good** — the build proves `curl --version` and `dockerfile.test.ts` fails if a
+  purge or autoremove comes back. That closes the curl question.
+- Seven production scripts in `.cache/` (git-ignored), verbatim from the plan's Task 6.
+
+**Findings:**
+
+- **The whole-branch review found the preflight proved only Haiku.** A writing night judges with
+  Sonnet, so a refused Sonnet would have surfaced after a full walk. The preflight now proves
+  every distinct Claude model (`0b4b8f7`). It also found `--source met --kind writing` ingesting
+  nothing and recording a green writing run; that pair is refused at parse time now (`fe55fe0`).
+- **Two departures from the plan's text.** `CLAUDE_JUDGE_CONCURRENCY` is a plain string in
+  `env.js`, validated only by `claudeConcurrency()`: `env.js` is on the web app's import path, and
+  the plan's strict schema would have stopped the site booting on a typo in Coolify. And the
+  Dockerfile's credential test reads instruction lines only, because the comment the plan
+  mandates names `CLAUDE_CODE_OAUTH_TOKEN`.
+- **The image is 1.95 GB built locally on arm64.** Not comparable to production's amd64 1.58 GB;
+  SPEC's number should come from VM 202's own build.
+- **Two sessions shared the checkout and fixed the same review finding.** The other one's commit
+  (`dda5b2e`) also records a preflight refusal as an `ingest_run` row and pins that a two-kind
+  source carries no `walkQuota`.
+
+**Not verified:** the production build and the Playwright suite in CI's shape. A dev server has
+held :3000 since 10-01 and was not killed. Migrations 0000–0011 do apply to an empty Postgres 17
+and the seed runs. `bun run check` has two failures, both `personas.test.ts` against the
+uncommitted `propaganda-and-advertising` rename in `topic-groups.ts`.
+
+**Open / next:** Ben frees :3000 and runs the CI-shape e2e (plan Task 5 Step 2), merges and
+deploys, then Part B from Task 7. Its first gate needs `"ingest":"ok"`; production read `stale`
+at midday.
+
+*Session spend: 5.36M tok (in 138 · out 42.0k · cache r 4.59M / w 729.7k) · ~≥$2.83 · opus-5-5 + opus-4-7 · 12:53→13:02*
+
+**From the second session on the same branch (the subagent-driven run of Part A):** the scoped
+re-review of the three review fixes came back clean, with two things parked. With two Claude
+models and the first call's reading already past the ceiling, the preflight refuses correctly
+(one line, before any walk, one call spent) but its message blames the second model ("not usable
+with …") instead of saying "already at its ceiling"; checking `claudeStopReason()` after each
+call would fix the wording. And the refusal-records-a-row path has no automated test, because
+`scripts/ingest.ts` has no test seam. The review also read the seven `.cache/` scripts and found
+four weaknesses in the plan's own text, left verbatim for Ben to rule on: `judge-vm-check.sh`'s
+`|| echo NOT INSTALLED` never fires (the pipeline's status is `head`'s); every script's container
+lookup is unguarded during a deploy, when two containers or none publish 3000; the manual-run
+logs are not dated, so a re-run overwrites the first run's evidence; and
+`coolify-weekly-tasks.sh`'s second UPDATE touches no row, silently, if `ingest-writing` does not
+exist yet. `bun run judge:probe` on the Mac: CLI 2.1.287, 389 tokens, five-hour 29%, seven-day 35%.
+
+*Session spend: 22.03M tok (in 461 · out 176.8k · cache r 20.28M / w 1.57M) · ~≥$11.28 · opus-5-5 + opus-4-7 · 12:35→13:05*
+
+**The CI-shape run, once :3000 was free (the dev server there was stopped, not restarted):**
+migrations 0000–0011 apply to an empty Postgres 17, the seed runs, the production build builds,
+and Playwright passed **62 with 9 skipped in two of three full runs**. The first run failed one
+test — `item.spec.ts:483`, "from the feed: tile → item → swipe → Escape" — on a feed that composed
+empty ("Nothing here yet") for the spec's signed-in reader. It did not repeat on a fresh database
+twice, the branch touches nothing in the feed, and `main`'s CI is green, so it is filed as an
+intermittent fixture starvation of the kind 09-17 describes, not as this branch's — but it is
+one failure in three and nobody has a cause. The runs were made with Ben's uncommitted group
+rename in the tree and `personas.ts` moved to the new id beside it (both still uncommitted,
+neither on this branch); with that pair, `bun run check`'s two persona failures are gone.
+
+*Session spend: 8.03M tok (in 64 · out 18.8k · cache r 7.97M / w 39.2k) · opus-5-5 · 13:05→13:17*
+
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**

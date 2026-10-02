@@ -1,0 +1,1 @@
+ALTER TABLE "ingest_run" ADD COLUMN "kind" text;

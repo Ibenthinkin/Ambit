@@ -468,6 +468,11 @@ export const ingestRun = pgTable(
     // Always false today (a dry run writes no row). Kept as a column so "a successful REAL run"
     // is stated in the health query rather than assumed from the writer's behaviour.
     dryRun: boolean("dry_run").notNull(),
+    // Which weekly job this run was (10-02-26, services/ingest-kind.ts): "pictures", "writing",
+    // or NULL for a run of everything — which is every row written before the split, and why
+    // /api/health counts NULL toward both kinds. Plain text, like item.source: the set of kinds
+    // is the app's business, not a database enum's.
+    kind: text("kind"),
     // The summary table as data — per search source and per walk source, the same numbers the
     // printed table shows — so "which source went quiet, and when" is a query, not a log search.
     perSource: jsonb("per_source").$type<IngestRunPerSource>(),
