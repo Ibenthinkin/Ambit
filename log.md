@@ -183,6 +183,19 @@ exist yet. `bun run judge:probe` on the Mac: CLI 2.1.287, 389 tokens, five-hour 
 
 *Session spend: 22.03M tok (in 461 · out 176.8k · cache r 20.28M / w 1.57M) · ~≥$11.28 · opus-5-5 + opus-4-7 · 12:35→13:05*
 
+**The CI-shape run, once :3000 was free (the dev server there was stopped, not restarted):**
+migrations 0000–0011 apply to an empty Postgres 17, the seed runs, the production build builds,
+and Playwright passed **62 with 9 skipped in two of three full runs**. The first run failed one
+test — `item.spec.ts:483`, "from the feed: tile → item → swipe → Escape" — on a feed that composed
+empty ("Nothing here yet") for the spec's signed-in reader. It did not repeat on a fresh database
+twice, the branch touches nothing in the feed, and `main`'s CI is green, so it is filed as an
+intermittent fixture starvation of the kind 09-17 describes, not as this branch's — but it is
+one failure in three and nobody has a cause. The runs were made with Ben's uncommitted group
+rename in the tree and `personas.ts` moved to the new id beside it (both still uncommitted,
+neither on this branch); with that pair, `bun run check`'s two persona failures are gone.
+
+*Session spend: 8.03M tok (in 64 · out 18.8k · cache r 7.97M / w 39.2k) · opus-5-5 · 13:05→13:17*
+
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**
