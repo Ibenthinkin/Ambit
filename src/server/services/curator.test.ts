@@ -1388,3 +1388,44 @@ describe("the Claude judge has a picture rubric of its own", () => {
     );
   });
 });
+
+describe("judgePreflight at the ceiling", () => {
+  const realRun = claudeRuntime.run;
+  beforeEach(() => resetClaudeJudge());
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+    vi.unstubAllEnvs();
+  });
+
+  // The preflight's own call succeeds — it is the call that *reads* the usage. Without this
+  // check the run would walk every source for an hour and abort on its first judgment.
+  it("refuses before any walk when a window is already past it", async () => {
+    claudeRuntime.run = () =>
+      Promise.resolve({
+        code: 0,
+        stdout: [
+          {
+            type: "rate_limit_event",
+            rate_limit_info: {
+              status: "allowed",
+              unifiedWindows: {
+                five_hour: { utilization: 0.91, resetsAt: 1790880000 },
+              },
+            },
+          },
+          {
+            type: "result",
+            is_error: false,
+            result: '{"ok":true}',
+            usage: { input_tokens: 400, output_tokens: 6 },
+          },
+        ]
+          .map((l) => JSON.stringify(l))
+          .join("\n"),
+        stderr: "",
+      });
+    expect(await judgePreflight([CLAUDE_JUDGE_MODEL])).toMatch(
+      /already at its ceiling.*five_hour window is at 91%/,
+    );
+  });
+});

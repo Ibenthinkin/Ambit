@@ -2,13 +2,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  CLAUDE_CONCURRENCY,
   CLAUDE_JUDGE_MODEL,
   claudeArgs,
   claudeComplete,
+  claudeConcurrency,
   claudeEnv,
   claudeModelSpec,
   claudeRuntime,
   claudeStdin,
+  claudeStopReason,
   claudeUsage,
   isClaudeModel,
   limitVerdict,
@@ -384,5 +387,53 @@ describe("claudeComplete — the review's tripwires", () => {
         stderr: "",
       });
     await expect(claudeComplete(req)).rejects.toBeInstanceOf(CuratorAbortError);
+  });
+});
+
+describe("claudeConcurrency", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("is the constant when the env says nothing", () => {
+    vi.stubEnv("CLAUDE_JUDGE_CONCURRENCY", "");
+    expect(claudeConcurrency()).toBe(CLAUDE_CONCURRENCY);
+  });
+  it("reads a whole number from 1 to 8", () => {
+    vi.stubEnv("CLAUDE_JUDGE_CONCURRENCY", "2");
+    expect(claudeConcurrency()).toBe(2);
+  });
+  it("ignores anything else — zero workers would judge nothing and report success", () => {
+    for (const bad of ["0", "abc", "99", "2.5", "-1"]) {
+      vi.stubEnv("CLAUDE_JUDGE_CONCURRENCY", bad);
+      expect(claudeConcurrency(), bad).toBe(CLAUDE_CONCURRENCY);
+    }
+  });
+});
+
+describe("claudeEnv and the subscription token", () => {
+  it("passes CLAUDE_CODE_OAUTH_TOKEN through — on the VM it is the only login there is", () => {
+    const env = claudeEnv(
+      { CLAUDE_CODE_OAUTH_TOKEN: "tok", ANTHROPIC_API_KEY: "sk-x" },
+      false,
+    );
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("tok");
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+  });
+});
+
+describe("claudeStopReason", () => {
+  const realRun = claudeRuntime.run;
+  beforeEach(() => resetClaudeJudge());
+  afterEach(() => {
+    claudeRuntime.run = realRun;
+  });
+  it("is null until a call crosses the ceiling, then says which window", async () => {
+    expect(claudeStopReason()).toBeNull();
+    claudeRuntime.run = () =>
+      Promise.resolve({
+        code: 0,
+        stdout: stream("{}", { five: 0.3, seven: 0.85 }),
+        stderr: "",
+      });
+    await claudeComplete({ model: CLAUDE_JUDGE_MODEL, system: "S", content: "hi" });
+    expect(claudeStopReason()).toMatch(/seven_day window is at 85%/);
   });
 });

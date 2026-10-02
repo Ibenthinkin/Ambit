@@ -62,7 +62,11 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "~/server/db/client";
 import { recordIngestRun } from "~/server/db/ingest-runs";
-import { claudeUsage } from "~/server/services/claude-judge";
+import {
+  claudeConcurrency,
+  claudeUsage,
+  isClaudeModel,
+} from "~/server/services/claude-judge";
 import {
   itemKind,
   ofKind,
@@ -206,7 +210,8 @@ function judgeLine(): string {
       })
     : [];
   return [
-    `${judgeModel()} (pictures), ${writingJudgeModel()} (writing)`,
+    `${judgeModel()} (pictures), ${writingJudgeModel()} (writing)` +
+      (isClaudeModel(judgeModel()) ? `, ${claudeConcurrency()} worker(s)` : ""),
     ...windows,
   ].join(" · ");
 }

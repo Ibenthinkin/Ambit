@@ -28,10 +28,11 @@ import {
 import sharp from "sharp";
 
 import {
-  CLAUDE_CONCURRENCY,
   CLAUDE_JUDGE_MODEL,
   claudeComplete,
+  claudeConcurrency,
   claudeModelSpec,
+  claudeStopReason,
   isClaudeModel,
 } from "./claude-judge";
 import { CuratorAbortError } from "./curator-errors";
@@ -100,6 +101,11 @@ export async function judgePreflight(
     } catch (err) {
       return `the Claude judge is not usable — ${err instanceof Error ? err.message : String(err)} (is Claude Code installed, on PATH, and logged in with the subscription?)`;
     }
+    // The call above succeeded, and it is also the first reading of the subscription's usage.
+    // If that reading is already past the ceiling there is nothing this run can judge.
+    const stopped = claudeStopReason();
+    if (stopped)
+      return `the Claude judge is already at its ceiling — ${stopped}. Nothing was walked; run again after the reset.`;
   }
   return null;
 }
@@ -1308,7 +1314,7 @@ export async function curateItems(
     Array.from(
       {
         length: Math.min(
-          claude ? CLAUDE_CONCURRENCY : CONCURRENCY,
+          claude ? claudeConcurrency() : CONCURRENCY,
           items.length,
         ),
       },
