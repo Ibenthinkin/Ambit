@@ -22,6 +22,11 @@ import topicGraphData from "~/server/config/topic-graph.json";
 import { drawWeight, getItemsByIds } from "~/server/db/items";
 import { getTasteKeywords } from "~/server/db/saves";
 import { getUserTopicWeights, listTopics } from "~/server/db/topics";
+import { getUserWritingAmount } from "~/server/db/users";
+import {
+  readingShare,
+  type ReadingAmount,
+} from "~/server/config/reading-amount";
 import {
   getTopicPools,
   getWildPool,
@@ -940,6 +945,40 @@ function reachableTopics(
 }
 
 /**
+ * What one reader's reading amount (10-02-26, docs/PLAN_onboarding-questionnaire.md §5) does to
+ * a page — pure, so the four cases are a unit test rather than four database fixtures.
+ *
+ *   amount    share        picturesOnly
+ *   null      (default)    false     never said → DEFAULT_KNOBS.writingShare, untouched
+ *   little    0.0625       false
+ *   some      0.125        false
+ *   lot       0.25         false
+ *   none      0            true
+ *
+ * **Why "none" needs `picturesOnly` and not just share 0.** At `writingShare: 0` the engine stops
+ * reserving writing slots *and lets articles back into the ordinary pools* — the pre-writing page,
+ * which a test above pins and `/dev/feed` relies on. A reader who says "no reading" would then
+ * still meet articles, just unlabelled as a choice. `picturesOnly` keeps the ordinary pools at
+ * `type: "image"` while nothing is fetched for writing.
+ *
+ * **The dev panel still wins.** If the dev gate is open and the overrides name `writingShare`,
+ * that number is what the caller's knobs end up holding (the caller spreads overrides last), so
+ * `picturesOnly` steps aside — otherwise a persona set to "none" could never be tuned.
+ */
+export function resolveWriting(
+  amount: ReadingAmount | null,
+  overrides: Partial<FeedKnobs> | undefined,
+  debugEnabled: boolean,
+): { share?: number; picturesOnly: boolean } {
+  if (amount === null) return { picturesOnly: false };
+  const overridden = debugEnabled && overrides?.writingShare !== undefined;
+  return {
+    share: readingShare(amount),
+    picturesOnly: amount === "none" && !overridden,
+  };
+}
+
+/**
  * The real, DB-backed entry point (SPEC §7, §9). Orchestrates around the pure engine above:
  *
  * 1. Decode the cursor (absent → a fresh page 0: random seed, `anchor: now`, empty `prev`).
@@ -1000,22 +1039,30 @@ export async function getFeedPage(
   let weights: Map<string, number>;
   let tasteKeywords: string[] = [];
   let dealt: string | null | undefined;
+  // How much writing this reader asked for. A visitor never said, so explore is untouched.
+  let writingAmount: ReadingAmount | null = null;
   if (userId === null) {
     const existing = new Set((await listTopics()).map((t) => t.id));
     const explore = exploreWeights(seed, existing);
     weights = explore.weights;
     dealt = explore.persona;
   } else {
-    const [rawWeights, keywords] = await Promise.all([
+    const [rawWeights, keywords, amount] = await Promise.all([
       getUserTopicWeights(userId),
       getTasteKeywords(userId),
+      getUserWritingAmount(userId),
     ]);
+    writingAmount = amount;
     weights = rawWeights.size > 0 ? rawWeights : coldStartWeights();
     tasteKeywords = keywords;
   }
 
+  // Three layers, later wins: the engine's defaults, then this reader's own reading amount, then
+  // the dev panel's overrides — so `/dev/feed` can still tune a reader who set an amount.
+  const writing = resolveWriting(writingAmount, knobOverrides, debugEnabled);
   const knobs: FeedKnobs = {
     ...DEFAULT_KNOBS,
+    ...(writing.share !== undefined ? { writingShare: writing.share } : {}),
     ...(debugEnabled ? knobOverrides : undefined),
   };
 
@@ -1043,7 +1090,10 @@ export async function getFeedPage(
   // writing slot and nowhere else. At `writingShare: 0` nothing below is fetched, the ordinary
   // pools carry articles again, and the page is the one composed before writing slots existed.
   const writingOn = knobs.writingShare > 0;
-  const ordinaryType = writingOn ? ("image" as const) : undefined;
+  // `picturesOnly` is the reader who chose "None": no writing fetched (share 0), and the ordinary
+  // pools held to pictures all the same — see `resolveWriting`.
+  const ordinaryType =
+    writingOn || writing.picturesOnly ? ("image" as const) : undefined;
   const writingEligibility = {
     ...eligibility,
     scoreFloor: knobs.writingScoreFloor,
