@@ -107,6 +107,46 @@ already there. Health reads `stale` until tonight's nightly, the first since the
 *Session spend: 6.82M tok (in 76 · out 146.2k · cache r 5.98M / w 696.3k) · fable-5-1 · 12:02→12:19*
 *Session spend: 2.14M tok (in 48 · out 20.2k · cache r 1.95M / w 166.2k) · ~≥$1.28 · opus-5-5 + opus-4-7 · 11:52→12:00*
 
+#### Third session (Fable) — onboarding becomes a questionnaire: planned, not built
+
+The 09-29 direction talk happened. **Ben:** onboarding is "completely broken" — the groups "cover
+waaay too wide range of things", Place no longer makes sense to ask about directly ("ask where's
+a place they might like to go visit?"), Look "doesn't make much sense … maybe something like
+vibe", and none of it applies to writing. He wants 4–15 questions that let Ambit *guess* topics
+under the current system — "I want it to feel like we are getting to know them" — with tuning
+left for after sign-up.
+
+**Decisions** (plan: `docs/PLAN_onboarding-questionnaire.md`, branch
+`feat/onboarding-questionnaire`, worktree `~/Dev/ambit-questionnaire`):
+
+- **No pickers in onboarding.** Thirteen skippable questions → scores over existing topics → a
+  reveal ("Here's where we'll start") with a little / some / a lot / off per topic. Groups and
+  facets stay as internal vocabulary; the reader never sees either. Place is one question, Look
+  is a vibe question.
+- **Picture-led**: "this one or that one?" face-offs, plus a few word questions.
+- **Two point-blank free-text questions** ("What do you like to look at on the internet?", "What
+  do you read or watch?") mapped to topics by **one small model call** — Ben's idea, and it
+  reverses 09-28's "no LLM in v1". The stored words double as testers' topic suggestions: Ben
+  notes the vocabulary is biased to his own interests and will ask the first testers for topics.
+- **Per-person reading amount** (none / a little / some / a lot) replaces the fixed 1-in-8.
+- **`/profile/topics` = levels list + search + "Retake the questions"** — no group chips.
+- **Answers are logged, and optional demographics are asked** (age range, rough location,
+  gender) as a trial — "we will see how it feels". This reverses the 09-10 "never stored" rule;
+  my recommendation was not to collect them. Unused by the feed, three columns to drop.
+- From `feat/onboarding-foundation`: the levels leaf, the weighted topics API, `TopicLevels`,
+  the toast and the write queue are ported by file; the 75-group cut and `GroupPicker` are left
+  behind. `DESIGN_onboarding-interview.md` and both older plans get supersession headers (Task 20).
+
+**A slip, undone:** the session's git snapshot said `main`, but the judge-on-VM-202 session had
+since put `~/Dev/ambit` on `feat/judge-vm202`. I branched there, noticed, switched it back and
+deleted the branch within a minute; nothing of theirs was touched. Hence the worktree.
+
+**Open / next:** execute the plan cold in a cheaper session, in the worktree, from Task 1. Ben
+edits the bank's copy (§3) whenever he likes — it is one file. His `propaganda-and-advertising`
+rename is still uncommitted in `~/Dev/ambit`; Task 1 repeats it on this branch.
+
+*Session spend: 9.65M tok (in 252 · out 169.2k · cache r 8.37M / w 1.11M) · ~≥$7.08 · fable-5-1 + opus-4-7 · 12:26→12:54*
+
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**
