@@ -167,6 +167,22 @@ at midday.
 
 *Session spend: 5.36M tok (in 138 · out 42.0k · cache r 4.59M / w 729.7k) · ~≥$2.83 · opus-5-5 + opus-4-7 · 12:53→13:02*
 
+**From the second session on the same branch (the subagent-driven run of Part A):** the scoped
+re-review of the three review fixes came back clean, with two things parked. With two Claude
+models and the first call's reading already past the ceiling, the preflight refuses correctly
+(one line, before any walk, one call spent) but its message blames the second model ("not usable
+with …") instead of saying "already at its ceiling"; checking `claudeStopReason()` after each
+call would fix the wording. And the refusal-records-a-row path has no automated test, because
+`scripts/ingest.ts` has no test seam. The review also read the seven `.cache/` scripts and found
+four weaknesses in the plan's own text, left verbatim for Ben to rule on: `judge-vm-check.sh`'s
+`|| echo NOT INSTALLED` never fires (the pipeline's status is `head`'s); every script's container
+lookup is unguarded during a deploy, when two containers or none publish 3000; the manual-run
+logs are not dated, so a re-run overwrites the first run's evidence; and
+`coolify-weekly-tasks.sh`'s second UPDATE touches no row, silently, if `ingest-writing` does not
+exist yet. `bun run judge:probe` on the Mac: CLI 2.1.287, 389 tokens, five-hour 29%, seven-day 35%.
+
+*Session spend: 22.03M tok (in 461 · out 176.8k · cache r 20.28M / w 1.57M) · ~≥$11.28 · opus-5-5 + opus-4-7 · 12:35→13:05*
+
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**
