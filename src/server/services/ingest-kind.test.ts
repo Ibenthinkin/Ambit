@@ -1,8 +1,8 @@
 // The weekly split (docs/PLAN_judge-on-vm202.md, design D10): pictures one night, writing another.
 import { describe, expect, it } from "vitest";
 
-import { BLOGS } from "~/server/config/blogs";
-import { PUBLICATIONS } from "~/server/config/publications";
+import { BLOGS, blogConfig } from "~/server/config/blogs";
+import { PUBLICATIONS, publicationConfig } from "~/server/config/publications";
 
 import {
   INGEST_KINDS,
@@ -45,6 +45,14 @@ describe("SOURCE_KINDS", () => {
   it("knows the two sources that carry both", () => {
     expect(SOURCE_KINDS.pdr).toEqual(INGEST_KINDS);
     expect(SOURCE_KINDS.loupe).toEqual(INGEST_KINDS);
+  });
+  it("budgets no source that carries both kinds — the walk counts the other kind against its quota", () => {
+    for (const [id, kinds] of Object.entries(SOURCE_KINDS)) {
+      if (kinds.length < 2) continue;
+      expect(blogConfig(id)?.walkQuota, id).toBeUndefined();
+      expect(publicationConfig(id)?.walkQuota, id).toBeUndefined();
+      expect(publicationConfig(id)?.backfillQuota, id).toBeUndefined();
+    }
   });
   it("gives no source an empty list — that source would run on neither night", () => {
     for (const [id, kinds] of Object.entries(SOURCE_KINDS))

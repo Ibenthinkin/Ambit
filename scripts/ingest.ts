@@ -196,15 +196,6 @@ if (kindRefusal) {
   process.exit(1);
 }
 
-// Fail fast, before any network calls: a curator call 800 items into a run is a much worse place
-// to discover this than the first line of output. Which judge is asked depends on CURATOR_JUDGE
-// (curator.ts's judgeModel): the OpenRouter key, or the Claude Code CLI.
-const judgeProblem = skipLlm ? null : await judgePreflight();
-if (judgeProblem) {
-  console.error(`${judgeProblem} (Or pass --skip-llm for a free dry run.)`);
-  process.exit(1);
-}
-
 /**
  * "claude-haiku-4-5-20251001 · five-hour 23% → 31% · seven-day 22% → 24%": which judge scored this
  * run, and — for the Claude judge — how much of each subscription window the run moved. The
@@ -413,6 +404,30 @@ async function recordRun(
       `could not record ingest_run (exit code unchanged): ${String(err)}`,
     );
   }
+}
+
+// Fail fast, before any network calls: a curator call 800 items into a run is a much worse place
+// to discover this than the first line of output. Which judge is asked depends on CURATOR_JUDGE
+// (curator.ts's judgeModel): the OpenRouter key, or the Claude Code CLI.
+//
+// A refusal is RECORDED before the exit. Under the weekly schedule, "a subscription window is
+// already past its ceiling" is the expected way a scheduled night ends, and the database is the
+// witness of what ran (the same rule as main().catch below: a run that stopped is still a run).
+// Without a row, a refused Monday would be indistinguishable from a Monday the cron never fired,
+// and /api/health could only say "stale" a week later with nothing to say why. This sits after
+// recordRun (which needs `runStartedAt`) and before main(), so it still precedes every fetch and
+// nothing visible happens in between; if the write itself fails, recordRun logs that and we still
+// print the preflight line and exit 1.
+const judgeProblem = skipLlm ? null : await judgePreflight();
+if (judgeProblem) {
+  await recordRun({
+    exitCode: 1,
+    inserted: 0,
+    perSource: null,
+    error: judgeProblem,
+  });
+  console.error(`${judgeProblem} (Or pass --skip-llm for a free dry run.)`);
+  process.exit(1);
 }
 
 // ── main ─────────────────────────────────────────────────────────────────

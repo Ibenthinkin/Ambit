@@ -36,7 +36,10 @@ export const SOURCE_KINDS: Record<SourceId, readonly IngestKind[]> = {
   smithsonian: PICTURES,
   loc: PICTURES,
   "nasa-images": PICTURES,
-  // Walk sources that carry both kinds.
+  // Walk sources that carry both kinds. A source carrying both must stay UNBUDGETED (no
+  // `walkQuota`): the walk counts every normalized item against its quota before the kind
+  // filter runs, so a budgeted two-kind walk would spend its night's quota on the other kind.
+  // Budget one only after moving the kind filter into the walk. (ingest-kind.test.ts pins it.)
   pdr: INGEST_KINDS,
   loupe: INGEST_KINDS,
   // Designated blogs: link cards of pictures.
