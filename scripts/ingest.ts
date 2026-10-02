@@ -51,6 +51,8 @@
  *                                                         # (blogs.ts); prints a resume cursor
  *   bun run ingest --source aeon --backfill              # a publication's archive, newest first,
  *                                                         # to its backfillQuota (publications.ts)
+ *   bun run ingest --kind pictures                       # the Monday job: image items only
+ *   bun run ingest --kind writing                        # the Thursday job: articles only
  *   bun run ingest --source sovietpostcards --cursor 12900   # the rest of the archive, from where
  *                                                             # the budgeted walk stopped
  *   (* --dry-run alone still calls the curator unless paired with --skip-llm; combine both for a
@@ -61,6 +63,13 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "~/server/db/client";
 import { recordIngestRun } from "~/server/db/ingest-runs";
 import { claudeUsage } from "~/server/services/claude-judge";
+import {
+  itemKind,
+  ofKind,
+  parseKind,
+  sourceYields,
+  type IngestKind,
+} from "~/server/services/ingest-kind";
 import { addItemTopics, storedItem, upsertItem } from "~/server/db/items";
 import {
   item,
@@ -139,6 +148,16 @@ const cursorFlag = flagValue("cursor");
 // by its `backfillQuota` instead of its per-run `walkQuota`. Bounded either way, so never
 // `complete` and never prunable.
 const backfill = args.includes("--backfill");
+
+// The weekly split (10-02-26, services/ingest-kind.ts): `--kind pictures` and `--kind writing`
+// are the two scheduled jobs. Absent, the run is everything, as it always was.
+let kind: IngestKind | null;
+try {
+  kind = parseKind(flagValue("kind"));
+} catch (err) {
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+}
 
 if (!Number.isFinite(quota) || quota <= 0) {
   console.error(
@@ -399,7 +418,9 @@ async function main() {
   const sourceIds = (
     sourceFlag
       ? [sourceFlag]
-      : knownSources.filter((id) => !isIngestSkipped(id))
+      : knownSources.filter(
+          (id) => !isIngestSkipped(id) && sourceYields(id, kind),
+        )
   ) as SourceId[];
 
   // Phase 6.3: the run has two lanes, because there are now two adapter shapes. `adapters` is
@@ -454,7 +475,7 @@ async function main() {
 
   console.log(
     `Ingesting ${topics.length} topic(s) × ${searchIds.length} search source(s) + ${walkIds.length} walk source(s), quota ${quota}/cell` +
-      `${skipLlm ? " [skip-llm]" : ""}${dryRun ? " [dry-run]" : ""}…\n`,
+      `${skipLlm ? " [skip-llm]" : ""}${dryRun ? " [dry-run]" : ""}${kind ? ` [kind ${kind}]` : ""}…\n`,
   );
   if (walkIds.length > 0) {
     console.log(`classify vocabulary: ${classifyVocabulary.length} topics\n`);
@@ -520,9 +541,26 @@ async function main() {
     }
   }
 
+  // --kind: keep only the night's kind, by each item's own type. This is after normalization
+  // because PDR and Loupe carry both kinds. `walkStatsBySource` is deliberately NOT filtered:
+  // its `seenSourceIds` is what --prune compares the database against, and a picture this run
+  // chose not to judge was still seen.
+  const claims = kind
+    ? allClaims.filter((c) => itemKind(c.item) === kind)
+    : allClaims;
+  const unseededOfKind = ofKind(unseeded, kind);
+  const walkItemsOfKind = ofKind(walkItems, kind);
+  if (kind) {
+    const offered = allClaims.length + unseeded.length + walkItems.length;
+    const kept = claims.length + unseededOfKind.length + walkItemsOfKind.length;
+    console.log(
+      `--kind ${kind}: ${kept} of ${offered} offered item(s) are ${kind}\n`,
+    );
+  }
+
   // Step 2: collision resolution (SPEC §15) — one winner per (source, sourceId), regardless of
   // how many topics' seed queries surfaced it or in what order this loop happened to visit them.
-  const { winners, collisionCountBySource } = resolveCollisions(allClaims);
+  const { winners, collisionCountBySource } = resolveCollisions(claims);
 
   // Step 3: skip anything already in the DB — a single query up front, rather than one per item,
   // is what makes a second run of this whole script fast as well as free.
@@ -544,14 +582,14 @@ async function main() {
   // memberships at origin `curator`, possibly un-homed. First, minus any page a tied phrase
   // already won as a claim, and minus repeats (a page on two lists).
   const unseededItems = mergeUnseeded(
-    unseeded,
+    unseededOfKind,
     new Set(winners.map((w) => `${w.item.source}:${w.item.sourceId}`)),
   );
-  if (unseeded.length > 0)
+  if (unseededOfKind.length > 0)
     console.log(
-      `wikipedia untied phrases + lists: ${unseeded.length} hit(s), ${unseededItems.length} after dedupe against claims\n`,
+      `wikipedia untied phrases + lists: ${unseededOfKind.length} hit(s), ${unseededItems.length} after dedupe against claims\n`,
     );
-  const pathless = [...walkItems, ...unseededItems];
+  const pathless = [...walkItemsOfKind, ...unseededItems];
   const newWalkItems = pathless.filter(
     (it) => !existingKeys.has(`${it.source}:${it.sourceId}`),
   );
