@@ -9,14 +9,23 @@
       "Preamble": "New Jersey’s Atlantic City emerged as a booming Edwardian seaside destination in the 1870s. From its famed boardwalk (the first in the United States), tourists could reach hotels and restaurants, catch vaudeville acts, and take donkey rides. They could dip (in heavy, full-coverage bathing costumes) into the chilled Atlantic surf. They could also take in the work of local “sand men”, buskers who made their living sculpting intricate scenes in the dunes just off the boardwalk and vying for tips.\n\nThough their medium was ephemeral, these enterprising artists’ work is preserved in photographs intended for picture postcards. Their subjects — a slain soldier next to his fallen horse, Christ on the cross, lions and snakes, a buxom mermaid — were rendered in high relief, using saltwater-soaked sand. In some photographs, the artist can be seen working, scraping away in shirtsleeves and balmorals. \n\nExecution ranged from the impressive to the crude. On the one hand, there’s Jesus with arm veins visible, and a (potentially shipwrecked) mother and child swathed in damp, translucent cloth. On the other, an elephant buckling over its cartoonishly underdeveloped legs. In all cases, the scale is impressive: life-size and then some.\n\nThe public historian Holly Metz [reports](https://www.hollymetz.net/files/essays_and_articles/Sand-Art.pdf) that Atlantic City sand sculptors numbered in the dozens, though few of their names make it down to us today. The cast included the intrepid [James J. Taylor](https://www.sanfranciscostory.com/enter-sand-man/), dressed in a suit and derby hat in photographs, who once offered a cash prize for any sand sculptor that could best him, and a number of African American artists (such as the one-armed sculptor Owen Golden), some of whom crossed the color line to sculpt on segregated beaches. Unfortunately, many surviving images of African American sand artists were re-touched to make them appear white. “A common practice, according to postcard archivists\", writes Metz.",
       "Featured_Image_Path": "/collections/atlantic-city-sand-sculpture/sand-sculptor-thumb.jpg",
       "Medium": "Images",
-      "Theme": ["Music & Arts"],
-      "Style": ["Photography", "Sculpture"],
-      "Epoch": ["20th Century"],
+      "Theme": [
+        "Music & Arts"
+      ],
+      "Style": [
+        "Photography",
+        "Sculpture"
+      ],
+      "Epoch": [
+        "20th Century"
+      ],
       "Sources": [
         {
           "data": {
             "Title": "Library of Congress (Prints+Photos+Maps)",
-            "Umbrella_Title": ["Library of Congress"],
+            "Umbrella_Title": [
+              "Library of Congress"
+            ],
             "Rights_Summary": "No Additional Rights",
             "Rights_Details_Group": "Direct / Hands-off",
             "Rights_License_URL": null,
@@ -78,7 +87,10 @@
         "Colonialism & the ‘Other’"
       ],
       "Style": null,
-      "Epoch": ["19th Century", "20th Century"],
+      "Epoch": [
+        "19th Century",
+        "20th Century"
+      ],
       "Sources": [
         {
           "data": {
@@ -154,9 +166,16 @@
       "Preamble": "In 349 AH (960–61 AD) the Persian astronomer ‘Abd al-Rahmān al-Sūfī was visiting the court of Būyid caliph ‘Adud al-Dawlah in Isfahan. Shortly after his arrival, another learned gentleman known to be well-read in astronomical matters stopped by. When night fell, the caliph asked his two visitors to identify a star that should be visible above the eastern horizon.\n\nWhen the other astronomer struggled to answer, al-Sūfī saw that his colleague may have memorized a few astral charts, but he had spent little time using them to read the night sky. He explained to the caliph that a calculation error in Ptolemy’s *Almagest* — a cosmological almanac that had been translated into Arabic the previous century — meant the stars had shifted from the positions plotted by the Alexandrian eight hundred years before. In order to read the stars now, you had to add twelve longitudinal degrees. There are leading scientists, al-Sūfī bemoaned, who have never confirmed the books they read with direct observation. \n\nThe caliph hired Al-Sūfī as his personal tutor and put him in charge of a new imperial observatory in Shiraz. Three years later al-Sūfī presented the caliph with the *Kitāb al-Kawākib al-Thābitah Musawwar* (Illustrated Book of Fixed Stars), an expansion on the *Almagest* that became the greatest astronomical work of its age. Portable and illustrated, it was not meant simply as a display of learning but as an aid in direct observation. Each constellation is represented twice: once reflecting how the starry forms would look to an observer looking down at a celestial globe, a second time reflecting how they appear while gazing up at the night sky.\n\nPtolemy’s *Almagest* contained tables identifying names and positions of over a thousand stars that could be seen with the naked eye. The *Kitāb al-Kawākib al-Thābitah Musawwar* lists several bodies not mentioned by Ptolemy and includes traditional Arabic names for certain constellations and stars. To Arab stargazers, for example, the six stars that form the head of Cetus (the Whale) are known as *al-kaff al-jadhmā* — “the mutilated hand”. The five in the central body are called *al-na’āmāt* — “the ostriches” — and the star on the tip of the tail is called *al-difdi’ al-thānī*: “the second frog”.",
       "Featured_Image_Path": "/collections/fixed-stars/fixed-stars-thumb.JPEG",
       "Medium": "Images",
-      "Theme": ["Science & Medicine", "Astronomy & Space"],
-      "Style": ["Manuscript Illumination"],
-      "Epoch": ["Pre-16th Century"],
+      "Theme": [
+        "Science & Medicine",
+        "Astronomy & Space"
+      ],
+      "Style": [
+        "Manuscript Illumination"
+      ],
+      "Epoch": [
+        "Pre-16th Century"
+      ],
       "Sources": [
         {
           "data": {
@@ -223,9 +242,15 @@
       "Preamble": "Happy Thanksgiving!\n\nThe pictures below are from the National Thanksgiving Turkey Presentation, a ceremony that takes place at the White House every year at which The President of the United States is presented with a live turkey, usually of the Broad Breasted White variety. Since 1989, the first Thanksgiving of President George H. W. Bush, it has been official policy for the president to grant the turkey a \"presidential pardon\" and thus spare the bird from ending up on the dining table. On Nov. 19, 1963, just days before his assassination, John F Kennedy spontaneously spared a turkey but did not grant an official \"pardon\".",
       "Featured_Image_Path": "/collections/presidents-and-turkeys/Ford_Pardoned_Turkey.jpg",
       "Medium": "Images",
-      "Theme": ["People"],
-      "Style": ["Photography"],
-      "Epoch": ["20th Century"],
+      "Theme": [
+        "People"
+      ],
+      "Style": [
+        "Photography"
+      ],
+      "Epoch": [
+        "20th Century"
+      ],
       "Sources": [
         {
           "data": {
@@ -293,14 +318,23 @@
       "Preamble": "A Valentine's gift to top all Valentine's gifts - the <em>Petit Livre d’Amour</em> (Little Book of Love) was an ornate bespoke book given by the 16th-century Lyon-born poet Pierre Sala to his then lover and future wife Marguerite Bullioud. It measures just 5 by 3.7 inches, hand-written by Sala with gold ink and beautifully illuminated by an artist identified as the \"Master of the Chronique scandaleuseas\". The work begins with a few pages of prose describing the relationship between the author and the woman he loves before then presenting the rest of the book, 12 \"iconologues\", a combination of prose and poetry on the left-hand page - including the initials M, for Marguerite and P, for Pierre, scattered about in various forms - and on the right-hand page a corresponding picture. Five of these relate to love, the others to more moral topics, but all turning away from a sickly-sweet tone, instead portraying a more realistic picture of love. Here below we've picked out some highlights from the book.",
       "Featured_Image_Path": "/collections/the-little-book-of-love/flyingheartsdetail.jpg",
       "Medium": "Images",
-      "Theme": ["Wisdom", "Love & Lust"],
-      "Style": ["Manuscript Illumination"],
-      "Epoch": ["17th Century"],
+      "Theme": [
+        "Wisdom",
+        "Love & Lust"
+      ],
+      "Style": [
+        "Manuscript Illumination"
+      ],
+      "Epoch": [
+        "17th Century"
+      ],
       "Sources": [
         {
           "data": {
             "Title": "British Library (COIM)",
-            "Umbrella_Title": ["British Library"],
+            "Umbrella_Title": [
+              "British Library"
+            ],
             "Rights_Summary": "No Additional Rights",
             "Rights_Details_Group": "Direct / Hands-off",
             "Rights_License_URL": null,
@@ -372,7 +406,10 @@
       "Preamble": "A series of animated GIFs excerpted by <a href=\"http://www.okku.lt\" target=\"_blank\">Okkult Motion Pictures</a> from <em>Hands</em>, an official war film by U.S. Army Signal Corps promoting total war mobilization, showing only human hands.\n\nYou can see the full film featured on <a href=\"https://publicdomainreview.org/2013/04/08/hands-1944/\" target=\"_blank\">The Public Domain Review here</a> and also on the <a href=\"https://archive.org/details/Hands1944\" target=\"_blank\">Internet Archive</a> as part of the <a href=\"https://archive.org/details/prelinger\" target=\"_blank\">Prelinger Archives</a> collection.\n\n<strong>See more creations from Okkult Motion Pictures here in our <a href=\"https://publicdomainreview.org/animated-gifs/\" target=\"_blank\">Animated GIFs Collection</a>.</strong>\n\n<font size=\"2\">Okkult Motion Pictures is the brainchild of Marco Calabrese and Alessandro Scali from Turin, Italy. With the Excerpts project, Okkult Motion Pictures aims to bring to light the most interesting and unusual out-of-copyright moving images occulted in Internet archives, through a series of animated gifs. A digital archivalism project for the diffusion of open knowledge. Okkult Motion Pictures <a href=\"http://www.okku.lt\" target=\"_blank\">official website</a>:   / <a href=\"https://www.facebook.com/okku.lt.official\" target=\"_blank\">Facebook</a>  / <a href=\"https://twitter.com/_okkult_\" target=\"_blank\">Twitter</a>",
       "Featured_Image_Path": null,
       "Medium": "Film",
-      "Theme": ["War", "Technology"],
+      "Theme": [
+        "War",
+        "Technology"
+      ],
       "Style": null,
       "Epoch": null,
       "Sources": [
@@ -612,7 +649,10 @@
       "Publication_Rights": "CC-BY-SA",
       "License_Note": null,
       "Featured_Image_Path": "/essays/stories-of-a-hollow-earth/nielsklimsjourne00holb_0139-540.jpg",
-      "Categories": ["Books", "Literature"],
+      "Categories": [
+        "Books",
+        "Literature"
+      ],
       "Series": null,
       "Tags": [
         {
