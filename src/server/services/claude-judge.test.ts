@@ -433,7 +433,11 @@ describe("claudeStopReason", () => {
         stdout: stream("{}", { five: 0.3, seven: 0.85 }),
         stderr: "",
       });
-    await claudeComplete({ model: CLAUDE_JUDGE_MODEL, system: "S", content: "hi" });
+    await claudeComplete({
+      model: CLAUDE_JUDGE_MODEL,
+      system: "S",
+      content: "hi",
+    });
     expect(claudeStopReason()).toMatch(/seven_day window is at 85%/);
   });
 });

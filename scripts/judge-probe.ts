@@ -22,11 +22,17 @@ import {
 } from "~/server/services/claude-judge";
 
 const version = spawnSync("claude", ["--version"], { encoding: "utf8" });
-console.log(`cli:        ${version.status === 0 ? version.stdout.trim() : "NOT FOUND on PATH"}`);
+console.log(
+  `cli:        ${version.status === 0 ? version.stdout.trim() : "NOT FOUND on PATH"}`,
+);
 console.log(`workers:    ${claudeConcurrency()}`);
 // Presence only, never the value: this output gets pasted into logs.
-console.log(`token env:  ${process.env.CLAUDE_CODE_OAUTH_TOKEN ? "set" : "unset (using the machine's own login)"}`);
-console.log(`api key:    ${process.env.ANTHROPIC_API_KEY ? "SET — the judge strips it from its child, but remove it" : "unset"}`);
+console.log(
+  `token env:  ${process.env.CLAUDE_CODE_OAUTH_TOKEN ? "set" : "unset (using the machine's own login)"}`,
+);
+console.log(
+  `api key:    ${process.env.ANTHROPIC_API_KEY ? "SET — the judge strips it from its child, but remove it" : "unset"}`,
+);
 
 try {
   const { reply, tokens } = await claudeComplete({
@@ -39,6 +45,8 @@ try {
   console.log(`usage:      ${JSON.stringify(claudeUsage()?.last, null, 2)}`);
   console.log(`ceiling:    ${claudeStopReason() ?? "not reached"}`);
 } catch (err) {
-  console.error(`probe FAILED: ${err instanceof Error ? err.message : String(err)}`);
+  console.error(
+    `probe FAILED: ${err instanceof Error ? err.message : String(err)}`,
+  );
   process.exit(1);
 }

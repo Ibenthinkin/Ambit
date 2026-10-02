@@ -16,7 +16,9 @@ describe("Dockerfile — the Claude Code CLI", () => {
   });
   it("installs that version and proves it at build time", () => {
     expect(dockerfile).toMatch(/install\.sh "\$CLAUDE_CODE_VERSION"/);
-    expect(dockerfile).toMatch(/claude --version \| grep -F "\$CLAUDE_CODE_VERSION"/);
+    expect(dockerfile).toMatch(
+      /claude --version \| grep -F "\$CLAUDE_CODE_VERSION"/,
+    );
   });
   it("turns the auto-updater off", () => {
     expect(dockerfile).toMatch(/^ENV DISABLE_AUTOUPDATER=1$/m);
@@ -33,6 +35,8 @@ describe("Dockerfile — the Claude Code CLI", () => {
       .split("\n")
       .filter((line) => !line.trimStart().startsWith("#"))
       .join("\n");
-    expect(instructions).not.toMatch(/CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY/);
+    expect(instructions).not.toMatch(
+      /CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY/,
+    );
   });
 });
