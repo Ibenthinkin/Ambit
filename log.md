@@ -123,6 +123,50 @@ session, answering the open question two paragraphs up.
 
 *Session spend: 2.61M tok (in 44 · out 27.8k · cache r 2.53M / w 54.2k) · opus-5-5 · 12:10→12:37*
 
+**Later still — Part A of the judge's move is built (`feat/judge-vm202`, pushed, not merged).**
+
+**Shipped:**
+
+- `--kind pictures|writing` on the ingest: a source that cannot yield the night's kind is not
+  walked, and every item is filtered by its own type after normalization (PDR and Loupe carry
+  both). `SOURCE_KINDS` is a `Record<SourceId, …>`, so a new source without a kind does not compile.
+- `ingest_run.kind` (migration 0011) and a per-kind `/api/health`: `ingestKinds` names each job,
+  `ingest` is the worst of the two, stale after 8 days + 6 hours. Rows without a kind count for both.
+- Judge concurrency from `CLAUDE_JUDGE_CONCURRENCY`, a refusal at the preflight when a window is
+  already past the ceiling, and `bun run judge:probe` (one live judgment, printed raw).
+- The Claude Code CLI in the image, pinned to 2.1.287 with auto-update off, **and curl kept in
+  the image for good** — the build proves `curl --version` and `dockerfile.test.ts` fails if a
+  purge or autoremove comes back. That closes the curl question.
+- Seven production scripts in `.cache/` (git-ignored), verbatim from the plan's Task 6.
+
+**Findings:**
+
+- **The whole-branch review found the preflight proved only Haiku.** A writing night judges with
+  Sonnet, so a refused Sonnet would have surfaced after a full walk. The preflight now proves
+  every distinct Claude model (`0b4b8f7`). It also found `--source met --kind writing` ingesting
+  nothing and recording a green writing run; that pair is refused at parse time now (`fe55fe0`).
+- **Two departures from the plan's text.** `CLAUDE_JUDGE_CONCURRENCY` is a plain string in
+  `env.js`, validated only by `claudeConcurrency()`: `env.js` is on the web app's import path, and
+  the plan's strict schema would have stopped the site booting on a typo in Coolify. And the
+  Dockerfile's credential test reads instruction lines only, because the comment the plan
+  mandates names `CLAUDE_CODE_OAUTH_TOKEN`.
+- **The image is 1.95 GB built locally on arm64.** Not comparable to production's amd64 1.58 GB;
+  SPEC's number should come from VM 202's own build.
+- **Two sessions shared the checkout and fixed the same review finding.** The other one's commit
+  (`dda5b2e`) also records a preflight refusal as an `ingest_run` row and pins that a two-kind
+  source carries no `walkQuota`.
+
+**Not verified:** the production build and the Playwright suite in CI's shape. A dev server has
+held :3000 since 10-01 and was not killed. Migrations 0000–0011 do apply to an empty Postgres 17
+and the seed runs. `bun run check` has two failures, both `personas.test.ts` against the
+uncommitted `propaganda-and-advertising` rename in `topic-groups.ts`.
+
+**Open / next:** Ben frees :3000 and runs the CI-shape e2e (plan Task 5 Step 2), merges and
+deploys, then Part B from Task 7. Its first gate needs `"ingest":"ok"`; production read `stale`
+at midday.
+
+*Session spend: 5.36M tok (in 138 · out 42.0k · cache r 4.59M / w 729.7k) · ~≥$2.83 · opus-5-5 + opus-4-7 · 12:53→13:02*
+
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**
