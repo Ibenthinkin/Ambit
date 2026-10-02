@@ -107,6 +107,22 @@ already there. Health reads `stale` until tonight's nightly, the first since the
 *Session spend: 6.82M tok (in 76 · out 146.2k · cache r 5.98M / w 696.3k) · fable-5-1 · 12:02→12:19*
 *Session spend: 2.14M tok (in 48 · out 20.2k · cache r 1.95M / w 166.2k) · ~≥$1.28 · opus-5-5 + opus-4-7 · 11:52→12:00*
 
+**Later the same day — curl stays in the image (plan amended, not built).** From a homelab
+session, answering the open question two paragraphs up.
+
+- **Decision (Ben):** the ingest needs `curl` at run time, so it is a permanent part of the
+  image, not something installed for the CLI's installer and purged.
+- **Read live on VM 202:** the host has curl 8.5.0, marked manually-installed, so nothing is
+  needed there. The app container has neither curl nor wget.
+- **What changed:** `docs/PLAN_judge-on-vm202.md` Task 4 only. The `RUN` no longer purges or
+  autoremoves, the build proves `curl --version`, a fifth test fails if a purge returns, and
+  Step 4 expects `/usr/bin/curl`. The "if another session already added curl" branch is gone:
+  no other session touches the Dockerfile, Task 4 is the whole change.
+
+**Open / next:** unchanged — Part A on `feat/judge-vm202`, with Task 4 as amended.
+
+*Session spend: 2.61M tok (in 44 · out 27.8k · cache r 2.53M / w 54.2k) · opus-5-5 · 12:10→12:37*
+
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**
