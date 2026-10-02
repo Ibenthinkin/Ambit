@@ -87,6 +87,28 @@ export function sourceYields(id: SourceId, kind: IngestKind | null): boolean {
   return kind === null || SOURCE_KINDS[id].includes(kind);
 }
 
+/**
+ * Why `--source <id> --kind <kind>` cannot be run, or null when it can. Without this, a source
+ * that yields only the other kind (`--source met --kind writing`) is walked, filtered to nothing
+ * and recorded as a clean run of that kind — which /api/health then counts as a successful
+ * writing night that judged nothing. The script prints the message and exits 1 before any fetch.
+ *
+ * Null for "nothing to refuse" in every other case, including an id that is not a source at all:
+ * the script's own unknown-source check owns that error and its list of known ids, and looking
+ * the id up blindly here would be a TypeError on `undefined.includes`. Takes the raw string for
+ * that reason, not a `SourceId`.
+ */
+export function sourceKindRefusal(
+  kind: IngestKind | null,
+  source: string | undefined,
+): string | null {
+  if (!kind || !source) return null;
+  const kinds = SOURCE_KINDS[source as SourceId] as
+    readonly IngestKind[] | undefined;
+  if (!kinds || kinds.includes(kind)) return null;
+  return `--source "${source}" yields no ${kind}: it yields ${kinds.join(", ")} only, so --kind ${kind} would walk it for nothing`;
+}
+
 /** The items of the night's kind; everything when there is no kind. */
 export function ofKind<T extends Pick<NormalizedItem, "type">>(
   items: T[],

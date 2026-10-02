@@ -11,6 +11,7 @@ import {
   parseKind,
   recordedKind,
   SOURCE_KINDS,
+  sourceKindRefusal,
   sourceYields,
 } from "./ingest-kind";
 
@@ -93,5 +94,32 @@ describe("recordedKind", () => {
     expect(recordedKind(null, "pdr")).toBeNull();
     expect(recordedKind(null, undefined)).toBeNull();
     expect(recordedKind(null, "not-a-source")).toBeNull();
+  });
+});
+
+describe("sourceKindRefusal", () => {
+  it("refuses a one-kind source asked for the other kind, with one line naming both", () => {
+    const msg = sourceKindRefusal("writing", "met");
+    expect(msg).toMatch(/--source "met"/);
+    expect(msg).toMatch(/--kind writing/);
+    expect(msg).toMatch(/pictures/);
+    expect(msg).not.toContain("\n");
+    expect(sourceKindRefusal("pictures", "aeon")).toMatch(/writing/);
+  });
+  it("lets a source through for the kind it yields", () => {
+    expect(sourceKindRefusal("pictures", "met")).toBeNull();
+    expect(sourceKindRefusal("writing", "aeon")).toBeNull();
+  });
+  it("lets a two-kind source through for either kind", () => {
+    expect(sourceKindRefusal("pictures", "pdr")).toBeNull();
+    expect(sourceKindRefusal("writing", "pdr")).toBeNull();
+  });
+  it("has nothing to say without a kind or without a source", () => {
+    expect(sourceKindRefusal(null, "met")).toBeNull();
+    expect(sourceKindRefusal("writing", undefined)).toBeNull();
+    expect(sourceKindRefusal(null, undefined)).toBeNull();
+  });
+  it("leaves an unknown source id to ingest.ts's own error", () => {
+    expect(sourceKindRefusal("writing", "nope")).toBeNull();
   });
 });

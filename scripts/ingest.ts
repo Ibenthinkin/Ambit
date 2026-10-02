@@ -72,6 +72,7 @@ import {
   ofKind,
   parseKind,
   recordedKind,
+  sourceKindRefusal,
   sourceYields,
   type IngestKind,
 } from "~/server/services/ingest-kind";
@@ -182,6 +183,16 @@ if (sourceFlag && !knownSources.includes(sourceFlag as SourceId)) {
   console.error(
     `unknown --source "${sourceFlag}" — known: ${knownSources.join(", ")}`,
   );
+  process.exit(1);
+}
+
+// A source that cannot yield the night's kind would be walked, filtered to nothing and recorded
+// as a clean run of that kind — refreshing the health witness for a night that judged nothing.
+// Refused here, before any fetch. The decision is `sourceKindRefusal`'s (pure, tested); an unknown
+// id gets null from it, so the unknown-source error just above stays the one that speaks.
+const kindRefusal = sourceKindRefusal(kind, sourceFlag);
+if (kindRefusal) {
+  console.error(kindRefusal);
   process.exit(1);
 }
 
