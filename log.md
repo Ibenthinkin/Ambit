@@ -64,6 +64,47 @@ pictures out of the feed too.
 `ingest: ok`; then execute the VM 202 plan cold once it is written.
 
 *Session spend: 6.49M tok (in 114 · out 36.6k · cache r 6.09M / w 367.4k) · opus-5-5 · 11:19→11:52*
+
+**Later the same day — the judge's move to VM 202, planned (not built).**
+`docs/PLAN_judge-on-vm202.md`: pieces 2–3 of the Claude judge, for a cheaper session to execute
+cold. Part A is code (subagent-driven, Ben's choice); Part B is Ben running `.cache/` scripts
+with a gate after each step.
+
+**Decisions (Ben):**
+
+- `claude` goes **in the image, pinned to 2.1.287**, auto-update off. The token from
+  `claude setup-token` is a **Coolify runtime secret** (`CLAUDE_CODE_OAUTH_TOKEN`).
+- **08:00 UTC, not 01:30.** 01:30 UTC is 9:30 pm Eastern, inside his own evening sessions on the
+  same five-hour window. Pictures Monday, writing Thursday, replacing the nightly.
+- **A ceiling stop ends the run; a catch-up run the next night finishes it** (Mon+Tue, Thu+Fri).
+  No waiting in-process.
+- **The publications backfill runs on VM 202**, one publication at a time, smallest first.
+- **Nothing stored is re-judged** at the flip (D4 stands).
+- **Extra usage is off** on his Max account and stays off.
+
+**Findings:**
+
+- **Ingest never re-judges a stored row**: existing `(source, sourceId)` keys are dropped before
+  the curator is called, so the flip costs only what is new that week. That answers piece 1's
+  review item about whole-corpus cache misses; the plan still counts for free before the first run.
+- The CLI's usage report has **no documented overage field**, so the 80% ceiling is the only guard.
+  The plan's probe prints the raw report once on the VM so a person sees what it carries.
+- The app container has no `curl` (the native installer needs it) and runs as root.
+  `ANTHROPIC_API_KEY` outranks the OAuth token, which is why the judge strips it.
+- The existing `publications-backfill-prod.sh` loops all seven; after a ceiling stop it would
+  walk each remaining archive in full only to abort. Superseded by a one-per-run script.
+- VM 202 read `nproc` 1 in the morning and **4 after Ben raised the vCPUs and rebooted**;
+  6.5 GB available.
+
+**Mine, for Ben to overrule:** health goes stale after **8 days + 6 hours** per kind (a catch-up
+night makes healthy successes eight days apart), `"ingest":"ok"` means both kinds are ok so the
+UptimeRobot monitor is unchanged, and a manual `--source aeon` run counts toward writing only.
+
+**Open / next:** execute Part A cold on `feat/judge-vm202` (subagent-driven), then Part B.
+Ben is asking another session about `curl` in the image; Task 4 says what to do if it is
+already there. Health reads `stale` until tonight's nightly, the first since the Met pause.
+
+*Session spend: 6.82M tok (in 76 · out 146.2k · cache r 5.98M / w 696.3k) · fable-5-1 · 12:02→12:19*
 *Session spend: 2.14M tok (in 48 · out 20.2k · cache r 1.95M / w 166.2k) · ~≥$1.28 · opus-5-5 + opus-4-7 · 11:52→12:00*
 
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
