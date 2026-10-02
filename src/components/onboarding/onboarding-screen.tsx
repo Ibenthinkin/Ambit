@@ -105,7 +105,13 @@ export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
     setError("");
     setSubmitting(true);
     try {
-      await mutateAsync({ topicIds: flatten(selected) });
+      // Task 4 of the onboarding-v2 foundation moved `setMine` from bare ids to weighted picks
+      // (docs/DESIGN_onboarding-interview.md §2). Every flattened id writes at weight 1 here —
+      // this coarse group screen has no opinion on "a little / some / a lot"; the interview's own
+      // per-topic control (a later task) is what actually chooses a level.
+      await mutateAsync({
+        picks: flatten(selected).map((topicId) => ({ topicId, weight: 1 })),
+      });
       // `replace`, not `push` (Decision 9): pushing would leave /onboarding in history, and
       // backing into it just bounces forward to /feed again via the page's redirect — a dead
       // entry that makes the back button look broken. Leave `submitting` true through the

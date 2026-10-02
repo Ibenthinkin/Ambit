@@ -145,14 +145,17 @@ describe("OnboardingScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start exploring" }));
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/feed"));
     expect(mutateAsyncMock).toHaveBeenCalledTimes(1);
-    const [{ topicIds }] = mutateAsyncMock.mock.calls[0]! as [
-      { topicIds: string[] },
+    const [{ picks }] = mutateAsyncMock.mock.calls[0]! as [
+      { picks: { topicId: string; weight: number }[] },
     ];
     // Space flattens to both of its listed members — and to nothing the fixture did not list,
     // though the config names twelve: an unlisted id is one `setMine` would refuse.
-    expect(new Set(topicIds)).toEqual(
+    expect(new Set(picks.map((p) => p.topicId))).toEqual(
       new Set(["astronomy", "moon", "ceramics", "surreal"]),
     );
+    // This coarse group screen writes every pick at plain weight 1 (Task 4 of the onboarding-v2
+    // foundation) — the per-topic level control is a later task's job.
+    expect(picks.every((p) => p.weight === 1)).toBe(true);
   });
 
   it("a mutation error renders in the error slot and does not navigate", async () => {

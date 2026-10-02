@@ -37,14 +37,14 @@ vi.mock("~/server/services/feed", async (importOriginal) => {
 vi.mock("~/server/services/wander", () => ({ getWanderNext: vi.fn() }));
 vi.mock("~/server/services/gallery-rail", () => ({ getGalleryRail: vi.fn() }));
 
-// The two dev-gated topic reads/writes (09-10-26, /profile/topics under FEED_DEBUG). Mocked for
-// the same reason as the feed repo above: what this file pins is the gate and the forwarded
-// caller id, and neither needs a database to be true.
+// The one dev-gated topic write left (09-10-26, /profile/topics under FEED_DEBUG; `topics.weights`
+// retired 09-28-26 — see the exhaustive-surface test below). Mocked for the same reason as the
+// feed repo above: what this file pins is the gate and the forwarded caller id, and neither needs
+// a database to be true.
 vi.mock("~/server/db/topics", async (importOriginal) => {
   const actual = await importOriginal<typeof TopicsRepo>();
   return {
     ...actual,
-    getUserTopicWeights: vi.fn(),
     resetUserTopicWeights: vi.fn(),
   };
 });
@@ -69,10 +69,8 @@ const { markSeen: mockedMarkSeen, forgetSeenSince: mockedForgetSeenSince } =
   await import("~/server/db/feed");
 const { feedDebugEnabled: mockedFeedDebugEnabled } =
   await import("~/server/services/feed-debug");
-const {
-  getUserTopicWeights: mockedGetUserTopicWeights,
-  resetUserTopicWeights: mockedResetUserTopicWeights,
-} = await import("~/server/db/topics");
+const { resetUserTopicWeights: mockedResetUserTopicWeights } =
+  await import("~/server/db/topics");
 
 // `items.wanderNext` reaches Postgres through services/wander.ts; mocked here for the same reason
 // as `getFeedPage` — this file's subject is the auth boundary and argument forwarding, not the
@@ -136,7 +134,7 @@ describe("protected procedures reject a null session", () => {
 
   it("topics.setMine throws UNAUTHORIZED", async () => {
     await expect(
-      caller.topics.setMine({ topicIds: ["some-topic"] }),
+      caller.topics.setMine({ picks: [{ topicId: "some-topic", weight: 1 }] }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
@@ -158,10 +156,10 @@ describe("protected procedures reject a null session", () => {
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
-  it("topics.weights throws UNAUTHORIZED", async () => {
-    await expect(caller.topics.weights()).rejects.toMatchObject({
-      code: "UNAUTHORIZED",
-    });
+  it("topics.setWeight throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.topics.setWeight({ topicId: "some-topic", level: "some" }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("topics.resetWeights throws UNAUTHORIZED", async () => {
@@ -363,11 +361,11 @@ describe("items.galleryRail input handling", () => {
 });
 
 describe("zod input validation", () => {
-  it("topics.setMine rejects an empty topicIds array with BAD_REQUEST", async () => {
+  it("topics.setMine rejects an empty picks array with BAD_REQUEST", async () => {
     const caller = createCaller(authedContext());
-    await expect(caller.topics.setMine({ topicIds: [] })).rejects.toMatchObject(
-      { code: "BAD_REQUEST" },
-    );
+    await expect(caller.topics.setMine({ picks: [] })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
   });
 
   it("saves.saveToCollection rejects a missing collectionId", async () => {
@@ -587,6 +585,8 @@ describe("appRouter shape", () => {
   // `topics.weights` and `topics.resetWeights`. The chrome redesign (09-11-26) adds the
   // twenty-first, `saves.ids` — the feed's tile strips light their glyphs from it. `/explore`
   // (09-26-26) adds the twenty-second, `feed.explore` — the fourth deliberate public procedure.
+  // 09-28-26 retires `topics.weights` — the product reads weights through `topics.mine` now —
+  // and adds `topics.setWeight`, so the count stays twenty-two.
   it("exposes exactly the twenty-two SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
@@ -611,7 +611,7 @@ describe("appRouter shape", () => {
         "topics.mine",
         "user.me",
         "user.updateProfile",
-        "topics.weights",
+        "topics.setWeight",
         "topics.resetWeights",
       ].sort(),
     );
@@ -709,22 +709,10 @@ describe("feed.forgetSince is dev-only", () => {
   });
 });
 
-describe("topics.weights / topics.resetWeights are dev-only", () => {
+describe("topics.resetWeights is dev-only", () => {
   beforeEach(() => {
     vi.mocked(mockedFeedDebugEnabled).mockReset();
-    vi.mocked(mockedGetUserTopicWeights)
-      .mockReset()
-      .mockResolvedValue(new Map([["botany", 1.5]]));
     vi.mocked(mockedResetUserTopicWeights).mockReset().mockResolvedValue(4);
-  });
-
-  it("topics.weights throws FORBIDDEN when the gate is off — a product build never reads a weight", async () => {
-    vi.mocked(mockedFeedDebugEnabled).mockResolvedValue(false);
-    const caller = createCaller(authedContext("user-42"));
-    await expect(caller.topics.weights()).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
-    expect(mockedGetUserTopicWeights).not.toHaveBeenCalled();
   });
 
   it("topics.resetWeights throws FORBIDDEN when the gate is off", async () => {
@@ -736,13 +724,9 @@ describe("topics.weights / topics.resetWeights are dev-only", () => {
     expect(mockedResetUserTopicWeights).not.toHaveBeenCalled();
   });
 
-  it("with the gate on, weights come back as rows and reset forwards the caller's id", async () => {
+  it("with the gate on, reset forwards the caller's id", async () => {
     vi.mocked(mockedFeedDebugEnabled).mockResolvedValue(true);
     const caller = createCaller(authedContext("user-42"));
-    await expect(caller.topics.weights()).resolves.toEqual([
-      { topicId: "botany", weight: 1.5 },
-    ]);
-    expect(mockedGetUserTopicWeights).toHaveBeenCalledWith("user-42");
     await expect(caller.topics.resetWeights()).resolves.toEqual({ reset: 4 });
     expect(mockedResetUserTopicWeights).toHaveBeenCalledWith("user-42");
   });

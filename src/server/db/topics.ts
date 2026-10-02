@@ -93,29 +93,42 @@ export async function applyTopicFacets(): Promise<{
 }
 
 /**
- * Replaces a user's topic selection with exactly `topicIds` (SPEC §7's `topics.setMine`,
+ * One topic a picker has chosen, at the weight that choice should write — the shape both
+ * `topics.setMine`'s input and `getUserTopicPicks`'s output trade in since 09-28-26 (the
+ * interview's reader-facing levels, `config/topic-levels.ts` §2).
+ */
+export interface TopicPick {
+  topicId: string;
+  weight: number;
+}
+
+/**
+ * Replaces a user's topic selection with exactly `picks` (SPEC §7's `topics.setMine`,
  * onboarding + re-pick). Two things this deliberately does NOT do naively:
  *   - It doesn't blind delete-then-reinsert-all: a topic the user keeps across a re-pick retains
  *     whatever `weight` the feed has since learned for it (SPEC §9's "saving an item nudges its
  *     topic's weight up") — only topics actually dropped from the selection lose their row, and
- *     only topics newly added get a fresh row at the default weight.
- *   - `topicIds` is expected to already be validated against real topic ids by the caller (the
- *     `topics.setMine` procedure, which throws `BAD_REQUEST` on an unknown id *before* calling
- *     this) — this function trusts its input and would otherwise fail on the `user_topic.topic_id`
- *     foreign key, not with a clean application-level error.
+ *     only topics newly added get a fresh row at the pick's weight (§2: `some` for a group
+ *     member, `lot` for a single pick — decided by the client through `pickWeight`; this function
+ *     trusts the number the way it trusts the id).
+ *   - Every pick's topic id is expected to already be validated against real topic ids by the
+ *     caller (the `topics.setMine` procedure, which throws `BAD_REQUEST` on an unknown id
+ *     *before* calling this) — this function trusts its input and would otherwise fail on the
+ *     `user_topic.topic_id` foreign key, not with a clean application-level error.
  *
  * Wrapped in a transaction so a crash between the delete and the insert can never leave a user
  * with neither their old nor new selection.
  */
 export async function setUserTopics(
   userId: string,
-  topicIds: string[],
+  picks: readonly TopicPick[],
 ): Promise<void> {
   const { db } = await import("./client");
+  const topicIds = picks.map((p) => p.topicId);
 
   await db.transaction(async (tx) => {
     // Drop rows for topics no longer selected. `notInArray(col, [])` is invalid SQL (an empty
-    // IN-list) — the same footgun items.ts/feed.ts already guard against — so an empty `topicIds`
+    // IN-list) — the same footgun items.ts/feed.ts already guard against — so an empty `picks`
     // (which the router's `z.array(...).min(1)` should never actually hand us, but this function
     // doesn't rely on that alone) just deletes everything for this user instead.
     if (topicIds.length > 0) {
@@ -131,14 +144,14 @@ export async function setUserTopics(
       await tx.delete(userTopic).where(eq(userTopic.userId, userId));
     }
 
-    if (topicIds.length === 0) return;
+    if (picks.length === 0) return;
 
-    // Insert every selected topic at the default weight, but `onConflictDoNothing` on the
-    // (userId, topicId) primary key — a topic the user already had keeps its existing row
-    // (and thus its existing, possibly-learned weight) untouched rather than being reset to 1.
+    // Insert every selected topic at the pick's own weight, but `onConflictDoNothing` on the
+    // (userId, topicId) primary key — a topic the user already had keeps its existing row (and
+    // thus its existing, possibly-learned weight) untouched rather than being reset.
     await tx
       .insert(userTopic)
-      .values(topicIds.map((topicId) => ({ userId, topicId, weight: 1.0 })))
+      .values(picks.map(({ topicId, weight }) => ({ userId, topicId, weight })))
       .onConflictDoNothing();
   });
 }
@@ -165,12 +178,12 @@ export async function getUserTopicWeights(
 }
 
 /**
- * Just the ids of the topics a user has picked (Phase 5.10) — what Settings' "What you see" row
- * needs to label itself, and what its sheet needs to open pre-selected.
- *
- * Deliberately not `getUserTopicWeights`: that returns a Map because the feed engine draws against
- * the weights, and handing a UI a structure it has to strip the values off of invites the next
- * caller to start reading them. A picker cares only about membership.
+ * Just the ids of the topics a user has picked (Phase 5.10) — kept for the persona seed (which
+ * only ever compares membership when deciding whether a re-run needs to write) and the onboarding
+ * gate's neighbours (`hasCompletedOnboarding`'s own `.limit(1)` shape doesn't need this, but the
+ * two live side by side here). Until 09-28-26 this was also what both pickers read — "a picker
+ * cares only about membership" — but the product now shows levels on every chip, so the pickers
+ * read `getUserTopicPicks` instead, on purpose.
  */
 export async function getUserTopicIds(userId: string): Promise<string[]> {
   // Dynamic import — same CI-has-no-env-vars reason as every other function in this file.
@@ -180,6 +193,20 @@ export async function getUserTopicIds(userId: string): Promise<string[]> {
     .from(userTopic)
     .where(eq(userTopic.userId, userId));
   return rows.map((row) => row.topicId);
+}
+
+/**
+ * A user's picks, id **and** weight (09-28-26, the interview's reader-facing levels —
+ * `config/topic-levels.ts` §2). What `topics.mine` now returns: both pickers show a segmented
+ * control per pressed chip, so the weight travels with the id from the first read rather than a
+ * second dev-gated round trip (`topics.weights`, retired the same day — see that file's history).
+ */
+export async function getUserTopicPicks(userId: string): Promise<TopicPick[]> {
+  const { db } = await import("./client");
+  return db
+    .select({ topicId: userTopic.topicId, weight: userTopic.weight })
+    .from(userTopic)
+    .where(eq(userTopic.userId, userId));
 }
 
 /**
@@ -249,6 +276,29 @@ export async function bumpTopicWeight(
       isNew: sql<boolean>`(xmax = 0)`,
     });
   return row!;
+}
+
+/**
+ * Snaps one existing pick straight to a hand-picked level's weight (09-28-26, the interview's
+ * per-topic segmented control — `topics.setWeight`). Unlike `bumpTopicWeight` this never *nudges*
+ * and never creates a row: it's a plain `UPDATE ... WHERE (userId, topicId)`, so a row that started
+ * above the level's weight (a save-nudged 3.0, say) lands on the level's exact number too, not
+ * merely closer to it. Returns `false` when there is no row to snap — the caller has never picked
+ * this topic, so there's nothing for a level to apply to; `topics.setWeight` turns that into
+ * `NOT_FOUND` rather than silently creating the pick (that's `setMine`'s job, not this one's).
+ */
+export async function setUserTopicWeight(
+  userId: string,
+  topicId: string,
+  weight: number,
+): Promise<boolean> {
+  const { db } = await import("./client");
+  const rows = await db
+    .update(userTopic)
+    .set({ weight })
+    .where(and(eq(userTopic.userId, userId), eq(userTopic.topicId, topicId)))
+    .returning({ topicId: userTopic.topicId });
+  return rows.length > 0;
 }
 
 /** Dev affordance (09-10-26, `/profile/topics` under FEED_DEBUG): every learned weight back to
