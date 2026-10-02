@@ -102,19 +102,72 @@ export interface TopicPick {
   weight: number;
 }
 
+/** A Drizzle transaction handle, typed off the client without importing it at runtime (a type
+ *  import is erased, so this keeps the file's "no static ./client import" rule). */
+type Tx = Parameters<
+  Parameters<Awaited<typeof import("./client")>["db"]["transaction"]>[0]
+>[0];
+
 /**
- * Replaces a user's topic selection with exactly `picks` (SPEC §7's `topics.setMine`,
- * onboarding + re-pick). Two things this deliberately does NOT do naively:
- *   - It doesn't blind delete-then-reinsert-all: a topic the user keeps across a re-pick retains
- *     whatever `weight` the feed has since learned for it (SPEC §9's "saving an item nudges its
- *     topic's weight up") — only topics actually dropped from the selection lose their row, and
- *     only topics newly added get a fresh row at the pick's weight (§2: `some` for a group
- *     member, `lot` for a single pick — decided by the client through `pickWeight`; this function
- *     trusts the number the way it trusts the id).
- *   - Every pick's topic id is expected to already be validated against real topic ids by the
- *     caller (the `topics.setMine` procedure, which throws `BAD_REQUEST` on an unknown id
- *     *before* calling this) — this function trusts its input and would otherwise fail on the
- *     `user_topic.topic_id` foreign key, not with a clean application-level error.
+ * The body of "make this user's topics exactly `picks`", inside a transaction the caller owns —
+ * so `onboarding.complete` can write the picks, the answer log and the user columns as one unit
+ * (db/onboarding.ts). Two modes, differing only in what happens to a topic the user *already had*:
+ *
+ *   "keep"       it keeps its row and whatever weight the feed has since learned for it (SPEC
+ *                §9: a save nudges its topic up). The pickers' mode — toggling an unrelated
+ *                topic must never reset what saving taught.
+ *   "overwrite"  every row is replaced by the pick's own weight. The questionnaire's mode — a
+ *                retake ends on a reveal that shows a level for each topic, and what gets
+ *                written has to be exactly what that screen showed.
+ *
+ * Either way topics not in `picks` lose their row. Topic ids are trusted (the calling procedure
+ * validates them against `listTopics()` first); an unknown one fails on the foreign key, which
+ * rolls the caller's whole transaction back.
+ */
+export async function replaceUserTopicsTx(
+  tx: Tx,
+  userId: string,
+  picks: readonly TopicPick[],
+  mode: "keep" | "overwrite",
+): Promise<void> {
+  const topicIds = picks.map((p) => p.topicId);
+
+  // Drop rows for topics no longer selected. `notInArray(col, [])` is invalid SQL (an empty
+  // IN-list) — the same footgun items.ts/feed.ts already guard against — so an empty `picks`
+  // (which the routers' `.min(…)` should never actually hand us, but this function doesn't rely
+  // on that alone) just deletes everything for this user instead. "overwrite" deletes everything
+  // too: simpler than an upsert, and inside a transaction nobody sees the gap.
+  if (mode === "keep" && topicIds.length > 0) {
+    await tx
+      .delete(userTopic)
+      .where(
+        and(
+          eq(userTopic.userId, userId),
+          notInArray(userTopic.topicId, topicIds),
+        ),
+      );
+  } else {
+    await tx.delete(userTopic).where(eq(userTopic.userId, userId));
+  }
+
+  if (picks.length === 0) return;
+
+  // Insert every selected topic at the pick's own weight, but `onConflictDoNothing` on the
+  // (userId, topicId) primary key — in "keep" mode a topic the user already had keeps its
+  // existing row (and thus its existing, possibly-learned weight) untouched rather than being
+  // reset. In "overwrite" mode there is nothing left to conflict with.
+  await tx
+    .insert(userTopic)
+    .values(picks.map(({ topicId, weight }) => ({ userId, topicId, weight })))
+    .onConflictDoNothing();
+}
+
+/**
+ * Replaces a user's topic selection with exactly `picks` (SPEC §7's `topics.setMine`, the
+ * `/profile/topics` picker), **keeping learned weights** — see `replaceUserTopicsTx`'s "keep":
+ * only topics actually dropped lose their row, and only topics newly added get a fresh row at
+ * the pick's weight. Every pick's topic id is expected to be validated by the caller
+ * (`topics.setMine` throws `BAD_REQUEST` on an unknown id *before* calling this).
  *
  * Wrapped in a transaction so a crash between the delete and the insert can never leave a user
  * with neither their old nor new selection.
@@ -124,36 +177,7 @@ export async function setUserTopics(
   picks: readonly TopicPick[],
 ): Promise<void> {
   const { db } = await import("./client");
-  const topicIds = picks.map((p) => p.topicId);
-
-  await db.transaction(async (tx) => {
-    // Drop rows for topics no longer selected. `notInArray(col, [])` is invalid SQL (an empty
-    // IN-list) — the same footgun items.ts/feed.ts already guard against — so an empty `picks`
-    // (which the router's `z.array(...).min(1)` should never actually hand us, but this function
-    // doesn't rely on that alone) just deletes everything for this user instead.
-    if (topicIds.length > 0) {
-      await tx
-        .delete(userTopic)
-        .where(
-          and(
-            eq(userTopic.userId, userId),
-            notInArray(userTopic.topicId, topicIds),
-          ),
-        );
-    } else {
-      await tx.delete(userTopic).where(eq(userTopic.userId, userId));
-    }
-
-    if (picks.length === 0) return;
-
-    // Insert every selected topic at the pick's own weight, but `onConflictDoNothing` on the
-    // (userId, topicId) primary key — a topic the user already had keeps its existing row (and
-    // thus its existing, possibly-learned weight) untouched rather than being reset.
-    await tx
-      .insert(userTopic)
-      .values(picks.map(({ topicId, weight }) => ({ userId, topicId, weight })))
-      .onConflictDoNothing();
-  });
+  await db.transaction((tx) => replaceUserTopicsTx(tx, userId, picks, "keep"));
 }
 
 /**

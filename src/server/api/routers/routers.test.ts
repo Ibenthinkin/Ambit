@@ -246,6 +246,17 @@ describe("protected procedures reject a null session", () => {
     });
   });
 
+  it("onboarding.complete throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.onboarding.complete({
+        picks: ["a", "b", "c"].map((topicId) => ({ topicId, weight: 1 })),
+        writingAmount: null,
+        answers: [],
+        bankVersion: 1,
+      }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
   it("user.setReadingAmount throws UNAUTHORIZED", async () => {
     await expect(
       caller.user.setReadingAmount({ amount: "lot" }),
@@ -437,6 +448,51 @@ describe("zod input validation", () => {
     }
   });
 
+  describe("onboarding.complete", () => {
+    const caller = createCaller(authedContext());
+    const valid = {
+      picks: ["a", "b", "c"].map((topicId) => ({ topicId, weight: 1 })),
+      writingAmount: null,
+      answers: [],
+      bankVersion: 1,
+    };
+    const bad = (over: object) =>
+      expect(
+        caller.onboarding.complete({ ...valid, ...over }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    it("needs at least three picks and takes at most twenty-four", async () => {
+      await bad({ picks: valid.picks.slice(0, 2) });
+      await bad({
+        picks: Array.from({ length: 25 }, (_, i) => ({
+          topicId: `t${i}`,
+          weight: 1,
+        })),
+      });
+    });
+
+    it("refuses the same topic twice", async () => {
+      await bad({
+        picks: ["a", "a", "b"].map((topicId) => ({ topicId, weight: 1 })),
+      });
+    });
+
+    it("refuses free text past 500 characters", async () => {
+      await bad({
+        answers: [{ questionId: "look-at", keys: [], text: "x".repeat(501) }],
+      });
+    });
+
+    it("refuses a non-positive or infinite weight", async () => {
+      await bad({
+        picks: [...valid.picks.slice(0, 2), { topicId: "c", weight: 0 }],
+      });
+      await bad({
+        picks: [...valid.picks.slice(0, 2), { topicId: "c", weight: Infinity }],
+      });
+    });
+  });
+
   it("user.setReadingAmount rejects a word that is not one of the four amounts", async () => {
     const caller = createCaller(authedContext());
     await expect(
@@ -608,8 +664,8 @@ describe("appRouter shape", () => {
   // (09-26-26) adds the twenty-second, `feed.explore` — the fourth deliberate public procedure.
   // 09-28-26 retires `topics.weights` — the product reads weights through `topics.mine` now —
   // and adds `topics.setWeight`, so the count stays twenty-two. The questionnaire (10-02-26) adds
-  // `user.readingAmount` and `user.setReadingAmount` — twenty-four.
-  it("exposes exactly the twenty-four SPEC §7 procedures, no leftover post router", () => {
+  // `user.readingAmount`, `user.setReadingAmount` and `onboarding.complete` — twenty-five.
+  it("exposes exactly the twenty-five SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -635,6 +691,7 @@ describe("appRouter shape", () => {
         "user.updateProfile",
         "user.readingAmount",
         "user.setReadingAmount",
+        "onboarding.complete",
         "topics.setWeight",
         "topics.resetWeights",
       ].sort(),

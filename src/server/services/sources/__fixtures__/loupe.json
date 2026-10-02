@@ -9,8 +9,15 @@
     "sourceUrl": "https://archive.org/details/lastwholeearthca00unse/page/n115",
     "attribution": "The Last Whole Earth Catalog (1971), via Internet Archive",
     "license": "No open license — rights retained by original authors; personal use only.",
-    "publication": { "slug": "whole-earth-catalog", "title": "Whole Earth Catalog" },
-    "issue": { "iaIdentifier": "lastwholeearthca00unse", "title": "The Last Whole Earth Catalog", "date": "1971-06-01" },
+    "publication": {
+      "slug": "whole-earth-catalog",
+      "title": "Whole Earth Catalog"
+    },
+    "issue": {
+      "iaIdentifier": "lastwholeearthca00unse",
+      "title": "The Last Whole Earth Catalog",
+      "date": "1971-06-01"
+    },
     "pageNumber": 115,
     "readingOrder": 2,
     "regionType": "illustration",
@@ -28,8 +35,15 @@
     "sourceUrl": "https://archive.org/details/lastwholeearthca00unse/page/n198",
     "attribution": "The Last Whole Earth Catalog (1971), via Internet Archive",
     "license": "No open license — rights retained by original authors; personal use only.",
-    "publication": { "slug": "whole-earth-catalog", "title": "Whole Earth Catalog" },
-    "issue": { "iaIdentifier": "lastwholeearthca00unse", "title": "The Last Whole Earth Catalog", "date": "1971-06-01" },
+    "publication": {
+      "slug": "whole-earth-catalog",
+      "title": "Whole Earth Catalog"
+    },
+    "issue": {
+      "iaIdentifier": "lastwholeearthca00unse",
+      "title": "The Last Whole Earth Catalog",
+      "date": "1971-06-01"
+    },
     "pageNumber": 198,
     "readingOrder": 0,
     "regionType": "text",
@@ -47,8 +61,15 @@
     "sourceUrl": "https://archive.org/details/lastwholeearthca00unse/page/n92",
     "attribution": "The Last Whole Earth Catalog (1971), via Internet Archive",
     "license": "No open license — rights retained by original authors; personal use only.",
-    "publication": { "slug": "whole-earth-catalog", "title": "Whole Earth Catalog" },
-    "issue": { "iaIdentifier": "lastwholeearthca00unse", "title": "The Last Whole Earth Catalog", "date": "1971-06-01" },
+    "publication": {
+      "slug": "whole-earth-catalog",
+      "title": "Whole Earth Catalog"
+    },
+    "issue": {
+      "iaIdentifier": "lastwholeearthca00unse",
+      "title": "The Last Whole Earth Catalog",
+      "date": "1971-06-01"
+    },
     "pageNumber": 92,
     "readingOrder": 1,
     "regionType": "text",
