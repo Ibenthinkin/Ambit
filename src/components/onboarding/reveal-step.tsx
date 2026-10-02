@@ -10,6 +10,8 @@ import type { Pick } from "~/lib/interview/picks";
 import { cn } from "~/lib/utils";
 import { weightOf } from "~/server/config/topic-levels";
 
+import { Rise } from "~/components/ui/rise";
+
 import { StepBar } from "./step-bar";
 
 // The questionnaire's last screen: "Here's where we'll start". Everything the answers added up
@@ -81,37 +83,40 @@ export function RevealStep({
 
   return (
     <>
-      <div data-step="reveal">
-        <h1 className="text-ink-hi text-[30px] leading-[1.15] font-semibold tracking-[-0.4px]">
-          Here’s where we’ll start
-        </h1>
-        <p className="text-ink/62 mt-3 text-[15px] leading-[1.55]">
-          Turn anything up, down or off. Ambit wanders sideways from here, and
-          you can change all of this later.
-        </p>
-        {retake && (
-          <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
-            This replaces your current topics.{" "}
-            <Link
-              href="/profile/topics"
-              replace
-              className="text-accent underline underline-offset-2"
-            >
-              Cancel
-            </Link>
+      {/* The body rises; the bar is a sibling, because <Rise>'s transform would capture `fixed`. */}
+      <Rise>
+        <div data-step="reveal">
+          <h1 className="text-ink-hi text-[30px] leading-[1.15] font-semibold tracking-[-0.4px]">
+            Here’s where we’ll start
+          </h1>
+          <p className="text-ink/62 mt-3 text-[15px] leading-[1.55]">
+            Turn anything up, down or off. Ambit wanders sideways from here, and
+            you can change all of this later.
           </p>
-        )}
+          {retake && (
+            <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
+              This replaces your current topics.{" "}
+              <Link
+                href="/profile/topics"
+                replace
+                className="text-accent underline underline-offset-2"
+              >
+                Cancel
+              </Link>
+            </p>
+          )}
 
-        <div className="mt-6">
-          <TopicLevels
-            topics={topics}
-            picks={picks}
-            off={off}
-            onLevel={(id, level) => setLevel(id, weightOf(level))}
-            onOff={turnOff}
-          />
+          <div className="mt-6">
+            <TopicLevels
+              topics={topics}
+              picks={picks}
+              off={off}
+              onLevel={(id, level) => setLevel(id, weightOf(level))}
+              onOff={turnOff}
+            />
+          </div>
         </div>
-      </div>
+      </Rise>
 
       <StepBar error={error}>
         <Button shape="pill" size="md" variant="ghost" onClick={onBack}>

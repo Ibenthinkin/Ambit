@@ -1,23 +1,37 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { SKIP } from "~/lib/interview/config";
+import { TEST_BANK, WIDE } from "~/lib/interview/fixtures";
 
 import { OnboardingScreen } from "./onboarding-screen";
 
 // vi.mock factories are hoisted above imports, so the mock functions they close over have to be
-// created through vi.hoisted() (see auth-card.test.tsx's identical note). `api.topics.setMine
-// .useMutation()` is a *hook returning an object*, not a plain function, so the mock models that
-// shape rather than just a vi.fn().
-const { mutateAsyncMock, replaceMock } = vi.hoisted(() => ({
-  mutateAsyncMock: vi.fn(),
-  replaceMock: vi.fn(),
-}));
+// created through vi.hoisted(). Each tRPC procedure is a *hook returning an object*, so the mock
+// models that shape rather than a bare vi.fn().
+const { completeMock, interpretMock, replaceMock, invalidateMock } = vi.hoisted(
+  () => ({
+    completeMock: vi.fn(),
+    interpretMock: vi.fn(),
+    replaceMock: vi.fn(),
+    invalidateMock: vi.fn(),
+  }),
+);
 
 vi.mock("~/trpc/react", () => ({
   api: {
-    topics: {
-      setMine: { useMutation: () => ({ mutateAsync: mutateAsyncMock }) },
+    onboarding: {
+      complete: { useMutation: () => ({ mutateAsync: completeMock }) },
+      interpret: { useMutation: () => ({ mutateAsync: interpretMock }) },
     },
+    useUtils: () => ({ invalidate: invalidateMock }),
   },
 }));
 
@@ -25,157 +39,273 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
 }));
 
-// Real topic ids, because the screen files them into the real `TOPIC_GROUPS` (09-25-26) and a
-// made-up id would land in no group and render nothing. Still a small fixture: what each test
-// asserts is *which* group chips a stage shows, and the whole vocabulary would bury that. Two
-// subject groups, and two members of one of them (astronomy + moon are both "Space & science
-// fiction"), so "a pick flattens to every listed member" is a real claim. One topic per other
-// facet. The fixture is what `topics.list` would return — CI's is the sixteen originals, and the
-// screen must render honestly from either.
-const FIXTURE_TOPICS = [
-  { id: "astronomy", label: "Astronomy", facet: "subject" as const },
-  { id: "moon", label: "Moon", facet: "subject" as const },
-  { id: "botany", label: "Botany", facet: "subject" as const },
-  { id: "ceramics", label: "Ceramics", facet: "medium" as const },
-  { id: "surreal", label: "Surreal", facet: "look" as const },
-  { id: "japan", label: "Japan", facet: "place" as const },
-];
-const SPACE = "Space & science fiction";
-const PLANTS = "Plants & fungi";
-const CRAFT = "Craft & materials";
-const SURREAL = "Surreal & dreamlike";
+// The engine's own five-question test bank (a text question, a pair, a multi, a choice, the
+// amount) over a production-shaped topic list — small enough to walk in a test, and independent
+// of the real bank's copy, which Ben edits.
+const TOPICS = [...WIDE].map((id) => ({
+  id,
+  label: id[0]!.toUpperCase() + id.slice(1),
+}));
+const STARTERS = ["astronomy", "botany", "music", "food"];
 
-/** The chips, and only the chips — the bar's Back/Next/CTA are buttons too. */
-function chips() {
-  return screen
-    .getAllByRole("button")
-    .filter((b) => b.hasAttribute("aria-pressed"));
+function show(over: Partial<Parameters<typeof OnboardingScreen>[0]> = {}) {
+  return render(
+    <OnboardingScreen
+      topics={TOPICS}
+      faces={{}}
+      retake={false}
+      bank={TEST_BANK}
+      starters={STARTERS}
+      {...over}
+    />,
+  );
 }
-function next() {
-  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+const click = (name: string | RegExp) =>
+  fireEvent.click(screen.getByRole("button", { name }));
+const heading = () => screen.getByRole("heading", { level: 1 }).textContent;
+const questionId = () =>
+  document
+    .querySelector("[data-question-id]")
+    ?.getAttribute("data-question-id");
+/** Presses Skip until the questions run out. */
+function skipAll() {
+  while (questionId()) click("Skip");
 }
+type Complete = {
+  picks: { topicId: string; weight: number }[];
+  writingAmount: string | null;
+  answers: {
+    questionId: string;
+    keys: string[];
+    text?: string;
+    topicIds?: string[];
+  }[];
+  bankVersion: number;
+  about?: { ageRange: string | null; location: string; gender: string };
+};
+const sent = () => completeMock.mock.calls[0]![0] as Complete;
+
+beforeEach(() => {
+  completeMock.mockReset().mockResolvedValue({ runId: "r1" });
+  interpretMock.mockReset().mockResolvedValue([]);
+  replaceMock.mockReset();
+  invalidateMock.mockReset().mockResolvedValue(undefined);
+});
 
 describe("OnboardingScreen", () => {
-  beforeEach(() => {
-    mutateAsyncMock.mockReset().mockResolvedValue({ ok: true });
-    replaceMock.mockReset();
+  it("opens on an intro, and Begin shows the first question with its place in the run", () => {
+    show();
+    expect(questionId()).toBeUndefined();
+    click("Begin");
+    expect(questionId()).toBe("words");
+    expect(screen.getByText("1 of 5")).toBeInTheDocument();
   });
 
-  it("stage 1 shows only the subject groups, in the config's order, and no Back", () => {
-    render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    // Two chips for three listed subjects: astronomy and moon fold into one group.
-    expect(chips().map((b) => b.textContent)).toEqual([SPACE, PLANTS]);
-    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  it("every question can be skipped; the reveal then proposes the starters, and saving goes to the feed", async () => {
+    show();
+    click("Begin");
+    skipAll();
+    // The optional step, skipped like everything else.
+    expect(heading()).toBe("A little about you");
+    click("Skip");
+    expect(heading()).toBe("Here’s where we’ll start");
     expect(
-      screen.getByRole("navigation", { name: "Setup progress" }),
-    ).toBeTruthy();
-    expect(screen.getByText("What are you drawn to?")).toBeTruthy();
-  });
+      screen.getAllByRole("group").map((g) => g.getAttribute("data-topic")),
+    ).toEqual(["astronomy", "botany", "music"]);
 
-  it("Next walks the four facets in order and the last stage shows the CTA", () => {
-    render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    next();
-    expect(chips().map((b) => b.textContent)).toEqual([CRAFT]);
-    expect(screen.getByText("In what form?")).toBeTruthy();
-    next();
-    expect(chips().map((b) => b.textContent)).toEqual([SURREAL]);
-    next();
-    expect(chips().map((b) => b.textContent)).toEqual(["Japan"]);
-    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
-    expect(
-      screen.getByRole("button", { name: /Pick 3 more|Start exploring/ }),
-    ).toBeTruthy();
-  });
-
-  it("a stage with no picks can be passed", () => {
-    render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    next();
-    next();
-    next();
-    expect(screen.getByText("Anywhere in particular?")).toBeTruthy();
-  });
-
-  it("Back returns to the previous stage with its picks intact", () => {
-    render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    fireEvent.click(screen.getByRole("button", { name: SPACE }));
-    next();
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(
-      screen.getByRole("button", { name: SPACE }).getAttribute("aria-pressed"),
-    ).toBe("true");
-  });
-
-  it("the count is in groups, across every stage, and the CTA flips at minPicks", () => {
-    render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    fireEvent.click(screen.getByRole("button", { name: SPACE }));
-    fireEvent.click(screen.getByRole("button", { name: PLANTS }));
-    next();
-    fireEvent.click(screen.getByRole("button", { name: CRAFT }));
-    next();
-    next();
-    // Space holds two listed topics, but the reader tapped three chips: the count is what they did.
-    expect(screen.getByText("3 interests chosen")).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Start exploring" }),
-    ).not.toBeDisabled();
-  });
-
-  it("below minPicks the CTA is disabled and setMine is never called", () => {
-    render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    fireEvent.click(screen.getByRole("button", { name: SPACE }));
-    next();
-    next();
-    next();
-    // Defense-in-depth, same posture as AuthCard's "validation failure must not fire a network
-    // call" tests — click the CTA anyway even though it visually reads as disabled.
-    const cta = screen.getByRole("button", { name: "Pick 2 more" });
-    expect(cta).toBeDisabled();
-    fireEvent.click(cta);
-    expect(mutateAsyncMock).not.toHaveBeenCalled();
-  });
-
-  it("a successful submit calls setMine once with every listed member of every picked group and navigates to /feed", async () => {
-    render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    fireEvent.click(screen.getByRole("button", { name: SPACE }));
-    next();
-    fireEvent.click(screen.getByRole("button", { name: CRAFT }));
-    next();
-    fireEvent.click(screen.getByRole("button", { name: SURREAL }));
-    next();
-    fireEvent.click(screen.getByRole("button", { name: "Start exploring" }));
+    click("Start exploring");
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/feed"));
-    expect(mutateAsyncMock).toHaveBeenCalledTimes(1);
-    const [{ picks }] = mutateAsyncMock.mock.calls[0]! as [
-      { picks: { topicId: string; weight: number }[] },
-    ];
-    // Space flattens to both of its listed members — and to nothing the fixture did not list,
-    // though the config names twelve: an unlisted id is one `setMine` would refuse.
-    expect(new Set(picks.map((p) => p.topicId))).toEqual(
-      new Set(["astronomy", "moon", "ceramics", "surreal"]),
+    expect(completeMock).toHaveBeenCalledTimes(1);
+    expect(sent().picks).toEqual(
+      ["astronomy", "botany", "music"].map((topicId) => ({
+        topicId,
+        weight: 1,
+      })),
     );
-    // This coarse group screen writes every pick at plain weight 1 (Task 4 of the onboarding-v2
-    // foundation) — the per-topic level control is a later task's job.
-    expect(picks.every((p) => p.weight === 1)).toBe(true);
+    expect(sent().answers.map((a) => a.keys)).toEqual(
+      TEST_BANK.map(() => [SKIP]),
+    );
+    expect(sent().writingAmount).toBeNull();
+    expect(sent().about).toBeUndefined();
+    // Nothing was typed, so no model was asked.
+    expect(interpretMock).not.toHaveBeenCalled();
+    // Everything the old picks fed is stale now.
+    expect(invalidateMock).toHaveBeenCalled();
   });
 
-  it("a mutation error renders in the error slot and does not navigate", async () => {
-    mutateAsyncMock.mockRejectedValueOnce(new Error("boom"));
-    render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={1} />);
-    fireEvent.click(screen.getByRole("button", { name: SPACE }));
-    next();
-    next();
-    next();
-    fireEvent.click(screen.getByRole("button", { name: "Start exploring" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("onboarding-error")).toBeTruthy(),
+  it("writes nothing until the reveal's button", () => {
+    show();
+    click("Begin");
+    skipAll();
+    click("Skip");
+    expect(completeMock).not.toHaveBeenCalled();
+  });
+
+  it("a tap answers a pair, a choice and the amount; a multi and a text box wait for Next", async () => {
+    interpretMock.mockResolvedValue([
+      { questionId: "words", topicIds: ["food"] },
+    ]);
+    show();
+    click("Begin");
+
+    // Text: typing turns Skip into Next.
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "cookbooks" },
+    });
+    click("Next");
+
+    // Pair: one tap and it moves on.
+    expect(questionId()).toBe("space-or-garden");
+    click("Space");
+
+    // Multi: choose, then Next.
+    expect(questionId()).toBe("evening");
+    click("Music");
+    expect(questionId()).toBe("evening");
+    click("Next");
+
+    // Choice, then the amount — each one tap.
+    click("Yes");
+    expect(questionId()).toBe("reading-amount");
+    click("A lot");
+
+    // Leaving the last question asks the model, once, behind a short beat.
+    expect(screen.getByText("Putting it together…")).toBeInTheDocument();
+    await waitFor(() => expect(heading()).toBe("A little about you"));
+    expect(interpretMock).toHaveBeenCalledExactlyOnceWith({
+      texts: [{ questionId: "words", text: "cookbooks" }],
+    });
+
+    click("Skip");
+    // The typed favourite lands at "a lot"; a single-topic answer at "some".
+    const row = (id: string) =>
+      screen
+        .getAllByRole("group")
+        .find((g) => g.getAttribute("data-topic") === id)!;
+    expect(
+      within(row("food")).getByRole("button", { name: "a lot" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(row("music")).getByRole("button", { name: "some" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    click("Start exploring");
+    await waitFor(() => expect(completeMock).toHaveBeenCalled());
+    expect(sent().writingAmount).toBe("lot");
+    expect(sent().bankVersion).toBeGreaterThan(0);
+    expect(sent().answers).toEqual([
+      { questionId: "words", keys: [], text: "cookbooks", topicIds: ["food"] },
+      { questionId: "space-or-garden", keys: ["space"] },
+      { questionId: "evening", keys: ["music"] },
+      { questionId: "unsettle", keys: ["yes"] },
+      { questionId: "reading-amount", keys: ["lot"] },
+    ]);
+    expect(sent().picks.map((p) => p.topicId)).toEqual(
+      expect.arrayContaining(["food", "music", "astronomy", "eerie"]),
     );
+  });
+
+  it("the flow never blocks on the model: a failed interpret still reaches the reveal", async () => {
+    interpretMock.mockRejectedValue(new Error("down"));
+    show();
+    click("Begin");
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "cookbooks" },
+    });
+    click("Next");
+    skipAll();
+    await waitFor(() => expect(heading()).toBe("A little about you"));
+    click("Skip");
+    expect(heading()).toBe("Here’s where we’ll start");
+  });
+
+  it("whitespace in a text box is not an answer", () => {
+    show();
+    click("Begin");
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "   " } });
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Skip" })).toBeInTheDocument();
+  });
+
+  it("Back returns to the previous question with its answer still showing", () => {
+    show();
+    click("Begin");
+    click("Skip");
+    click("A garden");
+    expect(questionId()).toBe("evening");
+    click("Back");
+    expect(questionId()).toBe("space-or-garden");
+    expect(screen.getByRole("button", { name: "A garden" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // And from the first question, Back is the intro again.
+    click("Back");
+    click("Back");
+    expect(screen.getByRole("button", { name: "Begin" })).toBeInTheDocument();
+  });
+
+  it("About you: Continue sends what was given; Back from the reveal returns to it", async () => {
+    show();
+    click("Begin");
+    skipAll();
+    click("35–44");
+    click("Continue");
+    click("Back");
+    expect(screen.getByRole("button", { name: "35–44" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    click("Continue");
+    click("Start exploring");
+    await waitFor(() => expect(completeMock).toHaveBeenCalled());
+    expect(sent().about).toEqual({
+      ageRange: "35–44",
+      location: "",
+      gender: "",
+    });
+  });
+
+  it("a save that fails shows the error and stays put", async () => {
+    completeMock.mockRejectedValue(new Error("boom"));
+    show();
+    click("Begin");
+    skipAll();
+    click("Skip");
+    click("Start exploring");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/try again/i);
     expect(replaceMock).not.toHaveBeenCalled();
+    // And it can be tried again.
+    completeMock.mockResolvedValue({ runId: "r2" });
+    click("Start exploring");
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/feed"));
   });
 
-  // The desktop pass (docs/DESIGN_desktop-polish.md §1): list-shaped screens stop stretching at
-  // 600px. Below `md` the class is inert, which is the point — the phone layout is untouched.
-  it("centers in a narrow column above md", () => {
-    render(<OnboardingScreen topics={FIXTURE_TOPICS} minPicks={3} />);
-    expect(document.querySelector(".md\\:max-w-\\[600px\\]")).not.toBeNull();
+  it("a retake says so up front and lands back on the topics page", async () => {
+    show({ retake: true });
+    expect(screen.getByRole("link", { name: "Cancel" })).toHaveAttribute(
+      "href",
+      "/profile/topics",
+    );
+    click("Begin");
+    skipAll();
+    click("Skip");
+    expect(
+      screen.getByText(/This replaces your current topics/),
+    ).toBeInTheDocument();
+    click("Start exploring");
+    await waitFor(() =>
+      expect(replaceMock).toHaveBeenCalledWith("/profile/topics"),
+    );
+  });
+
+  it("asks only what this database can answer", () => {
+    // Nothing listed but music: the pair, the multi and the choice all lose their answers.
+    show({ topics: [{ id: "music", label: "Music" }] });
+    click("Begin");
+    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+    click("Skip");
+    expect(questionId()).toBe("reading-amount");
   });
 });

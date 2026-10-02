@@ -6,6 +6,8 @@ import { Button } from "~/components/ui/button";
 import { Chip } from "~/components/ui/chip";
 import { Input } from "~/components/ui/input";
 
+import { Rise } from "~/components/ui/rise";
+
 import { StepBar } from "./step-bar";
 
 // The optional "About you" step, between the questions and the reveal — a **trial** (plan §8,
@@ -59,64 +61,69 @@ export function AboutStep({
 
   return (
     <>
-      <div data-step="about">
-        <h1 className="text-ink-hi text-[30px] leading-[1.15] font-semibold tracking-[-0.4px]">
-          A little about you
-        </h1>
-        <p className="text-ink/62 mt-3 text-[15px] leading-[1.55]">
-          All optional. We use this only to understand who Ambit is for; it
-          never changes your feed and is never shared.
-        </p>
+      {/* The body rises; the bar is a sibling, because <Rise>'s transform would capture `fixed`. */}
+      <Rise>
+        <div data-step="about">
+          <h1 className="text-ink-hi text-[30px] leading-[1.15] font-semibold tracking-[-0.4px]">
+            A little about you
+          </h1>
+          <p className="text-ink/62 mt-3 text-[15px] leading-[1.55]">
+            All optional. We use this only to understand who Ambit is for; it
+            never changes your feed and is never shared.
+          </p>
 
-        <div className="mt-7 flex flex-col gap-6">
-          <div role="group" aria-labelledby="about-age">
-            <span id="about-age" className={FIELD_LABEL}>
-              Age
-            </span>
-            <div className="flex flex-wrap gap-[10px]">
-              {AGE_RANGES.map((range) => (
-                <Chip
-                  key={range}
-                  size="sm"
-                  selected={ageRange === range}
-                  // One at a time, and pressing the chosen one again un-chooses it — there is no
-                  // other way back to "I'd rather not say".
-                  onClick={() => setAgeRange(ageRange === range ? null : range)}
-                >
-                  {range}
-                </Chip>
-              ))}
+          <div className="mt-7 flex flex-col gap-6">
+            <div role="group" aria-labelledby="about-age">
+              <span id="about-age" className={FIELD_LABEL}>
+                Age
+              </span>
+              <div className="flex flex-wrap gap-[10px]">
+                {AGE_RANGES.map((range) => (
+                  <Chip
+                    key={range}
+                    size="sm"
+                    selected={ageRange === range}
+                    // One at a time, and pressing the chosen one again un-chooses it — there is no
+                    // other way back to "I'd rather not say".
+                    onClick={() =>
+                      setAgeRange(ageRange === range ? null : range)
+                    }
+                  >
+                    {range}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="about-location" className={FIELD_LABEL}>
+                Roughly where are you? A city or country is plenty
+              </label>
+              <Input
+                id="about-location"
+                value={location}
+                maxLength={80}
+                autoComplete="off"
+                onChange={(e) => setLocation(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="about-gender" className={FIELD_LABEL}>
+                Gender
+              </label>
+              {/* Free text on purpose: a list of boxes is someone else's idea of the answers. */}
+              <Input
+                id="about-gender"
+                value={gender}
+                maxLength={40}
+                autoComplete="off"
+                onChange={(e) => setGender(e.target.value)}
+              />
             </div>
           </div>
-
-          <div>
-            <label htmlFor="about-location" className={FIELD_LABEL}>
-              Roughly where are you? A city or country is plenty
-            </label>
-            <Input
-              id="about-location"
-              value={location}
-              maxLength={80}
-              autoComplete="off"
-              onChange={(e) => setLocation(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="about-gender" className={FIELD_LABEL}>
-              Gender
-            </label>
-            {/* Free text on purpose: a list of boxes is someone else's idea of the answers. */}
-            <Input
-              id="about-gender"
-              value={gender}
-              maxLength={40}
-              autoComplete="off"
-              onChange={(e) => setGender(e.target.value)}
-            />
-          </div>
         </div>
-      </div>
+      </Rise>
 
       <StepBar>
         <Button shape="pill" size="md" variant="ghost" onClick={onBack}>
