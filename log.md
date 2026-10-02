@@ -44,7 +44,27 @@ pictures out of the feed too.
   where a real cut would be.
 - Ben's uncommitted `topic-groups.ts` rename still needs June's persona changed with it.
 
+**Later the same day — the host is settled, and two of three steps are done.**
+
+- **VM 202, not a new VM and not the Mac.** A homelab session checked the NUC live: an i5 with
+  4 cores / 8 threads, idle, and VM 202 configured `cores: 4` but `vcpus: 1` — the single CPU
+  was a setting. A second VM would spend 1–2 GB on another OS and send the database credential
+  across hosts; the MacBook Air sleeps and needs a tunnel to Postgres. Deleting the Sibyl VM
+  buys nothing (a stopped VM holds no RAM or CPU).
+- **Done, verified from here:** production is on `dafc6c8` (the Met pause), and VM 202 reads
+  `nproc` 4 after its reboot. Health still says `stale` and will until a nightly ends green —
+  the first is tonight's 01:30 UTC.
+- **In progress, in another session:** Fable writing `docs/PLAN_judge-on-vm202.md` with Ben,
+  from `docs/HANDOFF_judge-on-vm202.md` (nine decisions that are his: where `claude` is
+  installed, the subscription token, the schedule, the health witness, the flip's cache
+  misses, concurrency, the five-hour stop, the publications backfill, the fallback). A handoff
+  and a session with Ben in it, rather than a subagent, because a subagent cannot ask.
+
+**Open / next (supersedes the list above where they differ):** read tomorrow's health for
+`ingest: ok`; then execute the VM 202 plan cold once it is written.
+
 *Session spend: 6.49M tok (in 114 · out 36.6k · cache r 6.09M / w 367.4k) · opus-5-5 · 11:19→11:52*
+*Session spend: 2.14M tok (in 48 · out 20.2k · cache r 1.95M / w 166.2k) · ~≥$1.28 · opus-5-5 + opus-4-7 · 11:52→12:00*
 
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
