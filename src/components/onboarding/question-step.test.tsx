@@ -123,6 +123,11 @@ describe("QuestionStep", () => {
         keys: ["music", "books"],
       });
       expect(screen.getByText(/up to two/i)).toBeInTheDocument();
+      // The limit is on the step for the e2e helper, which must not over-press.
+      expect(document.querySelector("[data-question-id]")).toHaveAttribute(
+        "data-max",
+        "2",
+      );
       fireEvent.click(screen.getByRole("button", { name: "Food" }));
       expect(onChange).toHaveBeenLastCalledWith(
         { questionId: "evening", keys: ["books", "food"] },

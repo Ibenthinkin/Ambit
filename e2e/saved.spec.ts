@@ -5,7 +5,7 @@ import {
   PIXEL,
   cleanupSeeded,
   completeOnboarding,
-  ONBOARDING_GROUPS,
+  ONBOARDING_TOPICS,
   connect,
   inviteUser,
   openAuthSheet,
@@ -120,7 +120,7 @@ test.describe.serial("saved", () => {
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await completeOnboarding(page, ONBOARDING_GROUPS);
+    await completeOnboarding(page, ONBOARDING_TOPICS);
 
     await page.goto("/saved");
     await expect(page.getByText("Nothing kept yet")).toBeVisible();

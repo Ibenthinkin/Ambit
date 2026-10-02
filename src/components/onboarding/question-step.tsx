@@ -66,7 +66,11 @@ export function QuestionStep({
   }
 
   return (
-    <div data-question-id={question.id} data-question-kind={question.kind}>
+    <div
+      data-question-id={question.id}
+      data-question-kind={question.kind}
+      data-max={question.max}
+    >
       <h1
         id={id}
         className="text-ink-hi text-[30px] leading-[1.15] font-semibold tracking-[-0.4px]"

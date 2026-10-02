@@ -4,7 +4,7 @@ import { eq, inArray } from "drizzle-orm";
 import {
   cleanupSeeded,
   completeOnboarding,
-  ONBOARDING_GROUPS,
+  ONBOARDING_TOPICS,
   connect,
   inviteUser,
   openAuthSheet,
@@ -12,6 +12,7 @@ import {
   saveSession,
   seedFeedCorpus,
   waitForSetMine,
+  waitForSetWeight,
   type Connection,
 } from "./support";
 
@@ -112,7 +113,7 @@ test.describe.serial("settings", () => {
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await completeOnboarding(page, ONBOARDING_GROUPS);
+    await completeOnboarding(page, ONBOARDING_TOPICS);
     // The pill only exists once the feed has rendered — 15s, same as every other first compose.
     await expect(page.locator("[data-feed-id]").first()).toBeVisible({
       timeout: 15_000,
@@ -218,77 +219,93 @@ test.describe.serial("settings", () => {
   }) => {
     await goTo(page, "/profile/settings");
 
-    // "What you see" reads back the topics picked during onboarding: the first three labels
-    // alphabetically, "+N" for the rest. Onboarding picks *groups* (09-25-26), so what that is
-    // depends on the database behind the run — on CI's fixture-only database the three groups
-    // hold exactly astronomy, botany and music; on the real local corpus each fans out to its
-    // whole membership and the row reads "Alien, Animation, Astronaut +19" or so. Both are the
-    // screen working correctly, so the assertion is the row's *shape*, not its words.
+    // "What you see" reads back the topics the questionnaire ended on: the first three labels
+    // alphabetically, "+N" for the rest. What that is depends on the database behind the run —
+    // on CI's fixture-only database the answers land on exactly astronomy, botany and music; on
+    // the real local corpus each answer brings a few of its neighbours and the row reads
+    // "Album art, Astronomy, Botany +6" or so. Both are the screen working correctly, so the
+    // assertion is the row's *shape*, not its words.
     await expect(
       page.getByText(/^(Astronomy, Botany, Music|[^,]+, [^,]+, [^,]+ \+\d+)$/),
     ).toBeVisible({ timeout: 15_000 });
 
-    // The row is a link to /profile/topics now, not a sheet (09-10-26): a hundred topics in four
-    // facet sections has no room in a bottom sheet. Every section is on the page at once
-    // (09-12-26), led by its group chips, with the individual topics behind a "Show all"
-    // disclosure (09-25-26) — so the one click before a topic chip is that disclosure. "Maps" is
-    // the chip label for the `cartography` topic (the slug is a graph key — see
-    // server/config/topics.ts), a Subject.
+    // The row is a link to /profile/topics: the questionnaire's reveal, kept (10-02-26) — one
+    // flat list of the reader's topics, each with a level, and a search box to add one. No facet
+    // sections and no group chips any more.
     await page.getByText("What you see").click();
     await page.waitForURL("/profile/topics");
-    const subject = page.getByRole("region", {
-      name: "What are you drawn to?",
-    });
-    await expect(subject).toBeVisible({ timeout: 15_000 });
-    await subject.getByRole("button", { name: /^Show all/ }).click();
-
-    // Wait for the write itself, not just the chip. The screen is optimistic on purpose — the
-    // chip flips before the server answers — so asserting `pressed: true` and reloading proves
-    // nothing about what was stored, and a reload mid-flight cancels the request. `setMine` is
-    // the one honest signal that the toggle reached Postgres.
-    const savedMaps = waitForSetMine(page);
-    await page.getByRole("button", { name: "Maps", pressed: false }).click();
     await expect(
-      page.getByRole("button", { name: "Maps", pressed: true }),
-    ).toBeVisible();
-    await savedMaps;
-
-    // Another facet's topic is pickable in the same visit — the point of the facet cut. Ceramics,
-    // not a grown topic: CI's database is `db:migrate` + `db:seed`, which is the sixteen config
-    // topics and nothing else, so `surreal` and friends do not exist there. That grown topics are
-    // acceptable to `setMine` is pinned by routers.integration.test.ts, where the fixture is real.
-    const savedCeramics = waitForSetMine(page);
-    await page
-      .getByRole("region", { name: "In what form?" })
-      .getByRole("button", { name: /^Show all/ })
-      .click();
-    await page
-      .getByRole("button", { name: "Ceramics", pressed: false })
-      .click();
-    await expect(
-      page.getByRole("button", { name: "Ceramics", pressed: true }),
-    ).toBeVisible();
-    await savedCeramics;
-
-    // Every toggle saved as it happened — no Done button to press, so a reload is the proof.
-    // The disclosure is local state and a reload folds it, so open Medium again to read the chip.
-    await page.reload();
-    await page
-      .getByRole("region", { name: "In what form?" })
-      .getByRole("button", { name: /^Show all/ })
-      .click({ timeout: 15_000 });
-    await expect(
-      page.getByRole("button", { name: "Ceramics", pressed: true }),
+      page.getByRole("group", { name: "Astronomy level" }),
     ).toBeVisible({ timeout: 15_000 });
 
+    // Add from search. "Maps" is the label of the `cartography` topic (the slug is a graph key —
+    // see server/config/topics.ts). Wait for the write itself, not just the row: the screen is
+    // optimistic on purpose, so the row appears before the server answers, and a reload
+    // mid-flight would cancel the request. `setMine` is the honest signal it reached Postgres.
+    const search = page.getByRole("searchbox", { name: "Add a topic" });
+    const savedMaps = waitForSetMine(page);
+    await search.fill("maps");
+    await page.getByRole("button", { name: "Add Maps", exact: true }).click();
+    await expect(page.getByRole("group", { name: "Maps level" })).toBeVisible();
+    await savedMaps;
+
+    // A second, from what used to be another facet. Ceramics, not a grown topic: CI's database
+    // is `db:migrate` + `db:seed`, the sixteen config topics and nothing else. That grown topics
+    // are acceptable to `setMine` is pinned by routers.integration.test.ts.
+    const savedCeramics = waitForSetMine(page);
+    await search.fill("cera");
+    await page
+      .getByRole("button", { name: "Add Ceramics", exact: true })
+      .click();
+    const ceramics = page.getByRole("group", { name: "Ceramics level" });
+    await expect(ceramics).toBeVisible();
+    await savedCeramics;
+
+    // A level is its own, smaller write. A topic added by name arrives at "a lot".
+    await expect(
+      ceramics.getByRole("button", { name: "a lot", pressed: true }),
+    ).toBeVisible();
+    const savedLevel = waitForSetWeight(page);
+    await ceramics.getByRole("button", { name: "a little" }).click();
+    await savedLevel;
+
+    // Every change saved as it happened — no Done button to press, so a reload is the proof.
+    await page.reload();
+    await expect(
+      page
+        .getByRole("group", { name: "Ceramics level" })
+        .getByRole("button", { name: "a little", pressed: true }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("group", { name: "Maps level" })).toBeVisible();
+
     // Same two shapes as above: exactly five topics on CI (astronomy, botany, music, cartography,
-    // ceramics → the first three alphabetically "+2"), a long tail on the real corpus.
+    // ceramics → the first three alphabetically "+2"), a longer tail on the real corpus.
     await goTo(page, "/profile/settings");
     await expect(
       page.getByText(
         /^(Astronomy, Botany, Ceramics \+2|[^,]+, [^,]+, [^,]+ \+\d+)$/,
       ),
     ).toBeVisible({ timeout: 15_000 });
+
+    // Reading (10-02-26): how much writing the feed mixes in. Never having said reads as the
+    // default, "Some"; a pick is stored on the user row, so it survives a reload.
+    const reading = page.getByRole("button", { name: /^Reading/ });
+    await expect(reading).toContainText("Some");
+    await reading.click();
+    const savedReading = page.waitForResponse(
+      (r) => r.url().includes("user.setReadingAmount") && r.status() === 200,
+    );
+    await page
+      .getByRole("dialog", { name: "Reading" })
+      .getByRole("button", { name: "A lot" })
+      .click();
+    await savedReading;
+    await expect(reading).toContainText("A lot");
+    await page.reload();
+    await expect(page.getByRole("button", { name: /^Reading/ })).toContainText(
+      "A lot",
+      { timeout: 15_000 },
+    );
 
     // Appearance: the knob applies live, and survives a reload via layout.tsx's inline script.
     await page.getByText("Appearance").click();
