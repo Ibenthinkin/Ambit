@@ -196,6 +196,22 @@ neither on this branch); with that pair, `bun run check`'s two persona failures 
 
 *Session spend: 8.03M tok (in 64 · out 18.8k · cache r 7.97M / w 39.2k) · opus-5-5 · 13:05→13:17*
 
+**Merged and pushed.** Ben's group rename went in with `personas.ts` as one commit (`ef1ac93`,
+"Propaganda & advertising", id `propaganda-and-advertising`), `feat/judge-vm202` was pushed and
+merged into `main` (`0e303fd`), and `main` was pushed; its CI run is green. **Nothing is deployed** —
+production is still `dafc6c8`. The local dev server on :3000 is still stopped (`bun run dev`).
+
+**Open / next (Part B, Ben's to run; the agent reads what he pastes and writes nothing on
+production):** wait for health to read `"ingest":"ok"` after the 10-03 01:30 UTC nightly → Deploy
+in Coolify → `sh .cache/judge-vm-check.sh` (Task 7 Step 2's gate) → mint the token, add it to
+Coolify with `CLAUDE_JUDGE_CONCURRENCY=2` → `sh .cache/judge-probe-prod.sh` →
+`sh .cache/push-caches.sh` → Task 8 (count, `coolify-weekly-tasks.sh`, flip `CURATOR_JUDGE`, first
+runs) → Task 9 publications one at a time, then a small branch releasing the seven → Task 10
+close-out docs. Parked: the preflight's refusal message can name the wrong model when two are in
+play, and no test covers the refusal-records-a-row path.
+
+*Session spend: 6.63M tok (in 96 · out 14.3k · cache r 5.76M / w 855.8k) · ~≥$1.74 · opus-5-5 + opus-4-7 · 13:17→08:37*
+
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**
