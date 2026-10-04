@@ -54,13 +54,13 @@ the two old 1.58 GB images pruned, 42 GB free) and **`push-caches.sh` ran** (cur
 | kind | offered | already in DB | floors | curated | walk unwritten | would insert | elapsed |
 |---|---|---|---|---|---|---|---|
 | pictures | 162,409 | 159,327 | 1,842 structural | **17** | 14 | 3 | 18.5 min |
-| writing | 1,170 | 1,023 | 5 thin-text | **138** | 130 (PDR) | 8 | 2 min |
+| writing | 1,170 | 1,023 | 5 thin-text | **138** | 130 | 8 | 2 min |
 
-Both far inside the gate — stored rows do not reach the judge. Two things worth knowing: a
-pictures run re-reads every walk budget (~162k items, Tumblr 429s retried, nothing lost), so ~18
-minutes of fetch is the floor of every pictures run whatever it judges; and the 130 PDR writing
-rows are records the curator has seen before and left un-stored — under Claude they are judged
-once (no Claude envelope yet) and cached after. The first pictures `run` never reached the
+Both far inside the gate — stored rows do not reach the judge. Worth knowing: a pictures run
+re-reads every walk budget (~162k items, Tumblr 429s retried, nothing lost), so ~18 minutes of
+fetch is the floor of every pictures run whatever it judges. (The 130 "walk unwritten" writing
+items are Wikipedia's untied phrases and lists, which take the walk lane — not PDR, as I first
+read it; Step 5's inserts are all `wikipedia`.) The first pictures `run` never reached the
 container (no log, no process); the second, with the status check chained after it, ran fine.
 Cause not found.
 
@@ -76,8 +76,17 @@ Haiku judgments don't move either window a whole point. 20.7 minutes, nearly all
 Peak container memory **517 MiB**, VM available never under **5.84 GB**, load never over **0.70**
 — two workers barely register; four have room.
 
-**Open / next:** Step 5, the first writing run (Sonnet; ~138 pieces, mostly PDR — its first
-measured cost), then Step 6 (`CLAUDE_JUDGE_CONCURRENCY=4`), Step 7 the health witness.
+**Step 5, the first writing run under Claude (01:31 → 01:35 UTC, 2 workers):** exit 0, `kind
+writing`, **141 judged, 141 inserted** — every one a `wikipedia` article (scores 4–9, mean 7.13),
+245 memberships, 22 un-homed (top tags "odd history", "quiet biography"), 146 bodies fetched.
+**Sonnet's first measured cost: `five_hour 11% → 13%` for 141 pieces — about 1.4 points of the
+five-hour window per hundred**, seven-day unmoved at 46%. ~25 pieces a minute on two workers;
+4.5 minutes in all. Peak 476 MiB, available ≥ 5.79 GB, load ≤ 1.80. Task 9 sizes its publication
+bites from the 1.4. (Also among the pictures run's 16: two `wellcome` images stored at score 1 —
+search rows are stored at any score, as before; noted, not changed.)
+
+**Open / next:** Step 6 (`CLAUDE_JUDGE_CONCURRENCY=4`, the VM has the room), Step 7 the health
+witness, Step 8 Monday 08:00 UTC's first scheduled fire; then Task 9.
 
 *Session spend: 1.59M tok (in 30 · out 7.6k · cache r 1.23M / w 346.5k) · opus-5-5 · 08:37→17:57*
 
