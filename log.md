@@ -64,9 +64,20 @@ once (no Claude envelope yet) and cached after. The first pictures `run` never r
 container (no log, no process); the second, with the status check chained after it, ran fine.
 Cause not found.
 
-**Open / next:** Task 8 Step 2 **before 01:30 UTC tonight** (the old nightly still exists): add
-`ingest-writing` in Coolify's UI, run `coolify-weekly-tasks.sh`; then Step 3 the flip, Step 4 the
-first pictures run at an hour Ben isn't using Claude.
+**Steps 2–3 done:** `ingest-writing` added in the UI, `coolify-weekly-tasks.sh` ran — row 3 is now
+`ingest-pictures` `0 8 * * 1,2`, row 7 `ingest-writing` `0 8 * * 4,5`, both `--kind`, both 10800 s,
+nothing left on `30 1 * * *` (Ben's paste showed `bun runingest`; the database stores the space —
+a wrap artifact). `CURATOR_JUDGE=claude` added, resource restarted (container `894a3818773c`).
+
+**Step 4, the first pictures run under Claude (10-04 01:02 → 01:23 UTC, 2 workers):** exit 0,
+`ingest_run` row `kind pictures`, **16 judged, 16 inserted**, 41 memberships, `no-image` 0.
+`judge: claude-haiku-4-5-20251001 (pictures) … five_hour 11% → 11% · seven_day 46% → 46%` — sixteen
+Haiku judgments don't move either window a whole point. 20.7 minutes, nearly all of it the walk.
+Peak container memory **517 MiB**, VM available never under **5.84 GB**, load never over **0.70**
+— two workers barely register; four have room.
+
+**Open / next:** Step 5, the first writing run (Sonnet; ~138 pieces, mostly PDR — its first
+measured cost), then Step 6 (`CLAUDE_JUDGE_CONCURRENCY=4`), Step 7 the health witness.
 
 *Session spend: 1.59M tok (in 30 · out 7.6k · cache r 1.23M / w 346.5k) · opus-5-5 · 08:37→17:57*
 
