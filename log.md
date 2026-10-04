@@ -92,8 +92,11 @@ known), so it fired the moment the 10-03 nightly recovered health, and a real st
 have shown green. Ben switched it back to **alert when absent** (as set up 09-20,
 `PHASE8_WALKTHROUGH_8.2.md`); all green. Worth a glance at the monitor's type whenever it is down.
 
-**Open / next:** Step 6 (`CLAUDE_JUDGE_CONCURRENCY=4`, the VM has the room), Step 8 Monday 08:00
-UTC's first scheduled fire (check after 09:00 UTC); then Task 9.
+**Step 6 done:** `CLAUDE_JUDGE_CONCURRENCY=4`, restarted (container `e610c471d401`), health ok.
+
+**Open / next:** Step 8, Monday 10-05 08:00 UTC's first scheduled pictures fire (`judge-vm-check.sh`
+after 09:00 UTC: a `kind pictures` row started at 08:00 and `ingest-pictures-2026-10-05.log`);
+then Task 9, the publications one at a time.
 
 *Session spend: 1.59M tok (in 30 · out 7.6k · cache r 1.23M / w 346.5k) · opus-5-5 · 08:37→17:57*
 
