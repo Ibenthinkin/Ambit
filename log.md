@@ -5,6 +5,51 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
+### [[10-03-26 Sat]] — The judge's CLI is on VM 202 and answers
+
+**Shipped:** `0e303fd` deployed to VM 202 (Task 7 Step 2). Health after: `"ingest":"ok"` with
+`ingestKinds` both `ok` (the old kind-less rows count for both), `2.1.287 (Claude Code)` in the
+container, migration 0011's `kind` column in `ingest_run`. **The amd64 image is 1.96 GB, up from
+1.58 GB** — the CLI costs 0.38 GB, which is SPEC's number. Ben minted the OAuth token and added
+`CLAUDE_CODE_OAUTH_TOKEN` + `CLAUDE_JUDGE_CONCURRENCY=2` as runtime variables; `CURATOR_JUDGE` is
+not set yet.
+
+**Findings:**
+
+- **Pushing `main` deploys production.** The log-only push (`aaf9e26`) built and rolled a new
+  image on its own — the next `judge-vm-check.sh` caught the container mid-swap (empty container
+  id, empty health). So a docs commit on `main` is a deploy; batch them, and don't push one in the
+  middle of a run.
+- **The probe (Task 7 Step 5) passed:** reply `{"ok":true}`, **228 tokens** (gate: under 600 — the
+  stripping flags hold on this host), workers 2, token set, API key unset, ceiling not reached.
+  The raw usage report, the only look at it from the VM:
+
+  ```json
+  {
+    "status": "allowed",
+    "resetsAt": 1791084600,
+    "rateLimitType": "five_hour",
+    "overageStatus": "rejected",
+    "overageDisabledReason": "org_level_disabled",
+    "isUsingOverage": false,
+    "unifiedWindows": {
+      "five_hour": { "utilization": 0, "resetsAt": 1791084600 },
+      "seven_day": { "utilization": 0.44, "resetsAt": 1791183600 }
+    }
+  }
+  ```
+
+  **It does carry overage fields**: `overageStatus: "rejected"` with
+  `overageDisabledReason: "org_level_disabled"` and `isUsingOverage: false` — the account itself
+  confirming extra usage is off. A future preflight could refuse on `isUsingOverage: true` rather
+  than trusting the setting. The seven-day window already stands at **44%** before any judging,
+  from Ben's interactive use; the judge's 80% ceiling leaves ~36 points of it this week.
+
+**Open / next:** re-run `sh .cache/judge-vm-check.sh` for Step 4's gate (the run above caught the
+redeploy), then `sh .cache/push-caches.sh` (Step 6), then Task 8 — count before judging.
+
+*Session spend: 1.59M tok (in 30 · out 7.6k · cache r 1.23M / w 346.5k) · opus-5-5 · 08:37→17:57*
+
 ### [[10-02-26 Fri]] — The Met retires its search; its crawl is paused
 
 **Findings:**
