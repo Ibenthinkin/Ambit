@@ -112,7 +112,8 @@ inside 300 ms, axis lock at slop). The track is `touch-action: pan-y` — the br
 scrolling. The bottom-third "open details" zone goes with the sheet. The exit is a **downward**
 flick (80 px inside 320 ms) that started with the page scrolled to the top; the slow far-drag exit
 goes, because a slow downward drag at the top is iOS overscroll and the two would fight. Two-finger
-movement still exits. `main` carries `overscroll-behavior-y: contain` so the flick is not also a
+movement is a **pinch** since 10-04-26 (`docs/DESIGN_hero-zoom.md`); the two-finger exit is
+gone, and the exit is the down-flick, Escape or the pill. `main` carries `overscroll-behavior-y: contain` so the flick is not also a
 pull-to-refresh.
 
 **Keyboard.** One `window` `keydown`: Escape → `leave()`, ←/→ → `advance(±1)`; suspended while a

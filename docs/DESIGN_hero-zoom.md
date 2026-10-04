@@ -2,8 +2,8 @@
 
 **Written:** 10-04-26 by Fable 5.1, from Ben's ask ("I'd like to be able to pinch and zoom on a
 photo while in gallery mode") and three questions answered in chat the same afternoon.
-**Status:** design approved in chat 10-04-26; plan `docs/PLAN_hero-zoom.md`, ready to execute
-cold on a plain branch `feat/hero-zoom` off `main` (`da5c4ad`).
+**Status:** design approved in chat 10-04-26; plan `docs/PLAN_hero-zoom.md`, **built 10-04-26 on
+`feat/hero-zoom`** (Opus 5.5), **merged to `main` 10-04-26** after Ben's phone look; check 10 of the device pass (which iOS listener is needed) not yet run.
 
 ## Why
 
@@ -204,8 +204,9 @@ spread never zooms.
 motion in the app except the magazine turn, which Ben exempted deliberately (09-27-26); zoom
 gets no such exemption.
 
-`snapping` is set by the screen on a settle and a double-tap and cleared on the next gesture
-start. The `<img>` keeps `pointer-events: none` and its native iOS long-press callout; the track
+`snapping` is set by the screen on a settle and a double-tap, and cleared by the next pinch start
+or the first move of a pan — not by the pan's start, because a pinch that ends with one finger
+still down settles and starts a pan in the same event, and the settle must still play. The `<img>` keeps `pointer-events: none` and its native iOS long-press callout; the track
 owns every pointer, as before.
 
 ## D5. How it sits with the rest of the screen

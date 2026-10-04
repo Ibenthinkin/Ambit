@@ -325,6 +325,18 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   e2e trap it met: the item screen throttles its mouse-move summon to one per 250 ms, so a
   Playwright summon straight after another mouse action is swallowed — `desktop.spec.ts`'s
   spread test retries it with `toPass`.
+- **The hero zooms on a phone — 10-04-26** (design `docs/DESIGN_hero-zoom.md`, plan
+  `docs/PLAN_hero-zoom.md`; merged to `main` 10-04-26 after Ben's phone look, not deployed).
+  Pinch to zoom, one finger to pan while zoomed, double-tap in and out; **the two-finger exit is
+  gone** (down-flick, Escape, pill remain). All the arithmetic is `lib/zoom-math.ts`, pure; the
+  hook grew pinch/pan/double-tap and one scoped `preventDefault` (two-touch `touchmove` + Safari's
+  `gesture*` events); `HeroRail` flips the track to `touch-action: none` while zoomed and wraps
+  only the current single-mode page in a `data-page-box` the screen measures. The ceiling is
+  honest about the 1600 px masters (floor 2.5, cap 4). Desktop and the spread do not zoom in this
+  cut. **One trap, explained in `item-screen.tsx`:** a pinch ending with one finger down settles
+  and starts a pan in the _same_ pointer event, before React re-renders — so the latest zoom
+  lives in `zoomRef` as well as state, and the pan reads the ref. Device-judged, plus one
+  Chromium CDP pinch smoke in `item.spec.ts`.
 - **The dev knob panel shipped 09-05-26** — `/dev/feed` (local, `FEED_DEBUG`; a 404 under a
   production build), every feed knob live including the two Cut 2a levers
   `grownEdgeScale`/`grownHopPenalty` (identities at `1`, so `/feed` composes exactly as before),

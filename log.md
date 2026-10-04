@@ -95,6 +95,66 @@ handoff README still listing the `spin` token.
 
 _Session spend: 17.70M tok (in 252 · out 98.7k · cache r 17.18M / w 421.1k) · opus-5-5 · 16:21→16:36_
 
+**Hero zoom — built (Opus 5.5, late afternoon).** `docs/PLAN_hero-zoom.md` executed inline on
+`feat/hero-zoom`, seven commits, not merged. Unit 1,892 green; `bun run check` green at every
+commit.
+
+**Findings:**
+
+- **The plan had a real bug, caught by its own kind of test.** When a pinch ends with one finger
+  still down, the hook fires `onPinchEnd` and then `onPanStart` in the *same* pointer event,
+  before React re-renders. The plan's screen read `zoom` from the render closure, so the pan
+  started from the unsettled live value (the first move threw the picture back from ×4 to ×5),
+  and `onPanStart` cleared `snapping`, cancelling the settle's animation. Fixed with a `zoomRef`
+  every write goes through, and the snap cleared on the first pan *move*. A test pins it.
+- **Double-tap leaks into every test that taps twice.** Two `tap()`s at jsdom's `timeStamp: 0`
+  are now a tap and a double-tap; three item-screen tests went red in Task 2. The helpers now
+  space taps a second apart.
+- **Port 3000 was the questionnaire worktree's dev server**, open in Firefox for a day, so it was
+  left alone: `e2e:prod` ran on 3001 through an untracked copy of the Playwright config and
+  `BETTER_AUTH_URL=http://localhost:3001`. Full run 56 passed / 3 failed; the three (saved,
+  explore sign-up, settings) were 30 s timeouts under four workers on a busy machine and passed
+  19/19 alone. Item + desktop specs 22/22, including a new Chromium CDP pinch smoke (needs
+  `hasTouch`).
+
+**Rulings made while executing** (each with what it costs if wrong): `-0` in `axisBounds` written
+as `0 - …` (nothing); Task 5's test-helper rewrite pulled into Task 2 so every commit is green
+(nothing); only the current single-mode page is wrapped in `data-page-box`, so the spread's DOM
+is untouched (the current page's DOM differs from its neighbours'); `zoomRef` beside state (one
+more thing to read).
+
+**Open / next:** Ben's device pass on the tailnet origin, plan Task 7 Step 6 — ten checks, the
+last of which decides whether the two-touch `touchmove` cancel, Safari's `gesture*` cancel, or
+both are needed on current iOS. Then merge.
+
+*Session spend: 29.57M tok (in 538 · out 90.9k · cache r 28.43M / w 1.05M) · opus-5-5 + fable-5-1 · 15:35→16:09*
+
+**Hero zoom — final review and fixes.** A fresh Fable 5.1 reviewer read the whole branch: no
+Critical, five Important, all fixed test-first in one pass (`73947d9`). A release at ×1.03 left
+the hero "zoomed" with swipes dead, so `settle` now snaps back at or under ×1.1. A zoom-out popped
+back to 1 instead of animating, because the unzoomed picture carried no transform to transition
+*to*, so it now rests at identity with the settle armed. Wrapping only the current page remounted
+the incoming and outgoing `<img>` on every slide, so every page now has the box and only the
+current one is marked. A pinch on a picture still decoding ran on the *previous* picture's
+measurements. The CDP smoke sat mid-serial-block, where a flake would skip the rest of
+`item.spec.ts`. Check 1,896 green; item + desktop e2e 22/22. Eight minors deferred, listed in the
+ledger summary below. **For the device pass: Reduce Motion must be OFF** — Ben's is on on both
+devices, which collapses every settle to an instant jump.
+
+**Deferred minors:** `endPinch` reads a render-lagged `zoomed` (a remaining finger can be inert
+until lifted); a third finger lifting first switches the pinch pair (one-frame jump); rotation
+while zoomed doesn't reset; nothing clips the zoomed picture to the 12 px inset, so D3's sentence
+is wrong one way or the other; the double-tap's first tap briefly fades the chrome in; D5 wrongly
+says a head extension resets zoom; check `will-change` raster sharpness at ×2.5 on device; a mouse
+click can seed a touch double-tap.
+
+*Session spend: 14.13M tok (in 104 · out 44.9k · cache r 14.02M / w 62.3k) · opus-5-5 · 16:09→16:26*
+
+**Hero zoom — Ben's phone look: "it looks great."** Run from the branch on the tailnet at
+`:8443` (port 3000 was the questionnaire's), on a PDR collage. Not yet recorded: check 10 of
+the device pass, which of the two iOS pinch listeners is actually needed. Both stay in until it
+is run. **Merged to `main` the same evening (`dfeee40`), not pushed, not deployed.**
+
 ### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 
 **Shipped:** `0e303fd` deployed to VM 202 (Task 7 Step 2). Health after: `"ingest":"ok"` with
