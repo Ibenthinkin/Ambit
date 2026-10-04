@@ -40,4 +40,17 @@ describe("globals.css keyframes survive the Tailwind build", () => {
     expect(out.css).toContain("@keyframes overture-in");
     expect(out.css).toContain("@keyframes reel-drift");
   }, 60_000);
+
+  // The loader's three motions (docs/LoaderAnimation/). Without them it is a static dot, and
+  // nothing in jsdom would notice.
+  it("emits the loader's ring, orbit and reach", async () => {
+    const from = join(__dirname, "globals.css");
+    const out = await postcss([tailwind()]).process(
+      readFileSync(from, "utf8"),
+      { from },
+    );
+    expect(out.css).toContain("@keyframes loader-ring");
+    expect(out.css).toContain("@keyframes loader-orbit");
+    expect(out.css).toContain("@keyframes loader-reach");
+  }, 60_000);
 });

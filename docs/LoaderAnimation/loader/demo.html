@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ambit-loader demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #0C0B09; color: #EFEBE0; font-family: 'Sora', sans-serif; }
+  a { color: #4C5FE0; } a:hover { color: #7B89EA; }
+  main { max-width: 880px; margin: 0 auto; padding: 56px 28px; display: grid; gap: 20px; }
+  h1 { font-size: 26px; font-weight: 600; margin: 0; color: #F5F1E7; }
+  p { margin: 0; color: rgba(239,235,224,0.55); font-size: 14px; }
+  .card { background: #161411; border: 0.5px solid rgba(239,235,224,0.1); border-radius: 20px; padding: 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 36px; min-height: 140px; }
+  .eyebrow { font-size: 10.5px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: rgba(239,235,224,0.4); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; background: #4C5FE0; color: #17140E; border: 0; border-radius: 999px; padding: 13px 22px; font: 600 15px 'Sora', sans-serif; }
+</style>
+<script type="module" src="./ambit-loader.js"></script>
+</head>
+<body>
+<main>
+  <h1>&lt;ambit-loader&gt;</h1>
+  <p>Reach: the mark's dot moves out, travels round the ring and comes back.</p>
+
+  <div class="eyebrow">Sizes · 18 / 26 / 64</div>
+  <div class="card">
+    <ambit-loader size="18"></ambit-loader>
+    <ambit-loader size="26"></ambit-loader>
+    <ambit-loader size="64"></ambit-loader>
+  </div>
+
+  <div class="eyebrow">In context</div>
+  <div class="card">
+    <ambit-loader label="finding something interesting…"></ambit-loader>
+    <ambit-loader label="fetching the full article…"></ambit-loader>
+    <span class="btn" style="--ambit-accent:#17140E;"><ambit-loader size="16"></ambit-loader>Sending</span>
+  </div>
+
+  <div class="eyebrow">Accents</div>
+  <div class="card">
+    <ambit-loader size="26" color="#4C5FE0"></ambit-loader>
+    <ambit-loader size="26" color="#D9A73C"></ambit-loader>
+    <ambit-loader size="26" color="#3FA35C"></ambit-loader>
+    <ambit-loader size="26" color="#D9483F"></ambit-loader>
+    <ambit-loader size="26" color="#EFEBE0"></ambit-loader>
+  </div>
+
+  <div class="eyebrow">Paused</div>
+  <div class="card">
+    <ambit-loader size="26" paused></ambit-loader>
+  </div>
+</main>
+</body>
+</html>

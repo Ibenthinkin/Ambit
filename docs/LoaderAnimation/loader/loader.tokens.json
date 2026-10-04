@@ -1,0 +1,21 @@
+{
+  "ambit-loader": {
+    "name": "reach",
+    "viewBox": "0 0 26 26",
+    "ring": { "r": 11.5, "strokeWidth": { "large": 1.7, "small": 2 }, "opacity": { "min": 0.28, "max": 0.75 } },
+    "dot": { "r": 3.6, "reachScale": 0.55 },
+    "smallBelowPx": 22,
+    "sizes": { "inline": 18, "block": 26, "hero": 64 },
+    "color": "var(--ambit-accent, #4C5FE0)",
+    "label": { "font": "Sora, sans-serif", "size": 14, "color": "rgba(239,235,224,0.4)", "gap": 10 },
+    "motion": {
+      "durationMs": 2400,
+      "easing": "cubic-bezier(.65,0,.35,1)",
+      "reachOut": [0, 0.22],
+      "orbit": [0.22, 0.78],
+      "reachIn": [0.78, 1],
+      "ringPulse": "ease-in-out"
+    },
+    "reducedMotion": "opt-in via [calm]: dot stays centered; ring pulses opacity only"
+  }
+}
