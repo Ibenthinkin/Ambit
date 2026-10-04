@@ -33,7 +33,7 @@ resumes from the last progress line.
 Monday 08:00 UTC's pictures run may meet a spent five-hour window if the two overlap — Tuesday is
 the catch-up. Then Task 9.
 
-*Session spend: 8.70M tok (in 138 · out 73.6k · cache r 8.31M / w 311.2k) · opus-5-5 · 14:07→15:04*
+_Session spend: 8.70M tok (in 138 · out 73.6k · cache r 8.31M / w 311.2k) · opus-5-5 · 14:07→15:04_
 
 **Hero zoom — designed and planned (Fable, afternoon).** Ben: "I'd like to be able to pinch and
 zoom on a photo while in gallery mode." `docs/DESIGN_hero-zoom.md` + `docs/PLAN_hero-zoom.md`
@@ -63,7 +63,33 @@ zoom on a photo while in gallery mode." `docs/DESIGN_hero-zoom.md` + `docs/PLAN_
 and Safari's `gesture*` cancel — is actually needed. Left open by design: desktop zoom, zoom in
 the spread, swipe-to-next from a zoomed edge, pan inertia.
 
-*Session spend: 10.26M tok (in 1.6k · out 187.6k · cache r 9.43M / w 637.9k) · ~≥$0.86 · fable-5-1 + opus-4-7 · 14:11→15:35*
+_Session spend: 10.26M tok (in 1.6k · out 187.6k · cache r 9.43M / w 637.9k) · ~≥$0.86 · fable-5-1 + opus-4-7 · 14:11→15:35_
+
+**The Reach loader (`feat/loader`, worktree `~/Dev/ambit-loader`, not merged):**
+
+- **Ben's loader replaces the ring spinner everywhere** (`docs/LoaderAnimation/`, plan
+  `docs/PLAN_loader.md`). `components/ui/loader.tsx` rebuilds the design's `<ambit-loader>` as a
+  React component (`docs/` isn't in the image), and its three keyframes sit in `@theme` behind
+  `--animate-loader-*` tokens, with `globals.test.ts` compiling the CSS to prove they're emitted.
+  All ten waits are swapped: the feed and explore tails (labelled "finding something
+  interesting…"), six sheet and screen waits at 26 px, and the two submit buttons in on-accent.
+  `spinner.tsx` is deleted.
+- **Reduce Motion plays the whole Reach — Ben's call**, the same as the view glyph and the page
+  turn. `.motion-gentle` is on the mark span. The design's `calm` variant is not built.
+- **The view toggle (`docs/viewTOggleTOkens/`) was already in** (09-27, `37d9fc6`). Audited token by
+  token. Two departures are deliberate: Space doesn't page (it scrolls to the facts), and the
+  phone-pill placement is superseded (the spread is desktop-only).
+- Checked in Chromium on a static harness (the real `globals.css` through Tailwind, plus
+  server-rendered `Loader`/`Button`) with Reduce Motion emulated: the dot travels, all three
+  animations run at 2.4 s, the accent follows, and the busy button stays 57.25 px.
+
+**Open / next:** Ben runs `bun run e2e:prod` on `feat/loader` (this session had no `.env`, and
+:3000 was held by the questionnaire dev server), looks on the phone and at 1440, then merges.
+Deferred minors from the final review: an orphaned comment above the new feed test,
+`label=""` giving an unnamed status, the in-button 16 px not in `LOADER_SIZES`, and the design
+handoff README still listing the `spin` token.
+
+_Session spend: 17.70M tok (in 252 · out 98.7k · cache r 17.18M / w 421.1k) · opus-5-5 · 16:21→16:36_
 
 ### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 
@@ -111,10 +137,10 @@ the two old 1.58 GB images pruned, 42 GB free) and **`push-caches.sh` ran** (cur
 
 **Task 8 Step 1, the counts** (`--dry-run --skip-llm`, a day after the 10-03 nightly):
 
-| kind | offered | already in DB | floors | curated | walk unwritten | would insert | elapsed |
-|---|---|---|---|---|---|---|---|
-| pictures | 162,409 | 159,327 | 1,842 structural | **17** | 14 | 3 | 18.5 min |
-| writing | 1,170 | 1,023 | 5 thin-text | **138** | 130 | 8 | 2 min |
+| kind     | offered | already in DB | floors           | curated | walk unwritten | would insert | elapsed  |
+| -------- | ------- | ------------- | ---------------- | ------- | -------------- | ------------ | -------- |
+| pictures | 162,409 | 159,327       | 1,842 structural | **17**  | 14             | 3            | 18.5 min |
+| writing  | 1,170   | 1,023         | 5 thin-text      | **138** | 130            | 8            | 2 min    |
 
 Both far inside the gate — stored rows do not reach the judge. Worth knowing: a pictures run
 re-reads every walk budget (~162k items, Tumblr 429s retried, nothing lost), so ~18 minutes of
@@ -147,7 +173,7 @@ search rows are stored at any score, as before; noted, not changed.)
 
 **Step 7 — and a monitor found inverted.** Public health reads `"ingest":"ok"` with both kinds at
 tonight's runs. But UptimeRobot's `ambit/ingest` was **down with "Keyword has been found"** since
-10-03 01:57 UTC: its alert condition had been switched to *keyword exists* (how or when is not
+10-03 01:57 UTC: its alert condition had been switched to _keyword exists_ (how or when is not
 known), so it fired the moment the 10-03 nightly recovered health, and a real stale ingest would
 have shown green. Ben switched it back to **alert when absent** (as set up 09-20,
 `PHASE8_WALKTHROUGH_8.2.md`); all green. Worth a glance at the monitor's type whenever it is down.
@@ -158,8 +184,8 @@ have shown green. Ben switched it back to **alert when absent** (as set up 09-20
 after 09:00 UTC: a `kind pictures` row started at 08:00 and `ingest-pictures-2026-10-05.log`);
 then Task 9, the publications one at a time.
 
-*Session spend: 1.59M tok (in 30 · out 7.6k · cache r 1.23M / w 346.5k) · opus-5-5 · 08:37→17:57*
-*Session spend: 20.27M tok (in 290 · out 61.7k · cache r 19.93M / w 272.5k) · opus-5-5 · 17:57→22:10*
+_Session spend: 1.59M tok (in 30 · out 7.6k · cache r 1.23M / w 346.5k) · opus-5-5 · 08:37→17:57_
+_Session spend: 20.27M tok (in 290 · out 61.7k · cache r 19.93M / w 272.5k) · opus-5-5 · 17:57→22:10_
 
 ### [[10-02-26 Fri]] — The Met retires its search; its crawl is paused
 
@@ -219,7 +245,7 @@ pictures out of the feed too.
 **Open / next (supersedes the list above where they differ):** read tomorrow's health for
 `ingest: ok`; then execute the VM 202 plan cold once it is written.
 
-*Session spend: 6.49M tok (in 114 · out 36.6k · cache r 6.09M / w 367.4k) · opus-5-5 · 11:19→11:52*
+_Session spend: 6.49M tok (in 114 · out 36.6k · cache r 6.09M / w 367.4k) · opus-5-5 · 11:19→11:52_
 
 **Later the same day — the judge's move to VM 202, planned (not built).**
 `docs/PLAN_judge-on-vm202.md`: pieces 2–3 of the Claude judge, for a cheaper session to execute
@@ -260,8 +286,8 @@ UptimeRobot monitor is unchanged, and a manual `--source aeon` run counts toward
 Ben is asking another session about `curl` in the image; Task 4 says what to do if it is
 already there. Health reads `stale` until tonight's nightly, the first since the Met pause.
 
-*Session spend: 6.82M tok (in 76 · out 146.2k · cache r 5.98M / w 696.3k) · fable-5-1 · 12:02→12:19*
-*Session spend: 2.14M tok (in 48 · out 20.2k · cache r 1.95M / w 166.2k) · ~≥$1.28 · opus-5-5 + opus-4-7 · 11:52→12:00*
+_Session spend: 6.82M tok (in 76 · out 146.2k · cache r 5.98M / w 696.3k) · fable-5-1 · 12:02→12:19_
+_Session spend: 2.14M tok (in 48 · out 20.2k · cache r 1.95M / w 166.2k) · ~≥$1.28 · opus-5-5 + opus-4-7 · 11:52→12:00_
 
 **Later the same day — curl stays in the image (plan amended, not built).** From a homelab
 session, answering the open question two paragraphs up.
@@ -277,7 +303,7 @@ session, answering the open question two paragraphs up.
 
 **Open / next:** unchanged — Part A on `feat/judge-vm202`, with Task 4 as amended.
 
-*Session spend: 2.61M tok (in 44 · out 27.8k · cache r 2.53M / w 54.2k) · opus-5-5 · 12:10→12:37*
+_Session spend: 2.61M tok (in 44 · out 27.8k · cache r 2.53M / w 54.2k) · opus-5-5 · 12:10→12:37_
 
 **Later still — Part A of the judge's move is built (`feat/judge-vm202`, pushed, not merged).**
 
@@ -321,7 +347,7 @@ uncommitted `propaganda-and-advertising` rename in `topic-groups.ts`.
 deploys, then Part B from Task 7. Its first gate needs `"ingest":"ok"`; production read `stale`
 at midday.
 
-*Session spend: 5.36M tok (in 138 · out 42.0k · cache r 4.59M / w 729.7k) · ~≥$2.83 · opus-5-5 + opus-4-7 · 12:53→13:02*
+_Session spend: 5.36M tok (in 138 · out 42.0k · cache r 4.59M / w 729.7k) · ~≥$2.83 · opus-5-5 + opus-4-7 · 12:53→13:02_
 
 **From the second session on the same branch (the subagent-driven run of Part A):** the scoped
 re-review of the three review fixes came back clean, with two things parked. With two Claude
@@ -337,7 +363,7 @@ logs are not dated, so a re-run overwrites the first run's evidence; and
 `coolify-weekly-tasks.sh`'s second UPDATE touches no row, silently, if `ingest-writing` does not
 exist yet. `bun run judge:probe` on the Mac: CLI 2.1.287, 389 tokens, five-hour 29%, seven-day 35%.
 
-*Session spend: 22.03M tok (in 461 · out 176.8k · cache r 20.28M / w 1.57M) · ~≥$11.28 · opus-5-5 + opus-4-7 · 12:35→13:05*
+_Session spend: 22.03M tok (in 461 · out 176.8k · cache r 20.28M / w 1.57M) · ~≥$11.28 · opus-5-5 + opus-4-7 · 12:35→13:05_
 
 **The CI-shape run, once :3000 was free (the dev server there was stopped, not restarted):**
 migrations 0000–0011 apply to an empty Postgres 17, the seed runs, the production build builds,
@@ -350,7 +376,7 @@ one failure in three and nobody has a cause. The runs were made with Ben's uncom
 rename in the tree and `personas.ts` moved to the new id beside it (both still uncommitted,
 neither on this branch); with that pair, `bun run check`'s two persona failures are gone.
 
-*Session spend: 8.03M tok (in 64 · out 18.8k · cache r 7.97M / w 39.2k) · opus-5-5 · 13:05→13:17*
+_Session spend: 8.03M tok (in 64 · out 18.8k · cache r 7.97M / w 39.2k) · opus-5-5 · 13:05→13:17_
 
 **Merged and pushed.** Ben's group rename went in with `personas.ts` as one commit (`ef1ac93`,
 "Propaganda & advertising", id `propaganda-and-advertising`), `feat/judge-vm202` was pushed and
@@ -366,11 +392,12 @@ runs) → Task 9 publications one at a time, then a small branch releasing the s
 close-out docs. Parked: the preflight's refusal message can name the wrong model when two are in
 play, and no test covers the refusal-records-a-row path.
 
-*Session spend: 6.63M tok (in 96 · out 14.3k · cache r 5.76M / w 855.8k) · ~≥$1.74 · opus-5-5 + opus-4-7 · 13:17→08:37*
+_Session spend: 6.63M tok (in 96 · out 14.3k · cache r 5.76M / w 855.8k) · ~≥$1.74 · opus-5-5 + opus-4-7 · 13:17→08:37_
 
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
 **Decisions (Ben):**
+
 - **Keep The Marginalian, JSTOR Daily and Noema.** Noema too, despite the hold I recommended:
   "I like it a lot."
 - **`abstract` stays vague**, applying to pictures and writing alike. The curator filing Noema's
@@ -382,6 +409,7 @@ play, and no test covers the refusal-records-a-row path.
 - No code yet: the three stay suspended on `feat/publications` until he says go.
 
 **Open / next (a fresh session, cold):** read `docs/HANDOFF_writing.md` "Pick up here (10-01-26)".
+
 1. Unsuspend `themarginalian`, `jstordaily` and `noema` (`config/suspended-sources.ts`, and
    update `publications.test.ts`'s "ships every publication suspended" test).
 2. `bun run check`, then merge `feat/publications` into `main`, push and deploy.
@@ -391,7 +419,7 @@ play, and no test covers the refusal-records-a-row path.
    (links in the handoff).
 5. The plain-history topic gap stays open.
 
-*Session spend: 6.06M tok (in 67 · out 27.3k · cache r 5.17M / w 856.3k) · ~≥$1.37 · opus-5-5 + opus-4-7 · 14:23→09:58*
+_Session spend: 6.06M tok (in 67 · out 27.3k · cache r 5.17M / w 856.3k) · ~≥$1.37 · opus-5-5 + opus-4-7 · 14:23→09:58_
 
 **Later the same day — the other four kept, and "as much as you can":** Ben: "include aeon,
 psyche, longreads, and paris review. bring in as much as you can from all approved publications
@@ -433,7 +461,7 @@ run` — **no: Ben will wait for the Claude judge**, so all seven are held in `S
 and `feat/publications` is merged with them suspended. Handoff: "Pick up
 here (10-01-26, later)".
 
-*Session spend: 14.34M tok (in 200 · out 95.2k · cache r 13.90M / w 340.3k) · opus-5-5 · 10:04→10:14*
+_Session spend: 14.34M tok (in 200 · out 95.2k · cache r 13.90M / w 340.3k) · opus-5-5 · 10:04→10:14_
 
 **The Claude judge, designed and planned (not built).** `docs/DESIGN_claude-judge-ingest.md`
 (D1–D11) and `docs/PLAN_claude-judge.md` (seven tasks, piece 1 only: the judge). The split and
@@ -473,8 +501,8 @@ at ~236 MB on the dev Mac, so four workers are ~1 GB**, and VM 202's headroom is
 **Open / next (supersedes the line above):** check VM 202's free RAM; execute
 `PLAN_claude-judge.md` cold on `feat/claude-judge`; then plan pieces 2–3 for VM 202.
 
-*Session spend: 7.70M tok (in 100 · out 165.0k · cache r 6.95M / w 584.2k) · fable-5-1 · 10:43→11:00*
-*Session spend: 2.23M tok (in 20 · out 7.0k · cache r 2.22M / w 7.4k) · fable-5-1 · 11:00→11:05*
+_Session spend: 7.70M tok (in 100 · out 165.0k · cache r 6.95M / w 584.2k) · fable-5-1 · 10:43→11:00_
+_Session spend: 2.23M tok (in 20 · out 7.0k · cache r 2.22M / w 7.4k) · fable-5-1 · 11:00→11:05_
 
 **The Claude judge, built (piece 1) on `feat/claude-judge` — not merged, not the default.**
 `CURATOR_JUDGE=claude` scores through `claude -p` (Haiku 4.5); unset is OpenRouter, byte for
@@ -485,7 +513,7 @@ byte. Ben chose to build it on the dev Mac now and move it to VM 202 later.
 - **Writing fails.** Against Ben's 34 marks: flash-lite MAE 1.15 (bias −0.32); Haiku 1.74
   (−1.38); Haiku with thinking 1.85; Sonnet 5.5 1.44 (1.58 without Loupe). On Wikipedia every
   Claude judge sits about two points under Ben. Thinking and a stronger model change nothing,
-  so it is the prompt: `WRITING_PROMPT` v2 was tuned to Ben *through flash-lite*, and Claude
+  so it is the prompt: `WRITING_PROMPT` v2 was tuned to Ben _through flash-lite_, and Claude
   takes "highly selective" at its word. The way forward that keeps production's cache valid is
   a separate prompt constant for the Claude judge, iterated with `--rescore`. Ben's call.
 - **Pictures are close.** `bun run vision:compare --sample 300` (new): 280 compared, Spearman
@@ -526,7 +554,7 @@ run anyway as a read-only measurement.
   scoring. 22 donation rows are already stored (all thevaultoftheatomicspaceage) and still
   there. The first check stopped at the five-hour ceiling (86%; the clean stop working as
   designed). After the reset, **v2**: error against Ben's 17 verdicts 2.29 → 0.88 (tuned on
-  them). The 300-picture comparison moved *away* from flash-lite (Spearman 0.72 → 0.64): Haiku
+  them). The 300-picture comparison moved _away_ from flash-lite (Spearman 0.72 → 0.64): Haiku
   now rates dark/grotesque art 7–8 where flash-lite gave 2, scores promotional posts 1, and
   over-fires that rule on a seller-blog postcard and on reader submissions. **Ben on the dark
   art:** grotesque-as-weird is allowed, violent is not, and even what is kept scores low (4–5)
@@ -555,12 +583,12 @@ run anyway as a read-only measurement.
   key, and whether the usage report flags paid overage.
 - Not pushed, not merged. Publications stay suspended.
 
-*Session spend: 24.45M tok (in 315 · out 212.2k · cache r 23.13M / w 1.10M) · ~≥$10.19 · fable-5-1 + opus-4-7 · 11:05→11:57*
-*Session spend: 8.11M tok (in 65 · out 58.1k · cache r 7.80M / w 250.9k) · ~≥$2.01 · fable-5-1 + opus-4-7 · 11:57→12:08*
-*Session spend: 23.31M tok (in 162 · out 52.2k · cache r 22.88M / w 377.6k) · ~≥$3.06 · fable-5-1 + opus-4-7 · 12:08→13:58*
-*Session spend: 22.96M tok (in 148 · out 88.7k · cache r 22.56M / w 314.8k) · ~≥$2.39 · fable-5-1 + opus-4-7 · 13:58→15:37*
-*Session spend: 5.68M tok (in 82 · out 26.5k · cache r 5.19M / w 460.3k) · ~≥$1.75 · fable-5-1 + opus-4-7 · 15:37→16:44*
-*Session spend: 4.51M tok (in 99 · out 46.3k · cache r 3.84M / w 620.6k) · ~≥$3.61 · fable-5-1 + opus-4-7 · 16:44→20:37*
+_Session spend: 24.45M tok (in 315 · out 212.2k · cache r 23.13M / w 1.10M) · ~≥$10.19 · fable-5-1 + opus-4-7 · 11:05→11:57*
+*Session spend: 8.11M tok (in 65 · out 58.1k · cache r 7.80M / w 250.9k) · ~≥$2.01 · fable-5-1 + opus-4-7 · 11:57→12:08_
+_Session spend: 23.31M tok (in 162 · out 52.2k · cache r 22.88M / w 377.6k) · ~≥$3.06 · fable-5-1 + opus-4-7 · 12:08→13:58*
+*Session spend: 22.96M tok (in 148 · out 88.7k · cache r 22.56M / w 314.8k) · ~≥$2.39 · fable-5-1 + opus-4-7 · 13:58→15:37_
+_Session spend: 5.68M tok (in 82 · out 26.5k · cache r 5.19M / w 460.3k) · ~≥$1.75 · fable-5-1 + opus-4-7 · 15:37→16:44*
+*Session spend: 4.51M tok (in 99 · out 46.3k · cache r 3.84M / w 620.6k) · ~≥$3.61 · fable-5-1 + opus-4-7 · 16:44→20:37_
 
 **Also today, a separate thread — a persona for every signed-out visit:**
 
@@ -599,8 +627,8 @@ there is no cookie and nothing stored; a reload deals again.
 - `log.md` gains a `## 2026-10` heading here; `feat/publications` has one too — merge by hand.
 - Ben looks at `/` a few times signed out, then merge and deploy.
 
-*Session spend: 8.35M tok (in 143 · out 100.6k · cache r 7.21M / w 1.04M) · ~≥$6.20 · opus-5-5 + opus-4-7 · 09:59→10:39*
-*Session spend: 4.38M tok (in 79 · out 15.1k · cache r 4.23M / w 126.7k) · ~≥$0.80 · opus-5-5 + opus-4-7 · 10:39→10:53*
+_Session spend: 8.35M tok (in 143 · out 100.6k · cache r 7.21M / w 1.04M) · ~≥$6.20 · opus-5-5 + opus-4-7 · 09:59→10:39*
+*Session spend: 4.38M tok (in 79 · out 15.1k · cache r 4.23M / w 126.7k) · ~≥$0.80 · opus-5-5 + opus-4-7 · 10:39→10:53_
 
 ## 2026-09
 
@@ -615,7 +643,7 @@ re-score's dry run: pdr 7.93 → 8.56, wikipedia 5.23 → 6.91 over 3,201 rows, 
 279 essay / 3 criticism, and 44 pieces flagged as news.
 
 **Decisions:** **Ben dropped the news rule entirely.** The 44 (albums, films, the 2022 World
-Cup, MH370, *Modern poetry*) "are not really news, just contemporary concepts". Ben curates the
+Cup, MH370, _Modern poetry_) "are not really news, just contemporary concepts". Ben curates the
 sources and keeps news out that way. The removal is enforcement-only: the ingest drop, the
 demote-to-1 and the calibration's news metrics go. `WRITING_PROMPT` v2 stays byte-identical, so
 the ~3,500 cached production answers stay valid and `confirm` stays free. The dry run also showed
@@ -627,7 +655,7 @@ that the Wikipedia keyword search pulls pop culture through phrases like "ocean"
 **Don't `confirm` before the deploy**, or the 44 are written at 1 (a later `confirm` restores
 them for free). Until that deploy, the nightly ingest still drops pieces it calls news.
 
-*Session spend: 7.34M tok (in 110 · out 37.3k · cache r 6.50M / w 803.0k) · opus-5-5 · 09:49→09:51*
+_Session spend: 7.34M tok (in 110 · out 37.3k · cache r 6.50M / w 803.0k) · opus-5-5 · 09:49→09:51_
 
 **Shipped (later session):** the news rule is out, on `fix/writing-no-news`, merged to `main`.
 `splitNews` and the ingest summary's `news-dropped` line are gone. `planWritingRescore` writes the
@@ -649,13 +677,13 @@ their real scores, which explains most of the +0.03. Wikipedia went from 3,201 r
 because the nightly ingest added 800 in two days, already scored by the writing curator. A
 read-only check found 0 rows without a kind and 2 without reading minutes. **12 Wikipedia rows sit
 at 1, and they are the curator's own verdict, not a demotion.** Eleven are **disambiguation
-pages** (*American Music*, *Sex*, *Modern poetry*, *This Machine*…) and one is a road stub.
+pages** (_American Music_, _Sex_, _Modern poetry_, _This Machine_…) and one is a road stub.
 
 **Open / next:** the Wikipedia adapter lets disambiguation pages through. The structural floor
 should drop them (pageprops `disambiguation`, or the extract's "may refer to:"), and a repair
 should remove the eleven. Then Phase 3's gate (1 card in 8 is writing), which needs Ben's yes.
 
-*Session spend: 5.81M tok (in 87 · out 23.8k · cache r 5.60M / w 183.9k) · ~≥$1.77 · opus-5-5 + opus-4-7 · 10:04→10:43*
+_Session spend: 5.81M tok (in 87 · out 23.8k · cache r 5.60M / w 183.9k) · ~≥$1.77 · opus-5-5 + opus-4-7 · 10:04→10:43_
 
 **Shipped (afternoon): writing Phase 3, the writing slots, built on `feat/writing-share`
 (pushed, not merged).** Ben's gate answer was yes as written: PDR essays and Loupe clippings reach
@@ -670,12 +698,12 @@ slots off.** PDR's essays get more reach, not less. `bench:feed` p50 217/259 ms 
 on, which is noise. It gained `--knob` so the two could be timed in the same minutes.
 
 **Findings while building:** (1) "Any article" as the last resort included every test suite's
-fixture topics. That widened the known un-homed-fixture race to *homed* articles and produced
-the same `seen_item` FK error. The last resort is now any article in a *reachable* topic, or
+fixture topics. That widened the known un-homed-fixture race to _homed_ articles and produced
+the same `seen_item` FK error. The last resort is now any article in a _reachable_ topic, or
 un-homed. (2) It also broke "a WILD card is an un-homed item" (an existing integration test
 caught it), so a homed article drawn there is served under its own topic as DRIFT. (3) CI's
 shape found an empty feed: a writing position is only reached once `cards.length` gets there, so
-a reader whose pictures are exhausted got *zero* cards with articles still eligible. The page
+a reader whose pictures are exhausted got _zero_ cards with articles still eligible. The page
 now tops up with writing when pictures run out. Green after: `check` 1,658 · CI shape 61/61
 twice · `e2e:prod` 61/61. **Two flakes that are not this branch:** `explore.spec`'s tile→item
 (3/3 on rerun), and `desktop.spec`'s spread turn (1 in 3). The spread test compares pages by
@@ -687,33 +715,33 @@ pushed → Ben deploys. Phase 4 (writing cards that look like writing) is next;
 until then a writing card renders as today's article tile. Also open: keep disambiguation pages
 out of the Wikipedia adapter, and the spread test's alt comparison.
 
-*Session spend: 34.24M tok (in 280 · out 140.8k · cache r 33.53M / w 562.2k) · opus-5-5 · 10:43→12:19*
+_Session spend: 34.24M tok (in 280 · out 140.8k · cache r 33.53M / w 562.2k) · opus-5-5 · 10:43→12:19_
 
 **Shipped (evening): disambiguation pages are out of Wikipedia** (`fix/wikipedia-disambiguation`).
 Ben deployed Phase 3 (`15b94a8`, health confirms it). The adapter's detail call now asks
 `ppprop=disambiguation` and drops any page MediaWiki flags. The title rule only caught
-`(disambiguation)`, and the plain-titled ones (*Sex*, *Music Man*) clear the 200-char floor
-easily. **The page property is the authority, not the text.** "may refer to:" misses *Sex*
-("most commonly refers to:") and *Money Machine* ("A money machine, or ATM, is…"), and it would
+`(disambiguation)`, and the plain-titled ones (_Sex_, _Music Man_) clear the 200-char floor
+easily. **The page property is the authority, not the text.** "may refer to:" misses _Sex_
+("most commonly refers to:") and _Money Machine_ ("A money machine, or ATM, is…"), and it would
 catch a real article that quotes the phrase. `bun run repair:disambig [--confirm]` asks the API
 about every stored row, 50 per call, and deletes the flagged ones children-first, the same way
 `retire` does. **Locally it found 49, not 11** (the local corpus is older). Every one scored ≤ 4.
-The twelve surprising titles (*Seljuk architecture*, *History of typography*…) are all genuine
+The twelve surprising titles (_Seljuk architecture_, _History of typography_…) are all genuine
 "may refer to" pages. Deleted locally; a re-run finds 0. `check` green, 1,660 tests.
 
 **Production:** deployed `f675799`, and `confirm` deleted **76** of 3,991 Wikipedia rows, 0 saves
 among them. The "eleven" were only the ones scored 1. The rest sat at 2-4 and were still
-drawable. Nearly all came from keyword phrases: *Ocean …* ×20, *… Machine* ×17, *Portrait …*
-×9, *… music* ×9. That is the pop-culture leak `reading-phrases.ts` already needs, measured.
+drawable. Nearly all came from keyword phrases: _Ocean …_ ×20, _… Machine_ ×17, _Portrait …_
+×9, _… music_ ×9. That is the pop-culture leak `reading-phrases.ts` already needs, measured.
 
 **Open / next:** Phase 4 (cards). It is runnable cold by a cheaper model: its file references still hold
 after Phase 3, and the label rules are in `DESIGN_writing.md` (`KIND · N MIN`, `LONG READ`
 over 30). The one thing it will improvise is the badge and scrim's look, so Ben should look
 at phone and 1440 before merge.
 
-*Session spend: 6.69M tok (in 118 · out 33.2k · cache r 6.44M / w 214.0k) · opus-5-5 · 12:41→13:20*
+_Session spend: 6.69M tok (in 118 · out 33.2k · cache r 6.44M / w 214.0k) · opus-5-5 · 12:41→13:20_
 
-*Session spend: 5.48M tok (in 90 · out 39.5k · cache r 5.18M / w 258.6k) · opus-5-5 · 10:01→10:04*
+_Session spend: 5.48M tok (in 90 · out 39.5k · cache r 5.18M / w 258.6k) · opus-5-5 · 10:01→10:04_
 
 **Shipped (late): writing Phase 4, the cards** (`feat/writing-cards`, merged to `main` as `7224ace` and pushed; not deployed). An article
 with a usable picture is now a picture-led tile: its badge (`ESSAY · 12 MIN`, `LONG READ` past
@@ -731,18 +759,19 @@ is the picture's alone, and the title is clamped to three lines. **Wikipedia kee
 "Read on Wikipedia →".** The plan said to replace it with `LinkOutRow`. That row renders nothing
 for open sources, so replacing it would have left a Wikipedia article with no link at its foot.
 Only link-card and PDR articles swap it. **e2e fixtures:** half the articles lost their picture,
-so both tiles get drawn. The specs that open a *picture* now exclude writing tiles with
+so both tiles get drawn. The specs that open a _picture_ now exclude writing tiles with
 `:not(:has(h2))`. Locally every writing badge reads `READ`, because the local corpus was never
 re-scored. Production has kinds.
 
 **Open / next:** Deploy, then Phase 5 (publications). Phase 5 must record `curationText` in the
 Ambit-Admin log before it builds.
 
-*Session spend: 25.21M tok (in 348 · out 93.3k · cache r 24.68M / w 436.4k) · ~≥$1.31 · opus-5-5 + opus-4-7 · 13:24→13:37*
+_Session spend: 25.21M tok (in 348 · out 93.3k · cache r 24.68M / w 436.4k) · ~≥$1.31 · opus-5-5 + opus-4-7 · 13:24→13:37_
 
 **Shipped (evening): writing Phase 5, publications** (`feat/publications`, 3 commits, not merged).
 Ben deployed Phase 4 first. `curationText` and the widened link-card posture were recorded in
 Ambit-Admin's log before any code. The pieces:
+
 - A publication is an article with `body` null. Its full text rides `curationText` to the writing
   floor, the prompt and the reading time, and `storedItem` strips it before the upsert.
 - `wp-rest.ts` gained an article mode, and there is a new `rss.ts` with a hand-rolled `parseFeed`.
@@ -750,6 +779,7 @@ Ambit-Admin's log before any code. The pieces:
 - `check` passes, 1,716 tests.
 
 **Findings:**
+
 - **The probe reshaped the candidate list.** Only four of nine reach past their newest page.
   Aeon and Psyche ship a one-line dek, which the 400-character writing floor would drop every
   time. And Aeon, Psyche, Longreads and Paris Review name ClaudeBot or GPTBot in robots.txt, a
@@ -771,7 +801,7 @@ out of the writing curator's vocabulary, plus a forced re-score of the affected 
 and deploy, and unsuspend the kept ones one at a time. Until they walk, a verdict costs nothing
 on production.
 
-*Session spend: 74.67M tok (in 546 · out 277.7k · cache r 73.54M / w 855.0k) · ~≥$4.52 · opus-5-5 + opus-4-7 · 13:37→14:23*
+_Session spend: 74.67M tok (in 546 · out 277.7k · cache r 73.54M / w 855.0k) · ~≥$4.52 · opus-5-5 + opus-4-7 · 13:37→14:23_
 
 ### [[09-29-26 Tue]] — Writing calibration agrees: prompt v2
 
@@ -798,7 +828,7 @@ onboarding plan's 0010, so whichever merges second regenerates it. Then, on prod
 question for Ben. Locally, nothing has a `kind` yet (`recurate:writing` has not run here), and
 writing only shows at `/i/<id>` until Phases 3-4.
 
-*Session spend: 5.80M tok (in 120 · out 29.8k · cache r 5.56M / w 205.8k) · ~≥$0.71 · opus-5-5 + opus-4-7 · 09:26→09:49*
+_Session spend: 5.80M tok (in 120 · out 29.8k · cache r 5.56M / w 205.8k) · ~≥$0.71 · opus-5-5 + opus-4-7 · 09:26→09:49_
 
 ### [[09-28-26 Mon]] — Writing becomes a first-class part of the feed (designed, not built)
 
@@ -809,6 +839,7 @@ The VM disk is at 66%. `~/dop-prod.log` on the VM and `/app/.cache/dop-{walk,war
 container are the witnesses. Ben looked at the magazine view: "pretty good for now, tweaks later."
 
 **Ben:** "i literally never see wikipedia articles anymore." **Findings:**
+
 - **Share.** Articles are ~3.5k of ~208k production items (1.7%). A 240-card local probe drew 4 Wikipedia cards.
 - **Scoring.** The image-taste `CURATOR_PROMPT` scores Wikipedia at 5.2 on average against
   7.5–8.7 for every image source, and a third of it at exactly the floor, 4. `drawWeight` gives
@@ -821,6 +852,7 @@ container are the witnesses. Ben looked at the magazine view: "pretty good for n
 
 **Decisions (by interview):** the design is `docs/DESIGN_writing.md` (D1–D8), the plan
 `docs/PLAN_writing.md`, in five phases in this order:
+
 1. A separate writing curator. Ben calibrates it on ~40 pieces before any re-score. It returns a
    kind (essay / curiosity / criticism & profile / poem & archive), a reading time, topics, and
    a `timeliness` verdict, and `news` is dropped. News-free by taste: longform contemporary
@@ -842,7 +874,7 @@ mode.
 any re-score. Ben's two raw Tumblr notes in `source-candidates.md` stay uncommitted; blogs are
 paused.
 
-*Session spend: 9.31M tok (in 160 · out 80.7k · cache r 8.93M / w 305.2k) · opus-5-5 · 13:20→14:33*
+_Session spend: 9.31M tok (in 160 · out 80.7k · cache r 8.93M / w 305.2k) · opus-5-5 · 13:20→14:33_
 
 **Reviewed the same afternoon (Fable), against the code, before executing.** Four parallel
 read-only sweeps checked every code-facing claim in the plan (curator/ingest, Wikipedia/config,
@@ -863,7 +895,7 @@ on, now corrected in `PLAN_writing.md`:
 - **Three things already exist and must be reused, not rewritten**: `APPARATUS` in
   `lib/reader-blocks.ts` (the section stripper `readingMinutes` needs), the client-side
   `PageStats` split (where the writing readout goes; `FeedPage.debug` carries no split), and
-  `LinkOutRow` — rendered only in the *image* branch; `ReaderItemBody` has its own inline link,
+  `LinkOutRow` — rendered only in the _image_ branch; `ReaderItemBody` has its own inline link,
   which Phase 4 replaces rather than doubles.
 - **Dropped the partial index** (`idx_item_type` and `idx_item_unhomed_score` already cover it).
 - **Wikipedia specifics**: `Wikipedia:Unusual articles` is a hub of subpages (walk them with
@@ -889,7 +921,7 @@ the pool switch) wait for Phases 2 and 3.
 calibration file is the gate before any re-score. `88f62e0` (onboarding-interview design) is on this
 branch and unrelated.
 
-*Session spend: 6.53M tok (in 1.2k · out 205.3k · cache r 5.93M / w 389.3k) · fable-5-1 · 15:03→15:15*
+_Session spend: 6.53M tok (in 1.2k · out 205.3k · cache r 5.93M / w 389.3k) · fable-5-1 · 15:03→15:15_
 
 **Second session the same day (Fable) — onboarding v2 designed and planned, not built.**
 Ben: the umbrella groups are "very bad — mostly way too vague, and include things together that
@@ -900,7 +932,7 @@ topics/styles/vibes Ambit will start with, every one switchable off or reweighte
 
 **Decisions (by interview, nine in `docs/DESIGN_onboarding-interview.md`):** hand-authored, **no
 LLM in v1** (an LLM back-and-forth is wanted later as another door, hence the answer log); the
-interview *refines* whatever was picked from the list — seeds weights, splits near neighbours
+interview _refines_ whatever was picked from the list — seeds weights, splits near neighbours
 (Star Wars vs Star Trek, "very different fandoms"), offers adjacent topics — and turns things
 **on**, never off; everyone gets ≤ 10 adaptive questions with a visible exit; three
 reader-facing levels (_a little · some · a lot_ = 0.5 / 1.0 / 2.0, bands at 0.75 and 1.5) over
@@ -911,13 +943,13 @@ exclusion; the list is two-level (a group shows its members) and **re-cut from 3
 group writes members at "some", a single member at "a lot", and the 09-25 flat-weight follow-up
 (divide by group size) is closed by that decision, not by division; answers are logged
 (`interview_answer`, never demographics); faces are hand-picked by `(source, sourceId)` else
-the corpus, with `/dev/faces` to override; a pair offers *either* and *neither*.
+the corpus, with `/dev/faces` to override; a pair offers _either_ and _neither_.
 
 **Findings that shaped the plans:** `topic-graph.json` is 1.8 MB, so it never ships —
 `topics.list` will carry five faceted neighbours per topic instead; on CI's sixteen-topic
 database every group is a singleton and only seven of the 28 drafted bank questions are askable
 cold (so a pair with an empty side is ruled unaskable, and the bank test asserts ≥ 5); the e2e
-corpus seeder writes no image dimensions, so faces *prefer* measured pictures rather than
+corpus seeder writes no image dimensions, so faces _prefer_ measured pictures rather than
 require them; `imageSrc` needs the URL, so a face is `{ id, imageUrl }`.
 
 **Open / next:** Ben reviews `docs/PLAN_onboarding-foundation.md` (11 tasks) and
@@ -930,7 +962,7 @@ had moved the checkout there before the first one — so the design and both pla
 cherry-picked onto `main` (`9faa0af`, `e3c8e1c`, not pushed) through a throwaway worktree; this
 log entry lives on `feat/writing` and reaches `main` with it. Check the branch before every commit.
 
-*Session spend: 16.28M tok (in 2.2k · out 272.7k · cache r 15.38M / w 632.9k) · fable-5-1 · 13:54→15:18*
+_Session spend: 16.28M tok (in 2.2k · out 272.7k · cache r 15.38M / w 632.9k) · fable-5-1 · 13:54→15:18_
 
 **Third session the same day (Opus 5.5) — writing Phase 1 built on `feat/writing`, not merged,
 not deployed.** Articles (`type = 'article'`) now go to a second curator, `WRITING_PROMPT`, which
@@ -946,6 +978,7 @@ NULL; `.cache/recurate-writing-prod.sh push|dry|confirm` for production) and
 `bun run writing:calibrate` (`--sample 40` / `--read`).
 
 **Findings:**
+
 - **The calibration file is written**: `docs/writing-calibration.md`, 40 pieces (14 Loupe / 13
   PDR / 13 Wikipedia, sources taking turns and bands within them), each scored by flash-lite and
   flash. **Flash-lite never names `criticism` or `archive`** (23 essay / 17 curiosity); flash uses
@@ -967,14 +1000,15 @@ note`), then `bun run writing:calibrate --read`. Iterate the prompt (bump
 the model. **Don't deploy `feat/writing` before Phase 2's `fetchBody` at ingest**, and don't run
 `recurate:writing` before the calibration agrees. Phase 2 (Wikipedia) can be built meanwhile.
 
-*Session spend: 43.24M tok (in 596 · out 243.3k · cache r 41.83M / w 1.16M) · ~≥$7.43 · opus-5-5 + opus-4-7 · 15:24→15:47*
+_Session spend: 43.24M tok (in 596 · out 243.3k · cache r 41.83M / w 1.16M) · ~≥$7.43 · opus-5-5 + opus-4-7 · 15:24→15:47_
 
 **Fourth session the same day (Opus 5.5, continued) — writing Phase 2 (Wikipedia) built on
 `feat/writing`, not merged, not deployed.** Ben is marking the calibration sheet tonight or
 tomorrow morning.
+
 - **Bodies at ingest** (`sources/enrich.ts`): new Wikipedia survivors get their full text
   between the structural floor and the writing floor. That closes the "0 of 3,191 production
-  bodies" bug. A fetch that *throws* drops the item for the night and warns, so tomorrow retries
+  bodies" bug. A fetch that _throws_ drops the item for the night and warns, so tomorrow retries
   it free. Kept, it would have been stored bodiless for good. A page with no extract is kept.
 - **Backfill** (`backfill-wikipedia-bodies.ts --only-missing`, id order, `--offset`) now also
   writes `reading_minutes`; `.cache/backfill-wiki-prod.sh` runs it on production.
@@ -996,6 +1030,7 @@ tomorrow morning.
 
 **The review (fresh reviewer, verified against the live API)** found three things, all fixed with
 a test that failed first:
+
 - DYK templates garbled 3–7% of hooks into stored summaries like "lost due to". Hooks now expand
   the templates they actually use, and a hook with any other template falls back to the lede.
 - MediaWiki answers errors with HTTP 200, which the list reads took as empty lists. A
@@ -1011,7 +1046,7 @@ deployed: backfill → calibration agrees → re-score, in that order (CLAUDE.md
 1-in-8 feed share) has its gate: confirm PDR essays and Loupe clippings become reachable only
 through writing slots, and that `/explore` shows writing to strangers.
 
-*Session spend: 74.99M tok (in 650 · out 301.8k · cache r 72.54M / w 2.15M) · ~≥$9.57 · opus-5-5 + opus-4-7 + <synthetic> · 15:47→18:55*
+_Session spend: 74.99M tok (in 650 · out 301.8k · cache r 72.54M / w 2.15M) · ~≥$9.57 · opus-5-5 + opus-4-7 + <synthetic> · 15:47→18:55_
 
 **Calibration, first read (same session).** Ben marked 20 of 40. flash-lite agrees best (MAE 0.90
 vs flash's 1.45, Spearman 0.64 vs 0.63), because flash under-scores Wikipedia he likes. flash-lite's
@@ -1020,7 +1055,7 @@ entries for now. **Next:** Ben marks the remaining Wikipedia and PDR pieces; exc
 re-score; add a "fragment / no context → 1–3" rule and bump `WRITING_PROMPT_VERSION`; re-sample and
 re-read. Everything else is in `docs/HANDOFF_writing.md`.
 
-*Session spend: 6.73M tok (in 81 · out 42.7k · cache r 5.41M / w 1.27M) · ~≥$2.08 · opus-5-5 + opus-4-7 · 18:55→20:18*
+_Session spend: 6.73M tok (in 81 · out 42.7k · cache r 5.41M / w 1.27M) · ~≥$2.08 · opus-5-5 + opus-4-7 · 18:55→20:18_
 
 **The fragment rule, tried and dropped (evening).** Split by source, flash-lite v1 already sits
 close to Ben where the re-score lands: **Wikipedia MAE 0.67, PDR 0.29**. The 0.90 overall is
@@ -1033,7 +1068,7 @@ stays at v1 until the other 13 are marked. What shipped instead (`dcd3c27`): a b
 pieces, so the marks can't drift between runs. **Open:** kind. flash-lite calls most Wikipedia
 curiosities `essay`, and the `Source: wikipedia` input line is the untried lever.
 
-*Session spend: 5.89M tok (in 106 · out 40.3k · cache r 5.63M / w 217.0k) · opus-5-5 · 20:21→20:27*
+_Session spend: 5.89M tok (in 106 · out 40.3k · cache r 5.63M / w 217.0k) · opus-5-5 · 20:21→20:27_
 
 ### [[09-27-26 Sun]] — The profile glyph's colour flow was hiding behind Reduce Motion; spread mode; the magazine turn
 
@@ -1221,7 +1256,7 @@ caught mid-turn, spine visible) and needs that run before merge. Then merge + pu
 clicks landing mid-fold, where the toggle is ignored by design — the spec now waits for the leaf
 to land. Then 61 passed, 9 dev-only skips; the desktop file 3/3. Firefox still unchecked.
 
-*Session spend: 15.01M tok (in 145 · out 37.4k · cache r 14.75M / w 224.6k) · ~≥$1.46 · opus-5-5 + opus-4-7 · 19:54→20:31*
+_Session spend: 15.01M tok (in 145 · out 37.4k · cache r 14.75M / w 224.6k) · ~≥$1.46 · opus-5-5 + opus-4-7 · 19:54→20:31_
 
 _Session spend: 26.60M tok (in 317 · out 189.2k · cache r 25.85M / w 570.2k) · ~≥$1.29 · opus-5-5 + opus-4-7 · 18:30→19:54_
 
