@@ -5,7 +5,7 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
-### [[10-03-26 Sat]] — The judge's CLI is on VM 202 and answers
+### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 
 **Shipped:** `0e303fd` deployed to VM 202 (Task 7 Step 2). Health after: `"ingest":"ok"` with
 `ingestKinds` both `ok` (the old kind-less rows count for both), `2.1.287 (Claude Code)` in the
@@ -99,6 +99,7 @@ after 09:00 UTC: a `kind pictures` row started at 08:00 and `ingest-pictures-202
 then Task 9, the publications one at a time.
 
 *Session spend: 1.59M tok (in 30 · out 7.6k · cache r 1.23M / w 346.5k) · opus-5-5 · 08:37→17:57*
+*Session spend: 20.27M tok (in 290 · out 61.7k · cache r 19.93M / w 272.5k) · opus-5-5 · 17:57→22:10*
 
 ### [[10-02-26 Fri]] — The Met retires its search; its crawl is paused
 
