@@ -3,7 +3,7 @@
 **Written:** 10-04-26 by Fable 5.1, from Ben's ask ("I'd like to be able to pinch and zoom on a
 photo while in gallery mode") and three questions answered in chat the same afternoon.
 **Status:** design approved in chat 10-04-26; plan `docs/PLAN_hero-zoom.md`, **built 10-04-26 on
-`feat/hero-zoom`** (Opus 5.5), not merged — the device pass (plan Task 7) comes first.
+`feat/hero-zoom`** (Opus 5.5), **merged to `main` 10-04-26** after Ben's phone look; check 10 of the device pass (which iOS listener is needed) not yet run.
 
 ## Why
 

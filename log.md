@@ -123,7 +123,7 @@ click can seed a touch double-tap.
 **Hero zoom — Ben's phone look: "it looks great."** Run from the branch on the tailnet at
 `:8443` (port 3000 was the questionnaire's), on a PDR collage. Not yet recorded: check 10 of
 the device pass, which of the two iOS pinch listeners is actually needed. Both stay in until it
-is run. Merge is Ben's call.
+is run. **Merged to `main` the same evening (`dfeee40`), not pushed, not deployed.**
 
 ### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 

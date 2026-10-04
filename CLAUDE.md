@@ -326,7 +326,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   Playwright summon straight after another mouse action is swallowed — `desktop.spec.ts`'s
   spread test retries it with `toPass`.
 - **The hero zooms on a phone — 10-04-26** (design `docs/DESIGN_hero-zoom.md`, plan
-  `docs/PLAN_hero-zoom.md`; built on `feat/hero-zoom`, not merged — awaiting Ben's device pass).
+  `docs/PLAN_hero-zoom.md`; merged to `main` 10-04-26 after Ben's phone look, not deployed).
   Pinch to zoom, one finger to pan while zoomed, double-tap in and out; **the two-finger exit is
   gone** (down-flick, Escape, pill remain). All the arithmetic is `lib/zoom-math.ts`, pure; the
   hook grew pinch/pan/double-tap and one scoped `preventDefault` (two-touch `touchmove` + Safari's
