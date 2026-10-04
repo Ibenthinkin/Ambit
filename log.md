@@ -5,6 +5,36 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
+### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
+
+**Findings:**
+
+- **A full re-score would flatten Door of Perception to 8.** Haiku is harsher than flash-lite
+  and the source floor (8) catches it: 4 of 4 went 9 → 8, and a 40-picture sample from the middle
+  of the set went **8.30 → 8.03** (29 unchanged, nearly all at the floor). 75% of DoP's 10,222
+  local rows are 9+; the feed draws in proportion to score, so a full re-score is a cut in how
+  often DoP is shown, not a cleanup. Hence `--tags-only`: the new tags (`grotesque`, `gore` for
+  the dark-material setting), the stored scores kept.
+- **`recurate` would have wiped tags under a floor.** Its "gave-up fallback" guard compared
+  against a bare 5-with-no-tags; under DoP's floor the fallback is an 8-with-no-tags and would
+  have been written. It compares against the floored fallback now.
+- **The two `wellcome` score-1 rows are not a re-score case** — Claude judged them last night and
+  would say 1 again; locally Wellcome's 1s and 2s are book title pages. Search rows are stored at
+  any score; whether that should change is a separate question.
+
+**Shipped:** `recurate --chunk N` (4 = the VM's pool), `--tags-only`, image failures counted in
+a row rather than in total (ten scattered misses would have ended a 10k run), and exit 3 +
+`resume-offset: N` on a five-hour ceiling stop (seven-day stays exit 1 — waiting days would
+starve the weekly ingest). `.cache/dop-rescore-prod.sh run tags|full | status | stop` runs it
+detached in the container, sleeps 30 min on each exit 3 and resumes; a stop, crash or deploy
+resumes from the last progress line.
+
+**Open / next:** Ben picks `tags` or `full` and starts it; don't push `main` while it runs.
+Monday 08:00 UTC's pictures run may meet a spent five-hour window if the two overlap — Tuesday is
+the catch-up. Then Task 9.
+
+*Session spend: 8.70M tok (in 138 · out 73.6k · cache r 8.31M / w 311.2k) · opus-5-5 · 14:07→15:04*
+
 ### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 
 **Shipped:** `0e303fd` deployed to VM 202 (Task 7 Step 2). Health after: `"ingest":"ok"` with

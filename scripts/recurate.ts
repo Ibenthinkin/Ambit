@@ -35,11 +35,24 @@
  *                                               # sourceId-ordered, so offset N skips the N
  *                                               # already repaired — see the first run's log)
  *   bun run recurate --source loc --dry-run     # score + report, write nothing (still bills)
+ *   bun run recurate --source doorofperception --chunk 4   # four at a time — the Claude judge's
+ *                                               # pool on VM 202; keep 2 for a host that 429s
+ *
+ * Under the Claude judge (10-04-26) a run can outlast the subscription's five-hour window. When
+ * the judge stops at its ceiling the script prints `resume-offset: N` and exits 3 — the one exit
+ * code that means "wait for the reset and run again from N" (.cache/dop-rescore-prod.sh loops on
+ * it). Every other stop, the seven-day window included, is exit 1: a person should look.
  */
 import { and, eq } from "drizzle-orm";
 import { db } from "~/server/db/client";
 import { item } from "~/server/db/schema";
-import { curateItems, judgePreflight } from "~/server/services/curator";
+import { claudeStopReason } from "~/server/services/claude-judge";
+import {
+  CuratorAbortError,
+  curateItems,
+  judgePreflight,
+  SOURCE_SCORE_FLOOR,
+} from "~/server/services/curator";
 import type { NormalizedItem } from "~/server/services/sources/types";
 import { ALL_SOURCE_IDS } from "~/server/services/sources";
 import type { SourceId } from "~/server/services/sources";
@@ -55,7 +68,13 @@ function flagValue(name: string): string | undefined {
 const sourceFlag = flagValue("source");
 const limit = flagValue("limit") ? Number(flagValue("limit")) : undefined;
 const offset = flagValue("offset") ? Number(flagValue("offset")) : 0;
+const chunkFlag = flagValue("chunk") ? Number(flagValue("chunk")) : 2;
 const dryRun = args.includes("--dry-run");
+// Write the judge's new aesthetic tags and leave the stored score alone (10-04-26). Door of
+// Perception's floor turns Haiku's harsher scores into a flat 8 — a 40-picture sample went
+// 8.30 → 8.03 — so a full re-score would erase its 9s and 10s; this keeps them and still gets
+// the new tags (`grotesque`, `gore`) the dark-material setting will filter on.
+const tagsOnly = args.includes("--tags-only");
 
 const knownSources = ALL_SOURCE_IDS;
 if (!sourceFlag || !knownSources.includes(sourceFlag as SourceId)) {
@@ -77,18 +96,44 @@ if (!Number.isFinite(offset) || offset < 0) {
   process.exit(1);
 }
 
+if (!Number.isInteger(chunkFlag) || chunkFlag < 1 || chunkFlag > 8) {
+  console.error(
+    `--chunk must be a whole number 1–8, got "${flagValue("chunk")}"`,
+  );
+  process.exit(1);
+}
+
+/** Exit 3 only for the five-hour window: it resets within hours, so waiting is the right answer.
+ *  The seven-day window (or a refused call) would mean waiting days and starving the weekly
+ *  ingest, so those stay exit 1. */
+const RESUMABLE_EXIT = 3;
+function isFiveHourStop(): boolean {
+  return /\bfive_hour window\b/.test(claudeStopReason() ?? "");
+}
+
 const judgeProblem = await judgePreflight();
 if (judgeProblem) {
   console.error(judgeProblem);
+  if (isFiveHourStop()) {
+    console.log(`resume-offset: ${offset}`);
+    process.exit(RESUMABLE_EXIT);
+  }
   process.exit(1);
 }
 
 // Chunk-of-2 + pause = the throttle described in the header. ABORT_AFTER is deliberately low:
-// by failure #10 the pattern is a returned block, not a flaky CDN, and every further item would
-// just burn LLM tokens to produce a score this script refuses to write anyway.
-const CHUNK = 2;
+// by the 10th failure *in a row* the pattern is a returned block, not a flaky CDN, and every
+// further item would just burn tokens to produce a score this script refuses to write anyway.
+// In a row, not in total (10-04-26): a 10,000-picture run meets ten scattered misses as a
+// matter of course, and a lifetime count would end it for no reason.
+const CHUNK = chunkFlag;
 const PAUSE_MS = 500;
 const ABORT_AFTER = 10;
+
+/** The shape of curateItems' gave-up fallback for this source: a neutral 5 with no tags, LIFTED
+ *  by the source's floor. Door of Perception's floor makes it an 8 — compared against a bare 5,
+ *  a failed judgment would have been written and wiped the picture's tags (10-04-26). */
+const FALLBACK_SCORE = Math.max(5, SOURCE_SCORE_FLOOR[source] ?? 0);
 
 // ── Load the rows and rebuild the curator's input shape ────────────────────
 
@@ -113,7 +158,7 @@ if (rows.length === 0) {
 const beforeAvg = rows.reduce((s, r) => s + r.curationScore, 0) / rows.length;
 console.log(
   `${source}: ${rows.length} rows${offset ? ` (from offset ${offset})` : ""}, current avg ${beforeAvg.toFixed(2)}` +
-    `${dryRun ? " (dry run — no writes)" : ""}`,
+    `${dryRun ? " (dry run — no writes)" : ""}${tagsOnly ? " (tags only — scores kept)" : ""}`,
 );
 
 // The DB row is a superset of NormalizedItem with three fields relaxed to nullable
@@ -138,6 +183,7 @@ function rowToNormalized(row: (typeof rows)[number]): NormalizedItem {
 // ── The chunked re-curation loop ───────────────────────────────────────────
 
 const noImage = new Set<string>(); // "source:sourceId" of items scored without their image
+let failuresInARow = 0;
 let written = 0;
 let keptNoImage = 0;
 let keptSuspectFallback = 0;
@@ -147,10 +193,21 @@ let done = 0;
 
 for (let at = 0; at < rows.length; at += CHUNK) {
   const chunk = rows.slice(at, at + CHUNK);
-  const curated = await curateItems(chunk.map(rowToNormalized), {
-    force: true,
-    onImageFetchFailure: (it) => noImage.add(`${it.source}:${it.sourceId}`),
-  });
+  let curated;
+  try {
+    curated = await curateItems(chunk.map(rowToNormalized), {
+      force: true,
+      onImageFetchFailure: (it) => noImage.add(`${it.source}:${it.sourceId}`),
+    });
+  } catch (err) {
+    if (!(err instanceof CuratorAbortError)) throw err;
+    // This chunk is unwritten (its answers are cached but `force` re-asks), so resume AT it.
+    console.error(`\n${err.message}`);
+    console.log(
+      `stopped after ${written} written; resume-offset: ${offset + at}`,
+    );
+    process.exit(isFiveHourStop() ? RESUMABLE_EXIT : 1);
+  }
 
   for (const [i, scored] of curated.entries()) {
     const row = chunk[i];
@@ -158,21 +215,27 @@ for (let at = 0; at < rows.length; at += CHUNK) {
 
     if (noImage.has(`${scored.source}:${scored.sourceId}`)) {
       keptNoImage++;
+      failuresInARow++;
     } else if (
-      scored.curationScore === 5 &&
+      scored.curationScore === FALLBACK_SCORE &&
       scored.aestheticTags.length === 0
     ) {
       keptSuspectFallback++;
     } else {
+      failuresInARow = 0;
       newScoreSum += scored.curationScore;
       if (scored.curationScore === row.curationScore) unchanged++;
       if (!dryRun) {
         await db
           .update(item)
-          .set({
-            curationScore: scored.curationScore,
-            aestheticTags: scored.aestheticTags,
-          })
+          .set(
+            tagsOnly
+              ? { aestheticTags: scored.aestheticTags }
+              : {
+                  curationScore: scored.curationScore,
+                  aestheticTags: scored.aestheticTags,
+                },
+          )
           .where(
             and(eq(item.source, row.source), eq(item.sourceId, row.sourceId)),
           );
@@ -188,11 +251,12 @@ for (let at = 0; at < rows.length; at += CHUNK) {
     );
   }
 
-  if (noImage.size >= ABORT_AFTER) {
+  if (failuresInARow >= ABORT_AFTER) {
     console.error(
-      `\nABORT: ${noImage.size} image fetches have failed — the block looks like it's back.` +
+      `\nABORT: ${failuresInARow} image fetches in a row have failed — the block looks like it's back.` +
         `\nRows already written keep their new image-backed scores; the remaining ` +
-        `${rows.length - done} keep their old ones. Re-run later to finish.`,
+        `${rows.length - done} keep their old ones. Re-run later to finish.` +
+        `\nresume-offset: ${offset + done}`,
     );
     process.exit(1);
   }
