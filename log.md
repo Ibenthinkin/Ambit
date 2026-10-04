@@ -83,8 +83,12 @@ _Session spend: 10.26M tok (in 1.6k · out 187.6k · cache r 9.43M / w 637.9k) �
   server-rendered `Loader`/`Button`) with Reduce Motion emulated: the dot travels, all three
   animations run at 2.4 s, the accent follows, and the busy button stays 57.25 px.
 
-**Open / next:** Ben runs `bun run e2e:prod` on `feat/loader` (this session had no `.env`, and
-:3000 was held by the questionnaire dev server), looks on the phone and at 1440, then merges.
+**e2e:prod on `feat/loader`:** the first full run had 2 failures, both outside the loader: the
+writing-tile tap didn't navigate, and `saved.spec`'s `afterAll` cleanup hit the `seen_item` foreign
+key. Both specs passed alone (15/15), and a second full run was 62 passed, 9 skipped.
+
+**Open / next:** Ben looks on the phone and at 1440, then merges (expect a `log.md` conflict,
+since main has moved). The questionnaire dev server on :3000 was stopped for the run.
 Deferred minors from the final review: an orphaned comment above the new feed test,
 `label=""` giving an unnamed status, the in-button 16 px not in `LOADER_SIZES`, and the design
 handoff README still listing the `spin` token.
