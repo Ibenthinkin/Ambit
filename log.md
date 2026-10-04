@@ -45,8 +45,28 @@ not set yet.
   than trusting the setting. The seven-day window already stands at **44%** before any judging,
   from Ben's interactive use; the judge's 80% ceiling leaves ~36 points of it this week.
 
-**Open / next:** re-run `sh .cache/judge-vm-check.sh` for Step 4's gate (the run above caught the
-redeploy), then `sh .cache/push-caches.sh` (Step 6), then Task 8 — count before judging.
+**Later — Step 4's gate passed** (token set, concurrency 2, `CURATOR_JUDGE` unset, API key unset;
+the two old 1.58 GB images pruned, 42 GB free) and **`push-caches.sh` ran** (curation envelopes
+216,953 → 219,405: the Mac's 2,452 Claude-judged ones).
+
+**Task 8 Step 1, the counts** (`--dry-run --skip-llm`, a day after the 10-03 nightly):
+
+| kind | offered | already in DB | floors | curated | walk unwritten | would insert | elapsed |
+|---|---|---|---|---|---|---|---|
+| pictures | 162,409 | 159,327 | 1,842 structural | **17** | 14 | 3 | 18.5 min |
+| writing | 1,170 | 1,023 | 5 thin-text | **138** | 130 (PDR) | 8 | 2 min |
+
+Both far inside the gate — stored rows do not reach the judge. Two things worth knowing: a
+pictures run re-reads every walk budget (~162k items, Tumblr 429s retried, nothing lost), so ~18
+minutes of fetch is the floor of every pictures run whatever it judges; and the 130 PDR writing
+rows are records the curator has seen before and left un-stored — under Claude they are judged
+once (no Claude envelope yet) and cached after. The first pictures `run` never reached the
+container (no log, no process); the second, with the status check chained after it, ran fine.
+Cause not found.
+
+**Open / next:** Task 8 Step 2 **before 01:30 UTC tonight** (the old nightly still exists): add
+`ingest-writing` in Coolify's UI, run `coolify-weekly-tasks.sh`; then Step 3 the flip, Step 4 the
+first pictures run at an hour Ben isn't using Claude.
 
 *Session spend: 1.59M tok (in 30 · out 7.6k · cache r 1.23M / w 346.5k) · opus-5-5 · 08:37→17:57*
 
