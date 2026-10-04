@@ -99,6 +99,27 @@ both are needed on current iOS. Then merge.
 
 *Session spend: 29.57M tok (in 538 · out 90.9k · cache r 28.43M / w 1.05M) · opus-5-5 + fable-5-1 · 15:35→16:09*
 
+**Hero zoom — final review and fixes.** A fresh Fable 5.1 reviewer read the whole branch: no
+Critical, five Important, all fixed test-first in one pass (`73947d9`). A release at ×1.03 left
+the hero "zoomed" with swipes dead, so `settle` now snaps back at or under ×1.1. A zoom-out popped
+back to 1 instead of animating, because the unzoomed picture carried no transform to transition
+*to*, so it now rests at identity with the settle armed. Wrapping only the current page remounted
+the incoming and outgoing `<img>` on every slide, so every page now has the box and only the
+current one is marked. A pinch on a picture still decoding ran on the *previous* picture's
+measurements. The CDP smoke sat mid-serial-block, where a flake would skip the rest of
+`item.spec.ts`. Check 1,896 green; item + desktop e2e 22/22. Eight minors deferred, listed in the
+ledger summary below. **For the device pass: Reduce Motion must be OFF** — Ben's is on on both
+devices, which collapses every settle to an instant jump.
+
+**Deferred minors:** `endPinch` reads a render-lagged `zoomed` (a remaining finger can be inert
+until lifted); a third finger lifting first switches the pinch pair (one-frame jump); rotation
+while zoomed doesn't reset; nothing clips the zoomed picture to the 12 px inset, so D3's sentence
+is wrong one way or the other; the double-tap's first tap briefly fades the chrome in; D5 wrongly
+says a head extension resets zoom; check `will-change` raster sharpness at ×2.5 on device; a mouse
+click can seed a touch double-tap.
+
+*Session spend: 14.13M tok (in 104 · out 44.9k · cache r 14.02M / w 62.3k) · opus-5-5 · 16:09→16:26*
+
 ### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 
 **Shipped:** `0e303fd` deployed to VM 202 (Task 7 Step 2). Health after: `"ingest":"ok"` with
