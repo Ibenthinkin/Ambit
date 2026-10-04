@@ -205,6 +205,8 @@ function sizeThePicture() {
   };
 }
 
+/** The current picture at rest: identity, so a zoom-out has something to animate to. */
+const UNZOOMED = "translate(0px, 0px) scale(1)";
 const currentImg = () =>
   screen
     .getByTestId("hero-rail")
@@ -917,7 +919,7 @@ describe("zoom (docs/DESIGN_hero-zoom.md)", () => {
     );
 
     doubleTap(200, 400);
-    expect(currentImg().style.transform).toBe("");
+    expect(currentImg().style.transform).toBe(UNZOOMED);
     expect(track().style.touchAction).toBe("pan-y");
   });
 
@@ -970,15 +972,41 @@ describe("zoom (docs/DESIGN_hero-zoom.md)", () => {
     two("pointermove", 2, 250, 400); // ×0.5 live → LIVE_MIN
     expect(currentImg().style.transform).toMatch(/scale\(0\.6\)/);
     two("pointerup", 1, 150, 400);
-    expect(currentImg().style.transform).toBe("");
+    expect(currentImg().style.transform).toBe(UNZOOMED);
+    // …and animated back, not popped (the final review, 10-04-26).
+    expect(currentImg().style.transition).toMatch(/transform 250ms/);
   });
 
   it("advancing with the keyboard resets the zoom", () => {
     renderScreen();
     doubleTap();
-    expect(currentImg().style.transform).not.toBe("");
+    expect(currentImg().style.transform).not.toBe(UNZOOMED);
     key("ArrowRight");
-    expect(currentImg().style.transform).toBe("");
+    expect(currentImg().style.transform).toBe(UNZOOMED);
+  });
+
+  it("a pinch on a picture still decoding never reuses the last picture's measurements", () => {
+    renderScreen();
+    // Pinch the first picture: decoded, so the gesture is measured and zooms.
+    two("pointerdown", 1, 150, 400);
+    two("pointerdown", 2, 250, 400);
+    two("pointermove", 2, 350, 400);
+    two("pointerup", 2, 350, 400);
+    two("pointerup", 1, 150, 400);
+    expect(currentImg().style.transform).toMatch(/scale\(2\)/);
+    // Next picture, not decoded yet (a cold image-proxy fetch).
+    key("ArrowRight");
+    const natural = vi
+      .spyOn(HTMLImageElement.prototype, "naturalWidth", "get")
+      .mockReturnValue(0);
+    two("pointerdown", 1, 150, 400);
+    two("pointerdown", 2, 250, 400);
+    two("pointermove", 2, 350, 400);
+    two("pointerup", 2, 350, 400);
+    two("pointerup", 1, 150, 400);
+    expect(currentImg().style.transform).not.toMatch(/scale\((?!1\))/);
+    expect(track().style.touchAction).toBe("pan-y");
+    natural.mockRestore();
   });
 
   it("does nothing on a picture that has not decoded (review focus 1)", () => {
@@ -1001,7 +1029,7 @@ describe("zoom (docs/DESIGN_hero-zoom.md)", () => {
     })();
     renderScreen();
     doubleTap();
-    expect(currentImg().style.transform).toBe("");
+    expect(currentImg().style.transform).toBe(UNZOOMED);
     expect(track().style.touchAction).toBe("pan-y");
   });
 });

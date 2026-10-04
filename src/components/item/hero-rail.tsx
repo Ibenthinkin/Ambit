@@ -637,18 +637,39 @@ function Page({
     >
       {page === "end" ? (
         <div className="w-full max-w-[360px]">{endCell}</div>
-      ) : // The box the screen measures at each gesture start (D3): the transform sits on the
-      // `<img>` inside, so this rect is the untransformed inset box however far the picture
-      // is already zoomed. Only the current page in single mode is wrapped — every other page,
-      // and both halves of a spread, keep the picture as the page's direct child, so the
-      // magazine's layout is untouched by zoom.
-      zoom !== undefined ? (
-        <div data-page-box="" className="h-full w-full min-w-0">
-          <RailImage item={page} priority={priority} side={side} zoom={zoom} />
-        </div>
       ) : (
-        <RailImage item={page} priority={priority} side={side} zoom={null} />
+        <PageBox zoom={zoom}>
+          <RailImage item={page} priority={priority} side={side} zoom={zoom} />
+        </PageBox>
       )}
+    </div>
+  );
+}
+
+/**
+ * The box the screen measures at each gesture start (docs/DESIGN_hero-zoom.md D3): the zoom's
+ * transform sits on the `<img>` inside, so this rect is the untransformed inset box however far
+ * the picture is already zoomed.
+ *
+ * **Every page has one; only the current single-mode page is marked.** The wrapper is the same
+ * element type on every page so that a page becoming current — every advance — changes an
+ * attribute, never the tree. Wrapping only the current page made React swap `<img>` for
+ * `<div><img/></div>` at the same position and remount the incoming and outgoing pictures at the
+ * start of every slide (the final review, 10-04-26).
+ */
+function PageBox({
+  zoom,
+  children,
+}: {
+  zoom: HeroZoom | null | undefined;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      data-page-box={zoom !== undefined ? "" : undefined}
+      className="h-full w-full min-w-0"
+    >
+      {children}
     </div>
   );
 }
@@ -665,8 +686,11 @@ function RailImage({
   priority: boolean;
   /** In a spread, the side of the spine — the picture is pushed against it. */
   side?: "left" | "right";
-  /** This picture's zoom, if it is the current one and zoomed (docs/DESIGN_hero-zoom.md D4). */
-  zoom: HeroZoom | null;
+  /**
+   * `undefined` for every picture but the current single-mode one; for that one, its zoom or
+   * `null` when unzoomed (docs/DESIGN_hero-zoom.md D4).
+   */
+  zoom?: HeroZoom | null;
 }) {
   // Through the proxy, except for the inline `data:` pixels the e2e corpus seeds — same branch as
   // the feed's tiles. See `src/app/api/img/[itemId]/route.ts` for why the proxy exists at all.
@@ -703,7 +727,17 @@ function RailImage({
                 ? `transform ${SNAP_MS}ms ease`
                 : "none",
             }
-          : undefined
+          : zoom === null
+            ? {
+                // The current picture, unzoomed: identity, with the settle armed. A zoom ending
+                // (a release under the snap, a double-tap out) needs a transform to transition
+                // *to* — with no style at all it would pop back to 1. Going the other way, the
+                // zoomed style's own `transition: none` wins, so a live pinch never lags.
+                transform: "translate(0px, 0px) scale(1)",
+                transformOrigin: "0 0",
+                transition: `transform ${SNAP_MS}ms ease`,
+              }
+            : undefined
       }
     />
   );

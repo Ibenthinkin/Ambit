@@ -546,7 +546,12 @@ export function ItemScreen({
     zoomed: zoom !== null,
     onPinchStart: ({ cx, cy }) => {
       const m = measure();
-      if (!m) return;
+      if (!m) {
+        // Not decoded yet: no gesture. Clearing it matters — the hook is already pinching, and
+        // `onPinch`/`onPinchEnd` would otherwise run on the *last* picture's measurements.
+        gesture.current = null;
+        return;
+      }
       gesture.current = {
         ...m,
         start: zoomRef.current ?? IDENTITY,

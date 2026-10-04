@@ -2033,7 +2033,10 @@ Safari **and** the installed PWA:
    the picture pans and the rail stays.
 8. The down-flick at the top after zooming out still leaves.
 9. Reduce Motion on (Settings → Accessibility → Motion): the settle is instant, everything else
-   the same.
+   the same. **Ben's Reduce Motion is on by default on both devices (09-26-26), so turn it OFF for
+   checks 1–8** — with it on, every settle collapses to 0.01 ms and looks like a jump.
+9a. Pinch out, lift one finger, drag the other *vertically*: it must pan the picture, not scroll
+   the page (that finger's touch sequence began under `pan-y`).
 10. iOS listeners: comment out the `touchmove` listener, rebuild, pinch — does iOS zoom the page
     or cancel the pinch? Restore; repeat for the two `gesture*` listeners. Record what each one
     turned out to be for; delete whichever did nothing, in the hook and in the design's D2.

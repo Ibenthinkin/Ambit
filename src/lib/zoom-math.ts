@@ -31,6 +31,12 @@ export const LIVE_MIN = 0.6;
 export const LIVE_OVER = 1.25;
 /** Past a bound, the picture follows the finger at this fraction of its travel. */
 export const RESISTANCE = 0.35;
+/**
+ * A release at or under this is the hero again. Not 1: a two-finger brush that ends at ×1.03 looks
+ * like the hero but would leave the screen "zoomed" — touch-action off, swipes dead, no visible
+ * reason. iOS Photos snaps the same case back.
+ */
+export const SNAP_TO_ONE = 1.1;
 /** The settle's transition. A CSS transition, so Reduce Motion collapses it (D4). */
 export const SNAP_MS = 250;
 
@@ -134,12 +140,12 @@ function rescale(z: ZoomState, scale: number, box: Size): ZoomState {
 }
 
 /**
- * Where a release lands. At or under 1 the zoom is over (`null`). Otherwise the scale is clamped
+ * Where a release lands. At or under {@link SNAP_TO_ONE} the zoom is over (`null`). Otherwise the scale is clamped
  * to the ceiling and the translation to the bounds — covering the box on any axis the picture
  * exceeds, centred on any it doesn't, per axis.
  */
 export function settle(z: ZoomState, fit: Rect, box: Size, ceil: number): Zoom {
-  if (z.scale <= 1) return null;
+  if (z.scale <= SNAP_TO_ONE) return null;
   const scale = Math.min(z.scale, ceil);
   const s = rescale(z, scale, box);
   const bx = axisBounds(box.width, fit.x, fit.width, scale);

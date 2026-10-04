@@ -8,6 +8,7 @@ import {
   MAX_SCALE,
   MIN_CEILING,
   RESISTANCE,
+  SNAP_TO_ONE,
   ceiling,
   doubleTapTarget,
   fitRect,
@@ -119,6 +120,15 @@ describe("settle", () => {
     expect(settle({ scale: 1, x: 0, y: 0 }, fit, BOX, 3)).toBeNull();
     expect(settle({ scale: 0.7, x: 40, y: 40 }, fit, BOX, 3)).toBeNull();
   });
+  it("is null just above 1 too — a brush with two fingers must not leave the hero in a zoomed limbo", () => {
+    // Visibly the hero, but `zoomed` would be true: touch-action none, swipes dead.
+    expect(settle({ scale: 1.03, x: -5, y: -4 }, fit, BOX, 3)).toBeNull();
+    expect(settle({ scale: SNAP_TO_ONE, x: 0, y: 0 }, fit, BOX, 3)).toBeNull();
+    expect(
+      settle({ scale: SNAP_TO_ONE + 0.01, x: 0, y: 0 }, fit, BOX, 3),
+    ).not.toBeNull();
+  });
+
   it("clamps the scale to the ceiling", () => {
     expect(settle({ scale: 5, x: 0, y: 0 }, fit, BOX, 3)?.scale).toBe(3);
   });
