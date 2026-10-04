@@ -347,6 +347,125 @@ describe("useRailGestures", () => {
     });
   });
 
+  // D2: while zoomed, one finger drives the picture and the rail's own gestures stand down.
+  describe("pan (zoomed)", () => {
+    beforeEach(() => mount({ zoomed: true }));
+
+    it("starts past the slop, reports travel from the press, and ends on the lift", () => {
+      fire("pointerdown", { x: 200, y: 400 });
+      fire("pointermove", { x: 204, y: 404 }); // inside the slop: nothing yet
+      expect(onPanStart).not.toHaveBeenCalled();
+      fire("pointermove", { x: 230, y: 380 });
+      expect(onPanStart).toHaveBeenCalledTimes(1);
+      expect(onPan).toHaveBeenLastCalledWith({ dx: 30, dy: -20 });
+      fire("pointerup", { x: 230, y: 380 });
+      expect(onPanEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it("never advances, never exits, never moves the rail", () => {
+      // A drag that would have been a committed advance…
+      fire("pointerdown", { x: 300, y: 400, at: 0 });
+      fire("pointermove", { x: 100, y: 400, at: 100 });
+      expect(dragPx()).toBe(0);
+      fire("pointerup", { x: 100, y: 400, at: 100 });
+      expect(onAdvance).not.toHaveBeenCalled();
+      // …and a flick that would have been the exit.
+      fire("pointerdown", { x: 200, y: 100, at: 1000 });
+      fire("pointermove", { x: 200, y: 300, at: 1100 });
+      fire("pointerup", { x: 200, y: 300, at: 1100 });
+      expect(onExit).not.toHaveBeenCalled();
+      expect(onPanEnd).toHaveBeenCalledTimes(2);
+    });
+
+    it("still taps: a press that never moved toggles the chrome, zoomed or not", () => {
+      fire("pointerdown", { x: 200, y: 400 });
+      fire("pointerup", { x: 200, y: 400 });
+      expect(onTap).toHaveBeenCalledTimes(1);
+      expect(onPanStart).not.toHaveBeenCalled();
+    });
+
+    it("the finger left down after a pinch pans from where it is, and its lift is not a tap", () => {
+      fire("pointerdown", { x: 100, y: 400, id: 1 });
+      fire("pointerdown", { x: 300, y: 400, id: 2 });
+      fire("pointerup", { x: 300, y: 400, id: 2 });
+      expect(onPinchEnd).toHaveBeenCalledTimes(1);
+      expect(onPanStart).toHaveBeenCalledTimes(1);
+      fire("pointermove", { x: 120, y: 410, id: 1 });
+      expect(onPan).toHaveBeenLastCalledWith({ dx: 20, dy: 10 });
+      fire("pointerup", { x: 120, y: 410, id: 1 });
+      expect(onPanEnd).toHaveBeenCalledTimes(1);
+      expect(onTap).not.toHaveBeenCalled();
+    });
+
+    it("ends the pan on a cancel", () => {
+      fire("pointerdown", { x: 200, y: 400 });
+      fire("pointermove", { x: 240, y: 400 });
+      fire("pointercancel", { x: 240, y: 400 });
+      expect(onPanEnd).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("the finger left after a pinch, when the picture is NOT zoomed (review focus 3)", () => {
+    it("is followed but pans nothing, and its lift is neither a tap nor an advance", () => {
+      fire("pointerdown", { x: 100, y: 400, id: 1 });
+      fire("pointerdown", { x: 300, y: 400, id: 2 });
+      fire("pointerup", { x: 300, y: 400, id: 2 });
+      fire("pointermove", { x: 0, y: 400, id: 1 });
+      fire("pointerup", { x: 0, y: 400, id: 1 });
+      expect(onPanStart).not.toHaveBeenCalled();
+      expect(onTap).not.toHaveBeenCalled();
+      expect(onAdvance).not.toHaveBeenCalled();
+      expect(dragPx()).toBe(0);
+    });
+  });
+
+  describe("double-tap", () => {
+    it("is a tap, then a double-tap — the first is never delayed", () => {
+      fire("pointerdown", { x: 200, y: 400, at: 0 });
+      fire("pointerup", { x: 200, y: 400, at: 50 });
+      expect(onTap).toHaveBeenCalledTimes(1);
+      fire("pointerdown", { x: 210, y: 405, at: 200 });
+      fire("pointerup", { x: 210, y: 405, at: 250 });
+      expect(onTap).toHaveBeenCalledTimes(1);
+      expect(onDoubleTap).toHaveBeenCalledWith({ clientX: 210, clientY: 405 });
+    });
+
+    it("is two taps when the second is too late or too far", () => {
+      fire("pointerdown", { x: 200, y: 400, at: 0 });
+      fire("pointerup", { x: 200, y: 400, at: 50 });
+      fire("pointerdown", { x: 200, y: 400, at: 400 });
+      fire("pointerup", { x: 200, y: 400, at: 450 });
+      expect(onTap).toHaveBeenCalledTimes(2);
+      fire("pointerdown", { x: 300, y: 400, at: 500 });
+      fire("pointerup", { x: 300, y: 400, at: 550 });
+      expect(onTap).toHaveBeenCalledTimes(3);
+      expect(onDoubleTap).not.toHaveBeenCalled();
+    });
+
+    it("a third quick tap starts over: tap, double-tap, tap", () => {
+      for (const at of [0, 100, 200]) {
+        fire("pointerdown", { x: 200, y: 400, at });
+        fire("pointerup", { x: 200, y: 400, at: at + 20 });
+      }
+      expect(onTap).toHaveBeenCalledTimes(2);
+      expect(onDoubleTap).toHaveBeenCalledTimes(1);
+    });
+
+    it("never from a mouse: two quick clicks are two taps (review focus 5)", () => {
+      const click = (at: number) => {
+        for (const type of ["pointerdown", "pointerup"]) {
+          const e = pointer(type, { x: 200, y: 400, at });
+          Object.defineProperty(e, "pointerType", { value: "mouse" });
+          act(() => void el.dispatchEvent(e));
+        }
+      };
+      click(0);
+      click(100);
+      expect(onTap).toHaveBeenCalledTimes(2);
+      expect(onDoubleTap).not.toHaveBeenCalled();
+    });
+  });
+
   it("abandons everything on pointercancel", () => {
     fire("pointerdown", { x: 300, y: 400 });
     fire("pointermove", { x: 100, y: 400 });
