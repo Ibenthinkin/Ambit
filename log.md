@@ -65,7 +65,7 @@ the spread, swipe-to-next from a zoomed edge, pan inertia.
 
 _Session spend: 10.26M tok (in 1.6k · out 187.6k · cache r 9.43M / w 637.9k) · ~≥$0.86 · fable-5-1 + opus-4-7 · 14:11→15:35_
 
-**The Reach loader (`feat/loader`, worktree `~/Dev/ambit-loader`, not merged):**
+**The Reach loader (`feat/loader`, merged to `main` 10-04-26 after Ben's phone look):**
 
 - **Ben's loader replaces the ring spinner everywhere** (`docs/LoaderAnimation/`, plan
   `docs/PLAN_loader.md`). `components/ui/loader.tsx` rebuilds the design's `<ambit-loader>` as a
