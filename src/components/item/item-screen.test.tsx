@@ -126,19 +126,34 @@ function pointer(
   type: string,
   x: number,
   y: number,
-  pointerType: "touch" | "mouse" = "touch",
+  opts: { id?: number; at?: number; pointerType?: "touch" | "mouse" } = {},
 ) {
   const e = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true });
-  Object.defineProperty(e, "pointerId", { value: 1 });
-  Object.defineProperty(e, "pointerType", { value: pointerType });
-  Object.defineProperty(e, "timeStamp", { value: 0 });
+  Object.defineProperty(e, "pointerId", {
+    value: opts.id ?? 1,
+    configurable: true,
+  });
+  Object.defineProperty(e, "pointerType", {
+    value: opts.pointerType ?? "touch",
+    configurable: true,
+  });
+  Object.defineProperty(e, "timeStamp", {
+    value: opts.at ?? 0,
+    configurable: true,
+  });
   return e;
 }
-const send = (type: string, x: number, y: number) =>
-  act(() => void track().dispatchEvent(pointer(type, x, y)));
+const send = (type: string, x: number, y: number, at?: number) =>
+  act(() => void track().dispatchEvent(pointer(type, x, y, { at })));
+/**
+ * Every tap is its own gesture: a second tap inside the hook's 300 ms / 30 px double-tap window
+ * would be a double-tap (docs/DESIGN_hero-zoom.md D2), so consecutive taps are a second apart.
+ */
+let clock = 0;
 const tap = () => {
-  send("pointerdown", 100, 100);
-  send("pointerup", 100, 100);
+  clock += 1000;
+  send("pointerdown", 100, 100, clock);
+  send("pointerup", 100, 100, clock + 20);
 };
 const key = (k: string) =>
   act(() => void fireEvent.keyDown(window, { key: k }));
@@ -153,6 +168,7 @@ const heading = () => screen.getByRole("heading", { level: 1 });
 let replaceState: MockInstance<History["replaceState"]>;
 
 beforeEach(() => {
+  clock = 0;
   railFetchMock.mockReset().mockResolvedValue([]);
   savedForItemMock.mockReturnValue({ data: undefined });
   wanderQueryMock.mockReturnValue({ data: [] });
@@ -213,7 +229,9 @@ describe("ItemScreen", () => {
       renderScreen();
       act(
         () =>
-          void track().dispatchEvent(pointer("pointermove", 10, 10, "mouse")),
+          void track().dispatchEvent(
+            pointer("pointermove", 10, 10, { pointerType: "mouse" }),
+          ),
       );
       expect(screen.getByTestId("gallery-chrome")).toHaveAttribute(
         "aria-hidden",
@@ -524,7 +542,10 @@ describe("spread mode", () => {
    *  moving over the picture brings it up. */
   const toggle = () => {
     act(
-      () => void track().dispatchEvent(pointer("pointermove", 10, 10, "mouse")),
+      () =>
+        void track().dispatchEvent(
+          pointer("pointermove", 10, 10, { pointerType: "mouse" }),
+        ),
     );
     return screen.getByRole("button", { name: "Magazine view" });
   };
