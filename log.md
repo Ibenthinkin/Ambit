@@ -65,6 +65,40 @@ the spread, swipe-to-next from a zoomed edge, pan inertia.
 
 *Session spend: 10.26M tok (in 1.6k · out 187.6k · cache r 9.43M / w 637.9k) · ~≥$0.86 · fable-5-1 + opus-4-7 · 14:11→15:35*
 
+**Hero zoom — built (Opus 5.5, late afternoon).** `docs/PLAN_hero-zoom.md` executed inline on
+`feat/hero-zoom`, seven commits, not merged. Unit 1,892 green; `bun run check` green at every
+commit.
+
+**Findings:**
+
+- **The plan had a real bug, caught by its own kind of test.** When a pinch ends with one finger
+  still down, the hook fires `onPinchEnd` and then `onPanStart` in the *same* pointer event,
+  before React re-renders. The plan's screen read `zoom` from the render closure, so the pan
+  started from the unsettled live value (the first move threw the picture back from ×4 to ×5),
+  and `onPanStart` cleared `snapping`, cancelling the settle's animation. Fixed with a `zoomRef`
+  every write goes through, and the snap cleared on the first pan *move*. A test pins it.
+- **Double-tap leaks into every test that taps twice.** Two `tap()`s at jsdom's `timeStamp: 0`
+  are now a tap and a double-tap; three item-screen tests went red in Task 2. The helpers now
+  space taps a second apart.
+- **Port 3000 was the questionnaire worktree's dev server**, open in Firefox for a day, so it was
+  left alone: `e2e:prod` ran on 3001 through an untracked copy of the Playwright config and
+  `BETTER_AUTH_URL=http://localhost:3001`. Full run 56 passed / 3 failed; the three (saved,
+  explore sign-up, settings) were 30 s timeouts under four workers on a busy machine and passed
+  19/19 alone. Item + desktop specs 22/22, including a new Chromium CDP pinch smoke (needs
+  `hasTouch`).
+
+**Rulings made while executing** (each with what it costs if wrong): `-0` in `axisBounds` written
+as `0 - …` (nothing); Task 5's test-helper rewrite pulled into Task 2 so every commit is green
+(nothing); only the current single-mode page is wrapped in `data-page-box`, so the spread's DOM
+is untouched (the current page's DOM differs from its neighbours'); `zoomRef` beside state (one
+more thing to read).
+
+**Open / next:** Ben's device pass on the tailnet origin, plan Task 7 Step 6 — ten checks, the
+last of which decides whether the two-touch `touchmove` cancel, Safari's `gesture*` cancel, or
+both are needed on current iOS. Then merge.
+
+*Session spend: 29.57M tok (in 538 · out 90.9k · cache r 28.43M / w 1.05M) · opus-5-5 + fable-5-1 · 15:35→16:09*
+
 ### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 
 **Shipped:** `0e303fd` deployed to VM 202 (Task 7 Step 2). Health after: `"ingest":"ok"` with

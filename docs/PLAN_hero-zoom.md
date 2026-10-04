@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Written:** 10-04-26 by Fable 5.1, from the design doc below and a read of every file named here
+**Executed 10-04-26 by Opus 5.5 on `feat/hero-zoom`; Tasks 1–7 done except the device pass (Task 7 Step 6, Ben's). Rulings are in the log entry.** **Written:** 10-04-26 by Fable 5.1, from the design doc below and a read of every file named here
 at `main` = `da5c4ad`. **For:** a cold session on a cheaper model, on a plain branch
 `feat/hero-zoom` off `main` (Ben's convention — no worktree, unless another session holds the
 checkout).
