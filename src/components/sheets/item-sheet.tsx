@@ -8,7 +8,7 @@ import { CoverMosaic } from "~/components/profile/cover-mosaic";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { writeLastCollectionId } from "~/lib/last-collection";
 import type { SaveDrift } from "~/lib/save-toast";
-import { Spinner } from "~/components/ui/spinner";
+import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { api } from "~/trpc/react";
 import { NewCollectionRow } from "./collection-rows";
 import { ShareSheet } from "./share-sheet";
@@ -177,7 +177,7 @@ export function ItemSheet({
 
           {collections.isLoading ? (
             <div className="flex justify-center py-6">
-              <Spinner />
+              <Loader size={LOADER_SIZES.block} />
             </div>
           ) : (
             <>

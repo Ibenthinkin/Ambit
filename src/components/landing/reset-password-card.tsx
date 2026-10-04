@@ -5,7 +5,7 @@ import { useId, useState } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Spinner } from "~/components/ui/spinner";
+import { Loader } from "~/components/ui/loader";
 import { authClient } from "~/lib/auth-client";
 import { cn } from "~/lib/utils";
 
@@ -121,12 +121,7 @@ export function ResetPasswordCard({ token }: { token: string }) {
             submitting && "pointer-events-none opacity-80",
           )}
         >
-          {submitting && (
-            <Spinner
-              size={14}
-              className="border-on-accent/35 border-t-on-accent"
-            />
-          )}
+          {submitting && <Loader size={16} className="text-on-accent" />}
           Set new password
         </Button>
       </div>

@@ -10,7 +10,7 @@ import { AvatarChip } from "~/components/ui/avatar-chip";
 import { Button } from "~/components/ui/button";
 import { Column } from "~/components/ui/column";
 import { Rise } from "~/components/ui/rise";
-import { Spinner } from "~/components/ui/spinner";
+import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { Toast } from "~/components/ui/toast";
 import { Toolbar } from "~/components/ui/toolbar";
 import { avatarGradient } from "~/lib/avatar-hue";
@@ -93,7 +93,7 @@ export function ProfileHub({ children }: { children: React.ReactNode }) {
         <Column width="wide">
           {me.isPending ? (
             <div className="flex justify-center py-24">
-              <Spinner />
+              <Loader size={LOADER_SIZES.block} />
             </div>
           ) : null}
 

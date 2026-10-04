@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import type { SaveDrift } from "~/lib/save-toast";
-import { Spinner } from "~/components/ui/spinner";
+import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { writeLastCollectionId } from "~/lib/last-collection";
 import { api } from "~/trpc/react";
 import {
@@ -116,7 +116,7 @@ export function SaveToCollectionSheet({
     >
       {collections.isLoading ? (
         <div className="flex justify-center py-8">
-          <Spinner />
+          <Loader size={LOADER_SIZES.block} />
         </div>
       ) : (
         <CollectionRowList>

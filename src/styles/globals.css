@@ -94,7 +94,6 @@
                                            inline animation-delay (see Rise primitive) */
   --animate-chip-pop: chip-pop 0.22s ease; /* onboarding chip, on select */
   --animate-pop-in: pop-in 0.5s var(--ease-settle) both; /* install-flow checkmark entrance */
-  --animate-spinner: spinner 0.8s linear infinite;
   /* Ben's "Reach" loader (docs/LoaderAnimation/, components/ui/loader.tsx): three motions on one
      2.4 s cycle. The ring breathes on its own ease; the orbit and the reach share the design's
      ease-in-out, so the dot accelerates away from home and settles back into it. */
@@ -180,11 +179,6 @@
     100% {
       transform: scale(1);
       opacity: 1;
-    }
-  }
-  @keyframes spinner {
-    to {
-      transform: rotate(360deg);
     }
   }
   @keyframes loader-ring {

@@ -8,7 +8,7 @@ import { InstallFlow } from "~/components/install/install-flow";
 import { ItemSheet } from "~/components/sheets/item-sheet";
 import { Button } from "~/components/ui/button";
 import { Toolbar } from "~/components/ui/toolbar";
-import { Spinner } from "~/components/ui/spinner";
+import { Loader } from "~/components/ui/loader";
 import { Toast } from "~/components/ui/toast";
 import { HOVER_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { saveToastText } from "~/lib/save-toast";
@@ -309,11 +309,8 @@ export function FeedScreen({
       />
 
       {showLoader ? (
-        <div className="flex items-center justify-center gap-[10px] pt-5 pb-[26px]">
-          <Spinner size={15} />
-          <span className="text-ink/40 text-[14px]">
-            finding something interesting…
-          </span>
+        <div className="flex items-center justify-center pt-5 pb-[26px]">
+          <Loader label="finding something interesting…" />
         </div>
       ) : null}
 

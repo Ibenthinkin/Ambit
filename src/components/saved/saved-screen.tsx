@@ -14,7 +14,7 @@ import { GlassHeader } from "~/components/ui/glass-header";
 import { IconButton } from "~/components/ui/icon-button";
 import { Toolbar } from "~/components/ui/toolbar";
 import { Rise } from "~/components/ui/rise";
-import { Spinner } from "~/components/ui/spinner";
+import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { Toast } from "~/components/ui/toast";
 import { useColumnCount } from "~/hooks/use-media-query";
 import { cn } from "~/lib/utils";
@@ -110,7 +110,7 @@ export function SavedScreen() {
     return packColumns(buildTiles([{ cards }], {}), columnCount);
   }, [list.data, columnCount]);
 
-  // Empty means *confirmed* empty — while the count or list is still on its way, the spinner
+  // Empty means *confirmed* empty — while the count or list is still on its way, the loader
   // below holds the space rather than flashing the empty state at a user with plenty kept.
   const showEmpty = count.data === 0 && !list.isPending && !list.isError;
   const showFilteredEmpty =
@@ -155,7 +155,7 @@ export function SavedScreen() {
       <Column width="wide">
         {list.isPending ? (
           <div className="flex justify-center py-24">
-            <Spinner />
+            <Loader size={LOADER_SIZES.block} />
           </div>
         ) : null}
 

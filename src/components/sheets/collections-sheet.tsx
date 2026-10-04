@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { markSavedOrigin } from "~/components/saved/saved-origin";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
-import { Spinner } from "~/components/ui/spinner";
+import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { api } from "~/trpc/react";
 import {
   CollectionRow,
@@ -64,7 +64,7 @@ export function CollectionsSheet({
           then flipped it a moment later. */}
       {collections.isLoading || savedCount.isLoading ? (
         <div className="flex justify-center py-8">
-          <Spinner />
+          <Loader size={LOADER_SIZES.block} />
         </div>
       ) : (
         <CollectionRowList>

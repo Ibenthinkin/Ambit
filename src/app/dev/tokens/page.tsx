@@ -43,7 +43,7 @@ import { GlassHeader } from "~/components/ui/glass-header";
 import { IconButton } from "~/components/ui/icon-button";
 import { Input } from "~/components/ui/input";
 import { Segmented } from "~/components/ui/segmented";
-import { Spinner } from "~/components/ui/spinner";
+import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { PillToolbar, type BookmarkState } from "~/components/ui/pill-toolbar";
 import { Toast } from "~/components/ui/toast";
 import { usePress } from "~/hooks/use-press";
@@ -466,10 +466,12 @@ export default function TokensPage() {
           <Input placeholder="you@example.com" className="max-w-xs" />
         </Section>
 
-        <Section title="Spinner">
-          <div className="flex items-center gap-4">
-            <Spinner size={16} />
-            <Spinner size={24} />
+        <Section title="Loader">
+          <div className="flex flex-wrap items-center gap-6">
+            <Loader size={LOADER_SIZES.inline} />
+            <Loader size={LOADER_SIZES.block} />
+            <Loader size={LOADER_SIZES.hero} />
+            <Loader label="finding something interesting…" />
           </div>
         </Section>
 

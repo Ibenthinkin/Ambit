@@ -13,7 +13,7 @@ import { Overture } from "~/components/landing/overture";
 import { useOverture } from "~/components/landing/use-overture";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Button } from "~/components/ui/button";
-import { Spinner } from "~/components/ui/spinner";
+import { Loader } from "~/components/ui/loader";
 import { Toolbar } from "~/components/ui/toolbar";
 import {
   EXPLORE_ABOUT,
@@ -219,11 +219,8 @@ export function ExploreScreen({
       />
 
       {showLoader ? (
-        <div className="flex items-center justify-center gap-[10px] pt-5 pb-[26px]">
-          <Spinner size={15} />
-          <span className="text-ink/40 text-[14px]">
-            finding something interesting…
-          </span>
+        <div className="flex items-center justify-center pt-5 pb-[26px]">
+          <Loader label="finding something interesting…" />
         </div>
       ) : null}
 

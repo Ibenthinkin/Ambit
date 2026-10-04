@@ -6,7 +6,7 @@ import { AvatarChip } from "~/components/ui/avatar-chip";
 import { Button } from "~/components/ui/button";
 import { Rise } from "~/components/ui/rise";
 import { Input } from "~/components/ui/input";
-import { Spinner } from "~/components/ui/spinner";
+import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { Textarea } from "~/components/ui/textarea";
 import { avatarGradient } from "~/lib/avatar-hue";
 import type { UserProfile } from "~/server/db/users";
@@ -38,11 +38,11 @@ export function ProfileEditScreen() {
 
   return (
     // Left-aligned at the list measure inside the hub's wide column (docs/DESIGN_list-screens.md
-    // §6) — on every branch, so a spinner and an error land where the form will.
+    // §6) — on every branch, so a loader and an error land where the form will.
     <div className="md:max-w-[600px]">
       {me.isPending ? (
         <div className="flex justify-center py-24">
-          <Spinner />
+          <Loader size={LOADER_SIZES.block} />
         </div>
       ) : null}
 

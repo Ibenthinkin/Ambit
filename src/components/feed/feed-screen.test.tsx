@@ -315,6 +315,15 @@ describe("FeedScreen", () => {
   // The observer keeps firing all the way through a fetch (the sentinel stays on screen), so
   // without the guard one long scroll to the bottom requests the same page repeatedly — and every
   // one of those permanently consumes items.
+  it("waits for the next page with the Reach loader, its label as its name", () => {
+    feedState.current = loaded({ hasNextPage: true, isFetchingNextPage: true });
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+    const status = screen.getByRole("status", {
+      name: "finding something interesting…",
+    });
+    expect(status.querySelector("[data-loader-mark]")).not.toBeNull();
+  });
+
   it("does not stack fetches while one is already in flight", () => {
     feedState.current = loaded({ hasNextPage: true, isFetchingNextPage: true });
     const observer = captureObserver();
