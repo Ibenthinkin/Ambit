@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { cn } from "~/lib/utils";
+import { SNAP_MS } from "~/lib/zoom-math";
 import type { RailItem } from "~/server/services/gallery-rail";
 import type { HeroCells, HeroPage } from "./rail-cells";
 import {
@@ -88,7 +89,22 @@ export interface HeroRailProps {
   motion?: Motion | null;
   /** The leaf has landed and the spread under it is final. */
   onMotionEnd?: (ended: Motion) => void;
+  /**
+   * The current page's zoom (docs/DESIGN_hero-zoom.md D1, D4): a transform on the picture under
+   * the reader, and the track's `touch-action` flipped to `none` so a one-finger drag reaches the
+   * picture rather than scrolling the page. `snapping` plays the 250ms settle; a live pinch or
+   * pan has no transition at all. Single mode only — a spread never zooms.
+   */
+  zoom?: HeroZoom | null;
 }
+
+/** What `HeroRail` draws for a zoomed picture — `lib/zoom-math.ts`'s state plus the settle flag. */
+export type HeroZoom = {
+  scale: number;
+  x: number;
+  y: number;
+  snapping: boolean;
+};
 
 /** The rail is three screens wide and holds three cells; one screen is a third of it. */
 const CELL = "33.3333%";
@@ -111,6 +127,7 @@ export function HeroRail({
   spine = false,
   motion = null,
   onMotionEnd,
+  zoom = null,
 }: HeroRailProps) {
   const spread = pages === 2;
 
@@ -295,9 +312,12 @@ export function HeroRail({
           ref={trackRef}
           data-testid="gallery-track"
           // `pan-y` declares that vertical panning belongs to the browser and horizontal to the
-          // gesture hook — see `use-rail-gestures.ts` for why it never calls `preventDefault`.
+          // gesture hook — see `use-rail-gestures.ts` for why it never calls `preventDefault` on
+          // one finger. While zoomed it is `none`: the picture takes every axis
+          // (docs/DESIGN_hero-zoom.md D2). The browser reads it at touchstart, so the flip lands
+          // between gestures — which is exactly when it should.
           style={{
-            touchAction: "pan-y",
+            touchAction: zoom ? "none" : "pan-y",
             width: "300%",
             height: "100%",
             // -33.3333% of a 3-screen-wide rail is exactly one screen, which centres the middle
@@ -343,6 +363,9 @@ export function HeroRail({
                       endCell={endCell}
                       // Every page of the cell under the reader — both halves of a spread.
                       priority={i === 1}
+                      // Only the page under the reader zooms, and only in single mode (D1).
+                      // `undefined` = not that page; `null` = that page, not zoomed.
+                      zoom={i === 1 && pages === 1 ? zoom : undefined}
                     />
                   ),
                 )}
@@ -580,12 +603,18 @@ function Page({
   endCell,
   priority,
   side,
+  zoom,
 }: {
   page: HeroPage;
   endCell: React.ReactNode;
   priority: boolean;
   /** Which side of a spread's spine the page is on; absent in single mode. */
   side?: "left" | "right";
+  /**
+   * `undefined` for every page but the current single one; `null` or a zoom for that one, which
+   * also marks its box for the screen to measure (docs/DESIGN_hero-zoom.md D3).
+   */
+  zoom?: HeroZoom | null;
 }) {
   return (
     <div
@@ -608,8 +637,17 @@ function Page({
     >
       {page === "end" ? (
         <div className="w-full max-w-[360px]">{endCell}</div>
+      ) : // The box the screen measures at each gesture start (D3): the transform sits on the
+      // `<img>` inside, so this rect is the untransformed inset box however far the picture
+      // is already zoomed. Only the current page in single mode is wrapped — every other page,
+      // and both halves of a spread, keep the picture as the page's direct child, so the
+      // magazine's layout is untouched by zoom.
+      zoom !== undefined ? (
+        <div data-page-box="" className="h-full w-full min-w-0">
+          <RailImage item={page} priority={priority} side={side} zoom={zoom} />
+        </div>
       ) : (
-        <RailImage item={page} priority={priority} side={side} />
+        <RailImage item={page} priority={priority} side={side} zoom={null} />
       )}
     </div>
   );
@@ -620,12 +658,15 @@ function RailImage({
   item,
   priority,
   side,
+  zoom,
 }: {
   item: RailItem;
   /** The cell under the reader: fetched ahead of everything else, like the old hero. */
   priority: boolean;
   /** In a spread, the side of the spine — the picture is pushed against it. */
   side?: "left" | "right";
+  /** This picture's zoom, if it is the current one and zoomed (docs/DESIGN_hero-zoom.md D4). */
+  zoom: HeroZoom | null;
 }) {
   // Through the proxy, except for the inline `data:` pixels the e2e corpus seeds — same branch as
   // the feed's tiles. See `src/app/api/img/[itemId]/route.ts` for why the proxy exists at all.
@@ -650,6 +691,20 @@ function RailImage({
         side === "left" && "object-right",
         side === "right" && "object-left",
       )}
+      style={
+        zoom
+          ? {
+              transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})`,
+              transformOrigin: "0 0",
+              willChange: "transform",
+              // A CSS transition, not WAAPI, on purpose: `globals.css`'s reduced-motion rule
+              // collapses it, and zoom gets no exemption — only the magazine turn has one (D4).
+              transition: zoom.snapping
+                ? `transform ${SNAP_MS}ms ease`
+                : "none",
+            }
+          : undefined
+      }
     />
   );
 }

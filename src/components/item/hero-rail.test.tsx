@@ -36,11 +36,13 @@ function Harness({
   spread,
   pages = 1,
   chromeVisible = false,
+  zoom,
 }: {
   cells?: readonly [RailItem | undefined, RailItem, RailItem | undefined];
   spread?: HeroCells;
   pages?: 1 | 2;
   chromeVisible?: boolean;
+  zoom?: React.ComponentProps<typeof HeroRail>["zoom"];
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
   return (
@@ -52,6 +54,7 @@ function Harness({
       dragging={false}
       chrome={<p>caption</p>}
       chromeVisible={chromeVisible}
+      zoom={zoom}
     />
   );
 }
@@ -91,7 +94,9 @@ describe("HeroRail", () => {
   it("insets the picture 12px on every side and centres it in the frame", () => {
     render(<Harness cells={[undefined, cell("b"), undefined]} />);
     const img = screen.getByAltText("Plate b");
-    const page = img.parentElement!;
+    // The current single page wraps its picture in the zoom's measured box
+    // (docs/DESIGN_hero-zoom.md D3), so the page is one level further up.
+    const page = img.closest("[data-page-box]")!.parentElement!;
     expect(page).toHaveClass(
       "px-[12px]",
       "py-[12px]",
@@ -196,5 +201,58 @@ describe("HeroRail", () => {
     );
     expect(screen.getByAltText("Plate b").closest("a")).toBeNull();
     expect(container.innerHTML).not.toContain("webkit-touch-callout");
+  });
+});
+
+describe("zoom (docs/DESIGN_hero-zoom.md D4)", () => {
+  const cells = [cell("a"), cell("b"), cell("c")] as const;
+
+  it("puts the transform on the current cell's image only, with a top-left origin", () => {
+    render(
+      <Harness
+        cells={cells}
+        zoom={{ scale: 2, x: -100, y: -50, snapping: false }}
+      />,
+    );
+    const b = screen.getByAltText("Plate b");
+    expect(b.style.transform).toBe("translate(-100px, -50px) scale(2)");
+    expect(b.style.transformOrigin).toBe("0 0");
+    expect(b.style.transition).toBe("none");
+    expect(screen.getByAltText("Plate a").style.transform).toBe("");
+    expect(screen.getByAltText("Plate c").style.transform).toBe("");
+  });
+
+  it("transitions only while snapping", () => {
+    render(
+      <Harness cells={cells} zoom={{ scale: 2, x: 0, y: 0, snapping: true }} />,
+    );
+    expect(screen.getByAltText("Plate b").style.transition).toMatch(
+      /transform 250ms/,
+    );
+  });
+
+  it("hands the track to the picture while zoomed: touch-action none, pan-y otherwise", () => {
+    const { rerender } = render(<Harness cells={cells} zoom={null} />);
+    expect(screen.getByTestId("gallery-track").style.touchAction).toBe("pan-y");
+    rerender(
+      <Harness
+        cells={cells}
+        zoom={{ scale: 2, x: 0, y: 0, snapping: false }}
+      />,
+    );
+    expect(screen.getByTestId("gallery-track").style.touchAction).toBe("none");
+  });
+
+  it("wraps the current page's picture in a measurable box", () => {
+    render(<Harness cells={cells} />);
+    const box = screen
+      .getByTestId("hero-rail")
+      .querySelector("[data-page-box]");
+    expect(box).not.toBeNull();
+    expect(box!.querySelector("img")).toBe(screen.getByAltText("Plate b"));
+    // One box: the neighbours are not measured.
+    expect(
+      screen.getByTestId("hero-rail").querySelectorAll("[data-page-box]"),
+    ).toHaveLength(1);
   });
 });
