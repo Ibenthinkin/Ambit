@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { cn } from "~/lib/utils";
+import { SNAP_MS } from "~/lib/zoom-math";
 import type { RailItem } from "~/server/services/gallery-rail";
 import type { HeroCells, HeroPage } from "./rail-cells";
 import {
@@ -88,7 +89,22 @@ export interface HeroRailProps {
   motion?: Motion | null;
   /** The leaf has landed and the spread under it is final. */
   onMotionEnd?: (ended: Motion) => void;
+  /**
+   * The current page's zoom (docs/DESIGN_hero-zoom.md D1, D4): a transform on the picture under
+   * the reader, and the track's `touch-action` flipped to `none` so a one-finger drag reaches the
+   * picture rather than scrolling the page. `snapping` plays the 250ms settle; a live pinch or
+   * pan has no transition at all. Single mode only — a spread never zooms.
+   */
+  zoom?: HeroZoom | null;
 }
+
+/** What `HeroRail` draws for a zoomed picture — `lib/zoom-math.ts`'s state plus the settle flag. */
+export type HeroZoom = {
+  scale: number;
+  x: number;
+  y: number;
+  snapping: boolean;
+};
 
 /** The rail is three screens wide and holds three cells; one screen is a third of it. */
 const CELL = "33.3333%";
@@ -111,6 +127,7 @@ export function HeroRail({
   spine = false,
   motion = null,
   onMotionEnd,
+  zoom = null,
 }: HeroRailProps) {
   const spread = pages === 2;
 
@@ -295,9 +312,12 @@ export function HeroRail({
           ref={trackRef}
           data-testid="gallery-track"
           // `pan-y` declares that vertical panning belongs to the browser and horizontal to the
-          // gesture hook — see `use-rail-gestures.ts` for why it never calls `preventDefault`.
+          // gesture hook — see `use-rail-gestures.ts` for why it never calls `preventDefault` on
+          // one finger. While zoomed it is `none`: the picture takes every axis
+          // (docs/DESIGN_hero-zoom.md D2). The browser reads it at touchstart, so the flip lands
+          // between gestures — which is exactly when it should.
           style={{
-            touchAction: "pan-y",
+            touchAction: zoom ? "none" : "pan-y",
             width: "300%",
             height: "100%",
             // -33.3333% of a 3-screen-wide rail is exactly one screen, which centres the middle
@@ -343,6 +363,9 @@ export function HeroRail({
                       endCell={endCell}
                       // Every page of the cell under the reader — both halves of a spread.
                       priority={i === 1}
+                      // Only the page under the reader zooms, and only in single mode (D1).
+                      // `undefined` = not that page; `null` = that page, not zoomed.
+                      zoom={i === 1 && pages === 1 ? zoom : undefined}
                     />
                   ),
                 )}
@@ -580,12 +603,18 @@ function Page({
   endCell,
   priority,
   side,
+  zoom,
 }: {
   page: HeroPage;
   endCell: React.ReactNode;
   priority: boolean;
   /** Which side of a spread's spine the page is on; absent in single mode. */
   side?: "left" | "right";
+  /**
+   * `undefined` for every page but the current single one; `null` or a zoom for that one, which
+   * also marks its box for the screen to measure (docs/DESIGN_hero-zoom.md D3).
+   */
+  zoom?: HeroZoom | null;
 }) {
   return (
     <div
@@ -609,8 +638,38 @@ function Page({
       {page === "end" ? (
         <div className="w-full max-w-[360px]">{endCell}</div>
       ) : (
-        <RailImage item={page} priority={priority} side={side} />
+        <PageBox zoom={zoom}>
+          <RailImage item={page} priority={priority} side={side} zoom={zoom} />
+        </PageBox>
       )}
+    </div>
+  );
+}
+
+/**
+ * The box the screen measures at each gesture start (docs/DESIGN_hero-zoom.md D3): the zoom's
+ * transform sits on the `<img>` inside, so this rect is the untransformed inset box however far
+ * the picture is already zoomed.
+ *
+ * **Every page has one; only the current single-mode page is marked.** The wrapper is the same
+ * element type on every page so that a page becoming current — every advance — changes an
+ * attribute, never the tree. Wrapping only the current page made React swap `<img>` for
+ * `<div><img/></div>` at the same position and remount the incoming and outgoing pictures at the
+ * start of every slide (the final review, 10-04-26).
+ */
+function PageBox({
+  zoom,
+  children,
+}: {
+  zoom: HeroZoom | null | undefined;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      data-page-box={zoom !== undefined ? "" : undefined}
+      className="h-full w-full min-w-0"
+    >
+      {children}
     </div>
   );
 }
@@ -620,12 +679,18 @@ function RailImage({
   item,
   priority,
   side,
+  zoom,
 }: {
   item: RailItem;
   /** The cell under the reader: fetched ahead of everything else, like the old hero. */
   priority: boolean;
   /** In a spread, the side of the spine — the picture is pushed against it. */
   side?: "left" | "right";
+  /**
+   * `undefined` for every picture but the current single-mode one; for that one, its zoom or
+   * `null` when unzoomed (docs/DESIGN_hero-zoom.md D4).
+   */
+  zoom?: HeroZoom | null;
 }) {
   // Through the proxy, except for the inline `data:` pixels the e2e corpus seeds — same branch as
   // the feed's tiles. See `src/app/api/img/[itemId]/route.ts` for why the proxy exists at all.
@@ -650,6 +715,30 @@ function RailImage({
         side === "left" && "object-right",
         side === "right" && "object-left",
       )}
+      style={
+        zoom
+          ? {
+              transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})`,
+              transformOrigin: "0 0",
+              willChange: "transform",
+              // A CSS transition, not WAAPI, on purpose: `globals.css`'s reduced-motion rule
+              // collapses it, and zoom gets no exemption — only the magazine turn has one (D4).
+              transition: zoom.snapping
+                ? `transform ${SNAP_MS}ms ease`
+                : "none",
+            }
+          : zoom === null
+            ? {
+                // The current picture, unzoomed: identity, with the settle armed. A zoom ending
+                // (a release under the snap, a double-tap out) needs a transform to transition
+                // *to* — with no style at all it would pop back to 1. Going the other way, the
+                // zoomed style's own `transition: none` wins, so a live pinch never lags.
+                transform: "translate(0px, 0px) scale(1)",
+                transformOrigin: "0 0",
+                transition: `transform ${SNAP_MS}ms ease`,
+              }
+            : undefined
+      }
     />
   );
 }

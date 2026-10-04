@@ -32,6 +32,20 @@ import { useChromeCycle } from "~/hooks/use-chrome-cycle";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
 import { DESKTOP_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { useRailGestures } from "~/hooks/use-rail-gestures";
+import {
+  IDENTITY,
+  ceiling,
+  doubleTapTarget,
+  fitRect,
+  live,
+  pinchUpdate,
+  settle,
+  type Point,
+  type Rect,
+  type Size,
+  type Zoom,
+  type ZoomState,
+} from "~/lib/zoom-math";
 import { useHeroLayout, writeHeroLayout } from "~/lib/hero-layout";
 import { imageFileName } from "~/lib/image-filename";
 import { saveToastText } from "~/lib/save-toast";
@@ -205,6 +219,67 @@ export function ItemScreen({
   // Which page of the spread is *the item* (D2). Left unless the reader clicked the right one.
   const [focusSide, setFocusSide] = React.useState<0 | 1>(0);
 
+  // ── zoom (docs/DESIGN_hero-zoom.md D1) ────────────────────────────────────────────────────────
+  // The current picture's transform, or null for the hero as it was. One piece of state; every
+  // index change clears it (advance below, and the spread turning on). `snapping` is whether the
+  // next transform plays the 250ms settle (a release, a double-tap) or lands at once (a live
+  // pinch or pan).
+  const [zoom, setZoom] = React.useState<Zoom>(null);
+  const [snapping, setSnapping] = React.useState(false);
+  /**
+   * The latest zoom, readable mid-event. A gesture's callbacks can fire back to back inside one
+   * pointer event — a pinch ending *and* the finger left down starting a pan — before React has
+   * re-rendered, so state read from the closure would be the render before the settle. Every
+   * write goes through {@link putZoom}, which updates this at once; the layout effect below keeps
+   * it honest for the resets that go through `setZoom` directly (advance, the spread turning on).
+   */
+  const zoomRef = React.useRef<Zoom>(null);
+  React.useLayoutEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+  const putZoom = (z: Zoom) => {
+    zoomRef.current = z;
+    setZoom(z);
+  };
+  /**
+   * What a gesture in flight was measured against (D3): the inset box and the letterboxed picture
+   * in it, the ceiling for this picture on this screen, the box's client offset for converting
+   * pointer coordinates, and the zoom the gesture started from. Measured once at each gesture
+   * start, never per frame.
+   */
+  const gesture = React.useRef<{
+    box: Size;
+    fit: Rect;
+    ceil: number;
+    left: number;
+    top: number;
+    start: ZoomState;
+    startMid: Point;
+  } | null>(null);
+
+  /**
+   * The current page's box and picture, or null if the picture has not decoded (review focus 1).
+   * `document`-wide on purpose: `HeroRail` marks exactly one box — the current page's, single
+   * mode only — and reading it here keeps `measure` free of the gesture hook's own ref, which is
+   * declared below it.
+   */
+  const measure = React.useCallback(() => {
+    const box = document.querySelector<HTMLElement>("[data-page-box]");
+    const img = box?.querySelector("img");
+    if (!box || !img || img.naturalWidth === 0) return null;
+    const r = box.getBoundingClientRect();
+    const size = { width: r.width, height: r.height };
+    const natural = { width: img.naturalWidth, height: img.naturalHeight };
+    const fit = fitRect(size, natural);
+    return {
+      box: size,
+      fit,
+      ceil: ceiling(natural, fit, window.devicePixelRatio || 1),
+      left: r.left,
+      top: r.top,
+    };
+  }, []);
+
   // ── the magazine's motion (docs/PLAN_magazine-turn.md) ────────────────────────────────────────
   // A page turning, or the book opening or closing. **The index moves at once** (D1): the URL,
   // Save, Share and the facts follow the keypress, and the turn is drawn over the new spread by
@@ -223,6 +298,8 @@ export function ItemScreen({
     setPrevSpread(spread);
     if (!spread && focusSide === 1) setIndex(index + 1);
     setFocusSide(0);
+    // A spread never zooms (docs/DESIGN_hero-zoom.md D5).
+    setZoom(null);
     // A window narrowed past `md` mid-turn: there is no spread left to turn.
     if (!spread) setMotion(null);
   }
@@ -317,6 +394,10 @@ export function ItemScreen({
     (dir: 1 | -1) => {
       if (motion) return;
       chrome.reset();
+      // A new picture is the hero as it was (docs/DESIGN_hero-zoom.md D1). The hook already
+      // refuses to advance while zoomed; this covers ←/→ and the explore cap.
+      setZoom(null);
+      setSnapping(false);
       // The explore end card: forward from it is nowhere, back from it is the last picture.
       if (atEnd) {
         if (dir === -1) setAtEnd(false);
@@ -460,6 +541,94 @@ export function ItemScreen({
     },
     onAdvance: advance,
     onExit: leave,
+    // ── zoom (docs/DESIGN_hero-zoom.md D2) ──────────────────────────────────────────────────────
+    zoomable: !spread && !atEnd,
+    zoomed: zoom !== null,
+    onPinchStart: ({ cx, cy }) => {
+      const m = measure();
+      if (!m) {
+        // Not decoded yet: no gesture. Clearing it matters — the hook is already pinching, and
+        // `onPinch`/`onPinchEnd` would otherwise run on the *last* picture's measurements.
+        gesture.current = null;
+        return;
+      }
+      gesture.current = {
+        ...m,
+        start: zoomRef.current ?? IDENTITY,
+        startMid: { x: cx - m.left, y: cy - m.top },
+      };
+      setSnapping(false);
+      // A picture being inspected has no caption on it (D1).
+      chrome.reset();
+    },
+    onPinch: ({ ratio, cx, cy }) => {
+      const g = gesture.current;
+      if (!g) return;
+      const next = pinchUpdate(g.start, g.startMid, {
+        ratio,
+        cx: cx - g.left,
+        cy: cy - g.top,
+      });
+      putZoom(live(next, g.fit, g.box, g.ceil));
+    },
+    onPinchEnd: () => {
+      const g = gesture.current;
+      if (!g) return;
+      const z = zoomRef.current;
+      setSnapping(true);
+      putZoom(z ? settle(z, g.fit, g.box, g.ceil) : null);
+    },
+    // A pan reads the zoom from `zoomRef`, never from this render's `zoom`: when a pinch ends
+    // with one finger still down, `onPinchEnd` settles and `onPanStart` fires in the same event,
+    // before any re-render — so `zoom` here would still be the unsettled, live value.
+    onPanStart: () => {
+      // The finger left down after a pinch that settled back to 1 arrives here with no zoom:
+      // nothing to pan (D2), and the pinch's measurements must not leak into it.
+      const z = zoomRef.current;
+      const m = measure();
+      if (!m || !z) {
+        gesture.current = null;
+        return;
+      }
+      gesture.current = { ...m, start: z, startMid: { x: 0, y: 0 } };
+      // `snapping` is left alone here: a settle that just started must still play. The first
+      // real move clears it, below.
+    },
+    onPan: ({ dx, dy }) => {
+      const g = gesture.current;
+      if (!g || !zoomRef.current) return;
+      setSnapping(false);
+      putZoom(
+        live(
+          { ...g.start, x: g.start.x + dx, y: g.start.y + dy },
+          g.fit,
+          g.box,
+          g.ceil,
+        ),
+      );
+    },
+    onPanEnd: () => {
+      const g = gesture.current;
+      if (!g) return;
+      const z = zoomRef.current;
+      setSnapping(true);
+      putZoom(z ? settle(z, g.fit, g.box, g.ceil) : null);
+    },
+    onDoubleTap: ({ clientX, clientY }) => {
+      const m = measure();
+      if (!m) return;
+      setSnapping(true);
+      chrome.reset();
+      putZoom(
+        doubleTapTarget(
+          zoomRef.current,
+          { x: clientX - m.left, y: clientY - m.top },
+          m.fit,
+          m.box,
+          m.ceil,
+        ),
+      );
+    },
   });
 
   // Desktop: a mouse moving over the page is a request for the caption, and unlike a tap it never
@@ -593,6 +762,7 @@ export function ItemScreen({
         spine={spread && !atEnd}
         motion={motion}
         onMotionEnd={onMotionEnd}
+        zoom={zoom ? { ...zoom, snapping } : null}
         endCell={
           exploring ? (
             <MessageTile

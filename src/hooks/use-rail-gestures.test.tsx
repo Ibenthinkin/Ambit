@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { act, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
+import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useRailGestures } from "./use-rail-gestures";
@@ -27,15 +28,49 @@ function pointer(
 const onTap = vi.fn();
 const onAdvance = vi.fn();
 const onExit = vi.fn();
+const onPinchStart = vi.fn();
+const onPinch = vi.fn();
+const onPinchEnd = vi.fn();
+const onPanStart = vi.fn();
+const onPan = vi.fn();
+const onPanEnd = vi.fn();
+const onDoubleTap = vi.fn();
+const ALL = [
+  onTap,
+  onAdvance,
+  onExit,
+  onPinchStart,
+  onPinch,
+  onPinchEnd,
+  onPanStart,
+  onPan,
+  onPanEnd,
+  onDoubleTap,
+];
 
 // Rendered rather than `renderHook`ed: the behaviour lives in an effect that attaches native
 // listeners to a ref'd node, so React has to attach the ref first — which is what a real consumer
 // does and what `renderHook` can't reproduce.
-function Track() {
+function Track({
+  zoomable = true,
+  zoomed = false,
+}: {
+  zoomable?: boolean;
+  zoomed?: boolean;
+}) {
   const { ref, dragPx, dragging } = useRailGestures({
     onTap,
     onAdvance,
     onExit,
+    zoomable,
+    zoomed,
+    onPinchStart,
+    onPinch,
+    onPinchEnd,
+    onPanStart,
+    onPan,
+    onPanEnd,
+    onDoubleTap,
   });
   return (
     <div
@@ -53,10 +88,18 @@ const TRACK_W = 400;
 describe("useRailGestures", () => {
   let el: HTMLElement;
 
+  /** Re-mount with options. The listeners read them through a ref, so the same node is fine. */
+  const mount = (props: React.ComponentProps<typeof Track>) => {
+    cleanup();
+    el = render(<Track {...props} />).getByTestId("track");
+    Object.defineProperty(el, "offsetWidth", {
+      value: TRACK_W,
+      configurable: true,
+    });
+  };
+
   beforeEach(() => {
-    onTap.mockClear();
-    onAdvance.mockClear();
-    onExit.mockClear();
+    for (const f of ALL) f.mockClear();
 
     el = render(<Track />).getByTestId("track");
     Object.defineProperty(el, "offsetWidth", {
@@ -216,18 +259,6 @@ describe("useRailGestures", () => {
       expect(onTap).not.toHaveBeenCalled();
     });
 
-    // iOS Safari fires `pointercancel` the moment it claims a multi-touch gesture for the system,
-    // even under a restrictive `touch-action`. Discarding the gesture there threw the two-finger
-    // exit away at exactly the moment it was recognised — which is why it "barely fires" on device.
-    it("survives Safari cancelling the two-finger gesture out from under it", () => {
-      fire("pointerdown", { x: 200, y: 400, id: 1 });
-      fire("pointerdown", { x: 240, y: 400, id: 2 });
-      fire("pointermove", { x: 200, y: 300, id: 1 });
-      fire("pointercancel", { x: 200, y: 300, id: 1 });
-
-      expect(onExit).toHaveBeenCalledTimes(1);
-    });
-
     it("still discards a cancelled single-finger gesture — under pan-y that is the browser taking a scroll", () => {
       fire("pointerdown", { x: 200, y: 400 });
       fire("pointermove", { x: 200, y: 200 });
@@ -236,20 +267,202 @@ describe("useRailGestures", () => {
       expect(onExit).not.toHaveBeenCalled();
       expect(onTap).not.toHaveBeenCalled();
     });
+  });
 
-    it("takes any two-finger movement, and ignores a two-finger rest", () => {
+  // docs/DESIGN_hero-zoom.md D2: two fingers are a pinch now, and the two-finger exit is gone.
+  describe("pinch", () => {
+    it("starts on the second finger with the midpoint, reports ratio + midpoint on moves, ends on a lift", () => {
+      fire("pointerdown", { x: 100, y: 400, id: 1 });
+      fire("pointerdown", { x: 300, y: 400, id: 2 });
+      expect(onPinchStart).toHaveBeenCalledWith({ cx: 200, cy: 400 });
+
+      // Fingers 200 apart → 400 apart, midpoint drifts right by 50.
+      fire("pointermove", { x: 50, y: 400, id: 1 });
+      fire("pointermove", { x: 450, y: 400, id: 2 });
+      expect(onPinch).toHaveBeenLastCalledWith({ ratio: 2, cx: 250, cy: 400 });
+
+      fire("pointerup", { x: 450, y: 400, id: 2 });
+      expect(onPinchEnd).toHaveBeenCalledTimes(1);
+      // The second finger's lift is not a tap, and nothing left.
+      expect(onTap).not.toHaveBeenCalled();
+      expect(onExit).not.toHaveBeenCalled();
+      expect(onAdvance).not.toHaveBeenCalled();
+    });
+
+    it("never moves the rail: dragPx stays 0 under two fingers", () => {
+      fire("pointerdown", { x: 100, y: 400, id: 1 });
+      fire("pointermove", { x: 60, y: 400, id: 1 }); // a one-finger drag has begun…
+      expect(dragPx()).toBe(-40);
+      fire("pointerdown", { x: 300, y: 400, id: 2 }); // …until the second finger lands
+      expect(dragPx()).toBe(0);
+      fire("pointermove", { x: 0, y: 400, id: 1 });
+      expect(dragPx()).toBe(0);
+    });
+
+    it("does nothing at all when not zoomable (a spread): no pinch, no exit, no tap", () => {
+      mount({ zoomable: false });
       fire("pointerdown", { x: 200, y: 400, id: 1 });
       fire("pointerdown", { x: 240, y: 400, id: 2 });
       fire("pointermove", { x: 200, y: 300, id: 1 });
       fire("pointerup", { x: 200, y: 300, id: 1 });
-      expect(onExit).toHaveBeenCalledTimes(1);
+      fire("pointerup", { x: 240, y: 400, id: 2 });
+      for (const f of ALL) expect(f).not.toHaveBeenCalled();
+    });
 
-      // Two fingers that never moved are two fingers resting on a picture, not a gesture.
-      fire("pointerdown", { x: 200, y: 400, id: 1 });
-      fire("pointerdown", { x: 240, y: 400, id: 2 });
-      fire("pointerup", { x: 200, y: 400, id: 1 });
-      expect(onExit).toHaveBeenCalledTimes(1);
-      expect(onTap).not.toHaveBeenCalled(); // and emphatically not a tap
+    it("ignores a third finger (review focus 2)", () => {
+      fire("pointerdown", { x: 100, y: 400, id: 1 });
+      fire("pointerdown", { x: 300, y: 400, id: 2 });
+      fire("pointerdown", { x: 200, y: 600, id: 3 });
+      expect(onPinchStart).toHaveBeenCalledTimes(1);
+      fire("pointermove", { x: 50, y: 400, id: 1 });
+      // Still the first two fingers' geometry: 250 apart over 200.
+      expect(onPinch).toHaveBeenLastCalledWith({
+        ratio: 1.25,
+        cx: 175,
+        cy: 400,
+      });
+      fire("pointerup", { x: 200, y: 600, id: 3 });
+      expect(onPinchEnd).not.toHaveBeenCalled();
+    });
+
+    it("treats a cancel mid-pinch as the end of the pinch, not a discard", () => {
+      fire("pointerdown", { x: 100, y: 400, id: 1 });
+      fire("pointerdown", { x: 300, y: 400, id: 2 });
+      fire("pointermove", { x: 50, y: 400, id: 1 });
+      fire("pointercancel", { x: 50, y: 400, id: 1 });
+      expect(onPinchEnd).toHaveBeenCalledTimes(1);
+      expect(onExit).not.toHaveBeenCalled();
+    });
+
+    it("cancels the browser's own handling of a two-touch move, and never a one-touch one", () => {
+      const two = new Event("touchmove", { cancelable: true });
+      Object.defineProperty(two, "touches", { value: [{}, {}] });
+      act(() => void el.dispatchEvent(two));
+      expect(two.defaultPrevented).toBe(true);
+
+      const one = new Event("touchmove", { cancelable: true });
+      Object.defineProperty(one, "touches", { value: [{}] });
+      act(() => void el.dispatchEvent(one));
+      expect(one.defaultPrevented).toBe(false);
+    });
+  });
+
+  // D2: while zoomed, one finger drives the picture and the rail's own gestures stand down.
+  describe("pan (zoomed)", () => {
+    beforeEach(() => mount({ zoomed: true }));
+
+    it("starts past the slop, reports travel from the press, and ends on the lift", () => {
+      fire("pointerdown", { x: 200, y: 400 });
+      fire("pointermove", { x: 204, y: 404 }); // inside the slop: nothing yet
+      expect(onPanStart).not.toHaveBeenCalled();
+      fire("pointermove", { x: 230, y: 380 });
+      expect(onPanStart).toHaveBeenCalledTimes(1);
+      expect(onPan).toHaveBeenLastCalledWith({ dx: 30, dy: -20 });
+      fire("pointerup", { x: 230, y: 380 });
+      expect(onPanEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it("never advances, never exits, never moves the rail", () => {
+      // A drag that would have been a committed advance…
+      fire("pointerdown", { x: 300, y: 400, at: 0 });
+      fire("pointermove", { x: 100, y: 400, at: 100 });
+      expect(dragPx()).toBe(0);
+      fire("pointerup", { x: 100, y: 400, at: 100 });
+      expect(onAdvance).not.toHaveBeenCalled();
+      // …and a flick that would have been the exit.
+      fire("pointerdown", { x: 200, y: 100, at: 1000 });
+      fire("pointermove", { x: 200, y: 300, at: 1100 });
+      fire("pointerup", { x: 200, y: 300, at: 1100 });
+      expect(onExit).not.toHaveBeenCalled();
+      expect(onPanEnd).toHaveBeenCalledTimes(2);
+    });
+
+    it("still taps: a press that never moved toggles the chrome, zoomed or not", () => {
+      fire("pointerdown", { x: 200, y: 400 });
+      fire("pointerup", { x: 200, y: 400 });
+      expect(onTap).toHaveBeenCalledTimes(1);
+      expect(onPanStart).not.toHaveBeenCalled();
+    });
+
+    it("the finger left down after a pinch pans from where it is, and its lift is not a tap", () => {
+      fire("pointerdown", { x: 100, y: 400, id: 1 });
+      fire("pointerdown", { x: 300, y: 400, id: 2 });
+      fire("pointerup", { x: 300, y: 400, id: 2 });
+      expect(onPinchEnd).toHaveBeenCalledTimes(1);
+      expect(onPanStart).toHaveBeenCalledTimes(1);
+      fire("pointermove", { x: 120, y: 410, id: 1 });
+      expect(onPan).toHaveBeenLastCalledWith({ dx: 20, dy: 10 });
+      fire("pointerup", { x: 120, y: 410, id: 1 });
+      expect(onPanEnd).toHaveBeenCalledTimes(1);
+      expect(onTap).not.toHaveBeenCalled();
+    });
+
+    it("ends the pan on a cancel", () => {
+      fire("pointerdown", { x: 200, y: 400 });
+      fire("pointermove", { x: 240, y: 400 });
+      fire("pointercancel", { x: 240, y: 400 });
+      expect(onPanEnd).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("the finger left after a pinch, when the picture is NOT zoomed (review focus 3)", () => {
+    it("is followed but pans nothing, and its lift is neither a tap nor an advance", () => {
+      fire("pointerdown", { x: 100, y: 400, id: 1 });
+      fire("pointerdown", { x: 300, y: 400, id: 2 });
+      fire("pointerup", { x: 300, y: 400, id: 2 });
+      fire("pointermove", { x: 0, y: 400, id: 1 });
+      fire("pointerup", { x: 0, y: 400, id: 1 });
+      expect(onPanStart).not.toHaveBeenCalled();
+      expect(onTap).not.toHaveBeenCalled();
+      expect(onAdvance).not.toHaveBeenCalled();
+      expect(dragPx()).toBe(0);
+    });
+  });
+
+  describe("double-tap", () => {
+    it("is a tap, then a double-tap — the first is never delayed", () => {
+      fire("pointerdown", { x: 200, y: 400, at: 0 });
+      fire("pointerup", { x: 200, y: 400, at: 50 });
+      expect(onTap).toHaveBeenCalledTimes(1);
+      fire("pointerdown", { x: 210, y: 405, at: 200 });
+      fire("pointerup", { x: 210, y: 405, at: 250 });
+      expect(onTap).toHaveBeenCalledTimes(1);
+      expect(onDoubleTap).toHaveBeenCalledWith({ clientX: 210, clientY: 405 });
+    });
+
+    it("is two taps when the second is too late or too far", () => {
+      fire("pointerdown", { x: 200, y: 400, at: 0 });
+      fire("pointerup", { x: 200, y: 400, at: 50 });
+      fire("pointerdown", { x: 200, y: 400, at: 400 });
+      fire("pointerup", { x: 200, y: 400, at: 450 });
+      expect(onTap).toHaveBeenCalledTimes(2);
+      fire("pointerdown", { x: 300, y: 400, at: 500 });
+      fire("pointerup", { x: 300, y: 400, at: 550 });
+      expect(onTap).toHaveBeenCalledTimes(3);
+      expect(onDoubleTap).not.toHaveBeenCalled();
+    });
+
+    it("a third quick tap starts over: tap, double-tap, tap", () => {
+      for (const at of [0, 100, 200]) {
+        fire("pointerdown", { x: 200, y: 400, at });
+        fire("pointerup", { x: 200, y: 400, at: at + 20 });
+      }
+      expect(onTap).toHaveBeenCalledTimes(2);
+      expect(onDoubleTap).toHaveBeenCalledTimes(1);
+    });
+
+    it("never from a mouse: two quick clicks are two taps (review focus 5)", () => {
+      const click = (at: number) => {
+        for (const type of ["pointerdown", "pointerup"]) {
+          const e = pointer(type, { x: 200, y: 400, at });
+          Object.defineProperty(e, "pointerType", { value: "mouse" });
+          act(() => void el.dispatchEvent(e));
+        }
+      };
+      click(0);
+      click(100);
+      expect(onTap).toHaveBeenCalledTimes(2);
+      expect(onDoubleTap).not.toHaveBeenCalled();
     });
   });
 

@@ -599,4 +599,40 @@ test.describe.serial("item pages", () => {
     const added = [...(await seenIds())].filter((id) => !before.has(id));
     expect(added).toEqual([]);
   });
+
+  // ── zoom (docs/DESIGN_hero-zoom.md) — last in the serial block on purpose: serial mode skips
+  // every later test when one fails, and this optional smoke must never gate the rest.
+  // The one pinch Playwright can make: Chromium's DevTools protocol synthesizes a two-finger
+  // touch pinch. A smoke, not a gate — the gesture's detail is pinned in the hook's and the
+  // screen's unit tests and judged on device (SPEC §12). Touch emulation on, so the synthesized
+  // fingers arrive as touch pointers the way a phone's do.
+  test.describe("zoom", () => {
+    test.use({ hasTouch: true });
+
+    test("a pinch zooms the picture and hands the track to it", async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName !== "chromium", "CDP pinch is Chromium only");
+      await page.goto(`/i/${imageId}`);
+      const img = page.locator("[data-page-box] img");
+      await expect(img).toBeVisible();
+      const box = (await img.boundingBox())!;
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Input.synthesizePinchGesture", {
+        x: box.x + box.width / 2,
+        y: box.y + box.height / 2,
+        scaleFactor: 2,
+        relativeSpeed: 800,
+        gestureSourceType: "touch",
+      });
+      await expect
+        .poll(() => img.evaluate((el) => (el as HTMLElement).style.transform))
+        .toMatch(/scale\(/);
+      await expect(page.getByTestId("gallery-track")).toHaveCSS(
+        "touch-action",
+        "none",
+      );
+    });
+  });
 });

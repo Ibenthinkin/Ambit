@@ -126,19 +126,34 @@ function pointer(
   type: string,
   x: number,
   y: number,
-  pointerType: "touch" | "mouse" = "touch",
+  opts: { id?: number; at?: number; pointerType?: "touch" | "mouse" } = {},
 ) {
   const e = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true });
-  Object.defineProperty(e, "pointerId", { value: 1 });
-  Object.defineProperty(e, "pointerType", { value: pointerType });
-  Object.defineProperty(e, "timeStamp", { value: 0 });
+  Object.defineProperty(e, "pointerId", {
+    value: opts.id ?? 1,
+    configurable: true,
+  });
+  Object.defineProperty(e, "pointerType", {
+    value: opts.pointerType ?? "touch",
+    configurable: true,
+  });
+  Object.defineProperty(e, "timeStamp", {
+    value: opts.at ?? 0,
+    configurable: true,
+  });
   return e;
 }
-const send = (type: string, x: number, y: number) =>
-  act(() => void track().dispatchEvent(pointer(type, x, y)));
+const send = (type: string, x: number, y: number, at?: number) =>
+  act(() => void track().dispatchEvent(pointer(type, x, y, { at })));
+/**
+ * Every tap is its own gesture: a second tap inside the hook's 300 ms / 30 px double-tap window
+ * would be a double-tap (docs/DESIGN_hero-zoom.md D2), so consecutive taps are a second apart.
+ */
+let clock = 0;
 const tap = () => {
-  send("pointerdown", 100, 100);
-  send("pointerup", 100, 100);
+  clock += 1000;
+  send("pointerdown", 100, 100, clock);
+  send("pointerup", 100, 100, clock + 20);
 };
 const key = (k: string) =>
   act(() => void fireEvent.keyDown(window, { key: k }));
@@ -149,10 +164,59 @@ const swipe = (dx: number) => {
 };
 const heading = () => screen.getByRole("heading", { level: 1 });
 
+/** Two quick taps at one spot — the hook's double-tap (touch). */
+function doubleTap(x = 200, y = 400) {
+  clock += 1000;
+  for (const at of [clock, clock + 120]) {
+    send("pointerdown", x, y, at);
+    send("pointerup", x, y, at + 20);
+  }
+}
+/** One finger of two. */
+const two = (type: string, id: number, x: number, y: number) =>
+  act(() => void track().dispatchEvent(pointer(type, x, y, { id })));
+
+// jsdom draws nothing: the box is 0×0 and no image ever decodes. The zoom measures both at each
+// gesture start (docs/DESIGN_hero-zoom.md D3), so give it a 400×800 box and a 1600×1600 picture.
+function sizeThePicture() {
+  const rect = vi
+    .spyOn(Element.prototype, "getBoundingClientRect")
+    .mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 800,
+      width: 400,
+      height: 800,
+      toJSON: () => ({}),
+    });
+  const w = vi
+    .spyOn(HTMLImageElement.prototype, "naturalWidth", "get")
+    .mockReturnValue(1600);
+  const h = vi
+    .spyOn(HTMLImageElement.prototype, "naturalHeight", "get")
+    .mockReturnValue(1600);
+  return () => {
+    rect.mockRestore();
+    w.mockRestore();
+    h.mockRestore();
+  };
+}
+
+/** The current picture at rest: identity, so a zoom-out has something to animate to. */
+const UNZOOMED = "translate(0px, 0px) scale(1)";
+const currentImg = () =>
+  screen
+    .getByTestId("hero-rail")
+    .querySelector<HTMLImageElement>("[data-page-box] img")!;
+
 /** Held as a spy of its own so the assertions never pass `history.replaceState` around unbound. */
 let replaceState: MockInstance<History["replaceState"]>;
 
 beforeEach(() => {
+  clock = 0;
   railFetchMock.mockReset().mockResolvedValue([]);
   savedForItemMock.mockReturnValue({ data: undefined });
   wanderQueryMock.mockReturnValue({ data: [] });
@@ -213,7 +277,9 @@ describe("ItemScreen", () => {
       renderScreen();
       act(
         () =>
-          void track().dispatchEvent(pointer("pointermove", 10, 10, "mouse")),
+          void track().dispatchEvent(
+            pointer("pointermove", 10, 10, { pointerType: "mouse" }),
+          ),
       );
       expect(screen.getByTestId("gallery-chrome")).toHaveAttribute(
         "aria-hidden",
@@ -524,7 +590,10 @@ describe("spread mode", () => {
    *  moving over the picture brings it up. */
   const toggle = () => {
     act(
-      () => void track().dispatchEvent(pointer("pointermove", 10, 10, "mouse")),
+      () =>
+        void track().dispatchEvent(
+          pointer("pointermove", 10, 10, { pointerType: "mouse" }),
+        ),
     );
     return screen.getByRole("button", { name: "Magazine view" });
   };
@@ -818,5 +887,149 @@ describe("spread mode", () => {
     renderScreen({ authed: false });
     key("ArrowRight");
     expect(sessionStorage.getItem("ambit.explore.railCount")).toBe("2");
+  });
+});
+
+describe("zoom (docs/DESIGN_hero-zoom.md)", () => {
+  let restore: () => void;
+  beforeEach(() => {
+    restore = sizeThePicture();
+  });
+  afterEach(() => restore());
+
+  it("double-tap zooms the current picture in about the point and hides the chrome; again zooms out", () => {
+    renderScreen();
+    tap(); // chrome on
+    expect(screen.getByTestId("gallery-chrome")).toHaveAttribute(
+      "aria-hidden",
+      "false",
+    );
+
+    doubleTap(200, 400);
+    // 1600² in a 400×800 box fits 400×400 at y 200; ×2.5 about (200, 400):
+    // x = 200 − 200·2.5 = −300; y = 400 − 400·2.5 = −600, then clamped into cover bounds
+    // (vertical: 1000 tall, y + 200·2.5 ∈ [800 − 1000, 0] → y ∈ [−700, −500]) → −600 stays.
+    expect(currentImg().style.transform).toBe(
+      "translate(-300px, -600px) scale(2.5)",
+    );
+    expect(track().style.touchAction).toBe("none");
+    expect(screen.getByTestId("gallery-chrome")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+
+    doubleTap(200, 400);
+    expect(currentImg().style.transform).toBe(UNZOOMED);
+    expect(track().style.touchAction).toBe("pan-y");
+  });
+
+  it("a pinch follows the fingers live and settles on release", () => {
+    renderScreen();
+    two("pointerdown", 1, 150, 400);
+    two("pointerdown", 2, 250, 400); // 100 apart, midpoint (200, 400)
+    two("pointermove", 1, 100, 400);
+    two("pointermove", 2, 300, 400); // 200 apart: ×2
+    expect(currentImg().style.transform).toBe(
+      "translate(-200px, -400px) scale(2)",
+    );
+    expect(currentImg().style.transition).toBe("none");
+    two("pointerup", 2, 300, 400);
+    // ×2 is inside the ceiling (2.5 floor); the offsets were inside the cover bounds. Settled.
+    expect(currentImg().style.transform).toBe(
+      "translate(-200px, -400px) scale(2)",
+    );
+    expect(currentImg().style.transition).toMatch(/transform 250ms/);
+  });
+
+  it("the finger left after a pinch pans from the SETTLED zoom, and the settle still animates", () => {
+    renderScreen();
+    two("pointerdown", 1, 150, 400);
+    two("pointerdown", 2, 250, 400); // 100 apart, midpoint (200, 400)
+    two("pointermove", 1, -50, 400);
+    two("pointermove", 2, 450, 400); // 500 apart: ×5 live, past jsdom's ceiling of 4
+    expect(currentImg().style.transform).toBe(
+      "translate(-800px, -1600px) scale(5)",
+    );
+    two("pointerup", 2, 450, 400);
+    // Settled to the ceiling about the box centre — and animated, though finger 1 is still down.
+    expect(currentImg().style.transform).toBe(
+      "translate(-600px, -1200px) scale(4)",
+    );
+    expect(currentImg().style.transition).toMatch(/transform 250ms/);
+    // Finger 1 moves 30 px right: a pan from the settled ×4, not from the live ×5.
+    two("pointermove", 1, -20, 400);
+    expect(currentImg().style.transform).toBe(
+      "translate(-570px, -1200px) scale(4)",
+    );
+    expect(currentImg().style.transition).toBe("none");
+  });
+
+  it("a pinch released under 1 snaps back to the hero", () => {
+    renderScreen();
+    two("pointerdown", 1, 100, 400);
+    two("pointerdown", 2, 300, 400);
+    two("pointermove", 1, 150, 400);
+    two("pointermove", 2, 250, 400); // ×0.5 live → LIVE_MIN
+    expect(currentImg().style.transform).toMatch(/scale\(0\.6\)/);
+    two("pointerup", 1, 150, 400);
+    expect(currentImg().style.transform).toBe(UNZOOMED);
+    // …and animated back, not popped (the final review, 10-04-26).
+    expect(currentImg().style.transition).toMatch(/transform 250ms/);
+  });
+
+  it("advancing with the keyboard resets the zoom", () => {
+    renderScreen();
+    doubleTap();
+    expect(currentImg().style.transform).not.toBe(UNZOOMED);
+    key("ArrowRight");
+    expect(currentImg().style.transform).toBe(UNZOOMED);
+  });
+
+  it("a pinch on a picture still decoding never reuses the last picture's measurements", () => {
+    renderScreen();
+    // Pinch the first picture: decoded, so the gesture is measured and zooms.
+    two("pointerdown", 1, 150, 400);
+    two("pointerdown", 2, 250, 400);
+    two("pointermove", 2, 350, 400);
+    two("pointerup", 2, 350, 400);
+    two("pointerup", 1, 150, 400);
+    expect(currentImg().style.transform).toMatch(/scale\(2\)/);
+    // Next picture, not decoded yet (a cold image-proxy fetch).
+    key("ArrowRight");
+    const natural = vi
+      .spyOn(HTMLImageElement.prototype, "naturalWidth", "get")
+      .mockReturnValue(0);
+    two("pointerdown", 1, 150, 400);
+    two("pointerdown", 2, 250, 400);
+    two("pointermove", 2, 350, 400);
+    two("pointerup", 2, 350, 400);
+    two("pointerup", 1, 150, 400);
+    expect(currentImg().style.transform).not.toMatch(/scale\((?!1\))/);
+    expect(track().style.touchAction).toBe("pan-y");
+    natural.mockRestore();
+  });
+
+  it("does nothing on a picture that has not decoded (review focus 1)", () => {
+    restore();
+    restore = (() => {
+      const rect = vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockReturnValue({
+          x: 0,
+          y: 0,
+          left: 0,
+          top: 0,
+          right: 400,
+          bottom: 800,
+          width: 400,
+          height: 800,
+          toJSON: () => ({}),
+        });
+      return () => rect.mockRestore();
+    })();
+    renderScreen();
+    doubleTap();
+    expect(currentImg().style.transform).toBe(UNZOOMED);
+    expect(track().style.touchAction).toBe("pan-y");
   });
 });
