@@ -120,6 +120,11 @@ click can seed a touch double-tap.
 
 *Session spend: 14.13M tok (in 104 · out 44.9k · cache r 14.02M / w 62.3k) · opus-5-5 · 16:09→16:26*
 
+**Hero zoom — Ben's phone look: "it looks great."** Run from the branch on the tailnet at
+`:8443` (port 3000 was the questionnaire's), on a PDR collage. Not yet recorded: check 10 of
+the device pass, which of the two iOS pinch listeners is actually needed. Both stay in until it
+is run. Merge is Ben's call.
+
 ### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 
 **Shipped:** `0e303fd` deployed to VM 202 (Task 7 Step 2). Health after: `"ingest":"ok"` with
