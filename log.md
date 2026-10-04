@@ -35,6 +35,36 @@ the catch-up. Then Task 9.
 
 *Session spend: 8.70M tok (in 138 · out 73.6k · cache r 8.31M / w 311.2k) · opus-5-5 · 14:07→15:04*
 
+**Hero zoom — designed and planned (Fable, afternoon).** Ben: "I'd like to be able to pinch and
+zoom on a photo while in gallery mode." `docs/DESIGN_hero-zoom.md` + `docs/PLAN_hero-zoom.md`
+(7 tasks, cold-executable on `feat/hero-zoom`). Not built.
+
+**Decisions:**
+
+- **The two-finger exit is dropped.** Any two-finger movement on the hero has been the exit since
+  the redesign handoff ("pinch out of the picture"); pinch-to-zoom takes the gesture. Offered
+  iOS Photos' pinch-in-to-dismiss; Ben chose plain removal — down-flick, Escape and the pill
+  remain.
+- **Phone first.** Pinch + one-finger pan + double-tap, single-page view, touch only. Desktop
+  (trackpad pinch, double-click) and the magazine spread do not zoom in this cut.
+- **No library.** Ben asked. `react-zoom-pan-pinch` owns its container's touch events and its own
+  bug list records that it blocks native page scroll on mobile — the opposite of the hero's
+  `touch-action: pan-y`. `@use-gesture/react` is a sound recogniser but only that: it would hand
+  back two-finger geometry (~80 lines) and none of the bounds, ceiling, snap or double-tap, while
+  putting a second gesture engine on an element whose hand-rolled one was tuned on device. One
+  thing taken from its docs: Safari wants `preventDefault` on `gesturestart`/`gesturechange`.
+- **The ceiling is honest about the 1600 px masters:** `max(2.5, natural / (fit × dpr))`, capped
+  at 4. There is no larger rendition to ask for without re-fetching every museum image.
+- **The settle is a CSS transition**, so Reduce Motion collapses it — the magazine turn stays the
+  one WAAPI exemption.
+
+**Open / next:** Ben reads both docs; a cheaper session executes the plan; then the device pass
+(plan Task 7, step 6) decides which of the two iOS listeners — the two-touch `touchmove` cancel
+and Safari's `gesture*` cancel — is actually needed. Left open by design: desktop zoom, zoom in
+the spread, swipe-to-next from a zoomed edge, pan inertia.
+
+*Session spend: 10.26M tok (in 1.6k · out 187.6k · cache r 9.43M / w 637.9k) · ~≥$0.86 · fable-5-1 + opus-4-7 · 14:11→15:35*
+
 ### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 
 **Shipped:** `0e303fd` deployed to VM 202 (Task 7 Step 2). Health after: `"ingest":"ok"` with
