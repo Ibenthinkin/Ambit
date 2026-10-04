@@ -85,8 +85,15 @@ five-hour window per hundred**, seven-day unmoved at 46%. ~25 pieces a minute on
 bites from the 1.4. (Also among the pictures run's 16: two `wellcome` images stored at score 1 —
 search rows are stored at any score, as before; noted, not changed.)
 
-**Open / next:** Step 6 (`CLAUDE_JUDGE_CONCURRENCY=4`, the VM has the room), Step 7 the health
-witness, Step 8 Monday 08:00 UTC's first scheduled fire; then Task 9.
+**Step 7 — and a monitor found inverted.** Public health reads `"ingest":"ok"` with both kinds at
+tonight's runs. But UptimeRobot's `ambit/ingest` was **down with "Keyword has been found"** since
+10-03 01:57 UTC: its alert condition had been switched to *keyword exists* (how or when is not
+known), so it fired the moment the 10-03 nightly recovered health, and a real stale ingest would
+have shown green. Ben switched it back to **alert when absent** (as set up 09-20,
+`PHASE8_WALKTHROUGH_8.2.md`); all green. Worth a glance at the monitor's type whenever it is down.
+
+**Open / next:** Step 6 (`CLAUDE_JUDGE_CONCURRENCY=4`, the VM has the room), Step 8 Monday 08:00
+UTC's first scheduled fire (check after 09:00 UTC); then Task 9.
 
 *Session spend: 1.59M tok (in 30 · out 7.6k · cache r 1.23M / w 346.5k) · opus-5-5 · 08:37→17:57*
 
