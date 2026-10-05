@@ -28,7 +28,6 @@ import {
 import type { Answer, Question } from "~/lib/interview/types";
 import { api } from "~/trpc/react";
 
-import { AboutStep, type About } from "./about-step";
 import { QuestionStep } from "./question-step";
 import { RevealStep } from "./reveal-step";
 import { StepBar } from "./step-bar";
@@ -40,12 +39,15 @@ import { StepBar } from "./step-bar";
 // It replaced four stages of chips (Subject / Medium / Look / Place) after Ben's verdict that
 // facets and umbrella groups mean nothing to a reader. Now: about a dozen skippable questions
 // that feel like getting to know someone — two free-text ones, picture face-offs, a few word
-// questions — then an optional "About you", then a **reveal**: "Here's where we'll start", every
+// questions — then a **reveal**: "Here's where we'll start", every
 // proposed topic at a little / some / a lot / off.
 //
 // How it holds together:
 //
-//   intro → questions → (interpreting) → about → reveal → /feed
+//   intro → questions → (interpreting) → reveal → /feed
+//
+// (An optional "About you" — age range, place, gender — sat before the reveal until 10-05-26;
+// Ben's critique removed it and migration 0014 dropped its three columns.)
 //
 //   - **The state is the list of answers.** The question on screen is `asked[answers.length]`;
 //     answering appends, Back pops (and shows what was popped, so a reader can change it). There
@@ -63,7 +65,7 @@ import { StepBar } from "./step-bar";
 // before it is shown (show.ts); the reading-amount question **opens on a default** read off the
 // article cards; and the reveal's **taste** (taste.ts) is computed here and sent with the run.
 
-type Phase = "intro" | "questions" | "interpreting" | "about" | "reveal";
+type Phase = "intro" | "questions" | "interpreting" | "reveal";
 
 export interface OnboardingScreenProps {
   /** `topics.list` — every pickable topic in this database. */
@@ -116,7 +118,6 @@ export function OnboardingScreen({
   const [answers, setAnswers] = useState<Answer[]>([]);
   /** The question on screen's answer-in-progress. */
   const [draft, setDraft] = useState<Answer | undefined>(undefined);
-  const [about, setAbout] = useState<About | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -172,8 +173,8 @@ export function OnboardingScreen({
       ? { questionId: current.id, keys: [amountDefault] }
       : undefined);
 
-  // The progress line counts steps, plus About you; a bank with no STEP_OF entries (a test's)
-  // keeps v1's question count.
+  // The progress line counts steps; a bank with no STEP_OF entries (a test's) keeps v1's
+  // question count.
   const steps = useMemo(() => stepsAsked(asked), [asked]);
   const stepNow = current ? STEP_OF[current.id] : undefined;
   const stepIndex = stepNow !== undefined ? steps.indexOf(stepNow) : -1;
@@ -214,13 +215,13 @@ export function OnboardingScreen({
     setPhase("questions");
   }
 
-  /** After the last question: map any free text to topics, then on to About you. */
+  /** After the last question: map any free text to topics, then on to the reveal. */
   async function finishQuestions(all: Answer[]) {
     const texts = all.flatMap((a) =>
       a.text ? [{ questionId: a.questionId, text: a.text }] : [],
     );
     if (texts.length === 0) {
-      setPhase("about");
+      setPhase("reveal");
       return;
     }
     setPhase("interpreting");
@@ -236,7 +237,7 @@ export function OnboardingScreen({
       // The service already answers empty lists on its own failures; this is the network
       // between here and it. Either way the reveal is built from the other answers.
     }
-    setPhase("about");
+    setPhase("reveal");
   }
 
   // What the answers add up to — recomputed when they change, which only happens before the
@@ -267,7 +268,6 @@ export function OnboardingScreen({
         writingAmount: readingAmountFrom(bank, answers),
         answers,
         bankVersion: BANK_VERSION,
-        about: about ?? undefined,
         taste,
       });
       // On a retake the cache still holds the old picks, the old reading amount and a feed
@@ -337,7 +337,7 @@ export function OnboardingScreen({
               className="text-accent mb-[14px] font-sans text-[11px] font-semibold tracking-[1.8px] uppercase"
             >
               {stepIndex >= 0
-                ? `Step ${stepIndex + 1} of ${steps.length + 1} · ${STEP_LABELS[stepNow! - 1]}`
+                ? `Step ${stepIndex + 1} of ${steps.length} · ${STEP_LABELS[stepNow! - 1]}`
                 : `${answers.length + 1} of ${asked.length}`}
             </p>
             <Rise key={current.id}>
@@ -376,21 +376,6 @@ export function OnboardingScreen({
           </p>
         )}
 
-        {phase === "about" && (
-          <AboutStep
-            initial={about ?? undefined}
-            onContinue={(given) => {
-              setAbout(given);
-              setPhase("reveal");
-            }}
-            onSkip={() => {
-              setAbout(null);
-              setPhase("reveal");
-            }}
-            onBack={back}
-          />
-        )}
-
         {phase === "reveal" && (
           <RevealStep
             topics={topics}
@@ -400,7 +385,8 @@ export function OnboardingScreen({
             submitting={submitting}
             error={error}
             onSubmit={submit}
-            onBack={() => setPhase("about")}
+            // The same Back every question has: the last answer comes back on screen.
+            onBack={back}
           />
         )}
       </Column>

@@ -91,7 +91,6 @@ type Complete = {
     topicIds?: string[];
   }[];
   bankVersion: number;
-  about?: { ageRange: string | null; location: string; gender: string };
 };
 const sent = () => completeMock.mock.calls[0]![0] as Complete;
 
@@ -115,9 +114,6 @@ describe("OnboardingScreen", () => {
     show();
     click("Begin");
     skipAll();
-    // The optional step, skipped like everything else.
-    expect(heading()).toBe("A little about you");
-    click("Skip");
     expect(heading()).toBe("Here’s where we’ll start");
     expect(
       // The level rows only — the exhibition card above them has groups of its own.
@@ -137,7 +133,8 @@ describe("OnboardingScreen", () => {
     );
     expect(sent().answers.map((a) => a.keys)).toEqual(FIVE.map(() => [SKIP]));
     expect(sent().writingAmount).toBeNull();
-    expect(sent().about).toBeUndefined();
+    // About you was removed with its three columns (10-05-26): nothing of it is sent.
+    expect("about" in sent()).toBe(false);
     // Nothing was typed, so no model was asked.
     expect(interpretMock).not.toHaveBeenCalled();
     // Everything the old picks fed is stale now.
@@ -148,7 +145,6 @@ describe("OnboardingScreen", () => {
     show();
     click("Begin");
     skipAll();
-    click("Skip");
     expect(completeMock).not.toHaveBeenCalled();
   });
 
@@ -183,12 +179,11 @@ describe("OnboardingScreen", () => {
 
     // Leaving the last question asks the model, once, behind a short beat.
     expect(screen.getByText("Putting it together…")).toBeInTheDocument();
-    await waitFor(() => expect(heading()).toBe("A little about you"));
+    await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
     expect(interpretMock).toHaveBeenCalledExactlyOnceWith({
       texts: [{ questionId: "words", text: "cookbooks" }],
     });
 
-    click("Skip");
     // The typed favourite lands at "a lot"; a single-topic answer at "some".
     const row = (id: string) =>
       screen
@@ -226,9 +221,7 @@ describe("OnboardingScreen", () => {
     });
     click("Next");
     skipAll();
-    await waitFor(() => expect(heading()).toBe("A little about you"));
-    click("Skip");
-    expect(heading()).toBe("Here’s where we’ll start");
+    await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
   });
 
   it("whitespace in a text box is not an answer", () => {
@@ -257,25 +250,21 @@ describe("OnboardingScreen", () => {
     expect(screen.getByRole("button", { name: "Begin" })).toBeInTheDocument();
   });
 
-  it("About you: Continue sends what was given; Back from the reveal returns to it", async () => {
+  it("Back from the reveal returns to the last question, with its answer showing", () => {
     show();
     click("Begin");
-    skipAll();
-    click("35–44");
-    click("Continue");
+    click("Skip");
+    click("Skip");
+    click("Skip");
+    click("Yes");
+    click("A lot");
+    expect(heading()).toBe("Here’s where we’ll start");
     click("Back");
-    expect(screen.getByRole("button", { name: "35–44" })).toHaveAttribute(
+    expect(questionId()).toBe("reading-amount");
+    expect(screen.getByRole("button", { name: "A lot" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    click("Continue");
-    click("Start exploring");
-    await waitFor(() => expect(completeMock).toHaveBeenCalled());
-    expect(sent().about).toEqual({
-      ageRange: "35–44",
-      location: "",
-      gender: "",
-    });
   });
 
   it("a save that fails shows the error and stays put", async () => {
@@ -283,7 +272,6 @@ describe("OnboardingScreen", () => {
     show();
     click("Begin");
     skipAll();
-    click("Skip");
     click("Start exploring");
     expect(await screen.findByRole("alert")).toHaveTextContent(/try again/i);
     expect(replaceMock).not.toHaveBeenCalled();
@@ -301,7 +289,6 @@ describe("OnboardingScreen", () => {
     );
     click("Begin");
     skipAll();
-    click("Skip");
     expect(
       screen.getByText(/This replaces your current topics/),
     ).toBeInTheDocument();
@@ -338,27 +325,30 @@ describe("OnboardingScreen", () => {
     // The same element announces the next count: it is not re-created with the question.
     click("Skip");
     expect(screen.getByText("4 of 5")).toBe(live);
+    // A bank with no steps (this one) counts questions, and the last reads "N of N" — the
+    // About-you screen that once made it "N + 1" is gone (Review Focus 1, 10-05-26).
+    click("Yes");
+    expect(screen.getByText("5 of 5")).toBe(live);
   });
 
   // ── First Exhibition (bank v2) ────────────────────────────────────────────────────────────
   describe("bank v2", () => {
     const fixture = (id: string) => TEST_BANK.find((q) => q.id === id)!;
     const begin = () => click("Begin");
-    /** From the last question's answer to the reveal: About you is skipped. */
+    /** From the last question's answer to the reveal. */
     async function finishToReveal() {
-      await waitFor(() => expect(heading()).toBe("A little about you"));
-      click("Skip");
+      await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
     }
 
     it("counts steps, not questions, and skips a step the database cannot ask", () => {
-      // Two bank-v2 ids in two different steps (Rooms, Reading), plus About you: three steps.
+      // Two bank-v2 ids in two different steps (Rooms, Reading): two steps.
       const bank: Question[] = [
         { ...fixture("rooms"), id: "wings-1" },
         { ...fixture("read"), id: "read-1" },
       ];
       show({ bank });
       begin();
-      expect(screen.getByText(/^Step 1 of 3/)).toBeInTheDocument();
+      expect(screen.getByText(/^Step 1 of 2/)).toBeInTheDocument();
     });
 
     it("shows only the top options of a show.top question, ranked by the answers so far", () => {

@@ -404,7 +404,7 @@ export const ONBOARDING_TOPICS = ["astronomy", "botany", "music"];
  * covered by unit tests); the reading amount is answered "Some" (see the loop); a pair with a
  * wanted topic on both sides is "Either";
  * a multi presses its hits up to the step's `data-max`, then Next; a pair or a choice is one tap
- * and moves on by itself. The optional About-you step is skipped.
+ * and moves on by itself.
  *
  * A wanted topic missing from the reveal fails here, by name, rather than as a mystery later —
  * the specs' fixtures depend on exactly which topics the user has. (On a real corpus the reveal
@@ -423,7 +423,7 @@ export async function answerQuestionnaire(
   const forward = page.getByRole("button", {
     name: /^(Skip|Next|I’d rather look at pictures|Nowhere in particular)$/,
   });
-  const about = page.locator('[data-step="about"]');
+  const reveal = page.locator('[data-step="reveal"]');
 
   // Retried: a click that lands before React has hydrated the button does nothing at all (the
   // same trap support.ts's landing helpers document), and the page would sit on its intro.
@@ -433,10 +433,10 @@ export async function answerQuestionnaire(
     await expect(step.first()).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
   // Far more turns than any bank has questions (bank.test.ts caps it at twenty): a loop that
-  // never reaches About-you is a bug to report, not to wait out.
+  // never reaches the reveal is a bug to report, not to wait out.
   for (let turn = 0; turn < 40; turn++) {
-    await step.or(about).first().waitFor();
-    if (await about.count()) break;
+    await step.or(reveal).first().waitFor();
+    if (await reveal.count()) break;
 
     const id = (await step.getAttribute("data-question-id"))!;
     const kind = await step.getAttribute("data-question-kind");
@@ -477,10 +477,6 @@ export async function answerQuestionnaire(
     await expect(page.locator(`[data-question-id="${id}"]`)).toHaveCount(0);
   }
 
-  await about.getByRole("heading").waitFor();
-  await page.getByRole("button", { name: "Skip", exact: true }).click();
-
-  const reveal = page.locator('[data-step="reveal"]');
   await reveal.waitFor();
   for (const topic of topics) {
     if (!(await reveal.locator(`[data-topic="${topic}"]`).count())) {
