@@ -184,6 +184,13 @@ the push of 10-04 15:05, with that container up 22 hours and nothing deploying o
 is not a deploy here; the deploy is a Coolify action Ben takes, and the "v1 is not deployed"
 decision above still holds in fact. `main` is 29 ahead of origin.
 
+**16:45 — the redeploy went to `8ed5fd2`, so bank v1 is live after all.** Ben redeployed from
+Coolify before `main` was pushed; the build took what origin had — the Lift and bank v1 — and ran
+migration 0012 at boot (production's `__drizzle_migrations` now ends at 0012; no `user_taste`).
+Readers are on the interim questionnaire until `main` (30 ahead, with First Exhibition) is pushed
+and deployed again. Not harmful — v1 writes nothing v2 cannot read, and 0013 applies on the next
+boot — but it is the thing the morning's decision meant to avoid.
+
 **Decision (Ben, 13:00): the critique is to be addressed as soon as possible** — the list in
 `docs/NOTES_onboarding-critique.md` is the next piece of work, not a backlog for some later
 redesign. Its framing stays: sitewide (accent, buttons, square corners), the questionnaire's card
@@ -199,6 +206,8 @@ untracked `docs/first-exhibition-for-ambit/` there (a duplicate design + `.DS_St
 delete. Still open: the `/api/img` 429 in parallel local e2e.
 
 _Session spend: 8.77M tok (in 1.6k · out 41.8k · cache r 8.38M / w 344.4k) · fable-5-1 + opus-5-5 · 10:47→13:06_
+
+_Session spend: 1.88M tok (in 358 · out 17.3k · cache r 1.52M / w 346.1k) · fable-5-1 · 13:06→16:46_
 
 ### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
 
