@@ -338,13 +338,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
     it("accepts a reading answer carrying an article's full membership list", async () => {
       const caller = createCaller(authedContext(manyTopicsUserId));
       const topicIds = Array.from({ length: 40 }, (_, i) => `member-${i}`);
-      await expect(
-        caller.onboarding.complete(
-          input({
-            answers: [{ questionId: "read-1", keys: ["essay"], topicIds }],
-          }),
-        ),
-      ).resolves.toMatchObject({ runId: expect.any(String) });
+      const { runId } = await caller.onboarding.complete(
+        input({
+          answers: [{ questionId: "read-1", keys: ["essay"], topicIds }],
+        }),
+      );
+      expect(runId).toEqual(expect.stringMatching(/\S/));
     });
   },
 );
