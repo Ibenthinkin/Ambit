@@ -476,12 +476,15 @@ describe("OnboardingScreen", () => {
       expect(screen.getByRole("button", { name: "Skip" })).toBeInTheDocument();
     });
 
-    it("names the forward button for what declining means on a reading screen", () => {
+    // Ben's critique (10-05-26): drop "I'd rather look at pictures" for a plain Skip. Declining
+    // is still logged as a skip, which the amount question's preselect reads.
+    it("a reading screen's forward button is a plain Skip", () => {
       show({ bank: [{ ...fixture("read"), id: "read-1" }] });
       begin();
+      expect(screen.getByRole("button", { name: "Skip" })).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: "I’d rather look at pictures" }),
-      ).toBeInTheDocument();
+        screen.queryByRole("button", { name: "I’d rather look at pictures" }),
+      ).toBeNull();
     });
   });
 });

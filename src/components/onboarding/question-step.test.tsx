@@ -256,7 +256,7 @@ describe("QuestionStep", () => {
       expect(card).toHaveTextContent(READING_FALLBACK.curiosity[0].title);
       expect(card.querySelector("img")).toBeNull();
     });
-    it("has no None of these — 'I’d rather look at pictures' is the Skip button, owned by the screen", () => {
+    it("has no None of these — declining is the Skip button, owned by the screen", () => {
       show("read");
       expect(
         screen.queryByRole("button", { name: "None of these" }),

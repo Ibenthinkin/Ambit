@@ -419,9 +419,9 @@ export async function answerQuestionnaire(
   const step = page.locator("[data-question-id]");
   // The screen names its forward button for what it will do (onboarding-screen.tsx's
   // `forwardLabel`): Skip; Next once something is said — including a reading amount the screen
-  // preselected from the article cards; and the two declines bank v2 words as real answers.
+  // preselected from the article cards; and the destinations' decline, worded as a real answer.
   const forward = page.getByRole("button", {
-    name: /^(Skip|Next|I’d rather look at pictures|Nowhere in particular)$/,
+    name: /^(Skip|Next|Nowhere in particular)$/,
   });
   const reveal = page.locator('[data-step="reveal"]');
 

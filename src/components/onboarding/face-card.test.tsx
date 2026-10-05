@@ -58,8 +58,7 @@ describe("FaceCard", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  // Ben's critique (10-05-26): the coordinates at a destination card's foot were decoration that
-  // read as noise. The card is where, the name, and one line.
+  // Ben's critique (10-05-26): "Remove the coordinates." The card is where, the name, one line.
   it("a destination card shows where, the name and its line — no coordinates", () => {
     render(
       <FaceCard
@@ -82,8 +81,8 @@ describe("FaceCard", () => {
     expect(card).not.toHaveTextContent("35.01° N");
   });
 
-  // Ben's critique (10-05-26): a wing picture should stand alone — the category printed over it
-  // told the reader what to see. `caption={false}` drops the printed label, never the name.
+  // Ben's critique (10-05-26): "Remove the category label on each picture — the picture should
+  // stand on its own." `caption={false}` drops the printed label, never the accessible name.
   describe("caption={false}", () => {
     it("prints no label over the picture, but the label is still the button's name", () => {
       render(

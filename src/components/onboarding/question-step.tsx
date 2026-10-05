@@ -70,7 +70,8 @@ export function QuestionStep({
   const asCards = rendersCards(question);
   const reading = question.options.some((o) => o.face?.writing);
   // The wings and the playoff — a faced *choice* that is not a reading screen — show their
-  // pictures with no caption: the picture is the question (Ben's critique, 10-05-26). The keep
+  // pictures with no caption — "the picture should stand on its own" (Ben's critique, 10-05-26),
+  // which named the wings only. The keep
   // grid (a multi) and the pairs keep their labels, the reading cards are text-led anyway.
   const quietFaces = question.kind === "choice" && allFaced && !reading;
 

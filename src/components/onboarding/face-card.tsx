@@ -36,8 +36,7 @@ export interface FaceCardProps {
    *  the card is never a bare word. The accessible name stays the label. */
   fallback?: { kind: WritingKind } & FallbackCard;
   /** Print the label over the picture? Default yes. The wings and the playoff pass `false`
-   *  (Ben's 10-05-26 critique: the category told the reader what to see) — the picture stands
-   *  alone, and the label is still the accessible name, and still the whole card if the picture
+   *  (Ben's 10-05-26 critique: "the picture should stand on its own") — the label is still the accessible name, and still the whole card if the picture
    *  is missing or fails. */
   caption?: boolean;
   /** A typeset card with no picture (the destinations). */

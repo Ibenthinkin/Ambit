@@ -86,12 +86,11 @@ function isAnswered(answer: Answer | undefined): answer is Answer {
   return answer.keys.length > 0 && answer.keys[0] !== SKIP;
 }
 
-/** The forward button, named for what it will do. Declining is a real answer on two screens, so
- *  it says so: the reading cards ("I'd rather look at pictures") and the destinations. */
+/** The forward button, named for what it will do. Declining the destinations is a real answer,
+ *  so it says so. (The reading screens said "I'd rather look at pictures" until Ben's 10-05-26
+ *  critique; they skip like every other screen now, and a skip there is still counted.) */
 function forwardLabel(q: Question, answered: boolean): string {
   if (answered) return "Next";
-  if (q.options.some((o) => o.face?.writing))
-    return "I’d rather look at pictures";
   if (q.id === "destinations") return "Nowhere in particular";
   return "Skip";
 }
@@ -150,7 +149,7 @@ export function OnboardingScreen({
         : [];
     });
   }, [answers, bank, faces]);
-  /** Reading screens declined ("I'd rather look at pictures"). */
+  /** Reading screens skipped — what the amount question's preselect reads. */
   const readingSkipped = answers.filter((a) => {
     const q = bank.find((x) => x.id === a.questionId);
     return (
