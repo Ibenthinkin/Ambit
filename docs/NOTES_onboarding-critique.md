@@ -3,7 +3,9 @@
 Ben walked bank v2 on the dev server (branch `feat/first-exhibition`) and gave these notes screen
 by screen. **His verdict on the whole: the mechanics are good — this list is cosmetic**, and it is
 to be addressed in the next **sitewide redesign**, not as patches to this branch. Nothing here has
-been changed yet. **Priority (Ben, 10-05 afternoon): as soon as possible — this is the next piece of
+been changed yet. **Update 10-05-26 eve:** Cut 1 of `docs/PLAN_onboarding-critique.md` (branch
+`feat/onboarding-trims`) ticks the boxes marked _(Cut 1)_; the cards' size is only part-way there
+(the desktop grids are wider — the Keep and Reading cards still wait on Cut 2's rethink). **Priority (Ben, 10-05 afternoon): as soon as possible — this is the next piece of
 work, not a backlog.**
 
 ## Sitewide (beyond onboarding)
@@ -11,7 +13,7 @@ work, not a backlog.**
 - [ ] **Accent colour** — Ben hates it. Needs a new model, changed everywhere.
 - [ ] **Buttons** — the shape and the behaviour, everywhere (Begin / Next / Skip / Back, the
       Either / Neither chips, the amount chips). Same new model.
-- [ ] **No rounded corners on picture cards.** No other image in the app has them; the
+- [x] **No rounded corners on picture cards.** _(Cut 1, 10-05-26: every questionnaire card and the reveal's card.)_ No other image in the app has them; the
       questionnaire's cards should match.
 
 ## The questionnaire as a whole
@@ -25,8 +27,8 @@ work, not a backlog.**
 
 ### Intro
 
-- [ ] The copy sits at the top while the Begin button is pinned at the very bottom — fix the
-      layout.
+- [x] The copy sits at the top while the Begin button is pinned at the very bottom — fix the
+      layout. _(Cut 1: Begin sits under the copy.)_
 - [ ] Replace every word: "Ambit · Setup" / "Let's find where to start" / "A few questions about
       what you like — some pictures, some words. Skip any of them. At the end you'll see what we
       made of it, and you can change all of it."
@@ -39,17 +41,18 @@ work, not a backlog.**
       buildings", and especially **"Body & mind"**; the second screen's "Growing things",
       "Machines & how things work", "People & daily life", "Food & the everyday" fall under the
       same note.
-- [ ] Remove the category label on each picture — the picture should stand on its own.
-- [ ] Bigger pictures on desktop.
+- [x] Remove the category label on each picture — the picture should stand on its own. _(Cut 1;
+      the label is still the accessible name and the fallback when a picture fails.)_
+- [x] Bigger pictures on desktop. _(Cut 1: the wide column, four across ≈ 265 px a card.)_
 
 ### Steps 2–3 — Hands and Feeling (the pairs)
 
-- [ ] Bigger images.
+- [x] Bigger images. _(Cut 1: ≈ 370 px a side on desktop.)_
 - [ ] Replace all the copy: the prompts ("Same subject, different hands." / "Same subject, a
       different feeling.") and the side labels ("Photograph", "Natural-history plate", "Bold",
       "Soft", "Night", "Day"…).
 - [ ] The Either / Neither buttons' look (see Sitewide → Buttons).
-- [ ] Square corners (see Sitewide).
+- [x] Square corners (see Sitewide).
 
 ### Step 4 — Keep (the ten-picture grid)
 
@@ -60,12 +63,12 @@ work, not a backlog.**
 ### Step 5 — Reading (the article cards)
 
 - [ ] The cards are tiny and look unbelievably bad.
-- [ ] Drop "I'd rather look at pictures" — a plain Skip (or similar) instead.
+- [x] Drop "I'd rather look at pictures" — a plain Skip (or similar) instead. _(Cut 1.)_
 
 ### Step 6 — Travel (the destination cards)
 
 - [ ] The cards look awful and are unreadable.
-- [ ] Remove the coordinates.
+- [x] Remove the coordinates. _(Cut 1.)_
 
 ### Step 7 — Rather not
 
@@ -83,7 +86,8 @@ work, not a backlog.**
 
 ### Step 10 — About you
 
-- [ ] **Remove the step entirely** (age range, location, gender). Note this is also the trial's
+- [x] **Remove the step entirely** (age range, location, gender). _(Cut 1: step gone, columns
+      dropped by migration 0014 — runs at the next deploy's boot.)_ Note this is also the trial's
       exit: SPEC §5.3a says the three `user` columns can be dropped if it goes.
 
 ### The reveal
