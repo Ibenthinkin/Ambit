@@ -2423,7 +2423,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `src/server/db/schema.ts`, `src/server/db/onboarding.ts`, `src/server/db/topics.ts`, `src/server/api/routers/onboarding.ts`, `src/server/api/routers/topics.ts`, `src/server/api/routers/onboarding.integration.test.ts`, `src/server/api/routers/routers.test.ts`
-- Create: `drizzle/0012_user_taste.sql` (via `db:generate`, then renamed)
+- Create: `drizzle/0013_user_taste.sql` (via `db:generate`, then renamed)
 
 **Interfaces:**
 - Consumes: `TasteV1`, `tasteSchema` (Task 6), `getItemsByIds`, `WINGS`.
@@ -2503,7 +2503,7 @@ Add `import type { TasteV1 } from "~/lib/interview/taste";` and `jsonb` to the d
 
 ```bash
 bun run db:generate
-# rename the generated file to drizzle/0012_user_taste.sql and change its "tag" in drizzle/meta/_journal.json to match
+# rename the generated file to drizzle/0013_user_taste.sql and change its "tag" in drizzle/meta/_journal.json to match
 bun run db:migrate
 ```
 
@@ -3179,7 +3179,7 @@ Top of `docs/PLAN_onboarding-questionnaire.md` §3's bank table: `> **Superseded
 
 - [ ] **Step 4: `log.md`**
 
-A day entry (newest on top, under the month) with `**Shipped:**` (the tasks), `**Decisions:**` (Ben's ten, briefly), `**Findings:**` (the proposal's group ids; `TOPICS` pinned; the three forward-button names the e2e helper now accepts; anything the picks pass turned up), `**Open / next:**` (Ben's phone + 1440 look; merge; deploy runs migration 0012 + `db:seed`; after two ingests `graph:rebuild --confirm`; vocabulary round two; the loader sub-project; the real "never show me this" filter). End with the session-spend line from `python3 ~/.claude/scripts/session-spend.py --session <uuid>`, or omit it if the script exits non-zero.
+A day entry (newest on top, under the month) with `**Shipped:**` (the tasks), `**Decisions:**` (Ben's ten, briefly), `**Findings:**` (the proposal's group ids; `TOPICS` pinned; the three forward-button names the e2e helper now accepts; anything the picks pass turned up), `**Open / next:**` (Ben's phone + 1440 look; merge; deploy runs migration 0013 + `db:seed`; after two ingests `graph:rebuild --confirm`; vocabulary round two; the loader sub-project; the real "never show me this" filter). End with the session-spend line from `python3 ~/.claude/scripts/session-spend.py --session <uuid>`, or omit it if the script exits non-zero.
 
 - [ ] **Step 5: Final check and commit**
 

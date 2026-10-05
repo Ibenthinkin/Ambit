@@ -149,7 +149,7 @@ and logged with no effect, which is the whole point of asking.
 
 ## 4. The taste store
 
-**Table `user_taste`** (migration `0012`, via `bun run db:generate`; 0011 is v1's):
+**Table `user_taste`** (migration `0013`, via `bun run db:generate`; 0012 is v1's):
 
 ```
 user_taste
@@ -322,7 +322,7 @@ retake replaces it. A reader with no row (signed up on v1) sees the list alone.
 ## 9. Production order
 
 1. Ben merges v1, deploys, and the questionnaire runs on production once.
-2. Merge First Exhibition; deploy. Boot runs migration 0012 and `db:seed`, which creates the
+2. Merge First Exhibition; deploy. Boot runs migration 0013 and `db:seed`, which creates the
    round-one rows with their facets and seed cells.
 3. Two search ingests (the Monday pictures run on VM 202) fill the new topics.
 4. `bun run graph:rebuild --confirm` in the container (or locally against a dump), commit the
@@ -366,7 +366,7 @@ New: `src/lib/interview/{show,compass,temperament,exhibition,taste}.ts` + tests;
 `src/server/config/{interview-wings,interview-destinations,temperament,hand-topics}.ts`;
 `src/components/onboarding/exhibition-card.tsx` (+ test); `scripts/first-exhibition-faces.ts`;
 `docs/first-exhibition/{faces.json,reading-cards.json,vocabulary-proposal.md,study-design.md,study-handoff.md}`;
-migration `0012_user_taste.sql`.
+migration `0013_user_taste.sql`.
 
 Changed: `lib/interview/{types,config,bank,score,picks,path,askable,faces}.ts`;
 `components/onboarding/{question-step,face-card,reveal-step,onboarding-screen}.tsx`;
