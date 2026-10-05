@@ -62,7 +62,7 @@ steps, `steps.ts`); the faces service's writing branch; 46 hand picks in one `PI
 resolved from the study's ids and all distinct on `/dev/faces`; `user_taste` (migration 0013)
 written by `onboarding.complete` and read by `topics.taste`; the card grids, article and
 destination cards; the screen's steps, playoff, preselected amount and taste; the
-`ExhibitionCard` on the reveal and `/profile/topics`. `bun run check` green throughout (2,151
+`ExhibitionCard` on the reveal and `/profile/topics`. `bun run check` green throughout (2,156 at the end
 tests); e2e on the real corpus and in CI's shape (67 passed, 0 failed) — run on :3012 through a
 wrapper config, because :3000 was the tile-hover session's dev server.
 
@@ -89,6 +89,13 @@ facets now; the taste stored; Sora for the title; the loader is its own sub-proj
   are what keep it from being a bare kind name.
 - The study's growing-wing playoff picture is also the mushroom pair's plate; one picture can only
   be on one card, so the playoff takes the study's spare. Keeps were chosen by wing and tag.
+- **The final review (a fresh Fable reviewer) found two real holes, both fixed test-first:** a
+  reader who pressed "None of these" on every wing screen reached an **empty reveal with no way
+  forward** (every starter now sits in a wing, and "None" scores them all down) — `picksFrom` now
+  falls back to scored-down starters rather than leave it short; and the answer schema capped
+  `topicIds` at the model's 12 while a reading card sends the article's whole membership list —
+  raised to 256. It also caught that a broad `prettier --write src/server` had rewritten 22
+  recorded source fixtures; reverted. Nine minors are deferred in the branch's hand-off.
 - The questionnaire's forward button now has four names (Skip / Next / "I’d rather look at
   pictures" / "Nowhere in particular"); `answerQuestionnaire` accepts all four.
 
