@@ -9,11 +9,7 @@
     "medium_display": "Etching printed in black on paper",
     "is_public_domain": true,
     "department_title": "Prints and Drawings",
-    "term_titles": [
-      "print",
-      "paper (fiber product)",
-      "prints and drawing"
-    ],
+    "term_titles": ["print", "paper (fiber product)", "prints and drawing"],
     "classification_title": "print",
     "image_id": "214ecedb-77b1-6108-5e4a-7b7e961232ca",
     "_fixtureNote": "servable: prose-light catalogue fields, has artist_display with newline"

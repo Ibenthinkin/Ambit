@@ -28,6 +28,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
 
+import type { TasteV1 } from "~/lib/interview/taste";
 import type { WritingKind } from "~/server/config/writing";
 
 // ---------------------------------------------------------------------------------------------
@@ -561,3 +562,21 @@ export const interviewAnswer = pgTable(
   },
   (table) => [index("idx_interview_answer_user").on(table.userId)],
 );
+
+// The taste profile (docs/DESIGN_first-exhibition.md §4): what the questionnaire's reveal showed
+// — exhibition title, top wings and mediums, temperament, travel compass, opened cards — as one
+// JSON value, one row per reader, replaced by every completed run. The answer log stays the
+// source of truth; this is the derived view film and music will read later, versioned inside
+// the JSON (`v`) so a new shape adds keys, not columns.
+export const userTaste = pgTable("user_taste", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  // The interview_answer run this was computed from.
+  runId: text("run_id").notNull(),
+  bankVersion: integer("bank_version").notNull(),
+  taste: jsonb("taste").$type<TasteV1>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});

@@ -7,11 +7,12 @@
 // what they said, or be sent round the questions again with half a run already logged. Abandoning
 // the flow writes nothing at all — the screen holds every answer in memory until the reveal's
 // "Start exploring" — so the gate stays honest.
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import type { ReadingAmount } from "~/server/config/reading-amount";
-import { interviewAnswer, user } from "~/server/db/schema";
+import type { TasteV1 } from "~/lib/interview/taste";
+import { interviewAnswer, user, userTaste } from "~/server/db/schema";
 import { replaceUserTopicsTx, type TopicPick } from "~/server/db/topics";
 
 /** One `interview_answer` row's content, already in its stored shape (the router maps to it). */
@@ -35,6 +36,9 @@ export interface OnboardingRun {
     location: string | null;
     gender: string | null;
   };
+  /** What the reveal showed (docs/DESIGN_first-exhibition.md §4), validated by the router;
+   *  absent from a bank-v1 client, which leaves any stored taste as it was. */
+  taste?: TasteV1;
 }
 
 /**
@@ -77,6 +81,28 @@ export async function completeOnboarding(
           bankVersion: run.bankVersion,
         })),
       );
+    }
+
+    // One taste per reader, replaced by every run that sends one — a retake's reveal is the
+    // new truth, exactly as its picks are.
+    if (run.taste) {
+      await tx
+        .insert(userTaste)
+        .values({
+          userId,
+          runId,
+          bankVersion: run.bankVersion,
+          taste: run.taste,
+        })
+        .onConflictDoUpdate({
+          target: userTaste.userId,
+          set: {
+            runId,
+            bankVersion: run.bankVersion,
+            taste: run.taste,
+            createdAt: sql`now()`,
+          },
+        });
     }
 
     // Last, so the rollback test means something: an unknown topic id fails here, on the

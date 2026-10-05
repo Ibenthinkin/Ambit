@@ -18,6 +18,7 @@ import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import {
+  getUserTaste,
   getUserTopicPicks,
   listTopics,
   resetUserTopicWeights,
@@ -38,6 +39,12 @@ export const topicsRouter = createTRPCRouter({
    * both pickers' segmented controls read straight off without a second round trip.
    */
   mine: protectedProcedure.query(({ ctx }) => getUserTopicPicks(ctx.user.id)),
+
+  /**
+   * The caller's taste profile (First Exhibition, docs/DESIGN_first-exhibition.md §4) — the
+   * exhibition card on /profile/topics reads it; null for a reader who signed up before bank v2.
+   */
+  taste: protectedProcedure.query(({ ctx }) => getUserTaste(ctx.user.id)),
 
   /**
    * Replaces the caller's topic selection (SPEC §7). Validates every picked id against

@@ -113,9 +113,7 @@
     ],
     "notes": [
       {
-        "contents": [
-          "'Not for sale'"
-        ],
+        "contents": ["'Not for sale'"],
         "noteType": {
           "id": "general-note",
           "type": "NoteType",
@@ -297,9 +295,7 @@
         "type": "Note"
       },
       {
-        "contents": [
-          "Bibliography"
-        ],
+        "contents": ["Bibliography"],
         "noteType": {
           "id": "bibliographic-info",
           "type": "NoteType",
