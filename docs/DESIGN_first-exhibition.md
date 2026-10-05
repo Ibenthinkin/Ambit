@@ -1,5 +1,7 @@
 # Design: First Exhibition — bank v2, the taste store, and vocabulary round one
 
+**Built 10-05-26 on `feat/first-exhibition`** (plan: `docs/PLAN_first-exhibition.md`; pushed, not merged, not deployed).
+
 _10-04-26. Designed with Ben in this session from the study he brought over from a Claude chat
 ("Art Judging questions"), which lives in `docs/first-exhibition-for-ambit/` until the plan's first
 task moves it into place. This document is the authoritative adaptation of that study to the repo.
