@@ -2,7 +2,7 @@
 
 import { Chip } from "~/components/ui/chip";
 import { Textarea } from "~/components/ui/textarea";
-import { EITHER, NEITHER } from "~/lib/interview/config";
+import { EITHER, NEITHER, SENTINELS } from "~/lib/interview/config";
 import { optionAdds } from "~/lib/interview/targets";
 import type { Answer, Option, Question } from "~/lib/interview/types";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
@@ -74,17 +74,25 @@ export function QuestionStep({
   // which named the wings only. The keep
   // grid (a multi) and the pairs keep their labels, the reading cards are text-led anyway.
   const quietFaces = question.kind === "choice" && allFaced && !reading;
+  // A multi of things to keep *out* (Rather not): every effect it has takes topics down. It gets
+  // a "Show it all" answer — NEITHER, which score.ts reads as "nothing to avoid".
+  const avoiding =
+    question.kind === "multi" &&
+    question.options.every((o) => o.effects.every((e) => e.score < 0));
   /** Every answer is pressed — the Pick all chip shows pressed, and a press clears. */
   const allKept =
     question.options.length > 0 &&
     question.options.every((o) => keys.includes(o.key));
 
   function toggle(key: string) {
+    // A sentinel (Show it all's NEITHER) is a whole answer of its own; picking a chip after it
+    // replaces it rather than sitting beside it.
+    const picked = keys.filter((k) => !SENTINELS.includes(k));
     let next: string[];
-    if (keys.includes(key)) {
-      next = keys.filter((k) => k !== key);
+    if (picked.includes(key)) {
+      next = picked.filter((k) => k !== key);
     } else {
-      next = [...keys, key];
+      next = [...picked, key];
       // At the limit the newest answer pushes out the oldest, rather than the chip refusing to
       // press — a reader who changes their mind shouldn't have to un-press something first.
       if (question.max && next.length > question.max)
@@ -295,6 +303,19 @@ export function QuestionStep({
                 </Chip>
               ))}
             </div>
+            {/* Show it all (Ben, 10-05-26): the explicit "nothing to keep out". One tap, and on —
+                like None of these under the wings. No `data-topics`: not an answer to steer by. */}
+            {avoiding && (
+              <div className="mt-4">
+                <Chip
+                  size="sm"
+                  selected={keys[0] === NEITHER}
+                  onClick={() => only(NEITHER)}
+                >
+                  Show it all
+                </Chip>
+              </div>
+            )}
           </>
         )}
     </div>

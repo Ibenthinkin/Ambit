@@ -273,6 +273,42 @@ describe("QuestionStep", () => {
     });
   });
 
+  // Ben, 10-05-26: step 7 (Rather not) should have a "show it all" button — an explicit "keep
+  // nothing out", logged as NEITHER rather than a skip.
+  describe("a multi of things to keep out (Rather not)", () => {
+    it("Show it all answers NEITHER and moves on", () => {
+      const { onChange } = show("rather-not", {
+        questionId: "rather-not",
+        keys: ["horror"],
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Show it all" }));
+      expect(onChange).toHaveBeenCalledWith(
+        { questionId: "rather-not", keys: [NEITHER] },
+        true,
+      );
+    });
+
+    it("shows pressed when it was the answer, and picking a chip after it drops it", () => {
+      const { onChange } = show("rather-not", {
+        questionId: "rather-not",
+        keys: [NEITHER],
+      });
+      expect(
+        screen.getByRole("button", { name: "Show it all" }),
+      ).toHaveAttribute("aria-pressed", "true");
+      fireEvent.click(screen.getByRole("button", { name: "Horror" }));
+      expect(onChange).toHaveBeenCalledWith(
+        { questionId: "rather-not", keys: ["horror"] },
+        false,
+      );
+    });
+
+    it("is not offered on a multi of things to like", () => {
+      show("evening");
+      expect(screen.queryByRole("button", { name: "Show it all" })).toBeNull();
+    });
+  });
+
   describe("a reading question", () => {
     it("renders article cards and puts the face's memberships on the answer", () => {
       const { onChange } = show("read", undefined, {

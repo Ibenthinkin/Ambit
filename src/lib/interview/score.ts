@@ -63,6 +63,12 @@ export function scoreAnswers(
       continue;
     }
 
+    // NEITHER on a multi is Rather not's "Show it all" (Ben, 10-05-26): nothing is to be kept
+    // out, so nothing is scored — it is logged as said, unlike a skip. (Without this, the line
+    // below would multiply each -2 by NEITHER_FACTOR and *raise* the topics the reader was
+    // offered to avoid.)
+    if (a.keys[0] === NEITHER && q.kind === "multi") continue;
+
     const whole =
       a.keys[0] === EITHER
         ? EITHER_FACTOR
