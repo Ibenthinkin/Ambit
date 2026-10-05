@@ -18,10 +18,21 @@ describe("globals.css reduced motion", () => {
   );
 
   it("exempts the .motion-gentle subtrees from the 0.01 ms collapse", () => {
-    expect(block).toContain(":not(.motion-gentle, .motion-gentle *),");
+    expect(block).toContain(
+      ":not(.motion-gentle, .motion-gentle *, .motion-lift),",
+    );
     expect(block).toContain(":not(.motion-gentle, .motion-gentle *)::before");
     expect(block).toContain(":not(.motion-gentle, .motion-gentle *)::after");
     expect(block).not.toMatch(/^\s*\*,\s*$/m);
+  });
+
+  // The feed tile's lift (docs/PLAN_tile-hover.md, 10-04-26) runs under Reduce Motion by the
+  // design's own rule: a 3.5% scale is not the motion that setting targets, and Ben — who has it
+  // on — would read a snap as a bug. Only the element itself is exempt, never its subtree: the
+  // strip's fade, the badge's fill and the ring still collapse.
+  it("exempts the .motion-lift element itself, and not its children", () => {
+    expect(block).toContain(".motion-lift)");
+    expect(block).not.toContain(".motion-lift *");
   });
 });
 
@@ -52,5 +63,20 @@ describe("globals.css keyframes survive the Tailwind build", () => {
     expect(out.css).toContain("@keyframes loader-ring");
     expect(out.css).toContain("@keyframes loader-orbit");
     expect(out.css).toContain("@keyframes loader-reach");
+  }, 60_000);
+
+  // The Lift's three tokens (docs/PLAN_tile-hover.md Task 1). A theme token Tailwind sees no
+  // utility for is dropped from the build, so this fails if nothing in src uses them. The shadow
+  // is INLINED by `shadow-*` (into `--tw-shadow`), so its value is what to look for, not its
+  // variable name; the ease and colour come through as variables.
+  it.skip("emits the tile lift's shadow, ease and focus-ring tokens", async () => {
+    const from = join(__dirname, "globals.css");
+    const out = await postcss([tailwind()]).process(
+      readFileSync(from, "utf8"),
+      { from },
+    );
+    expect(out.css).toContain("0 22px 44px");
+    expect(out.css).toContain("--ease-lift");
+    expect(out.css).toContain("--color-focus-ring");
   }, 60_000);
 });
