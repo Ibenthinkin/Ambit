@@ -36,6 +36,13 @@ const taste: TasteV1 = {
 };
 
 describe("ExhibitionCard", () => {
+  it("is square-cornered, like the cards above it (Ben's critique, 10-05-26)", () => {
+    render(<ExhibitionCard taste={taste} topicLabels={labels} />);
+    expect(
+      screen.getByRole("region", { name: "Your first exhibition" }).className,
+    ).not.toMatch(/rounded/);
+  });
+
   it("names the show, the wings and mediums, and shows the strip, the compass and what you'd open", () => {
     render(<ExhibitionCard taste={taste} topicLabels={labels} />);
     expect(

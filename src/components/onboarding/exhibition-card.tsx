@@ -99,7 +99,7 @@ export function ExhibitionCard({
   return (
     <section
       aria-label="Your first exhibition"
-      className="border-hairline border-ink/12 rounded-card p-5"
+      className="border-hairline border-ink/12 p-5"
     >
       <p className={EYEBROW}>Your first exhibition</p>
       <h2 className="text-ink-hi mt-2 text-[30px] leading-[1.1] font-semibold tracking-[-0.4px]">

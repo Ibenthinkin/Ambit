@@ -120,4 +120,35 @@ describe("FaceCard", () => {
       expect(card).toHaveTextContent("Space");
     });
   });
+
+  // Ben's critique (10-05-26): every other picture in the app is square-cornered; the
+  // questionnaire's cards were the odd ones out.
+  it.each([
+    ["a picture card", { src: "/api/img/a1?w=960" }],
+    [
+      "an article card",
+      {
+        writing: {
+          kind: "essay" as const,
+          minutes: 9,
+          title: "Space",
+          dek: "",
+        },
+      },
+    ],
+    ["a destination card", { card: { where: "Japan", line: "Moss." } }],
+  ])("%s has square corners", (_, extra) => {
+    render(
+      <FaceCard
+        label="Space"
+        topics={[]}
+        selected={false}
+        onClick={vi.fn()}
+        {...extra}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Space" }).className).not.toMatch(
+      /rounded/,
+    );
+  });
 });
