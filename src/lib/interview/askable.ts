@@ -7,7 +7,7 @@ import type { Question } from "./types";
 /**
  * The bank, filtered:
  *   - `text` and `amount` questions are always asked — neither needs a topic to exist.
- *   - an answer none of whose topics are listed is hidden;
+ *   - an answer none of whose topics are listed is hidden — unless it is `always`;
  *   - a `pair` with a dead side is skipped (one card is not a face-off);
  *   - a `choice` or `multi` left with fewer than two answers is skipped.
  * Returned questions carry only their live options, in bank order.
@@ -22,7 +22,12 @@ export function askable(
       out.push(q);
       continue;
     }
-    const live = q.options.filter((o) => optionTargets(o, listed).length > 0);
+    // An `always` option is offered regardless — its point is the log, or its scoring comes from
+    // the item it shows rather than from effects (the reading cards). Everything else must have
+    // somewhere to land.
+    const live = q.options.filter(
+      (o) => o.always === true || optionTargets(o, listed).length > 0,
+    );
     if (q.kind === "pair" ? live.length < q.options.length : live.length < 2)
       continue;
     out.push({ ...q, options: live });
