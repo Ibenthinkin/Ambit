@@ -5,6 +5,42 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
+### [[10-05-26 Mon]] — The questionnaire merges; its migration becomes 0012
+
+**Shipped:** `feat/onboarding-questionnaire` (bank v1, 28 commits) merged to `main` as
+`e942adb`, in the `~/Dev/ambit-questionnaire` worktree because the main checkout was on
+`feat/tile-hover` under another session. Branch deleted; the worktree is left on `main`. Not
+pushed — a push deploys.
+
+**Findings:**
+
+- **Both sides had written a migration 0011** — `main`'s `0011_ingest_run_kind` (already on
+  production, `/api/health` says `da5c4ad`) and the branch's `0011_questionnaire`. The
+  questionnaire's became **`0012_questionnaire`**, regenerated with `drizzle-kit generate` against
+  the merged schema so its snapshot carries both changes; the SQL came out byte-for-byte the
+  branch's hand-written file. The First Exhibition docs' taste-store migration moved to `0013`.
+- **Drizzle's migrator decides by the journal's `when`, not by hash**, so a renumbered migration
+  is "new" to any database that ran it under the old number. The one local database (both
+  checkouts share `localhost:5432/ambit`) had applied the branch's 0011; its
+  `__drizzle_migrations` row was moved to the new timestamp and `db:migrate` is a clean no-op.
+  Production never saw the old number, so a deploy applies 0012 once.
+- **`bun run check` is green at 2,078 tests.** `bun run e2e:prod` on the real corpus: 63 passed,
+  2 failed — the `/api/img` 429 under parallel workers (open since 09-26, passes alone) and the
+  retake test, which **steered toward geology and could only find it against CI's sixteen
+  originals**: geology is one of four tied topics on the desert answer and shares a group with
+  the-ocean and water, so on the full vocabulary the picker's `GROUP_CAP` of three is spent
+  before it. Steered toward music instead (first on its answer, another group, an original);
+  the spec passes on the real corpus and on a fresh CI-shape database (`:5434`).
+- The branch's scratch Postgres `ambit-q-pg` from 10-02 was still running; stopped.
+
+**Open / next:** Ben pushes (deploy runs 0012 + `db:seed`) and gives v1 its phone + 1440 look,
+the faces their hand pass on `/dev/faces`, and `SOME_FROM`/`LOT_FROM` a tune; then a cheaper
+session executes `docs/PLAN_first-exhibition.md` on `feat/first-exhibition`, branching from the
+worktree's `main` while `~/Dev/ambit` is on `feat/tile-hover`. Still open: the `/api/img` 429 in
+parallel local e2e.
+
+_Session spend: 14.08M tok (in 2.9k · out 96.6k · cache r 13.62M / w 356.7k) · fable-5-1 + opus-5-5 · 09:30→10:29_
+
 ### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
 
 **Findings:**
@@ -550,7 +586,7 @@ _Session spend: 6.63M tok (in 96 · out 14.3k · cache r 5.76M / w 855.8k) · ~�
 The 09-29 direction talk happened. **Ben:** onboarding is "completely broken" — the groups "cover
 waaay too wide range of things", Place no longer makes sense to ask about directly ("ask where's
 a place they might like to go visit?"), Look "doesn't make much sense … maybe something like
-vibe", and none of it applies to writing. He wants 4–15 questions that let Ambit *guess* topics
+vibe", and none of it applies to writing. He wants 4–15 questions that let Ambit _guess_ topics
 under the current system — "I want it to feel like we are getting to know them" — with tuning
 left for after sign-up.
 
@@ -583,13 +619,14 @@ deleted the branch within a minute; nothing of theirs was touched. Hence the wor
 edits the bank's copy (§3) whenever he likes — it is one file. His `propaganda-and-advertising`
 rename is still uncommitted in `~/Dev/ambit`; Task 1 repeats it on this branch.
 
-*Session spend: 9.65M tok (in 252 · out 169.2k · cache r 8.37M / w 1.11M) · ~≥$7.08 · fable-5-1 + opus-4-7 · 12:26→12:54*
+_Session spend: 9.65M tok (in 252 · out 169.2k · cache r 8.37M / w 1.11M) · ~≥$7.08 · fable-5-1 + opus-4-7 · 12:26→12:54_
 
 #### Fourth session (Opus 5.5) — the questionnaire, built
 
 **Shipped** (worktree `~/Dev/ambit-questionnaire`, branch `feat/onboarding-questionnaire`, 25 commits on `121203b`, **not pushed, not merged**): all twenty plan tasks, then one review-fix pass. Unit `bun run check` green at **1,981**; the **CI-shape e2e run green** — build + `E2E_PROD=1 playwright --workers 1` on a fresh `postgres:17-alpine` — **65 passed, 9 skipped** (the dev-only specs), including the new `e2e/onboarding.spec.ts` (skip-everything → starters, retake overwrites, Reading "None" → no writing tile). Migration 0011.
 
 **Decisions taken on Ben's behalf** (each a `Ruling:` in the run's ledger, all cheap to reverse):
+
 - A pair side that stands for a group gives its face topic **+0.5** (`FACE_BONUS`), else the face ties with its siblings under the three-per-group cap and the path to astronomy/botany isn't guaranteed.
 - Pair, choice and amount **advance on the tap**; multi and text wait for Next. A multi at its limit drops the oldest answer.
 - A skipped reading question or About-you field on a retake **leaves the column alone** (never clears it).
@@ -602,7 +639,7 @@ rename is still uncommitted in `~/Dev/ambit`; Task 1 repeats it on this branch.
 
 **Open / next:** Ben copies `.env` into the worktree (`! cp ~/Dev/ambit/.env ~/Dev/ambit-questionnaire/.env`), runs `bun run e2e:prod`, looks on a phone and at 1440, gives the faces their hand pass on `/dev/faces`, and tunes `SOME_FROM`/`LOT_FROM` after walking the bank; then merge (mind `curator.ts` against `feat/judge-vm202`) and deploy (migration 0011 runs at boot). The scratch container `ambit-q-pg` is still running — `docker stop ambit-q-pg`.
 
-*Session spend: 71.21M tok (in 542 · out 355.5k · cache r 68.62M / w 2.24M) · ~≥$0.73 · opus-5-5 + opus-4-7 + <synthetic> · 13:09→19:59*
+_Session spend: 71.21M tok (in 542 · out 355.5k · cache r 68.62M / w 2.24M) · ~≥$0.73 · opus-5-5 + opus-4-7 + <synthetic> · 13:09→19:59_
 
 ### [[10-01-26 Thu]] — Publications verdicted; a persona for every signed-out visit
 
