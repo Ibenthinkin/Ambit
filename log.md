@@ -108,6 +108,17 @@ show me this" filter.
 
 _Session spend: 122.88M tok (in 1.1k · out 284.1k · cache r 120.50M / w 2.10M) · opus-5-5 · 10:53→11:46_
 
+**Ben's walk, and the merge (same evening).** Ben walked bank v2 on the dev server and gave a
+screen-by-screen critique, now `docs/NOTES_onboarding-critique.md`. **His verdict: the mechanics
+are good; the notes are cosmetic** — accent colour and buttons app-wide, square picture corners,
+every card too small (a feed or swipe interface for pictures is on the table), all the copy, the
+category names (especially "Body & mind"), no coordinates on destinations, About you removed, the
+reveal renamed and given back what the study's handoff had. All of it goes to the **next
+sitewide redesign**, not to this branch. With that, **`feat/first-exhibition` is merged to
+`main`** (local only — a push deploys).
+
+_Session spend: 42.54M tok (in 210 · out 46.9k · cache r 41.94M / w 549.2k) · opus-5-5 · 11:46→12:56_
+
 ### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
 
 **Findings:**
