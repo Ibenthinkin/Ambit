@@ -59,13 +59,208 @@ const FACE_BONUS = 0.5;
 
 /**
  * Hand-picked pictures, keyed by face role (`wing:<id>:door`, `wing:<id>:playoff`,
- * `pair:<id>:a|b`, `keep:<n>`). Filled from `bun run faces:first-exhibition` (Task 11 of the
- * plan); a missing key means "the face topic's best picture", which is what CI and a fresh
- * install get. `(source, sourceId)`, never an item id: the pair is the same in every database.
+ * `pair:<id>:a|b`, `keep:<n>`). Filled from `bun run faces:first-exhibition` over the study's
+ * docs/first-exhibition/faces.json (10-05-26); swap one on `/dev/faces`. A missing key means
+ * "the face topic's best picture", which is what CI and a fresh install get. `(source, sourceId)`, never an item id: the pair is the same in every database.
  */
 export const PICKS: Readonly<
   Record<string, { source: string; sourceId: string }>
-> = {};
+> = {
+  // ── Wing doors (the three wing screens) ──
+  // Saturn over the desert
+  "wing:space:door": {
+    source: "70sscifiart",
+    sourceId: "640521435159429120:6",
+  },
+  // Spoonbill, in an old book
+  "wing:creatures:door": { source: "cma", sourceId: "139846" },
+  // A night street after rain
+  "wing:cities:door": {
+    source: "sovietpostcards",
+    sourceId: "615034113266794496:1",
+  },
+  // A skeleton, drawn
+  "wing:body:door": { source: "wellcome", sourceId: "g4c37dma" },
+  // Mushrooms on the forest floor
+  "wing:growing:door": {
+    source: "doorofperception",
+    sourceId: "steve-axford-fungi-the-recyclers:7510",
+  },
+  // A control room
+  "wing:machines:door": {
+    source: "thevaultoftheatomicspaceage",
+    sourceId: "648364434296799232:1",
+  },
+  // Girl in a shawl, an old portrait
+  "wing:people:door": {
+    source: "doorofperception",
+    sourceId: "the-north-american-indian-1904-1924:12107",
+  },
+  // Breakfast with a samovar, painted
+  "wing:everyday:door": {
+    source: "sovietpostcards",
+    sourceId: "668201700436443136:1",
+  },
+  // An audience laughing
+  "wing:stage:door": {
+    source: "kvetchlandia",
+    sourceId: "654585663210045440:1",
+  },
+  // A river through the forest, from above
+  "wing:land:door": {
+    source: "thisiscolossal",
+    sourceId: "splash-and-burn-artist-led-initiative",
+  },
+  // A divine couple, carved in stone
+  "wing:myth:door": { source: "met", sourceId: "38256" },
+  // A spiral rug
+  "wing:made:door": {
+    source: "doorofperception",
+    sourceId: "aboriginal-art:5329",
+  },
+  // ── Playoff seconds — a different picture of the same wing ──
+  // Cosmonautics Day postcard
+  "wing:space:playoff": {
+    source: "sovietpostcards",
+    sourceId: "648261596418883584:1",
+  },
+  // Boar, a linocut
+  "wing:creatures:playoff": {
+    source: "archive",
+    sourceId: "mLphQNPFdo28LXpGSgG4K",
+  },
+  // A teapot-shaped gas station
+  "wing:cities:playoff": { source: "loc", sourceId: "2017702117" },
+  // A head full of flowers
+  "wing:body:playoff": {
+    source: "thisiscolossal",
+    sourceId: "surreal-editorial-illustrations-by-simon-prades",
+  },
+  // (The study's growing playoff picture is also the mushrooms pair's plate side; a picture
+  // can only be on one card, so the playoff takes the study's spare.)
+  // Seedlings
+  "wing:growing:playoff": {
+    source: "thisiscolossal",
+    sourceId: "nataliya-vladychko-glass-seeds",
+  },
+  // A music box mechanism
+  "wing:machines:playoff": {
+    source: "thisiscolossal",
+    sourceId: "soundweaving",
+  },
+  // On the street, 1930s
+  "wing:people:playoff": {
+    source: "kvetchlandia",
+    sourceId: "747441133221707776:1",
+  },
+  // Oranges, illustrated
+  "wing:everyday:playoff": {
+    source: "archive",
+    sourceId: "riMGjW0e1ATY_iNm0qzTm",
+  },
+  // A violin
+  "wing:stage:playoff": { source: "met", sourceId: "503008" },
+  // Rocks in a still sea, painted
+  "wing:land:playoff": {
+    source: "jareckiworld",
+    sourceId: "802203698653691904:1",
+  },
+  // A carved figure
+  "wing:myth:playoff": { source: "met", sourceId: "311294" },
+  // White blocks
+  "wing:made:playoff": {
+    source: "thisisnthappiness",
+    sourceId: "789797672752168960:2",
+  },
+  // ── Pairs ──
+  // Pink mushrooms
+  "pair:hands-mushrooms:a": {
+    source: "doorofperception",
+    sourceId: "steve-axford-fungi-the-recyclers:7489",
+  },
+  // Mushrooms, a natural-history plate
+  "pair:hands-mushrooms:b": {
+    source: "sovietpostcards",
+    sourceId: "725021417447489536:1",
+  },
+  // Owl in the leaves
+  "pair:hands-owls:a": {
+    source: "thisisnthappiness",
+    sourceId: "182532554564:9",
+  },
+  // Barn owls, painted
+  "pair:hands-owls:b": {
+    source: "thisiscolossal",
+    sourceId: "joseph-mcglennon-bird-montages",
+  },
+  // Fish, a natural-history plate
+  "pair:hands-fish:a": {
+    source: "pdr",
+    sourceId: "essay/dr-mitchill-and-the-mathematical-tetrodon",
+  },
+  // Fish brooch
+  "pair:hands-fish:b": {
+    source: "sovietpostcards",
+    sourceId: "626915904298631169:1",
+  },
+  // Target, in bold colour
+  "pair:feel-circles:a": {
+    source: "jareckiworld",
+    sourceId: "646649677669957632:1",
+  },
+  // A ring of yellow
+  "pair:feel-circles:b": {
+    source: "jareckiworld",
+    sourceId: "696565367789780992:1",
+  },
+  // Street at night
+  "pair:feel-roads:a": {
+    source: "thisisnthappiness",
+    sourceId: "632224826644430848:1",
+  },
+  // A straight road through the trees
+  "pair:feel-roads:b": {
+    source: "sovietpostcards",
+    sourceId: "689327672892014592:1",
+  },
+  // A living room, 1970s
+  "pair:feel-rooms:a": {
+    source: "thevaultoftheatomicspaceage",
+    sourceId: "700801002875535360:1",
+  },
+  // Concrete stairwell
+  "pair:feel-rooms:b": {
+    source: "doorofperception",
+    sourceId: "antroposophic-architecture:1690",
+  },
+  // ── Keep, in KEEP's order ──
+  // Lorikeet, close up
+  "keep:1": { source: "kvetchlandia", sourceId: "190361136333:1" },
+  // Parasol mushrooms
+  "keep:2": {
+    source: "thisiscolossal",
+    sourceId: "fantastic-fungi-steve-axford",
+  },
+  // River canyon, painted
+  "keep:3": { source: "jareckiworld", sourceId: "827377552024879104:1" },
+  // Earthrise
+  "keep:4": { source: "thisisnthappiness", sourceId: "677348382457659392:1" },
+  // Room of acoustic horns
+  "keep:5": {
+    source: "pdr",
+    sourceId: "essay/luigi-russolos-cacophonous-futures",
+  },
+  // A stair tower on a pink wall
+  "keep:6": { source: "thisisnthappiness", sourceId: "180752115324:1" },
+  // A woman, reflected
+  "keep:7": { source: "kvetchlandia", sourceId: "625682031366602752:1" },
+  // Astarte
+  "keep:8": { source: "70sscifiart", sourceId: "142370579131:2" },
+  // Rings, softly painted
+  "keep:9": { source: "thisisnthappiness", sourceId: "184295004459:1" },
+  // Cabin in a misty wood
+  "keep:10": { source: "thisisnthappiness", sourceId: "185996666599:1" },
+};
 
 /** Which four wings each wing screen shows. Space, Growing and Stage are on different screens so
  *  the e2e path (astronomy + botany + music) can choose all three; a wing with no listed topic is
