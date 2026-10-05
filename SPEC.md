@@ -214,13 +214,10 @@ A row's `weight` is shown to the reader as one of three **levels** (`config/topi
 
 ### 5.3a The questionnaire's columns and log (migration 0012, 10-02-26; renumbered from 0011 at the 10-05 merge)
 
-Four nullable columns on `user`, read and written through `db/users.ts` / `db/onboarding.ts` — Better Auth is never told about them:
+One nullable column on `user`, read and written through `db/users.ts` / `db/onboarding.ts` — Better Auth is never told about it. (0012 added three more — `age_range`, `location`, `gender` — for the optional About-you step, a trial; **migration 0014 dropped them on 10-05-26** with the step, the trial's named exit. Nothing demographic is stored.)
 
 ```sql
 ALTER TABLE "user" ADD COLUMN writing_amount TEXT;  -- 'none' | 'little' | 'some' | 'lot'; NULL = never said (the feed's default)
-ALTER TABLE "user" ADD COLUMN age_range TEXT;       -- the optional About-you step: a trial, never read by the feed
-ALTER TABLE "user" ADD COLUMN location  TEXT;
-ALTER TABLE "user" ADD COLUMN gender    TEXT;
 
 CREATE TABLE interview_answer (
   id           TEXT PRIMARY KEY,
@@ -406,7 +403,7 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 | `feed.forgetSince`       | mutation | `{ since: Date }`                                                                                                   | `{ forgotten: number }` — **dev-only**: `FORBIDDEN` unless the dev gate is on; deletes the caller's `seen_item` rows served at or after `since`                                                                                                 |
 | `topics.mine`            | query    | —                                                                                                                   | `{ topicId, weight }[]` — the caller's picks (weights since 09-28-26, which retired `topics.weights`)                                                                                                                                           |
 | `topics.setWeight`       | mutation | `{ topicId: string, level: "little" \| "some" \| "lot" }`                                                           | `{ topicId, weight }` — snaps one existing pick to a level; `NOT_FOUND` if not picked                                                                                                                                                           |
-| `onboarding.complete`    | mutation | `{ picks (3–24), writingAmount \| null, answers, bankVersion, about?, taste? }`                                     | `{ runId }` — picks (**overwriting**), the answer log, the user columns and the taste (`user_taste`, upserted), one transaction; an unknown opened item id is `BAD_REQUEST` and writes nothing                                                  |
+| `onboarding.complete`    | mutation | `{ picks (3–24), writingAmount \| null, answers, bankVersion, taste? }`                                             | `{ runId }` — picks (**overwriting**), the answer log, the user columns and the taste (`user_taste`, upserted), one transaction; an unknown opened item id is `BAD_REQUEST` and writes nothing                                                  |
 | `topics.taste`           | query    | —                                                                                                                   | `TasteV1 \| null` — the caller's stored first exhibition (First Exhibition, 10-04-26); null before a bank-v2 run                                                                                                                                |
 | `onboarding.interpret`   | mutation | `{ texts: { questionId, text ≤ 500 }[] }` (max 3)                                                                   | `{ questionId, topicIds }[]` — one model call; empty lists on any failure; writes nothing                                                                                                                                                       |
 | `user.me`                | query    | —                                                                                                                   | `{ id, name, email, handle, bio }`                                                                                                                                                                                                              |

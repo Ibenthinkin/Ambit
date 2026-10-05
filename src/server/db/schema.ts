@@ -62,11 +62,8 @@ export const user = pgTable("user", {
   // lot` — and NULL means "never said", which the feed reads as its own default. The *word* is
   // stored rather than the share it buys, so retuning a share needs no data migration.
   writingAmount: text("writing_amount"),
-  // The optional "About you" step — a trial (plan §8). Free-form on purpose, never read by the
-  // feed, and removable by dropping these three columns.
-  ageRange: text("age_range"),
-  location: text("location"),
-  gender: text("gender"),
+  // `age_range`, `location` and `gender` — the About-you trial (plan §8) — were dropped 10-05-26
+  // with the step itself (migration 0014; docs/PLAN_onboarding-critique.md D9).
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

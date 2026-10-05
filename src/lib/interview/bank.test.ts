@@ -196,9 +196,7 @@ describe("the nine steps", () => {
     const used = [...new Set(QUESTIONS.map((q) => STEP_OF[q.id]!))].sort(
       (a, b) => a - b,
     );
-    expect(used).toEqual(
-      Array.from({ length: STEP_COUNT }, (_, i) => i + 1),
-    );
+    expect(used).toEqual(Array.from({ length: STEP_COUNT }, (_, i) => i + 1));
     expect(STEP_LABELS).toHaveLength(STEP_COUNT);
   });
   it("stepsAsked lists the steps that survive, in order", () => {
