@@ -11,6 +11,7 @@ import { askable } from "~/lib/interview/askable";
 import { BANK_VERSION, QUESTIONS, STARTER_TOPICS } from "~/lib/interview/bank";
 import { SKIP } from "~/lib/interview/config";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
+import { columnFor, type Phase } from "~/lib/interview/layout";
 import {
   defaultReadingAmount,
   picksFrom,
@@ -64,8 +65,6 @@ import { StepBar } from "./step-bar";
 // rather than questions; a `show.top` question (the playoff) is **ranked** by the scores so far
 // before it is shown (show.ts); the reading-amount question **opens on a default** read off the
 // article cards; and the reveal's **taste** (taste.ts) is computed here and sent with the run.
-
-type Phase = "intro" | "questions" | "interpreting" | "reveal";
 
 export interface OnboardingScreenProps {
   /** `topics.list` — every pickable topic in this database. */
@@ -282,11 +281,14 @@ export function OnboardingScreen({
     }
   }
 
+  // Narrow for words, wide for pictures (lib/interview/layout.ts; Ben's critique 10-05-26). Both
+  // are `mx-auto`, so a change between questions recentres the column rather than jumping it.
+  const width = columnFor(onScreen, phase);
+
   return (
     <main className="bg-bg min-h-dvh">
-      {/* One narrow column on every width (docs/DESIGN_desktop-polish.md §1). The bottom padding
-          clears the fixed bar. */}
-      <Column width="narrow" className="px-6 pt-16 pb-[180px]">
+      {/* The bottom padding clears the fixed bar. */}
+      <Column width={width} className="px-6 pt-16 pb-[180px]">
         {phase === "intro" && (
           <>
             <Rise>
@@ -313,17 +315,19 @@ export function OnboardingScreen({
                   </Link>
                 </p>
               )}
+              {/* Under the copy it answers, not in the fixed bar at the foot of the screen (Ben's
+                  critique, 10-05-26): on a tall desktop window the two were a screen apart. Not
+                  `fixed`, so it can live inside <Rise> and arrive with the words. */}
+              <div className="mt-8">
+                <Button
+                  shape="pill"
+                  size="md"
+                  onClick={() => setPhase("questions")}
+                >
+                  Begin
+                </Button>
+              </div>
             </Rise>
-            {/* Outside <Rise>: its transform would capture a `fixed` child. */}
-            <StepBar>
-              <Button
-                shape="pill"
-                size="md"
-                onClick={() => setPhase("questions")}
-              >
-                Begin
-              </Button>
-            </StepBar>
           </>
         )}
 
@@ -351,7 +355,7 @@ export function OnboardingScreen({
                 }
               />
             </Rise>
-            <StepBar>
+            <StepBar width={width}>
               <Button shape="pill" size="md" variant="ghost" onClick={back}>
                 Back
               </Button>

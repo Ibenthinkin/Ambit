@@ -110,6 +110,26 @@ describe("OnboardingScreen", () => {
     expect(screen.getByText("1 of 5")).toBeInTheDocument();
   });
 
+  // Ben's critique (10-05-26): Begin sat in the fixed bar at the foot of the screen, far from
+  // the copy it answers. It belongs right under the intro.
+  it("puts Begin under the intro copy, not in the fixed bar", () => {
+    show();
+    const begin = screen.getByRole("button", { name: "Begin" });
+    expect(begin.closest(".fixed")).toBeNull();
+  });
+
+  it("gives a picture step the wide column and a word step the narrow one", () => {
+    const { container } = show();
+    const column = () => container.querySelector("main > div")!.className;
+    expect(column()).toMatch(/md:max-w-\[600px\]/);
+    click("Begin");
+    expect(questionId()).toBe("words");
+    expect(column()).toMatch(/md:max-w-\[600px\]/);
+    click("Skip");
+    expect(questionId()).toBe("space-or-garden");
+    expect(column()).toMatch(/md:max-w-\[1120px\]/);
+  });
+
   it("every question can be skipped; the reveal then proposes the starters, and saving goes to the feed", async () => {
     show();
     click("Begin");

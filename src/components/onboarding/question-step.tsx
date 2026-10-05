@@ -6,6 +6,7 @@ import { EITHER, NEITHER } from "~/lib/interview/config";
 import { optionAdds } from "~/lib/interview/targets";
 import type { Answer, Option, Question } from "~/lib/interview/types";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
+import { rendersCards } from "~/lib/interview/layout";
 import { READING_FALLBACK } from "~/lib/interview/reading-fallback";
 import { cn } from "~/lib/utils";
 
@@ -62,19 +63,16 @@ export function QuestionStep({
   };
   // First Exhibition's card grids: a choice or multi whose every answer has a face (the wings,
   // the playoff, the keep grid, the reading cards), or any with a typeset card (destinations).
+  // The same rule decides the screen's column (lib/interview/layout.ts), so it lives there.
   const allFaced =
     question.options.length > 0 && question.options.every((o) => o.face);
   const anyCard = question.options.some((o) => o.card);
-  const asCards =
-    (question.kind === "choice" || question.kind === "multi") &&
-    (allFaced || anyCard);
+  const asCards = rendersCards(question);
+  const reading = question.options.some((o) => o.face?.writing);
   // The wings and the playoff — a faced *choice* that is not a reading screen — show their
   // pictures with no caption: the picture is the question (Ben's critique, 10-05-26). The keep
   // grid (a multi) and the pairs keep their labels, the reading cards are text-led anyway.
-  const quietFaces =
-    question.kind === "choice" &&
-    allFaced &&
-    !question.options.some((o) => o.face?.writing);
+  const quietFaces = question.kind === "choice" && allFaced && !reading;
 
   function toggle(key: string) {
     let next: string[];
@@ -134,7 +132,9 @@ export function QuestionStep({
 
       {question.kind === "pair" && (
         <div role="group" aria-labelledby={id} className="mt-6">
-          <div className="grid grid-cols-2 gap-3">
+          {/* In the wide column a pair is held to ~370 px a side and centred — two pictures to
+              compare, not a banner. */}
+          <div className="grid grid-cols-2 gap-3 md:mx-auto md:max-w-[760px]">
             {question.options.map((o) => (
               <FaceCard
                 key={o.key}
@@ -174,13 +174,19 @@ export function QuestionStep({
                 : "Pick any."}
             </p>
           )}
-          {/* Two across on a phone; from md, four across — five for the ten-picture keep grid. */}
+          {/* Two across on a phone. From md, in the 1120 px wide column (layout.ts): the wings and
+              the playoff four across (~265 px a card), the ten-picture keep grid five (~210 px),
+              the two reading cards held to ~420 px each, the destinations three, four from xl. */}
           <div
             className={cn(
-              "grid gap-3",
-              question.options.length > 4
-                ? "grid-cols-2 md:grid-cols-5"
-                : "grid-cols-2 md:grid-cols-4",
+              "grid grid-cols-2 gap-3",
+              anyCard
+                ? "md:grid-cols-3 xl:grid-cols-4"
+                : reading
+                  ? "md:mx-auto md:max-w-[860px]"
+                  : question.options.length > 4
+                    ? "md:grid-cols-5"
+                    : "md:grid-cols-4",
             )}
           >
             {question.options.map((o) => {

@@ -5,18 +5,23 @@ import { Column } from "~/components/ui/column";
 // on screen, however tall a step is (the reveal can be twelve rows).
 //
 // The gradient spans the viewport (content scrolls out from under it); the buttons sit in the
-// same narrow column as the step above. Not wrapped in <Rise>, which would fight `fixed`.
+// same column as the step above — narrow for words, wide for pictures (lib/interview/layout.ts),
+// so Next stays at the right edge of what the reader is looking at. Not wrapped in <Rise>, which
+// would fight `fixed`.
 export function StepBar({
   error,
+  width = "narrow",
   children,
 }: {
   /** A failure to show above the buttons — here, not in the scrolling column, so it is seen. */
   error?: string;
+  /** The step's own column width. */
+  width?: "narrow" | "wide";
   children: React.ReactNode;
 }) {
   return (
     <div className="from-bg to-bg/0 fixed inset-x-0 bottom-0 z-20 bg-linear-to-t from-62% pt-5 pb-10">
-      <Column width="narrow" className="px-6">
+      <Column width={width} className="px-6">
         {error && (
           <div
             role="alert"
