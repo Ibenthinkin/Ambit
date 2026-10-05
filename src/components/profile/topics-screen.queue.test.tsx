@@ -70,6 +70,8 @@ vi.mock("~/trpc/react", () => ({
     topics: {
       list: { useQuery: () => ({ data: state.topics }) },
       mine: { useQuery: () => ({ data: state.mine }) },
+      // No stored exhibition: this file is about the write queue.
+      taste: { useQuery: () => ({ data: null }) },
       setMine: { useMutation: realMutation("setMine") },
       setWeight: { useMutation: realMutation("setWeight") },
       resetWeights: {

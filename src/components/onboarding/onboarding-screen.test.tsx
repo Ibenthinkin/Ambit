@@ -120,7 +120,10 @@ describe("OnboardingScreen", () => {
     click("Skip");
     expect(heading()).toBe("Here’s where we’ll start");
     expect(
-      screen.getAllByRole("group").map((g) => g.getAttribute("data-topic")),
+      // The level rows only — the exhibition card above them has groups of its own.
+      screen
+        .getAllByRole("group")
+        .flatMap((g) => g.getAttribute("data-topic") ?? []),
     ).toEqual(["astronomy", "botany", "music"]);
 
     click("Start exploring");

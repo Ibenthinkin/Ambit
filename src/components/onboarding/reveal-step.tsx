@@ -13,6 +13,7 @@ import { weightOf } from "~/server/config/topic-levels";
 
 import { Rise } from "~/components/ui/rise";
 
+import { ExhibitionCard } from "./exhibition-card";
 import { StepBar } from "./step-bar";
 
 // The questionnaire's last screen: "Here's where we'll start". Everything the answers added up
@@ -44,6 +45,7 @@ export interface RevealStepProps {
 export function RevealStep({
   topics,
   proposed,
+  taste,
   retake,
   submitting,
   error,
@@ -90,6 +92,15 @@ export function RevealStep({
       {/* The body rises; the bar is a sibling, because <Rise>'s transform would capture `fixed`. */}
       <Rise>
         <div data-step="reveal">
+          {/* The exhibition the answers make — above the levels it was built from. */}
+          {taste && (
+            <div className="mb-8">
+              <ExhibitionCard
+                taste={taste}
+                topicLabels={new Map(topics.map((t) => [t.id, t.label]))}
+              />
+            </div>
+          )}
           <h1 className="text-ink-hi text-[30px] leading-[1.15] font-semibold tracking-[-0.4px]">
             Here’s where we’ll start
           </h1>

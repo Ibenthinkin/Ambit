@@ -5,6 +5,7 @@ import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 
+import { ExhibitionCard } from "~/components/onboarding/exhibition-card";
 import { useProfileHub } from "~/components/profile/profile-hub";
 import { TopicLevels } from "~/components/topics/topic-levels";
 import { Input } from "~/components/ui/input";
@@ -87,6 +88,8 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
   const hub = useProfileHub();
   const topics = api.topics.list.useQuery();
   const mine = api.topics.mine.useQuery();
+  // The stored exhibition (First Exhibition); null for a reader who signed up on bank v1.
+  const taste = api.topics.taste.useQuery();
   const [query, setQuery] = React.useState("");
 
   // Every current pick, topic id → weight.
@@ -172,6 +175,18 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
           {picks.size} on. Changes save as you go.
         </p>
       </Rise>
+
+      {/* The reader's first exhibition, as the reveal showed it; a retake replaces it. */}
+      {taste.data && (
+        <Rise>
+          <div className="px-5 pt-5">
+            <ExhibitionCard
+              taste={taste.data}
+              topicLabels={new Map(all.map((t) => [t.id, t.label]))}
+            />
+          </div>
+        </Rise>
+      )}
 
       {/* Add — a search over every pickable topic the reader doesn't have yet. */}
       <Rise delayMs={60}>

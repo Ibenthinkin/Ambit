@@ -12,6 +12,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProfileHubContext } from "~/components/profile/profile-hub";
 
+import type { TasteV1 } from "~/lib/interview/taste";
+
 import { TopicsScreen } from "./topics-screen";
 
 // /profile/topics after the questionnaire (10-02-26): a flat list of the reader's topics with a
@@ -45,6 +47,7 @@ const {
     topics: [] as { id: string; label: string; facet: string }[],
     mine: [] as Pick[],
     mineOpts: undefined as SetMineOpts | undefined,
+    taste: null as TasteV1 | null,
   },
 }));
 
@@ -68,6 +71,7 @@ vi.mock("~/trpc/react", () => ({
     topics: {
       list: { useQuery: () => ({ data: state.topics }) },
       mine: { useQuery: () => ({ data: state.mine }) },
+      taste: { useQuery: () => ({ data: state.taste }) },
       setMine: {
         useMutation: (opts?: SetMineOpts) => {
           state.mineOpts = opts;
@@ -133,6 +137,7 @@ beforeEach(() => {
   ])
     m.mockReset();
   state.topics = TOPICS;
+  state.taste = null;
   state.mine = [
     { topicId: "astronomy", weight: 2 },
     { topicId: "ceramics", weight: 1 },
@@ -265,5 +270,45 @@ describe("TopicsScreen", () => {
     render(<TopicsScreen dev />);
     fireEvent.click(screen.getByRole("button", { name: "Reset weights" }));
     expect(resetMock).toHaveBeenCalledTimes(1);
+  });
+
+  // First Exhibition (docs/DESIGN_first-exhibition.md §6): the stored exhibition, above the list.
+  describe("the exhibition card", () => {
+    const taste: TasteV1 = {
+      v: 1,
+      title: { adjective: "Quiet", noun: "Weathers" },
+      wings: ["land"],
+      mediums: ["ceramics"],
+      temperament: {
+        communal: 0,
+        aesthetic: 1,
+        dark: 0,
+        thrilling: 0,
+        cerebral: 0,
+      },
+      compass: null,
+      opened: [],
+      readingMinutes: null,
+    };
+
+    it("shows the stored exhibition above the topic search", () => {
+      state.taste = taste;
+      render(<TopicsScreen dev={false} />);
+      const title = screen.getByRole("heading", { name: "Quiet Weathers" });
+      const search = screen.getByText("Add a topic");
+      expect(
+        title.compareDocumentPosition(search) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      // Medium labels come from topics.list.
+      expect(
+        screen.getByText("Land, sea & sky · Ceramics"),
+      ).toBeInTheDocument();
+    });
+
+    it("shows no card for a reader with no stored taste", () => {
+      render(<TopicsScreen dev={false} />);
+      expect(screen.queryByText("Your first exhibition")).toBeNull();
+    });
   });
 });
