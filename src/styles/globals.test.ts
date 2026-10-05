@@ -69,7 +69,7 @@ describe("globals.css keyframes survive the Tailwind build", () => {
   // utility for is dropped from the build, so this fails if nothing in src uses them. The shadow
   // is INLINED by `shadow-*` (into `--tw-shadow`), so its value is what to look for, not its
   // variable name; the ease and colour come through as variables.
-  it.skip("emits the tile lift's shadow, ease and focus-ring tokens", async () => {
+  it("emits the tile lift's shadow, ease and focus-ring tokens", async () => {
     const from = join(__dirname, "globals.css");
     const out = await postcss([tailwind()]).process(
       readFileSync(from, "utf8"),

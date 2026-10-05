@@ -105,16 +105,20 @@ describe("ImageTile — desktop input", () => {
   });
 });
 
-// Decision 4 (docs/DESIGN_chrome-redesign.md §4): no hover zoom; a 3px off-white ring for keyboard
-// focus (the 2px accent was invisible on a photograph — Ben's review).
-it("has no hover zoom and an off-white focus ring", () => {
+// Decision 4 (docs/DESIGN_chrome-redesign.md §4): no hover zoom on the picture itself — the Lift
+// (docs/PLAN_tile-hover.md) is on the wrapper, in feed-grid.tsx. The ring is the design's 2 px
+// inset lavender (Decision 3 there), which replaced §4's 3 px off-white on 10-04-26.
+it("has no hover zoom of its own and a 2px inset focus ring", () => {
   render(
     <ImageTile card={card("a")} aspectClass="aspect-square" onTap={vi.fn()} />,
   );
   const tile = screen.getByRole("button", { name: "A title" });
   expect(tile.querySelector("img")?.className).not.toMatch(/scale/);
+  expect(tile.className).not.toMatch(/scale/);
   expect(tile).toHaveClass(
-    "focus-visible:outline-ink-hi",
-    "focus-visible:outline-[3px]",
+    "focus-visible:outline-focus-ring",
+    "focus-visible:outline-2",
+    "focus-visible:-outline-offset-2",
   );
+  expect(tile).not.toHaveClass("focus-visible:outline-ink-hi");
 });

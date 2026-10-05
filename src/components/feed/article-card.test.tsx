@@ -95,6 +95,17 @@ describe("ArticleCard — desktop input", () => {
       fireEvent.contextMenu(screen.getByRole("button", { name: "A title" })),
     ).toBe(true);
   });
+
+  // The same ring as the picture tile (docs/PLAN_tile-hover.md Decision 3).
+  it("wears the 2px inset focus ring", () => {
+    render(<ArticleCard card={card("a")} onTap={vi.fn()} />);
+    const tile = screen.getByRole("button", { name: "A title" });
+    expect(tile).toHaveClass(
+      "focus-visible:outline-focus-ring",
+      "focus-visible:outline-2",
+      "focus-visible:-outline-offset-2",
+    );
+  });
 });
 
 // Writing Phase 4 (docs/DESIGN_writing.md D5): the text card's eyebrow is the writing label, the
