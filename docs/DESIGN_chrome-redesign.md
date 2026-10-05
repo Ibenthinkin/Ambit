@@ -233,6 +233,11 @@ focus-visible:-outline-offset-[3px]` — off-white, 3 px, inside the edge — le
 (`:focus-visible` never matches a mouse click, by design; Tab shows it.) `ArticleCard` keeps its
 one-step hover fill.
 
+> **Superseded 10-04-26 by the Lift** (`docs/tile-hover/`, `docs/PLAN_tile-hover.md`): the tile
+> hover is back as a 3.5% scale + shadow on the *wrapper* (tile and strip rise together), and the
+> ring is the design's 2 px inset lavender `--color-focus-ring`. Decision 4's reasoning — the old
+> 3% zoom on the picture alone "barely visible and clunky" — stands; the Lift is a different thing.
+
 ## 5. Saves bump the topic the card was served under
 
 The follow-up `docs/DESIGN_feed-on-membership.md` §5 recorded: since the feed draws on

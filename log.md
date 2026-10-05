@@ -5,6 +5,50 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
+### [[10-05-26 Mon]] — The Lift: feed tiles rise on hover and keyboard focus
+
+**Shipped (on `feat/tile-hover`, not merged, not pushed):** `docs/PLAN_tile-hover.md` executed
+whole. On a hover-capable pointer, or under keyboard focus, a feed card's _wrapper_ scales 3.5%,
+takes `--shadow-lift` and rises to `z-index: 2` over 350 ms (`TILE_LIFT`, `components/feed/tile-lift.ts`).
+The hover strip rides up with the picture because it sits inside the same wrapper. Saved's wall lifts
+the same way, and `/explore` gets it through `FeedGrid`. The keyboard ring is now 2 px inset
+lavender `--color-focus-ring`. The dev tier tag wears the design's dress and fills with the accent.
+The lift alone is exempt from the reduced-motion collapse (`.motion-lift`, the element and not its
+subtree), so it eases on Ben's machines. e2e measures the hover lift and adds a Tab-to-tile test.
+
+**Decisions (with Ben, 10-04-26, recorded in the plan):**
+
+- The tier tag stays dev-only. Production tiles stay the picture and nothing else.
+- The Because tile stays inert and gets no hover, because it does nothing to click.
+- The ring is the design's 2 px lavender, superseding the chrome redesign's 3 px off-white.
+
+**Findings:**
+
+- **An unscaled element computes `scale: none`, not `1`.** The plan's relax assertion read `"1"`;
+  Chromium reports `none` for a wrapper with no `scale` set. Fixed in the test, noted in CLAUDE.md.
+- **`explore.spec.ts`'s "a tile opens the item page" asserts something the DOM never satisfies.**
+  The item screen's Share disc is a child of `[data-testid="pill-toolbar"]` in every run, passing
+  or failing (captured 8/8). The `toHaveCount(0)` passes only when it catches the chrome mid-fade.
+  It failed 2/8 and 1/8 on this branch and 0/8 on `main`, at a scratch port 3100. That is item-screen
+  code this branch does not touch, so it is left alone and flagged.
+- Two other phone-width e2e tests flaked in full parallel runs on this branch and not on `main`'s
+  single full run: the explore toolbar test (a Share on `/`, 8/8 green alone) and the writing-tile
+  tap (0/4 failures repeated). The desktop project, where the lift is meant to be seen, was 20/20.
+  The security test's `/api/img` 429 is the known parallel-e2e issue and fails on `main` too.
+- `bun run check`'s integration suites went red twice from contention, once against the
+  questionnaire worktree's own vitest on the same Postgres. Quiet-machine runs: branch 1911/1911,
+  `main` 1905/1905.
+
+**Open / next:**
+
+- Ben's look at 1440 in Firefox: the article card's hairline under scale, a lifted tile's shadow over
+  its right-hand neighbour, the ring on a pale photograph, the dev tag's fill, Saved's wall.
+- Ben's phone look: nothing new, a tap opens the item, nothing stays lifted.
+- Then merge. Before merging, a CI-shape e2e run is worth it given the phone-width flakes above.
+- The explore item-page Share assertion wants rewriting (the disc is inside the pill's wrapper).
+
+_Session spend: 26.95M tok (in 362 · out 103.0k · cache r 26.17M / w 676.0k) · opus-5-5 · 10:13→10:46_
+
 ### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
 
 **Findings:**

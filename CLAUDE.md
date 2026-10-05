@@ -265,8 +265,14 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   keyframe owns `transform`). Feed tiles carry **`TileActions`** — mounted only under
   `HOVER_QUERY`, a sibling of the tile in the `group/tile relative` wrapper — naming the
   last-used collection (`lib/last-collection.ts`, localStorage, `useSyncExternalStore`) with a
-  one-click optimistic save against the new `saves.ids`. The hover zoom is gone; the focus ring
-  is 3 px off-white. **`saves.saveToCollection` takes `topicId`** and bumps it only for a member
+  one-click optimistic save against the new `saves.ids`. The hover zoom went on 09-11; **the Lift
+  replaced it 10-05-26 on `feat/tile-hover`** (`docs/tile-hover/`, `docs/PLAN_tile-hover.md`):
+  `TILE_LIFT` on the card _wrapper_ in `FeedGrid` and `SavedTile` — 3.5% scale + `shadow-lift`
+  over 350 ms, `hover:` and `has-[:focus-visible]:`, exempt from the reduced-motion collapse as
+  `.motion-lift` (the element, not its subtree); the ring is 2 px inset `--color-focus-ring`; the
+  tier tag stays dev-only and fills with accent. Tailwind v4's `scale-*` is the standalone `scale`
+  property, so transitions and e2e name `scale`, never `transform` — and an unscaled element
+  computes `scale: none`, not `1`. **`saves.saveToCollection` takes `topicId`** and bumps it only for a member
   — the feed-on-membership follow-up, closed.
 - **The list screens were built 09-12-26 on `feat/list-screens`** (design
   `docs/DESIGN_list-screens.md`, plan `docs/PLAN_list-screens.md`; sub-project 4 of four from Ben's
