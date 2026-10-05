@@ -64,12 +64,19 @@ export function picksFrom(
   }
 
   const taken = new Set(picks.map((p) => p.topicId));
-  for (const topicId of starters) {
-    if (picks.length >= MIN_PICKS) break;
-    if (taken.has(topicId) || !listed.has(topicId)) continue;
-    if ((scores.get(topicId) ?? 0) < 0) continue;
-    picks.push({ topicId, weight: weightOf("some") });
-    taken.add(topicId);
+  // Two passes over the starters. The first skips any the reader scored down — no point proposing
+  // what they turned away. The second exists because the reveal has no way to *add* a topic: a
+  // reader who pressed "None of these" on every wing screen has pushed every starter below zero,
+  // and an empty reveal would be a dead end. So if the first pass leaves it short, start somewhere
+  // anyway; every level can still be turned off.
+  for (const allowScoredDown of [false, true]) {
+    for (const topicId of starters) {
+      if (picks.length >= MIN_PICKS) break;
+      if (taken.has(topicId) || !listed.has(topicId)) continue;
+      if (!allowScoredDown && (scores.get(topicId) ?? 0) < 0) continue;
+      picks.push({ topicId, weight: weightOf("some") });
+      taken.add(topicId);
+    }
   }
   return picks;
 }

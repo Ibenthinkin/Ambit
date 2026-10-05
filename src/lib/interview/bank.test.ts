@@ -12,7 +12,7 @@ import { TOPICS } from "~/server/config/topics";
 
 import { askable } from "./askable";
 import { BANK_VERSION, QUESTIONS, STARTER_TOPICS } from "./bank";
-import { MIN_PICKS, SENTINELS } from "./config";
+import { MIN_PICKS, NEITHER, SENTINELS, SKIP } from "./config";
 import { answersToward } from "./path";
 import { picksFrom } from "./picks";
 import { scoreAnswers } from "./score";
@@ -156,6 +156,29 @@ describe("the e2e path", () => {
         STARTER_TOPICS,
       );
       expect(picks.map((p) => p.topicId)).toEqual(expect.arrayContaining(want));
+    },
+  );
+
+  // Final review, finding 1: "None of these" on a wing screen scores every wing's spread down,
+  // which reaches every starter — and the reveal has no way to add a topic.
+  it.each([
+    ["production's vocabulary", WIDE],
+    ["the sixteen originals", NARROW],
+  ])(
+    "None on every wing screen and the playoff still proposes three on %s",
+    (_, listed) => {
+      const answers = askable(QUESTIONS, listed).map((q) => ({
+        questionId: q.id,
+        keys: [
+          q.id.startsWith("wings-") || q.id === "playoff" ? NEITHER : SKIP,
+        ],
+      }));
+      const picks = picksFrom(
+        scoreAnswers(QUESTIONS, answers, listed),
+        listed,
+        STARTER_TOPICS,
+      );
+      expect(picks.length).toBeGreaterThanOrEqual(MIN_PICKS);
     },
   );
 
