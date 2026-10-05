@@ -16,6 +16,7 @@ import {
   type CardTile,
   type FeedTile,
 } from "./masonry";
+import { TILE_LIFT } from "./tile-lift";
 import { WritingTile } from "./writing-tile";
 
 /** `/explore`'s message block tile (09-26-26). */
@@ -249,10 +250,12 @@ export function FeedGrid({
                 const body = (
                   <div
                     data-feed-id={isCard ? key : undefined}
-                    // `group/tile relative`: the hover strip below is a sibling overlay keyed
-                    // on this wrapper's hover (docs/DESIGN_chrome-redesign.md §3). Second child
-                    // on purpose — e2e reaches the tile as `[data-feed-id] > *` `.first()`.
-                    className={isCard ? "group/tile relative" : undefined}
+                    // `group/tile` + `TILE_LIFT`: the hover strip below is a sibling overlay
+                    // keyed on this wrapper's hover (docs/DESIGN_chrome-redesign.md §3), and the
+                    // Lift (tile-lift.ts) scales the whole wrapper so tile and strip rise as one.
+                    // Second child on purpose — e2e reaches the tile as `[data-feed-id] > *`
+                    // `.first()`.
+                    className={isCard ? cn("group/tile", TILE_LIFT) : undefined}
                   >
                     {renderTile(tile)}
                     {renderTileExtras && isCard ? renderTileExtras(tile) : null}
