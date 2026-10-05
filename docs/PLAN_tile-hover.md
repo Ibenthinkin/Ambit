@@ -3,7 +3,8 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Written:** 10-04-26 by Fable 5.1, from the design bundle below and a read of every file named
-here at `main` = `f16b080`. **For:** a cold session on a cheaper model, on a plain branch
+here at `main` = `f16b080`; re-checked against `main` 10-05-26 (fixtures, ring users, class
+strings all still as stated). **For:** a cold session on a cheaper model, on a plain branch
 `feat/tile-hover` off `main` (Ben's convention — no worktree, unless another session holds the
 checkout).
 
@@ -109,7 +110,7 @@ Each line names where its check lives.
 
 ---
 
-### Task 1: Branch, the design bundle, the tokens and the reduced-motion exemption
+### Task 1: Branch, the tokens and the reduced-motion exemption
 
 **Files:**
 
@@ -415,6 +416,10 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 
 - Consumes: `outline-focus-ring` from Task 1.
+- Covers every focusable tile: `WritingTile` renders an `ImageTile` (`writing-tile.tsx:38`), so
+  it takes the ring from there; `BecauseTile` is inert and has no ring (Decision 2). These two
+  files are the only users of `outline-ink-hi` in `src` (verified 10-05-26) — a grep for it after
+  Step 3 should find only tests.
 
 - [ ] **Step 1: Change the failing tests**
 
@@ -440,9 +445,9 @@ it("has no hover zoom of its own and a 2px inset focus ring", () => {
 });
 ```
 
-In `src/components/feed/article-card.test.tsx`, add (inside its top-level `describe`, using
-whatever `card(...)` fixture helper that file already defines — read it first; if it has none,
-copy `image-tile.test.tsx`'s):
+In `src/components/feed/article-card.test.tsx`, add inside the
+`describe("ArticleCard — desktop input")` block. The file already defines a `card(id)` fixture
+whose item is titled `"A title"`, which is the accessible name the tile gets:
 
 ```tsx
   // The same ring as the picture tile (docs/PLAN_tile-hover.md Decision 3).
@@ -456,8 +461,6 @@ copy `image-tile.test.tsx`'s):
     );
   });
 ```
-
-Adjust `"A title"` to whatever title the fixture gives the card.
 
 - [ ] **Step 2: Run the tests to watch them fail**
 
@@ -937,7 +940,8 @@ Verdicts go in the log's **Open / next**; then merge to `main`.
 Task 2), z-index 1→2 ✓ (Task 2), tag rest/active ✓ (Task 4, dev-only per Decision 1), focus ring
 ✓ (Tasks 1, 3), Because card — deliberately not built (Decision 2), 350 ms + curve ✓ (Tasks 1, 2),
 200 ms tag ✓ (Task 4). "Gotchas": don't clip ✓ (wrapper has no overflow; grid/column have none),
-hover limited to pointer ✓ (Tailwind's `hover:`; Task 6 phone assertion), reduced motion ✓ (runs
+hover limited to pointer ✓ (Tailwind's `hover:` is `@media (hover: hover)`; no e2e stand-in — Task 6
+says why — so Ben's phone look, Task 7 item 6, is the check), reduced motion ✓ (runs
 by default, `.ambit-calm` dropped by decision), accent via `--ambit-accent` ✓ (the app's own
 `bg-accent` knob).
 
