@@ -218,6 +218,61 @@ describe("QuestionStep", () => {
     });
   });
 
+  // Ben, 10-05-26: the keep grid (step 4) should have a pick-all button. Only on a picture multi
+  // with no cap — "all" would mean nothing where the reader may pick at most two.
+  describe("a picture multi with no cap (the keep grid)", () => {
+    const keep: Question = { ...q("rooms"), id: "keep", kind: "multi" };
+    function showKeep(answer?: Answer) {
+      const onChange = vi.fn();
+      render(
+        <QuestionStep
+          question={keep}
+          listed={WIDE}
+          faces={{}}
+          answer={answer}
+          onChange={onChange}
+        />,
+      );
+      return onChange;
+    }
+
+    it("Pick all keeps every picture, and does not move on by itself", () => {
+      const onChange = showKeep({ questionId: "keep", keys: ["space"] });
+      fireEvent.click(screen.getByRole("button", { name: "Pick all" }));
+      expect(onChange).toHaveBeenCalledWith(
+        { questionId: "keep", keys: ["space", "garden"] },
+        false,
+      );
+    });
+
+    it("once everything is kept, it clears instead", () => {
+      const onChange = showKeep({
+        questionId: "keep",
+        keys: ["space", "garden"],
+      });
+      const all = screen.getByRole("button", { name: "Pick all" });
+      expect(all).toHaveAttribute("aria-pressed", "true");
+      fireEvent.click(all);
+      expect(onChange).toHaveBeenCalledWith(
+        { questionId: "keep", keys: [] },
+        false,
+      );
+    });
+
+    it("is not offered where the multi has a cap", () => {
+      render(
+        <QuestionStep
+          question={{ ...keep, max: 1 }}
+          listed={WIDE}
+          faces={{}}
+          answer={undefined}
+          onChange={vi.fn()}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: "Pick all" })).toBeNull();
+    });
+  });
+
   describe("a reading question", () => {
     it("renders article cards and puts the face's memberships on the answer", () => {
       const { onChange } = show("read", undefined, {

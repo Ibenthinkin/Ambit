@@ -74,6 +74,10 @@ export function QuestionStep({
   // which named the wings only. The keep
   // grid (a multi) and the pairs keep their labels, the reading cards are text-led anyway.
   const quietFaces = question.kind === "choice" && allFaced && !reading;
+  /** Every answer is pressed — the Pick all chip shows pressed, and a press clears. */
+  const allKept =
+    question.options.length > 0 &&
+    question.options.every((o) => keys.includes(o.key));
 
   function toggle(key: string) {
     let next: string[];
@@ -235,6 +239,29 @@ export function QuestionStep({
                 </Chip>
               </div>
             )}
+          {/* Pick all (Ben, 10-05-26): a picture multi with no cap — the keep grid. Pressed when
+              every picture is kept, and pressing it then clears the step. Like a single tap it
+              never moves on by itself (`done` is false): Next is still the reader's. No
+              `data-topics`, so the e2e helper never mistakes it for an answer. */}
+          {question.kind === "multi" && allFaced && !question.max && (
+            <div className="mt-4 flex justify-center">
+              <Chip
+                size="sm"
+                selected={allKept}
+                onClick={() =>
+                  onChange(
+                    {
+                      questionId: question.id,
+                      keys: allKept ? [] : question.options.map((o) => o.key),
+                    },
+                    false,
+                  )
+                }
+              >
+                Pick all
+              </Chip>
+            </div>
+          )}
         </div>
       )}
 
