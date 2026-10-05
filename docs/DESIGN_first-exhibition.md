@@ -321,7 +321,9 @@ retake replaces it. A reader with no row (signed up on v1) sees the list alone.
 
 ## 9. Production order
 
-1. Ben merges v1, deploys, and the questionnaire runs on production once.
+1. v1 is merged to `main` (10-05-26) and **not deployed** — Ben's call, so readers never see the
+   interim bank. Production goes from the chip picker straight to First Exhibition; migrations
+   0012 and 0013 run at one boot.
 2. Merge First Exhibition; deploy. Boot runs migration 0013 and `db:seed`, which creates the
    round-one rows with their facets and seed cells.
 3. Two search ingests (the Monday pictures run on VM 202) fill the new topics.

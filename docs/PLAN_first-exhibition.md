@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **Base:** a fresh branch `feat/first-exhibition` off `main` **after** `feat/onboarding-questionnaire` (bank v1) has been merged by Ben. If `src/lib/interview/bank.ts` is not on `main`, stop and say so.
-- **Work in `~/Dev/ambit` only if no other session holds it**; otherwise `git worktree add ../ambit-first-exhibition feat/first-exhibition` (CLAUDE.md: worktrees are fine when another session holds the checkout).
+- **Work in `~/Dev/ambit-first-exhibition`** — a worktree already on `main` (set up 10-05-26; `~/Dev/ambit` holds `feat/tile-hover` for another session, and the study folder was moved into this worktree). Do not `git worktree add` another (CLAUDE.md: worktrees are fine when another session holds the checkout).
 - `bun run check` (typecheck + lint + prettier + vitest) green after every task; comment generously — Ben is a returning webdev and the repo teaches (memory: repo-as-teaching-tool).
 - TDD: write the failing test, run it, implement, run it, commit. Commit messages end with `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>` (plus the session line the harness supplies).
 - **Never commit picture files.** The repo is public. `faces.json` is ids and captions only.
@@ -53,13 +53,14 @@
 
 - [ ] **Step 1: Confirm the base**
 
-Run: `git -C ~/Dev/ambit log --oneline -1 main -- src/lib/interview/bank.ts`
+Run: `git -C ~/Dev/ambit-first-exhibition log --oneline -1 main -- src/lib/interview/bank.ts`
 Expected: one commit line (bank v1 is on main). If empty, stop: v1 is not merged.
 
 - [ ] **Step 2: Branch**
 
 ```bash
-cd ~/Dev/ambit && git checkout main && git pull --ff-only && git checkout -b feat/first-exhibition
+cd ~/Dev/ambit-first-exhibition && git checkout main && git checkout -b feat/first-exhibition
+# (no pull: local main is ahead of origin on purpose — v1 is merged here and not pushed)
 ```
 
 - [ ] **Step 3: Move the package**
@@ -2369,11 +2370,10 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Resolve the study's pictures**
 
-Run against the two local databases the caches were filled from (`.env` of each checkout):
+Run against the local database (both checkouts share `localhost:5432/ambit`, checked 10-05-26, so one run is the whole picture):
 
 ```bash
 bun run faces:first-exhibition > .cache/faces-ambit.txt
-(cd ~/Dev/ambit-questionnaire && bun run scripts/first-exhibition-faces.ts > ~/Dev/ambit/.cache/faces-questionnaire.txt)
 ```
 
 Each line is `role  caption  { source: "…", sourceId: "…" }`. Roles in `faces.json`: `wing:<id>:door`, `wing:<id>:playoff`, `wing:<id>:spare`, `pair:<study-id>:a|b` (study ids are `medium-owls` → bank `hands-owls`, `medium-mushrooms` → `hands-mushrooms`, `medium-fish` → `hands-fish`, `look-circles` → `feel-circles`, `look-roads` → `feel-roads`, `look-rooms` → `feel-rooms`), `keep-or-pass` (198; pick ten by wing and tag to match `KEEP`'s order: creatures, growing, land, space, machines, cities, people, myth, then one abstract/geometric and one eerie/black-and-white).

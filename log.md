@@ -33,13 +33,19 @@ pushed — a push deploys.
   the spec passes on the real corpus and on a fresh CI-shape database (`:5434`).
 - The branch's scratch Postgres `ambit-q-pg` from 10-02 was still running; stopped.
 
-**Open / next:** Ben pushes (deploy runs 0012 + `db:seed`) and gives v1 its phone + 1440 look,
-the faces their hand pass on `/dev/faces`, and `SOME_FROM`/`LOT_FROM` a tune; then a cheaper
-session executes `docs/PLAN_first-exhibition.md` on `feat/first-exhibition`, branching from the
-worktree's `main` while `~/Dev/ambit` is on `feat/tile-hover`. Still open: the `/api/img` 429 in
-parallel local e2e.
+**Decision (Ben, later the same morning): v1 is not deployed.** He walked it on the dev server
+and it is what he tested last week; rather than put readers through an interim bank, production
+goes from the chip picker straight to First Exhibition, with migrations 0012 and 0013 at one
+boot. v1's by-hand items (faces pass, `SOME_FROM`/`LOT_FROM`) fold into v2's.
+
+**Open / next:** a cheaper session executes `docs/PLAN_first-exhibition.md` cold in
+`~/Dev/ambit-first-exhibition` — the questionnaire worktree renamed, on `main`, with the study
+folder moved into it — while `~/Dev/ambit` holds `feat/tile-hover`. `main` is 39 ahead of origin,
+unpushed. Still open: the `/api/img` 429 in parallel local e2e.
 
 _Session spend: 14.08M tok (in 2.9k · out 96.6k · cache r 13.62M / w 356.7k) · fable-5-1 + opus-5-5 · 09:30→10:29_
+
+_Session spend: 7.46M tok (in 954 · out 37.1k · cache r 7.33M / w 86.3k) · fable-5-1 + opus-5-5 · 10:29→10:47_
 
 ### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
 
