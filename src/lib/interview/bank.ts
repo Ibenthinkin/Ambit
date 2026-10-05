@@ -51,9 +51,9 @@ export const groups = (score: number, ...ids: string[]): Effect => ({
 });
 
 /**
- * A pair side that stands for a whole group shows one topic's picture. That topic gets a little
- * extra — the reader chose *this picture*, so within its group it should come out on top rather
- * than tie with eleven siblings (and the reveal keeps only three per group).
+ * A wing stands for a dozen topics but shows one topic's picture. That topic gets a little extra —
+ * the reader chose *this picture*, so within the wing it should come out on top rather than tie
+ * with eleven siblings (and the reveal keeps only three per group).
  */
 const FACE_BONUS = 0.5;
 

@@ -2,16 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Question } from "~/lib/interview/types";
 
-const { topFacesForTopics, facePicks } = vi.hoisted(() => ({
+const { topFacesForTopics, facePicks, topWritingForKinds } = vi.hoisted(() => ({
   topFacesForTopics: vi.fn(),
   facePicks: vi.fn(),
+  topWritingForKinds: vi.fn(),
 }));
-vi.mock("~/server/db/items", () => ({ topFacesForTopics, facePicks }));
+vi.mock("~/server/db/items", () => ({
+  topFacesForTopics,
+  facePicks,
+  topWritingForKinds,
+}));
 
 import {
   FACES_TTL_MS,
   faceKey,
   getQuestionFaces,
+  pickWriting,
   resetQuestionFacesForTests,
 } from "./question-faces";
 
@@ -55,6 +61,7 @@ beforeEach(() => {
       row("botany", "b1"),
     ]);
   facePicks.mockReset().mockResolvedValue([]);
+  topWritingForKinds.mockReset().mockResolvedValue([]);
 });
 afterEach(() => vi.useRealTimers());
 
@@ -143,5 +150,118 @@ describe("getQuestionFaces", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     topFacesForTopics.mockRejectedValue(new Error("db down"));
     expect(await getQuestionFaces(BANK)).toEqual({});
+  });
+});
+
+describe("writing faces", () => {
+  const cand = (
+    id: string,
+    kind: "essay" | "archive",
+    minutes: number,
+    imageUrl: string | null = null,
+  ) => ({
+    kind,
+    id,
+    imageUrl,
+    title: `T ${id}`,
+    summary: `First line of ${id}.\nSecond.`,
+    readingMinutes: minutes,
+    topicIds: ["literature", "books"],
+  });
+
+  it("pickWriting prefers a short piece for nth 0 and a long one for nth 1, never the same item twice", () => {
+    const cs = [
+      cand("a", "essay", 15),
+      cand("b", "essay", 5),
+      cand("c", "essay", 20),
+    ];
+    const used = new Set<string>();
+    const first = pickWriting(cs, "essay", 0, used)!;
+    expect(first.id).toBe("b");
+    used.add(first.id);
+    const second = pickWriting(cs, "essay", 1, used)!;
+    expect(second.id).toBe("a"); // best-scored long one (candidates arrive score-ordered)
+    used.add(second.id);
+    expect(
+      pickWriting([cand("a", "essay", 15)], "essay", 0, used),
+    ).toBeUndefined();
+  });
+
+  it("falls back to the best unused candidate when none fits the length", () => {
+    expect(
+      pickWriting([cand("a", "essay", 9)], "essay", 0, new Set())!.id,
+    ).toBe("a");
+    expect(
+      pickWriting([cand("a", "essay", 9)], "essay", 1, new Set())!.id,
+    ).toBe("a");
+  });
+
+  it("a writing face carries the card copy, minutes, kind and memberships; src only when there is a picture", async () => {
+    topFacesForTopics.mockResolvedValue([]);
+    facePicks.mockResolvedValue([]);
+    topWritingForKinds.mockResolvedValue([
+      cand("e1", "essay", 4, "https://m.test/e1.jpg"),
+      cand("r1", "archive", 3),
+    ]);
+    const bank: Question[] = [
+      {
+        id: "read-1",
+        kind: "choice",
+        prompt: "?",
+        options: [
+          {
+            key: "essay",
+            label: "Essay",
+            always: true,
+            effects: [],
+            face: { topic: "literature", writing: { kind: "essay", nth: 0 } },
+          },
+          {
+            key: "archive",
+            label: "Archive",
+            always: true,
+            effects: [],
+            face: { topic: "literature", writing: { kind: "archive", nth: 0 } },
+          },
+        ],
+      },
+    ];
+    const faces = await getQuestionFaces(bank);
+    expect(faces[faceKey("read-1", "essay")]).toEqual({
+      itemId: "e1",
+      src: "/api/img/e1?w=960",
+      writing: {
+        title: "T e1",
+        dek: "First line of e1.",
+        minutes: 4,
+        kind: "essay",
+        topicIds: ["literature", "books"],
+      },
+    });
+    expect(faces[faceKey("read-1", "archive")]!.src).toBeUndefined();
+    expect(faces[faceKey("read-1", "archive")]!.writing?.kind).toBe("archive");
+  });
+
+  it("a kind with no candidate is simply absent — the card renders as text", async () => {
+    topFacesForTopics.mockResolvedValue([]);
+    facePicks.mockResolvedValue([]);
+    topWritingForKinds.mockResolvedValue([]);
+    const faces = await getQuestionFaces([
+      {
+        id: "read-1",
+        kind: "choice",
+        prompt: "?",
+        options: [
+          {
+            key: "essay",
+            label: "Essay",
+            always: true,
+            effects: [],
+            face: { topic: "literature", writing: { kind: "essay", nth: 0 } },
+          },
+        ],
+      },
+    ]);
+    expect(faces).toEqual({});
   });
 });

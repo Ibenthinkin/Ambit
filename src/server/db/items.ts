@@ -15,6 +15,7 @@ import {
 } from "drizzle-orm";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
+import type { WritingKind } from "~/server/config/writing";
 import { item, itemTopic, type ItemTopicOrigin } from "./schema";
 
 export type NewItem = typeof item.$inferInsert;
@@ -569,4 +570,94 @@ export async function facePicks(
       ),
     );
   return rows.map((r) => ({ ...r, imageUrl: r.imageUrl! }));
+}
+
+/** A writing item must score this to be a reading card — a lower bar than a picture face (9):
+ *  the writing corpus is smaller and the card shows a headline, not the piece. */
+export const WRITING_FACE_FLOOR = 8;
+
+export interface WritingCandidate {
+  kind: WritingKind;
+  id: string;
+  imageUrl: string | null;
+  title: string;
+  summary: string | null;
+  readingMinutes: number | null;
+  /** `item_topic` memberships — what choosing the card scores. */
+  topicIds: string[];
+}
+
+/**
+ * The best-scored articles of each writing kind, `perKind` each, with their topic memberships —
+ * the pool the reading cards are drawn from (services/question-faces.ts picks a short and a long
+ * one per kind). One ranked query, then one membership query over the winners.
+ */
+export async function topWritingForKinds(
+  kinds: readonly WritingKind[],
+  perKind: number,
+): Promise<WritingCandidate[]> {
+  if (kinds.length === 0) return [];
+  const { db } = await import("./client");
+  const conditions = [
+    eq(item.type, "article"),
+    inArray(item.kind, [...kinds]),
+    gte(item.curationScore, WRITING_FACE_FLOOR),
+  ];
+  if (SUSPENDED_SOURCES.length > 0)
+    conditions.push(notInArray(item.source, SUSPENDED_SOURCES));
+
+  const ranked = db
+    .select({
+      kind: item.kind,
+      id: item.id,
+      imageUrl: item.imageUrl,
+      title: item.title,
+      summary: item.summary,
+      readingMinutes: item.readingMinutes,
+      n: sql<number>`row_number() over (partition by ${item.kind} order by ${item.curationScore} desc, ${item.id})`.as(
+        "n",
+      ),
+    })
+    .from(item)
+    .where(and(...conditions))
+    .as("ranked");
+  const rows = await db
+    .select({
+      kind: ranked.kind,
+      id: ranked.id,
+      imageUrl: ranked.imageUrl,
+      title: ranked.title,
+      summary: ranked.summary,
+      readingMinutes: ranked.readingMinutes,
+    })
+    .from(ranked)
+    .where(lte(ranked.n, perKind))
+    .orderBy(ranked.kind, ranked.n);
+  if (rows.length === 0) return [];
+
+  const memberships = await db
+    .select({ itemId: itemTopic.itemId, topicId: itemTopic.topicId })
+    .from(itemTopic)
+    .where(
+      inArray(
+        itemTopic.itemId,
+        rows.map((r) => r.id),
+      ),
+    );
+  const byItem = new Map<string, string[]>();
+  for (const m of memberships) {
+    const list = byItem.get(m.itemId) ?? [];
+    list.push(m.topicId);
+    byItem.set(m.itemId, list);
+  }
+
+  return rows.map((r) => ({
+    kind: r.kind as WritingKind,
+    id: r.id,
+    imageUrl: r.imageUrl,
+    title: r.title,
+    summary: r.summary,
+    readingMinutes: r.readingMinutes,
+    topicIds: byItem.get(r.id) ?? [],
+  }));
 }

@@ -15,6 +15,7 @@ import {
   facePicks,
   listLandingPool,
   topFacesForTopics,
+  topWritingForKinds,
   upsertItem,
 } from "./items";
 import { item, itemTopic, topic } from "./schema";
@@ -636,6 +637,66 @@ describe.skipIf(!process.env.DATABASE_URL)(
         },
       ]);
       expect(await facePicks([])).toEqual([]);
+    });
+  },
+);
+
+// First Exhibition's reading cards (10-04-26): the best articles of a writing kind, with the
+// topics each is a member of — what choosing its card scores.
+describe.skipIf(!process.env.DATABASE_URL)(
+  "topWritingForKinds (integration)",
+  () => {
+    const fixtureTopicId = `test-writing-${nanoid(8)}`;
+    const prefix = `test-writing-${nanoid(8)}-`;
+    let fixtureIds: string[] = [];
+
+    beforeAll(async () => {
+      const { db } = await import("./client");
+      await db.insert(topic).values({
+        id: fixtureTopicId,
+        label: "Test writing",
+        seedQueries: { met: [], aic: [], cma: [], wellcome: [] },
+      });
+      const essay = (
+        n: string,
+        curationScore: number,
+        readingMinutes: number,
+      ) => ({
+        source: "met" as const,
+        sourceId: `${prefix}${n}`,
+        type: "article" as const,
+        kind: "essay" as const,
+        title: `Writing fixture ${n}`,
+        sourceUrl: `https://x.test/${prefix}${n}`,
+        topicId: fixtureTopicId,
+        curationScore,
+        readingMinutes,
+      });
+      const rows = await insertHomedItems(db, [
+        essay("short", 8.5, 4),
+        essay("long", 9, 15),
+      ]);
+      fixtureIds = rows.map((r) => r.id);
+    });
+
+    afterAll(async () => {
+      const { db } = await import("./client");
+      await db.delete(item).where(like(item.sourceId, `${prefix}%`));
+      await db.delete(topic).where(eq(topic.id, fixtureTopicId));
+    });
+
+    it("topWritingForKinds ranks articles of a kind by score and carries their memberships", async () => {
+      // A local database holds real essays scored above these fixtures, so ask for enough of the
+      // kind to be sure both are in the result; what is pinned is their order and memberships.
+      const rows = await topWritingForKinds(["essay"], 100_000);
+      const mine = rows.filter((r) => fixtureIds.includes(r.id));
+      expect(mine.map((r) => r.readingMinutes)).toEqual([15, 4]); // 9 before 8.5
+      expect(mine[0]!.topicIds).toContain(fixtureTopicId);
+      expect(mine.every((r) => r.kind === "essay")).toBe(true);
+    });
+
+    it("is empty for no kinds", async () => {
+      expect(await topWritingForKinds([], 2)).toEqual([]);
     });
   },
 );
