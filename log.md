@@ -46,10 +46,8 @@ subtree), so it eases on Ben's machines. e2e measures the hover lift and adds a 
 
 **Open / next:**
 
-- Ben's look at 1440 in Firefox: the article card's hairline under scale, a lifted tile's shadow over
-  its right-hand neighbour, the ring on a pale photograph, the dev tag's fill, Saved's wall.
-- Ben's phone look: nothing new, a tap opens the item, nothing stays lifted.
-- Then merge. Before merging, a CI-shape e2e run is worth it given the phone-width flakes above.
+- **Ben looked (dev server, 1440 + phone) and passed it all**; merged to `main` locally, not
+  pushed, not deployed.
 - The explore item-page Share assertion wants rewriting (the disc is inside the pill's wrapper).
 
 _Session spend: 26.95M tok (in 362 · out 103.0k · cache r 26.17M / w 676.0k) · opus-5-5 · 10:13→10:46_
