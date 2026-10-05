@@ -47,6 +47,11 @@ const TOPICS = [...WIDE].map((id) => ({
   label: id[0]!.toUpperCase() + id.slice(1),
 }));
 const STARTERS = ["astronomy", "botany", "music", "food"];
+// The fixture bank also carries First Exhibition's question shapes (a faced choice, a multi with
+// an `always` option, reading cards); the walks below are written for the five above, so they
+// render the bank without those. Tests of the new shapes pass their own bank.
+const V2_FIXTURES = new Set(["rooms", "rather-not", "read"]);
+const FIVE = TEST_BANK.filter((q) => !V2_FIXTURES.has(q.id));
 
 function show(over: Partial<Parameters<typeof OnboardingScreen>[0]> = {}) {
   return render(
@@ -54,7 +59,7 @@ function show(over: Partial<Parameters<typeof OnboardingScreen>[0]> = {}) {
       topics={TOPICS}
       faces={{}}
       retake={false}
-      bank={TEST_BANK}
+      bank={FIVE}
       starters={STARTERS}
       {...over}
     />,
@@ -122,9 +127,7 @@ describe("OnboardingScreen", () => {
         weight: 1,
       })),
     );
-    expect(sent().answers.map((a) => a.keys)).toEqual(
-      TEST_BANK.map(() => [SKIP]),
-    );
+    expect(sent().answers.map((a) => a.keys)).toEqual(FIVE.map(() => [SKIP]));
     expect(sent().writingAmount).toBeNull();
     expect(sent().about).toBeUndefined();
     // Nothing was typed, so no model was asked.
