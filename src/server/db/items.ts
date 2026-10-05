@@ -652,7 +652,8 @@ export async function topWritingForKinds(
   }
 
   return rows.map((r) => ({
-    kind: r.kind as WritingKind,
+    // Non-null: the query filtered on `kind IN (…)`.
+    kind: r.kind!,
     id: r.id,
     imageUrl: r.imageUrl,
     title: r.title,
