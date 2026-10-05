@@ -82,7 +82,11 @@ const answerSchema = z.object({
   // question is still a true record of what was asked and said.
   keys: z.array(z.string().min(1).max(64)).max(24),
   text: z.string().trim().max(MAX_ANSWER_TEXT).optional(),
-  topicIds: z.array(z.string().min(1).max(64)).max(12).optional(),
+  // Two writers: the model's mapping of a text answer (≤ 6 per text), and a reading card, which
+  // carries the article's whole `item_topic` membership — bounded by the vocabulary, not by the
+  // model, and growing with every promotion round. So the cap is the vocabulary's order of
+  // magnitude, not the model's.
+  topicIds: z.array(z.string().min(1).max(64)).max(256).optional(),
 });
 
 export const onboardingRouter = createTRPCRouter({

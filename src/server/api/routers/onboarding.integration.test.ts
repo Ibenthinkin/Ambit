@@ -42,7 +42,14 @@ describe.skipIf(!process.env.DATABASE_URL)(
     const goneUserId = `test-onboarding-gone-${nanoid(8)}`;
     const badTasteUserId = `test-onboarding-badtaste-${nanoid(6)}`;
     const noTasteUserId = `test-onboarding-notaste-${nanoid(6)}`;
-    const USERS = [userId, goneUserId, badTasteUserId, noTasteUserId];
+    const manyTopicsUserId = `test-onboarding-many-${nanoid(6)}`;
+    const USERS = [
+      userId,
+      goneUserId,
+      badTasteUserId,
+      noTasteUserId,
+      manyTopicsUserId,
+    ];
     const tag = nanoid(8);
     const [a, b, c, d] = ["a", "b", "c", "d"].map(
       (n) => `test-onboarding-topic-${n}-${tag}`,
@@ -323,6 +330,21 @@ describe.skipIf(!process.env.DATABASE_URL)(
     it("topics.taste is null for a reader who has none", async () => {
       const caller = createCaller(authedContext(noTasteUserId));
       expect(await caller.topics.taste()).toBeNull();
+    });
+
+    // Final review, finding 2: a reading card puts the article's whole `item_topic` membership on
+    // `topicIds` — sized by the vocabulary, not by the model's six — so the answer must not be
+    // refused for carrying many.
+    it("accepts a reading answer carrying an article's full membership list", async () => {
+      const caller = createCaller(authedContext(manyTopicsUserId));
+      const topicIds = Array.from({ length: 40 }, (_, i) => `member-${i}`);
+      await expect(
+        caller.onboarding.complete(
+          input({
+            answers: [{ questionId: "read-1", keys: ["essay"], topicIds }],
+          }),
+        ),
+      ).resolves.toMatchObject({ runId: expect.any(String) });
     });
   },
 );
