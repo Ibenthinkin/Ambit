@@ -197,6 +197,51 @@ pale photograph — and the phone (nothing new).
 
 _Session spend: 10.67M tok (in 2.0k · out 140.8k · cache r 10.06M / w 462.6k) · fable-5-1 · 23:37→23:54_
 
+**First Exhibition — the onboarding overhaul, designed and planned (`1c1fafd` + `15ea8f5` on
+`main`, not built):** Ben brought a study from a Claude chat (`docs/first-exhibition-for-ambit/`):
+bank v2, picture-led, 18 questions in 10 steps — three wing screens and a playoff, hands, feel, a
+keep-or-pass grid, two reading screens of real article cards, destinations, rather-not, amount,
+two optional text questions last — ending in a reveal titled like an exhibition, with a taste
+compass and Rentfrow's five temperament dimensions. `docs/DESIGN_first-exhibition.md` adapts it
+to the repo; `docs/PLAN_first-exhibition.md` is eighteen tasks a cheaper session executes cold on
+`feat/first-exhibition`, after v1 (`feat/onboarding-questionnaire`) is merged — Task 0 checks.
+
+**Decisions (Ben, design §0):** merge v1 first; the text questions come last and optional;
+"rather not see" ships as scores only, no filter; keep is a tap grid (an untouched picture scores
+nothing); the playoff is in v2, built as a `show: { top: 4 }` display rule on a static question
+rather than a new question kind; vocabulary round one rides with v2 — Ben ticked 33 topics in
+the proposal file; both new facets, Tradition and Form, come now; a taste profile is stored
+(`user_taste`, one jsonb, computed on the client and validated by the server); the exhibition
+title is set in Sora, not the prototype's serif; the loader was a separate sub-project (done).
+
+**Findings:**
+
+- **The proposal's "existing group" ids don't exist** in `topic-groups.ts`. Round one files into
+  the real groups and adds thirteen new ones (sport-and-play, faith-and-ritual, old-masters,
+  minimal-and-quiet, essays-and-ideas, life-writing …), each of which needs a persona to hold it
+  or `personas.test.ts` fails.
+- **`TOPICS` is test-pinned to sixteen**, so hand-added topics live in a second list
+  (`config/hand-topics.ts`), seeded at tier `grown` by `db:seed`. Ingest reads seed queries off
+  the row, so a seeded hand topic needs no ingest change; the feed stays put on a graph-less
+  topic, so one is safe before `graph:rebuild` — inert for drift, nothing more.
+- **The corpus mirrors the designated blogs.** In the study's 480-picture sample retro sci-fi,
+  Soviet material and erotic illustration dominated. The questions can only offer what the corpus
+  can serve, which is why the vocabulary rides with the bank.
+- **Nudity and weapons cannot be filtered today** — no topic or curator tag marks them. The wish
+  is logged; a real filter needs a curator tag plus a per-user exclusion the feed honours.
+- **The server validates the taste rather than recomputing it**: the item ids a reader opened
+  exist only on the screen. The design's `Option.log` is `Option.always` in code — the reading
+  cards need the same flag (offered whether or not their topics are listed).
+- The study's four config files and its faces script type-check but had never run against the
+  repo; Task 11 runs the script against both local databases and fills the hand picks from it.
+
+**Open / next:** Ben reads the plan and merges v1; a cheaper session executes
+`docs/PLAN_first-exhibition.md` on `feat/first-exhibition`. The study folder stays untracked on
+disk until Task 0 moves it. Left out by design: a real nudity/weapons filter, vocabulary rounds
+two onward, a free-text LLM call beyond scoring.
+
+_Session spend: 21.47M tok (in 3.2k · out 358.8k · cache r 19.28M / w 1.83M) · fable-5-1 + opus-5-5 · 16:25→09:30_
+
 ### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 
 **Shipped:** `0e303fd` deployed to VM 202 (Task 7 Step 2). Health after: `"ingest":"ok"` with
