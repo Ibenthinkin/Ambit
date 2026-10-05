@@ -191,6 +191,11 @@ Readers are on the interim questionnaire until `main` (30 ahead, with First Exhi
 and deployed again. Not harmful — v1 writes nothing v2 cannot read, and 0013 applies on the next
 boot — but it is the thing the morning's decision meant to avoid.
 
+**16:52 — First Exhibition is deployed.** `main` pushed (`fd950a3`), redeployed; `/api/health`
+answers that commit, the boot ran 0013 and `db:seed` — production now has `user_taste`, 193 topics
+(16 original + 177 grown, 192 faceted — the one unfaceted is the tag-only era topic), 23 user rows
+(the twenty personas and three readers), no taste stored yet. v1 was live for about ten minutes.
+
 **Decision (Ben, 13:00): the critique is to be addressed as soon as possible** — the list in
 `docs/NOTES_onboarding-critique.md` is the next piece of work, not a backlog for some later
 redesign. Its framing stays: sitewide (accent, buttons, square corners), the questionnaire's card
@@ -208,6 +213,8 @@ delete. Still open: the `/api/img` 429 in parallel local e2e.
 _Session spend: 8.77M tok (in 1.6k · out 41.8k · cache r 8.38M / w 344.4k) · fable-5-1 + opus-5-5 · 10:47→13:06_
 
 _Session spend: 1.88M tok (in 358 · out 17.3k · cache r 1.52M / w 346.1k) · fable-5-1 · 13:06→16:46_
+
+_Session spend: 1.55M tok (in 322 · out 8.9k · cache r 1.53M / w 9.1k) · fable-5-1 · 16:46→16:52_
 
 ### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
 
