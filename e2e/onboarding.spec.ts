@@ -131,8 +131,11 @@ test.describe.serial("onboarding questionnaire", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Cancel" })).toBeVisible();
 
-    // This time toward the sea and the desert's rocks.
-    await answerQuestionnaire(page, ["the-ocean", "geology"]);
+    // This time toward the sea and an evening of music. Not geology: it is one of four topics on
+    // the desert answer, all tied, and in the same group as the-ocean and water — on the real
+    // corpus the picker's GROUP_CAP of three is spent before it gets there, so the reveal would
+    // propose it only against CI's sixteen originals, where its three siblings don't exist.
+    await answerQuestionnaire(page, ["the-ocean", "music"]);
     await expect(
       page.getByText(/This replaces your current topics/),
     ).toBeVisible();
@@ -143,7 +146,7 @@ test.describe.serial("onboarding questionnaire", () => {
     await expect(page.locator('[data-topic="the-ocean"]')).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.locator('[data-topic="geology"]')).toBeVisible();
+    await expect(page.locator('[data-topic="music"]')).toBeVisible();
     // Overwritten, not merged: a first-run starter no answer led back to is gone. (Astronomy may
     // remain — on a small database it is what tops the reveal back up to three.)
     await expect(page.locator('[data-topic="architecture"]')).toHaveCount(0);
