@@ -35,6 +35,11 @@ subtree), so it eases on Ben's machines. e2e measures the hover lift and adds a 
   single full run: the explore toolbar test (a Share on `/`, 8/8 green alone) and the writing-tile
   tap (0/4 failures repeated). The desktop project, where the lift is meant to be seen, was 20/20.
   The security test's `/api/img` 429 is the known parallel-e2e issue and fails on `main` too.
+- **The final review caught a Firefox-only paint bug, fixed.** `Rise` filled `both`, and a finished
+  animation that stays in effect on transform/opacity keeps a stacking context in Firefox (not in
+  Chromium, so no e2e could see it). Every page-one feed tile and every Saved tile would have
+  lifted _under_ its neighbours. `Rise` now fills backwards only, which looks identical. After it,
+  the full e2e suite was 63 passed with only the known 429.
 - `bun run check`'s integration suites went red twice from contention, once against the
   questionnaire worktree's own vitest on the same Postgres. Quiet-machine runs: branch 1911/1911,
   `main` 1905/1905.
