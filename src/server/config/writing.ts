@@ -116,3 +116,17 @@ export function writingLabel(item: {
     .join(" · ")
     .toUpperCase();
 }
+
+/**
+ * The *form* topic each writing kind scores on the questionnaire (docs/DESIGN_first-exhibition.md
+ * §5): opening an essay card says something about the reader's taste for essays as a form, not
+ * only about the essay's subject. Form is a facet of its own since First Exhibition; these ids
+ * are hand-added topics and are dropped by `targetsOf` until they are listed. `curiosity` has no
+ * form of its own yet — an encyclopedia entry is a subject with no genre — so it is unmapped.
+ * Ben edits this freely.
+ */
+export const KIND_FORM: Partial<Record<WritingKind, string>> = {
+  essay: "essays",
+  criticism: "criticism",
+  archive: "letters-and-diaries",
+};
