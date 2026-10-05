@@ -18,7 +18,8 @@ import {
 //
 //   1. skipping every question — the reveal then proposes the starters, and that is enough;
 //   2. a retake from /profile/topics — which *replaces* the reader's topics;
-//   3. Reading set to "None" — a feed with no writing in it at all.
+//   3. Reading set to "None" — a feed with no writing in it at all;
+//   4. First Exhibition's reveal head — a named exhibition, kept on /profile/topics.
 //
 // Nothing here types into the two free-text questions: that would be a model call, CI has no key
 // (the server answers empty lists), and the mapping is unit-tested with the call mocked.
@@ -131,11 +132,11 @@ test.describe.serial("onboarding questionnaire", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Cancel" })).toBeVisible();
 
-    // This time toward the sea and an evening of music. Not geology: it is one of four topics on
-    // the desert answer, all tied, and in the same group as the-ocean and water — on the real
-    // corpus the picker's GROUP_CAP of three is spent before it gets there, so the reveal would
-    // propose it only against CI's sixteen originals, where its three siblings don't exist.
-    await answerQuestionnaire(page, ["the-ocean", "music"]);
+    // This time toward rocks and an evening of music. Bank v2 (First Exhibition) has no path to
+    // the-ocean any more — the Land, sea & sky wing spreads its point over too many topics for one
+    // of them to reach the reveal — while geology + music reaches on both database shapes
+    // (bank.test.ts pins that path).
+    await answerQuestionnaire(page, ["geology", "music"]);
     await expect(
       page.getByText(/This replaces your current topics/),
     ).toBeVisible();
@@ -143,7 +144,7 @@ test.describe.serial("onboarding questionnaire", () => {
 
     // A retake ends where it began, on the list it just rewrote.
     await page.waitForURL("/profile/topics", { timeout: 15_000 });
-    await expect(page.locator('[data-topic="the-ocean"]')).toBeVisible({
+    await expect(page.locator('[data-topic="geology"]')).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.locator('[data-topic="music"]')).toBeVisible();
@@ -153,7 +154,7 @@ test.describe.serial("onboarding questionnaire", () => {
 
     // And it sticks.
     await page.reload();
-    await expect(page.locator('[data-topic="the-ocean"]')).toBeVisible({
+    await expect(page.locator('[data-topic="geology"]')).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.locator('[data-topic="architecture"]')).toHaveCount(0);
@@ -186,5 +187,32 @@ test.describe.serial("onboarding questionnaire", () => {
       expect(await tiles.count()).toBeGreaterThanOrEqual(30);
     }).toPass({ timeout: 30_000 });
     await expect(writingTiles(page)).toHaveCount(0);
+  });
+
+  test("the reveal names a first exhibition, and the profile shows it again", async ({
+    page,
+  }) => {
+    await goTo(page, "/profile/topics");
+    await page
+      .getByRole("link", { name: "Retake the questions" })
+      .click({ timeout: 15_000 });
+    await page.waitForURL("/onboarding?retake=1");
+    await answerQuestionnaire(page, ["astronomy", "botany", "music"]);
+
+    // Above the levels: a two-word title and the temperament strip.
+    const reveal = page.locator('[data-step="reveal"]');
+    await expect(reveal.getByRole("heading", { level: 2 })).toHaveText(
+      /\S+ \S+/,
+    );
+    await expect(
+      reveal.getByRole("group", { name: "Temperament" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Start exploring" }).click();
+
+    // Stored with the run, and read back on the profile.
+    await page.waitForURL("/profile/topics", { timeout: 15_000 });
+    await expect(
+      page.getByRole("region", { name: "Your first exhibition" }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 });

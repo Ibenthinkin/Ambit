@@ -141,6 +141,24 @@ describe("the e2e path", () => {
     expect(picks.map((p) => p.topicId)).toEqual(expect.arrayContaining(WANTED));
   });
 
+  // e2e/onboarding.spec.ts's retake steers here instead (the-ocean has no path in bank v2).
+  it.each([
+    ["production's vocabulary", WIDE],
+    ["the sixteen originals", NARROW],
+  ])(
+    "reaches geology and music on %s — the retake spec's path",
+    (_, listed) => {
+      const want = ["geology", "music"];
+      const answers = answersToward(QUESTIONS, listed, want);
+      const picks = picksFrom(
+        scoreAnswers(QUESTIONS, answers, listed),
+        listed,
+        STARTER_TOPICS,
+      );
+      expect(picks.map((p) => p.topicId)).toEqual(expect.arrayContaining(want));
+    },
+  );
+
   it("skipping everything proposes exactly the starters", () => {
     const picks = picksFrom(new Map(), NARROW, STARTER_TOPICS);
     expect(picks.map((p) => p.topicId)).toEqual(
