@@ -57,4 +57,28 @@ describe("FaceCard", () => {
     fireEvent.click(card);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  // Ben's critique (10-05-26): the coordinates at a destination card's foot were decoration that
+  // read as noise. The card is where, the name, and one line.
+  it("a destination card shows where, the name and its line — no coordinates", () => {
+    render(
+      <FaceCard
+        label="Kyoto"
+        topics={["japan"]}
+        selected={false}
+        onClick={vi.fn()}
+        // A stale `coord` (the data carried one until 10-05-26) is spread in so the type allows
+        // it: whatever the data holds, the card never prints it.
+        card={{
+          where: "Japan",
+          line: "Moss gardens.",
+          ...{ coord: "35.01° N" },
+        }}
+      />,
+    );
+    const card = screen.getByRole("button", { name: "Kyoto" });
+    expect(card).toHaveTextContent("Japan");
+    expect(card).toHaveTextContent("Moss gardens.");
+    expect(card).not.toHaveTextContent("35.01° N");
+  });
 });

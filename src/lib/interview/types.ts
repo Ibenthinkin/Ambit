@@ -43,8 +43,8 @@ export interface Option {
     writing?: { kind: WritingKind; nth: 0 | 1 };
   };
   /** A typeset card with no picture — the destinations: `where` in small caps, the label large,
-   *  one `line`, `coord` at the foot. */
-  card?: { where: string; line: string; coord: string };
+   *  one `line`. (Each carried its coordinates at the foot until Ben's 10-05-26 critique.) */
+  card?: { where: string; line: string };
   /** Offered whether or not any of its topics is listed, and logged like any answer. For an
    *  option whose point is the log (Nudity under "rather not") or whose scoring comes from the
    *  item shown rather than from `effects` (the reading cards). */

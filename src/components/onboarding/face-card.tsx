@@ -36,7 +36,7 @@ export interface FaceCardProps {
    *  the card is never a bare word. The accessible name stays the label. */
   fallback?: { kind: WritingKind } & FallbackCard;
   /** A typeset card with no picture (the destinations). */
-  card?: { where: string; line: string; coord: string };
+  card?: { where: string; line: string };
 }
 
 /** The small-caps line above an article's title. */
@@ -82,9 +82,6 @@ export function FaceCard({
           </span>
           <span className="text-ink/70 mt-2 text-[14px] leading-[1.45]">
             {card.line}
-          </span>
-          <span className="text-ink/45 mt-auto pt-3 font-mono text-[11px]">
-            {card.coord}
           </span>
         </span>
       ) : writing ? (

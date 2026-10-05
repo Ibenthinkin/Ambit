@@ -265,7 +265,7 @@ describe("QuestionStep", () => {
         {
           key: "kyoto",
           label: "Kyoto in the rain",
-          card: { where: "Japan", line: "Moss gardens.", coord: "35.01° N" },
+          card: { where: "Japan", line: "Moss gardens." },
           effects: [{ topics: ["botany"], score: 1.5 }],
         },
       ],
@@ -282,7 +282,6 @@ describe("QuestionStep", () => {
     const card = screen.getByRole("button", { name: "Kyoto in the rain" });
     expect(card).toHaveTextContent("Japan");
     expect(card).toHaveTextContent("Moss gardens.");
-    expect(card).toHaveTextContent("35.01° N");
     expect(card).toHaveAttribute("data-topics", "botany");
   });
 });
