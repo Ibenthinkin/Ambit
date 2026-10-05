@@ -178,7 +178,15 @@ export type TopicTier = "original" | "grown";
  *  is tag-only and would be an empty pool. Nullable on purpose — a default would file every
  *  future promotion under one facet silently. The authority is `config/topic-facets.ts`, applied
  *  by `db:seed` on every boot. */
-export type TopicFacet = "subject" | "medium" | "look" | "place";
+export type TopicFacet =
+  | "subject"
+  | "medium"
+  | "look"
+  | "place"
+  // First Exhibition (10-04-26, docs/DESIGN_first-exhibition.md §5): where and when a way of
+  // making comes from (ukiyo-e, medieval), and kinds of writing (essays, letters & diaries).
+  | "tradition"
+  | "form";
 
 export const topic = pgTable("topic", {
   // Not a nanoid: topic ids are slugs Ambit assigns by hand (`ancient-history`, `the-ocean`, ...),

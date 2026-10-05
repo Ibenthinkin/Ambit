@@ -15,7 +15,7 @@ import {
 } from "./topic-facets";
 
 describe("TOPIC_FACETS", () => {
-  it("uses only the four facet values", () => {
+  it("uses only the six facet values", () => {
     const allowed = new Set<string>(FACETS);
     for (const [id, facet] of Object.entries(TOPIC_FACETS)) {
       expect(allowed.has(facet), `${id}: ${facet}`).toBe(true);
@@ -35,12 +35,21 @@ describe("TOPIC_FACETS", () => {
   });
 
   it("has a label for every facet, in display order", () => {
-    expect(FACETS).toEqual(["subject", "medium", "look", "place"]);
+    expect(FACETS).toEqual([
+      "subject",
+      "medium",
+      "look",
+      "place",
+      "tradition",
+      "form",
+    ]);
     expect(FACETS.map((f) => FACET_LABELS[f])).toEqual([
       "Subject",
       "Medium",
       "Look",
       "Place",
+      "Tradition",
+      "Form",
     ]);
   });
 

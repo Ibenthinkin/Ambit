@@ -1,6 +1,9 @@
-// The four facets the pickers group topics by, and every topic's assignment
-// (docs/DESIGN_topic-facets-and-personas.md §1, 09-10-26). Hand-assigned, on purpose: a facet
-// by graph neighbourhood would file `watercolor` under Botany because they co-occur, and a
+// The six facets topics are filed under, and every topic's assignment
+// (docs/DESIGN_topic-facets-and-personas.md §1, 09-10-26; `tradition` and `form` joined with
+// First Exhibition, docs/DESIGN_first-exhibition.md §5). Onboarding no longer reads facets — it
+// is a questionnaire since 10-02-26 — so the prompts below are kept for `/profile/topics`'s
+// history and any future section headings; the facet itself still decides what is pickable.
+// Hand-assigned, on purpose: a facet by graph neighbourhood would file `watercolor` under Botany because they co-occur, and a
 // facet by tier would just be age. `db:seed` applies this map on every boot, which is what
 // puts facets on production with nothing copied into the container.
 //
@@ -27,6 +30,8 @@ export const FACETS = [
   "medium",
   "look",
   "place",
+  "tradition",
+  "form",
 ] as const satisfies readonly TopicFacet[];
 
 export const FACET_LABELS: Record<TopicFacet, string> = {
@@ -34,6 +39,8 @@ export const FACET_LABELS: Record<TopicFacet, string> = {
   medium: "Medium",
   look: "Look",
   place: "Place",
+  tradition: "Tradition",
+  form: "Form",
 };
 
 /** The question each facet asks (09-11-26, docs/DESIGN_chrome-redesign.md §6) — onboarding's
@@ -45,6 +52,8 @@ export const FACET_PROMPTS: Record<TopicFacet, string> = {
   medium: "In what form?",
   look: "What should it feel like?",
   place: "Anywhere in particular?",
+  tradition: "Where and when does the making come from?",
+  form: "What kind of writing?",
 };
 
 /** Topics that are unfaceted by design, not by omission — `db:seed` does not warn about these. */
