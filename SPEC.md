@@ -212,7 +212,7 @@ CREATE TABLE user_topic (
 
 A row's `weight` is shown to the reader as one of three **levels** (`config/topic-levels.ts`: a little 0.5 · some 1.0 · a lot 2.0; read back with half-open bands at 0.75 and 1.5). `topics.setMine` replaces the set **keeping** each surviving row's learned weight; `onboarding.complete` replaces it **overwriting** (`replaceUserTopicsTx`'s two modes).
 
-### 5.3a The questionnaire's columns and log (migration 0011, 10-02-26)
+### 5.3a The questionnaire's columns and log (migration 0012, 10-02-26; renumbered from 0011 at the 10-05 merge)
 
 Four nullable columns on `user`, read and written through `db/users.ts` / `db/onboarding.ts` — Better Auth is never told about them:
 

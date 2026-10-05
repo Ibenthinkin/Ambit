@@ -53,7 +53,7 @@ export const user = pgTable("user", {
   // all while the constraint still holds for everyone who sets one.
   handle: text("handle").unique(),
   bio: text("bio"),
-  // The questionnaire's four columns (migration 0011, docs/PLAN_onboarding-questionnaire.md §2).
+  // The questionnaire's four columns (migration 0012 — written as 0011 on the branch, renumbered at the merge; docs/PLAN_onboarding-questionnaire.md §2).
   // All nullable for the same reason as `handle`/`bio`: Better Auth is never told about them, and
   // they are read and written only through db/users.ts and db/onboarding.ts.
   //

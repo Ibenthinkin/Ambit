@@ -227,7 +227,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `e2e/support.ts`'s `answerQuestionnaire`**, which steers by each answer button's `data-topics`
   — change one, change the other, and `bank.test.ts` proves a path to astronomy + botany + music on
   both database shapes. `onboarding.complete` is the one write (picks, `interview_answer` rows,
-  user columns, one transaction, migration 0011) and **overwrites** through
+  user columns, one transaction, migration 0012) and **overwrites** through
   `replaceUserTopicsTx(…, "overwrite")`, where `topics.setMine` keeps learned weights.
   `onboarding.interpret` maps the free text with one OpenRouter call through
   `services/openrouter.ts` — **the transport was lifted out of `curator.ts` into that leaf** so
