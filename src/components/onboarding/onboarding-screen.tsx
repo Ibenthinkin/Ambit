@@ -281,7 +281,10 @@ export function OnboardingScreen({
   }
 
   // Narrow for words, wide for pictures (lib/interview/layout.ts; Ben's critique 10-05-26). Both
-  // are `mx-auto`, so a change between questions recentres the column rather than jumping it.
+  // are `mx-auto`, but the heading, progress line and Back sit at the column's *left* edge, so at
+  // 1440 they step 260 px sideways where bank v2 crosses the seam (intro → the wings,
+  // destinations → rather-not). Left for Ben's eye; if it jars, keep the column narrow and let
+  // only the card grid break out wide.
   const width = columnFor(onScreen, phase);
 
   return (

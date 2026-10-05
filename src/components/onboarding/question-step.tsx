@@ -177,7 +177,8 @@ export function QuestionStep({
           )}
           {/* Two across on a phone. From md, in the 1120 px wide column (layout.ts): the wings and
               the playoff four across (~265 px a card), the ten-picture keep grid five (~210 px),
-              the two reading cards held to ~420 px each, the destinations three, four from xl. */}
+              the four reading cards two by two at ~420 px each, the destinations three, four from
+              xl. */}
           <div
             className={cn(
               "grid grid-cols-2 gap-3",
