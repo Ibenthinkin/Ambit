@@ -88,3 +88,24 @@ export function readingAmountFrom(
   }
   return null;
 }
+
+/** A long read, for the reading default and the reveal's "You like a long read". */
+export const LONG_READ_MINUTES = 12;
+
+/**
+ * What the `amount` question opens on when the reader has already said something about reading
+ * by opening (or declining) the article cards (docs/DESIGN_first-exhibition.md §2): both
+ * declined → none; one opened → a little; two → some, or a lot when both were long reads. Null
+ * when no reading question was reached, so the question opens blank as it did in v1. The screen
+ * preselects this as the amount question's draft; the reader can change it, and what is stored
+ * is still the amount question's answer.
+ */
+export function defaultReadingAmount(
+  opened: readonly { minutes: number }[],
+  skipped: number,
+): ReadingAmount | null {
+  if (opened.length + skipped === 0) return null;
+  if (opened.length === 0) return "none";
+  if (opened.length === 1) return "little";
+  return opened.every((o) => o.minutes >= LONG_READ_MINUTES) ? "lot" : "some";
+}
