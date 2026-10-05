@@ -180,6 +180,19 @@ describe("SavedScreen", () => {
     expect(document.querySelector('[data-saved-id="img1"] img')).not.toBeNull();
     expect(screen.getByText("The Heron")).toBeInTheDocument();
 
+    // The Lift (docs/PLAN_tile-hover.md Task 5): the same tiles as the feed, on the same wall —
+    // Saved's wrapper carries the same classes as FeedGrid's, so one wall never lifts beside one
+    // that doesn't. The unsave badge is inside the wrapper and rises with it.
+    const wrapper = document.querySelector('[data-saved-id="img1"]')!;
+    expect(wrapper).toHaveClass(
+      "group/tile",
+      "relative",
+      "motion-lift",
+      "hover:scale-[1.035]",
+      "hover:shadow-lift",
+      "has-[:focus-visible]:scale-[1.035]",
+    );
+
     const columns = screen
       .getByTestId("saved-columns")
       .querySelectorAll(":scope > div");

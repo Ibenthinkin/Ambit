@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { ArticleCard } from "~/components/feed/article-card";
 import { ImageTile } from "~/components/feed/image-tile";
 import type { CardTile } from "~/components/feed/masonry";
+import { TILE_LIFT } from "~/components/feed/tile-lift";
 import { WritingTile } from "~/components/feed/writing-tile";
 import { Bookmark } from "~/components/icons";
 import { Rise } from "~/components/ui/rise";
+import { cn } from "~/lib/utils";
 
 // One tile on the Saved masonry: the feed's own `ImageTile`/`ArticleCard`, unchanged, plus the
 // prototype's one addition — an always-visible unsave badge in the top-right corner. No long-press
@@ -19,6 +21,9 @@ import { Rise } from "~/components/ui/rise";
 // over it, so its clicks resolve against the badge and never reach the tile's press handlers. The
 // `onPointerDown` stopPropagation is the same rule as every `PillButton` — a thumb resting here
 // mid-scroll must not arm the tile's press underneath.
+//
+// Since 10-04-26 the wrapper also carries the feed's Lift (`TILE_LIFT`): hover or keyboard focus
+// scales wrapper, tile and badge together, 3.5% over 350 ms. docs/PLAN_tile-hover.md.
 
 export interface SavedTileProps {
   /** Card tiles only — CORE cards never produce a Because tile, and Saved never asks for message
@@ -50,7 +55,11 @@ export function SavedTile({ tile, onUnsave }: SavedTileProps) {
     // No stagger on the Rise: the prototype rises each tile individually at a fixed delay, and
     // `animate-rise` is the house version of that entrance.
     <Rise>
-      <div className="relative" data-saved-id={item.id}>
+      {/* `group/tile` + the Lift (docs/PLAN_tile-hover.md Task 5): the same hover and keyboard
+          lift as the feed's wrapper in feed-grid.tsx, so Saved is the same wall. The group name
+          is what lets the dev tier tag (debug-badge.tsx) fill here too. The unsave badge below is
+          inside this wrapper and rises with the picture. */}
+      <div className={cn("group/tile", TILE_LIFT)} data-saved-id={item.id}>
         {tile.kind === "image" ? (
           <ImageTile
             card={tile.card}
