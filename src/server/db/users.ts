@@ -14,6 +14,10 @@
 // crash a test run in an environment with no DATABASE_URL.
 import { and, eq, ne } from "drizzle-orm";
 
+import {
+  isReadingAmount,
+  type ReadingAmount,
+} from "~/server/config/reading-amount";
 import { user } from "~/server/db/schema";
 
 /**
@@ -95,4 +99,36 @@ export async function updateUserProfile(
       bio: user.bio,
     });
   return row;
+}
+
+/**
+ * How much writing this reader asked for (the questionnaire's last question, and the Reading row
+ * in Settings) — or `null` when they have never said, which the feed reads as its own default.
+ *
+ * The column is plain `text`, so the read narrows it: a value this build doesn't know (a level
+ * retired by a later version, a hand-edited row) comes back as `null` rather than reaching the
+ * feed engine as a word it has no share for.
+ */
+export async function getUserWritingAmount(
+  userId: string,
+): Promise<ReadingAmount | null> {
+  const { db } = await import("./client");
+  const [row] = await db
+    .select({ writingAmount: user.writingAmount })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  return isReadingAmount(row?.writingAmount) ? row.writingAmount : null;
+}
+
+/** Stores the level — never the share it buys (see config/reading-amount.ts). `null` clears it. */
+export async function setUserWritingAmount(
+  userId: string,
+  amount: ReadingAmount | null,
+): Promise<void> {
+  const { db } = await import("./client");
+  await db
+    .update(user)
+    .set({ writingAmount: amount })
+    .where(eq(user.id, userId));
 }

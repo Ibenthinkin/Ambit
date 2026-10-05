@@ -53,7 +53,15 @@ export function Toast({
         raised ? "bottom-[92px]" : "bottom-[46px]",
       )}
     >
-      <div className="border-hairline animate-toast-in shadow-toast bg-overlay/92 rounded-pill border-ink/12 text-ink px-[18px] py-[11px] font-sans text-[13px] whitespace-nowrap backdrop-blur-[12px]">
+      {/* `role="status"` + polite: the text is also said aloud, without cutting off whatever a
+          screen reader is in the middle of. A toast is sometimes the only word an action gets
+          ("Keep at least one topic.", "Couldn't save that — try again."), so seeing it can't be
+          the only way to get it. */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="border-hairline animate-toast-in shadow-toast bg-overlay/92 rounded-pill border-ink/12 text-ink px-[18px] py-[11px] font-sans text-[13px] whitespace-nowrap backdrop-blur-[12px]"
+      >
         {text}
       </div>
     </div>

@@ -53,6 +53,19 @@ export const user = pgTable("user", {
   // all while the constraint still holds for everyone who sets one.
   handle: text("handle").unique(),
   bio: text("bio"),
+  // The questionnaire's four columns (migration 0011, docs/PLAN_onboarding-questionnaire.md §2).
+  // All nullable for the same reason as `handle`/`bio`: Better Auth is never told about them, and
+  // they are read and written only through db/users.ts and db/onboarding.ts.
+  //
+  // `writing_amount` is one of config/reading-amount.ts's four words — `none | little | some |
+  // lot` — and NULL means "never said", which the feed reads as its own default. The *word* is
+  // stored rather than the share it buys, so retuning a share needs no data migration.
+  writingAmount: text("writing_amount"),
+  // The optional "About you" step — a trial (plan §8). Free-form on purpose, never read by the
+  // feed, and removable by dropping these three columns.
+  ageRange: text("age_range"),
+  location: text("location"),
+  gender: text("gender"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -499,3 +512,44 @@ export interface IngestRunPerSource {
   >;
   deadSources: string[];
 }
+
+// One row per question a reader was shown in one pass through the onboarding questionnaire
+// (docs/PLAN_onboarding-questionnaire.md §2). Written only by `onboarding.complete`, all rows of
+// a pass in the same transaction as the picks — abandoning the flow writes nothing.
+//
+// Nothing reads this table at request time. It is a log: what people answered, which questions
+// they skipped, and — in `text` — the words they typed into the two open questions, which is where
+// Ben looks for topics the vocabulary doesn't have yet. A retake adds a second set of rows under a
+// new `run_id`; earlier passes are kept.
+export const interviewAnswer = pgTable(
+  "interview_answer",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    // Cascades: e2e cleanup and the integration suites delete users directly, and a deleted
+    // reader's answers have no reason to outlive them.
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // One nanoid per pass through the questionnaire — what groups a sign-up's rows apart from a
+    // later retake's.
+    runId: text("run_id").notNull(),
+    // The question's id in src/lib/interview/bank.ts — not a foreign key; the bank is code.
+    questionId: text("question_id").notNull(),
+    // The chosen option keys; or the single sentinel "skip" / "either" / "neither"; or, for a
+    // free-text question, the topic ids the model mapped the words to (possibly none).
+    answer: text("answer")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    // The reader's own words, free-text questions only (≤500 chars, enforced by the router).
+    text: text("text"),
+    // Which version of the bank asked — so an old row can still be read after the questions change.
+    bankVersion: integer("bank_version").notNull(),
+    askedAt: timestamp("asked_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("idx_interview_answer_user").on(table.userId)],
+);

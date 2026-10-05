@@ -212,6 +212,34 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `bun run seed:personas`, which signs each one up through Better Auth's server API against
   `PERSONA_PASSWORD` (env; no default, and it is a secret) so Ben can read the feed from twenty
   different chairs. Demographics in the fixture are documentation and are never stored.
+- **Onboarding is a questionnaire, and groups and facets are internal — 10-02-26** (plan
+  `docs/PLAN_onboarding-questionnaire.md`; branch `feat/onboarding-questionnaire`, built in the
+  worktree `~/Dev/ambit-questionnaire`, not merged). Ben's verdict on the two bullets around this
+  one: the facet stages and umbrella groups are "completely broken" _as things a reader sees_. So
+  `/onboarding` is now thirteen skippable questions (two free-text, five picture face-offs, word
+  questions) → an optional About-you step → a **reveal** of levelled topics, and `/profile/topics`
+  is that reveal kept: a flat `TopicLevels` list, a search box, "Retake the questions". **No screen
+  names a group or a facet any more**; both remain the vocabulary the _code_ speaks — the bank's
+  answers (`src/lib/interview/bank.ts`, Ben edits it), the personas, `listTopics`'s
+  `facet IS NOT NULL`. The parts that span files: `src/lib/interview/` is pure (bank, `askable`,
+  `score` — an answer's score is shared as `score / √n` — `picks`, `path`), so the browser, the
+  bank's own test and the e2e helper all run the same rules; **`path.ts` is the pure mirror of
+  `e2e/support.ts`'s `answerQuestionnaire`**, which steers by each answer button's `data-topics`
+  — change one, change the other, and `bank.test.ts` proves a path to astronomy + botany + music on
+  both database shapes. `onboarding.complete` is the one write (picks, `interview_answer` rows,
+  user columns, one transaction, migration 0011) and **overwrites** through
+  `replaceUserTopicsTx(…, "overwrite")`, where `topics.setMine` keeps learned weights.
+  `onboarding.interpret` maps the free text with one OpenRouter call through
+  `services/openrouter.ts` — **the transport was lifted out of `curator.ts` into that leaf** so
+  the web server does not bundle the curator — and answers empty lists on any failure, timeout or
+  missing key. **Reading is per person**: `user.writing_amount` (the level, never the share) →
+  `resolveWriting` in `services/feed.ts`; "None" is `picturesOnly`, _not_ `writingShare: 0`, which
+  would let articles back into the ordinary pools. Two traps it met: a `fixed` bar inside `<Rise>`
+  is captured by the animation's transform (the step bars are siblings of the rising body), and a
+  client component must import face types from `lib/interview/faces.ts`, not
+  `services/question-faces.ts`, or it drags the database layer into the bundle. The demographics
+  (age range, location, gender) are a **trial** that reverses the personas design's "never
+  stored"; three columns to drop if it goes.
 - **The pickers show umbrella groups, not topics — 09-25-26** (design
   `docs/DESIGN_topic-facets-and-personas.md` §2a; branch `feat/topic-groups`). Ben's review of
   onboarding after round 2: 92 Subject chips was "just too many words". `src/server/config/topic-groups.ts`

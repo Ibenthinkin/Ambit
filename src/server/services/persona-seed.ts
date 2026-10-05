@@ -29,7 +29,14 @@ async function syncPicks(
   const have = new Set(await getUserTopicIds(userId));
   const want = new Set(personaTopics(p).filter((t) => pickable.has(t)));
   const same = have.size === want.size && [...want].every((t) => have.has(t));
-  if (!same) await setUserTopics(userId, [...want]);
+  // Personas are seeded flat, at weight 1.0 for every pick — the little/some/lot levels are a
+  // reader-facing input a fixture has no opinion about, so this is the one deliberate spot
+  // outside `topic-levels.ts` that writes a bare weight number.
+  if (!same)
+    await setUserTopics(
+      userId,
+      [...want].map((topicId) => ({ topicId, weight: 1.0 })),
+    );
   return same;
 }
 

@@ -381,56 +381,105 @@ export async function countSeenFor(
 }
 
 /**
- * The three onboarding group chips every spec presses (09-25-26): the groups holding astronomy,
- * botany and music — the topics the specs seed their fixture items under. Their exact member
- * lists live in `config/topic-groups.ts`; only the containment matters here.
+ * The three topics every spec answers its way to (10-02-26): astronomy, botany and music — the
+ * topics the specs seed their fixture items under, all three among the sixteen originals, so the
+ * same answers work on CI's fixture-only database and on a real corpus.
  */
-export const ONBOARDING_GROUPS = [
-  "Space & science fiction",
-  "Plants & fungi",
-  "Music, film & performance",
-];
+export const ONBOARDING_TOPICS = ["astronomy", "botany", "music"];
 
 /**
- * Walks the four-stage onboarding (09-10-26), pressing every chip in `labels` on whatever
- * stage it appears, then Start exploring. The stages are Subject / Medium / Look / Place; a
- * label that is on no stage fails the test by name rather than silently landing on /feed with
- * fewer picks — the specs' fixtures depend on exactly which topics the user has.
+ * Answers the questionnaire (docs/PLAN_onboarding-questionnaire.md) toward `topics`, from the
+ * intro's Begin through to the reveal — and stops there, with the reveal on screen, so a caller
+ * can look at it before saving. `completeOnboarding` is this plus "Start exploring".
  *
- * **The chips are umbrella groups since 09-25-26** (`config/topic-groups.ts`), so `labels` are
- * group labels — `ONBOARDING_GROUPS` below is the three every spec uses. A group picks every
- * member the server listed: on CI that is exactly the one original topic each of the three holds
- * (astronomy, botany, music — where the specs seed their items), on a real corpus a dozen more
- * besides. Specs that assert on the *picked topics* have to tolerate both shapes; see
- * settings.spec.ts's "What you see" assertion.
+ * **It steers by `data-topics`.** Every answer button carries the topic ids it would add; each
+ * question, this presses the answers that hold a wanted topic and skips the question otherwise.
+ * No label, question id or question count is hard-coded here, because the bank's copy is Ben's
+ * to edit and CI's sixteen-topic database is asked a different, shorter set than production.
+ * `src/lib/interview/path.ts` is this function's pure mirror — `bank.test.ts` uses it to prove,
+ * without a browser, that a path to the default three exists on both database shapes. Change
+ * the rules in one and you must change the other.
  *
- * A stage may legitimately be empty. CI's database is `db:migrate` + `db:seed`, which is the
- * sixteen config topics and nothing else — thirteen subjects, three media, no looks and no
- * places — so two of the four stages render no chips at all there and are simply passed. The
- * screen allows that on purpose (the floor is three picks in total, not per stage).
+ * The rules: a text or amount question is skipped (no model call in e2e — the two free-text
+ * questions are covered by unit tests); a pair with a wanted topic on both sides is "Either";
+ * a multi presses its hits up to the step's `data-max`, then Next; a pair or a choice is one tap
+ * and moves on by itself. The optional About-you step is skipped.
+ *
+ * A wanted topic missing from the reveal fails here, by name, rather than as a mystery later —
+ * the specs' fixtures depend on exactly which topics the user has. (On a real corpus the reveal
+ * holds more than was asked for — an answer adds its whole group — so specs that assert on the
+ * picked topics tolerate both shapes; see settings.spec.ts's "What you see".)
  */
-export async function completeOnboarding(page: Page, labels: string[]) {
-  await page.waitForURL("/onboarding");
-  const remaining = new Set(labels);
-  for (let stage = 0; stage < 4; stage++) {
-    for (const label of [...remaining]) {
-      // `pressed: false` both disambiguates from any other text on the page and asserts the
-      // pre-click state, exactly as the inline loops this replaces did.
-      const chip = page.getByRole("button", {
-        name: label,
-        pressed: false,
-        exact: true,
-      });
-      if (await chip.count()) {
-        await chip.click();
-        remaining.delete(label);
+export async function answerQuestionnaire(
+  page: Page,
+  topics: readonly string[] = ONBOARDING_TOPICS,
+) {
+  const want = new Set(topics);
+  const step = page.locator("[data-question-id]");
+  const about = page.locator('[data-step="about"]');
+
+  // Retried: a click that lands before React has hydrated the button does nothing at all (the
+  // same trap support.ts's landing helpers document), and the page would sit on its intro.
+  const begin = page.getByRole("button", { name: "Begin", exact: true });
+  await expect(async () => {
+    if (await begin.count()) await begin.click();
+    await expect(step.first()).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+  // Far more turns than any bank has questions (bank.test.ts caps it at fifteen): a loop that
+  // never reaches About-you is a bug to report, not to wait out.
+  for (let turn = 0; turn < 40; turn++) {
+    await step.or(about).first().waitFor();
+    if (await about.count()) break;
+
+    const id = (await step.getAttribute("data-question-id"))!;
+    const kind = await step.getAttribute("data-question-kind");
+    const max = Number((await step.getAttribute("data-max")) ?? Infinity);
+    const options = step.locator("[data-topics]");
+    const hits: number[] = [];
+    if (kind !== "text" && kind !== "amount") {
+      const count = await options.count();
+      for (let i = 0; i < count; i++) {
+        const adds = ((await options.nth(i).getAttribute("data-topics")) ?? "")
+          .split(" ")
+          .filter(Boolean);
+        if (adds.some((t) => want.has(t))) hits.push(i);
       }
     }
-    if (stage < 3) await page.getByRole("button", { name: "Next" }).click();
+
+    if (hits.length === 0) {
+      await page.getByRole("button", { name: "Skip", exact: true }).click();
+    } else if (kind === "pair" && hits.length > 1) {
+      await step.getByRole("button", { name: "Either", exact: true }).click();
+    } else if (kind === "multi") {
+      for (const i of hits.slice(0, max)) await options.nth(i).click();
+      await page.getByRole("button", { name: "Next", exact: true }).click();
+    } else {
+      // A pair's one wanted side, or a choice's first wanted answer: the tap is the answer.
+      await options.nth(hits[0]!).click();
+    }
+    // The question is left before the next one is read, so a slow render can't be answered twice.
+    await expect(page.locator(`[data-question-id="${id}"]`)).toHaveCount(0);
   }
-  if (remaining.size) {
-    throw new Error(`onboarding: no chip for ${[...remaining].join(", ")}`);
+
+  await about.getByRole("heading").waitFor();
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+
+  const reveal = page.locator('[data-step="reveal"]');
+  await reveal.waitFor();
+  for (const topic of topics) {
+    if (!(await reveal.locator(`[data-topic="${topic}"]`).count())) {
+      throw new Error(`onboarding: the reveal does not propose "${topic}"`);
+    }
   }
+}
+
+/** Sign-up's onboarding, end to end: answers toward `topics`, saves, and lands on /feed. */
+export async function completeOnboarding(
+  page: Page,
+  topics: readonly string[] = ONBOARDING_TOPICS,
+) {
+  await page.waitForURL("/onboarding");
+  await answerQuestionnaire(page, topics);
   await page.getByRole("button", { name: "Start exploring" }).click();
   await page.waitForURL("/feed");
 }
@@ -460,6 +509,25 @@ export async function waitForSetMine(page: Page) {
   // signal is the honest one instead — topics-screen.tsx's `onSettled` invalidates `topics.mine`,
   // which only runs once the result chunk has arrived, and the refetch it triggers is a GET this
   // helper can see complete. Its 200 is a read of the committed row.
+  await page.waitForResponse(
+    (r) =>
+      r.url().includes("topics.mine") &&
+      r.request().method() === "GET" &&
+      r.status() === 200 &&
+      r.request().timing().startTime >= written.request().timing().startTime,
+  );
+  return written;
+}
+
+/**
+ * `waitForSetMine`'s twin for a level change on /profile/topics (`topics.setWeight`): the write's
+ * 200, then the `topics.mine` refetch its `onSettled` triggers — for exactly the reasons spelled
+ * out above (a streamed 200 is the handler starting, not the commit).
+ */
+export async function waitForSetWeight(page: Page) {
+  const written = await page.waitForResponse(
+    (r) => r.url().includes("topics.setWeight") && r.status() === 200,
+  );
   await page.waitForResponse(
     (r) =>
       r.url().includes("topics.mine") &&

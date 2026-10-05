@@ -39,6 +39,11 @@ import { CuratorAbortError } from "./curator-errors";
 import { imageFetchHeaders } from "./image-auth";
 import { USER_AGENT } from "./sources/http";
 import type { NormalizedItem } from "./sources/types";
+import {
+  OPENROUTER_ABORT_STATUSES,
+  openRouterComplete,
+  type OpenRouterContent,
+} from "./openrouter";
 
 /** Cheap, vision-capable, fast — curation is thousands of small judgments, not deep reasoning.
  *  Swappable on purpose: the cache key below includes the model, so trying a different judge
@@ -151,7 +156,8 @@ const CONCURRENCY = 8;
  * no topics — and would have stored 11,500 unscored, un-homed rows under a clean summary if it
  * had reached the write. The same fail-fast rule the Loupe adapter follows for its own 401/403.
  */
-export const CURATOR_ABORT_STATUSES: ReadonlySet<number> = new Set([401, 402]);
+export const CURATOR_ABORT_STATUSES: ReadonlySet<number> =
+  OPENROUTER_ABORT_STATUSES;
 
 /**
  * The softer guard behind the same lesson: how many curations may fall back *in a row* — no
@@ -1076,65 +1082,7 @@ async function scoreItem(
   };
 }
 
-type CuratorContent =
-  | string
-  | (
-      | { type: "text"; text: string }
-      | { type: "image_url"; image_url: { url: string } }
-    )[];
-
-/** The OpenRouter transport: one chat completion. An account-level status throws
- *  CuratorAbortError — see CURATOR_ABORT_STATUSES. */
-async function openRouterComplete(req: {
-  model: string;
-  system: string;
-  content: CuratorContent;
-}): Promise<{ reply: string; tokens: number }> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "OPENROUTER_API_KEY is not set — required for curateItems() (add it to .env).",
-    );
-  }
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: req.model,
-      messages: [
-        { role: "system", content: req.system },
-        { role: "user", content: req.content },
-      ],
-      // Asks the provider to guarantee syntactically valid JSON output.
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-      // Reserved against the key's budget before dispatch — see CURATOR_MAX_TOKENS.
-      max_tokens: CURATOR_MAX_TOKENS,
-    }),
-  });
-  if (!res.ok) {
-    const detail = `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
-    // Account-level, not item-level: thrown past the retry in callCurator and past the fallback
-    // in curateItems. Retrying a 402 four times per item is how walk 3 ran for eighteen hours.
-    if (CURATOR_ABORT_STATUSES.has(res.status))
-      throw new CuratorAbortError(
-        `OpenRouter ${detail} — ${res.status === 402 ? "the account is out of credits" : "the API key was rejected"}; nothing written, re-run after fixing the account`,
-        res.status,
-      );
-    throw new Error(detail);
-  }
-  const json = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-    usage?: { total_tokens?: number };
-  };
-  return {
-    reply: json.choices?.[0]?.message?.content ?? "{}",
-    tokens: json.usage?.total_tokens ?? 0,
-  };
-}
+type CuratorContent = OpenRouterContent;
 
 /**
  * One curator judgement, with the retry loop and the fail-fast rule both curators and both
@@ -1148,9 +1096,11 @@ async function callCurator<T>(
   req: { model: string; system: string; content: CuratorContent },
   parse: (reply: string) => T,
 ): Promise<{ result: T; tokens: number }> {
+  // Reserved against the key's budget before dispatch — see CURATOR_MAX_TOKENS.
   const complete = isClaudeModel(req.model)
     ? claudeComplete
-    : openRouterComplete;
+    : (r: typeof req) =>
+        openRouterComplete({ ...r, maxTokens: CURATOR_MAX_TOKENS });
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {

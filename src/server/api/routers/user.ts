@@ -17,11 +17,19 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { READING_AMOUNTS } from "~/server/config/reading-amount";
 import {
   getUserProfile,
+  getUserWritingAmount,
   isHandleTaken,
+  setUserWritingAmount,
   updateUserProfile,
 } from "~/server/db/users";
+
+// zod wants a non-empty tuple; the leaf exports a readonly array so the client can map over it.
+const readingAmountSchema = z.enum(
+  READING_AMOUNTS as unknown as [string, ...string[]],
+) as z.ZodType<(typeof READING_AMOUNTS)[number]>;
 
 export const userRouter = createTRPCRouter({
   /**
@@ -92,5 +100,22 @@ export const userRouter = createTRPCRouter({
         });
       }
       return profile;
+    }),
+
+  /**
+   * How much writing the caller asked for — `none | little | some | lot`, or `null` for "never
+   * said" (the feed's default). Its own tiny query rather than a field on `me`, so the Settings
+   * sheet can invalidate it without refetching the profile.
+   */
+  readingAmount: protectedProcedure.query(({ ctx }) =>
+    getUserWritingAmount(ctx.user.id),
+  ),
+
+  /** Sets (or, with `null`, clears) the caller's reading amount; answers with what was stored. */
+  setReadingAmount: protectedProcedure
+    .input(z.object({ amount: readingAmountSchema.nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      await setUserWritingAmount(ctx.user.id, input.amount);
+      return input.amount;
     }),
 });

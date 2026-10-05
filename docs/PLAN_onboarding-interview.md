@@ -1,5 +1,7 @@
 # Onboarding v2, plan 2 of 2 — the interview: bank, generated questions, chooser, faces, the Refine phase and `/interview`
 
+> **Superseded 10-02-26 — never executed.** Onboarding became a questionnaire: [`PLAN_onboarding-questionnaire.md`](PLAN_onboarding-questionnaire.md). This plan was put on hold 09-29-26 and is kept as history only; do not run it.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Written:** 09-28-26 by Fable 5.1, from the design doc below and a read of every file named

@@ -12,7 +12,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   addItemTopics,
   drawFromTopic,
+  facePicks,
   listLandingPool,
+  topFacesForTopics,
   upsertItem,
 } from "./items";
 import { item, itemTopic, topic } from "./schema";
@@ -529,6 +531,111 @@ describe.skipIf(!process.env.DATABASE_URL)(
           });
         }
       }
+    });
+  },
+);
+
+// The questionnaire's answer cards (10-02-26): the best pictures in a topic, by membership.
+describe.skipIf(!process.env.DATABASE_URL)(
+  "topFacesForTopics + facePicks (integration)",
+  () => {
+    const topicA = `test-faces-a-${nanoid(8)}`;
+    const topicB = `test-faces-b-${nanoid(8)}`;
+    const prefix = `test-faces-${nanoid(8)}-`;
+    const fixture = (
+      n: string,
+      topicId: string,
+      curationScore: number,
+      over: Partial<typeof item.$inferInsert> = {},
+    ) => ({
+      source: "met" as const,
+      sourceId: `${prefix}${n}`,
+      type: "image" as const,
+      title: `Face fixture ${n}`,
+      sourceUrl: `https://x.test/${prefix}${n}`,
+      imageUrl: `https://x.test/${prefix}${n}.jpg`,
+      topicId,
+      curationScore,
+      ...over,
+    });
+    let ids: Record<string, string>;
+
+    beforeAll(async () => {
+      const { db } = await import("./client");
+      const seedQueries = {
+        wikipedia: [],
+        met: [],
+        aic: [],
+        cma: [],
+        wellcome: [],
+      };
+      await db.insert(topic).values([
+        { id: topicA, label: "Test faces A", seedQueries },
+        { id: topicB, label: "Test faces B", seedQueries },
+      ]);
+      const rows = await insertHomedItems(db, [
+        fixture("ten", topicA, 10),
+        fixture("nine", topicA, 9),
+        fixture("nine-b", topicA, 9),
+        fixture("eight", topicA, 8),
+        fixture("article", topicA, 10, { type: "article", imageUrl: null }),
+        fixture("no-image", topicA, 10, { imageUrl: null }),
+        fixture("b-eight", topicB, 8),
+      ]);
+      ids = Object.fromEntries(
+        rows.map((r) => [r.sourceId.slice(prefix.length), r.id]),
+      );
+      // Membership, not the display topic: the ten is also a member of B.
+      await addItemTopics(ids.ten!, [topicB], "tag");
+    });
+
+    afterAll(async () => {
+      const { db } = await import("./client");
+      await db.delete(item).where(like(item.sourceId, `${prefix}%`));
+      await db.delete(topic).where(inArray(topic.id, [topicA, topicB]));
+    });
+
+    it("returns each topic's best images at score 9 or better, best first, at most n", async () => {
+      const rows = await topFacesForTopics([topicA], 2);
+      expect(rows.map((r) => r.id)).toEqual([ids.ten, expect.any(String)]);
+      expect([ids.nine, ids["nine-b"]]).toContain(rows[1]!.id);
+      expect(rows.every((r) => r.topicId === topicA)).toBe(true);
+      expect(rows[0]!.imageUrl).toContain(prefix);
+    });
+
+    it("leaves out articles, pictureless rows and anything under the floor", async () => {
+      const got = (await topFacesForTopics([topicA], 10)).map((r) => r.id);
+      expect(got).toHaveLength(3);
+      expect(got).not.toContain(ids.eight);
+      expect(got).not.toContain(ids.article);
+      expect(got).not.toContain(ids["no-image"]);
+    });
+
+    it("reads membership — an item filed under a second topic is that topic's face too", async () => {
+      const rows = await topFacesForTopics([topicB], 2);
+      // B's own picture is an 8; the only 9+ member is A's ten.
+      expect(rows.map((r) => r.id)).toEqual([ids.ten]);
+    });
+
+    it("is empty for no topics", async () => {
+      expect(await topFacesForTopics([], 2)).toEqual([]);
+    });
+
+    it("facePicks resolves (source, sourceId) pairs to image rows, skipping what is absent", async () => {
+      const rows = await facePicks([
+        { source: "met", sourceId: `${prefix}eight` },
+        { source: "met", sourceId: `${prefix}no-image` },
+        { source: "aic", sourceId: `${prefix}eight` },
+      ]);
+      expect(rows).toEqual([
+        {
+          source: "met",
+          sourceId: `${prefix}eight`,
+          id: ids.eight,
+          imageUrl: `https://x.test/${prefix}eight.jpg`,
+        },
+      ]);
+      expect(await facePicks([])).toEqual([]);
     });
   },
 );

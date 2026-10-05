@@ -205,7 +205,9 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
     it("rejects an unknown topic id with BAD_REQUEST", async () => {
       const caller = createCaller(authedContext(userId));
       await expect(
-        caller.topics.setMine({ topicIds: ["definitely-not-a-real-topic"] }),
+        caller.topics.setMine({
+          picks: [{ topicId: "definitely-not-a-real-topic", weight: 1 }],
+        }),
       ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     });
 
@@ -242,10 +244,15 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       try {
         const caller = createCaller(authedContext(userId));
         await expect(
-          caller.topics.setMine({ topicIds: [topicA, grown] }),
+          caller.topics.setMine({
+            picks: [
+              { topicId: topicA, weight: 1 },
+              { topicId: grown, weight: 1 },
+            ],
+          }),
         ).resolves.toEqual({ ok: true });
         await expect(
-          caller.topics.setMine({ topicIds: [era] }),
+          caller.topics.setMine({ picks: [{ topicId: era, weight: 1 }] }),
         ).rejects.toMatchObject({ code: "BAD_REQUEST" });
       } finally {
         const { userTopic } = await import("~/server/db/schema");
@@ -261,8 +268,14 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       const { db } = await import("~/server/db/client");
       const { userTopic } = await import("~/server/db/schema");
 
-      // First pick: both topics, default weight 1.
-      await caller.topics.setMine({ topicIds: [topicA, topicB] });
+      // First pick: the two topics at two different picked weights — proving the row carries
+      // whatever weight the client sent, not a fixed default.
+      await caller.topics.setMine({
+        picks: [
+          { topicId: topicA, weight: 2 },
+          { topicId: topicB, weight: 1 },
+        ],
+      });
       const afterFirst = await db
         .select()
         .from(userTopic)
@@ -270,7 +283,8 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       expect(afterFirst.map((r) => r.topicId).sort()).toEqual(
         [topicA, topicB].sort(),
       );
-      expect(afterFirst.every((r) => r.weight === 1)).toBe(true);
+      expect(afterFirst.find((r) => r.topicId === topicA)?.weight).toBe(2);
+      expect(afterFirst.find((r) => r.topicId === topicB)?.weight).toBe(1);
 
       // Simulate the feed having learned a preference for topicA (SPEC §9: saving nudges weight).
       await db
@@ -281,8 +295,9 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
         );
 
       // Re-pick, keeping only topicA — topicB's row should be gone, topicA's learned weight
-      // should survive untouched (not reset to the default 1).
-      await caller.topics.setMine({ topicIds: [topicA] });
+      // should survive untouched (not reset to whatever weight this re-pick names — `setUserTopics`
+      // keeps an existing row's weight via `onConflictDoNothing`).
+      await caller.topics.setMine({ picks: [{ topicId: topicA, weight: 1 }] });
       const afterSecond = await db
         .select()
         .from(userTopic)
@@ -300,15 +315,81 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
 
     // 5.10: what Settings' "What you see" row reads. Runs after the re-pick above, so the
     // expected answer is that re-pick's survivor — proving `mine` reflects the *current*
-    // selection rather than everything ever picked.
+    // selection rather than everything ever picked. Since 09-28-26 the pickers read levels, so
+    // `mine` carries each pick's weight too — here, topicA's hand-bumped 7 survives the read.
     it("topics.mine returns exactly what the last setMine wrote", async () => {
       const caller = createCaller(authedContext(userId));
-      expect(await caller.topics.mine()).toEqual([topicA]);
+      expect(await caller.topics.mine()).toEqual([
+        { topicId: topicA, weight: 7 },
+      ]);
 
-      await caller.topics.setMine({ topicIds: [topicA, topicB] });
-      expect((await caller.topics.mine()).sort()).toEqual(
+      await caller.topics.setMine({
+        picks: [
+          { topicId: topicA, weight: 1 },
+          { topicId: topicB, weight: 1 },
+        ],
+      });
+      const mine = await caller.topics.mine();
+      expect(mine.map((p) => p.topicId).sort()).toEqual(
         [topicA, topicB].sort(),
       );
+    });
+
+    // The interview's per-topic segmented control (docs/DESIGN_onboarding-interview.md §2):
+    // `setWeight` snaps one existing row straight to a level's canonical weight — never a nudge,
+    // so it lands on the same number whether the row started below or above it (the "hand-set
+    // to 3, ask for lot again, still land on 2" step below is the proof) — and refuses a topic
+    // with no row rather than silently creating one (that's `setMine`'s job).
+    it("setWeight snaps an existing row and refuses a missing one", async () => {
+      const caller = createCaller(authedContext(userId));
+      const { db } = await import("~/server/db/client");
+      const { userTopic } = await import("~/server/db/schema");
+
+      // Drop back to just topicA, so topicB genuinely has no row for the NOT_FOUND case below.
+      await caller.topics.setMine({ picks: [{ topicId: topicA, weight: 1 }] });
+
+      await expect(
+        caller.topics.setWeight({ topicId: topicA, level: "lot" }),
+      ).resolves.toEqual({ topicId: topicA, weight: 2 });
+      const [row] = await db
+        .select()
+        .from(userTopic)
+        .where(
+          and(eq(userTopic.userId, userId), eq(userTopic.topicId, topicA)),
+        );
+      expect(row?.weight).toBe(2);
+
+      // Hand-set past a save-nudge's own cap (3.0) — `setWeight` still snaps to the level's exact
+      // number rather than leaving the higher value alone or merely nudging it down.
+      await db
+        .update(userTopic)
+        .set({ weight: 3 })
+        .where(
+          and(eq(userTopic.userId, userId), eq(userTopic.topicId, topicA)),
+        );
+      await expect(
+        caller.topics.setWeight({ topicId: topicA, level: "lot" }),
+      ).resolves.toEqual({ topicId: topicA, weight: 2 });
+      // The procedure's return value comes from `weightOf()`, not the row — read the row back too,
+      // or an UPDATE that silently no-ops (leaving the hand-set 3 in place) would still pass.
+      const [rowAfterCap] = await db
+        .select()
+        .from(userTopic)
+        .where(
+          and(eq(userTopic.userId, userId), eq(userTopic.topicId, topicA)),
+        );
+      expect(rowAfterCap?.weight).toBe(2);
+
+      await expect(
+        caller.topics.setWeight({ topicId: topicB, level: "some" }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("mine returns weights", async () => {
+      const caller = createCaller(authedContext(userId));
+      expect(await caller.topics.mine()).toEqual([
+        { topicId: topicA, weight: 2 },
+      ]);
     });
   });
 
@@ -687,6 +768,27 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
           bio: null,
         }),
       ).resolves.toMatchObject({ handle: testHandle });
+    });
+  });
+
+  // The questionnaire's per-person reading amount (10-02-26): one nullable word on the user row.
+  describe("user.readingAmount + user.setReadingAmount", () => {
+    it("is null for a reader who has never said", async () => {
+      const caller = createCaller(authedContext(otherUserId));
+      expect(await caller.user.readingAmount()).toBeNull();
+    });
+
+    it("round-trips a level, per user, and null clears it back to the default", async () => {
+      const mine = createCaller(authedContext(userId));
+      const theirs = createCaller(authedContext(otherUserId));
+
+      expect(await mine.user.setReadingAmount({ amount: "lot" })).toBe("lot");
+      expect(await mine.user.readingAmount()).toBe("lot");
+      // The `userId` filter: my answer is not anybody else's.
+      expect(await theirs.user.readingAmount()).toBeNull();
+
+      await mine.user.setReadingAmount({ amount: null });
+      expect(await mine.user.readingAmount()).toBeNull();
     });
   });
 
@@ -1160,14 +1262,22 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       // Same reason as above: B already has topicA, from the 6.1 saves that bumped its weight.
       const bTopicsBefore = await b.topics.mine();
 
-      await a.topics.setMine({ topicIds: [topicA, topicB] });
+      await a.topics.setMine({
+        picks: [
+          { topicId: topicA, weight: 1 },
+          { topicId: topicB, weight: 1 },
+        ],
+      });
 
-      expect(await a.topics.mine()).toEqual(
+      const aMine = await a.topics.mine();
+      expect(aMine.map((p) => p.topicId)).toEqual(
         expect.arrayContaining([topicA, topicB]),
       );
       // B never picked topicB, and A picking it must not put it there.
       expect(await b.topics.mine()).toEqual(bTopicsBefore);
-      expect(await b.topics.mine()).not.toContain(topicB);
+      expect((await b.topics.mine()).map((p) => p.topicId)).not.toContain(
+        topicB,
+      );
     });
 
     it("user.me answers with the caller's own row and nothing of A's", async () => {

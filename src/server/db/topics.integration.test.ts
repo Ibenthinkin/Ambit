@@ -171,7 +171,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
         resetUserTopicWeights,
         setUserTopics,
       } = await import("./topics");
-      await setUserTopics(userId, [topicA, topicB]);
+      await setUserTopics(userId, [
+        { topicId: topicA, weight: 1 },
+        { topicId: topicB, weight: 1 },
+      ]);
       await bumpTopicWeight(userId, topicA);
       expect((await getUserTopicWeights(userId)).get(topicA)).toBeCloseTo(1.5);
 

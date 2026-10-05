@@ -8,8 +8,10 @@ import {
   inArray,
   isNotNull,
   like,
+  lte,
   notInArray,
   or,
+  sql,
 } from "drizzle-orm";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
@@ -467,4 +469,104 @@ export async function listLandingPool(): Promise<
     width: r.width!,
     height: r.height!,
   }));
+}
+
+/** A picture good enough to stand for a topic on a questionnaire card — the landing's bar. */
+export const FACE_SCORE_FLOOR = 9;
+
+/**
+ * The best pictures in each of `topicIds` (10-02-26, docs/PLAN_onboarding-questionnaire.md §4):
+ * up to `perTopic` images per topic at `FACE_SCORE_FLOOR` or better, highest score first — the
+ * automatic choice for the picture on a questionnaire answer card (services/question-faces.ts).
+ *
+ * **By membership, like the feed** (`item_topic ⋈ item`, never `item.topic_id`): a grown topic's
+ * pictures are mostly filed under some other display topic, and would be invisible otherwise.
+ * One consequence the caller handles: an item in two topics can be the top face of both.
+ *
+ * One query for every topic — a `row_number()` window, then the outer filter on it — rather
+ * than a query per answer. Three columns: the caller memoises the result for ten minutes.
+ * Ties on score break on the item id, so the same picture wins every time until the corpus
+ * changes (a face that changed on every reload would be a distraction, not a question).
+ */
+export async function topFacesForTopics(
+  topicIds: readonly string[],
+  perTopic: number,
+): Promise<{ topicId: string; id: string; imageUrl: string }[]> {
+  if (topicIds.length === 0) return [];
+  const { db } = await import("./client");
+
+  const conditions = [
+    inArray(itemTopic.topicId, [...topicIds]),
+    eq(item.type, "image"),
+    isNotNull(item.imageUrl),
+    gte(item.curationScore, FACE_SCORE_FLOOR),
+  ];
+  if (SUSPENDED_SOURCES.length > 0) {
+    conditions.push(notInArray(item.source, SUSPENDED_SOURCES));
+  }
+
+  const ranked = db
+    .select({
+      topicId: itemTopic.topicId,
+      id: item.id,
+      imageUrl: item.imageUrl,
+      n: sql<number>`row_number() over (partition by ${itemTopic.topicId} order by ${item.curationScore} desc, ${item.id})`.as(
+        "n",
+      ),
+    })
+    .from(itemTopic)
+    .innerJoin(item, eq(item.id, itemTopic.itemId))
+    .where(and(...conditions))
+    .as("ranked");
+
+  const rows = await db
+    .select({
+      topicId: ranked.topicId,
+      id: ranked.id,
+      imageUrl: ranked.imageUrl,
+    })
+    .from(ranked)
+    .where(lte(ranked.n, perTopic))
+    .orderBy(ranked.topicId, ranked.n);
+  // `isNotNull` above guarantees the `!`.
+  return rows.map((r) => ({ ...r, imageUrl: r.imageUrl! }));
+}
+
+/**
+ * Hand-picked faces: resolves `(source, sourceId)` pairs — the stable identity of an item, the
+ * same in every database that ingested it, unlike its nanoid `id` — to image rows. A pair this
+ * database doesn't hold (CI, a pruned item) or that has no picture is simply absent from the
+ * result, and the caller falls back to the automatic choice.
+ */
+export async function facePicks(
+  picks: readonly { source: string; sourceId: string }[],
+): Promise<
+  { source: string; sourceId: string; id: string; imageUrl: string }[]
+> {
+  if (picks.length === 0) return [];
+  const { db } = await import("./client");
+  const rows = await db
+    .select({
+      source: item.source,
+      sourceId: item.sourceId,
+      id: item.id,
+      imageUrl: item.imageUrl,
+    })
+    .from(item)
+    .where(
+      and(
+        eq(item.type, "image"),
+        isNotNull(item.imageUrl),
+        or(
+          ...picks.map((p) =>
+            and(
+              // `item.source` is an enum column; a hand-typed pick is just a string until here.
+              sql`${item.source}::text = ${p.source}`,
+              eq(item.sourceId, p.sourceId),
+            ),
+          ),
+        ),
+      ),
+    );
+  return rows.map((r) => ({ ...r, imageUrl: r.imageUrl! }));
 }

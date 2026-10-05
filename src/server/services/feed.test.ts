@@ -24,6 +24,7 @@ import { hashSeed, mulberry32 } from "./random";
 const {
   mockEnv,
   mockGetUserTopicWeights,
+  mockGetUserWritingAmount,
   mockGetTasteKeywords,
   mockGetTopicPools,
   mockGetWildPool,
@@ -35,6 +36,9 @@ const {
 } = vi.hoisted(() => ({
   mockEnv: { FEED_DEBUG: undefined as boolean | undefined, NODE_ENV: "test" },
   mockGetUserTopicWeights: vi.fn(),
+  // Null — "never said" — unless a test says otherwise, so every page composed by the tests that
+  // predate the per-person reading amount still runs on the engine's own default share.
+  mockGetUserWritingAmount: vi.fn().mockResolvedValue(null),
   mockGetTasteKeywords: vi.fn(),
   mockGetTopicPools: vi.fn(),
   mockGetWildPool: vi.fn(),
@@ -56,6 +60,9 @@ vi.mock("~/env", () => ({ env: mockEnv }));
 vi.mock("~/server/db/topics", async (importActual) => ({
   ...(await importActual<typeof import("~/server/db/topics")>()),
   getUserTopicWeights: mockGetUserTopicWeights,
+}));
+vi.mock("~/server/db/users", () => ({
+  getUserWritingAmount: mockGetUserWritingAmount,
 }));
 vi.mock("~/server/db/saves", async (importActual) => ({
   ...(await importActual<typeof import("~/server/db/saves")>()),
@@ -90,6 +97,7 @@ import {
   pickDrift,
   pickJump,
   planTopics,
+  resolveWriting,
   scaleGrownEdges,
   writingPositions,
   type FeedCursor,
@@ -1868,5 +1876,143 @@ describe("getFeedPage — writing slots (09-30-26)", () => {
     expect(b.cards.map((c) => c.item.id)).toEqual(
       a.cards.map((c) => c.item.id),
     );
+  });
+});
+
+describe("resolveWriting", () => {
+  it("leaves the default share alone for a reader who never said", () => {
+    expect(resolveWriting(null, undefined, false)).toEqual({
+      picturesOnly: false,
+    });
+  });
+
+  it("turns a level into its share", () => {
+    expect(resolveWriting("little", undefined, false)).toEqual({
+      share: 0.0625,
+      picturesOnly: false,
+    });
+    expect(resolveWriting("lot", undefined, false)).toEqual({
+      share: 0.25,
+      picturesOnly: false,
+    });
+  });
+
+  it("makes 'none' pictures-only — share 0 alone would let articles back in", () => {
+    expect(resolveWriting("none", undefined, false)).toEqual({
+      share: 0,
+      picturesOnly: true,
+    });
+  });
+
+  it("lets a dev override of writingShare win over 'none', but only under the dev gate", () => {
+    expect(resolveWriting("none", { writingShare: 0.5 }, true)).toEqual({
+      share: 0,
+      picturesOnly: false,
+    });
+    expect(resolveWriting("none", { writingShare: 0.5 }, false)).toEqual({
+      share: 0,
+      picturesOnly: true,
+    });
+    // An override of some *other* knob says nothing about writing.
+    expect(resolveWriting("none", { scoreFloor: 7 }, true).picturesOnly).toBe(
+      true,
+    );
+  });
+});
+
+describe("getFeedPage — the reader's own reading amount (10-02-26)", () => {
+  const PICKED = ["p0", "p1", "p2", "p3", "p4"];
+  const poolsFor = (topicIds: string[], type: "image" | "article", n = 12) =>
+    new Map(
+      topicIds.map((topicId) => [
+        topicId,
+        Array.from({ length: n }, (_, i) =>
+          makeItem({ id: `ra-${type}-${topicId}-${i}`, topicId, type }),
+        ),
+      ]),
+    );
+  const ordinaryType = () =>
+    (mockGetTopicPools.mock.calls[0] as [string[], { type?: string }])[1].type;
+  const articles = (page: Awaited<ReturnType<typeof getFeedPage>>) =>
+    page.cards.filter((c) => c.item.type === "article").length;
+
+  beforeEach(() => {
+    mockEnv.FEED_DEBUG = true;
+    mockEnv.NODE_ENV = "test";
+    mockGetUserTopicWeights
+      .mockReset()
+      .mockResolvedValue(new Map(PICKED.map((id) => [id, 1])));
+    mockGetUserWritingAmount.mockReset().mockResolvedValue(null);
+    mockGetTasteKeywords.mockReset().mockResolvedValue([]);
+    mockGetWildPool.mockReset().mockResolvedValue([]);
+    mockGetTopicPools
+      .mockReset()
+      .mockImplementation(async (ids: string[]) => poolsFor(ids, "image"));
+    mockGetWritingPools
+      .mockReset()
+      .mockImplementation(async (ids: string[]) => poolsFor(ids, "article", 6));
+    mockGetWritingWildPool.mockReset().mockResolvedValue([]);
+  });
+
+  afterAll(() => {
+    mockGetUserWritingAmount.mockReset().mockResolvedValue(null);
+    mockGetWritingPools
+      .mockReset()
+      .mockImplementation((ids: string[]) =>
+        Promise.resolve(new Map(ids.map((id) => [id, []]))),
+      );
+  });
+
+  // The visitor half ("explore never reads it") is structural — the read sits inside the
+  // signed-in branch — and a null-user page here would need `listTopics`, which is a real query.
+  it("reads the amount for the signed-in reader", async () => {
+    await getFeedPage("user-ra");
+    expect(mockGetUserWritingAmount).toHaveBeenCalledWith("user-ra");
+  });
+
+  it("null composes exactly the default page", async () => {
+    const page = await getFeedPage("user-ra-null");
+    expect(ordinaryType()).toBe("image");
+    const n = articles(page);
+    expect(n === 1 || n === 2).toBe(true);
+  });
+
+  it("'none' serves no writing and keeps articles out of the ordinary pools too", async () => {
+    mockGetUserWritingAmount.mockResolvedValue("none");
+    const page = await getFeedPage("user-ra-none");
+    // The whole point: at share 0 the engine would ask for untyped pools. Pictures-only doesn't.
+    expect(ordinaryType()).toBe("image");
+    expect(mockGetWildPool.mock.calls[0]![0]).toMatchObject({ type: "image" });
+    expect(mockGetWritingPools).not.toHaveBeenCalled();
+    expect(mockGetWritingWildPool).not.toHaveBeenCalled();
+    expect(articles(page)).toBe(0);
+    expect(page.cards).toHaveLength(DEFAULT_KNOBS.pageSize);
+  });
+
+  it("'a lot' is about three writing cards a page", async () => {
+    mockGetUserWritingAmount.mockResolvedValue("lot");
+    const page = await getFeedPage("user-ra-lot");
+    const n = articles(page);
+    expect(n).toBeGreaterThanOrEqual(2);
+    expect(n).toBeLessThanOrEqual(4);
+  });
+
+  it("a dev override still wins over the reader's amount", async () => {
+    mockGetUserWritingAmount.mockResolvedValue("lot");
+    await getFeedPage("user-ra-dev", undefined, { writingShare: 0 });
+    // Share 0 from the *panel* is the old engine behaviour: untyped pools, no writing fetched.
+    expect(ordinaryType()).toBeUndefined();
+    expect(mockGetWritingPools).not.toHaveBeenCalled();
+  });
+
+  it("outside the dev gate the override is ignored and the reader's amount stands", async () => {
+    mockEnv.FEED_DEBUG = false;
+    mockEnv.NODE_ENV = "production";
+    mockGetUserWritingAmount.mockResolvedValue("none");
+    const page = await getFeedPage("user-ra-prod", undefined, {
+      writingShare: 0.5,
+    });
+    expect(articles(page)).toBe(0);
+    expect(ordinaryType()).toBe("image");
   });
 });

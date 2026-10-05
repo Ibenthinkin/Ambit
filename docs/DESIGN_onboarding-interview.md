@@ -1,5 +1,7 @@
 # Design: onboarding v2 — the re-cut, reader-facing weights, and the interview
 
+> **Superseded 10-02-26** by [`PLAN_onboarding-questionnaire.md`](PLAN_onboarding-questionnaire.md), which was built. Paused 09-29-26 when Ben found the facet stages and the umbrella groups themselves broken. What survives from this design: the reader-facing levels (§2, `config/topic-levels.ts`), `TopicLevels` (now a flat list), the weighted `topics` API and the write queue. What does not: the 75-group re-cut, `GroupPicker`, the Pick → Start flow, and "no LLM in v1" — the questionnaire maps two free-text answers with one model call. Kept as history.
+
 _09-28-26. Ben's brief: the umbrella groups are "very bad — mostly way too vague, and include things
 together that logically should not be"; onboarding should be "something special, but most of all
 good"; a reader should be able to pick from a list themselves or, if unsure, be asked meaningful

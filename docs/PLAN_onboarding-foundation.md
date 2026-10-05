@@ -1,5 +1,7 @@
 # Onboarding v2, plan 1 of 2 — the re-cut, reader-facing levels, the two-level picker, the summary
 
+> **Superseded 10-02-26.** Built on `feat/onboarding-foundation` (never merged). [`PLAN_onboarding-questionnaire.md`](PLAN_onboarding-questionnaire.md) ported four pieces of it by file — the levels leaf, the toast's `role="status"`, the weighted `topics` API and the write queue — and left the rest behind (the 75-group cut, `GroupPicker`, `picks.ts`, the Pick → Start onboarding). Kept as history; do not merge the branch.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Written:** 09-28-26 by Fable 5.1, from the design doc below and a read of every file named

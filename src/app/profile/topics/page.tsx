@@ -21,14 +21,12 @@ export default async function ProfileTopicsPage() {
   if (!session) redirect("/");
 
   // Both input-less, so the byte-identical-input contract with the screen's `useQuery` calls is
-  // trivially satisfied.
+  // trivially satisfied. `topics.mine` carries each pick's weight as well as its id, which is
+  // everything the screen's summary needs to show a level — no separate weights query to fetch.
   void api.topics.list.prefetch();
   void api.topics.mine.prefetch();
 
-  // Only under the gate: prefetching `weights` in a product build would fire a procedure that
-  // answers FORBIDDEN, which the screen never asks for anyway.
   const dev = await feedDebugEnabled();
-  if (dev) void api.topics.weights.prefetch();
 
   return (
     <HydrateClient>

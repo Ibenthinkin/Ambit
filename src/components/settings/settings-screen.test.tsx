@@ -21,9 +21,20 @@ const {
   installState,
   promptMock,
   purgeMock,
+  readingData,
+  setReadingMutateMock,
+  setReadingOpts,
 } = vi.hoisted(() => ({
+  // `user.readingAmount`: null until the reader says (the questionnaire, or this screen).
+  readingData: { current: null as string | null },
+  setReadingMutateMock: vi.fn(),
+  setReadingOpts: {
+    current: undefined as undefined | { onSuccess: () => void },
+  },
   topicsData: { current: [] as { id: string; label: string }[] },
-  myTopicsData: { current: [] as string[] },
+  // `topics.mine` carries a weight alongside each id — this screen only reads ids off it (see
+  // `topicValue` in the screen), but the mock has to model the real return shape.
+  myTopicsData: { current: [] as { topicId: string; weight: number }[] },
   pushMock: vi.fn(),
   replaceMock: vi.fn(),
   backMock: vi.fn(),
@@ -61,7 +72,20 @@ vi.mock("~/lib/sw-rules", async (importOriginal) => {
 
 vi.mock("~/trpc/react", () => ({
   api: {
-    useUtils: () => ({ topics: { mine: { invalidate: invalidateMock } } }),
+    useUtils: () => ({
+      topics: { mine: { invalidate: invalidateMock } },
+      user: { readingAmount: { invalidate: invalidateMock, setData: vi.fn() } },
+      feed: { invalidate: invalidateMock },
+    }),
+    user: {
+      readingAmount: { useQuery: () => ({ data: readingData.current }) },
+      setReadingAmount: {
+        useMutation: (opts: NonNullable<typeof setReadingOpts.current>) => {
+          setReadingOpts.current = opts;
+          return { mutate: setReadingMutateMock, isPending: false };
+        },
+      },
+    },
     topics: {
       list: { useQuery: () => ({ data: topicsData.current }) },
       mine: { useQuery: () => ({ data: myTopicsData.current }) },
@@ -89,6 +113,11 @@ const TOPICS = [
   { id: "poetry", label: "Poetry" },
 ];
 
+/** This screen never looks at the weight, so every fixture pick gets a plain 1. */
+function asPicks(ids: string[]) {
+  return ids.map((topicId) => ({ topicId, weight: 1 }));
+}
+
 /** Puts a `Notification` global in place with a given standing answer. */
 function stubNotifications(
   permission: "default" | "granted" | "denied",
@@ -104,7 +133,7 @@ function renderScreen() {
 
 beforeEach(() => {
   topicsData.current = TOPICS;
-  myTopicsData.current = ["astronomy", "botany", "music"];
+  myTopicsData.current = asPicks(["astronomy", "botany", "music"]);
   sessionStorage.clear();
   localStorage.clear();
   stubNotifications("default");
@@ -115,6 +144,8 @@ beforeEach(() => {
   replaceMock.mockClear();
   backMock.mockClear();
   setMineMutateMock.mockClear();
+  setReadingMutateMock.mockClear();
+  readingData.current = null;
   invalidateMock.mockClear();
   signOutMock.mockClear();
   document.documentElement.removeAttribute("data-accent");
@@ -130,6 +161,7 @@ describe("SettingsScreen — rows", () => {
       "Invite a friend",
       "Add to home screen",
       "What you see",
+      "Reading",
       "Muted sources",
       "Serendipity",
       "Camera roll",
@@ -186,13 +218,13 @@ describe("SettingsScreen — What you see", () => {
     // Alphabetical, not catalog order — Cartography sorts ahead of Music even though it comes
     // after it in TOPICS. Neither `topics.list` nor `topics.mine` is ordered, so this is the only
     // thing that makes the row read the same twice running.
-    myTopicsData.current = [
+    myTopicsData.current = asPicks([
       "astronomy",
       "botany",
       "music",
       "cartography",
       "poetry",
-    ];
+    ]);
     renderScreen();
     expect(
       screen.getAllByText("Astronomy, Botany, Cartography +2").length,
@@ -322,5 +354,39 @@ describe("SettingsScreen — sign out", () => {
     // The push waits on the promise; flush the microtask queue before asserting it.
     await act(async () => undefined);
     expect(pushMock).toHaveBeenCalledWith("/");
+  });
+});
+
+// The per-person reading amount (10-02-26): the questionnaire's last question, changeable here.
+describe("SettingsScreen — Reading", () => {
+  const row = () => screen.getByText("Reading").closest("button")!;
+
+  it("shows the reader's amount on the row; never having said reads as the default, Some", () => {
+    renderScreen();
+    expect(row()).toHaveTextContent("Some");
+  });
+
+  it("shows a chosen amount by its label", () => {
+    readingData.current = "none";
+    renderScreen();
+    expect(row()).toHaveTextContent("None");
+  });
+
+  it("opens a sheet of the four amounts, and a pick is saved", () => {
+    renderScreen();
+    fireEvent.click(row());
+    const sheet = screen.getByRole("dialog", { name: "Reading" });
+    expect(sheet).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "A lot" }));
+    expect(setReadingMutateMock).toHaveBeenCalledExactlyOnceWith({
+      amount: "lot",
+    });
+  });
+
+  it("a saved pick refreshes the amount and the feed composed from the old one", () => {
+    renderScreen();
+    act(() => setReadingOpts.current!.onSuccess());
+    // The amount's own query, and every cached feed page.
+    expect(invalidateMock).toHaveBeenCalledTimes(2);
   });
 });

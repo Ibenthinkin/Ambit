@@ -3,7 +3,7 @@ import { expect, test, type Cookie, type Page } from "@playwright/test";
 import {
   cleanupSeeded,
   completeOnboarding,
-  ONBOARDING_GROUPS,
+  ONBOARDING_TOPICS,
   connect,
   countSeenFor,
   inviteUser,
@@ -49,7 +49,7 @@ test.describe.serial("dev knob panel", () => {
     await page.getByPlaceholder("you@example.com").fill(EMAIL);
     await page.getByPlaceholder("Password (8+ characters)").fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
-    await completeOnboarding(page, ONBOARDING_GROUPS);
+    await completeOnboarding(page, ONBOARDING_TOPICS);
     session = await saveSession(page);
   });
 

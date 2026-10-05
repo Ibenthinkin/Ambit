@@ -37,17 +37,25 @@ vi.mock("~/server/services/feed", async (importOriginal) => {
 vi.mock("~/server/services/wander", () => ({ getWanderNext: vi.fn() }));
 vi.mock("~/server/services/gallery-rail", () => ({ getGalleryRail: vi.fn() }));
 
-// The two dev-gated topic reads/writes (09-10-26, /profile/topics under FEED_DEBUG). Mocked for
-// the same reason as the feed repo above: what this file pins is the gate and the forwarded
-// caller id, and neither needs a database to be true.
+// The one dev-gated topic write left (09-10-26, /profile/topics under FEED_DEBUG; `topics.weights`
+// retired 09-28-26 — see the exhaustive-surface test below). Mocked for the same reason as the
+// feed repo above: what this file pins is the gate and the forwarded caller id, and neither needs
+// a database to be true.
 vi.mock("~/server/db/topics", async (importOriginal) => {
   const actual = await importOriginal<typeof TopicsRepo>();
   return {
     ...actual,
-    getUserTopicWeights: vi.fn(),
     resetUserTopicWeights: vi.fn(),
+    // Wrapped, not replaced: real unless a test gives it a value (`onboarding.interpret` does).
+    listTopics: vi.fn(actual.listTopics),
   };
 });
+
+// `onboarding.interpret` makes a model call through this service; what this file pins is the
+// input bounds and the forwarding (interview-interpret.test.ts owns the call itself).
+vi.mock("~/server/services/interview-interpret", () => ({
+  interpretTexts: vi.fn(),
+}));
 
 vi.mock("~/server/db/feed", async (importOriginal) => {
   const actual = await importOriginal<typeof FeedRepo>();
@@ -70,9 +78,11 @@ const { markSeen: mockedMarkSeen, forgetSeenSince: mockedForgetSeenSince } =
 const { feedDebugEnabled: mockedFeedDebugEnabled } =
   await import("~/server/services/feed-debug");
 const {
-  getUserTopicWeights: mockedGetUserTopicWeights,
   resetUserTopicWeights: mockedResetUserTopicWeights,
+  listTopics: mockedListTopics,
 } = await import("~/server/db/topics");
+const { interpretTexts: mockedInterpretTexts } =
+  await import("~/server/services/interview-interpret");
 
 // `items.wanderNext` reaches Postgres through services/wander.ts; mocked here for the same reason
 // as `getFeedPage` — this file's subject is the auth boundary and argument forwarding, not the
@@ -136,7 +146,7 @@ describe("protected procedures reject a null session", () => {
 
   it("topics.setMine throws UNAUTHORIZED", async () => {
     await expect(
-      caller.topics.setMine({ topicIds: ["some-topic"] }),
+      caller.topics.setMine({ picks: [{ topicId: "some-topic", weight: 1 }] }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
@@ -158,10 +168,10 @@ describe("protected procedures reject a null session", () => {
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
-  it("topics.weights throws UNAUTHORIZED", async () => {
-    await expect(caller.topics.weights()).rejects.toMatchObject({
-      code: "UNAUTHORIZED",
-    });
+  it("topics.setWeight throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.topics.setWeight({ topicId: "some-topic", level: "some" }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("topics.resetWeights throws UNAUTHORIZED", async () => {
@@ -238,6 +248,38 @@ describe("protected procedures reject a null session", () => {
   it("user.updateProfile throws UNAUTHORIZED", async () => {
     await expect(
       caller.user.updateProfile({ name: "Ben", handle: null, bio: null }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  // The questionnaire's per-person reading amount (10-02-26) — a preference, so signed-in only.
+  it("user.readingAmount throws UNAUTHORIZED", async () => {
+    await expect(caller.user.readingAmount()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  it("onboarding.complete throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.onboarding.complete({
+        picks: ["a", "b", "c"].map((topicId) => ({ topicId, weight: 1 })),
+        writingAmount: null,
+        answers: [],
+        bankVersion: 1,
+      }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("onboarding.interpret throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.onboarding.interpret({
+        texts: [{ questionId: "look-at", text: "maps" }],
+      }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("user.setReadingAmount throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.user.setReadingAmount({ amount: "lot" }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });
@@ -363,11 +405,11 @@ describe("items.galleryRail input handling", () => {
 });
 
 describe("zod input validation", () => {
-  it("topics.setMine rejects an empty topicIds array with BAD_REQUEST", async () => {
+  it("topics.setMine rejects an empty picks array with BAD_REQUEST", async () => {
     const caller = createCaller(authedContext());
-    await expect(caller.topics.setMine({ topicIds: [] })).rejects.toMatchObject(
-      { code: "BAD_REQUEST" },
-    );
+    await expect(caller.topics.setMine({ picks: [] })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
   });
 
   it("saves.saveToCollection rejects a missing collectionId", async () => {
@@ -424,6 +466,121 @@ describe("zod input validation", () => {
         caller.user.updateProfile({ name: "Ben", handle, bio: null }),
       ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     }
+  });
+
+  describe("onboarding.complete", () => {
+    const caller = createCaller(authedContext());
+    const valid = {
+      picks: ["a", "b", "c"].map((topicId) => ({ topicId, weight: 1 })),
+      writingAmount: null,
+      answers: [],
+      bankVersion: 1,
+    };
+    const bad = (over: object) =>
+      expect(
+        caller.onboarding.complete({ ...valid, ...over }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    it("needs at least three picks and takes at most twenty-four", async () => {
+      await bad({ picks: valid.picks.slice(0, 2) });
+      await bad({
+        picks: Array.from({ length: 25 }, (_, i) => ({
+          topicId: `t${i}`,
+          weight: 1,
+        })),
+      });
+    });
+
+    it("refuses the same topic twice", async () => {
+      await bad({
+        picks: ["a", "a", "b"].map((topicId) => ({ topicId, weight: 1 })),
+      });
+    });
+
+    it("refuses free text past 500 characters", async () => {
+      await bad({
+        answers: [{ questionId: "look-at", keys: [], text: "x".repeat(501) }],
+      });
+    });
+
+    it("refuses a non-positive or infinite weight", async () => {
+      await bad({
+        picks: [...valid.picks.slice(0, 2), { topicId: "c", weight: 0 }],
+      });
+      await bad({
+        picks: [...valid.picks.slice(0, 2), { topicId: "c", weight: Infinity }],
+      });
+    });
+  });
+
+  describe("onboarding.interpret", () => {
+    const caller = createCaller(authedContext());
+
+    // Review finding (10-02-26): each call is a paid model call on the ingest's wallet, so it has
+    // a cap of its own far below the global 120/min. A fresh user id keeps this test's budget its own.
+    it("stops a reader after INTERPRET_PER_HOUR calls in an hour", async () => {
+      const { INTERPRET_PER_HOUR } =
+        await import("~/server/api/routers/onboarding");
+      const busy = createCaller(authedContext("interpret-heavy-user"));
+      vi.mocked(mockedListTopics).mockResolvedValue([] as never);
+      vi.mocked(mockedInterpretTexts).mockResolvedValue([]);
+      const input = { texts: [{ questionId: "look-at", text: "maps" }] };
+      for (let i = 0; i < INTERPRET_PER_HOUR; i++)
+        await busy.onboarding.interpret(input);
+      await expect(busy.onboarding.interpret(input)).rejects.toMatchObject({
+        code: "TOO_MANY_REQUESTS",
+      });
+    });
+
+    it("refuses a question id that is not a plain slug", async () => {
+      await expect(
+        caller.onboarding.interpret({
+          texts: [{ questionId: 'x" injected="1', text: "maps" }],
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+
+    it("refuses a text past 500 characters and more than three texts", async () => {
+      await expect(
+        caller.onboarding.interpret({
+          texts: [{ questionId: "look-at", text: "x".repeat(501) }],
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      await expect(
+        caller.onboarding.interpret({
+          texts: Array.from({ length: 4 }, (_, i) => ({
+            questionId: `q${i}`,
+            text: "maps",
+          })),
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+
+    it("hands the texts and the pickable topics to the interpreter and returns its answer", async () => {
+      vi.mocked(mockedListTopics).mockResolvedValue([
+        { id: "astronomy", label: "Astronomy" },
+      ] as never);
+      vi.mocked(mockedInterpretTexts).mockResolvedValue([
+        { questionId: "look-at", topicIds: ["astronomy"] },
+      ]);
+      const out = await caller.onboarding.interpret({
+        texts: [{ questionId: "look-at", text: "  the night sky " }],
+      });
+      expect(out).toEqual([{ questionId: "look-at", topicIds: ["astronomy"] }]);
+      expect(vi.mocked(mockedInterpretTexts)).toHaveBeenCalledWith(
+        [{ questionId: "look-at", text: "the night sky" }],
+        [{ id: "astronomy", label: "Astronomy" }],
+        { onAccountFailure: expect.any(Function) as unknown },
+      );
+    });
+  });
+
+  it("user.setReadingAmount rejects a word that is not one of the four amounts", async () => {
+    const caller = createCaller(authedContext());
+    await expect(
+      // @ts-expect-error — deliberately outside the enum
+      caller.user.setReadingAmount({ amount: "loads" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("user.updateProfile rejects a bio past 280 characters", async () => {
@@ -587,7 +744,10 @@ describe("appRouter shape", () => {
   // `topics.weights` and `topics.resetWeights`. The chrome redesign (09-11-26) adds the
   // twenty-first, `saves.ids` — the feed's tile strips light their glyphs from it. `/explore`
   // (09-26-26) adds the twenty-second, `feed.explore` — the fourth deliberate public procedure.
-  it("exposes exactly the twenty-two SPEC §7 procedures, no leftover post router", () => {
+  // 09-28-26 retires `topics.weights` — the product reads weights through `topics.mine` now —
+  // and adds `topics.setWeight`, so the count stays twenty-two. The questionnaire (10-02-26) adds
+  // `user.readingAmount`, `user.setReadingAmount`, `onboarding.complete` and `onboarding.interpret` — twenty-six.
+  it("exposes exactly the twenty-six SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -611,7 +771,11 @@ describe("appRouter shape", () => {
         "topics.mine",
         "user.me",
         "user.updateProfile",
-        "topics.weights",
+        "user.readingAmount",
+        "user.setReadingAmount",
+        "onboarding.complete",
+        "onboarding.interpret",
+        "topics.setWeight",
         "topics.resetWeights",
       ].sort(),
     );
@@ -709,22 +873,10 @@ describe("feed.forgetSince is dev-only", () => {
   });
 });
 
-describe("topics.weights / topics.resetWeights are dev-only", () => {
+describe("topics.resetWeights is dev-only", () => {
   beforeEach(() => {
     vi.mocked(mockedFeedDebugEnabled).mockReset();
-    vi.mocked(mockedGetUserTopicWeights)
-      .mockReset()
-      .mockResolvedValue(new Map([["botany", 1.5]]));
     vi.mocked(mockedResetUserTopicWeights).mockReset().mockResolvedValue(4);
-  });
-
-  it("topics.weights throws FORBIDDEN when the gate is off — a product build never reads a weight", async () => {
-    vi.mocked(mockedFeedDebugEnabled).mockResolvedValue(false);
-    const caller = createCaller(authedContext("user-42"));
-    await expect(caller.topics.weights()).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
-    expect(mockedGetUserTopicWeights).not.toHaveBeenCalled();
   });
 
   it("topics.resetWeights throws FORBIDDEN when the gate is off", async () => {
@@ -736,13 +888,9 @@ describe("topics.weights / topics.resetWeights are dev-only", () => {
     expect(mockedResetUserTopicWeights).not.toHaveBeenCalled();
   });
 
-  it("with the gate on, weights come back as rows and reset forwards the caller's id", async () => {
+  it("with the gate on, reset forwards the caller's id", async () => {
     vi.mocked(mockedFeedDebugEnabled).mockResolvedValue(true);
     const caller = createCaller(authedContext("user-42"));
-    await expect(caller.topics.weights()).resolves.toEqual([
-      { topicId: "botany", weight: 1.5 },
-    ]);
-    expect(mockedGetUserTopicWeights).toHaveBeenCalledWith("user-42");
     await expect(caller.topics.resetWeights()).resolves.toEqual({ reset: 4 });
     expect(mockedResetUserTopicWeights).toHaveBeenCalledWith("user-42");
   });

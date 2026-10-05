@@ -1,247 +1,306 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "~/components/ui/button";
-import { Chip } from "~/components/ui/chip";
 import { Column } from "~/components/ui/column";
 import { Rise } from "~/components/ui/rise";
-import { cn } from "~/lib/utils";
-import {
-  FACETS,
-  FACET_LABELS,
-  FACET_PROMPTS,
-} from "~/server/config/topic-facets";
-import { groupsFor } from "~/server/config/topic-groups";
-import type { TopicFacet } from "~/server/db/schema";
+import { askable } from "~/lib/interview/askable";
+import { BANK_VERSION, QUESTIONS, STARTER_TOPICS } from "~/lib/interview/bank";
+import { SKIP } from "~/lib/interview/config";
+import type { QuestionFaces } from "~/lib/interview/faces";
+import { picksFrom, readingAmountFrom, type Pick } from "~/lib/interview/picks";
+import { scoreAnswers } from "~/lib/interview/score";
+import type { Answer, Question } from "~/lib/interview/types";
 import { api } from "~/trpc/react";
 
+import { AboutStep, type About } from "./about-step";
+import { QuestionStep } from "./question-step";
+import { RevealStep } from "./reveal-step";
+import { StepBar } from "./step-bar";
+
+// Onboarding as a questionnaire (10-02-26, docs/PLAN_onboarding-questionnaire.md) — the screen a
+// freshly invited sign-up lands on before ever seeing a feed, and the one "Retake the questions"
+// on /profile/topics comes back to.
+//
+// It replaced four stages of chips (Subject / Medium / Look / Place) after Ben's verdict that
+// facets and umbrella groups mean nothing to a reader. Now: about a dozen skippable questions
+// that feel like getting to know someone — two free-text ones, picture face-offs, a few word
+// questions — then an optional "About you", then a **reveal**: "Here's where we'll start", every
+// proposed topic at a little / some / a lot / off.
+//
+// How it holds together:
+//
+//   intro → questions → (interpreting) → about → reveal → /feed
+//
+//   - **The state is the list of answers.** The question on screen is `asked[answers.length]`;
+//     answering appends, Back pops (and shows what was popped, so a reader can change it). There
+//     is no separate "current index" to drift out of step with the answers.
+//   - **Everything topic-shaped is pure and client-side** (src/lib/interview/): which questions
+//     this database can ask, what the answers score, what the reveal proposes.
+//   - **Two server calls, both at the end.** `onboarding.interpret` once, on leaving the last
+//     question, if anything was typed — and the flow goes on whether or not it answers.
+//     `onboarding.complete` once, from the reveal. Until then nothing is written, so closing the
+//     tab half-way leaves no trace and `/feed` still sends the reader back here.
+
+type Phase = "intro" | "questions" | "interpreting" | "about" | "reveal";
+
 export interface OnboardingScreenProps {
-  /** `topics.list` (every faceted topic, label order) mapped down to what the grid needs. */
-  topics: { id: string; label: string; facet: TopicFacet }[];
-  /** Minimum picks — chips tapped, across all four stages — before the CTA flips to "Start
-   *  exploring" (SPEC §3.2: 3). Counted in groups since 09-25-26: three taps, whatever they fan
-   *  out to. */
-  minPicks: number;
+  /** `topics.list` — every pickable topic in this database. */
+  topics: { id: string; label: string }[];
+  /** The picture for each face-off card (services/question-faces.ts); missing ones are text. */
+  faces: QuestionFaces;
+  /** A signed-up reader retaking the questions: the result *replaces* their topics. */
+  retake: boolean;
+  /** The questions — the real bank unless a test brings its own. */
+  bank?: readonly Question[];
+  /** What a too-short reveal is topped up with. */
+  starters?: readonly string[];
 }
 
-// Onboarding's topic-chip picker (Ambit - Onboarding.dc.html, PHASE5_PLAN_5.3.md) — the screen a
-// freshly invited sign-up lands on before ever seeing a feed. A near-straight port of the
-// prototype's interaction model (tap chips, sticky CTA gates on a minimum count); the real
-// difference from the handoff is a real mutation instead of `localStorage` (Decision 2).
-//
-// **Four stages since 09-10-26** (docs/DESIGN_topic-facets-and-personas.md §2). The grid used to
-// be the sixteen `TOPICS` from config; it is now every faceted topic — a hundred of them — which
-// is a broken screen as one grid and a fine one as four grouped stages. Nothing is written until
-// the last stage's CTA: one `setMine` with the union, so abandoning onboarding halfway leaves no
-// rows and `hasCompletedOnboarding()` still reads false.
-//
-// **Umbrella groups since 09-25-26** (design doc §2a; `config/topic-groups.ts`). By round 2 the
-// Subject stage alone was 92 chips — "just too many words" — so each stage now shows its facet's
-// groups (twelve Subject chips, eight Medium, eight Look, six Place) and a tap picks every member
-// topic. The screen selects *group ids*; only on submit are they flattened to topic ids, and only
-// to the members `topics.list` actually returned (`groupsFor` intersects — CI lists sixteen topics,
-// and production can be ahead of the config between a promotion and its paste). `setMine` still
-// receives topic ids, so nothing downstream knows a group exists. Fine-tuning a single topic is
-// `/profile/topics`'s "Show all" — this screen is deliberately coarse.
-export function OnboardingScreen({ topics, minPicks }: OnboardingScreenProps) {
-  const router = useRouter();
-  const { mutateAsync } = api.topics.setMine.useMutation();
+/** Has the reader actually said something? An empty box or an emptied multi is not an answer. */
+function isAnswered(answer: Answer | undefined): answer is Answer {
+  if (!answer) return false;
+  if (answer.text !== undefined) return answer.text.trim() !== "";
+  return answer.keys.length > 0 && answer.keys[0] !== SKIP;
+}
 
-  // One set of *group ids* for all four stages, so Back-and-unpick works and the final write is
-  // the union of every group's listed members.
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [stage, setStage] = useState(0);
-  // Local `submitting`, not the mutation's own `isPending` — mirrors AuthCard exactly (same
-  // aria-busy + pointer-events-none opacity-80 treatment) and keeps the test's `useMutation` mock
-  // down to a single `mutateAsync` field.
+export function OnboardingScreen({
+  topics,
+  faces,
+  retake,
+  bank = QUESTIONS,
+  starters = STARTER_TOPICS,
+}: OnboardingScreenProps) {
+  const router = useRouter();
+  const utils = api.useUtils();
+  const complete = api.onboarding.complete.useMutation();
+  const interpret = api.onboarding.interpret.useMutation();
+
+  const listed = useMemo(() => new Set(topics.map((t) => t.id)), [topics]);
+  // Only what this database can honour — CI's sixteen topics ask far fewer than production.
+  const asked = useMemo(() => askable(bank, listed), [bank, listed]);
+
+  const [phase, setPhase] = useState<Phase>("intro");
+  /** One entry per question already left, in order. */
+  const [answers, setAnswers] = useState<Answer[]>([]);
+  /** The question on screen's answer-in-progress. */
+  const [draft, setDraft] = useState<Answer | undefined>(undefined);
+  const [about, setAbout] = useState<About | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const facet = FACETS[stage]!;
-  const isLast = stage === FACETS.length - 1;
-  const stageGroups = groupsFor(facet, topics);
+  const current = asked[answers.length];
 
-  function toggle(groupId: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      // Toggle off has to *delete*, not just add — an easy thing to get half-right and the
-      // reason this is its own function rather than inlined at the call site.
-      if (next.has(groupId)) {
-        next.delete(groupId);
-      } else {
-        next.add(groupId);
-      }
-      return next;
-    });
+  // A question that arrives takes focus on its heading. The one it replaced was unmounted by the
+  // tap that answered it, which drops focus to <body> — and a screen-reader user would get no cue
+  // that anything changed. Keyed on the question, so typing into a text box never steals focus.
+  const currentId = phase === "questions" ? current?.id : undefined;
+  useEffect(() => {
+    if (currentId) document.getElementById(`q-${currentId}`)?.focus();
+  }, [currentId]);
+
+  /** Leaves the question on screen with `answer` (or a skip) and moves on. */
+  function advance(answer: Answer | undefined) {
+    if (!current) return;
+    const kept: Answer = isAnswered(answer)
+      ? answer.text !== undefined
+        ? { ...answer, text: answer.text.trim() }
+        : answer
+      : { questionId: current.id, keys: [SKIP] };
+    const next = [...answers, kept];
+    setAnswers(next);
+    setDraft(undefined);
+    if (next.length >= asked.length) void finishQuestions(next);
   }
 
-  /** The topic ids a submit writes: every listed member of every picked group, deduplicated. */
-  function flatten(groupIds: ReadonlySet<string>): string[] {
-    const ids = new Set<string>();
-    for (const f of FACETS) {
-      for (const { group, members } of groupsFor(f, topics)) {
-        if (groupIds.has(group.id)) for (const m of members) ids.add(m);
-      }
+  /** Back from a question: the previous one, with what was said there; or the intro. */
+  function back() {
+    const last = answers[answers.length - 1];
+    if (!last) {
+      setDraft(undefined);
+      setPhase("intro");
+      return;
     }
-    return [...ids];
+    setAnswers(answers.slice(0, -1));
+    // A skip comes back as a blank question, not as a pressed "skip".
+    setDraft(isAnswered(last) ? last : undefined);
+    setPhase("questions");
   }
 
-  const count = selected.size;
-  const remaining = minPicks - count;
-  const countLabel =
-    count === 0
-      ? "Nothing picked yet"
-      : `${count} ${count === 1 ? "interest" : "interests"} chosen`;
-  const ctaLabel = remaining > 0 ? `Pick ${remaining} more` : "Start exploring";
+  /** After the last question: map any free text to topics, then on to About you. */
+  async function finishQuestions(all: Answer[]) {
+    const texts = all.flatMap((a) =>
+      a.text ? [{ questionId: a.questionId, text: a.text }] : [],
+    );
+    if (texts.length === 0) {
+      setPhase("about");
+      return;
+    }
+    setPhase("interpreting");
+    try {
+      const mapped = await interpret.mutateAsync({ texts });
+      const byQuestion = new Map(mapped.map((m) => [m.questionId, m.topicIds]));
+      setAnswers(
+        all.map((a) =>
+          a.text ? { ...a, topicIds: byQuestion.get(a.questionId) ?? [] } : a,
+        ),
+      );
+    } catch {
+      // The service already answers empty lists on its own failures; this is the network
+      // between here and it. Either way the reveal is built from the other answers.
+    }
+    setPhase("about");
+  }
 
-  async function handleSubmit() {
-    // Guard in the handler, not just visually via `disabled` — the same "don't trust disabled
-    // alone" caution AuthCard's validation already models. Also guards re-entry while a previous
-    // submit is still in flight.
-    if (submitting || count < minPicks) return;
+  // What the answers add up to — recomputed when they change, which only happens before the
+  // reveal is on screen (RevealStep reads `proposed` once, on mount).
+  const proposed = useMemo(
+    () => picksFrom(scoreAnswers(bank, answers, listed), listed, starters),
+    [bank, answers, listed, starters],
+  );
 
+  async function submit(picks: Pick[]) {
+    if (submitting) return;
     setError("");
     setSubmitting(true);
     try {
-      await mutateAsync({ topicIds: flatten(selected) });
-      // `replace`, not `push` (Decision 9): pushing would leave /onboarding in history, and
-      // backing into it just bounces forward to /feed again via the page's redirect — a dead
-      // entry that makes the back button look broken. Leave `submitting` true through the
-      // navigation itself, same reasoning as AuthCard's post-signup redirect.
-      router.replace("/feed");
+      await complete.mutateAsync({
+        picks,
+        writingAmount: readingAmountFrom(bank, answers),
+        answers,
+        bankVersion: BANK_VERSION,
+        about: about ?? undefined,
+      });
+      // On a retake the cache still holds the old picks, the old reading amount and a feed
+      // composed from them; a first run has nothing cached, and this costs nothing.
+      await utils.invalidate();
+      // `replace`, not `push`: /onboarding left in history would only bounce forward again.
+      // `submitting` stays true through the navigation, like AuthCard's post-sign-up redirect.
+      router.replace(retake ? "/profile/topics" : "/feed");
     } catch {
-      setError("Something went wrong saving your picks — try again.");
+      setError("Something went wrong saving your answers — try again.");
       setSubmitting(false);
     }
   }
 
   return (
     <main className="bg-bg min-h-dvh">
-      {/* The desktop cap (docs/DESIGN_desktop-polish.md §1). The chips keep their own `px-6`
-       *inside* the column, so at 768px the grid simply stops growing rather than re-padding. */}
-      <Column width="narrow">
-        {/* `key={stage}` re-mounts the header and grid per stage so <Rise> plays again — a stage
-            change should feel like a new screen, not a chip list swapping under a static title. */}
-        <Rise key={`h-${stage}`}>
-          <div className="px-6 pt-16 pb-2">
-            <p className="text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase">
-              Ambit · Setup · {stage + 1} of {FACETS.length}
-            </p>
-            <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] font-semibold tracking-[-0.4px]">
-              {FACET_PROMPTS[facet]}
-            </h1>
-            <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
-              {stage === 0
-                ? "Choose as many as you like. Ambit starts here — then wanders sideways into things you'd never think to search for."
-                : `${FACET_LABELS[facet]} — pick any, or none.`}
-            </p>
-          </div>
-        </Rise>
-
-        {/* The grid rises as one unit (landing's 0/80/160 stagger), not per-chip — a per-chip
-          stagger would turn a long grid into a slow cascade the handoff never asks for. */}
-        <Rise key={`g-${stage}`} delayMs={80}>
-          <div
-            role="group"
-            aria-label={`${FACET_LABELS[facet]} groups`}
-            className="flex flex-wrap gap-[10px] px-6 pt-[22px] pb-[200px]"
-          >
-            {stageGroups.map(({ group }) => (
-              <Chip
-                key={group.id}
-                selected={selected.has(group.id)}
-                onClick={() => toggle(group.id)}
-              >
-                {group.label}
-              </Chip>
-            ))}
-          </div>
-        </Rise>
-      </Column>
-
-      {/* Fixed chrome — not wrapped in <Rise>, which would fight its own positioning. The error
-          slot lives inside this bar (above the count/CTA row) rather than in the scrollable
-          column above: the bar is always on screen regardless of scroll position, so a mutation
-          failure that could fire while the user is anywhere on a tall grid stays visible. */}
-      <div className="from-bg to-bg/0 fixed inset-x-0 bottom-0 z-20 bg-linear-to-t from-62% pt-5 pb-10">
-        {/* Full-width gradient, narrow content — the bar's fade has to cover the whole viewport or
-            the chips scroll out from under a 600px band. The `px-6` moved off the bar and onto the
-            column so the CTA row lands column-then-padding, exactly like the chips above it;
-            left on the bar it would sit 24px inside the column's edge instead of at it. */}
-        <Column width="narrow" className="px-6">
-          {error && (
-            <div
-              role="alert"
-              data-testid="onboarding-error"
-              className="text-error mt-[11px] text-center font-sans text-[12.5px]"
-            >
-              {error}
-            </div>
-          )}
-          {/* Four dots; the active one is the accent. `aria-current="step"` is the screen-reader
-              equivalent of the colour. */}
-          <nav
-            aria-label="Setup progress"
-            className="mb-3 flex justify-center gap-2"
-          >
-            {FACETS.map((f, i) => (
-              <span
-                key={f}
-                aria-current={i === stage ? "step" : undefined}
-                aria-label={FACET_LABELS[f]}
-                className={cn(
-                  "block h-[6px] w-[6px] rounded-full transition-colors",
-                  i === stage ? "bg-accent" : "bg-ink/20",
-                )}
-              />
-            ))}
-          </nav>
-          {/* Label above the buttons, not beside them: at 402px the last stage carries Back AND
-              the CTA, and "Nothing picked yet" beside both wrapped to two lines and clipped
-              against the bottom edge. Stacked on every stage rather than only the last, so the
-              bar does not jump height when Back appears. */}
-          <p
-            aria-live="polite"
-            className="text-ink/55 mb-2 font-sans text-[12.5px]"
-          >
-            {countLabel}
-          </p>
-          <div className="flex items-center justify-end gap-[14px]">
-            {stage > 0 && (
+      {/* One narrow column on every width (docs/DESIGN_desktop-polish.md §1). The bottom padding
+          clears the fixed bar. */}
+      <Column width="narrow" className="px-6 pt-16 pb-[180px]">
+        {phase === "intro" && (
+          <>
+            <Rise>
+              <p className="text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase">
+                Ambit · {retake ? "Start again" : "Setup"}
+              </p>
+              <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] font-semibold tracking-[-0.4px]">
+                {retake ? "Let’s ask again" : "Let’s find where to start"}
+              </h1>
+              <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
+                A few questions about what you like — some pictures, some words.
+                Skip any of them. At the end you’ll see what we made of it, and
+                you can change all of it.
+              </p>
+              {retake && (
+                <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
+                  Your answers will replace the topics you have now.{" "}
+                  <Link
+                    href="/profile/topics"
+                    replace
+                    className="text-accent underline underline-offset-2"
+                  >
+                    Cancel
+                  </Link>
+                </p>
+              )}
+            </Rise>
+            {/* Outside <Rise>: its transform would capture a `fixed` child. */}
+            <StepBar>
               <Button
                 shape="pill"
                 size="md"
-                variant="ghost"
-                onClick={() => setStage((s) => s - 1)}
+                onClick={() => setPhase("questions")}
               >
+                Begin
+              </Button>
+            </StepBar>
+          </>
+        )}
+
+        {phase === "questions" && current && (
+          <>
+            {/* Keyed by question so <Rise> plays again: each one should arrive, not swap. */}
+            {/* Outside the keyed <Rise> on purpose: a live region created with its content is not
+                announced, so this one stays mounted and only its text changes. */}
+            <p
+              aria-live="polite"
+              className="text-accent mb-[14px] font-sans text-[11px] font-semibold tracking-[1.8px] uppercase"
+            >
+              {answers.length + 1} of {asked.length}
+            </p>
+            <Rise key={current.id}>
+              <QuestionStep
+                question={current}
+                listed={listed}
+                faces={faces}
+                answer={draft}
+                onChange={(answer, done) =>
+                  done ? advance(answer) : setDraft(answer)
+                }
+              />
+            </Rise>
+            <StepBar>
+              <Button shape="pill" size="md" variant="ghost" onClick={back}>
                 Back
               </Button>
-            )}
-            {isLast ? (
-              <Button
-                shape="pill"
-                size="md"
-                disabled={remaining > 0}
-                aria-busy={submitting}
-                onClick={handleSubmit}
-                className={cn(submitting && "pointer-events-none opacity-80")}
-              >
-                {ctaLabel}
+              {/* One button, named for what it will do: nothing said yet → Skip. */}
+              <Button shape="pill" size="md" onClick={() => advance(draft)}>
+                {isAnswered(draft) ? "Next" : "Skip"}
               </Button>
-            ) : (
-              <Button
-                shape="pill"
-                size="md"
-                onClick={() => setStage((s) => s + 1)}
-              >
-                Next
-              </Button>
-            )}
-          </div>
-        </Column>
-      </div>
+            </StepBar>
+          </>
+        )}
+
+        {phase === "interpreting" && (
+          <p
+            role="status"
+            className="text-ink/62 pt-24 text-center text-[17px]"
+          >
+            Putting it together…
+          </p>
+        )}
+
+        {phase === "about" && (
+          <AboutStep
+            initial={about ?? undefined}
+            onContinue={(given) => {
+              setAbout(given);
+              setPhase("reveal");
+            }}
+            onSkip={() => {
+              setAbout(null);
+              setPhase("reveal");
+            }}
+            onBack={back}
+          />
+        )}
+
+        {phase === "reveal" && (
+          <RevealStep
+            topics={topics}
+            proposed={proposed}
+            retake={retake}
+            submitting={submitting}
+            error={error}
+            onSubmit={submit}
+            onBack={() => setPhase("about")}
+          />
+        )}
+      </Column>
     </main>
   );
 }
