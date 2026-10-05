@@ -3,8 +3,8 @@
 // First Exhibition, docs/DESIGN_first-exhibition.md §5). Onboarding no longer reads facets — it
 // is a questionnaire since 10-02-26 — so the prompts below are kept for `/profile/topics`'s
 // history and any future section headings; the facet itself still decides what is pickable.
-// Hand-assigned, on purpose: a facet by graph neighbourhood would file `watercolor` under Botany because they co-occur, and a
-// facet by tier would just be age. `db:seed` applies this map on every boot, which is what
+// Hand-assigned, on purpose: a facet by graph neighbourhood would file `watercolor` under
+// Botany because they co-occur, and a facet by tier would just be age. `db:seed` applies this map on every boot, which is what
 // puts facets on production with nothing copied into the container.
 //
 // A topic missing from this map has `facet = NULL` in the database and is NOT pickable —
