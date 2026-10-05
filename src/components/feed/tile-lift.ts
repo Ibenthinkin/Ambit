@@ -12,8 +12,9 @@
 // Why each piece:
 //   - `relative z-[1]` → `hover:z-[2]`: the shadow has to paint OVER the neighbouring columns.
 //     That works only because no ancestor between this wrapper and <main> is a stacking context
-//     — `Rise`'s keyframe ends at `transform: none` on purpose, and the grid/column divs carry no
-//     transform, opacity or z-index. Give one of them a `z-index` and the lift goes under.
+//     once page one has risen in — `Rise` fills *backwards* only (rise.tsx says why: Firefox
+//     keeps a finished `both`-filled animation's stacking context), and the grid/column divs
+//     carry no transform, opacity or z-index. Give one of them a `z-index` and the lift goes under.
 //   - `transition-[scale,box-shadow]`, not `transition-transform`: Tailwind v4's `scale-*` sets
 //     the standalone `scale` property (same family as the `translate` trap in CLAUDE.md).
 //   - `hover:` is already `@media (hover: hover)` in Tailwind v4 — a touch screen never matches,
