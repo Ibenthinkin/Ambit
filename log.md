@@ -5,7 +5,7 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
-### [[10-05-26 Mon]] — The questionnaire merges; its migration becomes 0012; First Exhibition is built
+### [[10-05-26 Mon]] — The questionnaire merges; its migration becomes 0012; First Exhibition is built and merged
 
 **Shipped:** `feat/onboarding-questionnaire` (bank v1, 28 commits) merged to `main` as
 `e942adb`, in the `~/Dev/ambit-questionnaire` worktree because the main checkout was on
@@ -165,6 +165,40 @@ sitewide redesign**, not to this branch. With that, **`feat/first-exhibition` is
 `main`** (local only — a push deploys).
 
 _Session spend: 42.54M tok (in 210 · out 46.9k · cache r 41.94M / w 549.2k) · opus-5-5 · 11:46→12:56_
+
+**The merge, checked (early afternoon, Fable).** `f4d0ce3` joins `8ed5fd2` (the Lift) and `9efce1a` (the
+branch tip) over the base `6058358`. Only `CLAUDE.md` and `log.md` were touched on both sides, and
+both were resolved by hand with nothing lost — the day heading retitled, every block of each side
+present, no markers; the merge's diff against the branch tip is exactly the Lift's seventeen files
+plus those two docs. The migration chain is in order (`0010` … `0013` in the journal, each snapshot's
+`prevId` the one before it), and the shared local database has applied both new rows, with
+`interview_answer` and `user_taste` present and 198 topic rows. `bun run check`: 183 files,
+2,163 tests, 0 lint errors (14 warnings, all in files older than this work). `bun run e2e:prod`:
+66 passed, 2 failed, 9 skipped — both failures are the `/api/img` 429 under parallel workers: the
+security test directly, and the PWA offline test, whose `ambit-images` bucket came out empty
+because the same 429 refused the tiles' pictures; the two specs pass 5/5 run alone.
+
+**Finding: pushes have not been deploying.** `origin/main` is `8ed5fd2`, pushed at 12:07 — so
+origin already carries bank v1 and migration 0012 — yet `/api/health` still answers `da5c4ad`,
+the push of 10-04 15:05, with that container up 22 hours and nothing deploying on VM 202. A push
+is not a deploy here; the deploy is a Coolify action Ben takes, and the "v1 is not deployed"
+decision above still holds in fact. `main` is 29 ahead of origin.
+
+**Decision (Ben, 13:00): the critique is to be addressed as soon as possible** — the list in
+`docs/NOTES_onboarding-critique.md` is the next piece of work, not a backlog for some later
+redesign. Its framing stays: sitewide (accent, buttons, square corners), the questionnaire's card
+sizes and the way pictures are asked, all the copy, and the reveal brought back to what the study's
+handoff had.
+
+**Open / next:** push `main` and deploy — one boot runs 0012 + 0013 and `db:seed` (the 33 hand
+topics, 13 new groups, their personas); then two search ingests, `graph:rebuild --confirm` and
+commit the artifact; read the reveal on the twenty personas. The redesign begins with a screen-by-
+screen list of what the reveal lost against `docs/first-exhibition/`'s prototype, then the design.
+Housekeeping: `feat/first-exhibition` and its worktree go once Ben is done with that dev server; the
+untracked `docs/first-exhibition-for-ambit/` there (a duplicate design + `.DS_Store`) is his to
+delete. Still open: the `/api/img` 429 in parallel local e2e.
+
+_Session spend: 8.77M tok (in 1.6k · out 41.8k · cache r 8.38M / w 344.4k) · fable-5-1 + opus-5-5 · 10:47→13:06_
 
 ### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
 

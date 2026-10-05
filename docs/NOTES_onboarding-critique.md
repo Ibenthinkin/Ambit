@@ -3,7 +3,8 @@
 Ben walked bank v2 on the dev server (branch `feat/first-exhibition`) and gave these notes screen
 by screen. **His verdict on the whole: the mechanics are good — this list is cosmetic**, and it is
 to be addressed in the next **sitewide redesign**, not as patches to this branch. Nothing here has
-been changed yet.
+been changed yet. **Priority (Ben, 10-05 afternoon): as soon as possible — this is the next piece of
+work, not a backlog.**
 
 ## Sitewide (beyond onboarding)
 
