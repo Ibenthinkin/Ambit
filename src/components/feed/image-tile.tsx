@@ -102,10 +102,12 @@ export function ImageTile({
       aria-label={item.title}
       className={cn(
         // The `focus-visible` ring is so a keyboard reader can see where they are without the
-        // phone ever showing one (`:focus-visible` never matches a touch). The 3px off-white ring,
-        // inside the edge, is for a keyboard reader — 2px of accent was invisible on a photograph
-        // (docs/DESIGN_chrome-redesign.md §4).
-        "focus-visible:outline-ink-hi relative block w-full cursor-pointer touch-manipulation overflow-hidden outline-none select-none focus-visible:outline-[3px] focus-visible:-outline-offset-[3px]",
+        // phone ever showing one (`:focus-visible` never matches a touch). 2 px of lavender,
+        // inside the edge — the Lift's ring (docs/tile-hover/; docs/PLAN_tile-hover.md
+        // Decision 3). It replaced DESIGN_chrome-redesign.md §4's 3 px off-white on 10-04-26: the
+        // lift and shadow on the wrapper (feed-grid.tsx) now mark focus too, so the ring no longer
+        // has to be legible on its own against any photograph.
+        "focus-visible:outline-focus-ring relative block w-full cursor-pointer touch-manipulation overflow-hidden outline-none select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
         aspectClass,
       )}
       style={{ WebkitTouchCallout: "none" }}
@@ -148,7 +150,8 @@ export function ImageTile({
           alt={item.title}
           onError={handleError}
           // No hover effect on the picture (09-11-26, docs/DESIGN_chrome-redesign.md decision 4):
-          // the tile's hover feedback is the strip `FeedScreen` lays over it. The 3% zoom this
+          // the tile's hover feedback is the Lift on its wrapper (feed-grid.tsx) and the strip
+          // `FeedScreen` lays over it. The 3% zoom this
           // used to carry read as "barely visible and clunky".
           className="pointer-events-none block h-full w-full object-cover"
         />

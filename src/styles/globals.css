@@ -53,6 +53,10 @@
                                titles, item titles, article headlines ONLY. --color-ink above
                                stays the body/high tier and the root of the alpha ladder; this is
                                a second opaque stop above it, not a replacement. */
+  --color-focus-ring: #a8aeff; /* the keyboard ring on a feed tile: 2 px, inset, a fixed lavender
+                                   that is NOT the accent knob (docs/PLAN_tile-hover.md Decision 3).
+                                   Replaced the 3 px off-white of DESIGN_chrome-redesign.md §4 on
+                                   10-04-26, once the lift and shadow also marked focus. */
   --color-on-accent: #17140e; /* text drawn on an accent-filled surface — always this, never
                                   white; every CTA/selected-chip/save-icon uses it */
   --color-error: #d98c6a;
@@ -78,6 +82,8 @@
   --shadow-banner: 0 12px 40px rgba(0, 0, 0, 0.45);
   --shadow-sheet: 0 -20px 50px rgba(0, 0, 0, 0.45);
   --shadow-toolbar: 0 10px 30px rgba(0, 0, 0, 0.28); /* the floating pill toolbar (built 5.5) */
+  --shadow-lift: 0 22px 44px rgba(0, 0, 0, 0.6); /* a hovered or focused feed tile, risen above
+                                       its neighbours (docs/tile-hover/, "Lift", 10-04-26) */
 
   /* Two deliberately-non-default easing curves — everything else is plain `ease` or `linear`.
      `settle` is the original: anything that comes to rest over a longer travel (the gallery
@@ -85,6 +91,9 @@
      redesign's snappier `sheetup` curve for the short, pill-summoned bottom sheets. */
   --ease-settle: cubic-bezier(0.22, 0.61, 0.36, 1);
   --ease-sheet: cubic-bezier(0.22, 0.9, 0.3, 1);
+  /* The feed tile's lift (docs/tile-hover/): a fast start that settles — the whole 3.5% scale
+     and shadow arrive in 350 ms without a bounce. */
+  --ease-lift: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* Named animations. Each pairs a duration/easing/fill-mode with the matching @keyframes below,
      so a component just writes `animate-rise` etc. rather than repeating the shorthand.
@@ -401,10 +410,15 @@
    One opt-out (09-26-26, docs/DESIGN_landing-redo.md D6): the landing's reel and overture carry
    `.motion-gentle`. Under reduced motion they run the `gentle` tempo — opacity-only cross-fades,
    no drift, no cuts — which *is* their reduced-motion version; collapsing those fades to 0.01 ms
-   would turn them back into the hard cuts the preference asked not to see. Nothing else opts out:
-   the sheet is outside both subtrees and still collapses. */
+   would turn them back into the hard cuts the preference asked not to see. Nothing else opted out:
+   the sheet is outside both subtrees and still collapses.
+
+   A second opt-out (10-04-26, docs/PLAN_tile-hover.md): `.motion-lift`, the feed tile wrapper's
+   hover lift. Deliberately the element alone and not `.motion-lift *` — the strip, badge and ring
+   inside it still collapse; only the 350 ms scale-and-shadow runs, per the design's own rule
+   that a 3.5% lift is not what the setting targets. */
 @media (prefers-reduced-motion: reduce) {
-  :not(.motion-gentle, .motion-gentle *),
+  :not(.motion-gentle, .motion-gentle *, .motion-lift),
   :not(.motion-gentle, .motion-gentle *)::before,
   :not(.motion-gentle, .motion-gentle *)::after {
     animation-duration: 0.01ms !important;

@@ -177,6 +177,16 @@ test.describe.serial("desktop", () => {
 
     const strip = first.getByTestId("tile-actions");
     await first.hover();
+    // The Lift (docs/PLAN_tile-hover.md): the WRAPPER scales and rises. Tailwind v4's `scale-*`
+    // writes the standalone `scale` property, so that — never `transform` — is what to read.
+    await expect(first).toHaveCSS("scale", "1.035");
+    await expect(first).toHaveCSS("z-index", "2");
+    // Tailwind's `shadow-*` composes five layers (inset, inset-ring, ring-offset, ring, shadow);
+    // the computed value lists four transparent ones before ours, so match ours, not the whole.
+    await expect(first).toHaveCSS(
+      "box-shadow",
+      /rgba\(0, 0, 0, 0\.6\) 0px 22px 44px 0px/,
+    );
     await expect(strip).toHaveCSS("opacity", "1");
     await strip.getByRole("button", { name: /^Save to / }).click();
     await expect(page.getByText(/^Saved to /)).toBeVisible();
@@ -221,6 +231,42 @@ test.describe.serial("desktop", () => {
 
   // docs/DESIGN_list-screens.md §6: the hub is the feed's wide column, left-aligned, and packs
   // four collection tiles across; Saved packs four stacks.
+  // The keyboard half of the Lift (docs/PLAN_tile-hover.md Task 6, Review focus 5): Tab onto a
+  // tile and the wrapper lifts exactly as on hover. `:has(:focus-visible)` on the wrapper — a
+  // programmatic `.focus()` may or may not count as "visible" focus in Chromium, so this uses the
+  // real key. Tab lands on the toolbar first; the loop walks until a tile is focused.
+  test("keyboard focus lifts the tile like a hover", async ({ page }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const first = page.locator("[data-feed-id]:has(img)").first();
+    await expect(first).toBeVisible();
+    // Park the mouse off the grid so no tile is hovered while we read the scale.
+    await page.mouse.move(0, 0);
+
+    await expect(async () => {
+      await page.keyboard.press("Tab");
+      const onTile = await page.evaluate(() => {
+        const el = document.activeElement;
+        return (
+          el instanceof HTMLElement &&
+          el.getAttribute("role") === "button" &&
+          el.closest("[data-feed-id]") !== null
+        );
+      });
+      expect(onTile).toBe(true);
+    }).toPass({ timeout: 10_000 });
+
+    const focused = page.locator("[data-feed-id]:has(:focus)");
+    await expect(focused).toHaveCSS("scale", "1.035");
+    await expect(focused).toHaveCSS("z-index", "2");
+
+    // Tabbing away relaxes it.
+    await page.keyboard.press("Shift+Tab");
+    await expect(focused).toHaveCount(0);
+    // At rest the wrapper has no `scale` at all, which Chromium reports as "none", not "1".
+    await expect(first).toHaveCSS("scale", "none");
+  });
+
   test("the Profile hub is wide and left-aligned, and its collections pack four across", async ({
     page,
   }) => {

@@ -84,4 +84,39 @@ describe("FeedGrid", () => {
     );
     expect(extras).not.toHaveBeenCalled();
   });
+
+  // The Lift (docs/tile-hover/, docs/PLAN_tile-hover.md Task 2): the hover state lives on the
+  // wrapper, so the strip rides up with the picture and every card kind lifts alike. Tailwind
+  // v4's `scale-*` writes the standalone `scale` property, so the transition names `scale`.
+  it("lifts a card's wrapper on hover and keyboard focus, never a message tile", () => {
+    const { container } = render(
+      <FeedGrid
+        {...baseProps}
+        tiles={[
+          image("i1"),
+          { kind: "message", key: "message-0", message: "about" },
+        ]}
+        renderMessage={() => <p>m</p>}
+      />,
+    );
+    const wrapper = container.querySelector('[data-feed-id="i1"]')!;
+    expect(wrapper).toHaveClass(
+      "group/tile",
+      "relative",
+      "motion-lift",
+      "z-[1]",
+      "transition-[scale,box-shadow]",
+      "duration-[350ms]",
+      "ease-lift",
+      "hover:z-[2]",
+      "hover:scale-[1.035]",
+      "hover:shadow-lift",
+      "has-[:focus-visible]:z-[2]",
+      "has-[:focus-visible]:scale-[1.035]",
+      "has-[:focus-visible]:shadow-lift",
+    );
+    // The message tile has no wrapper class at all, same as a Because tile.
+    const message = screen.getByText("m").parentElement!;
+    expect(message.className).toBe("");
+  });
 });
