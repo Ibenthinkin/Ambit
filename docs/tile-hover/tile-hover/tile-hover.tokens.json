@@ -1,0 +1,46 @@
+{
+  "ambit-tile-hover": {
+    "name": "lift",
+    "states": [
+      "hover (pointer devices only)",
+      "focus-visible"
+    ],
+    "lift": {
+      "scale": 1.035,
+      "shadow": "0 22px 44px rgba(0,0,0,0.6)",
+      "zIndex": {
+        "rest": 1,
+        "active": 2
+      },
+      "durationMs": 350,
+      "easing": "cubic-bezier(.2,.8,.2,1)"
+    },
+    "tag": {
+      "rest": "rgba(22,20,17,0.72)",
+      "active": "var(--ambit-accent, #4C5FE0)",
+      "ink": "#EFEBE0",
+      "durationMs": 200
+    },
+    "focusRing": {
+      "color": "#A8AEFF",
+      "width": 2,
+      "placement": "inset",
+      "durationMs": 250
+    },
+    "becauseCard": {
+      "bg": {
+        "rest": "#1C1916",
+        "active": "#24201C"
+      },
+      "link": {
+        "rest": "#7B89EA",
+        "active": "#A8AEFF"
+      }
+    },
+    "reducedMotion": "opt-in via .ambit-calm ancestor: no scale; shadow, tag fill and ring remain",
+    "layout": {
+      "gap": 4,
+      "note": "columns and grid must not set overflow:hidden or the lift is clipped"
+    }
+  }
+}

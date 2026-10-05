@@ -33,7 +33,7 @@ resumes from the last progress line.
 re-tagged, **0 no-image, 0 fallback skips**, scores untouched. ~65 a minute on four workers. One
 five-hour ceiling stop at 4,976 (20:33 UTC, window 80%; it read 85% at the first retry with Ben's
 own sessions on top), slept through the 23:00 reset and finished in the second window — the
-resumable loop worked as built. The second leg's summary: 8.80 → 8.02 *would-be* average over
+resumable loop worked as built. The second leg's summary: 8.80 → 8.02 _would-be_ average over
 5,246, confirming the flattening the sample predicted. **One window ≈ 5,000 Haiku pictures.**
 Cosmetic: a ceiling refusal at preflight reads "not usable with claude-sonnet-5-5 … is Claude
 Code installed?" — the 10-02 parked wording issue; the exit code (3) is right.
@@ -110,11 +110,11 @@ commit.
 **Findings:**
 
 - **The plan had a real bug, caught by its own kind of test.** When a pinch ends with one finger
-  still down, the hook fires `onPinchEnd` and then `onPanStart` in the *same* pointer event,
+  still down, the hook fires `onPinchEnd` and then `onPanStart` in the _same_ pointer event,
   before React re-renders. The plan's screen read `zoom` from the render closure, so the pan
   started from the unsettled live value (the first move threw the picture back from ×4 to ×5),
   and `onPanStart` cleared `snapping`, cancelling the settle's animation. Fixed with a `zoomRef`
-  every write goes through, and the snap cleared on the first pan *move*. A test pins it.
+  every write goes through, and the snap cleared on the first pan _move_. A test pins it.
 - **Double-tap leaks into every test that taps twice.** Two `tap()`s at jsdom's `timeStamp: 0`
   are now a tap and a double-tap; three item-screen tests went red in Task 2. The helpers now
   space taps a second apart.
@@ -135,15 +135,15 @@ more thing to read).
 last of which decides whether the two-touch `touchmove` cancel, Safari's `gesture*` cancel, or
 both are needed on current iOS. Then merge.
 
-*Session spend: 29.57M tok (in 538 · out 90.9k · cache r 28.43M / w 1.05M) · opus-5-5 + fable-5-1 · 15:35→16:09*
+_Session spend: 29.57M tok (in 538 · out 90.9k · cache r 28.43M / w 1.05M) · opus-5-5 + fable-5-1 · 15:35→16:09_
 
 **Hero zoom — final review and fixes.** A fresh Fable 5.1 reviewer read the whole branch: no
 Critical, five Important, all fixed test-first in one pass (`73947d9`). A release at ×1.03 left
 the hero "zoomed" with swipes dead, so `settle` now snaps back at or under ×1.1. A zoom-out popped
 back to 1 instead of animating, because the unzoomed picture carried no transform to transition
-*to*, so it now rests at identity with the settle armed. Wrapping only the current page remounted
+_to_, so it now rests at identity with the settle armed. Wrapping only the current page remounted
 the incoming and outgoing `<img>` on every slide, so every page now has the box and only the
-current one is marked. A pinch on a picture still decoding ran on the *previous* picture's
+current one is marked. A pinch on a picture still decoding ran on the _previous_ picture's
 measurements. The CDP smoke sat mid-serial-block, where a flake would skip the rest of
 `item.spec.ts`. Check 1,896 green; item + desktop e2e 22/22. Eight minors deferred, listed in the
 ledger summary below. **For the device pass: Reduce Motion must be OFF** — Ben's is on on both
@@ -156,12 +156,46 @@ is wrong one way or the other; the double-tap's first tap briefly fades the chro
 says a head extension resets zoom; check `will-change` raster sharpness at ×2.5 on device; a mouse
 click can seed a touch double-tap.
 
-*Session spend: 14.13M tok (in 104 · out 44.9k · cache r 14.02M / w 62.3k) · opus-5-5 · 16:09→16:26*
+_Session spend: 14.13M tok (in 104 · out 44.9k · cache r 14.02M / w 62.3k) · opus-5-5 · 16:09→16:26_
 
 **Hero zoom — Ben's phone look: "it looks great."** Run from the branch on the tailnet at
 `:8443` (port 3000 was the questionnaire's), on a PDR collage. Not yet recorded: check 10 of
 the device pass, which of the two iOS pinch listeners is actually needed. Both stay in until it
 is run. **Merged to `main` the same evening (`dfeee40`), not pushed, not deployed.**
+
+**Tile hover — the "Lift" — planned, not built** (`docs/PLAN_tile-hover.md`, 7 tasks, cold-
+executable on `feat/tile-hover`; the spec is Ben's Claude Design bundle `docs/tile-hover/`,
+option 1a: 3.5% scale, a 22/44 shadow, above the neighbours, 350 ms). The hover zoom the chrome
+redesign dropped on 09-11 comes back as a different thing — on the card **wrapper**, so the hover
+strip rises with the picture and every card kind lifts alike.
+
+**Decisions:**
+
+- **The tier tag stays dev-only.** The design draws `DRIFT`/`CORE`/`JUMP` on every tile; in the
+  app that is `DebugBadge`, present only when the server composed with `FEED_DEBUG`. It takes the
+  design's dress and the accent fill; production tiles stay the picture and nothing else.
+- **The Because tile stays inert, no hover.** The demo links it to a topic route that doesn't
+  exist; a hover on something un-tappable promises a click it can't honour.
+- **The ring is the design's: 2 px, inset, lavender `#A8AEFF`** (`--color-focus-ring`, fixed, not
+  the accent knob) — superseding chrome-redesign §4's 3 px off-white now that the lift and shadow
+  carry focus too.
+- Stated rather than asked: the lift **runs under Reduce Motion** (the design's own rule; Ben has
+  it on everywhere, so a snap would read as a bug) via a `.motion-lift` exemption that covers the
+  element and not its subtree; the README's `.ambit-calm` opt-in is not built; Saved lifts too.
+
+**Findings** (from compiling the plan's class strings through the repo's Tailwind 4.3.3): the
+`has-[:focus-visible]:` and `group-has-[:focus-visible]/tile:` variants are emitted; `scale-*` is
+the standalone `scale` property, so the transition and the e2e assertion name `scale`, never
+`transform`; `shadow-*` **inlines** the token into `--tw-shadow` (no `--shadow-lift` variable in
+the output) and the computed `box-shadow` is a five-layer list, so e2e matches ours by regex. And
+the e2e `chromium` project is **a mouse at a phone width** (`Desktop Chrome` + 402 × 874), so a
+"the phone never lifts" assertion is impossible there — the phone look is the check.
+
+**Open / next:** a cheaper session executes the plan; then Ben's 1440 look — the article card's
+hairline under a 1.035 scale, a lifted tile's shadow over its right-hand neighbour, the ring on a
+pale photograph — and the phone (nothing new).
+
+_Session spend: 10.67M tok (in 2.0k · out 140.8k · cache r 10.06M / w 462.6k) · fable-5-1 · 23:37→23:54_
 
 ### [[10-03-26 Sat]] — The Claude judge goes live on VM 202
 

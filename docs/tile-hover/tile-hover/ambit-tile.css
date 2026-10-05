@@ -1,0 +1,62 @@
+/* Ambit feed tile — hover & focus: "Lift" (option 1a)
+   Drop-in. Markup: <a class="ambit-tile" href="…"><img …><span class="ambit-tile__tag">DRIFT</span></a>
+   Because cards: <a class="ambit-tile ambit-tile--link" href="…">…<span class="ambit-tile__to">alien</span></a> */
+
+.ambit-tile {
+  --ambit-lift-scale: 1.035;
+  --ambit-lift-shadow: 0 22px 44px rgba(0, 0, 0, 0.6);
+  --ambit-lift-ease: cubic-bezier(.2, .8, .2, 1);
+  --ambit-lift-ms: 350ms;
+  --ambit-focus-ring: #A8AEFF;
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: #221F1B;
+  cursor: pointer;
+  z-index: 1;
+  outline: none;
+  transition: transform var(--ambit-lift-ms) var(--ambit-lift-ease), box-shadow var(--ambit-lift-ms) var(--ambit-lift-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.ambit-tile > img { display: block; width: 100%; object-fit: cover; }
+
+.ambit-tile__tag {
+  position: absolute; top: 0; left: 0;
+  font: 500 10px/1.3 'Sora', sans-serif; letter-spacing: 0.6px;
+  color: #EFEBE0; background: rgba(22, 20, 17, 0.72);
+  padding: 3px 6px 3px 5px;
+  transition: background 200ms ease;
+}
+
+/* focus ring sits inside the tile so it survives overflow:hidden */
+.ambit-tile::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 0 0 transparent;
+  transition: box-shadow 250ms ease;
+}
+
+/* Lift — pointer devices only, so touch taps don't leave tiles stuck lifted */
+@media (hover: hover) {
+  .ambit-tile:hover { transform: scale(var(--ambit-lift-scale)); box-shadow: var(--ambit-lift-shadow); z-index: 2; }
+  .ambit-tile:hover .ambit-tile__tag { background: var(--ambit-accent, #4C5FE0); }
+}
+.ambit-tile:focus-visible { transform: scale(var(--ambit-lift-scale)); box-shadow: var(--ambit-lift-shadow); z-index: 2; }
+.ambit-tile:focus-visible .ambit-tile__tag { background: var(--ambit-accent, #4C5FE0); }
+.ambit-tile:focus-visible::after { box-shadow: inset 0 0 0 2px var(--ambit-focus-ring); }
+
+/* Because card */
+.ambit-tile--link { background: #1C1916; border: 0.5px solid rgba(239, 235, 224, 0.06); transition: transform var(--ambit-lift-ms) var(--ambit-lift-ease), box-shadow var(--ambit-lift-ms) var(--ambit-lift-ease), background 200ms ease; }
+.ambit-tile__to { color: #7B89EA; transition: color 200ms ease; }
+@media (hover: hover) {
+  .ambit-tile--link:hover { background: #24201C; }
+  .ambit-tile--link:hover .ambit-tile__to { color: #A8AEFF; }
+}
+.ambit-tile--link:focus-visible { background: #24201C; }
+.ambit-tile--link:focus-visible .ambit-tile__to { color: #A8AEFF; }
+
+/* Opt-in calm mode: add .ambit-calm to an ancestor to drop the scale under reduced motion.
+   Off by default — a 3.5% lift isn't the kind of motion the OS setting targets. */
+@media (prefers-reduced-motion: reduce) {
+  .ambit-calm .ambit-tile { transition: box-shadow 150ms ease, background 150ms ease; }
+  .ambit-calm .ambit-tile:hover, .ambit-calm .ambit-tile:focus-visible { transform: none; }
+}
