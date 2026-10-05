@@ -1,0 +1,2482 @@
+{
+  "_about": "Every picture in the First Exhibition prototype. itemId is a LOCAL item id (Ben's dev database): k < 1000 came from ~/Dev/ambit-questionnaire/.cache/img, k >= 1000 from ~/Dev/ambit/.cache/img. Captions and tags were assigned by eye in the prototype, not read from the database. `bun run scripts/first-exhibition-faces.ts` turns these ids into (source, sourceId) hand picks.",
+  "pictures": [
+    {
+      "k": 189,
+      "itemId": "Oo69SE0-GcQMIPlg3f-9l",
+      "caption": "Owl in the leaves",
+      "wing": "creatures",
+      "tags": ["birds", "nature-photography", "photography"],
+      "roles": ["pair:medium-owls:a"]
+    },
+    {
+      "k": 245,
+      "itemId": "Z71qbU2w0iiESR9m3A0tU",
+      "caption": "Barn owls, painted",
+      "wing": "creatures",
+      "tags": ["birds", "painting", "painterly", "eerie"],
+      "roles": ["pair:medium-owls:b", "pair:look-owls:a"]
+    },
+    {
+      "k": 366,
+      "itemId": "sf8e8UWz_3rwkpRcflBiu",
+      "caption": "Octopus, a natural-history plate",
+      "wing": "creatures",
+      "tags": [
+        "marine-life",
+        "scientific-illustration",
+        "natural-history",
+        "zoology"
+      ],
+      "roles": ["card:octopus"]
+    },
+    {
+      "k": 347,
+      "itemId": "nMNMPp95Y1POSOWDoFBUG",
+      "caption": "Wild piglet",
+      "wing": "creatures",
+      "tags": ["animals", "nature-photography", "cute"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 308,
+      "itemId": "htNVsTG9ygRP7MjGBbeQf",
+      "caption": "Birds' eggs",
+      "wing": "creatures",
+      "tags": ["birds", "natural-history", "collecting", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 101,
+      "itemId": "BLRcjm-gxgvIRDAfbALmv",
+      "caption": "Lorikeet, close up",
+      "wing": "creatures",
+      "tags": ["birds", "color", "nature-photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 277,
+      "itemId": "dOWKHVhETg2GHaj1WIlsy",
+      "caption": "Reindeer and a sleeping child",
+      "wing": "creatures",
+      "tags": ["animals", "documentary-photography", "travel"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 205,
+      "itemId": "S0QuSaoH6mDASGphG7vvx",
+      "caption": "Kitten in a clay pot",
+      "wing": "creatures",
+      "tags": ["cats", "cute", "ceramics"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 157,
+      "itemId": "KLPEQHHVXJJf1ypcv5_Xp",
+      "caption": "Fish, a natural-history plate",
+      "wing": "creatures",
+      "tags": ["marine-life", "scientific-illustration", "natural-history"],
+      "roles": ["pair:medium-fish:a"]
+    },
+    {
+      "k": 290,
+      "itemId": "esvTJXcqFe55EE35D6PX8",
+      "caption": "Fish brooch",
+      "wing": "made",
+      "tags": ["jewelry", "marine-life", "metal"],
+      "roles": ["pair:medium-fish:b"]
+    },
+    {
+      "k": 180,
+      "itemId": "MvlQ-OkQjWpcudfl3FUSt",
+      "caption": "Walrus, drawn from life",
+      "wing": "creatures",
+      "tags": ["animals", "drawing", "natural-history"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 251,
+      "itemId": "_JQtsJXXufA_PaGH66TVN",
+      "caption": "Owl and hedgehog",
+      "wing": "creatures",
+      "tags": ["animals", "animation", "whimsical"],
+      "roles": ["pair:look-owls:b"]
+    },
+    {
+      "k": 52,
+      "itemId": "586uQv8FgXPrb84H2Vhzt",
+      "caption": "Goldfinches in blossom",
+      "wing": "creatures",
+      "tags": ["birds", "black-and-white", "photography", "spring"],
+      "roles": ["pair:medium-birds:a"]
+    },
+    {
+      "k": 95,
+      "itemId": "AmUZ9rLj4QDNwrN9wCYJP",
+      "caption": "Hawk on a snowy post",
+      "wing": "creatures",
+      "tags": ["birds", "winter", "nature-photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 346,
+      "itemId": "nHkvExSQ4DjrtqJyeKIFQ",
+      "caption": "Knitted creature among flowers",
+      "wing": "made",
+      "tags": ["toys", "textiles", "whimsical", "cute"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 193,
+      "itemId": "P3qFkC5V6cwQpmAkDs2Th",
+      "caption": "White cyclamen",
+      "wing": "growing",
+      "tags": ["flowers", "photography", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 174,
+      "itemId": "LuvWJT3yKycyIhZeIbTrp",
+      "caption": "Sunflowers, a botanical plate",
+      "wing": "growing",
+      "tags": ["botanical-illustration", "flowers", "botany"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 199,
+      "itemId": "QlE7-DaGbLAGSUm3b3ySg",
+      "caption": "Herbarium sheet",
+      "wing": "growing",
+      "tags": ["botany", "plants", "scientific-illustration", "collecting"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 122,
+      "itemId": "E8lvxcQW2DkpEDLVUz3ZS",
+      "caption": "Blossom over a blue lake",
+      "wing": "growing",
+      "tags": ["trees", "flowers", "spring"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 387,
+      "itemId": "v7EVOrAqUEf86xM9lCB6-",
+      "caption": "An autumn leaf",
+      "wing": "growing",
+      "tags": ["autumn", "plants", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 413,
+      "itemId": "yww9CSjRgNDGIQBRmaT9Q",
+      "caption": "Planters with faces",
+      "wing": "growing",
+      "tags": ["houseplants", "ceramics", "whimsical"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 104,
+      "itemId": "Bxm8uSxgmBvg99p1iitQI",
+      "caption": "A painted jungle garden",
+      "wing": "growing",
+      "tags": ["gardens", "painting", "surreal"],
+      "roles": ["pair:look-trees:b"]
+    },
+    {
+      "k": 337,
+      "itemId": "lRiuhlcBHhzdsc2z_nXGI",
+      "caption": "Old car under hydrangeas",
+      "wing": "growing",
+      "tags": ["flowers", "cars", "nostalgic"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 316,
+      "itemId": "jL4ORj3Pn9-wDZIu26Sey",
+      "caption": "A tree at night",
+      "wing": "growing",
+      "tags": ["trees", "black-and-white", "night", "minimal"],
+      "roles": ["pair:medium-trees:a", "pair:look-trees:a"]
+    },
+    {
+      "k": 343,
+      "itemId": "moht73CIzPvJw868vDsfR",
+      "caption": "A tree, in ink",
+      "wing": "growing",
+      "tags": ["trees", "ink", "drawing"],
+      "roles": ["pair:medium-trees:b"]
+    },
+    {
+      "k": 371,
+      "itemId": "tCmZkhVWKSiu8w1CQqnMp",
+      "caption": "Cabin in a misty wood",
+      "wing": "growing",
+      "tags": ["trees", "cabins", "eerie"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 401,
+      "itemId": "whjbgbHdFvHW0d-ZZJL5s",
+      "caption": "A nest of branches",
+      "wing": "growing",
+      "tags": ["land-art", "wood", "nature"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 143,
+      "itemId": "IY6hSq5EjFfRKVd7x7C9o",
+      "caption": "A breaking wave",
+      "wing": "land",
+      "tags": ["the-ocean", "water", "nature-photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 87,
+      "itemId": "9ssqU0-8MEoIWNYP2pK3g",
+      "caption": "Sand dunes",
+      "wing": "land",
+      "tags": ["desert", "sand", "landscapes", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 311,
+      "itemId": "iUB6nTgWlYiVg5JWNpycD",
+      "caption": "Red clouds at dusk",
+      "wing": "land",
+      "tags": ["clouds", "weather", "light"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 124,
+      "itemId": "EfEsR3Ou7_lpyM6H8E35M",
+      "caption": "River canyon, painted",
+      "wing": "land",
+      "tags": ["landscapes", "painting", "aerial-view"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 72,
+      "itemId": "82QxzA8QvZyDtxnPKtIGa",
+      "caption": "Rock ledge",
+      "wing": "land",
+      "tags": ["geology", "landscapes"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 273,
+      "itemId": "cyw8TI6cp1g6r_jcXSfrb",
+      "caption": "Island coast from above",
+      "wing": "land",
+      "tags": ["aerial-view", "the-ocean", "travel"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 48,
+      "itemId": "4Xa4Izw6WpSsIaJTnMpXN",
+      "caption": "A bridge into fog",
+      "wing": "land",
+      "tags": ["bridges", "weather", "cinematic"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 84,
+      "itemId": "9n1o-MEOTtba6GuBuudEf",
+      "caption": "A mirror at the water's edge",
+      "wing": "land",
+      "tags": ["installation", "surreal", "serene"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 75,
+      "itemId": "8Ltx1uIc4jLrLmQEkp4JV",
+      "caption": "Steel slabs in the desert",
+      "wing": "land",
+      "tags": ["land-art", "sculpture", "desert", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 389,
+      "itemId": "vK2pR3PlqN8ZPVbO4ULSZ",
+      "caption": "Ripples",
+      "wing": "land",
+      "tags": ["pattern", "sand", "abstract"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 179,
+      "itemId": "Mr-qhNH03Mhcg2Sm6sXnC",
+      "caption": "Fireworks over a dark field",
+      "wing": "land",
+      "tags": ["fire", "night", "light", "festive"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 349,
+      "itemId": "nypyWt6esummSRVTZg4Gm",
+      "caption": "A cinema screen in the mountains",
+      "wing": "land",
+      "tags": ["night", "film", "landscapes", "cinematic"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 323,
+      "itemId": "kBL0CjE3RBlGGhSZRS0hE",
+      "caption": "A ring in the forest, from above",
+      "wing": "land",
+      "tags": ["aerial-view", "architecture", "trees"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 354,
+      "itemId": "phr0K6CVFQz9KAxtKz8Or",
+      "caption": "Lake and wildflowers, watercolour",
+      "wing": "land",
+      "tags": ["watercolor", "landscapes", "pastel-palette"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 310,
+      "itemId": "i5j_gdxDDRccRVTVKedP0",
+      "caption": "A contrail",
+      "wing": "land",
+      "tags": ["clouds", "weather", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 0,
+      "itemId": "-04LyzXR4xSf5_m5gRhFX",
+      "caption": "Earthrise",
+      "wing": "space",
+      "tags": ["moon", "astronomy", "space-exploration", "photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 7,
+      "itemId": "-OE1wfw4Tz8ldqZDTZoCE",
+      "caption": "A nebula",
+      "wing": "space",
+      "tags": ["astronomy", "space-art", "color"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 340,
+      "itemId": "mB_vpwLg8OoVNL_8iwGuH",
+      "caption": "Capsule over the Earth",
+      "wing": "space",
+      "tags": ["space-exploration", "illustration", "retrofuturism"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 269,
+      "itemId": "c6SdOHjuUq9IKDlsSw8U0",
+      "caption": "A city of the future, in an ad",
+      "wing": "space",
+      "tags": ["future-cities", "retrofuturism", "advertising", "architecture"],
+      "roles": ["pair:look-buildings:a"]
+    },
+    {
+      "k": 213,
+      "itemId": "Tc76r6KqjbBlNYQI_8Bq4",
+      "caption": "An ice planet",
+      "wing": "space",
+      "tags": ["space-art", "science-fiction", "painting"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 96,
+      "itemId": "Awi98XJ74UV1WVGkJ-SRj",
+      "caption": "A spacesuit",
+      "wing": "space",
+      "tags": ["astronaut", "space-exploration", "fashion"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 276,
+      "itemId": "dGGC6RtxJFit012uTtwZD",
+      "caption": "Rockets of the world",
+      "wing": "space",
+      "tags": ["spaceship", "diagram", "graphic-design"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 267,
+      "itemId": "bnBDHK4SqY79U2NGwkH1X",
+      "caption": "Starships, painted",
+      "wing": "space",
+      "tags": ["science-fiction", "spaceship", "concept-art"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 420,
+      "itemId": "zrIilDKjZaBHjIJ1E_33F",
+      "caption": "A future city at sunset",
+      "wing": "space",
+      "tags": ["future-cities", "concept-art", "retrofuturism"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 14,
+      "itemId": "09sCm-iEsOGYIaLmySIe-",
+      "caption": "Paperback science fiction",
+      "wing": "space",
+      "tags": ["cover-art", "science-fiction", "books"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 80,
+      "itemId": "9FsnldrMd9y2Ev9QlLmcz",
+      "caption": "Capsules on the moon",
+      "wing": "space",
+      "tags": ["moon", "illustration"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 200,
+      "itemId": "R9SRdwhBsojK_d5g0cczf",
+      "caption": "A flying saucer down",
+      "wing": "space",
+      "tags": ["ufo", "alien", "illustration"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 98,
+      "itemId": "B2l7-1fNwpcnJHgu-cf4v",
+      "caption": "A halo over the city",
+      "wing": "space",
+      "tags": ["ufo", "cinematic", "night"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 395,
+      "itemId": "vzcON1xlDky35zPWoejCi",
+      "caption": "Lt. Starchaser, a playing card",
+      "wing": "space",
+      "tags": ["science-fiction", "games", "retrofuturism", "illustration"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 181,
+      "itemId": "N9RP4rgUc5tU1ur_o-kCI",
+      "caption": "The home computer",
+      "wing": "machines",
+      "tags": ["retro-computing", "technology", "advertising"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 358,
+      "itemId": "pzCtFWJvyNMbXrXe5lTDY",
+      "caption": "A room-sized computer",
+      "wing": "machines",
+      "tags": ["retro-computing", "technology", "advertising"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 416,
+      "itemId": "zBxnLRZQDqp7MhuzsyIpg",
+      "caption": "Room of acoustic horns",
+      "wing": "machines",
+      "tags": ["machines", "sound", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 2,
+      "itemId": "-4_GrhbHjXxzgmGjX82HU",
+      "caption": "A model railway",
+      "wing": "machines",
+      "tags": ["trains", "miniature", "toys"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 135,
+      "itemId": "HmSlILjID_28fSSKnPWP_",
+      "caption": "A television in the desert",
+      "wing": "machines",
+      "tags": ["technology", "industrial-design", "surreal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 38,
+      "itemId": "37NveIQsbltlAa9qeI40t",
+      "caption": "Game cartridge",
+      "wing": "machines",
+      "tags": ["retro-gaming", "games", "graphic-design"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 47,
+      "itemId": "4MbXlniZTlc0JVIJpS8M-",
+      "caption": "The circle of fifths",
+      "wing": "machines",
+      "tags": ["diagram", "music", "mathematics"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 360,
+      "itemId": "qk21Ttu0DCrwrjknofqDp",
+      "caption": "Colour music, a diagram",
+      "wing": "machines",
+      "tags": ["diagram", "music", "color"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 322,
+      "itemId": "k1KHDQv1Cu53Og4iX01Jb",
+      "caption": "A curve of straight lines",
+      "wing": "machines",
+      "tags": ["mathematics", "geometric", "drawing"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 324,
+      "itemId": "kN1eSvLmlqhd8Ou1sslMU",
+      "caption": "The Earth's gravity field",
+      "wing": "machines",
+      "tags": ["physics", "diagram", "science"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 409,
+      "itemId": "y7SUn_xCJtEK72RL1kVRQ",
+      "caption": "A car on the railway",
+      "wing": "machines",
+      "tags": ["cars", "trains", "social-history", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 341,
+      "itemId": "mF7RchccasFq3Z6rUEs0p",
+      "caption": "An airline timetable",
+      "wing": "machines",
+      "tags": ["aviation", "graphic-design", "travel", "mid-century-modern"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 201,
+      "itemId": "RTJaqpIldCmKgqvtzqmu9",
+      "caption": "A rocket on the roadside",
+      "wing": "machines",
+      "tags": ["roadside-americana", "retrofuturism", "cars"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 184,
+      "itemId": "Nno5T1HZj82lqXHsPBg22",
+      "caption": "Art deco facade",
+      "wing": "cities",
+      "tags": ["architecture", "art-deco", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 207,
+      "itemId": "SFFLoE5M0EkdgaqihwQn7",
+      "caption": "A concrete building",
+      "wing": "cities",
+      "tags": ["brutalist", "architecture", "soviet", "black-and-white"],
+      "roles": ["pair:look-buildings:b"]
+    },
+    {
+      "k": 293,
+      "itemId": "fJXGk-w3XQEiBrG58C5JJ",
+      "caption": "Factory town, painted",
+      "wing": "cities",
+      "tags": ["urban-landscape", "painting"],
+      "roles": ["pair:medium-city:b"]
+    },
+    {
+      "k": 331,
+      "itemId": "lCn0VjCHwgKGVR9f8Eoln",
+      "caption": "Highways at night",
+      "wing": "cities",
+      "tags": ["urban-landscape", "night", "aerial-view"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 313,
+      "itemId": "j9tTXFTijWGmMKVJjQKWn",
+      "caption": "Concrete stairwell",
+      "wing": "cities",
+      "tags": ["brutalist", "architecture", "minimal", "light"],
+      "roles": ["pair:look-rooms:b"]
+    },
+    {
+      "k": 315,
+      "itemId": "jGW_AnoWspJeJ_zgyAEv0",
+      "caption": "A wide avenue",
+      "wing": "cities",
+      "tags": ["urban-landscape", "street-photography", "soviet"],
+      "roles": ["pair:medium-city:a"]
+    },
+    {
+      "k": 76,
+      "itemId": "8QoDDBafx_tvqTC8nySXZ",
+      "caption": "Neon cinema",
+      "wing": "cities",
+      "tags": ["neon", "night", "film"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 160,
+      "itemId": "KgB7qay8ByylgIo3NOAzo",
+      "caption": "A stair tower on a pink wall",
+      "wing": "cities",
+      "tags": ["towers", "architecture", "minimal", "pastel-palette"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 121,
+      "itemId": "E7CtPI1WSiFp3HvGtVIwj",
+      "caption": "Marquee: now showing nothing",
+      "wing": "cities",
+      "tags": ["roadside-americana", "humor", "typography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 168,
+      "itemId": "L__lFjxtWMKzJYE99l0D-",
+      "caption": "Gas station under the redwoods",
+      "wing": "cities",
+      "tags": ["roadside-americana", "travel", "nostalgic"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 229,
+      "itemId": "W2ex1gAL511SDr5JSVaaM",
+      "caption": "Lit windows",
+      "wing": "cities",
+      "tags": ["night", "urban-landscape", "melancholy"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 368,
+      "itemId": "t6CoYs1J9gQpR9gmLs9jv",
+      "caption": "A stairwell at night",
+      "wing": "cities",
+      "tags": ["cinematic", "night", "architecture"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 153,
+      "itemId": "Jt0aWcTo2W-SW3fB1EJS9",
+      "caption": "A building with a face",
+      "wing": "cities",
+      "tags": ["street-art", "murals", "humor"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 305,
+      "itemId": "hT2LEOpRywxydiA-BAtBs",
+      "caption": "A green city of terraces",
+      "wing": "cities",
+      "tags": ["utopias", "illustration", "color"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 332,
+      "itemId": "lDrTFVdF4RjJLwUxLKacu",
+      "caption": "Radikal Modern, a catalogue",
+      "wing": "cities",
+      "tags": ["brutalist", "architecture", "graphic-design", "books"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 397,
+      "itemId": "wC63kmgnv4nlE5_OyfDF3",
+      "caption": "Street at night",
+      "wing": "cities",
+      "tags": ["night", "urban-landscape", "melancholy", "cinematic"],
+      "roles": ["pair:look-roads:a"]
+    },
+    {
+      "k": 78,
+      "itemId": "8hKpHw5bk7OHdVjR6HFmg",
+      "caption": "A straight road through the trees",
+      "wing": "cities",
+      "tags": ["travel", "landscapes"],
+      "roles": ["pair:look-roads:b"]
+    },
+    {
+      "k": 353,
+      "itemId": "pbXjF_5yzfcoOedthWHk6",
+      "caption": "At the roadside store",
+      "wing": "cities",
+      "tags": [
+        "documentary-photography",
+        "roadside-americana",
+        "black-and-white",
+        "social-history"
+      ],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 367,
+      "itemId": "t5tDjxo4_2rKiOJpAhtvs",
+      "caption": "Subway platform, red balloons",
+      "wing": "cities",
+      "tags": ["cinematic", "balloons", "urban-landscape"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 188,
+      "itemId": "OlfqWUqKjJrBh_N1FJgHU",
+      "caption": "Studio portrait",
+      "wing": "people",
+      "tags": ["portraiture", "portrait-photography", "social-history"],
+      "roles": ["pair:medium-faces:a"]
+    },
+    {
+      "k": 247,
+      "itemId": "ZKuZAEa-f8BlE2Q-cYtKE",
+      "caption": "Women at a market",
+      "wing": "people",
+      "tags": ["markets", "documentary-photography", "textiles", "travel"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 125,
+      "itemId": "Ehdqa-YAKI9kUdzw8lFRw",
+      "caption": "A face in the snow",
+      "wing": "people",
+      "tags": ["portraits", "winter", "soviet", "graphic-design"],
+      "roles": ["pair:look-faces:a"]
+    },
+    {
+      "k": 152,
+      "itemId": "Jh-KXmYXLSMOZg0aJ_vxv",
+      "caption": "Couple dancing",
+      "wing": "people",
+      "tags": ["dance", "black-and-white", "photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 195,
+      "itemId": "PkHan-cuWglwe9iYAZxvS",
+      "caption": "Victorian gentleman",
+      "wing": "people",
+      "tags": ["portraiture", "social-history", "portrait-photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 240,
+      "itemId": "Y1-4ILxGvOXbEYmCvQFec",
+      "caption": "Portrait with glasses, illustrated",
+      "wing": "people",
+      "tags": ["portraits", "illustration", "color"],
+      "roles": ["pair:medium-faces:b", "pair:look-faces:b"]
+    },
+    {
+      "k": 108,
+      "itemId": "CN4xAcs0yNhO6Khlkq8N2",
+      "caption": "Two men at work",
+      "wing": "people",
+      "tags": [
+        "work",
+        "documentary-photography",
+        "portraits",
+        "black-and-white"
+      ],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 120,
+      "itemId": "Dd8UFr80YEYNPp-p6ijGU",
+      "caption": "Potter at the wheel",
+      "wing": "people",
+      "tags": ["craftspeople", "ceramics", "work"],
+      "roles": ["card:potter"]
+    },
+    {
+      "k": 50,
+      "itemId": "4w766DS7NqoZfpmnpHuvk",
+      "caption": "A close look",
+      "wing": "people",
+      "tags": ["craftspeople", "work"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 136,
+      "itemId": "HwYFawJ4YS44IwQKNiZpU",
+      "caption": "Roller skaters",
+      "wing": "people",
+      "tags": ["sport", "dance", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 22,
+      "itemId": "1azexwneU4GrrN83MbPYs",
+      "caption": "Young man in a doorway",
+      "wing": "people",
+      "tags": ["portraits", "street-photography", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 23,
+      "itemId": "1hQ5zXZ7AETgu1RSwOnHw",
+      "caption": "Musician with a guitar",
+      "wing": "people",
+      "tags": ["music", "portraits", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 412,
+      "itemId": "ybI72pUqJKk074_a2ITfh",
+      "caption": "Posing in a field",
+      "wing": "people",
+      "tags": ["social-history", "portraits", "vernacular-photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 150,
+      "itemId": "JGFJCLXU-CdZV-IAb1IFK",
+      "caption": "A woman, reflected",
+      "wing": "people",
+      "tags": ["portraiture", "cinematic", "surreal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 378,
+      "itemId": "twlex-6YXk24icODkhLcb",
+      "caption": "Child in an embroidered robe",
+      "wing": "people",
+      "tags": ["portraiture", "painting", "ancient-china"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 88,
+      "itemId": "9tJR2qv-KnicXdiefiK17",
+      "caption": "At the mirror",
+      "wing": "people",
+      "tags": ["mirrors", "fashion", "social-history"],
+      "roles": ["card:wedding"]
+    },
+    {
+      "k": 292,
+      "itemId": "f4yQ-02ZViX_i70KyIqu2",
+      "caption": "Evening dress",
+      "wing": "people",
+      "tags": ["glamour", "fashion", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 156,
+      "itemId": "KIqxacpKQNettdLbjyC4T",
+      "caption": "A crowded room",
+      "wing": "people",
+      "tags": ["documentary-photography", "social-history", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 399,
+      "itemId": "wWSZLecAwPPiCyqYEsDQ5",
+      "caption": "A family, carved in stone",
+      "wing": "myth",
+      "tags": ["ancient-egypt", "sculpture", "ancient-history"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 280,
+      "itemId": "dg1ZOSWywhlY2vT3obX6d",
+      "caption": "Seated figure, ancient",
+      "wing": "myth",
+      "tags": ["ancient-history", "sculpture"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 178,
+      "itemId": "Mh84lQBvx6xuLtBDf5EFx",
+      "caption": "A ritual mask",
+      "wing": "myth",
+      "tags": ["masks", "ritual", "folk-art"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 375,
+      "itemId": "tQXlOMyVgNs2f4RLcZlWm",
+      "caption": "A girl and the fairies",
+      "wing": "myth",
+      "tags": ["fairy-tales", "vernacular-photography", "folklore"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 268,
+      "itemId": "c2Jf0xkTXwj7p3BkSUF2U",
+      "caption": "Spires of a fantasy city",
+      "wing": "myth",
+      "tags": ["fantasy", "illustration", "surreal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 235,
+      "itemId": "XXvlNvafRAO6QxC6kB-9v",
+      "caption": "Skeleton in a tiled room",
+      "wing": "myth",
+      "tags": ["death", "surreal", "painting"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 407,
+      "itemId": "x_q-lBeGImLBSukPIQ7xQ",
+      "caption": "Death calls, an engraving",
+      "wing": "myth",
+      "tags": ["death", "engraving", "eerie"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 283,
+      "itemId": "e7dxR5j5Hg5uMf9GpAzi4",
+      "caption": "Blue being, starry hand",
+      "wing": "myth",
+      "tags": ["science-fiction", "animation", "surreal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 109,
+      "itemId": "CNTqx0bLs_5t46xwp4Bwm",
+      "caption": "A stone head, drawn",
+      "wing": "myth",
+      "tags": ["ancient-history", "drawing"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 44,
+      "itemId": "3ySzy4JBKqdlp1k4dDUGI",
+      "caption": "Vessel with a face",
+      "wing": "myth",
+      "tags": ["pre-columbian", "ceramics", "ancient-history"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 374,
+      "itemId": "tPmMHZM57_jqlie4Fxn_H",
+      "caption": "Painted vessel",
+      "wing": "myth",
+      "tags": ["pre-columbian", "ceramics", "pattern"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 49,
+      "itemId": "4l6ujGzsFXlBlsyFYjd8E",
+      "caption": "Painted jar, prehistoric",
+      "wing": "myth",
+      "tags": ["ancient-history", "ceramics", "pattern"],
+      "roles": ["pair:look-pots:a"]
+    },
+    {
+      "k": 62,
+      "itemId": "6PvHuM_vUdDApvUwHi777",
+      "caption": "A garden of hearts, medieval",
+      "wing": "myth",
+      "tags": ["medieval", "painting", "surreal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 356,
+      "itemId": "pxrPJVbYn6KAOp3YNT_R5",
+      "caption": "Ship of fools, a woodcut",
+      "wing": "myth",
+      "tags": ["woodcut", "books", "social-history"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 390,
+      "itemId": "vW1jykUWFuY2MU3UsygXm",
+      "caption": "Monster anatomy",
+      "wing": "myth",
+      "tags": ["monster", "illustration", "humor", "japan"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 24,
+      "itemId": "1vJ2qvCsyuqVWa5QNvahC",
+      "caption": "A shrine of trinkets",
+      "wing": "myth",
+      "tags": ["religious-art", "kitsch", "folk-art"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 406,
+      "itemId": "xETwcUXg_LNBOKI-ZIcFc",
+      "caption": "Astarte",
+      "wing": "myth",
+      "tags": ["mythology", "art-nouveau", "graphic-design"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 86,
+      "itemId": "9qDbz_n3pvEtWSYAPNjj-",
+      "caption": "Muscle figure, an anatomy engraving",
+      "wing": "body",
+      "tags": ["anatomy", "engraving", "medicine"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 106,
+      "itemId": "CAmeSvmqHN8pzcpBUds4q",
+      "caption": "Neurons, drawn by hand",
+      "wing": "body",
+      "tags": ["neuroscience", "scientific-illustration", "drawing"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 197,
+      "itemId": "QTKNl10wPVlAuMqEWnOs-",
+      "caption": "An eye in a field of light",
+      "wing": "body",
+      "tags": ["consciousness", "psychedelic"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 253,
+      "itemId": "_qrYreq_cpYpK1f93ZYSZ",
+      "caption": "Branching vessels",
+      "wing": "body",
+      "tags": ["anatomy", "sculpture", "medicine"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 43,
+      "itemId": "3jlPT0jtclQwfm6FKB3oy",
+      "caption": "A head in the clouds",
+      "wing": "body",
+      "tags": ["dreams", "surreal", "painting", "emotions"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 97,
+      "itemId": "AyydJWIPU1cGbR8iu15Vj",
+      "caption": "The examination, a caricature",
+      "wing": "body",
+      "tags": ["medicine", "caricature", "humor"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 361,
+      "itemId": "rAF2szpShsdprHppt6owF",
+      "caption": "A skeleton, engraved",
+      "wing": "body",
+      "tags": ["anatomy", "natural-history", "engraving"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 299,
+      "itemId": "fsrP6KDzmOZbX7B3_OWbU",
+      "caption": "A plate of eyes",
+      "wing": "body",
+      "tags": ["surreal", "sculpture"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 202,
+      "itemId": "RUK-EWorjK_O7whDcnA6f",
+      "caption": "A heart between lips",
+      "wing": "body",
+      "tags": ["love", "sculpture", "humor"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 57,
+      "itemId": "5gHnHmKxbJa7YuXF4h4yM",
+      "caption": "A man at a desk",
+      "wing": "body",
+      "tags": ["melancholy", "interiors", "serene"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 56,
+      "itemId": "5d1KzPg2gpSZo9R2HwxjN",
+      "caption": "A wave of glass",
+      "wing": "made",
+      "tags": ["glass", "sculpture", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 326,
+      "itemId": "kUsbHAqsMOZmiWC0XWlmc",
+      "caption": "Concentric bowl",
+      "wing": "made",
+      "tags": ["ceramics", "minimal", "pattern"],
+      "roles": ["pair:look-pots:b"]
+    },
+    {
+      "k": 314,
+      "itemId": "jAdXpDUaZeCaDmd-9Yw-K",
+      "caption": "A ceramic geode",
+      "wing": "made",
+      "tags": ["ceramics", "sculpture", "color"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 42,
+      "itemId": "3f_b9i5-XgmBl22c2z7dy",
+      "caption": "Tumbling-block quilt",
+      "wing": "made",
+      "tags": ["quilts", "textiles", "pattern", "optical-illusion"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 107,
+      "itemId": "CIBo7eWnrD2WyifrGeK1m",
+      "caption": "Folded metal",
+      "wing": "made",
+      "tags": ["metal", "sculpture"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 169,
+      "itemId": "La-_Sxq0KcSEwGXM2RD3a",
+      "caption": "Ceramic grasses",
+      "wing": "made",
+      "tags": ["ceramics", "color", "whimsical"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 257,
+      "itemId": "a_gAm0G01CHvH9IoMvqbH",
+      "caption": "Pearls",
+      "wing": "made",
+      "tags": ["jewelry", "delicate"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 177,
+      "itemId": "Mga8fGnQA4eKAw91CGKtx",
+      "caption": "An engraved ring",
+      "wing": "made",
+      "tags": ["jewelry", "social-history"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 148,
+      "itemId": "J4fTMlMjy42kBk4uOEpLx",
+      "caption": "Painted clay bull",
+      "wing": "made",
+      "tags": ["folk-art", "toys", "ceramics"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 137,
+      "itemId": "HxIqYoKcieHnPJYCeV41A",
+      "caption": "Porcelain figure",
+      "wing": "made",
+      "tags": ["folk-art", "porcelain", "russia"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 415,
+      "itemId": "zAVhW4w2nChToc41-100f",
+      "caption": "A painted head",
+      "wing": "made",
+      "tags": ["ceramics", "folk-art", "ornate"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 381,
+      "itemId": "uZNEmgzCIS_ralLv6ckqf",
+      "caption": "Embroidered bird",
+      "wing": "made",
+      "tags": ["embroidery", "birds", "folk-art"],
+      "roles": ["pair:medium-birds:b"]
+    },
+    {
+      "k": 364,
+      "itemId": "sMNB8ZSsHqHgr-twdV5gk",
+      "caption": "A white chair",
+      "wing": "made",
+      "tags": ["furniture", "industrial-design", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 339,
+      "itemId": "lwURoobPxWLwMa1b-L5-b",
+      "caption": "Tulip vase",
+      "wing": "made",
+      "tags": ["ceramics", "art-nouveau"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 352,
+      "itemId": "pOHi3tJAJlTH57P75ZbH3",
+      "caption": "A melting cake, in clay",
+      "wing": "made",
+      "tags": ["sculpture", "color", "whimsical"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 103,
+      "itemId": "BcUHkNix90jSpeaohU62G",
+      "caption": "Badges",
+      "wing": "made",
+      "tags": ["soviet", "graphic-design", "collecting"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 138,
+      "itemId": "I1cZfzAm5_7fY244PXigQ",
+      "caption": "An impossible ring, in wood",
+      "wing": "made",
+      "tags": ["optical-illusion", "wood"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 327,
+      "itemId": "kaaRUWqTCLUWHoUtDtwFA",
+      "caption": "A box of specimens",
+      "wing": "made",
+      "tags": ["collecting", "still-life", "natural-history"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 173,
+      "itemId": "Lhj4ct9LnlodydPQgiLdQ",
+      "caption": "Ramen on a tiled plate",
+      "wing": "everyday",
+      "tags": ["food", "ceramics"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1,
+      "itemId": "-24D-rExdFPTUDkSnTMhC",
+      "caption": "A cup with a curl",
+      "wing": "everyday",
+      "tags": ["still-life", "surreal", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 336,
+      "itemId": "lRMnPXDFXDLIbKEGYk0yB",
+      "caption": "A plum",
+      "wing": "everyday",
+      "tags": ["fruit", "still-life"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 243,
+      "itemId": "Yh-p2FgAj9I0vlTSVTB2l",
+      "caption": "Things, arranged",
+      "wing": "everyday",
+      "tags": ["still-life", "collecting", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 252,
+      "itemId": "_ekNCXDiCOWDgZIOoAwCk",
+      "caption": "Cosmetics and leaves",
+      "wing": "everyday",
+      "tags": ["beauty", "still-life"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 300,
+      "itemId": "g9eGtPNGo8vcelV2WTNtu",
+      "caption": "Toiletries, engraved",
+      "wing": "everyday",
+      "tags": ["packaging", "engraving", "humor"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 297,
+      "itemId": "fYGEVsWO_6djALOM2UoWm",
+      "caption": "Spoons",
+      "wing": "everyday",
+      "tags": ["still-life", "industrial-design", "food"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 376,
+      "itemId": "tfoB8BlB8YZyM3g0sPdgy",
+      "caption": "A lamp and a dark window",
+      "wing": "everyday",
+      "tags": ["interiors", "minimal", "melancholy"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 418,
+      "itemId": "zV5oMhu8pPHlYxFSFNj_H",
+      "caption": "A shop made of felt",
+      "wing": "everyday",
+      "tags": ["shops", "textiles", "humor", "color"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 29,
+      "itemId": "2XbUtfqcpCa2REg9nDH-n",
+      "caption": "Ice cream shop",
+      "wing": "everyday",
+      "tags": ["shops", "toys", "nostalgic", "color"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 110,
+      "itemId": "CfBEV5XR8YmI-IICnscIn",
+      "caption": "A living room, 1970s",
+      "wing": "everyday",
+      "tags": ["interiors", "mid-century-modern", "color"],
+      "roles": ["pair:look-rooms:a"]
+    },
+    {
+      "k": 333,
+      "itemId": "lEFvYUoXq7USpCZlqSEIA",
+      "caption": "Decorative art in modern interiors",
+      "wing": "everyday",
+      "tags": ["interiors", "mid-century-modern", "books"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 377,
+      "itemId": "tl_dQH2RjwWa0HESTQbQF",
+      "caption": "Balloons and cacti",
+      "wing": "everyday",
+      "tags": ["still-life", "balloons", "minimal", "humor"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 405,
+      "itemId": "xCAYYH1eqNU_reAUf8Ny6",
+      "caption": "Airmail",
+      "wing": "everyday",
+      "tags": ["letters-and-diaries", "paper", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 414,
+      "itemId": "z2itO0C-g4XgE3uk8pPis",
+      "caption": "A tomato, framed",
+      "wing": "everyday",
+      "tags": ["still-life", "surreal", "ornate"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 45,
+      "itemId": "47feLDizCorOSidAu21hP",
+      "caption": "Unspooled tape",
+      "wing": "everyday",
+      "tags": ["music", "still-life", "technology"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 90,
+      "itemId": "ADdkLwusC2yzBQS1PJYUq",
+      "caption": "A samovar",
+      "wing": "everyday",
+      "tags": ["drinks", "metal", "russia"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 13,
+      "itemId": "09GWlDns4ZlWal_UPtwRc",
+      "caption": "A band on stage",
+      "wing": "stage",
+      "tags": ["music", "black-and-white", "photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 369,
+      "itemId": "t8F7T2Mtt7RH1_MUjVaXk",
+      "caption": "Playbill: Ira Aldridge",
+      "wing": "stage",
+      "tags": ["theatre", "typography", "social-history"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 117,
+      "itemId": "DSbvSWBr3n-ZXR3JLg5FB",
+      "caption": "Filming a musician",
+      "wing": "stage",
+      "tags": ["film", "musical-instruments", "social-history"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 215,
+      "itemId": "Ti8TbLUqq9orBYL-Xqyub",
+      "caption": "A jukebox poster",
+      "wing": "stage",
+      "tags": ["music", "advertising", "poster-art"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 171,
+      "itemId": "LgosRVy53TypTWu61nlgu",
+      "caption": "Saxophonist, in charcoal",
+      "wing": "stage",
+      "tags": ["music", "drawing"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 105,
+      "itemId": "CAIq_Ckz74JeAWKaLjmf3",
+      "caption": "A spy-film poster",
+      "wing": "stage",
+      "tags": ["film", "poster-art"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 362,
+      "itemId": "sC9ohRLvauYgE_nq551gJ",
+      "caption": "The comedians, a poster",
+      "wing": "stage",
+      "tags": ["theatre", "poster-art", "humor"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 392,
+      "itemId": "vaMoJ_0VmpFcjyJ5xK7_1",
+      "caption": "The wall of death",
+      "wing": "stage",
+      "tags": ["circus", "social-history", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 385,
+      "itemId": "v-SOdwtYBE-kNY6_2JEgW",
+      "caption": "Shadow puppets",
+      "wing": "stage",
+      "tags": ["puppetry", "animation"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 113,
+      "itemId": "Ctw378v9PKtqUapDHdc4T",
+      "caption": "A psychedelic album cover",
+      "wing": "stage",
+      "tags": ["album-art", "psychedelic", "music"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 134,
+      "itemId": "HQ0lcBJWxamTsR7AcQtDU",
+      "caption": "Space is the place",
+      "wing": "stage",
+      "tags": ["music", "poster-art", "space-art"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 176,
+      "itemId": "MNFHs2ad9r-4JoL7ibnE8",
+      "caption": "A television in a dark room",
+      "wing": "stage",
+      "tags": ["television", "black-and-white", "melancholy"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 46,
+      "itemId": "4BEmLlR5X9jtPTrwVQPJl",
+      "caption": "A dancer",
+      "wing": "stage",
+      "tags": ["dance", "black-and-white", "photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 94,
+      "itemId": "AhUlC0k8gN8D53Kl-WwMI",
+      "caption": "A title page",
+      "wing": "everyday",
+      "tags": ["books", "typography", "ancient-egypt"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 161,
+      "itemId": "KswudSkyxQlc6RoVlpqt1",
+      "caption": "A writer's manuscript",
+      "wing": "everyday",
+      "tags": ["manuscripts", "handwriting", "literature"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 278,
+      "itemId": "dP5rR8lNfKlzPkDujZBdZ",
+      "caption": "An old book cover",
+      "wing": "everyday",
+      "tags": ["books", "cover-art"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 64,
+      "itemId": "6jUGo9g3xZiNfxjG7DwFi",
+      "caption": "Slogans and posters",
+      "wing": "people",
+      "tags": ["soviet-propaganda", "typography", "poster-art"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 238,
+      "itemId": "XknUB0UmMepNoXAZjJTkA",
+      "caption": "Target, in bold colour",
+      "wing": null,
+      "tags": ["geometric", "color", "abstract"],
+      "roles": ["pair:look-circles:a"]
+    },
+    {
+      "k": 246,
+      "itemId": "ZDpdooiibO2qbvrbRT5SP",
+      "caption": "Rings, softly painted",
+      "wing": null,
+      "tags": ["abstract", "pastel-palette", "delicate"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 396,
+      "itemId": "w87t0cCN9AEYQkxUCsybZ",
+      "caption": "Pink pattern",
+      "wing": null,
+      "tags": ["pattern", "color", "abstract"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 400,
+      "itemId": "w_3iG73oj196jHEiiHEYm",
+      "caption": "A scribble",
+      "wing": null,
+      "tags": ["abstract", "drawing", "ink"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 365,
+      "itemId": "sbjuejFaFWftuO_Sq0twV",
+      "caption": "Sacred geometry",
+      "wing": null,
+      "tags": ["geometric", "black-and-white", "mathematics"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 384,
+      "itemId": "us_MatbXF5uaiMdO0o10w",
+      "caption": "A pool of colour",
+      "wing": null,
+      "tags": ["abstract", "color", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 11,
+      "itemId": "-qUHZrX2DuJzPeCVPKRFD",
+      "caption": "Patterned mandala",
+      "wing": null,
+      "tags": ["pattern", "psychedelic", "color"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 83,
+      "itemId": "9hlMyIO9QTKkAdJ-wQ2tB",
+      "caption": "Cut paper",
+      "wing": null,
+      "tags": ["collage", "abstract"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 114,
+      "itemId": "CxcEQYE161U-JyToKs9QC",
+      "caption": "Collage with faces",
+      "wing": null,
+      "tags": ["collage", "mixed-media"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 67,
+      "itemId": "7AskST5FPZ93XRI7AXva7",
+      "caption": "A geometric figure",
+      "wing": null,
+      "tags": ["geometric", "painting", "surreal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 286,
+      "itemId": "eMve5v6ySNLnD8qTK9QkT",
+      "caption": "Molten colour",
+      "wing": null,
+      "tags": ["psychedelic", "color", "abstract"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1271,
+      "itemId": "YZE8N4pqnPKLAHx-gcMvx",
+      "caption": "Spoonbill, in an old book",
+      "wing": "creatures",
+      "tags": ["birds", "natural-history", "scientific-illustration"],
+      "roles": ["wing:creatures:door"]
+    },
+    {
+      "k": 1119,
+      "itemId": "EjQX4N751dy62atIP7mhw",
+      "caption": "Boar, a linocut",
+      "wing": "creatures",
+      "tags": ["animals", "woodcut", "black-and-white"],
+      "roles": ["wing:creatures:playoff"]
+    },
+    {
+      "k": 1189,
+      "itemId": "N4BXjv3gWpXEIrj1lTg6l",
+      "caption": "A cat on a book cover",
+      "wing": "creatures",
+      "tags": ["cats", "illustration", "typography"],
+      "roles": ["wing:creatures:spare"]
+    },
+    {
+      "k": 1062,
+      "itemId": "7-GY-JGOBaymWuKG8Tsjz",
+      "caption": "Bull with an eye, painted",
+      "wing": "creatures",
+      "tags": ["animals", "surreal", "painting"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1216,
+      "itemId": "QwYx95ksIkcHRKhVvwJXt",
+      "caption": "Mushrooms on the forest floor",
+      "wing": "growing",
+      "tags": ["mushrooms", "nature-photography"],
+      "roles": ["wing:growing:door"]
+    },
+    {
+      "k": 1042,
+      "itemId": "5No3MfjZSNNzvUqUiErSk",
+      "caption": "Mushrooms, a natural-history plate",
+      "wing": "growing",
+      "tags": [
+        "mushrooms",
+        "scientific-illustration",
+        "botanical-illustration"
+      ],
+      "roles": ["wing:growing:playoff", "pair:medium-mushrooms:b"]
+    },
+    {
+      "k": 1220,
+      "itemId": "RgCrtFnIPApefa69Prsoc",
+      "caption": "Seedlings",
+      "wing": "growing",
+      "tags": ["plants", "minimal"],
+      "roles": ["wing:growing:spare"]
+    },
+    {
+      "k": 1160,
+      "itemId": "JynOpBYlvwgIHnzpx98h3",
+      "caption": "A field of flowers from above",
+      "wing": "growing",
+      "tags": ["flowers", "aerial-view", "pattern"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1247,
+      "itemId": "WWaWFg1d1OGZSQMeLrmAe",
+      "caption": "An orchid",
+      "wing": "growing",
+      "tags": ["flowers", "nature-photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1270,
+      "itemId": "YPhOyC9Gpi4dP7o3RVpgd",
+      "caption": "A pressed grass",
+      "wing": "growing",
+      "tags": ["botany", "scientific-illustration", "collecting"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1263,
+      "itemId": "XeRbBO2P6KsS2lUy_q33Y",
+      "caption": "Pink mushrooms",
+      "wing": "growing",
+      "tags": ["mushrooms", "color", "nature-photography"],
+      "roles": ["pair:medium-mushrooms:a"]
+    },
+    {
+      "k": 1296,
+      "itemId": "ajCJ-RmqG9X-wvodXsrdL",
+      "caption": "Parasol mushrooms",
+      "wing": "growing",
+      "tags": ["mushrooms", "delicate"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1269,
+      "itemId": "YJEnoe265W7jAUGCraTwV",
+      "caption": "Moss on a trunk",
+      "wing": "growing",
+      "tags": ["trees", "whimsical", "nature-photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1259,
+      "itemId": "XLHqzGJ3ut_fQXPkftFUA",
+      "caption": "Trees under pink clouds",
+      "wing": "growing",
+      "tags": ["trees", "naive-art", "color"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1245,
+      "itemId": "WRIL5IguYPT2LNnB6JGlB",
+      "caption": "Roses",
+      "wing": "growing",
+      "tags": ["flowers", "romantic", "pastel-palette"],
+      "roles": ["card:romance"]
+    },
+    {
+      "k": 1107,
+      "itemId": "DREJACI4mKwCUbf7cMSBD",
+      "caption": "A river through the forest, from above",
+      "wing": "land",
+      "tags": ["aerial-view", "landscapes", "water"],
+      "roles": ["wing:land:door"]
+    },
+    {
+      "k": 1223,
+      "itemId": "SF9l7K_hjlpedAGk9Yu8b",
+      "caption": "Rocks in a still sea, painted",
+      "wing": "land",
+      "tags": ["landscapes", "painting", "surreal", "serene"],
+      "roles": ["wing:land:playoff"]
+    },
+    {
+      "k": 1244,
+      "itemId": "WR-tZFoyYFk0tTZT_kp9X",
+      "caption": "A river valley, painted",
+      "wing": "land",
+      "tags": ["landscapes", "painting"],
+      "roles": ["wing:land:spare"]
+    },
+    {
+      "k": 1172,
+      "itemId": "KxIobBDqQYyqqse_r5c1e",
+      "caption": "A red rock plain",
+      "wing": "land",
+      "tags": ["desert", "geology"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1231,
+      "itemId": "TYWQgUrA0Sii3HtZAMV7k",
+      "caption": "Mountains under the Milky Way",
+      "wing": "land",
+      "tags": ["night", "mountains", "astronomy"],
+      "roles": ["card:pole"]
+    },
+    {
+      "k": 1235,
+      "itemId": "UYGhht60lZlAlEgHwl9AK",
+      "caption": "A rainbow contrail",
+      "wing": "land",
+      "tags": ["clouds", "color", "aviation"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1061,
+      "itemId": "6rOCE2-0WATR3EUf88dSv",
+      "caption": "A dark wave",
+      "wing": "land",
+      "tags": ["the-ocean", "night"],
+      "roles": ["card:keeper"]
+    },
+    {
+      "k": 1212,
+      "itemId": "QJ4E9QyHk-mWUYlmkI2MN",
+      "caption": "Saturn over the desert",
+      "wing": "space",
+      "tags": ["space-art", "painting", "retrofuturism"],
+      "roles": ["wing:space:door"]
+    },
+    {
+      "k": 1272,
+      "itemId": "YeQItjwW_EqS_OkVs20vA",
+      "caption": "Cosmonautics Day postcard",
+      "wing": "space",
+      "tags": ["space-exploration", "soviet", "postcard"],
+      "roles": ["wing:space:playoff"]
+    },
+    {
+      "k": 1291,
+      "itemId": "_y4Jgj3t1JEWZq2Elr9t9",
+      "caption": "A probe among the moons",
+      "wing": "space",
+      "tags": ["space-art", "illustration"],
+      "roles": ["wing:space:spare"]
+    },
+    {
+      "k": 1004,
+      "itemId": "-eYLNUIYZmTlZcvXTe5VB",
+      "caption": "Shuttle above the clouds, illustrated",
+      "wing": "space",
+      "tags": ["spaceship", "illustration"],
+      "roles": ["pair:medium-capsule:b"]
+    },
+    {
+      "k": 1191,
+      "itemId": "NDDur_4wSaZvuJ0FKoNra",
+      "caption": "A capsule in orbit",
+      "wing": "space",
+      "tags": ["space-exploration", "photography"],
+      "roles": ["pair:medium-capsule:a"]
+    },
+    {
+      "k": 1002,
+      "itemId": "-cerBO6rHY71y5Yp5RWt4",
+      "caption": "A flying city",
+      "wing": "space",
+      "tags": ["future-cities", "science-fiction", "concept-art"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1057,
+      "itemId": "6o9cvXgd-msoHgjo36GLV",
+      "caption": "A control room",
+      "wing": "machines",
+      "tags": ["technology", "retro-computing", "industrial"],
+      "roles": ["wing:machines:door"]
+    },
+    {
+      "k": 1165,
+      "itemId": "KVXIqkuQfn86c8LsIq6gp",
+      "caption": "A music box mechanism",
+      "wing": "machines",
+      "tags": ["machines", "sound", "minimal"],
+      "roles": ["wing:machines:playoff"]
+    },
+    {
+      "k": 1144,
+      "itemId": "HquhC_niKP59im1sDfAMm",
+      "caption": "Engineer at work",
+      "wing": "machines",
+      "tags": ["craftspeople", "machines"],
+      "roles": ["wing:machines:spare"]
+    },
+    {
+      "k": 1101,
+      "itemId": "CGinQb4Gr-hIz_UA8gM5p",
+      "caption": "A telescope advertisement",
+      "wing": "machines",
+      "tags": ["scientific-instruments", "advertising", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1081,
+      "itemId": "96fKIt7NgxBtL1C9f711q",
+      "caption": "A computer-run factory, diagrammed",
+      "wing": "machines",
+      "tags": ["retro-computing", "diagram", "industrial"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1280,
+      "itemId": "ZVtdqm5EIcPgCsjOQ7gEG",
+      "caption": "A night street after rain",
+      "wing": "cities",
+      "tags": ["night", "street-photography", "black-and-white"],
+      "roles": ["wing:cities:door"]
+    },
+    {
+      "k": 1221,
+      "itemId": "Ru__jctUGMycxTROixyAy",
+      "caption": "A teapot-shaped gas station",
+      "wing": "cities",
+      "tags": ["roadside-americana", "kitsch", "humor"],
+      "roles": ["wing:cities:playoff"]
+    },
+    {
+      "k": 1186,
+      "itemId": "MdJZKiOmOnnIPw4dVOc6a",
+      "caption": "A tower of frames, painted",
+      "wing": "cities",
+      "tags": ["constructivism", "towers", "painting"],
+      "roles": ["wing:cities:spare"]
+    },
+    {
+      "k": 1249,
+      "itemId": "WfStcSuie7zYAq2k_iVDZ",
+      "caption": "An alley in the rain",
+      "wing": "cities",
+      "tags": ["social-history", "urban-landscape", "black-and-white"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1284,
+      "itemId": "ZvfNbekfK7vsnYzeVM7KZ",
+      "caption": "A dinosaur-shaped building",
+      "wing": "cities",
+      "tags": ["roadside-americana", "humor", "architecture"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1066,
+      "itemId": "7X2ercq7RweLaBW89gqkT",
+      "caption": "Apartment block in the snow",
+      "wing": "cities",
+      "tags": ["brutalist", "soviet", "winter", "architecture"],
+      "roles": ["card:boring"]
+    },
+    {
+      "k": 1167,
+      "itemId": "Kb49plyPUHY9hDWTBV5aS",
+      "caption": "An A-frame house",
+      "wing": "cities",
+      "tags": ["houses", "mid-century-modern"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1285,
+      "itemId": "_7TJaaDCqvpqKzHp0ScRA",
+      "caption": "A saucer-shaped house",
+      "wing": "cities",
+      "tags": ["houses", "retrofuturism", "mid-century-modern"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1087,
+      "itemId": "AUGmv7sb1npWeLqLXn8cP",
+      "caption": "The edge of the road",
+      "wing": "cities",
+      "tags": ["minimal", "travel"],
+      "roles": ["card:marathon"]
+    },
+    {
+      "k": 1009,
+      "itemId": "00pv441xJEk15TTF4D62v",
+      "caption": "Girl in a shawl, an old portrait",
+      "wing": "people",
+      "tags": ["portrait-photography", "portraiture", "social-history"],
+      "roles": ["wing:people:door"]
+    },
+    {
+      "k": 1182,
+      "itemId": "MIWOf3DgNYoB2h7FJdq1b",
+      "caption": "On the street, 1930s",
+      "wing": "people",
+      "tags": ["street-photography", "social-history", "black-and-white"],
+      "roles": ["wing:people:playoff"]
+    },
+    {
+      "k": 1230,
+      "itemId": "TP-WggKBefc-qtTGyTdvr",
+      "caption": "Woman in a red dress",
+      "wing": "people",
+      "tags": ["portraits", "fashion", "color"],
+      "roles": ["wing:people:spare"]
+    },
+    {
+      "k": 1197,
+      "itemId": "O3JsKMvldIsmhFhmPTxc0",
+      "caption": "Portrait in a fur hat",
+      "wing": "people",
+      "tags": ["portraiture", "portrait-photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1224,
+      "itemId": "ScKQ6bdTpOCrmJFXeD04A",
+      "caption": "Resting by the river",
+      "wing": "people",
+      "tags": ["documentary-photography", "travel"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1103,
+      "itemId": "CPdFpW4XeaiFk9oRbmqiH",
+      "caption": "A divine couple, carved in stone",
+      "wing": "myth",
+      "tags": ["religious-art", "sculpture", "ancient-history"],
+      "roles": ["wing:myth:door"]
+    },
+    {
+      "k": 1115,
+      "itemId": "EAu7NP76qpCMSJ78EufV_",
+      "caption": "A carved figure",
+      "wing": "myth",
+      "tags": ["indigenous-art", "carving", "ritual"],
+      "roles": ["wing:myth:playoff"]
+    },
+    {
+      "k": 1185,
+      "itemId": "MS23ToM72f1lu2hq181cE",
+      "caption": "Seated figure in stone",
+      "wing": "myth",
+      "tags": ["religious-art", "sculpture", "ancient-history"],
+      "roles": ["wing:myth:spare"]
+    },
+    {
+      "k": 1163,
+      "itemId": "K7FQeiXXCFO6tH99Eoozv",
+      "caption": "A ceremonial headdress",
+      "wing": "myth",
+      "tags": ["ritual", "portraits", "costume"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1132,
+      "itemId": "Gdugz0IbU2mY3QSWAikR0",
+      "caption": "A masked dancer, old photo",
+      "wing": "myth",
+      "tags": ["masks", "ritual", "vernacular-photography"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1290,
+      "itemId": "_dHyMoy9U0K3MnNmXIZVn",
+      "caption": "A desert caravan, drawn",
+      "wing": "myth",
+      "tags": ["fantasy", "illustration", "desert"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1194,
+      "itemId": "NjcVgrYEo_d9KbMPHDan-",
+      "caption": "Rock arches in a fantasy land",
+      "wing": "myth",
+      "tags": ["fantasy", "painting", "landscapes"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1199,
+      "itemId": "ONBEI_WgU9hs2uHvtS_ct",
+      "caption": "A skeleton, drawn",
+      "wing": "body",
+      "tags": ["anatomy", "drawing", "death"],
+      "roles": ["wing:body:door"]
+    },
+    {
+      "k": 1142,
+      "itemId": "Hi8s-gUj-oOW5nqiFpoPo",
+      "caption": "A head full of flowers",
+      "wing": "body",
+      "tags": ["consciousness", "illustration", "flowers"],
+      "roles": ["wing:body:playoff"]
+    },
+    {
+      "k": 1072,
+      "itemId": "8A86E_pFx-iQOVv0kjP3V",
+      "caption": "Diagrams of the body",
+      "wing": "body",
+      "tags": ["anatomy", "diagram", "medicine"],
+      "roles": ["wing:body:spare"]
+    },
+    {
+      "k": 1071,
+      "itemId": "7zv4yJxxSE80mRQZbjSwe",
+      "caption": "Gamma, a magazine cover",
+      "wing": "body",
+      "tags": ["anatomy", "science-fiction", "cover-art"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1250,
+      "itemId": "Wf_CogtadBduHCpUQN5WV",
+      "caption": "A spiral rug",
+      "wing": "made",
+      "tags": ["rugs-and-carpets", "textiles", "pattern"],
+      "roles": ["wing:made:door"]
+    },
+    {
+      "k": 1089,
+      "itemId": "AoueUFXhSJAjxXXlwlxDb",
+      "caption": "White blocks",
+      "wing": "made",
+      "tags": ["sculpture", "minimal"],
+      "roles": ["wing:made:playoff"]
+    },
+    {
+      "k": 1084,
+      "itemId": "AFQSk6Evrr3TobHfObJIQ",
+      "caption": "A small dark vessel",
+      "wing": "made",
+      "tags": ["ceramics", "minimal"],
+      "roles": ["wing:made:spare"]
+    },
+    {
+      "k": 1078,
+      "itemId": "8evorZ-_ehQLSBsrJ4223",
+      "caption": "Carved rolling pins",
+      "wing": "made",
+      "tags": ["wood", "folk-art", "pattern"],
+      "roles": ["card:recipes"]
+    },
+    {
+      "k": 1043,
+      "itemId": "5PmQ6YGjW76BF2JKTvnZ6",
+      "caption": "Painted clay figure",
+      "wing": "made",
+      "tags": ["folk-art", "ceramics", "whimsical"],
+      "roles": ["card:gnomes"]
+    },
+    {
+      "k": 1219,
+      "itemId": "RabhIFY4oqacmMoX114_o",
+      "caption": "An ornamental plate",
+      "wing": "made",
+      "tags": ["ornate", "pattern", "illustration"],
+      "roles": ["card:snails"]
+    },
+    {
+      "k": 1208,
+      "itemId": "PPLTu2vVRDYVmTd8mEvOR",
+      "caption": "Breakfast with a samovar, painted",
+      "wing": "everyday",
+      "tags": ["still-life", "painting", "drinks"],
+      "roles": ["wing:everyday:door"]
+    },
+    {
+      "k": 1237,
+      "itemId": "V09pn9FOWssuo7tqywnGh",
+      "caption": "Oranges, illustrated",
+      "wing": "everyday",
+      "tags": ["fruit", "illustration", "color"],
+      "roles": ["wing:everyday:playoff"]
+    },
+    {
+      "k": 1170,
+      "itemId": "KuCeptA0Vtlj5pTC-tDyJ",
+      "caption": "An orange lamp",
+      "wing": "everyday",
+      "tags": ["furniture", "industrial-design", "color"],
+      "roles": ["wing:everyday:spare"]
+    },
+    {
+      "k": 1149,
+      "itemId": "IDCthPkln8SPb5seksTch",
+      "caption": "A spoon",
+      "wing": "everyday",
+      "tags": ["still-life", "minimal"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1026,
+      "itemId": "2oO4YsBgMKBCDIIEaipUj",
+      "caption": "Sweets",
+      "wing": "everyday",
+      "tags": ["packaging", "food", "color"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1254,
+      "itemId": "X1WdhoK6Jhwf5qnctPYbv",
+      "caption": "A summer, laid out",
+      "wing": "everyday",
+      "tags": ["still-life", "collecting", "color"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1135,
+      "itemId": "GyC5wUIl_sw2sull0BhlF",
+      "caption": "An old book",
+      "wing": "everyday",
+      "tags": ["books", "ornate"],
+      "roles": ["card:prayer"]
+    },
+    {
+      "k": 1047,
+      "itemId": "5u_HXa5KNZcoJeckgS2-S",
+      "caption": "A kitchen, 1970s",
+      "wing": "everyday",
+      "tags": ["interiors", "nostalgic"],
+      "roles": ["card:catalogue"]
+    },
+    {
+      "k": 1096,
+      "itemId": "BSP4RBgxheu_pq2HWZOLM",
+      "caption": "An old Japanese book",
+      "wing": "everyday",
+      "tags": ["books", "ukiyo-e", "japan"],
+      "roles": ["card:frogs"]
+    },
+    {
+      "k": 1102,
+      "itemId": "CMbnpBnyswRQUTPrGAw9E",
+      "caption": "An audience laughing",
+      "wing": "stage",
+      "tags": ["film", "black-and-white"],
+      "roles": ["wing:stage:door"]
+    },
+    {
+      "k": 1188,
+      "itemId": "MtbFgJkYHahf3Omw-ELYb",
+      "caption": "A violin",
+      "wing": "stage",
+      "tags": ["musical-instruments", "minimal"],
+      "roles": ["wing:stage:playoff"]
+    },
+    {
+      "k": 1229,
+      "itemId": "TJIBe2KG24px8QLwcRyNL",
+      "caption": "Two guitarists",
+      "wing": "stage",
+      "tags": ["music", "black-and-white"],
+      "roles": ["wing:stage:spare"]
+    },
+    {
+      "k": 1192,
+      "itemId": "NJA_kXCTkAZaDbjQls6np",
+      "caption": "A long-necked lute",
+      "wing": "stage",
+      "tags": ["musical-instruments"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1122,
+      "itemId": "FB3TFT9RA5VrFfzmJwynt",
+      "caption": "A stage, lit",
+      "wing": "stage",
+      "tags": ["theatre", "cinematic"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1001,
+      "itemId": "-IXAKteixjAwi4iBYdM6P",
+      "caption": "Singer on stage",
+      "wing": "stage",
+      "tags": ["music", "black-and-white", "portraits"],
+      "roles": ["keep-or-pass"]
+    },
+    {
+      "k": 1148,
+      "itemId": "I8g_lIc9RPOyfobDITf2X",
+      "caption": "A lit doorway at the end of a corridor",
+      "wing": null,
+      "tags": ["cinematic", "eerie", "minimal"],
+      "roles": ["card:hallway"]
+    },
+    {
+      "k": 1202,
+      "itemId": "OpUK-bAYhB5P-uWnWbwFl",
+      "caption": "A ring of yellow",
+      "wing": null,
+      "tags": ["abstract", "color"],
+      "roles": ["pair:look-circles:b", "card:klint"]
+    }
+  ],
+  "pairs": [
+    {
+      "id": "medium-owls",
+      "kind": "medium",
+      "wing": "creatures",
+      "a": {
+        "k": 189,
+        "name": "Photograph",
+        "tags": ["photography", "nature-photography"]
+      },
+      "b": {
+        "k": 245,
+        "name": "Painting",
+        "tags": ["painting", "painterly"]
+      }
+    },
+    {
+      "id": "medium-mushrooms",
+      "kind": "medium",
+      "wing": "growing",
+      "a": {
+        "k": 1263,
+        "name": "Photograph",
+        "tags": ["nature-photography", "photography"]
+      },
+      "b": {
+        "k": 1042,
+        "name": "Natural-history plate",
+        "tags": ["botanical-illustration", "scientific-illustration"]
+      }
+    },
+    {
+      "id": "medium-trees",
+      "kind": "medium",
+      "wing": "growing",
+      "a": {
+        "k": 316,
+        "name": "Photograph",
+        "tags": ["photography", "black-and-white"]
+      },
+      "b": {
+        "k": 343,
+        "name": "Ink drawing",
+        "tags": ["ink", "drawing"]
+      }
+    },
+    {
+      "id": "medium-faces",
+      "kind": "medium",
+      "wing": "people",
+      "a": {
+        "k": 188,
+        "name": "Photograph",
+        "tags": ["portrait-photography", "photography"]
+      },
+      "b": {
+        "k": 240,
+        "name": "Illustration",
+        "tags": ["illustration"]
+      }
+    },
+    {
+      "id": "medium-capsule",
+      "kind": "medium",
+      "wing": "space",
+      "a": {
+        "k": 1191,
+        "name": "Photograph",
+        "tags": ["photography"]
+      },
+      "b": {
+        "k": 1004,
+        "name": "Illustration",
+        "tags": ["illustration", "retrofuturism"]
+      }
+    },
+    {
+      "id": "medium-city",
+      "kind": "medium",
+      "wing": "cities",
+      "a": {
+        "k": 315,
+        "name": "Photograph",
+        "tags": ["street-photography", "photography"]
+      },
+      "b": {
+        "k": 293,
+        "name": "Painting",
+        "tags": ["painting"]
+      }
+    },
+    {
+      "id": "medium-fish",
+      "kind": "medium",
+      "wing": "made",
+      "a": {
+        "k": 157,
+        "name": "Natural-history plate",
+        "tags": ["scientific-illustration"]
+      },
+      "b": {
+        "k": 290,
+        "name": "Jewellery",
+        "tags": ["jewelry", "metal"]
+      }
+    },
+    {
+      "id": "medium-birds",
+      "kind": "medium",
+      "wing": "creatures",
+      "a": {
+        "k": 52,
+        "name": "Photograph",
+        "tags": ["photography", "black-and-white"]
+      },
+      "b": {
+        "k": 381,
+        "name": "Embroidery",
+        "tags": ["embroidery", "folk-art"]
+      }
+    },
+    {
+      "id": "look-circles",
+      "kind": "look",
+      "wing": null,
+      "a": {
+        "k": 238,
+        "name": "Bold",
+        "tags": ["color", "geometric"]
+      },
+      "b": {
+        "k": 1202,
+        "name": "Soft",
+        "tags": ["pastel-palette", "delicate"]
+      }
+    },
+    {
+      "id": "look-owls",
+      "kind": "look",
+      "wing": "creatures",
+      "a": {
+        "k": 245,
+        "name": "Eerie",
+        "tags": ["eerie", "painterly"]
+      },
+      "b": {
+        "k": 251,
+        "name": "Whimsical",
+        "tags": ["whimsical", "cute"]
+      }
+    },
+    {
+      "id": "look-trees",
+      "kind": "look",
+      "wing": "growing",
+      "a": {
+        "k": 316,
+        "name": "Spare",
+        "tags": ["minimal", "night"]
+      },
+      "b": {
+        "k": 104,
+        "name": "Lush",
+        "tags": ["surreal", "color"]
+      }
+    },
+    {
+      "id": "look-roads",
+      "kind": "look",
+      "wing": "cities",
+      "a": {
+        "k": 397,
+        "name": "Night",
+        "tags": ["melancholy", "cinematic"]
+      },
+      "b": {
+        "k": 78,
+        "name": "Day",
+        "tags": ["light", "nostalgic"]
+      }
+    },
+    {
+      "id": "look-buildings",
+      "kind": "look",
+      "wing": "space",
+      "a": {
+        "k": 269,
+        "name": "Retrofuture",
+        "tags": ["retrofuturism", "color"]
+      },
+      "b": {
+        "k": 207,
+        "name": "Concrete",
+        "tags": ["brutalist", "black-and-white"]
+      }
+    },
+    {
+      "id": "look-rooms",
+      "kind": "look",
+      "wing": "everyday",
+      "a": {
+        "k": 110,
+        "name": "Warm",
+        "tags": ["mid-century-modern", "cozy"]
+      },
+      "b": {
+        "k": 313,
+        "name": "Austere",
+        "tags": ["brutalist", "minimal"]
+      }
+    },
+    {
+      "id": "look-pots",
+      "kind": "look",
+      "wing": "made",
+      "a": {
+        "k": 49,
+        "name": "Ancient",
+        "tags": ["ancient-history", "rustic"]
+      },
+      "b": {
+        "k": 326,
+        "name": "Contemporary",
+        "tags": ["minimal", "serene"]
+      }
+    },
+    {
+      "id": "look-faces",
+      "kind": "look",
+      "wing": "people",
+      "a": {
+        "k": 125,
+        "name": "Grainy",
+        "tags": ["black-and-white", "melancholy"]
+      },
+      "b": {
+        "k": 240,
+        "name": "Bright",
+        "tags": ["color", "joyful"]
+      }
+    }
+  ]
+}

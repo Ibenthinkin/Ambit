@@ -6,6 +6,8 @@ import { EITHER, NEITHER } from "~/lib/interview/config";
 import { optionAdds } from "~/lib/interview/targets";
 import type { Answer, Option, Question } from "~/lib/interview/types";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
+import { READING_FALLBACK } from "~/lib/interview/reading-fallback";
+import { cn } from "~/lib/utils";
 
 import { FaceCard } from "./face-card";
 
@@ -47,9 +49,25 @@ export function QuestionStep({
   const keys = answer?.keys ?? [];
   const id = `q-${question.id}`;
   const topicsOf = (o: Option) => optionAdds(o, listed);
-  /** A whole answer in one tap. */
-  const only = (key: string) =>
-    onChange({ questionId: question.id, keys: [key] }, true);
+  /** A whole answer in one tap. A reading card also reports the article's topic memberships —
+   *  choosing it scores *that piece* (score.ts), and the answer log keeps only the option key. */
+  const only = (key: string) => {
+    const w = faces[faceKey(question.id, key)]?.writing;
+    onChange(
+      w
+        ? { questionId: question.id, keys: [key], topicIds: w.topicIds }
+        : { questionId: question.id, keys: [key] },
+      true,
+    );
+  };
+  // First Exhibition's card grids: a choice or multi whose every answer has a face (the wings,
+  // the playoff, the keep grid, the reading cards), or any with a typeset card (destinations).
+  const allFaced =
+    question.options.length > 0 && question.options.every((o) => o.face);
+  const anyCard = question.options.some((o) => o.card);
+  const asCards =
+    (question.kind === "choice" || question.kind === "multi") &&
+    (allFaced || anyCard);
 
   function toggle(key: string) {
     let next: string[];
@@ -140,37 +158,102 @@ export function QuestionStep({
         </div>
       )}
 
-      {(question.kind === "choice" ||
-        question.kind === "multi" ||
-        question.kind === "amount") && (
-        <>
+      {asCards && (
+        <div role="group" aria-labelledby={id} className="mt-6">
           {question.kind === "multi" && (
-            <p className="text-ink/62 mt-3 text-[15px]">
+            <p className="text-ink/62 mb-4 text-[15px]">
               {question.max
                 ? `Pick up to ${COUNT_WORDS[question.max] ?? question.max}.`
                 : "Pick any."}
             </p>
           )}
+          {/* Two across on a phone; from md, four across — five for the ten-picture keep grid. */}
           <div
-            role="group"
-            aria-labelledby={id}
-            className="mt-6 flex flex-wrap gap-[10px]"
+            className={cn(
+              "grid gap-3",
+              question.options.length > 4
+                ? "grid-cols-2 md:grid-cols-5"
+                : "grid-cols-2 md:grid-cols-4",
+            )}
           >
-            {question.options.map((o) => (
-              <Chip
-                key={o.key}
-                selected={keys.includes(o.key)}
-                data-topics={topicsOf(o).join(" ")}
-                onClick={() =>
-                  question.kind === "multi" ? toggle(o.key) : only(o.key)
-                }
-              >
-                {o.label}
-              </Chip>
-            ))}
+            {question.options.map((o) => {
+              const face = faces[faceKey(question.id, o.key)];
+              const writing = o.face?.writing;
+              return (
+                <FaceCard
+                  key={o.key}
+                  label={o.label}
+                  src={face?.src}
+                  writing={face?.writing}
+                  // No article behind a reading card: its kind and an example headline instead.
+                  fallback={
+                    writing && !face?.writing
+                      ? {
+                          kind: writing.kind,
+                          ...READING_FALLBACK[writing.kind][writing.nth],
+                        }
+                      : undefined
+                  }
+                  card={o.card}
+                  topics={topicsOf(o)}
+                  selected={keys.includes(o.key)}
+                  onClick={() =>
+                    question.kind === "multi" ? toggle(o.key) : only(o.key)
+                  }
+                />
+              );
+            })}
           </div>
-        </>
+          {/* None of these: a faced choice whose answers carry effects (the wings, the playoff)
+              — not the reading screens, whose decline is the screen's Skip button. */}
+          {question.kind === "choice" &&
+            allFaced &&
+            question.options.some((o) => o.effects.length > 0) && (
+              <div className="mt-4 flex justify-center">
+                <Chip
+                  size="sm"
+                  selected={keys[0] === NEITHER}
+                  onClick={() => only(NEITHER)}
+                >
+                  None of these
+                </Chip>
+              </div>
+            )}
+        </div>
       )}
+
+      {!asCards &&
+        (question.kind === "choice" ||
+          question.kind === "multi" ||
+          question.kind === "amount") && (
+          <>
+            {question.kind === "multi" && (
+              <p className="text-ink/62 mt-3 text-[15px]">
+                {question.max
+                  ? `Pick up to ${COUNT_WORDS[question.max] ?? question.max}.`
+                  : "Pick any."}
+              </p>
+            )}
+            <div
+              role="group"
+              aria-labelledby={id}
+              className="mt-6 flex flex-wrap gap-[10px]"
+            >
+              {question.options.map((o) => (
+                <Chip
+                  key={o.key}
+                  selected={keys.includes(o.key)}
+                  data-topics={topicsOf(o).join(" ")}
+                  onClick={() =>
+                    question.kind === "multi" ? toggle(o.key) : only(o.key)
+                  }
+                >
+                  {o.label}
+                </Chip>
+              ))}
+            </div>
+          </>
+        )}
     </div>
   );
 }

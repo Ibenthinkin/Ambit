@@ -106,6 +106,8 @@ Both new foreign keys **must cascade** — `scripts/e2e-clean.ts` and integratio
 
 ### The bank, v1 (Ben edits this file freely; the copy is a draft)
 
+> **Superseded 10-04-26** by bank v2 — `docs/DESIGN_first-exhibition.md` §1.
+
 Faces are the picture on each card; word questions use chips.
 
 | # | id | Kind | Prompt | Answers → what they add |

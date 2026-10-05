@@ -1,0 +1,229 @@
+{
+  "_about": "The sixteen example article cards from the prototype. The headlines are invented; in the app each card is a real writing item (one per kind per set). Kept here as copy for the label-card fallback on CI and as the scoring reference.",
+  "cards": [
+    {
+      "id": "boring",
+      "kind": "essay",
+      "minutes": 18,
+      "title": "The case for boring buildings",
+      "dek": "An architect argues the plain apartment block did more good than any landmark.",
+      "tone": "argumentative",
+      "tags": ["essays", "architecture", "urban-landscape"],
+      "temper": {
+        "cerebral": 0.7,
+        "aesthetic": 0.3
+      },
+      "pictureK": 1066
+    },
+    {
+      "id": "pole",
+      "kind": "essay",
+      "minutes": 25,
+      "title": "A winter at the South Pole",
+      "dek": "What six months of darkness does to a crew of forty.",
+      "tone": "immersive",
+      "tags": ["travel-writing", "polar", "science"],
+      "temper": {
+        "thrilling": 0.6,
+        "cerebral": 0.4
+      },
+      "pictureK": 1231
+    },
+    {
+      "id": "recipes",
+      "kind": "essay",
+      "minutes": 14,
+      "title": "The recipes my grandmother never wrote down",
+      "dek": "Grief, measured in handfuls.",
+      "tone": "tender",
+      "tags": ["memoir", "food-writing", "food", "family"],
+      "temper": {
+        "communal": 1.0
+      },
+      "pictureK": 1078
+    },
+    {
+      "id": "marathon",
+      "kind": "essay",
+      "minutes": 16,
+      "title": "Running a marathon at sixty",
+      "dek": "On slowness, stubbornness and the last six miles.",
+      "tone": "wry",
+      "tags": ["memoir", "sport"],
+      "temper": {
+        "communal": 0.6,
+        "thrilling": 0.4
+      },
+      "pictureK": 1087
+    },
+    {
+      "id": "snails",
+      "kind": "curiosity",
+      "minutes": 3,
+      "title": "Why medieval scribes kept drawing knights fighting snails",
+      "dek": "No one knows. Here are the four best theories.",
+      "tone": "playful",
+      "tags": ["illuminated-manuscripts", "medieval", "humor"],
+      "temper": {
+        "communal": 0.4,
+        "cerebral": 0.4,
+        "aesthetic": 0.2
+      },
+      "pictureK": 1219
+    },
+    {
+      "id": "octopus",
+      "kind": "curiosity",
+      "minutes": 6,
+      "title": "Octopuses might dream. About what?",
+      "dek": "What sleeping octopuses suggest about their minds.",
+      "tone": "wondering",
+      "tags": ["science-writing", "marine-life", "dreams"],
+      "temper": {
+        "cerebral": 0.8,
+        "aesthetic": 0.2
+      },
+      "pictureK": 366
+    },
+    {
+      "id": "gnomes",
+      "kind": "curiosity",
+      "minutes": 5,
+      "title": "A field guide to the garden gnomes of suburban Ohio",
+      "dek": "Rarer than you'd think.",
+      "tone": "deadpan",
+      "tags": ["humor-writing", "gardens", "kitsch"],
+      "temper": {
+        "communal": 1.0
+      },
+      "pictureK": 1043
+    },
+    {
+      "id": "wedding",
+      "kind": "curiosity",
+      "minutes": 4,
+      "title": "What people wore to get married in 1900",
+      "dek": "Not white, mostly.",
+      "tone": "brisk",
+      "tags": ["social-history", "weddings", "fashion"],
+      "temper": {
+        "communal": 0.7,
+        "aesthetic": 0.3
+      },
+      "pictureK": 88
+    },
+    {
+      "id": "klint",
+      "kind": "criticism",
+      "minutes": 9,
+      "title": "Why everyone suddenly loves Hilma af Klint",
+      "dek": "A painter's notebooks finally get their due.",
+      "tone": "appreciative",
+      "tags": ["criticism", "painting", "abstract"],
+      "temper": {
+        "aesthetic": 0.8,
+        "cerebral": 0.2
+      },
+      "pictureK": 1202
+    },
+    {
+      "id": "hallway",
+      "kind": "criticism",
+      "minutes": 11,
+      "title": "The quiet horror films that scare me most",
+      "dek": "No monsters. Just a long hallway and a dripping tap.",
+      "tone": "unsettling",
+      "tags": ["criticism", "film", "horror"],
+      "temper": {
+        "dark": 0.8,
+        "aesthetic": 0.2
+      },
+      "pictureK": 1148
+    },
+    {
+      "id": "romance",
+      "kind": "criticism",
+      "minutes": 8,
+      "title": "In defence of the romance novel",
+      "dek": "The bestselling genre nobody admits to reading.",
+      "tone": "warm",
+      "tags": ["criticism", "romance-fiction", "books"],
+      "temper": {
+        "communal": 0.8,
+        "aesthetic": 0.2
+      },
+      "pictureK": 1245
+    },
+    {
+      "id": "potter",
+      "kind": "criticism",
+      "minutes": 10,
+      "title": "The potter who wouldn't sign his bowls",
+      "dek": "A profile of a craftsman who wanted to stay anonymous.",
+      "tone": "quiet",
+      "tags": ["biography", "ceramics", "craftspeople"],
+      "temper": {
+        "aesthetic": 0.6,
+        "communal": 0.4
+      },
+      "pictureK": 120
+    },
+    {
+      "id": "keeper",
+      "kind": "archive",
+      "minutes": 2,
+      "title": "A letter from a lighthouse keeper's wife, 1911",
+      "dek": "Fog, a broken lamp, and three days without sleep.",
+      "tone": "stark",
+      "tags": ["letters-and-diaries", "the-ocean", "social-history"],
+      "temper": {
+        "communal": 0.4,
+        "dark": 0.3,
+        "aesthetic": 0.3
+      },
+      "pictureK": 1061
+    },
+    {
+      "id": "prayer",
+      "kind": "archive",
+      "minutes": 1,
+      "title": "A prayer for travellers, from a 15th-century book of hours",
+      "dek": "Gold leaf, a tiny ship, and a wish for calm water.",
+      "tone": "devotional",
+      "tags": ["illuminated-manuscripts", "religious-art", "travel"],
+      "temper": {
+        "aesthetic": 0.7,
+        "cerebral": 0.3
+      },
+      "pictureK": 1135
+    },
+    {
+      "id": "catalogue",
+      "kind": "archive",
+      "minutes": 3,
+      "title": "Mail-order catalogue, 1908: a whole house by post",
+      "dek": "Yes, the whole house. Nails included.",
+      "tone": "curious",
+      "tags": ["advertising", "houses", "social-history"],
+      "temper": {
+        "communal": 0.6,
+        "cerebral": 0.4
+      },
+      "pictureK": 1047
+    },
+    {
+      "id": "frogs",
+      "kind": "archive",
+      "minutes": 2,
+      "title": "Six old Japanese poems about frogs",
+      "dek": "Seventeen syllables each, and every one is a frog.",
+      "tone": "light",
+      "tags": ["poetry", "japan", "animals"],
+      "temper": {
+        "aesthetic": 0.8,
+        "communal": 0.2
+      },
+      "pictureK": 1096
+    }
+  ]
+}

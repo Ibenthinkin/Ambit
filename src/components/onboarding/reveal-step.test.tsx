@@ -2,6 +2,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { buildTaste } from "~/lib/interview/taste";
+
 import { RevealStep } from "./reveal-step";
 
 const TOPICS = [
@@ -117,5 +119,29 @@ describe("RevealStep", () => {
     const { onBack } = show();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the exhibition title above the list", () => {
+    const empty = buildTaste({
+      scores: new Map(),
+      listed: new Set(),
+      destinations: [],
+      opened: [],
+    });
+    show({
+      taste: { ...empty, title: { adjective: "Quiet", noun: "Weathers" } },
+    });
+    const title = screen.getByRole("heading", { name: "Quiet Weathers" });
+    const start = screen.getByRole("heading", {
+      name: "Here’s where we’ll start",
+    });
+    expect(
+      title.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("shows no exhibition without a taste — the v1 reveal", () => {
+    show();
+    expect(screen.queryByText("Your first exhibition")).toBeNull();
   });
 });

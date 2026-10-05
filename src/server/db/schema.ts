@@ -28,6 +28,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
 
+import type { TasteV1 } from "~/lib/interview/taste";
 import type { WritingKind } from "~/server/config/writing";
 
 // ---------------------------------------------------------------------------------------------
@@ -178,7 +179,15 @@ export type TopicTier = "original" | "grown";
  *  is tag-only and would be an empty pool. Nullable on purpose — a default would file every
  *  future promotion under one facet silently. The authority is `config/topic-facets.ts`, applied
  *  by `db:seed` on every boot. */
-export type TopicFacet = "subject" | "medium" | "look" | "place";
+export type TopicFacet =
+  | "subject"
+  | "medium"
+  | "look"
+  | "place"
+  // First Exhibition (10-04-26, docs/DESIGN_first-exhibition.md §5): where and when a way of
+  // making comes from (ukiyo-e, medieval), and kinds of writing (essays, letters & diaries).
+  | "tradition"
+  | "form";
 
 export const topic = pgTable("topic", {
   // Not a nanoid: topic ids are slugs Ambit assigns by hand (`ancient-history`, `the-ocean`, ...),
@@ -553,3 +562,21 @@ export const interviewAnswer = pgTable(
   },
   (table) => [index("idx_interview_answer_user").on(table.userId)],
 );
+
+// The taste profile (docs/DESIGN_first-exhibition.md §4): what the questionnaire's reveal showed
+// — exhibition title, top wings and mediums, temperament, travel compass, opened cards — as one
+// JSON value, one row per reader, replaced by every completed run. The answer log stays the
+// source of truth; this is the derived view film and music will read later, versioned inside
+// the JSON (`v`) so a new shape adds keys, not columns.
+export const userTaste = pgTable("user_taste", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  // The interview_answer run this was computed from.
+  runId: text("run_id").notNull(),
+  bankVersion: integer("bank_version").notNull(),
+  taste: jsonb("taste").$type<TasteV1>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});

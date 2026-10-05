@@ -4,7 +4,8 @@
 // first screen. A group is a picker-side idea only: picking one picks every member topic, so
 // `topics.setMine` still receives topic ids, `user_topic` still holds topics, and the feed engine,
 // the personas fixture and every weight rule are untouched. Nothing about a group reaches the
-// database.
+// database. First Exhibition (10-04-26) added round one's 33 hand topics and two facets,
+// Tradition and Form; the counts in the section rules below are as of then.
 //
 // Two rules the test beside this file pins:
 //   1. Every faceted topic (`TOPIC_FACETS`) is in exactly one group, and every member of a group
@@ -58,7 +59,7 @@ function group(
 
 /** Display order within a facet is this array's order — broad, populated groups first. */
 export const TOPIC_GROUPS: readonly TopicGroup[] = [
-  // ── Subject (92 topics, 12 groups) ──────────────────────────────────────────────────────────
+  // ── Subject (106 topics, 15 groups) ────────────────────────────────────────────────────────
   group("space-and-science-fiction", "Space & science fiction", "subject", [
     "astronomy",
     "space-exploration",
@@ -87,6 +88,7 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "trees",
     "mushrooms",
     "fruit",
+    "gardens",
   ]),
   group("land-sea-and-sky", "Land, sea & sky", "subject", [
     "landscapes",
@@ -97,6 +99,7 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "sand",
     "nature",
     "natural-history",
+    "mountains",
   ]),
   group("weather-and-light", "Weather & light", "subject", [
     "clouds",
@@ -127,6 +130,7 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "retro-gaming",
     "games",
     "toys",
+    "ships",
   ]),
   group("cities-and-streets", "Cities & streets", "subject", [
     "architecture",
@@ -136,6 +140,8 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "roadside-americana",
     "travel",
     "cartography",
+    "interiors",
+    "ruins",
   ]),
   group("myth-story-and-the-strange", "Myth, story & the strange", "subject", [
     "mythology",
@@ -149,6 +155,8 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "literature",
     "poetry",
     "books",
+    "folklore",
+    "masks",
   ]),
   group("music-film-and-performance", "Music, film & performance", "subject", [
     "music",
@@ -156,6 +164,8 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "dance",
     "film",
     "animation",
+    "theatre",
+    "musical-instruments",
   ]),
   group("everyday-things", "Everyday things", "subject", [
     "food",
@@ -168,6 +178,7 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "balloons",
     "kids",
     "children-s-illustration",
+    "costume",
   ]),
   group("propaganda-and-advertising", "Propaganda & advertising", "subject", [
     "soviet",
@@ -175,8 +186,15 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "activism",
     "advertising",
   ]),
+  // First Exhibition round one (10-04-26): subjects the twelve groups above had no home for.
+  group("sport-and-play", "Sport & play", "subject", ["sport"]),
+  group("celebrations", "Celebrations", "subject", ["festivals"]),
+  group("faith-and-ritual", "Faith & ritual", "subject", [
+    "religious-art",
+    "sacred-architecture",
+  ]),
 
-  // ── Medium (41 topics, 8 groups) ────────────────────────────────────────────────────────────
+  // ── Medium (47 topics, 9 groups) ────────────────────────────────────────────────────────────
   group("painting-and-drawing", "Painting & drawing", "medium", [
     "painting",
     "watercolor",
@@ -196,6 +214,8 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "typography",
     "postcard",
     "engraving",
+    "woodcut",
+    "etching",
   ]),
   group(
     "scientific-and-technical-drawing",
@@ -211,6 +231,7 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
   group("photography-group", "Photography", "medium", [
     "photography",
     "street-photography",
+    "nature-photography",
   ]),
   group("sculpture-and-installations", "Sculpture & installations", "medium", [
     "sculpture",
@@ -232,6 +253,8 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "plastic",
     "textiles",
     "embroidery",
+    "stained-glass",
+    "tapestry",
   ]),
   group("collage-and-mixed-media", "Collage & mixed media", "medium", [
     "collage",
@@ -239,8 +262,11 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "digital",
     "folk-art",
   ]),
+  group("calligraphy-and-manuscripts", "Calligraphy & manuscripts", "medium", [
+    "illuminated-manuscripts",
+  ]),
 
-  // ── Look (20 topics, 8 groups) ──────────────────────────────────────────────────────────────
+  // ── Look (25 topics, 12 groups) ─────────────────────────────────────────────────────────────
   group("abstract-and-pattern", "Abstract & pattern", "look", [
     "abstract",
     "geometric",
@@ -263,6 +289,10 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
     "brutalist",
     "retrofuturism",
   ]),
+  group("minimal-and-quiet", "Minimal & quiet", "look", ["minimal"]),
+  group("ornate-and-opulent", "Ornate & opulent", "look", ["ornate"]),
+  group("cozy-and-homely", "Cozy & homely", "look", ["nostalgic", "cozy"]),
+  group("delicate-and-intricate", "Delicate & intricate", "look", ["delicate"]),
 
   // ── Place (6 topics, 6 groups) — see the header for why these stay apart ────────────────────
   group("chicago-group", "Chicago", "place", ["chicago"]),
@@ -271,6 +301,17 @@ export const TOPIC_GROUPS: readonly TopicGroup[] = [
   group("new-york-group", "New York", "place", ["new-york"]),
   group("russia-group", "Russia", "place", ["russia"]),
   group("ukraine-group", "Ukraine", "place", ["ukraine"]),
+  // ── Tradition (5 topics, 3 groups) and Form (3 topics, 2 groups) — First Exhibition, 10-04-26 ─
+  group("world-traditions", "World traditions", "tradition", [
+    "ukiyo-e",
+    "islamic-art",
+  ]),
+  group("old-masters", "Old masters", "tradition", ["medieval", "renaissance"]),
+  group("nineteenth-century", "The nineteenth century", "tradition", [
+    "impressionism",
+  ]),
+  group("essays-and-ideas", "Essays & ideas", "form", ["essays", "criticism"]),
+  group("life-writing", "Life writing", "form", ["letters-and-diaries"]),
 ];
 
 const GROUP_BY_TOPIC: ReadonlyMap<string, TopicGroup> = new Map(

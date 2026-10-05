@@ -92,6 +92,13 @@
       "when": 1791209916657,
       "tag": "0012_questionnaire",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791213804884,
+      "tag": "0013_user_taste",
+      "breakpoints": true
     }
   ]
 }

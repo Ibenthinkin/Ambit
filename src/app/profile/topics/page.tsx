@@ -25,6 +25,8 @@ export default async function ProfileTopicsPage() {
   // everything the screen's summary needs to show a level — no separate weights query to fetch.
   void api.topics.list.prefetch();
   void api.topics.mine.prefetch();
+  // The exhibition card above the list (First Exhibition) — streamed with the rest.
+  void api.topics.taste.prefetch();
 
   const dev = await feedDebugEnabled();
 

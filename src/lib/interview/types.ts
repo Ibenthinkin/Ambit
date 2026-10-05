@@ -7,6 +7,7 @@
 // The reader never sees a topic id, a group or a facet — those are the internal vocabulary the
 // answers are written in.
 import type { ReadingAmount } from "~/server/config/reading-amount";
+import type { WritingKind } from "~/server/config/writing";
 
 /**
  *   pair    two picture cards — this one, that one, either, neither
@@ -33,8 +34,21 @@ export interface Option {
   label: string;
   effects: readonly Effect[];
   /** The picture on this answer's card: the best image in `topic`, unless `pick` names one by
-   *  hand (services/question-faces.ts). Absent ⇒ a text card. */
-  face?: { topic: string; pick?: { source: string; sourceId: string } };
+   *  hand (services/question-faces.ts). Absent ⇒ a text card.
+   *  `writing` makes the card an *article* card instead: the nth-best writing item of that kind
+   *  (0 = a short one, 1 = a long one); `topic` is then unused but kept for the type's sake. */
+  face?: {
+    topic: string;
+    pick?: { source: string; sourceId: string };
+    writing?: { kind: WritingKind; nth: 0 | 1 };
+  };
+  /** A typeset card with no picture — the destinations: `where` in small caps, the label large,
+   *  one `line`, `coord` at the foot. */
+  card?: { where: string; line: string; coord: string };
+  /** Offered whether or not any of its topics is listed, and logged like any answer. For an
+   *  option whose point is the log (Nudity under "rather not") or whose scoring comes from the
+   *  item shown rather than from `effects` (the reading cards). */
+  always?: true;
   /** `amount` questions only: the level this answer stores. */
   reading?: ReadingAmount;
 }
@@ -47,6 +61,10 @@ export interface Question {
   options: readonly Option[];
   /** `multi` only: how many answers may be chosen. Absent ⇒ any number. */
   max?: number;
+  /** Show only the `top` options, ranked by how the answers so far have already scored each
+   *  option's own targets (show.ts). The playoff: twelve wings in the bank, the reader's four
+   *  on screen. Scoring and filtering ignore it — an option's effects never change. */
+  show?: { top: number };
 }
 
 /** One answered (or skipped) question, as the screen holds it and the server logs it. */

@@ -2,12 +2,41 @@ import { describe, expect, it } from "vitest";
 
 import { SKIP } from "./config";
 import { TEST_BANK } from "./fixtures";
-import { picksFrom, readingAmountFrom } from "./picks";
+import { defaultReadingAmount, picksFrom, readingAmountFrom } from "./picks";
 
 const listed = (ids: string[]) => new Set(ids);
 const STARTERS = ["astronomy", "botany", "music", "geology"];
 
 describe("picksFrom", () => {
+  it("never leaves the reveal short: when every starter was scored down, it still starts somewhere", () => {
+    // A reader who pressed "None of these" on every wing screen has pushed each starter below
+    // zero. The reveal cannot add a topic, so an empty list would be a dead end.
+    const picks = picksFrom(
+      new Map([
+        ["astronomy", -0.5],
+        ["botany", -0.4],
+        ["music", -0.5],
+        ["poetry", -0.2],
+      ]),
+      listed(["astronomy", "botany", "music", "poetry"]),
+      ["astronomy", "botany", "music", "poetry"],
+    );
+    expect(picks.map((p) => p.topicId)).toEqual([
+      "astronomy",
+      "botany",
+      "music",
+    ]);
+  });
+
+  it("still prefers starters the reader did not score down", () => {
+    const picks = picksFrom(
+      new Map([["astronomy", -0.5]]),
+      listed(["astronomy", "botany", "music", "poetry"]),
+      ["astronomy", "botany", "music", "poetry"],
+    );
+    expect(picks.map((p) => p.topicId)).toEqual(["botany", "music", "poetry"]);
+  });
+
   it("keeps positive scores only, best first", () => {
     const picks = picksFrom(
       new Map([
@@ -139,5 +168,25 @@ describe("readingAmountFrom", () => {
       ]),
     ).toBeNull();
     expect(readingAmountFrom(TEST_BANK, [])).toBeNull();
+  });
+});
+
+describe("defaultReadingAmount", () => {
+  it("is null when no reading question was asked at all", () => {
+    expect(defaultReadingAmount([], 0)).toBeNull();
+  });
+  it("pictures every time → none", () => {
+    expect(defaultReadingAmount([], 2)).toBe("none");
+  });
+  it("one card opened → a little", () => {
+    expect(defaultReadingAmount([{ minutes: 5 }], 1)).toBe("little");
+  });
+  it("two opened → some, or a lot when both ran 12 minutes or more", () => {
+    expect(defaultReadingAmount([{ minutes: 5 }, { minutes: 14 }], 0)).toBe(
+      "some",
+    );
+    expect(defaultReadingAmount([{ minutes: 12 }, { minutes: 20 }], 0)).toBe(
+      "lot",
+    );
   });
 });

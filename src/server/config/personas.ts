@@ -77,7 +77,12 @@ export const PERSONAS: readonly Persona[] = [
     location: "Copenhagen",
     profession: "Architect",
     taste: "Clean lines, concrete, cold light.",
-    groups: ["black-and-white-group", "period-styles", "photography-group"],
+    groups: [
+      "minimal-and-quiet",
+      "black-and-white-group",
+      "period-styles",
+      "photography-group",
+    ],
     topics: ["architecture", "geometric", "furniture"],
   },
   {
@@ -103,7 +108,12 @@ export const PERSONAS: readonly Persona[] = [
     location: "Lisbon",
     profession: "Retired botanist",
     taste: "Plants first, then everything that grows around them.",
-    groups: ["plants-and-fungi", "painting-and-drawing", "painterly-group"],
+    groups: [
+      "nineteenth-century",
+      "plants-and-fungi",
+      "painting-and-drawing",
+      "painterly-group",
+    ],
     topics: ["insects", "botanical-illustration"],
   },
   {
@@ -115,6 +125,7 @@ export const PERSONAS: readonly Persona[] = [
     profession: "Art student",
     taste: "Loud color, collage, anything that looks cut and pasted.",
     groups: [
+      "old-masters",
       "collage-and-mixed-media",
       "illustration-and-comics",
       "colourful",
@@ -130,7 +141,7 @@ export const PERSONAS: readonly Persona[] = [
     location: "Amsterdam",
     profession: "Textile designer",
     taste: "Weave, stitch, pattern, repeat.",
-    groups: ["craft-and-materials"],
+    groups: ["delicate-and-intricate", "craft-and-materials"],
     topics: ["pattern", "japan"],
   },
   {
@@ -153,6 +164,7 @@ export const PERSONAS: readonly Persona[] = [
     profession: "Type designer",
     taste: "Letters, ink, paper, and the occasional poster.",
     groups: [
+      "calligraphy-and-manuscripts",
       "posters-print-and-type",
       "propaganda-and-advertising",
       "russia-group",
@@ -168,7 +180,7 @@ export const PERSONAS: readonly Persona[] = [
     location: "Manchester",
     profession: "Retired railway engineer",
     taste: "Steam, steel, and the century that built them.",
-    groups: ["london-group", "black-and-white-group"],
+    groups: ["life-writing", "london-group", "black-and-white-group"],
     topics: ["machines", "metal", "cars", "industrial"],
   },
   {
@@ -179,7 +191,7 @@ export const PERSONAS: readonly Persona[] = [
     location: "Beirut",
     profession: "Archaeologist",
     taste: "Old stones and older stories.",
-    groups: ["sculpture-and-installations"],
+    groups: ["faith-and-ritual", "sculpture-and-installations"],
     topics: ["ancient-history", "mythology", "sand", "portraiture"],
   },
   {
@@ -201,7 +213,7 @@ export const PERSONAS: readonly Persona[] = [
     location: "Stockholm",
     profession: "Pediatric nurse",
     taste: "Kids' things, toys, the small and the handmade.",
-    groups: ["everyday-things"],
+    groups: ["celebrations", "everyday-things"],
     topics: ["toys", "miniature", "dioramas", "dance"],
   },
   {
@@ -228,7 +240,7 @@ export const PERSONAS: readonly Persona[] = [
     location: "Osaka",
     profession: "Ceramicist",
     taste: "Clay and glaze, wood and water.",
-    groups: ["japan-group"],
+    groups: ["world-traditions", "japan-group"],
     topics: ["ceramics", "clay", "glass", "wood", "still-life"],
   },
   {
@@ -261,7 +273,7 @@ export const PERSONAS: readonly Persona[] = [
     location: "Vermont",
     profession: "Woodworker",
     taste: "Trees standing and trees cut.",
-    groups: ["land-sea-and-sky"],
+    groups: ["cozy-and-homely", "land-sea-and-sky"],
     topics: ["wood", "trees", "furniture", "carving"],
   },
   {
@@ -272,7 +284,7 @@ export const PERSONAS: readonly Persona[] = [
     location: "Cairo",
     profession: "Poet",
     taste: "Words, birds, and weather; nothing built by hand.",
-    groups: ["weather-and-light"],
+    groups: ["essays-and-ideas", "weather-and-light"],
     topics: ["poetry", "literature", "birds", "emotions", "consciousness"],
   },
   {
@@ -294,7 +306,12 @@ export const PERSONAS: readonly Persona[] = [
     location: "Paris",
     profession: "Fashion buyer",
     taste: "Clothes, jewels, and abstraction.",
-    groups: ["abstract-and-pattern", "colourful", "photography-group"],
+    groups: [
+      "ornate-and-opulent",
+      "abstract-and-pattern",
+      "colourful",
+      "photography-group",
+    ],
     topics: ["fashion", "jewelry"],
   },
   {
@@ -305,7 +322,7 @@ export const PERSONAS: readonly Persona[] = [
     location: "Portland",
     profession: "Game designer",
     taste: "Games, illusions, animals, cats specifically.",
-    groups: ["animals-group", "myth-story-and-the-strange"],
+    groups: ["sport-and-play", "animals-group", "myth-story-and-the-strange"],
     topics: ["games", "optical-illusion", "toys"],
   },
 ];

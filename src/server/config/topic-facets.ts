@@ -1,7 +1,10 @@
-// The four facets the pickers group topics by, and every topic's assignment
-// (docs/DESIGN_topic-facets-and-personas.md §1, 09-10-26). Hand-assigned, on purpose: a facet
-// by graph neighbourhood would file `watercolor` under Botany because they co-occur, and a
-// facet by tier would just be age. `db:seed` applies this map on every boot, which is what
+// The six facets topics are filed under, and every topic's assignment
+// (docs/DESIGN_topic-facets-and-personas.md §1, 09-10-26; `tradition` and `form` joined with
+// First Exhibition, docs/DESIGN_first-exhibition.md §5). Onboarding no longer reads facets — it
+// is a questionnaire since 10-02-26 — so the prompts below are kept for `/profile/topics`'s
+// history and any future section headings; the facet itself still decides what is pickable.
+// Hand-assigned, on purpose: a facet by graph neighbourhood would file `watercolor` under
+// Botany because they co-occur, and a facet by tier would just be age. `db:seed` applies this map on every boot, which is what
 // puts facets on production with nothing copied into the container.
 //
 // A topic missing from this map has `facet = NULL` in the database and is NOT pickable —
@@ -27,6 +30,8 @@ export const FACETS = [
   "medium",
   "look",
   "place",
+  "tradition",
+  "form",
 ] as const satisfies readonly TopicFacet[];
 
 export const FACET_LABELS: Record<TopicFacet, string> = {
@@ -34,6 +39,8 @@ export const FACET_LABELS: Record<TopicFacet, string> = {
   medium: "Medium",
   look: "Look",
   place: "Place",
+  tradition: "Tradition",
+  form: "Form",
 };
 
 /** The question each facet asks (09-11-26, docs/DESIGN_chrome-redesign.md §6) — onboarding's
@@ -45,6 +52,8 @@ export const FACET_PROMPTS: Record<TopicFacet, string> = {
   medium: "In what form?",
   look: "What should it feel like?",
   place: "Anywhere in particular?",
+  tradition: "Where and when does the making come from?",
+  form: "What kind of writing?",
 };
 
 /** Topics that are unfaceted by design, not by omission — `db:seed` does not warn about these. */
@@ -146,6 +155,21 @@ const subject = [
   "mushrooms",
   "roadside-americana",
   "night",
+  // First Exhibition round one (10-04-26), docs/first-exhibition/vocabulary-proposal.md:
+  "gardens",
+  "mountains",
+  "ships",
+  "interiors",
+  "ruins",
+  "sport",
+  "festivals",
+  "costume",
+  "folklore",
+  "masks",
+  "religious-art",
+  "sacred-architecture",
+  "theatre",
+  "musical-instruments",
 ];
 
 const medium = [
@@ -193,6 +217,13 @@ const medium = [
   "botanical-illustration",
   "postcard",
   "concept-art",
+  // First Exhibition round one (10-04-26), docs/first-exhibition/vocabulary-proposal.md:
+  "woodcut",
+  "etching",
+  "stained-glass",
+  "tapestry",
+  "illuminated-manuscripts",
+  "nature-photography",
 ];
 
 const look = [
@@ -217,6 +248,12 @@ const look = [
   "pastel-palette",
   "cinematic",
   "melancholy",
+  // First Exhibition round one (10-04-26), docs/first-exhibition/vocabulary-proposal.md:
+  "minimal",
+  "ornate",
+  "nostalgic",
+  "cozy",
+  "delicate",
 ];
 
 const place = [
@@ -229,6 +266,18 @@ const place = [
   "ukraine",
 ];
 
+// The two facets First Exhibition added (10-04-26, docs/DESIGN_first-exhibition.md §5): where
+// and when a way of making comes from, and kinds of writing. Round one fills both.
+const tradition = [
+  "ukiyo-e",
+  "islamic-art",
+  "medieval",
+  "renaissance",
+  "impressionism",
+];
+
+const form = ["essays", "criticism", "letters-and-diaries"];
+
 function assign(ids: readonly string[], facet: TopicFacet) {
   return Object.fromEntries(ids.map((id) => [id, facet] as const));
 }
@@ -238,6 +287,8 @@ export const TOPIC_FACETS: Readonly<Record<string, TopicFacet>> = {
   ...assign(medium, "medium"),
   ...assign(look, "look"),
   ...assign(place, "place"),
+  ...assign(tradition, "tradition"),
+  ...assign(form, "form"),
 };
 
 export function facetOf(topicId: string): TopicFacet | undefined {

@@ -5,7 +5,7 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
-### [[10-05-26 Mon]] — The questionnaire merges; its migration becomes 0012
+### [[10-05-26 Mon]] — The questionnaire merges; its migration becomes 0012; First Exhibition is built
 
 **Shipped:** `feat/onboarding-questionnaire` (bank v1, 28 commits) merged to `main` as
 `e942adb`, in the `~/Dev/ambit-questionnaire` worktree because the main checkout was on
@@ -93,6 +93,78 @@ subtree), so it eases on Ben's machines. e2e measures the hover lift and adds a 
 - The explore item-page Share assertion wants rewriting (the disc is inside the pill's wrapper).
 
 _Session spend: 26.95M tok (in 362 · out 103.0k · cache r 26.17M / w 676.0k) · opus-5-5 · 10:13→10:46_
+
+**First Exhibition, built (afternoon, Opus 5.5 executing `docs/PLAN_first-exhibition.md` in
+`~/Dev/ambit-first-exhibition`, branch `feat/first-exhibition`, pushed — not merged, not
+deployed).**
+
+**Shipped:** all eighteen plan tasks. The study moved into its homes (`config/interview-wings.ts`,
+`interview-destinations.ts`, `temperament.ts`, `scripts/first-exhibition-faces.ts`,
+`docs/first-exhibition/`); the engine grew `show.top` (`show.ts`), "None of these" on a choice,
+`always` options, reading cards that score their article (`READ_SCORE`, `KIND_FORM`), the reading
+default, and four pure modules (`compass`, `temperament`, `exhibition`, `taste`); two facets
+(`tradition`, `form`) and round one's 33 hand topics in `config/hand-topics.ts`, seeded at tier
+`grown` with facets, groups and a persona for every new group; bank v2 (eighteen questions, ten
+steps, `steps.ts`); the faces service's writing branch; 46 hand picks in one `PICKS` object, all
+resolved from the study's ids and all distinct on `/dev/faces`; `user_taste` (migration 0013)
+written by `onboarding.complete` and read by `topics.taste`; the card grids, article and
+destination cards; the screen's steps, playoff, preselected amount and taste; the
+`ExhibitionCard` on the reveal and `/profile/topics`. `bun run check` green throughout (2,156 at the end
+tests); e2e on the real corpus and in CI's shape (67 passed, 0 failed) — run on :3012 through a
+wrapper config, because :3000 was the tile-hover session's dev server.
+
+**Decisions (Ben's, 10-04, carried):** v1 first, v2 off `main`; free text last and optional;
+"rather not" as scores only; keep as a tap grid; the playoff in v2; round one rides along; both new
+facets now; the taste stored; Sora for the title; the loader is its own sub-project.
+
+**Findings:**
+
+- **Bank v2 has no path to `the-ocean`** on either database shape — the Land, sea & sky wing
+  spreads 0.7 over many topics, so no single one reaches the reveal. The retake e2e now steers to
+  geology + music (pinned in `bank.test.ts`). Ben may want the-ocean reachable; that is a bank
+  edit, not a code one.
+- **Declining both reading screens preselects "None"** — by design (§2) — and that emptied
+  `feed.spec`'s writing tiles, because the e2e helper declines them. The helper now answers the
+  amount "Some", the share a skipped amount always meant.
+- **The proposal's group ids were not the repo's** (design §5): the 33 were filed into real
+  groups, 13 new ones (`sport-and-play` … `life-writing`), and the verdict file's comments now say
+  so. `TOPICS` stays the sixteen; hand topics are a second list.
+- **`db:seed` now writes 49 topics**, so CI's database is no longer "the sixteen" — the empty hand
+  topics are listed and pickable there, and nothing starved because of it.
+- **No local article has a `kind`** (the writing re-score ran on production only), so every
+  reading card here is the text fallback; the design's example headlines (`reading-fallback.ts`)
+  are what keep it from being a bare kind name.
+- The study's growing-wing playoff picture is also the mushroom pair's plate; one picture can only
+  be on one card, so the playoff takes the study's spare. Keeps were chosen by wing and tag.
+- **The final review (a fresh Fable reviewer) found two real holes, both fixed test-first:** a
+  reader who pressed "None of these" on every wing screen reached an **empty reveal with no way
+  forward** (every starter now sits in a wing, and "None" scores them all down) — `picksFrom` now
+  falls back to scored-down starters rather than leave it short; and the answer schema capped
+  `topicIds` at the model's 12 while a reading card sends the article's whole membership list —
+  raised to 256. It also caught that a broad `prettier --write src/server` had rewritten 22
+  recorded source fixtures; reverted. Nine minors are deferred in the branch's hand-off.
+- The questionnaire's forward button now has four names (Skip / Next / "I’d rather look at
+  pictures" / "Nowhere in particular"); `answerQuestionnaire` accepts all four.
+
+**Open / next:** Ben's phone + 1440 look (the dev server's `/onboarding`, `/dev/faces` for the
+picks); merge; deploy runs migrations 0012 + 0013 and `db:seed` at one boot; after two search
+ingests, `graph:rebuild --confirm` and commit the artifact; read the reveal on the twenty personas
+before tuning; the `docs/first-exhibition-for-ambit/` leftover (duplicate design + `.DS_Store`,
+untracked) is Ben's to delete. Later: vocabulary round two, the loader sub-project, the real "never
+show me this" filter.
+
+_Session spend: 122.88M tok (in 1.1k · out 284.1k · cache r 120.50M / w 2.10M) · opus-5-5 · 10:53→11:46_
+
+**Ben's walk, and the merge (same evening).** Ben walked bank v2 on the dev server and gave a
+screen-by-screen critique, now `docs/NOTES_onboarding-critique.md`. **His verdict: the mechanics
+are good; the notes are cosmetic** — accent colour and buttons app-wide, square picture corners,
+every card too small (a feed or swipe interface for pictures is on the table), all the copy, the
+category names (especially "Body & mind"), no coordinates on destinations, About you removed, the
+reveal renamed and given back what the study's handoff had. All of it goes to the **next
+sitewide redesign**, not to this branch. With that, **`feat/first-exhibition` is merged to
+`main`** (local only — a push deploys).
+
+_Session spend: 42.54M tok (in 210 · out 46.9k · cache r 41.94M / w 549.2k) · opus-5-5 · 11:46→12:56_
 
 ### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
 

@@ -12,7 +12,8 @@ describe("askable", () => {
   });
 
   it("always asks text and amount questions — they need no topics", () => {
-    expect(ids(new Set())).toEqual(["words", "reading-amount"]);
+    // …and a question whose options are all `always` (the reading cards).
+    expect(ids(new Set())).toEqual(["words", "read", "reading-amount"]);
   });
 
   it("hides an answer with no listed topic, keeping the question while two remain", () => {
@@ -31,5 +32,20 @@ describe("askable", () => {
       "space-or-garden",
     );
     expect(ids(NARROW)).toContain("space-or-garden");
+  });
+
+  it("keeps an `always` option whether or not its topics are listed", () => {
+    const ratherNot = askable(TEST_BANK, new Set(["horror"])).find(
+      (q) => q.id === "rather-not",
+    )!;
+    // horror is listed; nudity has no topics and survives on `always` — two live answers, so asked.
+    expect(ratherNot.options.map((o) => o.key)).toEqual(["horror", "nudity"]);
+    // With nothing listed, a multi left with only its `always` option is still skipped (one answer is no choice).
+    expect(
+      askable(TEST_BANK, new Set()).find((q) => q.id === "rather-not"),
+    ).toBeUndefined();
+    const read = askable(TEST_BANK, new Set()).find((q) => q.id === "read");
+    // Both reading cards are `always`, so the question is asked on an empty database.
+    expect(read?.options.map((o) => o.key)).toEqual(["essay", "curiosity"]);
   });
 });

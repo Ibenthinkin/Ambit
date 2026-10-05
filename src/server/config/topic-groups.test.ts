@@ -52,15 +52,12 @@ describe("TOPIC_GROUPS", () => {
     }
   });
 
-  it("is the size the design recorded (09-25-26): 12 subject, 8 medium, 8 look, 6 place", () => {
+  it("is the size the designs recorded (09-25-26 + First Exhibition 10-04-26): 15 subject, 9 medium, 12 look, 6 place, 3 tradition, 2 form", () => {
     const count = (f: string) =>
       TOPIC_GROUPS.filter((g) => g.facet === f).length;
-    expect([
-      count("subject"),
-      count("medium"),
-      count("look"),
-      count("place"),
-    ]).toEqual([12, 8, 8, 6]);
+    expect(
+      ["subject", "medium", "look", "place", "tradition", "form"].map(count),
+    ).toEqual([15, 9, 12, 6, 3, 2]);
   });
 });
 

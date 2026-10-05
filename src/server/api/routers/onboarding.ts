@@ -14,6 +14,8 @@ import {
   READING_AMOUNTS,
   type ReadingAmount,
 } from "~/server/config/reading-amount";
+import { tasteSchema } from "~/lib/interview/taste";
+import { getItemsByIds } from "~/server/db/items";
 import { completeOnboarding } from "~/server/db/onboarding";
 import type { ErrorThrottle } from "~/server/services/error-report";
 import { listTopics } from "~/server/db/topics";
@@ -80,7 +82,11 @@ const answerSchema = z.object({
   // question is still a true record of what was asked and said.
   keys: z.array(z.string().min(1).max(64)).max(24),
   text: z.string().trim().max(MAX_ANSWER_TEXT).optional(),
-  topicIds: z.array(z.string().min(1).max(64)).max(12).optional(),
+  // Two writers: the model's mapping of a text answer (≤ 6 per text), and a reading card, which
+  // carries the article's whole `item_topic` membership — bounded by the vocabulary, not by the
+  // model, and growing with every promotion round. So the cap is the vocabulary's order of
+  // magnitude, not the model's.
+  topicIds: z.array(z.string().min(1).max(64)).max(256).optional(),
 });
 
 export const onboardingRouter = createTRPCRouter({
@@ -123,6 +129,9 @@ export const onboardingRouter = createTRPCRouter({
             gender: aboutField(40),
           })
           .optional(),
+        // What the reveal showed (bank v2). Bounded by its own schema: wing ids, 0…1 dimensions,
+        // at most two opened cards. Optional so a v1 client still completes.
+        taste: tasteSchema.optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -135,6 +144,28 @@ export const onboardingRouter = createTRPCRouter({
           code: "BAD_REQUEST",
           message: `Unknown topic id(s): ${unknown.join(", ")}`,
         });
+      }
+
+      if (input.taste) {
+        // The opened cards name items; a stale tab after a corpus prune must not store a
+        // dangling id. Checked before the transaction, so a refusal writes nothing at all.
+        const ids = input.taste.opened.map((o) => o.itemId);
+        const found = await getItemsByIds(ids);
+        const gone = ids.filter((id) => !found.has(id));
+        if (gone.length > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Unknown item id(s): ${gone.join(", ")}`,
+          });
+        }
+        // Mediums must be pickable topics, like picks.
+        const badMedium = input.taste.mediums.filter((id) => !validIds.has(id));
+        if (badMedium.length > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Unknown medium id(s): ${badMedium.join(", ")}`,
+          });
+        }
       }
 
       return completeOnboarding(ctx.user.id, {
@@ -153,6 +184,7 @@ export const onboardingRouter = createTRPCRouter({
         ),
         bankVersion: input.bankVersion,
         about: input.about,
+        taste: input.taste,
       });
     }),
 

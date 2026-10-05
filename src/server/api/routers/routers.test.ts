@@ -237,6 +237,12 @@ describe("protected procedures reject a null session", () => {
     });
   });
 
+  it("topics.taste throws UNAUTHORIZED", async () => {
+    await expect(caller.topics.taste()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
   // Phase 5.10's two profile procedures. `user.me` is the one place in the API where a rejection
   // here is the *only* thing standing between a stranger and someone's email address.
   it("user.me throws UNAUTHORIZED", async () => {
@@ -746,8 +752,9 @@ describe("appRouter shape", () => {
   // (09-26-26) adds the twenty-second, `feed.explore` — the fourth deliberate public procedure.
   // 09-28-26 retires `topics.weights` — the product reads weights through `topics.mine` now —
   // and adds `topics.setWeight`, so the count stays twenty-two. The questionnaire (10-02-26) adds
-  // `user.readingAmount`, `user.setReadingAmount`, `onboarding.complete` and `onboarding.interpret` — twenty-six.
-  it("exposes exactly the twenty-six SPEC §7 procedures, no leftover post router", () => {
+  // `user.readingAmount`, `user.setReadingAmount`, `onboarding.complete` and `onboarding.interpret` — twenty-six. First Exhibition (10-04-26) adds
+  // `topics.taste`, the stored taste profile — twenty-seven.
+  it("exposes exactly the twenty-seven SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -777,6 +784,7 @@ describe("appRouter shape", () => {
         "onboarding.interpret",
         "topics.setWeight",
         "topics.resetWeights",
+        "topics.taste",
       ].sort(),
     );
   });

@@ -400,8 +400,9 @@ export const ONBOARDING_TOPICS = ["astronomy", "botany", "music"];
  * without a browser, that a path to the default three exists on both database shapes. Change
  * the rules in one and you must change the other.
  *
- * The rules: a text or amount question is skipped (no model call in e2e — the two free-text
- * questions are covered by unit tests); a pair with a wanted topic on both sides is "Either";
+ * The rules: a text question is skipped (no model call in e2e — the two free-text questions are
+ * covered by unit tests); the reading amount is answered "Some" (see the loop); a pair with a
+ * wanted topic on both sides is "Either";
  * a multi presses its hits up to the step's `data-max`, then Next; a pair or a choice is one tap
  * and moves on by itself. The optional About-you step is skipped.
  *
@@ -416,6 +417,12 @@ export async function answerQuestionnaire(
 ) {
   const want = new Set(topics);
   const step = page.locator("[data-question-id]");
+  // The screen names its forward button for what it will do (onboarding-screen.tsx's
+  // `forwardLabel`): Skip; Next once something is said — including a reading amount the screen
+  // preselected from the article cards; and the two declines bank v2 words as real answers.
+  const forward = page.getByRole("button", {
+    name: /^(Skip|Next|I’d rather look at pictures|Nowhere in particular)$/,
+  });
   const about = page.locator('[data-step="about"]');
 
   // Retried: a click that lands before React has hydrated the button does nothing at all (the
@@ -425,7 +432,7 @@ export async function answerQuestionnaire(
     if (await begin.count()) await begin.click();
     await expect(step.first()).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
-  // Far more turns than any bank has questions (bank.test.ts caps it at fifteen): a loop that
+  // Far more turns than any bank has questions (bank.test.ts caps it at twenty): a loop that
   // never reaches About-you is a bug to report, not to wait out.
   for (let turn = 0; turn < 40; turn++) {
     await step.or(about).first().waitFor();
@@ -446,8 +453,17 @@ export async function answerQuestionnaire(
       }
     }
 
-    if (hits.length === 0) {
-      await page.getByRole("button", { name: "Skip", exact: true }).click();
+    if (kind === "amount") {
+      // "Some" is the share a skipped amount used to leave the feed at (DEFAULT_KNOBS'
+      // writingShare 0.125). Pressed explicitly because bank v2 *preselects* a level read off the
+      // reading cards — and this helper declines those, which preselects "None" — so a plain
+      // forward would leave every spec's reader with a feed of no writing at all. Falls back to
+      // forward on a bank whose amount question does not offer it.
+      const some = step.getByRole("button", { name: "Some", exact: true });
+      if (await some.count()) await some.click();
+      else await forward.click();
+    } else if (hits.length === 0) {
+      await forward.click();
     } else if (kind === "pair" && hits.length > 1) {
       await step.getByRole("button", { name: "Either", exact: true }).click();
     } else if (kind === "multi") {

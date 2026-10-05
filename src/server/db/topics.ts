@@ -15,7 +15,8 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { topic, userTopic } from "~/server/db/schema";
+import type { TasteV1 } from "~/lib/interview/taste";
+import { topic, userTaste, userTopic } from "~/server/db/schema";
 
 export type Topic = typeof topic.$inferSelect;
 
@@ -373,4 +374,15 @@ export async function topicLabelsFor(
     .from(topic)
     .where(inArray(topic.id, wanted));
   return new Map(rows.map((r) => [r.id, r.label]));
+}
+
+/** The reader's taste profile — null before a bank-v2 run (db/onboarding.ts writes it). */
+export async function getUserTaste(userId: string): Promise<TasteV1 | null> {
+  const { db } = await import("./client");
+  const rows = await db
+    .select({ taste: userTaste.taste })
+    .from(userTaste)
+    .where(eq(userTaste.userId, userId))
+    .limit(1);
+  return rows[0]?.taste ?? null;
 }

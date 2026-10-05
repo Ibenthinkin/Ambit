@@ -64,12 +64,19 @@ export function picksFrom(
   }
 
   const taken = new Set(picks.map((p) => p.topicId));
-  for (const topicId of starters) {
-    if (picks.length >= MIN_PICKS) break;
-    if (taken.has(topicId) || !listed.has(topicId)) continue;
-    if ((scores.get(topicId) ?? 0) < 0) continue;
-    picks.push({ topicId, weight: weightOf("some") });
-    taken.add(topicId);
+  // Two passes over the starters. The first skips any the reader scored down — no point proposing
+  // what they turned away. The second exists because the reveal has no way to *add* a topic: a
+  // reader who pressed "None of these" on every wing screen has pushed every starter below zero,
+  // and an empty reveal would be a dead end. So if the first pass leaves it short, start somewhere
+  // anyway; every level can still be turned off.
+  for (const allowScoredDown of [false, true]) {
+    for (const topicId of starters) {
+      if (picks.length >= MIN_PICKS) break;
+      if (taken.has(topicId) || !listed.has(topicId)) continue;
+      if (!allowScoredDown && (scores.get(topicId) ?? 0) < 0) continue;
+      picks.push({ topicId, weight: weightOf("some") });
+      taken.add(topicId);
+    }
   }
   return picks;
 }
@@ -87,4 +94,25 @@ export function readingAmountFrom(
     return q.options.find((o) => o.key === a.keys[0])?.reading ?? null;
   }
   return null;
+}
+
+/** A long read, for the reading default and the reveal's "You like a long read". */
+export const LONG_READ_MINUTES = 12;
+
+/**
+ * What the `amount` question opens on when the reader has already said something about reading
+ * by opening (or declining) the article cards (docs/DESIGN_first-exhibition.md §2): both
+ * declined → none; one opened → a little; two → some, or a lot when both were long reads. Null
+ * when no reading question was reached, so the question opens blank as it did in v1. The screen
+ * preselects this as the amount question's draft; the reader can change it, and what is stored
+ * is still the amount question's answer.
+ */
+export function defaultReadingAmount(
+  opened: readonly { minutes: number }[],
+  skipped: number,
+): ReadingAmount | null {
+  if (opened.length + skipped === 0) return null;
+  if (opened.length === 0) return "none";
+  if (opened.length === 1) return "little";
+  return opened.every((o) => o.minutes >= LONG_READ_MINUTES) ? "lot" : "some";
 }

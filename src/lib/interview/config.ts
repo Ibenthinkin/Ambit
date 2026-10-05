@@ -19,6 +19,10 @@ export const NEITHER_FACTOR = -0.5;
  *  "a lot"; four share it and land at "some". */
 export const TEXT_SCORE = 1.5;
 
+/** A reading card's item: its topic memberships (and its kind's form topic) share this much.
+ *  Opening a real article is a stronger signal than a tapped word, weaker than typing a name. */
+export const READ_SCORE = 1.2;
+
 /** Score → level bands for the reveal: below SOME_FROM is "a little", from LOT_FROM "a lot". */
 export const SOME_FROM = 0.6;
 export const LOT_FROM = 1.5;

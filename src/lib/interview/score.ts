@@ -10,9 +10,12 @@ import {
   EITHER_FACTOR,
   NEITHER,
   NEITHER_FACTOR,
+  READ_SCORE,
   SKIP,
   TEXT_SCORE,
 } from "./config";
+import { KIND_FORM } from "~/server/config/writing";
+
 import { targetsOf } from "./targets";
 import type { Answer, Effect, Question } from "./types";
 
@@ -45,11 +48,21 @@ export function scoreAnswers(
     const q = byId.get(a.questionId);
     if (!q || a.keys[0] === SKIP) continue;
     if (q.kind === "text") {
-      // The model's ids are one effect, shared like any other.
       apply(scores, { topics: a.topicIds ?? [], score: TEXT_SCORE }, 1, listed);
       continue;
     }
-    // Either / Neither mean "every side of this pair", scaled.
+
+    // "None of these" on a choice (the wing screens, the playoff): each option's FIRST effect
+    // goes down — the wing's subject spread, not its face bonus. On a pair, Neither still takes
+    // every effect of both sides down, as v1 did.
+    if (a.keys[0] === NEITHER && q.kind === "choice") {
+      for (const o of q.options) {
+        const first = o.effects[0];
+        if (first) apply(scores, first, NEITHER_FACTOR, listed);
+      }
+      continue;
+    }
+
     const whole =
       a.keys[0] === EITHER
         ? EITHER_FACTOR
@@ -60,6 +73,22 @@ export function scoreAnswers(
       const factor = whole ?? (a.keys.includes(o.key) ? 1 : null);
       if (factor === null) continue;
       for (const e of o.effects) apply(scores, e, factor, listed);
+
+      // A reading card scores the *item* it showed, not a fixed effect: the screen put the
+      // item's topic memberships on `topicIds` when the card was chosen. Its kind's form topic
+      // (config/writing.ts KIND_FORM) is a second, whole effect — dropped by targetsOf until the
+      // Form facet's topics are listed.
+      if (o.face?.writing && a.keys.includes(o.key)) {
+        apply(
+          scores,
+          { topics: a.topicIds ?? [], score: READ_SCORE },
+          1,
+          listed,
+        );
+        const form = KIND_FORM[o.face.writing.kind];
+        if (form)
+          apply(scores, { topics: [form], score: READ_SCORE }, 1, listed);
+      }
     }
   }
   return scores;

@@ -62,6 +62,66 @@ export const TEST_BANK: readonly Question[] = [
     ],
   },
   {
+    id: "rooms",
+    kind: "choice",
+    prompt: "Which would you look at longer?",
+    options: [
+      {
+        key: "space",
+        label: "Space",
+        face: { topic: "astronomy" },
+        effects: [
+          { topics: ["astronomy", "moon"], score: 1 },
+          { topics: ["astronomy"], score: 0.5 },
+        ],
+      },
+      {
+        key: "garden",
+        label: "A garden",
+        face: { topic: "botany" },
+        effects: [
+          { topics: ["botany", "plants"], score: 1 },
+          { topics: ["botany"], score: 0.5 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "rather-not",
+    kind: "multi",
+    prompt: "Anything you'd rather not see?",
+    options: [
+      {
+        key: "horror",
+        label: "Horror",
+        effects: [{ topics: ["horror", "eerie"], score: -2 }],
+      },
+      // No topic marks nudity: offered and logged on `always`, scoring nothing.
+      { key: "nudity", label: "Nudity", always: true, effects: [] },
+    ],
+  },
+  {
+    id: "read",
+    kind: "choice",
+    prompt: "Which would you open?",
+    options: [
+      {
+        key: "essay",
+        label: "Essay",
+        always: true,
+        face: { topic: "literature", writing: { kind: "essay", nth: 0 } },
+        effects: [],
+      },
+      {
+        key: "curiosity",
+        label: "Curiosity",
+        always: true,
+        face: { topic: "literature", writing: { kind: "curiosity", nth: 0 } },
+        effects: [],
+      },
+    ],
+  },
+  {
     id: "reading-amount",
     kind: "amount",
     prompt: "How much reading do you want mixed in?",
@@ -89,6 +149,7 @@ export const WIDE = new Set([
   "food",
   "eerie",
   "horror",
+  "essays",
 ]);
 
 /** A CI-shaped list: only original topics. */

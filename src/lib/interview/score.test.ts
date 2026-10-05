@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { EITHER, NEITHER, SKIP, TEXT_SCORE } from "./config";
+import { EITHER, NEITHER, READ_SCORE, SKIP, TEXT_SCORE } from "./config";
 import { NARROW, TEST_BANK, WIDE } from "./fixtures";
 import { scoreAnswers } from "./score";
 
@@ -87,5 +87,45 @@ describe("scoreAnswers", () => {
     expect(score([{ questionId: "reading-amount", keys: ["lot"] }]).size).toBe(
       0,
     );
+  });
+
+  it("None of these on a choice takes each option's FIRST effect down at -0.5 — not the face bonus", () => {
+    const s = score([{ questionId: "rooms", keys: [NEITHER] }]);
+    // First effects only: {astronomy, moon} and {botany, plants}, each -0.5 shared by √2.
+    expect(s.get("astronomy")).toBeCloseTo(-0.5 / Math.sqrt(2));
+    expect(s.get("moon")).toBeCloseTo(-0.5 / Math.sqrt(2));
+    expect(s.get("botany")).toBeCloseTo(-0.5 / Math.sqrt(2));
+    // The face bonus (second effect) is untouched: astronomy is not -0.5/√2 - 0.25.
+    expect(s.get("astronomy")).not.toBeCloseTo(-0.5 / Math.sqrt(2) - 0.25);
+  });
+
+  it("an `always` option with no effects adds nothing when chosen", () => {
+    expect(score([{ questionId: "rather-not", keys: ["nudity"] }]).size).toBe(
+      0,
+    );
+  });
+
+  it("a reading card scores the item's memberships at READ_SCORE, plus its kind's form topic", () => {
+    const s = score([
+      { questionId: "read", keys: ["essay"], topicIds: ["astronomy", "music"] },
+    ]);
+    expect(s.get("astronomy")).toBeCloseTo(READ_SCORE / Math.sqrt(2));
+    expect(s.get("music")).toBeCloseTo(READ_SCORE / Math.sqrt(2));
+    // KIND_FORM.essay = "essays", listed in WIDE: its own effect, whole.
+    expect(s.get("essays")).toBeCloseTo(READ_SCORE);
+  });
+
+  it("a reading card for a kind with no form, or on a database without the form topic, scores memberships only", () => {
+    const curiosity = score([
+      { questionId: "read", keys: ["curiosity"], topicIds: ["astronomy"] },
+    ]);
+    expect(curiosity.get("astronomy")).toBeCloseTo(READ_SCORE);
+    expect(curiosity.size).toBe(1);
+    const narrow = score(
+      [{ questionId: "read", keys: ["essay"], topicIds: ["astronomy"] }],
+      NARROW,
+    );
+    expect(narrow.has("essays")).toBe(false);
+    expect(narrow.get("astronomy")).toBeCloseTo(READ_SCORE);
   });
 });

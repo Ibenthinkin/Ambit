@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { askable } from "~/lib/interview/askable";
 import { EITHER, NEITHER } from "~/lib/interview/config";
 import { TEST_BANK, WIDE } from "~/lib/interview/fixtures";
-import type { Answer } from "~/lib/interview/types";
+import { READING_FALLBACK } from "~/lib/interview/reading-fallback";
+import type { Answer, Question } from "~/lib/interview/types";
 
 import { QuestionStep } from "./question-step";
 
@@ -190,5 +191,98 @@ describe("QuestionStep", () => {
       ).toBeInTheDocument();
       expect(screen.getByText(/OpenRouter/)).toBeInTheDocument();
     });
+  });
+
+  describe("a choice whose options all have faces", () => {
+    it("renders face cards in a grid, and None of these as the NEITHER answer", () => {
+      const { onChange } = show("rooms", undefined, {
+        "rooms/space": { itemId: "s1", src: "/api/img/s1?w=960" },
+      });
+      expect(
+        screen.getByRole("button", { name: "Space" }).querySelector("img"),
+      ).toHaveAttribute("src", "/api/img/s1?w=960");
+      fireEvent.click(screen.getByRole("button", { name: "None of these" }));
+      expect(onChange).toHaveBeenCalledWith(
+        { questionId: "rooms", keys: [NEITHER] },
+        true,
+      );
+    });
+  });
+
+  describe("a reading question", () => {
+    it("renders article cards and puts the face's memberships on the answer", () => {
+      const { onChange } = show("read", undefined, {
+        "read/essay": {
+          itemId: "e1",
+          writing: {
+            title: "The case for boring buildings",
+            dek: "An architect argues.",
+            minutes: 18,
+            kind: "essay",
+            topicIds: ["architecture"],
+          },
+        },
+      });
+      const card = screen.getByRole("button", {
+        name: /The case for boring buildings/,
+      });
+      // Upper-cased by CSS (`uppercase`), which jsdom does not apply — so match either case.
+      expect(card).toHaveTextContent(/essay · 18 min/i);
+      fireEvent.click(card);
+      expect(onChange).toHaveBeenCalledWith(
+        { questionId: "read", keys: ["essay"], topicIds: ["architecture"] },
+        true,
+      );
+      // No face for curiosity: a text card named by its kind, and no memberships.
+      fireEvent.click(screen.getByRole("button", { name: "Curiosity" }));
+      expect(onChange).toHaveBeenLastCalledWith(
+        { questionId: "read", keys: ["curiosity"] },
+        true,
+      );
+    });
+    it("a card with no article shows the kind and an example headline, never a bare kind name", () => {
+      show("read");
+      const card = screen.getByRole("button", { name: "Curiosity" });
+      expect(card).toHaveTextContent("Curiosity");
+      expect(card).toHaveTextContent(READING_FALLBACK.curiosity[0].title);
+      expect(card.querySelector("img")).toBeNull();
+    });
+    it("has no None of these — 'I’d rather look at pictures' is the Skip button, owned by the screen", () => {
+      show("read");
+      expect(
+        screen.queryByRole("button", { name: "None of these" }),
+      ).toBeNull();
+    });
+  });
+
+  it("renders a destination as a typeset card", () => {
+    const q: Question = {
+      id: "destinations",
+      kind: "multi",
+      max: 3,
+      prompt: "Where?",
+      options: [
+        {
+          key: "kyoto",
+          label: "Kyoto in the rain",
+          card: { where: "Japan", line: "Moss gardens.", coord: "35.01° N" },
+          effects: [{ topics: ["botany"], score: 1.5 }],
+        },
+      ],
+    };
+    render(
+      <QuestionStep
+        question={q}
+        listed={WIDE}
+        faces={{}}
+        answer={undefined}
+        onChange={vi.fn()}
+      />,
+    );
+    const card = screen.getByRole("button", { name: "Kyoto in the rain" });
+    expect(card).toHaveTextContent("Japan");
+    expect(card).toHaveTextContent("Moss gardens.");
+    expect(card).toHaveTextContent("35.01° N");
+    expect(card).toHaveAttribute("data-topics", "botany");
   });
 });

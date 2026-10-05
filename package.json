@@ -37,6 +37,7 @@
     "stats:walk": "bun run scripts/walk-stats.ts",
     "mine:topics": "bun run scripts/mine-topics.ts",
     "promote:topics": "bun run scripts/promote-topics.ts",
+    "faces:first-exhibition": "bun run scripts/first-exhibition-faces.ts",
     "trim:memberships": "bun run scripts/trim-memberships.ts",
     "repair:periods": "bun run scripts/repair-period-topics.ts",
     "repair:rehome": "bun run scripts/repair-rehome.ts",

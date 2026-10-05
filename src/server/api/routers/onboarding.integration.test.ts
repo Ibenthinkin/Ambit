@@ -40,6 +40,16 @@ describe.skipIf(!process.env.DATABASE_URL)(
   () => {
     const userId = `test-onboarding-user-${nanoid(8)}`;
     const goneUserId = `test-onboarding-gone-${nanoid(8)}`;
+    const badTasteUserId = `test-onboarding-badtaste-${nanoid(6)}`;
+    const noTasteUserId = `test-onboarding-notaste-${nanoid(6)}`;
+    const manyTopicsUserId = `test-onboarding-many-${nanoid(6)}`;
+    const USERS = [
+      userId,
+      goneUserId,
+      badTasteUserId,
+      noTasteUserId,
+      manyTopicsUserId,
+    ];
     const tag = nanoid(8);
     const [a, b, c, d] = ["a", "b", "c", "d"].map(
       (n) => `test-onboarding-topic-${n}-${tag}`,
@@ -107,7 +117,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         })),
       );
       await db.insert(user).values(
-        [userId, goneUserId].map((id) => ({
+        USERS.map((id) => ({
           id,
           name: "Test onboarding user",
           email: `${id}@example.com`,
@@ -119,10 +129,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
     afterAll(async () => {
       const { db } = await import("~/server/db/client");
       const { topic, user, userTopic } = await import("~/server/db/schema");
-      await db
-        .delete(userTopic)
-        .where(inArray(userTopic.userId, [userId, goneUserId]));
-      await db.delete(user).where(inArray(user.id, [userId, goneUserId]));
+      // user_taste and interview_answer rows go with the user (ON DELETE CASCADE).
+      await db.delete(userTopic).where(inArray(userTopic.userId, USERS));
+      await db.delete(user).where(inArray(user.id, USERS));
       await db.delete(topic).where(inArray(topic.id, TOPICS));
     });
 
@@ -253,6 +262,88 @@ describe.skipIf(!process.env.DATABASE_URL)(
         .from(interviewAnswer)
         .where(eq(interviewAnswer.userId, goneUserId));
       expect(left).toEqual([]);
+    });
+
+    // First Exhibition (docs/DESIGN_first-exhibition.md §4): the reveal's taste, stored with the run.
+    const taste = {
+      v: 1 as const,
+      title: { adjective: "Quiet", noun: "Weathers" },
+      wings: ["land", "growing"],
+      mediums: [a],
+      temperament: {
+        communal: 0.2,
+        aesthetic: 1,
+        dark: 0,
+        thrilling: 0.1,
+        cerebral: 0.5,
+      },
+      compass: { wild: 0.6, old: 0.2, still: 0.4, far: 0.1 },
+      opened: [] as {
+        itemId: string;
+        title: string;
+        kind: "essay";
+        minutes: number;
+      }[],
+      readingMinutes: null,
+    };
+
+    it("stores the taste with the run, and a retake replaces it", async () => {
+      const caller = createCaller(authedContext(userId));
+      const { runId } = await caller.onboarding.complete(input({ taste }));
+      const stored = await caller.topics.taste();
+      expect(stored?.title).toEqual({ adjective: "Quiet", noun: "Weathers" });
+      const again = await caller.onboarding.complete(
+        input({
+          taste: { ...taste, title: { adjective: "Gilded", noun: "Myths" } },
+        }),
+      );
+      expect(again.runId).not.toBe(runId);
+      expect((await caller.topics.taste())?.title.adjective).toBe("Gilded");
+    });
+
+    it("refuses a taste whose opened item does not exist, writing nothing", async () => {
+      const caller = createCaller(authedContext(badTasteUserId));
+      await expect(
+        caller.onboarding.complete(
+          input({
+            taste: {
+              ...taste,
+              opened: [
+                {
+                  itemId: "no-such-item",
+                  title: "x",
+                  kind: "essay",
+                  minutes: 3,
+                },
+              ],
+            },
+          }),
+        ),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      expect(await caller.topics.taste()).toBeNull();
+      // Nothing else landed either: the check runs before the transaction.
+      const { picks, log } = await rowsFor(badTasteUserId);
+      expect(picks).toEqual({});
+      expect(log).toEqual([]);
+    });
+
+    it("topics.taste is null for a reader who has none", async () => {
+      const caller = createCaller(authedContext(noTasteUserId));
+      expect(await caller.topics.taste()).toBeNull();
+    });
+
+    // Final review, finding 2: a reading card puts the article's whole `item_topic` membership on
+    // `topicIds` — sized by the vocabulary, not by the model's six — so the answer must not be
+    // refused for carrying many.
+    it("accepts a reading answer carrying an article's full membership list", async () => {
+      const caller = createCaller(authedContext(manyTopicsUserId));
+      const topicIds = Array.from({ length: 40 }, (_, i) => `member-${i}`);
+      const { runId } = await caller.onboarding.complete(
+        input({
+          answers: [{ questionId: "read-1", keys: ["essay"], topicIds }],
+        }),
+      );
+      expect(runId).toEqual(expect.stringMatching(/\S/));
     });
   },
 );

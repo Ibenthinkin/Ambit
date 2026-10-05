@@ -9,6 +9,12 @@
 //      earlier answer already took — an item can sit in two topics, and a face-off that shows
 //      the same picture on both cards isn't one. That is why two are fetched per topic.
 //
+// And a third kind of face since First Exhibition (docs/DESIGN_first-exhibition.md §2): a reading
+// card, `face: { writing: { kind, nth } }`, is a real *article* — the best-scored short piece of
+// that kind on the first reading screen, a long one on the second (`pickWriting`). It carries the
+// card's copy and the article's topic memberships, which is what choosing it scores; its picture
+// is optional, and an article with none renders as an article text card.
+//
 // **A missing face is the normal path, not an error.** CI's database has no score-9 pictures at
 // all, and a fresh install has no pictures of anything; the card renders its label as text
 // instead (components/onboarding/face-card.tsx). So the result simply leaves that answer out.
@@ -24,7 +30,13 @@ import {
   type QuestionFaces,
 } from "~/lib/interview/faces";
 import type { Question } from "~/lib/interview/types";
-import { facePicks, topFacesForTopics } from "~/server/db/items";
+import type { WritingKind } from "~/server/config/writing";
+import {
+  facePicks,
+  topFacesForTopics,
+  topWritingForKinds,
+  type WritingCandidate,
+} from "~/server/db/items";
 
 // The types and the key live in a client-safe leaf; re-exported so server callers have one import.
 export { faceKey, type QuestionFace, type QuestionFaces };
@@ -40,6 +52,36 @@ function faceSrc(id: string, imageUrl: string): string {
   return src.startsWith("data:") ? src : `${src}?w=960`;
 }
 
+/** How many articles to fetch per kind — enough to find a short and a long one. */
+const PER_KIND = 6;
+/** "Short" and "long" for the two reading screens (design §2). */
+export const SHORT_READ_MAX = 6;
+export const LONG_READ_MIN = 12;
+
+/**
+ * The article for one card: for `nth` 0 the best-scored *short* piece of the kind, for 1 the
+ * best *long* one; when none fits the length, the best unused one. `used` keeps two cards from
+ * showing the same article. Pure, so it is tested without a database.
+ */
+export function pickWriting(
+  candidates: readonly WritingCandidate[],
+  kind: WritingKind,
+  nth: 0 | 1,
+  used: ReadonlySet<string>,
+): WritingCandidate | undefined {
+  const pool = candidates.filter((c) => c.kind === kind && !used.has(c.id));
+  const fits = (c: WritingCandidate) =>
+    nth === 0
+      ? (c.readingMinutes ?? Infinity) <= SHORT_READ_MAX
+      : (c.readingMinutes ?? 0) >= LONG_READ_MIN;
+  return pool.find(fits) ?? pool[0];
+}
+
+/** The summary's first line, for the card's dek. */
+function dekOf(summary: string | null): string {
+  return (summary ?? "").split("\n")[0]!.trim();
+}
+
 let memo: { faces: QuestionFaces; at: number } | null = null;
 
 /** Tests only: forget the memo between cases. */
@@ -51,18 +93,48 @@ async function build(bank: readonly Question[]): Promise<QuestionFaces> {
   const wanted = bank.flatMap((q) =>
     q.options.flatMap((o) => (o.face ? [{ q, o, face: o.face }] : [])),
   );
-  const topicIds = [...new Set(wanted.map((w) => w.face.topic))];
+  // A writing face's `topic` is a placeholder (the card is filled from the article), so only
+  // picture faces ask for pictures.
+  const topicIds = [
+    ...new Set(wanted.flatMap((w) => (w.face.writing ? [] : [w.face.topic]))),
+  ];
   const handPicks = wanted.flatMap((w) => (w.face.pick ? [w.face.pick] : []));
+  const writingKinds = [
+    ...new Set(
+      wanted.flatMap((w) => (w.face.writing ? [w.face.writing.kind] : [])),
+    ),
+  ];
 
-  const [tops, picked] = await Promise.all([
+  const [tops, picked, writing] = await Promise.all([
     topFacesForTopics(topicIds, PER_TOPIC),
     facePicks(handPicks),
+    writingKinds.length > 0
+      ? topWritingForKinds(writingKinds, PER_KIND)
+      : Promise.resolve([]),
   ]);
 
   const used = new Set<string>();
   const faces: QuestionFaces = {};
   // In bank order, so which answer keeps a shared picture is stable: the earlier one.
   for (const { q, o, face } of wanted) {
+    if (face.writing) {
+      const c = pickWriting(writing, face.writing.kind, face.writing.nth, used);
+      if (!c) continue;
+      used.add(c.id);
+      faces[faceKey(q.id, o.key)] = {
+        itemId: c.id,
+        ...(c.imageUrl ? { src: faceSrc(c.id, c.imageUrl) } : {}),
+        writing: {
+          title: c.title,
+          dek: dekOf(c.summary),
+          minutes: c.readingMinutes ?? 0,
+          kind: c.kind,
+          topicIds: c.topicIds,
+        },
+      };
+      continue;
+    }
+
     const hand = face.pick
       ? picked.find(
           (p) =>

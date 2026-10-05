@@ -334,6 +334,29 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   renaming a group id or adding a group means touching `personas.ts` in the same commit.
   `db:seed` re-applies the picks to existing persona accounts on every boot
   (`syncPersonaTopics`; creates nothing, needs no password).
+- **Onboarding is First Exhibition — 10-04-26** (design `docs/DESIGN_first-exhibition.md`, plan
+  `docs/PLAN_first-exhibition.md`; the study it adapts is `docs/first-exhibition/`; branch
+  `feat/first-exhibition`, built 10-05-26, merged to `main` the same evening, not deployed;
+  Ben's cosmetic critique, for the sitewide redesign, is `docs/NOTES_onboarding-critique.md`). Bank v2: eighteen picture-led questions in ten steps (`lib/interview/steps.ts`); the
+  playoff is a `show.top` display rule on a static `choice` (`lib/interview/show.ts`), not a
+  question kind; reading cards are real articles (`question-faces.ts`'s writing branch) and score
+  the item's memberships plus its kind's form topic (`KIND_FORM`); a reading card with no article
+  shows an example headline (`lib/interview/reading-fallback.ts`). The reveal's
+  title/temperament/compass are pure (`exhibition.ts`, `temperament.ts`, `compass.ts`) and stored
+  as `user_taste.taste` jsonb (migration 0013), client-computed and server-validated (v1's rule:
+  what is stored is what the reveal showed); `topics.taste` reads it back for `/profile/topics`.
+  Hand picks are one `PICKS` object in `bank.ts`, keyed by role. Two new facets, `tradition` and
+  `form`; **hand-added topics live in `config/hand-topics.ts`** (`TOPICS` is pinned to the
+  sixteen) and are seeded at tier `grown` — ingest reads their queries off the row, and they have
+  no graph edges until `graph:rebuild` runs after items arrive (drift stays put meanwhile). **So
+  `db:seed` now writes 49 topics, and CI's database is the sixteen originals plus 33 empty hand
+  topics**, not the sixteen alone. Three things that bite: the amount question **preselects** a
+  level read off the reading cards, so declining both reading screens preselects "None" — e2e's
+  `answerQuestionnaire` presses "Some" on purpose (the share a skipped amount always meant); the
+  forward button is named for what it does (`forwardLabel`: Skip / Next / "I’d rather look at
+  pictures" / "Nowhere in particular"); and bank v2 has **no path to `the-ocean`** on either
+  database shape (the Land wing spreads its point too thin), so the retake spec steers to
+  geology and music, which `bank.test.ts` pins.
 - **Spread mode on the item screen — 09-27-26** (design `docs/DESIGN_spread-mode.md`, plan
   `docs/PLAN_spread-mode.md`; branch `feat/spread-mode`, pushed for Ben's look at 1440, not
   merged). It began as Ben's **feed** layout picker (1 / 2 / 4 columns, drawn in
