@@ -62,7 +62,7 @@ steps, `steps.ts`); the faces service's writing branch; 46 hand picks in one `PI
 resolved from the study's ids and all distinct on `/dev/faces`; `user_taste` (migration 0013)
 written by `onboarding.complete` and read by `topics.taste`; the card grids, article and
 destination cards; the screen's steps, playoff, preselected amount and taste; the
-`ExhibitionCard` on the reveal and `/profile/topics`. `bun run check` green throughout (2,1xx
+`ExhibitionCard` on the reveal and `/profile/topics`. `bun run check` green throughout (2,151
 tests); e2e on the real corpus and in CI's shape (67 passed, 0 failed) — run on :3012 through a
 wrapper config, because :3000 was the tile-hover session's dev server.
 
