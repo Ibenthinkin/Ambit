@@ -10,9 +10,21 @@ import { Rise } from "~/components/ui/rise";
 import { askable } from "~/lib/interview/askable";
 import { BANK_VERSION, QUESTIONS, STARTER_TOPICS } from "~/lib/interview/bank";
 import { SKIP } from "~/lib/interview/config";
-import type { QuestionFaces } from "~/lib/interview/faces";
-import { picksFrom, readingAmountFrom, type Pick } from "~/lib/interview/picks";
+import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
+import {
+  defaultReadingAmount,
+  picksFrom,
+  readingAmountFrom,
+  type Pick,
+} from "~/lib/interview/picks";
 import { scoreAnswers } from "~/lib/interview/score";
+import { shown } from "~/lib/interview/show";
+import { STEP_LABELS, STEP_OF, stepsAsked } from "~/lib/interview/steps";
+import {
+  buildTaste,
+  chosenDestinations,
+  type OpenedCard,
+} from "~/lib/interview/taste";
 import type { Answer, Question } from "~/lib/interview/types";
 import { api } from "~/trpc/react";
 
@@ -44,6 +56,12 @@ import { StepBar } from "./step-bar";
 //     question, if anything was typed — and the flow goes on whether or not it answers.
 //     `onboarding.complete` once, from the reveal. Until then nothing is written, so closing the
 //     tab half-way leaves no trace and `/feed` still sends the reader back here.
+//
+// First Exhibition (bank v2, docs/DESIGN_first-exhibition.md) added four things, all derived from
+// the answers so Back-and-change is always honoured: the progress line counts **steps** (steps.ts)
+// rather than questions; a `show.top` question (the playoff) is **ranked** by the scores so far
+// before it is shown (show.ts); the reading-amount question **opens on a default** read off the
+// article cards; and the reveal's **taste** (taste.ts) is computed here and sent with the run.
 
 type Phase = "intro" | "questions" | "interpreting" | "about" | "reveal";
 
@@ -65,6 +83,16 @@ function isAnswered(answer: Answer | undefined): answer is Answer {
   if (!answer) return false;
   if (answer.text !== undefined) return answer.text.trim() !== "";
   return answer.keys.length > 0 && answer.keys[0] !== SKIP;
+}
+
+/** The forward button, named for what it will do. Declining is a real answer on two screens, so
+ *  it says so: the reading cards ("I'd rather look at pictures") and the destinations. */
+function forwardLabel(q: Question, answered: boolean): string {
+  if (answered) return "Next";
+  if (q.options.some((o) => o.face?.writing))
+    return "I’d rather look at pictures";
+  if (q.id === "destinations") return "Nowhere in particular";
+  return "Skip";
 }
 
 export function OnboardingScreen({
@@ -93,6 +121,62 @@ export function OnboardingScreen({
   const [error, setError] = useState("");
 
   const current = asked[answers.length];
+
+  // What the answers so far have scored — the playoff ranks by it, the reveal is built from it.
+  const scoresSoFar = useMemo(
+    () => scoreAnswers(bank, answers, listed),
+    [bank, answers, listed],
+  );
+  /** The question as it is shown: a `show.top` question cut to the reader's best few. */
+  const onScreen = current ? shown(current, scoresSoFar, listed) : undefined;
+
+  /** The article cards opened so far — read from the answers, so Back-and-change is honoured. */
+  const opened = useMemo((): OpenedCard[] => {
+    return answers.flatMap((a) => {
+      const q = bank.find((x) => x.id === a.questionId);
+      const key = a.keys[0];
+      if (!q || !key || key === SKIP) return [];
+      const o = q.options.find((x) => x.key === key);
+      const face = o?.face?.writing ? faces[faceKey(q.id, key)] : undefined;
+      return face?.writing
+        ? [
+            {
+              itemId: face.itemId,
+              title: face.writing.title,
+              kind: face.writing.kind,
+              minutes: face.writing.minutes,
+            },
+          ]
+        : [];
+    });
+  }, [answers, bank, faces]);
+  /** Reading screens declined ("I'd rather look at pictures"). */
+  const readingSkipped = answers.filter((a) => {
+    const q = bank.find((x) => x.id === a.questionId);
+    return (
+      (q?.options.some((o) => o.face?.writing) ?? false) && a.keys[0] === SKIP
+    );
+  }).length;
+
+  // The amount question opens on what the cards already said — preselected *as the answer*, so
+  // pressing Next stores it, and the reader can change it. Only a level the question offers.
+  const amountDefault =
+    current?.kind === "amount"
+      ? defaultReadingAmount(opened, readingSkipped)
+      : null;
+  const shownDraft =
+    draft ??
+    (current &&
+    amountDefault &&
+    current.options.some((o) => o.key === amountDefault)
+      ? { questionId: current.id, keys: [amountDefault] }
+      : undefined);
+
+  // The progress line counts steps, plus About you; a bank with no STEP_OF entries (a test's)
+  // keeps v1's question count.
+  const steps = useMemo(() => stepsAsked(asked), [asked]);
+  const stepNow = current ? STEP_OF[current.id] : undefined;
+  const stepIndex = stepNow !== undefined ? steps.indexOf(stepNow) : -1;
 
   // A question that arrives takes focus on its heading. The one it replaced was unmounted by the
   // tap that answered it, which drops focus to <body> — and a screen-reader user would get no cue
@@ -158,8 +242,19 @@ export function OnboardingScreen({
   // What the answers add up to — recomputed when they change, which only happens before the
   // reveal is on screen (RevealStep reads `proposed` once, on mount).
   const proposed = useMemo(
-    () => picksFrom(scoreAnswers(bank, answers, listed), listed, starters),
-    [bank, answers, listed, starters],
+    () => picksFrom(scoresSoFar, listed, starters),
+    [scoresSoFar, listed, starters],
+  );
+  // What the reveal shows above the levels, and what is stored with the run (user_taste).
+  const taste = useMemo(
+    () =>
+      buildTaste({
+        scores: scoresSoFar,
+        listed,
+        destinations: chosenDestinations(answers),
+        opened,
+      }),
+    [scoresSoFar, listed, answers, opened],
   );
 
   async function submit(picks: Pick[]) {
@@ -173,6 +268,7 @@ export function OnboardingScreen({
         answers,
         bankVersion: BANK_VERSION,
         about: about ?? undefined,
+        taste,
       });
       // On a retake the cache still holds the old picks, the old reading amount and a feed
       // composed from them; a first run has nothing cached, and this costs nothing.
@@ -240,14 +336,16 @@ export function OnboardingScreen({
               aria-live="polite"
               className="text-accent mb-[14px] font-sans text-[11px] font-semibold tracking-[1.8px] uppercase"
             >
-              {answers.length + 1} of {asked.length}
+              {stepIndex >= 0
+                ? `Step ${stepIndex + 1} of ${steps.length + 1} · ${STEP_LABELS[stepNow! - 1]}`
+                : `${answers.length + 1} of ${asked.length}`}
             </p>
             <Rise key={current.id}>
               <QuestionStep
-                question={current}
+                question={onScreen ?? current}
                 listed={listed}
                 faces={faces}
-                answer={draft}
+                answer={shownDraft}
                 onChange={(answer, done) =>
                   done ? advance(answer) : setDraft(answer)
                 }
@@ -258,8 +356,12 @@ export function OnboardingScreen({
                 Back
               </Button>
               {/* One button, named for what it will do: nothing said yet → Skip. */}
-              <Button shape="pill" size="md" onClick={() => advance(draft)}>
-                {isAnswered(draft) ? "Next" : "Skip"}
+              <Button
+                shape="pill"
+                size="md"
+                onClick={() => advance(shownDraft)}
+              >
+                {forwardLabel(current, isAnswered(shownDraft))}
               </Button>
             </StepBar>
           </>
@@ -293,6 +395,7 @@ export function OnboardingScreen({
           <RevealStep
             topics={topics}
             proposed={proposed}
+            taste={taste}
             retake={retake}
             submitting={submitting}
             error={error}

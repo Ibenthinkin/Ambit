@@ -7,6 +7,7 @@ import { TopicLevels, type LevelTopic } from "~/components/topics/topic-levels";
 import { Button } from "~/components/ui/button";
 import { MIN_PICKS } from "~/lib/interview/config";
 import type { Pick } from "~/lib/interview/picks";
+import type { TasteV1 } from "~/lib/interview/taste";
 import { cn } from "~/lib/utils";
 import { weightOf } from "~/server/config/topic-levels";
 
@@ -29,6 +30,9 @@ export interface RevealStepProps {
   topics: readonly LevelTopic[];
   /** What the answers proposed. Read once, on mount. */
   proposed: readonly Pick[];
+  /** The exhibition the answers make (First Exhibition, taste.ts). Absent on a bank without
+   *  v2's questions — the reveal is then the levels list alone. */
+  taste?: TasteV1;
   /** A signed-up reader retaking the questions: this will *replace* what they have. */
   retake: boolean;
   submitting: boolean;
