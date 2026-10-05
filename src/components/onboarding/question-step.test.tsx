@@ -207,6 +207,15 @@ describe("QuestionStep", () => {
         true,
       );
     });
+
+    it("prints no caption over a wing picture (the label stays the name)", () => {
+      show("rooms", undefined, {
+        "rooms/space": { itemId: "s1", src: "/api/img/s1?w=960" },
+      });
+      expect(
+        screen.getByRole("button", { name: "Space" }),
+      ).not.toHaveTextContent("Space");
+    });
   });
 
   describe("a reading question", () => {

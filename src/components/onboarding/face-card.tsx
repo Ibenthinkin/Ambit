@@ -35,6 +35,11 @@ export interface FaceCardProps {
   /** A reading answer with no article in this database: the kind, and an example headline so
    *  the card is never a bare word. The accessible name stays the label. */
   fallback?: { kind: WritingKind } & FallbackCard;
+  /** Print the label over the picture? Default yes. The wings and the playoff pass `false`
+   *  (Ben's 10-05-26 critique: the category told the reader what to see) — the picture stands
+   *  alone, and the label is still the accessible name, and still the whole card if the picture
+   *  is missing or fails. */
+  caption?: boolean;
   /** A typeset card with no picture (the destinations). */
   card?: { where: string; line: string };
 }
@@ -52,6 +57,7 @@ export function FaceCard({
   writing,
   fallback,
   card,
+  caption = true,
 }: FaceCardProps) {
   // A failed load flips the card to its text form rather than leaving a broken-image glyph.
   const [failed, setFailed] = useState(false);
@@ -131,9 +137,11 @@ export function FaceCard({
             className="absolute inset-0 h-full w-full object-cover"
           />
           {/* A scrim only as tall as the caption needs, so the picture stays the picture. */}
-          <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-black/0 px-4 pt-10 pb-3 text-[15px] font-medium text-white">
-            {label}
-          </span>
+          {caption && (
+            <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-black/0 px-4 pt-10 pb-3 text-[15px] font-medium text-white">
+              {label}
+            </span>
+          )}
         </>
       ) : (
         <span className="text-ink-hi px-4 text-center text-[22px] leading-tight font-semibold">

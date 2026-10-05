@@ -81,4 +81,43 @@ describe("FaceCard", () => {
     expect(card).toHaveTextContent("Moss gardens.");
     expect(card).not.toHaveTextContent("35.01° N");
   });
+
+  // Ben's critique (10-05-26): a wing picture should stand alone — the category printed over it
+  // told the reader what to see. `caption={false}` drops the printed label, never the name.
+  describe("caption={false}", () => {
+    it("prints no label over the picture, but the label is still the button's name", () => {
+      render(
+        <FaceCard
+          label="Space"
+          src="/api/img/a1?w=960"
+          caption={false}
+          topics={[]}
+          selected={false}
+          onClick={vi.fn()}
+        />,
+      );
+      const card = screen.getByRole("button", { name: "Space" });
+      expect(card.querySelector("img")).not.toBeNull();
+      expect(card).not.toHaveTextContent("Space");
+    });
+
+    // Review Focus 3: with no caption, a picture that fails to load must not leave a blank
+    // button — the text card, label large, is still the fallback.
+    it("falls back to the text card, label and all, when the picture fails", () => {
+      render(
+        <FaceCard
+          label="Space"
+          src="/api/img/gone"
+          caption={false}
+          topics={[]}
+          selected={false}
+          onClick={vi.fn()}
+        />,
+      );
+      const card = screen.getByRole("button", { name: "Space" });
+      fireEvent.error(card.querySelector("img")!);
+      expect(card.querySelector("img")).toBeNull();
+      expect(card).toHaveTextContent("Space");
+    });
+  });
 });

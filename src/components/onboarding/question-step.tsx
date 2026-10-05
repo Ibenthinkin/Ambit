@@ -68,6 +68,13 @@ export function QuestionStep({
   const asCards =
     (question.kind === "choice" || question.kind === "multi") &&
     (allFaced || anyCard);
+  // The wings and the playoff — a faced *choice* that is not a reading screen — show their
+  // pictures with no caption: the picture is the question (Ben's critique, 10-05-26). The keep
+  // grid (a multi) and the pairs keep their labels, the reading cards are text-led anyway.
+  const quietFaces =
+    question.kind === "choice" &&
+    allFaced &&
+    !question.options.some((o) => o.face?.writing);
 
   function toggle(key: string) {
     let next: string[];
@@ -195,6 +202,7 @@ export function QuestionStep({
                       : undefined
                   }
                   card={o.card}
+                  caption={!quietFaces}
                   topics={topicsOf(o)}
                   selected={keys.includes(o.key)}
                   onClick={() =>
