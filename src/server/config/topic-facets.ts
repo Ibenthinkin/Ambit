@@ -155,6 +155,21 @@ const subject = [
   "mushrooms",
   "roadside-americana",
   "night",
+  // First Exhibition round one (10-04-26), docs/first-exhibition/vocabulary-proposal.md:
+  "gardens",
+  "mountains",
+  "ships",
+  "interiors",
+  "ruins",
+  "sport",
+  "festivals",
+  "costume",
+  "folklore",
+  "masks",
+  "religious-art",
+  "sacred-architecture",
+  "theatre",
+  "musical-instruments",
 ];
 
 const medium = [
@@ -202,6 +217,13 @@ const medium = [
   "botanical-illustration",
   "postcard",
   "concept-art",
+  // First Exhibition round one (10-04-26), docs/first-exhibition/vocabulary-proposal.md:
+  "woodcut",
+  "etching",
+  "stained-glass",
+  "tapestry",
+  "illuminated-manuscripts",
+  "nature-photography",
 ];
 
 const look = [
@@ -226,6 +248,12 @@ const look = [
   "pastel-palette",
   "cinematic",
   "melancholy",
+  // First Exhibition round one (10-04-26), docs/first-exhibition/vocabulary-proposal.md:
+  "minimal",
+  "ornate",
+  "nostalgic",
+  "cozy",
+  "delicate",
 ];
 
 const place = [
@@ -238,6 +266,18 @@ const place = [
   "ukraine",
 ];
 
+// The two facets First Exhibition added (10-04-26, docs/DESIGN_first-exhibition.md §5): where
+// and when a way of making comes from, and kinds of writing. Round one fills both.
+const tradition = [
+  "ukiyo-e",
+  "islamic-art",
+  "medieval",
+  "renaissance",
+  "impressionism",
+];
+
+const form = ["essays", "criticism", "letters-and-diaries"];
+
 function assign(ids: readonly string[], facet: TopicFacet) {
   return Object.fromEntries(ids.map((id) => [id, facet] as const));
 }
@@ -247,6 +287,8 @@ export const TOPIC_FACETS: Readonly<Record<string, TopicFacet>> = {
   ...assign(medium, "medium"),
   ...assign(look, "look"),
   ...assign(place, "place"),
+  ...assign(tradition, "tradition"),
+  ...assign(form, "form"),
 };
 
 export function facetOf(topicId: string): TopicFacet | undefined {

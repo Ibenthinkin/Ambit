@@ -99,6 +99,7 @@ import {
   planTopics,
   resolveWriting,
   scaleGrownEdges,
+  TOPIC_GRAPH,
   writingPositions,
   type FeedCursor,
   type FeedKnobs,
@@ -2014,5 +2015,19 @@ describe("getFeedPage — the reader's own reading amount (10-02-26)", () => {
     });
     expect(articles(page)).toBe(0);
     expect(ordinaryType()).toBe("image");
+  });
+});
+
+// Review Focus 5 (docs/PLAN_first-exhibition.md): a hand-added topic has no row in the checked-in
+// graph until `graph:rebuild` runs after its items arrive. Picking it must not break a page.
+describe("a hand-added topic before graph:rebuild", () => {
+  it("a picked topic with no graph row drifts and jumps to itself, never throws", () => {
+    const weights = new Map([["gardens", 1]]);
+    const rng = () => 0.5;
+    const drift = pickDrift(weights, TOPIC_GRAPH, DEFAULT_KNOBS, rng);
+    expect(drift?.topicId).toBe("gardens");
+    expect(drift?.why).toContain("(no row)");
+    const jump = pickJump(weights, TOPIC_GRAPH, rng);
+    expect(jump?.topicId).toBe("gardens");
   });
 });

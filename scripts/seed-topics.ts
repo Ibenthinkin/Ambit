@@ -1,4 +1,5 @@
-// Seed script: load the sixteen v1 topics from config into the `topic` table (SPEC §5.2).
+// Seed script: load the sixteen v1 topics from config into the `topic` table (SPEC §5.2), and
+// since First Exhibition (10-04-26) the hand-added topics in config/hand-topics.ts at tier `grown`.
 // Run with `bun run db:seed`. Safe to re-run — that's the whole point of it.
 //
 // This is a *config load*, not a user-facing repository operation, which is why it writes to the
@@ -13,6 +14,7 @@
 // treatment of an existing row, because the two kinds of data want opposite things.
 import { sql } from "drizzle-orm";
 
+import { HAND_TOPICS } from "~/server/config/hand-topics";
 import type { SeedQueries } from "~/server/config/topics";
 import { SEED_SOURCES, TOPICS } from "~/server/config/topics";
 import { db } from "~/server/db/client";
@@ -55,7 +57,9 @@ async function main() {
   const isNew: string[] = [];
   const changed: string[] = [];
 
-  for (const t of TOPICS) {
+  // The sixteen and the hand-added topics are both config; both are classified the same way.
+  const configured = [...TOPICS, ...HAND_TOPICS];
+  for (const t of configured) {
     const row = byId.get(t.id);
     if (!row) {
       isNew.push(t.id);
@@ -90,15 +94,41 @@ async function main() {
       },
     });
 
+  // Hand-added topics (First Exhibition round one, docs/DESIGN_first-exhibition.md §5): seeded
+  // like the sixteen, at tier `grown` — they are vocabulary, not the graph's tuned set. The
+  // facets pass below gives them their facet; ingest reads their queries off the row.
+  if (HAND_TOPICS.length > 0) {
+    await db
+      .insert(topic)
+      .values(
+        HAND_TOPICS.map((t) => ({
+          id: t.id,
+          label: t.label,
+          seedQueries: t.seedQueries,
+          tier: "grown" as const,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: topic.id,
+        set: {
+          label: sql`excluded.label`,
+          seedQueries: sql`excluded.seed_queries`,
+          // Not `tier`: a hand topic later promoted or re-tiered keeps what it has.
+        },
+      });
+  }
+
   // Never delete. A stale row is almost certainly still referenced by item.topic_id or
   // user_topic.topic_id, so dropping it would either fail on the FK or orphan real user data —
   // retiring a topic is a migration with a plan, not a side effect of running the seeder.
   const orphans = existing.filter(
-    (row) => !TOPICS.some((t) => t.id === row.id),
+    (row) =>
+      !TOPICS.some((t) => t.id === row.id) &&
+      !HAND_TOPICS.some((t) => t.id === row.id),
   );
   for (const row of orphans) {
     console.warn(
-      `Warning: topic "${row.id}" is in the database but not in topics.ts — left untouched.`,
+      `Warning: topic "${row.id}" is in the database but not in topics.ts or hand-topics.ts — left untouched.`,
     );
   }
 
@@ -124,12 +154,13 @@ async function main() {
     `Personas: ${personas.updated.length} re-synced, ${personas.unchanged.length} unchanged, ${personas.absent.length} not seeded.`,
   );
 
-  const unchanged = TOPICS.length - isNew.length - changed.length;
+  const unchanged = configured.length - isNew.length - changed.length;
+  const counted = `${configured.length} topics (${TOPICS.length} original + ${HAND_TOPICS.length} hand-added)`;
   if (isNew.length === 0 && changed.length === 0) {
-    console.log(`${TOPICS.length} topics already up to date — nothing to do.`);
+    console.log(`${counted} already up to date — nothing to do.`);
   } else {
     console.log(
-      `Seeded ${TOPICS.length} topics: ${isNew.length} new, ${changed.length} updated, ${unchanged} unchanged.`,
+      `Seeded ${counted}: ${isNew.length} new, ${changed.length} updated, ${unchanged} unchanged.`,
     );
     if (isNew.length) console.log(`  new:     ${isNew.join(", ")}`);
     if (changed.length) console.log(`  updated: ${changed.join(", ")}`);

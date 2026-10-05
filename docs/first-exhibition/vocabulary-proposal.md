@@ -37,7 +37,7 @@ _Already in Ambit: Plants, Botany, Flowers, Trees._
 
 ### Gardens (`gardens`, new group · wing: Growing things)
 
-- [x] `gardens` — **Gardens** <!-- facet: subject --> <!-- group: gardens --> · seed: "gardens"
+- [x] `gardens` — **Gardens** <!-- facet: subject --> <!-- group: plants-and-fungi --> · seed: "gardens"
 - [ ] `garden-design` — **Garden design** <!-- facet: subject --> <!-- group: gardens --> · seed: "garden design"
 
 ### Farm & field (`farm-and-field`, new group · wing: Growing things)
@@ -55,7 +55,7 @@ _Already in Ambit: Geology._
 
 ### Mountains & ice (`mountains-and-ice`, new group · wing: Land, sea & sky)
 
-- [x] `mountains` — **Mountains** <!-- facet: subject --> <!-- group: mountains-and-ice --> · seed: "mountains"
+- [x] `mountains` — **Mountains** <!-- facet: subject --> <!-- group: land-sea-and-sky --> · seed: "mountains"
 - [ ] `polar` — **Polar** <!-- facet: subject --> <!-- group: mountains-and-ice --> · seed: "polar"
 - [ ] `glaciers` — **Glaciers** <!-- facet: subject --> <!-- group: mountains-and-ice --> · seed: "glaciers"
 
@@ -75,7 +75,7 @@ _Already in Ambit: Geology._
 ### Trains, ships & flight (`trains-ships-and-flight`, new group · wing: Machines & how things work)
 
 - [ ] `trains` — **Trains** <!-- facet: subject --> <!-- group: trains-ships-and-flight --> · seed: "trains"
-- [x] `ships` — **Ships** <!-- facet: subject --> <!-- group: trains-ships-and-flight --> · seed: "ships"
+- [x] `ships` — **Ships** <!-- facet: subject --> <!-- group: machines-and-technology --> · seed: "ships"
 - [ ] `aviation` — **Aviation** <!-- facet: subject --> <!-- group: trains-ships-and-flight --> · seed: "aviation"
 - [ ] `bicycles` — **Bicycles** <!-- facet: subject --> <!-- group: trains-ships-and-flight --> · seed: "bicycles"
 
@@ -89,7 +89,7 @@ _Already in Ambit: Geology._
 
 ### Interiors & houses (`interiors-and-houses`, new group · wing: Cities & buildings)
 
-- [x] `interiors` — **Interiors** <!-- facet: subject --> <!-- group: interiors-and-houses --> · seed: "interiors"
+- [x] `interiors` — **Interiors** <!-- facet: subject --> <!-- group: cities-and-streets --> · seed: "interiors"
 - [ ] `houses` — **Houses** <!-- facet: subject --> <!-- group: interiors-and-houses --> · seed: "houses"
 - [ ] `cabins` — **Cabins** <!-- facet: subject --> <!-- group: interiors-and-houses --> · seed: "cabins"
 
@@ -101,7 +101,7 @@ _Already in Ambit: Geology._
 ### Castles & ruins (`castles-and-ruins`, new group · wing: Cities & buildings)
 
 - [ ] `castles` — **Castles** <!-- facet: subject --> <!-- group: castles-and-ruins --> · seed: "castles"
-- [x] `ruins` — **Ruins** <!-- facet: subject --> <!-- group: castles-and-ruins --> · seed: "ruins"
+- [x] `ruins` — **Ruins** <!-- facet: subject --> <!-- group: cities-and-streets --> · seed: "ruins"
 
 ### Work & trades (`work-and-trades`, new group · wing: People & daily life)
 
@@ -126,7 +126,7 @@ _Already in Ambit: Geology._
 
 _Already in Ambit: Fashion, Shoes, Jewelry._
 
-- [x] `costume` — **Costume** <!-- facet: subject --> <!-- group: fashion-group --> · seed: "costume"
+- [x] `costume` — **Costume** <!-- facet: subject --> <!-- group: everyday-things --> · seed: "costume"
 - [ ] `hairstyles` — **Hairstyles** <!-- facet: subject --> <!-- group: fashion-group --> · seed: "hairstyles"
 - [ ] `beauty` — **Beauty** <!-- facet: subject --> <!-- group: fashion-group --> · seed: "beauty"
 
@@ -139,9 +139,9 @@ _Already in Ambit: Fashion, Shoes, Jewelry._
 
 ### Folklore & fairy tales (`folklore-and-fairy-tales`, new group · wing: Myth, ritual & the ancient world)
 
-- [x] `folklore` — **Folklore** <!-- facet: subject --> <!-- group: folklore-and-fairy-tales --> · seed: "folklore"
+- [x] `folklore` — **Folklore** <!-- facet: subject --> <!-- group: myth-story-and-the-strange --> · seed: "folklore"
 - [ ] `fairy-tales` — **Fairy tales** <!-- facet: subject --> <!-- group: folklore-and-fairy-tales --> · seed: "fairy tales"
-- [x] `masks` — **Masks** <!-- facet: subject --> <!-- group: folklore-and-fairy-tales --> · seed: "masks"
+- [x] `masks` — **Masks** <!-- facet: subject --> <!-- group: myth-story-and-the-strange --> · seed: "masks"
 - [ ] `witches` — **Witches** <!-- facet: subject --> <!-- group: folklore-and-fairy-tales --> · seed: "witches"
 
 ### The ancient world (`ancient-world`, existing group, extended · wing: Myth, ritual & the ancient world)
@@ -210,7 +210,7 @@ _Already in Ambit: Humor._
 
 _Already in Ambit: Music, Sound, Dance._
 
-- [x] `musical-instruments` — **Musical instruments** <!-- facet: subject --> <!-- group: music-sound-and-dance --> · seed: "musical instruments"
+- [x] `musical-instruments` — **Musical instruments** <!-- facet: subject --> <!-- group: music-film-and-performance --> · seed: "musical instruments"
 
 ### Film, TV & animation (`film-and-animation`, existing group, extended · wing: Stage, screen & sound)
 
@@ -220,7 +220,7 @@ _Already in Ambit: Film, Animation._
 
 ### Theatre & circus (`theatre-and-circus`, new group · wing: Stage, screen & sound)
 
-- [x] `theatre` — **Theatre** <!-- facet: subject --> <!-- group: theatre-and-circus --> · seed: "theatre"
+- [x] `theatre` — **Theatre** <!-- facet: subject --> <!-- group: music-film-and-performance --> · seed: "theatre"
 - [ ] `circus` — **Circus** <!-- facet: subject --> <!-- group: theatre-and-circus --> · seed: "circus"
 - [ ] `puppetry` — **Puppetry** <!-- facet: subject --> <!-- group: theatre-and-circus --> · seed: "puppetry"
 - [ ] `magic-shows` — **Magic shows** <!-- facet: subject --> <!-- group: theatre-and-circus --> · seed: "magic shows"
@@ -231,8 +231,8 @@ _Already in Ambit: Film, Animation._
 
 _Already in Ambit: Engraving._
 
-- [x] `woodcut` — **Woodcut** <!-- facet: medium --> <!-- group: printmaking --> · seed: "woodcut"
-- [x] `etching` — **Etching** <!-- facet: medium --> <!-- group: printmaking --> · seed: "etching"
+- [x] `woodcut` — **Woodcut** <!-- facet: medium --> <!-- group: posters-print-and-type --> · seed: "woodcut"
+- [x] `etching` — **Etching** <!-- facet: medium --> <!-- group: posters-print-and-type --> · seed: "etching"
 - [ ] `lithography` — **Lithography** <!-- facet: medium --> <!-- group: printmaking --> · seed: "lithography"
 - [ ] `screen-printing` — **Screen printing** <!-- facet: medium --> <!-- group: printmaking --> · seed: "screen printing"
 
@@ -256,7 +256,7 @@ _Already in Ambit: Sculpture, Carving._
 
 _Already in Ambit: Ceramics, Clay, Glass._
 
-- [x] `stained-glass` — **Stained glass** <!-- facet: medium --> <!-- group: ceramics-and-glass --> · seed: "stained glass"
+- [x] `stained-glass` — **Stained glass** <!-- facet: medium --> <!-- group: craft-and-materials --> · seed: "stained glass"
 - [ ] `porcelain` — **Porcelain** <!-- facet: medium --> <!-- group: ceramics-and-glass --> · seed: "porcelain"
 
 ### Textiles (`textiles-group`, existing group, extended)
@@ -265,7 +265,7 @@ _Already in Ambit: Textiles, Embroidery._
 
 - [ ] `quilts` — **Quilts** <!-- facet: medium --> <!-- group: textiles-group --> · seed: "quilts"
 - [ ] `rugs-and-carpets` — **Rugs & carpets** <!-- facet: medium --> <!-- group: textiles-group --> · seed: "rugs and carpets"
-- [x] `tapestry` — **Tapestry** <!-- facet: medium --> <!-- group: textiles-group --> · seed: "tapestry"
+- [x] `tapestry` — **Tapestry** <!-- facet: medium --> <!-- group: craft-and-materials --> · seed: "tapestry"
 - [ ] `weaving` — **Weaving** <!-- facet: medium --> <!-- group: textiles-group --> · seed: "weaving"
 
 ### Decorative arts (`decorative-arts`, new group)

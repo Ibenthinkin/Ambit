@@ -53,7 +53,7 @@ describe("TOPIC_FACETS", () => {
     ]);
   });
 
-  it("has exactly 159 entries — 100 from the design doc plus round 2 (09-12-26); update both if the vocabulary grows", () => {
-    expect(Object.keys(TOPIC_FACETS)).toHaveLength(159);
+  it("has exactly 192 entries — 159 from the design doc and round 2 (09-12-26), plus First Exhibition round one (10-04-26); update both if the vocabulary grows", () => {
+    expect(Object.keys(TOPIC_FACETS)).toHaveLength(192);
   });
 });
