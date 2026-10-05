@@ -29,9 +29,17 @@ starve the weekly ingest). `.cache/dop-rescore-prod.sh run tags|full | status | 
 detached in the container, sleeps 30 min on each exit 3 and resumes; a stop, crash or deploy
 resumes from the last progress line.
 
-**Open / next:** Ben picks `tags` or `full` and starts it; don't push `main` while it runs.
-Monday 08:00 UTC's pictures run may meet a spent five-hour window if the two overlap — Tuesday is
-the catch-up. Then Task 9.
+**Ran — `tags`, Ben's pick (10-04 19:17 → 10-05 00:26 UTC):** all **10,222** DoP pictures
+re-tagged, **0 no-image, 0 fallback skips**, scores untouched. ~65 a minute on four workers. One
+five-hour ceiling stop at 4,976 (20:33 UTC, window 80%; it read 85% at the first retry with Ben's
+own sessions on top), slept through the 23:00 reset and finished in the second window — the
+resumable loop worked as built. The second leg's summary: 8.80 → 8.02 *would-be* average over
+5,246, confirming the flattening the sample predicted. **One window ≈ 5,000 Haiku pictures.**
+Cosmetic: a ceiling refusal at preflight reads "not usable with claude-sonnet-5-5 … is Claude
+Code installed?" — the 10-02 parked wording issue; the exit code (3) is right.
+
+**Open / next:** Step 8 (Monday 08:00 UTC pictures fire), then Task 9. Fix the preflight wording
+some time a push is safe.
 
 _Session spend: 8.70M tok (in 138 · out 73.6k · cache r 8.31M / w 311.2k) · opus-5-5 · 14:07→15:04_
 

@@ -261,8 +261,16 @@ dedupe. Only the first page may shrink now.
 ## Untriaged raw notes
 https://newyorkthegoldenage.tumblr.com/
 https://route22ny.tumblr.com/
-_Older dump, kept as-is — not yet run through the bar above._
-
+https://kottke.org/
+https://www.darbiansphotography.com/
+https://control--panel.tumblr.com/
+https://www.quantamagazine.org/
+https://lux-magazine.com/
+https://waitbutwhy.com/
+https://www.itsnicethat.com/
+https://www.creativebloq.com/
+https://alistapart.com/
+https://www.technologyreview.com/
 #
 Metropolitan Museum of Art
 Art institute of chicago
