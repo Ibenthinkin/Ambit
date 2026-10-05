@@ -216,6 +216,38 @@ _Session spend: 1.88M tok (in 358 · out 17.3k · cache r 1.52M / w 346.1k) · f
 
 _Session spend: 1.55M tok (in 322 · out 8.9k · cache r 1.53M / w 9.1k) · fable-5-1 · 16:46→16:52_
 
+**Evening — Cut 1 of the critique is built** (`docs/PLAN_onboarding-critique.md` §1, branch
+`feat/onboarding-trims`, pushed, **not merged**). Everything in it that needed no decision: About
+you is gone (nine steps now) and **migration 0014 drops its three columns** (D9 taken at the plan's
+default); the destination coordinates are gone; the wing and playoff pictures carry no caption (the
+label stays the accessible name, and the fallback text card when a picture fails); every
+questionnaire card and the reveal's card are square; Begin sits under the intro copy; the reading
+screens' forward button is a plain Skip; and the picture steps take the 1120 px column on desktop
+(`lib/interview/layout.ts`'s `columnFor`, the step bar following) — wings four across, keep five,
+pairs ≈ 370 px a side. Phones are unchanged except for corners, captions and copy.
+
+**Decisions (rulings, mine):** the reveal stays in the narrow column until Cut 4 lays it out in two —
+the plan said wide, but one stacked column at 1120 only stretches its rows. The branch review
+(Fable) found two things worth knowing. **0014 is the repo's first `DROP COLUMN`**: during a
+deploy's overlap the outgoing container's schema still names the columns and Better Auth selects
+them, so signed-in requests on it 500 until the new one is healthy — SPEC §13 now says so; deploy
+it in a quiet minute. And the narrow/wide switch is not a recentre: the heading and Back step 260 px
+sideways at 1440 where the bank crosses from words to pictures — Ben's eye decides; the fallback is a
+narrow column with only the grid breaking out.
+
+**Findings:** `bun run check` 2,171 green. `e2e:prod` 67 passed, one PWA image-cache count that passed
+3/3 alone. The CI-shape run had two red: `explore.spec.ts:137` (a tile opens the item page) **is
+already red on `main`'s CI at `fd950a3`** — not this branch, and nobody has looked yet — and
+`feed.spec.ts:193`, which passed 30/30 on rerun. A parallel session wrote Cut 3's copy deck
+(`docs/COPY_onboarding.md`) into this checkout mid-run; it is left untracked for that session.
+
+**Open / next:** Ben looks on phone + 1440 → merge → deploy (runs 0014). Then D1 + D2 (accent,
+buttons) unblock Cut 5; D3 unblocks Cut 2. The red `explore.spec.ts:137` on `main` needs its own look.
+
+_Session spend: 29.26M tok (in 374 · out 95.7k · cache r 28.39M / w 769.2k) · opus-5-5 · 17:36→17:53_
+
+_Session spend: 1.47M tok (in 18 · out 3.5k · cache r 1.37M / w 99.0k) · opus-5-5 · 17:53→17:54_
+
 ### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
 
 **Findings:**
