@@ -12,7 +12,7 @@ import { Temperament } from "./temperament";
 // (eyebrow, title, subtitle, hang), then two columns — the temperament strip on the left, the
 // travel compass and "You’d open" on the right — which stack on a phone. The four pieces live
 // in their own files so /profile/topics can draw them where its order wants them; this is the
-// composition the reveal draws, and the profile until Task 6.8 places the pieces itself.
+// composition the reveal draws, and the profile draws too, passing the stored hang.
 //
 // No frame and no padding: it sits in the host's column like the rest of the page (the 1b
 // screens draw no boxes around sections). A region named by the eyebrow, so the exhibition can

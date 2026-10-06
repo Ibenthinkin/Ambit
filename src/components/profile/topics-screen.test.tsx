@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProfileHubContext } from "~/components/profile/profile-hub";
 
-import type { TasteV1 } from "~/lib/interview/taste";
+import type { ProfileTaste } from "~/lib/interview/taste";
 
 import { TopicsScreen } from "./topics-screen";
 
@@ -47,7 +47,7 @@ const {
     topics: [] as { id: string; label: string; facet: string }[],
     mine: [] as Pick[],
     mineOpts: undefined as SetMineOpts | undefined,
-    taste: null as TasteV1 | null,
+    taste: null as ProfileTaste | null,
   },
 }));
 
@@ -352,8 +352,9 @@ describe("TopicsScreen", () => {
 
   // First Exhibition (docs/DESIGN_first-exhibition.md §6): the stored exhibition, above the list.
   describe("the exhibition card", () => {
-    const taste: TasteV1 = {
+    const taste: ProfileTaste = {
       v: 1,
+      hang: [],
       title: { adjective: "Quiet", noun: "Weathers" },
       wings: ["land"],
       mediums: ["ceramics"],
@@ -390,6 +391,30 @@ describe("TopicsScreen", () => {
       expect(screen.getByText(/^Land, sea & sky\./)).toHaveTextContent(
         "Land, sea & sky. Mostly ceramics.",
       );
+    });
+
+    it("shows the stored hang under the subtitle for a v2 taste", () => {
+      state.taste = {
+        ...taste,
+        v: 2,
+        hang: [
+          { itemId: "a", src: "/api/img/a", title: "Heron" },
+          { itemId: "b", src: "/api/img/b", title: "Lantern" },
+        ],
+      };
+      render(<TopicsScreen dev={false} />);
+      const hang = screen.getByRole("list", { name: "Hung pictures" });
+      expect(within(hang).getByText("01 · Heron")).toBeInTheDocument();
+      expect(within(hang).getByText("02 · Lantern")).toBeInTheDocument();
+    });
+
+    it("shows no hang, and does not throw, for a v1 taste", () => {
+      state.taste = taste;
+      render(<TopicsScreen dev={false} />);
+      expect(
+        screen.getByRole("heading", { name: "Quiet Weathers" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("list", { name: "Hung pictures" })).toBeNull();
     });
 
     it("shows no card for a reader with no stored taste", () => {

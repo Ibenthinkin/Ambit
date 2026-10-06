@@ -258,6 +258,7 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
           <div className="px-5 pt-10">
             <ExhibitionCard
               taste={taste.data}
+              hang={taste.data.hang}
               topicLabels={new Map(all.map((t) => [t.id, t.label]))}
             />
           </div>
