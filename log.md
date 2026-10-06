@@ -58,6 +58,52 @@ the amount line, Start over). Still open from the deploy: two search ingests the
 
 _Session spend: 13.86M tok (in 174 · out 117.4k · cache r 13.09M / w 649.7k) · fable-5-1 + opus-5-5 · 11:06→11:18_
 
+**The redesign, designed and planned (afternoon, the same session).** Ben passed Cut 1 on the dev
+server and brought in the Claude Design export, `docs/ambit_Redesign_4/` — "1b": black and white,
+Kelly green `#2BB24C` as the one accent, Hanken Grotesk + Geist Mono, square everything, and
+First Exhibition drawn at phone and desktop.
+
+**Shipped (docs and merges only — no restyle yet):** `feat/onboarding-trims` and `feat/reveal-redo`
+merged to `main` (local, not pushed, not deployed); `feat/redesign` branched from it with the
+package committed, `docs/DESIGN_redesign.md` (decisions, the token mapping, per-screen specs),
+`docs/PLAN_redesign.md` (seven phases; 1–2 cold-executable step by step, 3–7 as task lists against
+the design doc and the prototypes), and the copy deck's New column pre-filled from the prototype.
+
+**Decisions (Ben's, sixteen, DESIGN §2).** The ones that reverse something: the item chrome's 10 s
+loop goes for the prototype's rules; "Your mix" is grouped under facet headings again on the reveal
+and Profile → Topics (the 10-02 flat ruling, reversed for these two screens); the reading amount
+leaves the bank for a row on the reveal (bank v3); Keep becomes one picture at a time with Pass
+scoring nothing; one free-text question. The ones that hold a line against the package: shipped
+gestures stay on the phone picture screen (no swipe-to-feed), the feed layout picker stays
+rejected, "Proposed" means real topics Ambit added — never topics it lacks — and anything a
+prototype merely omits is kept, restyled. One branch, one deploy.
+
+**Findings:**
+
+- **The ink alpha ladder already is the package's grey scale.** With `--color-ink` at `#F2F2F2` on
+  `#0E0E0E`, `/62` is the package's ink-4, `/55` ink-5, `/40` ink-7, `/34` ink-8, and the border
+  steps are its seven hairlines. So the colours land by changing a handful of tokens, and ~250
+  class strings stay as they are.
+- **The package contradicts itself in four places** (DESIGN §0): Barlow Condensed survives in two
+  "final" prototypes against the README's own type rule; the README's segment order disagrees with
+  its screenshot; "tile hover stays as production" sits beside a different shadow token; and the
+  desktop feed draws a layout picker the README's first ground rule forbids.
+- **Most controls have no keyboard focus style today** — Button, Chip, Segmented, the rows. One
+  base `:focus-visible` rule in Phase 1 gives every one the green ring.
+- **`Segmented` is not a radiogroup** (buttons with `aria-pressed`), and three e2e specs find
+  segments that way; the redesign's is one, so those lookups move.
+- **Correction to this morning:** I told Ben about 31 of the copy deck's 120 New cells were filled.
+  That count was a bad parse of tables with different column orders — the column was empty. It is
+  pre-filled now, from the prototype.
+
+**Open / next:** execute `docs/PLAN_redesign.md` from Phase 1 in a cheaper session
+(`feat/redesign`); Ben looks after each phase. Ben may edit the copy deck at any point — three of
+its pre-filled lines are adapted rather than copied because the prototype's sentence would be
+untrue in the app, and each says so. Still open and unrelated: two search ingests then
+`graph:rebuild --confirm`.
+
+_Session spend: 22.63M tok (in 164 · out 227.6k · cache r 21.26M / w 1.14M) · fable-5-1 + opus-5-5 · 11:18→12:43_
+
 ### [[10-05-26 Mon]] — The questionnaire merges; its migration becomes 0012; First Exhibition is built and merged
 
 **Shipped:** `feat/onboarding-questionnaire` (bank v1, 28 commits) merged to `main` as

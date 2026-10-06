@@ -366,6 +366,21 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   reveal's draft is `reveal-draft.ts` and **re-seeds when the proposal changes under it**; and
   `hang.ts` + `kept-out.ts` are built and tested but **not drawn or stored yet** — the layout
   half waits for Ben's Claude Design package (`docs/PLAN_onboarding-critique.md` §4 has the list).
+- **The sitewide redesign is designed and planned, not built — 10-06-26** (design
+  `docs/DESIGN_redesign.md`, plan `docs/PLAN_redesign.md`, the package `docs/ambit_Redesign_4/`;
+  branch `feat/redesign`, off a `main` that now holds Cut 1 and Cut 4's non-visual half — nothing
+  pushed or deployed). Ben's Claude Design export, "1b": black and white, **one accent
+  (`#2BB24C`, the knob retired)**, **Hanken Grotesk 400 titles + Geist Mono labels** in place of
+  Sora, **no radius** except the nav pill/rail and circular things, a white primary button,
+  underline inputs, square sheets. Sixteen decisions (DESIGN §2) say where the app does _not_
+  follow a prototype: shipped gestures, the rail, zoom and magazine view stay; the feed layout
+  picker stays rejected; a prototype not drawing a feature is not a decision to remove it. Three
+  things reverse earlier rulings on purpose: the item chrome's 10 s loop goes (tap / scroll on a
+  phone, wake-and-idle on desktop), "Your mix" is **grouped under facet headings again** on the
+  reveal and Profile → Topics, and the reading amount moves from a question to the reveal (bank
+  v3). Seven phases on one branch, Ben looking after each, one deploy at the end. **Until Phase 1
+  lands, every statement in this file about the accent knob, Sora, radii and the chrome loop is
+  still what the code does.**
 - **Spread mode on the item screen — 09-27-26** (design `docs/DESIGN_spread-mode.md`, plan
   `docs/PLAN_spread-mode.md`; branch `feat/spread-mode`, pushed for Ben's look at 1440, not
   merged). It began as Ben's **feed** layout picker (1 / 2 / 4 columns, drawn in

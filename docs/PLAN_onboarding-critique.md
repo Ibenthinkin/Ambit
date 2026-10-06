@@ -1,5 +1,10 @@
 # Plan: addressing the onboarding critique
 
+> **Superseded in part, 10-06-26.** Cut 1 is built and merged; Cut 4's non-visual half is built and
+> merged (§4). **Cuts 2, 3, 4 (layout) and 5 are superseded by `docs/PLAN_redesign.md`** — Ben ran
+> the redesign through Claude Design, and the package (`docs/ambit_Redesign_4/`) answered D1–D8;
+> `docs/DESIGN_redesign.md` §2 records how. This file is kept for Cut 1's record and §4's gap list.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. **Only Cut 1 is executable cold today.** Cuts 2–5 are scoped and sequenced here but each waits on a decision in §0 that only Ben can make; a Fable session expands the chosen cut into cold-executable tasks once he has.
 
 **Goal:** Work through every item in `docs/NOTES_onboarding-critique.md` (Ben's 10-05-26 walk of First Exhibition) without touching the mechanics he judged good — the steps, the playoff, the scoring, the reading default, the stored taste.
