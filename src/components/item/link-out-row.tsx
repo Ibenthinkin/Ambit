@@ -1,21 +1,19 @@
-import { ChevronRight } from "~/components/icons";
 import { sourceLabel } from "~/lib/source-label";
 import { cn } from "~/lib/utils";
 import { isBlogSource } from "~/server/config/blogs";
 import { PDR } from "~/server/config/pdr";
 import { isLinkCardSource } from "~/server/config/publications";
 
-// The prominent link-out that makes a blog item read as a link preview rather than a
-// republication (Phase 6.3, docs/PHASE6_DESIGN_6.3.md §7). The credit line already links every
-// item's source; this row is the blog-specific extra `credit-line.tsx` reserved for 6.3 — the
-// call-to-action, full width, under the blurb, on the two surfaces that show item text.
+// The white "Read the original on <source> ↗" block (DESIGN_redesign §6.2): on **every** item with
+// a source URL, under the picture's facts. The credit line and the From row already link the
+// source quietly; this is the call-to-action — and, on a designated blog, the link-out that makes
+// the card read as a link preview rather than a republication (Phase 6.3,
+// docs/PHASE6_DESIGN_6.3.md §7).
 //
 // Server-safe on purpose: no hooks, no handlers, a plain anchor — so it renders unchanged inside
 // the reader (a server component) and inside `ItemFacts` under the client `ItemScreen` alike.
-//
-// No prototype in the handoff shows this element; it borrows the pill's row idiom (an
-// ink-tinted, ≥44px target) rather than inventing a new one. (09-02-26: also rendered for `pdr`
-// — see the guard.)
+// The reader still asks `hasLinkOutRow` before using it: an open source's article keeps its quiet
+// inline link there (writing Phase 4).
 export interface LinkOutRowProps {
   source: string;
   sourceUrl: string;
@@ -29,28 +27,28 @@ export function hasLinkOutRow(source: string): boolean {
 }
 
 export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
-  // The link-card sources (blogs, and publications from writing Phase 5), and the one open source
-  // that earns the same prominent row without being one: a PDR collection's page holds the full
-  // gallery, an essay card's page holds the essay.
-  if (!hasLinkOutRow(source)) return null;
+  if (!sourceUrl) return null;
+  // The link-card sources and PDR keep their own verbs; everything else is "the original".
   const copy =
     source === PDR.id
       ? `See it on ${PDR.label}`
       : isBlogSource(source)
         ? `Read the post on ${sourceLabel(source)}`
-        : `Read it on ${sourceLabel(source)}`;
+        : isLinkCardSource(source)
+          ? `Read it on ${sourceLabel(source)}`
+          : `Read the original on ${sourceLabel(source)}`;
   return (
     <a
       href={sourceUrl}
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "bg-ink/6 text-ink-hi mt-[22px] flex h-12 w-full items-center justify-between px-[16px] text-[15px] transition-transform duration-150 active:scale-[0.98]",
+        "bg-ink text-on-accent mt-[24px] flex min-h-[50px] w-full items-center justify-between gap-3 px-4 py-[15px] text-[15px] transition-colors duration-150 hover:bg-white hover:shadow-[inset_0_-2px_0_var(--color-accent)] active:bg-[#E6E6E6]",
         className,
       )}
     >
       <span>{copy}</span>
-      <ChevronRight className="text-ink/50" />
+      <span aria-hidden="true">↗</span>
     </a>
   );
 }

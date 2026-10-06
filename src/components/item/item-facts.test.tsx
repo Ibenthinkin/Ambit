@@ -55,7 +55,7 @@ describe("ItemFacts", () => {
         item={cell({ source: "doorofperception", attribution: label })}
       />,
     );
-    expect(screen.queryByText("Maker")).toBeNull();
+    expect(screen.queryByText("By")).toBeNull();
     // Every remaining mention is a credit link (the line under the title, the From row) — none of
     // them is the plain maker paragraph.
     for (const el of screen.getAllByText(label)) expect(el.tagName).toBe("A");
@@ -64,7 +64,7 @@ describe("ItemFacts", () => {
   it("lists the facts the corpus actually knows", () => {
     render(<ItemFacts item={cell()} />);
     const dl = screen.getByRole("list", { name: "About this work" });
-    expect(dl).toHaveTextContent("Maker");
+    expect(dl).toHaveTextContent("By");
     expect(dl).toHaveTextContent("License");
     expect(dl).toHaveTextContent("CC0");
     expect(dl).toHaveTextContent("Topic");
@@ -114,13 +114,22 @@ describe("ItemFacts", () => {
     expect(screen.getByText("A paragraph of essay.")).toBeInTheDocument();
   });
 
-  it("renders the link-out row for a blog and none for a museum", () => {
-    const linkOut = /Read the post on|See it on/;
+  it("lists the rows in the design's order: From, By, License, Topic", () => {
+    render(<ItemFacts item={cell()} />);
+    const labels = screen.getAllByRole("term").map((el) => el.textContent);
+    expect(labels).toEqual(["From", "By", "License", "Topic"]);
+  });
+
+  it("renders the link-out block on every item with a source URL, naming the source", () => {
     const { rerender } = render(
       <ItemFacts item={cell({ source: "doorofperception" })} />,
     );
-    expect(screen.getByRole("link", { name: linkOut })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Read the post on/ }),
+    ).toBeInTheDocument();
     rerender(<ItemFacts item={cell()} />);
-    expect(screen.queryByRole("link", { name: linkOut })).toBeNull();
+    expect(
+      screen.getByRole("link", { name: /Read the original on The Met/ }),
+    ).toHaveAttribute("href", "https://example.test/o/1");
   });
 });

@@ -40,8 +40,6 @@ const ALLOWED: Record<string, string> = {
     "the floating 54 px logo disc that re-opens the sign-in sheet — a circular control",
   "src/components/landing/auth-sheet.tsx":
     "the 54 px logo disc the landing's floating disc collapses into (the sheet itself is square)",
-  "src/components/item/shared-by-row.tsx":
-    "the sharer's initial in an avatar circle (the file goes in Task 4.2 — drop this entry then)",
 };
 
 /**

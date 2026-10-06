@@ -12,8 +12,8 @@ import { TextLink } from "~/components/ui/text-link";
 //
 // Signed-in readers see nothing at all: they're already inside.
 //
-// Task 2.8: the Card primitive is gone. The two surfaces below are plain bordered divs on the
-// design's `--color-card` with no radius; Phase 4 lays this block out properly.
+// DESIGN_redesign §6.2: no card — left-aligned type on the page itself, a 26 px title, 14.5 px
+// body and a 50 px white block.
 export interface JoinCtaProps {
   /** The article variant gets a quieter, shorter card — it sits under a long read, not a picture. */
   variant: "image" | "article";
@@ -23,7 +23,7 @@ export interface JoinCtaProps {
 
 function KeepExploring() {
   return (
-    <TextLink href="/" className="mt-[14px] inline-block text-[13.5px]">
+    <TextLink href="/" className="mt-[16px] inline-block text-[13.5px]">
       Keep exploring
     </TextLink>
   );
@@ -32,40 +32,44 @@ function KeepExploring() {
 export function JoinCta({ variant, exploring = false }: JoinCtaProps) {
   if (variant === "article") {
     return (
-      <div className="border-hairline border-ink/8 bg-card mt-[30px] px-[22px] py-[24px] text-center">
-        <h2 className="text-ink-hi text-[22px] leading-[1.24]">
+      <section className="mt-[44px]">
+        <h2 className="text-ink-hi text-[22px] leading-[1.2]">
           Ambit is a quieter way to read.
         </h2>
-        <p className="text-ink/58 mx-auto mt-[10px] max-w-[30ch] text-[13.5px] leading-[1.6]">
+        <p className="text-ink/68 mt-[10px] max-w-[34ch] text-[14.5px] leading-[1.5]">
           An invite-only feed of public-domain images and writing, tuned to what
           you&rsquo;re curious about.
         </p>
-        <TextLink href="/" className="mt-[16px] inline-block text-[13.5px]">
-          Get your invite →
-        </TextLink>
+        <GetInvite />
         {exploring ? <KeepExploring /> : null}
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="border-hairline border-ink/8 bg-card mt-[34px] px-[22px] py-[28px] text-center">
-      <h2 className="text-ink-hi text-[24px] leading-[1.22]">
+    <section className="mt-[44px] pb-[40px]">
+      <h2 className="text-ink-hi text-[26px] leading-[1.12] tracking-[-0.015em]">
         Curiosity, without the doomscroll.
       </h2>
-      <p className="text-ink/58 mx-auto mt-[12px] max-w-[32ch] text-[14px] leading-[1.6]">
+      <p className="text-ink/68 mt-[10px] max-w-[40ch] text-[14.5px] leading-[1.5]">
         Ambit is an invite-only feed of public-domain images and writing — no
         likes, no comments, no one performing for anyone.
       </p>
-      <Link
-        href="/"
-        // Button's `primary` colours, square (DESIGN §4.1) — a filled green CTA is not one of the
-        // accent's seven jobs. A styled <Link> rather than a <Button>: it navigates.
-        className="bg-ink text-on-accent mt-[20px] inline-block px-[22px] py-[11px] text-[14px]"
-      >
-        Get your invite
-      </Link>
+      <GetInvite />
       {exploring ? <KeepExploring /> : null}
-    </div>
+    </section>
+  );
+}
+
+// Button's `primary` colours at the prototype's 50 px (DESIGN §4.1) — a filled green CTA is not
+// one of the accent's seven jobs. A styled <Link> rather than a <Button>: it navigates.
+function GetInvite() {
+  return (
+    <Link
+      href="/"
+      className="bg-ink text-on-accent mt-[20px] flex h-[50px] items-center justify-center text-[15px] transition-colors duration-150 hover:bg-white hover:shadow-[inset_0_-2px_0_var(--color-accent)]"
+    >
+      Get your invite
+    </Link>
   );
 }

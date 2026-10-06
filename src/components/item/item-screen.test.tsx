@@ -114,7 +114,6 @@ function renderScreen(
       initialWander={[]}
       authed
       appUrl="https://ambit.test"
-      sharedBy={null}
       {...over}
     />,
   );
@@ -580,11 +579,6 @@ describe("ItemScreen", () => {
       tap();
       expect(pill).toHaveAttribute("aria-hidden", "true");
     });
-  });
-
-  it("names the sharer when the link carried one", () => {
-    renderScreen({ sharedBy: "Mara" });
-    expect(screen.getByText(/Mara/)).toBeInTheDocument();
   });
 });
 

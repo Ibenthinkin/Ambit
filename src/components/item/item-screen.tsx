@@ -11,7 +11,6 @@ import { HeroRail } from "~/components/item/hero-rail";
 import { ItemFacts } from "~/components/item/item-facts";
 import { JoinCta } from "~/components/item/join-cta";
 import { buildCells } from "~/components/item/rail-cells";
-import { SharedByRow } from "~/components/item/shared-by-row";
 import { SpreadToggle } from "~/components/item/spread-toggle";
 import {
   bookLayers,
@@ -103,8 +102,6 @@ export interface ItemScreenProps {
   appUrl: string;
   /** The signed-in reader's first name, if any — becomes `?from=` on the link they share. */
   viewerName?: string;
-  /** `?from=` on the link that brought this reader here, already validated by the page. */
-  sharedBy: string | null;
 }
 
 /** How many cells per fetch, and how close to an end the reader gets before the next one starts. */
@@ -161,7 +158,6 @@ export function ItemScreen({
   authed,
   appUrl,
   viewerName,
-  sharedBy,
 }: ItemScreenProps) {
   const [items, setItems] = React.useState<RailItem[]>(initialRail);
   const [index, setIndex] = React.useState(0);
@@ -851,12 +847,6 @@ export function ItemScreen({
           the whole viewport, the words are not. `pt-[28px]`: a clear gap between the strip and
           the title on every width (Ben's review, 09-11-26). */}
       <Column width="reader" className="px-[22px] pt-[28px]">
-        {sharedBy ? (
-          <Rise>
-            <SharedByRow name={sharedBy} />
-          </Rise>
-        ) : null}
-
         <Rise delayMs={50}>
           <ItemFacts item={current} />
         </Rise>

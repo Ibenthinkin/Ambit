@@ -39,8 +39,9 @@ import {
 //     reader. The screen says *what* turns (`motion`, built by `spread-motion.ts`); this file draws
 //     it, runs it, lifts the leaf with a drag, lets a short drag fall back, lays the spine over the
 //     seam, and fades the folios while a page is in the air.
-//   - **The chrome's fade.** The caption (and, below `md`, nothing else — the pill is the screen's
-//     own, fixed at the bottom) overlays the foot of the strip on the gallery's gradient and fades
+//   - **The chrome's fade.** The caption — **`md` and up only; a phone has none** (DESIGN_redesign
+//     §6.2: the pill and share disc are its whole chrome, and the title lives below the fold) —
+//     overlays the foot of the strip on the gallery's gradient and fades
 //     with `visibility`, so it is untappable while hidden.
 //
 // **The strip is the viewport, on every width (09-11-26).** Until Ben's review of the chrome
@@ -414,9 +415,9 @@ export function HeroRail({
         <div
           data-testid="gallery-chrome"
           aria-hidden={!chromeVisible}
-          // Bottom padding clears the fixed pill below `md` (56px + its 26px margin, plus room);
-          // above `md` the rail is at the right edge and the caption keeps the gallery's 42.
-          className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pt-[26px] pb-[108px] md:pb-[42px]"
+          // `hidden md:block`: no caption over the hero on a phone. Above `md` the rail is at the
+          // right edge, so the caption keeps the gallery's 42.
+          className="pointer-events-none absolute inset-x-0 bottom-0 hidden px-6 pt-[26px] pb-[42px] md:block"
           // **`visibility`, not `pointer-events`, is what makes it untappable while hidden.** An
           // ancestor's `pointer-events: none` can be overridden by any descendant that sets
           // `auto` — and the caption's own targets do exactly that. `visibility: hidden` cannot be

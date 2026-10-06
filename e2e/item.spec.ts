@@ -397,9 +397,9 @@ test.describe.serial("item pages", () => {
     expect(html).not.toContain("Item E2E");
     await expect(page.getByText("shared this with you")).toHaveCount(0);
 
-    // The shared-by row is param-driven and text-only — it says what the link says, no more.
+    // The "shared by" row is gone (DESIGN §6.2): a `?from=` name is never rendered.
     await page.goto(`/i/${imageId}?from=Mara`);
-    await expect(page.getByText("Mara shared this with you")).toBeVisible();
+    await expect(page.getByText("shared this with you")).toHaveCount(0);
   });
 
   test("the proxy 404s an id that isn't an item", async ({ request }) => {

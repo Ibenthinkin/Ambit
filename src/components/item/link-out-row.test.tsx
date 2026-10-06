@@ -38,17 +38,27 @@ describe("LinkOutRow", () => {
     );
   });
 
-  it("renders nothing for a museum source — the credit line is their link-out", () => {
-    const { container } = render(
+  it("renders the plain original link for a museum source too", () => {
+    render(
       <LinkOutRow
         source="met"
         sourceUrl="https://www.metmuseum.org/art/collection/search/1"
       />,
     );
+    expect(
+      screen.getByRole("link", { name: /Read the original on The Met/ }),
+    ).toHaveAttribute(
+      "href",
+      "https://www.metmuseum.org/art/collection/search/1",
+    );
+  });
+
+  it("renders nothing without a source URL", () => {
+    const { container } = render(<LinkOutRow source="met" sourceUrl="" />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  // The class string used to be concatenated without spaces, so `transition-transform` and
+  // The class string used to be concatenated without spaces, so `transition-colors` and
   // `duration-150` fused into one bogus class and the caller's class glued onto the last one.
   it("keeps its classes separate, the caller's included", () => {
     render(
@@ -60,14 +70,9 @@ describe("LinkOutRow", () => {
     );
     const classes = screen.getByRole("link").className.split(/\s+/);
     expect(classes).toEqual(
-      expect.arrayContaining([
-        "transition-transform",
-        "duration-150",
-        "active:scale-[0.98]",
-        "mt-0",
-      ]),
+      expect.arrayContaining(["transition-colors", "duration-150", "mt-0"]),
     );
     // `cn` resolves the conflict: the caller's margin wins over the row's own.
-    expect(classes).not.toContain("mt-[22px]");
+    expect(classes).not.toContain("mt-[24px]");
   });
 });

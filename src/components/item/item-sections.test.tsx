@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { Item } from "~/server/db/items";
 import { JoinCta } from "./join-cta";
 import { ReaderItemBody } from "./reader-item-body";
-import { SharedByRow, sharedByName } from "./shared-by-row";
 import { WanderNext } from "./wander-next";
 
 // `next/link` renders a plain anchor — the assertions here are about hrefs and copy, not about
@@ -203,30 +202,6 @@ describe("JoinCta", () => {
   it("never offers a browse-without-an-account dead end", () => {
     render(<JoinCta variant="image" />);
     expect(screen.queryByText(/Keep browsing/i)).toBeNull();
-  });
-});
-
-describe("SharedByRow", () => {
-  it("names the sharer and derives their initial", () => {
-    render(<SharedByRow name="mara" />);
-
-    expect(screen.getByText("mara shared this with you")).toBeInTheDocument();
-    expect(screen.getByText("M")).toBeInTheDocument();
-  });
-});
-
-describe("sharedByName", () => {
-  it("accepts an ordinary name", () => {
-    expect(sharedByName("Mara")).toBe("Mara");
-    expect(sharedByName("  Mara  ")).toBe("Mara");
-  });
-
-  it("rejects absence, emptiness, a repeated param, and anything oversized", () => {
-    expect(sharedByName(undefined)).toBeNull();
-    expect(sharedByName("")).toBeNull();
-    expect(sharedByName("   ")).toBeNull();
-    expect(sharedByName(["a", "b"])).toBeNull();
-    expect(sharedByName("x".repeat(41))).toBeNull();
   });
 });
 
