@@ -147,7 +147,7 @@ test.describe.serial("desktop", () => {
     ).toBeVisible();
     await settle(panel);
     const box = (await panel.boundingBox())!;
-    expect(Math.round(box.width)).toBe(360);
+    expect(Math.round(box.width)).toBe(340);
     expect(box.x + box.width).toBeLessThan(railBox.x); // beside the rail, not over it
     // Centred on the button that opened it, not on the rail: on the feed the bookmark is the
     // third of the bar's three controls, below the rail's middle (design §2, `popoverStyle`).
@@ -159,6 +159,11 @@ test.describe.serial("desktop", () => {
     await expect(page.getByTestId("bottom-sheet-scrim")).toHaveCSS(
       "background-color",
       "rgba(0, 0, 0, 0)",
+    );
+    // ...and the page behind stays unblurred (no scrim blur anywhere since 1b).
+    await expect(page.getByTestId("bottom-sheet-scrim")).toHaveCSS(
+      "backdrop-filter",
+      "none",
     );
 
     await page.keyboard.press("Escape");
@@ -205,7 +210,7 @@ test.describe.serial("desktop", () => {
     await settle(panel);
     const pillBox = (await pill.boundingBox())!;
     const box = (await panel.boundingBox())!;
-    expect(Math.round(box.width)).toBe(360);
+    expect(Math.round(box.width)).toBe(340);
     expect(box.y).toBeGreaterThanOrEqual(pillBox.y + pillBox.height); // under the pill
 
     await panel.getByRole("button", { name: /New collection/ }).click();

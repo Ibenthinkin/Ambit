@@ -311,6 +311,8 @@ export default function TokensPage() {
   >("some");
   const [toastOpen, setToastOpen] = React.useState(false);
   const [sheetOpen, setSheetOpen] = React.useState(false);
+  // The popover demo: the opener's rect, captured at click time exactly as the real call sites do.
+  const [popAnchor, setPopAnchor] = React.useState<DOMRect | null>(null);
   const [backboneToast, setBackboneToast] = React.useState<string | null>(null);
   // Bumping this remounts the motion demos, which is what replays a CSS animation.
   const [motionKey, setMotionKey] = React.useState(0);
@@ -868,12 +870,21 @@ export default function TokensPage() {
 
         <Section
           title="BottomSheet"
-          note="Today a rounded sheet / 520 px dialog / popover; DESIGN §4 squares them and gives each a top border instead of a shadow."
+          note="DESIGN §4.5: square, a mono header row with a hairline under it. Below md it is a sheet; from md the same button opens the 520 px dialog, and the second one a 340 px popover."
         >
-          <Placeholder task="2.5" what="square sheet, dialog, popover" />
-          <Button variant="outline" onClick={() => setSheetOpen(true)}>
-            Open sheet
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={() => setSheetOpen(true)}>
+              Open sheet / dialog
+            </Button>
+            <Button
+              variant="outline"
+              onClick={(e) =>
+                setPopAnchor(e.currentTarget.getBoundingClientRect())
+              }
+            >
+              Open popover (md+)
+            </Button>
+          </div>
         </Section>
 
         {/* ---------------------------------------------------------------- MOTION */}
@@ -929,14 +940,31 @@ export default function TokensPage() {
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
         title="Detail sheet"
+        closeLabel="Close"
       >
         {/* The shell carries no horizontal padding of its own (5.5) so the collection sheets can
             scroll their rows edge to edge — free-form content supplies its own. */}
         <div className="px-[26px] pb-4">
           <p className="text-body text-ink/72">
-            Scrim + panel + grabber + centered title, in on the 240 ms{" "}
+            Scrim + panel + grabber + mono header row, in on the 240 ms{" "}
             <code>--ease-sheet</code> curve and out again on{" "}
             <code>sheet-down</code>.
+          </p>
+        </div>
+      </BottomSheet>
+
+      {/* Anchored: only a desktop viewport floats it beside the button; on a phone it is a sheet. */}
+      <BottomSheet
+        open={popAnchor !== null}
+        onClose={() => setPopAnchor(null)}
+        title="Popover"
+        anchor={popAnchor}
+        placement="below"
+        animation="menu"
+      >
+        <div className="px-[18px] pb-4">
+          <p className="text-body text-ink/72">
+            340 px, 94% near-black over a 20 px blur, no scrim.
           </p>
         </div>
       </BottomSheet>
