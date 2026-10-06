@@ -21,7 +21,6 @@ const PROPOSED = [
 
 function show(over: Partial<Parameters<typeof RevealStep>[0]> = {}) {
   const onSubmit = vi.fn();
-  const onBack = vi.fn();
   render(
     <RevealStep
       topics={TOPICS}
@@ -30,11 +29,10 @@ function show(over: Partial<Parameters<typeof RevealStep>[0]> = {}) {
       submitting={false}
       error=""
       onSubmit={onSubmit}
-      onBack={onBack}
       {...over}
     />,
   );
-  return { onSubmit, onBack };
+  return { onSubmit };
 }
 const row = (name: string) =>
   screen.getByRole("group", { name: `${name} level` });
@@ -115,10 +113,15 @@ describe("RevealStep", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("Back goes back", () => {
-    const { onBack } = show();
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(onBack).toHaveBeenCalledTimes(1);
+  // Back is the onboarding shell's link now, and the step bar is gone: the reveal's button and
+  // its error sit in the flow, inside the rising body — nothing `fixed` for <Rise> to capture.
+  it("has no Back of its own and no fixed bar: the button sits under the levels", () => {
+    show({ error: "Try again." });
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+    const reveal = document.querySelector('[data-step="reveal"]')!;
+    expect(reveal).toContainElement(cta());
+    expect(reveal).toContainElement(screen.getByRole("alert"));
+    expect(document.querySelector(".fixed")).toBeNull();
   });
 
   it("shows the exhibition title above the list", () => {
@@ -151,7 +154,6 @@ describe("RevealStep", () => {
       submitting: false,
       error: "",
       onSubmit,
-      onBack: vi.fn(),
     };
     const { rerender } = render(<RevealStep {...props} proposed={PROPOSED} />);
     press("Botany", "a lot");

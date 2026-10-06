@@ -42,6 +42,8 @@ export interface FaceCardProps {
   caption?: boolean;
   /** A typeset card with no picture (the destinations). */
   card?: { where: string; line: string };
+  /** The keyboard's cursor is on this card (keys.ts): it lifts, as the prototype's does. */
+  cursor?: boolean;
 }
 
 export function FaceCard({
@@ -54,6 +56,7 @@ export function FaceCard({
   fallback,
   card,
   caption = true,
+  cursor = false,
 }: FaceCardProps) {
   // A failed load flips the card to its text form rather than leaving a broken-image glyph.
   const [failed, setFailed] = useState(false);
@@ -67,9 +70,12 @@ export function FaceCard({
       aria-pressed={selected}
       aria-label={writing ? writing.title : label}
       data-topics={topics.join(" ")}
+      data-cursor={cursor ? "true" : undefined}
       onClick={onClick}
       className={cn(
-        "border-hairline relative flex w-full flex-col overflow-hidden text-left transition-[border-color,box-shadow] duration-200",
+        "border-hairline relative flex w-full flex-col overflow-hidden text-left transition-[border-color,box-shadow,scale] duration-200",
+        // The prototype's focusStyle: the card under the cursor lifts 3.5% above its neighbours.
+        cursor && "z-[2] scale-[1.035]",
         tall ? "bg-ink/5 aspect-auto min-h-[180px]" : "aspect-[4/5]",
         // A picked card is ringed in ink: a selection is not one of the accent's seven jobs
         // (DESIGN §3.2 — "filled selections → ink").

@@ -22,6 +22,7 @@ function show(id: string, answer?: Answer, faces = {}) {
       faces={faces}
       answer={answer}
       onChange={onChange}
+      onContinue={vi.fn()}
     />,
   );
   return { onChange, ...view };
@@ -222,6 +223,7 @@ describe("QuestionStep", () => {
           faces={{}}
           answer={answer}
           onChange={onChange}
+          onContinue={vi.fn()}
         />,
       );
       return onChange;
@@ -258,6 +260,7 @@ describe("QuestionStep", () => {
           faces={{}}
           answer={undefined}
           onChange={vi.fn()}
+          onContinue={vi.fn()}
         />,
       );
       expect(screen.queryByRole("button", { name: "Pick all" })).toBeNull();
@@ -368,6 +371,7 @@ describe("QuestionStep", () => {
         faces={{}}
         answer={undefined}
         onChange={vi.fn()}
+        onContinue={vi.fn()}
       />,
     );
     const card = screen.getByRole("button", { name: "Kyoto in the rain" });

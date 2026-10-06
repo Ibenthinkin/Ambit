@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import {
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SKIP } from "~/lib/interview/config";
+import { NEITHER, SKIP } from "~/lib/interview/config";
 import { TEST_BANK, WIDE } from "~/lib/interview/fixtures";
 import type { Question } from "~/lib/interview/types";
 
@@ -68,14 +69,34 @@ function show(over: Partial<Parameters<typeof OnboardingScreen>[0]> = {}) {
 }
 const click = (name: string | RegExp) =>
   fireEvent.click(screen.getByRole("button", { name }));
+/** The auto-advance beat (DESIGN_redesign §5.2): a pick is outlined, then the screen moves on. */
+const ADVANCE_MS = 380;
+const wait = (ms: number) =>
+  act(() => {
+    vi.advanceTimersByTime(ms);
+  });
+/** A whole-answer press (a pair's side, a choice), then the beat it advances after. */
+function pick(name: string | RegExp) {
+  click(name);
+  wait(ADVANCE_MS);
+}
+const key = (k: string, init: KeyboardEventInit = {}) =>
+  fireEvent.keyDown(window, { key: k, ...init });
+const pressed = (name: string | RegExp) =>
+  screen.getByRole("button", { name }).getAttribute("aria-pressed");
 const heading = () => screen.getByRole("heading", { level: 1 }).textContent;
 const questionId = () =>
   document
     .querySelector("[data-question-id]")
     ?.getAttribute("data-question-id");
-/** Presses Skip until the questions run out. */
+/** Presses Skip until the questions run out — or until the last one is held, busy, while the
+ *  model maps the words (the screen stays put then; pressing on would loop forever). */
 function skipAll() {
-  while (questionId()) click("Skip");
+  while (questionId()) {
+    const skip = screen.getByRole("button", { name: "Skip" });
+    if (skip.getAttribute("aria-busy") === "true") return;
+    fireEvent.click(skip);
+  }
 }
 type Complete = {
   picks: { topicId: string; weight: number }[];
@@ -90,40 +111,65 @@ type Complete = {
 };
 const sent = () => completeMock.mock.calls[0]![0] as Complete;
 
+// Fake timers that still move with the wall clock, so `waitFor` polls as usual; the auto-advance
+// tests below install strict ones of their own.
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   completeMock.mockReset().mockResolvedValue({ runId: "r1" });
   interpretMock.mockReset().mockResolvedValue([]);
   replaceMock.mockReset();
   invalidateMock.mockReset().mockResolvedValue(undefined);
 });
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("OnboardingScreen", () => {
-  it("opens on an intro, and Begin shows the first question with its place in the run", () => {
+  // DESIGN_redesign §5.2: no header, no bottom bar, no step count.
+  it("opens on an intro, and Begin shows the first question — with no count of how many", () => {
     show();
     expect(questionId()).toBeUndefined();
     click("Begin");
     expect(questionId()).toBe("words");
-    expect(screen.getByText("1 of 4")).toBeInTheDocument();
+    expect(screen.queryByText(/\bof 4\b/)).toBeNull();
+    expect(screen.queryByText(/^Step \d/)).toBeNull();
   });
 
-  // Ben's critique (10-05-26): Begin sat in the fixed bar at the foot of the screen, far from
-  // the copy it answers. It belongs right under the intro.
-  it("puts Begin under the intro copy, not in the fixed bar", () => {
-    show();
-    const begin = screen.getByRole("button", { name: "Begin" });
-    expect(begin.closest(".fixed")).toBeNull();
-  });
-
-  it("gives a picture step the wide column and a word step the narrow one", () => {
+  // Nothing is `fixed` any more: the step bar went, and every control sits in the flow under
+  // the screen it belongs to.
+  it("has no fixed bar on the intro, a question or the reveal", () => {
     const { container } = show();
-    const column = () => container.querySelector("main > div")!.className;
-    expect(column()).toMatch(/md:max-w-\[600px\]/);
+    expect(container.querySelector(".fixed")).toBeNull();
     click("Begin");
-    expect(questionId()).toBe("words");
-    expect(column()).toMatch(/md:max-w-\[600px\]/);
+    expect(container.querySelector(".fixed")).toBeNull();
+    skipAll();
+    expect(heading()).toBe("Here’s where we’ll start");
+    expect(container.querySelector(".fixed")).toBeNull();
+  });
+
+  // One container for every screen (DESIGN §5.2): a size container, max 1120 px — the column no
+  // longer steps between 600 and 1120 as the screens change.
+  it("sits every screen in one 1120 px size container", () => {
+    const { container } = show();
+    const box = () => container.querySelector(".\\@container")!;
+    const inner = () => box().querySelector(".max-w-\\[1120px\\]");
+    expect(inner()).not.toBeNull();
+    click("Begin");
+    expect(inner()).not.toBeNull();
     click("Skip");
     expect(questionId()).toBe("space-or-garden");
-    expect(column()).toMatch(/md:max-w-\[1120px\]/);
+    expect(inner()).not.toBeNull();
+    expect(container.querySelector('[class*="max-w-[600px]"]')).toBeNull();
+  });
+
+  it("puts a quiet Back link on every question, and none on the intro", () => {
+    show();
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+    click("Begin");
+    const back = screen.getByRole("button", { name: "Back" });
+    // A text link (Button's `link` variant), not a boxed button: underlined, no border.
+    expect(back.className).toMatch(/underline/);
+    expect(back.classList.contains("border")).toBe(false);
   });
 
   it("every question can be skipped; the reveal then proposes the starters, and saving goes to the feed", async () => {
@@ -178,9 +224,9 @@ describe("OnboardingScreen", () => {
     });
     click("Next");
 
-    // Pair: one tap and it moves on.
+    // Pair: one tap and it moves on, after the beat.
     expect(questionId()).toBe("space-or-garden");
-    click("Space");
+    pick("Space");
 
     // Multi: choose, then Next.
     expect(questionId()).toBe("evening");
@@ -189,10 +235,10 @@ describe("OnboardingScreen", () => {
     click("Next");
 
     // Choice — one tap, and it was the last question.
-    click("Yes");
+    pick("Yes");
 
-    // Leaving the last question asks the model, once, behind a short beat.
-    expect(screen.getByText("Putting it together…")).toBeInTheDocument();
+    // Leaving the last question asks the model, once — with no screen of its own.
+    expect(screen.queryByText("Putting it together…")).toBeNull();
     await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
     expect(interpretMock).toHaveBeenCalledExactlyOnceWith({
       texts: [{ questionId: "words", text: "cookbooks" }],
@@ -226,6 +272,67 @@ describe("OnboardingScreen", () => {
     );
   });
 
+  // DESIGN §5.2: "Putting it together…" is no longer a screen. While the model maps the words,
+  // the last question stays where it is with its forward button busy, then the reveal arrives.
+  it("holds the last question, busy, while the model maps the words — no interpreting screen", async () => {
+    let answer!: (v: { questionId: string; topicIds: string[] }[]) => void;
+    interpretMock.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const words = FOUR.find((q) => q.id === "words")!;
+    show({ bank: [words] });
+    click("Begin");
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "cookbooks" },
+    });
+    click("Next");
+    expect(questionId()).toBe("words");
+    expect(screen.getByRole("button", { name: "Next" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    expect(screen.queryByText("Putting it together…")).toBeNull();
+    // A second press while it is in flight asks nothing more.
+    click("Next");
+    expect(interpretMock).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      answer([{ questionId: "words", topicIds: ["food"] }]);
+    });
+    await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
+    expect(
+      screen
+        .getAllByRole("group")
+        .some((g) => g.getAttribute("data-topic") === "food"),
+    ).toBe(true);
+  });
+
+  it("Back while the model is mapping stays on the questions when its answer lands", async () => {
+    let answer!: (v: { questionId: string; topicIds: string[] }[]) => void;
+    interpretMock.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const words = FOUR.find((q) => q.id === "words")!;
+    const pair = FOUR.find((q) => q.id === "space-or-garden")!;
+    show({ bank: [pair, words] });
+    click("Begin");
+    click("Skip");
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "cookbooks" },
+    });
+    click("Next");
+    click("Back");
+    expect(questionId()).toBe("space-or-garden");
+    await act(async () => {
+      answer([{ questionId: "words", topicIds: ["food"] }]);
+    });
+    expect(questionId()).toBe("space-or-garden");
+    expect(screen.queryByText("Here’s where we’ll start")).toBeNull();
+  });
+
   it("the flow never blocks on the model: a failed interpret still reaches the reveal", async () => {
     interpretMock.mockRejectedValue(new Error("down"));
     show();
@@ -250,7 +357,7 @@ describe("OnboardingScreen", () => {
     show();
     click("Begin");
     click("Skip");
-    click("A garden");
+    pick("A garden");
     expect(questionId()).toBe("evening");
     click("Back");
     expect(questionId()).toBe("space-or-garden");
@@ -270,7 +377,7 @@ describe("OnboardingScreen", () => {
     click("Skip");
     click("Skip");
     click("Skip");
-    click("Yes");
+    pick("Yes");
     expect(heading()).toBe("Here’s where we’ll start");
     click("Back");
     expect(questionId()).toBe("unsettle");
@@ -316,7 +423,6 @@ describe("OnboardingScreen", () => {
     // only the text question is left.
     show({ topics: [{ id: "music", label: "Music" }] });
     click("Begin");
-    expect(screen.getByText("1 of 1")).toBeInTheDocument();
     expect(questionId()).toBe("words");
     click("Skip");
     expect(heading()).toBe("Here’s where we’ll start");
@@ -324,24 +430,284 @@ describe("OnboardingScreen", () => {
 
   // Review finding (10-02-26): a tap that answers a question unmounts it, and focus fell to
   // <body> — a screen-reader user had no cue a new question had arrived.
-  it("moves focus to each new question's heading, and announces the count from a stable region", () => {
+  it("moves focus to each new question's heading", () => {
     show();
     click("Begin");
     expect(document.activeElement).toBe(
       screen.getByRole("heading", { name: "What do you like?" }),
     );
     click("Skip");
-    click("Space");
+    pick("Space");
     expect(document.activeElement).toBe(
       screen.getByRole("heading", { name: "What do you lose an evening to?" }),
     );
-    const live = screen.getByText("3 of 4");
-    expect(live).toHaveAttribute("aria-live", "polite");
-    // The same element announces the next count: it is not re-created with the question. A
-    // bank with no steps (this one) counts questions, and the last reads "N of N" — the
-    // About-you screen that once made it "N + 1" is gone (Review Focus 1, 10-05-26).
-    click("Skip");
-    expect(screen.getByText("4 of 4")).toBe(live);
+  });
+
+  // ── Auto-advance (DESIGN_redesign §5.2; the plan's Review focus 5) ─────────────────────────
+  // A whole-answer press is outlined at once and the screen moves on 380 ms later. Back inside
+  // that window must cancel the pending advance — never advance twice, never land on the wrong
+  // question. Strict fake timers here: nothing moves unless the test moves it.
+  describe("auto-advance", () => {
+    beforeEach(() => {
+      vi.useRealTimers();
+      vi.useFakeTimers();
+    });
+
+    it("outlines a pick at once and moves on after 380 ms, not before", () => {
+      show();
+      click("Begin");
+      click("Skip");
+      click("Space");
+      expect(questionId()).toBe("space-or-garden");
+      expect(pressed("Space")).toBe("true");
+      wait(ADVANCE_MS - 1);
+      expect(questionId()).toBe("space-or-garden");
+      wait(1);
+      expect(questionId()).toBe("evening");
+      // And only once: the timer that fired is gone.
+      wait(5_000);
+      expect(questionId()).toBe("evening");
+    });
+
+    it("Back inside the window cancels the advance and lands on the previous question, once", () => {
+      show();
+      click("Begin");
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: { value: "cookbooks" },
+      });
+      click("Next");
+      expect(questionId()).toBe("space-or-garden");
+      click("Space");
+      wait(200);
+      click("Back");
+      // The question before, with what was said there.
+      expect(questionId()).toBe("words");
+      expect(screen.getByRole("textbox")).toHaveValue("cookbooks");
+      // The cancelled pick never fires — not now, not later.
+      wait(5_000);
+      expect(questionId()).toBe("words");
+      // Forward again: the pair is unanswered (the pick inside the window was never kept).
+      click("Next");
+      expect(questionId()).toBe("space-or-garden");
+      expect(pressed("Space")).toBe("false");
+      wait(5_000);
+      expect(questionId()).toBe("space-or-garden");
+    });
+
+    it("Back inside the window on the first question is the intro, and stays it", () => {
+      const pair = TEST_BANK.find((q) => q.id === "space-or-garden")!;
+      show({ bank: [pair] });
+      click("Begin");
+      click("A garden");
+      wait(100);
+      click("Back");
+      expect(screen.getByRole("button", { name: "Begin" })).toBeInTheDocument();
+      wait(5_000);
+      expect(questionId()).toBeUndefined();
+      expect(screen.queryByText("Here’s where we’ll start")).toBeNull();
+    });
+
+    it("a second pick inside the window replaces the first: one advance, with the second", () => {
+      show();
+      click("Begin");
+      click("Skip");
+      click("Space");
+      wait(200);
+      click("A garden");
+      expect(pressed("A garden")).toBe("true");
+      expect(pressed("Space")).toBe("false");
+      // The beat restarts from the second pick.
+      wait(ADVANCE_MS - 1);
+      expect(questionId()).toBe("space-or-garden");
+      wait(1);
+      expect(questionId()).toBe("evening");
+      wait(5_000);
+      expect(questionId()).toBe("evening");
+      click("Back");
+      expect(pressed("A garden")).toBe("true");
+    });
+
+    it("Back on the reveal after a picked last question returns to it once, with its pick", () => {
+      const unsettle = TEST_BANK.find((q) => q.id === "unsettle")!;
+      show({ bank: [unsettle] });
+      click("Begin");
+      click("Yes");
+      wait(ADVANCE_MS);
+      expect(heading()).toBe("Here’s where we’ll start");
+      click("Back");
+      expect(questionId()).toBe("unsettle");
+      expect(pressed("Yes")).toBe("true");
+      // Coming back shows the answer; it does not re-arm an advance.
+      wait(5_000);
+      expect(questionId()).toBe("unsettle");
+    });
+
+    it("leaving the screen inside the window leaves no advance behind", () => {
+      const { unmount } = show();
+      click("Begin");
+      click("Skip");
+      click("Space");
+      unmount();
+      expect(() => wait(5_000)).not.toThrow();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+  });
+
+  // ── The keyboard (keys.ts's keyAction, one window listener) ────────────────────────────────
+  describe("keys", () => {
+    const fixture = (id: string) => TEST_BANK.find((q) => q.id === id)!;
+
+    it("Enter on the intro begins", () => {
+      show();
+      expect(key("Enter")).toBe(false); // handled: default prevented
+      expect(questionId()).toBe("words");
+    });
+
+    it("on a pair, ← and → pick a side and B is both — each advancing after the beat", () => {
+      const pair = fixture("space-or-garden");
+      show({
+        bank: [pair, { ...pair, id: "pair-2" }, { ...pair, id: "pair-3" }],
+      });
+      click("Begin");
+      key("ArrowLeft");
+      expect(pressed("Space")).toBe("true");
+      wait(ADVANCE_MS);
+      expect(questionId()).toBe("pair-2");
+      key("ArrowRight");
+      wait(ADVANCE_MS);
+      expect(questionId()).toBe("pair-3");
+      key("b");
+      expect(pressed("Either")).toBe("true");
+      wait(ADVANCE_MS);
+      expect(heading()).toBe("Here’s where we’ll start");
+      click("Back");
+      expect(pressed("Either")).toBe("true");
+    });
+
+    it("on the rooms, a digit picks, the arrows walk a cursor that Enter picks, and N is None of these", async () => {
+      const rooms = fixture("rooms");
+      const bank: Question[] = [
+        rooms,
+        { ...rooms, id: "rooms-2" },
+        { ...rooms, id: "rooms-3" },
+      ];
+      show({ bank });
+      click("Begin");
+      key("2");
+      expect(pressed("A garden")).toBe("true");
+      wait(ADVANCE_MS);
+      expect(questionId()).toBe("rooms-2");
+
+      key("ArrowRight");
+      const cursored = () =>
+        document
+          .querySelector('[data-cursor="true"]')
+          ?.getAttribute("aria-label");
+      expect(cursored()).toBe("Space");
+      key("ArrowRight");
+      expect(cursored()).toBe("A garden");
+      key("Enter");
+      expect(pressed("A garden")).toBe("true");
+      wait(ADVANCE_MS);
+      expect(questionId()).toBe("rooms-3");
+      // The cursor is the screen's, not the run's: a new question starts with none.
+      expect(cursored()).toBeUndefined();
+
+      key("n");
+      expect(pressed("None of these")).toBe("true");
+      wait(ADVANCE_MS);
+      await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
+      click("Start exploring");
+      await waitFor(() => expect(completeMock).toHaveBeenCalled());
+      expect(sent().answers.map((a) => a.keys)).toEqual([
+        ["garden"],
+        ["garden"],
+        [NEITHER],
+      ]);
+    });
+
+    it("on a reading screen, N declines it at once — a skip", () => {
+      show({ bank: [fixture("read"), fixture("unsettle")] });
+      click("Begin");
+      key("n");
+      expect(questionId()).toBe("unsettle");
+    });
+
+    it("on the keep stack, → keeps and ← passes the card under it; the last decision advances", async () => {
+      const keep: Question = {
+        id: "keep",
+        kind: "multi",
+        prompt: "Keep or pass.",
+        options: ["space", "garden", "music"].map((k) => ({
+          key: k,
+          label: k,
+          face: { topic: "botany" },
+          effects: [{ topics: ["botany"], score: 1 }],
+        })),
+      };
+      show({ bank: [keep] });
+      click("Begin");
+      const under = () =>
+        document
+          .querySelector('[data-cursor="true"]')
+          ?.getAttribute("aria-label");
+      expect(under()).toBe("space");
+      key("ArrowRight");
+      expect(pressed("space")).toBe("true");
+      expect(under()).toBe("garden");
+      key("ArrowLeft");
+      expect(pressed("garden")).toBe("false");
+      key("ArrowRight");
+      expect(questionId()).toBe("keep");
+      wait(ADVANCE_MS);
+      await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
+      click("Start exploring");
+      await waitFor(() => expect(completeMock).toHaveBeenCalled());
+      expect(sent().answers).toEqual([
+        { questionId: "keep", keys: ["space", "music"] },
+      ]);
+    });
+
+    it("on a list of chips, the arrows walk and Enter toggles — and nothing advances", () => {
+      show({ bank: [fixture("rather-not")] });
+      click("Begin");
+      key("ArrowDown");
+      key("Enter");
+      expect(pressed("Horror")).toBe("true");
+      key("ArrowDown");
+      key("Enter");
+      expect(pressed("Nudity")).toBe("true");
+      key("Enter");
+      expect(pressed("Nudity")).toBe("false");
+      wait(5_000);
+      expect(questionId()).toBe("rather-not");
+    });
+
+    it("leaves a chord to the browser, and a text field to its typing", () => {
+      show({ bank: [fixture("space-or-garden")] });
+      click("Begin");
+      // ⌘B / Ctrl+← / Alt+→ are the browser's.
+      expect(key("b", { metaKey: true })).toBe(true);
+      key("ArrowLeft", { ctrlKey: true });
+      key("ArrowRight", { altKey: true });
+      expect(pressed("Space")).toBe("false");
+      expect(pressed("A garden")).toBe("false");
+      // A key typed into a field is the field's, whatever screen is up.
+      const input = document.createElement("input");
+      document.body.append(input);
+      expect(fireEvent.keyDown(input, { key: "ArrowLeft" })).toBe(true);
+      expect(pressed("Space")).toBe("false");
+      input.remove();
+      // An unbound key is not swallowed.
+      expect(key("x")).toBe(true);
+    });
+
+    it("listens no more once the screen is gone", () => {
+      const { unmount } = show({ bank: [fixture("space-or-garden")] });
+      click("Begin");
+      unmount();
+      expect(key("ArrowLeft")).toBe(true);
+    });
   });
 
   // ── First Exhibition (bank v2) ────────────────────────────────────────────────────────────
@@ -353,17 +719,6 @@ describe("OnboardingScreen", () => {
       await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
     }
 
-    it("counts steps, not questions, and skips a step the database cannot ask", () => {
-      // Two bank-v2 ids in two different steps (Rooms, Reading): two steps.
-      const bank: Question[] = [
-        { ...fixture("rooms"), id: "wings-1" },
-        { ...fixture("read"), id: "read-1" },
-      ];
-      show({ bank });
-      begin();
-      expect(screen.getByText(/^Step 1 of 2/)).toBeInTheDocument();
-    });
-
     it("shows only the top options of a show.top question, ranked by the answers so far", () => {
       const rooms = fixture("rooms");
       const bank: Question[] = [
@@ -372,7 +727,7 @@ describe("OnboardingScreen", () => {
       ];
       show({ bank });
       begin();
-      click("A garden");
+      pick("A garden");
       // The playoff shows one option: the garden the reader just scored.
       expect(questionId()).toBe("playoff");
       expect(
@@ -409,10 +764,10 @@ describe("OnboardingScreen", () => {
       };
       show({ bank, faces });
       begin();
-      click(/Long/);
+      pick(/Long/);
       await finishToReveal();
       click("Back");
-      click(/Short/);
+      pick(/Short/);
       await finishToReveal();
       click(/Start exploring/);
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
@@ -447,8 +802,8 @@ describe("OnboardingScreen", () => {
         },
       });
       begin();
-      click("Space");
-      click("A garden");
+      pick("Space");
+      pick("A garden");
       await finishToReveal();
       click(/Start exploring/);
       await waitFor(() => expect(completeMock).toHaveBeenCalled());

@@ -1,8 +1,10 @@
 "use client";
 
+import { Button } from "~/components/ui/button";
 import { Chip } from "~/components/ui/chip";
 import { Textarea } from "~/components/ui/textarea";
-import { EITHER, NEITHER, SENTINELS } from "~/lib/interview/config";
+import { isAnswered, pickAnswer, toggleAnswer } from "~/lib/interview/answer";
+import { EITHER, NEITHER } from "~/lib/interview/config";
 import { optionAdds } from "~/lib/interview/targets";
 import type { Answer, Option, Question } from "~/lib/interview/types";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
@@ -14,11 +16,24 @@ import { FaceCard } from "./face-card";
 
 // One question of the questionnaire, as a controlled component: it shows `answer` and reports
 // every change — it holds no state, and knows nothing about what comes before or after. The
-// screen (onboarding-screen.tsx) owns the answers, Skip, Back and Next.
+// screen (onboarding-screen.tsx) owns the answers, Back, the auto-advance and the keyboard.
 //
-// `onChange(answer, done)`: `done` is true when the tap *is* the whole answer — a pair or a
-// choice — so the screen can move straight on, and false when there may be more to
-// say (a multi's second answer, more typing).
+// The contract with the shell (Task 6.4):
+//
+//   `onChange(answer, done)`  `done` is true when the press *is* the whole answer — a pair's
+//                             side, a choice, a sentinel — and the shell shows it at once and
+//                             moves on ADVANCE_MS (380 ms) later; Back in between cancels that.
+//                             False when there may be more to say (a multi, typing): the shell
+//                             just holds the draft.
+//   `onContinue()`            leave now with the current answer — a blank one is a skip. Every
+//                             screen's forward control calls it.
+//   `busy`                    the shell is finishing (the model is mapping the words): the
+//                             forward control shows `aria-busy` and the shell ignores presses.
+//   `cursor`                  the keyboard's card (keys.ts), or null. On the keep stack it is the
+//                             card under the stack, which ← / → decide.
+//
+// Until the question screens are drawn (Task 6.5) one generic forward button sits at the foot
+// of every step, named for what it will do.
 //
 // Two attributes exist for the e2e helper and nothing else: `data-question-id` on the step, and
 // `data-topics` on every answer — the topics it would add (see lib/interview/path.ts, the pure
@@ -38,6 +53,21 @@ export interface QuestionStepProps {
   /** The current answer, if any — a reader who came Back sees what they said. */
   answer: Answer | undefined;
   onChange: (answer: Answer, done: boolean) => void;
+  /** Leave now with `answer` (blank → a skip). */
+  onContinue: () => void;
+  /** The shell is finishing: the forward control is busy. */
+  busy?: boolean;
+  /** The keyboard's card, by option index, or null. */
+  cursor?: number | null;
+}
+
+/** The forward button, named for what it will do. Declining the destinations is a real answer,
+ *  so it says so. (The reading screens said "I'd rather look at pictures" until Ben's 10-05-26
+ *  critique; they skip like every other screen now, and a skip there is still counted.) */
+export function forwardLabel(q: Question, answered: boolean): string {
+  if (answered) return "Next";
+  if (q.id === "destinations") return "Nowhere in particular";
+  return "Skip";
 }
 
 export function QuestionStep({
@@ -46,21 +76,16 @@ export function QuestionStep({
   faces,
   answer,
   onChange,
+  onContinue,
+  busy = false,
+  cursor = null,
 }: QuestionStepProps) {
   const keys = answer?.keys ?? [];
   const id = `q-${question.id}`;
   const topicsOf = (o: Option) => optionAdds(o, listed);
-  /** A whole answer in one tap. A reading card also reports the article's topic memberships —
-   *  choosing it scores *that piece* (score.ts), and the answer log keeps only the option key. */
-  const only = (key: string) => {
-    const w = faces[faceKey(question.id, key)]?.writing;
-    onChange(
-      w
-        ? { questionId: question.id, keys: [key], topicIds: w.topicIds }
-        : { questionId: question.id, keys: [key] },
-      true,
-    );
-  };
+  /** A whole answer in one tap (answer.ts — the keyboard builds the same one). */
+  const only = (key: string) =>
+    onChange(pickAnswer(question, key, faces), true);
   // First Exhibition's card grids: a choice or multi whose every answer has a face (the wings,
   // the playoff, the keep grid, the reading cards), or any with a typeset card (destinations).
   // The same rule decides the screen's column (lib/interview/layout.ts), so it lives there.
@@ -84,22 +109,9 @@ export function QuestionStep({
     question.options.length > 0 &&
     question.options.every((o) => keys.includes(o.key));
 
-  function toggle(key: string) {
-    // A sentinel (Show it all's NEITHER) is a whole answer of its own; picking a chip after it
-    // replaces it rather than sitting beside it.
-    const picked = keys.filter((k) => !SENTINELS.includes(k));
-    let next: string[];
-    if (picked.includes(key)) {
-      next = picked.filter((k) => k !== key);
-    } else {
-      next = [...picked, key];
-      // At the limit the newest answer pushes out the oldest, rather than the chip refusing to
-      // press — a reader who changes their mind shouldn't have to un-press something first.
-      if (question.max && next.length > question.max)
-        next = next.slice(next.length - question.max);
-    }
-    onChange({ questionId: question.id, keys: next }, false);
-  }
+  /** A multi's press (answer.ts: a sentinel is replaced, the cap pushes out the oldest). */
+  const toggle = (key: string) =>
+    onChange(toggleAnswer(question, keys, key), false);
 
   return (
     <div
@@ -148,13 +160,14 @@ export function QuestionStep({
           {/* In the wide column a pair is held to ~370 px a side and centred — two pictures to
               compare, not a banner. */}
           <div className="grid grid-cols-2 gap-3 md:mx-auto md:max-w-[760px]">
-            {question.options.map((o) => (
+            {question.options.map((o, i) => (
               <FaceCard
                 key={o.key}
                 label={o.label}
                 src={faces[faceKey(question.id, o.key)]?.src}
                 topics={topicsOf(o)}
                 selected={keys.includes(o.key)}
+                cursor={cursor === i}
                 onClick={() => only(o.key)}
               />
             ))}
@@ -203,7 +216,7 @@ export function QuestionStep({
                     : "md:grid-cols-4",
             )}
           >
-            {question.options.map((o) => {
+            {question.options.map((o, i) => {
               const face = faces[faceKey(question.id, o.key)];
               const writing = o.face?.writing;
               return (
@@ -225,6 +238,7 @@ export function QuestionStep({
                   caption={!quietFaces}
                   topics={topicsOf(o)}
                   selected={keys.includes(o.key)}
+                  cursor={cursor === i}
                   onClick={() =>
                     question.kind === "multi" ? toggle(o.key) : only(o.key)
                   }
@@ -288,11 +302,14 @@ export function QuestionStep({
               aria-labelledby={id}
               className="mt-6 flex flex-wrap gap-[10px]"
             >
-              {question.options.map((o) => (
+              {question.options.map((o, i) => (
                 <Chip
                   key={o.key}
                   selected={keys.includes(o.key)}
                   data-topics={topicsOf(o).join(" ")}
+                  data-cursor={cursor === i ? "true" : undefined}
+                  // The keyboard's cursor reads as the hover does (Chip's own 1.05 lift).
+                  className={cn(cursor === i && "border-ink/70 scale-[1.05]")}
                   onClick={() =>
                     question.kind === "multi" ? toggle(o.key) : only(o.key)
                   }
@@ -316,6 +333,20 @@ export function QuestionStep({
             )}
           </>
         )}
+
+      {/* The forward control — one for every step until Task 6.5 draws each screen's own. In the
+          flow, under the step: nothing on these screens is `fixed`. */}
+      <div className="mt-10 flex justify-end">
+        <Button
+          size="md"
+          aria-busy={busy}
+          onClick={() => {
+            if (!busy) onContinue();
+          }}
+        >
+          {forwardLabel(question, isAnswered(answer))}
+        </Button>
+      </div>
     </div>
   );
 }

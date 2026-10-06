@@ -22,7 +22,6 @@ import { weightOf } from "~/server/config/topic-levels";
 import { Rise } from "~/components/ui/rise";
 
 import { ExhibitionCard } from "./exhibition-card";
-import { StepBar } from "./step-bar";
 
 // The questionnaire's last screen: "Here's where we'll start". Everything the answers added up
 // to, as a list of topics each at a level, and the reader's chance to disagree before any of it
@@ -50,7 +49,6 @@ export interface RevealStepProps {
   submitting: boolean;
   error: string;
   onSubmit: (picks: Pick[]) => void;
-  onBack: () => void;
 }
 
 export function RevealStep({
@@ -61,7 +59,6 @@ export function RevealStep({
   submitting,
   error,
   onSubmit,
-  onBack,
 }: RevealStepProps) {
   const [draft, setDraft] = useState(() => seedDraft(proposed));
   // Re-seeding during render, not in an effect, so no frame shows the old rows against a new
@@ -82,69 +79,76 @@ export function RevealStep({
     onSubmit(draftPicks(draft));
   }
 
+  // Back is the shell's (onboarding-screen.tsx, top-left, the same as every question's). The
+  // step bar that held it and "Start exploring" went with the redesign: the button and any
+  // failure now sit in the flow under the levels, so all of it rises together.
   return (
-    <>
-      {/* The body rises; the bar is a sibling, because <Rise>'s transform would capture `fixed`. */}
-      <Rise>
-        <div data-step="reveal">
-          {/* The exhibition the answers make — above the levels it was built from. */}
-          {taste && (
-            <div className="mb-8">
-              <ExhibitionCard
-                taste={taste}
-                topicLabels={new Map(topics.map((t) => [t.id, t.label]))}
-              />
-            </div>
-          )}
-          <h1 className="text-ink-hi text-[30px] leading-[1.15] tracking-[-0.4px]">
-            Here’s where we’ll start
-          </h1>
-          <p className="text-ink/62 mt-3 text-[15px] leading-[1.55]">
-            Turn anything up, down or off. Ambit wanders sideways from here, and
-            you can change all of this later.
-          </p>
-          {retake && (
-            <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
-              This replaces your current topics.{" "}
-              {/* TextLink's look (DESIGN §4.6) on a plain <Link>, for `replace`. */}
-              <Link
-                href="/profile/topics"
-                replace
-                className="text-ink hover:decoration-accent underline decoration-1 underline-offset-3 transition-colors hover:text-white"
-              >
-                Cancel
-              </Link>
-            </p>
-          )}
-
-          <div className="mt-6">
-            <TopicLevels
-              topics={topics}
-              picks={draft.picks}
-              off={draft.off}
-              onLevel={(id, level) =>
-                setDraft((d) => withLevel(d, id, weightOf(level)))
-              }
-              onOff={(id) => setDraft((d) => withOff(d, id))}
+    <Rise>
+      <div data-step="reveal">
+        {/* The exhibition the answers make — above the levels it was built from. */}
+        {taste && (
+          <div className="mb-8">
+            <ExhibitionCard
+              taste={taste}
+              topicLabels={new Map(topics.map((t) => [t.id, t.label]))}
             />
           </div>
-        </div>
-      </Rise>
+        )}
+        <h1 className="text-ink-hi text-[30px] leading-[1.15] tracking-[-0.4px]">
+          Here’s where we’ll start
+        </h1>
+        <p className="text-ink/62 mt-3 text-[15px] leading-[1.55]">
+          Turn anything up, down or off. Ambit wanders sideways from here, and
+          you can change all of this later.
+        </p>
+        {retake && (
+          <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
+            This replaces your current topics.{" "}
+            {/* TextLink's look (DESIGN §4.6) on a plain <Link>, for `replace`. */}
+            <Link
+              href="/profile/topics"
+              replace
+              className="text-ink hover:decoration-accent underline decoration-1 underline-offset-3 transition-colors hover:text-white"
+            >
+              Cancel
+            </Link>
+          </p>
+        )}
 
-      <StepBar error={error}>
-        <Button size="md" variant="outline" onClick={onBack}>
-          Back
-        </Button>
-        <Button
-          size="md"
-          disabled={short}
-          aria-busy={submitting}
-          onClick={submit}
-          className={cn(submitting && "pointer-events-none opacity-80")}
-        >
-          {short ? "Keep at least three" : "Start exploring"}
-        </Button>
-      </StepBar>
-    </>
+        <div className="mt-6">
+          <TopicLevels
+            topics={topics}
+            picks={draft.picks}
+            off={draft.off}
+            onLevel={(id, level) =>
+              setDraft((d) => withLevel(d, id, weightOf(level)))
+            }
+            onOff={(id) => setDraft((d) => withOff(d, id))}
+          />
+        </div>
+
+        {error && (
+          <div
+            role="alert"
+            data-testid="onboarding-error"
+            // The green mono hint (DESIGN §3.2 job 7) — 1b has no error colour.
+            className="text-accent mt-8 font-mono text-[10.5px] tracking-[0.04em]"
+          >
+            {error}
+          </div>
+        )}
+        <div className="mt-8">
+          <Button
+            size="md"
+            disabled={short}
+            aria-busy={submitting}
+            onClick={submit}
+            className={cn(submitting && "pointer-events-none opacity-80")}
+          >
+            {short ? "Keep at least three" : "Start exploring"}
+          </Button>
+        </div>
+      </div>
+    </Rise>
   );
 }

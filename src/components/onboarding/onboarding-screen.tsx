@@ -2,23 +2,28 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 import { Button } from "~/components/ui/button";
-import { Column } from "~/components/ui/column";
 import { Eyebrow } from "~/components/ui/eyebrow";
 import { Rise } from "~/components/ui/rise";
+import {
+  isAnswered,
+  keepOrPass,
+  pickAnswer,
+  toggleAnswer,
+} from "~/lib/interview/answer";
 import { askable } from "~/lib/interview/askable";
 import { BANK_VERSION, QUESTIONS, STARTER_TOPICS } from "~/lib/interview/bank";
-import { SKIP } from "~/lib/interview/config";
+import { EITHER, NEITHER, SKIP } from "~/lib/interview/config";
 import { wingRanking } from "~/lib/interview/exhibition";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
 import { hangFrom, heroesFor } from "~/lib/interview/hang";
-import { columnFor, type Phase } from "~/lib/interview/layout";
+import { keyAction, type KeyAction, type KeyKind } from "~/lib/interview/keys";
+import { keyKindOf } from "~/lib/interview/layout";
 import { picksFrom, type Pick } from "~/lib/interview/picks";
 import { scoreAnswers } from "~/lib/interview/score";
 import { shown } from "~/lib/interview/show";
-import { STEP_LABELS, STEP_OF, stepsAsked } from "~/lib/interview/steps";
 import {
   buildTaste,
   chosenDestinations,
@@ -29,7 +34,6 @@ import { api } from "~/trpc/react";
 
 import { QuestionStep } from "./question-step";
 import { RevealStep } from "./reveal-step";
-import { StepBar } from "./step-bar";
 
 // Onboarding as a questionnaire (10-02-26, docs/PLAN_onboarding-questionnaire.md) — the screen a
 // freshly invited sign-up lands on before ever seeing a feed, and the one "Retake the questions"
@@ -43,7 +47,7 @@ import { StepBar } from "./step-bar";
 //
 // How it holds together:
 //
-//   intro → questions → (interpreting) → reveal → /feed
+//   intro → questions → reveal → /feed
 //
 // (An optional "About you" — age range, place, gender — sat before the reveal until 10-05-26;
 // Ben's critique removed it and migration 0014 dropped its three columns.)
@@ -54,13 +58,32 @@ import { StepBar } from "./step-bar";
 //   - **Everything topic-shaped is pure and client-side** (src/lib/interview/): which questions
 //     this database can ask, what the answers score, what the reveal proposes.
 //   - **Two server calls, both at the end.** `onboarding.interpret` once, on leaving the last
-//     question, if anything was typed — and the flow goes on whether or not it answers.
-//     `onboarding.complete` once, from the reveal. Until then nothing is written, so closing the
-//     tab half-way leaves no trace and `/feed` still sends the reader back here.
+//     question, if anything was typed — the last question stays on screen with its forward
+//     button busy meanwhile (the "Putting it together…" screen went with the redesign), and the
+//     flow goes on whether or not it answers. `onboarding.complete` once, from the reveal. Until
+//     then nothing is written, so closing the tab half-way leaves no trace and `/feed` still
+//     sends the reader back here.
+//
+// The redesign's shell (docs/DESIGN_redesign.md §5.2, Task 6.4) — what this file owns, around
+// the question screens (question-step.tsx) and the reveal (reveal-step.tsx):
+//
+//   - **One container** for every screen: a size container (`@container`, so the screens can
+//     set type in `cqw`), max 1120 px. No header, no step count, no bottom bar — nothing here is
+//     `fixed`, so nothing is caught by <Rise>'s transform either.
+//   - **A quiet Back link**, top-left on every question and on the reveal.
+//   - **Auto-advance.** A whole-answer press (`onChange(answer, true)`) is shown at once and the
+//     screen moves on `ADVANCE_MS` later. The pending pick is *state*, and an effect owns its
+//     timer: a second pick replaces it (one advance, with the second), and Back — or anything
+//     else that leaves the question — clears it, which cancels the timer. That is the plan's
+//     Review focus 5: Back inside the window never advances twice or lands on the wrong question.
+//   - **The keyboard.** One `keydown` listener on window, subscribed once, reading the latest
+//     state through `useEffectEvent` (item-screen.tsx explains why an effect keyed on changing
+//     handlers loses keys). keys.ts says what a key means on this screen's layout
+//     (`keyKindOf`); this file says what each action does.
 //
 // First Exhibition (bank v2, docs/DESIGN_first-exhibition.md) added four things, all derived from
-// the answers so Back-and-change is always honoured: the progress line counts **steps** (steps.ts)
-// rather than questions; a `show.top` question (the playoff) is **ranked** by the scores so far
+// the answers so Back-and-change is always honoured: a progress line counting **steps** (gone in
+// the redesign — steps.ts still groups the questions); a `show.top` question (the playoff) is **ranked** by the scores so far
 // before it is shown (show.ts); the reading amount **opened on a default** read off the article
 // cards (bank v3 moved it to the reveal — Task 6.6 wires the Reading row); and the reveal's
 // **taste** (taste.ts) is computed here and sent with the run.
@@ -78,20 +101,21 @@ export interface OnboardingScreenProps {
   starters?: readonly string[];
 }
 
-/** Has the reader actually said something? An empty box or an emptied multi is not an answer. */
-function isAnswered(answer: Answer | undefined): answer is Answer {
-  if (!answer) return false;
-  if (answer.text !== undefined) return answer.text.trim() !== "";
-  return answer.keys.length > 0 && answer.keys[0] !== SKIP;
-}
+/** The beat between a pick and the next screen (DESIGN_redesign §5.2; the prototype's
+ *  `advanceSoon`): long enough to see the outline land, short enough not to wait for. */
+export const ADVANCE_MS = 380;
 
-/** The forward button, named for what it will do. Declining the destinations is a real answer,
- *  so it says so. (The reading screens said "I'd rather look at pictures" until Ben's 10-05-26
- *  critique; they skip like every other screen now, and a skip there is still counted.) */
-function forwardLabel(q: Question, answered: boolean): string {
-  if (answered) return "Next";
-  if (q.id === "destinations") return "Nowhere in particular";
-  return "Skip";
+type Phase = "intro" | "questions" | "reveal";
+
+/** A key typed into a field is the field's — the keyboard never reads it as a pick. */
+function isTextField(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  );
 }
 
 export function OnboardingScreen({
@@ -115,6 +139,17 @@ export function OnboardingScreen({
   const [answers, setAnswers] = useState<Answer[]>([]);
   /** The question on screen's answer-in-progress. */
   const [draft, setDraft] = useState<Answer | undefined>(undefined);
+  /** A whole-answer press waiting out its beat (`ADVANCE_MS`) — see the effect below. */
+  const [pending, setPending] = useState<Answer | null>(null);
+  /** The keyboard cursor on a card or chip screen (keys.ts), or none. Per question. */
+  const [cursor, setCursor] = useState<number | null>(null);
+  /** The keep stack's card (DESIGN §5.2 "Keep or pass") — how many have been decided. */
+  const [stackAt, setStackAt] = useState(0);
+  /** `onboarding.interpret` in flight on leaving the last question. */
+  const [finishing, setFinishing] = useState(false);
+  /** Bumped by anything that leaves the questions' end, so a late `interpret` answer for a run
+   *  the reader has gone Back from is dropped rather than jumping them to the reveal. */
+  const finishRun = useRef(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -149,12 +184,6 @@ export function OnboardingScreen({
     });
   }, [answers, bank, faces]);
 
-  // The progress line counts steps; a bank with no STEP_OF entries (a test's) keeps v1's
-  // question count.
-  const steps = useMemo(() => stepsAsked(asked), [asked]);
-  const stepNow = current ? STEP_OF[current.id] : undefined;
-  const stepIndex = stepNow !== undefined ? steps.indexOf(stepNow) : -1;
-
   // A question that arrives takes focus on its heading. The one it replaced was unmounted by the
   // tap that answered it, which drops focus to <body> — and a screen-reader user would get no cue
   // that anything changed. Keyed on the question, so typing into a text box never steals focus.
@@ -163,22 +192,90 @@ export function OnboardingScreen({
     if (currentId) document.getElementById(`q-${currentId}`)?.focus();
   }, [currentId]);
 
+  /** After the last question: map any free text to topics, then on to the reveal. The last
+   *  question stays on screen meanwhile (its forward button busy) — there is no screen between. */
+  async function finishQuestions(all: Answer[]) {
+    const texts = all.flatMap((a) =>
+      a.text ? [{ questionId: a.questionId, text: a.text }] : [],
+    );
+    if (texts.length === 0) {
+      setAnswers(all);
+      setDraft(undefined);
+      setPhase("reveal");
+      return;
+    }
+    const run = ++finishRun.current;
+    setFinishing(true);
+    let done = all;
+    try {
+      const mapped = await interpret.mutateAsync({ texts });
+      const byQuestion = new Map(mapped.map((m) => [m.questionId, m.topicIds]));
+      done = all.map((a) =>
+        a.text ? { ...a, topicIds: byQuestion.get(a.questionId) ?? [] } : a,
+      );
+    } catch {
+      // The service already answers empty lists on its own failures; this is the network
+      // between here and it. Either way the reveal is built from the other answers.
+    }
+    // The reader went Back while the model was thinking: this run is not theirs any more.
+    if (run !== finishRun.current) return;
+    setFinishing(false);
+    setAnswers(done);
+    setDraft(undefined);
+    setPhase("reveal");
+  }
+
+  /** Everything a question owns besides its answer goes when the question does. */
+  function resetScreen() {
+    setPending(null);
+    setCursor(null);
+    setStackAt(0);
+  }
+
   /** Leaves the question on screen with `answer` (or a skip) and moves on. */
   function advance(answer: Answer | undefined) {
-    if (!current) return;
+    if (!current || finishing) return;
+    resetScreen();
     const kept: Answer = isAnswered(answer)
       ? answer.text !== undefined
         ? { ...answer, text: answer.text.trim() }
         : answer
       : { questionId: current.id, keys: [SKIP] };
     const next = [...answers, kept];
-    setAnswers(next);
-    setDraft(undefined);
-    if (next.length >= asked.length) void finishQuestions(next);
+    if (next.length < asked.length) {
+      setAnswers(next);
+      setDraft(undefined);
+      // The prototype's `next()`: a new screen starts at its top. (Optional call: jsdom has no
+      // Element.scrollTo.)
+      document.scrollingElement?.scrollTo?.({ top: 0 });
+      return;
+    }
+    void finishQuestions(next);
   }
 
-  /** Back from a question: the previous one, with what was said there; or the intro. */
+  /** A whole-answer press: shown at once, left `ADVANCE_MS` later (the effect below). */
+  function pick(answer: Answer) {
+    setDraft(answer);
+    setPending(answer);
+  }
+
+  // The pending pick's timer. Keyed on the pick itself, so a second pick clears the first's
+  // timer and starts its own, and anything that sets `pending` to null — Back, a skip, leaving
+  // the question, unmounting — cancels it. `commit` reads the latest `advance` (and through it
+  // the latest answers) when the beat ends, not the render the pick happened in.
+  const commit = useEffectEvent((answer: Answer) => advance(answer));
+  useEffect(() => {
+    if (!pending) return;
+    const t = setTimeout(() => commit(pending), ADVANCE_MS);
+    return () => clearTimeout(t);
+  }, [pending]);
+
+  /** Back from a question: the previous one, with what was said there; or the intro. A pick
+   *  still waiting out its beat is dropped with the question it was made on. */
   function back() {
+    resetScreen();
+    finishRun.current += 1;
+    setFinishing(false);
     const last = answers[answers.length - 1];
     if (!last) {
       setDraft(undefined);
@@ -191,30 +288,80 @@ export function OnboardingScreen({
     setPhase("questions");
   }
 
-  /** After the last question: map any free text to topics, then on to the reveal. */
-  async function finishQuestions(all: Answer[]) {
-    const texts = all.flatMap((a) =>
-      a.text ? [{ questionId: a.questionId, text: a.text }] : [],
-    );
-    if (texts.length === 0) {
-      setPhase("reveal");
+  // ── The keyboard ────────────────────────────────────────────────────────────────────────
+  const kind: KeyKind =
+    phase === "intro"
+      ? "intro"
+      : phase === "questions" && onScreen
+        ? keyKindOf(onScreen)
+        : "none";
+
+  /** One keep-or-pass decision on the keep stack — the keys' ← →, and the stack's buttons. */
+  function decideCard(keep: boolean) {
+    if (!onScreen) return;
+    const r = keepOrPass(onScreen, draft, stackAt, keep);
+    setStackAt(r.at);
+    if (r.done) pick(r.answer);
+    else setDraft(r.answer);
+  }
+
+  function act(action: KeyAction) {
+    if (action.type === "next") {
+      setPhase("questions");
       return;
     }
-    setPhase("interpreting");
-    try {
-      const mapped = await interpret.mutateAsync({ texts });
-      const byQuestion = new Map(mapped.map((m) => [m.questionId, m.topicIds]));
-      setAnswers(
-        all.map((a) =>
-          a.text ? { ...a, topicIds: byQuestion.get(a.questionId) ?? [] } : a,
-        ),
-      );
-    } catch {
-      // The service already answers empty lists on its own failures; this is the network
-      // between here and it. Either way the reveal is built from the other answers.
+    if (!onScreen) return;
+    const option = (i: number) => onScreen.options[i]?.key;
+    switch (action.type) {
+      case "cursor":
+        setCursor(action.index);
+        return;
+      case "pick": {
+        const key = option(action.index);
+        if (key === undefined) return;
+        if (onScreen.kind === "multi")
+          setDraft(toggleAnswer(onScreen, draft?.keys ?? [], key));
+        else pick(pickAnswer(onScreen, key, faces));
+        return;
+      }
+      case "none":
+        // The rooms' "None of these" is an answer (NEITHER scores the starters down); a reading
+        // screen's decline is a skip, as its Skip button is.
+        if (kind === "read") advance(undefined);
+        else pick(pickAnswer(onScreen, NEITHER, faces));
+        return;
+      case "both":
+        pick(pickAnswer(onScreen, EITHER, faces));
+        return;
+      case "keep":
+      case "pass":
+        decideCard(action.type === "keep");
+        return;
     }
-    setPhase("reveal");
   }
+
+  // keys.ts asks three things of its caller: skip a chord (⌘B is the browser's, not "both"),
+  // skip a key typed into a field, and preventDefault whatever it does act on (an arrow must not
+  // scroll the page, an Enter on a focused button must not click it as well).
+  const onKey = useEffectEvent((e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isTextField(e.target)) return;
+    if (finishing || submitting) return;
+    const action = keyAction(
+      kind,
+      e.key,
+      cursor,
+      onScreen?.options.length ?? 0,
+    );
+    if (action.type === "ignore") return;
+    e.preventDefault();
+    act(action);
+  });
+  useEffect(() => {
+    const listener = (e: KeyboardEvent) => onKey(e);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
 
   // What the answers add up to — recomputed when they change. Today that only happens before
   // the reveal is on screen; RevealStep re-seeds its draft if it ever happens after (Allow).
@@ -278,113 +425,96 @@ export function OnboardingScreen({
     }
   }
 
-  // Narrow for words, wide for pictures (lib/interview/layout.ts; Ben's critique 10-05-26). Both
-  // are `mx-auto`, but the heading, progress line and Back sit at the column's *left* edge, so at
-  // 1440 they step 260 px sideways where bank v2 crosses the seam (intro → the wings,
-  // destinations → rather-not). Left for Ben's eye; if it jars, keep the column narrow and let
-  // only the card grid break out wide.
-  const width = columnFor(onScreen, phase);
-
   return (
     <main className="bg-bg min-h-dvh">
-      {/* The bottom padding clears the fixed bar. */}
-      <Column width={width} className="px-6 pt-16 pb-[180px]">
-        {phase === "intro" && (
-          <>
-            <Rise>
-              <Eyebrow as="p" className="block">
-                Ambit · {retake ? "Start again" : "Setup"}
-              </Eyebrow>
-              <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] tracking-[-0.4px]">
-                {retake ? "Let’s ask again" : "Let’s find where to start"}
-              </h1>
-              <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
-                A few questions about what you like — some pictures, some words.
-                Skip any of them. At the end you’ll see what we made of it, and
-                you can change all of it.
-              </p>
-              {retake && (
-                <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
-                  Your answers will replace the topics you have now.{" "}
-                  {/* TextLink's look (DESIGN §4.6) on a plain <Link>: TextLink doesn't pass
-                      `replace` through, and this one must not add a history entry. */}
-                  <Link
-                    href="/profile/topics"
-                    replace
-                    className="text-ink hover:decoration-accent underline decoration-1 underline-offset-3 transition-colors hover:text-white"
-                  >
-                    Cancel
-                  </Link>
-                </p>
-              )}
-              {/* Under the copy it answers, not in the fixed bar at the foot of the screen (Ben's
-                  critique, 10-05-26): on a tall desktop window the two were a screen apart. Not
-                  `fixed`, so it can live inside <Rise> and arrive with the words. */}
-              <div className="mt-8">
-                <Button size="md" onClick={() => setPhase("questions")}>
-                  Begin
+      {/* The size container every screen's `cqw` measures against (DESIGN §5.2), padded
+          clamp(20px, 4cqw, 56px) a side; inside it, one column, max 1120 px. */}
+      <div className="@container min-h-dvh">
+        <div className="px-[clamp(20px,4cqw,56px)]">
+          <div className="mx-auto max-w-[1120px] pt-[clamp(36px,6cqw,72px)] pb-10">
+            {/* The quiet Back (decision 1): top-left on every question and on the reveal, never
+                on the intro. A text link in look, a button in kind — it moves within the page. */}
+            {phase !== "intro" && (
+              <div className="mb-6">
+                <Button variant="link" onClick={back}>
+                  Back
                 </Button>
               </div>
-            </Rise>
-          </>
-        )}
+            )}
 
-        {phase === "questions" && current && (
-          <>
-            {/* Keyed by question so <Rise> plays again: each one should arrive, not swap. */}
-            {/* Outside the keyed <Rise> on purpose: a live region created with its content is not
-                announced, so this one stays mounted and only its text changes. */}
-            <Eyebrow as="p" aria-live="polite" className="mb-[14px] block">
-              {stepIndex >= 0
-                ? `Step ${stepIndex + 1} of ${steps.length} · ${STEP_LABELS[stepNow! - 1]}`
-                : `${answers.length + 1} of ${asked.length}`}
-            </Eyebrow>
-            <Rise key={current.id}>
-              <QuestionStep
-                question={onScreen ?? current}
-                listed={listed}
-                faces={faces}
-                answer={draft}
-                onChange={(answer, done) =>
-                  done ? advance(answer) : setDraft(answer)
-                }
+            {phase === "intro" && (
+              <Rise>
+                <Eyebrow as="p" className="block">
+                  Ambit · {retake ? "Start again" : "Setup"}
+                </Eyebrow>
+                <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] tracking-[-0.4px]">
+                  {retake ? "Let’s ask again" : "Let’s find where to start"}
+                </h1>
+                <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
+                  A few questions about what you like — some pictures, some
+                  words. Skip any of them. At the end you’ll see what we made of
+                  it, and you can change all of it.
+                </p>
+                {retake && (
+                  <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
+                    Your answers will replace the topics you have now.{" "}
+                    {/* TextLink's look (DESIGN §4.6) on a plain <Link>: TextLink doesn't pass
+                        `replace` through, and this one must not add a history entry. */}
+                    <Link
+                      href="/profile/topics"
+                      replace
+                      className="text-ink hover:decoration-accent underline decoration-1 underline-offset-3 transition-colors hover:text-white"
+                    >
+                      Cancel
+                    </Link>
+                  </p>
+                )}
+                <div className="mt-8">
+                  <Button size="md" onClick={() => setPhase("questions")}>
+                    Begin
+                  </Button>
+                </div>
+              </Rise>
+            )}
+
+            {phase === "questions" && current && (
+              // Keyed by question so <Rise> plays again: each one should arrive, not swap.
+              <Rise key={current.id}>
+                <QuestionStep
+                  question={onScreen ?? current}
+                  listed={listed}
+                  faces={faces}
+                  answer={draft}
+                  // On the keep stack the card under the stack is the one the keys act on.
+                  cursor={kind === "keep" ? stackAt : cursor}
+                  busy={finishing}
+                  onChange={(answer, done) => {
+                    if (done) pick(answer);
+                    else {
+                      // An edit that is not a whole answer cancels a pick still waiting.
+                      setPending(null);
+                      setDraft(answer);
+                    }
+                  }}
+                  onContinue={() => advance(draft)}
+                />
+              </Rise>
+            )}
+
+            {phase === "reveal" && (
+              <RevealStep
+                topics={topics}
+                proposed={proposed}
+                taste={taste}
+                retake={retake}
+                submitting={submitting}
+                error={error}
+                onSubmit={submit}
               />
-            </Rise>
-            <StepBar width={width}>
-              <Button size="md" variant="outline" onClick={back}>
-                Back
-              </Button>
-              {/* One button, named for what it will do: nothing said yet → Skip. */}
-              <Button size="md" onClick={() => advance(draft)}>
-                {forwardLabel(current, isAnswered(draft))}
-              </Button>
-            </StepBar>
-          </>
-        )}
-
-        {phase === "interpreting" && (
-          <p
-            role="status"
-            className="text-ink/62 pt-24 text-center text-[17px]"
-          >
-            Putting it together…
-          </p>
-        )}
-
-        {phase === "reveal" && (
-          <RevealStep
-            topics={topics}
-            proposed={proposed}
-            taste={taste}
-            retake={retake}
-            submitting={submitting}
-            error={error}
-            onSubmit={submit}
-            // The same Back every question has: the last answer comes back on screen.
-            onBack={back}
-          />
-        )}
-      </Column>
+            )}
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

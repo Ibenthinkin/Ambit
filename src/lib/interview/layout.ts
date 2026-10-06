@@ -1,15 +1,10 @@
-// Which column a questionnaire screen takes on a desktop (docs/PLAN_onboarding-critique.md Task
-// 1.7). Pure, like the rest of lib/interview/, so the rule is tested without a browser.
+// Which layout a question takes (DESIGN_redesign §5.2). Pure, like the rest of lib/interview/,
+// so the rule is tested without a browser.
 //
-// Ben's critique (10-05-26): in the 600 px onboarding column the picture cards came out 110–140
-// px wide — thumbnails, for a step whose whole point is looking. So a step that shows pictures
-// (or typeset cards) takes the 1120 px `wide` column, and a step of words — a text box, a row of
-// chips — stays in the 600 px `narrow` one, where a line of type reads well.
-// Below `md` (768 px) both are full width, so a phone sees no change at all.
+// (Until the redesign this file also chose a column — 600 px for words, 1120 px for pictures,
+// `columnFor`. The redesign has one container, max 1120 px, for every screen, so that went.)
+import type { KeyKind } from "./keys";
 import type { Question } from "./types";
-
-/** The screen's phases (onboarding-screen.tsx). */
-export type Phase = "intro" | "questions" | "interpreting" | "reveal";
 
 /**
  * Does this question render as a grid of cards? A choice or multi whose every answer has a face
@@ -23,14 +18,30 @@ export function rendersCards(q: Question): boolean {
 }
 
 /**
- * The column for what is on screen. The reveal stays narrow for now: it is one stacked column
- * until the reveal is laid out again in two (the plan's Cut 4), and widening it before then would
- * only stretch its rows.
+ * The keyboard's name for the screen (keys.ts — the kinds are DESIGN §5.2's layout names, not
+ * the bank's question kinds). The shell hands it to `keyAction` with the option count.
+ *
+ *   pairs   a pair                                 ← → pick a side, B both
+ *   read    a choice of article cards              1–4, N, arrows + Enter
+ *   rooms   any other choice of pictures           1–4, N, arrows + Enter
+ *   keep    a picture multi with no cap            ← pass, → keep
+ *   travel  a multi of typeset cards               arrows + Enter
+ *   avoid   any other multi — a list of chips      arrows + Enter
+ *   text    a text box                             nothing (the box owns the keys)
+ *   none    a choice of words                      nothing
  */
-export function columnFor(
-  q: Question | undefined,
-  phase: Phase,
-): "narrow" | "wide" {
-  if (phase !== "questions" || !q) return "narrow";
-  return q.kind === "pair" || rendersCards(q) ? "wide" : "narrow";
+export function keyKindOf(q: Question): KeyKind {
+  const allFaced = q.options.length > 0 && q.options.every((o) => o.face);
+  switch (q.kind) {
+    case "pair":
+      return "pairs";
+    case "text":
+      return "text";
+    case "choice":
+      if (!allFaced) return "none";
+      return q.options.some((o) => o.face?.writing) ? "read" : "rooms";
+    case "multi":
+      if (q.options.some((o) => o.card)) return "travel";
+      return allFaced && !q.max ? "keep" : "avoid";
+  }
 }

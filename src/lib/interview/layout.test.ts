@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { TEST_BANK } from "./fixtures";
-import { columnFor, rendersCards } from "./layout";
+import { keyKindOf, rendersCards } from "./layout";
 import type { Question } from "./types";
 
 const fixture = (id: string) => TEST_BANK.find((q) => q.id === id)!;
@@ -29,24 +29,33 @@ describe("rendersCards", () => {
   });
 });
 
-describe("columnFor", () => {
-  it("gives the picture steps the wide column", () => {
-    expect(columnFor(fixture("space-or-garden"), "questions")).toBe("wide");
-    expect(columnFor(fixture("rooms"), "questions")).toBe("wide");
-    expect(columnFor(fixture("read"), "questions")).toBe("wide");
-    expect(columnFor(destinations, "questions")).toBe("wide");
+// The keyboard's layout names (keys.ts) for each question shape — what the shell hands keyAction.
+describe("keyKindOf", () => {
+  const keep: Question = {
+    id: "keep",
+    kind: "multi",
+    prompt: "Keep or pass.",
+    options: [
+      { key: "a", label: "A", face: { topic: "botany" }, effects: [] },
+      { key: "b", label: "B", face: { topic: "botany" }, effects: [] },
+    ],
+  };
+
+  it("names the picture screens", () => {
+    expect(keyKindOf(fixture("rooms"))).toBe("rooms");
+    expect(keyKindOf(fixture("read"))).toBe("read");
+    expect(keyKindOf(fixture("space-or-garden"))).toBe("pairs");
+    expect(keyKindOf(keep)).toBe("keep");
   });
 
-  it("keeps words in the narrow column", () => {
-    expect(columnFor(fixture("words"), "questions")).toBe("narrow");
-    expect(columnFor(fixture("unsettle"), "questions")).toBe("narrow");
-    expect(columnFor(fixture("evening"), "questions")).toBe("narrow");
+  it("names the lists: typeset cards are travel, chips to choose among are avoid", () => {
+    expect(keyKindOf(destinations)).toBe("travel");
+    expect(keyKindOf(fixture("rather-not"))).toBe("avoid");
+    expect(keyKindOf(fixture("evening"))).toBe("avoid");
   });
 
-  it("is narrow off the questions — the intro, the beat, and (until Cut 4) the reveal", () => {
-    expect(columnFor(undefined, "intro")).toBe("narrow");
-    expect(columnFor(fixture("rooms"), "intro")).toBe("narrow");
-    expect(columnFor(undefined, "interpreting")).toBe("narrow");
-    expect(columnFor(undefined, "reveal")).toBe("narrow");
+  it("gives a text box and a choice of words no keys", () => {
+    expect(keyKindOf(fixture("words"))).toBe("text");
+    expect(keyKindOf(fixture("unsettle"))).toBe("none");
   });
 });
