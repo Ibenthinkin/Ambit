@@ -37,7 +37,7 @@ describe("Eyebrow", () => {
     const dot = container.querySelector("[data-eyebrow-dot]")!;
     expect(dot.getAttribute("aria-hidden")).toBe("true");
     expect(dot.className).toContain("bg-accent");
-    expect(dot.className).toContain("size-1.5");
+    expect(dot.className).toContain("size-[6px]");
     expect(dot.className).toContain("rounded-full");
   });
 });

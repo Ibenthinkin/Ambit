@@ -41,11 +41,11 @@ export function TextLink({
   if (external) {
     return (
       <a
+        {...rest}
         href={href}
         target="_blank"
         rel="noopener noreferrer"
         className={classes}
-        {...rest}
       >
         {label} <span aria-hidden="true">↗</span>
       </a>

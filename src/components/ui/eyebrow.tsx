@@ -37,7 +37,7 @@ export function Eyebrow({
         <span
           data-eyebrow-dot
           aria-hidden="true"
-          className="bg-accent size-1.5 flex-none rounded-full"
+          className="bg-accent size-[6px] flex-none rounded-full"
         />
       )}
       {children}

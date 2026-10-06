@@ -46,6 +46,17 @@ describe("TextLink", () => {
     expect(el.querySelector("[aria-hidden='true']")?.textContent).toBe("↗");
   });
 
+  it("a caller's rel or target cannot drop noopener on an external link", () => {
+    render(
+      <TextLink href="https://e.com" external rel="" target="_self">
+        Ext
+      </TextLink>,
+    );
+    const el = screen.getByRole("link", { name: /Ext/ });
+    expect(el.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(el.getAttribute("target")).toBe("_blank");
+  });
+
   it("bracket wraps the label as [label..]", () => {
     render(
       <TextLink href="/w" bracket>
