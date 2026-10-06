@@ -217,6 +217,19 @@ describe("SaveToCollectionSheet", () => {
     ).toBeNull();
   });
 
+  it("shows no arrow in the save picker", () => {
+    render(
+      <SaveToCollectionSheet
+        open
+        onClose={vi.fn()}
+        itemId="item-1"
+        onSaved={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId("row-arrow")).toBeNull();
+  });
+
   it("uses the singular for a collection holding one item", () => {
     collectionsData.current = [
       {
@@ -482,6 +495,16 @@ describe("ItemSheet", () => {
 });
 
 describe("CollectionsSheet", () => {
+  it("ends every browse row, Everything kept included, in a mono arrow, 17 px", () => {
+    render(<CollectionsSheet open onClose={vi.fn()} />);
+    const arrows = screen.getAllByTestId("row-arrow");
+    // Everything kept + each collection; the New collection row navigates nowhere on tap.
+    expect(arrows).toHaveLength(collectionsData.current.length + 1);
+    expect(arrows[0]).toHaveAttribute("aria-hidden", "true");
+    expect(arrows[0]).toHaveClass("font-mono");
+    expect(screen.getByText("Everything kept")).toHaveClass("text-[17px]");
+  });
+
   it("brackets the collections with the two pseudo-rows, in order", () => {
     render(<CollectionsSheet open onClose={vi.fn()} />);
     expect(

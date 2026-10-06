@@ -75,6 +75,7 @@ export function CollectionsSheet({
             label="Everything kept"
             sub={itemCountLabel(savedCount.data ?? 0)}
             tone="strong"
+            variant="nav"
             leading={{ kind: "glyph", glyph: "bookmark" }}
             onPick={() => go("/saved")}
           />
@@ -85,6 +86,7 @@ export function CollectionsSheet({
               label={c.name}
               sub={itemCountLabel(c.itemCount)}
               leading={{ kind: "covers", covers: c.covers }}
+              variant="nav"
               onPick={() => go(`/saved?collection=${encodeURIComponent(c.id)}`)}
             />
           ))}

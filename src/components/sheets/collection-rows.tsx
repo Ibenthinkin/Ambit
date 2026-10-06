@@ -14,7 +14,7 @@ import { api } from "~/trpc/react";
 // navigates — but the row is one design: a leading mark, name, sub-label, hairline rule.
 //
 // **Since 09-12-26 the mark is a face** (docs/DESIGN_list-screens.md §7): a collection leads with a
-// 36 px `CoverMosaic` of its four newest pictures, and the two pseudo-rows with a glyph square —
+// 38 px `CoverMosaic` of its four newest pictures, and the two pseudo-rows with a glyph square —
 // the same two squares the Collections tab's placeholder and dashed tile use, at row size. The
 // 7 px dot below is the fallback for a caller that passes no `leading`.
 //
@@ -34,7 +34,7 @@ const DOT_TONE: Record<DotTone, string> = {
  * What leads a row (docs/DESIGN_list-screens.md §7). `covers` is a collection's face, 38 px,
  * marked with a trailing 7 px accent dot when `current` ("Already saved here"); `glyph` is one of the two
  * pseudo-rows' squares — the outline bookmark for "Everything kept", the dashed plus for
- * "New collection…". Absent, the row keeps its 9 px dot (`tone`).
+ * "New collection…". Absent, the row keeps its 7 px dot (`tone`).
  */
 export type RowLeading =
   | { kind: "covers"; covers: string[]; current?: boolean }
@@ -45,6 +45,8 @@ export interface CollectionRowProps {
   sub: string;
   tone?: DotTone;
   leading?: RowLeading;
+  /** "nav" is the browse sheet's row: 17 px name and a trailing mono arrow. Default "pick". */
+  variant?: "pick" | "nav";
   onPick: () => void;
 }
 
@@ -53,6 +55,7 @@ export function CollectionRow({
   sub,
   tone = "normal",
   leading,
+  variant = "pick",
   onPick,
 }: CollectionRowProps) {
   return (
@@ -96,11 +99,27 @@ export function CollectionRow({
         />
       )}
       <span className="min-w-0 flex-1">
-        <span className="text-ink block truncate text-[15px]">{label}</span>
+        <span
+          className={cn(
+            "text-ink block truncate",
+            variant === "nav" ? "text-[17px]" : "text-[15px]",
+          )}
+        >
+          {label}
+        </span>
         <span className="text-ink/55 mt-1 block truncate font-mono text-[10.5px] tracking-[0.4px]">
           {sub}
         </span>
       </span>
+      {variant === "nav" ? (
+        <span
+          data-testid="row-arrow"
+          aria-hidden="true"
+          className="text-ink/55 flex-none font-mono text-[14px]"
+        >
+          →
+        </span>
+      ) : null}
       {leading?.kind === "covers" && leading.current ? (
         // "Already saved here": the 7 px green dot, one of the accent's seven jobs (DESIGN §3.2).
         <span
