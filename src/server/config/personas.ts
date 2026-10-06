@@ -32,10 +32,9 @@ export interface Persona {
   /** The url-safe half of the email, and how the seed reports one. */
   slug: string;
   name: string;
-  /** Documentation only — never stored. Same for the four fields below. (A *real* reader's
-   *  optional age range, location and gender are stored since 10-02-26 — the questionnaire's
-   *  About-you trial, SPEC §5.3a. That is a reader's own answer about themselves; a persona's
-   *  demographics remain a note for whoever reads this file.) */
+  /** Documentation only — never stored. Same for the four fields below. (A real reader's age
+   *  range, location and gender were stored from 10-02-26 to 10-05-26 — the questionnaire's
+   *  About-you trial, SPEC §5.3a — and dropped with it. Nothing demographic is stored now.) */
   age: number;
   gender: string;
   location: string;

@@ -1,11 +1,12 @@
 // The progress indicator counts STEPS, not questions (docs/DESIGN_first-exhibition.md §1): three
 // wing screens and the playoff are one step ("Rooms"), three hands pairs another, and so on.
 // Keyed by question id so the bank can be reordered without touching this file's meaning.
-// bank.test.ts pins that every question has a step and the steps are 1…STEP_COUNT-1 contiguous
-// (the last step, About you, is a screen of its own, not a bank question).
+// bank.test.ts pins that every question has a step and the steps are 1…STEP_COUNT contiguous.
+// The last step, "Your words", is a bank question like the others — About you, a screen of its
+// own that followed it, was removed 10-05-26 (docs/PLAN_onboarding-critique.md Cut 1).
 import type { Question } from "./types";
 
-export const STEP_COUNT = 10;
+export const STEP_COUNT = 9;
 
 /** The step names, for a label beside the count if wanted. Index 0 is step 1. */
 export const STEP_LABELS: readonly string[] = [
@@ -18,7 +19,6 @@ export const STEP_LABELS: readonly string[] = [
   "Rather not",
   "How much",
   "Your words",
-  "About you",
 ];
 
 export const STEP_OF: Readonly<Record<string, number>> = {

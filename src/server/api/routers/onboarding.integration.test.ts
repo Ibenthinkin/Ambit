@@ -142,12 +142,6 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const { me, picks, log } = await rowsFor(userId);
       expect(picks).toEqual({ [a]: 2, [b]: 1, [c]: 0.5 });
       expect(me!.writingAmount).toBe("lot");
-      // No `about` was sent, so the three trial columns stay untouched.
-      expect([me!.ageRange, me!.location, me!.gender]).toEqual([
-        null,
-        null,
-        null,
-      ]);
 
       expect(log).toHaveLength(answers.length);
       expect(new Set(log.map((r) => r.runId))).toEqual(new Set([runId]));
@@ -184,19 +178,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
           // Skipped the amount question this time: the earlier answer stands.
           writingAmount: null,
           answers: [{ questionId: "evening", keys: ["food"] }],
-          about: { ageRange: "35–44", location: "  Lisbon ", gender: "" },
         }),
       );
 
       const { me, picks, log } = await rowsFor(userId);
       expect(picks).toEqual({ [a]: 0.5, [c]: 1, [d]: 1 });
       expect(me!.writingAmount).toBe("lot");
-      // Trimmed; an empty answer is "not given", stored as NULL rather than "".
-      expect([me!.ageRange, me!.location, me!.gender]).toEqual([
-        "35–44",
-        "Lisbon",
-        null,
-      ]);
       expect(log).toHaveLength(answers.length + 1);
       expect(log.filter((r) => r.runId === runId)).toHaveLength(1);
     });
@@ -234,14 +221,26 @@ describe.skipIf(!process.env.DATABASE_URL)(
           writingAmount: "none",
           answers: [{ questionId: "evening", answer: ["music"], text: null }],
           bankVersion: 1,
-          about: { ageRange: "65+", location: null, gender: null },
         }),
       ).rejects.toThrow();
       const after = await rowsFor(userId);
       expect(after.picks).toEqual(before.picks);
       expect(after.log).toHaveLength(before.log.length);
       expect(after.me!.writingAmount).toBe("lot");
-      expect(after.me!.ageRange).toBe("35–44");
+    });
+
+    // Review Focus 2 (docs/PLAN_onboarding-critique.md): About you and its three columns went
+    // 10-05-26, but a tab opened before that deploy still sends `about`. Zod's default object
+    // mode *strips* an unknown key, so the run completes; this pins that the input schema is not
+    // `.strict()`, which would turn a stale tab's save into a 400.
+    it("strips an about object a stale client still sends", async () => {
+      const caller = createCaller(authedContext(userId));
+      const { runId } = await caller.onboarding.complete(
+        input({
+          about: { ageRange: "25–34", location: "x", gender: "y" },
+        }),
+      );
+      expect(runId).toBeTruthy();
     });
 
     it("deleting the reader deletes their answers (the foreign key cascades)", async () => {

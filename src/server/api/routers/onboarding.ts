@@ -66,15 +66,6 @@ async function reportAccountFailure(err: Error): Promise<void> {
   );
 }
 
-/** An optional About-you field: trimmed, capped, and "" read as "not given" (null). */
-const aboutField = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .nullish()
-    .transform((v) => (v == null || v === "" ? null : v));
-
 const answerSchema = z.object({
   questionId: z.string().min(1).max(64),
   // Option keys, or one sentinel ("skip" / "either" / "neither"). Not checked against the bank:
@@ -122,13 +113,9 @@ export const onboardingRouter = createTRPCRouter({
           .nullable(),
         answers: z.array(answerSchema).max(40),
         bankVersion: z.number().int().positive(),
-        about: z
-          .object({
-            ageRange: aboutField(40),
-            location: aboutField(80),
-            gender: aboutField(40),
-          })
-          .optional(),
+        // `about` (age range, place, gender) was here until 10-05-26. A stale client may still
+        // send it: the object is not `.strict()`, so Zod strips the key rather than refusing the
+        // run (pinned in onboarding.integration.test.ts).
         // What the reveal showed (bank v2). Bounded by its own schema: wing ids, 0…1 dimensions,
         // at most two opened cards. Optional so a v1 client still completes.
         taste: tasteSchema.optional(),
@@ -183,7 +170,6 @@ export const onboardingRouter = createTRPCRouter({
             : { questionId: a.questionId, answer: a.keys, text: null },
         ),
         bankVersion: input.bankVersion,
-        about: input.about,
         taste: input.taste,
       });
     }),

@@ -105,6 +105,14 @@ describe("scoreAnswers", () => {
     );
   });
 
+  // "Show it all" on Rather not (Ben, 10-05-26) is NEITHER on a multi: the reader said nothing
+  // is to be kept out. It must add nothing — NEITHER_FACTOR on a -2 effect would *raise* horror.
+  it("NEITHER on a multi (Rather not's Show it all) adds nothing", () => {
+    expect(score([{ questionId: "rather-not", keys: ["neither"] }]).size).toBe(
+      0,
+    );
+  });
+
   it("a reading card scores the item's memberships at READ_SCORE, plus its kind's form topic", () => {
     const s = score([
       { questionId: "read", keys: ["essay"], topicIds: ["astronomy", "music"] },

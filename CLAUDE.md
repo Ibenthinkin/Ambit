@@ -337,7 +337,9 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
 - **Onboarding is First Exhibition — 10-04-26** (design `docs/DESIGN_first-exhibition.md`, plan
   `docs/PLAN_first-exhibition.md`; the study it adapts is `docs/first-exhibition/`; branch
   `feat/first-exhibition`, built 10-05-26, merged to `main` the same evening, not deployed;
-  Ben's cosmetic critique, for the sitewide redesign, is `docs/NOTES_onboarding-critique.md`). Bank v2: eighteen picture-led questions in ten steps (`lib/interview/steps.ts`); the
+  **About you removed 10-05-26** on `feat/onboarding-trims` (Cut 1 of
+  `docs/PLAN_onboarding-critique.md`; migration 0014 drops its three columns; nine steps now);
+  Ben's cosmetic critique, for the sitewide redesign, is `docs/NOTES_onboarding-critique.md`). Bank v2: eighteen picture-led questions in nine steps (`lib/interview/steps.ts`); the
   playoff is a `show.top` display rule on a static `choice` (`lib/interview/show.ts`), not a
   question kind; reading cards are real articles (`question-faces.ts`'s writing branch) and score
   the item's memberships plus its kind's form topic (`KIND_FORM`); a reading card with no article
@@ -353,8 +355,8 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   topics**, not the sixteen alone. Three things that bite: the amount question **preselects** a
   level read off the reading cards, so declining both reading screens preselects "None" — e2e's
   `answerQuestionnaire` presses "Some" on purpose (the share a skipped amount always meant); the
-  forward button is named for what it does (`forwardLabel`: Skip / Next / "I’d rather look at
-  pictures" / "Nowhere in particular"); and bank v2 has **no path to `the-ocean`** on either
+  forward button is named for what it does (`forwardLabel`: Skip / Next / "Nowhere in
+  particular" — the reading screens' "I’d rather look at pictures" went 10-05-26); and bank v2 has **no path to `the-ocean`** on either
   database shape (the Land wing spreads its point too thin), so the retake spec steers to
   geology and music, which `bank.test.ts` pins.
 - **Spread mode on the item screen — 09-27-26** (design `docs/DESIGN_spread-mode.md`, plan

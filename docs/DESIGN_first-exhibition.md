@@ -49,7 +49,7 @@ indicator counts steps, not questions (the prototype's `Question 05` covered thr
 | 2 Hands          | `hands-mushrooms`, `hands-owls`, `hands-fish`           | `pair` — same subject, the _medium_ changes; effects name medium topics only           |
 | 3 Feeling        | `feel-circles`, `feel-roads`, `feel-rooms`              | `pair` — same subject, the _look_ changes; effects name look topics only               |
 | 4 Keep           | `keep`                                                 | `multi`, ten pictures, no `max`; a kept picture adds `topics(1, …tags)`                |
-| 5 Reading        | `read-1`, `read-2`                                     | `choice` of four article cards + "I'd rather look at pictures" (`SKIP`)                |
+| 5 Reading        | `read-1`, `read-2`                                     | `choice` of four article cards + Skip (`SKIP`; worded "I'd rather look at pictures" until 10-05-26)                |
 | 6 Travel         | `destinations`                                         | `multi`, `max` 3, twelve typeset cards; "Nowhere in particular" allowed                |
 | 7 Rather not     | `rather-not`                                           | `multi`, nine words, each `topics(-2, …)`                                              |
 | 8 How much       | `amount`                                               | the existing question; its default comes from the reading answers (§2)                 |

@@ -190,16 +190,13 @@ describe("the e2e path", () => {
   });
 });
 
-describe("the ten steps", () => {
+describe("the nine steps", () => {
   it("files every question into exactly one step, numbered 1…STEP_COUNT with no gaps", () => {
     for (const q of QUESTIONS) expect(STEP_OF[q.id], q.id).toBeDefined();
     const used = [...new Set(QUESTIONS.map((q) => STEP_OF[q.id]!))].sort(
       (a, b) => a - b,
     );
-    expect(used).toEqual(
-      Array.from({ length: STEP_COUNT - 1 }, (_, i) => i + 1),
-    );
-    // Step STEP_COUNT is About you, which is not a bank question.
+    expect(used).toEqual(Array.from({ length: STEP_COUNT }, (_, i) => i + 1));
     expect(STEP_LABELS).toHaveLength(STEP_COUNT);
   });
   it("stepsAsked lists the steps that survive, in order", () => {

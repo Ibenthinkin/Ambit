@@ -160,8 +160,15 @@ test.describe.serial("explore", () => {
     await page.mouse.move(210, 220);
     const pill = page.getByTestId("pill-toolbar");
     await expect(pill).toHaveAttribute("aria-hidden", "false");
-    await expect(pill.getByRole("button", { name: "Share" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Share" })).toBeVisible();
+    // Share is the detached disc beside the pill, not a control in it. Asked of the `<nav>`: the
+    // disc is a child of the `pill-toolbar` wrapper (the grid that centres both), so asking the
+    // wrapper for "no Share" only ever passed by catching the chrome mid-fade.
+    await expect(
+      pill
+        .getByRole("navigation", { name: "Ambit toolbar" })
+        .getByRole("button", { name: "Share" }),
+    ).toHaveCount(0);
+    await expect(pill.getByRole("button", { name: "Share" })).toBeVisible();
     await pill.getByRole("button", { name: "Save to collection" }).click();
     const sheet = page.getByTestId("auth-sheet");
     await expect(sheet).toHaveAttribute("data-open", "true");

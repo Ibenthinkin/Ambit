@@ -30,12 +30,6 @@ export interface OnboardingRun {
   writingAmount: ReadingAmount | null;
   answers: readonly AnswerRow[];
   bankVersion: number;
-  /** The optional "About you" step. A null field is "not given" and leaves its column alone. */
-  about?: {
-    ageRange: string | null;
-    location: string | null;
-    gender: string | null;
-  };
   /** What the reveal showed (docs/DESIGN_first-exhibition.md §4), validated by the router;
    *  absent from a bank-v1 client, which leaves any stored taste as it was. */
   taste?: TasteV1;
@@ -47,8 +41,7 @@ export interface OnboardingRun {
  * reader actually gave. Returns the run id.
  *
  * **Skipped means untouched, never cleared.** A retake that skips the reading question keeps the
- * amount the reader set last time (or in Settings); the same goes for each About-you field. The
- * only way to clear the reading amount is the Settings sheet.
+ * amount the reader set last time (or in Settings). The only way to clear the reading amount is the Settings sheet.
  */
 export async function completeOnboarding(
   userId: string,
@@ -62,9 +55,6 @@ export async function completeOnboarding(
     // update with nothing to set is skipped outright (it would be invalid SQL).
     const given = {
       writingAmount: run.writingAmount ?? undefined,
-      ageRange: run.about?.ageRange ?? undefined,
-      location: run.about?.location ?? undefined,
-      gender: run.about?.gender ?? undefined,
     };
     if (Object.values(given).some((v) => v !== undefined)) {
       await tx.update(user).set(given).where(eq(user.id, userId));

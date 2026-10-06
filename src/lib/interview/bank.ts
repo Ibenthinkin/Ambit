@@ -514,7 +514,7 @@ export const QUESTIONS: readonly Question[] = [
       return {
         key: d.id,
         label: d.name,
-        card: { where: d.where, line: d.line, coord: d.coord },
+        card: { where: d.where, line: d.line },
         effects: [topics(1.5, ...d.topics)],
       };
     }),

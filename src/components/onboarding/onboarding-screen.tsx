@@ -11,6 +11,7 @@ import { askable } from "~/lib/interview/askable";
 import { BANK_VERSION, QUESTIONS, STARTER_TOPICS } from "~/lib/interview/bank";
 import { SKIP } from "~/lib/interview/config";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
+import { columnFor, type Phase } from "~/lib/interview/layout";
 import {
   defaultReadingAmount,
   picksFrom,
@@ -28,7 +29,6 @@ import {
 import type { Answer, Question } from "~/lib/interview/types";
 import { api } from "~/trpc/react";
 
-import { AboutStep, type About } from "./about-step";
 import { QuestionStep } from "./question-step";
 import { RevealStep } from "./reveal-step";
 import { StepBar } from "./step-bar";
@@ -40,12 +40,15 @@ import { StepBar } from "./step-bar";
 // It replaced four stages of chips (Subject / Medium / Look / Place) after Ben's verdict that
 // facets and umbrella groups mean nothing to a reader. Now: about a dozen skippable questions
 // that feel like getting to know someone — two free-text ones, picture face-offs, a few word
-// questions — then an optional "About you", then a **reveal**: "Here's where we'll start", every
+// questions — then a **reveal**: "Here's where we'll start", every
 // proposed topic at a little / some / a lot / off.
 //
 // How it holds together:
 //
-//   intro → questions → (interpreting) → about → reveal → /feed
+//   intro → questions → (interpreting) → reveal → /feed
+//
+// (An optional "About you" — age range, place, gender — sat before the reveal until 10-05-26;
+// Ben's critique removed it and migration 0014 dropped its three columns.)
 //
 //   - **The state is the list of answers.** The question on screen is `asked[answers.length]`;
 //     answering appends, Back pops (and shows what was popped, so a reader can change it). There
@@ -62,8 +65,6 @@ import { StepBar } from "./step-bar";
 // rather than questions; a `show.top` question (the playoff) is **ranked** by the scores so far
 // before it is shown (show.ts); the reading-amount question **opens on a default** read off the
 // article cards; and the reveal's **taste** (taste.ts) is computed here and sent with the run.
-
-type Phase = "intro" | "questions" | "interpreting" | "about" | "reveal";
 
 export interface OnboardingScreenProps {
   /** `topics.list` — every pickable topic in this database. */
@@ -85,12 +86,11 @@ function isAnswered(answer: Answer | undefined): answer is Answer {
   return answer.keys.length > 0 && answer.keys[0] !== SKIP;
 }
 
-/** The forward button, named for what it will do. Declining is a real answer on two screens, so
- *  it says so: the reading cards ("I'd rather look at pictures") and the destinations. */
+/** The forward button, named for what it will do. Declining the destinations is a real answer,
+ *  so it says so. (The reading screens said "I'd rather look at pictures" until Ben's 10-05-26
+ *  critique; they skip like every other screen now, and a skip there is still counted.) */
 function forwardLabel(q: Question, answered: boolean): string {
   if (answered) return "Next";
-  if (q.options.some((o) => o.face?.writing))
-    return "I’d rather look at pictures";
   if (q.id === "destinations") return "Nowhere in particular";
   return "Skip";
 }
@@ -116,7 +116,6 @@ export function OnboardingScreen({
   const [answers, setAnswers] = useState<Answer[]>([]);
   /** The question on screen's answer-in-progress. */
   const [draft, setDraft] = useState<Answer | undefined>(undefined);
-  const [about, setAbout] = useState<About | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -150,7 +149,7 @@ export function OnboardingScreen({
         : [];
     });
   }, [answers, bank, faces]);
-  /** Reading screens declined ("I'd rather look at pictures"). */
+  /** Reading screens skipped — what the amount question's preselect reads. */
   const readingSkipped = answers.filter((a) => {
     const q = bank.find((x) => x.id === a.questionId);
     return (
@@ -172,8 +171,8 @@ export function OnboardingScreen({
       ? { questionId: current.id, keys: [amountDefault] }
       : undefined);
 
-  // The progress line counts steps, plus About you; a bank with no STEP_OF entries (a test's)
-  // keeps v1's question count.
+  // The progress line counts steps; a bank with no STEP_OF entries (a test's) keeps v1's
+  // question count.
   const steps = useMemo(() => stepsAsked(asked), [asked]);
   const stepNow = current ? STEP_OF[current.id] : undefined;
   const stepIndex = stepNow !== undefined ? steps.indexOf(stepNow) : -1;
@@ -214,13 +213,13 @@ export function OnboardingScreen({
     setPhase("questions");
   }
 
-  /** After the last question: map any free text to topics, then on to About you. */
+  /** After the last question: map any free text to topics, then on to the reveal. */
   async function finishQuestions(all: Answer[]) {
     const texts = all.flatMap((a) =>
       a.text ? [{ questionId: a.questionId, text: a.text }] : [],
     );
     if (texts.length === 0) {
-      setPhase("about");
+      setPhase("reveal");
       return;
     }
     setPhase("interpreting");
@@ -236,7 +235,7 @@ export function OnboardingScreen({
       // The service already answers empty lists on its own failures; this is the network
       // between here and it. Either way the reveal is built from the other answers.
     }
-    setPhase("about");
+    setPhase("reveal");
   }
 
   // What the answers add up to — recomputed when they change, which only happens before the
@@ -267,7 +266,6 @@ export function OnboardingScreen({
         writingAmount: readingAmountFrom(bank, answers),
         answers,
         bankVersion: BANK_VERSION,
-        about: about ?? undefined,
         taste,
       });
       // On a retake the cache still holds the old picks, the old reading amount and a feed
@@ -282,11 +280,17 @@ export function OnboardingScreen({
     }
   }
 
+  // Narrow for words, wide for pictures (lib/interview/layout.ts; Ben's critique 10-05-26). Both
+  // are `mx-auto`, but the heading, progress line and Back sit at the column's *left* edge, so at
+  // 1440 they step 260 px sideways where bank v2 crosses the seam (intro → the wings,
+  // destinations → rather-not). Left for Ben's eye; if it jars, keep the column narrow and let
+  // only the card grid break out wide.
+  const width = columnFor(onScreen, phase);
+
   return (
     <main className="bg-bg min-h-dvh">
-      {/* One narrow column on every width (docs/DESIGN_desktop-polish.md §1). The bottom padding
-          clears the fixed bar. */}
-      <Column width="narrow" className="px-6 pt-16 pb-[180px]">
+      {/* The bottom padding clears the fixed bar. */}
+      <Column width={width} className="px-6 pt-16 pb-[180px]">
         {phase === "intro" && (
           <>
             <Rise>
@@ -313,17 +317,19 @@ export function OnboardingScreen({
                   </Link>
                 </p>
               )}
+              {/* Under the copy it answers, not in the fixed bar at the foot of the screen (Ben's
+                  critique, 10-05-26): on a tall desktop window the two were a screen apart. Not
+                  `fixed`, so it can live inside <Rise> and arrive with the words. */}
+              <div className="mt-8">
+                <Button
+                  shape="pill"
+                  size="md"
+                  onClick={() => setPhase("questions")}
+                >
+                  Begin
+                </Button>
+              </div>
             </Rise>
-            {/* Outside <Rise>: its transform would capture a `fixed` child. */}
-            <StepBar>
-              <Button
-                shape="pill"
-                size="md"
-                onClick={() => setPhase("questions")}
-              >
-                Begin
-              </Button>
-            </StepBar>
           </>
         )}
 
@@ -337,7 +343,7 @@ export function OnboardingScreen({
               className="text-accent mb-[14px] font-sans text-[11px] font-semibold tracking-[1.8px] uppercase"
             >
               {stepIndex >= 0
-                ? `Step ${stepIndex + 1} of ${steps.length + 1} · ${STEP_LABELS[stepNow! - 1]}`
+                ? `Step ${stepIndex + 1} of ${steps.length} · ${STEP_LABELS[stepNow! - 1]}`
                 : `${answers.length + 1} of ${asked.length}`}
             </p>
             <Rise key={current.id}>
@@ -351,7 +357,7 @@ export function OnboardingScreen({
                 }
               />
             </Rise>
-            <StepBar>
+            <StepBar width={width}>
               <Button shape="pill" size="md" variant="ghost" onClick={back}>
                 Back
               </Button>
@@ -376,21 +382,6 @@ export function OnboardingScreen({
           </p>
         )}
 
-        {phase === "about" && (
-          <AboutStep
-            initial={about ?? undefined}
-            onContinue={(given) => {
-              setAbout(given);
-              setPhase("reveal");
-            }}
-            onSkip={() => {
-              setAbout(null);
-              setPhase("reveal");
-            }}
-            onBack={back}
-          />
-        )}
-
         {phase === "reveal" && (
           <RevealStep
             topics={topics}
@@ -400,7 +391,8 @@ export function OnboardingScreen({
             submitting={submitting}
             error={error}
             onSubmit={submit}
-            onBack={() => setPhase("about")}
+            // The same Back every question has: the last answer comes back on screen.
+            onBack={back}
           />
         )}
       </Column>

@@ -86,7 +86,7 @@ test.describe.serial("onboarding questionnaire", () => {
     await page.getByRole("button", { name: "Create account" }).click();
     await page.waitForURL("/onboarding");
 
-    // Toward nothing at all: every question is skipped, and so is About you.
+    // Toward nothing at all: every question is skipped.
     await answerQuestionnaire(page, []);
 
     // The reveal still has something to say — the starters, each at "some" — and names no
