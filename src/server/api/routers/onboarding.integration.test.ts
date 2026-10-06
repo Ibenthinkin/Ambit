@@ -63,10 +63,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
       (n) => `test-onboarding-topic-${n}-${tag}`,
     ) as [string, string, string, string];
     const TOPICS = [a, b, c, d];
-    /** Three pictures for the hang, and one article (not a picture: refused in a hang). */
+    /** Three pictures for the hang, and two articles — one with a lead picture — neither of
+     *  which may be hung. */
     const itemPrefix = `test-onboarding-item-${tag}-`;
     let pictures: string[] = [];
     let article = "";
+    let articleWithPicture = "";
 
     const answers = [
       {
@@ -138,10 +140,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const rows = await db
         .insert(item)
         .values(
-          ["p1", "p2", "p3", "article"].map((n) => ({
+          ["p1", "p2", "p3", "article", "article-pic"].map((n) => ({
             source: "met" as const,
             sourceId: `${itemPrefix}${n}`,
-            type: n === "article" ? ("article" as const) : ("image" as const),
+            type: n.startsWith("article")
+              ? ("article" as const)
+              : ("image" as const),
             title: `Hang fixture ${n}`,
             sourceUrl: `https://x.test/${itemPrefix}${n}`,
             imageUrl:
@@ -155,6 +159,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         rows.find((r) => r.sourceId === `${itemPrefix}${n}`)!.id;
       pictures = ["p1", "p2", "p3"].map(idOf);
       article = idOf("article");
+      articleWithPicture = idOf("article-pic");
       await db.insert(user).values(
         USERS.map((id) => ({
           id,
@@ -468,9 +473,34 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(stored?.hang).toEqual([]);
     });
 
+    it("reads past a stored hang id that is an article, even one with a picture", async () => {
+      const { db } = await import("~/server/db/client");
+      const { userTaste } = await import("~/server/db/schema");
+      const caller = createCaller(authedContext(hangUserId));
+      const [p1, p2] = pictures as [string, string];
+      const v2 = {
+        ...taste,
+        v: 2 as const,
+        hang: [p1, articleWithPicture, p2],
+      };
+      await db
+        .insert(userTaste)
+        .values({
+          userId: hangUserId,
+          runId: "v2-run",
+          bankVersion: 3,
+          taste: v2,
+        })
+        .onConflictDoUpdate({ target: userTaste.userId, set: { taste: v2 } });
+      expect((await caller.topics.taste())?.hang.map((h) => h.itemId)).toEqual([
+        p1,
+        p2,
+      ]);
+    });
+
     it("refuses a hang naming an item that does not exist, or one that is not a picture, writing nothing", async () => {
       const caller = createCaller(authedContext(badHangUserId));
-      for (const bad of ["no-such-item", article]) {
+      for (const bad of ["no-such-item", article, articleWithPicture]) {
         await expect(
           caller.onboarding.complete(
             input({

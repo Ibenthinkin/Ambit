@@ -97,7 +97,7 @@ describe("tasteSchema", () => {
     ).toBe(false);
   });
 
-  it("rejects a v2 taste with no hang, more than six or an empty id", () => {
+  it("rejects a v2 taste with no hang, more than six, an empty id or a repeated one", () => {
     const ok = buildTaste({
       scores: new Map(),
       listed,
@@ -115,6 +115,9 @@ describe("tasteSchema", () => {
       }).success,
     ).toBe(false);
     expect(tasteSchema.safeParse({ ...ok, hang: [""] }).success).toBe(false);
+    expect(tasteSchema.safeParse({ ...ok, hang: ["p1", "p1"] }).success).toBe(
+      false,
+    );
     expect(tasteSchema.safeParse({ ...ok, v: 3 }).success).toBe(false);
   });
 

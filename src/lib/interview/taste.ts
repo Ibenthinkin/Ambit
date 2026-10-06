@@ -110,7 +110,11 @@ export const tasteSchema: z.ZodType<Taste> = z.discriminatedUnion("v", [
   z.object({
     v: z.literal(2),
     ...fields,
-    hang: z.array(itemId).max(HANG_SIZE),
+    // hangFrom never hangs one picture twice; a repeat is a tampered or broken client.
+    hang: z
+      .array(itemId)
+      .max(HANG_SIZE)
+      .refine((ids) => new Set(ids).size === ids.length, "Each picture once"),
   }),
 ]);
 

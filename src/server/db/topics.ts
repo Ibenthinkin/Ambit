@@ -406,7 +406,13 @@ export async function getUserTaste(
     const found = await db
       .select({ id: item.id, imageUrl: item.imageUrl, title: item.title })
       .from(item)
-      .where(and(inArray(item.id, ids), isNotNull(item.imageUrl)));
+      .where(
+        and(
+          inArray(item.id, ids),
+          eq(item.type, "image"),
+          isNotNull(item.imageUrl),
+        ),
+      );
     for (const r of found)
       cards.set(r.id, {
         itemId: r.id,

@@ -151,7 +151,11 @@ export const onboardingRouter = createTRPCRouter({
         const found = await getItemsByIds([...new Set([...opened, ...hang])]);
         const gone = [
           ...opened.filter((id) => !found.has(id)),
-          ...hang.filter((id) => !found.get(id)?.imageUrl),
+          // A picture is an image row with an image — an article with a lead picture is not one.
+          ...hang.filter((id) => {
+            const row = found.get(id);
+            return !(row?.type === "image" && row.imageUrl);
+          }),
         ];
         if (gone.length > 0) {
           throw new TRPCError({
