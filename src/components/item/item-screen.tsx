@@ -516,23 +516,36 @@ export function ItemScreen({
   // not a control. While a sheet is up it owns Escape (BottomSheet's own listener closes it), and
   // an arrow that changed the picture under an open sheet would be a surprise, so all three are
   // ignored until it's gone.
+  //
+  // **Subscribed once, reading the latest handlers through `useEffectEvent`** — never re-added
+  // when `advance` or `leave` change. The chrome's desktop wake (below) also listens for keydown
+  // on `window`, and its state update re-renders this screen *inside the same dispatch*: React
+  // flushes a discrete event's update in the microtask after each listener returns. `advance`
+  // depends on `chrome`, a fresh object every render, so an effect keyed on it tore this
+  // listener down mid-dispatch — and a listener removed during dispatch is never invoked. Every
+  // key that got past the wake's 250 ms throttle was swallowed: Escape after the chrome idled
+  // away did nothing, and neither did ← / → (found 10-06-26, broken since the chrome rules).
   const sheetOpen = saveOpen || shareOpen || auth.open;
+  const onKey = React.useEffectEvent((e: KeyboardEvent) => {
+    // A modifier chord is the browser's (Alt/⌘+← is Back) — paging the rail as well would be a
+    // second, surprising thing happening on the way out.
+    if (e.altKey || e.metaKey || e.ctrlKey) return;
+    if (e.key === "ArrowRight") advance(1);
+    else if (e.key === "ArrowLeft") advance(-1);
+    else if (e.key === "Escape") leave();
+    // `M` for magazine, the view toggle's hotkey in Ben's design — desktop only, like the
+    // toggle itself. Nothing on this screen takes text, so no typing guard is needed.
+    else if (desktop && e.key.toLowerCase() === "m") toggleSpread();
+  });
+  // `sheetOpen` stays a dependency on purpose: the Escape that closes a sheet re-renders mid-
+  // dispatch too, and it is this listener being *absent* for that one event (re-added only after
+  // it) that keeps the same keypress from closing the sheet and then leaving the page.
   React.useEffect(() => {
     if (sheetOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      // A modifier chord is the browser's (Alt/⌘+← is Back) — paging the rail as well would be a
-      // second, surprising thing happening on the way out.
-      if (e.altKey || e.metaKey || e.ctrlKey) return;
-      if (e.key === "ArrowRight") advance(1);
-      else if (e.key === "ArrowLeft") advance(-1);
-      else if (e.key === "Escape") leave();
-      // `M` for magazine, the view toggle's hotkey in Ben's design — desktop only, like the
-      // toggle itself. Nothing on this screen takes text, so no typing guard is needed.
-      else if (desktop && e.key.toLowerCase() === "m") toggleSpread();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [sheetOpen, advance, leave, desktop, toggleSpread]);
+    const listener = (e: KeyboardEvent) => onKey(e);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, [sheetOpen]);
 
   // ── gestures ──────────────────────────────────────────────────────────────────────────────────
   const { ref, dragPx, dragging } = useRailGestures({

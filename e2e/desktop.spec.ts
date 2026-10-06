@@ -503,10 +503,18 @@ test.describe.serial("desktop", () => {
         await toggle.click({ timeout: 1_000 });
       }).toPass();
 
+    // The toggle's *state* is read through a locator that sees hidden elements: on a computer the
+    // chrome starts hidden (decision 7 of docs/DESIGN_redesign.md) — `visibility: hidden` and
+    // `aria-hidden`, which take the button out of the accessibility tree a plain `getByRole`
+    // searches. Before the summon, and 2.6 s after any click, there is no visible toggle to read.
+    const toggleState = page.getByRole("button", {
+      name: "Magazine view",
+      includeHidden: true,
+    });
     await expect(current).toHaveCount(1);
-    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await expect(toggleState).toHaveAttribute("aria-pressed", "false");
     await summonAndToggle();
-    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(toggleState).toHaveAttribute("aria-pressed", "true");
 
     // The book opens (docs/PLAN_magazine-turn.md Task 6): a leaf swings, then lands.
     const leaf = page.getByTestId("spread-leaf");
