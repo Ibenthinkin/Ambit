@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { Button } from "~/components/ui/button";
+import { Button, PRIMARY_BLOCK } from "~/components/ui/button";
 import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Loader } from "~/components/ui/loader";
@@ -60,10 +60,16 @@ export function ResetPasswordCard({ token }: { token: string }) {
         <div className="text-ink/62 mt-2 text-[15.5px] leading-[1.55]">
           Sign in with your new password.
         </div>
-        <Link href="/" className="mt-[22px] inline-block">
-          <Button size="lg" className="px-8">
-            Sign in
-          </Button>
+        {/* An anchor in the white primary block (DESIGN §6.7: a 56 px full-width button) — a
+            <Button> inside a <Link> would be a nested interactive element and sized to its text. */}
+        <Link
+          href="/"
+          className={cn(
+            PRIMARY_BLOCK,
+            "mt-[22px] flex h-14 w-full items-center justify-center text-[17px]",
+          )}
+        >
+          Sign in
         </Link>
       </div>
     );
@@ -74,7 +80,7 @@ export function ResetPasswordCard({ token }: { token: string }) {
       <div className="text-ink-hi mb-5 text-[23px] tracking-[-0.2px]">
         Choose a new password.
       </div>
-      <div className="space-y-5">
+      <div className="space-y-[22px]">
         <Field label="New password">
           <Input
             type="password"
@@ -106,7 +112,7 @@ export function ResetPasswordCard({ token }: { token: string }) {
           size="lg"
           aria-busy={submitting}
           className={cn(
-            "w-full",
+            "mt-[10px] w-full",
             submitting && "pointer-events-none opacity-80",
           )}
         >

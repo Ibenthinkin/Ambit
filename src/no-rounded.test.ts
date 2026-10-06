@@ -38,8 +38,6 @@ const ALLOWED: Record<string, string> = {
     "the remove-bookmark disc over a saved picture — a circular control, like the share disc",
   "src/components/landing/landing-screen.tsx":
     "the floating 54 px logo disc that re-opens the sign-in sheet — a circular control",
-  "src/components/landing/auth-sheet.tsx":
-    "the 54 px logo disc the landing's floating disc collapses into (the sheet itself is square)",
 };
 
 /**

@@ -188,6 +188,8 @@ describe("LandingScreen — cycle", () => {
     );
     // 1b is square-cornered (DESIGN §3.4): neither the phone sheet nor the desktop card rounds.
     expect(sheet().className).not.toMatch(/rounded/);
+    // DESIGN §6.7: the dialog surface, a full border and the dialog shadow at md.
+    expect(sheet()).toHaveClass("bg-dialog", "md:border", "md:shadow-dialog");
     expect(sheet()).toHaveClass("md:opacity-0", "md:pointer-events-none");
   });
 

@@ -41,7 +41,7 @@ export default async function ResetPasswordPage({
           </div>
           <Link
             href="/"
-            className="text-ink/55 mt-[22px] inline-block font-sans text-[13px]"
+            className="text-ink/78 hover:decoration-accent mt-[22px] inline-block font-sans text-[15px] underline decoration-1 underline-offset-3 hover:text-white"
           >
             Back to sign in
           </Link>

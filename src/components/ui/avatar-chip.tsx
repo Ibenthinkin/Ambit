@@ -30,7 +30,10 @@ export function AvatarChip({
         height: size,
         ...style,
       }}
-      className={cn("bg-avatar inline-block flex-none rounded-full", className)}
+      className={cn(
+        "inline-block flex-none rounded-full bg-[#2A2A2A]",
+        className,
+      )}
       {...rest}
     />
   );
