@@ -195,4 +195,28 @@ describe("ItemFactsSpread (magazine view's Information)", () => {
       screen.getByRole("heading", { level: 2, name: "Left work" }),
     ).toBeInTheDocument();
   });
+
+  it("keeps a PDR page's reuse notice and body in the spread", () => {
+    render(
+      <ItemFactsSpread
+        pages={[
+          cell({
+            id: "p",
+            source: "pdr",
+            sourceUrl: "https://publicdomainreview.org/collection/x",
+            body: "A paragraph of essay.",
+          }),
+          cell({ id: "b", title: "Right work" }),
+        ]}
+        focusSide={0}
+      />,
+    );
+    expect(screen.getByText(/CC BY-SA 4.0/)).toBeInTheDocument();
+    expect(screen.getByText("A paragraph of essay.")).toBeInTheDocument();
+  });
+
+  it("still has exactly one h1 when the right slot is the end card", () => {
+    render(<ItemFactsSpread pages={[cell({ title: "Only" })]} focusSide={1} />);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
 });

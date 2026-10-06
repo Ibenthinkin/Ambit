@@ -201,6 +201,9 @@ export function ItemFactsSpread({
   pages: RailItem[];
   focusSide: number;
 }) {
+  // A capped rail can leave the right slot as the end card, so only one real page remains; focus
+  // on that slot falls back to the page that is there, keeping exactly one `<h1>`.
+  const h1Side = focusSide < pages.length ? focusSide : 0;
   return (
     <section
       id={INFORMATION_ID}
@@ -208,9 +211,14 @@ export function ItemFactsSpread({
       tabIndex={-1}
       className="px-10 pt-[22px] outline-none"
     >
-      <div className="border-ink/16 text-ink/55 flex justify-between border-t pt-[14px] font-mono text-[11px] uppercase">
-        <span>Spread</span>
-        <span>Two works</span>
+      {/* Wording from the prototype: "Spread / <titles>" and a count. */}
+      <div className="border-ink/16 text-ink/55 flex justify-between gap-6 border-t pt-[14px] font-mono text-[11px] uppercase">
+        <span className="min-w-0 truncate">
+          Spread / {pages.map((p) => p.title).join(" / ")}
+        </span>
+        <span className="flex-none">
+          {pages.length === 1 ? "One work" : "Two works"}
+        </span>
       </div>
       <div className="mt-6 grid grid-cols-2 gap-x-10 pb-[72px]">
         {pages.map((item, side) => {
@@ -220,7 +228,7 @@ export function ItemFactsSpread({
           const license = rowValue(rows, "License");
           const debug = rowValue(rows, "Debug");
           const source = sourceLabel(item.source);
-          const Title = side === focusSide ? "h1" : "h2";
+          const Title = side === h1Side ? "h1" : "h2";
           return (
             <article
               key={item.id}
@@ -260,6 +268,15 @@ export function ItemFactsSpread({
                   </p>
                 ) : null}
               </div>
+              {item.body ? (
+                <div className="mt-6">
+                  <ReuseNotice item={item} />
+                  <div className="bg-ink/14 mt-[14px] h-px w-full" />
+                  <div className="mt-[20px]">
+                    <ReaderBlocks body={item.body} />
+                  </div>
+                </div>
+              ) : null}
             </article>
           );
         })}

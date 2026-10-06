@@ -795,6 +795,7 @@ export function ItemScreen({
       // **Folios** (plan D7): a magazine's page footer under each page — the page number, then
       // the title and maker, pushed to the page's *outer* edge. The page that isn't the item is
       // dimmed, which is the only on-screen sign of which one Save and Share will act on.
+      // 140 px between the folios clears the centred "↓ Information" link sitting on the spine.
       <div className="grid grid-cols-2 gap-[140px]">
         {pair.map((page, side) =>
           page === "end" ? null : (
