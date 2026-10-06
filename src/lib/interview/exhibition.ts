@@ -94,12 +94,28 @@ export function exhibitionSubtitle(
   wingLabels: readonly string[],
   mediumLabels: readonly string[],
 ): string {
-  const sentences: string[] = [];
-  if (wingLabels.length > 0)
-    sentences.push(`${capitalised(joinAnd(wingLabels.map(inSentence)))}.`);
-  if (mediumLabels.length > 0)
-    sentences.push(`Mostly ${joinAnd(mediumLabels.map(inSentence))}.`);
-  return sentences.join(" ");
+  const { wings, mostly } = exhibitionSubtitleParts(wingLabels, mediumLabels);
+  return [wings, mostly].filter(Boolean).join(" ");
+}
+
+/**
+ * The subtitle's two sentences apart — the reveal sets the "Mostly …" half in italics
+ * (docs/DESIGN_redesign.md §5.3 item 3). Each is "" when it has nothing to say.
+ */
+export function exhibitionSubtitleParts(
+  wingLabels: readonly string[],
+  mediumLabels: readonly string[],
+): { wings: string; mostly: string } {
+  return {
+    wings:
+      wingLabels.length > 0
+        ? `${capitalised(joinAnd(wingLabels.map(inSentence)))}.`
+        : "",
+    mostly:
+      mediumLabels.length > 0
+        ? `Mostly ${joinAnd(mediumLabels.map(inSentence))}.`
+        : "",
+  };
 }
 
 /** "You like something short" at or under this mean; "a long read" at or over LONG_READER_MIN. */

@@ -86,6 +86,8 @@ const key = (k: string, init: KeyboardEventInit = {}) =>
 const pressed = (name: string | RegExp) =>
   screen.getByRole("button", { name }).getAttribute("aria-pressed");
 const heading = () => screen.getByRole("heading", { level: 1 }).textContent;
+/** Is the reveal on screen? (Its h1 is the exhibition's title, which the answers choose.) */
+const onReveal = () => document.querySelector('[data-step="reveal"]') !== null;
 const questionId = () =>
   document
     .querySelector("[data-question-id]")
@@ -169,7 +171,7 @@ describe("OnboardingScreen", () => {
     click("Begin");
     expect(container.querySelector(".fixed")).toBeNull();
     skipAll();
-    expect(heading()).toBe("Here’s where we’ll start");
+    expect(onReveal()).toBe(true);
     expect(container.querySelector(".fixed")).toBeNull();
   });
 
@@ -202,7 +204,7 @@ describe("OnboardingScreen", () => {
     show();
     click("Begin");
     skipAll();
-    expect(heading()).toBe("Here’s where we’ll start");
+    expect(onReveal()).toBe(true);
     expect(
       // The level rows only — the exhibition card above them has groups of its own.
       screen
@@ -210,7 +212,7 @@ describe("OnboardingScreen", () => {
         .flatMap((g) => g.getAttribute("data-topic") ?? []),
     ).toEqual(["astronomy", "botany", "music"]);
 
-    click("Start exploring");
+    click("Open my feed");
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/feed"));
     expect(completeMock).toHaveBeenCalledTimes(1);
     expect(sent().picks).toEqual(
@@ -220,7 +222,8 @@ describe("OnboardingScreen", () => {
       })),
     );
     expect(sent().answers.map((a) => a.keys)).toEqual(FOUR.map(() => [SKIP]));
-    expect(sent().writingAmount).toBeNull();
+    // No reading screen was reached and nothing was stored: the Reading row opens on Some.
+    expect(sent().writingAmount).toBe("some");
     // About you was removed with its three columns (10-05-26): nothing of it is sent.
     expect("about" in sent()).toBe(false);
     // Nothing was typed, so no model was asked.
@@ -264,7 +267,7 @@ describe("OnboardingScreen", () => {
 
     // Leaving the last question asks the model, once — with no screen of its own.
     expect(screen.queryByText("Putting it together…")).toBeNull();
-    await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
+    await waitFor(() => expect(onReveal()).toBe(true));
     expect(interpretMock).toHaveBeenCalledExactlyOnceWith({
       texts: [{ questionId: "words", text: "cookbooks" }],
     });
@@ -281,10 +284,10 @@ describe("OnboardingScreen", () => {
       within(row("music")).getByRole("radio", { name: "some" }),
     ).toHaveAttribute("aria-checked", "true");
 
-    click("Start exploring");
+    click("Open my feed");
     await waitFor(() => expect(completeMock).toHaveBeenCalled());
-    // No amount question in bank v3: "not said" until the reveal's Reading row (Task 6.6).
-    expect(sent().writingAmount).toBeNull();
+    // No amount question in bank v3: the reveal's Reading row sends its value, Some here.
+    expect(sent().writingAmount).toBe("some");
     expect(sent().bankVersion).toBeGreaterThan(0);
     expect(sent().answers).toEqual([
       { questionId: "words", keys: [], text: "cookbooks", topicIds: ["food"] },
@@ -325,7 +328,7 @@ describe("OnboardingScreen", () => {
     await act(async () => {
       answer([{ questionId: "words", topicIds: ["food"] }]);
     });
-    await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
+    await waitFor(() => expect(onReveal()).toBe(true));
     expect(
       screen
         .getAllByRole("group")
@@ -355,7 +358,7 @@ describe("OnboardingScreen", () => {
       answer([{ questionId: "words", topicIds: ["food"] }]);
     });
     expect(questionId()).toBe("space-or-garden");
-    expect(screen.queryByText("Here’s where we’ll start")).toBeNull();
+    expect(onReveal()).toBe(false);
   });
 
   it("the flow never blocks on the model: a failed interpret still reaches the reveal", async () => {
@@ -367,7 +370,7 @@ describe("OnboardingScreen", () => {
     });
     click(GO);
     skipAll();
-    await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
+    await waitFor(() => expect(onReveal()).toBe(true));
   });
 
   it("whitespace in a text box is not an answer", async () => {
@@ -376,8 +379,8 @@ describe("OnboardingScreen", () => {
     click("Begin");
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "   " } });
     click(GO);
-    expect(heading()).toBe("Here’s where we’ll start");
-    click("Start exploring");
+    expect(onReveal()).toBe(true);
+    click("Open my feed");
     await waitFor(() => expect(completeMock).toHaveBeenCalled());
     expect(sent().answers).toEqual([{ questionId: "words", keys: [SKIP] }]);
     expect(interpretMock).not.toHaveBeenCalled();
@@ -408,7 +411,7 @@ describe("OnboardingScreen", () => {
     leave();
     leave();
     pick("Yes");
-    expect(heading()).toBe("Here’s where we’ll start");
+    expect(onReveal()).toBe(true);
     click("Back");
     expect(questionId()).toBe("unsettle");
     expect(screen.getByRole("button", { name: "Yes" })).toHaveAttribute(
@@ -422,12 +425,12 @@ describe("OnboardingScreen", () => {
     show();
     click("Begin");
     skipAll();
-    click("Start exploring");
+    click("Open my feed");
     expect(await screen.findByRole("alert")).toHaveTextContent(/try again/i);
     expect(replaceMock).not.toHaveBeenCalled();
     // And it can be tried again.
     completeMock.mockResolvedValue({ runId: "r2" });
-    click("Start exploring");
+    click("Open my feed");
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/feed"));
   });
 
@@ -442,7 +445,7 @@ describe("OnboardingScreen", () => {
     expect(
       screen.getByText(/This replaces your current topics/),
     ).toBeInTheDocument();
-    click("Start exploring");
+    click("Open my feed");
     await waitFor(() =>
       expect(replaceMock).toHaveBeenCalledWith("/profile/topics"),
     );
@@ -455,7 +458,7 @@ describe("OnboardingScreen", () => {
     click("Begin");
     expect(questionId()).toBe("words");
     leave();
-    expect(heading()).toBe("Here’s where we’ll start");
+    expect(onReveal()).toBe(true);
   });
 
   // Review finding (10-02-26): a tap that answers a question unmounts it, and focus fell to
@@ -534,7 +537,7 @@ describe("OnboardingScreen", () => {
       expect(screen.getByRole("button", { name: "Begin" })).toBeInTheDocument();
       wait(5_000);
       expect(questionId()).toBeUndefined();
-      expect(screen.queryByText("Here’s where we’ll start")).toBeNull();
+      expect(onReveal()).toBe(false);
     });
 
     it("a second pick inside the window replaces the first: one advance, with the second", () => {
@@ -563,7 +566,7 @@ describe("OnboardingScreen", () => {
       click("Begin");
       click("Yes");
       wait(ADVANCE_MS);
-      expect(heading()).toBe("Here’s where we’ll start");
+      expect(onReveal()).toBe(true);
       click("Back");
       expect(questionId()).toBe("unsettle");
       expect(pressed("Yes")).toBe("true");
@@ -619,9 +622,9 @@ describe("OnboardingScreen", () => {
 
       click(GO);
       await flush();
-      expect(heading()).toBe("Here’s where we’ll start");
+      expect(onReveal()).toBe(true);
       expect(interpretMock).toHaveBeenCalledTimes(1);
-      click("Start exploring");
+      click("Open my feed");
       await flush();
       expect(sent().answers).toEqual([
         {
@@ -646,12 +649,12 @@ describe("OnboardingScreen", () => {
       expect(screen.queryByText("Mapped to one topic.")).toBeNull();
       click(GO);
       await flush();
-      expect(heading()).toBe("Here’s where we’ll start");
+      expect(onReveal()).toBe(true);
       expect(interpretMock).toHaveBeenCalledTimes(2);
       expect(interpretMock).toHaveBeenLastCalledWith({
         texts: [{ questionId: "words", text: "cookbooks and records" }],
       });
-      click("Start exploring");
+      click("Open my feed");
       await flush();
       expect(sent().answers[0]!.topicIds).toEqual(["music"]);
     });
@@ -682,9 +685,9 @@ describe("OnboardingScreen", () => {
         land([{ questionId: "words", topicIds: ["food"] }]);
       });
       await flush();
-      expect(heading()).toBe("Here’s where we’ll start");
+      expect(onReveal()).toBe(true);
       expect(interpretMock).toHaveBeenCalledTimes(1);
-      click("Start exploring");
+      click("Open my feed");
       await flush();
       expect(sent().answers).toEqual([
         {
@@ -712,7 +715,7 @@ describe("OnboardingScreen", () => {
         vi.advanceTimersByTime(800);
       });
       await flush();
-      expect(heading()).toBe("Here’s where we’ll start");
+      expect(onReveal()).toBe(true);
       expect(interpretMock).toHaveBeenCalledExactlyOnceWith({
         texts: [{ questionId: "words", text: "cookbooks" }],
       });
@@ -729,7 +732,7 @@ describe("OnboardingScreen", () => {
       expect(screen.queryByText(/Mapped to/)).toBeNull();
       click(GO);
       await flush();
-      expect(heading()).toBe("Here’s where we’ll start");
+      expect(onReveal()).toBe(true);
       expect(interpretMock).toHaveBeenCalledTimes(2);
     });
   });
@@ -752,8 +755,8 @@ describe("OnboardingScreen", () => {
       key("n");
       expect(questionId()).toBe("pair-2");
       click("Skip");
-      await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
-      click("Start exploring");
+      await waitFor(() => expect(onReveal()).toBe(true));
+      click("Open my feed");
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
       expect(sent().answers.map((a) => a.keys)).toEqual([[SKIP], [SKIP]]);
     });
@@ -774,7 +777,7 @@ describe("OnboardingScreen", () => {
       key("b");
       expect(pressed("Both, equally")).toBe("true");
       wait(ADVANCE_MS);
-      expect(heading()).toBe("Here’s where we’ll start");
+      expect(onReveal()).toBe(true);
       click("Back");
       expect(pressed("Both, equally")).toBe("true");
     });
@@ -810,8 +813,8 @@ describe("OnboardingScreen", () => {
 
       // N is a true skip (Ben, 10-06-26): at once, no beat, and nothing scored.
       key("n");
-      await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
-      click("Start exploring");
+      await waitFor(() => expect(onReveal()).toBe(true));
+      click("Open my feed");
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
       expect(sent().answers.map((a) => a.keys)).toEqual([
         ["garden"],
@@ -858,8 +861,8 @@ describe("OnboardingScreen", () => {
       key("ArrowRight");
       expect(questionId()).toBe("keep");
       wait(ADVANCE_MS);
-      await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
-      click("Start exploring");
+      await waitFor(() => expect(onReveal()).toBe(true));
+      click("Open my feed");
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
       expect(sent().answers).toEqual([
         { questionId: "keep", keys: ["space", "music"] },
@@ -878,8 +881,8 @@ describe("OnboardingScreen", () => {
       // The last decision: the stack's answer waits out the beat, then the reveal.
       expect(questionId()).toBe("keep");
       wait(ADVANCE_MS);
-      await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
-      click("Start exploring");
+      await waitFor(() => expect(onReveal()).toBe(true));
+      click("Open my feed");
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
       expect(sent().answers).toEqual([{ questionId: "keep", keys: ["space"] }]);
     });
@@ -912,8 +915,8 @@ describe("OnboardingScreen", () => {
       click("Pass");
       click("Pass");
       wait(ADVANCE_MS);
-      await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
-      click("Start exploring");
+      await waitFor(() => expect(onReveal()).toBe(true));
+      click("Open my feed");
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
       expect(sent().answers).toEqual([{ questionId: "keep", keys: [SKIP] }]);
     });
@@ -987,8 +990,8 @@ describe("OnboardingScreen", () => {
       wait(ADVANCE_MS - 300);
       expect(questionId()).toBe("unsettle");
       pick("Yes");
-      await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
-      click("Start exploring");
+      await waitFor(() => expect(onReveal()).toBe(true));
+      click("Open my feed");
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
       // Both kept cards survived the extra ←.
       expect(sent().answers[0]).toEqual({
@@ -1011,7 +1014,7 @@ describe("OnboardingScreen", () => {
     const begin = () => click("Begin");
     /** From the last question's answer to the reveal. */
     async function finishToReveal() {
-      await waitFor(() => expect(heading()).toBe("Here’s where we’ll start"));
+      await waitFor(() => expect(onReveal()).toBe(true));
     }
 
     it("shows only the top options of a show.top question, ranked by the answers so far", () => {
@@ -1064,7 +1067,7 @@ describe("OnboardingScreen", () => {
       click("Back");
       pick(/Short/);
       await finishToReveal();
-      click(/Start exploring/);
+      click(/Open my feed/);
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
       const taste = (
         completeMock.mock.calls[0]![0] as {
@@ -1074,8 +1077,8 @@ describe("OnboardingScreen", () => {
       expect(taste.opened).toEqual([
         { itemId: "c1", title: "Short", kind: "curiosity", minutes: 3 },
       ]);
-      // The amount the cards suggest is the reveal's Reading row's to send (Task 6.6).
-      expect(sent().writingAmount).toBeNull();
+      // One card opened: the Reading row opens on "a little" (defaultReadingAmount) and sends it.
+      expect(sent().writingAmount).toBe("little");
     });
 
     // Taste v2 (DESIGN_redesign §5.1): the hang's ids go with the run, as hang.ts orders them.
@@ -1100,7 +1103,7 @@ describe("OnboardingScreen", () => {
       pick("Space");
       pick("A garden");
       await finishToReveal();
-      click(/Start exploring/);
+      click(/Open my feed/);
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
       const taste = (
         completeMock.mock.calls[0]![0] as {
@@ -1119,9 +1122,85 @@ describe("OnboardingScreen", () => {
       expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
       click("I’d rather look at pictures");
       await finishToReveal();
-      click(/Start exploring/);
+      click(/Open my feed/);
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
       expect(sent().answers).toEqual([{ questionId: "read-1", keys: [SKIP] }]);
+      // Every reading screen declined: the Reading row opens on None.
+      expect(sent().writingAmount).toBe("none");
+    });
+
+    it("a retaking reader's stored reading amount wins over what the cards suggest", async () => {
+      show({
+        bank: [{ ...fixture("read"), id: "read-1" }],
+        retake: true,
+        storedReading: "lot",
+      });
+      begin();
+      click("I’d rather look at pictures");
+      await finishToReveal();
+      expect(screen.getByRole("radio", { name: "A lot" })).toHaveAttribute(
+        "aria-checked",
+        "true",
+      );
+      click(/Open my feed/);
+      await waitFor(() => expect(completeMock).toHaveBeenCalled());
+      expect(sent().writingAmount).toBe("lot");
+    });
+
+    it("Allow on the reveal lets a kept-out choice back in: the answer is edited, the section empties", async () => {
+      const bank: Question[] = [fixture("rather-not")];
+      show({ bank });
+      begin();
+      const option = bank[0]!.options.find((o) => o.key !== "none")!;
+      click(option.label);
+      click("Continue");
+      await finishToReveal();
+      expect(
+        screen.getByRole("heading", { name: "Kept out" }),
+      ).toBeInTheDocument();
+      click(`Allow ${option.label}`);
+      expect(screen.queryByRole("heading", { name: "Kept out" })).toBeNull();
+      click(/Open my feed/);
+      await waitFor(() => expect(completeMock).toHaveBeenCalled());
+      // Allowing the last choice leaves the question as a skip (kept-out.ts).
+      expect(sent().answers).toEqual([
+        { questionId: "rather-not", keys: [SKIP] },
+      ]);
+    });
+
+    it("Start over clears every answer and returns to the intro", async () => {
+      show({ bank: [{ ...fixture("read"), id: "read-1" }] });
+      begin();
+      click("I’d rather look at pictures");
+      await finishToReveal();
+      click("Start over");
+      expect(onReveal()).toBe(false);
+      expect(screen.getByRole("button", { name: "Begin" })).toBeInTheDocument();
+      begin();
+      // The first question again, blank.
+      expect(questionId()).toBe("read-1");
+      expect(completeMock).not.toHaveBeenCalled();
+    });
+
+    it("tags the starter top-ups Proposed, and groups the mix under facet headings", async () => {
+      show({
+        topics: TOPICS.map((t) => ({ ...t, facet: "subject" as const })),
+        bank: [{ ...fixture("read"), id: "read-1" }],
+      });
+      begin();
+      click("I’d rather look at pictures");
+      await finishToReveal();
+      // Nothing was scored, so every row is a starter Ambit added.
+      for (const id of ["astronomy", "botany", "music"]) {
+        expect(
+          within(
+            document.querySelector<HTMLElement>(`[data-topic="${id}"]`)!,
+          ).getByText("Proposed"),
+        ).toBeInTheDocument();
+      }
+      expect(
+        screen.getByRole("heading", { level: 3, name: "Subjects" }),
+      ).toBeInTheDocument();
     });
 
     it("the reading screens count their sets", () => {

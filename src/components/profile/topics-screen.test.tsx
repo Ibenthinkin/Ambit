@@ -386,10 +386,10 @@ describe("TopicsScreen", () => {
       expect(
         title.compareDocumentPosition(rows) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
-      // Medium labels come from topics.list.
-      expect(
-        screen.getByText("Land, sea & sky. Mostly ceramics."),
-      ).toBeInTheDocument();
+      // Medium labels come from topics.list. (The "Mostly …" half is its own <em>.)
+      expect(screen.getByText(/^Land, sea & sky\./)).toHaveTextContent(
+        "Land, sea & sky. Mostly ceramics.",
+      );
     });
 
     it("shows no card for a reader with no stored taste", () => {

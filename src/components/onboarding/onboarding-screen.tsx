@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 
+import type { LevelTopic } from "~/components/topics/topic-levels";
 import { Button } from "~/components/ui/button";
 import { Eyebrow } from "~/components/ui/eyebrow";
 import { Rise } from "~/components/ui/rise";
@@ -27,8 +28,14 @@ import { wingRanking } from "~/lib/interview/exhibition";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
 import { hangFrom, heroesFor } from "~/lib/interview/hang";
 import { keyAction, type KeyAction, type KeyKind } from "~/lib/interview/keys";
+import { allow, keptOut } from "~/lib/interview/kept-out";
 import { keyKindOf } from "~/lib/interview/layout";
-import { picksFrom, type Pick } from "~/lib/interview/picks";
+import {
+  defaultReadingAmount,
+  isStarter,
+  picksFrom,
+  type Pick,
+} from "~/lib/interview/picks";
 import { scoreAnswers } from "~/lib/interview/score";
 import { shown } from "~/lib/interview/show";
 import { STEP_OF } from "~/lib/interview/steps";
@@ -38,6 +45,7 @@ import {
   type OpenedCard,
 } from "~/lib/interview/taste";
 import type { Answer, Question } from "~/lib/interview/types";
+import type { ReadingAmount } from "~/server/config/reading-amount";
 import { api } from "~/trpc/react";
 
 import { QuestionStep } from "./question-step";
@@ -93,12 +101,13 @@ import { RevealStep } from "./reveal-step";
 // the answers so Back-and-change is always honoured: a progress line counting **steps** (gone in
 // the redesign — steps.ts still groups the questions); a `show.top` question (the playoff) is **ranked** by the scores so far
 // before it is shown (show.ts); the reading amount **opened on a default** read off the article
-// cards (bank v3 moved it to the reveal — Task 6.6 wires the Reading row); and the reveal's
+// cards (bank v3 moved it to the reveal's Reading row, which opens on it); and the reveal's
 // **taste** (taste.ts) is computed here and sent with the run.
 
 export interface OnboardingScreenProps {
-  /** `topics.list` — every pickable topic in this database. */
-  topics: { id: string; label: string }[];
+  /** `topics.list` — every pickable topic in this database, with the facet the reveal's mix
+   *  groups it under. */
+  topics: LevelTopic[];
   /** The picture for each face-off card (services/question-faces.ts); missing ones are text. */
   faces: QuestionFaces;
   /** A signed-up reader retaking the questions: the result *replaces* their topics. */
@@ -107,6 +116,9 @@ export interface OnboardingScreenProps {
   bank?: readonly Question[];
   /** What a too-short reveal is topped up with. */
   starters?: readonly string[];
+  /** A retaking reader's stored reading amount — what the reveal's Reading row opens on, ahead
+   *  of anything the article cards suggest. Null or absent: never said. */
+  storedReading?: ReadingAmount | null;
 }
 
 /** The beat between a pick and the next screen (DESIGN_redesign §5.2; the prototype's
@@ -153,6 +165,7 @@ export function OnboardingScreen({
   retake,
   bank = QUESTIONS,
   starters = STARTER_TOPICS,
+  storedReading = null,
 }: OnboardingScreenProps) {
   const router = useRouter();
   const utils = api.useUtils();
@@ -225,6 +238,17 @@ export function OnboardingScreen({
         : [];
     });
   }, [answers, bank, faces]);
+  /** The reading screens declined — a skip on a question of article cards. */
+  const readingSkipped = answers.filter((a) => {
+    const q = bank.find((x) => x.id === a.questionId);
+    return (
+      (q?.options.some((o) => o.face?.writing) ?? false) && a.keys[0] === SKIP
+    );
+  }).length;
+  /** What the reveal's Reading row opens on: what a retaking reader already chose, else what the
+   *  article cards said (picks.ts), else "some" — the share the feed reads by default. */
+  const readingDefault: ReadingAmount =
+    storedReading ?? defaultReadingAmount(opened, readingSkipped) ?? "some";
 
   // A question that arrives takes focus on its heading. The one it replaced was unmounted by the
   // tap that answered it, which drops focus to <body> — and a screen-reader user would get no cue
@@ -465,11 +489,19 @@ export function OnboardingScreen({
     return () => window.removeEventListener("keydown", listener);
   }, []);
 
-  // What the answers add up to — recomputed when they change. Today that only happens before
-  // the reveal is on screen; RevealStep re-seeds its draft if it ever happens after (Allow).
+  // What the answers add up to — recomputed when they change, including on the reveal, where
+  // Allow edits the rather-not answer; RevealStep re-seeds its draft when that happens.
   const proposed = useMemo(
     () => picksFrom(scoresSoFar, listed, starters),
     [scoresSoFar, listed, starters],
+  );
+  /** The proposed rows Ambit added itself (starter top-ups) — the reveal's "Proposed" tag. */
+  const startersProposed = useMemo(
+    () =>
+      new Set(
+        proposed.filter((p) => isStarter(p, scoresSoFar)).map((p) => p.topicId),
+      ),
+    [proposed, scoresSoFar],
   );
   // The reader's own pictures, hung under the reveal's title (hang.ts): keeps, then picks, then
   // the doors of their best wings for a reader who skipped their way here. Task 6.6 draws it;
@@ -500,17 +532,27 @@ export function OnboardingScreen({
     [scoresSoFar, listed, answers, opened, hang],
   );
 
-  async function submit(picks: Pick[]) {
+  /** "Start over" on the reveal: every answer cleared, back to the intro. */
+  function restart() {
+    resetScreen();
+    finishRun.current += 1;
+    setFinishing(false);
+    setError("");
+    setAnswers([]);
+    setDraft(undefined);
+    setPhase("intro");
+    document.scrollingElement?.scrollTo?.({ top: 0 });
+  }
+
+  async function submit(picks: Pick[], writingAmount: ReadingAmount) {
     if (submitting) return;
     setError("");
     setSubmitting(true);
     try {
       await complete.mutateAsync({
         picks,
-        // Bank v3 asks no amount question; the reveal's Reading row will send one (Task 6.6).
-        // Until then null = "not said": the column is left as it was and the feed reads at
-        // its default share — what a skipped amount question always meant.
-        writingAmount: null,
+        // The reveal's Reading row (bank v3 asks no amount question): always a level now.
+        writingAmount,
         answers,
         bankVersion: BANK_VERSION,
         taste,
@@ -636,11 +678,17 @@ export function OnboardingScreen({
               <RevealStep
                 topics={topics}
                 proposed={proposed}
+                starters={startersProposed}
                 taste={taste}
+                hang={hang}
+                readingDefault={readingDefault}
+                keptOut={keptOut(bank, answers)}
+                onAllow={(key) => setAnswers([...allow(answers, key)])}
                 retake={retake}
                 submitting={submitting}
                 error={error}
                 onSubmit={submit}
+                onRestart={restart}
               />
             )}
           </div>

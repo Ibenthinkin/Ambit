@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   exhibitionSubtitle,
+  exhibitionSubtitleParts,
   exhibitionTitle,
   readingSummary,
   topByFacet,
@@ -125,6 +126,13 @@ describe("exhibitionSubtitle", () => {
     expect(exhibitionSubtitle(["Space"], [])).toBe("Space.");
     expect(exhibitionSubtitle([], ["Engraving"])).toBe("Mostly engraving.");
     expect(exhibitionSubtitle([], [])).toBe("");
+  });
+  it("hands the two sentences apart, for the reveal's italic half", () => {
+    expect(exhibitionSubtitleParts(["Space"], ["Engraving"])).toEqual({
+      wings: "Space.",
+      mostly: "Mostly engraving.",
+    });
+    expect(exhibitionSubtitleParts([], [])).toEqual({ wings: "", mostly: "" });
   });
 });
 

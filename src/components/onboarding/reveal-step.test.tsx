@@ -2,7 +2,9 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { exploreOneIn } from "~/lib/interview/explore-share";
 import { buildTaste } from "~/lib/interview/taste";
+import { DEFAULT_KNOBS } from "~/server/services/feed-knobs";
 
 import { RevealStep } from "./reveal-step";
 
@@ -39,13 +41,13 @@ const row = (name: string) =>
 const press = (name: string, level: string) =>
   fireEvent.click(within(row(name)).getByRole("radio", { name: level }));
 const cta = () =>
-  screen.getByRole("button", { name: /Start exploring|Keep at least/ });
+  screen.getByRole("button", { name: /Open my feed|Keep at least/ });
 
 describe("RevealStep", () => {
   it("opens on the proposal, each topic at its level", () => {
     show();
     expect(
-      screen.getByRole("heading", { name: "Here’s where we’ll start" }),
+      screen.getByRole("heading", { level: 1, name: "Your mix" }),
     ).toBeInTheDocument();
     expect(
       within(row("Astronomy")).getByRole("radio", { name: "a lot" }),
@@ -60,11 +62,14 @@ describe("RevealStep", () => {
     press("Botany", "a lot");
     press("Geology", "off");
     fireEvent.click(cta());
-    expect(onSubmit).toHaveBeenCalledExactlyOnceWith([
-      { topicId: "astronomy", weight: 2 },
-      { topicId: "botany", weight: 2 },
-      { topicId: "music", weight: 0.5 },
-    ]);
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
+      [
+        { topicId: "astronomy", weight: 2 },
+        { topicId: "botany", weight: 2 },
+        { topicId: "music", weight: 0.5 },
+      ],
+      "some",
+    );
   });
 
   it("keeps a switched-off topic on the page, and lets it back in", () => {
@@ -124,7 +129,7 @@ describe("RevealStep", () => {
     expect(document.querySelector(".fixed")).toBeNull();
   });
 
-  it("shows the exhibition title above the list", () => {
+  it("shows the exhibition title above the mix", () => {
     const empty = buildTaste({
       scores: new Map(),
       listed: new Set(),
@@ -135,10 +140,12 @@ describe("RevealStep", () => {
     show({
       taste: { ...empty, title: { adjective: "Quiet", noun: "Weathers" } },
     });
-    const title = screen.getByRole("heading", { name: "Quiet Weathers" });
-    const start = screen.getByRole("heading", {
-      name: "Here’s where we’ll start",
+    // The title is the page's heading; "Your mix" steps down under it.
+    const title = screen.getByRole("heading", {
+      level: 1,
+      name: "Quiet Weathers",
     });
+    const start = screen.getByRole("heading", { level: 2, name: "Your mix" });
     expect(
       title.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -176,11 +183,14 @@ describe("RevealStep", () => {
       within(row("Music")).getByRole("radio", { name: "off" }),
     ).toHaveAttribute("aria-checked", "true");
     fireEvent.click(cta());
-    expect(onSubmit).toHaveBeenCalledExactlyOnceWith([
-      { topicId: "geology", weight: 2 },
-      { topicId: "astronomy", weight: 2 },
-      { topicId: "botany", weight: 2 },
-    ]);
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
+      [
+        { topicId: "geology", weight: 2 },
+        { topicId: "astronomy", weight: 2 },
+        { topicId: "botany", weight: 2 },
+      ],
+      "some",
+    );
   });
 
   it("does not re-seed for an equal proposal in a new array", () => {
@@ -194,5 +204,124 @@ describe("RevealStep", () => {
   it("shows no exhibition without a taste — the v1 reveal", () => {
     show();
     expect(screen.queryByText("Your first exhibition")).toBeNull();
+  });
+
+  // ── The redesign's reveal (DESIGN_redesign §5.3) ──────────────────────────────────────────
+
+  it("groups the mix under facet headings, and tags the rows Ambit added itself", () => {
+    show({
+      topics: [
+        { id: "astronomy", label: "Astronomy", facet: "subject" },
+        { id: "botany", label: "Botany", facet: "subject" },
+        { id: "music", label: "Music", facet: "subject" },
+        { id: "geology", label: "Engraving", facet: "medium" },
+      ],
+      starters: new Set(["music"]),
+    });
+    const headings = screen
+      .getAllByRole("heading", { level: 3 })
+      .map((h) => h.textContent);
+    expect(headings).toEqual(
+      expect.arrayContaining(["Subjects", "Mediums & traditions"]),
+    );
+    expect(within(row("Music")).getByText("Proposed")).toBeInTheDocument();
+    expect(within(row("Astronomy")).queryByText("Proposed")).toBeNull();
+  });
+
+  it("asks how much reading, opening on the default it is given, and sends what it shows", () => {
+    const { onSubmit } = show({ readingDefault: "little" });
+    const reading = screen.getByRole("radiogroup", {
+      name: "How much writing in the feed",
+    });
+    expect(
+      within(reading).getByRole("radio", { name: "A little" }),
+    ).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(reading).getByRole("radio", { name: "None" }));
+    fireEvent.click(cta());
+    expect(onSubmit.mock.calls[0]![1]).toBe("none");
+  });
+
+  it("opens the Reading row on Some when it is given nothing", () => {
+    const { onSubmit } = show();
+    fireEvent.click(cta());
+    expect(onSubmit.mock.calls[0]![1]).toBe("some");
+  });
+
+  it("lists what was kept out, each with an Allow; nothing kept out, no section", () => {
+    const onAllow = vi.fn();
+    const { unmount } = render(
+      <RevealStep
+        topics={TOPICS}
+        proposed={PROPOSED}
+        keptOut={[
+          { key: "horror", label: "Horror" },
+          { key: "war", label: "War" },
+        ]}
+        onAllow={onAllow}
+        retake={false}
+        submitting={false}
+        error=""
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Kept out" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Allow War" }));
+    expect(onAllow).toHaveBeenCalledExactlyOnceWith("war");
+    unmount();
+    show();
+    expect(screen.queryByRole("heading", { name: "Kept out" })).toBeNull();
+  });
+
+  it("says how much of the feed comes from outside the mix, from the feed's own knobs", () => {
+    show();
+    expect(
+      screen.getByText(
+        `About one post in ${exploreOneIn(DEFAULT_KNOBS)} comes from outside this mix, so the feed keeps learning from what you save.`,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("offers Start over beside Open my feed", () => {
+    const onRestart = vi.fn();
+    show({ onRestart });
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    expect(onRestart).toHaveBeenCalledOnce();
+  });
+
+  it("hangs the pictures it is given, captioned by number and title; none given, none hung", () => {
+    const taste = buildTaste({
+      scores: new Map(),
+      listed: new Set(),
+      destinations: [],
+      opened: [],
+      hang: ["a", "b"],
+    });
+    const { unmount } = render(
+      <RevealStep
+        topics={TOPICS}
+        proposed={PROPOSED}
+        taste={taste}
+        hang={[
+          { itemId: "a", src: "/api/img/a?w=960", title: "A wave" },
+          { itemId: "b", src: "/api/img/b?w=960", title: "A tide table" },
+        ]}
+        retake={false}
+        submitting={false}
+        error=""
+        onSubmit={vi.fn()}
+      />,
+    );
+    const hung = screen.getByRole("list", { name: "Hung pictures" });
+    expect(within(hung).getByText("01 · A wave")).toBeInTheDocument();
+    expect(within(hung).getByText("02 · A tide table")).toBeInTheDocument();
+    expect(hung.querySelectorAll("img")[0]).toHaveAttribute(
+      "src",
+      "/api/img/a?w=960",
+    );
+    unmount();
+    show({ taste });
+    expect(screen.queryByRole("list", { name: "Hung pictures" })).toBeNull();
   });
 });
