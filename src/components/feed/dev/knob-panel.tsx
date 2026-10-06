@@ -152,13 +152,13 @@ export function KnobPanel({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="ghost" shape="pill" onClick={onRestart}>
+          <Button size="sm" variant="outline" onClick={onRestart}>
             Restart feed
           </Button>
-          <Button size="sm" variant="ghost" shape="pill" onClick={onReset}>
+          <Button size="sm" variant="outline" onClick={onReset}>
             Reset knobs
           </Button>
-          <Button size="sm" variant="accent" shape="pill" onClick={onCopy}>
+          <Button size="sm" variant="primary" onClick={onCopy}>
             Copy JSON
           </Button>
         </div>

@@ -40,7 +40,7 @@ export function InstallBanner({ onAdd, onDismiss }: InstallBannerProps) {
         </div>
       </div>
 
-      <Button size="sm" shape="pill" onClick={onAdd} className="flex-none">
+      <Button size="sm" onClick={onAdd} className="flex-none">
         Add
       </Button>
       <IconButton

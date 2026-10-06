@@ -131,11 +131,10 @@ export function RevealStep({
       </Rise>
 
       <StepBar error={error}>
-        <Button shape="pill" size="md" variant="ghost" onClick={onBack}>
+        <Button size="md" variant="outline" onClick={onBack}>
           Back
         </Button>
         <Button
-          shape="pill"
           size="md"
           disabled={short}
           aria-busy={submitting}

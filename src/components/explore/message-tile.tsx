@@ -41,7 +41,7 @@ export function MessageTile({ message, onAction }: MessageTileProps) {
             key={action}
             size="sm"
             // The first button is the block's ask; any others are quieter alternatives.
-            variant={i === 0 ? "accent" : "ghost"}
+            variant={i === 0 ? "primary" : "outline"}
             onClick={() => onAction(action)}
           >
             {label}

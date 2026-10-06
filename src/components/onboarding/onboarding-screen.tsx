@@ -321,11 +321,7 @@ export function OnboardingScreen({
                   critique, 10-05-26): on a tall desktop window the two were a screen apart. Not
                   `fixed`, so it can live inside <Rise> and arrive with the words. */}
               <div className="mt-8">
-                <Button
-                  shape="pill"
-                  size="md"
-                  onClick={() => setPhase("questions")}
-                >
+                <Button size="md" onClick={() => setPhase("questions")}>
                   Begin
                 </Button>
               </div>
@@ -358,15 +354,11 @@ export function OnboardingScreen({
               />
             </Rise>
             <StepBar width={width}>
-              <Button shape="pill" size="md" variant="ghost" onClick={back}>
+              <Button size="md" variant="outline" onClick={back}>
                 Back
               </Button>
               {/* One button, named for what it will do: nothing said yet → Skip. */}
-              <Button
-                shape="pill"
-                size="md"
-                onClick={() => advance(shownDraft)}
-              >
+              <Button size="md" onClick={() => advance(shownDraft)}>
                 {forwardLabel(current, isAnswered(shownDraft))}
               </Button>
             </StepBar>

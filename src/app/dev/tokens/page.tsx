@@ -675,24 +675,28 @@ export default function TokensPage() {
           title="Button"
           note="DESIGN §4.1: primary / outline / link × lg / md / sm; states rest, hover, pressed, disabled."
         >
-          <Placeholder
-            task="2.1"
-            what="primary, outline, link; no shape prop"
-          />
-          <div className="flex flex-wrap items-center gap-3">
-            <Button variant="accent" shape="pill">
-              Start exploring
-            </Button>
-            <Button variant="accent" shape="pill" disabled>
-              Pick 2 more (disabled)
-            </Button>
-            <Button variant="ghost" shape="pill">
-              Maybe later
-            </Button>
-            <Button variant="accent" shape="rounded" size="lg">
-              Continue
-            </Button>
-          </div>
+          {/* Hover / pressed can't be forced from a stylesheet, so these are live: point at them,
+              Tab to them, hold them down. The disabled column is the only static state. */}
+          {(["primary", "outline", "link"] as const).map((variant) => (
+            <div
+              key={variant}
+              className="mb-4 flex flex-wrap items-center gap-3"
+            >
+              <span className="text-ink/62 w-16 font-mono text-[10.5px] uppercase">
+                {variant}
+              </span>
+              <Button variant={variant} size="lg">
+                Large 56
+              </Button>
+              <Button variant={variant}>Medium 46</Button>
+              <Button variant={variant} size="sm">
+                Small
+              </Button>
+              <Button variant={variant} disabled>
+                Disabled
+              </Button>
+            </div>
+          ))}
         </Section>
 
         <Section
@@ -816,11 +820,7 @@ export default function TokensPage() {
           note="Today an ink-glass pill; DESIGN §4 makes it a white block."
         >
           <Placeholder task="2.6" what="white block toast" />
-          <Button
-            variant="ghost"
-            shape="pill"
-            onClick={() => setToastOpen(true)}
-          >
+          <Button variant="outline" onClick={() => setToastOpen(true)}>
             Show toast
           </Button>
         </Section>
@@ -830,11 +830,7 @@ export default function TokensPage() {
           note="Today a rounded sheet / 520 px dialog / popover; DESIGN §4 squares them and gives each a top border instead of a shadow."
         >
           <Placeholder task="2.5" what="square sheet, dialog, popover" />
-          <Button
-            variant="ghost"
-            shape="pill"
-            onClick={() => setSheetOpen(true)}
-          >
+          <Button variant="outline" onClick={() => setSheetOpen(true)}>
             Open sheet
           </Button>
         </Section>
@@ -871,8 +867,7 @@ export default function TokensPage() {
               <Caption>animate-rise · 600 ms</Caption>
             </div>
             <Button
-              variant="ghost"
-              shape="pill"
+              variant="outline"
               onClick={() => setMotionKey((k) => k + 1)}
             >
               Replay
@@ -996,24 +991,18 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="ghost"
-          shape="pill"
-          onClick={() => setBrowseOpen(true)}
-        >
+        <Button variant="outline" onClick={() => setBrowseOpen(true)}>
           Collections sheet
         </Button>
         <Button
-          variant="ghost"
-          shape="pill"
+          variant="outline"
           disabled={!demoItem}
           onClick={() => setSaveOpen(true)}
         >
           Save sheet
         </Button>
         <Button
-          variant="ghost"
-          shape="pill"
+          variant="outline"
           // Same guard as Save: ShareSheet is only mounted once there's an item, so an enabled
           // button here just set state on an unmounted component and appeared to do nothing.
           disabled={!demoItem}
@@ -1026,8 +1015,7 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
             item and no way to try again short of a reload. */}
         {!demoItem ? (
           <Button
-            variant="ghost"
-            shape="pill"
+            variant="outline"
             disabled={feed.isFetching}
             onClick={() => {
               if (borrowFromFeed) void feed.refetch();

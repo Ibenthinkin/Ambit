@@ -105,11 +105,7 @@ export function ProfileHub({ children }: { children: React.ReactNode }) {
               <span className="text-ink/40 text-center text-[14px]">
                 Couldn&apos;t load your profile.
               </span>
-              <Button
-                variant="ghost"
-                shape="pill"
-                onClick={() => void me.refetch()}
-              >
+              <Button variant="outline" onClick={() => void me.refetch()}>
                 Try again
               </Button>
             </div>

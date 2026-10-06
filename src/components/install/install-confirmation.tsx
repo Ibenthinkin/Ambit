@@ -32,7 +32,7 @@ export function InstallConfirmation({ onDone }: InstallConfirmationProps) {
       <p className="text-ink/60 mt-2 max-w-[300px] text-[14.5px] leading-[1.55]">
         Open it anytime for one interesting thing — no browser, no noise.
       </p>
-      <Button shape="rounded" size="lg" onClick={onDone} className="mt-7">
+      <Button size="lg" onClick={onDone} className="mt-7 w-full">
         Start exploring
       </Button>
     </div>

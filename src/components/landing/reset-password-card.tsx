@@ -63,7 +63,7 @@ export function ResetPasswordCard({ token }: { token: string }) {
           Sign in with your new password.
         </div>
         <Link href="/" className="mt-[22px] inline-block">
-          <Button shape="rounded" size="lg" className="px-8">
+          <Button size="lg" className="px-8">
             Sign in
           </Button>
         </Link>
@@ -113,7 +113,6 @@ export function ResetPasswordCard({ token }: { token: string }) {
 
         <Button
           type="submit"
-          shape="rounded"
           size="lg"
           aria-busy={submitting}
           className={cn(

@@ -339,11 +339,7 @@ export function FeedScreen({
           <span className="text-ink/40 text-center text-[14px]">
             Couldn&apos;t load the feed.
           </span>
-          <Button
-            variant="ghost"
-            shape="pill"
-            onClick={() => void feed.refetch()}
-          >
+          <Button variant="outline" onClick={() => void feed.refetch()}>
             Try again
           </Button>
         </div>

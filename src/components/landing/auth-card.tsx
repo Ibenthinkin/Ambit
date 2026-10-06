@@ -245,7 +245,6 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
 
         <Button
           type="submit"
-          shape="rounded"
           size="lg"
           aria-busy={submitting}
           className={cn(
