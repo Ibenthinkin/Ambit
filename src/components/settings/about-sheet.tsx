@@ -31,9 +31,9 @@ export function AboutSheet({ open, onClose, versionLabel }: AboutSheetProps) {
           else. No follows, no likes, no numbers going up.
         </p>
 
-        <p className="text-ink/55 mt-[22px] font-mono text-[10.5px] tracking-[0.4px] uppercase">
+        <Eyebrow as="p" className="mt-[22px] block">
           Ambit · invite-only · {versionLabel}
-        </p>
+        </Eyebrow>
 
         <div className="border-ink/10 mt-[22px] w-full border-t pt-[18px]">
           <Eyebrow as="p" className="block text-center">

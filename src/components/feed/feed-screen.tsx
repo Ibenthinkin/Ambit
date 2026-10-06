@@ -7,10 +7,9 @@ import { CollectionsSheet } from "~/components/sheets/collections-sheet";
 import { InstallFlow } from "~/components/install/install-flow";
 import { ItemSheet } from "~/components/sheets/item-sheet";
 import { Button } from "~/components/ui/button";
-import { Toolbar } from "~/components/ui/toolbar";
-import { Eyebrow } from "~/components/ui/eyebrow";
 import { Loader } from "~/components/ui/loader";
 import { Toast } from "~/components/ui/toast";
+import { Toolbar } from "~/components/ui/toolbar";
 import { HOVER_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { saveToastText } from "~/lib/save-toast";
 import type { FeedKnobs } from "~/server/services/feed-knobs";
@@ -317,15 +316,17 @@ export function FeedScreen({
 
       {showEnd ? (
         <div className="flex items-center justify-center pt-5 pb-[26px]">
-          <Eyebrow>You&apos;ve reached the edge, for now.</Eyebrow>
+          <span className="text-ink/62 text-[14px]">
+            You&apos;ve reached the edge, for now.
+          </span>
         </div>
       ) : null}
 
       {showEmpty ? (
         <div className="flex flex-col items-center justify-center px-8 py-24">
-          <Eyebrow className="text-center leading-[1.6]">
+          <span className="text-ink/62 text-center text-[14px]">
             Nothing here yet. Check back soon.
-          </Eyebrow>
+          </span>
         </div>
       ) : null}
 
@@ -335,9 +336,13 @@ export function FeedScreen({
           be indistinguishable from an ordinary outcome. */}
       {feed.isError ? (
         <div className="flex flex-col items-center gap-4 px-8 py-24">
-          <Eyebrow className="text-center leading-[1.6]">
+          <span className="text-ink/62 flex items-center gap-2 text-center text-[14px]">
+            <span
+              aria-hidden="true"
+              className="bg-accent size-[6px] flex-none rounded-full"
+            />
             Couldn&apos;t load the feed.
-          </Eyebrow>
+          </span>
           <Button variant="outline" onClick={() => void feed.refetch()}>
             Try again
           </Button>

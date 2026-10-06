@@ -42,7 +42,7 @@ function Step({
         {children}
       </span>
       {icon ? (
-        <span className="text-ink/45 mt-[2px] flex-none">{icon}</span>
+        <span className="text-ink/48 mt-[2px] flex-none">{icon}</span>
       ) : null}
     </li>
   );
