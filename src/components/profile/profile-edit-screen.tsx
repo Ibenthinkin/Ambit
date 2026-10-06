@@ -5,6 +5,7 @@ import * as React from "react";
 import { AvatarChip } from "~/components/ui/avatar-chip";
 import { Button } from "~/components/ui/button";
 import { Rise } from "~/components/ui/rise";
+import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { Textarea } from "~/components/ui/textarea";
@@ -142,17 +143,15 @@ function EditForm({ profile }: { profile: UserProfile }) {
             value={name}
             maxLength={60}
             placeholder="Your name"
-            aria-label="Name"
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
 
-        <Field label="Handle">
+        <Field label="Handle" error={handleError}>
           <Input
             value={handle}
             maxLength={25}
             placeholder="@you"
-            aria-label="Handle"
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
@@ -161,13 +160,6 @@ function EditForm({ profile }: { profile: UserProfile }) {
               if (handleError) setHandleError(null);
             }}
           />
-          {/* The conflict's home. Under the field rather than in a toast, because the fix is to
-              edit the thing directly above it. */}
-          {handleError ? (
-            <span role="alert" className="text-error mt-2 block text-[12.5px]">
-              {handleError}
-            </span>
-          ) : null}
         </Field>
 
         <Field label="About">
@@ -176,22 +168,18 @@ function EditForm({ profile }: { profile: UserProfile }) {
             rows={4}
             maxLength={280}
             placeholder="What are you curious about?"
-            aria-label="About"
             onChange={(e) => setBio(e.target.value)}
           />
         </Field>
 
-        <Field label="Email">
-          <Input
-            readOnly
-            value={profile.email}
-            aria-label="Email"
-            className="text-ink/55"
-          />
+        <div>
+          <Field label="Email">
+            <Input readOnly value={profile.email} className="text-ink/55" />
+          </Field>
           <span className="text-ink/35 mt-2 block text-[12px]">
             Only used for your invite and sign-in.
           </span>
-        </Field>
+        </div>
 
         <Button
           className="mt-1 h-[50px] w-full"
@@ -227,22 +215,4 @@ function EditForm({ profile }: { profile: UserProfile }) {
 function normalizeHandle(raw: string): string | null {
   const bare = raw.trim().replace(/^@/, "").toLowerCase();
   return bare === "" ? null : bare;
-}
-
-/** One labelled field. The eyebrow is the same treatment Settings' group headers use. */
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <span className="text-ink/38 mb-2 block text-[11px] font-semibold tracking-[1.2px] uppercase">
-        {label}
-      </span>
-      {children}
-    </div>
-  );
 }

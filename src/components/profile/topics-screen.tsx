@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ExhibitionCard } from "~/components/onboarding/exhibition-card";
 import { useProfileHub } from "~/components/profile/profile-hub";
 import { TopicLevels } from "~/components/topics/topic-levels";
+import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Rise } from "~/components/ui/rise";
 import { pickWeight, weightOf } from "~/server/config/topic-levels";
@@ -92,6 +93,18 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
   const taste = api.topics.taste.useQuery();
   const [query, setQuery] = React.useState("");
 
+  // Where keyboard focus goes when a row is switched off. The "off" cell unmounts with its row,
+  // which would drop focus to <body> and strand a keyboard reader at the top of the page.
+  // `removed` is the topic just switched off; `target` is the row to land on (the next one, or
+  // the previous if it was last) or "search" when nothing is left. An effect finishes the job
+  // once the row has actually left the list (the removal is optimistic, a tick later).
+  const focusAfterRemoval = React.useRef<{
+    removed: string;
+    target: string;
+  } | null>(null);
+  const addSectionRef = React.useRef<HTMLElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
+
   // Every current pick, topic id → weight.
   const picks = new Map((mine.data ?? []).map((p) => [p.topicId, p.weight]));
   const all = (topics.data ?? []).map((t) => ({ id: t.id, label: t.label }));
@@ -102,6 +115,19 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
    *  to `success`/`error` only *after* its `onSettled` returns, so the write settling right now
    *  still counts itself: `1` means it is the last. A queued write is `pending` from the moment
    *  `.mutate()` is called, so it counts too, even before its request has started. */
+  React.useEffect(() => {
+    const pending = focusAfterRemoval.current;
+    if (!pending || picks.has(pending.removed)) return;
+    focusAfterRemoval.current = null;
+    const el =
+      pending.target === "search"
+        ? addSectionRef.current?.querySelector<HTMLElement>("input")
+        : listRef.current?.querySelector<HTMLElement>(
+            `[data-topic="${pending.target}"] [role="radio"][aria-checked="true"]`,
+          );
+    el?.focus();
+  });
+
   function settle() {
     const inScope = queryClient.isMutating({
       predicate: (m) => m.options.scope?.id === WRITE_SCOPE.id,
@@ -190,19 +216,16 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
 
       {/* Add — a search over every pickable topic the reader doesn't have yet. */}
       <Rise delayMs={60}>
-        <section className="px-5 pt-7">
-          <label htmlFor="topics-search" className={EYEBROW}>
-            Add a topic
-          </label>
-          <Input
-            id="topics-search"
-            type="search"
-            value={query}
-            placeholder="Search — film, maps, the sea…"
-            autoComplete="off"
-            className="mt-3"
-            onChange={(e) => setQuery(e.target.value)}
-          />
+        <section ref={addSectionRef} className="px-5 pt-7">
+          <Field label="Add a topic">
+            <Input
+              type="search"
+              value={query}
+              placeholder="Search — film, maps, the sea…"
+              autoComplete="off"
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </Field>
           {query.trim() !== "" && (
             <div aria-live="polite" className="pt-3">
               {results.length === 0 ? (
@@ -241,12 +264,24 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
           <p id="topics-mine" className={EYEBROW}>
             Your topics
           </p>
-          <div className="pt-4">
+          <div ref={listRef} className="pt-4">
             <TopicLevels
               topics={all}
               picks={picks}
               onLevel={(topicId, level) => setWeight.mutate({ topicId, level })}
               onOff={(topicId) => {
+                // Choose the focus target from the list as drawn (label order, as TopicLevels
+                // sorts it) before the row goes. The last-topic floor refuses in `commit`; the
+                // effect then never sees the row leave, so nothing moves.
+                const order = all
+                  .filter((t) => picks.has(t.id))
+                  .sort((a, b) => a.label.localeCompare(b.label))
+                  .map((t) => t.id);
+                const i = order.indexOf(topicId);
+                focusAfterRemoval.current = {
+                  removed: topicId,
+                  target: order[i + 1] ?? order[i - 1] ?? "search",
+                };
                 const next = new Map(picks);
                 next.delete(topicId);
                 commit(next);

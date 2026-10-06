@@ -40,7 +40,9 @@ import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { Chip } from "~/components/ui/chip";
 import { IconButton } from "~/components/ui/icon-button";
+import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
+import { Textarea } from "~/components/ui/textarea";
 import { Segmented } from "~/components/ui/segmented";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { PillToolbar, type BookmarkState } from "~/components/ui/pill-toolbar";
@@ -771,10 +773,28 @@ export default function TokensPage() {
 
         <Section
           title="Input"
-          note="DESIGN §4: underline input — rest, focus (green underline), error (green mono hint), disabled."
+          note="DESIGN §4.4: underline input inside a Field — rest, hover, focus (green underline, 2 px), hint, error, disabled, and the lg size. Tab through them."
         >
-          <Placeholder task="2.4" what="underline input" />
-          <Input placeholder="you@example.com" className="max-w-xs" />
+          <div className="grid max-w-xl gap-6">
+            <Field label="Email">
+              <Input placeholder="you@example.com" />
+            </Field>
+            <Field label="Password" hint="Needs 8+ characters">
+              <Input type="password" defaultValue="short" />
+            </Field>
+            <Field label="Handle" error="That handle is taken">
+              <Input defaultValue="@ben" />
+            </Field>
+            <Field label="Email (read-only, disabled)">
+              <Input disabled defaultValue="ben@example.com" />
+            </Field>
+            <Field label="Name — lg, the profile's desktop size">
+              <Input size="lg" placeholder="Your name" />
+            </Field>
+            <Field label="About">
+              <Textarea placeholder="What are you curious about?" />
+            </Field>
+          </div>
         </Section>
 
         <Section

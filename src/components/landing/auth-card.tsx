@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 
 import { Envelope, Lock } from "~/components/icons";
 import { Button } from "~/components/ui/button";
+import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Loader } from "~/components/ui/loader";
 import { authClient } from "~/lib/auth-client";
@@ -51,10 +52,6 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-
-  const nameId = useId();
-  const emailId = useId();
-  const passwordId = useId();
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -182,14 +179,10 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div className="space-y-2.5">
+      <div className="space-y-5">
         {mode === "signup" && (
-          <div>
-            <label htmlFor={nameId} className="sr-only">
-              Name
-            </label>
+          <Field label="Name">
             <Input
-              id={nameId}
               type="text"
               placeholder="What should we call you?"
               autoComplete="name"
@@ -199,15 +192,11 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
                 setError("");
               }}
             />
-          </div>
+          </Field>
         )}
 
-        <div>
-          <label htmlFor={emailId} className="sr-only">
-            Email
-          </label>
+        <Field label="Email">
           <Input
-            id={emailId}
             type="email"
             inputMode="email"
             placeholder="you@example.com"
@@ -218,15 +207,11 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
               setError("");
             }}
           />
-        </div>
+        </Field>
 
         {mode !== "forgot" && (
-          <div>
-            <label htmlFor={passwordId} className="sr-only">
-              Password
-            </label>
+          <Field label="Password">
             <Input
-              id={passwordId}
               type="password"
               placeholder={
                 mode === "signup" ? "Password (8+ characters)" : "Password"
@@ -240,7 +225,7 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
                 setError("");
               }}
             />
-          </div>
+          </Field>
         )}
 
         <Button

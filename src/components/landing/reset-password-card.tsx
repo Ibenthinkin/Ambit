@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "~/components/ui/button";
+import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Loader } from "~/components/ui/loader";
 import { authClient } from "~/lib/auth-client";
@@ -21,9 +22,6 @@ export function ResetPasswordCard({ token }: { token: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-
-  const newPasswordId = useId();
-  const confirmPasswordId = useId();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,13 +74,9 @@ export function ResetPasswordCard({ token }: { token: string }) {
       <div className="text-ink-hi mb-5 text-[23px] font-semibold tracking-[-0.2px]">
         Choose a new password.
       </div>
-      <div className="space-y-2.5">
-        <div>
-          <label htmlFor={newPasswordId} className="sr-only">
-            New password
-          </label>
+      <div className="space-y-5">
+        <Field label="New password">
           <Input
-            id={newPasswordId}
             type="password"
             placeholder="New password (8+ characters)"
             autoComplete="new-password"
@@ -92,14 +86,10 @@ export function ResetPasswordCard({ token }: { token: string }) {
               setError("");
             }}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label htmlFor={confirmPasswordId} className="sr-only">
-            Confirm new password
-          </label>
+        <Field label="Confirm new password">
           <Input
-            id={confirmPasswordId}
             type="password"
             placeholder="Confirm new password"
             autoComplete="new-password"
@@ -109,7 +99,7 @@ export function ResetPasswordCard({ token }: { token: string }) {
               setError("");
             }}
           />
-        </div>
+        </Field>
 
         <Button
           type="submit"

@@ -5,6 +5,7 @@ import * as React from "react";
 import { Bookmark, Plus } from "~/components/icons";
 import { CoverMosaic } from "~/components/profile/cover-mosaic";
 import { Button } from "~/components/ui/button";
+import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
@@ -193,30 +194,25 @@ export function NewCollectionRow({
       // Same rule as the rows: a thumb resting here mid-scroll must not reach the sheet's gestures.
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <Input
-        // Picking the row is asking to type, so the field takes focus at once — and in the
-        // profile's sheet, which opens straight onto this form, it is the only thing to do.
-        autoFocus
-        value={name}
-        maxLength={40}
-        placeholder="Collection name"
-        aria-label="Collection name"
-        onChange={(e) => {
-          setName(e.target.value);
-          // Clear a stale conflict as soon as the name changes — the error was about the old
-          // text, and leaving it up makes the new one look rejected too.
-          if (error) setError(null);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit();
-        }}
-      />
-
-      {error ? (
-        <span role="alert" className="text-error text-[12.5px]">
-          {error}
-        </span>
-      ) : null}
+      <Field label="Collection name" error={error}>
+        <Input
+          // Picking the row is asking to type, so the field takes focus at once — and in the
+          // profile's sheet, which opens straight onto this form, it is the only thing to do.
+          autoFocus
+          value={name}
+          maxLength={40}
+          placeholder="Collection name"
+          onChange={(e) => {
+            setName(e.target.value);
+            // Clear a stale conflict as soon as the name changes — the error was about the old
+            // text, and leaving it up makes the new one look rejected too.
+            if (error) setError(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+        />
+      </Field>
 
       <Button
         onClick={submit}
