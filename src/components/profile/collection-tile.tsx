@@ -50,7 +50,7 @@ export function CollectionTile({
         // Same rule as every other tappable surface in the app: a thumb resting here mid-scroll
         // must not fire the tile.
         onPointerDown={(e) => e.stopPropagation()}
-        className="w-full text-left transition-transform duration-150 active:scale-[0.98]"
+        className="w-full text-left transition-[scale] duration-150 active:scale-[0.98]"
       >
         {/* 2 px gaps and a hairline-only empty square on the tab (the prototype's numbers); the
           sheets' 38 px rows keep the component's 1 px defaults. */}
@@ -77,7 +77,7 @@ export function NewCollectionTile({ onClick }: { onClick: () => void }) {
         type="button"
         onClick={onClick}
         onPointerDown={(e) => e.stopPropagation()}
-        className="w-full text-left transition-transform duration-150 active:scale-[0.98]"
+        className="w-full text-left transition-[scale] duration-150 active:scale-[0.98]"
       >
         {/* 1 px dashed ink/28, no fill (DESIGN §6.5). */}
         <div className="border-ink/28 flex aspect-square w-full items-center justify-center border border-dashed">

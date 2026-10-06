@@ -27,13 +27,18 @@ export interface CoverMosaicProps {
   className?: string;
   /** The empty state's glyph, in px. 26 on the tab; a row passes 14. */
   placeholderSize?: number;
+  /** "thumb" (default): the sheets' small rows, card-2 gaps and cells. "tile": the Collections
+   *  tab — #141414 gaps, #1A1A1A fillers, a bare 1 px outline when empty (DESIGN §6.5). */
+  variant?: "thumb" | "tile";
 }
 
 export function CoverMosaic({
   covers,
   className,
   placeholderSize = 26,
+  variant = "thumb",
 }: CoverMosaicProps) {
+  const tile = variant === "tile";
   const shown = covers.slice(0, 4);
 
   if (shown.length === 0) {
@@ -42,7 +47,10 @@ export function CoverMosaic({
         data-testid="cover-mosaic"
         data-count={0}
         className={cn(
-          "border-hairline border-ink/10 bg-ink/3 flex items-center justify-center",
+          "flex items-center justify-center",
+          tile
+            ? "border-ink/12 border"
+            : "border-hairline border-ink/10 bg-ink/3",
           className,
         )}
       >
@@ -70,7 +78,8 @@ export function CoverMosaic({
       data-count={shown.length}
       // `bg-card-2` shows through the 1 px gaps (and fills the empty cells) — DESIGN §6.1.
       className={cn(
-        "bg-card-2 grid grid-cols-2 grid-rows-2 gap-px overflow-hidden",
+        "grid grid-cols-2 grid-rows-2 overflow-hidden",
+        tile ? "gap-0.5 bg-[#141414]" : "bg-card-2 gap-px",
         className,
       )}
     >
@@ -84,7 +93,11 @@ export function CoverMosaic({
             className="size-full min-h-0 object-cover"
           />
         ) : (
-          <div key={i} data-filler className="bg-card-2 min-h-0" />
+          <div
+            key={i}
+            data-filler
+            className={cn("min-h-0", tile ? "bg-[#1A1A1A]" : "bg-card-2")}
+          />
         ),
       )}
     </div>
