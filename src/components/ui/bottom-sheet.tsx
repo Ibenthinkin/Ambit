@@ -90,6 +90,11 @@ export interface BottomSheetProps {
    */
   title?: string;
   /**
+   * A mono figure at the right of the header row, beside `title` (the save picker's collection
+   * count, "07"). Ignored when `closeLabel` is given — the two share the slot.
+   */
+  titleAside?: string;
+  /**
    * For the sheets with no grabber (anything that is not dragged away): puts a "Close" button, in
    * ink, at the right of the header row, and the value is the button's label. Omit it where the
    * grabber, the scrim and Escape are enough.
@@ -259,6 +264,7 @@ export function BottomSheet({
   open,
   onClose,
   title,
+  titleAside,
   closeLabel,
   children,
   maxHeightPct = 80,
@@ -622,7 +628,7 @@ export function BottomSheet({
         )}
         {/* The header row (DESIGN §4.5): a mono title at the left, an optional ink "Close" at the
             right, an `ink/14` hairline under both. It exists when either is given. */}
-        {title || closeLabel ? (
+        {title || closeLabel || titleAside ? (
           <div className="border-ink/14 flex shrink-0 items-center justify-between gap-4 border-b px-[18px] pb-3">
             {title ? (
               <h2 id={titleId} className={HEADER_LABEL}>
@@ -635,6 +641,10 @@ export function BottomSheet({
               <button type="button" onClick={onClose} className={HEADER_LABEL}>
                 {closeLabel}
               </button>
+            ) : titleAside ? (
+              <span className="text-ink/55 font-mono text-[10.5px] tracking-[0.4px]">
+                {titleAside}
+              </span>
             ) : null}
           </div>
         ) : null}

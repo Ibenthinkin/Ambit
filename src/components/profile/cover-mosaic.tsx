@@ -68,9 +68,9 @@ export function CoverMosaic({
     <div
       data-testid="cover-mosaic"
       data-count={shown.length}
-      // `bg-bg` is what shows through the 2 px gaps — the page, not a border colour.
+      // `bg-card-2` shows through the 1 px gaps (and fills the empty cells) — DESIGN §6.1.
       className={cn(
-        "bg-bg grid grid-cols-2 grid-rows-2 gap-[2px] overflow-hidden",
+        "bg-card-2 grid grid-cols-2 grid-rows-2 gap-px overflow-hidden",
         className,
       )}
     >
@@ -84,7 +84,7 @@ export function CoverMosaic({
             className="size-full min-h-0 object-cover"
           />
         ) : (
-          <div key={i} data-filler className="bg-ink/5 min-h-0" />
+          <div key={i} data-filler className="bg-card-2 min-h-0" />
         ),
       )}
     </div>

@@ -193,7 +193,7 @@ describe("SaveToCollectionSheet", () => {
     expect(screen.getByText("2 items")).toBeInTheDocument();
   });
 
-  it("leads every row with the collection's face, the current one ringed", () => {
+  it("leads every row with the collection's face, the current one dotted", () => {
     render(
       <SaveToCollectionSheet
         open
@@ -207,8 +207,14 @@ describe("SaveToCollectionSheet", () => {
     const faces = screen.getAllByTestId("cover-mosaic");
     // Articles has one picture, Art none, and the New-collection row is a glyph, not a face.
     expect(faces.map((f) => f.getAttribute("data-count"))).toEqual(["1", "0"]);
-    expect(faces[1]!.parentElement).toHaveClass("ring-accent");
-    expect(faces[0]!.parentElement).not.toHaveClass("ring-accent");
+    // The 7 px dot trails the current row only.
+    expect(screen.getAllByTestId("current-dot")).toHaveLength(1);
+    expect(
+      faces[1]!.closest("button")!.querySelector("[data-testid=current-dot]"),
+    ).not.toBeNull();
+    expect(
+      faces[0]!.closest("button")!.querySelector("[data-testid=current-dot]"),
+    ).toBeNull();
   });
 
   it("uses the singular for a collection holding one item", () => {
