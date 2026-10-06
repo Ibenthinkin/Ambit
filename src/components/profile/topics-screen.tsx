@@ -6,7 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { ExhibitionCard } from "~/components/onboarding/exhibition-card";
 import { useProfileHub } from "~/components/profile/profile-hub";
-import { TopicLevels } from "~/components/topics/topic-levels";
+import { levelRowOrder, TopicLevels } from "~/components/topics/topic-levels";
+import { Button } from "~/components/ui/button";
 import { Eyebrow } from "~/components/ui/eyebrow";
 import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
@@ -17,13 +18,13 @@ import { api } from "~/trpc/react";
 
 // /profile/topics — the Topics tab of the Profile hub, after the questionnaire (10-02-26,
 // docs/PLAN_onboarding-questionnaire.md §4). It is the questionnaire's reveal, kept: the same
-// flat list of the reader's topics, each at *a little · some · a lot · off*, plus a search box to
+// level rows of the reader's topics, each at *a little · some · a lot · off*, plus a search box to
 // add one and a link to answer the questions again. Every change saves at once — no Done button,
 // no confirmation, an optimistic `topics.mine` so the reader sees the result before the server.
 //
-// What it no longer has: four facet sections and umbrella-group chips. Facets and groups are how
-// the code files topics (and what the questionnaire's answers are written in); a reader never
-// sees either. Finding a topic is the search box's job now.
+// The rows sit under facet headings again (DESIGN_redesign decision 3, 10-06-26) — `TopicLevels`
+// draws them, shared with the reveal. What it still does not have is umbrella-group chips:
+// finding a topic is the search box's job.
 //
 // Two writes:
 //   - `setWeight` — a level change. One row, snapped to the level's canonical weight.
@@ -105,7 +106,11 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
 
   // Every current pick, topic id → weight.
   const picks = new Map((mine.data ?? []).map((p) => [p.topicId, p.weight]));
-  const all = (topics.data ?? []).map((t) => ({ id: t.id, label: t.label }));
+  const all = (topics.data ?? []).map((t) => ({
+    id: t.id,
+    label: t.label,
+    facet: t.facet,
+  }));
   const results = searchTopics(all, new Set(picks.keys()), query);
 
   // Finish the focus hand-off above once the removed row has actually left `picks`.
@@ -193,11 +198,12 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
 
   return (
     // Left-aligned at the list measure inside the hub's wide column (docs/DESIGN_list-screens.md
-    // §6) — a plain div, not `Column`, which centres.
-    <div className="md:max-w-[600px]">
+    // §6) — a plain div, not `Column`, which centres. 720 px is DESIGN_redesign §6.5's.
+    <div className="md:max-w-[720px]">
       <Rise>
-        <p className="text-ink/62 px-5 pt-5 text-[15px] leading-[1.5]">
-          {picks.size} on. Changes save as you go.
+        <p className="text-ink px-5 pt-8 text-[24px] leading-[1.35] tracking-[-0.01em]">
+          <span>{picks.size} on.</span>{" "}
+          <span className="text-ink/62 italic">Changes save as you go.</span>
         </p>
       </Rise>
 
@@ -215,9 +221,10 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
 
       {/* Add — a search over every pickable topic the reader doesn't have yet. */}
       <Rise delayMs={60}>
-        <section ref={addSectionRef} className="px-5 pt-7">
+        <section ref={addSectionRef} className="px-5 pt-10">
           <Field label="Add a topic">
             <Input
+              size="lg"
               type="search"
               value={query}
               placeholder="Search — film, maps, the sea…"
@@ -235,18 +242,18 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
                 <ul className="flex flex-wrap gap-[10px]">
                   {results.map((t) => (
                     <li key={t.id}>
-                      <button
-                        type="button"
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => {
                           // Naming one topic by itself is a strong signal — `pickWeight(1)`,
                           // "a lot" — and the level is one tap away if that is too much.
                           commit(new Map(picks).set(t.id, pickWeight(1)));
                           setQuery("");
                         }}
-                        className="border-hairline border-ink/12 bg-ink/5 text-ink/82 px-[17px] py-[11px] text-[15px] leading-none"
                       >
                         Add {t.label}
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -259,23 +266,21 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
       {/* Tune or drop. `onLevel` is a direct `setWeight` — it never changes *which* topics are
           picked; `onOff` removes the row through the floor-checked `commit`. */}
       <Rise delayMs={120}>
-        <section aria-labelledby="topics-mine" className="px-5 pt-7">
-          <Eyebrow as="p" id="topics-mine" className="block">
+        <section aria-labelledby="topics-mine" className="px-5 pt-11">
+          <Eyebrow as="p" id="topics-mine" className="block text-[11px]">
             Your topics
           </Eyebrow>
-          <div ref={listRef} className="pt-4">
+          <div ref={listRef} className="pt-6">
             <TopicLevels
               topics={all}
               picks={picks}
               onLevel={(topicId, level) => setWeight.mutate({ topicId, level })}
               onOff={(topicId) => {
-                // Choose the focus target from the list as drawn (label order, as TopicLevels
-                // sorts it) before the row goes. The last-topic floor refuses in `commit`; the
-                // effect then never sees the row leave, so nothing moves.
-                const order = all
-                  .filter((t) => picks.has(t.id))
-                  .sort((a, b) => a.label.localeCompare(b.label))
-                  .map((t) => t.id);
+                // Choose the focus target from the list as drawn (by heading, then label —
+                // `levelRowOrder` is TopicLevels' own order) before the row goes. The
+                // last-topic floor refuses in `commit`; the effect then never sees the row
+                // leave, so nothing moves.
+                const order = levelRowOrder(all, picks);
                 const i = order.indexOf(topicId);
                 focusAfterRemoval.current = {
                   removed: topicId,
@@ -291,7 +296,7 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
       </Rise>
 
       <Rise delayMs={180}>
-        <p className="text-ink/62 px-5 pt-7 text-[15px] leading-[1.5]">
+        <p className="text-ink/62 px-5 pt-10 text-[15px] leading-[1.5]">
           Want to start over?{" "}
           <TextLink href="/onboarding?retake=1" tone="body">
             Retake the questions

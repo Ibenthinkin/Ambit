@@ -145,18 +145,59 @@ beforeEach(() => {
 });
 
 describe("TopicsScreen", () => {
-  it("lists the reader's topics as one flat list of levels — no facet sections, no group chips", () => {
+  it("lists the reader's topics under facet headings, with no group chips", () => {
+    state.mine = [
+      { topicId: "astronomy", weight: 2 },
+      { topicId: "ceramics", weight: 1 },
+      { topicId: "japan", weight: 1 },
+    ];
     render(<TopicsScreen dev={false} />);
+    // "3 on." then the second sentence in italics (DESIGN_redesign §6.5).
+    const summary = screen.getByText(/on\.\s*$/, {
+      selector: "p > span",
+    }).parentElement!;
+    expect(summary.textContent).toBe("3 on. Changes save as you go.");
     expect(
-      screen.getByText("2 on. Changes save as you go."),
-    ).toBeInTheDocument();
+      within(summary).getByText("Changes save as you go.").className,
+    ).toContain("italic");
+    expect(
+      screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent),
+    ).toEqual(["Subjects", "Mediums & traditions", "Places"]);
     expect(
       screen.getAllByRole("group").map((g) => g.getAttribute("aria-label")),
-    ).toEqual(["Astronomy level", "Ceramics level"]);
-    expect(screen.queryByText(/^(Subject|Medium|Look|Place)$/)).toBeNull();
+    ).toEqual(["Astronomy level", "Ceramics level", "Japan level"]);
     expect(
       screen.queryByRole("button", { name: /Space|Plants|Show all/ }),
     ).toBeNull();
+  });
+
+  it("offers search results as outline buttons", () => {
+    render(<TopicsScreen dev={false} />);
+    fireEvent.change(screen.getByRole("searchbox", { name: "Add a topic" }), {
+      target: { value: "bot" },
+    });
+    expect(
+      screen.getByRole("button", { name: "Add Botany" }).className,
+    ).toContain("border-ink/35");
+  });
+
+  it("moves focus in the order drawn — by heading, then label — when a row goes", async () => {
+    // Drawn: Subjects [Astronomy], Mediums [Album art], Places [Japan]. Label order alone would
+    // put Album art first and send focus from Astronomy to Japan.
+    state.mine = [
+      { topicId: "album-art", weight: 1 },
+      { topicId: "astronomy", weight: 1 },
+      { topicId: "japan", weight: 1 },
+    ];
+    const { rerender } = render(<TopicsScreen dev={false} />);
+    fireEvent.click(
+      within(levelRow("Astronomy")).getByRole("radio", { name: "off" }),
+    );
+    await waitFor(() => expect(state.mine).toHaveLength(2));
+    rerender(<TopicsScreen dev={false} />);
+    expect(
+      within(levelRow("Album art")).getByRole("radio", { name: "some" }),
+    ).toHaveFocus();
   });
 
   describe("search", () => {

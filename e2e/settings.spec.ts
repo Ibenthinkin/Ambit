@@ -229,9 +229,9 @@ test.describe.serial("settings", () => {
       page.getByText(/^(Astronomy, Botany, Music|[^,]+, [^,]+, [^,]+ \+\d+)$/),
     ).toBeVisible({ timeout: 15_000 });
 
-    // The row is a link to /profile/topics: the questionnaire's reveal, kept (10-02-26) — one
-    // flat list of the reader's topics, each with a level, and a search box to add one. No facet
-    // sections and no group chips any more.
+    // The row is a link to /profile/topics: the questionnaire's reveal, kept (10-02-26) — the
+    // reader's topics under facet headings (DESIGN_redesign decision 3), each with a level, and
+    // a search box to add one. No group chips.
     await page.getByText("What you see").click();
     await page.waitForURL("/profile/topics");
     await expect(
@@ -249,7 +249,7 @@ test.describe.serial("settings", () => {
     await expect(page.getByRole("group", { name: "Maps level" })).toBeVisible();
     await savedMaps;
 
-    // A second, from what used to be another facet. Ceramics, not a grown topic: CI's database
+    // A second, from another facet heading. Ceramics, not a grown topic: CI's database
     // is `db:migrate` + `db:seed`, the sixteen config topics and nothing else. That grown topics
     // are acceptable to `setMine` is pinned by routers.integration.test.ts.
     const savedCeramics = waitForSetMine(page);
