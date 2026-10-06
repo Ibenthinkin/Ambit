@@ -190,7 +190,7 @@ test.describe.serial("desktop", () => {
     // the computed value lists four transparent ones before ours, so match ours, not the whole.
     await expect(first).toHaveCSS(
       "box-shadow",
-      /rgba\(0, 0, 0, 0\.6\) 0px 22px 44px 0px/,
+      /rgba\(0, 0, 0, 0\.45\) 0px 14px 34px 0px/,
     );
     await expect(strip).toHaveCSS("opacity", "1");
     await strip.getByRole("button", { name: /^Save to / }).click();

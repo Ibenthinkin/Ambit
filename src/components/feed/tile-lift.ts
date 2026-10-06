@@ -24,6 +24,9 @@
 //   - `motion-lift`: globals.css exempts this element — and only this element, not its subtree —
 //     from the reduced-motion collapse, so the lift eases under Reduce Motion as the design asks.
 //
+//   - `has-[[data-picker-open]]:` holds the lift while the hover strip's picker is open — the strip
+//     (inside this wrapper) carries the attribute, since the picker itself is portalled to <body>.
+//
 // One literal string: Tailwind's scanner reads source text, so nothing here may be composed.
 export const TILE_LIFT =
-  "relative z-[1] motion-lift transition-[scale,box-shadow] duration-[350ms] ease-lift hover:z-[2] hover:scale-[1.035] hover:shadow-lift has-[:focus-visible]:z-[2] has-[:focus-visible]:scale-[1.035] has-[:focus-visible]:shadow-lift";
+  "relative z-[1] motion-lift transition-[scale,box-shadow] duration-[350ms] ease-lift hover:z-[2] hover:scale-[1.035] hover:shadow-lift has-[:focus-visible]:z-[2] has-[:focus-visible]:scale-[1.035] has-[:focus-visible]:shadow-lift has-[[data-picker-open]]:z-[2] has-[[data-picker-open]]:scale-[1.035] has-[[data-picker-open]]:shadow-lift";

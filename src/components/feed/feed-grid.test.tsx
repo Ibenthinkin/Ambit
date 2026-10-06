@@ -114,6 +114,8 @@ describe("FeedGrid", () => {
       "has-[:focus-visible]:z-[2]",
       "has-[:focus-visible]:scale-[1.035]",
       "has-[:focus-visible]:shadow-lift",
+      "has-[[data-picker-open]]:scale-[1.035]",
+      "has-[[data-picker-open]]:shadow-lift",
     );
     // The message tile has no wrapper class at all, same as a Because tile.
     const message = screen.getByText("m").parentElement!;

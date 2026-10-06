@@ -28,9 +28,9 @@ import { api } from "~/trpc/react";
 // Saved-state comes from `saves.ids`, one list for the whole feed, and the save is optimistic on
 // it — the glyph lights the instant it is clicked and rolls back if the write fails.
 
-/** The unsave badge's glass (saved-tile.tsx), which is what a control over a picture needs. */
+/** Square, low-opacity glass (DESIGN §6.1): `rgba(14,14,14,.30)` + blur 10 + a 0.5 px white/18 edge. */
 const GLASS =
-  "border-hairline border-ink/16 bg-bg-app/62 backdrop-blur-[8px] text-ink-hi";
+  "border-hairline border-white/18 bg-[rgba(14,14,14,0.30)] backdrop-blur-[10px] text-ink-hi";
 
 export interface TileActionsProps {
   card: FeedCard;
@@ -104,10 +104,13 @@ export function TileActions({ card, onToast }: TileActionsProps) {
     <>
       <div
         data-testid="tile-actions"
+        // The wrapper's lift keys on this attribute (tile-lift.ts): the picker is portalled to
+        // <body>, so CSS can't see it from the tile — the strip says so instead.
+        data-picker-open={pickerOpen ? "" : undefined}
         // `pointer-events-none` on the strip, `auto` on its two buttons: the strip spans the
         // tile's top edge, and the space between the controls must stay the tile's to press.
         // `focus-within` reveals it for a keyboard — its buttons are tab stops even when unseen.
-        className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-[10px] opacity-0 transition-opacity duration-200 group-hover/tile:opacity-100 focus-within:opacity-100"
+        className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-[10px] opacity-0 transition-opacity duration-[250ms] group-hover/tile:opacity-100 focus-within:opacity-100 data-[picker-open]:opacity-100"
       >
         <button
           type="button"
@@ -116,11 +119,11 @@ export function TileActions({ card, onToast }: TileActionsProps) {
           onPointerDown={stop}
           className={cn(
             GLASS,
-            "pointer-events-auto flex h-8 max-w-[70%] items-center gap-[6px] px-[12px]",
+            "pointer-events-auto flex h-8 max-w-[70%] items-center gap-[6px] px-[11px]",
           )}
         >
-          <span className="truncate text-[12.5px]">{target.name}</span>
-          <ChevronDown size={12} className="text-ink/70 flex-none" />
+          <span className="truncate text-[14px]">{target.name}</span>
+          <ChevronDown size={9} className="text-ink/70 flex-none" />
         </button>
 
         <button
