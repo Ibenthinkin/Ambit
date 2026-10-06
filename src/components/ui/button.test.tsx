@@ -74,6 +74,17 @@ describe("Button", () => {
     expect(el.className).not.toMatch(/(^|\s)(bg-|border(\s|$)|h-)/);
   });
 
+  it("draws a disabled link with no underline", () => {
+    render(
+      <Button variant="link" disabled>
+        More
+      </Button>,
+    );
+    const el = screen.getByRole("button", { name: "More" });
+    expect(el).toHaveClass("text-ink/34");
+    expect(el).not.toHaveClass("underline");
+  });
+
   it("sizes: lg is 56px/17px, md 46px/15px, sm is 14px with 6x14 padding", () => {
     render(
       <>

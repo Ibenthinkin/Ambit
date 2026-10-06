@@ -14,6 +14,7 @@ import { cn } from "~/lib/utils";
 //   link     no box at all — underlined text; hover whitens it and turns the underline green.
 //
 // Hover/pressed styling is dropped when disabled (a button that can't be pressed shouldn't react).
+// `size` is ignored for `link` (no box to size; it keeps its own 15 px text).
 // The keyboard focus ring is global (globals.css `:focus-visible`), so nothing is added here.
 type ButtonVariant = "primary" | "outline" | "link";
 type ButtonSize = "sm" | "md" | "lg";
