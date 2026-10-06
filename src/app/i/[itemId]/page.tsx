@@ -13,7 +13,9 @@ import { SharedByRow, sharedByName } from "~/components/item/shared-by-row";
 import { WanderNext } from "~/components/item/wander-next";
 import { Rise } from "~/components/ui/rise";
 import { auth } from "~/lib/auth";
+import { getCollectionForUser } from "~/server/db/collections";
 import { getItemById } from "~/server/db/items";
+import { getSavedItemCollection } from "~/server/db/saves";
 import { topicLabelsFor } from "~/server/db/topics";
 import { railItemFrom } from "~/server/services/gallery-rail";
 import { api } from "~/trpc/server";
@@ -148,6 +150,20 @@ export default async function ItemPage({
     );
   }
 
+  // "Kept in" on the article's meta strip: the signed-in reader's collection for this item. Two
+  // existing lookups (the same pair `saves.forItem` and the collection guard use), signed-in only;
+  // a stranger, an unsaved item or an uncollected save is "—". Read once at render, so a save made
+  // from the pill shows on the next visit.
+  let keptIn: string | null = null;
+  if (session) {
+    const collectionId = await getSavedItemCollection(session.user.id, itemId);
+    if (collectionId) {
+      keptIn =
+        (await getCollectionForUser(session.user.id, collectionId))?.name ??
+        null;
+    }
+  }
+
   // An article keeps the reader layout, inside the shell that gives it the pill and the exits.
   return (
     <ItemShell
@@ -173,7 +189,7 @@ export default async function ItemPage({
 
           <Rise delayMs={50}>
             <div className="mt-[18px]">
-              <ReaderItemBody item={item} />
+              <ReaderItemBody item={item} keptIn={keptIn} />
             </div>
           </Rise>
 

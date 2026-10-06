@@ -20,7 +20,7 @@ export function ReaderBlocks({ body }: ReaderBlocksProps) {
           return (
             <h2
               key={index}
-              className="text-ink-hi mt-[26px] mb-[10px] text-[19px] leading-[1.3]"
+              className="border-ink/14 text-ink-hi mt-[28px] mb-[12px] border-t pt-[14px] text-[24px] leading-[1.15] font-normal"
             >
               {block.text}
             </h2>
@@ -30,7 +30,7 @@ export function ReaderBlocks({ body }: ReaderBlocksProps) {
           return (
             <h3
               key={index}
-              className="text-ink/72 mt-[26px] mb-[10px] text-[15px] tracking-[0.4px]"
+              className="text-ink/62 mt-[20px] mb-[8px] font-mono text-[11px] font-normal tracking-[0.4px] uppercase"
             >
               {block.text}
             </h3>
@@ -39,7 +39,7 @@ export function ReaderBlocks({ body }: ReaderBlocksProps) {
         return (
           <p
             key={index}
-            className="text-ink/78 mb-4 text-[16px] leading-[1.72]"
+            className="text-ink/78 mb-4 text-[16px] leading-[1.65]"
           >
             {block.text}
           </p>

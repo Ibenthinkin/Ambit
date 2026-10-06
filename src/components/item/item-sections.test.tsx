@@ -89,7 +89,7 @@ describe("ReaderItemBody", () => {
     expect(
       screen.getByRole("link", { name: /See it on The Public Domain Review/ }),
     ).toHaveAttribute("href", "https://publicdomainreview.org/essay/x/");
-    expect(screen.queryByRole("link", { name: /^Read on / })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Read on / })).toBeNull();
   });
 
   // Writing Phase 5: a publication's piece is a link card — its dek, and the prominent way out.
@@ -106,7 +106,36 @@ describe("ReaderItemBody", () => {
     expect(
       screen.getByRole("link", { name: /Read it on The Marginalian/ }),
     ).toHaveAttribute("href", "https://www.themarginalian.org/2026/09/30/x/");
-    expect(screen.queryByRole("link", { name: /^Read on / })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Read on / })).toBeNull();
+  });
+
+  it("shows the bracket link-out and no eyebrow above the title", () => {
+    render(<ReaderItemBody item={makeItem()} />);
+    expect(
+      screen.getByRole("link", { name: "[Read on Wikipedia..]" }),
+    ).toHaveAttribute("target", "_blank");
+    // The title is the first thing in the article.
+    expect(screen.getByRole("article").firstElementChild?.tagName).toBe("H1");
+  });
+
+  it("fills the meta strip from the stored minutes and the reader's collection", () => {
+    const { rerender } = render(
+      <ReaderItemBody
+        item={makeItem({ readingMinutes: 7 })}
+        keptIn="Articles"
+      />,
+    );
+    expect(screen.getByText("Source").nextSibling).toHaveTextContent(
+      "Wikipedia",
+    );
+    expect(screen.getByText("Reading").nextSibling).toHaveTextContent("7 min");
+    expect(screen.getByText("Kept in").nextSibling).toHaveTextContent(
+      "Articles",
+    );
+
+    rerender(<ReaderItemBody item={makeItem({ readingMinutes: null })} />);
+    expect(screen.getByText("Reading").nextSibling).toHaveTextContent("—");
+    expect(screen.getByText("Kept in").nextSibling).toHaveTextContent("—");
   });
 
   it("still reads as an article when there's no stored body at all", () => {
