@@ -34,8 +34,6 @@ const ALLOWED: Record<string, string> = {
   "src/components/item/spread-toggle.tsx":
     "lives inside the rail, so it wears the rail's round chrome",
   // Added by Task 2.9 — each one a genuine circle, everything else in the file is square:
-  "src/components/saved/saved-tile.tsx":
-    "the remove-bookmark disc over a saved picture — a circular control, like the share disc",
   "src/components/landing/landing-screen.tsx":
     "the floating 54 px logo disc that re-opens the sign-in sheet — a circular control",
 };

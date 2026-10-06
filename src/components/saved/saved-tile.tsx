@@ -75,7 +75,7 @@ export function SavedTile({ tile, onUnsave }: SavedTileProps) {
         ) : (
           <ArticleCard card={tile.card} onTap={openItem} />
         )}
-        {/* Two badge treatments from the prototype: a glass circle over imagery (needs the blur
+        {/* Two badge treatments from the prototype: a square of glass over imagery (needs the blur
             and stronger border to stay legible on arbitrary pictures), a flat one on the already-
             quiet article card. */}
         <button
@@ -85,8 +85,8 @@ export function SavedTile({ tile, onUnsave }: SavedTileProps) {
           onPointerDown={(e) => e.stopPropagation()}
           className={
             overPicture
-              ? "border-hairline border-ink/16 bg-bg-app/62 absolute top-[9px] right-[9px] flex size-[30px] items-center justify-center rounded-full backdrop-blur-[8px]"
-              : "border-hairline border-ink/10 bg-ink/5 absolute top-[12px] right-[12px] flex size-[28px] items-center justify-center rounded-full"
+              ? "border-hairline border-ink/16 bg-bg-app/62 absolute top-[9px] right-[9px] flex size-[30px] items-center justify-center backdrop-blur-[8px]"
+              : "border-hairline border-ink/10 bg-ink/5 absolute top-[12px] right-[12px] flex size-[28px] items-center justify-center"
           }
         >
           <Bookmark
