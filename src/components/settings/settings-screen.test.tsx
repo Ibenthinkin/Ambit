@@ -161,11 +161,8 @@ describe("SettingsScreen — rows", () => {
       "Add to home screen",
       "What you see",
       "Reading",
-      "Muted sources",
       "Serendipity",
-      "Camera roll",
       "Notifications",
-      "Language",
       "About Ambit",
       "Get in touch",
       "Sign out",
@@ -181,9 +178,10 @@ describe("SettingsScreen — rows", () => {
     for (const fake of ["2 left", "Often", "Not determined"]) {
       expect(screen.queryByText(fake)).not.toBeInTheDocument();
     }
-    // The two stub rows whose value is genuinely true keep it.
-    expect(screen.getByText("None")).toBeInTheDocument();
-    expect(screen.getByText("English")).toBeInTheDocument();
+    // The rows that were stubs with nothing true to say are gone (DESIGN_redesign §6.5).
+    for (const gone of ["Muted sources", "Camera roll", "Language"]) {
+      expect(screen.queryByText(gone)).not.toBeInTheDocument();
+    }
 
     fireEvent.click(screen.getByText("Serendipity"));
     expect(screen.getByText("Serendipity · coming soon")).toBeInTheDocument();
@@ -198,7 +196,7 @@ describe("SettingsScreen — rows", () => {
   // the list measure. One cap, not two: there is no header of its own any more.
   it("caps itself at the list measure, left-aligned, with no header and no <main>", () => {
     renderScreen();
-    expect(document.querySelectorAll(".md\\:max-w-\\[600px\\]")).toHaveLength(
+    expect(document.querySelectorAll(".md\\:max-w-\\[720px\\]")).toHaveLength(
       1,
     );
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
@@ -253,14 +251,22 @@ describe("SettingsScreen — Notifications", () => {
     expect(screen.getByText("On")).toBeInTheDocument();
   });
 
-  it("marks a denied permission at full ink, louder than the muted values", () => {
-    // 1b has no error colour (Task 2.9 deleted `--color-error`); the attention dot comes in 5.5.
+  it("marks a denied permission with the green attention dot, not a coloured value", () => {
     stubNotifications("denied");
     renderScreen();
     const value = screen.getByText("Off");
-    expect(value).toBeInTheDocument();
-    expect(value).toHaveClass("text-ink");
-    expect(value).not.toHaveClass("text-ink/42");
+    expect(value).not.toHaveClass("text-error");
+    const row = value.closest("button")!;
+    const dot = row.querySelector("[data-attention-dot]");
+    expect(dot).not.toBeNull();
+    expect(dot).toHaveAttribute("aria-hidden", "true");
+    expect(dot).toHaveClass("bg-accent");
+  });
+
+  it("shows no attention dot when the permission is granted", () => {
+    stubNotifications("granted");
+    renderScreen();
+    expect(document.querySelector("[data-attention-dot]")).toBeNull();
   });
 
   it("prompts from the unanswered state", () => {

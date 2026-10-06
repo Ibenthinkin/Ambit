@@ -2,42 +2,37 @@
 
 import * as React from "react";
 
-import { ChevronRight } from "~/components/icons";
 import { Eyebrow } from "~/components/ui/eyebrow";
-import { cn } from "~/lib/utils";
 
-// The chrome of `/profile/settings` (`Ambit - Settings.dc.html`): a titled card of rows, and one row.
-// Purely presentational — every behavior, including which rows are honest stubs, lives in
-// `settings-screen.tsx`.
+// The chrome of `/profile/settings` (DESIGN_redesign §6.5, `Ambit - Profile Desktop.dc.html`'s
+// Settings tab): a mono group header over an `ink/16` rule, then rows with `ink/8` hairlines.
+// **No cards and no row icons.** Purely presentational — every behavior, including which rows are
+// honest stubs, lives in `settings-screen.tsx`.
 //
-// **The chevron rule.** A row shows a chevron unless it has an `action` pill, which means the
-// chevron is a claim: "this opens something". A row that merely displays a value (Muted sources'
-// "None") still carries one, because tapping it still *does* something — even if in 5.10 that
-// something is a "coming soon" toast. The one row with no chevron at all is Sign out, which is not
-// a doorway.
+// **The arrow rule.** A row ends in a mono `→` unless it has an `action` (a small white square,
+// "Install"), because the arrow is a claim: "this opens something". Sign out is not a doorway and
+// carries neither.
 
 export interface SettingsRowProps {
-  icon: React.ReactNode;
   label: string;
-  /** The right-aligned muted value, e.g. "English" or "3 topics". Omit for a bare row. */
+  /** The right-aligned mono value, e.g. "English" or "3 topics". Omit for a bare row. */
   value?: string;
   /**
-   * Renders `value` at full ink instead of the muted grey, so it reads louder than its neighbours.
-   * Notifications being *denied* is the only place it's used: a permission the reader has to leave
-   * the app to fix. (It was the old orange `--color-error`; 1b has no error colour, and the green
-   * attention dot DESIGN §3.2 gives this state arrives with the Settings screen, Task 5.5.)
+   * The green 6 px attention dot, drawn before the value. Notifications being *denied* is the only
+   * place it's used: a permission the reader has to leave the app to fix. It replaces the old
+   * error-coloured value (1b has no error colour, DESIGN §3.2). Decoration only — the value's own
+   * words ("Off") carry the meaning.
    */
-  warnValue?: boolean;
-  /** A right-aligned label set like a small primary button instead of a chevron ("Install"). */
+  attention?: boolean;
+  /** A right-aligned label set like a small primary button instead of an arrow ("Install"). */
   action?: string;
   onClick?: () => void;
 }
 
 export function SettingsRow({
-  icon,
   label,
   value,
-  warnValue = false,
+  attention = false,
   action,
   onClick,
 }: SettingsRowProps) {
@@ -48,19 +43,18 @@ export function SettingsRow({
       // Same rule as every other tappable row in the app: a thumb resting here mid-scroll must not
       // fire it.
       onPointerDown={(e) => e.stopPropagation()}
-      className="flex w-full items-center gap-[13px] px-4 py-[15px] text-left"
+      className="border-ink/8 flex w-full items-center gap-3 border-b py-4 text-left"
     >
-      <span className="text-ink/60 flex w-[26px] flex-none justify-center">
-        {icon}
-      </span>
-      <span className="text-ink flex-1 truncate text-[15px]">{label}</span>
-      {value ? (
+      <span className="text-ink flex-1 truncate text-[18px]">{label}</span>
+      {attention ? (
         <span
-          className={cn(
-            "flex-none text-[13.5px]",
-            warnValue ? "text-ink" : "text-ink/42",
-          )}
-        >
+          data-attention-dot
+          aria-hidden="true"
+          className="bg-accent size-[6px] flex-none rounded-full"
+        />
+      ) : null}
+      {value ? (
+        <span className="text-ink/55 flex-none font-mono text-[11px] uppercase">
           {value}
         </span>
       ) : null}
@@ -71,16 +65,20 @@ export function SettingsRow({
           {action}
         </span>
       ) : (
-        <ChevronRight size={13} className="text-ink/32 flex-none" />
+        <span
+          aria-hidden="true"
+          className="text-ink/40 flex-none font-mono text-[13px]"
+        >
+          →
+        </span>
       )}
     </button>
   );
 }
 
 /**
- * A titled card of rows. The eyebrow sits *outside* the card (that's the design's own arrangement),
- * and the hairline dividers come from `divide-y` on the card rather than a border per row, so the
- * first and last rows can't accidentally carry one.
+ * A titled run of rows: the mono header sits over an `ink/16` rule and the rows' own bottom
+ * hairlines do the dividing. Untitled, it is the Sign out slot — two `ink/16` rules around one row.
  */
 export function SettingsGroup({
   title,
@@ -90,15 +88,16 @@ export function SettingsGroup({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-[30px]">
+    <section className="mt-8">
       {title ? (
-        <Eyebrow as="h2" className="mx-1 mb-[10px] block">
+        <Eyebrow
+          as="h2"
+          className="border-ink/16 block border-b pb-[10px] text-[11px]"
+        >
           {title}
         </Eyebrow>
       ) : null}
-      <div className="border-hairline border-ink/8 bg-ink/[3.5%] divide-ink/7 divide-y-[0.5px] overflow-hidden">
-        {children}
-      </div>
+      {children}
     </section>
   );
 }

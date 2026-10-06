@@ -3,20 +3,6 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import {
-  Bell,
-  BookOpen,
-  ChatBubble,
-  Download,
-  FeedLines,
-  Globe,
-  Info,
-  Mute,
-  Person,
-  PersonPlus,
-  Photo,
-  Rays,
-} from "~/components/icons";
 import { Toast } from "~/components/ui/toast";
 import { authClient } from "~/lib/auth-client";
 import { api } from "~/trpc/react";
@@ -36,9 +22,10 @@ import { useNotificationPermission } from "./use-notification-permission";
 // **Real rows do the thing. Stub rows say so and show nothing.** The prototype's demo values ("2
 // left", "Often", "Not determined") are all dropped: a settings screen that displays invented state
 // is worse than one that admits a feature isn't built, because the reader has no way to tell which
-// numbers they can trust. A stub is a visible row with a chevron, a real icon, and a "coming soon"
-// toast — Serendipity, Muted sources, Invite a friend, Camera roll, Language. The two rows whose
-// value is *true* today keep it: Muted sources says "None" and Language says "English".
+// numbers they can trust. A stub is a visible row with an arrow and a "coming soon" toast —
+// Serendipity and Invite a friend. The 1b redesign (DESIGN_redesign §6.5) dropped the rows that were
+// stubs with nothing true to say (Muted sources, Camera roll, Language) and the Appearance row with
+// the accent knob.
 //
 // This screen is also where **sign-out lives** — `/profile/settings` is its permanent home. It sat
 // on `/dev/tokens` from 5.6, flagged there as an interim home, because the design handoff has no
@@ -144,17 +131,15 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
       {/* Left-aligned at the list measure inside the hub's wide column (docs/DESIGN_list-screens.md
           §6). The rows keep their own `px-5` inside it, so above 768px the list simply stops
           widening. */}
-      <div className="md:max-w-[600px]">
-        <div className="px-5 pt-5 pb-[120px]">
+      <div className="md:max-w-[720px]">
+        <div className="px-5 pt-2 pb-[120px] md:px-0">
           <SettingsGroup title="Account">
             <SettingsRow
-              icon={<Person size={17} />}
               label="Account details"
               // An in-hub tab switch, so `replace` like the nav (docs/DESIGN_list-screens.md §5).
               onClick={() => router.replace("/profile/edit")}
             />
             <SettingsRow
-              icon={<PersonPlus size={17} />}
               label="Invite a friend"
               // No value: invites exist, but only as an admin script (`bun run invite`). A count
               // here would be fiction.
@@ -165,7 +150,6 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
               tap beats three steps of instructions. Otherwise, and that includes every iOS
               reader, the instruction sheet. */}
             <SettingsRow
-              icon={<Download size={17} />}
               label="Add to home screen"
               value={standalone ? "Installed" : undefined}
               action={standalone ? undefined : "Install"}
@@ -181,7 +165,6 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
 
           <SettingsGroup title="Your feed">
             <SettingsRow
-              icon={<FeedLines size={17} />}
               label="What you see"
               value={topicValue}
               // A page since 09-10-26, not a sheet: the picker offers every topic by facet, which a
@@ -190,21 +173,11 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
               onClick={() => router.replace("/profile/topics")}
             />
             <SettingsRow
-              icon={<BookOpen size={17} />}
               label="Reading"
               value={READING_LABELS[reading.data ?? DEFAULT_READING]}
               onClick={() => setOpenSheet("reading")}
             />
             <SettingsRow
-              icon={<Mute size={17} />}
-              label="Muted sources"
-              // True today, and will stay true until muting is built: nothing anywhere in the app
-              // mutes a source.
-              value="None"
-              onClick={stub("Muted sources")}
-            />
-            <SettingsRow
-              icon={<Rays size={17} />}
               label="Serendipity"
               // The dial exists server-side (JUMP share, wildcardChance) but has no per-user value
               // to report, so the row shows none.
@@ -214,36 +187,21 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
 
           <SettingsGroup title="Permissions">
             <SettingsRow
-              icon={<Photo size={17} />}
-              label="Camera roll"
-              onClick={stub("Camera roll")}
-            />
-            <SettingsRow
-              icon={<Bell size={17} />}
               label="Notifications"
               value={notificationValue(notifications.state)}
-              // Denied is the one state the reader has to leave the app to change — the warn tint
-              // marks it as a dead end rather than a setting.
-              warnValue={notifications.state === "denied"}
+              // Denied is the one state the reader has to leave the app to change — the green
+              // attention dot marks it as a dead end rather than a setting.
+              attention={notifications.state === "denied"}
               onClick={onNotificationsTap}
             />
           </SettingsGroup>
 
           <SettingsGroup title="Other">
             <SettingsRow
-              icon={<Globe size={17} />}
-              label="Language"
-              // True: the app is English-only, with no translation layer anywhere.
-              value="English"
-              onClick={stub("Language")}
-            />
-            <SettingsRow
-              icon={<Info size={17} />}
               label="About Ambit"
               onClick={() => setOpenSheet("about")}
             />
             <SettingsRow
-              icon={<ChatBubble size={17} />}
               label="Get in touch"
               onClick={() => {
                 window.location.href = `mailto:${CONTACT_EMAIL}`;
@@ -254,11 +212,9 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
           {/* Sign out's permanent home, and 5.10's own addition — the design handoff has no sign-out
             affordance anywhere. A card of its own rather than a row in "Other": it's the one
             control here that ends the session, and it shouldn't sit next to the language picker. */}
-          <SettingsGroup>
-            <SignOutRow />
-          </SettingsGroup>
+          <SignOutRow />
 
-          <p className="text-ink/28 mt-[34px] text-center text-[12px]">
+          <p className="text-ink/35 mt-7 font-mono text-[11px] uppercase">
             Ambit · invite-only · {versionLabel}
           </p>
         </div>
@@ -316,7 +272,7 @@ function SignOutRow() {
         void authClient.signOut().then(() => router.push("/"));
       }}
       onPointerDown={(e) => e.stopPropagation()}
-      className="text-ink flex w-full items-center px-4 py-[15px] text-left text-[15px]"
+      className="text-ink border-ink/16 mt-8 flex w-full items-center border-y py-4 text-left text-[18px]"
     >
       Sign out
     </button>
