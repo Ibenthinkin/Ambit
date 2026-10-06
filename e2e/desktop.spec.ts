@@ -483,6 +483,10 @@ test.describe.serial("desktop", () => {
       .locator("img");
     const alts = () =>
       current.evaluateAll((els) => els.map((e) => e.getAttribute("alt")));
+    // Which pictures are on the spread. Not the alts: a blog's posts can share one title
+    // ("70s Sci-Fi Art" twice in a row), but each picture's proxied src names its item.
+    const srcs = () =>
+      current.evaluateAll((els) => els.map((e) => e.getAttribute("src")));
     const toggle = page.getByRole("button", { name: "Magazine view" });
     // The item screen throttles its wake (mouse move, key, wheel, touch, scroll) to one per
     // 250 ms, and Playwright moves faster than any hand — a summon right after another mouse
@@ -531,7 +535,7 @@ test.describe.serial("desktop", () => {
     // centre line, and the track's `-33.3333%` translate lands them a fraction either side of it.
     expect(left.x + left.width).toBeLessThanOrEqual(CENTRE_X + 1);
     expect(right.x).toBeGreaterThanOrEqual(CENTRE_X - 1);
-    const first = await alts();
+    const first = await srcs();
 
     // A turn moves two: neither page of the new spread was on the old one.
     const url = page.url();
@@ -541,10 +545,11 @@ test.describe.serial("desktop", () => {
     await expect(leaf).toBeVisible();
     await expect(page).not.toHaveURL(url);
     await expect(leaf).toHaveCount(0);
-    await expect.poll(alts).not.toEqual(first);
+    await expect.poll(srcs).not.toEqual(first);
+    const turnedSrcs = await srcs();
+    expect(first).not.toContain(turnedSrcs[0]);
+    expect(first).not.toContain(turnedSrcs[1]);
     const turned = await alts();
-    expect(first).not.toContain(turned[0]);
-    expect(first).not.toContain(turned[1]);
 
     // A click on the right page makes it the item: the facts' title is its alt.
     await page.mouse.click(1080, CENTRE_Y);
