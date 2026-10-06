@@ -703,7 +703,6 @@ export default function TokensPage() {
           title="Chip"
           note="DESIGN §4: rest, hover, focus, pressed, selected. Tap one to toggle."
         >
-          <Placeholder task="2.2" what="square, ink-on-selected, tri-state" />
           <div className="flex flex-wrap gap-2">
             {["Painting", "Photography", "Architecture", "Nature"].map(
               (label) => (
@@ -723,7 +722,13 @@ export default function TokensPage() {
                 </Chip>
               ),
             )}
-            <Chip selected="mixed">Mixed (tri-state)</Chip>
+          </div>
+          {/* Saved's filter size, and a pressed one beside a resting one for the static states. */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Chip size="sm">All · 12</Chip>
+            <Chip size="sm" selected>
+              Favourites · 4
+            </Chip>
           </div>
         </Section>
 

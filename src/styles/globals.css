@@ -122,10 +122,9 @@
   /* Named animations. Each pairs a duration/easing/fill-mode with the matching @keyframes below,
      so a component just writes `animate-rise` etc. rather than repeating the shorthand.
      `ambitpop` in the prototypes was actually two unrelated animations sharing one name — split
-     here into `chip-pop` (selection feedback) and `pop-in` (entrance), per Decision 6. */
+     here; `chip-pop` was removed in 1b, leaving `pop-in` (entrance), per Decision 6. */
   --animate-rise: rise 0.6s ease both; /* section entrance on load, staggered per-caller via an
                                            inline animation-delay (see Rise primitive) */
-  --animate-chip-pop: chip-pop 0.22s ease; /* onboarding chip, on select */
   --animate-pop-in: pop-in 0.5s var(--ease-settle) both; /* install-flow checkmark entrance */
   /* Ben's "Reach" loader (docs/LoaderAnimation/, components/ui/loader.tsx): three motions on one
      2.4 s cycle. The ring breathes on its own ease; the orbit and the reach share the design's
@@ -188,17 +187,6 @@
     to {
       opacity: 1;
       transform: none;
-    }
-  }
-  @keyframes chip-pop {
-    0% {
-      transform: scale(1);
-    }
-    40% {
-      transform: scale(0.94);
-    }
-    100% {
-      transform: scale(1);
     }
   }
   @keyframes pop-in {
