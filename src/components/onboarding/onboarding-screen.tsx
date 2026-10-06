@@ -238,8 +238,8 @@ export function OnboardingScreen({
     setPhase("reveal");
   }
 
-  // What the answers add up to — recomputed when they change, which only happens before the
-  // reveal is on screen (RevealStep reads `proposed` once, on mount).
+  // What the answers add up to — recomputed when they change. Today that only happens before
+  // the reveal is on screen; RevealStep re-seeds its draft if it ever happens after (Allow).
   const proposed = useMemo(
     () => picksFrom(scoresSoFar, listed, starters),
     [scoresSoFar, listed, starters],

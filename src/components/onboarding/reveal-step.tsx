@@ -7,6 +7,14 @@ import { TopicLevels, type LevelTopic } from "~/components/topics/topic-levels";
 import { Button } from "~/components/ui/button";
 import { MIN_PICKS } from "~/lib/interview/config";
 import type { Pick } from "~/lib/interview/picks";
+import {
+  draftPicks,
+  reseed,
+  sameProposal,
+  seedDraft,
+  withLevel,
+  withOff,
+} from "~/lib/interview/reveal-draft";
 import type { TasteV1 } from "~/lib/interview/taste";
 import { cn } from "~/lib/utils";
 import { weightOf } from "~/server/config/topic-levels";
@@ -20,16 +28,19 @@ import { StepBar } from "./step-bar";
 // to, as a list of topics each at a level, and the reader's chance to disagree before any of it
 // is written — a little / some / a lot / off on every row.
 //
-// **A local draft.** The proposal arrives once (`proposed`, from lib/interview/picks.ts) and is
-// edited here; nothing is saved until "Start exploring" hands the draft to `onSubmit`. What is
-// written is exactly what this screen showed — which is why `onboarding.complete` *overwrites*.
+// **A local draft.** The proposal (`proposed`, from lib/interview/picks.ts) seeds a draft that is
+// edited here (lib/interview/reveal-draft.ts); nothing is saved until "Start exploring" hands the
+// draft to `onSubmit`. What is written is exactly what this screen showed — which is why
+// `onboarding.complete` *overwrites*. If the proposal changes while the screen is up — a
+// kept-out subject allowed back in (kept-out.ts) — the draft is **re-seeded**: rows the reader
+// set by hand keep what they set, the rest follow the new proposal.
 //
 // **Off keeps the row.** A switched-off topic stays on the page with "off" pressed, so a stray
 // tap can be undone without going back through the questions. It just isn't submitted.
 export interface RevealStepProps {
   /** `topics.list` rows — the labels. */
   topics: readonly LevelTopic[];
-  /** What the answers proposed. Read once, on mount. */
+  /** What the answers proposed. Seeds the draft; a different proposal later re-seeds it. */
   proposed: readonly Pick[];
   /** The exhibition the answers make (First Exhibition, taste.ts). Absent on a bank without
    *  v2's questions — the reveal is then the levels list alone. */
@@ -52,39 +63,23 @@ export function RevealStep({
   onSubmit,
   onBack,
 }: RevealStepProps) {
-  const [picks, setPicks] = useState<Map<string, number>>(
-    () => new Map(proposed.map((p) => [p.topicId, p.weight])),
-  );
-  const [off, setOff] = useState<Set<string>>(new Set());
-
-  const short = picks.size < MIN_PICKS;
-
-  function setLevel(topicId: string, weight: number) {
-    setPicks((prev) => new Map(prev).set(topicId, weight));
-    setOff((prev) => {
-      const next = new Set(prev);
-      next.delete(topicId);
-      return next;
-    });
+  const [draft, setDraft] = useState(() => seedDraft(proposed));
+  // Re-seeding during render, not in an effect, so no frame shows the old rows against a new
+  // proposal. Compared by content: a parent handing over an equal list in a new array is not a
+  // new proposal, and must not loop.
+  const [seededFrom, setSeededFrom] = useState(proposed);
+  if (!sameProposal(seededFrom, proposed)) {
+    setSeededFrom(proposed);
+    setDraft(reseed(draft, proposed));
   }
-  function turnOff(topicId: string) {
-    setPicks((prev) => {
-      const next = new Map(prev);
-      next.delete(topicId);
-      return next;
-    });
-    setOff((prev) => new Set(prev).add(topicId));
-  }
+
+  const short = draft.picks.size < MIN_PICKS;
 
   function submit() {
     // Guarded here as well as by `disabled` — and against a second press while one is in flight.
     if (short || submitting) return;
     // In the proposal's own order (best first), so the submitted list reads like the answers did.
-    onSubmit(
-      proposed
-        .filter((p) => picks.has(p.topicId))
-        .map((p) => ({ topicId: p.topicId, weight: picks.get(p.topicId)! })),
-    );
+    onSubmit(draftPicks(draft));
   }
 
   return (
@@ -124,10 +119,12 @@ export function RevealStep({
           <div className="mt-6">
             <TopicLevels
               topics={topics}
-              picks={picks}
-              off={off}
-              onLevel={(id, level) => setLevel(id, weightOf(level))}
-              onOff={turnOff}
+              picks={draft.picks}
+              off={draft.off}
+              onLevel={(id, level) =>
+                setDraft((d) => withLevel(d, id, weightOf(level)))
+              }
+              onOff={(id) => setDraft((d) => withOff(d, id))}
             />
           </div>
         </div>
