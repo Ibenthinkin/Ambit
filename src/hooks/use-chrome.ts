@@ -99,7 +99,16 @@ export interface Chrome {
   hide: () => void;
 }
 
-export function useChrome(): Chrome {
+export interface ChromeOptions {
+  /**
+   * Desktop only: asked when the idle timer runs out. True means keyboard focus is inside the
+   * chrome, so it must stay (WCAG 2.4.7: a focused control never fades to `visibility: hidden`);
+   * the timer restarts instead of hiding.
+   */
+  holdWhile?: () => boolean;
+}
+
+export function useChrome({ holdWhile }: ChromeOptions = {}): Chrome {
   const desktop = useMediaQuery(DESKTOP_QUERY);
   const [state, dispatch] = React.useReducer(chromeReducer, INITIAL);
 
@@ -108,11 +117,11 @@ export function useChrome(): Chrome {
   React.useEffect(() => {
     if (!desktop || !state.visible) return;
     const id = setTimeout(
-      () => dispatch({ type: "idle", desktop: true }),
+      () => dispatch({ type: holdWhile?.() ? "wake" : "idle", desktop: true }),
       CHROME_IDLE_MS,
     );
     return () => clearTimeout(id);
-  }, [desktop, state.visible, state.wakes]);
+  }, [desktop, state.visible, state.wakes, holdWhile]);
 
   const toggle = React.useCallback(
     () => dispatch({ type: "toggle", desktop }),

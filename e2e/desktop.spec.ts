@@ -418,6 +418,42 @@ test.describe.serial("desktop", () => {
     await page.waitForURL(/\/feed/);
   });
 
+  // WCAG 2.4.7: the chrome must not idle away under keyboard focus.
+  test("keyboard focus in the caption holds the chrome up, and Information lands focus on the section", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const imageTile = page
+      .locator("[data-feed-id]:has(img):not(:has(h2))")
+      .first();
+    await expect(imageTile).toBeVisible();
+    await imageTile.locator("> *").first().click();
+    await page.waitForURL(/\/i\//);
+
+    const chrome = page.getByTestId("gallery-chrome");
+    // Let any wake from the navigation idle away.
+    await expect(chrome).toHaveAttribute("aria-hidden", "true", {
+      timeout: 8_000,
+    });
+
+    const info = page.getByRole("button", { name: "Information" });
+    for (let i = 0; i < 30; i++) {
+      await page.keyboard.press("Tab");
+      if (await info.evaluate((el) => el === document.activeElement)) break;
+    }
+    await expect(info).toBeFocused();
+    await expect(info).toBeVisible();
+    await page.waitForTimeout(3_000);
+    await expect(info).toBeVisible();
+    await expect(chrome).toHaveAttribute("aria-hidden", "false");
+
+    await page.keyboard.press("Enter");
+    const region = page.getByRole("region", { name: "Information" });
+    await expect(region).toBeFocused();
+    await expect(region).toBeInViewport();
+  });
+
   // `/` (09-26-26): the signed-out taste at desktop width — four columns like /feed, the rail
   // toolbar at the right, and the sign-up card its Profile raises is centered. Signed out, so
   // this spends nothing of the shared user; the seed above is what it draws.

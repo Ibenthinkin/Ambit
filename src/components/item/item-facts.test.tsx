@@ -159,3 +159,21 @@ describe("ItemFacts layout=wide (desktop Information)", () => {
     ).toHaveAttribute("href", "https://example.test/o/1");
   });
 });
+
+describe("ItemFacts layout=wide link-out verbs", () => {
+  it("uses the blog verb for a designated blog", () => {
+    render(
+      <ItemFacts item={cell({ source: "doorofperception" })} layout="wide" />,
+    );
+    expect(
+      screen.getByRole("link", { name: /Read the post on/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses PDR's own verb", () => {
+    render(<ItemFacts item={cell({ source: "pdr" })} layout="wide" />);
+    expect(
+      screen.getByRole("link", { name: /See it on The Public Domain Review/ }),
+    ).toBeInTheDocument();
+  });
+});

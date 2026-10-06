@@ -148,6 +148,18 @@ describe("useChrome on a computer", () => {
     expect(result.current.visible).toBe(false);
   });
 
+  it("holdWhile keeps it up and restarts the clock while focus is inside; hides once it leaves", () => {
+    let held = true;
+    const holdWhile = () => held;
+    const { result } = renderHook(() => useChrome({ holdWhile }));
+    act(() => result.current.wake());
+    tick(CHROME_IDLE_MS * 3);
+    expect(result.current.visible).toBe(true);
+    held = false;
+    tick(CHROME_IDLE_MS);
+    expect(result.current.visible).toBe(false);
+  });
+
   it("hide() is ignored — only idleness hides on a computer", () => {
     const { result } = renderHook(() => useChrome());
     act(() => result.current.wake());

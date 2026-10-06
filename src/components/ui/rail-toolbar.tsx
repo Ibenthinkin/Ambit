@@ -106,6 +106,7 @@ export function RailToolbar({
   return (
     <div
       data-testid="rail-toolbar"
+      data-chrome
       aria-hidden={!visible}
       // `-translate-y-1/2` writes the standalone `translate` property (Tailwind v4), so a
       // `transform` on this element would compose with it rather than replace it. The fade has

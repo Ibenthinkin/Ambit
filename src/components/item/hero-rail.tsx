@@ -414,6 +414,7 @@ export function HeroRail({
 
         <div
           data-testid="gallery-chrome"
+          data-chrome
           aria-hidden={!chromeVisible}
           // `hidden md:block`: no caption over the hero on a phone. Above `md` the rail is at the
           // right edge, so the caption keeps the gallery's 42.

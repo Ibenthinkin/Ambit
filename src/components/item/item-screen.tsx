@@ -156,6 +156,12 @@ function subscribeNever() {
 /** Mouse moves, wheels and scrolls fire at 60Hz; the chrome needs one wake per quarter second. */
 const WAKE_THROTTLE_MS = 250;
 
+/** Whether keyboard focus is inside the chrome (caption or rail) — module-level so its identity
+ *  is stable for `useChrome`'s timer effect. */
+function focusInChrome(): boolean {
+  return !!document.activeElement?.closest("[data-chrome]");
+}
+
 export function ItemScreen({
   entryItem,
   initialRail,
@@ -182,7 +188,8 @@ export function ItemScreen({
   const [toast, setToast] = React.useState<string | null>(null);
 
   const router = useRouter();
-  const chrome = useChrome();
+  // Keyboard focus inside the chrome (the caption's Information link, any rail button) holds it up.
+  const chrome = useChrome({ holdWhile: focusInChrome });
 
   // ── the explore taste (09-26-26, docs/PLAN_explore-route.md) ──────────────────────────────────
   // A signed-out visitor who came from `/explore` gets a rail that ends, after `EXPLORE_RAIL_CAP`
@@ -670,8 +677,14 @@ export function ItemScreen({
     const events = ["mousemove", "keydown", "wheel", "touchstart", "scroll"];
     for (const ev of events)
       window.addEventListener(ev, onInput, { passive: true });
+    // Focus arriving in the chrome wakes it, unthrottled: it is a keyboard reader's arrival.
+    const onFocusIn = (e: FocusEvent) => {
+      if ((e.target as Element | null)?.closest?.("[data-chrome]")) wake();
+    };
+    window.addEventListener("focusin", onFocusIn);
     return () => {
       for (const ev of events) window.removeEventListener(ev, onInput);
+      window.removeEventListener("focusin", onFocusIn);
     };
   }, [desktop, wake, chromeOnScroll]);
 
@@ -783,7 +796,7 @@ export function ItemScreen({
         )}
       </div>
     ) : (
-      <div className="pointer-events-auto">
+      <div className="pointer-events-auto max-w-[calc(50%-120px)]">
         {captionFor(current, folioNumber(index - entryIndex + 1))}
       </div>
     );

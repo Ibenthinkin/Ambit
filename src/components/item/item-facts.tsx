@@ -1,10 +1,10 @@
 import { Eyebrow } from "~/components/ui/eyebrow";
-import { INFORMATION_ID } from "./caption-type";
 import { TextLink } from "~/components/ui/text-link";
 import { sourceLabel } from "~/lib/source-label";
 import type { RailItem } from "~/server/services/gallery-rail";
+import { INFORMATION_ID } from "./caption-type";
 import { CreditLine } from "./credit-line";
-import { LinkOutRow } from "./link-out-row";
+import { LinkOutRow, linkOutCopy } from "./link-out-row";
 import { ReaderBlocks } from "./reader-blocks";
 import { ReuseNotice } from "./reuse-notice";
 
@@ -101,8 +101,11 @@ export function itemFactRows(
 }
 
 /** One row's value by label, from the one source of the rows. */
-function rowValue(item: RailItem, label: string): React.ReactNode | null {
-  return itemFactRows(item).find((r) => r.label === label)?.value ?? null;
+function rowValue(
+  rows: { label: string; value: React.ReactNode }[],
+  label: string,
+): React.ReactNode | null {
+  return rows.find((r) => r.label === label)?.value ?? null;
 }
 
 const MONO_LINE =
@@ -117,9 +120,10 @@ const MONO_LINE =
  */
 function ItemFactsWide({ item }: { item: RailItem }) {
   const maker = makerOf(item);
-  const topic = rowValue(item, "Topic");
-  const license = rowValue(item, "License");
-  const debug = rowValue(item, "Debug");
+  const rows = itemFactRows(item);
+  const topic = rowValue(rows, "Topic");
+  const license = rowValue(rows, "License");
+  const debug = rowValue(rows, "Debug");
   const source = sourceLabel(item.source);
   return (
     <section
@@ -165,7 +169,7 @@ function ItemFactsWide({ item }: { item: RailItem }) {
           {item.sourceUrl ? (
             <p className="mt-5 text-[16px]">
               <TextLink href={item.sourceUrl} external bracket tone="body">
-                {`Read the original on ${source}`}
+                {linkOutCopy(item.source)}
               </TextLink>
             </p>
           ) : null}

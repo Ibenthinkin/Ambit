@@ -28,17 +28,18 @@ export function prefersLinkOutBlock(source: string): boolean {
   return isLinkCardSource(source) || source === PDR.id;
 }
 
+/** The link-out's words, one place for every layout: PDR, blogs and link-card publications keep
+ *  their own verbs; everything else is "the original". */
+export function linkOutCopy(source: string): string {
+  if (source === PDR.id) return `See it on ${PDR.label}`;
+  if (isBlogSource(source)) return `Read the post on ${sourceLabel(source)}`;
+  if (isLinkCardSource(source)) return `Read it on ${sourceLabel(source)}`;
+  return `Read the original on ${sourceLabel(source)}`;
+}
+
 export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
   if (!sourceUrl) return null;
-  // The link-card sources and PDR keep their own verbs; everything else is "the original".
-  const copy =
-    source === PDR.id
-      ? `See it on ${PDR.label}`
-      : isBlogSource(source)
-        ? `Read the post on ${sourceLabel(source)}`
-        : isLinkCardSource(source)
-          ? `Read it on ${sourceLabel(source)}`
-          : `Read the original on ${sourceLabel(source)}`;
+  const copy = linkOutCopy(source);
   return (
     <a
       href={sourceUrl}
