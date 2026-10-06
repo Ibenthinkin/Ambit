@@ -13,7 +13,39 @@
 // (skip -> it). It is written in full now so that (a) the allow-list and its reasons get reviewed
 // today and (b) the offender count is measurable: run it with `it` instead of `it.skip` and the
 // failure message lists every file still to clean. At the time of writing (Task 1.5):
-//   OFFENDER_COUNT_PLACEHOLDER
+//   30 files outside ALLOWED at Task 1.5:
+//   src/components/dev/marks-bench.tsx
+//   src/components/feed/dev/knob-panel.tsx
+//   src/components/feed/tile-actions.tsx
+//   src/components/install/install-banner.tsx
+//   src/components/install/install-confirmation.tsx
+//   src/components/install/install-sheet.tsx
+//   src/components/item/join-cta.tsx
+//   src/components/item/link-out-row.tsx
+//   src/components/item/shared-by-row.tsx
+//   src/components/item/wander-next.tsx
+//   src/components/landing/auth-card.tsx
+//   src/components/landing/auth-sheet.tsx
+//   src/components/landing/landing-screen.tsx
+//   src/components/onboarding/exhibition-card.tsx
+//   src/components/profile/topics-screen.tsx
+//   src/components/saved/saved-screen.tsx
+//   src/components/saved/saved-tile.tsx
+//   src/components/settings/settings-row.tsx
+//   src/components/sheets/collection-rows.tsx
+//   src/components/sheets/item-sheet.tsx
+//   src/components/sheets/share-sheet.tsx
+//   src/components/ui/bottom-sheet.tsx
+//   src/components/ui/button.tsx
+//   src/components/ui/card.tsx
+//   src/components/ui/chip.tsx
+//   src/components/ui/icon-button.tsx
+//   src/components/ui/input.tsx
+//   src/components/ui/segmented.tsx
+//   src/components/ui/textarea.tsx
+//   src/components/ui/toast.tsx
+// The scan also matches `rounded-` inside comments, so a comment that merely mentions the
+// utility (ui/button.tsx's does) counts as an offender until it is reworded.
 // A live `it` below proves the walker itself works, so this file isn't dead weight meanwhile.
 //
 // Test files (`*.test.tsx`) are skipped: they assert on class names (`expect(el).toHaveClass(
@@ -119,7 +151,7 @@ describe("1b is square-cornered", () => {
     }
   });
 
-  // Task 2.9 turns this on (skip -> it). Currently: OFFENDER_COUNT_PLACEHOLDER
+  // Task 2.9 turns this on (skip -> it). Currently 30 files offend (listed in the header).
   it.skip("no file outside ALLOWED uses a rounded-* utility", () => {
     const found = offenders();
     expect(

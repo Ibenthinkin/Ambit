@@ -268,11 +268,20 @@ function Section({
  * `grep -rn "Placeholder —" src/app/dev/tokens` is the list of sections still to fill. The accent
  * dot is job 1 of the seven (DESIGN §3.2) — "attention".
  */
-function Placeholder({ task, what }: { task: string; what: string }) {
+function Placeholder({
+  task,
+  what,
+  verb = "restyled in",
+}: {
+  task: string;
+  what: string;
+  /** "restyled in" for an existing primitive; "built in" / "deleted in" for the others. */
+  verb?: string;
+}) {
   return (
     <p className="text-eyebrow text-ink/55 flex items-center gap-2 font-mono tracking-[0.4px] uppercase">
       <span className="bg-accent inline-block size-[6px] shrink-0 rounded-full" />
-      Placeholder — restyled in Task {task} ({what})
+      Placeholder — {verb} Task {task} ({what})
     </p>
   );
 }
@@ -744,7 +753,7 @@ export default function TokensPage() {
           title="IconButton"
           note="Rest, hover, focus, pressed; plain and glass (on a photograph)."
         >
-          <Placeholder task="2.5" what="circular, ink fills" />
+          <Placeholder task="2.6" what="circular, ink fills" />
           <div className="flex flex-wrap items-center gap-3">
             <IconButton size={28} aria-label="Close">
               <Close size={13} />
@@ -763,8 +772,15 @@ export default function TokensPage() {
           </div>
         </Section>
 
-        <Section title="Card" note="Square, 1 px hairline, bg-card.">
-          <Placeholder task="2.6" what="square card on --color-card" />
+        <Section
+          title="Card"
+          note="Not restyled: the primitive is deleted in Task 2.8 and its call sites become plain bordered elements on --color-card."
+        >
+          <Placeholder
+            task="2.8"
+            verb="deleted in"
+            what="call sites become plain bordered elements"
+          />
           <div className="flex flex-wrap gap-4">
             <Card className="text-ink/78 w-56 p-5 text-sm">
               radius=&quot;card&quot; — feed article card
@@ -776,10 +792,17 @@ export default function TokensPage() {
         </Section>
 
         <Section
+          title="Eyebrow / TextLink"
+          note="DESIGN §4: the mono label and the underlined link, as primitives. Neither exists yet."
+        >
+          <Placeholder task="2.7" verb="built in" what="Eyebrow and TextLink" />
+        </Section>
+
+        <Section
           title="Loader"
           note="The Reach loader: ring, orbiting dot. Its ring becomes ink in 1b (the accent keeps only the seven jobs)."
         >
-          <Placeholder task="2.7" what="ink ring, accent dot" />
+          <Placeholder task="2.6" what="ink ring, accent dot" />
           <div className="flex flex-wrap items-center gap-6">
             <Loader size={LOADER_SIZES.inline} />
             <Loader size={LOADER_SIZES.block} />
@@ -792,7 +815,7 @@ export default function TokensPage() {
           title="Toast"
           note="Today an ink-glass pill; DESIGN §4 makes it a white block."
         >
-          <Placeholder task="2.8" what="white block toast" />
+          <Placeholder task="2.6" what="white block toast" />
           <Button
             variant="ghost"
             shape="pill"
@@ -806,7 +829,7 @@ export default function TokensPage() {
           title="BottomSheet"
           note="Today a rounded sheet / 520 px dialog / popover; DESIGN §4 squares them and gives each a top border instead of a shadow."
         >
-          <Placeholder task="2.8" what="square sheet, dialog, popover" />
+          <Placeholder task="2.5" what="square sheet, dialog, popover" />
           <Button
             variant="ghost"
             shape="pill"
