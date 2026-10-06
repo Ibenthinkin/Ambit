@@ -30,10 +30,23 @@ export function Field({
   }>;
   className?: string;
 }) {
+  // The child must be ONE labelable control (input, textarea, select): `htmlFor` can only point
+  // at one element. Anything else would silently leave the label unattached, so say so in dev.
+  if (
+    process.env.NODE_ENV !== "production" &&
+    !React.isValidElement(children)
+  ) {
+    console.error("Field expects exactly one control element as its child.");
+  }
   const autoId = React.useId();
   const id = children.props.id ?? autoId;
   const noteId = `${id}-note`;
   const note = error ?? hint;
+  // Keep any description the control already carries; ours is added to it, not over it.
+  const describedBy =
+    [children.props["aria-describedby"], note ? noteId : undefined]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   return (
     <div className={className}>
@@ -56,8 +69,9 @@ export function Field({
       </div>
       {React.cloneElement(children, {
         id,
-        "aria-describedby": note ? noteId : undefined,
-        "aria-invalid": error ? true : undefined,
+        "aria-describedby": describedBy,
+        // An error forces invalid; otherwise the control's own setting stands.
+        "aria-invalid": error ? true : children.props["aria-invalid"],
       })}
     </div>
   );

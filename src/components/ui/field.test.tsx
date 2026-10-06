@@ -79,4 +79,27 @@ describe("Field (DESIGN §4.4)", () => {
       "aria-describedby",
     );
   });
+
+  it("merges a control's own aria-describedby with the note", () => {
+    render(
+      <Field label="Email" hint="Hint text">
+        <Input aria-describedby="extra" />
+      </Field>,
+    );
+    const input = screen.getByLabelText("Email");
+    expect(input.getAttribute("aria-describedby")).toBe(
+      `extra ${screen.getByText("Hint text").id}`,
+    );
+  });
+
+  it("keeps a control's own aria-describedby and aria-invalid when there is no note", () => {
+    render(
+      <Field label="Email">
+        <Input aria-describedby="extra" aria-invalid="true" />
+      </Field>,
+    );
+    const input = screen.getByLabelText("Email");
+    expect(input).toHaveAttribute("aria-describedby", "extra");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+  });
 });
