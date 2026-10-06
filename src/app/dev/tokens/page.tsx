@@ -39,7 +39,6 @@ import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { Chip } from "~/components/ui/chip";
-import { GlassHeader } from "~/components/ui/glass-header";
 import { IconButton } from "~/components/ui/icon-button";
 import { Input } from "~/components/ui/input";
 import { Segmented } from "~/components/ui/segmented";
@@ -50,72 +49,157 @@ import { usePress } from "~/hooks/use-press";
 import { saveToastText } from "~/lib/save-toast";
 import { api } from "~/trpc/react";
 
-// The living style guide: every token, icon, and primitive in one place, so the design system can be checked whole without building a real screen first.
-// Originally the Phase 5.1 proof page; re-pointed at the redesign handoff
-// (docs/design_handoff_ambit_pwa_redesign/) in 5.4. If something here doesn't match the handoff,
-// it'll be wrong on every screen that consumes it later.
+// /dev/tokens — the 1b style guide (redesign Task 1.5). Every token, icon and primitive in one
+// place, so the design system can be checked whole without building a real screen first.
 //
-// It also hosts the live demo of 5.5's backbone (pill toolbar, both collection sheets, the share
-// sheet, `usePress`) wired to the REAL router — see `BackboneSection` at the bottom. It hosted
-// sign-out too, from 5.6 (when /feed's placeholder was deleted) until 5.10 gave it a real home on
-// /settings — that "Session" section and its `sign-out-button.tsx` are gone.
+// HOW TO READ IT. The first half is TOKENS and is final: surfaces, the ink ladder, lines, the
+// accent's seven jobs, the type scale, shape and elevation, focus. Each swatch is labelled with the
+// package's name for it (docs/ambit_Redesign_4/) AND the class you write in the app
+// (docs/DESIGN_redesign.md §3). The second half is PRIMITIVES and is, today, still the OLD ones —
+// Phase 2 rewrites each (Button 2.1, Chip 2.2, ...) and replaces that section's placeholder note
+// with the real state table. Hover / focus / pressed can't be forced from a stylesheet, so they are
+// live: point at it, Tab to it, hold it down.
 //
-// `src/proxy.ts` only gates `/feed`, `/saved`, `/onboarding` — a `/dev/*` route would otherwise
-// be reachable in production, so the guard is this early `notFound()`. Note that as of 5.5 the
-// page DOES reach tRPC (the backbone demo), but only through the same protected procedures a real
-// screen uses, scoped to the signed-in user — there's nothing here an authed user couldn't
-// already see.
+// Everything is drawn with the app's real tokens and classes (never an inline hex where a token
+// exists), so if a swatch looks wrong here it is wrong on every screen that consumes it. The
+// hex values printed beside a swatch are DOCUMENTATION (they mirror DESIGN §3.1); the swatch
+// itself is painted by the token.
 //
-// The accent knob (and its swatch picker here) was retired in redesign Task 1.3 — one colour now.
-// Task 1.5 rebuilds this whole page.
+// GATING. `src/proxy.ts` only guards `/feed`, `/saved`, `/onboarding`, so a `/dev/*` route would
+// be reachable in production; the guard is the early `notFound()` in the component below (a 404
+// under a production build). The page reaches tRPC only through `BackboneSection`, which uses the
+// same protected procedures a real screen does, scoped to the signed-in user.
+//
+// No rounding utility appears on this page on purpose: `src/no-rounded.test.ts` scans every .tsx, and
+// the one round thing here (the 6 px accent dot) is allowed by its DOTS rule.
 
-// The alpha ladder from PHASE5_PLAN.md Step 2 / SPEC §10 — the whole muted-text/hairline/fill
-// system, reproduced here as swatches instead of prose so a mismatch against the prototypes is
-// visible at a glance.
-const TEXT_LADDER = [
+/**
+ * Surfaces: the opaque fills. `cls` is the Tailwind class that paints it; `token` is the CSS
+ * variable behind it; `hex` is what DESIGN §3.1 says it should be.
+ */
+const SURFACES = [
+  { cls: "bg-bg", token: "--color-bg", hex: "#0E0E0E", use: "app / feed" },
   {
-    cls: "text-ink-hi",
-    label: "Title tier",
-    note: "screen + item titles ONLY (#F5F1E7)",
+    cls: "bg-bg-app",
+    token: "--color-bg-app",
+    hex: "#060606",
+    use: "behind a screen",
   },
   {
-    cls: "text-ink",
-    label: "Primary text",
-    note: "body, list labels, toast (#EFEBE0)",
+    cls: "bg-immersive",
+    token: "--color-immersive",
+    hex: "#0A0A0A",
+    use: "behind a picture",
   },
   {
-    cls: "text-ink/82",
-    label: "Secondary text",
-    note: "chip labels (unselected)",
+    cls: "bg-surface",
+    token: "--color-surface",
+    hex: "#141414",
+    use: "sheets, popovers",
   },
-  { cls: "text-ink/62", label: "Body / muted", note: "secondary copy, meta" },
   {
-    cls: "text-ink/55",
-    label: "Meta / attribution",
-    note: "source lines, captions",
+    cls: "bg-dialog",
+    token: "--color-dialog",
+    hex: "#121212",
+    use: "desktop dialog, sign-up",
   },
-  { cls: "text-ink/40", label: "Faint label", note: "eyebrows, loader label" },
-  { cls: "text-ink/38", label: "Disabled", note: "inactive CTA text" },
+  {
+    cls: "bg-card",
+    token: "--color-card",
+    hex: "#161616",
+    use: "article / intro cards",
+  },
+  {
+    cls: "bg-card-2",
+    token: "--color-card-2",
+    hex: "#1E1E1E",
+    use: "empty thumb cells",
+  },
+  {
+    cls: "bg-tile-hi",
+    token: "--color-tile-hi",
+    hex: "#161616",
+    use: "tile placeholder, light",
+  },
+  {
+    cls: "bg-tile-lo",
+    token: "--color-tile-lo",
+    hex: "#0E0E0E",
+    use: "tile placeholder, dark",
+  },
 ] as const;
 
-const BORDER_LADDER = [
+/**
+ * The ink ladder (DESIGN §3.1): the package names nine greys; the app writes them as `ink` at an
+ * alpha, so the whole palette re-tones from one token. `pkg` is the package's name, `cls` the
+ * spelling you write.
+ */
+const INK_LADDER = [
+  { pkg: "ink", hex: "#F2F2F2", cls: "text-ink", use: "titles, primary text" },
+  { pkg: "ink-1", hex: "#E6E6E6", cls: "text-ink/95", use: "body on dark" },
+  { pkg: "ink-2", hex: "#BDBDBD", cls: "text-ink/78", use: "secondary, links" },
+  { pkg: "ink-3", hex: "#A8A8A8", cls: "text-ink/68", use: "intro / lede" },
+  { pkg: "ink-4", hex: "#9A9A9A", cls: "text-ink/62", use: "card lede" },
+  { pkg: "ink-5", hex: "#8A8A8A", cls: "text-ink/55", use: "meta, eyebrows" },
+  { pkg: "ink-6", hex: "#7A7A7A", cls: "text-ink/48", use: "mono row labels" },
+  { pkg: "ink-7", hex: "#6A6A6A", cls: "text-ink/40", use: "hints" },
   {
+    pkg: "ink-8",
+    hex: "#5A5A5A",
+    cls: "text-ink/34",
+    use: "placeholders, disabled",
+  },
+] as const;
+
+/** The seven hairlines (DESIGN §3.1) — `white` at 8 to 35 %, written as `border-ink/NN`. */
+const LINES = [
+  { pkg: "line-faint", alpha: "8%", cls: "border-ink/8", use: "row dividers" },
+  { pkg: "line-soft", alpha: "12%", cls: "border-ink/12", use: "soft" },
+  { pkg: "line", alpha: "14%", cls: "border-ink/14", use: "section dividers" },
+  {
+    pkg: "line-strong",
+    alpha: "16%",
     cls: "border-ink/16",
-    label: "Hairline strong",
-    note: "glass buttons on imagery",
+    use: "header rules",
   },
   {
-    cls: "border-ink/12",
-    label: "Hairline default",
-    note: "sheets, toasts, chips",
+    pkg: "line-ctrl",
+    alpha: "22%",
+    cls: "border-ink/22",
+    use: "segmented outline",
   },
-  { cls: "border-ink/8", label: "Hairline faint", note: "cards, headers" },
+  {
+    pkg: "line-input",
+    alpha: "28%",
+    cls: "border-ink/28",
+    use: "input underline",
+  },
+  {
+    pkg: "line-btn",
+    alpha: "35%",
+    cls: "border-ink/35",
+    use: "outline button",
+  },
 ] as const;
 
-const FILL_LADDER = [
-  { cls: "bg-ink/9", label: "Fill raised", note: "chrome buttons" },
-  { cls: "bg-ink/5", label: "Fill default", note: "chips, ghost buttons" },
-  { cls: "bg-ink/3", label: "Fill subtle", note: "cards, tiles" },
+/** The type scale (DESIGN §3.3). `cls` is the utility; `spec` is the size / leading / tracking. */
+const TYPE_SCALE = [
+  {
+    cls: "text-display",
+    spec: "clamp(30, 4.2vw, 40) / 1.1 / -0.02em",
+    where: "page titles",
+  },
+  {
+    cls: "text-title",
+    spec: "32 / 1.08 / -0.02em",
+    where: "item title, phone",
+  },
+  { cls: "text-h2", spec: "24 / 1.35 / -0.01em", where: "section heads" },
+  { cls: "text-card", spec: "19 / 1.2 / -0.01em", where: "article card title" },
+  { cls: "text-lg", spec: "17 / 1.4", where: "rows, primary button" },
+  { cls: "text-body", spec: "16 / 1.5", where: "body (inputs are 18)" },
+  { cls: "text-sm", spec: "15 / 1.4", where: "buttons, links, row values" },
+  { cls: "text-xs", spec: "13.5 / 1.48", where: "card lede" },
 ] as const;
 
 const ICONS = [
@@ -155,20 +239,50 @@ const ICONS = [
   { name: "Plus", Comp: Plus },
 ] as const;
 
+/** One labelled block. The heading is the Geist Mono eyebrow the 1b design uses for every label. */
 function Section({
   title,
+  note,
   children,
 }: {
   title: string;
+  /** Muted line under the title — what this section is / which task restyles it. */
+  note?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-ink/8 flex flex-col gap-4 border-t-[0.5px] pt-8">
-      <h2 className="text-ink/40 font-sans text-[11px] font-semibold tracking-[0.6px] uppercase">
-        {title}
-      </h2>
+    <section className="border-ink/14 flex flex-col gap-4 border-t pt-8">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-eyebrow text-ink/55 font-mono tracking-[0.4px] uppercase">
+          {title}
+        </h2>
+        {note ? <p className="text-ink/48 text-xs">{note}</p> : null}
+      </div>
       {children}
     </section>
+  );
+}
+
+/**
+ * The flag every primitive section carries until its Phase 2 task lands. Greppable on purpose:
+ * `grep -rn "Placeholder —" src/app/dev/tokens` is the list of sections still to fill. The accent
+ * dot is job 1 of the seven (DESIGN §3.2) — "attention".
+ */
+function Placeholder({ task, what }: { task: string; what: string }) {
+  return (
+    <p className="text-eyebrow text-ink/55 flex items-center gap-2 font-mono tracking-[0.4px] uppercase">
+      <span className="bg-accent inline-block size-[6px] shrink-0 rounded-full" />
+      Placeholder — restyled in Task {task} ({what})
+    </p>
+  );
+}
+
+/** A small caption under a swatch. */
+function Caption({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-eyebrow text-ink/48 w-28 font-mono tracking-[0.4px]">
+      {children}
+    </span>
   );
 }
 
@@ -182,147 +296,359 @@ export default function TokensPage() {
   const [toastOpen, setToastOpen] = React.useState(false);
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [backboneToast, setBackboneToast] = React.useState<string | null>(null);
-  // Bumping this remounts the two motion demos, which is what replays a CSS animation.
+  // Bumping this remounts the motion demos, which is what replays a CSS animation.
   const [motionKey, setMotionKey] = React.useState(0);
 
   return (
     <div className="bg-bg text-ink min-h-screen pb-32">
-      <GlassHeader>
-        <span className="text-ink-hi text-[28px] leading-none font-semibold tracking-[-0.2px]">
-          Ambit
-        </span>
-        <IconButton aria-label="Bookmark">
-          <Bookmark size={13} />
-        </IconButton>
-      </GlassHeader>
+      <div className="mx-auto flex max-w-[1120px] flex-col gap-10 px-5 pt-10">
+        <header className="flex flex-col gap-2">
+          <h1 className="text-display text-ink font-sans">
+            Ambit — 1b style guide
+          </h1>
+          <p className="text-body text-ink/68 italic">
+            Black and white, one accent, no radius. Tokens first (final), then
+            the primitives (still the old ones until Phase 2).
+          </p>
+        </header>
 
-      <div className="flex flex-col gap-10 px-5 pt-8">
-        {/* Hanken Grotesk everywhere (Geist Mono for labels). Sizes/weights are the rows of
-            the handoff README's type table that the app actually uses today; the gallery/reader
-            rows get added as those screens land. */}
-        <Section title="Type scale — Hanken Grotesk">
-          <div className="flex flex-col gap-3">
-            <p className="text-ink-hi text-[28px] leading-[1.1] font-semibold tracking-[-0.2px]">
-              Screen title / wordmark (600, 26–28px)
-            </p>
-            <p className="text-ink-hi text-[25px] leading-[1.18]">
-              Detail-sheet title (400, 25px)
-            </p>
-            <p className="text-ink-hi text-[19px] leading-[1.25] font-semibold">
-              Card / tile headline (600, 19–20px)
-            </p>
-            <p className="text-ink/82 text-[16px] leading-[1.72]">
-              Body copy — reader paragraphs, sheet fact values (400, 16px/1.72)
-            </p>
-            <p className="text-ink/62 text-[13.5px] leading-[1.55]">
-              Lede / secondary body (400, 13.5–17px)
-            </p>
-            <p className="text-ink font-semibold">
-              CTA label (600, 15.5px, +0.2px tracking)
-            </p>
-            <p className="text-ink/55 text-[12.5px] tracking-[0.15px]">
-              Metadata / maker line (400, 12.5px)
-            </p>
-            <p className="text-ink/40 text-[10px] font-semibold tracking-[1.3px] uppercase">
-              Eyebrow / source label (600, 9.5–11px, uppercase)
-            </p>
-          </div>
-        </Section>
+        {/* ------------------------------------------------------------------ TOKENS */}
 
-        {/* Surfaces + elevation: the opaque fills and the four shadows, which the alpha ladder
-            below deliberately doesn't cover (those are ink-over-bg, these are their own colors). */}
-        <Section title="Surfaces & elevation">
-          <div className="flex flex-wrap gap-3">
-            {[
-              { cls: "bg-bg", label: "bg — app" },
-              { cls: "bg-surface", label: "surface — sheets" },
-              { cls: "bg-immersive", label: "immersive — gallery" },
-              { cls: "bg-overlay", label: "overlay — toast" },
-            ].map((s) => (
-              <div key={s.cls} className="flex flex-col items-center gap-2">
+        <Section
+          title="Surfaces"
+          note="Opaque fills. Each is labelled: class · hex (DESIGN §3.1) · where it is used."
+        >
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {SURFACES.map((s) => (
+              <div key={s.cls} className="flex flex-col gap-2">
+                {/* The swatch sits on bg-ink/5 so even #0A0A0A-ish fills read against the page. */}
                 <div
-                  className={`border-hairline rounded-card border-ink/12 h-14 w-14 border ${s.cls}`}
+                  className={`border-hairline border-ink/22 h-16 border ${s.cls}`}
                 />
-                <span className="text-ink/40 w-24 text-center text-[10.5px]">
-                  {s.label}
+                <span className="text-eyebrow text-ink/78 font-mono">
+                  {s.cls}
+                </span>
+                <span className="text-eyebrow text-ink/48 font-mono">
+                  {s.hex} · {s.use}
                 </span>
               </div>
             ))}
-            <div className="flex flex-col items-center gap-2">
-              <div className="bg-avatar-gradient h-14 w-14 rounded-full" />
-              <span className="text-ink/40 w-24 text-center text-[10.5px]">
-                avatar gradient
+            {/* Scrim is never opaque: it is #000 at 60 %, with no blur. Shown over a stripe so
+                the see-through is visible. `--color-overlay` (the old toast fill) is removed by
+                the spec; it is listed so nobody wonders where it went. */}
+            <div className="flex flex-col gap-2">
+              <div className="border-hairline border-ink/22 bg-ink/30 relative h-16 overflow-hidden border">
+                <div className="bg-scrim/60 absolute inset-0" />
+              </div>
+              <span className="text-eyebrow text-ink/78 font-mono">
+                bg-scrim/60
+              </span>
+              <span className="text-eyebrow text-ink/48 font-mono">
+                #000 at 60%, no blur · sheet + modal scrims
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="border-hairline border-ink/22 bg-overlay h-16 border" />
+              <span className="text-eyebrow text-ink/78 font-mono">
+                bg-overlay
+              </span>
+              <span className="text-eyebrow text-ink/48 font-mono">
+                REMOVED by the spec — goes with the toast rewrite (Task 2.x)
               </span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-4 pt-2">
-            {[
-              { cls: "shadow-toast", label: "toast" },
-              { cls: "shadow-banner", label: "banner" },
-              { cls: "shadow-sheet", label: "sheet" },
-              { cls: "shadow-toolbar", label: "toolbar (5.5)" },
-            ].map((s) => (
-              <div key={s.cls} className="flex flex-col items-center gap-2">
-                <div className={`rounded-card bg-surface h-14 w-20 ${s.cls}`} />
-                <span className="text-ink/40 w-24 text-center text-[10.5px]">
-                  {s.label}
-                </span>
-              </div>
-            ))}
-          </div>
         </Section>
 
-        <Section title="Alpha ladder — text">
+        <Section
+          title="Ink ladder — text"
+          note="The package names nine greys; the app writes them as ink at an alpha. Same ladder, two spellings."
+        >
           <div className="flex flex-col gap-2">
-            {TEXT_LADDER.map((row) => (
-              <div key={row.cls} className="flex items-baseline gap-4">
-                <span
-                  className={`w-40 shrink-0 font-sans text-[15px] ${row.cls}`}
-                >
-                  Ambit
+            {INK_LADDER.map((row) => (
+              <div
+                key={row.pkg}
+                className="grid grid-cols-[88px_1fr] items-baseline gap-x-4 gap-y-1 sm:grid-cols-[88px_88px_130px_1fr]"
+              >
+                <span className="text-eyebrow text-ink/78 font-mono">
+                  {row.pkg}
                 </span>
-                <span className="text-ink/40 font-sans text-[12px]">
-                  {row.cls} — {row.label} ({row.note})
+                <span className="text-eyebrow text-ink/48 font-mono">
+                  {row.hex}
+                </span>
+                <span className="text-eyebrow text-ink/48 font-mono">
+                  {row.cls}
+                </span>
+                <span className={`text-lg ${row.cls}`}>Ambit — {row.use}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section
+          title="Lines"
+          note="1 px hairlines (.border-hairline is 1 px now). White at 8–35 %, written border-ink/NN."
+        >
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
+            {LINES.map((l) => (
+              <div key={l.pkg} className="flex flex-col gap-2">
+                <div className={`border-hairline h-12 border ${l.cls}`} />
+                <span className="text-eyebrow text-ink/78 font-mono">
+                  {l.pkg}
+                </span>
+                <span className="text-eyebrow text-ink/48 font-mono">
+                  {l.alpha} · {l.cls}
                 </span>
               </div>
             ))}
           </div>
         </Section>
 
-        <Section title="Alpha ladder — border & fill">
-          <div className="flex flex-wrap gap-3">
-            {BORDER_LADDER.map((row) => (
-              <div key={row.cls} className="flex flex-col items-center gap-2">
-                <div
-                  className={`border-hairline rounded-card bg-ink/3 h-14 w-14 border ${row.cls}`}
-                />
-                <span className="text-ink/40 w-24 text-center font-sans text-[10.5px]">
-                  {row.cls}
+        {/* The accent has seven jobs (DESIGN §3.2) and ONLY those. The default button is white,
+            not green; eyebrows, links, selected chips and the loader are ink. Each job below is
+            a live example built from the real classes. */}
+        <Section
+          title="Accent — #2BB24C, seven jobs"
+          note="bg-accent / text-accent / border-accent / outline-focus-ring. Everything else is ink. on-accent (#0E0E0E, 6.97 : 1) is the text colour when something IS filled green — never white on green."
+        >
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-eyebrow text-ink/48 font-mono">
+                1 · the 6 px dot
+              </span>
+              <div className="flex flex-col gap-2">
+                {[
+                  "Because you saved a painting",
+                  "Invite-only",
+                  "Current collection",
+                ].map((t) => (
+                  <div
+                    key={t}
+                    className="text-ink/78 flex items-center gap-2 text-sm"
+                  >
+                    <span className="bg-accent inline-block size-[6px] shrink-0 rounded-full" />
+                    {t}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-eyebrow text-ink/48 font-mono">
+                2 · progress tick, compass marker
+              </span>
+              <div className="flex gap-1">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className={`h-[2px] flex-1 ${i === 2 ? "bg-accent" : i < 2 ? "bg-ink/62" : "bg-ink/22"}`}
+                  />
+                ))}
+              </div>
+              <span className="text-ink/48 text-xs">
+                Only the current step is green; passed steps are ink.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-eyebrow text-ink/48 font-mono">
+                3 · keyboard focus ring
+              </span>
+              {/* No ring class here: the ring is the base :focus-visible rule (Task 1.4). Tab
+                  onto this and it appears — 2 px, offset 3 px. */}
+              <button
+                type="button"
+                className="border-ink/35 self-start border px-4 py-2 text-sm"
+              >
+                Tab to me
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-eyebrow text-ink/48 font-mono">
+                4 · hover underline (inset 2 px)
+              </span>
+              <button
+                type="button"
+                className="border-ink/35 text-ink/78 self-start border px-4 py-2 text-sm transition-shadow duration-150 hover:text-white hover:shadow-[inset_0_-2px_0_var(--color-accent)]"
+              >
+                Hover me
+              </button>
+              <a
+                href="#hover-link"
+                className="text-ink/78 decoration-ink/40 hover:decoration-accent self-start text-sm underline underline-offset-[3px] hover:text-white"
+              >
+                A link, underline turns green
+              </a>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-eyebrow text-ink/48 font-mono">
+                5 · saved bookmark fill
+              </span>
+              <div className="flex items-center gap-4">
+                <Bookmark size={22} className="text-ink/78" />
+                <Bookmark size={22} filled className="text-accent" />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-eyebrow text-ink/48 font-mono">
+                6 · the &quot;Proposed&quot; tag
+              </span>
+              <span className="text-eyebrow text-accent border-accent self-start border px-2 py-[3px] font-mono tracking-[0.4px] uppercase">
+                Proposed
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <span className="text-eyebrow text-ink/48 font-mono">
+                7 · input focus underline, inline error hint
+              </span>
+              <input
+                aria-label="Focus me for the green underline"
+                placeholder="Click to focus — the underline turns green"
+                className="border-ink/28 focus:border-accent text-body placeholder:text-ink/34 border-0 border-b bg-transparent py-2 outline-none"
+              />
+              <span className="text-eyebrow text-accent font-mono tracking-[0.4px]">
+                That email isn&apos;t on the invite list.
+              </span>
+            </div>
+          </div>
+        </Section>
+
+        <Section
+          title="Type — Hanken Grotesk (sans) and Geist Mono"
+          note="Titles are regular weight, sentence case, tight tracking. Italic marks a secondary half-sentence. Mono is for eyebrows, labels, counts and meta: uppercase, 9.5–12 px, +0.4 px."
+        >
+          <div className="flex flex-col gap-4">
+            {TYPE_SCALE.map((t) => (
+              <div
+                key={t.cls}
+                className="grid gap-x-6 gap-y-1 sm:grid-cols-[180px_1fr] sm:items-baseline"
+              >
+                <span className="text-eyebrow text-ink/48 font-mono">
+                  {t.cls} · {t.spec}
+                  <br />
+                  {t.where}
+                </span>
+                <span className={`${t.cls} text-ink font-sans`}>
+                  A quieter way to be curious.
                 </span>
               </div>
             ))}
-            {FILL_LADDER.map((row) => (
-              <div key={row.cls} className="flex flex-col items-center gap-2">
-                <div
-                  className={`border-hairline rounded-card border-ink/8 h-14 w-14 border ${row.cls}`}
-                />
-                <span className="text-ink/40 w-24 text-center font-sans text-[10.5px]">
-                  {row.cls}
-                </span>
+            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-[180px_1fr] sm:items-baseline">
+              <span className="text-eyebrow text-ink/48 font-mono">
+                italic 400
+                <br />
+                the secondary half-sentence
+              </span>
+              <span className="text-body text-ink/68 font-sans italic">
+                Mostly photography and scientific drawing.
+              </span>
+            </div>
+            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-[180px_1fr] sm:items-baseline">
+              <span className="text-eyebrow text-ink/48 font-mono">
+                text-eyebrow · 10.5 mono
+                <br />+ uppercase + 0.4 px (the component adds the last two)
+              </span>
+              <span className="text-eyebrow text-ink/55 font-mono tracking-[0.4px] uppercase">
+                The Metropolitan Museum · 1887 · 4 saved
+              </span>
+            </div>
+            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-[180px_1fr] sm:items-baseline">
+              <span className="text-eyebrow text-ink/48 font-mono">
+                font-mono 400 / 500
+                <br />
+                counts and meta
+              </span>
+              <span className="text-ink/78 font-mono text-sm">
+                0123456789 — 12 items · 3 collections
+              </span>
+            </div>
+          </div>
+        </Section>
+
+        <Section
+          title="Shape & elevation"
+          note="Radius is 0 everywhere except the nav pill and circular things. Shadows: lift, dialog, popover, toolbar — the sheet, toast and banner shadows go with their rewrites."
+        >
+          <div className="flex flex-wrap items-end gap-6">
+            <div className="flex flex-col gap-2">
+              <div className="border-hairline border-ink/22 bg-card h-14 w-24 border" />
+              <Caption>square — every card, sheet, input, tile</Caption>
+            </div>
+            <div className="flex flex-col gap-2">
+              {/* A square box that only names the pill: the real pill lives in the two nav-toolbar files, which
+                  are the guard's allow-list, so this page doesn't draw one. */}
+              <div className="border-hairline border-ink/22 bg-card text-eyebrow text-ink/55 flex h-14 w-24 items-center justify-center border font-mono">
+                pill = the nav only
+              </div>
+              <Caption>
+                --radius-pill: 999px (ui/pill-toolbar, ui/rail-toolbar)
+              </Caption>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-6 pt-2">
+            {[
+              {
+                cls: "shadow-lift",
+                label: "lift — a hovered feed tile (0 14 34 / .45)",
+              },
+              {
+                cls: "shadow-popover",
+                label: "popover — anchored menu (0 20 50 / .50)",
+              },
+              {
+                cls: "shadow-dialog",
+                label: "dialog — centred desktop (0 30 80 / .60)",
+              },
+              {
+                cls: "shadow-toolbar",
+                label: "toolbar — the nav pill (0 10 30 / .28)",
+              },
+            ].map((s) => (
+              <div key={s.cls} className="flex flex-col gap-2">
+                <div className={`bg-surface h-14 w-24 ${s.cls}`} />
+                <Caption>{s.label}</Caption>
               </div>
             ))}
           </div>
         </Section>
 
-        <Section title="Icons">
-          <div className="grid grid-cols-4 gap-4 sm:grid-cols-6">
+        <Section
+          title="Focus"
+          note="One base :focus-visible rule gives every control a 2 px accent ring, offset 3 px (2 px inside a segmented control, inset −2 px on feed tiles). Tab through these."
+        >
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              type="button"
+              className="border-ink/35 border px-4 py-2 text-sm"
+            >
+              A button
+            </button>
+            <a
+              href="#focus-link"
+              className="text-ink/78 text-sm underline underline-offset-[3px]"
+            >
+              A link
+            </a>
+            <input
+              aria-label="A text field"
+              placeholder="A text field"
+              className="border-ink/28 text-body placeholder:text-ink/34 border-0 border-b bg-transparent py-2"
+            />
+          </div>
+        </Section>
+
+        <Section title="Icons" note="24-grid, 1.7 stroke, currentColor.">
+          <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 lg:grid-cols-10">
             {ICONS.map(({ name, Comp }) => (
               <div
                 key={name}
-                className="border-hairline rounded-card border-ink/8 bg-ink/3 flex flex-col items-center gap-2 border py-4"
+                className="border-hairline border-ink/12 flex flex-col items-center gap-2 border py-4"
               >
-                <Comp size={20} className="text-ink/82" />
-                <span className="text-ink/40 px-1 text-center font-sans text-[10px]">
+                <Comp size={20} className="text-ink/78" />
+                <span className="text-eyebrow text-ink/48 px-1 text-center font-mono">
                   {name}
                 </span>
               </div>
@@ -330,85 +656,72 @@ export default function TokensPage() {
           </div>
         </Section>
 
-        <Section title="Button">
+        {/* ------------------------------------------------------------- PRIMITIVES */}
+        {/* Every section below renders the primitive AS IT IS TODAY (Phase 1: tokens re-toned,
+            shapes not yet rewritten). The label names the task that replaces it; that task fills
+            in the real rest / hover / focus / pressed / disabled / selected table from
+            DESIGN §4. */}
+
+        <Section
+          title="Button"
+          note="DESIGN §4.1: primary / outline / link × lg / md / sm; states rest, hover, pressed, disabled."
+        >
+          <Placeholder
+            task="2.1"
+            what="primary, outline, link; no shape prop"
+          />
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="accent" shape="pill">
               Start exploring
             </Button>
             <Button variant="accent" shape="pill" disabled>
-              Pick 2 more
+              Pick 2 more (disabled)
             </Button>
             <Button variant="ghost" shape="pill">
               Maybe later
             </Button>
-            <Button
-              variant="accent"
-              shape="rounded"
-              size="lg"
-              className="w-full sm:w-auto"
-            >
+            <Button variant="accent" shape="rounded" size="lg">
               Continue
             </Button>
           </div>
         </Section>
 
-        <Section title="Chip">
+        <Section
+          title="Chip"
+          note="DESIGN §4: rest, hover, focus, pressed, selected. Tap one to toggle."
+        >
+          <Placeholder task="2.2" what="square, ink-on-selected, tri-state" />
           <div className="flex flex-wrap gap-2">
             {["Painting", "Photography", "Architecture", "Nature"].map(
-              (label) => {
-                const selected = selectedChips.has(label);
-                return (
-                  <Chip
-                    key={label}
-                    selected={selected}
-                    onClick={() =>
-                      setSelectedChips((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(label)) next.delete(label);
-                        else next.add(label);
-                        return next;
-                      })
-                    }
-                  >
-                    {label}
-                  </Chip>
-                );
-              },
+              (label) => (
+                <Chip
+                  key={label}
+                  selected={selectedChips.has(label)}
+                  onClick={() =>
+                    setSelectedChips((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(label)) next.delete(label);
+                      else next.add(label);
+                      return next;
+                    })
+                  }
+                >
+                  {label}
+                </Chip>
+              ),
             )}
+            <Chip selected="mixed">Mixed (tri-state)</Chip>
           </div>
         </Section>
 
-        <Section title="IconButton">
-          <div className="flex flex-wrap items-center gap-3">
-            <IconButton size={28} aria-label="Close">
-              <Close size={13} />
-            </IconButton>
-            <IconButton size={34} aria-label="Bookmark">
-              <Bookmark size={13} />
-            </IconButton>
-            <IconButton size={42} aria-label="Share">
-              <Share size={15} />
-            </IconButton>
-            <div className="rounded-tile bg-ink/9 p-4">
-              <IconButton size={42} glass aria-label="Save (glass)">
-                <Bookmark size={13} filled className="text-accent" />
-              </IconButton>
-            </div>
-          </div>
-        </Section>
-
-        <Section title="Card">
-          <div className="flex flex-wrap gap-4">
-            <Card className="text-ink/82 w-56 p-5 text-[16px]">
-              radius=&quot;card&quot; (22px) — feed article card
-            </Card>
-            <Card radius="tile" className="text-ink/62 w-56 p-5 text-[13px]">
-              radius=&quot;tile&quot; (18px) — saved tile
-            </Card>
-          </div>
-        </Section>
-
-        <Section title="Segmented">
+        <Section
+          title="Segmented"
+          note="DESIGN §4: rest, hover (green underline), selected."
+        >
+          <Placeholder
+            task="2.3"
+            what="outlined segments, accent hover underline"
+          />
           <Segmented
             options={[
               { key: "all", label: "All" },
@@ -419,11 +732,54 @@ export default function TokensPage() {
           />
         </Section>
 
-        <Section title="Input">
+        <Section
+          title="Input"
+          note="DESIGN §4: underline input — rest, focus (green underline), error (green mono hint), disabled."
+        >
+          <Placeholder task="2.4" what="underline input" />
           <Input placeholder="you@example.com" className="max-w-xs" />
         </Section>
 
-        <Section title="Loader">
+        <Section
+          title="IconButton"
+          note="Rest, hover, focus, pressed; plain and glass (on a photograph)."
+        >
+          <Placeholder task="2.5" what="circular, ink fills" />
+          <div className="flex flex-wrap items-center gap-3">
+            <IconButton size={28} aria-label="Close">
+              <Close size={13} />
+            </IconButton>
+            <IconButton size={34} aria-label="Bookmark">
+              <Bookmark size={13} />
+            </IconButton>
+            <IconButton size={42} aria-label="Share">
+              <Share size={15} />
+            </IconButton>
+            <div className="bg-ink/9 p-4">
+              <IconButton size={42} glass aria-label="Save (glass)">
+                <Bookmark size={13} filled className="text-accent" />
+              </IconButton>
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Card" note="Square, 1 px hairline, bg-card.">
+          <Placeholder task="2.6" what="square card on --color-card" />
+          <div className="flex flex-wrap gap-4">
+            <Card className="text-ink/78 w-56 p-5 text-sm">
+              radius=&quot;card&quot; — feed article card
+            </Card>
+            <Card radius="tile" className="text-ink/62 w-56 p-5 text-xs">
+              radius=&quot;tile&quot; — saved tile
+            </Card>
+          </div>
+        </Section>
+
+        <Section
+          title="Loader"
+          note="The Reach loader: ring, orbiting dot. Its ring becomes ink in 1b (the accent keeps only the seven jobs)."
+        >
+          <Placeholder task="2.7" what="ink ring, accent dot" />
           <div className="flex flex-wrap items-center gap-6">
             <Loader size={LOADER_SIZES.inline} />
             <Loader size={LOADER_SIZES.block} />
@@ -432,53 +788,11 @@ export default function TokensPage() {
           </div>
         </Section>
 
-        <Section title="Rise">
-          <p className="text-ink/40 text-[12px]">
-            Reload the page — this card fades/rises in on mount via the shared{" "}
-            <code>animate-rise</code> utility.
-          </p>
-        </Section>
-
-        {/* The two sheet curves side by side. They're easy to confuse in code and very distinct
-            in motion: `sheet-up` is the short, snappy pill-sheet entrance used app-wide;
-            `sheet-gallery` is the longer, further-travelling one reserved for the gallery's
-            details modal (5.8). Replaying them together is the only reliable way to check the
-            right one is wired to the right surface. */}
-        <Section title="Motion — the two sheet curves">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex flex-col items-center gap-2">
-              <div className="h-20 w-28 overflow-hidden">
-                <div
-                  key={`sheet-${motionKey}`}
-                  className="animate-sheet-up bg-surface border-hairline border-ink/12 rounded-t-sheet h-full w-full border-t"
-                />
-              </div>
-              <span className="text-ink/40 w-28 text-center text-[10.5px]">
-                animate-sheet-up · 260ms ease-sheet
-              </span>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <div className="h-20 w-28 overflow-hidden">
-                <div
-                  key={`gallery-${motionKey}`}
-                  className="animate-sheet-gallery bg-surface border-hairline border-ink/12 rounded-t-sheet h-full w-full border-t"
-                />
-              </div>
-              <span className="text-ink/40 w-28 text-center text-[10.5px]">
-                animate-sheet-gallery · 400ms ease-settle
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              shape="pill"
-              onClick={() => setMotionKey((k) => k + 1)}
-            >
-              Replay
-            </Button>
-          </div>
-        </Section>
-
-        <Section title="Toast">
+        <Section
+          title="Toast"
+          note="Today an ink-glass pill; DESIGN §4 makes it a white block."
+        >
+          <Placeholder task="2.8" what="white block toast" />
           <Button
             variant="ghost"
             shape="pill"
@@ -488,7 +802,11 @@ export default function TokensPage() {
           </Button>
         </Section>
 
-        <Section title="BottomSheet">
+        <Section
+          title="BottomSheet"
+          note="Today a rounded sheet / 520 px dialog / popover; DESIGN §4 squares them and gives each a top border instead of a shadow."
+        >
+          <Placeholder task="2.8" what="square sheet, dialog, popover" />
           <Button
             variant="ghost"
             shape="pill"
@@ -496,6 +814,47 @@ export default function TokensPage() {
           >
             Open sheet
           </Button>
+        </Section>
+
+        {/* ---------------------------------------------------------------- MOTION */}
+        <Section
+          title="Motion"
+          note="Easings are unchanged from 1a. Replay re-mounts the demos so the CSS animations run again."
+        >
+          <div className="flex flex-wrap items-end gap-6">
+            <div className="flex flex-col gap-2">
+              <div className="h-20 w-28 overflow-hidden">
+                <div
+                  key={`sheet-${motionKey}`}
+                  className="animate-sheet-up bg-surface border-hairline border-ink/16 h-full w-full border-t"
+                />
+              </div>
+              <Caption>animate-sheet-up · 240 ms ease-sheet</Caption>
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="h-20 w-28 overflow-hidden">
+                <div
+                  key={`gallery-${motionKey}`}
+                  className="animate-sheet-gallery bg-surface border-hairline border-ink/16 h-full w-full border-t"
+                />
+              </div>
+              <Caption>animate-sheet-gallery · 400 ms ease-settle</Caption>
+            </div>
+            <div className="flex flex-col gap-2">
+              <div
+                key={`rise-${motionKey}`}
+                className="animate-rise bg-card border-hairline border-ink/12 h-20 w-28 border"
+              />
+              <Caption>animate-rise · 600 ms</Caption>
+            </div>
+            <Button
+              variant="ghost"
+              shape="pill"
+              onClick={() => setMotionKey((k) => k + 1)}
+            >
+              Replay
+            </Button>
+          </div>
         </Section>
 
         <BackboneSection onToast={setBackboneToast} />
@@ -515,11 +874,10 @@ export default function TokensPage() {
         {/* The shell carries no horizontal padding of its own (5.5) so the collection sheets can
             scroll their rows edge to edge — free-form content supplies its own. */}
         <div className="px-[26px] pb-4">
-          <p className="text-ink/72 text-[15.5px] leading-[1.6]">
-            Scrim + panel + grabber + centered title, in on the 260ms{" "}
+          <p className="text-body text-ink/72">
+            Scrim + panel + grabber + centered title, in on the 240 ms{" "}
             <code>--ease-sheet</code> curve and out again on{" "}
-            <code>sheet-down</code>. Drag-to-close belongs to 5.8&apos;s gallery
-            modal, not here.
+            <code>sheet-down</code>.
           </p>
         </div>
       </BottomSheet>
@@ -672,7 +1030,7 @@ function BackboneSection({ onToast }: { onToast: (text: string) => void }) {
 
       <div
         {...press}
-        className="border-hairline border-ink/12 bg-ink/5 flex h-24 touch-manipulation items-center justify-center rounded-[14px] select-none"
+        className="border-hairline border-ink/12 bg-ink/5 flex h-24 touch-manipulation items-center justify-center select-none"
         style={{ WebkitTouchCallout: "none" }}
       >
         <span className="text-ink/60 text-[14px]">usePress: {pressLog}</span>

@@ -102,8 +102,8 @@ export function ImageTile({
       aria-label={item.title}
       className={cn(
         // The `focus-visible` ring is so a keyboard reader can see where they are without the
-        // phone ever showing one (`:focus-visible` never matches a touch). 2 px of lavender,
-        // inside the edge — the Lift's ring (docs/tile-hover/; docs/PLAN_tile-hover.md
+        // phone ever showing one (`:focus-visible` never matches a touch). 2 px of the accent
+        // green (`--color-focus-ring` = `--color-accent`), inset −2 px inside the edge — the Lift's ring (docs/tile-hover/; docs/PLAN_tile-hover.md
         // Decision 3). It replaced DESIGN_chrome-redesign.md §4's 3 px off-white on 10-04-26: the
         // lift and shadow on the wrapper (feed-grid.tsx) now mark focus too, so the ring no longer
         // has to be legible on its own against any photograph.

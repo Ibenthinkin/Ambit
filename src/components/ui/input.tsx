@@ -2,11 +2,9 @@ import * as React from "react";
 
 import { cn } from "~/lib/utils";
 
-// Landing's text input (Ambit - Landing.dc.html ~124-135). The prototype scopes the accent into
-// a bespoke `--ambit-accent` CSS var just so its `:focus` rule can reach it — the only custom
-// property anywhere in the handoff bundle. We don't need that trick: `--color-accent` is already
-// a real theme token (globals.css's `@theme inline` block), so `focus:border-accent` reaches the
-// live accent directly, no per-input variable required.
+// Landing's text input (Ambit - Landing.dc.html ~124-135). `--color-accent` is a plain theme
+// token (globals.css's `@theme` block), so `focus:border-accent` reaches the one accent colour
+// directly — no per-input CSS variable needed. (Phase 2 rewrites this as the underline input.)
 export function Input({ className, ...rest }: React.ComponentProps<"input">) {
   return (
     <input
