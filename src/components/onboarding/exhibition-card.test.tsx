@@ -50,7 +50,7 @@ describe("ExhibitionCard", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Land, sea & sky · Growing things · Creatures · Photography · Engraving",
+        "Land, sea & sky, growing things and creatures. Mostly photography and engraving.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -66,7 +66,27 @@ describe("ExhibitionCard", () => {
     expect(
       screen.getByText("The case for boring buildings"),
     ).toBeInTheDocument();
-    expect(screen.getByText("You like a long read.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "You like a long read, and you went for essays and the archive.",
+      ),
+    ).toBeInTheDocument();
+  });
+  it("sets the pole the reader leans to in ink and leaves the other grey", () => {
+    render(
+      <ExhibitionCard
+        taste={{
+          ...taste,
+          compass: { wild: 0.6, old: -0.5, still: 0.1, far: 0 },
+        }}
+        topicLabels={labels}
+      />,
+    );
+    const on = (name: string) => screen.getByText(name).getAttribute("data-on");
+    expect([on("Wild"), on("Built")]).toEqual(["true", "false"]);
+    expect([on("Old"), on("New")]).toEqual(["false", "true"]);
+    // Inside the threshold neither pole is claimed — as the sentence claims neither.
+    expect([on("Still"), on("Lively")]).toEqual(["false", "false"]);
   });
   it("omits the compass and the opened block when there is nothing to show", () => {
     render(
@@ -77,6 +97,10 @@ describe("ExhibitionCard", () => {
     );
     expect(screen.queryByRole("group", { name: "Travel compass" })).toBeNull();
     expect(screen.queryByText(/You’d open/)).toBeNull();
+    // …but what declining both cards said is still said.
+    expect(
+      screen.getByText("You’d rather look than read."),
+    ).toBeInTheDocument();
   });
   it("says 'something short' for a short reader and nothing in between", () => {
     const { rerender } = render(
@@ -85,7 +109,9 @@ describe("ExhibitionCard", () => {
         topicLabels={labels}
       />,
     );
-    expect(screen.getByText("You like something short.")).toBeInTheDocument();
+    expect(
+      screen.getByText(/^You like something short, and you went for/),
+    ).toBeInTheDocument();
     rerender(
       <ExhibitionCard
         taste={{ ...taste, readingMinutes: 9 }}
@@ -93,5 +119,8 @@ describe("ExhibitionCard", () => {
       />,
     );
     expect(screen.queryByText(/You like/)).toBeNull();
+    expect(
+      screen.getByText("You went for essays and the archive."),
+    ).toBeInTheDocument();
   });
 });

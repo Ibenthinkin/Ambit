@@ -3,47 +3,21 @@
 // else the top *medium*) and a noun (the top wing's). Wings are config/interview-wings.ts; a
 // wing's score is the mean positive score over its listed topics, the same arithmetic as the
 // playoff's ranking (show.ts), so the title agrees with the screen the reader just saw. Pure.
+//
+// The *words* — the adjectives, the nouns, "First Exhibition" — are the frame's (frame.ts), so
+// renaming the reveal never touches this file. The sentences under the title (the subtitle, what
+// the reader opened) are built here too: they are arithmetic over the same taste.
 import { WINGS } from "~/server/config/interview-wings";
 import { facetOf } from "~/server/config/topic-facets";
+import type { WritingKind } from "~/server/config/writing";
 import type { TopicFacet } from "~/server/db/schema";
+
+import { FRAME } from "./frame";
+import { joinAnd } from "./join";
+import { LONG_READ_MINUTES } from "./picks";
 
 /** A look must score at least this to name the show; below it the medium speaks. */
 export const TITLE_LOOK_FLOOR = 0.6;
-
-/** Look topic → adjective. Ben edits freely; a look not here simply yields to the medium. */
-export const LOOK_ADJECTIVES: Readonly<Record<string, string>> = {
-  minimal: "Quiet",
-  eerie: "Nocturnal",
-  melancholy: "Nocturnal",
-  neon: "Electric",
-  color: "Chromatic",
-  "black-and-white": "Monochrome",
-  surreal: "Dreaming",
-  psychedelic: "Dreaming",
-  whimsical: "Whimsical",
-  painterly: "Painted",
-  "aerial-view": "Aerial",
-  brutalist: "Concrete",
-  retrofuturism: "Atomic",
-  "art-deco": "Streamlined",
-  "mid-century-modern": "Streamlined",
-  cozy: "Hearthside",
-  ornate: "Gilded",
-  gothic: "Gothic",
-};
-
-/** Medium topic → adjective, the fallback. */
-export const MEDIUM_ADJECTIVES: Readonly<Record<string, string>> = {
-  photography: "Exposed",
-  engraving: "Engraved",
-  "scientific-illustration": "Measured",
-  ceramics: "Glazed",
-  textiles: "Woven",
-  collage: "Assembled",
-  painting: "Painted",
-  drawing: "Drawn",
-  illustration: "Illustrated",
-};
 
 function meanPositive(
   ids: readonly string[],
@@ -93,15 +67,76 @@ export function exhibitionTitle(
   let adjective: string | undefined;
   const look = topByFacet(scores, listed, "look", 1)[0];
   if (look && (scores.get(look) ?? 0) > TITLE_LOOK_FLOOR)
-    adjective = LOOK_ADJECTIVES[look];
+    adjective = FRAME.lookAdjectives[look];
   if (!adjective) {
     const medium = topByFacet(scores, listed, "medium", 1)[0];
-    if (medium) adjective = MEDIUM_ADJECTIVES[medium];
+    if (medium) adjective = FRAME.mediumAdjectives[medium];
   }
   const [top] = wingRanking(scores, listed);
-  const noun =
-    top && top.score > 0
-      ? WINGS.find((w) => w.id === top.id)!.noun
-      : "Exhibition";
-  return { adjective: adjective ?? "First", noun };
+  const noun = top && top.score > 0 ? FRAME.nouns[top.id] : undefined;
+  return {
+    adjective: adjective ?? FRAME.untitled.adjective,
+    noun: noun ?? FRAME.untitled.noun,
+  };
+}
+
+/** A label as it reads mid-sentence. Wing and topic labels are sentence-case common nouns
+ *  ("Growing things", "Photography"); one that is a proper noun would need an exception here. */
+const inSentence = (label: string) => label.toLowerCase();
+const capitalised = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * The line under the title, as a sentence rather than a row of dots: "Creatures, growing things
+ * and myth. Mostly photography and painting." — the top wings' labels, then the top mediums'.
+ * Either half is left out when it has nothing to say; both empty is "".
+ */
+export function exhibitionSubtitle(
+  wingLabels: readonly string[],
+  mediumLabels: readonly string[],
+): string {
+  const sentences: string[] = [];
+  if (wingLabels.length > 0)
+    sentences.push(`${capitalised(joinAnd(wingLabels.map(inSentence)))}.`);
+  if (mediumLabels.length > 0)
+    sentences.push(`Mostly ${joinAnd(mediumLabels.map(inSentence))}.`);
+  return sentences.join(" ");
+}
+
+/** "You like something short" at or under this mean; "a long read" at or over LONG_READER_MIN. */
+export const SHORT_READER_MAX = 4;
+export const LONG_READER_MIN = LONG_READ_MINUTES + 2;
+
+/** A writing kind as the thing a reader "went for". Copy — Ben edits freely. */
+export const KIND_WENT_FOR: Readonly<Record<WritingKind, string>> = {
+  essay: "essays",
+  curiosity: "curiosities",
+  criticism: "criticism",
+  archive: "the archive",
+};
+
+/**
+ * What the reading cards said, in one sentence: how long a read (only when the mean is clearly
+ * long or short) and which kinds, in the order they were opened — "You like a long read, and you
+ * went for essays and criticism." A reader who opened neither card gets "You’d rather look than
+ * read." and no promise about how much writing follows: that is the amount question's answer,
+ * which they may have set to anything.
+ */
+export function readingSummary(taste: {
+  opened: readonly { kind: WritingKind }[];
+  readingMinutes: number | null;
+}): string {
+  const { opened, readingMinutes } = taste;
+  if (opened.length === 0) return "You’d rather look than read.";
+  const kinds = joinAnd([...new Set(opened.map((o) => KIND_WENT_FOR[o.kind]))]);
+  const length =
+    readingMinutes === null
+      ? null
+      : readingMinutes >= LONG_READER_MIN
+        ? "a long read"
+        : readingMinutes <= SHORT_READER_MAX
+          ? "something short"
+          : null;
+  return length
+    ? `You like ${length}, and you went for ${kinds}.`
+    : `You went for ${kinds}.`;
 }

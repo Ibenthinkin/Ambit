@@ -140,6 +140,54 @@ describe("RevealStep", () => {
     ).toBeTruthy();
   });
 
+  it("re-seeds when the proposal changes under it, keeping what was set by hand", () => {
+    // What Allow will do (lib/interview/kept-out.ts): the answers change, the proposal is
+    // computed again, and the reveal is still on screen.
+    const onSubmit = vi.fn();
+    const props = {
+      topics: TOPICS,
+      retake: false,
+      submitting: false,
+      error: "",
+      onSubmit,
+      onBack: vi.fn(),
+    };
+    const { rerender } = render(<RevealStep {...props} proposed={PROPOSED} />);
+    press("Botany", "a lot");
+    press("Music", "off");
+    rerender(
+      <RevealStep
+        {...props}
+        proposed={[
+          { topicId: "geology", weight: 2 }, // untouched: follows the new proposal
+          { topicId: "astronomy", weight: 2 },
+          { topicId: "botany", weight: 0.5 }, // touched: stays "a lot"
+          { topicId: "music", weight: 1 }, // touched: stays off
+        ]}
+      />,
+    );
+    expect(
+      within(row("Geology")).getByRole("button", { name: "a lot" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(row("Music")).getByRole("button", { name: "off" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(cta());
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith([
+      { topicId: "geology", weight: 2 },
+      { topicId: "astronomy", weight: 2 },
+      { topicId: "botany", weight: 2 },
+    ]);
+  });
+
+  it("does not re-seed for an equal proposal in a new array", () => {
+    const { onSubmit } = show();
+    press("Geology", "off");
+    // `show` rendered once; a parent re-render with a fresh-but-equal list must change nothing.
+    fireEvent.click(cta());
+    expect(onSubmit.mock.calls[0]![0]).toHaveLength(3);
+  });
+
   it("shows no exhibition without a taste — the v1 reveal", () => {
     show();
     expect(screen.queryByText("Your first exhibition")).toBeNull();

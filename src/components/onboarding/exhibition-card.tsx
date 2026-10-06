@@ -3,18 +3,17 @@
 import { WINGS } from "~/server/config/interview-wings";
 import { TEMPERAMENT_DIMENSIONS } from "~/server/config/temperament";
 import { WRITING_KIND_LABELS } from "~/server/config/writing";
-import { compassSentence } from "~/lib/interview/compass";
-import { LONG_READ_MINUTES } from "~/lib/interview/picks";
+import { activePole, compassSentence } from "~/lib/interview/compass";
+import { exhibitionSubtitle, readingSummary } from "~/lib/interview/exhibition";
+import { FRAME } from "~/lib/interview/frame";
 import type { TasteV1 } from "~/lib/interview/taste";
+import { cn } from "~/lib/utils";
 
 // The reveal's head (docs/DESIGN_first-exhibition.md §6) — the reader's first exhibition, named:
 // title, subtitle, the temperament strip, the travel compass and "You’d open". Rendered above
 // the levels list on the reveal and again on /profile/topics from the stored taste. Set in Sora
-// like everything else (Ben: no serif). Pure presentation; every number arrives in `taste`.
-
-/** "You like something short" at or under this mean; "a long read" at or over LONG_READ_MINUTES + 2. */
-const SHORT_READER_MAX = 4;
-const LONG_READER_MIN = LONG_READ_MINUTES + 2;
+// like everything else (Ben: no serif). Pure presentation; every number arrives in `taste`, the
+// frame's words come from lib/interview/frame.ts, and the sentences are exhibition.ts's.
 
 const EYEBROW =
   "text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase";
@@ -49,7 +48,8 @@ function Bar({
   );
 }
 
-/** A bipolar bar: −1 at the left pole, +1 at the right. */
+/** A bipolar bar: −1 at the left pole, +1 at the right. The pole the reader leans to is set in
+ *  ink and the other left grey — the same cut as the sentence under the bars (`activePole`). */
 function Pole({
   left,
   right,
@@ -60,16 +60,28 @@ function Pole({
   value: number;
 }) {
   const pct = Math.round(((value + 1) / 2) * 100);
+  const lean = activePole(value);
+  const tone = (on: boolean) => (on ? "text-ink-hi" : "text-ink/62");
   return (
     <div className="flex items-center gap-3 text-[12px]">
-      <span className="text-ink/62 w-[52px] shrink-0 text-right">{left}</span>
+      <span
+        data-on={lean === "minus"}
+        className={cn("w-[52px] shrink-0 text-right", tone(lean === "minus"))}
+      >
+        {left}
+      </span>
       <div className="bg-ink/8 relative h-[6px] flex-1 rounded-full">
         <span
           className="bg-accent absolute top-1/2 h-[12px] w-[12px] -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{ left: `${pct}%` }}
         />
       </div>
-      <span className="text-ink/62 w-[52px] shrink-0">{right}</span>
+      <span
+        data-on={lean === "plus"}
+        className={cn("w-[52px] shrink-0", tone(lean === "plus"))}
+      >
+        {right}
+      </span>
     </div>
   );
 }
@@ -82,26 +94,19 @@ export function ExhibitionCard({
   topicLabels: ReadonlyMap<string, string>;
 }) {
   const wingLabel = (id: string) => WINGS.find((w) => w.id === id)?.label ?? id;
-  const subtitle = [
-    ...taste.wings.map(wingLabel),
-    ...taste.mediums.map((id) => topicLabels.get(id) ?? id),
-  ].join(" · ");
+  const subtitle = exhibitionSubtitle(
+    taste.wings.map(wingLabel),
+    taste.mediums.map((id) => topicLabels.get(id) ?? id),
+  );
   const sentence = taste.compass ? compassSentence(taste.compass) : "";
-  const readerLine =
-    taste.readingMinutes === null
-      ? null
-      : taste.readingMinutes >= LONG_READER_MIN
-        ? "You like a long read."
-        : taste.readingMinutes <= SHORT_READER_MAX
-          ? "You like something short."
-          : null;
+  const reading = readingSummary(taste);
 
   return (
     <section
-      aria-label="Your first exhibition"
+      aria-label={FRAME.eyebrow}
       className="border-hairline border-ink/12 p-5"
     >
-      <p className={EYEBROW}>Your first exhibition</p>
+      <p className={EYEBROW}>{FRAME.eyebrow}</p>
       <h2 className="text-ink-hi mt-2 text-[30px] leading-[1.1] font-semibold tracking-[-0.4px]">
         {taste.title.adjective} {taste.title.noun}
       </h2>
@@ -144,7 +149,10 @@ export function ExhibitionCard({
         </div>
       )}
 
-      {taste.opened.length > 0 && (
+      {taste.opened.length === 0 ? (
+        // No card was opened: the sentence alone, with no "You’d open" over an empty list.
+        <p className="text-ink/82 mt-6 text-[14px]">{reading}</p>
+      ) : (
         <div className="mt-6">
           <p className={EYEBROW}>You’d open</p>
           <ul className="mt-2 flex flex-col gap-2">
@@ -158,9 +166,7 @@ export function ExhibitionCard({
               </li>
             ))}
           </ul>
-          {readerLine && (
-            <p className="text-ink/82 mt-2 text-[14px]">{readerLine}</p>
-          )}
+          <p className="text-ink/82 mt-2 text-[14px]">{reading}</p>
         </div>
       )}
     </section>

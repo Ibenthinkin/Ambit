@@ -6,13 +6,13 @@
 //   - weighting: people broadly agree about nature and disagree about art (Vessel et al., 2018,
 //     "Stronger shared taste for natural aesthetic domains than for artifacts of human culture",
 //     Cognition 179), so a pick from a nature wing says less about *this* reader — `weight` < 1;
-//   - the exhibition title's noun on the reveal.
+//   - the reveal title's noun, which lives with the rest of the frame's words in
+//     lib/interview/frame.ts (`FRAME.nouns`, keyed by wing id).
 // Ben edits this file freely.
 
 export interface Wing {
   id: string;
   label: string;
-  noun: string;
   weight: number;
   topics: readonly string[];
   proposed: readonly string[];
@@ -24,8 +24,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "creatures",
     label: "Creatures",
-    /** The second word of the exhibition title ("Quiet Bestiaries"). */
-    noun: "Bestiaries",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 0.8,
     topics: ["animals", "zoology", "cats", "birds", "insects"],
@@ -44,8 +42,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "growing",
     label: "Growing things",
-    /** The second word of the exhibition title ("Quiet Gardens"). */
-    noun: "Gardens",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 0.8,
     topics: ["plants", "botany", "flowers", "trees", "mushrooms"],
@@ -64,8 +60,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "land",
     label: "Land, sea & sky",
-    /** The second word of the exhibition title ("Quiet Weathers"). */
-    noun: "Weathers",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 0.7,
     topics: [
@@ -102,8 +96,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "space",
     label: "Space & tomorrow",
-    /** The second word of the exhibition title ("Quiet Orbits"). */
-    noun: "Orbits",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 1,
     topics: [
@@ -128,8 +120,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "machines",
     label: "Machines & how things work",
-    /** The second word of the exhibition title ("Quiet Mechanisms"). */
-    noun: "Mechanisms",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 1,
     topics: [
@@ -162,8 +152,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "cities",
     label: "Cities & buildings",
-    /** The second word of the exhibition title ("Quiet Streets"). */
-    noun: "Streets",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 1,
     topics: [
@@ -190,8 +178,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "people",
     label: "People & daily life",
-    /** The second word of the exhibition title ("Quiet Portraits"). */
-    noun: "Portraits",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 1,
     topics: [
@@ -235,8 +221,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "myth",
     label: "Myth, ritual & the ancient world",
-    /** The second word of the exhibition title ("Quiet Myths"). */
-    noun: "Myths",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 1,
     topics: [
@@ -270,8 +254,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "body",
     label: "Body & mind",
-    /** The second word of the exhibition title ("Quiet Anatomies"). */
-    noun: "Anatomies",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 1,
     topics: ["anatomy", "body", "medicine", "consciousness", "emotions"],
@@ -283,8 +265,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "made",
     label: "Things people make",
-    /** The second word of the exhibition title ("Quiet Objects"). */
-    noun: "Objects",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 1,
     topics: ["furniture", "mirrors", "still-life"],
@@ -296,8 +276,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "everyday",
     label: "Food & the everyday",
-    /** The second word of the exhibition title ("Quiet Still Lifes"). */
-    noun: "Still Lifes",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 1,
     topics: ["food", "fruit", "books", "literature", "humor"],
@@ -319,8 +297,6 @@ export const WINGS: readonly Wing[] = [
   {
     id: "stage",
     label: "Stage, screen & sound",
-    /** The second word of the exhibition title ("Quiet Performances"). */
-    noun: "Performances",
     /** Picks from this wing are multiplied by this (1 = full weight). */
     weight: 1,
     topics: ["music", "sound", "dance", "film", "animation"],

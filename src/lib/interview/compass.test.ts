@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compassFrom, compassSentence } from "./compass";
+import { activePole, compassFrom, compassSentence } from "./compass";
 
 describe("compassFrom", () => {
   it("is null with nothing chosen", () => {
@@ -34,5 +34,15 @@ describe("compassSentence", () => {
     expect(compassSentence({ wild: 0, old: 0, still: 0, far: 0.9 })).toBe(
       "You’d travel for a long way from home.",
     );
+  });
+});
+
+describe("activePole", () => {
+  it("names the pole past the threshold, and neither inside it — the sentence's own cut", () => {
+    expect(activePole(0.6)).toBe("plus");
+    expect(activePole(-0.6)).toBe("minus");
+    expect(activePole(0.15)).toBeNull();
+    expect(activePole(-0.1)).toBeNull();
+    expect(activePole(0)).toBeNull();
   });
 });

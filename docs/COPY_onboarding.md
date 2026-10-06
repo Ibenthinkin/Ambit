@@ -81,7 +81,8 @@ Conventions worth knowing before writing:
 | Prompt, `playoff`                 | One more. Which would you look at longer? |  | Prototype: _Of your favourites, which first?_ / _These four pulled you in. Choose the one you would hang first._ |
 
 **The twelve wings** (`server/config/interview-wings.ts`; D4). `label` is the text fallback and the
-reveal subtitle; `noun` is the reveal title's second word.
+reveal subtitle; `noun` is the reveal title's second word, and since 10-06-26 lives with the rest
+of the frame's words in `lib/interview/frame.ts` (`FRAME.nouns`, keyed by the wing id).
 
 | id         | Current label                      | New label | Current noun | New noun | Notes                             |
 | ---------- | ---------------------------------- | --------- | ------------ | -------- | --------------------------------- |
@@ -198,12 +199,13 @@ swapped in.)
 | Prompt, `read-watch`  | What do you read or watch? Authors, magazines, a favourite film — anything.       |     | Ben: redundant with the above; D5 recommends merging into one |
 | Placeholder           | _(none today)_                                                                    |     | A concrete example or two inside the box would answer "on the spot" |
 
-## 5. The reveal (`reveal-step.tsx`, `exhibition-card.tsx`, `lib/interview/exhibition.ts`, `compass.ts`, `config/temperament.ts`)
+## 5. The reveal (`reveal-step.tsx`, `exhibition-card.tsx`, `lib/interview/frame.ts`, `exhibition.ts`, `compass.ts`, `config/temperament.ts`)
 
 | Slot                       | Current                                                                                                  | New | Notes                                                                  |
 | -------------------------- | -------------------------------------------------------------------------------------------------------- | --- | ---------------------------------------------------------------------- |
-| Card eyebrow (D6)          | Your first exhibition                                                                                    |     | The frame word; "feed / blog / zine or similar"                        |
-| Title fallback             | First Exhibition                                                                                         |     | When no look or medium clears the floor: adjective "First", noun "Exhibition" |
+| Card eyebrow (D6)          | Your first exhibition                                                                                    |     | `FRAME.eyebrow`. The frame word; "feed / blog / zine or similar"       |
+| Title fallback             | First Exhibition                                                                                         |     | `FRAME.untitled`. When no look or medium clears the floor: adjective "First", noun "Exhibition" |
+| Subtitle                   | _Creatures, growing things and myth. Mostly photography and painting._ (top wings, then top mediums)    |     | `exhibition.ts` `exhibitionSubtitle`; a sentence since 10-06-26, a row of dots before. The word "Mostly" is the only fixed copy |
 | Heading                    | Here’s where we’ll start                                                                                 |     |                                                                        |
 | Lede                       | Turn anything up, down or off. Ambit wanders sideways from here, and you can change all of this later.   |     | Prototype: _About one post in ten comes from outside this mix, so the feed keeps learning from your likes and saves._ (state the real share, Cut 4) |
 | Retake warning             | This replaces your current topics. _Cancel_                                                              |     |                                                                        |
@@ -216,9 +218,11 @@ swapped in.)
 | Compass poles              | Built / Wild · New / Old · Lively / Still · Near / Far                                                    |     |                                                                        |
 | Compass sentence parts     | You’d travel for … wild places over cities / cities over wild places · the old over the new / the new over the old · quiet over crowds / crowds over quiet · a long way from home / somewhere close to home |  | `compass.ts` `PHRASES`; joined with commas and "and"       |
 | "You’d open" eyebrow       | You’d open                                                                                               |     |                                                                        |
-| Reader line, long          | You like a long read.                                                                                    |     | Mean ≥ 16 min                                                           |
-| Reader line, short         | You like something short.                                                                                |     | Mean ≤ 4 min                                                            |
-| Reader line, none (Cut 4)  | —                                                                                                        |     | Prototype: _You'd rather look than read. We'll keep writing to a minimum._ |
+| Reader line, long          | You like a long read, and you went for _essays and criticism_.                                           |     | `exhibition.ts` `readingSummary`; mean ≥ 14 min                         |
+| Reader line, short         | You like something short, and you went for _essays_.                                                     |     | Mean ≤ 4 min                                                            |
+| Reader line, in between    | You went for _essays and criticism_.                                                                     |     |                                                                        |
+| Reader line, none opened   | You’d rather look than read.                                                                             |     | Prototype added _We'll keep writing to a minimum._ — left out: the amount question decides that, and the reader may have set it to anything |
+| Kinds, as "went for"       | essays · curiosities · criticism · the archive                                                           |     | `exhibition.ts` `KIND_WENT_FOR`                                         |
 | Kept out (Cut 4)           | —                                                                                                        |     | Prototype: eyebrow _Kept out_, chip suffix _Allow_, empty _Nothing kept out._ |
 
 ### Temperament dimensions (`server/config/temperament.ts`)
@@ -231,16 +235,16 @@ swapped in.)
 | thrilling | Thrilling | Adventure and the fantastic.        |           |           |
 | cerebral  | Cerebral  | Systems, ideas, how things work.    |           |           |
 
-### Exhibition title words (`lib/interview/exhibition.ts`; D6 — these are the conceit)
+### Exhibition title words (`lib/interview/frame.ts`, one `FRAME` object; D6 — these are the conceit)
 
 Adjective from the top **look** topic (floor 0.6): minimal → Quiet · eerie, melancholy → Nocturnal ·
 neon → Electric · color → Chromatic · black-and-white → Monochrome · surreal, psychedelic →
 Dreaming · whimsical → Whimsical · painterly → Painted · aerial-view → Aerial · brutalist →
 Concrete · retrofuturism → Atomic · art-deco, mid-century-modern → Streamlined · cozy → Hearthside ·
-ornate → Gilded · gothic → Gothic. Else from the top **medium**: photography → Exposed · engraving →
+ornate → Gilded · gothic → Gothic (waits on the proposed `gothic` topic; cannot fire today). Else from the top **medium**: photography → Exposed · engraving →
 Engraved · scientific-illustration → Measured · ceramics → Glazed · textiles → Woven · collage →
 Assembled · painting → Painted · drawing → Drawn · illustration → Illustrated. Noun: the top wing's
-`noun` (§4, Step 1 table).
+entry in `FRAME.nouns` (§4, Step 1 table).
 
 New adjective map, if the frame changes:
 
