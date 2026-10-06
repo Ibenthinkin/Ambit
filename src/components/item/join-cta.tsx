@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { Card } from "~/components/ui/card";
-
 // The invitation, shown only to signed-out visitors at the foot of an item page.
 //
 // **No "keep browsing without an account" link** for a stranger from a shared link, which the
@@ -11,6 +9,9 @@ import { Card } from "~/components/ui/card";
 // them to keep browsing, so the card offers the way back.
 //
 // Signed-in readers see nothing at all: they're already inside.
+//
+// Task 2.8: the Card primitive is gone. The two surfaces below are plain bordered divs on the
+// design's `--color-card` with no radius; Phase 4 lays this block out properly.
 export interface JoinCtaProps {
   /** The article variant gets a quieter, shorter card — it sits under a long read, not a picture. */
   variant: "image" | "article";
@@ -32,7 +33,7 @@ function KeepExploring() {
 export function JoinCta({ variant, exploring = false }: JoinCtaProps) {
   if (variant === "article") {
     return (
-      <Card className="mt-[30px] rounded-[22px] px-[22px] py-[24px] text-center">
+      <div className="border-hairline border-ink/8 bg-card mt-[30px] px-[22px] py-[24px] text-center">
         <h2 className="text-ink-hi text-[22px] leading-[1.24] font-semibold">
           Ambit is a quieter way to read.
         </h2>
@@ -47,12 +48,12 @@ export function JoinCta({ variant, exploring = false }: JoinCtaProps) {
           Get your invite →
         </Link>
         {exploring ? <KeepExploring /> : null}
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="mt-[34px] rounded-[22px] px-[22px] py-[28px] text-center">
+    <div className="border-hairline border-ink/8 bg-card mt-[34px] px-[22px] py-[28px] text-center">
       <h2 className="text-ink-hi text-[24px] leading-[1.22] font-semibold">
         Curiosity, without the doomscroll.
       </h2>
@@ -67,6 +68,6 @@ export function JoinCta({ variant, exploring = false }: JoinCtaProps) {
         Get your invite
       </Link>
       {exploring ? <KeepExploring /> : null}
-    </Card>
+    </div>
   );
 }

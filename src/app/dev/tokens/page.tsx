@@ -37,7 +37,8 @@ import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sh
 import { ShareSheet } from "~/components/sheets/share-sheet";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Button } from "~/components/ui/button";
-import { Card } from "~/components/ui/card";
+import { Eyebrow } from "~/components/ui/eyebrow";
+import { TextLink } from "~/components/ui/text-link";
 import { Chip } from "~/components/ui/chip";
 import { IconButton } from "~/components/ui/icon-button";
 import { Field } from "~/components/ui/field";
@@ -821,30 +822,34 @@ export default function TokensPage() {
           </div>
         </Section>
 
-        <Section
-          title="Card"
-          note="Not restyled: the primitive is deleted in Task 2.8 and its call sites become plain bordered elements on --color-card."
-        >
-          <Placeholder
-            task="2.8"
-            verb="deleted in"
-            what="call sites become plain bordered elements"
-          />
-          <div className="flex flex-wrap gap-4">
-            <Card className="text-ink/78 w-56 p-5 text-sm">
-              radius=&quot;card&quot; — feed article card
-            </Card>
-            <Card radius="tile" className="text-ink/62 w-56 p-5 text-xs">
-              radius=&quot;tile&quot; — saved tile
-            </Card>
-          </div>
-        </Section>
+        {/* Card was deleted in Task 2.8; its two call sites became plain bordered divs. */}
+        <p className="text-ink/55 text-xs">
+          Card: gone (Task 2.8) — call sites are plain bordered divs on
+          --color-card.
+        </p>
 
         <Section
           title="Eyebrow / TextLink"
-          note="DESIGN §4: the mono label and the underlined link, as primitives. Neither exists yet."
+          note="DESIGN §4: the mono label and the underlined link. Eyebrow is never green; only its dot is."
         >
-          <Placeholder task="2.7" verb="built in" what="Eyebrow and TextLink" />
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-wrap items-center gap-6">
+              <Eyebrow>plain eyebrow</Eyebrow>
+              <Eyebrow dot>with dot</Eyebrow>
+            </div>
+            <div className="flex flex-wrap items-center gap-6 text-sm">
+              <TextLink href="/profile">internal</TextLink>
+              <TextLink href="https://example.com" external>
+                external
+              </TextLink>
+              <TextLink href="/profile" bracket>
+                bracket
+              </TextLink>
+              <TextLink href="/profile" tone="body">
+                tone body
+              </TextLink>
+            </div>
+          </div>
         </Section>
 
         <Section
