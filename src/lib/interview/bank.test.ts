@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 
 import { DESTINATIONS } from "~/server/config/interview-destinations";
 import { WINGS } from "~/server/config/interview-wings";
-import { READING_AMOUNTS } from "~/server/config/reading-amount";
 import { TOPIC_FACETS } from "~/server/config/topic-facets";
 import { TOPIC_GROUPS } from "~/server/config/topic-groups";
 import { TOPICS } from "~/server/config/topics";
@@ -32,8 +31,10 @@ const KNOWN = new Set([
 ]);
 
 describe("the bank's structure", () => {
-  it("has a positive integer version", () => {
-    expect(Number.isInteger(BANK_VERSION) && BANK_VERSION > 0).toBe(true);
+  // v3 (docs/DESIGN_redesign.md §5.1): the reading amount moved to the reveal, and the two
+  // free-text questions became one. A question's meaning changed, so the version did.
+  it("is version 3", () => {
+    expect(BANK_VERSION).toBe(3);
   });
 
   it("asks between ten and twenty questions, each id once", () => {
@@ -90,20 +91,25 @@ describe("the bank's structure", () => {
     }
   });
 
-  it("has exactly one amount question, offering all four amounts", () => {
-    const amounts = QUESTIONS.filter((q) => q.kind === "amount");
-    expect(amounts).toHaveLength(1);
-    expect(amounts[0]!.options.map((o) => o.reading)).toEqual([
-      ...READING_AMOUNTS,
-    ]);
+  it("asks no reading amount — the reveal's Reading row sets it", () => {
+    expect(QUESTIONS.filter((q) => q.id === "amount")).toEqual([]);
+    // The kind itself is gone from the vocabulary, so no other id can smuggle one back in.
+    expect(QUESTIONS.filter((q) => (q.kind as string) === "amount")).toEqual(
+      [],
+    );
+  });
+
+  it("ends on exactly one free-text question, look-at (the Bonus)", () => {
+    const texts = QUESTIONS.filter((q) => q.kind === "text");
+    expect(texts.map((q) => q.id)).toEqual(["look-at"]);
+    expect(QUESTIONS.at(-1)!.id).toBe("look-at");
+    expect(QUESTIONS.some((q) => q.id === "read-watch")).toBe(false);
   });
 });
 
 describe("the bank on a sixteen-topic database", () => {
   it("still asks at least three topic questions", () => {
-    const asked = askable(QUESTIONS, NARROW).filter(
-      (q) => q.kind !== "text" && q.kind !== "amount",
-    );
+    const asked = askable(QUESTIONS, NARROW).filter((q) => q.kind !== "text");
     expect(asked.length).toBeGreaterThanOrEqual(3);
   });
 
@@ -190,7 +196,10 @@ describe("the e2e path", () => {
   });
 });
 
-describe("the nine steps", () => {
+describe("the eight steps", () => {
+  it("has eight", () => {
+    expect(STEP_COUNT).toBe(8);
+  });
   it("files every question into exactly one step, numbered 1…STEP_COUNT with no gaps", () => {
     for (const q of QUESTIONS) expect(STEP_OF[q.id], q.id).toBeDefined();
     const used = [...new Set(QUESTIONS.map((q) => STEP_OF[q.id]!))].sort(

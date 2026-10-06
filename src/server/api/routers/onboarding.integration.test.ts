@@ -43,12 +43,16 @@ describe.skipIf(!process.env.DATABASE_URL)(
     const badTasteUserId = `test-onboarding-badtaste-${nanoid(6)}`;
     const noTasteUserId = `test-onboarding-notaste-${nanoid(6)}`;
     const manyTopicsUserId = `test-onboarding-many-${nanoid(6)}`;
+    const staleUserId = `test-onboarding-stale-${nanoid(6)}`;
+    const noAmountUserId = `test-onboarding-noamount-${nanoid(6)}`;
     const USERS = [
       userId,
       goneUserId,
       badTasteUserId,
       noTasteUserId,
       manyTopicsUserId,
+      staleUserId,
+      noAmountUserId,
     ];
     const tag = nanoid(8);
     const [a, b, c, d] = ["a", "b", "c", "d"].map(
@@ -78,6 +82,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
       bankVersion: 1,
       ...over,
     });
+
+    /** A v3 run that says nothing about reading — no `writingAmount` key at all. */
+    const sayingNothingOfReading = () => {
+      const { picks, answers } = input();
+      return { picks, answers, bankVersion: 3 };
+    };
 
     const rowsFor = async (uid: string) => {
       const { db } = await import("~/server/db/client");
@@ -241,6 +251,68 @@ describe.skipIf(!process.env.DATABASE_URL)(
         }),
       );
       expect(runId).toBeTruthy();
+    });
+
+    // Redesign Review focus 2 (docs/PLAN_redesign.md, Phase 6): bank v3 retired the `amount`
+    // and `read-watch` questions, but a tab opened before that deploy still asks them and sends
+    // their answers under `bankVersion: 2`. The answer log is a record of what was asked, so the
+    // run completes and both rows are logged under the version that asked them.
+    it("accepts and logs a bank v2 run from a stale tab (amount and read-watch answers)", async () => {
+      const caller = createCaller(authedContext(staleUserId));
+      const { runId } = await caller.onboarding.complete(
+        input({
+          writingAmount: "little",
+          bankVersion: 2,
+          answers: [
+            { questionId: "wings-1", keys: ["space"] },
+            { questionId: "amount", keys: ["little"] },
+            {
+              questionId: "look-at",
+              keys: [],
+              text: "star charts",
+              topicIds: [a],
+            },
+            {
+              questionId: "read-watch",
+              keys: [],
+              text: "Le Guin, old Omni magazines",
+              topicIds: [b],
+            },
+          ],
+        }),
+      );
+
+      const { me, log } = await rowsFor(staleUserId);
+      expect(me!.writingAmount).toBe("little");
+      expect(log).toHaveLength(4);
+      expect(log.every((r) => r.runId === runId && r.bankVersion === 2)).toBe(
+        true,
+      );
+      const by = Object.fromEntries(log.map((r) => [r.questionId, r]));
+      expect(by.amount).toMatchObject({ answer: ["little"], text: null });
+      expect(by["read-watch"]).toMatchObject({
+        answer: [b],
+        text: "Le Guin, old Omni magazines",
+      });
+    });
+
+    // Bank v3 has no amount question; the reveal's Reading row supplies it (Task 6.6). Until
+    // then — and for any client that never says — an absent amount means what a skipped one
+    // always meant: the column is left as it was, and NULL is the feed's default share.
+    it("accepts a run with no writingAmount at all and leaves the column untouched", async () => {
+      const caller = createCaller(authedContext(staleUserId));
+      const { runId } = await caller.onboarding.complete(
+        sayingNothingOfReading(),
+      );
+      expect(runId).toBeTruthy();
+      // Still the v2 run's "little": absent is "not said", never "cleared".
+      expect((await rowsFor(staleUserId)).me!.writingAmount).toBe("little");
+    });
+
+    it("leaves a never-set amount NULL when a run says nothing about reading", async () => {
+      const caller = createCaller(authedContext(noAmountUserId));
+      await caller.onboarding.complete(sayingNothingOfReading());
+      expect((await rowsFor(noAmountUserId)).me!.writingAmount).toBeNull();
     });
 
     it("deleting the reader deletes their answers (the foreign key cascades)", async () => {

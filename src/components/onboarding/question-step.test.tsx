@@ -156,15 +156,6 @@ describe("QuestionStep", () => {
     );
   });
 
-  it("the amount question answers with the level's key and is done", () => {
-    const { onChange } = show("reading-amount");
-    fireEvent.click(screen.getByRole("button", { name: "A lot" }));
-    expect(onChange).toHaveBeenCalledWith(
-      { questionId: "reading-amount", keys: ["lot"] },
-      true,
-    );
-  });
-
   describe("a text question", () => {
     it("is a labelled box holding what was typed, capped at 500 characters", () => {
       show("words", { questionId: "words", keys: [], text: "old maps" });

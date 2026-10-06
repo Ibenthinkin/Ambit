@@ -108,9 +108,15 @@ export const onboardingRouter = createTRPCRouter({
               new Set(picks.map((p) => p.topicId)).size === picks.length,
             "Each topic once",
           ),
+        // Null or absent = "not said": the column is left as it was (db/onboarding.ts), and a
+        // reader who never set one reads at the feed's default. Bank v3 has no amount question —
+        // the reveal's Reading row sends it — so a v3 client may leave it out entirely.
         writingAmount: z
           .enum(READING_AMOUNTS as unknown as [string, ...string[]])
-          .nullable(),
+          .nullish(),
+        // Not checked against the bank either: a tab opened before a bank change still sends
+        // the retired questions' answers (v2's `amount`, `read-watch`), and they are logged
+        // under the `bankVersion` that asked them (pinned in onboarding.integration.test.ts).
         answers: z.array(answerSchema).max(40),
         bankVersion: z.number().int().positive(),
         // `about` (age range, place, gender) was here until 10-05-26. A stale client may still
@@ -157,7 +163,7 @@ export const onboardingRouter = createTRPCRouter({
 
       return completeOnboarding(ctx.user.id, {
         picks: input.picks,
-        writingAmount: input.writingAmount as ReadingAmount | null,
+        writingAmount: (input.writingAmount ?? null) as ReadingAmount | null,
         // To the stored shape: a free-text question's row holds the reader's words and the
         // topic ids they were mapped to; every other row holds its keys and no text.
         answers: input.answers.map((a) =>

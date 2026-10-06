@@ -6,17 +6,18 @@
 // an effect names topics (directly, or through an umbrella group) and a score to add to each.
 // The reader never sees a topic id, a group or a facet — those are the internal vocabulary the
 // answers are written in.
-import type { ReadingAmount } from "~/server/config/reading-amount";
 import type { WritingKind } from "~/server/config/writing";
 
 /**
  *   pair    two picture cards — this one, that one, either, neither
  *   choice  pick exactly one of a few
  *   multi   pick any (up to `max`)
- *   amount  the reading-amount question: its options carry `reading`, no effects
  *   text    free text; a model maps the words to topic ids (`Answer.topicIds`)
+ *
+ * (Banks v1 and v2 had an `amount` kind for the reading-amount question. Bank v3 moved the
+ * amount to the reveal — docs/DESIGN_redesign.md §5.1 — and the kind went with it.)
  */
-export type QuestionKind = "pair" | "choice" | "multi" | "amount" | "text";
+export type QuestionKind = "pair" | "choice" | "multi" | "text";
 
 /** What one answer adds: `score`, shared between its targets (see score.ts). Negative subtracts. */
 export interface Effect {
@@ -49,8 +50,6 @@ export interface Option {
    *  option whose point is the log (Nudity under "rather not") or whose scoring comes from the
    *  item shown rather than from `effects` (the reading cards). */
   always?: true;
-  /** `amount` questions only: the level this answer stores. */
-  reading?: ReadingAmount;
 }
 
 export interface Question {

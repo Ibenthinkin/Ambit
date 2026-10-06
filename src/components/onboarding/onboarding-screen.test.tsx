@@ -11,10 +11,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SKIP } from "~/lib/interview/config";
 import { TEST_BANK, WIDE } from "~/lib/interview/fixtures";
 import type { Question } from "~/lib/interview/types";
-import {
-  READING_AMOUNTS,
-  READING_LABELS,
-} from "~/server/config/reading-amount";
 
 import { OnboardingScreen } from "./onboarding-screen";
 
@@ -44,8 +40,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
 }));
 
-// The engine's own five-question test bank (a text question, a pair, a multi, a choice, the
-// amount) over a production-shaped topic list — small enough to walk in a test, and independent
+// The engine's own four-question test bank (a text question, a pair, a multi, a choice — bank
+// v3 has no amount question) over a production-shaped topic list — small enough to walk in a test, and independent
 // of the real bank's copy, which Ben edits.
 const TOPICS = [...WIDE].map((id) => ({
   id,
@@ -53,10 +49,10 @@ const TOPICS = [...WIDE].map((id) => ({
 }));
 const STARTERS = ["astronomy", "botany", "music", "food"];
 // The fixture bank also carries First Exhibition's question shapes (a faced choice, a multi with
-// an `always` option, reading cards); the walks below are written for the five above, so they
+// an `always` option, reading cards); the walks below are written for the four above, so they
 // render the bank without those. Tests of the new shapes pass their own bank.
 const V2_FIXTURES = new Set(["rooms", "rather-not", "read"]);
-const FIVE = TEST_BANK.filter((q) => !V2_FIXTURES.has(q.id));
+const FOUR = TEST_BANK.filter((q) => !V2_FIXTURES.has(q.id));
 
 function show(over: Partial<Parameters<typeof OnboardingScreen>[0]> = {}) {
   return render(
@@ -64,7 +60,7 @@ function show(over: Partial<Parameters<typeof OnboardingScreen>[0]> = {}) {
       topics={TOPICS}
       faces={{}}
       retake={false}
-      bank={FIVE}
+      bank={FOUR}
       starters={STARTERS}
       {...over}
     />,
@@ -107,7 +103,7 @@ describe("OnboardingScreen", () => {
     expect(questionId()).toBeUndefined();
     click("Begin");
     expect(questionId()).toBe("words");
-    expect(screen.getByText("1 of 5")).toBeInTheDocument();
+    expect(screen.getByText("1 of 4")).toBeInTheDocument();
   });
 
   // Ben's critique (10-05-26): Begin sat in the fixed bar at the foot of the screen, far from
@@ -151,7 +147,7 @@ describe("OnboardingScreen", () => {
         weight: 1,
       })),
     );
-    expect(sent().answers.map((a) => a.keys)).toEqual(FIVE.map(() => [SKIP]));
+    expect(sent().answers.map((a) => a.keys)).toEqual(FOUR.map(() => [SKIP]));
     expect(sent().writingAmount).toBeNull();
     // About you was removed with its three columns (10-05-26): nothing of it is sent.
     expect("about" in sent()).toBe(false);
@@ -168,7 +164,7 @@ describe("OnboardingScreen", () => {
     expect(completeMock).not.toHaveBeenCalled();
   });
 
-  it("a tap answers a pair, a choice and the amount; a multi and a text box wait for Next", async () => {
+  it("a tap answers a pair and a choice; a multi and a text box wait for Next", async () => {
     interpretMock.mockResolvedValue([
       { questionId: "words", topicIds: ["food"] },
     ]);
@@ -192,10 +188,8 @@ describe("OnboardingScreen", () => {
     expect(questionId()).toBe("evening");
     click("Next");
 
-    // Choice, then the amount — each one tap.
+    // Choice — one tap, and it was the last question.
     click("Yes");
-    expect(questionId()).toBe("reading-amount");
-    click("A lot");
 
     // Leaving the last question asks the model, once, behind a short beat.
     expect(screen.getByText("Putting it together…")).toBeInTheDocument();
@@ -218,14 +212,14 @@ describe("OnboardingScreen", () => {
 
     click("Start exploring");
     await waitFor(() => expect(completeMock).toHaveBeenCalled());
-    expect(sent().writingAmount).toBe("lot");
+    // No amount question in bank v3: "not said" until the reveal's Reading row (Task 6.6).
+    expect(sent().writingAmount).toBeNull();
     expect(sent().bankVersion).toBeGreaterThan(0);
     expect(sent().answers).toEqual([
       { questionId: "words", keys: [], text: "cookbooks", topicIds: ["food"] },
       { questionId: "space-or-garden", keys: ["space"] },
       { questionId: "evening", keys: ["music"] },
       { questionId: "unsettle", keys: ["yes"] },
-      { questionId: "reading-amount", keys: ["lot"] },
     ]);
     expect(sent().picks.map((p) => p.topicId)).toEqual(
       expect.arrayContaining(["food", "music", "astronomy", "eerie"]),
@@ -277,11 +271,10 @@ describe("OnboardingScreen", () => {
     click("Skip");
     click("Skip");
     click("Yes");
-    click("A lot");
     expect(heading()).toBe("Here’s where we’ll start");
     click("Back");
-    expect(questionId()).toBe("reading-amount");
-    expect(screen.getByRole("button", { name: "A lot" })).toHaveAttribute(
+    expect(questionId()).toBe("unsettle");
+    expect(screen.getByRole("button", { name: "Yes" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -319,12 +312,14 @@ describe("OnboardingScreen", () => {
   });
 
   it("asks only what this database can answer", () => {
-    // Nothing listed but music: the pair, the multi and the choice all lose their answers.
+    // Nothing listed but music: the pair, the multi and the choice all lose their answers, and
+    // only the text question is left.
     show({ topics: [{ id: "music", label: "Music" }] });
     click("Begin");
-    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+    expect(screen.getByText("1 of 1")).toBeInTheDocument();
+    expect(questionId()).toBe("words");
     click("Skip");
-    expect(questionId()).toBe("reading-amount");
+    expect(heading()).toBe("Here’s where we’ll start");
   });
 
   // Review finding (10-02-26): a tap that answers a question unmounts it, and focus fell to
@@ -340,15 +335,13 @@ describe("OnboardingScreen", () => {
     expect(document.activeElement).toBe(
       screen.getByRole("heading", { name: "What do you lose an evening to?" }),
     );
-    const live = screen.getByText("3 of 5");
+    const live = screen.getByText("3 of 4");
     expect(live).toHaveAttribute("aria-live", "polite");
-    // The same element announces the next count: it is not re-created with the question.
-    click("Skip");
-    expect(screen.getByText("4 of 5")).toBe(live);
-    // A bank with no steps (this one) counts questions, and the last reads "N of N" — the
+    // The same element announces the next count: it is not re-created with the question. A
+    // bank with no steps (this one) counts questions, and the last reads "N of N" — the
     // About-you screen that once made it "N + 1" is gone (Review Focus 1, 10-05-26).
-    click("Yes");
-    expect(screen.getByText("5 of 5")).toBe(live);
+    click("Skip");
+    expect(screen.getByText("4 of 4")).toBe(live);
   });
 
   // ── First Exhibition (bank v2) ────────────────────────────────────────────────────────────
@@ -388,20 +381,8 @@ describe("OnboardingScreen", () => {
       expect(screen.queryByRole("button", { name: "Space" })).toBeNull();
     });
 
-    it("preselects the reading amount from the cards, and sends the taste with the opened cards (Review Focus 3: after Back and a change, the final answers win)", async () => {
-      // The fixture's amount question offers two levels; this one offers all four.
-      const amount: Question = {
-        id: "reading-amount",
-        kind: "amount",
-        prompt: "How much reading do you want mixed in?",
-        options: READING_AMOUNTS.map((a) => ({
-          key: a,
-          label: READING_LABELS[a],
-          effects: [],
-          reading: a,
-        })),
-      };
-      const bank: Question[] = [{ ...fixture("read"), id: "read-1" }, amount];
+    it("sends the taste with the opened cards (Review Focus 3: after Back and a change, the final answers win)", async () => {
+      const bank: Question[] = [{ ...fixture("read"), id: "read-1" }];
       const faces = {
         "read-1/essay": {
           itemId: "e1",
@@ -427,14 +408,9 @@ describe("OnboardingScreen", () => {
       show({ bank, faces });
       begin();
       click(/Long/);
-      // One card opened → "a little" preselected on the amount question, and it counts as said.
-      expect(
-        screen.getByRole("button", { name: READING_LABELS.little }),
-      ).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
+      await finishToReveal();
       click("Back");
       click(/Short/);
-      click("Next");
       await finishToReveal();
       click(/Start exploring/);
       await waitFor(() => expect(completeMock).toHaveBeenCalled());
@@ -446,38 +422,12 @@ describe("OnboardingScreen", () => {
       expect(taste.opened).toEqual([
         { itemId: "c1", title: "Short", kind: "curiosity", minutes: 3 },
       ]);
-      expect(sent().writingAmount).toBe("little");
-    });
-
-    it("does not preselect a level the amount question does not offer", () => {
-      // The fixture's amount question has only "none" and "lot"; one opened card means "little".
-      const bank: Question[] = [
-        { ...fixture("read"), id: "read-1" },
-        fixture("reading-amount"),
-      ];
-      show({
-        bank,
-        faces: {
-          "read-1/essay": {
-            itemId: "e1",
-            writing: {
-              title: "Long",
-              dek: "",
-              minutes: 14,
-              kind: "essay" as const,
-              topicIds: [],
-            },
-          },
-        },
-      });
-      begin();
-      click(/Long/);
-      expect(questionId()).toBe("reading-amount");
-      expect(screen.getByRole("button", { name: "Skip" })).toBeInTheDocument();
+      // The amount the cards suggest is the reveal's Reading row's to send (Task 6.6).
+      expect(sent().writingAmount).toBeNull();
     });
 
     // Ben's critique (10-05-26): drop "I'd rather look at pictures" for a plain Skip. Declining
-    // is still logged as a skip, which the amount question's preselect reads.
+    // is still logged as a skip, which the reveal's Reading row preselect reads.
     it("a reading screen's forward button is a plain Skip", () => {
       show({ bank: [{ ...fixture("read"), id: "read-1" }] });
       begin();

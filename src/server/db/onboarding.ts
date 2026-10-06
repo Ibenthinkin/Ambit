@@ -26,7 +26,8 @@ export interface AnswerRow {
 
 export interface OnboardingRun {
   picks: readonly TopicPick[];
-  /** Null = the amount question was skipped: the column is left as it was. */
+  /** Null = not said (bank v2's amount question skipped, or a v3 run without the reveal's
+   *  Reading row): the column is left as it was. */
   writingAmount: ReadingAmount | null;
   answers: readonly AnswerRow[];
   bankVersion: number;

@@ -13,12 +13,7 @@ import { BANK_VERSION, QUESTIONS, STARTER_TOPICS } from "~/lib/interview/bank";
 import { SKIP } from "~/lib/interview/config";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
 import { columnFor, type Phase } from "~/lib/interview/layout";
-import {
-  defaultReadingAmount,
-  picksFrom,
-  readingAmountFrom,
-  type Pick,
-} from "~/lib/interview/picks";
+import { picksFrom, type Pick } from "~/lib/interview/picks";
 import { scoreAnswers } from "~/lib/interview/score";
 import { shown } from "~/lib/interview/show";
 import { STEP_LABELS, STEP_OF, stepsAsked } from "~/lib/interview/steps";
@@ -64,8 +59,9 @@ import { StepBar } from "./step-bar";
 // First Exhibition (bank v2, docs/DESIGN_first-exhibition.md) added four things, all derived from
 // the answers so Back-and-change is always honoured: the progress line counts **steps** (steps.ts)
 // rather than questions; a `show.top` question (the playoff) is **ranked** by the scores so far
-// before it is shown (show.ts); the reading-amount question **opens on a default** read off the
-// article cards; and the reveal's **taste** (taste.ts) is computed here and sent with the run.
+// before it is shown (show.ts); the reading amount **opened on a default** read off the article
+// cards (bank v3 moved it to the reveal — Task 6.6 wires the Reading row); and the reveal's
+// **taste** (taste.ts) is computed here and sent with the run.
 
 export interface OnboardingScreenProps {
   /** `topics.list` — every pickable topic in this database. */
@@ -150,27 +146,6 @@ export function OnboardingScreen({
         : [];
     });
   }, [answers, bank, faces]);
-  /** Reading screens skipped — what the amount question's preselect reads. */
-  const readingSkipped = answers.filter((a) => {
-    const q = bank.find((x) => x.id === a.questionId);
-    return (
-      (q?.options.some((o) => o.face?.writing) ?? false) && a.keys[0] === SKIP
-    );
-  }).length;
-
-  // The amount question opens on what the cards already said — preselected *as the answer*, so
-  // pressing Next stores it, and the reader can change it. Only a level the question offers.
-  const amountDefault =
-    current?.kind === "amount"
-      ? defaultReadingAmount(opened, readingSkipped)
-      : null;
-  const shownDraft =
-    draft ??
-    (current &&
-    amountDefault &&
-    current.options.some((o) => o.key === amountDefault)
-      ? { questionId: current.id, keys: [amountDefault] }
-      : undefined);
 
   // The progress line counts steps; a bank with no STEP_OF entries (a test's) keeps v1's
   // question count.
@@ -264,7 +239,10 @@ export function OnboardingScreen({
     try {
       await complete.mutateAsync({
         picks,
-        writingAmount: readingAmountFrom(bank, answers),
+        // Bank v3 asks no amount question; the reveal's Reading row will send one (Task 6.6).
+        // Until then null = "not said": the column is left as it was and the feed reads at
+        // its default share — what a skipped amount question always meant.
+        writingAmount: null,
         answers,
         bankVersion: BANK_VERSION,
         taste,
@@ -347,7 +325,7 @@ export function OnboardingScreen({
                 question={onScreen ?? current}
                 listed={listed}
                 faces={faces}
-                answer={shownDraft}
+                answer={draft}
                 onChange={(answer, done) =>
                   done ? advance(answer) : setDraft(answer)
                 }
@@ -358,8 +336,8 @@ export function OnboardingScreen({
                 Back
               </Button>
               {/* One button, named for what it will do: nothing said yet → Skip. */}
-              <Button size="md" onClick={() => advance(shownDraft)}>
-                {forwardLabel(current, isAnswered(shownDraft))}
+              <Button size="md" onClick={() => advance(draft)}>
+                {forwardLabel(current, isAnswered(draft))}
               </Button>
             </StepBar>
           </>

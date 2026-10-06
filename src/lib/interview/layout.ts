@@ -4,7 +4,7 @@
 // Ben's critique (10-05-26): in the 600 px onboarding column the picture cards came out 110–140
 // px wide — thumbnails, for a step whose whole point is looking. So a step that shows pictures
 // (or typeset cards) takes the 1120 px `wide` column, and a step of words — a text box, a row of
-// chips, the reading amount — stays in the 600 px `narrow` one, where a line of type reads well.
+// chips — stays in the 600 px `narrow` one, where a line of type reads well.
 // Below `md` (768 px) both are full width, so a phone sees no change at all.
 import type { Question } from "./types";
 

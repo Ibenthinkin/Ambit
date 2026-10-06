@@ -39,7 +39,7 @@ describe("columnFor", () => {
 
   it("keeps words in the narrow column", () => {
     expect(columnFor(fixture("words"), "questions")).toBe("narrow");
-    expect(columnFor(fixture("reading-amount"), "questions")).toBe("narrow");
+    expect(columnFor(fixture("unsettle"), "questions")).toBe("narrow");
     expect(columnFor(fixture("evening"), "questions")).toBe("narrow");
   });
 

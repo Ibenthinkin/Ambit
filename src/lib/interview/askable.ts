@@ -6,7 +6,7 @@ import type { Question } from "./types";
 
 /**
  * The bank, filtered:
- *   - `text` and `amount` questions are always asked — neither needs a topic to exist.
+ *   - a `text` question is always asked — it needs no topic to exist;
  *   - an answer none of whose topics are listed is hidden — unless it is `always`;
  *   - a `pair` with a dead side is skipped (one card is not a face-off);
  *   - a `choice` or `multi` left with fewer than two answers is skipped.
@@ -18,7 +18,7 @@ export function askable(
 ): Question[] {
   const out: Question[] = [];
   for (const q of bank) {
-    if (q.kind === "text" || q.kind === "amount") {
+    if (q.kind === "text") {
       out.push(q);
       continue;
     }

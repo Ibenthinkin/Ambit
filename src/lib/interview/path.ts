@@ -24,8 +24,9 @@ export function answersToward(
   for (const asked of askable(bank, listed)) {
     const q = shown(asked, scoreAnswers(bank, out, listed), listed);
 
-    // Free text is the model's business and the reading amount isn't a topic: both skipped.
-    if (q.kind === "text" || q.kind === "amount") {
+    // Free text is the model's business: skipped. (Bank v2's reading-amount question was
+    // skipped here too; v3 moved it to the reveal, where e2e sets it.)
+    if (q.kind === "text") {
       out.push(skip(q));
       continue;
     }

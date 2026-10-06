@@ -83,12 +83,6 @@ describe("scoreAnswers", () => {
     expect(four.has("not-listed")).toBe(false);
   });
 
-  it("an amount answer scores nothing", () => {
-    expect(score([{ questionId: "reading-amount", keys: ["lot"] }]).size).toBe(
-      0,
-    );
-  });
-
   it("None of these on a choice takes each option's FIRST effect down at -0.5 — not the face bonus", () => {
     const s = score([{ questionId: "rooms", keys: [NEITHER] }]);
     // First effects only: {astronomy, moon} and {botany, plants}, each -0.5 shared by √2.

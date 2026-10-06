@@ -16,8 +16,8 @@ import { FaceCard } from "./face-card";
 // every change — it holds no state, and knows nothing about what comes before or after. The
 // screen (onboarding-screen.tsx) owns the answers, Skip, Back and Next.
 //
-// `onChange(answer, done)`: `done` is true when the tap *is* the whole answer — a pair, a choice,
-// the reading amount — so the screen can move straight on, and false when there may be more to
+// `onChange(answer, done)`: `done` is true when the tap *is* the whole answer — a pair or a
+// choice — so the screen can move straight on, and false when there may be more to
 // say (a multi's second answer, more typing).
 //
 // Two attributes exist for the e2e helper and nothing else: `data-question-id` on the step, and
@@ -274,9 +274,7 @@ export function QuestionStep({
       )}
 
       {!asCards &&
-        (question.kind === "choice" ||
-          question.kind === "multi" ||
-          question.kind === "amount") && (
+        (question.kind === "choice" || question.kind === "multi") && (
           <>
             {question.kind === "multi" && (
               <p className="text-ink/62 mt-3 text-[15px]">
