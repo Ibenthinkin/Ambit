@@ -25,7 +25,7 @@ export type KeyKind =
 export type KeyAction =
   | { type: "cursor"; index: number } // move the cursor here
   | { type: "pick"; index: number } // pick / toggle this card
-  | { type: "none" } // "None of these"
+  | { type: "none" } // N — skip the screen (the rooms', pairs' and reading screens' decline)
   | { type: "both" } // "Both, equally"
   | { type: "next" } // intro: begin
   | { type: "keep" }
@@ -34,7 +34,7 @@ export type KeyAction =
 
 const IGNORE: KeyAction = { type: "ignore" };
 
-/** Four-card screens: digits pick directly, N is "None of these". */
+/** Four-card screens: digits pick directly, N skips. */
 const FOUR_CARD = new Set<KeyKind>(["rooms", "read"]);
 /** Screens whose arrows walk a cursor and whose Enter picks under it. */
 const CURSOR = new Set<KeyKind>(["rooms", "read", "travel", "avoid"]);
@@ -79,6 +79,7 @@ export function keyAction(
     if (k === "arrowleft") return { type: "pick", index: 0 };
     if (k === "arrowright") return { type: "pick", index: 1 };
     if (k === "b") return { type: "both" };
+    if (k === "n") return { type: "none" };
   }
 
   if (kind === "keep") {

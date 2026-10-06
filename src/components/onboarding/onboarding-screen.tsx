@@ -22,7 +22,7 @@ import {
 } from "~/lib/interview/answer";
 import { askable } from "~/lib/interview/askable";
 import { BANK_VERSION, QUESTIONS, STARTER_TOPICS } from "~/lib/interview/bank";
-import { EITHER, NEITHER, SKIP } from "~/lib/interview/config";
+import { EITHER, SKIP } from "~/lib/interview/config";
 import { wingRanking } from "~/lib/interview/exhibition";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
 import { hangFrom, heroesFor } from "~/lib/interview/hang";
@@ -123,7 +123,7 @@ const INTRO_LINES = [
 ] as const;
 
 /** Is a control focused that Enter already means something to (a button, a link)? Then Enter is
- *  its own job — Cancel on a retake's intro, Back or Skip after walking with the arrows. The
+ *  its own job — Cancel on a retake's intro, Back or a screen's own button after walking with the arrows. The
  *  question heading (focused by script on arrival) and the body are not controls. */
 function ownsEnter(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -240,12 +240,8 @@ export function OnboardingScreen({
     // Only words not mapped yet: the bonus question maps them live as the reader pauses
     // (bonus-step.tsx), and an edit after that drops the mapping — so `topicIds` present means
     // "mapped, for exactly these words", and asking again would spend a call to hear the same.
-    const texts = all.flatMap((a) =>
-      a.text && a.topicIds === undefined
-        ? [{ questionId: a.questionId, text: a.text }]
-        : [],
-    );
-    if (texts.length === 0) {
+    const unmapped = all.filter((a) => a.text && a.topicIds === undefined);
+    if (unmapped.length === 0) {
       setAnswers(all);
       setDraft(undefined);
       setPhase("reveal");
@@ -253,19 +249,37 @@ export function OnboardingScreen({
     }
     const run = ++finishRun.current;
     setFinishing(true);
-    let done = all;
-    try {
-      const mapped = await interpret.mutateAsync({ texts });
-      const byQuestion = new Map(mapped.map((m) => [m.questionId, m.topicIds]));
-      done = all.map((a) =>
-        a.text && a.topicIds === undefined
-          ? { ...a, topicIds: byQuestion.get(a.questionId) ?? [] }
-          : a,
+    const byQuestion = new Map<string, string[]>();
+    // A live call still out for exactly these words (Continue pressed mid-flight): wait for it
+    // rather than paying for the same answer twice. A live call that failed answers `undefined`
+    // and its words are asked for below, once more.
+    const live = liveMap.current;
+    const same =
+      live &&
+      unmapped.find(
+        (a) => a.questionId === live.questionId && a.text === live.text,
       );
-    } catch {
-      // The service already answers empty lists on its own failures; this is the network
-      // between here and it. Either way the reveal is built from the other answers.
+    if (live && same) {
+      const ids = await live.result;
+      if (ids !== undefined) byQuestion.set(same.questionId, ids);
     }
+    const rest = unmapped.filter((a) => !byQuestion.has(a.questionId));
+    if (rest.length > 0) {
+      try {
+        const mapped = await interpret.mutateAsync({
+          texts: rest.map((a) => ({ questionId: a.questionId, text: a.text! })),
+        });
+        for (const m of mapped) byQuestion.set(m.questionId, m.topicIds);
+      } catch {
+        // The service already answers empty lists on its own failures; this is the network
+        // between here and it. Either way the reveal is built from the other answers.
+      }
+    }
+    const done = all.map((a) =>
+      a.text && a.topicIds === undefined
+        ? { ...a, topicIds: byQuestion.get(a.questionId) ?? [] }
+        : a,
+    );
     // The reader went Back while the model was thinking: this run is not theirs any more.
     if (run !== finishRun.current) return;
     setFinishing(false);
@@ -274,18 +288,34 @@ export function OnboardingScreen({
     setPhase("reveal");
   }
 
+  /** The newest live mapping: which words it was for, and its answer to come. Continue on the
+   *  same words waits for it (`finishQuestions`) instead of asking again. */
+  const liveMap = useRef<{
+    questionId: string;
+    text: string;
+    result: Promise<string[] | undefined>;
+  } | null>(null);
+
   /** The bonus question's live mapping (DESIGN §5.2): one call for one answer's words, as the
    *  reader pauses. `undefined` when the call itself failed — the screen then shows nothing, and
    *  `finishQuestions` asks once more on the way out. Stable, so the screen's debounce is not
-   *  restarted by an unrelated render. */
+   *  restarted by an unrelated render. `text` arrives trimmed, as `advance` stores it. */
   const mapWords = useCallback(
-    async (questionId: string, text: string) => {
-      try {
-        const mapped = await interpretAsync({ texts: [{ questionId, text }] });
-        return mapped.find((m) => m.questionId === questionId)?.topicIds ?? [];
-      } catch {
-        return undefined;
-      }
+    (questionId: string, text: string) => {
+      const result = (async () => {
+        try {
+          const mapped = await interpretAsync({
+            texts: [{ questionId, text }],
+          });
+          return (
+            mapped.find((m) => m.questionId === questionId)?.topicIds ?? []
+          );
+        } catch {
+          return undefined;
+        }
+      })();
+      liveMap.current = { questionId, text, result };
+      return result;
     },
     [interpretAsync],
   );
@@ -396,10 +426,10 @@ export function OnboardingScreen({
         return;
       }
       case "none":
-        // The rooms' "None of these" is an answer (NEITHER scores the starters down); a reading
-        // screen's decline is a skip, as its Skip button is.
-        if (kind === "read") advance(undefined);
-        else pick(pickAnswer(onScreen, NEITHER, faces));
+        // N is a skip on every screen that binds it — the rooms, the pairs (Ben, 10-06-26: their
+        // Skip replaced "None of these" and "Neither") and the reading screens — as the screens'
+        // own Skip and decline buttons are.
+        advance(undefined);
         return;
       case "both":
         pick(pickAnswer(onScreen, EITHER, faces));

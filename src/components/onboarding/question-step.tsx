@@ -45,8 +45,8 @@ import { StoryCard } from "./story-card";
 // Which layout a question takes is keys.ts's name for it (`keyKindOf`) — the keyboard and the
 // screen can't disagree about what kind of screen is up. DESIGN_redesign §5.2 draws each:
 //
-//   rooms   a faced choice — the wings and the playoff: four 4:5 pictures, "None of these"
-//   pairs   a pair: two pictures, "Both, equally", a quiet "Neither" link
+//   rooms   a faced choice — the wings and the playoff: four 4:5 pictures, Skip
+//   pairs   a pair: two pictures, "Both, equally", a quiet Skip link
 //   keep    a faced multi with no cap: one picture at a time (keep-stack.tsx)
 //   read    a choice of article cards (story-card.tsx), "I’d rather look at pictures"
 //   travel  a multi of typeset cards (place-card.tsx), Continue · "Nowhere in particular"
@@ -127,7 +127,7 @@ function Footer({ children, hint }: { children: ReactNode; hint?: string }) {
   );
 }
 
-/** The outline button under the picture screens — None of these, Both, I’d rather… */
+/** The outline button under the picture screens — Skip, Both, I’d rather… */
 function Outline(props: ComponentProps<typeof Button>) {
   return (
     <Button variant="outline" className="h-auto px-[22px] py-3" {...props} />
@@ -183,11 +183,11 @@ export function QuestionStep({
         <>
           {heading}
           <Lede>Pick one. Go with your first instinct.</Lede>
-          {/* Two across on a phone, four across from ~620 px (auto-fit: never an empty track). */}
+          {/* DESIGN §5.2: a 2 × 2 grid on a phone, four across from `md`. */}
           <div
             role="group"
             aria-labelledby={id}
-            className="mt-8 grid grid-cols-[repeat(auto-fit,minmax(min(100%,150px),1fr))] gap-1"
+            className="mt-8 grid grid-cols-2 gap-1 md:grid-cols-4"
           >
             {question.options.map((o, i) => {
               const face = faces[faceKey(question.id, o.key)];
@@ -206,18 +206,14 @@ export function QuestionStep({
               );
             })}
           </div>
-          {/* None of these is an answer (NEITHER scores the starters down), offered where the
-              answers carry effects — every wing and playoff screen. */}
-          {question.options.some((o) => o.effects.length > 0) && (
-            <Footer hint={`Keys 1 to ${Math.min(n, 4)}, or N for none`}>
-              <Outline
-                aria-pressed={keys[0] === NEITHER}
-                onClick={() => only(NEITHER)}
-              >
-                None of these
-              </Outline>
-            </Footer>
-          )}
+          {/* Skip (Ben, 10-06-26, overriding "None of these"): a true skip — SKIP, scoring
+              nothing either way. These screens no longer answer NEITHER; score.ts still reads
+              it, for the answer logs that carry it. */}
+          <Footer hint={`Keys 1 to ${Math.min(n, 4)}, or N to skip`}>
+            <Outline aria-busy={busy} onClick={forward(onSkip)}>
+              Skip
+            </Outline>
+          </Footer>
         </>
       );
       break;
@@ -250,21 +246,17 @@ export function QuestionStep({
               );
             })}
           </div>
-          {/* Decision 9: "Both, equally" as the outline button and a quiet "Neither" link —
-              EITHER and NEITHER, scored as they always were. */}
-          <Footer hint="Arrow keys, or B for both">
+          {/* Decision 9's "Both, equally" (EITHER), then a quiet Skip link where "Neither" was
+              (Ben, 10-06-26): a true skip, scoring nothing either way. */}
+          <Footer hint="Arrow keys, B for both, N to skip">
             <Outline
               aria-pressed={keys[0] === EITHER}
               onClick={() => only(EITHER)}
             >
               Both, equally
             </Outline>
-            <Button
-              variant="link"
-              aria-pressed={keys[0] === NEITHER}
-              onClick={() => only(NEITHER)}
-            >
-              Neither
+            <Button variant="link" aria-busy={busy} onClick={forward(onSkip)}>
+              Skip
             </Button>
           </Footer>
         </>

@@ -2,7 +2,7 @@
 // (docs/DESIGN_first-exhibition.md §2). A wing is a bundle of subject topics a reader would
 // recognise from one picture; it is *not* a new kind of group — the umbrella groups, facets and
 // the feed never hear of it. It exists for three things:
-//   - the "Which would you look at longer?" rounds: twelve wings, three rounds of four;
+//   - the "Which one is the most interesting?" rounds: twelve wings, three rounds of four;
 //   - weighting: people broadly agree about nature and disagree about art (Vessel et al., 2018,
 //     "Stronger shared taste for natural aesthetic domains than for artifacts of human culture",
 //     Cognition 179), so a pick from a nature wing says less about *this* reader — `weight` < 1;

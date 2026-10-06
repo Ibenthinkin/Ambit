@@ -6,7 +6,7 @@ import type { Question } from "./types";
 const q: Question = {
   id: "playoff",
   kind: "choice",
-  prompt: "Which would you look at longer?",
+  prompt: "Which one is the most interesting?",
   show: { top: 2 },
   options: [
     {

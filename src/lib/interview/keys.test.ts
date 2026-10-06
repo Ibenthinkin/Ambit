@@ -30,8 +30,8 @@ describe("rooms (four cards, 1-4, N)", () => {
     ["4", 1, 4, pick(3)],
     ["5", null, 4, IGNORE],
     ["0", null, 4, IGNORE],
-    ["n", 2, 4, { type: "none" }],
-    ["N", null, 4, { type: "none" }],
+    ["n", 2, 4, { type: "none" }], // skip
+    ["N", null, 4, { type: "none" }], // skip
     ["b", 0, 4, IGNORE],
     ["x", 0, 4, IGNORE],
     ["Tab", 0, 4, IGNORE],
@@ -57,7 +57,7 @@ describe("read (four article cards, same keys as rooms)", () => {
   ]);
 });
 
-describe("pairs (left, right, both)", () => {
+describe("pairs (left, right, both, N to skip)", () => {
   table("pairs", [
     ["ArrowLeft", null, 2, pick(0)],
     ["ArrowRight", null, 2, pick(1)],
@@ -68,7 +68,8 @@ describe("pairs (left, right, both)", () => {
     ["ArrowDown", null, 2, IGNORE],
     ["Enter", 0, 2, IGNORE],
     ["1", null, 2, IGNORE],
-    ["n", null, 2, IGNORE],
+    ["n", null, 2, { type: "none" }], // skip
+    ["N", 0, 2, { type: "none" }], // skip
   ]);
 });
 

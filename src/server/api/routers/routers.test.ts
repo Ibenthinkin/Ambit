@@ -536,7 +536,9 @@ describe("zod input validation", () => {
       await expect(busy.onboarding.interpret(input)).rejects.toMatchObject({
         code: "TOO_MANY_REQUESTS",
       });
-    });
+      // trpc.ts's timing middleware sleeps 100–500 ms per call outside production, so thirty-one
+      // calls (the cap went 10 → 30 on 10-06-26) need longer than the default 5 s.
+    }, 30_000);
 
     it("refuses a question id that is not a plain slug", async () => {
       await expect(

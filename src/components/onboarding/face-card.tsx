@@ -21,9 +21,12 @@ import { cn } from "~/lib/utils";
 
 /** The prototype's `focusStyle`: the card under the cursor (or the pointer) lifts 3.5% above its
  *  neighbours, over 350 ms. `motion-lift` exempts it from the reduced-motion collapse, as the
- *  feed's lift is — it is a hover cue, not an entrance. */
+ *  feed's lift is — it is a hover cue, not an entrance. A picked card sits a layer up (`PICKED_Z`)
+ *  and a keyboard-focused one above everything, so neither the pick's outline nor the focus ring
+ *  (both drawn 3 px outside the card, across a 4 px gap) is painted under a neighbour. */
 export const CARD_LIFT =
-  "motion-lift relative transition-[scale] duration-350 ease-[cubic-bezier(.2,.8,.2,1)] hover:z-[2] hover:scale-[1.035]";
+  "motion-lift relative transition-[scale] duration-350 ease-[cubic-bezier(.2,.8,.2,1)] hover:z-[2] hover:scale-[1.035] focus-visible:z-[3]";
+export const PICKED_Z = "z-[1]";
 export const CARD_LIFTED = "z-[2] scale-[1.035]";
 
 /** A pick (DESIGN §5.2): outlined 1.5 px in ink, 3 px off the frame. Ink, not accent — a
@@ -124,6 +127,7 @@ export function FaceCard({
       className={cn(
         "block w-full cursor-pointer text-left",
         CARD_LIFT,
+        selected && PICKED_Z,
         cursor && CARD_LIFTED,
       )}
     >

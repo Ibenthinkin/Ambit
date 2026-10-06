@@ -115,7 +115,7 @@ describe("QuestionStep", () => {
       },
     };
 
-    it("shows two cards captioned ← / → and their own titles, plus Both, equally and Neither", () => {
+    it("shows two cards captioned ← / → and their own titles, plus Both, equally and Skip", () => {
       show("space-or-garden", undefined, faces);
       const space = button("Space");
       expect(space.querySelector("img")).toHaveAttribute(
@@ -133,9 +133,10 @@ describe("QuestionStep", () => {
       );
       // Decision 9: an outline button, and a quiet link (Button's link variant: underlined).
       expect(button("Both, equally").className).toMatch(/border/);
-      expect(button("Neither").className).toMatch(/underline/);
+      expect(button("Skip").className).toMatch(/underline/);
+      expect(screen.queryByRole("button", { name: "Neither" })).toBeNull();
       expect(
-        screen.getByText(/Arrow keys, or B for both/i),
+        screen.getByText(/Arrow keys, B for both, N to skip/i),
       ).toBeInTheDocument();
     });
 
@@ -148,14 +149,16 @@ describe("QuestionStep", () => {
       );
     });
 
-    it("answers Both, equally and Neither with their sentinels", () => {
-      const { onChange } = show("space-or-garden");
+    it("answers Both, equally with EITHER; Skip is a skip, no answer at all", () => {
+      const { onChange, onSkip } = show("space-or-garden");
       fireEvent.click(button("Both, equally"));
-      fireEvent.click(button("Neither"));
       expect(onChange.mock.calls).toEqual([
         [{ questionId: "space-or-garden", keys: [EITHER] }, true],
-        [{ questionId: "space-or-garden", keys: [NEITHER] }, true],
       ]);
+      fireEvent.click(button("Skip"));
+      expect(onSkip).toHaveBeenCalledTimes(1);
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(screen.getByText(/N to skip/i)).toBeInTheDocument();
     });
 
     it("shows a returning answer as pressed", () => {
@@ -191,21 +194,25 @@ describe("QuestionStep", () => {
       expect(button("A garden")).toHaveTextContent("2");
     });
 
-    it("offers None of these as the NEITHER answer, with the key hint", () => {
-      const { onChange } = show("rooms", undefined, faces);
-      expect(
-        screen.getByText(/Keys 1 to 2, or N for none/i),
-      ).toBeInTheDocument();
-      fireEvent.click(button("None of these"));
-      expect(onChange).toHaveBeenCalledWith(
-        { questionId: "rooms", keys: [NEITHER] },
-        true,
-      );
+    // DESIGN §5.2: 2 × 2 on a phone, four across on a computer — never three and one.
+    it("lays the pictures out two across, and four from md", () => {
+      show("rooms");
+      const grid = screen.getByRole("group");
+      expect(grid).toHaveClass("grid-cols-2", "md:grid-cols-4");
     });
 
-    it("has no Skip — a pick, or None of these, is the way on", () => {
-      show("rooms");
-      expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
+    // Ben, 10-06-26: Skip replaced "None of these" — a true skip, never NEITHER.
+    it("offers Skip — a skip, not an answer — with the key hint", () => {
+      const { onChange, onSkip } = show("rooms", undefined, faces);
+      expect(
+        screen.getByText(/Keys 1 to 2, or N to skip/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "None of these" }),
+      ).toBeNull();
+      fireEvent.click(button("Skip"));
+      expect(onSkip).toHaveBeenCalledTimes(1);
+      expect(onChange).not.toHaveBeenCalled();
     });
   });
 
@@ -319,7 +326,7 @@ describe("QuestionStep", () => {
       expect(card.querySelector("img")).toBeNull();
     });
 
-    it("declines with “I’d rather look at pictures” — a skip, not None of these", () => {
+    it("declines with “I’d rather look at pictures” — a skip", () => {
       const { onSkip, onChange } = show("read");
       expect(
         screen.queryByRole("button", { name: "None of these" }),

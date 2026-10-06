@@ -85,11 +85,18 @@ export function BonusStep({
     onChange({ questionId: question.id, keys: [], text: now, topicIds }, false);
   });
 
+  // Read when the pause runs out, not a dependency: the shell turning busy (Continue pressed)
+  // must not cancel a call already out — the shell waits for that very call instead of asking
+  // again (onboarding-screen.tsx's `finishQuestions`), and its answer is still these words'.
+  const finishing = useEffectEvent(() => busy);
+
   useEffect(() => {
-    if (busy || !mapWords || mapped || words.length < BONUS_MIN_CHARS) return;
+    if (!mapWords || mapped || words.length < BONUS_MIN_CHARS) return;
     // `live` drops a result whose words were edited, or whose screen was left, before it landed.
     let live = true;
     const timer = setTimeout(() => {
+      // Continue came first: the shell asks for these words itself.
+      if (finishing()) return;
       void mapWords(question.id, words).then((ids) => {
         if (live && ids !== undefined) report(words, ids);
       });
@@ -98,7 +105,7 @@ export function BonusStep({
       live = false;
       clearTimeout(timer);
     };
-  }, [busy, mapWords, mapped, words, question.id]);
+  }, [mapWords, mapped, words, question.id]);
 
   /** An edit. Whitespace at the ends does not change the words, so it keeps their mapping. */
   function edit(value: string) {

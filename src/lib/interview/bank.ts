@@ -328,8 +328,9 @@ function pairOf(
   return { id, kind: "pair", prompt, options: [side(a, "a"), side(b, "b")] };
 }
 
-/** "Tap any you'd keep": ten pictures, each carrying the tags of what it shows. A kept picture
- *  adds; an untouched one says nothing (skipping isn't disliking). Eight wings and two looks. */
+/** "Keep or pass": ten pictures, one at a time, each carrying the tags of what it shows. A kept
+ *  picture adds; a passed one says nothing (passing isn't disliking — decision 10). Eight wings
+ *  and two looks. */
 const KEEP: readonly {
   key: string;
   label: string;

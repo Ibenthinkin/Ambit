@@ -10,6 +10,7 @@ import {
   CARD_MONO,
   CardPicture,
   PICKED_OUTLINE,
+  PICKED_Z,
 } from "./face-card";
 
 // A reading screen's card — "Which would you open?" (DESIGN_redesign §5.2): a real piece from the
@@ -64,6 +65,7 @@ export function StoryCard({
       className={cn(
         "block w-full cursor-pointer pb-7 text-left",
         CARD_LIFT,
+        selected && PICKED_Z,
         cursor && CARD_LIFTED,
       )}
     >

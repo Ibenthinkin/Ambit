@@ -78,9 +78,13 @@ export function KeepStack({
   const count = `${pad(idx + 1)} / ${pad(total)}`;
   const quick = `${COUNT[total] ?? total} quick ${total === 1 ? "one" : "ones"}.`;
 
+  // The card that's up is announced as it changes (a screen reader hears each new title after a
+  // Keep or a Pass), and both buttons are described by it: "Keep, A maid pouring milk".
+  const cardId = `${headingId}-card`;
   const pass = (
     <Button
       variant="outline"
+      aria-describedby={cardId}
       onClick={() => onStack(false)}
       className={desktop ? "h-14 text-[16px]" : "h-auto py-[13px]"}
     >
@@ -90,6 +94,7 @@ export function KeepStack({
   const keep = (
     <Button
       data-topics={optionAdds(card, listed).join(" ")}
+      aria-describedby={cardId}
       onClick={() => onStack(true)}
       className={desktop ? "h-14 text-[16px]" : "h-auto py-[14px]"}
     >
@@ -136,8 +141,15 @@ export function KeepStack({
           <p className="text-ink/68 mt-3.5 text-[16px] leading-[1.5]">
             {quick} Go with your gut.
           </p>
-          <div className="border-ink/16 mt-9 border-t pt-4">
-            <p className="text-ink-hi text-[17px]">{title}</p>
+          <div
+            data-keep-card
+            aria-live="polite"
+            aria-atomic="true"
+            className="border-ink/16 mt-9 border-t pt-4"
+          >
+            <p id={cardId} className="text-ink-hi text-[17px]">
+              {title}
+            </p>
             {tag && <p className={cn(CARD_MONO, "text-ink/48 mt-1")}>{tag}</p>}
           </div>
           <div className="mt-8 grid grid-cols-2 gap-2">
@@ -179,9 +191,12 @@ export function KeepStack({
           className="aspect-[4/5] w-full"
         />
         <div
+          data-keep-card
+          aria-live="polite"
+          aria-atomic="true"
           className={cn(CARD_MONO, "text-ink/78 mt-2.5 flex justify-between")}
         >
-          <span>{title}</span>
+          <span id={cardId}>{title}</span>
           {tag && <span className="text-ink/40">{tag}</span>}
         </div>
         <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4">

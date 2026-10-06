@@ -32,10 +32,13 @@ export const MAX_ANSWER_TEXT = 500;
 /**
  * `onboarding.interpret`'s own cap, far below the global 120/min (api/trpc.ts). Each call is a paid
  * model call on the same OpenRouter wallet the nightly ingest spends — a client looping it could
- * empty the wallet, and a 402 then fails the ingest too. A reader needs one call per pass; ten an
- * hour leaves room for retakes and Back-and-forth. Per process, like the global limiter.
+ * empty the wallet, and a 402 then fails the ingest too. The bonus question maps its words live,
+ * once per pause in typing (bonus-step.tsx), so a pass can spend a few; thirty an hour (raised
+ * from ten, 10-06-26 — each call is a fraction of a cent) leaves room for that, a retake inside
+ * the hour and Back-and-forth, without a retake silently losing the words. Per process, like the
+ * global limiter.
  */
-export const INTERPRET_PER_HOUR = 10;
+export const INTERPRET_PER_HOUR = 30;
 const interpretLimiter = new RateLimiter({
   limit: INTERPRET_PER_HOUR,
   windowMs: 60 * 60 * 1000,
