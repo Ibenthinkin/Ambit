@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;1,400&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #060606; }
+    a { color: #F2F2F2; text-decoration: underline; text-underline-offset: 3px; }
+    a:hover { color: #FFFFFF; }
+  </style>
+</helmet>
+
+<section style="background:#060606; color:#E6E6E6; font-family:'Hanken Grotesk', sans-serif; padding:48px 48px 24px; min-width:1400px;">
+  <div style="display:flex; justify-content:space-between; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.16); font-family:'Geist Mono', monospace; font-size:12px; text-transform:uppercase; color:#9A9A9A;"><span>Ambit · Accent</span><span>Turn 2 · Rich greens · 12 options</span><span>Used on: dots, because, one button</span></div>
+  <div style="font-size:56px; line-height:1.04; letter-spacing:-0.025em; color:#F2F2F2; margin-top:32px;">Rich greens.</div>
+  <div style="font-size:18px; color:#9A9A9A; margin-top:10px; max-width:760px;">Deep and saturated, from billiard felt to malachite. The darkest ones read well as a button fill but get quiet as a small dot on black.</div>
+
+  <div style="display:grid; grid-template-columns:repeat(4, 300px); gap:40px 28px; margin-top:44px;">
+    <sc-for list="{{ greens }}" as="o" hint-placeholder-count="12">
+      <div id="{{ o.id }}">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.16);">
+          <span style="background:#F2F2F2; color:#0E0E0E; padding:2px 6px;">{{ o.id }}</span><span>{{ o.hex }}</span>
+        </div>
+        <div style="{{ o.swatch }}"></div>
+        <div style="font-size:24px; letter-spacing:-0.01em; color:#F2F2F2; margin-top:14px;">{{ o.name }}</div>
+        <div style="font-size:14px; line-height:1.4; color:#8A8A8A; margin-top:4px; min-height:40px;">{{ o.note }}</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:16px; background:#0E0E0E; padding:4px;">
+          <div style="padding:14px 11px 12px; background:#161616; border:1px solid rgba(255,255,255,0.08);">
+            <div style="display:flex; align-items:center; gap:6px; font-family:'Geist Mono', monospace; font-size:9px; letter-spacing:0.5px; text-transform:uppercase; color:#9A9A9A;"><span style="{{ o.dot }}"></span>Ambit</div>
+            <div style="font-size:15px; line-height:1.15; color:#F2F2F2; margin-top:10px;">What is this?</div>
+            <div style="font-size:11px; line-height:1.4; color:#9A9A9A; margin-top:6px;">A quiet feed of public-domain pictures.</div>
+            <div style="{{ o.button }}">Read how it works</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="padding:12px 10px; background:#161616; border:1px solid rgba(255,255,255,0.08);">
+              <div style="display:flex; align-items:center; gap:6px; font-family:'Geist Mono', monospace; font-size:9px; letter-spacing:0.5px; text-transform:uppercase; color:{{ o.hex }};"><span style="{{ o.dot }}"></span>Because</div>
+              <div style="font-size:10.5px; line-height:1.4; color:#8A8A8A; margin-top:8px;">you saved Haeckel</div>
+              <div style="font-size:12.5px; line-height:1.3; color:#F2F2F2; margin-top:4px;">→ printing with sunlight</div>
+            </div>
+            <img src="assets/wave.jpg" alt="" style="width:100%; height:62px; object-fit:cover; display:block;">
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</section>
+
+<section style="background:#060606; color:#E6E6E6; font-family:'Hanken Grotesk', sans-serif; padding:48px; min-width:1400px;">
+  <div style="display:flex; justify-content:space-between; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.16); font-family:'Geist Mono', monospace; font-size:12px; text-transform:uppercase; color:#9A9A9A;"><span>Ambit · Accent</span><span>Turn 1 · 16 options</span><span>Used on: dots, because, one button</span></div>
+  <div style="font-size:56px; line-height:1.04; letter-spacing:-0.025em; color:#F2F2F2; margin-top:32px;">One accent, against black and white.</div>
+  <div style="font-size:18px; color:#9A9A9A; margin-top:10px; max-width:760px;">Each card shows the colour as a dot, as the "Because" signal, and as a solid button, so you can judge it both quiet and loud.</div>
+
+  <div style="display:grid; grid-template-columns:repeat(4, 300px); gap:40px 28px; margin-top:44px;">
+    <sc-for list="{{ options }}" as="o" hint-placeholder-count="16">
+      <div id="{{ o.id }}">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.16);">
+          <span style="background:#F2F2F2; color:#0E0E0E; padding:2px 6px;">{{ o.id }}</span><span>{{ o.hex }}</span>
+        </div>
+        <div style="{{ o.swatch }}"></div>
+        <div style="font-size:24px; letter-spacing:-0.01em; color:#F2F2F2; margin-top:14px;">{{ o.name }}</div>
+        <div style="font-size:14px; line-height:1.4; color:#8A8A8A; margin-top:4px; min-height:40px;">{{ o.note }}</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:16px; background:#0E0E0E; padding:4px;">
+          <div style="padding:14px 11px 12px; background:#161616; border:1px solid rgba(255,255,255,0.08);">
+            <div style="display:flex; align-items:center; gap:6px; font-family:'Geist Mono', monospace; font-size:9px; letter-spacing:0.5px; text-transform:uppercase; color:#9A9A9A;"><span style="{{ o.dot }}"></span>Ambit</div>
+            <div style="font-size:15px; line-height:1.15; color:#F2F2F2; margin-top:10px;">What is this?</div>
+            <div style="font-size:11px; line-height:1.4; color:#9A9A9A; margin-top:6px;">A quiet feed of public-domain pictures.</div>
+            <div style="{{ o.button }}">Read how it works</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="padding:12px 10px; background:#161616; border:1px solid rgba(255,255,255,0.08);">
+              <div style="display:flex; align-items:center; gap:6px; font-family:'Geist Mono', monospace; font-size:9px; letter-spacing:0.5px; text-transform:uppercase; color:{{ o.hex }};"><span style="{{ o.dot }}"></span>Because</div>
+              <div style="font-size:10.5px; line-height:1.4; color:#8A8A8A; margin-top:8px;">you saved Haeckel</div>
+              <div style="font-size:12.5px; line-height:1.3; color:#F2F2F2; margin-top:4px;">→ printing with sunlight</div>
+            </div>
+            <img src="assets/wave.jpg" alt="" style="width:100%; height:62px; object-fit:cover; display:block;">
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const O = [
+      ['Acid chartreuse', '#C8F031', 'Highlighter on a black page. Loud, a bit sour.'],
+      ['Hi-vis yellow', '#F2FF00', 'Road-worker vest. Almost hurts.'],
+      ['Safety orange', '#FF5A1F', 'Warning label, lifejacket, traffic cone.'],
+      ['Signal vermilion', '#F2361B', 'The red you have now, pushed toward orange.'],
+      ['Fluoro pink', '#FF3D9A', 'Risograph ink. Punk flyer.'],
+      ['Bubblegum', '#FF8FD0', 'Soft but strange on black.'],
+      ['Klein blue', '#1C2BFF', 'Yves Klein. Electric, not corporate.'],
+      ['Electric cyan', '#00E1FF', 'Old CRT phosphor.'],
+      ['Radioactive teal', '#12E6B0', 'Glow-stick, deep-sea.'],
+      ['Toxic lime', '#7DFF3A', 'Slime. Very internet.'],
+      ['Bile', '#B3B51C', 'Olive gone wrong. Odd and grown-up.'],
+      ['Mustard', '#E0A812', 'Old book cloth, warm.'],
+      ['Rust', '#C4471C', 'Oxidised iron. Earthy, calm.'],
+      ['Tomato', '#FF4A3D', 'Riper and friendlier than the current red.'],
+      ['Coral salmon', '#FF7B66', 'Pinkish orange, museum-shop.'],
+      ['Tobacco', '#9A5B2A', 'Leather and archive boxes. Barely an accent.'],
+    ];
+    const lum = (h) => { const n = parseInt(h.slice(1), 16); const r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255; return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const G = [
+      ['Emerald', '#0FA968', 'Jewel green, bright enough to glow on black.'],
+      ['Malachite', '#14B86E', 'Banded mineral. Clear and cool.'],
+      ['Jade', '#00A57A', 'Blue-leaning, polished stone.'],
+      ['Shamrock', '#009E4F', 'Pure, saturated, slightly retro.'],
+      ['Kelly green', '#2BB24C', 'Sports kit, bold and friendly.'],
+      ['Chlorophyll', '#4DB82A', 'Leaf in sunlight. Yellow-leaning.'],
+      ['Viridian', '#1E8C70', 'The painter\u2019s green. Calm, serious.'],
+      ['Verdigris', '#3BA391', 'Weathered copper roof.'],
+      ['Billiard felt', '#0B7A44', 'Pool table under a lamp.'],
+      ['Racing green', '#0F5A35', 'British racing green. Rich, dark.'],
+      ['Bottle green', '#0B4F3A', 'Old glass. Very dark; best as a fill.'],
+      ['Phthalo', '#0E4A3F', 'Inky blue-green. Barely visible as a dot.'],
+    ];
+    const mk = (turn) => ([name, hex, note], i) => ({
+      key: hex, id: turn + String.fromCharCode(97 + i), name, hex, note,
+      swatch: { height: '120px', background: hex, marginTop: '12px' },
+      dot: { width: '6px', height: '6px', borderRadius: '50%', background: hex, flexShrink: 0 },
+      button: { background: hex, color: lum(hex) > 0.45 ? '#0E0E0E' : '#F2F2F2', textAlign: 'center', fontSize: '11px', padding: '8px 0', marginTop: '12px' },
+    });
+    return {
+      greens: G.map(mk('2')),
+      options: O.map(([name, hex, note], i) => ({
+        key: hex, id: '1' + String.fromCharCode(97 + i), name, hex, note,
+        swatch: { height: '120px', background: hex, marginTop: '12px' },
+        dot: { width: '6px', height: '6px', borderRadius: '50%', background: hex, flexShrink: 0 },
+        button: { background: hex, color: lum(hex) > 0.45 ? '#0E0E0E' : '#F2F2F2', textAlign: 'center', fontSize: '11px', padding: '8px 0', marginTop: '12px' },
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

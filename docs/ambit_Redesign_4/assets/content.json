@@ -1,0 +1,71 @@
+{
+  "images": {
+    "wave": {
+      "title": "The Great Wave off Kanagawa",
+      "maker": "Katsushika Hokusai · c. 1831 · The Met",
+      "src": "assets/wave.jpg",
+      "placeholder": "Ukiyo-e woodblock print",
+      "body": "Three boats plunge through a storm-tossed sea while a cresting wave curls overhead and Mount Fuji sits small and still on the horizon. The first print in Hokusai's Thirty-six Views of Mount Fuji, and the work that carried Prussian blue into Japanese printmaking.",
+      "related": [
+        { "title": "Rain, Steam and Speed", "reason": "Another painter reading weather as force" },
+        { "title": "Polynesian wayfinding", "reason": "Reading the same swell, for direction" }
+      ]
+    },
+    "turner": {
+      "title": "Rain, Steam and Speed",
+      "maker": "J. M. W. Turner · 1844 · The National Gallery",
+      "src": "assets/turner.jpg",
+      "placeholder": "Romantic oil painting",
+      "body": "A steam train tears across a viaduct through a haze of rain and light — Turner dissolving the machine age into pure atmosphere. Look closely and a hare runs ahead of the engine on the tracks, outpacing it for now.",
+      "related": [
+        { "title": "Why the sky is blue", "reason": "The same scattered light Turner was chasing" },
+        { "title": "The internal-combustion engine", "reason": "The machine that replaced his steam" }
+      ]
+    },
+    "gp": {
+      "title": "The Vanderbilt Cup",
+      "maker": "Long Island · 1908 · Public domain",
+      "src": "assets/vanderbilt.jpg",
+      "placeholder": "Vintage motorsport photo",
+      "body": "America's first great road race, run on public Long Island roads with crowds standing at the edge of the dirt. Within a few years the speeds made that impossible, and racing retreated behind fences.",
+      "related": [
+        { "title": "The internal-combustion engine", "reason": "The beat under every one of these cars" },
+        { "title": "Rain, Steam and Speed", "reason": "Speed as a subject, sixty years earlier" }
+      ]
+    },
+    "nebula": {
+      "title": "The Pillars of Creation",
+      "maker": "Eagle Nebula · NASA / ESA · Public domain",
+      "src": "assets/pillars.jpg",
+      "placeholder": "Deep-space photograph",
+      "body": "Columns of cold hydrogen and dust light-years tall, lit and eroded at once by the young stars just outside the frame. Stars are forming inside them even as the pillars themselves are being worn away.",
+      "related": [
+        { "title": "Why the sky is blue", "reason": "Light, scattering, and what reaches us" },
+        { "title": "Polynesian wayfinding", "reason": "Navigating by the stars these become" }
+      ]
+    }
+  },
+  "articles": {
+    "sky": {
+      "title": "Why the sky is blue",
+      "source": "Wikipedia",
+      "wiki": "Rayleigh_scattering",
+      "lede": "The sky isn't coloured — it's scattered. Shorter blue wavelengths bounce off air molecules far more than red ones.",
+      "body": "This is Rayleigh scattering: the intensity of scattered light climbs steeply as wavelength shrinks, so blue and violet dominate the daytime sky. At sunset the light travels a far longer path through the atmosphere — the blue is scattered away entirely before it reaches you."
+    },
+    "engine": {
+      "title": "The internal-combustion engine",
+      "source": "Wikipedia",
+      "wiki": "Internal_combustion_engine",
+      "lede": "For over a century a controlled explosion, a few thousand times a minute, has moved most of the world.",
+      "body": "Fuel and air are drawn into a cylinder, compressed, then ignited. The expanding gas drives a piston; the piston turns a crank; the crank turns a wheel. Every refinement since is a variation on that single, insistent beat."
+    },
+    "wayfinding": {
+      "title": "Polynesian wayfinding",
+      "source": "Wikipedia",
+      "wiki": "Polynesian_navigation",
+      "lede": "Navigators crossed thousands of miles of open Pacific reading only the swell, the stars and the colour of the water.",
+      "body": "A wayfinder memorised a 'star compass' — the points on the horizon where key stars rise and set — and held course by them through the night. By day they read the interference of ocean swells against unseen islands."
+    }
+  }
+}

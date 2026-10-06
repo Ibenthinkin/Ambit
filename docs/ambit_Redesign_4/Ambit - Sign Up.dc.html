@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;1,400&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #060606; }
+    a { color: #F2F2F2; text-decoration: underline; text-underline-offset: 3px; }
+    a:hover { color: #FFFFFF; }
+    input { font: inherit; }
+    input::placeholder { color: #5A5A5A; }
+    [data-input] { transition: border-color .15s ease, box-shadow .15s ease; }
+    [data-input]:hover { border-bottom-color: rgba(255,255,255,0.6) !important; }
+    [data-input]:focus { outline: none; border-bottom-color: #2BB24C !important; box-shadow: 0 1px 0 #2BB24C; }
+    [data-btn] { transition: background .15s ease, box-shadow .15s ease, color .15s ease; }
+    [data-btn="primary"]:hover { background: #FFFFFF !important; box-shadow: inset 0 -2px 0 #2BB24C; }
+    [data-btn="link"]:hover { color: #FFFFFF !important; text-decoration-color: #2BB24C !important; }
+    [data-btn]:focus { outline: none; }
+    [data-btn]:focus-visible { outline: 2px solid #2BB24C; outline-offset: 3px; }
+    @keyframes suup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    @keyframes sufade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</helmet>
+
+<div style="{{ outerStyle }}">
+  <div style="{{ frameStyle }}">
+
+    <div style="{{ feedStyle }}">
+      <sc-for list="{{ cols }}" as="c" hint-placeholder-count="2">
+        <div style="display:flex; flex-direction:column; gap:4px; min-width:0;">
+          <sc-for list="{{ c.tiles }}" as="tl" hint-placeholder-count="4"><div style="{{ tl.style }}"></div></sc-for>
+        </div>
+      </sc-for>
+    </div>
+    <div style="position:absolute; inset:0; background:rgba(6,6,6,0.62);"></div>
+
+    <div style="{{ sheetStyle }}">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.16);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <svg width="22" height="22" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="#F2F2F2" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="#F2F2F2"></circle><circle cx="21" cy="7" r="1.9" fill="#2BB24C"></circle></svg>
+          <span style="font-family:'Geist Mono', monospace; font-size:11px; letter-spacing:0.4px; text-transform:uppercase; color:#DADADA;">Ambit</span>
+        </div>
+        <span style="font-family:'Geist Mono', monospace; font-size:11px; letter-spacing:0.4px; text-transform:uppercase; color:#8A8A8A;">{{ modeLabel }}</span>
+      </div>
+
+      <div style="font-size:clamp(26px, 3vw, 32px); line-height:1.12; letter-spacing:-0.02em; color:#F2F2F2; margin-top:24px;">A quieter way to be curious.</div>
+      <div style="font-size:16px; line-height:1.5; color:#A8A8A8; margin-top:12px; text-wrap:pretty;">No feeds engineered to keep you. Ambit hands you one interesting thing at a time, then quietly steps back.</div>
+
+      <div style="display:flex; flex-direction:column; gap:22px; margin-top:28px;">
+        <sc-if value="{{ isSignup }}" hint-placeholder-val="{{ true }}">
+          <label style="display:block;">
+            <span style="font-family:'Geist Mono', monospace; font-size:10.5px; letter-spacing:0.4px; text-transform:uppercase; color:#8A8A8A;">Name</span>
+            <input data-input="" value="{{ name }}" onChange="{{ onName }}" placeholder="What should we call you?" style="display:block; width:100%; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,0.28); border-radius:0; color:#F2F2F2; font-size:18px; padding:10px 0; margin-top:4px;">
+          </label>
+        </sc-if>
+        <label style="display:block;">
+          <span style="font-family:'Geist Mono', monospace; font-size:10.5px; letter-spacing:0.4px; text-transform:uppercase; color:#8A8A8A;">Email</span>
+          <input data-input="" type="email" value="{{ email }}" onChange="{{ onEmail }}" placeholder="you@example.com" style="display:block; width:100%; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,0.28); border-radius:0; color:#F2F2F2; font-size:18px; padding:10px 0; margin-top:4px;">
+        </label>
+        <label style="display:block;">
+          <span style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:10.5px; letter-spacing:0.4px; text-transform:uppercase; color:#8A8A8A;"><span>Password</span><span style="{{ pwHintStyle }}">{{ pwHint }}</span></span>
+          <input data-input="" type="password" value="{{ password }}" onChange="{{ onPassword }}" placeholder="8+ characters" style="display:block; width:100%; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,0.28); border-radius:0; color:#F2F2F2; font-size:18px; padding:10px 0; margin-top:4px;">
+        </label>
+      </div>
+
+      <button type="button" data-btn="primary" onClick="{{ onSubmit }}" style="display:flex; align-items:center; justify-content:center; width:100%; height:56px; margin-top:32px; background:#F2F2F2; color:#0E0E0E; border:none; font-family:inherit; font-size:17px; cursor:pointer;">{{ submitLabel }}</button>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:20px;">
+        <span style="display:flex; align-items:center; gap:7px; font-family:'Geist Mono', monospace; font-size:10.5px; letter-spacing:0.3px; text-transform:uppercase; color:#7A7A7A;"><span style="width:6px; height:6px; border-radius:50%; background:#2BB24C;"></span>Invite-only · no ads, no algorithm</span>
+        <button type="button" data-btn="link" onClick="{{ onSwitch }}" style="background:none; border:none; padding:0; font-family:inherit; font-size:15px; color:#BDBDBD; text-decoration:underline; text-underline-offset:3px; cursor:pointer;">{{ switchLabel }}</button>
+      </div>
+    </div>
+
+    <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; left:50%; top:24px; transform:translateX(-50%); z-index:30; background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; padding:10px 14px; white-space:nowrap; animation:sufade .2s ease both;">{{ toast.text }}</div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;frame&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;phone&quot;,&quot;options&quot;:[&quot;phone&quot;,&quot;desktop&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;View&quot;}}">
+class Component extends DCLogic {
+  state = { mode: 'signup', name: '', email: '', password: '', tried: false, toast: null };
+  componentWillUnmount() { if (this.tt) clearTimeout(this.tt); }
+  flash(text) { if (this.tt) clearTimeout(this.tt); this.setState({ toast: text }); this.tt = setTimeout(() => this.setState({ toast: null }), 1800); }
+
+  renderVals() {
+    let qf = null; try { qf = new URLSearchParams(location.search).get('frame'); } catch (e) {}
+    const phone = (qf || this.props.frame || 'phone') === 'phone';
+    const s = this.state;
+    const signup = s.mode === 'signup';
+    const H = ['64faca50fe2c9608f379a1227df7fea9ae751d281cd0dc5ed5e386a4760be121', 'a718fbfa91f5eab2a8b790184129915644ba1673ce2d3f684ed83580592e763c', 'a79f3e146eb4aa1698ade8109e066ffcdc0b3d9bba1cce7bddb7643a2d6d6c97', 'a7cf5ec1c28b5503e6ade49eaea62d75aa2516ed57e3e24a18b19d259379b013', 'bc7ceb0611e59649a66717f12cd8db6965a0d91d4c7fc84c84afc163651364b2', 'c00a19218be087d6936d118bd375a7a78a2e683fa55125d5e03046ac800164ab', 'c0247c09ced869330c4006506a0de4000a212b0ca41cd2799c612a3cdefba914', 'c04307597746d91a67159a0298341e504d9bd8d260aa85fe201cee00325fa645', 'f2001f4b4c65112c45584d468b22b57b7aa0463bb7bdc0bcb65d9a359ced72dd'];
+    const srcs = [...H.map(h => 'uploads/' + h + '.webp'), 'assets/turner.jpg', 'assets/wave.jpg', 'assets/pillars.jpg', 'assets/vanderbilt.jpg'];
+    const ratios = [0.68, 1.3, 0.9, 1.5, 0.75, 1.1, 1.4, 0.8, 1.0, 0.7, 1.25, 0.95, 1.2];
+    const nCols = phone ? 2 : 4;
+    const cols = Array.from({ length: nCols }, (_, i) => ({ key: 'c' + i, tiles: [] }));
+    srcs.concat(srcs).forEach((src, i) => cols[i % nCols].tiles.push({ key: 't' + i, style: { width: '100%', aspectRatio: String(1 / ratios[i % ratios.length]), background: 'url("' + src + '") center / cover', backgroundColor: '#161616' } }));
+
+    const pwShort = s.password.length > 0 && s.password.length < 8;
+    const pwHint = pwShort || (s.tried && s.password.length < 8) ? 'Needs 8+ characters' : '';
+
+    return {
+      outerStyle: phone
+        ? { minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '40px 20px', fontFamily: "'Hanken Grotesk', sans-serif" }
+        : { minHeight: '100vh', fontFamily: "'Hanken Grotesk', sans-serif" },
+      frameStyle: phone
+        ? { position: 'relative', width: '390px', height: '844px', overflow: 'hidden', borderRadius: '44px', boxShadow: '0 0 0 8px #0A0A0A, 0 0 0 9px #333, 0 40px 80px rgba(0,0,0,0.5)', background: '#0E0E0E' }
+        : { position: 'relative', height: '100vh', overflow: 'hidden', background: '#0E0E0E' },
+      feedStyle: phone
+        ? { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '4px', padding: '58px 4px 0', alignItems: 'start' }
+        : { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: '4px', maxWidth: '1112px', margin: '0 auto', padding: '56px 0 0', alignItems: 'start' },
+      cols,
+      sheetStyle: phone
+        ? { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 10, background: '#121212', borderTop: '1px solid rgba(255,255,255,0.2)', padding: '22px 24px 34px', animation: 'suup .3s cubic-bezier(.22,.9,.3,1) both' }
+        : { position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 10, width: 'min(520px, calc(100% - 48px))', background: '#121212', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 30px 80px rgba(0,0,0,0.6)', padding: '26px 32px 30px' },
+      isSignup: signup,
+      modeLabel: signup ? 'Create account' : 'Sign in',
+      submitLabel: signup ? 'Create account' : 'Sign in',
+      switchLabel: signup ? 'Already have an account? Sign in' : 'New here? Create an account',
+      name: s.name, email: s.email, password: s.password,
+      onName: (e) => this.setState({ name: e.target.value }),
+      onEmail: (e) => this.setState({ email: e.target.value }),
+      onPassword: (e) => this.setState({ password: e.target.value }),
+      pwHint, pwHintStyle: { color: '#2BB24C', opacity: pwHint ? 1 : 0 },
+      onSwitch: () => this.setState({ mode: signup ? 'signin' : 'signup', tried: false }),
+      onSubmit: () => {
+        if (s.password.length < 8 || !s.email.includes('@')) { this.setState({ tried: true }); this.flash(!s.email.includes('@') ? 'Add your email' : 'Password needs 8+ characters'); return; }
+        this.flash(signup ? 'Welcome to Ambit' : 'Signed in');
+      },
+      toast: { active: !!s.toast, text: s.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

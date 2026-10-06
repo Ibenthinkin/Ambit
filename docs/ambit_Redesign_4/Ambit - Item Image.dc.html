@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;1,400&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    a { color: #F2F2F2; text-decoration: underline; text-underline-offset: 3px; }
+    a:hover { color: #FFFFFF; }
+    @keyframes ambitfade { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes ambitrise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes ambitsheetup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    image-slot { display: block; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#060606; padding:32px; font-family:'Hanken Grotesk', sans-serif;">
+
+  <x-import component-from-global-scope="image-slot" from="./image-slot.js" id="ambit-slot-stub" hint-size="1px,1px" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></x-import>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%;">
+
+      <div ref="{{ swipeRef }}" style="height:100%; overflow-y:auto; background:#0A0A0A; -webkit-overflow-scrolling:touch; touch-action:pan-y;">
+
+        <div onPointerDown="{{ onImgDown }}" onPointerMove="{{ onImgMove }}" onPointerUp="{{ onImgUp }}" onPointerCancel="{{ onImgCancel }}" style="height:100%; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+          <div style="{{ heroImgStyle }}"></div>
+        </div>
+
+        <div style="padding:36px 22px 0;">
+          <div style="font-size:32px; line-height:1.08; letter-spacing:-0.02em; color:#F2F2F2; text-wrap:pretty;">{{ item.title }}</div>
+          <div style="font-size:14px; color:#8A8A8A; margin-top:10px;">from <a href="{{ sourceUrl }}" target="_blank" rel="noopener" style="color:#F2F2F2; text-decoration:underline; text-underline-offset:3px;">{{ source }} ↗</a></div>
+          <div style="font-size:16px; line-height:1.55; color:#BDBDBD; margin-top:20px; text-wrap:pretty;">{{ item.body }}</div>
+
+          <div style="margin-top:28px; border-top:1px solid rgba(255,255,255,0.14);">
+            <div style="display:grid; grid-template-columns:92px minmax(0,1fr); gap:12px; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.14);">
+              <span style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#7A7A7A; padding-top:3px;">From</span>
+              <a href="{{ sourceUrl }}" target="_blank" rel="noopener" style="font-size:15px; color:#F2F2F2; text-decoration:underline; text-underline-offset:3px;">{{ source }} ↗</a>
+            </div>
+            <sc-for list="{{ meta }}" as="m" hint-placeholder-count="2">
+              <div style="display:grid; grid-template-columns:92px minmax(0,1fr); gap:12px; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.14);">
+                <span style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#7A7A7A; padding-top:3px;">{{ m.k }}</span>
+                <span style="font-size:15px; line-height:1.4; color:#E0E0E0;">{{ m.v }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <a href="{{ sourceUrl }}" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:space-between; gap:12px; background:#F2F2F2; color:#0E0E0E; text-decoration:none; font-size:15px; padding:15px 16px; margin-top:24px;"><span>Read the original on {{ source }}</span><span>↗</span></a>
+        </div>
+
+        <div style="padding:44px 22px 0;">
+          <div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.14);">Where Ambit would wander next</div>
+          <sc-for list="{{ related }}" as="r" hint-placeholder-count="2">
+            <div style="display:flex; align-items:flex-start; gap:12px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,0.14); cursor:pointer;">
+              <span style="width:6px; height:6px; border-radius:50%; background:#2BB24C; flex-shrink:0; margin-top:9px;"></span>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:18px; line-height:1.25; color:#F2F2F2;">{{ r.title }}</div>
+                <div style="font-size:13px; color:#8A8A8A; margin-top:5px;">{{ r.reason }}</div>
+              </div>
+              <span style="font-family:'Geist Mono', monospace; font-size:13px; color:#8A8A8A; padding-top:3px;">→</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="padding:40px 20px 120px; animation:ambitrise .6s ease .16s both;">
+          <div style="font-size:26px; line-height:1.12; letter-spacing:-0.015em; color:#F2F2F2;">Curiosity, without the doomscroll.</div>
+          <div style="font-size:14.5px; line-height:1.5; color:#A8A8A8; margin-top:10px;">Ambit hands you one interesting thing at a time, then quietly steps back.</div>
+          <a href="Ambit - Landing 2.dc.html" style="display:flex; align-items:center; justify-content:center; height:50px; background:#F2F2F2; color:#0E0E0E; font-size:15px; text-decoration:none; margin-top:20px;">Get your invite</a>
+          <a href="Ambit - Feed Masonry 4.dc.html" style="display:inline-block; font-size:13.5px; color:#DADADA; margin-top:16px;">[Keep browsing without an account..]</a>
+        </div>
+      </div>
+
+      <sc-if value="{{ pickOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ onPickClose }}" style="position:absolute; inset:0; z-index:22; background:rgba(0,0,0,0.6);"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:23; max-height:72%; display:flex; flex-direction:column; background:#141414; border-top:1px solid rgba(255,255,255,0.2); padding:10px 0 30px; animation:ambitsheetup .24s cubic-bezier(.22,.9,.3,1) both;">
+          <div style="width:36px; height:3px; background:#444; margin:0 auto 14px; flex-shrink:0;"></div>
+          <div style="display:flex; justify-content:space-between; padding:0 20px 10px; border-bottom:1px solid rgba(255,255,255,0.14); font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; flex-shrink:0;"><span>Save to collection</span><span onClick="{{ onPickClose }}" style="cursor:pointer; color:#F2F2F2;">Close</span></div>
+          <div style="overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 20px;">
+            <sc-for list="{{ pickOptions }}" as="opt" hint-placeholder-count="4">
+              <div onClick="{{ opt.onPick }}" style="display:flex; align-items:center; gap:13px; padding:15px 0; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.1);">
+                <span style="{{ opt.dotStyle }}"></span>
+                <span style="flex:1; font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:20px; text-transform:uppercase; color:#F2F2F2;">{{ opt.label }}</span>
+                <span style="font-family:'Geist Mono', monospace; font-size:10px; text-transform:uppercase; color:#8A8A8A;">{{ opt.sub }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ shareOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ onShareClose }}" style="position:absolute; inset:0; z-index:26; background:rgba(0,0,0,0.6);"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:27; background:#141414; border-top:1px solid rgba(255,255,255,0.2); padding:10px 0 32px; animation:ambitsheetup .24s cubic-bezier(.22,.9,.3,1) both;">
+          <div style="width:36px; height:3px; background:#444; margin:0 auto 14px;"></div>
+          <div style="display:flex; justify-content:space-between; padding:0 20px 10px; border-bottom:1px solid rgba(255,255,255,0.14); font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A;"><span>Share</span><span onClick="{{ onShareClose }}" style="cursor:pointer; color:#F2F2F2;">Close</span></div>
+          <div style="display:flex; align-items:stretch; margin:16px 20px 0; border:1px solid rgba(255,255,255,0.2);">
+            <div style="flex:1; min-width:0; display:flex; align-items:center; padding:0 12px; font-family:'Geist Mono', monospace; font-size:11.5px; color:#BDBDBD; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ shareLink }}</div>
+            <div onClick="{{ onCopyLink }}" style="flex-shrink:0; background:#F2F2F2; color:#0E0E0E; font-family:'Barlow Condensed', sans-serif; font-weight:700; font-size:16px; text-transform:uppercase; padding:11px 16px; cursor:pointer;">Copy link</div>
+          </div>
+          <div style="display:flex; gap:12px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:18px 20px 4px;">
+            <div onClick="{{ onShareMessages }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#F2F2F2" stroke-width="1.7" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.7 8.7 0 01-3.4-.7L3 21l1.8-4.3A8.4 8.4 0 1121 11.5z"></path></svg></span>
+              <span style="font-family:'Geist Mono', monospace; font-size:9.5px; text-transform:uppercase; color:#8A8A8A;">Messages</span>
+            </div>
+            <div onClick="{{ onShareInstagram }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F2F2F2" stroke-width="1.7"><rect x="3.5" y="3.5" width="17" height="17" rx="5"></rect><circle cx="12" cy="12" r="4"></circle></svg></span>
+              <span style="font-family:'Geist Mono', monospace; font-size:9.5px; text-transform:uppercase; color:#8A8A8A;">Stories</span>
+            </div>
+            <div onClick="{{ onShareX }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed', sans-serif; font-weight:700; font-size:20px; color:#F2F2F2;">X</span>
+              <span style="font-family:'Geist Mono', monospace; font-size:9.5px; text-transform:uppercase; color:#8A8A8A;">X</span>
+            </div>
+            <div onClick="{{ onSharePinterest }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed', sans-serif; font-weight:700; font-size:20px; color:#F2F2F2;">P</span>
+              <span style="font-family:'Geist Mono', monospace; font-size:9.5px; text-transform:uppercase; color:#8A8A8A;">Pinterest</span>
+            </div>
+            <div onClick="{{ onShareWhatsApp }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed', sans-serif; font-weight:700; font-size:20px; color:#F2F2F2;">W</span>
+              <span style="font-family:'Geist Mono', monospace; font-size:9.5px; text-transform:uppercase; color:#8A8A8A;">WhatsApp</span>
+            </div>
+            <div onClick="{{ onShareEmail }}" style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;">
+              <span style="width:52px; height:52px; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#F2F2F2" stroke-width="1.7"><rect x="3" y="5" width="18" height="14"></rect><path d="M3.5 7l8.5 6 8.5-6"></path></svg></span>
+              <span style="font-family:'Geist Mono', monospace; font-size:9.5px; text-transform:uppercase; color:#8A8A8A;">Email</span>
+            </div>
+          </div>
+          <div onClick="{{ onSaveImage }}" style="display:flex; align-items:center; gap:13px; margin:16px 20px 0; padding:14px 0; border-top:1px solid rgba(255,255,255,0.14); border-bottom:1px solid rgba(255,255,255,0.14); cursor:pointer;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F2F2F2" stroke-width="1.8"><path d="M12 3v13M8 12l4 4 4-4M4 20h16"></path></svg>
+            <div style="flex:1;">
+              <div style="font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:19px; text-transform:uppercase; color:#F2F2F2;">Save image</div>
+              <div style="font-size:12.5px; color:#8A8A8A; margin-top:2px;">Adds the full-resolution image to your camera roll</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="{{ chromeStyle }}">
+        <div style="height:56px; display:flex; align-items:center; gap:26px; padding:0 22px; border-radius:999px; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+          <a href="Ambit - Profile.dc.html" aria-label="Profile" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; text-decoration:none;"><svg width="29" height="29" viewBox="0 0 24 24" style="display:block;"><defs><radialGradient id="pg-img" gradientUnits="userSpaceOnUse" cx="12" cy="14" r="12"><stop offset="0" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#A8AEFF;#E0A184;#7FC4B0;#E8D48A;#A8AEFF" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.33" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#E8D48A;#A8AEFF;#E0A184;#7FC4B0;#E8D48A" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.66" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#7FC4B0;#E8D48A;#A8AEFF;#E0A184;#7FC4B0" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="1" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#E0A184;#7FC4B0;#E8D48A;#A8AEFF;#E0A184" dur="10s" repeatCount="indefinite"></animate></stop></radialGradient></defs><circle cx="12" cy="7.2" r="5" fill="url(#pg-img)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#pg-img)"></path></svg></a>
+          <a href="Ambit - Feed Masonry 4.dc.html" aria-label="Feed" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; text-decoration:none;"><svg width="31" height="31" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="rgba(255,255,255,0.95)"></circle><circle cx="21" cy="7" r="1.9" fill="rgba(255,255,255,0.95)"></circle></svg></a>
+          <div onClick="{{ onPickOpen }}" aria-label="Saved" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.82)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg></div>
+        </div>
+        <div onClick="{{ onShare }}" aria-label="Share" style="width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28); box-shadow:0 10px 30px rgba(0,0,0,0.28);"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M12 3v12M7.5 7.5L12 3l4.5 4.5"></path></svg></div>
+      </div>
+
+      <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:50%; bottom:96px; z-index:50; background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.3px; padding:10px 14px; white-space:nowrap; animation:ambitfade .22s ease both;">{{ toast.text }}</div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;itemId&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;turner&quot;,&quot;options&quot;:[&quot;wave&quot;,&quot;turner&quot;,&quot;gp&quot;,&quot;nebula&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Shared item&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { toast: null, works: null, chrome: false };
+    this.ORDER = ['wave', 'turner', 'gp', 'nebula'];
+    this.SECTION = { wave: 'Art', turner: 'Art', gp: 'Photography', nebula: 'Space' };
+    this.META_LABELS = { gp: ['Place', 'Date', 'Rights'], nebula: ['Subject', 'By', 'Rights'] };
+  }
+
+  componentDidMount() {
+    this.setupSwipe();
+    this.setupScroll();
+    fetch('assets/content.json')
+      .then(r => r.json())
+      .then(j => this.setState({ works: j.images }))
+      .catch(() => {});
+  }
+
+  setupScroll() {
+    const el = this.swipeRef && this.swipeRef.current;
+    if (!el) { this.scrollTimer = setTimeout(() => this.setupScroll(), 120); return; }
+    this.onScroll = () => {
+      const below = el.scrollTop > 24;
+      if (below && !this.state.chrome) this.setState({ chrome: true });
+    };
+    el.addEventListener('scroll', this.onScroll, { passive: true });
+  }
+
+  componentWillUnmount() {
+    if (this.scrollTimer) clearTimeout(this.scrollTimer);
+    if (this.onScroll && this.swipeRef && this.swipeRef.current) this.swipeRef.current.removeEventListener('scroll', this.onScroll);
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    if (this.swipeCleanup) this.swipeCleanup();
+  }
+
+  currentId() {
+    let id = this.props.itemId ?? 'turner';
+    try {
+      const q = new URLSearchParams(window.location.search).get('itemId');
+      if (q) id = q;
+    } catch (e) {}
+    return id;
+  }
+
+  meInitial() {
+    try {
+      const p = JSON.parse(localStorage.getItem('ambit.profile.v1') || '{}') || {};
+      return ((p.name || 'Ben').trim().charAt(0) || 'B').toUpperCase();
+    } catch (e) { return 'B'; }
+  }
+
+  collectionNames() {
+    let names = ['Articles', 'Art', 'Photos'];
+    try {
+      const stored = JSON.parse(localStorage.getItem('ambit.collectionNames.v1') || 'null');
+      if (Array.isArray(stored) && stored.length) names = stored;
+    } catch (e) {}
+    const map = this.readMap();
+    Object.keys(map).forEach(id => { if (names.indexOf(map[id]) === -1) names.push(map[id]); });
+    return names;
+  }
+  readMap() {
+    try { return JSON.parse(localStorage.getItem('ambit.collections.v1') || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  saveTo(name) {
+    const id = this.currentId();
+    const map = this.readMap();
+    map[id] = name;
+    try {
+      localStorage.setItem('ambit.collections.v1', JSON.stringify(map));
+      const saved = JSON.parse(localStorage.getItem('ambit.saved.v1') || '[]');
+      if (saved.indexOf(id) === -1) saved.push(id);
+      localStorage.setItem('ambit.saved.v1', JSON.stringify(saved));
+    } catch (e) {}
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ pickOpen: false, toast: 'Saved to ' + name });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1700);
+  }
+  pickOptions() {
+    const map = this.readMap();
+    const current = map[this.currentId()];
+    return this.collectionNames().map(name => {
+      const n = Object.keys(map).filter(k => map[k] === name).length;
+      const here = current === name;
+      return {
+        key: name, label: name,
+        sub: here ? 'Saved here' : (n === 1 ? '1 item' : n + ' items'),
+        dotStyle: { width: '9px', height: '9px', flexShrink: 0, background: here ? '#F2F2F2' : 'transparent', border: '1px solid ' + (here ? '#F2F2F2' : 'rgba(255,255,255,0.35)') },
+        onPick: () => this.saveTo(name),
+      };
+    });
+  }
+
+  goBackToFeed() {
+    window.location.href = 'Ambit - Feed Masonry 4.dc.html?focus=' + encodeURIComponent(this.currentId());
+  }
+
+  // horizontal swipe anywhere returns to the feed, scrolled to this item
+  setupSwipe() {
+    const el = this.swipeRef && this.swipeRef.current;
+    if (!el) { this.swipeTimer = setTimeout(() => this.setupSwipe(), 120); return; }
+    let x0 = null, y0 = null, tracking = false;
+    const start = (e) => {
+      const p = e.touches ? e.touches[0] : e;
+      x0 = p.clientX; y0 = p.clientY; tracking = true;
+      el.style.transition = 'none';
+    };
+    const move = (e) => {
+      if (!tracking) return;
+      const p = e.touches ? e.touches[0] : e;
+      const dx = p.clientX - x0, dy = p.clientY - y0;
+      if (Math.abs(dy) > Math.abs(dx)) { tracking = false; el.style.transform = ''; return; }
+      el.style.transform = 'translateX(' + (dx * 0.35) + 'px)';
+    };
+    const end = (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const p = e.changedTouches ? e.changedTouches[0] : e;
+      const dx = p.clientX - x0, dy = p.clientY - y0;
+      el.style.transition = 'transform .22s ease';
+      el.style.transform = '';
+      if (Math.abs(dx) > 70 && Math.abs(dy) < 70) this.goBackToFeed();
+    };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: true });
+    el.addEventListener('touchend', end);
+    el.addEventListener('pointerdown', start);
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', end);
+    this.swipeCleanup = () => {
+      if (this.swipeTimer) clearTimeout(this.swipeTimer);
+      el.removeEventListener('touchstart', start);
+      el.removeEventListener('touchmove', move);
+      el.removeEventListener('touchend', end);
+      el.removeEventListener('pointerdown', start);
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', end);
+    };
+  }
+
+  // open the immersive gallery on this work (guarded tap: never fires while scrolling)
+  openGallery(id) {
+    try { window.location.href = 'Ambit - Gallery.dc.html?start=' + encodeURIComponent(id); } catch (e) {}
+  }
+  tapDown(e) { this.tap = { x: e.clientX, y: e.clientY, ok: true }; }
+  tapMove(e) {
+    if (!this.tap) return;
+    if (Math.abs(e.clientX - this.tap.x) > 12 || Math.abs(e.clientY - this.tap.y) > 12) this.tap.ok = false;
+  }
+  tapUp(e, action) {
+    const t = this.tap; this.tap = null;
+    if (!t || !t.ok) return;
+    if (Math.abs(e.clientX - t.x) > 12 || Math.abs(e.clientY - t.y) > 12) return;
+    action();
+  }
+  tapCancel() { this.tap = null; }
+
+  flashToast(text) {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: text });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1900);
+  }
+  copyLink() {
+    const link = 'ambit.link/i/' + this.currentId();
+    try { navigator.clipboard && navigator.clipboard.writeText('https://' + link); } catch (e) {}
+    this.setState({ shareOpen: false });
+    this.flashToast('Link copied \u00b7 ' + link);
+  }
+  shareTo(name) {
+    this.setState({ shareOpen: false });
+    this.flashToast('Opening ' + name + '\u2026');
+  }
+  saveImage() {
+    this.setState({ shareOpen: false });
+    this.flashToast('Saved to camera roll');
+  }
+
+  renderVals() {
+    const id = this.currentId();
+    const works = this.state.works || {};
+    const item = Object.assign({ title: '', maker: '', body: '', placeholder: 'Artwork', related: [] }, works[id] || works.turner || {});
+    item.slotId = 'am-item-' + id;
+
+    const labels = this.META_LABELS[id] || ['By', 'Date', 'Held at'];
+    const parts = (item.maker || '').split('\u00b7').map(s => s.trim()).filter(Boolean);
+    const source = parts.length > 2 ? parts[parts.length - 1] : (parts[0] || 'the source');
+    const metaParts = parts.length > 2 ? parts.slice(0, -1) : parts;
+    const meta = metaParts.map((v, i) => ({ key: 'm' + i, k: labels[i] || '', v }));
+    meta.push({ key: 'lic', k: 'License', v: 'Rights retained by original authors — shown with credit and link' });
+    meta.push({ key: 'top', k: 'Topic', v: this.SECTION[id] || 'Art' });
+    const on = this.state.chrome;
+    const idx = this.ORDER.indexOf(id);
+
+    return {
+      deviceDark: true, item, meta,
+      section: this.SECTION[id] || 'Art',
+      issueNo: String(41 + (idx < 0 ? 0 : idx)).padStart(3, '0'),
+      related: item.related || [],
+      meInitial: this.meInitial(),
+      heroImgStyle: { width: '100%', height: '100%', backgroundImage: item.src ? 'url("' + item.src + '")' : 'none', backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' },
+      source, sourceUrl: 'https://www.google.com/search?q=' + encodeURIComponent((item.title || '') + ' ' + source),
+      chromeStyle: { position: 'absolute', left: 0, right: 0, bottom: '26px', zIndex: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+        pointerEvents: on ? 'auto' : 'none', opacity: on ? 1 : 0, transform: on ? 'translateY(0)' : 'translateY(12px)', transition: 'opacity .35s ease, transform .35s ease' },
+      onShare: () => this.setState({ shareOpen: true }),
+      shareOpen: !!this.state.shareOpen,
+      shareLink: 'ambit.link/i/' + id,
+      onShareClose: () => this.setState({ shareOpen: false }),
+      onCopyLink: () => this.copyLink(),
+      onShareMessages: () => this.shareTo('Messages'),
+      onShareInstagram: () => this.shareTo('Instagram Stories'),
+      onShareX: () => this.shareTo('X'),
+      onSharePinterest: () => this.shareTo('Pinterest'),
+      onShareWhatsApp: () => this.shareTo('WhatsApp'),
+      onShareEmail: () => this.shareTo('Mail'),
+      onSaveImage: () => this.saveImage(),
+      pickOpen: !!this.state.pickOpen,
+      pickOptions: this.pickOptions(),
+      onPickOpen: () => this.setState({ pickOpen: true }),
+      onPickClose: () => this.setState({ pickOpen: false }),
+      swipeRef: (this.swipeRef = this.swipeRef || React.createRef()),
+      onImgDown: (e) => this.tapDown(e),
+      onImgMove: (e) => this.tapMove(e),
+      onImgUp: (e) => this.tapUp(e, () => this.setState(s => ({ chrome: !s.chrome }))),
+      onImgCancel: () => this.tapCancel(),
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

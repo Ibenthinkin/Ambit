@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;1,400&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0E0E0E; }
+    a { color: #F2F2F2; text-decoration: none; }
+    a:hover { color: #FFFFFF; }
+    @keyframes ambitmenuleft { from { opacity: 0; transform: translate(6px, -50%); } to { opacity: 1; transform: translate(0, -50%); } }
+    @keyframes ambitfeedin { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</helmet>
+<div style="min-height:100vh; background:#0E0E0E; font-family:'Hanken Grotesk', sans-serif; padding:56px 120px 80px;">
+
+  <div style="{{ feedStyle }}">
+    <sc-for list="{{ columns }}" as="col" hint-placeholder-count="4">
+      <div style="display:flex; flex-direction:column; gap:4px; min-width:0;">
+        <sc-for list="{{ col.items }}" as="item" hint-placeholder-count="5">
+          <div style="min-width:0;">
+            <sc-if value="{{ item.isLink }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:20px 16px 22px; background:#161616; border:1px solid rgba(255,255,255,0.08);">
+                <div style="display:flex; align-items:center; gap:7px;">
+                  <span style="width:6px; height:6px; border-radius:50%; background:#2BB24C; flex-shrink:0;"></span>
+                  <span style="font-family:'Geist Mono', monospace; font-size:10px; letter-spacing:0.6px; text-transform:uppercase; color:#9A9A9A;">Because</span>
+                </div>
+                <div style="font-size:13px; line-height:1.5; color:#8A8A8A; margin-top:12px;">{{ item.from }}</div>
+                <a href="#" style="display:block; font-size:16px; line-height:1.3; color:#F2F2F2; margin-top:6px;">→ {{ item.to }}</a>
+              </div>
+            </sc-if>
+            <sc-if value="{{ item.isImage }}" hint-placeholder-val="{{ true }}">
+              <div onMouseEnter="{{ item.onEnter }}" onMouseLeave="{{ item.onLeave }}" style="{{ item.tileStyle }}">
+                <div style="{{ item.imgStyle }}"></div>
+                <div style="{{ item.overlayStyle }}">
+                  <div onClick="{{ item.onToggleMenu }}" style="display:flex; align-items:center; gap:6px; height:32px; padding:0 11px; background:rgba(14,14,14,0.3); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:0.5px solid rgba(255,255,255,0.18); color:#F2F2F2; font-family:'Hanken Grotesk', sans-serif; font-size:14px; cursor:pointer;"><span>{{ item.collection }}</span><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#F2F2F2" stroke-width="1.3"><path d="M2 3.5l3 3 3-3"></path></svg></div>
+                  <div onClick="{{ item.onToggleSave }}" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; background:rgba(14,14,14,0.3); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:0.5px solid rgba(255,255,255,0.18); cursor:pointer;"><svg width="15" height="15" viewBox="0 0 24 24" fill="{{ item.saveFill }}" stroke="{{ item.saveStroke }}" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg></div>
+                </div>
+                <sc-if value="{{ item.menuOpen }}" hint-placeholder-val="{{ false }}">
+                  <div onClick="{{ item.stop }}" style="position:absolute; top:50px; left:10px; z-index:3; width:340px; max-width:calc(100vw - 40px); background:rgba(18,18,18,0.94); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.16); box-shadow:0 20px 50px rgba(0,0,0,0.5); padding:0 16px 6px; cursor:default;">
+                    <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; padding:14px 0 10px; border-bottom:1px solid rgba(255,255,255,0.16);"><span>Save to collection</span><span>{{ item.menuCount }}</span></div>
+                    <sc-for list="{{ item.menu }}" as="m" hint-placeholder-count="6">
+                      <div onClick="{{ m.onPick }}" style="display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.08); cursor:pointer;">
+                        <div style="width:38px; height:38px; flex-shrink:0; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:1px; background:#1E1E1E;">
+                          <sc-for list="{{ m.thumbs }}" as="th" hint-placeholder-count="4"><div style="{{ th.style }}"></div></sc-for>
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                          <div style="font-size:15px; color:#F2F2F2;">{{ m.label }}</div>
+                          <div style="font-family:'Geist Mono', monospace; font-size:10px; text-transform:uppercase; color:#7A7A7A; margin-top:3px;">{{ m.sub }}</div>
+                        </div>
+                        <span style="{{ m.markStyle }}"></span>
+                      </div>
+                    </sc-for>
+                    <div onClick="{{ item.onNew }}" style="display:flex; align-items:center; gap:14px; padding:10px 0; cursor:pointer;">
+                      <div style="width:38px; height:38px; flex-shrink:0; border:1px dashed rgba(255,255,255,0.28); display:flex; align-items:center; justify-content:center; font-family:'Geist Mono', monospace; color:#BDBDBD;">+</div>
+                      <div><div style="font-size:15px; color:#F2F2F2;">New collection…</div><div style="font-family:'Geist Mono', monospace; font-size:10px; text-transform:uppercase; color:#7A7A7A; margin-top:3px;">Name it and it's made</div></div>
+                    </div>
+                  </div>
+                </sc-if>
+                <span style="{{ item.tagStyle }}" data-x="position:absolute; top:0; left:0; font-family:'Geist Mono', monospace; font-size:9.5px; letter-spacing:0.5px; text-transform:uppercase; color:#F2F2F2; background:rgba(14,14,14,0.78); padding:4px 6px;">{{ item.tag }}</span>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onClosePicker }}" style="position:fixed; inset:0; z-index:30;"></div>
+    <div style="position:fixed; right:104px; top:{{ pickerTop }}; z-index:31; width:212px; background:#141414; border:1px solid rgba(255,255,255,0.2); padding:0 14px 6px; animation:ambitmenuleft .18s ease both;">
+      <div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; padding:12px 0 10px; border-bottom:1px solid rgba(255,255,255,0.14);">Layout</div>
+      <sc-for list="{{ layoutOptions }}" as="opt" hint-placeholder-count="3">
+        <div onClick="{{ opt.onPick }}" style="{{ opt.rowStyle }}">
+          <svg width="22" height="22" viewBox="0 0 24 24" style="flex-shrink:0;">
+            <sc-for list="{{ opt.bars }}" as="b" hint-placeholder-count="4">
+              <rect x="{{ b.x }}" y="4" width="{{ b.w }}" height="16" rx="0" fill="{{ opt.ink }}"></rect>
+            </sc-for>
+          </svg>
+          <span style="flex:1; font-size:15px; color:#F2F2F2;">{{ opt.label }}</span>
+          <sc-if value="{{ opt.selected }}" hint-placeholder-val="{{ false }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <div style="position:fixed; right:22px; top:50%; transform:translateY(-50%); z-index:32; display:flex; flex-direction:column; align-items:center; gap:22px; padding:20px 9px; border-radius:999px; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.22); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+    <a href="Ambit - Profile.dc.html" aria-label="Profile" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center;">
+      <svg width="29" height="29" viewBox="0 0 24 24" style="display:block;"><defs><radialGradient id="fd-pg" gradientUnits="userSpaceOnUse" cx="12" cy="14" r="12"><stop offset="0" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#A8AEFF;#E0A184;#7FC4B0;#E8D48A;#A8AEFF" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.33" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#E8D48A;#A8AEFF;#E0A184;#7FC4B0;#E8D48A" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.66" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#7FC4B0;#E8D48A;#A8AEFF;#E0A184;#7FC4B0" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="1" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#E0A184;#7FC4B0;#E8D48A;#A8AEFF;#E0A184" dur="10s" repeatCount="indefinite"></animate></stop></radialGradient></defs><circle cx="12" cy="7.2" r="5" fill="url(#fd-pg)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#fd-pg)"></path></svg>
+    </a>
+    <div onClick="{{ onGoTop }}" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+      <svg width="31" height="31" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.5" stroke="rgba(255,255,255,0.95)" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="rgba(255,255,255,0.95)"></circle><circle cx="21" cy="7" r="1.9" fill="rgba(255,255,255,0.95)"></circle></svg>
+    </div>
+    <div onClick="{{ onTogglePicker }}" ref="{{ layoutBtnRef }}" aria-label="Change layout" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; border-radius:10px; background:{{ layoutBtnBg }}; transition:background .15s ease;">
+      <svg width="24" height="24" viewBox="0 0 24 24">
+        <sc-for list="{{ glyphBars }}" as="b" hint-placeholder-count="4">
+          <rect y="4" height="16" rx="0" fill="rgba(255,255,255,0.86)" style="{{ b.style }}"></rect>
+        </sc-for>
+      </svg>
+    </div>
+    <div style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.82)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    let cols = 4;
+    try { const v = parseInt(localStorage.getItem('ambit.feedLayout.v1'), 10); if ([1, 2, 4].includes(v)) cols = v; } catch (e) {}
+    this.state = { cols, pickerOpen: false, pickerTop: '50%', hover: null, menuFor: null, saved: {}, coll: {} };
+    this.COLLS = ['Articles', 'Art', 'Photos', 'comics', 'Funny Things', 'posters', 'Nature'];
+    this.SEED = { Articles: 0, Art: 3, Photos: 3, comics: 1, 'Funny Things': 1, posters: 2, Nature: 1 };
+    this.layoutBtnRef = React.createRef();
+    const I = [
+      ['07ed0eda0ed4346157d2e2489322179ad1b11d33eb3d4795144a42f07be57808', 1.053], ['118f0b531507819236efed0a9af9d63da270adb0bb597f81ffcdb93366937b46', 0.731],
+      ['2e3d150e4a732d0798c59d5943e2ab177c09c5b233a1ee28d2bed65a3c427c16', 0.79], ['2e6ef16b617323eefa7efb75f7a311ad11464061eaa8506fe96ea27073bf346f', 0.715],
+      ['2e82109d0ec84c8834b72e2847a336a4c440875856e65f62bcc49ceafd5b9629', 0.697], ['2eee0a034858313420fd3eaded90b8fa28d219b9af95596680b66b3baaab721f', 0.655],
+      ['2ef4bc58b8260375edf15159a06ab20105eabfe4a3c97b4941eb555395f6db0d', 0.654], ['3808901ae9a0706934b584c349ab68fde90e38060f0ba217883c6040265a6bb7', 1.501],
+      ['3dece9c5e069784a447b47b6f9ac1bfef4e784758eac0f7b19e0a87593717140', 1.043], ['3dfa57e70762d0f57e1e82ac4437780b0c35dfd9b4033dfb73e1420875a6cc9b', 0.702],
+      ['3f3618796e4fb0f82ae00e24915a5ea76321254cb5f4e37b0ff985dea49dfbb8', 1.333], ['3f5a3ddb8c961c7c9cf0aacf590ce1bb3cc0847d7fc70d4253283ae8dd93ebf3', 1.085],
+      ['3f6f718b75293b2d52d44e4f81cda76ad9b41b2f9793ffcedd8221f46631c148', 0.672], ['3f9aa9e6a1357cf30c85ecc1badd0e4331a267c7ac37fd7893257cc19c1b1a55', 0.8],
+      ['3fbd17d3c1a3965bb8dacc37ca9a52faa4337e93af9b55e460782bf0e7f379a9', 1.777], ['44ca83ac7eac98717f10052c290e67a17192c64f7c725ab0d2f7db3acade0aaf', 1.307],
+      ['4a78d4545c44f6d48b653cb1391863998ff6733b4129dd8d4c9331385837bb0d', 1], ['63adb4e4a68551783b18ab30403a79ca6377705acf532e95800ab85054c9e4ff', 1],
+      ['64e17979b7dd083bf5ff4b4c893e43182d6019da18f922b90734fb04a349d9eb', 0.8], ['64e481d593cf13b3acff9f52a339e66903a9da8feb8e7ec8c3145c8275ca83ba', 0.691],
+      ['64faca50fe2c9608f379a1227df7fea9ae751d281cd0dc5ed5e386a4760be121', 0.75], ['a718fbfa91f5eab2a8b790184129915644ba1673ce2d3f684ed83580592e763c', 1],
+      ['a79f3e146eb4aa1698ade8109e066ffcdc0b3d9bba1cce7bddb7643a2d6d6c97', 1], ['a7cf5ec1c28b5503e6ade49eaea62d75aa2516ed57e3e24a18b19d259379b013', 1.505],
+      ['bc7ceb0611e59649a66717f12cd8db6965a0d91d4c7fc84c84afc163651364b2', 0.679], ['c00a19218be087d6936d118bd375a7a78a2e683fa55125d5e03046ac800164ab', 1.669],
+      ['c0247c09ced869330c4006506a0de4000a212b0ca41cd2799c612a3cdefba914', 0.714], ['c04307597746d91a67159a0298341e504d9bd8d260aa85fe201cee00325fa645', 0.8],
+      ['f2001f4b4c65112c45584d468b22b57b7aa0463bb7bdc0bcb65d9a359ced72dd', 0.985],
+    ];
+    const tags = ['DRIFT', 'JUMP', 'CORE', 'DRIFT', 'CORE', 'DRIFT', 'JUMP'];
+    const items = I.map(([h, r], i) => ({ key: h.slice(0, 8), isImage: true, src: `uploads/${h}.webp`, ratio: r, tag: tags[i % tags.length] }));
+    const links = [
+      { at: 0, from: 'you\u2019ve been exploring Architecture', to: 'alien' },
+      { at: 11, from: 'you\u2019ve been exploring Zoology', to: 'retro-computing' },
+      { at: 22, from: 'you\u2019ve been exploring Printmaking', to: 'ukiyo-e' },
+    ];
+    links.slice().reverse().forEach((l, j) => items.splice(l.at, 0, { key: 'link' + l.at, isLink: true, from: l.from, to: l.to, ratio: 2.4 }));
+    this.items = items;
+    this.LAYOUTS = [
+      { cols: 4, label: '4 columns', max: 1112 },
+      { cols: 2, label: '2 columns', max: 820 },
+      { cols: 1, label: '1 column', max: 560 },
+    ];
+  }
+  barsFor(cols) {
+    if (cols === 4) return [[3, 2.4], [8.2, 2.4], [13.4, 2.4], [18.6, 2.4]];
+    if (cols === 2) return [[3, 7.6], [3, 7.6], [13.4, 7.6], [13.4, 7.6]];
+    return [[5.5, 13], [5.5, 13], [5.5, 13], [5.5, 13]];
+  }
+  setCols(cols) {
+    try { localStorage.setItem('ambit.feedLayout.v1', String(cols)); } catch (e) {}
+    this.setState({ cols, pickerOpen: false });
+  }
+  togglePicker() {
+    const el = this.layoutBtnRef.current;
+    let top = '50%';
+    if (el) { const r = el.getBoundingClientRect(); top = (r.top + r.height / 2) + 'px'; }
+    this.setState(s => ({ pickerOpen: !s.pickerOpen, pickerTop: top }));
+  }
+  renderVals() {
+    const { cols, pickerOpen, pickerTop } = this.state;
+    const layout = this.LAYOUTS.find(l => l.cols === cols) || this.LAYOUTS[0];
+    const columns = Array.from({ length: cols }, () => ({ items: [], h: 0 }));
+    this.items.forEach(it => {
+      const c = columns.reduce((a, b) => (b.h < a.h ? b : a));
+      const k = it.key, hov = this.state.hover === k, menuOpen = this.state.menuFor === k;
+      const coll = this.state.coll[k] || 'posters';
+      const saved = !!this.state.saved[k];
+      const lift = hov || menuOpen;
+      c.items.push({ ...it,
+        imgStyle: { display: 'block', width: '100%', aspectRatio: String(it.ratio), backgroundImage: it.src ? 'url("' + it.src + '")' : 'none', backgroundSize: 'cover', backgroundPosition: 'center' },
+        tagStyle: { position: 'absolute', top: 0, left: 0, fontFamily: "'Geist Mono', monospace", fontSize: '9.5px', letterSpacing: '0.5px', textTransform: 'uppercase', color: '#F2F2F2', background: 'rgba(14,14,14,0.78)', padding: '4px 6px', opacity: lift ? 0 : 1, transition: 'opacity .2s ease' },
+        tileStyle: { position: 'relative', background: '#161616', cursor: 'pointer', zIndex: lift ? 2 : 1,
+          transform: lift ? 'scale(1.035)' : 'scale(1)', boxShadow: lift ? '0 14px 34px rgba(0,0,0,0.45)' : '0 0 0 rgba(0,0,0,0)',
+          transition: 'transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s cubic-bezier(.2,.8,.2,1)' },
+        overlayStyle: { position: 'absolute', top: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          opacity: lift ? 1 : 0, pointerEvents: lift ? 'auto' : 'none', transition: 'opacity .25s ease' },
+        collection: coll, saveFill: saved ? '#2BB24C' : 'none', saveStroke: saved ? '#2BB24C' : '#F2F2F2', menuOpen,
+        stop: (e) => e.stopPropagation(),
+        menuCount: String(this.COLLS.length).padStart(2, '0'),
+        onNew: (e) => { e.stopPropagation(); const n = 'Collection ' + (this.COLLS.length + 1); this.COLLS.push(n); this.SEED[n] = 0; this.setState(s => ({ coll: { ...s.coll, [k]: n }, saved: { ...s.saved, [k]: true }, menuFor: null })); },
+        onEnter: () => this.setState({ hover: k }),
+        onLeave: () => this.setState(s => ({ hover: null, menuFor: s.menuFor === k ? null : s.menuFor })),
+        onToggleMenu: (e) => { e.stopPropagation(); this.setState(s => ({ menuFor: s.menuFor === k ? null : k })); },
+        onToggleSave: (e) => { e.stopPropagation(); this.setState(s => ({ saved: { ...s.saved, [k]: !s.saved[k] } })); },
+        menu: this.COLLS.map((name, ci) => {
+          const n = (this.SEED[name] || 0) + Object.keys(this.state.coll).filter(x => this.state.coll[x] === name && this.state.saved[x]).length;
+          const imgs = this.items.filter(x => x.isImage);
+          const thumbs = [0, 1, 2, 3].map(j => { const src = j < Math.min(n, 4) ? imgs[(ci * 5 + j * 3) % imgs.length].src : ''; return { key: 't' + j, style: { background: src ? 'url("' + src + '") center / cover' : '#1E1E1E' } }; });
+          return { key: name, label: name, thumbs, sub: n === 1 ? '1 item' : n + ' items',
+          markStyle: { width: '7px', height: '7px', borderRadius: '50%', background: '#2BB24C', opacity: saved && name === coll ? 1 : 0, flexShrink: 0 },
+          onPick: (e) => { e.stopPropagation(); this.setState(s => ({ coll: { ...s.coll, [k]: name }, saved: { ...s.saved, [k]: true }, menuFor: null })); } };
+        }),
+      });
+      c.h += 1 / it.ratio + 0.02;
+    });
+    const ease = 'cubic-bezier(.3,1.3,.5,1)';
+    return {
+      feedStyle: { maxWidth: layout.max + 'px', margin: '0 auto', display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: '4px', alignItems: 'start', animation: 'ambitfeedin .25s ease both' },
+      columns: columns.map((c, i) => ({ key: cols + '-' + i, items: c.items })),
+      glyphBars: this.barsFor(cols).map(([x, w]) => ({ style: { x: x + 'px', width: w + 'px', transition: `x .32s ${ease}, width .32s ${ease}` } })),
+      layoutBtnRef: this.layoutBtnRef,
+      layoutBtnBg: pickerOpen ? 'rgba(255,255,255,0.14)' : 'transparent',
+      onTogglePicker: () => this.togglePicker(),
+      onClosePicker: () => this.setState({ pickerOpen: false }),
+      pickerOpen,
+      pickerTop,
+      layoutOptions: this.LAYOUTS.map(l => {
+        const sel = l.cols === cols;
+        return {
+          label: l.label, selected: sel,
+          ink: sel ? '#F2F2F2' : 'rgba(255,255,255,0.7)',
+          bars: this.barsFor(l.cols).map(([x, w]) => ({ x, w })),
+          rowStyle: { display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 12px', borderRadius: '0', cursor: 'pointer', background: sel ? 'rgba(168,174,255,0.1)' : 'transparent' },
+          onPick: () => this.setCols(l.cols),
+        };
+      }),
+      onGoTop: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

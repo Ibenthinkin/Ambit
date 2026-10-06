@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;1,400&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0E0E0E; }
+    a { color: #F2F2F2; text-decoration: underline; text-underline-offset: 3px; }
+    a:hover { color: #FFFFFF; }
+  </style>
+</helmet>
+
+<div style="background:#0E0E0E; color:#E6E6E6; font-family:'Hanken Grotesk', sans-serif; min-height:100vh;">
+
+  <!-- HERO: image as big as it can be -->
+  <div style="position:relative; height:100vh; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#0A0A0A;">
+    <sc-if value="{{ isSingle }}" hint-placeholder-val="{{ true }}">
+      <div style="{{ singleBg }}"></div>
+    </sc-if>
+    <sc-if value="{{ isSpread }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid; grid-template-columns:1fr 1fr; width:100%; height:100%; align-items:center;">
+        <div style="{{ leftBg }}"></div>
+        <div style="{{ rightBg }}"></div>
+      </div>
+    </sc-if>
+
+    <div style="{{ chromeStyle }}">
+      <div style="position:absolute; left:0; right:0; bottom:0; height:180px; background:linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0));"></div>
+      <sc-if value="{{ isSingle }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute; left:40px; bottom:34px; display:flex; gap:14px; align-items:baseline;">
+          <span style="font-family:'Geist Mono', monospace; font-size:11px; color:#9A9A9A;">01</span>
+          <div><div style="font-family:'Hanken Grotesk', sans-serif; font-weight:400; font-size:22px; line-height:1.2; color:#F2F2F2;">{{ single.title }}</div><div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; margin-top:6px;">{{ single.maker }} · {{ single.year }}</div></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isSpread }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:40px; bottom:34px; display:flex; gap:14px; align-items:baseline;">
+          <span style="font-family:'Geist Mono', monospace; font-size:11px; color:#9A9A9A;">01</span>
+          <div><div style="font-family:'Hanken Grotesk', sans-serif; font-weight:400; font-size:20px; line-height:1.2; color:#F2F2F2;">{{ left.title }}</div><div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; margin-top:6px;">{{ left.maker }}</div></div>
+        </div>
+        <div style="position:absolute; right:110px; bottom:34px; display:flex; gap:14px; align-items:baseline; text-align:right;">
+          <div><div style="font-family:'Hanken Grotesk', sans-serif; font-weight:400; font-size:20px; line-height:1.2; color:#F2F2F2;">{{ right.title }}</div><div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; margin-top:6px;">{{ right.maker }}</div></div>
+          <span style="font-family:'Geist Mono', monospace; font-size:11px; color:#9A9A9A;">02</span>
+        </div>
+      </sc-if>
+      <div onClick="{{ onScrollInfo }}" style="position:absolute; left:50%; bottom:34px; transform:translateX(-50%); font-family:'Geist Mono', monospace; font-size:10.5px; letter-spacing:0.5px; text-transform:uppercase; color:#BDBDBD; cursor:pointer;">↓ Information</div>
+    </div>
+  </div>
+
+  <!-- INFO beneath — Cargo-style, magazine -->
+  <div ref="{{ infoRef }}" style="padding:0 40px;">
+
+    <sc-if value="{{ isSingle }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex; justify-content:space-between; gap:24px; padding:22px 0 14px; border-bottom:1px solid rgba(255,255,255,0.16); font-family:'Geist Mono', monospace; font-size:12px; text-transform:uppercase; color:#DADADA;">
+        <span>Ambit</span><span>No. {{ single.no }} &nbsp;<span style="font-style:italic; color:#9A9A9A;">✓ {{ single.topic }}</span></span><a href="#" style="color:#DADADA;">{{ single.from }}</a>
+      </div>
+      <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr); column-gap:40px; row-gap:24px; border-top:1px solid rgba(255,255,255,0.16); padding:14px 0 72px;">
+        <div style="font-family:'Geist Mono', monospace; font-size:12px; text-transform:uppercase; color:#9A9A9A;">{{ single.kind }}</div>
+        <div style="font-size:16px; line-height:1.45; color:#E6E6E6;">{{ single.maker }}<br><span style="font-style:italic;">{{ single.title }}</span><br>{{ single.medium }}<br>{{ single.where }}<br>{{ single.year }}<div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#8A8A8A; margin-top:16px; line-height:1.6;">From <a href="#" style="color:#DADADA;">{{ single.from }}</a><br>Rights retained by original authors</div></div>
+        <div>
+          <div style="font-size:28px; line-height:1.32; letter-spacing:-0.01em; color:#E6E6E6; text-wrap:pretty;">{{ single.body }}</div>
+          <a href="#" style="display:inline-block; font-size:16px; color:#E6E6E6; margin-top:20px;">[Read the post on {{ single.from }}..]</a>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isSpread }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.16); padding:14px 0 0; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A;"><span>Spread / {{ spreadLabel }}</span><span>Two works</span></div>
+      <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:40px; margin-top:24px; padding-bottom:72px;">
+        <sc-for list="{{ pair }}" as="w" hint-placeholder-count="2">
+          <div style="border-top:1px solid rgba(255,255,255,0.16); padding-top:12px;">
+            <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A;"><span>Fig. {{ w.fig }}</span><span>{{ w.topic }}</span></div>
+            <div style="font-family:'Hanken Grotesk', sans-serif; font-weight:400; font-size:40px; line-height:1.08; letter-spacing:-0.015em; color:#F2F2F2; margin-top:18px;">{{ w.title }}</div>
+            <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.6fr); column-gap:24px; margin-top:24px;">
+              <div style="font-size:15px; color:#E6E6E6;">{{ w.kind }}</div>
+              <div style="font-size:15px; line-height:1.45; color:#E6E6E6;">{{ w.maker }}<br><span style="font-style:italic;">{{ w.title }}</span><br>{{ w.medium }}<br>{{ w.where }}<br>{{ w.year }}
+                <div style="color:#BDBDBD; margin-top:16px; text-wrap:pretty;">{{ w.body }}</div>
+                <a href="#" style="display:inline-block; color:#E6E6E6; margin-top:16px;">[View..]</a>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.16); padding:14px 0 10px; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A;"><span>Where Ambit would wander next</span><span>{{ relatedCount }}</span></div>
+    <sc-for list="{{ related }}" as="r" hint-placeholder-count="3">
+      <a href="#" style="display:grid; grid-template-columns:60px minmax(0,1.3fr) minmax(0,1fr) 30px; column-gap:24px; align-items:baseline; padding:18px 0; border-top:1px solid rgba(255,255,255,0.1); text-decoration:none;">
+        <span style="font-family:'Geist Mono', monospace; font-size:11px; color:#8A8A8A;">{{ r.num }}</span>
+        <span style="font-family:'Hanken Grotesk', sans-serif; font-weight:400; font-size:24px; line-height:1.2; letter-spacing:-0.01em; color:#F2F2F2;">{{ r.title }}</span>
+        <span style="font-size:15px; color:#9A9A9A;">{{ r.reason }}</span>
+        <span style="font-family:'Geist Mono', monospace; color:#8A8A8A; text-align:right;">→</span>
+      </a>
+    </sc-for>
+
+  </div>
+
+  <!-- vertical pill nav (fades with chrome) -->
+  <div style="{{ pillStyle }}">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:22px; padding:20px 9px; border-radius:999px; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.22); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+    <a href="Ambit - Profile.dc.html" aria-label="Profile" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; text-decoration:none;"><svg width="29" height="29" viewBox="0 0 24 24" style="display:block;"><defs><radialGradient id="pg-iv" gradientUnits="userSpaceOnUse" cx="12" cy="14" r="12"><stop offset="0" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#A8AEFF;#E0A184;#7FC4B0;#E8D48A;#A8AEFF" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.33" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#E8D48A;#A8AEFF;#E0A184;#7FC4B0;#E8D48A" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.66" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#7FC4B0;#E8D48A;#A8AEFF;#E0A184;#7FC4B0" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="1" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#E0A184;#7FC4B0;#E8D48A;#A8AEFF;#E0A184" dur="10s" repeatCount="indefinite"></animate></stop></radialGradient></defs><circle cx="12" cy="7.2" r="5" fill="url(#pg-iv)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#pg-iv)"></path></svg></a>
+    <a href="Ambit - Feed Masonry 4.dc.html" style="text-decoration:none; display:flex;"><svg width="30" height="30" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="#fff" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="#fff"></circle><circle cx="21" cy="7" r="1.9" fill="#fff"></circle></svg></a>
+    <div onClick="{{ onToggleLayout }}" title="Single / spread" style="display:flex; cursor:pointer;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><rect x="3" y="5" width="8" height="14"></rect><rect x="13" y="5" width="8" height="14"></rect></svg></div>
+    <div onClick="{{ onSave }}" style="display:flex; cursor:pointer;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg></div>
+    </div>
+    <div onClick="{{ onShare }}" aria-label="Share" style="width:68px; height:68px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.22); box-shadow:0 10px 30px rgba(0,0,0,0.28);"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M12 3v12M7.5 7.5L12 3l4.5 4.5"></path></svg></div>
+  </div>
+
+  <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; left:50%; bottom:40px; transform:translateX(-50%); z-index:60; background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.3px; padding:10px 14px; white-space:nowrap;">{{ toast.text }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;layout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;single&quot;,&quot;options&quot;:[&quot;single&quot;,&quot;spread&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;View&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.infoRef = React.createRef();
+    this.state = { chrome: false, layout: null, toast: null };
+    this.WORKS = {
+      turner: { id: 'turner', no: '041', topic: 'Art', kind: 'Painting', src: 'assets/turner.jpg', title: 'Rain, Steam and Speed', maker: 'J. M. W. Turner', year: '1844', medium: 'Oil on canvas', where: 'The National Gallery, London', from: 'The National Gallery',
+        body: 'A steam train tears across a viaduct through a haze of rain and light — Turner dissolving the machine age into pure atmosphere. Look closely and a hare runs ahead of the engine on the tracks, outpacing it for now.' },
+      wave: { id: 'wave', no: '038', topic: 'Art', kind: 'Print', src: 'assets/wave.jpg', title: 'The Great Wave off Kanagawa', maker: 'Katsushika Hokusai', year: 'c. 1831', medium: 'Woodblock print', where: 'The Metropolitan Museum of Art', from: 'The Met',
+        body: "Three boats plunge through a storm-tossed sea while a cresting wave curls overhead and Mount Fuji sits small and still on the horizon — the print that carried Prussian blue into Japanese printmaking." },
+    };
+  }
+
+  componentDidMount() {
+    this.wake = () => {
+      if (!this.state.chrome) this.setState({ chrome: true });
+      if (this.hideTimer) clearTimeout(this.hideTimer);
+      this.hideTimer = setTimeout(() => this.setState({ chrome: false }), 2600);
+    };
+    ['mousemove', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, this.wake, { passive: true }));
+  }
+  componentWillUnmount() {
+    ['mousemove', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => window.removeEventListener(ev, this.wake));
+    if (this.hideTimer) clearTimeout(this.hideTimer);
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+  }
+  flash(text) {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: text });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1700);
+  }
+
+  renderVals() {
+    const layout = this.state.layout || this.props.layout || 'single';
+    const isSpread = layout === 'spread';
+    const on = this.state.chrome;
+    const W = this.WORKS;
+    const related = [
+      { title: 'Why the sky is blue', reason: 'The same scattered light Turner was chasing' },
+      { title: 'The internal-combustion engine', reason: 'The machine that replaced his steam' },
+      { title: 'Polynesian wayfinding', reason: 'Reading the same swell, for direction' },
+    ].map((r, i) => ({ ...r, key: 'r' + i, num: String(i + 1).padStart(2, '0') }));
+
+    const bg = (src) => ({ width: '100%', height: '100vh', backgroundImage: 'url("' + src + '")', backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' });
+    return {
+      isSingle: !isSpread, isSpread,
+      single: W.turner, left: W.wave, right: W.turner,
+      singleBg: bg(W.turner.src), leftBg: bg(W.wave.src), rightBg: bg(W.turner.src),
+      pair: [{ ...W.wave, key: 'a', fig: '01' }, { ...W.turner, key: 'b', fig: '02' }],
+      spreadTitle: 'Weather, read as force',
+      spreadLabel: 'Hokusai / Turner',
+      related, relatedCount: String(related.length).padStart(2, '0'),
+      infoRef: this.infoRef,
+      chromeStyle: { position: 'absolute', inset: 0, pointerEvents: on ? 'auto' : 'none', opacity: on ? 1 : 0, transition: 'opacity .45s ease' },
+      pillStyle: {
+        position: 'fixed', right: '24px', top: '50%', transform: 'translateY(-50%)', zIndex: 40,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
+        opacity: on ? 1 : 0, pointerEvents: on ? 'auto' : 'none', transition: 'opacity .45s ease',
+      },
+      onScrollInfo: () => { const el = this.infoRef.current; if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY, behavior: 'smooth' }); },
+      onScrollTop: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+      onToggleLayout: () => this.setState({ layout: isSpread ? 'single' : 'spread' }),
+      onSave: () => this.flash('Saved to Art'),
+      onShare: () => this.flash('Link copied · ambit.link/i/' + (isSpread ? 'wave+turner' : 'turner')),
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>
