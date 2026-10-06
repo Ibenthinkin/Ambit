@@ -263,9 +263,13 @@ test.describe.serial("item pages", () => {
     const pill = page.getByTestId("pill-toolbar");
     await expect(pill).toHaveAttribute("aria-hidden", "true");
 
-    // No mouse rule below `md` — the moves a desktop would wake on are nothing here.
+    // No mouse rule below `md` — the moves a desktop would wake on are nothing here. Hydrated
+    // first, or the moves land before any listener exists and the check proves nothing; then a
+    // beat for a wake to have rendered, had there been one.
+    await waitForHydration(page, "[data-testid='gallery-track']");
     await page.mouse.move(180, 200);
     await page.mouse.move(220, 240);
+    await page.waitForTimeout(500);
     await expect(pill).toHaveAttribute("aria-hidden", "true");
 
     // A tap brings it up (retried past hydration), and it stays — there is no idle timer.

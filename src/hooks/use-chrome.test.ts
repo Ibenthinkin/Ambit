@@ -121,6 +121,14 @@ describe("useChrome on a computer", () => {
     expect(result.current.visible).toBe(false);
   });
 
+  it("leaves no timer behind when it unmounts mid-countdown", () => {
+    const { result, unmount } = renderHook(() => useChrome());
+    act(() => result.current.wake());
+    expect(vi.getTimerCount()).toBe(1);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("a wake at 2000 ms restarts the timer", () => {
     const { result } = renderHook(() => useChrome());
     act(() => result.current.wake());

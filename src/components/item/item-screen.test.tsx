@@ -385,6 +385,21 @@ describe("ItemScreen", () => {
       expect(chrome()).toHaveAttribute("aria-hidden", "false");
     });
 
+    it("takes every wake listener off the window when it unmounts", () => {
+      const removed = vi.spyOn(window, "removeEventListener");
+      const { unmount } = renderScreen();
+      unmount();
+      const types = removed.mock.calls.map(([type]) => type);
+      for (const type of [
+        "mousemove",
+        "keydown",
+        "wheel",
+        "touchstart",
+        "scroll",
+      ])
+        expect(types).toContain(type);
+    });
+
     it("a tap wakes it and never hides it", () => {
       renderScreen();
       tap();

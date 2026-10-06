@@ -449,10 +449,12 @@ test.describe.serial("desktop", () => {
     const toggle = page.getByRole("button", { name: "Magazine view" });
     // The item screen throttles its wake (mouse move, key, wheel, touch, scroll) to one per
     // 250 ms, and Playwright moves faster than any hand — a summon right after another mouse
-    // action can be swallowed whole. So keep nudging the mouse until the rail answers. Each
-    // summon is followed promptly by its click: on a computer the chrome hides after 2.6 s idle.
+    // action can be swallowed whole. So keep nudging the mouse until the rail answers — and the
+    // toggle's click is inside the same retry: on a computer the chrome hides after 2.6 s idle,
+    // so a stall between the summon and the click re-wakes it rather than timing out on a
+    // hidden button. The click is the block's last step, so a click that landed is never redone.
     let nudge = 0;
-    const summon = () =>
+    const summonAndToggle = () =>
       expect(async () => {
         nudge = (nudge + 1) % 2;
         await page.mouse.move(700 + nudge * 20, 300 + nudge * 20);
@@ -461,12 +463,12 @@ test.describe.serial("desktop", () => {
           "false",
           { timeout: 400 },
         );
+        await toggle.click({ timeout: 1_000 });
       }).toPass();
 
     await expect(current).toHaveCount(1);
-    await summon();
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
-    await toggle.click();
+    await summonAndToggle();
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
 
     // The book opens (docs/PLAN_magazine-turn.md Task 6): a leaf swings, then lands.
@@ -508,15 +510,13 @@ test.describe.serial("desktop", () => {
     // The book folds shut first (Task 6). Mid-fold the cell already shows one picture, so the
     // count alone can pass early — wait for the leaf to land, or the next click lands mid-motion,
     // where the toggle is ignored (D3).
-    await summon();
-    await toggle.click();
+    await summonAndToggle();
     await expect(leaf).toHaveCount(0);
     await expect(current).toHaveCount(1);
     await expect(heading).toHaveText(turned[1]!);
 
     // Back on, then a reload: the device remembers the spread.
-    await summon();
-    await toggle.click();
+    await summonAndToggle();
     await expect(leaf).toHaveCount(0);
     await expect(current).toHaveCount(2);
     await page.reload();
