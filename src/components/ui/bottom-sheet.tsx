@@ -75,7 +75,7 @@ const SNAP = "transform .3s cubic-bezier(.22,.61,.36,1)";
 export interface BottomSheetProps {
   open: boolean;
   onClose: () => void;
-  /** Centered title, Sora 600 15px — every sheet in the design has one. */
+  /** Centered title, Hanken 500 15px — every sheet in the design has one. */
   title?: string;
   children: React.ReactNode;
   /**

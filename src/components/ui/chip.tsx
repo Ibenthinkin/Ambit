@@ -7,7 +7,7 @@ import { cn } from "~/lib/utils";
 // (globals.css — split from the prototype's overloaded "ambitpop" name, see PHASE5_PLAN.md
 // Decision 6).
 //
-// The `serif` prop is gone as of Phase 5.4 — the redesign uses one typeface (Sora) everywhere, so
+// The `serif` prop is gone as of Phase 5.4 — the redesign uses one text typeface (Hanken Grotesk) everywhere, so
 // there is no second family to switch into.
 //
 // `size="sm"` is the Saved screen's collection filter chip (5.9, `Ambit - Saved.dc.html`): the

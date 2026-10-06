@@ -7,7 +7,7 @@ import { headers } from "next/headers";
 import { AccentSync } from "~/components/accent-sync";
 import { SwCleanup } from "~/components/dev/sw-cleanup";
 import { InstallListener } from "~/components/install/install-listener";
-import { sora } from "~/lib/fonts";
+import { geistMono, hanken } from "~/lib/fonts";
 import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
@@ -58,7 +58,7 @@ export default async function RootLayout({
       lang="en"
       data-accent="indigo"
       suppressHydrationWarning
-      className={sora.variable}
+      className={`${hanken.variable} ${geistMono.variable}`}
     >
       <head>
         {/* **Runs before the first paint, and before any module has loaded.** That timing is the
@@ -97,8 +97,8 @@ export default async function RootLayout({
         />
       </head>
       {/* `bg-bg`/`text-ink` set the base surface + text color app-wide (every screen but the
-          gallery, which opts into `bg-immersive` itself); `font-sans` is Sora, the redesign's one
-          typeface for everything — there is no second family to switch into. Titles opt into the
+          gallery, which opts into `bg-immersive` itself); `font-sans` is Hanken Grotesk
+          and `font-mono` Geist Mono (src/lib/fonts.ts). Titles opt into the
           brighter `text-ink-hi` per-component. */}
       <body className="bg-bg text-ink font-sans antialiased">
         {/* Registers src/app/serwist/sw.js/route.ts as the page's service worker on mount —

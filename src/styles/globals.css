@@ -22,11 +22,11 @@
      [data-accent] on <html> (see @layer base below). Phase 9.2 adds a user-facing picker; 5.1
      shipped the mechanism, 5.4 re-pointed it at the redesign's set (indigo default). */
   --color-accent: var(--accent-raw);
-  /* Points at whatever CSS variable next/font/google injects for Sora (src/lib/fonts.ts) — also
-     runtime-supplied, so it needs the same `inline` treatment. The redesign uses ONE typeface for
-     everything (headings, body, UI chrome), so this is the only font token; `--font-serif` is
-     gone along with Newsreader (Phase 5.4). */
-  --font-sans: var(--font-sora);
+  /* Point at the CSS variables next/font/google injects on <html> (src/lib/fonts.ts) — runtime-
+     supplied, so they need the same `inline` treatment. Hanken Grotesk is the readable face,
+     Geist Mono the label face; `--font-serif` is gone along with Newsreader (Phase 5.4). */
+  --font-sans: var(--font-hanken);
+  --font-mono: var(--font-geist-mono);
 }
 
 @theme {

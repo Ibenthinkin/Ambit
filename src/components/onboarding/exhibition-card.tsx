@@ -11,7 +11,7 @@ import { cn } from "~/lib/utils";
 
 // The reveal's head (docs/DESIGN_first-exhibition.md §6) — the reader's first exhibition, named:
 // title, subtitle, the temperament strip, the travel compass and "You’d open". Rendered above
-// the levels list on the reveal and again on /profile/topics from the stored taste. Set in Sora
+// the levels list on the reveal and again on /profile/topics from the stored taste. Set in Hanken Grotesk
 // like everything else (Ben: no serif). Pure presentation; every number arrives in `taste`, the
 // frame's words come from lib/interview/frame.ts, and the sentences are exhibition.ts's.
 

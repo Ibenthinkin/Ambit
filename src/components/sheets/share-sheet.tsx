@@ -19,7 +19,7 @@ import { BottomSheet } from "~/components/ui/bottom-sheet";
 // proxy: museum servers bot-block third-party fetchers (CLAUDE.md), so a cross-origin client-side
 // download couldn't work. With `/api/img/[itemId]` serving from Ambit's own origin, it can.
 
-/** Targets, in the design's order. The three letter-glyph brands render a Sora 700 character. */
+/** Targets, in the design's order. The three letter-glyph brands render a bold letter character. */
 const TARGETS = [
   { name: "Messages", glyph: "icon" as const },
   { name: "Stories", glyph: "icon" as const },

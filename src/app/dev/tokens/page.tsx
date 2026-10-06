@@ -240,10 +240,10 @@ export default function TokensPage() {
           </div>
         </Section>
 
-        {/* Sora everywhere — the redesign has no second typeface. Sizes/weights are the rows of
+        {/* Hanken Grotesk everywhere (Geist Mono for labels). Sizes/weights are the rows of
             the handoff README's type table that the app actually uses today; the gallery/reader
             rows get added as those screens land. */}
-        <Section title="Type scale — Sora">
+        <Section title="Type scale — Hanken Grotesk">
           <div className="flex flex-col gap-3">
             <p className="text-ink-hi text-[28px] leading-[1.1] font-semibold tracking-[-0.2px]">
               Screen title / wordmark (600, 26–28px)
