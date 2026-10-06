@@ -3,9 +3,10 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import { Magnifier, Share } from "~/components/icons";
+import { Share } from "~/components/icons";
 import { CoverMosaic } from "~/components/profile/cover-mosaic";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import { Button } from "~/components/ui/button";
 import { Eyebrow } from "~/components/ui/eyebrow";
 import { writeLastCollectionId } from "~/lib/last-collection";
 import type { SaveDrift } from "~/lib/save-toast";
@@ -142,37 +143,38 @@ export function ItemSheet({
     <>
       <BottomSheet open={open} onClose={onClose} animation="menu">
         {/* The shell carries no horizontal padding (so the save sheets can scroll rows edge to
-          edge), so this menu supplies its own — the prototype's `10px 18px 30px`. */}
-        <div className="px-[18px] pt-[10px] pb-[30px]">
-          <p className="text-ink-hi px-1 pb-1 text-center text-[15px]">
+          edge), so this menu supplies its own — the prototype's `10px 20px 32px`. */}
+        <div className="px-5 pt-[10px] pb-8">
+          {/* DESIGN §6.1: the item's title, left-aligned at 20 px, over an `ink/14` rule. */}
+          <p className="text-ink-hi border-ink/14 border-b pb-3 text-[20px] leading-[1.2] tracking-[-0.01em]">
             {item?.title ?? ""}
           </p>
 
-          <button
-            type="button"
+          {/* The one bright block: a 46 px white primary button. */}
+          <Button
             onClick={closerLook}
             // Same rule as every other row/control in the design: a thumb resting here mid-gesture
             // must not fire it.
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex w-full items-center gap-[11px] px-[10px] py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
+            className="mt-[14px] w-full"
           >
-            <Magnifier size={18} className="text-ink/78 flex-none" />
-            <span className="text-ink text-[15px]">Closer Look</span>
-          </button>
+            Closer Look
+          </Button>
 
           <button
             type="button"
             onClick={share}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex w-full items-center gap-[11px] px-[10px] py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
+            className="border-ink/8 mt-1 flex w-full items-center gap-[11px] border-b py-[13px] text-left transition-transform duration-150 active:scale-[0.99]"
           >
             <Share size={18} className="text-ink/78 flex-none" />
             <span className="text-ink text-[15px]">Share</span>
           </button>
 
-          <div className="bg-ink/8 mx-1 my-[6px] h-[0.5px]" />
-
-          <Eyebrow as="p" className="block px-[10px] pt-[10px] pb-0.5">
+          <Eyebrow
+            as="p"
+            className="border-ink/14 block border-b pt-5 pb-2 text-[10px]"
+          >
             Save to collection
           </Eyebrow>
 
@@ -188,15 +190,21 @@ export function ItemSheet({
                   type="button"
                   onClick={() => pick(c.id)}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="flex w-full items-center gap-[11px] px-[10px] py-3 text-left transition-transform duration-150 active:scale-[0.99]"
+                  className="border-ink/8 flex w-full items-center gap-3 border-b py-[11px] text-left transition-transform duration-150 active:scale-[0.99]"
                 >
                   <CoverMosaic
                     covers={c.covers}
-                    className="size-7 flex-none"
-                    placeholderSize={12}
+                    className="size-[38px] flex-none"
+                    placeholderSize={14}
                   />
-                  <span className="text-ink min-w-0 flex-1 truncate text-[15px]">
+                  <span className="text-ink min-w-0 flex-1 truncate text-[16px]">
                     {c.name}
+                  </span>
+                  <span
+                    aria-hidden
+                    className="text-ink/55 font-mono text-[13px]"
+                  >
+                    +
                   </span>
                 </button>
               ))}
