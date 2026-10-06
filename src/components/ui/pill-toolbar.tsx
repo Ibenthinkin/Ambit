@@ -73,7 +73,7 @@ export interface PillToolbarProps {
   extra?: React.ReactNode;
   className?: string;
   /**
-   * Default true. False fades the toolbar out over the chrome's 600ms and takes it out of the tab
+   * Default true. False fades the toolbar out over the chrome's 350ms and takes it out of the tab
    * order — the item screen, where the toolbar belongs to something that fades (09-11-26). Hidden
    * means `visibility: hidden`, never `pointer-events: none`: `visibility` transitions discretely
    * (visible at once, hidden only after the fade) and no descendant can override it, so an
@@ -151,10 +151,11 @@ export function PillToolbar({
         className,
       )}
       style={{
+        // The item screen's phone chrome (docs/DESIGN_redesign.md §6.2): 350ms, a 12px rise.
         opacity: visible ? 1 : 0,
-        transform: visible ? "none" : "translateY(10px)",
+        transform: visible ? "none" : "translateY(12px)",
         visibility: visible ? "visible" : "hidden",
-        transition: "opacity .6s ease, transform .6s ease, visibility .6s",
+        transition: "opacity .35s ease, transform .35s ease, visibility .35s",
       }}
     >
       <nav

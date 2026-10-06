@@ -29,7 +29,7 @@ import { RailToolbar } from "~/components/ui/rail-toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Toast } from "~/components/ui/toast";
 import { EXPLORE_RAIL_CAP } from "~/config/explore";
-import { useChromeCycle } from "~/hooks/use-chrome-cycle";
+import { useChrome } from "~/hooks/use-chrome";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
 import { DESKTOP_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { useRailGestures } from "~/hooks/use-rail-gestures";
@@ -64,10 +64,11 @@ import { api } from "~/trpc/react";
 //     page you scroll: swipe sideways and the rail advances; scroll down and the facts are there.
 //     No details sheet, no "tap for more" — "the location of a tap makes too much difference in
 //     the response" (Ben's desktop review).
-//   - **The chrome starts hidden** and comes back on a ten-second loop (`useChromeCycle`). A tap
-//     brings it up, another puts it away; on desktop a mouse moving over the picture brings it up.
-//     The chrome is the caption over the picture's foot *and* the toolbar — the phone's pill fixed
-//     at the bottom, the desktop's rail at the right — both fading on the same 600ms.
+//   - **The chrome starts hidden** and follows decision 7 of docs/DESIGN_redesign.md (`useChrome`).
+//     On a phone a tap toggles it and a scroll past 24 px shows it for good; on a computer any input
+//     shows it and 2.6 s of none hides it. The chrome is the caption over the picture's foot *and*
+//     the toolbar — the phone's pill fixed at the bottom (350ms, a 12px rise), the desktop's rail at
+//     the right (450ms, with the caption).
 //   - **Swiping goes somewhere, and the page follows.** The rail is `services/gallery-rail.ts`'s
 //     endless wander — the topic graph chooses where, a curated-weighted draw chooses what — and
 //     it **never marks anything seen**: swiping spends none of the reader's corpus, which is the
@@ -150,8 +151,8 @@ function subscribeNever() {
   return () => undefined;
 }
 
-/** A mouse that jitters fires pointer moves at 60Hz; the chrome needs one call per quarter second. */
-const MOUSEMOVE_THROTTLE_MS = 250;
+/** Mouse moves, wheels and scrolls fire at 60Hz; the chrome needs one wake per quarter second. */
+const WAKE_THROTTLE_MS = 250;
 
 export function ItemScreen({
   entryItem,
@@ -181,7 +182,7 @@ export function ItemScreen({
   const [toast, setToast] = React.useState<string | null>(null);
 
   const router = useRouter();
-  const chrome = useChromeCycle();
+  const chrome = useChrome();
 
   // ── the explore taste (09-26-26, docs/PLAN_explore-route.md) ──────────────────────────────────
   // A signed-out visitor who came from `/explore` gets a rail that ends, after `EXPLORE_RAIL_CAP`
@@ -394,7 +395,9 @@ export function ItemScreen({
   const advance = React.useCallback(
     (dir: 1 | -1) => {
       if (motion) return;
-      chrome.reset();
+      // A new picture, a fresh look at it: a phone puts the chrome away. (A computer ignores
+      // this — the key or drag that turned the page was input, and input wakes it.)
+      chrome.hide();
       // A new picture is the hero as it was (docs/DESIGN_hero-zoom.md D1). The hook already
       // refuses to advance while zoomed; this covers ←/→ and the explore cap.
       setZoom(null);
@@ -527,7 +530,10 @@ export function ItemScreen({
   // ── gestures ──────────────────────────────────────────────────────────────────────────────────
   const { ref, dragPx, dragging } = useRailGestures({
     // A tap only ever toggles the chrome now. The gallery's tap-again-for-details went with the
-    // details sheet: the details are on the page, under the picture.
+    // details sheet: the details are on the page, under the picture. **This is the phone's only
+    // toggle** (decision 7, Review focus 6): the hook reports a tap only for a press that neither
+    // travelled nor became a pinch, so a pinch, a pan or a swipe never reaches here. On a
+    // computer `toggle` is a wake — a click never hides the chrome there.
     // In a spread, a tap on the page that isn't the item makes it the item; any other tap is the
     // chrome toggle it always was. The current cell fills the viewport, so its halves are the
     // window's halves.
@@ -559,8 +565,9 @@ export function ItemScreen({
         startMid: { x: cx - m.left, y: cy - m.top },
       };
       setSnapping(false);
-      // A picture being inspected has no caption on it (D1).
-      chrome.reset();
+      // A picture being inspected has no chrome on it (D1). A hide, never a toggle: a pinch is
+      // not a tap (Review focus 6 of docs/PLAN_redesign.md), so it can only put the chrome away.
+      chrome.hide();
     },
     onPinch: ({ ratio, cx, cy }) => {
       const g = gesture.current;
@@ -619,7 +626,7 @@ export function ItemScreen({
       const m = measure();
       if (!m) return;
       setSnapping(true);
-      chrome.reset();
+      chrome.hide();
       putZoom(
         doubleTapTarget(
           zoomRef.current,
@@ -632,21 +639,41 @@ export function ItemScreen({
     },
   });
 
-  // Desktop: a mouse moving over the page is a request for the caption, and unlike a tap it never
-  // hides it. Throttled — pointer moves fire continuously. `-Infinity` so the very first one counts.
+  // ── the chrome's inputs (decision 7) ───────────────────────────────────────────────────────
+  // **A computer:** mouse move, key, wheel, touch and scroll anywhere on the window each wake the
+  // chrome and restart its 2.6 s idle timer. Throttled to one wake per quarter second — the
+  // continuous ones fire at 60Hz, and a timer 250ms short of 2.6 s is not a difference anyone
+  // sees. `-Infinity` so the very first input counts. (e2e's desktop summon retries for exactly
+  // this throttle: a move straight after another mouse action can be swallowed.)
   //
-  // **A pointer event filtered to `pointerType === "mouse"`, never `onMouseMove`.** After a tap on
-  // a touch screen the browser fires *compatibility* mouse events — `mousemove` among them — so a
-  // `mousemove` summon would re-show the chrome the instant a second tap had put it away, and
-  // tap-to-hide would simply never work on a phone. Compatibility events are mouse events, not
-  // pointer events; a finger's own `pointermove` says `touch`. So this hears a real mouse only.
-  const lastMove = React.useRef(Number.NEGATIVE_INFINITY);
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (e.pointerType !== "mouse") return;
-    if (e.timeStamp - lastMove.current < MOUSEMOVE_THROTTLE_MS) return;
-    lastMove.current = e.timeStamp;
-    chrome.show();
-  };
+  // **Desktop only, and that is what keeps a phone's tap-to-hide working.** After a tap on a touch
+  // screen the browser fires *compatibility* mouse events, `mousemove` among them; a phone that
+  // woke on those would re-show the chrome the instant a second tap put it away. Below `md` these
+  // listeners are never attached (`desktop` is `useMediaQuery` at `md`), and `useChrome`'s phone
+  // rules refuse a wake as well. A touch laptop or an iPad on its side is on the computer rules,
+  // where a stray compatibility move is harmless: nothing there hides but the clock.
+  //
+  // **A phone:** the window's scroll position. Past 24 px the chrome comes up and stays.
+  const lastWake = React.useRef(Number.NEGATIVE_INFINITY);
+  const { wake, onScroll: chromeOnScroll } = chrome;
+  React.useEffect(() => {
+    if (!desktop) {
+      const onScroll = () => chromeOnScroll(window.scrollY);
+      window.addEventListener("scroll", onScroll, { passive: true });
+      return () => window.removeEventListener("scroll", onScroll);
+    }
+    const onInput = (e: Event) => {
+      if (e.timeStamp - lastWake.current < WAKE_THROTTLE_MS) return;
+      lastWake.current = e.timeStamp;
+      wake();
+    };
+    const events = ["mousemove", "keydown", "wheel", "touchstart", "scroll"];
+    for (const ev of events)
+      window.addEventListener(ev, onInput, { passive: true });
+    return () => {
+      for (const ev of events) window.removeEventListener(ev, onInput);
+    };
+  }, [desktop, wake, chromeOnScroll]);
 
   // ── share + save ──────────────────────────────────────────────────────────────────────────────
   // Always `/i/{current}` — the picture on screen, which since the URL follows the rail is also
@@ -747,7 +774,6 @@ export function ItemScreen({
     <main
       className="bg-bg text-ink min-h-dvh pb-[110px]"
       style={{ overscrollBehaviorY: "contain" }}
-      onPointerMove={onPointerMove}
     >
       <HeroRail
         cells={cells}
@@ -802,8 +828,7 @@ export function ItemScreen({
         />
       ) : (
         // Decision 3 (docs/DESIGN_chrome-redesign.md): the rail is part of the chrome here — it
-        // fades with the caption, on the same 600ms, and a mouse moving over the picture summons
-        // both.
+        // fades with the caption, on the same 450ms, and any input summons both.
         <RailToolbar
           visible={chrome.visible}
           bookmark={saved.data?.saved ? "saved" : "idle"}

@@ -595,3 +595,27 @@ export async function tapInPlace(page: Page, target: Locator) {
   if (!box) throw new Error("tapInPlace: the target has no box on screen");
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
+
+/**
+ * Bring a picture's phone chrome (the pill and the share disc) up. Decision 7 of
+ * docs/DESIGN_redesign.md: below `md` the chrome starts hidden and **a tap is the only toggle** —
+ * no mouse move summons it, so this taps the picture, and only when the chrome is hidden (a tap on
+ * chrome already up would put it away). A no-op where the pill isn't chrome at all (an article,
+ * or any other screen), where it is never `aria-hidden`.
+ *
+ * Retried: a tap before hydration lands on a track with no gesture handlers yet and is lost, not
+ * queued. Each retry re-reads the state first, so a late tap can't be undone by the next one.
+ * The point is a quarter of the way down the middle of the screen — the hero, clear of the pill.
+ */
+export async function summonPhoneChrome(page: Page) {
+  const pill = page.getByTestId("pill-toolbar");
+  await expect(async () => {
+    if ((await pill.getAttribute("aria-hidden")) === "true") {
+      const { width, height } = page.viewportSize()!;
+      await page.mouse.click(Math.round(width / 2), Math.round(height / 4));
+    }
+    await expect(pill).toHaveAttribute("aria-hidden", "false", {
+      timeout: 1_000,
+    });
+  }).toPass({ timeout: 10_000 });
+}

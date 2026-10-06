@@ -5,6 +5,7 @@ import {
   connect,
   inviteUser,
   seedFeedCorpus,
+  summonPhoneChrome,
   tapInPlace,
   waitForFeedToSettle,
   waitForHydration,
@@ -153,11 +154,10 @@ test.describe.serial("explore", () => {
     await expect(
       page.getByRole("link", { name: "Keep exploring" }),
     ).toBeVisible();
-    // The toolbar is there for a stranger too: a mouse move summons it (a click would toggle it
-    // straight back off — see item.spec.ts's `summonChrome`), Save raises the sign-up card over
-    // the picture — no navigation — and Escape closes the card, not the page.
-    await page.mouse.move(190, 210);
-    await page.mouse.move(210, 220);
+    // The toolbar is there for a stranger too: a tap on the picture brings it up (on a phone a tap
+    // is the chrome's only toggle — `summonPhoneChrome`), Save raises the sign-up card over the
+    // picture — no navigation — and Escape closes the card, not the page.
+    await summonPhoneChrome(page);
     const pill = page.getByTestId("pill-toolbar");
     await expect(pill).toHaveAttribute("aria-hidden", "false");
     // Share is the detached disc beside the pill, not a control in it. Asked of the `<nav>`: the

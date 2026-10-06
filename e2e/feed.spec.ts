@@ -14,6 +14,7 @@ import {
   waitForFeedToSettle,
   tapInPlace,
   fixtureSource,
+  summonPhoneChrome,
   writeMemberships,
 } from "./support";
 
@@ -318,10 +319,9 @@ test.describe.serial("feed", () => {
 
     // The pill's Feed button is the way back now — `BackToFeed` was folded into `useLeaveToFeed`
     // (5.7) and the pill calls it. The e2e user is signed in, so the pill is there.
-    // On a picture the pill rides in the merged screen's chrome, which starts hidden; a mouse move
-    // summons it (a click would toggle it). On an article it is always there and this is a no-op.
-    await page.mouse.move(200, 200);
-    await page.mouse.move(210, 210);
+    // On a picture the pill rides in the merged screen's chrome, which starts hidden; on a phone a
+    // tap on the picture is what brings it up. On an article it is always there and this is a no-op.
+    await summonPhoneChrome(page);
     await page.getByRole("button", { name: "Feed" }).click();
 
     // Popped, not pushed — so the URL is the feed entry that was already on the stack, with no

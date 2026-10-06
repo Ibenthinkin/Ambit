@@ -424,10 +424,11 @@ export function HeroRail({
           // at once, and back to hidden only after the fade has finished. An invisible control
           // that still takes taps is worse than no control at all.
           style={{
+            // The desktop caption's fade (docs/DESIGN_redesign.md §6.3): 450ms, opacity only,
+            // with the rail.
             opacity: chromeVisible ? 1 : 0,
-            transform: chromeVisible ? "none" : "translateY(10px)",
             visibility: chromeVisible ? "visible" : "hidden",
-            transition: "opacity .6s ease, transform .6s ease, visibility .6s",
+            transition: "opacity .45s ease, visibility .45s",
             background:
               "linear-gradient(to top, rgba(11,10,8,0.94) 42%, transparent)",
           }}

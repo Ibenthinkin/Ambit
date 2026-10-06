@@ -14,6 +14,7 @@ import {
   waitForFeedToSettle,
   tapInPlace,
   fixtureSource,
+  summonPhoneChrome,
   writeMemberships,
 } from "./support";
 
@@ -60,22 +61,13 @@ let blogId: string;
 let imageIds: string[] = [];
 
 /**
- * Bring the picture's chrome (caption + pill) up with the mouse. A *move*, not a click: a click on
- * the picture is a tap, which toggles — and Playwright's click moves the mouse first, which
- * summons, so a click would show and then hide in one call. A move only ever shows, and restarts
- * the ten-second cycle, so the pill stays put for the next few steps.
+ * Bring the picture's chrome (the pill and the share disc) up. This spec runs at the phone's
+ * 402 px, where decision 7 (docs/DESIGN_redesign.md) makes a tap the only toggle and a mouse move
+ * nothing — so it is `summonPhoneChrome`'s tap, taken only while the chrome is hidden. Nothing on
+ * a phone hides it on a clock, so it stays up for the steps after.
  */
 async function summonChrome(page: Page) {
-  const { width, height } = page.viewportSize()!;
-  await page.mouse.move(Math.round(width / 2) - 10, Math.round(height / 4));
-  await page.mouse.move(
-    Math.round(width / 2) + 10,
-    Math.round(height / 4) + 10,
-  );
-  await expect(page.getByTestId("gallery-chrome")).toHaveAttribute(
-    "aria-hidden",
-    "false",
-  );
+  await summonPhoneChrome(page);
 }
 
 test.describe.serial("item pages", () => {
@@ -261,6 +253,39 @@ test.describe.serial("item pages", () => {
     await expect(page).toHaveURL(new RegExp(`/i/${imageId}$`));
   });
 
+  // Decision 7 (docs/DESIGN_redesign.md), the phone half: hidden at the start, a tap is the only
+  // toggle (both ways), a mouse summons nothing, nothing hides it on a clock, and a scroll past
+  // 24 px brings it up for good.
+  test("on a phone the picture's chrome starts hidden and a tap toggles it", async ({
+    page,
+  }) => {
+    await page.goto(`/i/${imageId}`);
+    const pill = page.getByTestId("pill-toolbar");
+    await expect(pill).toHaveAttribute("aria-hidden", "true");
+
+    // No mouse rule below `md` — the moves a desktop would wake on are nothing here.
+    await page.mouse.move(180, 200);
+    await page.mouse.move(220, 240);
+    await expect(pill).toHaveAttribute("aria-hidden", "true");
+
+    // A tap brings it up (retried past hydration), and it stays — there is no idle timer.
+    await summonPhoneChrome(page);
+    await page.waitForTimeout(3_000);
+    await expect(pill).toHaveAttribute("aria-hidden", "false");
+
+    // A second tap on the picture puts it away.
+    const { width, height } = page.viewportSize()!;
+    await page.mouse.click(Math.round(width / 2), Math.round(height / 4));
+    await expect(pill).toHaveAttribute("aria-hidden", "true");
+
+    // Scrolled past 24 px it comes up, and scrolling back to the top does not hide it.
+    await page.evaluate(() => window.scrollTo(0, 120));
+    await expect(pill).toHaveAttribute("aria-hidden", "false");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(500);
+    await expect(pill).toHaveAttribute("aria-hidden", "false");
+  });
+
   test("an article renders as a reader, apparatus dropped", async ({
     page,
   }) => {
@@ -431,8 +456,8 @@ test.describe.serial("item pages", () => {
     // The detached disc (docs/DESIGN_chrome-redesign.md §1): on the pill's axis, centred in the
     // remaining distance between the pill's right edge and the screen's right edge.
     //
-    // Both rects in **one** `evaluate`, i.e. one frame: the caption the two ride in slides up over
-    // 600ms after the summon, and two separate `boundingBox()` calls can straddle a frame of that
+    // Both rects in **one** `evaluate`, i.e. one frame: the pill and disc rise 12px over 350ms
+    // after the summon, and two separate `boundingBox()` calls can straddle a frame of that
     // slide and disagree about y by a pixel or more (seen 09-11-26, 1 run in 2).
     const { nav, share, width } = await page.evaluate(() => {
       const box = (el: Element) => {

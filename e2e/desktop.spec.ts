@@ -381,19 +381,36 @@ test.describe.serial("desktop", () => {
     expect(factsBox.width).toBeLessThanOrEqual(720);
     expect(factsBox.y).toBeGreaterThanOrEqual(900); // under the picture, not over it
 
-    // A mouse moving over the picture summons the caption.
-    await page.mouse.move(700, 300);
-    await page.mouse.move(720, 320);
-    await expect(page.getByTestId("gallery-chrome")).toHaveAttribute(
-      "aria-hidden",
-      "false",
-    );
+    // A mouse moving over the page wakes the caption (decision 7 of docs/DESIGN_redesign.md:
+    // any input on a computer). Retried for the item screen's quarter-second wake throttle — see
+    // the spread test's `summon`.
+    let nudge = 0;
+    await expect(async () => {
+      nudge = (nudge + 1) % 2;
+      await page.mouse.move(700 + nudge * 20, 300 + nudge * 20);
+      await expect(page.getByTestId("gallery-chrome")).toHaveAttribute(
+        "aria-hidden",
+        "false",
+        { timeout: 400 },
+      );
+    }).toPass();
     // The rail is chrome here too (decision 3): summoned by the same mouse move.
     await expect(page.getByTestId("rail-toolbar")).toHaveAttribute(
       "aria-hidden",
       "false",
     );
     await expect(page.getByRole("button", { name: "Share" })).toHaveCount(1);
+    // …and with the mouse still, 2.6 s of no input puts both away again. No loop brings them
+    // back: the old ten-second cycle is gone.
+    await expect(page.getByTestId("rail-toolbar")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+      { timeout: 5_000 },
+    );
+    await expect(page.getByTestId("gallery-chrome")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
 
     // And Escape leaves — the review's "Escape does nothing" (09-10-26), fixed on this screen.
     await page.keyboard.press("Escape");
@@ -430,9 +447,10 @@ test.describe.serial("desktop", () => {
     const alts = () =>
       current.evaluateAll((els) => els.map((e) => e.getAttribute("alt")));
     const toggle = page.getByRole("button", { name: "Magazine view" });
-    // The item screen throttles its mouse-move summon to one per 250 ms, and Playwright moves
-    // faster than any hand — a summon right after another mouse action can be swallowed whole. So
-    // keep nudging the mouse until the rail answers.
+    // The item screen throttles its wake (mouse move, key, wheel, touch, scroll) to one per
+    // 250 ms, and Playwright moves faster than any hand — a summon right after another mouse
+    // action can be swallowed whole. So keep nudging the mouse until the rail answers. Each
+    // summon is followed promptly by its click: on a computer the chrome hides after 2.6 s idle.
     let nudge = 0;
     const summon = () =>
       expect(async () => {
