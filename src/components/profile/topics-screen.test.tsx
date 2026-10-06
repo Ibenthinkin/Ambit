@@ -153,10 +153,11 @@ describe("TopicsScreen", () => {
     ];
     render(<TopicsScreen dev={false} />);
     // "3 on." then the second sentence in italics (DESIGN_redesign §6.5).
-    const summary = screen.getByText(/on\.\s*$/, {
-      selector: "p > span",
-    }).parentElement!;
-    expect(summary.textContent).toBe("3 on. Changes save as you go.");
+    const summary = screen.getByText(
+      (_, el) =>
+        el?.tagName === "P" &&
+        el.textContent === "3 on. Changes save as you go.",
+    );
     expect(
       within(summary).getByText("Changes save as you go.").className,
     ).toContain("italic");
@@ -368,14 +369,22 @@ describe("TopicsScreen", () => {
       readingMinutes: null,
     };
 
-    it("shows the stored exhibition above the topic search", () => {
+    it("shows the stored exhibition below the topic search, above the level rows", () => {
       state.taste = taste;
       render(<TopicsScreen dev={false} />);
       const title = screen.getByRole("heading", { name: "Quiet Weathers" });
       const search = screen.getByText("Add a topic");
+      const rows = screen.getByRole("heading", {
+        level: 2,
+        name: "Your topics",
+      });
+      // DESIGN_redesign §6.5: summary, search, then the exhibition, then the rows.
       expect(
-        title.compareDocumentPosition(search) &
+        search.compareDocumentPosition(title) &
           Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        title.compareDocumentPosition(rows) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
       // Medium labels come from topics.list.
       expect(

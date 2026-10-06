@@ -21,7 +21,7 @@ import type { TopicFacet } from "~/server/db/schema";
 // this was one flat list, on Ben's verdict that the facets meant nothing to a reader; the
 // redesign reverses that on purpose for these two screens only. The headings are reader words,
 // not facet names — five of them over six facets (`medium` and `tradition` share one, `form` is
-// "Writing"), in `FACET_HEADINGS`' order. Inside a heading, label order. A heading with no row
+// "Writing"), in `HEADINGS`' order. Inside a heading, label order. A heading with no row
 // is not drawn. The grouping lives here, not in either host, so the reveal and Profile → Topics
 // cannot drift apart; `levelRowOrder` hands the drawn order to a host that needs it
 // (topics-screen's focus hand-off after a removal).
@@ -49,18 +49,25 @@ export interface LevelTopic {
   facet?: TopicFacet | null;
 }
 
-/** The five headings (DESIGN_redesign §5.3 item 6), in the order they are drawn, and the facets
- *  each gathers. Every facet appears exactly once. */
-export const FACET_HEADINGS: readonly {
-  heading: string;
-  facets: readonly TopicFacet[];
-}[] = [
-  { heading: "Subjects", facets: ["subject"] },
-  { heading: "Mediums & traditions", facets: ["medium", "tradition"] },
-  { heading: "Looks", facets: ["look"] },
-  { heading: "Places", facets: ["place"] },
-  { heading: "Writing", facets: ["form"] },
-];
+/** The five headings (DESIGN_redesign §5.3 item 6), in the order they are drawn. */
+export const HEADINGS = [
+  "Subjects",
+  "Mediums & traditions",
+  "Looks",
+  "Places",
+  "Writing",
+] as const;
+
+/** Every facet's heading. A `Record`, so a facet added to `TopicFacet` is a compile error here
+ *  until it is given a heading — never a silent unheaded row. */
+export const FACET_HEADING: Record<TopicFacet, (typeof HEADINGS)[number]> = {
+  subject: "Subjects",
+  medium: "Mediums & traditions",
+  tradition: "Mediums & traditions",
+  look: "Looks",
+  place: "Places",
+  form: "Writing",
+};
 
 /** One heading's rows, as drawn. `heading` is null for the unfaceted tail. */
 export interface LevelGroup<T extends LevelTopic> {
@@ -70,7 +77,7 @@ export interface LevelGroup<T extends LevelTopic> {
 
 /**
  * The rows this list draws, grouped: `topics` that are picked or kept `off`, under their
- * heading in `FACET_HEADINGS` order, label order inside each, empty headings dropped. A pick the
+ * heading in `HEADINGS` order, label order inside each, empty headings dropped. A pick the
  * list doesn't hold (a topic retired since) has no label to show and is left out. Label order,
  * never picks-insertion order — which would move a row every time a reader re-picked something.
  */
@@ -82,18 +89,14 @@ export function groupLevelRows<T extends LevelTopic>(
   const rows = topics
     .filter((t) => picks.has(t.id) || off?.has(t.id))
     .sort((a, b) => a.label.localeCompare(b.label));
-  const groups: LevelGroup<T>[] = FACET_HEADINGS.map(({ heading, facets }) => ({
+  const groups: LevelGroup<T>[] = HEADINGS.map((heading) => ({
     heading,
-    rows: rows.filter((t) => t.facet != null && facets.includes(t.facet)),
-  }));
-  groups.push({
-    heading: null,
     rows: rows.filter(
-      (t) =>
-        t.facet == null ||
-        !FACET_HEADINGS.some(({ facets }) => facets.includes(t.facet!)),
+      (t) => t.facet != null && FACET_HEADING[t.facet] === heading,
     ),
-  });
+  }));
+  // Only a topic with no facet at all lands here (the type rules out an unmapped one).
+  groups.push({ heading: null, rows: rows.filter((t) => t.facet == null) });
   return groups.filter((g) => g.rows.length > 0);
 }
 

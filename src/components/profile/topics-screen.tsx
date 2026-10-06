@@ -207,18 +207,6 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
         </p>
       </Rise>
 
-      {/* The reader's first exhibition, as the reveal showed it; a retake replaces it. */}
-      {taste.data && (
-        <Rise>
-          <div className="px-5 pt-5">
-            <ExhibitionCard
-              taste={taste.data}
-              topicLabels={new Map(all.map((t) => [t.id, t.label]))}
-            />
-          </div>
-        </Rise>
-      )}
-
       {/* Add — a search over every pickable topic the reader doesn't have yet. */}
       <Rise delayMs={60}>
         <section ref={addSectionRef} className="px-5 pt-10">
@@ -263,11 +251,25 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
         </section>
       </Rise>
 
+      {/* The reader's first exhibition, as the reveal showed it; a retake replaces it.
+          Below the search, as DESIGN_redesign §6.5 orders the screen. */}
+      {taste.data && (
+        <Rise delayMs={90}>
+          <div className="px-5 pt-10">
+            <ExhibitionCard
+              taste={taste.data}
+              topicLabels={new Map(all.map((t) => [t.id, t.label]))}
+            />
+          </div>
+        </Rise>
+      )}
+
       {/* Tune or drop. `onLevel` is a direct `setWeight` — it never changes *which* topics are
           picked; `onOff` removes the row through the floor-checked `commit`. */}
       <Rise delayMs={120}>
         <section aria-labelledby="topics-mine" className="px-5 pt-11">
-          <Eyebrow as="p" id="topics-mine" className="block text-[11px]">
+          {/* An h2, so the facet headings (h3) under it don't skip a level. */}
+          <Eyebrow as="h2" id="topics-mine" className="block text-[11px]">
             Your topics
           </Eyebrow>
           <div ref={listRef} className="pt-6">
