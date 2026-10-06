@@ -8,16 +8,10 @@ import { cn } from "~/lib/utils";
 // and Edit profile. Not the toolbars — their profile button is `icons/profile-glyph.tsx`.
 export interface AvatarChipProps extends React.ComponentProps<"span"> {
   size?: number;
-  /**
-   * @deprecated No longer painted: the disc is flat. Kept so Edit profile's call site compiles
-   * until its own restyle drops the prop.
-   */
-  gradient?: string;
 }
 
 export function AvatarChip({
   size = 25,
-  gradient: _gradient,
   className,
   style,
   ...rest

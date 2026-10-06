@@ -2,7 +2,7 @@
 
 import { OrbitMark, RingMark, TerminatorMark } from "~/components/icons/marks";
 import { AvatarChip } from "~/components/ui/avatar-chip";
-import { avatarGradient, avatarHue } from "~/lib/avatar-hue";
+import { avatarHue } from "~/lib/avatar-hue";
 
 // The profile-mark bench (docs/DESIGN_landing-redo.md D7): the current chip beside the three
 // candidates, for six sample readers, at the four sizes the app uses — the pill (28), the rail
@@ -15,9 +15,7 @@ const SIZES = [28, 32, 88, 104] as const;
 const CANDIDATES = [
   {
     name: "Current (Cosmos)",
-    render: (id: string, size: number) => (
-      <AvatarChip size={size} gradient={avatarGradient(id)} />
-    ),
+    render: (id: string, size: number) => <AvatarChip size={size} />,
   },
   {
     name: "1 · Orbit",

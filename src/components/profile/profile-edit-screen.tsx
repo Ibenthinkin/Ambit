@@ -9,7 +9,6 @@ import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { Textarea } from "~/components/ui/textarea";
-import { avatarGradient } from "~/lib/avatar-hue";
 import type { UserProfile } from "~/server/db/users";
 import { api } from "~/trpc/react";
 import { useProfileHub } from "./profile-hub";
@@ -38,9 +37,9 @@ export function ProfileEditScreen() {
   const me = api.user.me.useQuery();
 
   return (
-    // Left-aligned at the list measure inside the hub's wide column (docs/DESIGN_list-screens.md
-    // §6) — on every branch, so a loader and an error land where the form will.
-    <div className="md:max-w-[600px]">
+    // Left-aligned inside the hub's wide column; the form lays itself out in two columns from
+    // `md` (DESIGN_redesign §6.5), so there is no cap here — the fields column carries its own.
+    <div>
       {me.isPending ? (
         <div className="flex justify-center py-24">
           <Loader size={LOADER_SIZES.block} />
@@ -129,17 +128,20 @@ function EditForm({ profile }: { profile: UserProfile }) {
   };
 
   return (
-    <>
+    // From `md`: the avatar left (`1fr`), the fields right (`2fr`), 40 px apart (DESIGN §6.5). On
+    // the phone it is one column, the disc above the fields.
+    <div className="flex flex-col px-5 pt-6 pb-[60px] md:grid md:grid-cols-[1fr_2fr] md:gap-10 md:px-0 md:pt-2">
       {/* No caption under it — see the file header on why the prototype's upload copy is gone. */}
-      <div className="flex justify-center pt-6">
+      <div className="flex justify-center md:justify-start">
         <Rise>
-          <AvatarChip size={104} gradient={avatarGradient(profile.id)} />
+          <AvatarChip size={104} />
         </Rise>
       </div>
 
-      <div className="flex flex-col gap-5 px-5 pt-[34px] pb-[60px]">
+      <div className="flex flex-col gap-[30px] pt-[34px] md:max-w-[560px] md:pt-0">
         <Field label="Name">
           <Input
+            size="lg"
             value={name}
             maxLength={60}
             placeholder="Your name"
@@ -149,6 +151,7 @@ function EditForm({ profile }: { profile: UserProfile }) {
 
         <Field label="Handle" error={handleError}>
           <Input
+            size="lg"
             value={handle}
             maxLength={25}
             placeholder="@you"
@@ -164,6 +167,7 @@ function EditForm({ profile }: { profile: UserProfile }) {
 
         <Field label="About">
           <Textarea
+            size="lg"
             value={bio}
             rows={4}
             maxLength={280}
@@ -172,41 +176,38 @@ function EditForm({ profile }: { profile: UserProfile }) {
           />
         </Field>
 
-        <div>
-          <Field label="Email">
-            <Input readOnly value={profile.email} className="text-ink/55" />
-          </Field>
-          <span className="text-ink/35 mt-2 block text-[12px]">
-            Only used for your invite and sign-in.
-          </span>
-        </div>
+        <Field label="Email" hint="Only used for your invite and sign-in.">
+          <Input
+            size="lg"
+            readOnly
+            value={profile.email}
+            className="text-ink/55"
+          />
+        </Field>
 
-        <Button
-          className="mt-1 h-[50px] w-full"
-          onClick={submit}
-          aria-busy={submitting}
-        >
-          Save changes
-        </Button>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Button
+            className="px-7 py-3.5"
+            onClick={submit}
+            aria-busy={submitting}
+          >
+            Save changes
+          </Button>
+          <Button variant="link" onClick={discard}>
+            Discard
+          </Button>
+        </div>
 
         {formError ? (
           <span
             role="alert"
-            className="text-accent text-center font-mono text-[10.5px] tracking-[0.04em]"
+            className="text-accent font-mono text-[10.5px] tracking-[0.04em]"
           >
             {formError}
           </span>
         ) : null}
-
-        <button
-          type="button"
-          onClick={discard}
-          className="text-ink/45 text-center text-[14px]"
-        >
-          Discard
-        </button>
       </div>
-    </>
+    </div>
   );
 }
 
