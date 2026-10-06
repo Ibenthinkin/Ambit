@@ -43,7 +43,6 @@ export default async function DevFeedPage() {
       topicLabels={topicLabels}
       dev={{ originalTopicIds }}
       appUrl={env.BETTER_AUTH_URL}
-      viewerName={session.user.name?.trim().split(/\s+/)[0]}
     />
   );
 }

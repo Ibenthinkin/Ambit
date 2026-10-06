@@ -2,7 +2,7 @@ import { Eyebrow } from "~/components/ui/eyebrow";
 import { TextLink } from "~/components/ui/text-link";
 import { sourceLabel } from "~/lib/source-label";
 import type { Item } from "~/server/db/items";
-import { hasLinkOutRow, LinkOutRow } from "./link-out-row";
+import { prefersLinkOutBlock, LinkOutRow } from "./link-out-row";
 import { ReaderBlocks } from "./reader-blocks";
 import { ReuseNotice } from "./reuse-notice";
 
@@ -73,7 +73,7 @@ export function ReaderItemBody({ item, keptIn = null }: ReaderItemBodyProps) {
           prominent row the image page uses; an open source's article (Wikipedia, PoetryDB,
           Loupe) keeps the quiet inline link — its body is the whole read, and the row's
           "go there instead" weight would be wrong for it. */}
-      {hasLinkOutRow(item.source) ? (
+      {prefersLinkOutBlock(item.source) ? (
         <LinkOutRow source={item.source} sourceUrl={item.sourceUrl} />
       ) : (
         <div className="mt-[20px]">

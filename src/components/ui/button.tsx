@@ -30,6 +30,16 @@ const sizeClasses: Record<ButtonSize, string> = {
 // The green underline shared by primary and outline hover.
 const HOVER_LINE = "hover:shadow-[inset_0_-2px_0_var(--color-accent)]";
 
+/**
+ * The white primary block's colours, press state, hover line and 150 ms ease as one string, for
+ * the anchors that must look and press exactly like a primary Button (the link-out block, the
+ * join block) without being a <button>. Button composes from the same pieces.
+ */
+export const PRIMARY_BLOCK = cn(
+  "bg-ink text-on-accent transition-[background-color,box-shadow,border-color,color] duration-150 hover:bg-white active:bg-[#E6E6E6]",
+  HOVER_LINE,
+);
+
 export interface ButtonProps extends React.ComponentProps<"button"> {
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -53,12 +63,7 @@ export function Button({
         // A link keeps its own text size and has no fixed height or padding box.
         isLink ? "text-[15px]" : sizeClasses[size],
         variant === "primary" &&
-          (disabled
-            ? "text-ink/34 bg-white/12"
-            : cn(
-                "bg-ink text-on-accent hover:bg-white active:bg-[#E6E6E6]",
-                HOVER_LINE,
-              )),
+          (disabled ? "text-ink/34 bg-white/12" : PRIMARY_BLOCK),
         variant === "outline" &&
           (disabled
             ? "border-ink/16 text-ink/34 border"

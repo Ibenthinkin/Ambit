@@ -215,7 +215,7 @@ test.describe.serial("item pages", () => {
       page.getByRole("heading", { name: "A seeded plate", level: 1 }),
     ).toBeVisible();
     // The picture is the page's hero strip, and the facts table sits under it: the maker is a
-    // row there (the caption says it too, but the caption starts hidden).
+    // "By" row there (a phone has no caption over the hero at all).
     await expect(page.getByTestId("gallery-track")).toBeVisible();
     await expect(page.locator("main img").first()).toBeVisible();
     const facts = page.getByRole("list", { name: "About this work" });
@@ -276,6 +276,8 @@ test.describe.serial("item pages", () => {
     await summonPhoneChrome(page);
     await page.waitForTimeout(3_000);
     await expect(pill).toHaveAttribute("aria-hidden", "false");
+    // No caption over the hero on a phone, chrome up or not (DESIGN §6.2).
+    await expect(page.getByTestId("gallery-chrome")).toBeHidden();
 
     // A second tap on the picture puts it away.
     const { width, height } = page.viewportSize()!;

@@ -376,12 +376,11 @@ describe("ItemSheet", () => {
     expect(screen.getByText("ambit.test/i/item-9")).toBeInTheDocument();
   });
 
-  it("puts the sharer's first name on the link", () => {
-    renderSheet({ viewerName: "Mara" });
+  it("puts no name on the link — the share URL carries no `from` param", () => {
+    renderSheet();
     fireEvent.click(screen.getByRole("button", { name: "Share" }));
-    expect(
-      screen.getByText("ambit.test/i/item-9?from=Mara"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("ambit.test/i/item-9")).toBeInTheDocument();
+    expect(screen.queryByText(/from=/)).toBeNull();
   });
 
   it("ends with a New collection row that files the tile into what it makes", () => {

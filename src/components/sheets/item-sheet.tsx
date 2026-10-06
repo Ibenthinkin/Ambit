@@ -60,8 +60,6 @@ export interface ItemSheetProps {
   onError: (message: string) => void;
   /** The app's own origin (`env.BETTER_AUTH_URL`), for building an absolute share URL. */
   appUrl: string;
-  /** The signed-in reader's first name, if any — becomes `?from=` on the link they share. */
-  viewerName?: string;
   /** The sheet has no toast of its own; the Share sheet's "Link copied" goes through the feed's. */
   onToast: (message: string) => void;
 }
@@ -73,19 +71,14 @@ export function ItemSheet({
   onSaved,
   onError,
   appUrl,
-  viewerName,
   onToast,
 }: ItemSheetProps) {
   const router = useRouter();
   const utils = api.useUtils();
   const [shareOpen, setShareOpen] = React.useState(false);
 
-  // The item's own page, the same URL its item screen would share — `?from=` and all.
-  const shareUrl = item
-    ? `${appUrl}/i/${item.id}${
-        viewerName ? `?from=${encodeURIComponent(viewerName)}` : ""
-      }`
-    : "";
+  // The item's own page, the same URL its item screen would share.
+  const shareUrl = item ? `${appUrl}/i/${item.id}` : "";
 
   // `enabled: open` — the feed mounts this sheet on every render; its data is worthless until a
   // long press actually opens it.

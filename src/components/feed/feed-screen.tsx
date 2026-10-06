@@ -68,16 +68,9 @@ export interface FeedScreenProps {
   dev?: FeedDevProps;
   /** The app's own origin (`env.BETTER_AUTH_URL`) — the tile sheet's Share row builds `/i/` links. */
   appUrl: string;
-  /** The reader's first name, for `?from=` on a shared link. */
-  viewerName?: string;
 }
 
-export function FeedScreen({
-  topicLabels,
-  dev,
-  appUrl,
-  viewerName,
-}: FeedScreenProps) {
+export function FeedScreen({ topicLabels, dev, appUrl }: FeedScreenProps) {
   const router = useRouter();
   const isDev = dev !== undefined;
 
@@ -397,7 +390,6 @@ export function FeedScreen({
         }
         onError={setToast}
         appUrl={appUrl}
-        viewerName={viewerName}
         onToast={setToast}
       />
 

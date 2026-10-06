@@ -58,7 +58,7 @@ describe("LinkOutRow", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  // The class string used to be concatenated without spaces, so `transition-colors` and
+  // The class string used to be concatenated without spaces, so `duration-150` and
   // `duration-150` fused into one bogus class and the caller's class glued onto the last one.
   it("keeps its classes separate, the caller's included", () => {
     render(
@@ -70,7 +70,7 @@ describe("LinkOutRow", () => {
     );
     const classes = screen.getByRole("link").className.split(/\s+/);
     expect(classes).toEqual(
-      expect.arrayContaining(["transition-colors", "duration-150", "mt-0"]),
+      expect.arrayContaining(["bg-ink", "duration-150", "mt-0"]),
     );
     // `cn` resolves the conflict: the caller's margin wins over the row's own.
     expect(classes).not.toContain("mt-[24px]");

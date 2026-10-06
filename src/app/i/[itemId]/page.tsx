@@ -103,9 +103,6 @@ export default async function ItemPage({
   // procedure is public precisely so this works (see routers/items.ts).
   const wander = await api.items.wanderNext({ itemId });
 
-  // First token only: the pill greets a reader by first name, not a full legal name.
-  const viewerName = session?.user.name?.trim().split(/\s+/)[0];
-
   // **Starts the hero's request before the browser has parsed the markup that needs it**
   // (Phase 7.3, T5). This is the LCP element of the app's one public page — the thing a stranger
   // following a shared link waits for — and `preload` puts a `<link rel="preload" as="image">` in
@@ -140,7 +137,6 @@ export default async function ItemPage({
         initialWander={wander}
         authed={Boolean(session)}
         appUrl={env.BETTER_AUTH_URL}
-        viewerName={viewerName}
       />
     );
   }
@@ -167,7 +163,6 @@ export default async function ItemPage({
       hasImage={Boolean(item.imageUrl)}
       authed={Boolean(session)}
       appUrl={env.BETTER_AUTH_URL}
-      viewerName={viewerName}
     >
       {/* Bottom padding clears the floating pill; the column width and gutters are the redesign's. */}
       <main className="bg-bg text-ink min-h-dvh pt-[68px] pb-[110px]">

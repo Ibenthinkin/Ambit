@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { PRIMARY_BLOCK } from "~/components/ui/button";
 import { TextLink } from "~/components/ui/text-link";
+import { cn } from "~/lib/utils";
 
 // The invitation, shown only to signed-out visitors at the foot of an item page.
 //
@@ -67,7 +69,10 @@ function GetInvite() {
   return (
     <Link
       href="/"
-      className="bg-ink text-on-accent mt-[20px] flex h-[50px] items-center justify-center text-[15px] transition-colors duration-150 hover:bg-white hover:shadow-[inset_0_-2px_0_var(--color-accent)]"
+      className={cn(
+        PRIMARY_BLOCK,
+        "mt-[20px] flex h-[50px] items-center justify-center text-[15px]",
+      )}
     >
       Get your invite
     </Link>

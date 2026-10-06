@@ -1,3 +1,4 @@
+import { PRIMARY_BLOCK } from "~/components/ui/button";
 import { sourceLabel } from "~/lib/source-label";
 import { cn } from "~/lib/utils";
 import { isBlogSource } from "~/server/config/blogs";
@@ -12,7 +13,7 @@ import { isLinkCardSource } from "~/server/config/publications";
 //
 // Server-safe on purpose: no hooks, no handlers, a plain anchor — so it renders unchanged inside
 // the reader (a server component) and inside `ItemFacts` under the client `ItemScreen` alike.
-// The reader still asks `hasLinkOutRow` before using it: an open source's article keeps its quiet
+// The reader still asks `prefersLinkOutBlock` before using it: an open source's article keeps its quiet
 // inline link there (writing Phase 4).
 export interface LinkOutRowProps {
   source: string;
@@ -20,9 +21,10 @@ export interface LinkOutRowProps {
   className?: string;
 }
 
-/** Whether `LinkOutRow` renders for a source — exported so the reader knows not to add its own
- *  inline link beside it. */
-export function hasLinkOutRow(source: string): boolean {
+/** Whether an *article* from this source ends on the white block rather than the quiet bracket
+ *  link — link-card sources and PDR do; an open source's article (Wikipedia, PoetryDB, Loupe) does
+ *  not. (Pictures always get the block: `LinkOutRow` itself renders for any source URL.) */
+export function prefersLinkOutBlock(source: string): boolean {
   return isLinkCardSource(source) || source === PDR.id;
 }
 
@@ -43,7 +45,8 @@ export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "bg-ink text-on-accent mt-[24px] flex min-h-[50px] w-full items-center justify-between gap-3 px-4 py-[15px] text-[15px] transition-colors duration-150 hover:bg-white hover:shadow-[inset_0_-2px_0_var(--color-accent)] active:bg-[#E6E6E6]",
+        PRIMARY_BLOCK,
+        "mt-[24px] flex min-h-[50px] w-full items-center justify-between gap-3 px-4 py-[15px] text-[15px]",
         className,
       )}
     >

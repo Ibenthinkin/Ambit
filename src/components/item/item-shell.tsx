@@ -35,8 +35,6 @@ export interface ItemShellProps {
   authed: boolean;
   /** The app's own origin (`env.BETTER_AUTH_URL`), for building an absolute share URL. */
   appUrl: string;
-  /** The signed-in reader's first name, if any — becomes `?from=` on the link they share. */
-  viewerName?: string;
   children: React.ReactNode;
 }
 
@@ -46,7 +44,6 @@ export function ItemShell({
   hasImage,
   authed,
   appUrl,
-  viewerName,
   children,
 }: ItemShellProps) {
   const leave = useLeaveToFeed(itemId, { signedOut: !authed });
@@ -80,9 +77,7 @@ export function ItemShell({
   // protected procedure and collect an UNAUTHORIZED in their console.
   const saved = api.saves.forItem.useQuery({ itemId }, { enabled: authed });
 
-  const shareUrl = `${appUrl}/i/${itemId}${
-    viewerName ? `?from=${encodeURIComponent(viewerName)}` : ""
-  }`;
+  const shareUrl = `${appUrl}/i/${itemId}`;
 
   /**
    * Hand the full-resolution image to the OS. `navigator.share({ files })` is the path that

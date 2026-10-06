@@ -100,8 +100,6 @@ export interface ItemScreenProps {
   authed: boolean;
   /** The app's own origin (`env.BETTER_AUTH_URL`), for building an absolute share URL. */
   appUrl: string;
-  /** The signed-in reader's first name, if any — becomes `?from=` on the link they share. */
-  viewerName?: string;
 }
 
 /** How many cells per fetch, and how close to an end the reader gets before the next one starts. */
@@ -157,7 +155,6 @@ export function ItemScreen({
   initialWander,
   authed,
   appUrl,
-  viewerName,
 }: ItemScreenProps) {
   const [items, setItems] = React.useState<RailItem[]>(initialRail);
   const [index, setIndex] = React.useState(0);
@@ -674,9 +671,7 @@ export function ItemScreen({
   // ── share + save ──────────────────────────────────────────────────────────────────────────────
   // Always `/i/{current}` — the picture on screen, which since the URL follows the rail is also
   // what the address bar says.
-  const shareUrl = `${appUrl}/i/${current.id}${
-    viewerName ? `?from=${encodeURIComponent(viewerName)}` : ""
-  }`;
+  const shareUrl = `${appUrl}/i/${current.id}`;
 
   /**
    * Hand the full-resolution image to the OS, keyed to whatever is on screen.
