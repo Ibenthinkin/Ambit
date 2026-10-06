@@ -110,11 +110,7 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
   const all = (topics.data ?? []).map((t) => ({ id: t.id, label: t.label }));
   const results = searchTopics(all, new Set(picks.keys()), query);
 
-  /** Refetch `topics.mine` — unless another write is still queued behind this one (file header).
-   *  `isMutating` counts mutations whose status is `pending`, and TanStack Query flips a mutation
-   *  to `success`/`error` only *after* its `onSettled` returns, so the write settling right now
-   *  still counts itself: `1` means it is the last. A queued write is `pending` from the moment
-   *  `.mutate()` is called, so it counts too, even before its request has started. */
+  // Finish the focus hand-off above once the removed row has actually left `picks`.
   React.useEffect(() => {
     const pending = focusAfterRemoval.current;
     if (!pending || picks.has(pending.removed)) return;
@@ -128,6 +124,11 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
     el?.focus();
   });
 
+  /** Refetch `topics.mine` — unless another write is still queued behind this one (file header).
+   *  `isMutating` counts mutations whose status is `pending`, and TanStack Query flips a mutation
+   *  to `success`/`error` only *after* its `onSettled` returns, so the write settling right now
+   *  still counts itself: `1` means it is the last. A queued write is `pending` from the moment
+   *  `.mutate()` is called, so it counts too, even before its request has started. */
   function settle() {
     const inScope = queryClient.isMutating({
       predicate: (m) => m.options.scope?.id === WRITE_SCOPE.id,
