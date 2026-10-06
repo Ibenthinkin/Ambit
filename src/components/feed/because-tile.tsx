@@ -20,12 +20,15 @@ export interface BecauseTileProps {
 
 export function BecauseTile({ from, to }: BecauseTileProps) {
   return (
-    <div className="border-hairline bg-ink/3 border-ink/6 border px-[13px] py-4">
+    <div className="border-hairline bg-card border-ink/8 border px-[14px] py-4">
       <Eyebrow dot>Because</Eyebrow>
-      <p className="text-ink/50 mt-[9px] text-[12px] leading-[1.5]">
+      <p className="text-ink/62 mt-[9px] text-[12px] leading-[1.5]">
         you&apos;ve been exploring {from}
       </p>
-      <p className="text-ink mt-[6px] text-[15px] leading-[1.35]">{to}</p>
+      <p className="text-ink mt-[6px] text-[15px] leading-[1.35]">
+        <span aria-hidden="true">→ </span>
+        {to}
+      </p>
     </div>
   );
 }

@@ -46,8 +46,8 @@ export function WritingTile({
         // scrim is the sheet scrim's colour, so over a pale picture the white stays readable, and
         // it fades out well before the top so the picture still leads.
         <div className="from-scrim/85 via-scrim/45 to-scrim/0 pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t px-[12px] pt-10 pb-[11px]">
-          {/* Brighter than an eyebrow's usual ink/55: it sits on a scrim over a picture. */}
-          <Eyebrow as="p" className="text-ink/75 block">
+          {/* A plain Eyebrow on the scrim (DESIGN 6.1). */}
+          <Eyebrow as="p" className="block">
             {writingLabel(item)}
           </Eyebrow>
           <h2 className="text-ink-hi mt-[5px] line-clamp-3 text-[15px] leading-[1.25]">

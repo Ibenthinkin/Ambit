@@ -69,14 +69,14 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
       aria-label={item.title}
       data-pressing={pressing ? "" : undefined}
       className={cn(
-        // The hover lift is one step up the fill ladder, not a transform: this card has a border,
+        // The hover lift is one step up the fill (card → card-2), not a transform: this card has a border,
         // and scaling a hairline is how you get a blurry hairline. (Since 10-04-26 the *wrapper*
         // around it does scale — the Lift, feed-grid.tsx / tile-lift.ts — which Ben accepted at
         // 1.035 for the design's own bordered Because card; this fill stays as the card's own
         // hover.) `hover:` and `focus-visible:` are both pointer/keyboard-gated, so a phone sees
         // neither (see `image-tile.tsx`). The ring is the Lift's (docs/PLAN_tile-hover.md
         // Decision 3): 2 px of the accent green, inset −2 px, same as the picture tiles.
-        "border-hairline bg-ink/[3.5%] border-ink/7 focus-visible:outline-focus-ring hover:bg-ink/[5%] relative block w-full cursor-pointer touch-manipulation border px-[14px] pt-4 pb-[14px] transition-transform duration-200 select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
+        "border-hairline bg-card border-ink/8 focus-visible:outline-focus-ring hover:bg-card-2 relative block w-full cursor-pointer touch-manipulation border px-[14px] pt-4 pb-[14px] transition-transform duration-200 select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
         pressing && "scale-[0.985]",
       )}
       style={{ WebkitTouchCallout: "none" }}
@@ -87,7 +87,7 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
       <Eyebrow as="p" className="block">
         {writingLabel(item)}
       </Eyebrow>
-      <h2 className="text-ink-hi mt-[10px] text-[19px] leading-[1.25]">
+      <h2 className="text-ink-hi mt-[10px] text-[19px] leading-[1.2] font-normal">
         {item.title}
       </h2>
       {/* **Clamped, and the prototype isn't** — a divergence forced by real data. Every lede in
@@ -98,7 +98,7 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
           lede *is* the body. Five lines clears the prototype's own longest lede untouched.
           `masonry.ts`'s height estimate caps at the same five, so packing still predicts the tile. */}
       {item.summary ? (
-        <p className="text-ink/58 mt-[9px] line-clamp-5 text-[13.5px] leading-[1.52]">
+        <p className="text-ink/62 mt-[9px] line-clamp-5 text-[13.5px] leading-[1.52]">
           {item.summary}
         </p>
       ) : null}
