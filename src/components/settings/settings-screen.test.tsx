@@ -171,7 +171,7 @@ describe("SettingsScreen — rows", () => {
     }
   });
 
-  it("stub rows carry no invented values and say so when tapped", () => {
+  it("the prototype's stub rows are gone; the remaining stubs say so when tapped", () => {
     renderScreen();
 
     // The prototype's demo values are gone: no "2 left", no "Often", no "Not determined".

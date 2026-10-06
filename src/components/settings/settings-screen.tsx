@@ -29,8 +29,8 @@ import { useNotificationPermission } from "./use-notification-permission";
 //
 // This screen is also where **sign-out lives** — `/profile/settings` is its permanent home. It sat
 // on `/dev/tokens` from 5.6, flagged there as an interim home, because the design handoff has no
-// sign-out affordance on any screen — the one-row card below is 5.10's own invention rather than a
-// recreation of anything.
+// sign-out affordance on any screen — the row below, between two rules, is 5.10's own invention
+// rather than a recreation of anything.
 //
 // As a tab it renders content only: the hub (`profile-hub.tsx`) owns the identity block, the nav
 // and the toolbar, so the glass header, its back chevron and the two shortcut cards (Edit profile,
@@ -210,8 +210,8 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
           </SettingsGroup>
 
           {/* Sign out's permanent home, and 5.10's own addition — the design handoff has no sign-out
-            affordance anywhere. A card of its own rather than a row in "Other": it's the one
-            control here that ends the session, and it shouldn't sit next to the language picker. */}
+            affordance anywhere. Set apart between two rules rather than a row in "Other": it's the
+            one control here that ends the session, so it doesn't sit among the everyday rows. */}
           <SignOutRow />
 
           <p className="text-ink/35 mt-7 font-mono text-[11px] uppercase">
