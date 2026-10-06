@@ -291,7 +291,8 @@ function wingOption(wing: Wing, pickRole: string): Option {
   };
 }
 
-const WING_PROMPT = "Which would you look at longer?";
+// The copy deck (docs/COPY_onboarding.md): one prompt for the three wing screens and the playoff.
+const WING_PROMPT = "Which one is the most interesting?";
 
 /** Same subject, different hands — only the medium changes, so only medium topics score. */
 function hands(
@@ -402,7 +403,7 @@ function readQuestion(id: string, nth: 0 | 1): Question {
   return {
     id,
     kind: "choice",
-    prompt: nth === 0 ? "Which would you open?" : "And one of these?",
+    prompt: "Which would you open?",
     options: WRITING_KINDS.map((kind) => ({
       key: kind,
       label: WRITING_KIND_LABELS[kind],
@@ -425,7 +426,7 @@ export const QUESTIONS: readonly Question[] = [
   {
     id: "playoff",
     kind: "choice",
-    prompt: "One more. Which would you look at longer?",
+    prompt: WING_PROMPT,
     show: { top: 4 },
     options: WINGS.map((w) => wingOption(w, `wing:${w.id}:playoff`)),
   },
@@ -490,7 +491,7 @@ export const QUESTIONS: readonly Question[] = [
   {
     id: "keep",
     kind: "multi",
-    prompt: "Tap any you’d keep.",
+    prompt: "Keep or pass.",
     options: KEEP.map((k, i) => ({
       key: k.key,
       label: k.label,
@@ -525,7 +526,7 @@ export const QUESTIONS: readonly Question[] = [
   {
     id: "rather-not",
     kind: "multi",
-    prompt: "Anything you’d rather not see?",
+    prompt: "Anything you would rather not see?",
     options: [
       {
         key: "horror",

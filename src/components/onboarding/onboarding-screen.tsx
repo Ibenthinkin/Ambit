@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { Button } from "~/components/ui/button";
 import { Eyebrow } from "~/components/ui/eyebrow";
@@ -24,6 +31,7 @@ import { keyKindOf } from "~/lib/interview/layout";
 import { picksFrom, type Pick } from "~/lib/interview/picks";
 import { scoreAnswers } from "~/lib/interview/score";
 import { shown } from "~/lib/interview/show";
+import { STEP_OF } from "~/lib/interview/steps";
 import {
   buildTaste,
   chosenDestinations,
@@ -107,6 +115,13 @@ export const ADVANCE_MS = 380;
 
 type Phase = "intro" | "questions" | "reveal";
 
+/** The intro's three lines (the copy deck's "Intro bullets"). */
+const INTRO_LINES = [
+  "Ten quick picks between pictures and pieces of writing",
+  "Anything you would rather not see",
+  "Your first exhibition, and a feed tuned to it",
+] as const;
+
 /** Is a control focused that Enter already means something to (a button, a link)? Then Enter is
  *  its own job — Cancel on a retake's intro, Back or Skip after walking with the arrows. The
  *  question heading (focused by script on arrival) and the body are not controls. */
@@ -143,8 +158,13 @@ export function OnboardingScreen({
   const utils = api.useUtils();
   const complete = api.onboarding.complete.useMutation();
   const interpret = api.onboarding.interpret.useMutation();
+  const interpretAsync = interpret.mutateAsync;
 
   const listed = useMemo(() => new Set(topics.map((t) => t.id)), [topics]);
+  const labels = useMemo(
+    () => new Map(topics.map((t) => [t.id, t.label])),
+    [topics],
+  );
   // Only what this database can honour — CI's sixteen topics ask far fewer than production.
   const asked = useMemo(() => askable(bank, listed), [bank, listed]);
 
@@ -176,6 +196,14 @@ export function OnboardingScreen({
   );
   /** The question as it is shown: a `show.top` question cut to the reader's best few. */
   const onScreen = current ? shown(current, scoresSoFar, listed) : undefined;
+  /** Where it sits among the asked questions of its step — "Set 2 of 2" on the reading screens. */
+  const step = current ? STEP_OF[current.id] : undefined;
+  const ofStep =
+    step === undefined ? [] : asked.filter((q) => STEP_OF[q.id] === step);
+  const set =
+    current && ofStep.length > 1
+      ? { n: ofStep.indexOf(current) + 1, of: ofStep.length }
+      : undefined;
 
   /** The article cards opened so far — read from the answers, so Back-and-change is honoured. */
   const opened = useMemo((): OpenedCard[] => {
@@ -209,8 +237,13 @@ export function OnboardingScreen({
   /** After the last question: map any free text to topics, then on to the reveal. The last
    *  question stays on screen meanwhile (its forward button busy) — there is no screen between. */
   async function finishQuestions(all: Answer[]) {
+    // Only words not mapped yet: the bonus question maps them live as the reader pauses
+    // (bonus-step.tsx), and an edit after that drops the mapping — so `topicIds` present means
+    // "mapped, for exactly these words", and asking again would spend a call to hear the same.
     const texts = all.flatMap((a) =>
-      a.text ? [{ questionId: a.questionId, text: a.text }] : [],
+      a.text && a.topicIds === undefined
+        ? [{ questionId: a.questionId, text: a.text }]
+        : [],
     );
     if (texts.length === 0) {
       setAnswers(all);
@@ -225,7 +258,9 @@ export function OnboardingScreen({
       const mapped = await interpret.mutateAsync({ texts });
       const byQuestion = new Map(mapped.map((m) => [m.questionId, m.topicIds]));
       done = all.map((a) =>
-        a.text ? { ...a, topicIds: byQuestion.get(a.questionId) ?? [] } : a,
+        a.text && a.topicIds === undefined
+          ? { ...a, topicIds: byQuestion.get(a.questionId) ?? [] }
+          : a,
       );
     } catch {
       // The service already answers empty lists on its own failures; this is the network
@@ -238,6 +273,22 @@ export function OnboardingScreen({
     setDraft(undefined);
     setPhase("reveal");
   }
+
+  /** The bonus question's live mapping (DESIGN §5.2): one call for one answer's words, as the
+   *  reader pauses. `undefined` when the call itself failed — the screen then shows nothing, and
+   *  `finishQuestions` asks once more on the way out. Stable, so the screen's debounce is not
+   *  restarted by an unrelated render. */
+  const mapWords = useCallback(
+    async (questionId: string, text: string) => {
+      try {
+        const mapped = await interpretAsync({ texts: [{ questionId, text }] });
+        return mapped.find((m) => m.questionId === questionId)?.topicIds ?? [];
+      } catch {
+        return undefined;
+      }
+    },
+    [interpretAsync],
+  );
 
   /** Everything a question owns besides its answer goes when the question does. */
   function resetScreen() {
@@ -464,36 +515,60 @@ export function OnboardingScreen({
             )}
 
             {phase === "intro" && (
+              // DESIGN §5.2's intro: one centred column, max 480 px, in the middle of the page.
               <Rise>
-                <Eyebrow as="p" className="block">
-                  Ambit · {retake ? "Start again" : "Setup"}
-                </Eyebrow>
-                <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] tracking-[-0.4px]">
-                  {retake ? "Let’s ask again" : "Let’s find where to start"}
-                </h1>
-                <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
-                  A few questions about what you like — some pictures, some
-                  words. Skip any of them. At the end you’ll see what we made of
-                  it, and you can change all of it.
-                </p>
-                {retake && (
-                  <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
-                    Your answers will replace the topics you have now.{" "}
-                    {/* TextLink's look (DESIGN §4.6) on a plain <Link>: TextLink doesn't pass
-                        `replace` through, and this one must not add a history entry. */}
-                    <Link
-                      href="/profile/topics"
-                      replace
-                      className="text-ink hover:decoration-accent underline decoration-1 underline-offset-3 transition-colors hover:text-white"
+                <div className="flex min-h-[min(72vh,640px)] items-center justify-center px-1">
+                  <div className="flex w-full max-w-[480px] flex-col">
+                    <Eyebrow as="p" className="block text-[11px]">
+                      {retake
+                        ? "Ambit · Start again"
+                        : "First exhibition · About two minutes"}
+                    </Eyebrow>
+                    <h1 className="text-ink-hi mt-4 text-[clamp(30px,4.2cqw,40px)] leading-[1.1] tracking-[-0.02em] text-balance">
+                      {retake
+                        ? "Let’s ask again"
+                        : "Before we hang anything, a few quiet questions."}
+                    </h1>
+                    <p className="text-ink/68 mt-4 text-[16px] leading-[1.5] text-pretty">
+                      Pick whatever you’d look at longer. Nothing here is a
+                      test, and you can change every setting at the end.
+                    </p>
+                    {retake && (
+                      <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
+                        Your answers will replace the topics you have now.{" "}
+                        {/* TextLink's look (DESIGN §4.6) on a plain <Link>: TextLink doesn't
+                            pass `replace` through, and this one must not add a history entry. */}
+                        <Link
+                          href="/profile/topics"
+                          replace
+                          className="text-ink hover:decoration-accent underline decoration-1 underline-offset-3 transition-colors hover:text-white"
+                        >
+                          Cancel
+                        </Link>
+                      </p>
+                    )}
+                    {/* What is coming, each line behind the 6 px green dot (accent job 1). */}
+                    <ul className="border-ink/14 mt-8 flex flex-col gap-3 border-t pt-6">
+                      {INTRO_LINES.map((line) => (
+                        <li key={line} className="flex items-baseline gap-3">
+                          <span
+                            aria-hidden="true"
+                            className="bg-accent size-[6px] flex-none -translate-y-0.5 rounded-full"
+                          />
+                          <span className="text-ink/95 text-[16px] leading-[1.45]">
+                            {line}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      size="lg"
+                      className="mt-10 w-full"
+                      onClick={() => setPhase("questions")}
                     >
-                      Cancel
-                    </Link>
-                  </p>
-                )}
-                <div className="mt-8">
-                  <Button size="md" onClick={() => setPhase("questions")}>
-                    Begin
-                  </Button>
+                      Begin
+                    </Button>
+                  </div>
                 </div>
               </Rise>
             )}
@@ -509,6 +584,11 @@ export function OnboardingScreen({
                   // On the keep stack the card under the stack is the one the keys act on.
                   cursor={kind === "keep" ? stackAt : cursor}
                   busy={finishing}
+                  set={set}
+                  mapWords={mapWords}
+                  labels={labels}
+                  onStack={decideCard}
+                  onSkip={() => advance(undefined)}
                   onChange={(answer, done) => {
                     if (done) pick(answer);
                     else {
