@@ -5,6 +5,59 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
+### [[10-06-26 Tue]] — While the design is drawn: the red explore test, and the reveal's non-visual half
+
+Ben is finishing the sitewide redesign in Claude Design; the export gates Cut 5 and the reveal's
+layout, nothing else. Two things that needed no decision were done meanwhile.
+
+**Shipped:**
+
+- **`explore.spec.ts:137` fixed** (on `feat/onboarding-trims`, `main`'s CI has been red on it
+  since `fd950a3`). It asked the `pill-toolbar` wrapper for "no Share" — but the Share disc is a
+  child of that wrapper by design (the grid that centres pill and disc), so it passed only by
+  catching the chrome mid-fade. It now asks the `<nav>`. 6/6 against a production build.
+- **The non-visual half of the critique's Cut 4**, on `feat/reveal-redo` (off
+  `feat/onboarding-trims`): `frame.ts` (the `FRAME` object — eyebrow, adjective maps and the
+  wings' nouns, which left `interview-wings.ts`; D6's rename is now one file), the subtitle and
+  the reading line as sentences (`exhibitionSubtitle`, `readingSummary`, wired into the card),
+  `activePole` (the leaning compass pole in ink), `hang.ts` (which three pictures hang),
+  `kept-out.ts` (`keptOut`, `allow`) and `reveal-draft.ts` — the reveal's draft as pure
+  functions, which `RevealStep` now holds and **re-seeds when the proposal changes under it**.
+
+**Decisions (rulings, mine):**
+
+- **The frame is its own file**, not a constant in `exhibition.ts` as the plan had it: the point
+  of D6 is that renaming the reveal is editing words, and a file of nothing but words makes that
+  literal.
+- **The hang is computed but neither drawn nor stored.** The plan stores `hang: itemId[]` in the
+  taste (`v: 2`); v1's rule is that what is stored is what the reveal showed, and the reveal
+  shows no hang until the layout exists. So the schema change waits for the layout half.
+- **The none-opened reading line drops the prototype's promise.** "We'll keep writing to a
+  minimum" is the amount question's to make, and the reader may have set that to "A lot".
+- **Allowing the last kept-out choice leaves a skip** in the answer log — the state an untouched
+  "rather not" always had.
+
+**Findings:**
+
+- **The "Gothic" adjective cannot fire**: it is keyed to `gothic`, a topic that is proposed in
+  `docs/first-exhibition/vocabulary-proposal.md` and unticked. `frame.test.ts` (every adjective
+  key is a topic of the right facet) found it; the test names it as waiting, so any other unknown
+  key is a typo and fails.
+- The copy deck said the long-reader line starts at a 16-minute mean; the code's number is 14
+  (`LONG_READ_MINUTES + 2`). Deck corrected, and its reveal rows now carry the new sentences.
+- The prototype HTML is no longer in the repo or any worktree; the plan's §4 table is the only
+  record of its reveal.
+
+**Open / next:** Ben's look at Cut 1 (phone + 1440) → merge → deploy (0014, in a quiet minute);
+`feat/reveal-redo` rides on it. D3 (Keep as a swipe stack; does a pass score −0.5) is still his.
+When the package lands: Cut 5 applies it, then Cut 4's layout half — plan §4 lists what is left
+(two columns, the hang drawn and stored, the display title, glosses, Kept-out chips with Allow,
+the amount line, Start over). Still open from the deploy: two search ingests then
+`graph:rebuild --confirm`. `bun run check` 2,210 green on `feat/reveal-redo`; e2e not run on it
+(no spec reads the changed lines).
+
+_Session spend: 13.86M tok (in 174 · out 117.4k · cache r 13.09M / w 649.7k) · fable-5-1 + opus-5-5 · 11:06→11:18_
+
 ### [[10-05-26 Mon]] — The questionnaire merges; its migration becomes 0012; First Exhibition is built and merged
 
 **Shipped:** `feat/onboarding-questionnaire` (bank v1, 28 commits) merged to `main` as

@@ -358,7 +358,14 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   forward button is named for what it does (`forwardLabel`: Skip / Next / "Nowhere in
   particular" — the reading screens' "I’d rather look at pictures" went 10-05-26); and bank v2 has **no path to `the-ocean`** on either
   database shape (the Land wing spreads its point too thin), so the retake spec steers to
-  geology and music, which `bank.test.ts` pins.
+  geology and music, which `bank.test.ts` pins. **10-06-26, `feat/reveal-redo` (off
+  `feat/onboarding-trims`, not merged) — the non-visual half of the critique's Cut 4:** the
+  reveal's words are one `FRAME` object (`lib/interview/frame.ts`: eyebrow, adjective maps, the
+  wings' nouns, which left `interview-wings.ts`), so renaming the reveal is one file; the
+  subtitle and "You’d open" line are sentences (`exhibitionSubtitle`, `readingSummary`); the
+  reveal's draft is `reveal-draft.ts` and **re-seeds when the proposal changes under it**; and
+  `hang.ts` + `kept-out.ts` are built and tested but **not drawn or stored yet** — the layout
+  half waits for Ben's Claude Design package (`docs/PLAN_onboarding-critique.md` §4 has the list).
 - **Spread mode on the item screen — 09-27-26** (design `docs/DESIGN_spread-mode.md`, plan
   `docs/PLAN_spread-mode.md`; branch `feat/spread-mode`, pushed for Ben's look at 1440, not
   merged). It began as Ben's **feed** layout picker (1 / 2 / 4 columns, drawn in

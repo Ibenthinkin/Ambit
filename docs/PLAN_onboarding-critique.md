@@ -164,6 +164,29 @@ On D3 = (c): no engine change; Task 1.7's grids are the whole cut, closed.
 
 ## 4. Cut 4 — the reveal restored (branch `feat/reveal-redo`; expands after D6, D7)
 
+**The non-visual half is built (10-06-26, `feat/reveal-redo`, off `feat/onboarding-trims`)** — done
+while the Claude Design package was still being drawn, because none of it depends on a token:
+
+- `lib/interview/frame.ts` — the `FRAME` object (D6): eyebrow, the untitled fallback, both
+  adjective maps and the wings' nouns, which left `interview-wings.ts`. Its own file rather than a
+  constant in `exhibition.ts`, so the rename really is one file of words; `frame.test.ts` follows.
+- `exhibition.ts` — `exhibitionSubtitle` (the sentence) and `readingSummary` (length + kinds, and
+  the none-opened line), both **wired into `ExhibitionCard`** since they are words, not layout.
+- `compass.ts` — `activePole`; the card sets the leaning pole's label in ink (`data-on`). No
+  centre tick yet.
+- `hang.ts` — `hangFrom` + `heroesFor`: picks newest-first, then keeps, then wing doors.
+  **Not rendered and not stored.** The `TasteV1 → v: 2` change (`hang: itemId[]`) waits for the
+  layout on purpose: what is stored is what the reveal showed, and it shows no hang yet.
+- `kept-out.ts` — `keptOut` and `allow` (edits the answer; the last Allow leaves a skip).
+- `reveal-draft.ts` — the reveal's draft as pure functions, with `reseed`; **`RevealStep` now
+  holds it** and re-seeds during render when the proposal's content changes, so Allow is a
+  ten-line wiring job: a `keptOut` chip row and `onAllow={(key) => setAnswers(allow(answers, key))}`
+  on the screen.
+
+Left for the layout half, once the package lands: the two columns, the hang drawn and stored, the
+display title, printed glosses and the temperament intro, the Kept-out chips, the D7 amount line,
+"Start over", and the explore line's honest number.
+
 What the prototype's reveal has that `reveal-step.tsx` + `exhibition-card.tsx` do not (read from `renderReveal()` in the prototype, 10-05-26):
 
 | Prototype                                                                                                                           | Built                                                         | Action                                                                                                                                                                                                                                                                                                                    |
