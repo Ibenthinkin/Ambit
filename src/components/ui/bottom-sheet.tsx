@@ -49,6 +49,10 @@ import { cn } from "~/lib/utils";
  */
 const EXIT_MS = { pill: 300, gallery: 360 } as const;
 
+/** The header row's mono label (title and Close): §3.3's 10.5 px caps with +0.4 px tracking. */
+const HEADER_LABEL =
+  "text-ink font-mono text-[10.5px] tracking-[0.4px] uppercase";
+
 /** Past this much downward travel, releasing closes the sheet instead of snapping back. */
 const DRAG_CLOSE_PX = 56;
 
@@ -101,7 +105,7 @@ export interface BottomSheetProps {
   /**
    * How the panel arrives and leaves.
    *
-   * - `"sheet"` (default) — the 260ms slide up from off-screen. Every 5.5 sheet.
+   * - `"sheet"` (default) — the 240ms slide up from off-screen. Every 5.5 sheet.
    * - `"menu"` — a 200ms lift-and-fade. The feed's long-press sheet (5.6) is a *contextual menu*
    *   summoned by a finger already resting on the thing it acts on; sliding a whole surface up
    *   from the bottom overstates that. Same shell, same scrim, same keyboard contract — only the
@@ -606,34 +610,29 @@ export function BottomSheet({
           leaving ? ANIMATIONS[pair].out : ANIMATIONS[pair].in,
         )}
       >
-        {/* Grabber. 36×3, square, a flat #444 (DESIGN §4.5) — left off the text/border/fill ladder,
+        {/* Grabber (absent when `closeLabel` stands in for it). 36×3, square, a flat #444 (DESIGN §4.5) — left off the text/border/fill ladder,
             which has no "solid indicator bar" category to normalize it into. Decorative on
             every sheet but the gallery's, which passes `dragToClose` and makes it mean what it
             looks like — the whole top {@link GRAB_ZONE_PX}px of the panel is the handle, not just
             these four pixels. */}
-        <div className="flex shrink-0 flex-col items-center py-4 md:hidden">
-          <div className="h-[3px] w-9 bg-[#444]" />
-        </div>
+        {closeLabel ? null : (
+          <div className="flex shrink-0 flex-col items-center py-4 md:hidden">
+            <div className="h-[3px] w-9 bg-[#444]" />
+          </div>
+        )}
         {/* The header row (DESIGN §4.5): a mono title at the left, an optional ink "Close" at the
             right, an `ink/14` hairline under both. It exists when either is given. */}
         {title || closeLabel ? (
           <div className="border-ink/14 flex shrink-0 items-center justify-between gap-4 border-b px-[18px] pb-3">
             {title ? (
-              <h2
-                id={titleId}
-                className="text-ink font-mono text-[10.5px] tracking-[1.2px] uppercase"
-              >
+              <h2 id={titleId} className={HEADER_LABEL}>
                 {title}
               </h2>
             ) : (
               <span />
             )}
             {closeLabel ? (
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-ink font-mono text-[10.5px] tracking-[1.2px] uppercase"
-              >
+              <button type="button" onClick={onClose} className={HEADER_LABEL}>
                 {closeLabel}
               </button>
             ) : null}

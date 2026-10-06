@@ -84,6 +84,25 @@ describe("BottomSheet", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("drops the grabber when a closeLabel stands in for it", () => {
+    const { container, rerender } = render(
+      <BottomSheet open onClose={vi.fn()} title="Share">
+        <p>Details</p>
+      </BottomSheet>,
+    );
+    expect(
+      container.ownerDocument.querySelector(".bg-\\[\\#444\\]"),
+    ).not.toBeNull();
+    rerender(
+      <BottomSheet open onClose={vi.fn()} title="Share" closeLabel="Close">
+        <p>Details</p>
+      </BottomSheet>,
+    );
+    expect(
+      container.ownerDocument.querySelector(".bg-\\[\\#444\\]"),
+    ).toBeNull();
+  });
+
   it("has no header row, and no Close, without a title or closeLabel", () => {
     render(
       <BottomSheet open onClose={vi.fn()}>
