@@ -8,6 +8,13 @@ import { AuthSurface, useAuthSurface } from "~/components/explore/auth-surface";
 import { MessageTile } from "~/components/explore/message-tile";
 import { cameFromExplore } from "~/components/feed/feed-origin";
 import { HeroRail } from "~/components/item/hero-rail";
+import {
+  CAPTION_INDEX,
+  CAPTION_INFO_LINK,
+  CAPTION_MAKER,
+  CAPTION_TITLE,
+  INFORMATION_ID,
+} from "~/components/item/caption-type";
 import { ItemFacts } from "~/components/item/item-facts";
 import { JoinCta } from "~/components/item/join-cta";
 import { buildCells } from "~/components/item/rail-cells";
@@ -725,20 +732,39 @@ export function ItemScreen({
   // shifts the three cells one along.
   // One caption per picture on screen. An `<h2>`, not the gallery's old `<h1>`: the page's one
   // `<h1>` is `ItemFacts`'s, and e2e's `getByRole("heading", { level: 1 })` must find exactly one.
-  const captionFor = (item: RailItem) => (
-    <>
-      <h2 className="text-ink-hi text-[22px] leading-[1.24]">{item.title}</h2>
-      <p className="text-ink/52 mt-[7px] text-[12.5px] tracking-[0.15px]">
-        {item.attribution ?? sourceLabel(item.source)}
-      </p>
-    </>
+  const goToInformation = () => {
+    const target = document.getElementById(INFORMATION_ID);
+    if (!target) return;
+    const calm = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    target.scrollIntoView({
+      behavior: calm ? "auto" : "smooth",
+      block: "start",
+    });
+    // Land focus on the section so a keyboard reader continues from there, without a second jump.
+    target.focus({ preventScroll: true });
+  };
+
+  const captionFor = (item: RailItem, number: string) => (
+    <div className="flex items-baseline gap-4">
+      <span data-testid="caption-index" className={CAPTION_INDEX}>
+        {number}
+      </span>
+      <div className="min-w-0">
+        <h2 className={CAPTION_TITLE}>{item.title}</h2>
+        <p className={CAPTION_MAKER}>
+          {item.attribution ?? sourceLabel(item.source)}
+        </p>
+      </div>
+    </div>
   );
 
   // Where the entry picture sits in the rail now — a head prepend shifts it, and the reader's
   // index with it, so the difference below is stable.
   const entryIndex = items.findIndex((i) => i.id === entryItem.id);
 
-  const caption =
+  const captionBody =
     spread && !atEnd ? (
       // **Folios** (plan D7): a magazine's page footer under each page — the page number, then
       // the title and maker, pushed to the page's *outer* edge. The page that isn't the item is
@@ -757,8 +783,26 @@ export function ItemScreen({
         )}
       </div>
     ) : (
-      <div className="pointer-events-auto">{captionFor(current)}</div>
+      <div className="pointer-events-auto">
+        {captionFor(current, folioNumber(index - entryIndex + 1))}
+      </div>
     );
+
+  // The caption is chrome, so everything in it — index, title, maker and the Information link —
+  // fades with `chrome.visible` (HeroRail's wrapper owns the fade and `visibility`, which also
+  // takes the link out of the tab order while hidden).
+  const caption = (
+    <>
+      {captionBody}
+      <button
+        type="button"
+        className={cn(CAPTION_INFO_LINK, "pointer-events-auto")}
+        onClick={goToInformation}
+      >
+        <span aria-hidden="true">↓ </span>Information
+      </button>
+    </>
+  );
 
   return (
     // `overscroll-behavior-y: contain`: the down-flick exit must never also be a pull-to-refresh.
@@ -841,14 +885,30 @@ export function ItemScreen({
       {/* A book-width measure above `md` (docs/DESIGN_desktop-polish.md §1, §4) — the picture is
           the whole viewport, the words are not. `pt-[28px]`: a clear gap between the strip and
           the title on every width (Ben's review, 09-11-26). */}
+      {/* Above `md` the information is a full-width, three-column section (DESIGN_redesign §6.3);
+          only the join block stays at reader width. */}
+      {desktop ? (
+        <>
+          <Rise delayMs={50}>
+            <ItemFacts item={current} layout="wide" />
+          </Rise>
+          <Rise delayMs={120}>
+            <WanderNext rows={wander.data ?? []} layout="wide" />
+          </Rise>
+        </>
+      ) : null}
       <Column width="reader" className="px-[22px] pt-[28px]">
-        <Rise delayMs={50}>
-          <ItemFacts item={current} />
-        </Rise>
+        {desktop ? null : (
+          <>
+            <Rise delayMs={50}>
+              <ItemFacts item={current} />
+            </Rise>
 
-        <Rise delayMs={120}>
-          <WanderNext rows={wander.data ?? []} />
-        </Rise>
+            <Rise delayMs={120}>
+              <WanderNext rows={wander.data ?? []} />
+            </Rise>
+          </>
+        )}
 
         {authed ? null : (
           <Rise delayMs={160}>

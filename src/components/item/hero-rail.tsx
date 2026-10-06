@@ -417,7 +417,7 @@ export function HeroRail({
           aria-hidden={!chromeVisible}
           // `hidden md:block`: no caption over the hero on a phone. Above `md` the rail is at the
           // right edge, so the caption keeps the gallery's 42.
-          className="pointer-events-none absolute inset-x-0 bottom-0 hidden px-6 pt-[26px] pb-[42px] md:block"
+          className="pointer-events-none absolute inset-x-0 bottom-0 hidden min-h-[180px] flex-col justify-end px-10 pb-[34px] md:flex"
           // **`visibility`, not `pointer-events`, is what makes it untappable while hidden.** An
           // ancestor's `pointer-events: none` can be overridden by any descendant that sets
           // `auto` — and the caption's own targets do exactly that. `visibility: hidden` cannot be
@@ -431,7 +431,7 @@ export function HeroRail({
             visibility: chromeVisible ? "visible" : "hidden",
             transition: "opacity .45s ease, visibility .45s",
             background:
-              "linear-gradient(to top, rgba(11,10,8,0.94) 42%, transparent)",
+              "linear-gradient(to top, rgba(0,0,0,0.75), transparent)",
           }}
         >
           {/* Only the real targets inside take pointer events back (the screen sets

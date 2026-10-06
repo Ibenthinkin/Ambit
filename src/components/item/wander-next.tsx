@@ -16,10 +16,56 @@ import type { WanderRow } from "~/server/services/wander";
 // section: it reads as a feature that broke.
 export interface WanderNextProps {
   rows: WanderRow[];
+  /** `wide` is the desktop Information section's numbered rows (DESIGN_redesign §6.3). */
+  layout?: "column" | "wide";
 }
 
-export function WanderNext({ rows }: WanderNextProps) {
+export function WanderNext({ rows, layout = "column" }: WanderNextProps) {
   if (rows.length === 0) return null;
+
+  if (layout === "wide") {
+    // `60px | 1.3fr | 1fr | 30px`: mono `01`, a 24 px title, a 15 px reason, mono `→`; the count
+    // on the right of the header. Full width with the Information section's 40 px gutters.
+    return (
+      <section className="px-10 pb-[72px]">
+        <div className="border-ink/16 flex justify-between border-t pt-[14px] pb-[10px]">
+          <Eyebrow as="h2" className="text-ink/55 text-[11px]">
+            Where Ambit would wander next
+          </Eyebrow>
+          <Eyebrow className="text-[11px]">
+            {String(rows.length).padStart(2, "0")}
+          </Eyebrow>
+        </div>
+        <ol>
+          {rows.map((row, i) => (
+            <li key={row.id}>
+              <Link
+                href={`/i/${row.id}`}
+                className="border-ink/10 grid grid-cols-[60px_minmax(0,1.3fr)_minmax(0,1fr)_30px] items-baseline gap-x-6 border-t py-[18px]"
+              >
+                <span
+                  aria-hidden="true"
+                  className="text-ink/46 font-mono text-[11px]"
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="text-ink-hi text-[24px] leading-[1.2] tracking-[-0.01em]">
+                  {row.title}
+                </span>
+                <span className="text-ink/55 text-[15px]">{row.reason}</span>
+                <span
+                  aria-hidden="true"
+                  className="text-ink/46 text-right font-mono"
+                >
+                  →
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </section>
+    );
+  }
 
   return (
     <section className="mt-[44px]">

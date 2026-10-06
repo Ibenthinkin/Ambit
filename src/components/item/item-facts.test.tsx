@@ -133,3 +133,29 @@ describe("ItemFacts", () => {
     ).toHaveAttribute("href", "https://example.test/o/1");
   });
 });
+
+describe("ItemFacts layout=wide (desktop Information)", () => {
+  it("is a focusable named section with exactly one h1, the italic title", () => {
+    render(<ItemFacts item={cell()} layout="wide" />);
+    const region = screen.getByRole("region", { name: "Information" });
+    expect(region).toHaveAttribute("id", "information");
+    expect(region).toHaveAttribute("tabindex", "-1");
+    const h1s = screen.getAllByRole("heading", { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent("A plate");
+    expect(h1s[0]).toHaveClass("italic");
+  });
+
+  it("reads the same rows as the column layout: maker, source, licence, topic, summary", () => {
+    render(<ItemFacts item={cell()} layout="wide" />);
+    expect(screen.getByText("An engraver")).toBeInTheDocument();
+    expect(screen.getByText("CC0")).toBeInTheDocument();
+    expect(screen.getAllByText("Botany").length).toBeGreaterThan(0);
+    expect(screen.getByText("A caption.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: /Read the original on/,
+      }),
+    ).toHaveAttribute("href", "https://example.test/o/1");
+  });
+});

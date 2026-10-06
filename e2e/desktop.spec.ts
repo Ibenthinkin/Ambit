@@ -376,9 +376,10 @@ test.describe.serial("desktop", () => {
     expect(Math.round(box.width)).toBe(1440);
     expect(Math.round(box.y)).toBe(0); // top-aligned: nothing above the picture
 
-    const facts = page.getByRole("list", { name: "About this work" });
+    // The Information section is full width with 40 px gutters (DESIGN_redesign §6.3).
+    const facts = page.getByRole("region", { name: "Information" });
     const factsBox = (await facts.boundingBox())!;
-    expect(factsBox.width).toBeLessThanOrEqual(720);
+    expect(factsBox.width).toBeGreaterThan(1300);
     expect(factsBox.y).toBeGreaterThanOrEqual(900); // under the picture, not over it
 
     // A mouse moving over the page wakes the caption (decision 7 of docs/DESIGN_redesign.md:

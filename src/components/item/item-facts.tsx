@@ -1,4 +1,5 @@
 import { Eyebrow } from "~/components/ui/eyebrow";
+import { INFORMATION_ID } from "./caption-type";
 import { TextLink } from "~/components/ui/text-link";
 import { sourceLabel } from "~/lib/source-label";
 import type { RailItem } from "~/server/services/gallery-rail";
@@ -22,6 +23,9 @@ import { ReuseNotice } from "./reuse-notice";
 // Pure: no queries, no router, no state. `WanderNext` and `JoinCta` sit below it in `ItemScreen`.
 export interface ItemFactsProps {
   item: RailItem;
+  /** `column` (default) is the phone / reader-width stack; `wide` is the desktop "Information"
+   *  section, full width in three columns (DESIGN_redesign §6.3). Both read `itemFactRows`. */
+  layout?: "column" | "wide";
 }
 
 /**
@@ -96,7 +100,93 @@ export function itemFactRows(
   return rows;
 }
 
-export function ItemFacts({ item }: ItemFactsProps) {
+/** One row's value by label, from the one source of the rows. */
+function rowValue(item: RailItem, label: string): React.ReactNode | null {
+  return itemFactRows(item).find((r) => r.label === label)?.value ?? null;
+}
+
+const MONO_LINE =
+  "text-ink/55 font-mono text-[10.5px] leading-[1.6] uppercase tracking-[0.3px]";
+
+/**
+ * The desktop "Information" section (DESIGN_redesign §6.3, decision 8): a mono label row over a
+ * rule, then `1fr 1fr 2fr` — the topic; the maker, the italic title (this page's one `<h1>`) and
+ * mono From / licence lines; the summary at 28 px with the bracket link-out under it. The
+ * section is a named landmark and focusable, which is what "↓ Information" scrolls to and lands
+ * focus on. A PDR essay (`body`) runs on under the grid at reader width.
+ */
+function ItemFactsWide({ item }: { item: RailItem }) {
+  const maker = makerOf(item);
+  const topic = rowValue(item, "Topic");
+  const license = rowValue(item, "License");
+  const debug = rowValue(item, "Debug");
+  const source = sourceLabel(item.source);
+  return (
+    <section
+      id={INFORMATION_ID}
+      aria-label="Information"
+      tabIndex={-1}
+      className="px-10 pt-[22px] outline-none"
+    >
+      <div className="border-ink/16 text-ink/78 flex justify-between gap-6 border-b pb-[14px] font-mono text-[12px] uppercase">
+        <span>Ambit</span>
+        {topic ? <span>{topic}</span> : null}
+        <TextLink href={item.sourceUrl} external tone="body">
+          {source}
+        </TextLink>
+      </div>
+
+      <div className="border-ink/16 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)] gap-x-10 gap-y-6 border-t pt-[14px] pb-[72px]">
+        <div className="text-ink/55 font-mono text-[12px] uppercase">
+          {topic}
+        </div>
+
+        <div className="text-ink/88 text-[16px] leading-[1.45]">
+          {maker ? <div>{maker}</div> : null}
+          <h1 className="text-ink-hi text-[16px] leading-[1.45] font-normal italic">
+            {item.title}
+          </h1>
+          <div className={`${MONO_LINE} mt-4`}>
+            From{" "}
+            <TextLink href={item.sourceUrl} external tone="body">
+              {source}
+            </TextLink>
+            {license ? <div>{license}</div> : null}
+            {debug ? <div>Debug {debug}</div> : null}
+          </div>
+        </div>
+
+        <div>
+          {item.summary ? (
+            <p className="text-ink/88 text-[28px] leading-[1.32] tracking-[-0.01em] text-pretty">
+              {item.summary}
+            </p>
+          ) : null}
+          {item.sourceUrl ? (
+            <p className="mt-5 text-[16px]">
+              <TextLink href={item.sourceUrl} external bracket tone="body">
+                {`Read the original on ${source}`}
+              </TextLink>
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      {item.body ? (
+        <div className="max-w-[720px] pb-[48px]">
+          <ReuseNotice item={item} />
+          <div className="bg-ink/14 mt-[14px] h-px w-full" />
+          <div className="mt-[20px]">
+            <ReaderBlocks body={item.body} />
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+export function ItemFacts({ item, layout = "column" }: ItemFactsProps) {
+  if (layout === "wide") return <ItemFactsWide item={item} />;
   return (
     <article>
       {/* Stays an `<h1>`: it's the page's actual subject, and e2e leans on it. */}
