@@ -324,4 +324,36 @@ describe("RevealStep", () => {
     show({ taste });
     expect(screen.queryByRole("list", { name: "Hung pictures" })).toBeNull();
   });
+
+  it("never skips a heading level: the title's h1, then h2s, then h3s under them", () => {
+    show({
+      topics: TOPICS.map((t) => ({ ...t, facet: "subject" as const })),
+      taste: {
+        ...buildTaste({
+          scores: new Map(),
+          listed: new Set(),
+          destinations: [],
+          opened: [
+            { itemId: "a", title: "A tide table", kind: "archive", minutes: 3 },
+          ],
+          hang: [],
+        }),
+        compass: { wild: 0.5, old: 0, still: 0, far: 0 },
+      },
+      keptOut: [{ key: "horror", label: "Horror" }],
+    });
+    const levels = screen
+      .getAllByRole("heading")
+      .map((h) => Number(h.tagName.slice(1)));
+    expect(levels[0]).toBe(1);
+    for (let i = 1; i < levels.length; i++) {
+      expect(levels[i]! - levels[i - 1]!).toBeLessThanOrEqual(1);
+    }
+    // The exhibition's sections are h2s under the title.
+    for (const name of ["Temperament", "Travel compass", "You’d open"]) {
+      expect(
+        screen.getByRole("heading", { level: 2, name }),
+      ).toBeInTheDocument();
+    }
+  });
 });

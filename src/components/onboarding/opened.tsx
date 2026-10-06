@@ -2,7 +2,7 @@ import { WRITING_KIND_LABELS } from "~/server/config/writing";
 import { readingSummary } from "~/lib/interview/exhibition";
 import type { OpenedCard } from "~/lib/interview/taste";
 
-import { SectionHeader } from "./section-header";
+import { SectionHeader, type SectionHeadingLevel } from "./section-header";
 
 // "You’d open" (docs/DESIGN_redesign.md §5.3 item 5, under the compass): the reading sentence
 // (`readingSummary`) and each article card the reader opened, a mono kicker over a 20 px title.
@@ -12,9 +12,11 @@ import { SectionHeader } from "./section-header";
 export function Opened({
   opened,
   readingMinutes,
+  headingLevel,
 }: {
   opened: readonly OpenedCard[];
   readingMinutes: number | null;
+  headingLevel?: SectionHeadingLevel;
 }) {
   const sentence = readingSummary({ opened, readingMinutes });
   if (opened.length === 0) {
@@ -22,7 +24,11 @@ export function Opened({
   }
   return (
     <div>
-      <SectionHeader title="You’d open" count={opened.length} />
+      <SectionHeader
+        title="You’d open"
+        level={headingLevel}
+        count={opened.length}
+      />
       <p className="text-ink/55 mt-3 mb-1 text-[14px] leading-[1.45]">
         {sentence}
       </p>

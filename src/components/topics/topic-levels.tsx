@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { SectionHeader } from "~/components/onboarding/section-header";
 import { Eyebrow } from "~/components/ui/eyebrow";
 import { Segmented } from "~/components/ui/segmented";
 import { cn } from "~/lib/utils";
@@ -161,16 +162,13 @@ export function TopicLevels({
           className="mt-11 first:mt-0"
         >
           {group.heading && (
-            // A mono heading over its rule (DESIGN_redesign §5.3 item 6). The count is a glance
-            // for sighted readers; a screen reader counts the rows itself.
-            <div className="border-ink/16 flex items-baseline justify-between border-b pb-[10px]">
-              <Eyebrow as="h3" className="text-[11px]">
-                {group.heading}
-              </Eyebrow>
-              <Eyebrow aria-hidden="true" className="text-[11px]">
-                {group.rows.length}
-              </Eyebrow>
-            </div>
+            // A mono heading over its rule (DESIGN_redesign §5.3 item 6) — the exhibition's
+            // section header, an h3 under its host's h2 ("Your mix", "Your topics").
+            <SectionHeader
+              title={group.heading}
+              count={group.rows.length}
+              level="h3"
+            />
           )}
           {group.rows.map((topic) => (
             <LevelRow

@@ -29,6 +29,9 @@ export function ExhibitionCard({
   hang?: readonly HungPicture[];
   headingLevel?: "h1" | "h2";
 }) {
+  // The sections sit one rank under the title, so the outline never skips a level: h2s under
+  // the reveal's h1, h3s under the profile's h2.
+  const sectionLevel = headingLevel === "h1" ? "h2" : "h3";
   return (
     <section aria-label={FRAME.eyebrow}>
       <ExhibitionHead
@@ -38,10 +41,19 @@ export function ExhibitionCard({
         headingLevel={headingLevel}
       />
       <div className="mt-14 grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-x-12 gap-y-9">
-        <Temperament temperament={taste.temperament} />
+        <Temperament
+          temperament={taste.temperament}
+          headingLevel={sectionLevel}
+        />
         <div className="flex flex-col gap-9">
-          {taste.compass && <Compass compass={taste.compass} />}
-          <Opened opened={taste.opened} readingMinutes={taste.readingMinutes} />
+          {taste.compass && (
+            <Compass compass={taste.compass} headingLevel={sectionLevel} />
+          )}
+          <Opened
+            opened={taste.opened}
+            readingMinutes={taste.readingMinutes}
+            headingLevel={sectionLevel}
+          />
         </div>
       </div>
     </section>

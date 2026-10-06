@@ -5,7 +5,7 @@ import {
 } from "~/lib/interview/compass";
 import { cn } from "~/lib/utils";
 
-import { SectionHeader } from "./section-header";
+import { SectionHeader, type SectionHeadingLevel } from "./section-header";
 
 // The travel compass (docs/DESIGN_redesign.md §5.3 item 5, right column): the sentence, then four
 // rows `64px | 1fr | 64px` — a pole each side of a hairline, a 9 px green dot at the value (the
@@ -23,11 +23,21 @@ export const COMPASS_ROWS: readonly [keyof Axes, string, string][] = [
   ["far", "Far", "Near"],
 ];
 
-export function Compass({ compass }: { compass: Axes }) {
+export function Compass({
+  compass,
+  headingLevel,
+}: {
+  compass: Axes;
+  headingLevel?: SectionHeadingLevel;
+}) {
   const sentence = compassSentence(compass);
   return (
     <div role="group" aria-label="Travel compass">
-      <SectionHeader title="Travel compass" count={COMPASS_ROWS.length} />
+      <SectionHeader
+        title="Travel compass"
+        level={headingLevel}
+        count={COMPASS_ROWS.length}
+      />
       {sentence && (
         <p className="text-ink/55 mt-3 mb-1 text-[14px] leading-[1.45]">
           {sentence}

@@ -1,7 +1,7 @@
 import { TEMPERAMENT_DIMENSIONS } from "~/server/config/temperament";
 import type { Temperament as TemperamentValues } from "~/lib/interview/temperament";
 
-import { SectionHeader } from "./section-header";
+import { SectionHeader, type SectionHeadingLevel } from "./section-header";
 
 // The temperament strip (docs/DESIGN_redesign.md §5.3 item 5, left column): five rows, each a
 // name and its gloss over a hairline that carries a 3 px ink bar to the value. Ink, not green —
@@ -14,13 +14,16 @@ export const TEMPERAMENT_INTRO =
 
 export function Temperament({
   temperament,
+  headingLevel,
 }: {
   temperament: TemperamentValues;
+  headingLevel?: SectionHeadingLevel;
 }) {
   return (
     <div role="group" aria-label="Temperament">
       <SectionHeader
         title="Temperament"
+        level={headingLevel}
         count={TEMPERAMENT_DIMENSIONS.length}
       />
       <p className="text-ink/55 mt-3 mb-1 text-[14px] leading-[1.45]">

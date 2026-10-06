@@ -45,4 +45,11 @@ describe("exploreOneIn", () => {
   it("never prints 'one in one'", () => {
     expect(exploreOneIn(tiers(10, 10, 60, 20))).toBe(2);
   });
+
+  // Pinned on purpose: the reveal prints "About one post in 3". A retune of the tiers that moves
+  // this number changes reader-facing copy — update this line knowingly, and the copy deck's
+  // "Explore line" row if the sentence needs it.
+  it("reads 'one in 3' at today's DEFAULT_KNOBS", () => {
+    expect(exploreOneIn(DEFAULT_KNOBS)).toBe(3);
+  });
 });

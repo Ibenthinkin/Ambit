@@ -1168,6 +1168,27 @@ describe("OnboardingScreen", () => {
       ]);
     });
 
+    it("Allow re-proposes: a starter kept out comes back into the mix on screen", async () => {
+      // "horror" leads the starters but the rather-not answer scored it down, so the first
+      // starter pass skips it; allowing it back puts it in the proposal — and on the page.
+      show({
+        bank: [fixture("rather-not")],
+        starters: ["horror", "astronomy", "botany", "music"],
+      });
+      begin();
+      click("Horror");
+      click("Continue");
+      await finishToReveal();
+      const rows = () =>
+        [...document.querySelectorAll("[data-topic]")].map((r) =>
+          r.getAttribute("data-topic"),
+        );
+      expect(rows()).not.toContain("horror");
+      click("Allow Horror");
+      expect(rows()).toContain("horror");
+      expect(rows()).not.toContain("music");
+    });
+
     it("Start over clears every answer and returns to the intro", async () => {
       show({ bank: [{ ...fixture("read"), id: "read-1" }] });
       begin();
