@@ -301,7 +301,12 @@ export default function TokensPage() {
   const [selectedChips, setSelectedChips] = React.useState<Set<string>>(
     () => new Set(["Painting"]),
   );
-  const [segment, setSegment] = React.useState<"all" | "reading">("all");
+  const [segment, setSegment] = React.useState<
+    "little" | "some" | "lot" | "off"
+  >("off");
+  const [amount, setAmount] = React.useState<
+    "none" | "little" | "some" | "lot"
+  >("some");
   const [toastOpen, setToastOpen] = React.useState(false);
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [backboneToast, setBackboneToast] = React.useState<string | null>(null);
@@ -734,20 +739,34 @@ export default function TokensPage() {
 
         <Section
           title="Segmented"
-          note="DESIGN §4: rest, hover (green underline), selected."
+          note="DESIGN §4.3: a radiogroup of joined cells — rest, hover (green underline), selected, selected off. Tab onto it, then use the arrow keys."
         >
-          <Placeholder
-            task="2.3"
-            what="outlined segments, accent hover underline"
-          />
+          {/* The reading amount: arrows move the selection, one Tab stop for the whole group. */}
           <Segmented
+            label="Reading amount"
             options={[
-              { key: "all", label: "All" },
-              { key: "reading", label: "Reading · 3" },
+              { key: "none", label: "None" },
+              { key: "little", label: "A little" },
+              { key: "some", label: "Some" },
+              { key: "lot", label: "A lot" },
             ]}
-            value={segment}
-            onChange={setSegment}
+            value={amount}
+            onChange={setAmount}
           />
+          {/* A topic's level: choose "off" and the selected cell turns the quiet #2A2A2A. */}
+          <div className="mt-4">
+            <Segmented
+              label="Level"
+              options={[
+                { key: "little", label: "a little" },
+                { key: "some", label: "some" },
+                { key: "lot", label: "a lot" },
+                { key: "off", label: "off", tone: "muted" },
+              ]}
+              value={segment}
+              onChange={setSegment}
+            />
+          </div>
         </Section>
 
         <Section

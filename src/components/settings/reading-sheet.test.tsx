@@ -11,10 +11,10 @@ function show(current: "none" | "little" | "some" | "lot" | null) {
   );
   return onPick;
 }
-const pressed = () =>
+const checked = () =>
   screen
-    .getAllByRole("button")
-    .filter((b) => b.getAttribute("aria-pressed") === "true")
+    .getAllByRole("radio")
+    .filter((b) => b.getAttribute("aria-checked") === "true")
     .map((b) => b.textContent);
 
 describe("ReadingSheet", () => {
@@ -22,18 +22,25 @@ describe("ReadingSheet", () => {
     show("lot");
     expect(screen.getByRole("dialog", { name: "Reading" })).toBeInTheDocument();
     for (const label of ["None", "A little", "Some", "A lot"])
-      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
-    expect(pressed()).toEqual(["A lot"]);
+      expect(screen.getByRole("radio", { name: label })).toBeInTheDocument();
+    expect(checked()).toEqual(["A lot"]);
+  });
+
+  it("is one named radiogroup", () => {
+    show("some");
+    expect(
+      screen.getByRole("radiogroup", { name: "Reading amount" }),
+    ).toBeInTheDocument();
   });
 
   it("shows a reader who never said as Some — the feed's own default", () => {
     show(null);
-    expect(pressed()).toEqual(["Some"]);
+    expect(checked()).toEqual(["Some"]);
   });
 
   it("reports a pick", () => {
     const onPick = show("some");
-    fireEvent.click(screen.getByRole("button", { name: "None" }));
+    fireEvent.click(screen.getByRole("radio", { name: "None" }));
     expect(onPick).toHaveBeenCalledExactlyOnceWith("none");
   });
 });

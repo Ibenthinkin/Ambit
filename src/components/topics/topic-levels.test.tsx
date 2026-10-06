@@ -44,7 +44,7 @@ describe("TopicLevels", () => {
     const surrealRow = screen.getByRole("group", { name: "Surreal level" });
 
     for (const row of [astronomyRow, ceramicsRow, surrealRow]) {
-      const buttons = within(row).getAllByRole("button");
+      const buttons = within(row).getAllByRole("radio");
       expect(buttons.map((b) => b.textContent)).toEqual([
         "a little",
         "some",
@@ -54,14 +54,37 @@ describe("TopicLevels", () => {
     }
 
     expect(
-      within(astronomyRow).getByRole("button", { name: "some" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(astronomyRow).getByRole("radio", { name: "some" }),
+    ).toHaveAttribute("aria-checked", "true");
     expect(
-      within(ceramicsRow).getByRole("button", { name: "a lot" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(ceramicsRow).getByRole("radio", { name: "a lot" }),
+    ).toHaveAttribute("aria-checked", "true");
     expect(
-      within(surrealRow).getByRole("button", { name: "a little" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(surrealRow).getByRole("radio", { name: "a little" }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it('gives each row a radiogroup, and a selected "off" the quiet fill', () => {
+    render(
+      <TopicLevels
+        topics={FIXTURE_TOPICS}
+        picks={new Map([["astronomy", 1]])}
+        off={new Set(["botany"])}
+        onLevel={vi.fn()}
+        onOff={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByRole("radiogroup", { name: "Level" })).toHaveLength(
+      2,
+    );
+    const botany = screen.getByRole("group", { name: "Botany level" });
+    expect(
+      within(botany).getByRole("radio", { name: "off" }).className,
+    ).toContain("bg-[#2A2A2A]");
+    const astronomy = screen.getByRole("group", { name: "Astronomy level" });
+    expect(
+      within(astronomy).getByRole("radio", { name: "some" }).className,
+    ).toContain("bg-ink");
   });
 
   it("leaves out a pick the topic list does not hold", () => {
@@ -81,7 +104,7 @@ describe("TopicLevels", () => {
     expect(screen.getAllByRole("group")).toHaveLength(1);
   });
 
-  it("calls onLevel for a new level, onOff for off, and neither for the already-pressed segment", () => {
+  it("calls onLevel for a new level, onOff for off, and neither for the already-checked segment", () => {
     const onLevel = vi.fn();
     const onOff = vi.fn();
     render(
@@ -94,18 +117,18 @@ describe("TopicLevels", () => {
     );
     const row = screen.getByRole("group", { name: "Astronomy level" });
 
-    fireEvent.click(within(row).getByRole("button", { name: "a lot" }));
+    fireEvent.click(within(row).getByRole("radio", { name: "a lot" }));
     expect(onLevel).toHaveBeenCalledExactlyOnceWith("astronomy", "lot");
     expect(onOff).not.toHaveBeenCalled();
 
-    fireEvent.click(within(row).getByRole("button", { name: "off" }));
+    fireEvent.click(within(row).getByRole("radio", { name: "off" }));
     expect(onOff).toHaveBeenCalledExactlyOnceWith("astronomy");
 
     onLevel.mockClear();
     onOff.mockClear();
-    // "some" is already pressed (weight 1 → levelOf → "some") — Segmented's guard means
+    // "some" is already checked (weight 1 → levelOf → "some") — Segmented's guard means
     // clicking it fires nothing at all.
-    fireEvent.click(within(row).getByRole("button", { name: "some" }));
+    fireEvent.click(within(row).getByRole("radio", { name: "some" }));
     expect(onLevel).not.toHaveBeenCalled();
     expect(onOff).not.toHaveBeenCalled();
   });
@@ -167,7 +190,7 @@ describe("TopicLevels", () => {
 
   // The questionnaire's reveal keeps a switched-off proposal on screen, so a stray tap on "off"
   // can be taken back without leaving the page.
-  it("shows an `off` topic as a row with off pressed, and turns it back on through onLevel", () => {
+  it("shows an `off` topic as a row with off checked, and turns it back on through onLevel", () => {
     const onLevel = vi.fn();
     const onOff = vi.fn();
     render(
@@ -183,14 +206,14 @@ describe("TopicLevels", () => {
       screen.getAllByRole("group").map((el) => el.getAttribute("aria-label")),
     ).toEqual(["Astronomy level", "Botany level"]);
     const row = screen.getByRole("group", { name: "Botany level" });
-    expect(within(row).getByRole("button", { name: "off" })).toHaveAttribute(
-      "aria-pressed",
+    expect(within(row).getByRole("radio", { name: "off" })).toHaveAttribute(
+      "aria-checked",
       "true",
     );
     // Already off: pressing it again says nothing.
-    fireEvent.click(within(row).getByRole("button", { name: "off" }));
+    fireEvent.click(within(row).getByRole("radio", { name: "off" }));
     expect(onOff).not.toHaveBeenCalled();
-    fireEvent.click(within(row).getByRole("button", { name: "a little" }));
+    fireEvent.click(within(row).getByRole("radio", { name: "a little" }));
     expect(onLevel).toHaveBeenCalledExactlyOnceWith("botany", "little");
   });
 

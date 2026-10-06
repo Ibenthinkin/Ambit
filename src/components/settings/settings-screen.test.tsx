@@ -369,7 +369,7 @@ describe("SettingsScreen — Reading", () => {
     fireEvent.click(row());
     const sheet = screen.getByRole("dialog", { name: "Reading" });
     expect(sheet).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "A lot" }));
+    fireEvent.click(screen.getByRole("radio", { name: "A lot" }));
     expect(setReadingMutateMock).toHaveBeenCalledExactlyOnceWith({
       amount: "lot",
     });

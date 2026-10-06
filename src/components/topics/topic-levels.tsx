@@ -30,7 +30,7 @@ import {
 // **Why "off" is a fourth segment, not a separate button beside the control.** A pick a reader
 // is looking at *right now* has exactly four states — three strengths plus "not this" — and the
 // design treats leaving as just the fourth way to answer the same question. One control, one
-// place to look, and `Segmented`'s own guard (a click on the already-pressed segment fires
+// place to look, and `Segmented`'s own guard (a click on the already-checked segment fires
 // nothing) is what keeps a stray tap on "some" from re-writing a pick that hasn't changed.
 
 /** A topic as this list needs it — any `topics.list` row will do. */
@@ -60,7 +60,8 @@ export interface TopicLevelsProps {
 // the "off" pseudo-level, in the exact order the design calls for (§3).
 const LEVEL_OPTIONS = [
   ...LEVELS.map((level) => ({ key: level, label: LEVEL_LABELS[level] })),
-  { key: "off" as const, label: LEVEL_LABELS.off },
+  // "Off" is not an achievement: selected, it wears the quiet fill (DESIGN §4.3).
+  { key: "off" as const, label: LEVEL_LABELS.off, tone: "muted" as const },
 ];
 
 export function TopicLevels({
@@ -105,6 +106,7 @@ export function TopicLevels({
               )}
             </span>
             <Segmented
+              label="Level"
               options={LEVEL_OPTIONS}
               value={level}
               onChange={(key) => {

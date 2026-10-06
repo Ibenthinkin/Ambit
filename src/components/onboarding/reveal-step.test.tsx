@@ -39,7 +39,7 @@ function show(over: Partial<Parameters<typeof RevealStep>[0]> = {}) {
 const row = (name: string) =>
   screen.getByRole("group", { name: `${name} level` });
 const press = (name: string, level: string) =>
-  fireEvent.click(within(row(name)).getByRole("button", { name: level }));
+  fireEvent.click(within(row(name)).getByRole("radio", { name: level }));
 const cta = () =>
   screen.getByRole("button", { name: /Start exploring|Keep at least/ });
 
@@ -50,11 +50,11 @@ describe("RevealStep", () => {
       screen.getByRole("heading", { name: "Here’s where we’ll start" }),
     ).toBeInTheDocument();
     expect(
-      within(row("Astronomy")).getByRole("button", { name: "a lot" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(row("Astronomy")).getByRole("radio", { name: "a lot" }),
+    ).toHaveAttribute("aria-checked", "true");
     expect(
-      within(row("Music")).getByRole("button", { name: "a little" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(row("Music")).getByRole("radio", { name: "a little" }),
+    ).toHaveAttribute("aria-checked", "true");
   });
 
   it("submits exactly what it shows: edited levels in, switched-off topics out", () => {
@@ -73,8 +73,8 @@ describe("RevealStep", () => {
     const { onSubmit } = show();
     press("Geology", "off");
     expect(
-      within(row("Geology")).getByRole("button", { name: "off" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(row("Geology")).getByRole("radio", { name: "off" }),
+    ).toHaveAttribute("aria-checked", "true");
     press("Geology", "some");
     fireEvent.click(cta());
     expect(onSubmit.mock.calls[0]![0]).toHaveLength(4);
@@ -167,11 +167,11 @@ describe("RevealStep", () => {
       />,
     );
     expect(
-      within(row("Geology")).getByRole("button", { name: "a lot" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(row("Geology")).getByRole("radio", { name: "a lot" }),
+    ).toHaveAttribute("aria-checked", "true");
     expect(
-      within(row("Music")).getByRole("button", { name: "off" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(row("Music")).getByRole("radio", { name: "off" }),
+    ).toHaveAttribute("aria-checked", "true");
     fireEvent.click(cta());
     expect(onSubmit).toHaveBeenCalledExactlyOnceWith([
       { topicId: "geology", weight: 2 },

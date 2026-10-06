@@ -210,11 +210,11 @@ describe("OnboardingScreen", () => {
         .getAllByRole("group")
         .find((g) => g.getAttribute("data-topic") === id)!;
     expect(
-      within(row("food")).getByRole("button", { name: "a lot" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(row("food")).getByRole("radio", { name: "a lot" }),
+    ).toHaveAttribute("aria-checked", "true");
     expect(
-      within(row("music")).getByRole("button", { name: "some" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(row("music")).getByRole("radio", { name: "some" }),
+    ).toHaveAttribute("aria-checked", "true");
 
     click("Start exploring");
     await waitFor(() => expect(completeMock).toHaveBeenCalled());

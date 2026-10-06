@@ -100,7 +100,7 @@ test.describe.serial("onboarding questionnaire", () => {
       await expect(
         reveal
           .locator(`[data-topic="${topic}"]`)
-          .getByRole("button", { name: "some", pressed: true }),
+          .getByRole("radio", { name: "some", checked: true }),
       ).toBeVisible();
     }
 
@@ -171,7 +171,7 @@ test.describe.serial("onboarding questionnaire", () => {
     );
     await page
       .getByRole("dialog", { name: "Reading" })
-      .getByRole("button", { name: "None" })
+      .getByRole("radio", { name: "None" })
       .click();
     await saved;
     await expect(reading).toContainText("None");

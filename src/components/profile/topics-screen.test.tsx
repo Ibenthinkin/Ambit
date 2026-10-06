@@ -216,7 +216,7 @@ describe("TopicsScreen", () => {
   it("a level change is one setWeight, touching no other topic", () => {
     render(<TopicsScreen dev={false} />);
     fireEvent.click(
-      within(levelRow("Ceramics")).getByRole("button", { name: "a little" }),
+      within(levelRow("Ceramics")).getByRole("radio", { name: "a little" }),
     );
     expect(setWeightMock).toHaveBeenCalledExactlyOnceWith({
       topicId: "ceramics",
@@ -228,7 +228,7 @@ describe("TopicsScreen", () => {
   it("off removes the topic through setMine", () => {
     render(<TopicsScreen dev={false} />);
     fireEvent.click(
-      within(levelRow("Ceramics")).getByRole("button", { name: "off" }),
+      within(levelRow("Ceramics")).getByRole("radio", { name: "off" }),
     );
     expect(lastWrite()).toEqual([{ topicId: "astronomy", weight: 2 }]);
   });
@@ -237,7 +237,7 @@ describe("TopicsScreen", () => {
     state.mine = [{ topicId: "astronomy", weight: 1 }];
     render(<TopicsScreen dev={false} />);
     fireEvent.click(
-      within(levelRow("Astronomy")).getByRole("button", { name: "off" }),
+      within(levelRow("Astronomy")).getByRole("radio", { name: "off" }),
     );
     expect(mutateMock).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith("Keep at least one topic.");
@@ -247,7 +247,7 @@ describe("TopicsScreen", () => {
     render(<TopicsScreen dev={false} />);
     const previous = [...state.mine];
     fireEvent.click(
-      within(levelRow("Ceramics")).getByRole("button", { name: "off" }),
+      within(levelRow("Ceramics")).getByRole("radio", { name: "off" }),
     );
     // The optimistic patch lands a tick later: `onMutate` awaits `cancel()` first.
     await waitFor(() => expect(state.mine).toHaveLength(1));

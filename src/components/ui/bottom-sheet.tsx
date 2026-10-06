@@ -340,10 +340,13 @@ export function BottomSheet({
     // No `offsetParent`-style visibility filter here: it reports `null` for everything in jsdom
     // (which has no layout engine), which would silently empty this list under test while working
     // in a browser — the worst of both. Sheets don't render hidden controls, so the selector alone
-    // is enough.
+    // is enough. `tabindex="-1"` buttons are *not* tabbable, so they are left out: a roving-tabindex
+    // radiogroup (`Segmented`) has one tabbable radio, and counting its unchecked siblings would
+    // make the trap think a later one is the sheet's edge, so Tab from the checked radio would
+    // walk out of the dialog instead of on to the next control.
     const focusablesIn = (root: HTMLElement) => [
       ...root.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        'a[href], button:not([disabled]):not([tabindex="-1"]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       ),
     ];
 

@@ -47,6 +47,7 @@ export function ReadingSheet({
           the pictures.
         </p>
         <Segmented
+          label="Reading amount"
           options={OPTIONS}
           value={current ?? DEFAULT_READING}
           onChange={onPick}

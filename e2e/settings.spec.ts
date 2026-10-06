@@ -263,10 +263,10 @@ test.describe.serial("settings", () => {
 
     // A level is its own, smaller write. A topic added by name arrives at "a lot".
     await expect(
-      ceramics.getByRole("button", { name: "a lot", pressed: true }),
+      ceramics.getByRole("radio", { name: "a lot", checked: true }),
     ).toBeVisible();
     const savedLevel = waitForSetWeight(page);
-    await ceramics.getByRole("button", { name: "a little" }).click();
+    await ceramics.getByRole("radio", { name: "a little" }).click();
     await savedLevel;
 
     // Every change saved as it happened — no Done button to press, so a reload is the proof.
@@ -274,7 +274,7 @@ test.describe.serial("settings", () => {
     await expect(
       page
         .getByRole("group", { name: "Ceramics level" })
-        .getByRole("button", { name: "a little", pressed: true }),
+        .getByRole("radio", { name: "a little", checked: true }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("group", { name: "Maps level" })).toBeVisible();
 
@@ -297,7 +297,7 @@ test.describe.serial("settings", () => {
     );
     await page
       .getByRole("dialog", { name: "Reading" })
-      .getByRole("button", { name: "A lot" })
+      .getByRole("radio", { name: "A lot" })
       .click();
     await savedReading;
     await expect(reading).toContainText("A lot");
