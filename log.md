@@ -248,6 +248,23 @@ _Session spend: 29.26M tok (in 374 · out 95.7k · cache r 28.39M / w 769.2k) ·
 
 _Session spend: 1.47M tok (in 18 · out 3.5k · cache r 1.37M / w 99.0k) · opus-5-5 · 17:53→17:54_
 
+**The critique, planned (evening, Fable; a parallel session to the Cut 1 build above).** Ben's
+screen-by-screen notes (`docs/NOTES_onboarding-critique.md`) became `docs/PLAN_onboarding-critique.md`
+(committed on `main` as `83925bf`): five cuts, nine decisions for Ben in §0, Cut 1 runnable cold —
+which is what the session above executed. One root cause worth keeping: "cards too small on desktop"
+is the onboarding rendering in the 600 px `narrow` column, so widening picture steps to 1120 is the
+fix, not bigger cards. The prototype-vs-build gap list for the reveal is plan §4. Then two inputs for
+Ben, committed on `feat/onboarding-trims` as `876d21c` once that session was done: **the copy deck**
+(`docs/COPY_onboarding.md`, every reader-visible string with a New column, Task 3.1) and **a brief for
+Claude Design** (`docs/BRIEF_claude-design-redesign.md`) — Ben decided to run the redesign through
+Claude Design and export a token-and-component package rather than pick an accent off a swatch page,
+so the brief carries the app's real tokens, primitives and step list and the seven decisions the
+package has to settle. **Decision (Ben):** the design package answers D1/D2 and most of D4–D7; D3 (the
+swipe stack) stays a mechanics call. **Open / next:** Ben runs the Claude Design session with the
+brief; Cut 5 becomes "apply the package" when it lands; the copy deck's New column is his.
+
+_Session spend: 14.92M tok (in 2.2k · out 160.0k · cache r 13.24M / w 1.52M) · fable-5-1 + opus-5-5 · 16:53→23:39_
+
 ### [[10-04-26 Sun]] — Door of Perception's re-judge, built to run itself
 
 **Findings:**
