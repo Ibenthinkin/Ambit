@@ -7,7 +7,6 @@ import {
   Bell,
   BookOpen,
   ChatBubble,
-  Contrast,
   Download,
   FeedLines,
   Globe,
@@ -20,10 +19,8 @@ import {
 } from "~/components/icons";
 import { Toast } from "~/components/ui/toast";
 import { authClient } from "~/lib/auth-client";
-import { ACCENTS, setAccent, useAccent } from "~/lib/accent";
 import { api } from "~/trpc/react";
 import { AboutSheet } from "./about-sheet";
-import { AccentSheet } from "./accent-sheet";
 import { DEFAULT_READING, ReadingSheet } from "./reading-sheet";
 import { READING_LABELS } from "~/server/config/reading-amount";
 import { InstallSheet } from "~/components/install/install-sheet";
@@ -60,7 +57,7 @@ const subscribeToNothing = () => () => undefined;
 const CONTACT_EMAIL = "benjamin.reilly@gmail.com";
 
 /** The one sheet open at a time, as a discriminant rather than four booleans that could disagree. */
-type OpenSheet = "accent" | "about" | "install" | "reading" | null;
+type OpenSheet = "about" | "install" | "reading" | null;
 
 export interface SettingsScreenProps {
   /** "v0.4" — derived from package.json server-side (`app/profile/settings/page.tsx`). */
@@ -95,14 +92,11 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
   const [toast, setToast] = React.useState<string | null>(null);
 
   // ── client-capability state: null until hydration is past ──────────────────────────────────────
-  // Both of these live outside React (one in localStorage, one on `window.Notification`) and are
-  // unreadable during a server render, so reading them at render time would make the server's HTML
-  // and the client's first render disagree — a hydration mismatch on every load for anyone who has
-  // ever touched either. Both are therefore `useSyncExternalStore` hooks that report `null` through
-  // hydration and the real value on the pass after; the rows render no value in the meantime rather
-  // than a wrong one. (The accent's *paint* is already correct by then — layout.tsx's inline script
-  // sets the attribute before first paint. This is only about what React knows.)
-  const accent = useAccent();
+  // Notification permission lives on `window.Notification`, unreadable during a server render, so
+  // reading it at render time would make the server's HTML and the client's first render disagree —
+  // a hydration mismatch. It is therefore a `useSyncExternalStore` hook that reports `null` through
+  // hydration and the real value on the pass after; the row renders no value in the meantime rather
+  // than a wrong one.
   const notifications = useNotificationPermission();
   // Same shape, same reason: the display mode and the browser's install prompt are both unreadable
   // during a server render. `false` through hydration means the row renders its ordinary "Install"
@@ -124,10 +118,6 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
     topics.data ?? [],
     (myTopics.data ?? []).map((p) => p.topicId),
   );
-
-  const accentLabel = accent
-    ? ACCENTS.find((a) => a.key === accent)?.label
-    : undefined;
 
   const onNotificationsTap = () => {
     switch (notifications.state) {
@@ -241,12 +231,6 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
 
           <SettingsGroup title="Other">
             <SettingsRow
-              icon={<Contrast size={17} />}
-              label="Appearance"
-              value={accentLabel}
-              onClick={() => setOpenSheet("accent")}
-            />
-            <SettingsRow
               icon={<Globe size={17} />}
               label="Language"
               // True: the app is English-only, with no translation layer anywhere.
@@ -285,13 +269,6 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
         onClose={() => setOpenSheet(null)}
         current={reading.data ?? null}
         onPick={(amount) => setReading.mutate({ amount })}
-      />
-
-      <AccentSheet
-        open={openSheet === "accent"}
-        onClose={() => setOpenSheet(null)}
-        current={accent ?? "indigo"}
-        onPick={setAccent}
       />
 
       <AboutSheet

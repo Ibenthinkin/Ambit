@@ -307,12 +307,8 @@ test.describe.serial("settings", () => {
       { timeout: 15_000 },
     );
 
-    // Appearance: the knob applies live, and survives a reload via layout.tsx's inline script.
-    await page.getByText("Appearance").click();
-    await page.getByText("Amber").click();
-    await expect(page.locator("html")).toHaveAttribute("data-accent", "amber");
-    await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("data-accent", "amber");
+    // The accent knob is retired (one colour) — there is no Appearance row to find.
+    await expect(page.getByText("Appearance")).toHaveCount(0);
 
     // A stub says so rather than showing an invented value.
     await page.getByText("Serendipity").click();

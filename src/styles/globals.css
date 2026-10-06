@@ -9,19 +9,12 @@
    encodes the result. */
 @import "tailwindcss";
 
-/* Tokens whose value is itself a var() that gets redefined at runtime — by a `[data-accent]`
-   attribute selector, or by next/font injecting a variable at the <html> element — MUST live in
-   `@theme inline`, not plain `@theme`. Plain `@theme` bakes the *outer* variable name into the
-   generated utility (`.bg-accent { background-color: var(--color-accent) }`), and that indirection
-   silently fails to pick up a scoped override on `--accent-raw` further down the cascade in some
-   browsers. `inline` skips the indirection and points the utility straight at the inner variable
-   (`.bg-accent { background-color: var(--accent-raw) }`), so it re-resolves live whenever
-   `--accent-raw` changes — no rebuild, no page reload. */
+/* Tokens whose value is a var() supplied at runtime by next/font (it injects its variable on the
+   <html> element) MUST live in `@theme inline`, not plain `@theme`: plain `@theme` bakes the
+   *outer* variable name into the generated utility and the indirection can fail to pick up a
+   value defined further down the cascade. `inline` points the utility straight at the inner
+   variable. (The accent used to be here too, while it was a runtime knob; it is a plain token now.) */
 @theme inline {
-  /* The single brand knob (README "Themeable props"): one accent, swapped as a whole set via
-     [data-accent] on <html> (see @layer base below). Phase 9.2 adds a user-facing picker; 5.1
-     shipped the mechanism, 5.4 re-pointed it at the redesign's set (indigo default). */
-  --color-accent: var(--accent-raw);
   /* Point at the CSS variables next/font/google injects on <html> (src/lib/fonts.ts) — runtime-
      supplied, so they need the same `inline` treatment. Hanken Grotesk is the readable face,
      Geist Mono the label face; `--font-serif` is gone along with Newsreader (Phase 5.4). */
@@ -62,8 +55,6 @@
                                    that is NOT the accent knob (docs/PLAN_tile-hover.md Decision 3).
                                    Replaced the 3 px off-white of DESIGN_chrome-redesign.md §4 on
                                    10-04-26, once the lift and shadow also marked focus. */
-  --color-on-accent: #17140e; /* text drawn on an accent-filled surface — always this, never
-                                  white; every CTA/selected-chip/save-icon uses it */
   --color-error: #d98c6a;
 
   /* Shape (README "Shape and elevation"). Pills for buttons/chips/toasts/segments; the sheet
@@ -374,25 +365,6 @@
     to {
       opacity: 0;
     }
-  }
-}
-
-@layer base {
-  /* The accent knob's actual values. `--accent-raw` is what @theme inline (above) points
-     --color-accent at; redefining it here per [data-accent] value is what makes `bg-accent` etc.
-     swap live when the attribute on <html> changes (src/app/layout.tsx sets the default). */
-  :root,
-  [data-accent="indigo"] {
-    --accent-raw: #4c5fe0; /* default */
-  }
-  [data-accent="amber"] {
-    --accent-raw: #d9a73c;
-  }
-  [data-accent="green"] {
-    --accent-raw: #3fa35c;
-  }
-  [data-accent="red"] {
-    --accent-raw: #d9483f;
   }
 }
 

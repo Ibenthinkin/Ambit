@@ -75,8 +75,8 @@ export function buildCsp({ nonce, dev }) {
     // **Scripts.** `'strict-dynamic'` says: trust a script that carries this request's nonce, and
     // trust whatever *that* script loads — which is how Next's own chunk loader works. It also
     // makes the `'self'` in this directive a no-op in modern browsers (kept as the fallback older
-    // ones read). The one hand-written inline script in the app is the pre-paint accent restore in
-    // `layout.tsx`, which reads the nonce from the request and stamps it on.
+    // ones read). The app has no hand-written inline script (the pre-paint accent restore went
+    // with the accent knob); the nonce is for Next's own bootstrap scripts, which it stamps itself.
     //
     // `'unsafe-eval'` in dev only: Turbopack's HMR client evaluates code it receives over the dev
     // socket. A production build never does.

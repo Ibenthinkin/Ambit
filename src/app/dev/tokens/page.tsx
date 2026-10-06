@@ -48,11 +48,9 @@ import { PillToolbar, type BookmarkState } from "~/components/ui/pill-toolbar";
 import { Toast } from "~/components/ui/toast";
 import { usePress } from "~/hooks/use-press";
 import { saveToastText } from "~/lib/save-toast";
-import { ACCENTS, type AccentKey, storedAccent } from "~/lib/accent";
 import { api } from "~/trpc/react";
 
-// The living style guide: every token, icon, and primitive in one place with a live accent
-// switcher, so the design system can be checked whole without building a real screen first.
+// The living style guide: every token, icon, and primitive in one place, so the design system can be checked whole without building a real screen first.
 // Originally the Phase 5.1 proof page; re-pointed at the redesign handoff
 // (docs/design_handoff_ambit_pwa_redesign/) in 5.4. If something here doesn't match the handoff,
 // it'll be wrong on every screen that consumes it later.
@@ -68,9 +66,8 @@ import { api } from "~/trpc/react";
 // screen uses, scoped to the signed-in user — there's nothing here an authed user couldn't
 // already see.
 //
-// The accent list moved to `~/lib/accent.ts` in 5.10, when Settings gave it a real user-facing
-// picker — including the note on why the hexes are duplicated from globals.css. This page now
-// imports it rather than keeping a second copy that could drift.
+// The accent knob (and its swatch picker here) was retired in redesign Task 1.3 — one colour now.
+// Task 1.5 rebuilds this whole page.
 
 // The alpha ladder from PHASE5_PLAN.md Step 2 / SPEC §10 — the whole muted-text/hairline/fill
 // system, reproduced here as swatches instead of prose so a mismatch against the prototypes is
@@ -178,7 +175,6 @@ function Section({
 export default function TokensPage() {
   if (process.env.NODE_ENV === "production") notFound();
 
-  const [accent, setAccent] = React.useState<AccentKey>("indigo");
   const [selectedChips, setSelectedChips] = React.useState<Set<string>>(
     () => new Set(["Painting"]),
   );
@@ -188,23 +184,6 @@ export default function TokensPage() {
   const [backboneToast, setBackboneToast] = React.useState<string | null>(null);
   // Bumping this remounts the two motion demos, which is what replays a CSS animation.
   const [motionKey, setMotionKey] = React.useState(0);
-
-  // The accent knob is a `data-accent` attribute on <html> (see globals.css's `@layer base` and
-  // src/app/layout.tsx). Setting it here on the real document element — not a wrapper div — is
-  // the actual mechanism under test: every `bg-accent`/`text-accent`/etc. utility on this page
-  // should re-resolve live when this switches, no rebuild or reload.
-  //
-  // This switcher is deliberately *previewing*, not persisting: it never calls `setAccent`, so
-  // playing with the swatches here doesn't quietly rewrite the reader's real preference (Settings
-  // owns that). The unmount restore therefore reads `storedAccent()` rather than hardcoding
-  // "indigo" — before 5.10 those were the same thing; now, resetting to the literal default would
-  // stomp the accent of anyone who set one and then visited this page.
-  React.useEffect(() => {
-    document.documentElement.dataset.accent = accent;
-    return () => {
-      document.documentElement.dataset.accent = storedAccent();
-    };
-  }, [accent]);
 
   return (
     <div className="bg-bg text-ink min-h-screen pb-32">
@@ -218,28 +197,6 @@ export default function TokensPage() {
       </GlassHeader>
 
       <div className="flex flex-col gap-10 px-5 pt-8">
-        <Section title="Accent">
-          <div className="flex flex-wrap gap-2">
-            {ACCENTS.map((a) => (
-              <button
-                key={a.key}
-                type="button"
-                onClick={() => setAccent(a.key)}
-                className="border-hairline rounded-pill border-ink/12 bg-ink/5 text-ink/82 flex items-center gap-2 border py-2 pr-4 pl-2 font-sans text-[13px]"
-              >
-                <span
-                  className="border-hairline border-ink/16 h-5 w-5 rounded-full border"
-                  style={{ background: a.hex }}
-                />
-                {a.label}
-                {accent === a.key && (
-                  <Check size={14} className="text-accent" />
-                )}
-              </button>
-            ))}
-          </div>
-        </Section>
-
         {/* Hanken Grotesk everywhere (Geist Mono for labels). Sizes/weights are the rows of
             the handoff README's type table that the app actually uses today; the gallery/reader
             rows get added as those screens land. */}

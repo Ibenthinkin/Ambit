@@ -148,7 +148,6 @@ beforeEach(() => {
   readingData.current = null;
   invalidateMock.mockClear();
   signOutMock.mockClear();
-  document.documentElement.removeAttribute("data-accent");
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -166,7 +165,6 @@ describe("SettingsScreen — rows", () => {
       "Serendipity",
       "Camera roll",
       "Notifications",
-      "Appearance",
       "Language",
       "About Ambit",
       "Get in touch",
@@ -298,16 +296,10 @@ describe("SettingsScreen — Notifications", () => {
 });
 
 describe("SettingsScreen — Appearance", () => {
-  it("applies a picked accent to <html>, persists it, and relabels the row", () => {
+  // The accent knob was retired in redesign Task 1.3: one colour, so nothing to pick.
+  it("has no Appearance row", () => {
     renderScreen();
-
-    fireEvent.click(screen.getByText("Appearance"));
-    fireEvent.click(screen.getByText("Amber"));
-
-    // The live mechanism — globals.css keys `--accent-raw` off this attribute.
-    expect(document.documentElement.dataset.accent).toBe("amber");
-    expect(localStorage.getItem("ambit.accent.v1")).toBe("amber");
-    expect(screen.getAllByText("Amber").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Appearance")).toBeNull();
   });
 });
 
