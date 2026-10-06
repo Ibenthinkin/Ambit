@@ -19,6 +19,13 @@ const twMerge = extendTailwindMerge({
     classGroups: {
       "border-w": ["border-hairline"],
       "bg-image": ["bg-avatar-gradient"],
+      // The 1b type scale's new names (globals.css `--text-*`). Unregistered, tailwind-merge reads
+      // `text-card` / `text-body` as text-COLOR utilities and drops one of a size + colour pair.
+      "font-size": [
+        {
+          text: ["display", "title", "h2", "card", "body", "eyebrow"],
+        },
+      ],
     },
   },
 });

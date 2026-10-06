@@ -31,16 +31,21 @@
 
 @theme {
   /* Surfaces (README "Color"). */
-  --color-bg: #161411; /* screen background — every screen except the gallery */
-  --color-bg-app: #0c0b09; /* outer app chrome, outside any screen's content */
-  --color-surface: #1b1815; /* elevated surface: sheets, modals */
-  --color-immersive: #0b0a08; /* gallery only — deliberately darker for fullscreen immersion,
+  /* The 1b palette (docs/DESIGN_redesign.md 3.1): black and white, no warmth left in it. */
+  --color-bg: #0e0e0e; /* screen background — every screen except the gallery */
+  --color-bg-app: #060606; /* outer app chrome, outside any screen's content */
+  --color-surface: #141414; /* bottom sheets, popovers */
+  --color-dialog: #121212; /* the centred desktop dialog and the sign-up sheet */
+  --color-card: #161616; /* article / Because / intro cards, image placeholder */
+  --color-card-2: #1e1e1e; /* empty thumb cells */
+  --color-immersive: #0a0a0a; /* behind a picture on the item screen — deliberately darker for fullscreen immersion,
                                   not drift from the standard --color-bg (see PHASE5_PLAN.md
                                   Decision 8) */
-  --color-overlay: #1e1c18; /* toast / install-banner fill (used at low opacity, ~92%) */
-  --color-scrim: #090806; /* sheet + modal scrims (used at ~60-66% opacity) */
-  --color-tile-hi: #221e17; /* app-icon tile gradient, light stop */
-  --color-tile-lo: #0f0d09; /* app-icon tile gradient, dark stop */
+  --color-overlay: #1e1c18; /* toast fill — REMOVED by the spec (the toast becomes a white block);
+                                 kept only until Phase 2 rewrites its users (toast.tsx, /dev/tokens) */
+  --color-scrim: #000000; /* sheet + modal scrims, used at /60 with no blur */
+  --color-tile-hi: #161616; /* app-icon tile gradient, light stop (now a flat card colour) */
+  --color-tile-lo: #0e0e0e; /* app-icon tile gradient, dark stop */
 
   /* Ink — the one color the whole muted-text/hairline/subtle-fill system derives from. The
      prototypes hand-authored dozens of one-off rgba(239,235,224, N) alphas; Tailwind v4's opacity
@@ -48,8 +53,8 @@
      `border-ink/12`, `bg-ink/5` etc. reproduce all of them from this single token. See the alpha
      ladder in docs/PHASE5_WALKTHROUGH_5.1.md / SPEC §10 for which modifier to use where — use
      those normalized stops, not a value eyeballed off one screen. */
-  --color-ink: #efebe0;
-  --color-ink-hi: #f5f1e7; /* the title tier ("text/primary" in the redesign README) — screen
+  --color-ink: #f2f2f2;
+  --color-ink-hi: #f2f2f2; /* (1b: same as ink; the name stays so its 48 uses need no edit) the title tier ("text/primary" in the redesign README) — screen
                                titles, item titles, article headlines ONLY. --color-ink above
                                stays the body/high tier and the root of the alpha ladder; this is
                                a second opaque stop above it, not a replacement. */
@@ -67,23 +72,57 @@
 
      NOTE: feed and saved image tiles are SQUARE-CORNERED full-bleed in the redesign — radius 0 is
      the absence of a rounding class, not a token. Don't add one. */
+  /* 1b: no radius anywhere except the nav pill (docs/DESIGN_redesign.md 3.4). The other names
+     stay as tokens, all 0, so the ~27 `rounded-card` / `rounded-sheet` ... call sites go square
+     without an edit; Phase 2 rewrites them and src/no-rounded.test.ts pins the allow-list. */
   --radius-pill: 999px;
-  --radius-sheet: 22px; /* bottom sheets — top corners only */
-  --radius-card: 22px; /* the most common card radius (feed article card, item CTA card) */
-  --radius-img-lg: 20px; /* profile collection cover tiles */
-  --radius-tile: 18px; /* item-page hero image */
-  --radius-img-md: 16px; /* currently unassigned in the redesign — kept for the 16-18px band */
-  --radius-input: 14px; /* text inputs, primary buttons (landing) — NOT a pill */
-  --radius-img-sm: 12px; /* gallery slides */
+  --radius-sheet: 0px;
+  --radius-card: 0px;
+  --radius-img-lg: 0px;
+  --radius-tile: 0px;
+  --radius-img-md: 0px;
+  --radius-input: 0px;
+  --radius-img-sm: 0px;
 
   /* Elevation — exactly four shadows exist anywhere in the redesign bundle. Resist adding more;
      if a new component seems to need one, it's very likely one of these four. */
   --shadow-toast: 0 8px 30px rgba(0, 0, 0, 0.4);
   --shadow-banner: 0 12px 40px rgba(0, 0, 0, 0.45);
   --shadow-sheet: 0 -20px 50px rgba(0, 0, 0, 0.45);
+  --shadow-dialog: 0 30px 80px rgba(0, 0, 0, 0.6); /* the centred dialog (1b) */
+  --shadow-popover: 0 20px 50px rgba(0, 0, 0, 0.5); /* the anchored popover (1b) */
+  /* --shadow-sheet / -toast / -banner go when their users are rewritten (Phase 2). */
   --shadow-toolbar: 0 10px 30px rgba(0, 0, 0, 0.28); /* the floating pill toolbar (built 5.5) */
-  --shadow-lift: 0 22px 44px rgba(0, 0, 0, 0.6); /* a hovered or focused feed tile, risen above
+  --shadow-lift: 0 14px 34px rgba(0, 0, 0, 0.45); /* a hovered or focused feed tile, risen above
                                        its neighbours (docs/tile-hover/, "Lift", 10-04-26) */
+
+  /* The 1b type scale (docs/DESIGN_redesign.md 3.3). Tailwind v4 reads `--text-X--line-height` and
+     `--text-X--letter-spacing` as the sub-tokens of `text-X`. `lg`, `sm` and `xs` REDEFINE
+     Tailwind's own sizes (so the handful of existing `text-sm` uses move from 14 to 15 px); the
+     rest are new names. The eyebrow's uppercase and mono face are the component's job, not the
+     token's. */
+  --text-display: clamp(30px, 4.2vw, 40px);
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.02em;
+  --text-title: 32px;
+  --text-title--line-height: 1.08;
+  --text-title--letter-spacing: -0.02em;
+  --text-h2: 24px;
+  --text-h2--line-height: 1.35;
+  --text-h2--letter-spacing: -0.01em;
+  --text-card: 19px;
+  --text-card--line-height: 1.2;
+  --text-card--letter-spacing: -0.01em;
+  --text-lg: 17px;
+  --text-lg--line-height: 1.4;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-sm: 15px;
+  --text-sm--line-height: 1.4;
+  --text-xs: 13.5px;
+  --text-xs--line-height: 1.48;
+  --text-eyebrow: 10.5px;
+  --text-eyebrow--letter-spacing: 0.4px;
 
   /* Two deliberately-non-default easing curves — everything else is plain `ease` or `linear`.
      `settle` is the original: anything that comes to rest over a longer travel (the gallery
@@ -112,7 +151,7 @@
   --animate-loader-reach: loader-reach 2400ms cubic-bezier(0.65, 0, 0.35, 1)
     infinite;
   --animate-toast-in: toast-in 0.22s ease both;
-  --animate-sheet-up: sheet-up 0.26s var(--ease-sheet) both; /* the standard pill-summoned bottom
+  --animate-sheet-up: sheet-up 0.24s var(--ease-sheet) both; /* the standard pill-summoned bottom
                                                                  sheet (redesign `sheetup`:
                                                                  240-300ms; 260 chosen) */
   --animate-sheet-gallery: sheet-gallery 0.4s var(--ease-settle) both; /* the gallery details
@@ -358,12 +397,11 @@
 }
 
 @layer utilities {
-  /* Every border in the handoff is a 0.5px hairline — finer than Tailwind's built-in `border`
-     (1px) but not available as an arbitrary-value shorthand worth repeating everywhere
-     (`border-[0.5px]` at every call site). One utility, applied alongside a color/opacity
-     modifier: `border-hairline border-ink/12`. */
+  /* The name outlived the half-pixel: under the 1b redesign lines are 1 px (DESIGN 3.4), but ~300
+     call sites write `border-hairline border-ink/12`, so the utility keeps its name and the
+     width changed under it. (On-photo glass and the toolbar spell out an explicit 0.5 px.) */
   .border-hairline {
-    border-width: 0.5px;
+    border-width: 1px;
   }
 
   /* The profile/avatar placeholder fill (redesign README "Color" table) — used by the pill

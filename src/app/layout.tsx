@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 // CSS cascade and can't read a custom property — but it must be kept in sync with that token by
 // hand if the background ever changes.
 export const viewport: Viewport = {
-  themeColor: "#161411",
+  themeColor: "#0E0E0E",
 };
 
 // **Async, and that is load-bearing twice over** (Phase 7.2). `headers()` is a dynamic API, so

@@ -75,8 +75,27 @@ describe("globals.css keyframes survive the Tailwind build", () => {
       readFileSync(from, "utf8"),
       { from },
     );
-    expect(out.css).toContain("0 22px 44px");
+    expect(out.css).toContain("0 14px 34px");
     expect(out.css).toContain("--ease-lift");
     expect(out.css).toContain("--color-focus-ring");
+  }, 60_000);
+
+  // The 1b tokens (docs/DESIGN_redesign.md 3.1, 3.4). Tailwind emits a theme variable only when a
+  // utility uses it, so this also proves the tokens are reachable, not merely declared.
+  it("emits the 1b surfaces, dialog/popover shadows and the mono face", async () => {
+    const from = join(__dirname, "globals.css");
+    const out = await postcss([tailwind()]).process(
+      readFileSync(from, "utf8"),
+      { from },
+    );
+    for (const token of [
+      "--color-dialog",
+      "--color-card",
+      "--shadow-dialog",
+      "--shadow-popover",
+      "--font-mono",
+    ]) {
+      expect(out.css).toContain(token);
+    }
   }, 60_000);
 });
