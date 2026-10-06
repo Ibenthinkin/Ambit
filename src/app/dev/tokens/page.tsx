@@ -799,9 +799,8 @@ export default function TokensPage() {
 
         <Section
           title="IconButton"
-          note="Rest, hover, focus, pressed; plain and glass (on a photograph)."
+          note="Square. Rest, hover (text brightens), focus, pressed; plain and glass (on a photograph)."
         >
-          <Placeholder task="2.6" what="circular, ink fills" />
           <div className="flex flex-wrap items-center gap-3">
             <IconButton size={28} aria-label="Close">
               <Close size={13} />
@@ -848,9 +847,8 @@ export default function TokensPage() {
 
         <Section
           title="Loader"
-          note="The Reach loader: ring, orbiting dot. Its ring becomes ink in 1b (the accent keeps only the seven jobs)."
+          note="The Reach loader: ink ring, accent orbiting dot, mono caps label. Plays under Reduce Motion (motion-gentle)."
         >
-          <Placeholder task="2.6" what="ink ring, accent dot" />
           <div className="flex flex-wrap items-center gap-6">
             <Loader size={LOADER_SIZES.inline} />
             <Loader size={LOADER_SIZES.block} />
@@ -861,9 +859,8 @@ export default function TokensPage() {
 
         <Section
           title="Toast"
-          note="Today an ink-glass pill; DESIGN §4 makes it a white block."
+          note="A white block of dark mono caps: square, no blur, no shadow. Press the button; it dismisses itself."
         >
-          <Placeholder task="2.6" what="white block toast" />
           <Button variant="outline" onClick={() => setToastOpen(true)}>
             Show toast
           </Button>
