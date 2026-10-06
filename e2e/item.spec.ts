@@ -514,6 +514,25 @@ test.describe.serial("item pages", () => {
   test("from the feed: tile → item → swipe → Escape returns to the intact feed, drawing nothing", async ({
     page,
   }) => {
+    // Hand this reader their corpus back first. The account was made by the "file the item" test
+    // above, whose onboarding lands on /feed — and a short page leaves the scroll sentinel in view,
+    // so the feed keeps fetching (and acking, which burns) pages for as long as that test lingers
+    // there before it moves on to `/i/`. Against CI's eleven fixture rows it burned 6–8 of them on
+    // a quick run and all eleven on a slow one (measured 10-06-26: a 4 s dwell burns all eleven,
+    // every time), and an exhausted reader's /feed is "Nothing here yet" — correct for the app,
+    // and no tile for this test to open. What this test checks is the round trip, not the history
+    // before it, so it starts from an unspent corpus rather than racing the earlier test's clock.
+    {
+      const { eq } = await import("drizzle-orm");
+      const [row] = await conn.db
+        .select({ id: conn.user.id })
+        .from(conn.user)
+        .where(eq(conn.user.email, EMAIL));
+      await conn.db
+        .delete(conn.seenItem)
+        .where(eq(conn.seenItem.userId, row!.id));
+    }
+
     await page.goto("/feed");
     await signIn(page, EMAIL, PASSWORD);
 
