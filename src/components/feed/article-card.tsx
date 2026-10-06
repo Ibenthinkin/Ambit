@@ -76,7 +76,7 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
         // hover.) `hover:` and `focus-visible:` are both pointer/keyboard-gated, so a phone sees
         // neither (see `image-tile.tsx`). The ring is the Lift's (docs/PLAN_tile-hover.md
         // Decision 3).
-        "border-hairline bg-ink/[3.5%] border-ink/7 focus-visible:outline-focus-ring hover:bg-ink/[5%] relative block w-full cursor-pointer touch-manipulation border px-[14px] pt-4 pb-[14px] transition-transform duration-200 outline-none select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
+        "border-hairline bg-ink/[3.5%] border-ink/7 focus-visible:outline-focus-ring hover:bg-ink/[5%] relative block w-full cursor-pointer touch-manipulation border px-[14px] pt-4 pb-[14px] transition-transform duration-200 select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
         pressing && "scale-[0.985]",
       )}
       style={{ WebkitTouchCallout: "none" }}

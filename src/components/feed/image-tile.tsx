@@ -107,7 +107,7 @@ export function ImageTile({
         // Decision 3). It replaced DESIGN_chrome-redesign.md §4's 3 px off-white on 10-04-26: the
         // lift and shadow on the wrapper (feed-grid.tsx) now mark focus too, so the ring no longer
         // has to be legible on its own against any photograph.
-        "focus-visible:outline-focus-ring relative block w-full cursor-pointer touch-manipulation overflow-hidden outline-none select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
+        "focus-visible:outline-focus-ring relative block w-full cursor-pointer touch-manipulation overflow-hidden select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
         aspectClass,
       )}
       style={{ WebkitTouchCallout: "none" }}

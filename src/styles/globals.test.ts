@@ -80,8 +80,20 @@ describe("globals.css keyframes survive the Tailwind build", () => {
     expect(out.css).toContain("--color-focus-ring");
   }, 60_000);
 
+  // Task 1.4: one base rule gives every control a keyboard ring; the tile's utility overrides only
+  // the offset because utilities are a later layer than base.
+  it("emits the base keyboard-focus ring", async () => {
+    const from = join(__dirname, "globals.css");
+    const out = await postcss([tailwind()]).process(
+      readFileSync(from, "utf8"),
+      { from },
+    );
+    expect(out.css).toMatch(/:focus-visible\s*\{[^}]*outline-offset:\s*3px/);
+    expect(out.css).toMatch(/:focus-visible\s*\{[^}]*outline:\s*2px solid/);
+  }, 60_000);
+
   // The 1b tokens (docs/DESIGN_redesign.md 3.1, 3.4). Tailwind emits a theme variable only when a
-  // utility uses it, so this also proves the tokens are reachable, not merely declared.
+  // utility uses it, so this proves the tokens are declared and emitted (not that every use is correct).
   it("emits the 1b surfaces, dialog/popover shadows and the mono face", async () => {
     const from = join(__dirname, "globals.css");
     const out = await postcss([tailwind()]).process(

@@ -74,7 +74,6 @@ export function FaceCard({
       className={cn(
         "border-hairline relative flex w-full flex-col overflow-hidden text-left transition-[border-color,box-shadow] duration-200",
         tall ? "bg-ink/5 aspect-auto min-h-[180px]" : "aspect-[4/5]",
-        "focus-visible:outline-ink-hi focus-visible:outline-[3px] focus-visible:outline-offset-2",
         selected ? "border-accent ring-accent ring-2" : "border-ink/12",
         !tall && !showImage && "bg-ink/5 items-center justify-center",
       )}
