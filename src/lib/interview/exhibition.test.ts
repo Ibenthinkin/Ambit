@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { exhibitionTitle, topByFacet, wingRanking } from "./exhibition";
+import {
+  exhibitionSubtitle,
+  exhibitionTitle,
+  readingSummary,
+  topByFacet,
+  wingRanking,
+} from "./exhibition";
+import { joinAnd } from "./join";
 
 const listed = new Set([
   "astronomy",
@@ -91,5 +98,60 @@ describe("exhibitionTitle", () => {
       adjective: "First",
       noun: "Performances",
     });
+  });
+});
+
+describe("joinAnd", () => {
+  it("lists one, two and many", () => {
+    expect(joinAnd([])).toBe("");
+    expect(joinAnd(["a"])).toBe("a");
+    expect(joinAnd(["a", "b"])).toBe("a and b");
+    expect(joinAnd(["a", "b", "c"])).toBe("a, b and c");
+  });
+});
+
+describe("exhibitionSubtitle", () => {
+  it("reads as a sentence: the wings, then mostly the mediums", () => {
+    expect(
+      exhibitionSubtitle(
+        ["Creatures", "Growing things", "Myth"],
+        ["Photography", "Painting"],
+      ),
+    ).toBe(
+      "Creatures, growing things and myth. Mostly photography and painting.",
+    );
+  });
+  it("leaves out the half that has nothing to say", () => {
+    expect(exhibitionSubtitle(["Space"], [])).toBe("Space.");
+    expect(exhibitionSubtitle([], ["Engraving"])).toBe("Mostly engraving.");
+    expect(exhibitionSubtitle([], [])).toBe("");
+  });
+});
+
+describe("readingSummary", () => {
+  const essay = { kind: "essay" as const };
+  const criticism = { kind: "criticism" as const };
+  it("names the length and the kinds for a long reader", () => {
+    expect(
+      readingSummary({ opened: [essay, criticism], readingMinutes: 18 }),
+    ).toBe("You like a long read, and you went for essays and criticism.");
+  });
+  it("says 'something short' for a short reader, and only the kinds in between", () => {
+    expect(readingSummary({ opened: [essay], readingMinutes: 3 })).toBe(
+      "You like something short, and you went for essays.",
+    );
+    expect(readingSummary({ opened: [essay], readingMinutes: 9 })).toBe(
+      "You went for essays.",
+    );
+  });
+  it("names a kind once when both cards were of it", () => {
+    expect(readingSummary({ opened: [essay, essay], readingMinutes: 9 })).toBe(
+      "You went for essays.",
+    );
+  });
+  it("says the reader would rather look when no card was opened — and promises nothing", () => {
+    expect(readingSummary({ opened: [], readingMinutes: null })).toBe(
+      "You’d rather look than read.",
+    );
   });
 });

@@ -3,6 +3,7 @@
 // wild (+) / built (−), old (+) / new (−), still (+) / lively (−), far (+) / near (−), each
 // −1…1 (config/interview-destinations.ts), and the reveal shows their average as four bars and
 // one sentence. Pure; nothing here is stored except as part of the taste (taste.ts).
+import { joinAnd } from "./join";
 
 export interface Axes {
   wild: number;
@@ -53,9 +54,18 @@ export function compassSentence(
     return [v > 0 ? plus : minus];
   });
   if (parts.length === 0) return "";
-  const list =
-    parts.length === 1
-      ? parts[0]!
-      : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
-  return `You’d travel for ${list}.`;
+  return `You’d travel for ${joinAnd(parts)}.`;
+}
+
+/**
+ * Which pole of one axis the reader leans to — "plus" (wild, old, still, far), "minus", or null
+ * inside the threshold. The reveal sets that pole's label in ink and leaves the other grey, and
+ * it is `compassSentence`'s own cut, so a bar never emphasises a pole the sentence left out.
+ */
+export function activePole(
+  value: number,
+  threshold: number = COMPASS_THRESHOLD,
+): "plus" | "minus" | null {
+  if (Math.abs(value) <= threshold) return null;
+  return value > 0 ? "plus" : "minus";
 }

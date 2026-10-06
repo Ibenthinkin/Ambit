@@ -302,7 +302,7 @@ describe("TopicsScreen", () => {
       ).toBeTruthy();
       // Medium labels come from topics.list.
       expect(
-        screen.getByText("Land, sea & sky · Ceramics"),
+        screen.getByText("Land, sea & sky. Mostly ceramics."),
       ).toBeInTheDocument();
     });
 
