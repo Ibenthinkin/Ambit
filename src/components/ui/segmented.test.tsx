@@ -78,32 +78,90 @@ describe("Segmented (a radiogroup — DESIGN §4.3)", () => {
     expect(onChange).toHaveBeenLastCalledWith("none");
   });
 
-  it("ArrowDown / ArrowUp also move, and the ends wrap", () => {
-    // Stateful, so the second key starts from where the first one landed.
-    function Harness({ onChange }: { onChange: (v: string) => void }) {
-      const [v, setV] = React.useState<"none" | "some" | "lot">("lot");
-      return (
-        <Segmented
-          label="Amount"
-          options={[...options]}
-          value={v}
-          onChange={(k) => {
-            setV(k);
-            onChange(k);
-          }}
-        />
-      );
-    }
-    const onChange = vi.fn();
-    render(<Harness onChange={onChange} />);
-    fireEvent.keyDown(screen.getByRole("radio", { name: "A lot" }), {
+  it("ArrowDown / ArrowUp also move", () => {
+    const onChange = show("some");
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Some" }), {
       key: "ArrowDown",
     });
-    expect(onChange).toHaveBeenLastCalledWith("none"); // wrapped forward
-    fireEvent.keyDown(screen.getByRole("radio", { name: "None" }), {
+    expect(onChange).toHaveBeenLastCalledWith("lot");
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Some" }), {
       key: "ArrowUp",
     });
-    expect(onChange).toHaveBeenLastCalledWith("lot"); // wrapped back
+    expect(onChange).toHaveBeenLastCalledWith("none");
+  });
+
+  it("does not wrap: past either end an arrow does nothing", () => {
+    const onChange = show("lot");
+    const lot = screen.getByRole("radio", { name: "A lot" });
+    lot.focus();
+    fireEvent.keyDown(lot, { key: "ArrowRight" });
+    fireEvent.keyDown(lot, { key: "ArrowDown" });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(lot).toHaveFocus();
+    const none = screen.getByRole("radio", { name: "None" });
+    none.focus();
+    fireEvent.keyDown(none, { key: "ArrowLeft" });
+    fireEvent.keyDown(none, { key: "ArrowUp" });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(none).toHaveFocus();
+  });
+
+  it("Home and End jump to the ends", () => {
+    const onChange = show("some");
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Some" }), {
+      key: "End",
+    });
+    expect(onChange).toHaveBeenLastCalledWith("lot");
+    expect(screen.getByRole("radio", { name: "A lot" })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Some" }), {
+      key: "Home",
+    });
+    expect(onChange).toHaveBeenLastCalledWith("none");
+    expect(screen.getByRole("radio", { name: "None" })).toHaveFocus();
+  });
+
+  describe("a muted (destructive) option", () => {
+    function withOff() {
+      const onChange = vi.fn();
+      render(
+        <Segmented
+          label="Level"
+          options={[
+            { key: "some", label: "some" },
+            { key: "lot", label: "a lot" },
+            { key: "off", label: "off", tone: "muted" },
+          ]}
+          value="lot"
+          onChange={onChange}
+        />,
+      );
+      return onChange;
+    }
+
+    it("an arrow onto it only moves focus", () => {
+      const onChange = withOff();
+      fireEvent.keyDown(screen.getByRole("radio", { name: "a lot" }), {
+        key: "ArrowRight",
+      });
+      expect(screen.getByRole("radio", { name: "off" })).toHaveFocus();
+      expect(onChange).not.toHaveBeenCalled();
+      // End is browsing too.
+      fireEvent.keyDown(screen.getByRole("radio", { name: "some" }), {
+        key: "End",
+      });
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("Space and Enter check it, and a click does", () => {
+      const onChange = withOff();
+      const off = screen.getByRole("radio", { name: "off" });
+      fireEvent.keyDown(off, { key: " " });
+      expect(onChange).toHaveBeenLastCalledWith("off");
+      fireEvent.keyDown(off, { key: "Enter" });
+      expect(onChange).toHaveBeenCalledTimes(2);
+      fireEvent.click(off);
+      expect(onChange).toHaveBeenCalledTimes(3);
+    });
   });
 
   it('a selected option with tone muted ("off") is marked, and wears the quiet fill', () => {
@@ -121,7 +179,8 @@ describe("Segmented (a radiogroup — DESIGN §4.3)", () => {
     const off = screen.getByRole("radio", { name: "off" });
     expect(off).toHaveAttribute("aria-checked", "true");
     expect(off.className).toContain("bg-[#2A2A2A]");
-    expect(off.className).not.toContain("bg-ink ");
+    // Exact tokens, not substrings: "bg-ink" must not be among them.
+    expect(off.className.split(/\s+/)).not.toContain("bg-ink");
   });
 
   it("uses a 2px focus offset, not the global 3px (DESIGN §3.4)", () => {

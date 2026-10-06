@@ -16,8 +16,8 @@ import { cn } from "~/lib/utils";
 //     *inside* it with the arrow keys. A reader never has to Tab through four cells per topic
 //     row on a page of forty topics.
 //   * **Arrow keys move the selection**, not just the focus — in a radio group, focus and
-//     choice travel together — and call `onChange`. Right/Down go forward, Left/Up back, both
-//     wrap, Home/End jump to the ends. `preventDefault` keeps the page from scrolling.
+//     choice travel together — and call `onChange`. Right/Down go forward, Left/Up back, neither
+//     wraps, Home/End jump to the ends. `preventDefault` keeps the page from scrolling.
 //
 // The key handler lives on each radio and only claims the keys above, so a `BottomSheet`'s own
 // document-level handler (Escape closes, Tab traps — see `bottom-sheet.tsx`) is undisturbed:
@@ -53,14 +53,21 @@ export function Segmented<T extends string>({
 }: SegmentedProps<T>) {
   const radios = React.useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Select the option at `index` (wrapping) and carry focus to it. Focus is moved by hand,
-  // straight away, because the roving `tabIndex` only updates on the next render and a
-  // `tabindex="-1"` button is still programmatically focusable.
-  const moveTo = (index: number) => {
-    const next = options[(index + options.length) % options.length];
+  // Move to the option at `index`. Focus is moved by hand, straight away, because the roving
+  // `tabIndex` only updates on the next render and a `tabindex="-1"` button is still
+  // programmatically focusable.
+  //
+  // `select` says whether the move also *chooses*. Arrow keys choose (focus and choice travel
+  // together in a radio group) — except onto a `tone: "muted"` option. That is the destructive
+  // one ("off" removes a topic), and a destructive option is never reached by browsing: an arrow
+  // onto it only moves focus, and Space, Enter or a click checks it.
+  const moveTo = (index: number, select = true) => {
+    // The ends do not wrap: one arrow too many from "a little" must not land on "off".
+    const next = options[index];
     if (!next) return;
-    radios.current[options.indexOf(next)]?.focus();
-    if (next.key !== value) onChange(next.key);
+    radios.current[index]?.focus();
+    if (select && next.tone !== "muted" && next.key !== value)
+      onChange(next.key);
   };
 
   const onKeyDown = (e: React.KeyboardEvent, index: number) => {
@@ -79,6 +86,14 @@ export function Segmented<T extends string>({
       case "End":
         moveTo(options.length - 1);
         break;
+      case " ":
+      case "Enter": {
+        // A button already clicks on Space/Enter; stating it here keeps the contract in one
+        // place (and testable) — checking the focused cell, guarded like a click.
+        const option = options[index]!;
+        if (option.key !== value) onChange(option.key);
+        break;
+      }
       default:
         return; // not ours — Tab, Escape and the rest go on to whoever wants them
     }
@@ -112,7 +127,7 @@ export function Segmented<T extends string>({
               onChange(option.key);
             }}
             className={cn(
-              "cursor-pointer px-[7px] py-[9px] font-mono text-[9.5px] whitespace-nowrap uppercase transition-[background-color,color,box-shadow] duration-200 md:px-[11px] md:text-[10.5px]",
+              "cursor-pointer px-[7px] py-[9px] font-mono text-[9.5px] whitespace-nowrap uppercase transition-[background-color,color,box-shadow] duration-150 md:px-[11px] md:text-[10.5px]",
               "focus-visible:outline-offset-2",
               checked
                 ? option.tone === "muted"

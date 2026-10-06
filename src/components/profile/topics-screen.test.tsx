@@ -233,6 +233,42 @@ describe("TopicsScreen", () => {
     expect(lastWrite()).toEqual([{ topicId: "astronomy", weight: 2 }]);
   });
 
+  it("removing a row by keyboard leaves focus on the next row, or the previous when it was last", async () => {
+    state.mine = [
+      { topicId: "astronomy", weight: 1 },
+      { topicId: "botany", weight: 1 },
+      { topicId: "ceramics", weight: 1 },
+    ];
+    const { rerender } = render(<TopicsScreen dev={false} />);
+    // Botany: arrow onto "off" (focus only), then Space to choose it.
+    const some = within(levelRow("Botany")).getByRole("radio", {
+      name: "some",
+    });
+    some.focus();
+    fireEvent.keyDown(some, { key: "End" });
+    const off = within(levelRow("Botany")).getByRole("radio", { name: "off" });
+    expect(off).toHaveFocus();
+    expect(mutateMock).not.toHaveBeenCalled();
+    fireEvent.keyDown(off, { key: " " });
+    await waitFor(() => expect(state.mine).toHaveLength(2));
+    rerender(<TopicsScreen dev={false} />);
+    // The next row (Ceramics), its checked radio — not <body>.
+    expect(
+      within(levelRow("Ceramics")).getByRole("radio", { name: "some" }),
+    ).toHaveFocus();
+
+    // Now remove the last row: focus goes to the previous one.
+    const cOff = within(levelRow("Ceramics")).getByRole("radio", {
+      name: "off",
+    });
+    fireEvent.click(cOff);
+    await waitFor(() => expect(state.mine).toHaveLength(1));
+    rerender(<TopicsScreen dev={false} />);
+    expect(
+      within(levelRow("Astronomy")).getByRole("radio", { name: "some" }),
+    ).toHaveFocus();
+  });
+
   it("refuses to switch off the last topic, with a toast and no write", () => {
     state.mine = [{ topicId: "astronomy", weight: 1 }];
     render(<TopicsScreen dev={false} />);
