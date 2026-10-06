@@ -35,7 +35,7 @@ function Step({
 }) {
   return (
     <li className="flex items-start gap-[13px]">
-      <span className="bg-ink/6 text-ink/55 mt-[1px] flex size-[22px] flex-none items-center justify-center font-mono text-[11px]">
+      <span className="border-ink/20 text-ink/55 mt-[1px] flex size-[22px] flex-none items-center justify-center border font-mono text-[11px]">
         {n}
       </span>
       <span className="text-ink/70 flex-1 text-[13.5px] leading-[1.6]">
@@ -52,7 +52,7 @@ export function InstallSheet({ open, onClose }: InstallSheetProps) {
   return (
     <BottomSheet open={open} onClose={onClose} title="Add to home screen">
       <div className="flex flex-col gap-5 px-5 pt-1 pb-3">
-        <p className="text-ink/45 text-[13px] leading-[1.5]">
+        <p className="text-ink/55 text-[13.5px] leading-[1.5]">
           Ambit runs full-screen once it&apos;s on your home screen, and opens
           without the browser chrome.
         </p>

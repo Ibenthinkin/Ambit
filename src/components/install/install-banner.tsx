@@ -28,8 +28,8 @@ export function InstallBanner({ onAdd, onDismiss }: InstallBannerProps) {
       <img src="/icon-192.png" alt="" className="size-10 flex-none" />
 
       <div className="min-w-0 flex-1">
-        <div className="text-ink-hi text-[14.5px]">Keep Ambit close</div>
-        <div className="text-ink/55 mt-[2px] text-[12.5px] leading-[1.45]">
+        <div className="text-ink-hi text-[15px]">Keep Ambit close</div>
+        <div className="text-ink/55 mt-[2px] text-[13px] leading-[1.45]">
           Add it to your home screen — opens full-screen, works offline.
         </div>
       </div>

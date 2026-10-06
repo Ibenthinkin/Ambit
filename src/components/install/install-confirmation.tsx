@@ -28,7 +28,7 @@ export function InstallConfirmation({ onDone }: InstallConfirmationProps) {
       <div className="bg-ink text-on-accent animate-pop-in flex size-[72px] items-center justify-center">
         <Check size={34} />
       </div>
-      <h2 className="text-ink-hi mt-6 text-[22px] tracking-[-0.2px]">
+      <h2 className="text-ink-hi mt-6 text-[24px] leading-[1.15]">
         Ambit is on your home screen
       </h2>
       <p className="text-ink/60 mt-2 max-w-[300px] text-[14.5px] leading-[1.55]">

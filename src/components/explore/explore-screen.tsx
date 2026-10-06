@@ -13,6 +13,7 @@ import { Overture } from "~/components/landing/overture";
 import { useOverture } from "~/components/landing/use-overture";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Button } from "~/components/ui/button";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { Loader } from "~/components/ui/loader";
 import { Toolbar } from "~/components/ui/toolbar";
 import {
@@ -227,9 +228,9 @@ export function ExploreScreen({
       {/* A failure must never read as an ordinary outcome — same rule as the feed. */}
       {feed.isError ? (
         <div className="flex flex-col items-center gap-4 px-8 py-24">
-          <span className="text-ink/40 text-center text-[14px]">
+          <Eyebrow className="text-center leading-[1.6]">
             Couldn&apos;t load the feed.
-          </span>
+          </Eyebrow>
           <Button variant="outline" onClick={() => void feed.refetch()}>
             Try again
           </Button>

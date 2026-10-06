@@ -8,6 +8,7 @@ import { InstallFlow } from "~/components/install/install-flow";
 import { ItemSheet } from "~/components/sheets/item-sheet";
 import { Button } from "~/components/ui/button";
 import { Toolbar } from "~/components/ui/toolbar";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { Loader } from "~/components/ui/loader";
 import { Toast } from "~/components/ui/toast";
 import { HOVER_QUERY, useMediaQuery } from "~/hooks/use-media-query";
@@ -316,17 +317,15 @@ export function FeedScreen({
 
       {showEnd ? (
         <div className="flex items-center justify-center pt-5 pb-[26px]">
-          <span className="text-ink/40 text-[14px]">
-            You&apos;ve reached the edge, for now.
-          </span>
+          <Eyebrow>You&apos;ve reached the edge, for now.</Eyebrow>
         </div>
       ) : null}
 
       {showEmpty ? (
         <div className="flex flex-col items-center justify-center px-8 py-24">
-          <span className="text-ink/40 text-center text-[14px]">
+          <Eyebrow className="text-center leading-[1.6]">
             Nothing here yet. Check back soon.
-          </span>
+          </Eyebrow>
         </div>
       ) : null}
 
@@ -336,9 +335,9 @@ export function FeedScreen({
           be indistinguishable from an ordinary outcome. */}
       {feed.isError ? (
         <div className="flex flex-col items-center gap-4 px-8 py-24">
-          <span className="text-ink/40 text-center text-[14px]">
+          <Eyebrow className="text-center leading-[1.6]">
             Couldn&apos;t load the feed.
-          </span>
+          </Eyebrow>
           <Button variant="outline" onClick={() => void feed.refetch()}>
             Try again
           </Button>
