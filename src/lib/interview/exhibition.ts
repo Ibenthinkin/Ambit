@@ -118,8 +118,8 @@ export const KIND_WENT_FOR: Readonly<Record<WritingKind, string>> = {
  * What the reading cards said, in one sentence: how long a read (only when the mean is clearly
  * long or short) and which kinds, in the order they were opened — "You like a long read, and you
  * went for essays and criticism." A reader who opened neither card gets "You’d rather look than
- * read." and no promise about how much writing follows: that is the reveal's Reading row
- * (bank v2's amount question), which they may have set to anything.
+ * read." and no promise about how much writing follows: that is the reveal's Reading row,
+ * which replaced bank v2's amount question, and they may have set it to anything.
  */
 export function readingSummary(taste: {
   opened: readonly { kind: WritingKind }[];

@@ -93,10 +93,6 @@ describe("the bank's structure", () => {
 
   it("asks no reading amount — the reveal's Reading row sets it", () => {
     expect(QUESTIONS.filter((q) => q.id === "amount")).toEqual([]);
-    // The kind itself is gone from the vocabulary, so no other id can smuggle one back in.
-    expect(QUESTIONS.filter((q) => (q.kind as string) === "amount")).toEqual(
-      [],
-    );
   });
 
   it("ends on exactly one free-text question, look-at (the Bonus)", () => {

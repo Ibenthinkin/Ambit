@@ -301,11 +301,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
     // always meant: the column is left as it was, and NULL is the feed's default share.
     it("accepts a run with no writingAmount at all and leaves the column untouched", async () => {
       const caller = createCaller(authedContext(staleUserId));
+      // Its own earlier run sets "little", so the test stands alone.
+      await caller.onboarding.complete(input({ writingAmount: "little" }));
       const { runId } = await caller.onboarding.complete(
         sayingNothingOfReading(),
       );
       expect(runId).toBeTruthy();
-      // Still the v2 run's "little": absent is "not said", never "cleared".
+      // Still "little": absent is "not said", never "cleared".
       expect((await rowsFor(staleUserId)).me!.writingAmount).toBe("little");
     });
 
