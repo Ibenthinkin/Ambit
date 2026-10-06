@@ -107,6 +107,20 @@ export const ADVANCE_MS = 380;
 
 type Phase = "intro" | "questions" | "reveal";
 
+/** Is a control focused that Enter already means something to (a button, a link)? Then Enter is
+ *  its own job — Cancel on a retake's intro, Back or Skip after walking with the arrows. The
+ *  question heading (focused by script on arrival) and the body are not controls. */
+function ownsEnter(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target === document.body || target.matches("h1, [id^='q-']"))
+    return false;
+  return (
+    target.closest(
+      "button, a[href], [role='button'], [role='link'], [role='radio'], [role='checkbox'], [role='menuitem'], [role='option'], summary",
+    ) !== null
+  );
+}
+
 /** A key typed into a field is the field's — the keyboard never reads it as a pick. */
 function isTextField(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -263,7 +277,11 @@ export function OnboardingScreen({
   // timer and starts its own, and anything that sets `pending` to null — Back, a skip, leaving
   // the question, unmounting — cancels it. `commit` reads the latest `advance` (and through it
   // the latest answers) when the beat ends, not the render the pick happened in.
-  const commit = useEffectEvent((answer: Answer) => advance(answer));
+  const commit = useEffectEvent((answer: Answer) => {
+    // A pick belongs to the question it was made on: a stale one never advances another.
+    if (answer.questionId !== current?.id) return;
+    advance(answer);
+  });
   useEffect(() => {
     if (!pending) return;
     const t = setTimeout(() => commit(pending), ADVANCE_MS);
@@ -298,7 +316,9 @@ export function OnboardingScreen({
 
   /** One keep-or-pass decision on the keep stack — the keys' ← →, and the stack's buttons. */
   function decideCard(keep: boolean) {
-    if (!onScreen) return;
+    // Past the last card the answer is already waiting out its beat: an extra ← / → in those
+    // 380 ms must not restart it.
+    if (!onScreen || stackAt >= onScreen.options.length) return;
     const r = keepOrPass(onScreen, draft, stackAt, keep);
     setStackAt(r.at);
     if (r.done) pick(r.answer);
@@ -346,6 +366,7 @@ export function OnboardingScreen({
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (isTextField(e.target)) return;
+    if (e.key === "Enter" && ownsEnter(e.target)) return;
     if (finishing || submitting) return;
     const action = keyAction(
       kind,

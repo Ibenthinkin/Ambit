@@ -702,6 +702,55 @@ describe("OnboardingScreen", () => {
       expect(key("x")).toBe(true);
     });
 
+    // Enter is a focused control's own: the shell does not pick or begin over it.
+    it("leaves Enter to a focused button or link", () => {
+      show({ retake: true, bank: [fixture("rooms"), fixture("unsettle")] });
+      const cancel = screen.getByRole("link", { name: "Cancel" });
+      cancel.focus();
+      expect(fireEvent.keyDown(cancel, { key: "Enter" })).toBe(true);
+      expect(questionId()).toBeUndefined();
+      // The body is not a control: Enter begins.
+      cancel.blur();
+      key("Enter");
+      expect(questionId()).toBe("rooms");
+      // Walk the cursor, then focus Back: Enter is Back's, not a pick under the cursor.
+      key("ArrowRight");
+      const back = screen.getByRole("button", { name: "Back" });
+      back.focus();
+      expect(fireEvent.keyDown(back, { key: "Enter" })).toBe(true);
+      expect(pressed("Space")).toBe("false");
+      // From the heading (focused on arrival) Enter still picks under the cursor.
+      const h = screen.getByRole("heading", { level: 1 });
+      h.focus();
+      expect(fireEvent.keyDown(h, { key: "Enter" })).toBe(false);
+      expect(pressed("Space")).toBe("true");
+    });
+
+    it("an extra ← / → after the last card does not restart the beat", () => {
+      const keep: Question = {
+        id: "keep",
+        kind: "multi",
+        prompt: "Keep or pass.",
+        options: ["space", "garden"].map((k) => ({
+          key: k,
+          label: k,
+          face: { topic: "botany" },
+          effects: [{ topics: ["botany"], score: 1 }],
+        })),
+      };
+      show({ bank: [keep, fixture("unsettle")] });
+      click("Begin");
+      key("ArrowRight");
+      key("ArrowRight");
+      wait(300);
+      key("ArrowLeft"); // inside the window: ignored, the beat is not restarted
+      wait(ADVANCE_MS - 300);
+      expect(questionId()).toBe("unsettle");
+      click("Back");
+      expect(pressed("space")).toBe("true");
+      expect(pressed("garden")).toBe("true");
+    });
+
     it("listens no more once the screen is gone", () => {
       const { unmount } = show({ bank: [fixture("space-or-garden")] });
       click("Begin");
