@@ -1,32 +1,40 @@
-// The hang (docs/PLAN_onboarding-critique.md §4): three of the reader's *own* pictures over the
-// reveal's title — pictures they chose a few screens ago, so the name under them reads as theirs
-// rather than as a verdict. Which three, in order:
+// The hang (docs/DESIGN_redesign.md §5.1, §5.3 item 4): up to six of the reader's *own* pictures
+// under the reveal's title — pictures they chose a few screens ago, so the name over them reads
+// as theirs rather than as a verdict. Which six, in order:
 //
-//   1. the pictures they **picked** on a one-of question (a wing, a pair), newest first — the
-//      last thing chosen is the one they remember choosing;
-//   2. then the pictures they **kept** (the tap-any grid), in the order kept;
-//   3. then, for a reader who skipped their way here, a **hero**: the door picture of each of
+//   1. the pictures they **kept** (the keep-or-pass screen), in the order kept — the design's
+//      "six of the reader's kept pictures", so they come first;
+//   2. then the pictures they **picked** on a one-of question (a room, a pair), newest first —
+//      the last thing chosen is the one they remember choosing;
+//   3. then, for a reader who skipped their way here, a **door**: the door picture of each of
 //      their top wings — the caller says which wings (`heroesFor` over `wingRanking`).
+//
+// (Built 10-06-26 as three, picks first; the redesign made it six, keeps first.)
 //
 // A picture is a face with a `src` that is not an article card: a reading card has a picture
 // too, but it was opened as writing. "Either" and "Neither" choose no one picture, and a skip
 // chooses nothing. No picture hangs twice (the same item can be a door and a playoff face on a
-// thin corpus). Fewer than three is possible — CI's fixture corpus has few faces — and what to
-// do then is the layout's call, not this file's.
+// thin corpus). **Fewer than two is no hang at all** (§5.3: one picture alone is not a hang) —
+// decided here rather than in the layout, so the stored taste holds exactly what the reveal
+// showed and `/profile/topics` draws the same thing back.
 //
 // Pure, like everything in lib/interview. It returns faces rather than ids because the reveal
-// draws `src` and the stored taste (when the hang is stored, with its layout) keeps `itemId`.
+// draws `src` and the caption's `title`; the stored taste (v2, taste.ts) keeps only `itemId`.
 import { SENTINELS } from "./config";
 import { faceKey, type QuestionFaces } from "./faces";
 import type { Answer, Question } from "./types";
 
-export const HANG_SIZE = 3;
+export const HANG_SIZE = 6;
+/** Below this many pictures there is no hang. */
+export const HANG_MIN = 2;
 
 export interface HangPicture {
   /** `faceKey(questionId, optionKey)` — which card this was. */
   key: string;
   itemId: string;
   src: string;
+  /** The item's own title — the caption, `01 · title`. */
+  title: string;
   /** The option's label, for the `alt`. */
   label: string;
 }
@@ -41,7 +49,13 @@ function pictureFor(
   const key = faceKey(question.id, optionKey);
   const face = faces[key];
   if (!face?.src || face.writing) return undefined;
-  return { key, itemId: face.itemId, src: face.src, label: option.label };
+  return {
+    key,
+    itemId: face.itemId,
+    src: face.src,
+    title: face.title,
+    label: option.label,
+  };
 }
 
 /** One card of the bank, by question and option. */
@@ -97,11 +111,11 @@ export function hangFrom(input: {
 
   const hang: HangPicture[] = [];
   const seen = new Set<string>();
-  for (const picture of [...picked, ...kept, ...heroPictures]) {
+  for (const picture of [...kept, ...picked, ...heroPictures]) {
     if (hang.length >= HANG_SIZE) break;
     if (seen.has(picture.itemId)) continue;
     seen.add(picture.itemId);
     hang.push(picture);
   }
-  return hang;
+  return hang.length < HANG_MIN ? [] : hang;
 }

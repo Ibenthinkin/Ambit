@@ -8,6 +8,9 @@ export interface QuestionFace {
   /** What the `<img src>` is: the proxied 960 px rendition, or a `data:` URL verbatim. Absent
    *  for an article with no picture — the card is then an article text card. */
   src?: string;
+  /** The item's own title — the caption under a picture card (`1  title`, DESIGN_redesign §5.1)
+   *  and under the reveal's hang. An article card's title is also `writing.title`. */
+  title: string;
   /** An article card's copy and what choosing it scores (services/question-faces.ts). */
   writing?: {
     title: string;

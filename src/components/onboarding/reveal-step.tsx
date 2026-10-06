@@ -15,7 +15,7 @@ import {
   withLevel,
   withOff,
 } from "~/lib/interview/reveal-draft";
-import type { TasteV1 } from "~/lib/interview/taste";
+import type { TasteFields } from "~/lib/interview/taste";
 import { cn } from "~/lib/utils";
 import { weightOf } from "~/server/config/topic-levels";
 
@@ -44,7 +44,7 @@ export interface RevealStepProps {
   proposed: readonly Pick[];
   /** The exhibition the answers make (First Exhibition, taste.ts). Absent on a bank without
    *  v2's questions — the reveal is then the levels list alone. */
-  taste?: TasteV1;
+  taste?: TasteFields;
   /** A signed-up reader retaking the questions: this will *replace* what they have. */
   retake: boolean;
   submitting: boolean;

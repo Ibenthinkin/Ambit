@@ -48,6 +48,7 @@ const row = (
   topicId,
   id,
   imageUrl,
+  title: `Title of ${id}`,
 });
 
 beforeEach(() => {
@@ -66,15 +67,17 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("getQuestionFaces", () => {
-  it("gives each picture answer the top image of its face topic, as a proxied 960 rendition", async () => {
+  it("gives each picture answer the top image of its face topic, as a proxied 960 rendition, with its title", async () => {
     const faces = await getQuestionFaces(BANK);
     expect(faces[faceKey("one", "a")]).toEqual({
       itemId: "a1",
       src: "/api/img/a1?w=960",
+      title: "Title of a1",
     });
     expect(faces[faceKey("one", "b")]).toEqual({
       itemId: "b1",
       src: "/api/img/b1?w=960",
+      title: "Title of b1",
     });
     expect(topFacesForTopics).toHaveBeenCalledWith(["astronomy", "botany"], 2);
   });
@@ -119,6 +122,7 @@ describe("getQuestionFaces", () => {
         sourceId: "123",
         id: "picked",
         imageUrl: "https://m.test/p.jpg",
+        title: "A hand pick",
       },
     ]);
     const faces = await getQuestionFaces(bank);
@@ -127,6 +131,7 @@ describe("getQuestionFaces", () => {
       { source: "aic", sourceId: "gone" },
     ]);
     expect(faces[faceKey("one", "a")]!.itemId).toBe("picked");
+    expect(faces[faceKey("one", "a")]!.title).toBe("A hand pick");
     expect(faces[faceKey("one", "b")]!.itemId).toBe("b1");
   });
 
@@ -230,6 +235,7 @@ describe("writing faces", () => {
     expect(faces[faceKey("read-1", "essay")]).toEqual({
       itemId: "e1",
       src: "/api/img/e1?w=960",
+      title: "T e1",
       writing: {
         title: "T e1",
         dek: "First line of e1.",

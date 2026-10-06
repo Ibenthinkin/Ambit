@@ -602,6 +602,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect([ids.nine, ids["nine-b"]]).toContain(rows[1]!.id);
       expect(rows.every((r) => r.topicId === topicA)).toBe(true);
       expect(rows[0]!.imageUrl).toContain(prefix);
+      expect(rows[0]!.title).toBe("Face fixture ten");
     });
 
     it("leaves out articles, pictureless rows and anything under the floor", async () => {
@@ -634,6 +635,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           sourceId: `${prefix}eight`,
           id: ids.eight,
           imageUrl: `https://x.test/${prefix}eight.jpg`,
+          title: "Face fixture eight",
         },
       ]);
       expect(await facePicks([])).toEqual([]);

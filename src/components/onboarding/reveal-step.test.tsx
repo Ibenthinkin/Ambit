@@ -127,6 +127,7 @@ describe("RevealStep", () => {
       listed: new Set(),
       destinations: [],
       opened: [],
+      hang: [],
     });
     show({
       taste: { ...empty, title: { adjective: "Quiet", noun: "Weathers" } },

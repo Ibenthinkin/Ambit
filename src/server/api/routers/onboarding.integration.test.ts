@@ -2,7 +2,7 @@
 // one mutation that ends the questionnaire. What only a database can prove — that picks, the
 // answer log and the user columns land together or not at all, that a retake *overwrites*, and
 // that deleting a reader takes their answers with them. Self-skips without DATABASE_URL.
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -45,7 +45,11 @@ describe.skipIf(!process.env.DATABASE_URL)(
     const manyTopicsUserId = `test-onboarding-many-${nanoid(6)}`;
     const staleUserId = `test-onboarding-stale-${nanoid(6)}`;
     const noAmountUserId = `test-onboarding-noamount-${nanoid(6)}`;
+    const hangUserId = `test-onboarding-hang-${nanoid(6)}`;
+    const badHangUserId = `test-onboarding-badhang-${nanoid(6)}`;
     const USERS = [
+      hangUserId,
+      badHangUserId,
       userId,
       goneUserId,
       badTasteUserId,
@@ -59,6 +63,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
       (n) => `test-onboarding-topic-${n}-${tag}`,
     ) as [string, string, string, string];
     const TOPICS = [a, b, c, d];
+    /** Three pictures for the hang, and one article (not a picture: refused in a hang). */
+    const itemPrefix = `test-onboarding-item-${tag}-`;
+    let pictures: string[] = [];
+    let article = "";
 
     const answers = [
       {
@@ -111,7 +119,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     beforeAll(async () => {
       const { db } = await import("~/server/db/client");
-      const { topic, user } = await import("~/server/db/schema");
+      const { item, topic, user } = await import("~/server/db/schema");
       await db.insert(topic).values(
         TOPICS.map((id) => ({
           id,
@@ -126,6 +134,27 @@ describe.skipIf(!process.env.DATABASE_URL)(
           facet: "subject" as const,
         })),
       );
+      // Homed under a test-only topic: unreachable from any feed (CLAUDE.md, the un-homed race).
+      const rows = await db
+        .insert(item)
+        .values(
+          ["p1", "p2", "p3", "article"].map((n) => ({
+            source: "met" as const,
+            sourceId: `${itemPrefix}${n}`,
+            type: n === "article" ? ("article" as const) : ("image" as const),
+            title: `Hang fixture ${n}`,
+            sourceUrl: `https://x.test/${itemPrefix}${n}`,
+            imageUrl:
+              n === "article" ? null : `https://x.test/${itemPrefix}${n}.jpg`,
+            topicId: a,
+            curationScore: 9,
+          })),
+        )
+        .returning({ id: item.id, sourceId: item.sourceId });
+      const idOf = (n: string) =>
+        rows.find((r) => r.sourceId === `${itemPrefix}${n}`)!.id;
+      pictures = ["p1", "p2", "p3"].map(idOf);
+      article = idOf("article");
       await db.insert(user).values(
         USERS.map((id) => ({
           id,
@@ -138,10 +167,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     afterAll(async () => {
       const { db } = await import("~/server/db/client");
-      const { topic, user, userTopic } = await import("~/server/db/schema");
+      const { item, topic, user, userTopic } =
+        await import("~/server/db/schema");
       // user_taste and interview_answer rows go with the user (ON DELETE CASCADE).
       await db.delete(userTopic).where(inArray(userTopic.userId, USERS));
       await db.delete(user).where(inArray(user.id, USERS));
+      await db.delete(item).where(like(item.sourceId, `${itemPrefix}%`));
       await db.delete(topic).where(inArray(topic.id, TOPICS));
     });
 
@@ -365,6 +396,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const { runId } = await caller.onboarding.complete(input({ taste }));
       const stored = await caller.topics.taste();
       expect(stored?.title).toEqual({ adjective: "Quiet", noun: "Weathers" });
+      // Review focus 1: a v1 taste (a tab from before taste v2) reads back with no hang.
+      expect(stored?.v).toBe(1);
+      expect(stored?.hang).toEqual([]);
       const again = await caller.onboarding.complete(
         input({
           taste: { ...taste, title: { adjective: "Gilded", noun: "Myths" } },
@@ -396,6 +430,58 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(await caller.topics.taste()).toBeNull();
       // Nothing else landed either: the check runs before the transaction.
       const { picks, log } = await rowsFor(badTasteUserId);
+      expect(picks).toEqual({});
+      expect(log).toEqual([]);
+    });
+
+    // Taste v2 (docs/DESIGN_redesign.md §5.1): the hang is item ids, checked like `opened`.
+    it("stores a v2 taste's hang and reads it back as pictures, in hanging order", async () => {
+      const caller = createCaller(authedContext(hangUserId));
+      const [p1, p2, p3] = pictures as [string, string, string];
+      await caller.onboarding.complete(
+        input({
+          bankVersion: 3,
+          taste: { ...taste, v: 2, hang: [p3, p1, p2] },
+        }),
+      );
+      const stored = await caller.topics.taste();
+      expect(stored?.v).toBe(2);
+      expect(stored?.hang).toEqual([
+        { itemId: p3, src: `/api/img/${p3}?w=960`, title: "Hang fixture p3" },
+        { itemId: p1, src: `/api/img/${p1}?w=960`, title: "Hang fixture p1" },
+        { itemId: p2, src: `/api/img/${p2}?w=960`, title: "Hang fixture p2" },
+      ]);
+    });
+
+    it("reads a v1 row written straight to user_taste — no hang, no throw", async () => {
+      const { db } = await import("~/server/db/client");
+      const { userTaste } = await import("~/server/db/schema");
+      const caller = createCaller(authedContext(hangUserId));
+      // As a bank-v2 run left it in production: `v: 1`, no `hang` key at all.
+      await db
+        .insert(userTaste)
+        .values({ userId: hangUserId, runId: "v1-run", bankVersion: 2, taste })
+        .onConflictDoUpdate({ target: userTaste.userId, set: { taste } });
+      const stored = await caller.topics.taste();
+      expect(stored?.v).toBe(1);
+      expect(stored?.title).toEqual(taste.title);
+      expect(stored?.hang).toEqual([]);
+    });
+
+    it("refuses a hang naming an item that does not exist, or one that is not a picture, writing nothing", async () => {
+      const caller = createCaller(authedContext(badHangUserId));
+      for (const bad of ["no-such-item", article]) {
+        await expect(
+          caller.onboarding.complete(
+            input({
+              bankVersion: 3,
+              taste: { ...taste, v: 2, hang: [pictures[0]!, bad] },
+            }),
+          ),
+        ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      }
+      expect(await caller.topics.taste()).toBeNull();
+      const { picks, log } = await rowsFor(badHangUserId);
       expect(picks).toEqual({});
       expect(log).toEqual([]);
     });

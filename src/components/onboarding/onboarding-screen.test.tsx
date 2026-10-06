@@ -386,6 +386,7 @@ describe("OnboardingScreen", () => {
       const faces = {
         "read-1/essay": {
           itemId: "e1",
+          title: "Long",
           writing: {
             title: "Long",
             dek: "",
@@ -396,6 +397,7 @@ describe("OnboardingScreen", () => {
         },
         "read-1/curiosity": {
           itemId: "c1",
+          title: "Short",
           writing: {
             title: "Short",
             dek: "",
@@ -424,6 +426,39 @@ describe("OnboardingScreen", () => {
       ]);
       // The amount the cards suggest is the reveal's Reading row's to send (Task 6.6).
       expect(sent().writingAmount).toBeNull();
+    });
+
+    // Taste v2 (DESIGN_redesign §5.1): the hang's ids go with the run, as hang.ts orders them.
+    it("sends a v2 taste carrying the hang — the reader's own pictures, newest pick first", async () => {
+      const pair = fixture("space-or-garden");
+      const bank: Question[] = [pair, { ...pair, id: "pair-2" }];
+      const pic = (id: string) => ({
+        itemId: id,
+        src: `/img/${id}`,
+        title: id,
+      });
+      show({
+        bank,
+        faces: {
+          "space-or-garden/space": pic("s1"),
+          "space-or-garden/garden": pic("g1"),
+          "pair-2/space": pic("s2"),
+          "pair-2/garden": pic("g2"),
+        },
+      });
+      begin();
+      click("Space");
+      click("A garden");
+      await finishToReveal();
+      click(/Start exploring/);
+      await waitFor(() => expect(completeMock).toHaveBeenCalled());
+      const taste = (
+        completeMock.mock.calls[0]![0] as {
+          taste: { v: number; hang: string[] };
+        }
+      ).taste;
+      expect(taste.v).toBe(2);
+      expect(taste.hang).toEqual(["g2", "s1"]);
     });
 
     // Ben's critique (10-05-26): drop "I'd rather look at pictures" for a plain Skip. Declining

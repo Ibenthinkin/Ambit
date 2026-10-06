@@ -492,7 +492,7 @@ export const FACE_SCORE_FLOOR = 9;
 export async function topFacesForTopics(
   topicIds: readonly string[],
   perTopic: number,
-): Promise<{ topicId: string; id: string; imageUrl: string }[]> {
+): Promise<{ topicId: string; id: string; imageUrl: string; title: string }[]> {
   if (topicIds.length === 0) return [];
   const { db } = await import("./client");
 
@@ -511,6 +511,7 @@ export async function topFacesForTopics(
       topicId: itemTopic.topicId,
       id: item.id,
       imageUrl: item.imageUrl,
+      title: item.title,
       n: sql<number>`row_number() over (partition by ${itemTopic.topicId} order by ${item.curationScore} desc, ${item.id})`.as(
         "n",
       ),
@@ -525,6 +526,7 @@ export async function topFacesForTopics(
       topicId: ranked.topicId,
       id: ranked.id,
       imageUrl: ranked.imageUrl,
+      title: ranked.title,
     })
     .from(ranked)
     .where(lte(ranked.n, perTopic))
@@ -542,7 +544,13 @@ export async function topFacesForTopics(
 export async function facePicks(
   picks: readonly { source: string; sourceId: string }[],
 ): Promise<
-  { source: string; sourceId: string; id: string; imageUrl: string }[]
+  {
+    source: string;
+    sourceId: string;
+    id: string;
+    imageUrl: string;
+    title: string;
+  }[]
 > {
   if (picks.length === 0) return [];
   const { db } = await import("./client");
@@ -552,6 +560,7 @@ export async function facePicks(
       sourceId: item.sourceId,
       id: item.id,
       imageUrl: item.imageUrl,
+      title: item.title,
     })
     .from(item)
     .where(

@@ -123,7 +123,8 @@ export const onboardingRouter = createTRPCRouter({
         // send it: the object is not `.strict()`, so Zod strips the key rather than refusing the
         // run (pinned in onboarding.integration.test.ts).
         // What the reveal showed (bank v2). Bounded by its own schema: wing ids, 0…1 dimensions,
-        // at most two opened cards. Optional so a v1 client still completes.
+        // at most two opened cards, at most six hung pictures. Either version: a tab opened
+        // before taste v2 still sends a v1 (no hang). Optional so a bank-v1 client still completes.
         taste: tasteSchema.optional(),
       }),
     )
@@ -142,9 +143,16 @@ export const onboardingRouter = createTRPCRouter({
       if (input.taste) {
         // The opened cards name items; a stale tab after a corpus prune must not store a
         // dangling id. Checked before the transaction, so a refusal writes nothing at all.
-        const ids = input.taste.opened.map((o) => o.itemId);
-        const found = await getItemsByIds(ids);
-        const gone = ids.filter((id) => !found.has(id));
+        // Taste v2's hang the same way, and stricter: a hung item must be a picture, since the
+        // profile draws it again. Items are the shared corpus, not the reader's — there is no
+        // user to scope them to; the row this writes is `ctx.user.id`'s alone (db/onboarding.ts).
+        const opened = input.taste.opened.map((o) => o.itemId);
+        const hang = input.taste.v === 2 ? input.taste.hang : [];
+        const found = await getItemsByIds([...new Set([...opened, ...hang])]);
+        const gone = [
+          ...opened.filter((id) => !found.has(id)),
+          ...hang.filter((id) => !found.get(id)?.imageUrl),
+        ];
         if (gone.length > 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",

@@ -15,3 +15,13 @@
 export function imageSrc(itemId: string, imageUrl: string): string {
   return imageUrl.startsWith("data:") ? imageUrl : `/api/img/${itemId}`;
 }
+
+/**
+ * A card-sized picture: the closed-set 960 px rendition (services/image-cache.ts) for an http(s)
+ * image, a `data:` URL verbatim. The questionnaire's answer cards and the reveal's hang (stored
+ * in the taste, drawn again by `topics.taste`) are at most half a desktop screen wide.
+ */
+export function cardSrc(itemId: string, imageUrl: string): string {
+  const src = imageSrc(itemId, imageUrl);
+  return src.startsWith("data:") ? src : `${src}?w=960`;
+}

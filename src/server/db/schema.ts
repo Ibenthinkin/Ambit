@@ -28,7 +28,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
 
-import type { TasteV1 } from "~/lib/interview/taste";
+import type { Taste } from "~/lib/interview/taste";
 import type { WritingKind } from "~/server/config/writing";
 
 // ---------------------------------------------------------------------------------------------
@@ -572,7 +572,7 @@ export const userTaste = pgTable("user_taste", {
   // The interview_answer run this was computed from.
   runId: text("run_id").notNull(),
   bankVersion: integer("bank_version").notNull(),
-  taste: jsonb("taste").$type<TasteV1>().notNull(),
+  taste: jsonb("taste").$type<Taste>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

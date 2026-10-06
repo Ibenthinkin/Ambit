@@ -11,7 +11,9 @@ import { Rise } from "~/components/ui/rise";
 import { askable } from "~/lib/interview/askable";
 import { BANK_VERSION, QUESTIONS, STARTER_TOPICS } from "~/lib/interview/bank";
 import { SKIP } from "~/lib/interview/config";
+import { wingRanking } from "~/lib/interview/exhibition";
 import { faceKey, type QuestionFaces } from "~/lib/interview/faces";
+import { hangFrom, heroesFor } from "~/lib/interview/hang";
 import { columnFor, type Phase } from "~/lib/interview/layout";
 import { picksFrom, type Pick } from "~/lib/interview/picks";
 import { scoreAnswers } from "~/lib/interview/score";
@@ -220,6 +222,22 @@ export function OnboardingScreen({
     () => picksFrom(scoresSoFar, listed, starters),
     [scoresSoFar, listed, starters],
   );
+  // The reader's own pictures, hung under the reveal's title (hang.ts): keeps, then picks, then
+  // the doors of their best wings for a reader who skipped their way here. Task 6.6 draws it;
+  // its ids go into the taste now, so what is stored is what the reveal will show.
+  const hang = useMemo(
+    () =>
+      hangFrom({
+        bank,
+        answers,
+        faces,
+        heroes: heroesFor(
+          bank,
+          wingRanking(scoresSoFar, listed).map((w) => w.id),
+        ),
+      }),
+    [bank, answers, faces, scoresSoFar, listed],
+  );
   // What the reveal shows above the levels, and what is stored with the run (user_taste).
   const taste = useMemo(
     () =>
@@ -228,8 +246,9 @@ export function OnboardingScreen({
         listed,
         destinations: chosenDestinations(answers),
         opened,
+        hang: hang.map((p) => p.itemId),
       }),
-    [scoresSoFar, listed, answers, opened],
+    [scoresSoFar, listed, answers, opened, hang],
   );
 
   async function submit(picks: Pick[]) {

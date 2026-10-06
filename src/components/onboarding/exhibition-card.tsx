@@ -7,7 +7,7 @@ import { WRITING_KIND_LABELS } from "~/server/config/writing";
 import { activePole, compassSentence } from "~/lib/interview/compass";
 import { exhibitionSubtitle, readingSummary } from "~/lib/interview/exhibition";
 import { FRAME } from "~/lib/interview/frame";
-import type { TasteV1 } from "~/lib/interview/taste";
+import type { TasteFields } from "~/lib/interview/taste";
 import { cn } from "~/lib/utils";
 
 // The reveal's head (docs/DESIGN_first-exhibition.md §6) — the reader's first exhibition, named:
@@ -88,7 +88,7 @@ export function ExhibitionCard({
   taste,
   topicLabels,
 }: {
-  taste: TasteV1;
+  taste: TasteFields;
   topicLabels: ReadonlyMap<string, string>;
 }) {
   const wingLabel = (id: string) => WINGS.find((w) => w.id === id)?.label ?? id;
