@@ -111,3 +111,22 @@ describe("globals.css keyframes survive the Tailwind build", () => {
     }
   }, 60_000);
 });
+
+// One accent (redesign Task 1.3). The knob was deleted from `@theme inline` and the plain-`@theme`
+// replacement was initially forgotten, so `bg-accent` & co. resolved to nothing and no test noticed.
+// Tailwind emits a theme variable only when something uses it, so the probe rule below references
+// all three — then the compiled output must carry the real values.
+describe("globals.css accent tokens", () => {
+  it("defines accent, on-accent and a focus ring that is the accent", async () => {
+    const from = join(__dirname, "globals.css");
+    const probe =
+      ".probe{color:var(--color-accent);background:var(--color-on-accent);outline-color:var(--color-focus-ring)}";
+    const out = await postcss([tailwind()]).process(
+      readFileSync(from, "utf8") + probe,
+      { from },
+    );
+    expect(out.css).toMatch(/--color-accent:\s*#2bb24c/i);
+    expect(out.css).toMatch(/--color-on-accent:\s*#0e0e0e/i);
+    expect(out.css).toMatch(/--color-focus-ring:\s*var\(--color-accent\)/);
+  }, 60_000);
+});

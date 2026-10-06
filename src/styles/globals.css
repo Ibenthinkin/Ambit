@@ -21,7 +21,7 @@
 }
 
 @theme {
-    /* The 1b palette (docs/DESIGN_redesign.md 3.1): black and white, no warmth left in it. */
+  /* The 1b palette (docs/DESIGN_redesign.md 3.1): black and white, no warmth left in it. */
   --color-bg: #0e0e0e; /* screen background — every screen except the gallery */
   --color-bg-app: #060606; /* outer app chrome, outside any screen's content */
   --color-surface: #141414; /* bottom sheets, popovers */
@@ -43,10 +43,12 @@
      those normalized stops, not a value eyeballed off one screen. */
   --color-ink: #f2f2f2;
   --color-ink-hi: #f2f2f2; /* same value as ink in 1b; the name stays so its uses need no edit (titles only) */
-  --color-focus-ring: #a8aeff; /* the keyboard ring on a feed tile: 2 px, inset, a fixed lavender
-                                   that is NOT the accent knob (docs/PLAN_tile-hover.md Decision 3).
-                                   Replaced the 3 px off-white of DESIGN_chrome-redesign.md §4 on
-                                   10-04-26, once the lift and shadow also marked focus. */
+  /* One accent, Kelly green (DESIGN_redesign §3.1-3.2): a single colour needs no runtime knob, so
+     it is a plain token. The alternatives we weighed are in
+     docs/ambit_Redesign_4/reference/Ambit - Accent Options.dc.html — we chose option 2e. */
+  --color-accent: #2bb24c;
+  --color-on-accent: #0e0e0e; /* 6.97 : 1 on the accent — never white on green (2.8 : 1) */
+  --color-focus-ring: var(--color-accent); /* the one keyboard-ring colour */
   --color-error: #d98c6a;
 
   /* Shape (docs/DESIGN_redesign.md §3). Pills for buttons/chips/toasts/segments; the sheet
