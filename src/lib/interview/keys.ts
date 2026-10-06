@@ -27,6 +27,7 @@ export type KeyAction =
   | { type: "pick"; index: number } // pick / toggle this card
   | { type: "none" } // "None of these"
   | { type: "both" } // "Both, equally"
+  | { type: "next" } // intro: begin
   | { type: "keep" }
   | { type: "pass" }
   | { type: "ignore" };
@@ -38,6 +39,8 @@ const FOUR_CARD = new Set<KeyKind>(["rooms", "read"]);
 /** Screens whose arrows walk a cursor and whose Enter picks under it. */
 const CURSOR = new Set<KeyKind>(["rooms", "read", "travel", "avoid"]);
 
+// The shell must preventDefault on any non-ignore action, and must skip keys held with
+// Ctrl, Meta or Alt (otherwise Cmd+B fires `both`).
 export function keyAction(
   kind: KeyKind,
   key: string,
@@ -58,7 +61,9 @@ export function keyAction(
       };
     }
     if (k === "enter")
-      return cursor == null ? IGNORE : { type: "pick", index: cursor };
+      return cursor == null || cursor >= count
+        ? IGNORE
+        : { type: "pick", index: cursor };
   }
 
   if (FOUR_CARD.has(kind)) {
@@ -66,6 +71,9 @@ export function keyAction(
       return { type: "pick", index: Number(k) - 1 };
     if (k === "n") return { type: "none" };
   }
+
+  if (kind === "intro" && (k === "enter" || /^[1-4]$/.test(k)))
+    return { type: "next" };
 
   if (kind === "pairs") {
     if (k === "arrowleft") return { type: "pick", index: 0 };

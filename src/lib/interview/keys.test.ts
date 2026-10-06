@@ -100,7 +100,7 @@ describe("travel and avoid (a long list: arrows wrap, Enter toggles)", () => {
 });
 
 describe("keys a kind does not own", () => {
-  for (const kind of ["text", "bonus", "intro", "none"] as const) {
+  for (const kind of ["text", "bonus", "none"] as const) {
     it.each([
       "a",
       "n",
@@ -115,4 +115,21 @@ describe("keys a kind does not own", () => {
       expect(keyAction(kind, key, 0, 4)).toEqual(IGNORE);
     });
   }
+});
+
+describe("intro, stale cursors and tiny lists", () => {
+  it.each(["Enter", "1", "2", "3", "4"])("intro: %s is next", (key) => {
+    expect(keyAction("intro", key, null, 0)).toEqual({ type: "next" });
+  });
+  it.each(["5", "n", "b", "ArrowRight", "a"])("intro ignores %s", (key) => {
+    expect(keyAction("intro", key, null, 0)).toEqual(IGNORE);
+  });
+  it("Enter on a cursor beyond count is ignored", () => {
+    expect(keyAction("rooms", "Enter", 5, 4)).toEqual(IGNORE);
+    expect(keyAction("travel", "Enter", 9, 9)).toEqual(IGNORE);
+  });
+  it("count 1 wraps to 0", () => {
+    expect(keyAction("rooms", "ArrowRight", 0, 1)).toEqual(cursor(0));
+    expect(keyAction("rooms", "ArrowLeft", 0, 1)).toEqual(cursor(0));
+  });
 });
