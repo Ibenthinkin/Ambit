@@ -189,6 +189,85 @@ function ItemFactsWide({ item }: { item: RailItem }) {
   );
 }
 
+/**
+ * The spread's "Information" (DESIGN_redesign §6.3): both pages' details side by side, **Fig. 01**
+ * (left page) and **Fig. 02** (right page), each a column of the single layout's stack under a
+ * 40 px title. The focused page's title is the screen's one `<h1>`; the other's is an `<h2>`.
+ */
+export function ItemFactsSpread({
+  pages,
+  focusSide,
+}: {
+  pages: RailItem[];
+  focusSide: number;
+}) {
+  return (
+    <section
+      id={INFORMATION_ID}
+      aria-label="Information"
+      tabIndex={-1}
+      className="px-10 pt-[22px] outline-none"
+    >
+      <div className="border-ink/16 text-ink/55 flex justify-between border-t pt-[14px] font-mono text-[11px] uppercase">
+        <span>Spread</span>
+        <span>Two works</span>
+      </div>
+      <div className="mt-6 grid grid-cols-2 gap-x-10 pb-[72px]">
+        {pages.map((item, side) => {
+          const maker = makerOf(item);
+          const rows = itemFactRows(item);
+          const topic = rowValue(rows, "Topic");
+          const license = rowValue(rows, "License");
+          const debug = rowValue(rows, "Debug");
+          const source = sourceLabel(item.source);
+          const Title = side === focusSide ? "h1" : "h2";
+          return (
+            <article
+              key={item.id}
+              data-testid="spread-fig"
+              className="border-ink/16 min-w-0 border-t pt-3"
+            >
+              <div className="text-ink/55 flex justify-between gap-4 font-mono text-[11px] uppercase">
+                <span>Fig. {String(side + 1).padStart(2, "0")}</span>
+                {topic ? <span>{topic}</span> : null}
+              </div>
+              <Title className="text-ink-hi mt-[18px] text-[40px] leading-[1.08] font-normal tracking-[-0.015em] text-pretty">
+                {item.title}
+              </Title>
+              <div className="text-ink/88 mt-6 text-[15px] leading-[1.45]">
+                {maker ? <div>{maker}</div> : null}
+                <div className={`${MONO_LINE} mt-4`}>
+                  From{" "}
+                  <TextLink href={item.sourceUrl} external tone="body">
+                    {source}
+                  </TextLink>
+                  {license ? <div>{license}</div> : null}
+                  {debug ? <div>Debug {debug}</div> : null}
+                </div>
+                {item.summary ? (
+                  <p className="text-ink/78 mt-4 text-pretty">{item.summary}</p>
+                ) : null}
+                {item.sourceUrl ? (
+                  <p className="mt-4">
+                    <TextLink
+                      href={item.sourceUrl}
+                      external
+                      bracket
+                      tone="body"
+                    >
+                      {linkOutCopy(item.source)}
+                    </TextLink>
+                  </p>
+                ) : null}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function ItemFacts({ item, layout = "column" }: ItemFactsProps) {
   if (layout === "wide") return <ItemFactsWide item={item} />;
   return (

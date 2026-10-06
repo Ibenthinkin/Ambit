@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { sourceLabel } from "~/lib/source-label";
 import type { RailItem } from "~/server/services/gallery-rail";
-import { ItemFacts } from "./item-facts";
+import { ItemFacts, ItemFactsSpread } from "./item-facts";
 
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: React.ComponentProps<"a">) => (
@@ -174,6 +174,25 @@ describe("ItemFacts layout=wide link-out verbs", () => {
     render(<ItemFacts item={cell({ source: "pdr" })} layout="wide" />);
     expect(
       screen.getByRole("link", { name: /See it on The Public Domain Review/ }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("ItemFactsSpread (magazine view's Information)", () => {
+  const pages = [
+    cell({ id: "a", title: "Left work" }),
+    cell({ id: "b", title: "Right work" }),
+  ];
+
+  it("shows both pages as Fig. 01 / Fig. 02 with the focused title as the one h1", () => {
+    render(<ItemFactsSpread pages={pages} focusSide={1} />);
+    expect(screen.getByText("Fig. 01")).toBeInTheDocument();
+    expect(screen.getByText("Fig. 02")).toBeInTheDocument();
+    const h1s = screen.getAllByRole("heading", { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent("Right work");
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Left work" }),
     ).toBeInTheDocument();
   });
 });

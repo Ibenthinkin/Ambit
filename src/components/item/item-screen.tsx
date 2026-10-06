@@ -15,7 +15,7 @@ import {
   CAPTION_TITLE,
   INFORMATION_ID,
 } from "~/components/item/caption-type";
-import { ItemFacts } from "~/components/item/item-facts";
+import { ItemFacts, ItemFactsSpread } from "~/components/item/item-facts";
 import { JoinCta } from "~/components/item/join-cta";
 import { buildCells } from "~/components/item/rail-cells";
 import { SpreadToggle } from "~/components/item/spread-toggle";
@@ -795,7 +795,7 @@ export function ItemScreen({
       // **Folios** (plan D7): a magazine's page footer under each page — the page number, then
       // the title and maker, pushed to the page's *outer* edge. The page that isn't the item is
       // dimmed, which is the only on-screen sign of which one Save and Share will act on.
-      <div className="grid grid-cols-2 gap-12">
+      <div className="grid grid-cols-2 gap-[140px]">
         {pair.map((page, side) =>
           page === "end" ? null : (
             <Folio
@@ -916,7 +916,14 @@ export function ItemScreen({
       {desktop ? (
         <>
           <Rise delayMs={50}>
-            <ItemFacts item={current} layout="wide" />
+            {spread && !atEnd ? (
+              <ItemFactsSpread
+                pages={pair.filter((p): p is RailItem => p !== "end")}
+                focusSide={focusSide}
+              />
+            ) : (
+              <ItemFacts item={current} layout="wide" />
+            )}
           </Rise>
           <Rise delayMs={120}>
             <WanderNext rows={wander.data ?? []} layout="wide" />
@@ -1003,14 +1010,19 @@ function Folio({
   dimmed: boolean;
 }) {
   const num = (
-    <Eyebrow data-testid="folio-number" className="flex-none tabular-nums">
+    <span
+      data-testid="folio-number"
+      className={cn(CAPTION_INDEX, "flex-none tabular-nums")}
+    >
       {number}
-    </Eyebrow>
+    </span>
   );
   const words = (
     <div className="min-w-0">
-      <h2 className="text-ink-hi truncate text-[14px]">{item.title}</h2>
-      <p className="text-ink/46 mt-[3px] truncate text-[11.5px]">
+      <h2 className={cn(CAPTION_TITLE, "truncate text-[20px]")}>
+        {item.title}
+      </h2>
+      <p className={cn(CAPTION_MAKER, "truncate")}>
         {item.attribution ?? sourceLabel(item.source)}
       </p>
     </div>
