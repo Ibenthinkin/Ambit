@@ -253,12 +253,14 @@ describe("SettingsScreen — Notifications", () => {
     expect(screen.getByText("On")).toBeInTheDocument();
   });
 
-  it("marks a denied permission in the warn tint", () => {
+  it("marks a denied permission at full ink, louder than the muted values", () => {
+    // 1b has no error colour (Task 2.9 deleted `--color-error`); the attention dot comes in 5.5.
     stubNotifications("denied");
     renderScreen();
     const value = screen.getByText("Off");
     expect(value).toBeInTheDocument();
-    expect(value).toHaveClass("text-error");
+    expect(value).toHaveClass("text-ink");
+    expect(value).not.toHaveClass("text-ink/42");
   });
 
   it("prompts from the unanswered state", () => {

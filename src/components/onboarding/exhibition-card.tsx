@@ -1,5 +1,6 @@
 "use client";
 
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { WINGS } from "~/server/config/interview-wings";
 import { TEMPERAMENT_DIMENSIONS } from "~/server/config/temperament";
 import { WRITING_KIND_LABELS } from "~/server/config/writing";
@@ -14,9 +15,6 @@ import { cn } from "~/lib/utils";
 // the levels list on the reveal and again on /profile/topics from the stored taste. Set in Hanken Grotesk
 // like everything else (Ben: no serif). Pure presentation; every number arrives in `taste`, the
 // frame's words come from lib/interview/frame.ts, and the sentences are exhibition.ts's.
-
-const EYEBROW =
-  "text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase";
 
 function Bar({
   label,
@@ -37,12 +35,10 @@ function Bar({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
-        className="bg-ink/8 h-[6px] flex-1 overflow-hidden rounded-full"
+        className="bg-ink/8 h-[6px] flex-1 overflow-hidden"
       >
-        <div
-          className="bg-accent h-full rounded-full"
-          style={{ width: `${pct}%` }}
-        />
+        {/* Ink, not green: a meter's fill is not one of the accent's seven jobs (DESIGN §3.2). */}
+        <div className="bg-ink h-full" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -70,9 +66,11 @@ function Pole({
       >
         {left}
       </span>
-      <div className="bg-ink/8 relative h-[6px] flex-1 rounded-full">
+      <div className="bg-ink/8 relative h-[6px] flex-1">
+        {/* The compass marker — DESIGN §3.2 job 2, so it stays green — as a 9 px dot (the
+            sizes no-rounded.test.ts's DOTS rule excuses). */}
         <span
-          className="bg-accent absolute top-1/2 h-[12px] w-[12px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          className="bg-accent absolute top-1/2 size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{ left: `${pct}%` }}
         />
       </div>
@@ -106,8 +104,10 @@ export function ExhibitionCard({
       aria-label={FRAME.eyebrow}
       className="border-hairline border-ink/12 p-5"
     >
-      <p className={EYEBROW}>{FRAME.eyebrow}</p>
-      <h2 className="text-ink-hi mt-2 text-[30px] leading-[1.1] font-semibold tracking-[-0.4px]">
+      <Eyebrow as="p" className="block">
+        {FRAME.eyebrow}
+      </Eyebrow>
+      <h2 className="text-ink-hi mt-2 text-[30px] leading-[1.1] tracking-[-0.4px]">
         {taste.title.adjective} {taste.title.noun}
       </h2>
       {subtitle && (
@@ -119,7 +119,9 @@ export function ExhibitionCard({
         aria-label="Temperament"
         className="mt-6 flex flex-col gap-2"
       >
-        <p className={EYEBROW}>Temperament</p>
+        <Eyebrow as="p" className="block">
+          Temperament
+        </Eyebrow>
         {TEMPERAMENT_DIMENSIONS.map((d) => (
           <Bar
             key={d.id}
@@ -136,7 +138,9 @@ export function ExhibitionCard({
           aria-label="Travel compass"
           className="mt-6 flex flex-col gap-2"
         >
-          <p className={EYEBROW}>Travel compass</p>
+          <Eyebrow as="p" className="block">
+            Travel compass
+          </Eyebrow>
           <Pole left="Built" right="Wild" value={taste.compass.wild} />
           <Pole left="New" right="Old" value={taste.compass.old} />
           <Pole left="Lively" right="Still" value={taste.compass.still} />
@@ -154,13 +158,15 @@ export function ExhibitionCard({
         <p className="text-ink/82 mt-6 text-[14px]">{reading}</p>
       ) : (
         <div className="mt-6">
-          <p className={EYEBROW}>You’d open</p>
+          <Eyebrow as="p" className="block">
+            You’d open
+          </Eyebrow>
           <ul className="mt-2 flex flex-col gap-2">
             {taste.opened.map((o) => (
               <li key={o.itemId} className="text-[14px] leading-[1.4]">
-                <span className="text-ink/45 font-sans text-[11px] font-semibold tracking-[1.8px] uppercase">
+                <Eyebrow>
                   {WRITING_KIND_LABELS[o.kind]} · {o.minutes} min
-                </span>
+                </Eyebrow>
                 <br />
                 <span className="text-ink-hi">{o.title}</span>
               </li>

@@ -148,21 +148,21 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
   if (mode === "forgot-sent") {
     return (
       <div className="py-1.5 text-center">
-        <div className="border-hairline border-ink/12 bg-ink/5 mx-auto flex size-14 items-center justify-center rounded-full">
-          <Envelope size={26} className="text-accent" />
+        <div className="border-hairline border-ink/12 bg-ink/5 mx-auto flex size-14 items-center justify-center">
+          <Envelope size={26} className="text-ink" />
         </div>
-        <div className="text-ink-hi mt-[18px] text-[23px] font-semibold tracking-[-0.2px]">
+        <div className="text-ink-hi mt-[18px] text-[23px] tracking-[-0.2px]">
           Check your inbox
         </div>
         <div className="text-ink/62 mt-2 text-[15.5px] leading-[1.55]">
           We sent a password reset link to{" "}
-          <span className="text-accent">{email.trim()}</span>. It expires in an
+          <span className="text-ink">{email.trim()}</span>. It expires in an
           hour.
         </div>
         <button
           type="button"
           onClick={() => switchMode("forgot")}
-          className="text-ink/55 mt-[22px] -mb-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
+          className="text-ink/55 mt-[22px] -mb-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px]"
         >
           Use a different email
         </button>
@@ -246,7 +246,9 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
         <div
           role="alert"
           data-testid="auth-error"
-          className="text-error mt-[11px] text-center font-sans text-[12.5px]"
+          // DESIGN §3.2 job 7 / §4.4: an error is the green mono hint, the same face as `Field`'s
+          // note — 1b has no red or orange.
+          className="text-accent mt-[11px] text-center font-mono text-[10.5px] tracking-[0.04em]"
         >
           {error}
         </div>
@@ -257,7 +259,7 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
           <button
             type="button"
             onClick={() => switchMode("forgot")}
-            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
+            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px]"
           >
             Forgot your password?
           </button>
@@ -278,7 +280,7 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
           <button
             type="button"
             onClick={() => switchMode("signup")}
-            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
+            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px]"
           >
             First time? Create your account
           </button>
@@ -287,7 +289,7 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
           <button
             type="button"
             onClick={() => switchMode("signin")}
-            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
+            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px]"
           >
             Already have an account? Sign in
           </button>
@@ -296,7 +298,7 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
           <button
             type="button"
             onClick={() => switchMode("signin")}
-            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
+            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px]"
           >
             Back to sign in
           </button>

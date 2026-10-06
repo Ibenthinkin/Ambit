@@ -32,7 +32,7 @@ export default async function ResetPasswordPage({
         <ResetPasswordCard token={token} />
       ) : (
         <div className="text-center">
-          <div className="text-ink-hi text-[23px] font-semibold tracking-[-0.2px]">
+          <div className="text-ink-hi text-[23px] tracking-[-0.2px]">
             This link has expired.
           </div>
           <div className="text-ink/62 mt-2 text-[15.5px] leading-[1.55]">
@@ -41,7 +41,7 @@ export default async function ResetPasswordPage({
           </div>
           <Link
             href="/"
-            className="text-ink/55 mt-[22px] inline-block font-sans text-[13px] font-medium"
+            className="text-ink/55 mt-[22px] inline-block font-sans text-[13px]"
           >
             Back to sign in
           </Link>

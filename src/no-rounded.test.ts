@@ -3,50 +3,13 @@
 // lint plugin, because the rule is a short allow-list and a list is cheaper to read than a plugin
 // is to write.
 //
-// The 1b look is square-cornered. Every `--radius-*` token in globals.css is now `0` except
-// `--radius-pill`, so the ~40 files that still write `rounded-card`, `rounded-sheet`, `rounded-[14px]`
-// and friends already *render* square — but they still carry the class, and Phase 2 deletes those
-// classes component by component. This test is what proves Phase 2 finished the job: once it is
-// switched on, a new `rounded-*` in a file that isn't listed below fails the build.
+// The 1b look is square-cornered. Every `--radius-*` token is gone except `--radius-pill`, and
+// Phase 2 removed the rounding classes component by component; Task 2.9 (the end of the sweep)
+// cleared the last 30 offending files and switched the assertion below on. From here a new
+// `rounded-*` in a file that isn't listed in ALLOWED (and isn't a DOTS dot) fails the build.
 //
-// STATUS: the assertion is `it.skip` until Task 2.9 (the end of the Phase 2 sweep) turns it on
-// (skip -> it). It is written in full now so that (a) the allow-list and its reasons get reviewed
-// today and (b) the offender count is measurable: run it with `it` instead of `it.skip` and the
-// failure message lists every file still to clean. At the time of writing (Task 1.5):
-//   30 files outside ALLOWED at Task 1.5:
-//   src/components/dev/marks-bench.tsx
-//   src/components/feed/dev/knob-panel.tsx
-//   src/components/feed/tile-actions.tsx
-//   src/components/install/install-banner.tsx
-//   src/components/install/install-confirmation.tsx
-//   src/components/install/install-sheet.tsx
-//   src/components/item/join-cta.tsx
-//   src/components/item/link-out-row.tsx
-//   src/components/item/shared-by-row.tsx
-//   src/components/item/wander-next.tsx
-//   src/components/landing/auth-card.tsx
-//   src/components/landing/auth-sheet.tsx
-//   src/components/landing/landing-screen.tsx
-//   src/components/onboarding/exhibition-card.tsx
-//   src/components/profile/topics-screen.tsx
-//   src/components/saved/saved-screen.tsx
-//   src/components/saved/saved-tile.tsx
-//   src/components/settings/settings-row.tsx
-//   src/components/sheets/collection-rows.tsx
-//   src/components/sheets/item-sheet.tsx
-//   src/components/sheets/share-sheet.tsx
-//   src/components/ui/bottom-sheet.tsx
-//   src/components/ui/button.tsx
-//   src/components/ui/card.tsx
-//   src/components/ui/chip.tsx
-//   src/components/ui/icon-button.tsx
-//   src/components/ui/input.tsx
-//   src/components/ui/segmented.tsx
-//   src/components/ui/textarea.tsx
-//   src/components/ui/toast.tsx
 // The scan also matches `rounded-` inside comments, so a comment that merely mentions the
-// utility (ui/button.tsx's does) counts as an offender until it is reworded.
-// A live `it` below proves the walker itself works, so this file isn't dead weight meanwhile.
+// utility counts as an offender — reword it rather than allow-listing the file.
 //
 // Test files (`*.test.tsx`) are skipped: they assert on class names (`expect(el).toHaveClass(
 // "rounded-pill")`) and are rewritten together with the component they cover.
@@ -70,6 +33,15 @@ const ALLOWED: Record<string, string> = {
     "the loader's orbiting dot and ring — circular things",
   "src/components/item/spread-toggle.tsx":
     "lives inside the rail, so it wears the rail's round chrome",
+  // Added by Task 2.9 — each one a genuine circle, everything else in the file is square:
+  "src/components/saved/saved-tile.tsx":
+    "the remove-bookmark disc over a saved picture — a circular control, like the share disc",
+  "src/components/landing/landing-screen.tsx":
+    "the floating 54 px logo disc that re-opens the sign-in sheet — a circular control",
+  "src/components/landing/auth-sheet.tsx":
+    "the 54 px logo disc the landing's floating disc collapses into (the sheet itself is square)",
+  "src/components/item/shared-by-row.tsx":
+    "the sharer's initial in an avatar circle (the file goes in Task 4.2 — drop this entry then)",
 };
 
 /**
@@ -151,8 +123,8 @@ describe("1b is square-cornered", () => {
     }
   });
 
-  // Task 2.9 turns this on (skip -> it). Currently 30 files offend (listed in the header).
-  it.skip("no file outside ALLOWED uses a rounded-* utility", () => {
+  // Live since Task 2.9 (it was `it.skip` through Phase 1 and the primitives).
+  it("no file outside ALLOWED uses a rounded-* utility", () => {
     const found = offenders();
     expect(
       found,

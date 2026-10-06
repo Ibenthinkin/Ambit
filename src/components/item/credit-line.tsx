@@ -1,3 +1,4 @@
+import { TextLink } from "~/components/ui/text-link";
 import { sourceLabel } from "~/lib/source-label";
 
 // `from: Wikipedia` — one line under every item's title, on both variants, linking out to where
@@ -19,14 +20,9 @@ export function CreditLine({ source, sourceUrl }: CreditLineProps) {
   return (
     <p className="text-ink/50 mt-[10px] text-[13px]">
       from:{" "}
-      <a
-        href={sourceUrl}
-        target="_blank"
-        rel="noopener"
-        className="text-accent underline-offset-2 hover:underline"
-      >
+      <TextLink href={sourceUrl} external>
         {sourceLabel(source)}
-      </a>
+      </TextLink>
     </p>
   );
 }

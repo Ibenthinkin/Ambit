@@ -2,8 +2,9 @@ import * as React from "react";
 
 import { cn } from "~/lib/utils";
 
-// The square icon button (1b, DESIGN §4.6 — it was a circle) — the single most-repeated element in the handoff bundle (header
-// bookmark toggle, card save/share, gallery chrome, close buttons...). Two fill/border tiers:
+// The square icon button (1b, DESIGN §4.6 — it was a circle) — the single most-repeated element
+// in the handoff bundle (header bookmark toggle, card save/share, gallery chrome, close
+// buttons...). Two fill/border tiers:
 // the default sits on the app's own background (Feed header's ~34px button, ~0.06/0.09 alphas);
 // `glass` is for buttons layered directly over photographic imagery (Gallery's chrome,
 // ~0.09-0.1/0.14-0.16), which needs a stronger border to stay legible against arbitrary image

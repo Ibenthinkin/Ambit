@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { useDesktopPress, usePress } from "~/hooks/use-press";
 import { cn } from "~/lib/utils";
 import { writingLabel } from "~/server/config/writing";
@@ -15,8 +16,7 @@ import { DebugBadge } from "./debug-badge";
 //
 // Square-cornered like the image tiles, deliberately: the redesign's feed is a single wall of
 // full-bleed rectangles, and a rounded card in the middle of it reads as a different component
-// from a different app. (There *is* a `--radius-card` token; it belongs to the item page's CTA
-// card, not here.)
+// from a different app. (Since 1b nothing in the app is rounded except the nav pill.)
 //
 // The press-scale is local state rather than something `usePress` exposes: the hook is
 // deliberately ref-only (it fires several times per gesture and re-rendering mid-press would be
@@ -84,10 +84,10 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
       {/* The writing label (docs/DESIGN_writing.md D5, 09-30-26) — what kind of read this is and
           how long, the same words a picture-led writing tile wears. It replaced the source name:
           "Wikipedia" says where, `CURIOSITY · 4 MIN` says whether to open it now. */}
-      <p className="text-ink/34 text-[9.5px] font-semibold tracking-[1.3px]">
+      <Eyebrow as="p" className="block">
         {writingLabel(item)}
-      </p>
-      <h2 className="text-ink-hi mt-[10px] text-[19px] leading-[1.25] font-semibold">
+      </Eyebrow>
+      <h2 className="text-ink-hi mt-[10px] text-[19px] leading-[1.25]">
         {item.title}
       </h2>
       {/* **Clamped, and the prototype isn't** — a divergence forced by real data. Every lede in

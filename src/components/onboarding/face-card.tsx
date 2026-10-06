@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import type { FallbackCard } from "~/lib/interview/reading-fallback";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { cn } from "~/lib/utils";
 import { WRITING_KIND_LABELS, type WritingKind } from "~/server/config/writing";
 
@@ -43,10 +44,6 @@ export interface FaceCardProps {
   card?: { where: string; line: string };
 }
 
-/** The small-caps line above an article's title. */
-const KICKER =
-  "text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase";
-
 export function FaceCard({
   label,
   src,
@@ -74,14 +71,16 @@ export function FaceCard({
       className={cn(
         "border-hairline relative flex w-full flex-col overflow-hidden text-left transition-[border-color,box-shadow] duration-200",
         tall ? "bg-ink/5 aspect-auto min-h-[180px]" : "aspect-[4/5]",
-        selected ? "border-accent ring-accent ring-2" : "border-ink/12",
+        // A picked card is ringed in ink: a selection is not one of the accent's seven jobs
+        // (DESIGN §3.2 — "filled selections → ink").
+        selected ? "border-ink ring-ink ring-2" : "border-ink/12",
         !tall && !showImage && "bg-ink/5 items-center justify-center",
       )}
     >
       {card ? (
         <span className="flex h-full w-full flex-1 flex-col p-4">
-          <span className={KICKER}>{card.where}</span>
-          <span className="text-ink-hi mt-2 text-[20px] leading-[1.15] font-semibold">
+          <Eyebrow>{card.where}</Eyebrow>
+          <span className="text-ink-hi mt-2 text-[20px] leading-[1.15]">
             {label}
           </span>
           <span className="text-ink/70 mt-2 text-[14px] leading-[1.45]">
@@ -101,10 +100,10 @@ export function FaceCard({
             />
           )}
           <span className="flex flex-col p-4">
-            <span className={KICKER}>
+            <Eyebrow>
               {WRITING_KIND_LABELS[writing.kind]} · {writing.minutes} min
-            </span>
-            <span className="text-ink-hi mt-2 text-[17px] leading-[1.25] font-semibold">
+            </Eyebrow>
+            <span className="text-ink-hi mt-2 text-[17px] leading-[1.25]">
               {writing.title}
             </span>
             {writing.dek && (
@@ -116,8 +115,8 @@ export function FaceCard({
         </span>
       ) : fallback ? (
         <span className="flex h-full w-full flex-col p-4">
-          <span className={KICKER}>{WRITING_KIND_LABELS[fallback.kind]}</span>
-          <span className="text-ink-hi mt-2 text-[17px] leading-[1.25] font-semibold">
+          <Eyebrow>{WRITING_KIND_LABELS[fallback.kind]}</Eyebrow>
+          <span className="text-ink-hi mt-2 text-[17px] leading-[1.25]">
             {fallback.title}
           </span>
           <span className="text-ink/62 mt-1 text-[13px] leading-[1.45]">
@@ -136,13 +135,13 @@ export function FaceCard({
           />
           {/* A scrim only as tall as the caption needs, so the picture stays the picture. */}
           {caption && (
-            <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-black/0 px-4 pt-10 pb-3 text-[15px] font-medium text-white">
+            <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-black/0 px-4 pt-10 pb-3 text-[15px] text-white">
               {label}
             </span>
           )}
         </>
       ) : (
-        <span className="text-ink-hi px-4 text-center text-[22px] leading-tight font-semibold">
+        <span className="text-ink-hi px-4 text-center text-[22px] leading-tight">
           {label}
         </span>
       )}

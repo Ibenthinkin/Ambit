@@ -64,16 +64,16 @@ export function AuthSheet({
         data-open={open ? "true" : "false"}
         className={[
           "bg-surface border-ink/10 fixed inset-x-0 bottom-0 z-40 max-h-[88dvh] overflow-y-auto",
-          "rounded-t-[28px] border-t px-[26px] pt-[14px]",
+          "border-t px-[26px] pt-[14px]",
           // The safe-area inset keeps the last control clear of the iPhone home indicator; the
           // max-height plus scroll is what stops sign-up mode (an extra field) from pushing the
           // submit button off a small screen once the keyboard is up.
           "pb-[calc(36px+env(safe-area-inset-bottom))]",
-          // Above `md` (docs/DESIGN_desktop-polish.md §3): a 520px card centered both ways, every
-          // corner rounded, a full border. It fades and settles rather than sliding — hence the
+          // Above `md` (docs/DESIGN_desktop-polish.md §3): a 520px card centered both ways, square
+          // (1b), a full border. It fades and settles rather than sliding — hence the
           // transition covers opacity too, and the closed state below is transparent rather than
           // off-screen. `md:inset-auto` clears the phone anchoring before `left/top` re-anchor.
-          "md:inset-auto md:top-1/2 md:left-1/2 md:max-h-[80dvh] md:w-[520px] md:-translate-x-1/2 md:rounded-[28px] md:border md:pb-[36px]",
+          "md:inset-auto md:top-1/2 md:left-1/2 md:max-h-[80dvh] md:w-[520px] md:-translate-x-1/2 md:border md:pb-[36px]",
           // `transition-[translate,opacity]`, not `transition-transform`: v4's translate utilities
           // write the `translate` property rather than `transform`, and the fade needs `opacity`
           // in the list for the desktop card to arrive at all.
@@ -92,14 +92,14 @@ export function AuthSheet({
               onClick={onCollapse}
               className="bg-ink/6 border-ink/12 mb-5 flex size-[54px] items-center justify-center rounded-full border"
             >
-              <Logo size={30} className="text-accent" />
+              <Logo size={30} className="text-ink" />
             </button>
           ) : (
             <div
               aria-hidden
               className="bg-ink/6 border-ink/12 mb-5 flex size-[54px] items-center justify-center rounded-full border"
             >
-              <Logo size={30} className="text-accent" />
+              <Logo size={30} className="text-ink" />
             </div>
           )}
         </div>

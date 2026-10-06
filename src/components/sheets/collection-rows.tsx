@@ -61,7 +61,7 @@ export function CollectionRow({
       onClick={onPick}
       // Same rule as the pill's controls: a thumb resting here mid-scroll must not fire the row.
       onPointerDown={(e) => e.stopPropagation()}
-      className="border-hairline border-ink/6 flex w-full items-center gap-[13px] rounded-[14px] border-b px-3 py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
+      className="border-hairline border-ink/6 flex w-full items-center gap-[13px] border-b px-3 py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
     >
       {leading?.kind === "covers" ? (
         <span

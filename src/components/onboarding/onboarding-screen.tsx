@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Column } from "~/components/ui/column";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { Rise } from "~/components/ui/rise";
 import { askable } from "~/lib/interview/askable";
 import { BANK_VERSION, QUESTIONS, STARTER_TOPICS } from "~/lib/interview/bank";
@@ -294,10 +295,10 @@ export function OnboardingScreen({
         {phase === "intro" && (
           <>
             <Rise>
-              <p className="text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase">
+              <Eyebrow as="p" className="block">
                 Ambit · {retake ? "Start again" : "Setup"}
-              </p>
-              <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] font-semibold tracking-[-0.4px]">
+              </Eyebrow>
+              <h1 className="text-ink-hi mt-[14px] text-[34px] leading-[1.12] tracking-[-0.4px]">
                 {retake ? "Let’s ask again" : "Let’s find where to start"}
               </h1>
               <p className="text-ink/62 mt-3 text-[16px] leading-[1.55]">
@@ -308,10 +309,12 @@ export function OnboardingScreen({
               {retake && (
                 <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
                   Your answers will replace the topics you have now.{" "}
+                  {/* TextLink's look (DESIGN §4.6) on a plain <Link>: TextLink doesn't pass
+                      `replace` through, and this one must not add a history entry. */}
                   <Link
                     href="/profile/topics"
                     replace
-                    className="text-accent underline underline-offset-2"
+                    className="text-ink hover:decoration-accent underline decoration-1 underline-offset-3 transition-colors hover:text-white"
                   >
                     Cancel
                   </Link>
@@ -334,14 +337,11 @@ export function OnboardingScreen({
             {/* Keyed by question so <Rise> plays again: each one should arrive, not swap. */}
             {/* Outside the keyed <Rise> on purpose: a live region created with its content is not
                 announced, so this one stays mounted and only its text changes. */}
-            <p
-              aria-live="polite"
-              className="text-accent mb-[14px] font-sans text-[11px] font-semibold tracking-[1.8px] uppercase"
-            >
+            <Eyebrow as="p" aria-live="polite" className="mb-[14px] block">
               {stepIndex >= 0
                 ? `Step ${stepIndex + 1} of ${steps.length} · ${STEP_LABELS[stepNow! - 1]}`
                 : `${answers.length + 1} of ${asked.length}`}
-            </p>
+            </Eyebrow>
             <Rise key={current.id}>
               <QuestionStep
                 question={onScreen ?? current}

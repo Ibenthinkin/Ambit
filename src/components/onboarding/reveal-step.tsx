@@ -96,7 +96,7 @@ export function RevealStep({
               />
             </div>
           )}
-          <h1 className="text-ink-hi text-[30px] leading-[1.15] font-semibold tracking-[-0.4px]">
+          <h1 className="text-ink-hi text-[30px] leading-[1.15] tracking-[-0.4px]">
             Here’s where we’ll start
           </h1>
           <p className="text-ink/62 mt-3 text-[15px] leading-[1.55]">
@@ -106,10 +106,11 @@ export function RevealStep({
           {retake && (
             <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
               This replaces your current topics.{" "}
+              {/* TextLink's look (DESIGN §4.6) on a plain <Link>, for `replace`. */}
               <Link
                 href="/profile/topics"
                 replace
-                className="text-accent underline underline-offset-2"
+                className="text-ink hover:decoration-accent underline decoration-1 underline-offset-3 transition-colors hover:text-white"
               >
                 Cancel
               </Link>

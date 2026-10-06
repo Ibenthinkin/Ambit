@@ -20,7 +20,7 @@ export interface SharedByRowProps {
 export function SharedByRow({ name }: SharedByRowProps) {
   return (
     <div className="flex items-center gap-[9px]">
-      <span className="bg-accent text-on-accent flex h-6 w-6 flex-none items-center justify-center rounded-full text-[12px] font-semibold">
+      <span className="bg-ink text-on-accent flex h-6 w-6 flex-none items-center justify-center rounded-full text-[12px]">
         {name.charAt(0).toUpperCase()}
       </span>
       <span className="text-ink/50 text-[12.5px]">

@@ -127,9 +127,7 @@ export function SavedScreen() {
             <ChevronLeft size={16} />
           </IconButton>
           <div>
-            <h1 className="text-ink-hi text-[26px] leading-none font-semibold">
-              Saved
-            </h1>
+            <h1 className="text-ink-hi text-[26px] leading-none">Saved</h1>
             <p className="text-ink/45 mt-[5px] text-[12px] tracking-[0.15px]">
               {countLine(total)}
             </p>
@@ -174,12 +172,13 @@ export function SavedScreen() {
         {showEmpty ? (
           <Rise>
             <div className="flex flex-col items-center px-10 py-[90px]">
-              <div className="border-hairline bg-ink/5 border-ink/10 flex size-[66px] items-center justify-center rounded-full">
+              <div className="border-hairline bg-ink/5 border-ink/10 flex size-[66px] items-center justify-center">
                 {/* Outline, not filled — nothing is kept yet, so the glyph shows the affordance
-                  rather than a state. */}
-                <Bookmark size={28} className="text-accent" />
+                  rather than a state. And ink, not green: the accent's bookmark job is the
+                  *saved* fill (DESIGN §3.2 job 5), which this isn't. */}
+                <Bookmark size={28} className="text-ink/78" />
               </div>
-              <h2 className="text-ink-hi mt-[22px] text-[23px] font-semibold">
+              <h2 className="text-ink-hi mt-[22px] text-[23px]">
                 Nothing kept yet
               </h2>
               <p className="text-ink/55 mt-[9px] max-w-[250px] text-center text-[15px] leading-[1.5]">

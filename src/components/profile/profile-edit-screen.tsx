@@ -190,7 +190,10 @@ function EditForm({ profile }: { profile: UserProfile }) {
         </Button>
 
         {formError ? (
-          <span role="alert" className="text-error text-center text-[12.5px]">
+          <span
+            role="alert"
+            className="text-accent text-center font-mono text-[10.5px] tracking-[0.04em]"
+          >
             {formError}
           </span>
         ) : null}

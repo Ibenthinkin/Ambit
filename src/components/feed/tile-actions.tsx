@@ -116,12 +116,10 @@ export function TileActions({ card, onToast }: TileActionsProps) {
           onPointerDown={stop}
           className={cn(
             GLASS,
-            "rounded-pill pointer-events-auto flex h-8 max-w-[70%] items-center gap-[6px] px-[12px]",
+            "pointer-events-auto flex h-8 max-w-[70%] items-center gap-[6px] px-[12px]",
           )}
         >
-          <span className="truncate text-[12.5px] font-medium">
-            {target.name}
-          </span>
+          <span className="truncate text-[12.5px]">{target.name}</span>
           <ChevronDown size={12} className="text-ink/70 flex-none" />
         </button>
 
@@ -136,7 +134,7 @@ export function TileActions({ card, onToast }: TileActionsProps) {
           onPointerDown={stop}
           className={cn(
             GLASS,
-            "pointer-events-auto flex size-8 items-center justify-center rounded-full",
+            "pointer-events-auto flex size-8 items-center justify-center",
           )}
         >
           <Bookmark

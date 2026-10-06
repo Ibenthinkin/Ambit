@@ -1,3 +1,4 @@
+import { TextLink } from "~/components/ui/text-link";
 import { PDR } from "~/server/config/pdr";
 import type { Item } from "~/server/db/items";
 
@@ -18,14 +19,9 @@ export function ReuseNotice({ item }: ReuseNoticeProps) {
   return (
     <p className="text-ink/50 mt-[18px] text-[12.5px] leading-[1.5]">
       Text originally published on{" "}
-      <a
-        href={item.sourceUrl}
-        target="_blank"
-        rel="noopener"
-        className="text-accent underline-offset-2 hover:underline"
-      >
+      <TextLink href={item.sourceUrl} external>
         {PDR.label}
-      </a>{" "}
+      </TextLink>{" "}
       under CC BY-SA 4.0.
     </p>
   );

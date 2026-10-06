@@ -20,7 +20,7 @@ export function ReaderBlocks({ body }: ReaderBlocksProps) {
           return (
             <h2
               key={index}
-              className="text-ink-hi mt-[26px] mb-[10px] text-[19px] leading-[1.3] font-semibold"
+              className="text-ink-hi mt-[26px] mb-[10px] text-[19px] leading-[1.3]"
             >
               {block.text}
             </h2>
@@ -30,7 +30,7 @@ export function ReaderBlocks({ body }: ReaderBlocksProps) {
           return (
             <h3
               key={index}
-              className="text-ink/72 mt-[26px] mb-[10px] text-[15px] font-semibold tracking-[0.4px]"
+              className="text-ink/72 mt-[26px] mb-[10px] text-[15px] tracking-[0.4px]"
             >
               {block.text}
             </h3>

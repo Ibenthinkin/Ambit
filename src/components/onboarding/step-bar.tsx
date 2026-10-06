@@ -26,7 +26,8 @@ export function StepBar({
           <div
             role="alert"
             data-testid="onboarding-error"
-            className="text-error mb-3 text-center font-sans text-[12.5px]"
+            // The green mono hint (DESIGN §3.2 job 7) — 1b has no error colour.
+            className="text-accent mb-3 text-center font-mono text-[10.5px] tracking-[0.04em]"
           >
             {error}
           </div>

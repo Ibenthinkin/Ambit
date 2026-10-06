@@ -42,9 +42,10 @@ describe("DebugBadge", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  // The design's tag (docs/tile-hover/ README "Behaviour" row "Tag"): bg → accent on the
-  // wrapper's hover or keyboard focus, over 200 ms (docs/PLAN_tile-hover.md Decision 1).
-  it("wears the design's tag look and fills with accent on the wrapper's hover/focus", () => {
+  // The design's tag (docs/tile-hover/ README "Behaviour" row "Tag"): it fills on the wrapper's
+  // hover or keyboard focus, over 200 ms (docs/PLAN_tile-hover.md Decision 1). Since the 1b sweep
+  // (Task 2.9) the fill is ink with dark text, in mono — never green (DESIGN §3.2).
+  it("wears the design's tag look and fills with ink on the wrapper's hover/focus", () => {
     render(<DebugBadge card={card(true)} />);
     const tag = screen.getByText("DRIFT");
     expect(tag).toHaveAttribute("title", "drift from botany");
@@ -52,12 +53,15 @@ describe("DebugBadge", () => {
       "bg-bg/72",
       "text-ink",
       "text-[10px]",
-      "font-medium",
-      "tracking-[0.6px]",
+      "font-mono",
+      "tracking-[0.4px]",
       "transition-colors",
       "duration-200",
-      "group-hover/tile:bg-accent",
-      "group-has-[:focus-visible]/tile:bg-accent",
+      "group-hover/tile:bg-ink",
+      "group-hover/tile:text-on-accent",
+      "group-has-[:focus-visible]/tile:bg-ink",
+      "group-has-[:focus-visible]/tile:text-on-accent",
     );
+    expect(tag.className).not.toContain("bg-accent");
   });
 });

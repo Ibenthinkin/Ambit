@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { TextLink } from "~/components/ui/text-link";
+
 // The invitation, shown only to signed-out visitors at the foot of an item page.
 //
 // **No "keep browsing without an account" link** for a stranger from a shared link, which the
@@ -21,12 +23,9 @@ export interface JoinCtaProps {
 
 function KeepExploring() {
   return (
-    <Link
-      href="/"
-      className="text-accent mt-[14px] block text-[13.5px] font-medium"
-    >
+    <TextLink href="/" className="mt-[14px] inline-block text-[13.5px]">
       Keep exploring
-    </Link>
+    </TextLink>
   );
 }
 
@@ -34,19 +33,16 @@ export function JoinCta({ variant, exploring = false }: JoinCtaProps) {
   if (variant === "article") {
     return (
       <div className="border-hairline border-ink/8 bg-card mt-[30px] px-[22px] py-[24px] text-center">
-        <h2 className="text-ink-hi text-[22px] leading-[1.24] font-semibold">
+        <h2 className="text-ink-hi text-[22px] leading-[1.24]">
           Ambit is a quieter way to read.
         </h2>
         <p className="text-ink/58 mx-auto mt-[10px] max-w-[30ch] text-[13.5px] leading-[1.6]">
           An invite-only feed of public-domain images and writing, tuned to what
           you&rsquo;re curious about.
         </p>
-        <Link
-          href="/"
-          className="text-accent mt-[16px] inline-block text-[13.5px] font-medium"
-        >
+        <TextLink href="/" className="mt-[16px] inline-block text-[13.5px]">
           Get your invite →
-        </Link>
+        </TextLink>
         {exploring ? <KeepExploring /> : null}
       </div>
     );
@@ -54,7 +50,7 @@ export function JoinCta({ variant, exploring = false }: JoinCtaProps) {
 
   return (
     <div className="border-hairline border-ink/8 bg-card mt-[34px] px-[22px] py-[28px] text-center">
-      <h2 className="text-ink-hi text-[24px] leading-[1.22] font-semibold">
+      <h2 className="text-ink-hi text-[24px] leading-[1.22]">
         Curiosity, without the doomscroll.
       </h2>
       <p className="text-ink/58 mx-auto mt-[12px] max-w-[32ch] text-[14px] leading-[1.6]">
@@ -63,7 +59,9 @@ export function JoinCta({ variant, exploring = false }: JoinCtaProps) {
       </p>
       <Link
         href="/"
-        className="bg-accent text-on-accent rounded-pill mt-[20px] inline-block px-[22px] py-[11px] text-[14px] font-semibold"
+        // Button's `primary` colours, square (DESIGN §4.1) — a filled green CTA is not one of the
+        // accent's seven jobs. A styled <Link> rather than a <Button>: it navigates.
+        className="bg-ink text-on-accent mt-[20px] inline-block px-[22px] py-[11px] text-[14px]"
       >
         Get your invite
       </Link>

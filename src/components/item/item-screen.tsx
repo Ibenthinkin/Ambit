@@ -23,6 +23,7 @@ import { WanderNext } from "~/components/item/wander-next";
 import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sheet";
 import { ShareSheet } from "~/components/sheets/share-sheet";
 import { Column } from "~/components/ui/column";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { PillToolbar } from "~/components/ui/pill-toolbar";
 import { RailToolbar } from "~/components/ui/rail-toolbar";
 import { Rise } from "~/components/ui/rise";
@@ -708,9 +709,7 @@ export function ItemScreen({
   // `<h1>` is `ItemFacts`'s, and e2e's `getByRole("heading", { level: 1 })` must find exactly one.
   const captionFor = (item: RailItem) => (
     <>
-      <h2 className="text-ink-hi text-[22px] leading-[1.24] font-semibold">
-        {item.title}
-      </h2>
+      <h2 className="text-ink-hi text-[22px] leading-[1.24]">{item.title}</h2>
       <p className="text-ink/52 mt-[7px] text-[12.5px] tracking-[0.15px]">
         {item.attribution ?? sourceLabel(item.source)}
       </p>
@@ -908,12 +907,9 @@ function Folio({
   dimmed: boolean;
 }) {
   const num = (
-    <span
-      data-testid="folio-number"
-      className="text-ink/40 flex-none text-[11px] font-semibold tracking-[1.2px] tabular-nums"
-    >
+    <Eyebrow data-testid="folio-number" className="flex-none tabular-nums">
       {number}
-    </span>
+    </Eyebrow>
   );
   const words = (
     <div className="min-w-0">

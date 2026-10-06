@@ -54,7 +54,7 @@ export function ResetPasswordCard({ token }: { token: string }) {
   if (success) {
     return (
       <div className="py-1.5 text-center">
-        <div className="text-ink-hi text-[23px] font-semibold tracking-[-0.2px]">
+        <div className="text-ink-hi text-[23px] tracking-[-0.2px]">
           Password updated.
         </div>
         <div className="text-ink/62 mt-2 text-[15.5px] leading-[1.55]">
@@ -71,7 +71,7 @@ export function ResetPasswordCard({ token }: { token: string }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div className="text-ink-hi mb-5 text-[23px] font-semibold tracking-[-0.2px]">
+      <div className="text-ink-hi mb-5 text-[23px] tracking-[-0.2px]">
         Choose a new password.
       </div>
       <div className="space-y-5">
@@ -119,7 +119,8 @@ export function ResetPasswordCard({ token }: { token: string }) {
         <div
           role="alert"
           data-testid="auth-error"
-          className="text-error mt-[11px] text-center font-sans text-[12.5px]"
+          // The green mono hint (DESIGN §3.2 job 7), as on the auth card.
+          className="text-accent mt-[11px] text-center font-mono text-[10.5px] tracking-[0.04em]"
         >
           {error}
         </div>

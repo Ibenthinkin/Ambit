@@ -1,3 +1,5 @@
+import { Eyebrow } from "~/components/ui/eyebrow";
+import { TextLink } from "~/components/ui/text-link";
 import { sourceLabel } from "~/lib/source-label";
 import type { Item } from "~/server/db/items";
 import { CreditLine } from "./credit-line";
@@ -24,11 +26,11 @@ export interface ReaderItemBodyProps {
 export function ReaderItemBody({ item }: ReaderItemBodyProps) {
   return (
     <article>
-      <p className="text-accent text-[10.5px] font-semibold tracking-[1.3px] uppercase">
+      <Eyebrow as="p" className="block">
         {sourceLabel(item.source)}
-      </p>
+      </Eyebrow>
 
-      <h1 className="text-ink-hi mt-[10px] text-[30px] leading-[1.16] font-semibold">
+      <h1 className="text-ink-hi mt-[10px] text-[30px] leading-[1.16]">
         {item.title}
       </h1>
 
@@ -57,14 +59,15 @@ export function ReaderItemBody({ item }: ReaderItemBodyProps) {
       {hasLinkOutRow(item.source) ? (
         <LinkOutRow source={item.source} sourceUrl={item.sourceUrl} />
       ) : (
-        <a
+        // Task 4.5 turns this into the bracket form; until then the label (and e2e's name for it)
+        // stays as it was.
+        <TextLink
           href={item.sourceUrl}
-          target="_blank"
-          rel="noopener"
-          className="text-accent mt-[6px] inline-block text-[14px] font-medium"
+          external
+          className="mt-[6px] inline-block text-[14px]"
         >
           Read on {sourceLabel(item.source)} →
-        </a>
+        </TextLink>
       )}
     </article>
   );

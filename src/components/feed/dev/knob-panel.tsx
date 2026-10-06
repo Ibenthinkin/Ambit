@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Button } from "~/components/ui/button";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { Slider } from "~/components/ui/slider";
 import type { FeedCard } from "~/server/services/feed";
 import type { FeedKnobs } from "~/server/services/feed-knobs";
@@ -41,9 +42,9 @@ const SECTIONS = [
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-accent text-[11px] font-semibold tracking-[0.6px] uppercase">
+    <Eyebrow as="h3" className="block">
       {children}
-    </h3>
+    </Eyebrow>
   );
 }
 
@@ -130,14 +131,16 @@ export function KnobPanel({
       data-testid="knob-panel"
       className={[
         "bg-surface border-ink/12 fixed top-0 right-0 z-30 flex h-dvh w-[340px] flex-col border-l",
-        "shadow-sheet transition-transform duration-200",
+        // The popover's shadow: the panel floats over the page the way an anchored popover does
+        // (`--shadow-sheet`, which it used to wear, went with the square 1b sheet).
+        "shadow-popover transition-transform duration-200",
         open ? "translate-x-0" : "translate-x-[calc(100%-36px)]",
       ].join(" ")}
     >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="text-ink/62 hover:text-ink bg-surface border-ink/12 absolute top-3 left-0 -translate-x-full rounded-l-md border border-r-0 px-2 py-1 text-[11px]"
+        className="text-ink/62 hover:text-ink bg-surface border-ink/12 absolute top-3 left-0 -translate-x-full border border-r-0 px-2 py-1 text-[11px]"
         aria-label={open ? "Collapse knob panel" : "Expand knob panel"}
       >
         {open ? "›" : "‹ tune"}
@@ -145,9 +148,7 @@ export function KnobPanel({
 
       <div className="flex flex-col gap-5 overflow-y-auto px-4 pt-4 pb-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-ink-hi text-[15px] font-semibold">
-            Composition knobs
-          </h2>
+          <h2 className="text-ink-hi text-[15px]">Composition knobs</h2>
           <span className="text-ink/40 text-[11px]">dev · FEED_DEBUG</span>
         </div>
 
@@ -167,7 +168,9 @@ export function KnobPanel({
           <Stat label="served this session" value={served} />
           <Stat label="forgotten so far" value={forgotten} />
           {forgetError ? (
-            <p className="text-error text-[12px]">{forgetError}</p>
+            <p className="text-accent font-mono text-[10.5px] tracking-[0.04em]">
+              {forgetError}
+            </p>
           ) : (
             <p className="text-ink/40 text-[11px]">
               Every apply forgets the pages this session served. Nothing tuned

@@ -5,9 +5,10 @@ import * as React from "react";
 import { cn } from "~/lib/utils";
 
 // Feed's ephemeral confirmation toast: since the 1b redesign (DESIGN §4.6) a square white block
-// (`bg-ink`) of dark Geist Mono caps — no radius, no blur, no shadow — centered, that fades in, holds, then dismisses itself. The component owns its own dismiss timer rather
-// than making every caller wire up a `setTimeout` — callers just flip `open` to `true` and
-// handle `onDone` (typically by setting their own `open` state back to `false`).
+// (`bg-ink`) of dark Geist Mono caps — no radius, no blur, no shadow — centered, that fades in,
+// holds, then dismisses itself. The component owns its own dismiss timer rather than making every
+// caller wire up a `setTimeout` — callers just flip `open` to `true` and handle `onDone`
+// (typically by setting their own `open` state back to `false`).
 //
 // Porting note (PHASE5_PLAN.md): the prototype's keyframe bakes `translate(-50%, ...)` into the
 // same transform that also does the vertical rise, which makes horizontal centering load-bearing

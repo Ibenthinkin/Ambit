@@ -44,9 +44,7 @@ function Grid() {
     <div className="flex flex-col gap-10">
       {CANDIDATES.map((c) => (
         <section key={c.name}>
-          <h2 className="text-ink-hi mb-4 text-[15px] font-semibold">
-            {c.name}
-          </h2>
+          <h2 className="text-ink-hi mb-4 text-[15px]">{c.name}</h2>
           <div className="flex flex-col gap-4">
             {SAMPLE_IDS.map((id) => (
               <div key={id} className="flex items-center gap-6">
@@ -68,7 +66,7 @@ function Grid() {
 export function MarksBench() {
   return (
     <main className="bg-bg min-h-dvh px-8 py-10">
-      <h1 className="text-ink-hi text-[22px] font-semibold">Profile marks</h1>
+      <h1 className="text-ink-hi text-[22px]">Profile marks</h1>
       <p className="text-ink/55 mt-2 max-w-[640px] text-[14px] leading-[1.55]">
         The current chip and three candidates, at the pill (28), rail (32), hub
         (88) and Edit profile (104) sizes. Left: the screen ground. Right: over
@@ -77,7 +75,7 @@ export function MarksBench() {
       <div className="mt-8 grid grid-cols-1 gap-10 xl:grid-cols-2">
         <Grid />
         <div
-          className="rounded-[12px] bg-cover bg-center p-6"
+          className="bg-cover bg-center p-6"
           style={{ backgroundImage: "url(/landing/fallback.webp)" }}
         >
           <Grid />

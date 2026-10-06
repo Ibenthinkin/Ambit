@@ -122,7 +122,7 @@ export function ProfileHub({ children }: { children: React.ReactNode }) {
                     gradient={avatarGradient(me.data.id)}
                   />
                   <div className="min-w-0">
-                    <h1 className="text-ink-hi truncate text-[28px] leading-[1.1] font-semibold">
+                    <h1 className="text-ink-hi truncate text-[28px] leading-[1.1]">
                       {me.data.name}
                     </h1>
                     {/* Stored bare and lowercase; the `@` is presentation only. */}
@@ -158,9 +158,9 @@ export function ProfileHub({ children }: { children: React.ReactNode }) {
                   replace
                   aria-current={current ? "page" : undefined}
                   className={cn(
-                    "-mb-px shrink-0 border-b-2 pb-3 text-[14px] font-medium whitespace-nowrap transition-colors",
+                    "-mb-px shrink-0 border-b-2 pb-3 text-[14px] whitespace-nowrap transition-colors",
                     current
-                      ? "border-accent text-ink-hi"
+                      ? "border-ink text-ink-hi"
                       : "text-ink/55 border-transparent",
                   )}
                 >

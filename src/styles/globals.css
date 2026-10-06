@@ -29,8 +29,6 @@
   --color-card: #161616; /* article / Because / intro cards, image placeholder */
   --color-card-2: #1e1e1e; /* empty thumb cells */
   --color-immersive: #0a0a0a; /* behind a picture on the item screen — a shade darker than --color-bg on purpose */
-  --color-overlay: #1e1c18; /* toast fill — REMOVED by the spec (the toast becomes a white block);
-                                 kept only until Phase 2 rewrites its users (toast.tsx, /dev/tokens) */
   --color-scrim: #000000; /* sheet + modal scrims, used at /60 with no blur */
   --color-tile-hi: #161616; /* app-icon tile gradient, light stop (now a flat card colour) */
   --color-tile-lo: #0e0e0e; /* app-icon tile gradient, dark stop */
@@ -49,34 +47,20 @@
   --color-accent: #2bb24c;
   --color-on-accent: #0e0e0e; /* 6.97 : 1 on the accent — never white on green (2.8 : 1) */
   --color-focus-ring: var(--color-accent); /* the one keyboard-ring colour */
-  --color-error: #d98c6a;
 
-  /* Shape (docs/DESIGN_redesign.md §3). Pills for buttons/chips/toasts/segments; the sheet
-     radius applies to top corners only (components implement that, not this token — Tailwind has
-     no "radius one side only" theme primitive).
-
-     NOTE: feed and saved image tiles are SQUARE-CORNERED full-bleed in the redesign — radius 0 is
-     the absence of a rounding class, not a token. Don't add one. */
-  /* 1b: no radius anywhere except the nav pill (docs/DESIGN_redesign.md 3.4). The other names
-     stay as tokens, all 0, so the ~27 `rounded-card` / `rounded-sheet` ... call sites go square
-     without an edit; Phase 2 rewrites them and src/no-rounded.test.ts pins the allow-list. */
+  /* Shape — 1b: no radius anywhere except the nav pill (docs/DESIGN_redesign.md §3.4). Square is
+     the absence of a rounding class, not a token, so there is exactly one radius token. The
+     other names (`--radius-card`, `-sheet`, `-tile`, `-input`, `-img-*`) sat at 0 through Phase 1
+     while their call sites were rewritten, and went with the last of them in Task 2.9. Round is
+     written `rounded-full`, on circular things only; src/no-rounded.test.ts pins the allow-list. */
   --radius-pill: 999px;
-  --radius-sheet: 0px;
-  --radius-card: 0px;
-  --radius-img-lg: 0px;
-  --radius-tile: 0px;
-  --radius-img-md: 0px;
-  --radius-input: 0px;
-  --radius-img-sm: 0px;
 
-  /* Elevation — exactly four shadows exist anywhere in the redesign bundle. Resist adding more;
-     if a new component seems to need one, it's very likely one of these four. */
-  --shadow-toast: 0 8px 30px rgba(0, 0, 0, 0.4);
-  --shadow-banner: 0 12px 40px rgba(0, 0, 0, 0.45);
-  --shadow-sheet: 0 -20px 50px rgba(0, 0, 0, 0.45);
+  /* Elevation — exactly four shadows exist in 1b (DESIGN §3.4). Resist adding more; if a new
+     component seems to need one, it's very likely one of these four. The old sheet / toast /
+     banner shadows went with their users in Task 2.9 (a square sheet has a top border, not a
+     shadow). There is no error colour either: an error is the green mono hint (§3.2 job 7). */
   --shadow-dialog: 0 30px 80px rgba(0, 0, 0, 0.6); /* the centred dialog (1b) */
   --shadow-popover: 0 20px 50px rgba(0, 0, 0, 0.5); /* the anchored popover (1b) */
-  /* --shadow-sheet / -toast / -banner go when their users are rewritten (Phase 2). */
   --shadow-toolbar: 0 10px 30px rgba(0, 0, 0, 0.28); /* the floating pill toolbar (built 5.5) */
   --shadow-lift: 0 14px 34px rgba(0, 0, 0, 0.45); /* a hovered or focused feed tile, risen above
                                        its neighbours (docs/tile-hover/, "Lift", 10-04-26) */

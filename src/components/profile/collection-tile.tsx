@@ -47,7 +47,7 @@ export function CollectionTile({
       className="w-full text-left transition-transform duration-150 active:scale-[0.98]"
     >
       <CoverMosaic covers={covers} className="aspect-square w-full" />
-      <span className="text-ink mt-[10px] block truncate text-[15px] font-medium">
+      <span className="text-ink mt-[10px] block truncate text-[15px]">
         {name}
       </span>
       <span className="text-ink/40 mt-[3px] block text-[12.5px]">
@@ -73,7 +73,7 @@ export function NewCollectionTile({ onClick }: { onClick: () => void }) {
       <div className="bg-ink/[4.5%] border-ink/16 flex aspect-square w-full items-center justify-center border-[0.5px] border-dashed">
         <Plus size={26} className="text-ink/55" />
       </div>
-      <span className="text-ink mt-[10px] block text-[15px] font-medium">
+      <span className="text-ink mt-[10px] block text-[15px]">
         New collection
       </span>
       <span className="text-ink/40 mt-[3px] block text-[12.5px]">

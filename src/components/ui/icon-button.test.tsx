@@ -25,13 +25,13 @@ describe("IconButton", () => {
 
   it("plain uses the quiet fill and border; glass the stronger border", () => {
     const { rerender } = render(<IconButton aria-label="a">x</IconButton>);
-    expect(screen.getByRole("button").className).toContain("border-ink/12");
+    expect(screen.getByRole("button")).toHaveClass("bg-ink/5", "border-ink/12");
     rerender(
       <IconButton glass aria-label="a">
         x
       </IconButton>,
     );
-    expect(screen.getByRole("button").className).toContain("border-ink/16");
+    expect(screen.getByRole("button")).toHaveClass("bg-ink/9", "border-ink/16");
   });
 
   it("is a button that does not submit, and brightens on hover", () => {

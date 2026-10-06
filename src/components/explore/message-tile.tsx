@@ -1,8 +1,8 @@
 import * as React from "react";
 
 import type { MessageKind } from "~/components/feed/masonry";
-import { Diamond } from "~/components/icons";
 import { Button } from "~/components/ui/button";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { EXPLORE_BLOCKS, type ExploreAction } from "~/config/explore";
 
 // `/explore`'s message block (09-26-26, docs/PLAN_explore-route.md) — one per page of the signed-
@@ -23,12 +23,7 @@ export function MessageTile({ message, onAction }: MessageTileProps) {
       data-explore-message={message}
       className="border-hairline bg-ink/3 border-ink/6 border px-[13px] py-4"
     >
-      <div className="flex items-center gap-[7px]">
-        <Diamond size={8} className="text-accent" />
-        <span className="text-ink/34 text-[9.5px] font-semibold tracking-[1.3px] uppercase">
-          Ambit
-        </span>
-      </div>
+      <Eyebrow dot>Ambit</Eyebrow>
       <p className="text-ink mt-[9px] text-[15px] leading-[1.35]">
         {copy.title}
       </p>

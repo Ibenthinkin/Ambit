@@ -112,7 +112,7 @@ export function QuestionStep({
       <h1
         id={id}
         tabIndex={-1}
-        className="text-ink-hi text-[30px] leading-[1.15] font-semibold tracking-[-0.4px] outline-none"
+        className="text-ink-hi text-[30px] leading-[1.15] tracking-[-0.4px] outline-none"
       >
         {question.prompt}
       </h1>

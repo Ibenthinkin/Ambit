@@ -1,3 +1,5 @@
+import { Eyebrow } from "~/components/ui/eyebrow";
+import { TextLink } from "~/components/ui/text-link";
 import { sourceLabel } from "~/lib/source-label";
 import type { RailItem } from "~/server/services/gallery-rail";
 import { CreditLine } from "./credit-line";
@@ -35,9 +37,9 @@ function Fact({
 }) {
   return (
     <div className="border-ink/8 flex gap-3 border-t-[0.5px] py-[11px]">
-      <dt className="text-ink/40 w-[88px] shrink-0 pt-[3px] text-[11px] font-semibold tracking-[0.6px] uppercase">
+      <Eyebrow as="dt" className="w-[88px] shrink-0 pt-[5px]">
         {label}
-      </dt>
+      </Eyebrow>
       <dd className="text-ink/82 min-w-0 flex-1 text-[15.5px] leading-[1.45]">
         {children}
       </dd>
@@ -56,7 +58,7 @@ export function ItemFacts({ item }: ItemFactsProps) {
   return (
     <article>
       {/* Stays an `<h1>`: it's the page's actual subject, and e2e leans on it. */}
-      <h1 className="text-ink-hi mt-[20px] text-[28px] leading-[1.16] font-semibold">
+      <h1 className="text-ink-hi mt-[20px] text-[28px] leading-[1.16]">
         {item.title}
       </h1>
 
@@ -78,14 +80,9 @@ export function ItemFacts({ item }: ItemFactsProps) {
         {maker ? <Fact label="Maker">{maker}</Fact> : null}
 
         <Fact label="From">
-          <a
-            href={item.sourceUrl}
-            target="_blank"
-            rel="noopener"
-            className="text-accent underline-offset-2 hover:underline"
-          >
+          <TextLink href={item.sourceUrl} external>
             {label}
-          </a>
+          </TextLink>
         </Fact>
 
         {item.license ? <Fact label="License">{item.license}</Fact> : null}

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { Segmented } from "~/components/ui/segmented";
 import {
   LEVEL_LABELS,
@@ -100,9 +101,8 @@ export function TopicLevels({
             <span className="text-ink text-[15px]">
               {topic.label}
               {suggested?.has(topic.id) && (
-                <span className="text-accent ml-2 font-sans text-[11px] font-semibold tracking-[1.2px] uppercase">
-                  suggested
-                </span>
+                // The green mono "Proposed" tag — DESIGN §3.2 job 6, so it keeps the accent.
+                <Eyebrow className="text-accent ml-2">suggested</Eyebrow>
               )}
             </span>
             <Segmented

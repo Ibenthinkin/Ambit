@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Magnifier, Share } from "~/components/icons";
 import { CoverMosaic } from "~/components/profile/cover-mosaic";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { writeLastCollectionId } from "~/lib/last-collection";
 import type { SaveDrift } from "~/lib/save-toast";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
@@ -143,7 +144,7 @@ export function ItemSheet({
         {/* The shell carries no horizontal padding (so the save sheets can scroll rows edge to
           edge), so this menu supplies its own — the prototype's `10px 18px 30px`. */}
         <div className="px-[18px] pt-[10px] pb-[30px]">
-          <p className="text-ink-hi px-1 pb-1 text-center text-[15px] font-semibold">
+          <p className="text-ink-hi px-1 pb-1 text-center text-[15px]">
             {item?.title ?? ""}
           </p>
 
@@ -153,9 +154,9 @@ export function ItemSheet({
             // Same rule as every other row/control in the design: a thumb resting here mid-gesture
             // must not fire it.
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex w-full items-center gap-[11px] rounded-[12px] px-[10px] py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
+            className="flex w-full items-center gap-[11px] px-[10px] py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
           >
-            <Magnifier size={18} className="text-accent flex-none" />
+            <Magnifier size={18} className="text-ink/78 flex-none" />
             <span className="text-ink text-[15px]">Closer Look</span>
           </button>
 
@@ -163,17 +164,17 @@ export function ItemSheet({
             type="button"
             onClick={share}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex w-full items-center gap-[11px] rounded-[12px] px-[10px] py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
+            className="flex w-full items-center gap-[11px] px-[10px] py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
           >
-            <Share size={18} className="text-accent flex-none" />
+            <Share size={18} className="text-ink/78 flex-none" />
             <span className="text-ink text-[15px]">Share</span>
           </button>
 
           <div className="bg-ink/8 mx-1 my-[6px] h-[0.5px]" />
 
-          <p className="text-ink/40 px-[10px] pt-[10px] pb-0.5 text-[11.5px] font-semibold tracking-[1px] uppercase">
+          <Eyebrow as="p" className="block px-[10px] pt-[10px] pb-0.5">
             Save to collection
-          </p>
+          </Eyebrow>
 
           {collections.isLoading ? (
             <div className="flex justify-center py-6">
@@ -187,7 +188,7 @@ export function ItemSheet({
                   type="button"
                   onClick={() => pick(c.id)}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="flex w-full items-center gap-[11px] rounded-[12px] px-[10px] py-3 text-left transition-transform duration-150 active:scale-[0.99]"
+                  className="flex w-full items-center gap-[11px] px-[10px] py-3 text-left transition-transform duration-150 active:scale-[0.99]"
                 >
                   <CoverMosaic
                     covers={c.covers}

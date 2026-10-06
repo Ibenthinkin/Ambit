@@ -1,5 +1,6 @@
 "use client";
 
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { writingLabel } from "~/server/config/writing";
 import type { FeedCard } from "~/server/services/feed";
 import { ImageTile } from "./image-tile";
@@ -45,10 +46,11 @@ export function WritingTile({
         // scrim is the sheet scrim's colour, so over a pale picture the white stays readable, and
         // it fades out well before the top so the picture still leads.
         <div className="from-scrim/85 via-scrim/45 to-scrim/0 pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t px-[12px] pt-10 pb-[11px]">
-          <p className="text-ink/75 text-[9.5px] font-semibold tracking-[1.3px]">
+          {/* Brighter than an eyebrow's usual ink/55: it sits on a scrim over a picture. */}
+          <Eyebrow as="p" className="text-ink/75 block">
             {writingLabel(item)}
-          </p>
-          <h2 className="text-ink-hi mt-[5px] line-clamp-3 text-[15px] leading-[1.25] font-semibold">
+          </Eyebrow>
+          <h2 className="text-ink-hi mt-[5px] line-clamp-3 text-[15px] leading-[1.25]">
             {item.title}
           </h2>
         </div>

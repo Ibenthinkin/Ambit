@@ -7,7 +7,7 @@ export default function OfflinePage() {
     // Brought onto the design system in Phase 5.4 — this page carried the T3 starter's purple
     // gradient and `text-white` right through 5.1-5.3, being the one screen no route links to.
     <main className="bg-bg flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-      <h1 className="text-ink-hi text-[26px] leading-[1.1] font-semibold tracking-[-0.3px]">
+      <h1 className="text-ink-hi text-[26px] leading-[1.1] tracking-[-0.3px]">
         You&apos;re offline
       </h1>
       <p className="text-ink/62 mt-3 max-w-[280px] text-[15.5px] leading-[1.55]">

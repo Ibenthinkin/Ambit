@@ -18,7 +18,7 @@ describe("Chip", () => {
   it("fills with ink and takes dark text when on", () => {
     render(<Chip selected>On</Chip>);
     const on = screen.getByRole("button", { name: "On" });
-    expect(on).toHaveClass("bg-ink", "border-ink", "text-bg");
+    expect(on).toHaveClass("bg-ink", "border-ink", "text-on-accent");
     expect(on).not.toHaveClass("bg-accent");
   });
 

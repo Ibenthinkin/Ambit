@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Diamond } from "~/components/icons";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import type { WanderRow } from "~/server/services/wander";
 
 // "Where Ambit would wander next" — three places the feed could go from here, each labelled with
@@ -23,17 +24,17 @@ export function WanderNext({ rows }: WanderNextProps) {
 
   return (
     <section className="mt-[34px]">
-      <div className="bg-accent/50 h-[0.5px] w-5" />
-      <h2 className="text-ink/40 mt-[14px] text-[11px] font-semibold tracking-[1.2px] uppercase">
+      <div className="bg-ink/22 h-[0.5px] w-5" />
+      <Eyebrow as="h2" className="mt-[14px] block">
         Where Ambit would wander next
-      </h2>
+      </Eyebrow>
 
       <ul className="mt-[14px] flex flex-col gap-[9px]">
         {rows.map((row) => (
           <li key={row.id}>
             <Link
               href={`/i/${row.id}`}
-              className="border-hairline border-ink/7 bg-ink/3 flex items-start gap-[11px] rounded-[14px] px-[15px] py-[13px]"
+              className="border-hairline border-ink/7 bg-ink/3 flex items-start gap-[11px] px-[15px] py-[13px]"
             >
               <Diamond size={9} className="text-accent mt-[6px] flex-none" />
               <span className="min-w-0">

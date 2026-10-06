@@ -40,7 +40,7 @@ export function Chip({
           ? "px-4 py-[11px] text-[16px]"
           : "px-3 py-2 text-[13.5px]",
         selected
-          ? "bg-ink border-ink text-bg"
+          ? "bg-ink border-ink text-on-accent"
           : "border-ink/28 text-ink/95 hover:border-ink/70 bg-transparent",
         className,
       )}

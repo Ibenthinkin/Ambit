@@ -37,16 +37,16 @@ import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sh
 import { ShareSheet } from "~/components/sheets/share-sheet";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Button } from "~/components/ui/button";
-import { Eyebrow } from "~/components/ui/eyebrow";
-import { TextLink } from "~/components/ui/text-link";
 import { Chip } from "~/components/ui/chip";
-import { IconButton } from "~/components/ui/icon-button";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { Field } from "~/components/ui/field";
+import { IconButton } from "~/components/ui/icon-button";
 import { Input } from "~/components/ui/input";
-import { Textarea } from "~/components/ui/textarea";
-import { Segmented } from "~/components/ui/segmented";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { PillToolbar, type BookmarkState } from "~/components/ui/pill-toolbar";
+import { Segmented } from "~/components/ui/segmented";
+import { TextLink } from "~/components/ui/text-link";
+import { Textarea } from "~/components/ui/textarea";
 import { Toast } from "~/components/ui/toast";
 import { usePress } from "~/hooks/use-press";
 import { saveToastText } from "~/lib/save-toast";
@@ -353,8 +353,8 @@ export default function TokensPage() {
               </div>
             ))}
             {/* Scrim is never opaque: it is #000 at 60 %, with no blur. Shown over a stripe so
-                the see-through is visible. `--color-overlay` (the old toast fill) is removed by
-                the spec; it is listed so nobody wonders where it went. */}
+                the see-through is visible. (`--color-overlay`, the old toast fill, was deleted in
+                Task 2.9 with its last user.) */}
             <div className="flex flex-col gap-2">
               <div className="border-hairline border-ink/22 bg-ink/30 relative h-16 overflow-hidden border">
                 <div className="bg-scrim/60 absolute inset-0" />
@@ -364,15 +364,6 @@ export default function TokensPage() {
               </span>
               <span className="text-eyebrow text-ink/48 font-mono">
                 #000 at 60%, no blur · sheet + modal scrims
-              </span>
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="border-hairline border-ink/22 bg-overlay h-16 border" />
-              <span className="text-eyebrow text-ink/78 font-mono">
-                bg-overlay
-              </span>
-              <span className="text-eyebrow text-ink/48 font-mono">
-                REMOVED by the spec — goes with the toast rewrite (Task 2.x)
               </span>
             </div>
           </div>

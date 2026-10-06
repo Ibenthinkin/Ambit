@@ -136,7 +136,7 @@ export function ShareSheet({
       placement={placement}
       title={collection ? "Share this collection" : "Share"}
     >
-      <div className="border-hairline border-ink/10 mx-[18px] flex items-center gap-2.5 rounded-full py-1.5 pr-1.5 pl-[15px]">
+      <div className="border-hairline border-ink/10 mx-[18px] flex items-center gap-2.5 py-1.5 pr-1.5 pl-[15px]">
         <span className="text-ink/60 min-w-0 flex-1 truncate font-mono text-[12.5px]">
           {/* The scheme is noise in a share sheet — the design shows a bare host + path. */}
           {url.replace(/^https?:\/\//, "")}
@@ -145,7 +145,9 @@ export function ShareSheet({
           type="button"
           onClick={copy}
           onPointerDown={(e) => e.stopPropagation()}
-          className="bg-accent text-on-accent flex-none rounded-full px-4 py-2 text-[12.5px] font-semibold"
+          // The primary button's colours (white, dark text): a filled button is not one of the
+          // accent's seven jobs (DESIGN §3.2).
+          className="bg-ink text-on-accent flex-none px-4 py-2 text-[12.5px]"
         >
           Copy link
         </button>
@@ -166,12 +168,12 @@ export function ShareSheet({
           >
             <span
               aria-hidden
-              className="border-hairline bg-ink/6 border-ink/12 text-ink flex size-[52px] items-center justify-center rounded-full"
+              className="border-hairline bg-ink/6 border-ink/12 text-ink flex size-[52px] items-center justify-center"
             >
               {t.glyph === "icon" ? (
                 <TargetGlyph name={t.name} />
               ) : (
-                <span className="text-[19px] font-bold">{t.glyph}</span>
+                <span className="text-[19px]">{t.glyph}</span>
               )}
             </span>
             <span aria-hidden className="text-ink/50 text-[10.5px]">
@@ -195,11 +197,9 @@ export function ShareSheet({
             onPointerDown={(e) => e.stopPropagation()}
             className="flex w-full items-center gap-[13px] px-[18px] py-[15px] text-left"
           >
-            <Download size={18} className="text-accent flex-none" />
+            <Download size={18} className="text-ink/78 flex-none" />
             <span className="min-w-0">
-              <span className="text-ink block text-[14.5px] font-medium">
-                Save image
-              </span>
+              <span className="text-ink block text-[14.5px]">Save image</span>
               <span className="text-ink/42 mt-[2px] block text-[11.5px]">
                 Adds the full-resolution image to your camera roll
               </span>

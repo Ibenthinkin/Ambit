@@ -13,7 +13,7 @@ import { isLinkCardSource } from "~/server/config/publications";
 // Server-safe on purpose: no hooks, no handlers, a plain anchor — so it renders unchanged inside
 // the reader (a server component) and inside `ItemFacts` under the client `ItemScreen` alike.
 //
-// No prototype in the handoff shows this element; it borrows the pill's row idiom (a rounded,
+// No prototype in the handoff shows this element; it borrows the pill's row idiom (an
 // ink-tinted, ≥44px target) rather than inventing a new one. (09-02-26: also rendered for `pdr`
 // — see the guard.)
 export interface LinkOutRowProps {
@@ -45,7 +45,7 @@ export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "bg-ink/6 text-ink-hi mt-[22px] flex h-12 w-full items-center justify-between rounded-[14px] px-[16px] text-[15px] font-semibold transition-transform duration-150 active:scale-[0.98]",
+        "bg-ink/6 text-ink-hi mt-[22px] flex h-12 w-full items-center justify-between px-[16px] text-[15px] transition-transform duration-150 active:scale-[0.98]",
         className,
       )}
     >

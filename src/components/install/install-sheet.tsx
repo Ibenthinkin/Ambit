@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { PlusSquare, Share } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import { Eyebrow } from "~/components/ui/eyebrow";
 
 // "Add to home screen" — instructions, not an install button.
 //
@@ -34,7 +35,7 @@ function Step({
 }) {
   return (
     <li className="flex items-start gap-[13px]">
-      <span className="bg-ink/6 text-ink/55 mt-[1px] flex size-[22px] flex-none items-center justify-center rounded-full text-[12px] font-semibold">
+      <span className="bg-ink/6 text-ink/55 mt-[1px] flex size-[22px] flex-none items-center justify-center font-mono text-[11px]">
         {n}
       </span>
       <span className="text-ink/70 flex-1 text-[13.5px] leading-[1.6]">
@@ -57,9 +58,9 @@ export function InstallSheet({ open, onClose }: InstallSheetProps) {
         </p>
 
         <div>
-          <p className="text-ink/34 text-[11px] font-semibold tracking-[1.2px] uppercase">
+          <Eyebrow as="p" className="block">
             iPhone &amp; iPad
-          </p>
+          </Eyebrow>
           <ol className="mt-[10px] flex flex-col gap-[10px]">
             <Step n={1} icon={<Share size={15} />}>
               Tap the Share button in Safari&apos;s toolbar.
@@ -72,9 +73,9 @@ export function InstallSheet({ open, onClose }: InstallSheetProps) {
         </div>
 
         <div>
-          <p className="text-ink/34 text-[11px] font-semibold tracking-[1.2px] uppercase">
+          <Eyebrow as="p" className="block">
             Android
-          </p>
+          </Eyebrow>
           <ol className="mt-[10px] flex flex-col gap-[10px]">
             <Step n={1}>Open the browser menu (⋮).</Step>
             <Step n={2} icon={<PlusSquare size={15} />}>

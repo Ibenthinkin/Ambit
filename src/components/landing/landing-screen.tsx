@@ -216,7 +216,7 @@ export function LandingScreen({
             boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
           }}
         >
-          <Logo size={30} className="text-accent" />
+          <Logo size={30} className="text-ink" />
         </button>
       ) : null}
 

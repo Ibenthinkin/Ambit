@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { ChevronRight } from "~/components/icons";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { cn } from "~/lib/utils";
 
 // The chrome of `/profile/settings` (`Ambit - Settings.dc.html`): a titled card of rows, and one row.
@@ -21,12 +22,13 @@ export interface SettingsRowProps {
   /** The right-aligned muted value, e.g. "English" or "3 topics". Omit for a bare row. */
   value?: string;
   /**
-   * Renders `value` in the warn tint instead of the muted one — the app's `--color-error`, which is
-   * the same `#D98C6A` the prototype uses for exactly this state. Notifications being *denied* is
-   * the only place it's used: a permission the reader has to leave the app to fix.
+   * Renders `value` at full ink instead of the muted grey, so it reads louder than its neighbours.
+   * Notifications being *denied* is the only place it's used: a permission the reader has to leave
+   * the app to fix. (It was the old orange `--color-error`; 1b has no error colour, and the green
+   * attention dot DESIGN §3.2 gives this state arrives with the Settings screen, Task 5.5.)
    */
   warnValue?: boolean;
-  /** A right-aligned accent pill instead of a chevron ("Install"). */
+  /** A right-aligned label set like a small primary button instead of a chevron ("Install"). */
   action?: string;
   onClick?: () => void;
 }
@@ -56,14 +58,16 @@ export function SettingsRow({
         <span
           className={cn(
             "flex-none text-[13.5px]",
-            warnValue ? "text-error" : "text-ink/42",
+            warnValue ? "text-ink" : "text-ink/42",
           )}
         >
           {value}
         </span>
       ) : null}
       {action ? (
-        <span className="bg-accent text-on-accent rounded-pill flex-none px-[15px] py-[7px] text-[13px] font-semibold">
+        // Drawn as Button's `primary` at `sm` (DESIGN §4.1: white, dark text, square) rather than
+        // rendered as a <Button>: the whole row is already the button, and buttons don't nest.
+        <span className="bg-ink text-on-accent flex-none px-[14px] py-[6px] text-[14px]">
           {action}
         </span>
       ) : (
@@ -88,11 +92,11 @@ export function SettingsGroup({
   return (
     <section className="mt-[30px]">
       {title ? (
-        <h2 className="text-ink/34 mx-1 mb-[10px] text-[11px] font-semibold tracking-[1.2px] uppercase">
+        <Eyebrow as="h2" className="mx-1 mb-[10px] block">
           {title}
-        </h2>
+        </Eyebrow>
       ) : null}
-      <div className="border-hairline border-ink/8 bg-ink/[3.5%] divide-ink/7 divide-y-[0.5px] overflow-hidden rounded-[18px]">
+      <div className="border-hairline border-ink/8 bg-ink/[3.5%] divide-ink/7 divide-y-[0.5px] overflow-hidden">
         {children}
       </div>
     </section>

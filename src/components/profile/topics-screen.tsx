@@ -3,14 +3,15 @@
 import * as React from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 
 import { ExhibitionCard } from "~/components/onboarding/exhibition-card";
 import { useProfileHub } from "~/components/profile/profile-hub";
 import { TopicLevels } from "~/components/topics/topic-levels";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Rise } from "~/components/ui/rise";
+import { TextLink } from "~/components/ui/text-link";
 import { pickWeight, weightOf } from "~/server/config/topic-levels";
 import { api } from "~/trpc/react";
 
@@ -57,9 +58,6 @@ const WRITE_SCOPE = { id: "topics.setMine" };
 
 /** How many search results to offer — a short list to choose from, not a second browse page. */
 const MAX_RESULTS = 8;
-
-const EYEBROW =
-  "text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase";
 
 /**
  * Label search over `topics`, minus what's already picked: case-insensitive, anywhere in the
@@ -245,7 +243,7 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
                           commit(new Map(picks).set(t.id, pickWeight(1)));
                           setQuery("");
                         }}
-                        className="border-hairline rounded-pill border-ink/12 bg-ink/5 text-ink/82 px-[17px] py-[11px] text-[15px] leading-none font-medium"
+                        className="border-hairline border-ink/12 bg-ink/5 text-ink/82 px-[17px] py-[11px] text-[15px] leading-none"
                       >
                         Add {t.label}
                       </button>
@@ -262,9 +260,9 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
           picked; `onOff` removes the row through the floor-checked `commit`. */}
       <Rise delayMs={120}>
         <section aria-labelledby="topics-mine" className="px-5 pt-7">
-          <p id="topics-mine" className={EYEBROW}>
+          <Eyebrow as="p" id="topics-mine" className="block">
             Your topics
-          </p>
+          </Eyebrow>
           <div ref={listRef} className="pt-4">
             <TopicLevels
               topics={all}
@@ -295,12 +293,9 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
       <Rise delayMs={180}>
         <p className="text-ink/62 px-5 pt-7 text-[15px] leading-[1.5]">
           Want to start over?{" "}
-          <Link
-            href="/onboarding?retake=1"
-            className="text-accent underline underline-offset-2"
-          >
+          <TextLink href="/onboarding?retake=1" tone="body">
             Retake the questions
-          </Link>
+          </TextLink>
         </p>
       </Rise>
 
@@ -309,7 +304,7 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
           <button
             type="button"
             onClick={() => resetWeights.mutate()}
-            className="border-hairline rounded-pill border-ink/18 text-ink h-[40px] px-5 text-[13px]"
+            className="border-hairline border-ink/18 text-ink h-[40px] px-5 text-[13px]"
           >
             Reset weights
           </button>

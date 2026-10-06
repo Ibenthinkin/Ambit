@@ -54,7 +54,7 @@ export default async function DevFacesPage() {
 
   return (
     <main className="bg-bg text-ink min-h-dvh px-6 py-10">
-      <h1 className="text-ink-hi text-[26px] font-semibold">Question faces</h1>
+      <h1 className="text-ink-hi text-[26px]">Question faces</h1>
       <p className="text-ink/62 mt-2 max-w-[640px] text-[14px] leading-[1.5]">
         The picture on each face-off card. Paste a line into the option in{" "}
         <code>src/lib/interview/bank.ts</code> to pin that picture; without a
@@ -67,7 +67,7 @@ export default async function DevFacesPage() {
         if (face.writing)
           return (
             <section key={faceKey(q.id, o.key)} className="mt-10">
-              <h2 className="text-ink-hi text-[17px] font-semibold">
+              <h2 className="text-ink-hi text-[17px]">
                 {q.id} / {o.key} — “{o.label}”
               </h2>
               <p className="text-ink/62 mt-1 font-mono text-[12px]">
@@ -97,7 +97,7 @@ export default async function DevFacesPage() {
         const inRows = rows.some((c) => c.id === current?.itemId);
         return (
           <section key={faceKey(q.id, o.key)} className="mt-10">
-            <h2 className="text-ink-hi text-[17px] font-semibold">
+            <h2 className="text-ink-hi text-[17px]">
               {q.id} / {o.key} — “{o.label}”
             </h2>
             <p className="text-ink/62 mt-1 font-mono text-[12px]">
@@ -127,7 +127,7 @@ export default async function DevFacesPage() {
                       alt=""
                       className={
                         isCurrent
-                          ? "ring-accent aspect-[4/5] w-full object-cover ring-2"
+                          ? "ring-ink aspect-[4/5] w-full object-cover ring-2"
                           : "aspect-[4/5] w-full object-cover"
                       }
                     />
@@ -168,7 +168,7 @@ function CurrentFace({
         <img
           src={face.src}
           alt=""
-          className="ring-accent aspect-[4/5] w-full object-cover ring-2"
+          className="ring-ink aspect-[4/5] w-full object-cover ring-2"
         />
       )}
       <figcaption className="text-ink/62 mt-2 font-mono text-[11px] leading-[1.4] break-all select-all">
