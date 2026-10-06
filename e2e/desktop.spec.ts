@@ -483,10 +483,13 @@ test.describe.serial("desktop", () => {
       .locator("img");
     const alts = () =>
       current.evaluateAll((els) => els.map((e) => e.getAttribute("alt")));
-    // Which pictures are on the spread. Not the alts: a blog's posts can share one title
-    // ("70s Sci-Fi Art" twice in a row), but each picture's proxied src names its item.
+    // Which pictures are on the spread, as alt + src. Neither alone is an identity: on the real
+    // corpus a blog's posts can share one title ("70s Sci-Fi Art" twice in a row), and on CI's
+    // fixtures every picture is the same placeholder src. Together they name the page.
     const srcs = () =>
-      current.evaluateAll((els) => els.map((e) => e.getAttribute("src")));
+      current.evaluateAll((els) =>
+        els.map((e) => `${e.getAttribute("alt")}|${e.getAttribute("src")}`),
+      );
     const toggle = page.getByRole("button", { name: "Magazine view" });
     // The item screen throttles its wake (mouse move, key, wheel, touch, scroll) to one per
     // 250 ms, and Playwright moves faster than any hand — a summon right after another mouse
