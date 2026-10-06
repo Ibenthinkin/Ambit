@@ -308,7 +308,7 @@ test.describe.serial("saved", () => {
       else if (pathname === "/feed") draws.push(`route:${request.method()}`);
     });
 
-    await page.getByRole("button", { name: "Feed" }).click();
+    await page.getByRole("button", { name: "Feed", exact: true }).click();
     await page.waitForURL(/\/feed$/);
     await expect(page.locator("[data-feed-id]").first()).toBeVisible();
 
