@@ -118,6 +118,17 @@ export const tasteSchema: z.ZodType<Taste> = z.discriminatedUnion("v", [
   }),
 ]);
 
+/**
+ * A stored `user_taste.taste` as the profile may read it, or null when the row no longer parses.
+ * Every write goes through `tasteSchema`, so a row that fails it here is corruption or a schema
+ * that moved under it — and the honest answer is "no exhibition", not a shape handed to
+ * `ExhibitionCard` to throw on (redesign ledger 6.2).
+ */
+export function parseStoredTaste(raw: unknown): Taste | null {
+  const parsed = tasteSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
 /** The destinations the reader chose, from the logged answer; unknown keys and a skip are nothing. */
 export function chosenDestinations(
   answers: readonly Answer[],

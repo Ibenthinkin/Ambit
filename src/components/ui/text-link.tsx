@@ -38,7 +38,16 @@ export function TextLink({
   ...rest
 }: TextLinkProps) {
   const classes = cn(TEXT_LINK, tone === "body" && "text-ink", className);
-  const label = bracket ? <>[{children}..]</> : children;
+  // The brackets are typography, not words: hidden from AT so the link's name is the label alone.
+  const label = bracket ? (
+    <>
+      <span aria-hidden="true">[</span>
+      {children}
+      <span aria-hidden="true">..]</span>
+    </>
+  ) : (
+    children
+  );
 
   if (external) {
     return (

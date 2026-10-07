@@ -18,6 +18,7 @@ import {
 import { cardSrc } from "~/lib/image-src";
 import {
   hangIdsOf,
+  parseStoredTaste,
   profileTaste,
   type HangCard,
   type ProfileTaste,
@@ -397,7 +398,8 @@ export async function getUserTaste(
     .from(userTaste)
     .where(eq(userTaste.userId, userId))
     .limit(1);
-  const taste = rows[0]?.taste;
+  // Parsed, not trusted: the column's type says Taste, the row says what it says.
+  const taste = rows[0] ? parseStoredTaste(rows[0].taste) : null;
   if (!taste) return null;
 
   const ids = hangIdsOf(taste);

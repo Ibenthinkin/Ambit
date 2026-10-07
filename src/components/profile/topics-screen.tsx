@@ -186,14 +186,16 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
   /** Writes `next`, or refuses it: the mutation's floor is one (`min(1)`), and refusing here
    *  keeps the list honest instead of letting a row vanish and snap back on the server's
    *  BAD_REQUEST. */
-  function commit(next: Map<string, number>) {
+  /** Writes `next` — or refuses an empty set with a toast and returns false. */
+  function commit(next: Map<string, number>): boolean {
     if (next.size === 0) {
       hub.toast("Keep at least one topic.");
-      return;
+      return false;
     }
     setMine.mutate({
       picks: [...next].map(([topicId, weight]) => ({ topicId, weight })),
     });
+    return true;
   }
 
   return (
@@ -280,9 +282,10 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
               onLevel={(topicId, level) => setWeight.mutate({ topicId, level })}
               onOff={(topicId) => {
                 // Choose the focus target from the list as drawn (by heading, then label —
-                // `levelRowOrder` is TopicLevels' own order) before the row goes. The
-                // last-topic floor refuses in `commit`; the effect then never sees the row
-                // leave, so nothing moves.
+                // `levelRowOrder` is TopicLevels' own order) before the row goes. If the
+                // last-topic floor refuses in `commit`, the hand-off is withdrawn: left
+                // waiting, it would fire whenever that row next left the list by any other
+                // path (a refetch after a retake) and drag focus into the search box.
                 const order = levelRowOrder(all, picks);
                 const i = order.indexOf(topicId);
                 focusAfterRemoval.current = {
@@ -291,7 +294,7 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
                 };
                 const next = new Map(picks);
                 next.delete(topicId);
-                commit(next);
+                if (!commit(next)) focusAfterRemoval.current = null;
               }}
             />
           </div>

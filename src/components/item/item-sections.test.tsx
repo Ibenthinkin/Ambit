@@ -110,9 +110,10 @@ describe("ReaderItemBody", () => {
 
   it("shows the bracket link-out and no eyebrow above the title", () => {
     render(<ReaderItemBody item={makeItem()} />);
-    expect(
-      screen.getByRole("link", { name: "[Read on Wikipedia..]" }),
-    ).toHaveAttribute("target", "_blank");
+    // Named by its words — the brackets are typography, hidden from AT (text-link.tsx).
+    const link = screen.getByRole("link", { name: "Read on Wikipedia" });
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link.textContent).toContain("[Read on Wikipedia..]");
     // The title is the first thing in the article.
     expect(screen.getByRole("article").firstElementChild?.tagName).toBe("H1");
   });

@@ -57,14 +57,20 @@ describe("TextLink", () => {
     expect(el.getAttribute("target")).toBe("_blank");
   });
 
-  it("bracket wraps the label as [label..]", () => {
+  it("bracket wraps the label as [label..], with the brackets hidden from AT", () => {
     render(
       <TextLink href="/w" bracket>
         Read on Wikipedia
       </TextLink>,
     );
-    const el = screen.getByRole("link");
+    // The accessible name is the words alone — a screen reader must not announce
+    // "left bracket Read on Wikipedia dot dot right bracket".
+    const el = screen.getByRole("link", { name: "Read on Wikipedia" });
     expect(el.textContent).toBe("[Read on Wikipedia..]");
+    const hidden = [...el.querySelectorAll("[aria-hidden='true']")].map(
+      (s) => s.textContent,
+    );
+    expect(hidden).toEqual(["[", "..]"]);
   });
 
   it("passes other anchor props through", () => {
