@@ -413,30 +413,43 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect((await caller.topics.taste())?.title.adjective).toBe("Gilded");
     });
 
-    it("refuses a taste whose opened item does not exist, writing nothing", async () => {
+    /** The taste exactly as `user_taste` holds it — topics.taste filters on read, so a drop
+     *  at write time is only visible here. */
+    const storedTaste = async (uid: string) => {
+      const { db } = await import("~/server/db/client");
+      const { userTaste } = await import("~/server/db/schema");
+      const [row] = await db
+        .select({ taste: userTaste.taste })
+        .from(userTaste)
+        .where(eq(userTaste.userId, uid));
+      return row?.taste;
+    };
+
+    // A stale tab, or the faces' ten-minute memo outliving a deleted item: the save goes through
+    // and the dangling card is dropped, never a refusal the reader can't get past.
+    it("drops an opened card whose item does not exist and saves the rest", async () => {
       const caller = createCaller(authedContext(badTasteUserId));
-      await expect(
-        caller.onboarding.complete(
-          input({
-            taste: {
-              ...taste,
-              opened: [
-                {
-                  itemId: "no-such-item",
-                  title: "x",
-                  kind: "essay",
-                  minutes: 3,
-                },
-              ],
-            },
-          }),
-        ),
-      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
-      expect(await caller.topics.taste()).toBeNull();
-      // Nothing else landed either: the check runs before the transaction.
+      const card = (itemId: string, minutes: number) => ({
+        itemId,
+        title: "x",
+        kind: "essay" as const,
+        minutes,
+      });
+      await caller.onboarding.complete(
+        input({
+          taste: {
+            ...taste,
+            opened: [card("no-such-item", 3), card(article, 11)],
+            readingMinutes: 7,
+          },
+        }),
+      );
+      const stored = await storedTaste(badTasteUserId);
+      expect(stored?.opened.map((o) => o.itemId)).toEqual([article]);
+      expect(stored?.readingMinutes).toBe(11);
       const { picks, log } = await rowsFor(badTasteUserId);
-      expect(picks).toEqual({});
-      expect(log).toEqual([]);
+      expect(picks).toEqual({ [a]: 2, [b]: 1, [c]: 0.5 });
+      expect(log.length).toBeGreaterThan(0);
     });
 
     // Taste v2 (docs/DESIGN_redesign.md §5.1): the hang is item ids, checked like `opened`.
@@ -498,22 +511,65 @@ describe.skipIf(!process.env.DATABASE_URL)(
       ]);
     });
 
-    it("refuses a hang naming an item that does not exist, or one that is not a picture, writing nothing", async () => {
+    it("drops a hung id that does not exist or is not a picture, and stores the rest", async () => {
       const caller = createCaller(authedContext(badHangUserId));
+      const [p1, p2] = pictures as [string, string];
       for (const bad of ["no-such-item", article, articleWithPicture]) {
-        await expect(
-          caller.onboarding.complete(
-            input({
-              bankVersion: 3,
-              taste: { ...taste, v: 2, hang: [pictures[0]!, bad] },
-            }),
-          ),
-        ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+        await caller.onboarding.complete(
+          input({
+            bankVersion: 3,
+            taste: { ...taste, v: 2, hang: [p1, bad, p2] },
+          }),
+        );
+        expect(await storedTaste(badHangUserId)).toMatchObject({
+          v: 2,
+          hang: [p1, p2],
+        });
       }
-      expect(await caller.topics.taste()).toBeNull();
-      const { picks, log } = await rowsFor(badHangUserId);
-      expect(picks).toEqual({});
-      expect(log).toEqual([]);
+      // Left with one picture, there is no hang: stored empty, the run saved all the same.
+      await caller.onboarding.complete(
+        input({
+          bankVersion: 3,
+          taste: { ...taste, v: 2, hang: [p1, article] },
+        }),
+      );
+      expect(await storedTaste(badHangUserId)).toMatchObject({ hang: [] });
+      expect((await rowsFor(badHangUserId)).picks).toEqual({
+        [a]: 2,
+        [b]: 1,
+        [c]: 0.5,
+      });
+    });
+
+    it("saves when a hung picture is deleted between the reveal and Open my feed", async () => {
+      const { db } = await import("~/server/db/client");
+      const { item } = await import("~/server/db/schema");
+      const caller = createCaller(authedContext(badHangUserId));
+      const [p1, p2] = pictures as [string, string];
+      // The reveal hangs a picture (from the memoised faces)…
+      const [doomed] = await db
+        .insert(item)
+        .values({
+          source: "met",
+          sourceId: `${itemPrefix}doomed`,
+          type: "image",
+          title: "Hang fixture doomed",
+          sourceUrl: `https://x.test/${itemPrefix}doomed`,
+          imageUrl: `https://x.test/${itemPrefix}doomed.jpg`,
+          topicId: a,
+          curationScore: 9,
+        })
+        .returning({ id: item.id });
+      const hang = [doomed!.id, p1, p2];
+      // …and the corpus loses it before the reader presses the button.
+      await db.delete(item).where(eq(item.id, doomed!.id));
+      const { runId } = await caller.onboarding.complete(
+        input({ bankVersion: 3, taste: { ...taste, v: 2, hang } }),
+      );
+      expect(runId).toBeTruthy();
+      expect(await storedTaste(badHangUserId)).toMatchObject({
+        hang: [p1, p2],
+      });
     });
 
     it("topics.taste is null for a reader who has none", async () => {

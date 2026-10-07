@@ -4,6 +4,7 @@ import {
   buildTaste,
   chosenDestinations,
   profileTaste,
+  withKnownItems,
   tasteSchema,
   type TasteV1,
 } from "./taste";
@@ -106,8 +107,9 @@ describe("tasteSchema", () => {
       hang: ["p1", "p2"],
     });
     expect(tasteSchema.safeParse(ok).success).toBe(true);
-    const { hang: _hang, ...noHang } = ok;
-    expect(tasteSchema.safeParse(noHang).success).toBe(false);
+    expect(tasteSchema.safeParse({ ...ok, hang: undefined }).success).toBe(
+      false,
+    );
     expect(
       tasteSchema.safeParse({
         ...ok,
@@ -174,5 +176,66 @@ describe("profileTaste", () => {
   it("tolerates a malformed hang in the stored jsonb rather than throwing", () => {
     const bad = { ...V1_ROW, v: 2, hang: "p1" } as unknown as TasteV1;
     expect(profileTaste(bad, cards).hang).toEqual([]);
+  });
+});
+
+describe("withKnownItems", () => {
+  const two = [
+    { itemId: "i1", title: "On rain", kind: "essay" as const, minutes: 14 },
+    {
+      itemId: "i2",
+      title: "A tide table",
+      kind: "archive" as const,
+      minutes: 4,
+    },
+  ];
+  const v2 = {
+    ...V1_ROW,
+    v: 2 as const,
+    opened: two,
+    readingMinutes: 9,
+    hang: ["p1", "p2", "p3"],
+  };
+
+  it("keeps a taste whose items all exist exactly as it was", () => {
+    const known = {
+      items: new Set(["i1", "i2", "p1", "p2", "p3"]),
+      pictures: new Set(["p1", "p2", "p3"]),
+    };
+    expect(withKnownItems(v2, known)).toEqual(v2);
+  });
+
+  it("drops a gone opened card and recomputes the reading minutes", () => {
+    const out = withKnownItems(v2, {
+      items: new Set(["i2", "p1", "p2", "p3"]),
+      pictures: new Set(["p1", "p2", "p3"]),
+    });
+    expect(out.opened.map((o) => o.itemId)).toEqual(["i2"]);
+    expect(out.readingMinutes).toBe(4);
+    const none = withKnownItems(v2, {
+      items: new Set(),
+      pictures: new Set(["p1", "p2", "p3"]),
+    });
+    expect(none.opened).toEqual([]);
+    expect(none.readingMinutes).toBeNull();
+  });
+
+  it("drops a hung id that is gone or not a picture, in order, and empties a hang left under two", () => {
+    expect(
+      withKnownItems(v2, { items: new Set(), pictures: new Set(["p1", "p3"]) }),
+    ).toMatchObject({ hang: ["p1", "p3"] });
+    expect(
+      withKnownItems(v2, { items: new Set(), pictures: new Set(["p2"]) }),
+    ).toMatchObject({ hang: [] });
+  });
+
+  it("leaves a v1 a v1, with no hang", () => {
+    const out = withKnownItems(V1_ROW, {
+      items: new Set(),
+      pictures: new Set(),
+    });
+    expect(out.v).toBe(1);
+    expect("hang" in out).toBe(false);
+    expect(out.opened).toEqual([]);
   });
 });

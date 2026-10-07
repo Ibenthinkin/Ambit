@@ -14,7 +14,7 @@ import {
   READING_AMOUNTS,
   type ReadingAmount,
 } from "~/server/config/reading-amount";
-import { tasteSchema } from "~/lib/interview/taste";
+import { tasteSchema, withKnownItems } from "~/lib/interview/taste";
 import { getItemsByIds } from "~/server/db/items";
 import { completeOnboarding } from "~/server/db/onboarding";
 import type { ErrorThrottle } from "~/server/services/error-report";
@@ -143,31 +143,31 @@ export const onboardingRouter = createTRPCRouter({
         });
       }
 
-      if (input.taste) {
-        // The opened cards name items; a stale tab after a corpus prune must not store a
-        // dangling id. Checked before the transaction, so a refusal writes nothing at all.
-        // Taste v2's hang the same way, and stricter: a hung item must be a picture, since the
-        // profile draws it again. Items are the shared corpus, not the reader's — there is no
-        // user to scope them to; the row this writes is `ctx.user.id`'s alone (db/onboarding.ts).
-        const opened = input.taste.opened.map((o) => o.itemId);
-        const hang = input.taste.v === 2 ? input.taste.hang : [];
+      let taste = input.taste;
+      if (taste) {
+        // The opened cards and the hang name items, and an item can be gone by the time the
+        // reader presses the button: a tab left open across a corpus prune, or — the one 6.7's
+        // e2e found — the faces' ten-minute memo (services/question-faces.ts) still showing a
+        // picture deleted since. So a dangling id is **dropped, never refused**: refusing would
+        // fail the whole run, and every retry would send the same taste and fail again, leaving
+        // the reader stuck on the reveal over a decoration. What is stored is what the reveal
+        // showed, less what no longer exists (`withKnownItems`; a hang left under two is empty).
+        // A hung id must also be a picture — an image row with an image, not an article with a
+        // lead picture — since the profile draws it again. Items are the shared corpus, not the
+        // reader's: there is no user to scope them to; the row written is `ctx.user.id`'s alone.
+        const opened = taste.opened.map((o) => o.itemId);
+        const hang = taste.v === 2 ? taste.hang : [];
         const found = await getItemsByIds([...new Set([...opened, ...hang])]);
-        const gone = [
-          ...opened.filter((id) => !found.has(id)),
-          // A picture is an image row with an image — an article with a lead picture is not one.
-          ...hang.filter((id) => {
-            const row = found.get(id);
-            return !(row?.type === "image" && row.imageUrl);
-          }),
-        ];
-        if (gone.length > 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Unknown item id(s): ${gone.join(", ")}`,
-          });
-        }
+        taste = withKnownItems(taste, {
+          items: new Set(found.keys()),
+          pictures: new Set(
+            [...found.values()]
+              .filter((r) => r.type === "image" && r.imageUrl)
+              .map((r) => r.id),
+          ),
+        });
         // Mediums must be pickable topics, like picks.
-        const badMedium = input.taste.mediums.filter((id) => !validIds.has(id));
+        const badMedium = taste.mediums.filter((id) => !validIds.has(id));
         if (badMedium.length > 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -191,7 +191,7 @@ export const onboardingRouter = createTRPCRouter({
             : { questionId: a.questionId, answer: a.keys, text: null },
         ),
         bankVersion: input.bankVersion,
-        taste: input.taste,
+        taste,
       });
     }),
 

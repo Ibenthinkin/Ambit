@@ -10,7 +10,7 @@
 // to show that day.
 //
 // **v2 (the redesign, docs/DESIGN_redesign.md §5.1) adds `hang`**: the item ids of the pictures
-// hung under the title (hang.ts), validated on the server like `opened`. v1 rows — every taste
+// hung under the title (hang.ts), checked on the server like `opened`. v1 rows — every taste
 // stored before Phase 6 — stay in `user_taste` as they are: `tasteSchema` is a union that still
 // accepts them (a tab opened before the deploy sends one), and `profileTaste` reads either into
 // the one shape /profile/topics draws, a v1 with an empty hang.
@@ -102,8 +102,8 @@ const fields = {
 };
 
 /**
- * Either version, told apart by `v`. The server checks the ids in `opened` and `hang` exist
- * (api/routers/onboarding.ts) — a schema cannot.
+ * Either version, told apart by `v`. Whether the ids in `opened` and `hang` still exist a
+ * schema cannot say; the server drops the ones that don't (`withKnownItems`).
  */
 export const tasteSchema: z.ZodType<Taste> = z.discriminatedUnion("v", [
   z.object({ v: z.literal(1), ...fields }),
@@ -160,6 +160,35 @@ export function buildTaste(input: {
         ? null
         : minutes.reduce((a, b) => a + b, 0) / minutes.length,
     hang: [...hang],
+  };
+}
+
+/**
+ * The taste with every item id the corpus no longer backs taken out — what `onboarding.complete`
+ * stores. `items` is the ids that exist, `pictures` those that are image rows with an image.
+ * An opened card whose item is gone leaves `opened` (and `readingMinutes` is recomputed from what
+ * is left); a hung id that is gone or not a picture leaves the hang, and a hang left with fewer
+ * than `HANG_MIN` is stored empty — the rule the reveal and the profile draw it by. A v1 has no
+ * hang and keeps its version.
+ */
+export function withKnownItems(
+  taste: Taste,
+  known: { items: ReadonlySet<string>; pictures: ReadonlySet<string> },
+): Taste {
+  const opened = taste.opened.filter((o) => known.items.has(o.itemId));
+  const readingMinutes =
+    opened.length === taste.opened.length
+      ? taste.readingMinutes
+      : opened.length === 0
+        ? null
+        : opened.reduce((a, o) => a + o.minutes, 0) / opened.length;
+  if (taste.v === 1) return { ...taste, opened, readingMinutes };
+  const hang = taste.hang.filter((id) => known.pictures.has(id));
+  return {
+    ...taste,
+    opened,
+    readingMinutes,
+    hang: hang.length < HANG_MIN ? [] : hang,
   };
 }
 
