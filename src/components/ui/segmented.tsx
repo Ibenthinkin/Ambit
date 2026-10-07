@@ -135,9 +135,12 @@ export function Segmented<T extends string>({
                 ? option.tone === "muted"
                   ? "text-ink/78 bg-[#2A2A2A]"
                   : "bg-ink text-on-accent"
-                : // Hover: a faint lift, brighter text, and the 2 px green inset underline.
-                  "text-ink/62 hover:text-ink bg-transparent hover:bg-white/8",
-              HOVER_LINE,
+                : // Hover: a faint lift, brighter text, and the 2 px green inset underline —
+                  // on an unchosen cell only (DESIGN §4.3); the chosen one is already marked.
+                  cn(
+                    "text-ink/62 hover:text-ink bg-transparent hover:bg-white/8",
+                    HOVER_LINE,
+                  ),
             )}
           >
             {option.label}
