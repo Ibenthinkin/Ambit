@@ -54,8 +54,8 @@ export default async function DevFacesPage() {
 
   return (
     <main className="bg-bg text-ink min-h-dvh px-6 py-10">
-      <h1 className="text-ink-hi text-[26px]">Question faces</h1>
-      <p className="text-ink/62 mt-2 max-w-[640px] text-[14px] leading-[1.5]">
+      <h1 className="text-ink-hi text-display">Question faces</h1>
+      <p className="text-ink/62 mt-2 max-w-[640px] text-sm">
         The picture on each face-off card. Paste a line into the option in{" "}
         <code>src/lib/interview/bank.ts</code> to pin that picture; without a
         pick the first candidate is used. Faces are memoised for ten minutes, so
@@ -67,10 +67,10 @@ export default async function DevFacesPage() {
         if (face.writing)
           return (
             <section key={faceKey(q.id, o.key)} className="mt-10">
-              <h2 className="text-ink-hi text-[17px]">
+              <h2 className="text-ink-hi text-lg">
                 {q.id} / {o.key} — “{o.label}”
               </h2>
-              <p className="text-ink/62 mt-1 font-mono text-[12px]">
+              <p className="text-ink/55 mt-1 font-mono text-[12px] tracking-[0.4px] uppercase">
                 article · automatic · {face.writing.kind} · nth{" "}
                 {face.writing.nth}
               </p>
@@ -97,10 +97,10 @@ export default async function DevFacesPage() {
         const inRows = rows.some((c) => c.id === current?.itemId);
         return (
           <section key={faceKey(q.id, o.key)} className="mt-10">
-            <h2 className="text-ink-hi text-[17px]">
+            <h2 className="text-ink-hi text-lg">
               {q.id} / {o.key} — “{o.label}”
             </h2>
-            <p className="text-ink/62 mt-1 font-mono text-[12px]">
+            <p className="text-ink/55 mt-1 font-mono text-[12px] tracking-[0.4px] uppercase">
               topic: {face.topic}
               {face.pick
                 ? ` · hand pick: ${face.pick.source} ${face.pick.sourceId}`

@@ -148,7 +148,7 @@ export function KnobPanel({
 
       <div className="flex flex-col gap-5 overflow-y-auto px-4 pt-4 pb-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-ink-hi text-[15px]">Composition knobs</h2>
+          <h2 className="text-ink-hi text-sm">Composition knobs</h2>
           <span className="text-ink/40 text-[11px]">dev · FEED_DEBUG</span>
         </div>
 
