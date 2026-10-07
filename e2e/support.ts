@@ -388,23 +388,32 @@ export async function countSeenFor(
 export const ONBOARDING_TOPICS = ["astronomy", "botany", "music"];
 
 /**
- * Answers the questionnaire (docs/PLAN_onboarding-questionnaire.md) toward `topics`, from the
- * intro's Begin through to the reveal — and stops there, with the reveal on screen, so a caller
- * can look at it before saving. `completeOnboarding` is this plus "Start exploring".
+ * Answers the questionnaire (bank v3, docs/DESIGN_redesign.md §5) toward `topics`, from the
+ * intro's Begin through to the reveal — and stops there, with the reveal on screen and its
+ * Reading row set to "Some", so a caller can look at it before saving. `completeOnboarding` is
+ * this plus "Open my feed".
  *
- * **It steers by `data-topics`.** Every answer button carries the topic ids it would add; each
- * question, this presses the answers that hold a wanted topic and skips the question otherwise.
- * No label, question id or question count is hard-coded here, because the bank's copy is Ben's
- * to edit and CI's sixteen-topic database is asked a different, shorter set than production.
+ * **It steers by `data-topics`.** Every answer carries the topic ids it would add (on the keep
+ * stack, only the Keep button does, for the card that's up); each question, this presses the
+ * answers that hold a wanted topic and skips the question otherwise. No label, question id or
+ * question count is hard-coded here, because the bank's copy is Ben's to edit and CI's
+ * sixteen-topic database is asked a different, shorter set than production.
  * `src/lib/interview/path.ts` is this function's pure mirror — `bank.test.ts` uses it to prove,
- * without a browser, that a path to the default three exists on both database shapes. Change
- * the rules in one and you must change the other.
+ * without a browser, that a path to the default three (and the retake's geology + music) exists
+ * on both database shapes. Change the rules in one and you must change the other.
  *
- * The rules: a text question is skipped (no model call in e2e — the two free-text questions are
- * covered by unit tests); the reading amount is answered "Some" (see the loop); a pair with a
- * wanted topic on both sides is "Either";
- * a multi presses its hits up to the step's `data-max`, then Next; a pair or a choice is one tap
- * and moves on by itself.
+ * The rules, screen by screen (question-step.tsx's layouts):
+ *   - nothing wanted on the screen — its own skip: rooms' and pairs' "Skip", the reading cards'
+ *     "I’d rather look at pictures", the destinations' "Nowhere in particular", Rather not's
+ *     "Continue" with nothing chosen, the bonus's "Continue to your exhibition" with the box
+ *     blank. Every one records SKIP, which is what path.ts writes. The bonus is always skipped
+ *     (no model call in e2e — the free text is covered by unit tests);
+ *   - a pair with a wanted topic on both sides — "Both, equally" (EITHER);
+ *   - a pair's one wanted side, or a choice's first wanted answer — one tap, which is the answer
+ *     and auto-advances after the shell's 380 ms beat;
+ *   - the keep stack — one press per card, Keep when its topics hold a wanted one, Pass
+ *     otherwise; the last press advances (passing every card is the skip);
+ *   - any other multi — its hits up to the step's `data-max`, then "Continue".
  *
  * A wanted topic missing from the reveal fails here, by name, rather than as a mystery later —
  * the specs' fixtures depend on exactly which topics the user has. (On a real corpus the reveal
@@ -416,14 +425,23 @@ export async function answerQuestionnaire(
   topics: readonly string[] = ONBOARDING_TOPICS,
 ) {
   const want = new Set(topics);
+  const wanted = (attr: string | null) =>
+    (attr ?? "")
+      .split(" ")
+      .filter(Boolean)
+      .some((t) => want.has(t));
   const step = page.locator("[data-question-id]");
-  // The screen names its forward button for what it will do (onboarding-screen.tsx's
-  // `forwardLabel`): Skip; Next once something is said — including a reading amount the screen
-  // preselected from the article cards; and the destinations' decline, worded as a real answer.
-  const forward = page.getByRole("button", {
-    name: /^(Skip|Next|Nowhere in particular)$/,
-  });
   const reveal = page.locator('[data-step="reveal"]');
+  // Each screen's way on with nothing said, in the order they're tried: the destinations show
+  // both "Continue" and "Nowhere in particular" (either is a skip with nothing chosen), and only
+  // Rather not and the bonus have nothing but a Continue.
+  const DECLINES = [
+    "Skip",
+    "I’d rather look at pictures",
+    "Nowhere in particular",
+    "Continue to your exhibition",
+    "Continue",
+  ];
 
   // Retried: a click that lands before React has hydrated the button does nothing at all (the
   // same trap support.ts's landing helpers document), and the page would sit on its intro.
@@ -441,40 +459,61 @@ export async function answerQuestionnaire(
     const id = (await step.getAttribute("data-question-id"))!;
     const kind = await step.getAttribute("data-question-kind");
     const max = Number((await step.getAttribute("data-max")) ?? Infinity);
+    const left = expect(page.locator(`[data-question-id="${id}"]`));
+
+    // The keep stack: one card at a time, its counter ("03 / 10") the proof the card has moved
+    // on before its Keep button's topics are read.
+    if (await step.locator("[data-keep-card]").count()) {
+      const counter = step.getByText(/^\d{2} \/ \d{2}$/).first();
+      const total = Number((await counter.textContent())!.split("/")[1]);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const keep = step.getByRole("button", { name: "Keep", exact: true });
+      const pass = step.getByRole("button", { name: "Pass", exact: true });
+      for (let card = 1; card <= total; card++) {
+        await expect(counter).toHaveText(`${pad(card)} / ${pad(total)}`);
+        if (wanted(await keep.getAttribute("data-topics"))) await keep.click();
+        else await pass.click();
+      }
+      await left.toHaveCount(0);
+      continue;
+    }
+
     const options = step.locator("[data-topics]");
     const hits: number[] = [];
-    if (kind !== "text" && kind !== "amount") {
+    if (kind !== "text") {
       const count = await options.count();
       for (let i = 0; i < count; i++) {
-        const adds = ((await options.nth(i).getAttribute("data-topics")) ?? "")
-          .split(" ")
-          .filter(Boolean);
-        if (adds.some((t) => want.has(t))) hits.push(i);
+        if (wanted(await options.nth(i).getAttribute("data-topics")))
+          hits.push(i);
       }
     }
 
-    if (kind === "amount") {
-      // "Some" is the share a skipped amount used to leave the feed at (DEFAULT_KNOBS'
-      // writingShare 0.125). Pressed explicitly because bank v2 *preselects* a level read off the
-      // reading cards — and this helper declines those, which preselects "None" — so a plain
-      // forward would leave every spec's reader with a feed of no writing at all. Falls back to
-      // forward on a bank whose amount question does not offer it.
-      const some = step.getByRole("button", { name: "Some", exact: true });
-      if (await some.count()) await some.click();
-      else await forward.click();
-    } else if (hits.length === 0) {
-      await forward.click();
+    if (hits.length === 0) {
+      let declined = false;
+      for (const name of DECLINES) {
+        const button = step.getByRole("button", { name, exact: true });
+        if (await button.count()) {
+          await button.click();
+          declined = true;
+          break;
+        }
+      }
+      if (!declined)
+        throw new Error(`onboarding: no way past "${id}" (${kind})`);
     } else if (kind === "pair" && hits.length > 1) {
-      await step.getByRole("button", { name: "Either", exact: true }).click();
+      await step
+        .getByRole("button", { name: "Both, equally", exact: true })
+        .click();
     } else if (kind === "multi") {
       for (const i of hits.slice(0, max)) await options.nth(i).click();
-      await page.getByRole("button", { name: "Next", exact: true }).click();
+      await step.getByRole("button", { name: "Continue", exact: true }).click();
     } else {
-      // A pair's one wanted side, or a choice's first wanted answer: the tap is the answer.
+      // A pair's one wanted side, or a choice's first wanted answer: the tap is the answer, and
+      // the screen moves on by itself after its beat.
       await options.nth(hits[0]!).click();
     }
     // The question is left before the next one is read, so a slow render can't be answered twice.
-    await expect(page.locator(`[data-question-id="${id}"]`)).toHaveCount(0);
+    await left.toHaveCount(0);
   }
 
   await reveal.waitFor();
@@ -483,6 +522,16 @@ export async function answerQuestionnaire(
       throw new Error(`onboarding: the reveal does not propose "${topic}"`);
     }
   }
+
+  // "Some" is the share the feed has always defaulted to (DEFAULT_KNOBS' writingShare 0.125).
+  // Set explicitly because the Reading row opens on what the reading cards suggested — and this
+  // helper declines those, which opens it on "None" — so leaving it would hand every spec a
+  // reader with no writing in the feed at all.
+  const some = reveal
+    .getByRole("radiogroup", { name: "How much writing in the feed" })
+    .getByRole("radio", { name: "Some", exact: true });
+  await some.click();
+  await expect(some).toBeChecked();
 }
 
 /** Sign-up's onboarding, end to end: answers toward `topics`, saves, and lands on /feed. */
@@ -492,7 +541,7 @@ export async function completeOnboarding(
 ) {
   await page.waitForURL("/onboarding");
   await answerQuestionnaire(page, topics);
-  await page.getByRole("button", { name: "Start exploring" }).click();
+  await page.getByRole("button", { name: "Open my feed" }).click();
   await page.waitForURL("/feed");
 }
 

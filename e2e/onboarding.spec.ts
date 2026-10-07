@@ -89,11 +89,12 @@ test.describe.serial("onboarding questionnaire", () => {
     // Toward nothing at all: every question is skipped.
     await answerQuestionnaire(page, []);
 
-    // The reveal still has something to say — the starters, each at "some" — and names no
-    // facet and no group anywhere on the way.
+    // The reveal still has something to say — an exhibition named from nothing, and the
+    // starters, each at "some".
     const reveal = page.locator('[data-step="reveal"]');
+    await expect(reveal.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Here’s where we’ll start" }),
+      reveal.getByRole("heading", { level: 2, name: "Your mix" }),
     ).toBeVisible();
     await expect(reveal.locator("[data-topic]")).toHaveCount(3);
     for (const topic of ["astronomy", "botany", "architecture"]) {
@@ -104,7 +105,7 @@ test.describe.serial("onboarding questionnaire", () => {
       ).toBeVisible();
     }
 
-    await page.getByRole("button", { name: "Start exploring" }).click();
+    await page.getByRole("button", { name: "Open my feed" }).click();
     await page.waitForURL("/feed");
     await expect(page.locator("[data-feed-id]").first()).toBeVisible({
       timeout: 15_000,
@@ -132,15 +133,15 @@ test.describe.serial("onboarding questionnaire", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Cancel" })).toBeVisible();
 
-    // This time toward rocks and an evening of music. Bank v2 (First Exhibition) has no path to
-    // the-ocean any more — the Land, sea & sky wing spreads its point over too many topics for one
-    // of them to reach the reveal — while geology + music reaches on both database shapes
-    // (bank.test.ts pins that path).
+    // This time toward rocks and an evening of music. The bank has had no path to the-ocean since
+    // v2 (First Exhibition) — the Land, sea & sky wing spreads its point over too many topics for
+    // one of them to reach the reveal — while geology + music reaches on both database shapes in
+    // bank v3 (bank.test.ts pins that path through lib/interview/path.ts).
     await answerQuestionnaire(page, ["geology", "music"]);
     await expect(
       page.getByText(/This replaces your current topics/),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Start exploring" }).click();
+    await page.getByRole("button", { name: "Open my feed" }).click();
 
     // A retake ends where it began, on the list it just rewrote.
     await page.waitForURL("/profile/topics", { timeout: 15_000 });
@@ -199,15 +200,15 @@ test.describe.serial("onboarding questionnaire", () => {
     await page.waitForURL("/onboarding?retake=1");
     await answerQuestionnaire(page, ["astronomy", "botany", "music"]);
 
-    // Above the levels: a two-word title and the temperament strip.
+    // Above the levels: the exhibition's two-word title, the page's h1, and the temperament.
     const reveal = page.locator('[data-step="reveal"]');
-    await expect(reveal.getByRole("heading", { level: 2 })).toHaveText(
+    await expect(reveal.getByRole("heading", { level: 1 })).toHaveText(
       /\S+ \S+/,
     );
     await expect(
       reveal.getByRole("group", { name: "Temperament" }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Start exploring" }).click();
+    await page.getByRole("button", { name: "Open my feed" }).click();
 
     // Stored with the run, and read back on the profile.
     await page.waitForURL("/profile/topics", { timeout: 15_000 });

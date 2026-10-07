@@ -143,7 +143,7 @@ describe("the e2e path", () => {
     expect(picks.map((p) => p.topicId)).toEqual(expect.arrayContaining(WANTED));
   });
 
-  // e2e/onboarding.spec.ts's retake steers here instead (the-ocean has no path in bank v2).
+  // e2e/onboarding.spec.ts's retake steers here instead (the-ocean has had no path since bank v2).
   it.each([
     ["production's vocabulary", WIDE],
     ["the sixteen originals", NARROW],
@@ -162,7 +162,8 @@ describe("the e2e path", () => {
   );
 
   // Final review, finding 1: "None of these" on a wing screen scores every wing's spread down,
-  // which reaches every starter — and the reveal has no way to add a topic.
+  // which reaches every starter — and the reveal has no way to add a topic. The screens say Skip
+  // there now (SKIP, 10-06-26), but NEITHER still scores for the answer logs that carry it.
   it.each([
     ["production's vocabulary", WIDE],
     ["the sixteen originals", NARROW],
