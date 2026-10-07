@@ -148,7 +148,6 @@ beforeEach(() => {
   readingData.current = null;
   invalidateMock.mockClear();
   signOutMock.mockClear();
-  document.documentElement.removeAttribute("data-accent");
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -162,12 +161,8 @@ describe("SettingsScreen — rows", () => {
       "Add to home screen",
       "What you see",
       "Reading",
-      "Muted sources",
       "Serendipity",
-      "Camera roll",
       "Notifications",
-      "Appearance",
-      "Language",
       "About Ambit",
       "Get in touch",
       "Sign out",
@@ -176,16 +171,17 @@ describe("SettingsScreen — rows", () => {
     }
   });
 
-  it("stub rows carry no invented values and say so when tapped", () => {
+  it("the prototype's stub rows are gone; the remaining stubs say so when tapped", () => {
     renderScreen();
 
     // The prototype's demo values are gone: no "2 left", no "Often", no "Not determined".
     for (const fake of ["2 left", "Often", "Not determined"]) {
       expect(screen.queryByText(fake)).not.toBeInTheDocument();
     }
-    // The two stub rows whose value is genuinely true keep it.
-    expect(screen.getByText("None")).toBeInTheDocument();
-    expect(screen.getByText("English")).toBeInTheDocument();
+    // The rows that were stubs with nothing true to say are gone (DESIGN_redesign §6.5).
+    for (const gone of ["Muted sources", "Camera roll", "Language"]) {
+      expect(screen.queryByText(gone)).not.toBeInTheDocument();
+    }
 
     fireEvent.click(screen.getByText("Serendipity"));
     expect(screen.getByText("Serendipity · coming soon")).toBeInTheDocument();
@@ -200,7 +196,7 @@ describe("SettingsScreen — rows", () => {
   // the list measure. One cap, not two: there is no header of its own any more.
   it("caps itself at the list measure, left-aligned, with no header and no <main>", () => {
     renderScreen();
-    expect(document.querySelectorAll(".md\\:max-w-\\[600px\\]")).toHaveLength(
+    expect(document.querySelectorAll(".md\\:max-w-\\[720px\\]")).toHaveLength(
       1,
     );
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
@@ -255,12 +251,22 @@ describe("SettingsScreen — Notifications", () => {
     expect(screen.getByText("On")).toBeInTheDocument();
   });
 
-  it("marks a denied permission in the warn tint", () => {
+  it("marks a denied permission with the green attention dot, not a coloured value", () => {
     stubNotifications("denied");
     renderScreen();
     const value = screen.getByText("Off");
-    expect(value).toBeInTheDocument();
-    expect(value).toHaveClass("text-error");
+    expect(value).not.toHaveClass("text-error");
+    const row = value.closest("button")!;
+    const dot = row.querySelector("[data-attention-dot]");
+    expect(dot).not.toBeNull();
+    expect(dot).toHaveAttribute("aria-hidden", "true");
+    expect(dot).toHaveClass("bg-accent");
+  });
+
+  it("shows no attention dot when the permission is granted", () => {
+    stubNotifications("granted");
+    renderScreen();
+    expect(document.querySelector("[data-attention-dot]")).toBeNull();
   });
 
   it("prompts from the unanswered state", () => {
@@ -298,16 +304,10 @@ describe("SettingsScreen — Notifications", () => {
 });
 
 describe("SettingsScreen — Appearance", () => {
-  it("applies a picked accent to <html>, persists it, and relabels the row", () => {
+  // The accent knob was retired in redesign Task 1.3: one colour, so nothing to pick.
+  it("has no Appearance row", () => {
     renderScreen();
-
-    fireEvent.click(screen.getByText("Appearance"));
-    fireEvent.click(screen.getByText("Amber"));
-
-    // The live mechanism — globals.css keys `--accent-raw` off this attribute.
-    expect(document.documentElement.dataset.accent).toBe("amber");
-    expect(localStorage.getItem("ambit.accent.v1")).toBe("amber");
-    expect(screen.getAllByText("Amber").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Appearance")).toBeNull();
   });
 });
 
@@ -377,7 +377,7 @@ describe("SettingsScreen — Reading", () => {
     fireEvent.click(row());
     const sheet = screen.getByRole("dialog", { name: "Reading" });
     expect(sheet).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "A lot" }));
+    fireEvent.click(screen.getByRole("radio", { name: "A lot" }));
     expect(setReadingMutateMock).toHaveBeenCalledExactlyOnceWith({
       amount: "lot",
     });

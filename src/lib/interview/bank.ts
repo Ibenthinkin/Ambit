@@ -1,6 +1,8 @@
 // The questions. **Ben edits this file freely** — the copy is a first draft, and so is every
-// number. Bank v2 is First Exhibition (docs/DESIGN_first-exhibition.md §1): picture-led, in ten
-// steps; v1 was docs/PLAN_onboarding-questionnaire.md §3's thirteen.
+// number. Bank v3 is the redesign's (docs/DESIGN_redesign.md §5.1): bank v2's First Exhibition
+// (docs/DESIGN_first-exhibition.md §1) less the reading-amount question, which moved to the
+// reveal, and with its two free-text questions made one. v1 was
+// docs/PLAN_onboarding-questionnaire.md §3's thirteen.
 //
 // How to read an option:
 //
@@ -15,8 +17,8 @@
 //   - every topic and group id exists (a typo fails the test, not the reader);
 //   - a `pair` has exactly two options, each with a `face` (the picture on its card);
 //   - a `show` question (the playoff) is a `choice`; a reading card (`face.writing`) is `always`;
-//   - every question has a step (steps.ts) — the progress indicator counts steps, not questions;
-//   - there is one `amount` question;
+//   - every question has a step (steps.ts) — the playoff and the tests group questions by it;
+//   - one free-text question, last (`look-at`, the Bonus);
 //   - enough of it survives on a sixteen-topic database for CI to sign someone up.
 //
 // **Bump BANK_VERSION when a question's meaning changes** (not for a wording fix): each logged
@@ -27,17 +29,16 @@ import {
   DESTINATION_MAX,
 } from "~/server/config/interview-destinations";
 import { WINGS, type Wing } from "~/server/config/interview-wings";
-import {
-  READING_AMOUNTS,
-  READING_LABELS,
-} from "~/server/config/reading-amount";
 import { WRITING_KINDS, WRITING_KIND_LABELS } from "~/server/config/writing";
 
 import type { Effect, Option, Question } from "./types";
 
-/** v2 — First Exhibition (10-04-26, docs/DESIGN_first-exhibition.md). v1 was the thirteen
- *  questions of docs/PLAN_onboarding-questionnaire.md §3. */
-export const BANK_VERSION = 2;
+/** v3 — the redesign (10-06-26, docs/DESIGN_redesign.md §5.1): no `amount` question (the
+ *  reveal's Reading row sets it) and no `read-watch` (`look-at` is the one Bonus question).
+ *  v2 was First Exhibition (10-04-26, docs/DESIGN_first-exhibition.md); v1 the thirteen
+ *  questions of docs/PLAN_onboarding-questionnaire.md §3. A stale v2 tab's answers to the two
+ *  retired questions are still accepted and logged under v2 (onboarding.integration.test.ts). */
+export const BANK_VERSION = 3;
 
 /** `score` shared between these topics. */
 const topics = (score: number, ...ids: string[]): Effect => ({
@@ -290,7 +291,8 @@ function wingOption(wing: Wing, pickRole: string): Option {
   };
 }
 
-const WING_PROMPT = "Which would you look at longer?";
+// The copy deck (docs/COPY_onboarding.md): one prompt for the three wing screens and the playoff.
+const WING_PROMPT = "Which one is the most interesting?";
 
 /** Same subject, different hands — only the medium changes, so only medium topics score. */
 function hands(
@@ -326,8 +328,9 @@ function pairOf(
   return { id, kind: "pair", prompt, options: [side(a, "a"), side(b, "b")] };
 }
 
-/** "Tap any you'd keep": ten pictures, each carrying the tags of what it shows. A kept picture
- *  adds; an untouched one says nothing (skipping isn't disliking). Eight wings and two looks. */
+/** "Keep or pass": ten pictures, one at a time, each carrying the tags of what it shows. A kept
+ *  picture adds; a passed one says nothing (passing isn't disliking — decision 10). Eight wings
+ *  and two looks. */
 const KEEP: readonly {
   key: string;
   label: string;
@@ -401,7 +404,7 @@ function readQuestion(id: string, nth: 0 | 1): Question {
   return {
     id,
     kind: "choice",
-    prompt: nth === 0 ? "Which would you open?" : "And one of these?",
+    prompt: "Which would you open?",
     options: WRITING_KINDS.map((kind) => ({
       key: kind,
       label: WRITING_KIND_LABELS[kind],
@@ -424,7 +427,7 @@ export const QUESTIONS: readonly Question[] = [
   {
     id: "playoff",
     kind: "choice",
-    prompt: "One more. Which would you look at longer?",
+    prompt: WING_PROMPT,
     show: { top: 4 },
     options: WINGS.map((w) => wingOption(w, `wing:${w.id}:playoff`)),
   },
@@ -489,7 +492,7 @@ export const QUESTIONS: readonly Question[] = [
   {
     id: "keep",
     kind: "multi",
-    prompt: "Tap any you’d keep.",
+    prompt: "Keep or pass.",
     options: KEEP.map((k, i) => ({
       key: k.key,
       label: k.label,
@@ -524,7 +527,7 @@ export const QUESTIONS: readonly Question[] = [
   {
     id: "rather-not",
     kind: "multi",
-    prompt: "Anything you’d rather not see?",
+    prompt: "Anything you would rather not see?",
     options: [
       {
         key: "horror",
@@ -567,31 +570,13 @@ export const QUESTIONS: readonly Question[] = [
     ],
   },
 
-  // ── 8 · How much reading (the default is preselected from step 5). ──────────────────────
-  {
-    id: "amount",
-    kind: "amount",
-    prompt: "How much reading do you want mixed in?",
-    options: READING_AMOUNTS.map((amount) => ({
-      key: amount,
-      label: READING_LABELS[amount],
-      effects: [],
-      reading: amount,
-    })),
-  },
-
-  // ── 9 · Your words, last and optional. ──────────────────────────────────────────────────
+  // ── 8 · Your words, last and optional: the Bonus question. ─────────────────────────────
+  // (v2 asked a second, "What do you read or watch?"; the redesign merged the two — copy deck
+  // docs/COPY_onboarding.md, D5. The reading amount that sat before this is on the reveal now.)
   {
     id: "look-at",
     kind: "text",
-    prompt: "What do you like to look at on the internet?",
-    options: [],
-  },
-  {
-    id: "read-watch",
-    kind: "text",
-    prompt:
-      "What do you read or watch? Authors, magazines, a favourite film — anything.",
+    prompt: "Name one thing you could read about for hours.",
     options: [],
   },
 ];

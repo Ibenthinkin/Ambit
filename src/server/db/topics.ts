@@ -15,8 +15,14 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { TasteV1 } from "~/lib/interview/taste";
-import { topic, userTaste, userTopic } from "~/server/db/schema";
+import { cardSrc } from "~/lib/image-src";
+import {
+  hangIdsOf,
+  profileTaste,
+  type HangCard,
+  type ProfileTaste,
+} from "~/lib/interview/taste";
+import { item, topic, userTaste, userTopic } from "~/server/db/schema";
 
 export type Topic = typeof topic.$inferSelect;
 
@@ -376,13 +382,43 @@ export async function topicLabelsFor(
   return new Map(rows.map((r) => [r.id, r.label]));
 }
 
-/** The reader's taste profile — null before a bank-v2 run (db/onboarding.ts writes it). */
-export async function getUserTaste(userId: string): Promise<TasteV1 | null> {
+/**
+ * The reader's taste profile as /profile/topics draws it — null before a bank-v2 run
+ * (db/onboarding.ts writes it). A v1 row (stored before taste v2) comes back with an empty hang;
+ * a v2's hang ids are resolved to pictures here, in their stored order, one query, and a picture
+ * that has since left the corpus (or lost its image) is dropped (`profileTaste`).
+ */
+export async function getUserTaste(
+  userId: string,
+): Promise<ProfileTaste | null> {
   const { db } = await import("./client");
   const rows = await db
     .select({ taste: userTaste.taste })
     .from(userTaste)
     .where(eq(userTaste.userId, userId))
     .limit(1);
-  return rows[0]?.taste ?? null;
+  const taste = rows[0]?.taste;
+  if (!taste) return null;
+
+  const ids = hangIdsOf(taste);
+  const cards = new Map<string, HangCard>();
+  if (ids.length > 0) {
+    const found = await db
+      .select({ id: item.id, imageUrl: item.imageUrl, title: item.title })
+      .from(item)
+      .where(
+        and(
+          inArray(item.id, ids),
+          eq(item.type, "image"),
+          isNotNull(item.imageUrl),
+        ),
+      );
+    for (const r of found)
+      cards.set(r.id, {
+        itemId: r.id,
+        src: cardSrc(r.id, r.imageUrl!),
+        title: r.title,
+      });
+  }
+  return profileTaste(taste, cards);
 }

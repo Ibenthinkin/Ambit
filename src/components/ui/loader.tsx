@@ -22,8 +22,9 @@ import { cn } from "~/lib/utils";
 // `.motion-gentle`, so the mark span carries that class. The design also offers a `calm` variant
 // (dot still, ring pulsing) for reduced motion; it is deliberately not built.
 //
-// The colour is `currentColor`, `text-accent` by default, so the accent knob recolours it live;
-// on an accent-filled button pass `className="text-on-accent"`.
+// The colour is `currentColor`, `text-ink` by default (1b, DESIGN §4.6): the ring is ink and only
+// the orbiting dot is the accent (`bg-accent`, one of the accent's jobs — attention). To recolour
+// the ring, for instance on an accent-filled button, pass `className="text-on-accent"`.
 
 export const LOADER_SIZES = { inline: 18, block: 26, hero: 64 } as const;
 
@@ -52,7 +53,7 @@ export function Loader({
       role="status"
       aria-label={label ?? "Loading"}
       className={cn(
-        "text-accent inline-flex items-center gap-[10px] align-middle",
+        "text-ink inline-flex items-center gap-[10px] align-middle",
         className,
       )}
     >
@@ -86,7 +87,7 @@ export function Loader({
           {/* Turns about the box's centre, which is the ring's centre; the dot rides it. */}
           <span className="animate-loader-orbit absolute inset-0">
             <span
-              className="animate-loader-reach absolute rounded-full bg-current"
+              className="animate-loader-reach bg-accent absolute rounded-full"
               style={{
                 left: UNITS / 2 - DOT_R,
                 top: UNITS / 2 - DOT_R,
@@ -98,7 +99,7 @@ export function Loader({
         </span>
       </span>
       {label ? (
-        <span className="text-ink/40 font-sans text-[14px] leading-[1.3]">
+        <span className="text-ink/48 font-mono text-[10.5px] leading-[1.3] tracking-[0.4px] uppercase">
           {label}
         </span>
       ) : null}

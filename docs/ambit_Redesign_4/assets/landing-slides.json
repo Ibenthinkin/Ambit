@@ -1,0 +1,33 @@
+{
+  "_note": "Background images cycled on the Ambit landing screen, in order. Add, remove, or reorder freely — paths are relative to the project root (e.g. \"uploads/my-photo.webp\" or \"assets/wave.jpg\"), or use a full https:// URL. Save and reload the landing screen to see changes.",
+  "slides": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Great%20Wave%20off%20Kanagawa2.jpg?width=900",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Pillars%20of%20Creation.jpg?width=900",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Rain%20Steam%20and%20Speed%20the%20Great%20Western%20Railway.jpg?width=900",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Vanderbilt%20Cup%201908.jpg?width=900",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Hubble%20ultra%20deep%20field%20high%20rez%20edit1.jpg?width=900",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Wheatfield%20with%20crows%20-%20Google%20Art%20Project.jpg?width=900",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Haeckel%20Discomedusae%2088.jpg?width=900",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Johannes%20Vermeer%20-%20Het%20melkmeisje%20-%20Google%20Art%20Project.jpg?width=900",
+    "uploads/3f5a3ddb8c961c7c9cf0aacf590ce1bb3cc0847d7fc70d4253283ae8dd93ebf3.webp",
+    "uploads/2e3d150e4a732d0798c59d5943e2ab177c09c5b233a1ee28d2bed65a3c427c16.webp",
+    "uploads/2e6ef16b617323eefa7efb75f7a311ad11464061eaa8506fe96ea27073bf346f.webp",
+    "uploads/2e82109d0ec84c8834b72e2847a336a4c440875856e65f62bcc49ceafd5b9629.webp",
+    "uploads/2eee0a034858313420fd3eaded90b8fa28d219b9af95596680b66b3baaab721f.webp",
+    "uploads/2ef4bc58b8260375edf15159a06ab20105eabfe4a3c97b4941eb555395f6db0d.webp",
+    "uploads/3dece9c5e069784a447b47b6f9ac1bfef4e784758eac0f7b19e0a87593717140.webp",
+    "uploads/3dfa57e70762d0f57e1e82ac4437780b0c35dfd9b4033dfb73e1420875a6cc9b.webp",
+    "uploads/3f6f718b75293b2d52d44e4f81cda76ad9b41b2f9793ffcedd8221f46631c148.webp",
+    "uploads/3f9aa9e6a1357cf30c85ecc1badd0e4331a267c7ac37fd7893257cc19c1b1a55.webp",
+    "uploads/3f3618796e4fb0f82ae00e24915a5ea76321254cb5f4e37b0ff985dea49dfbb8.webp",
+    "uploads/3fbd17d3c1a3965bb8dacc37ca9a52faa4337e93af9b55e460782bf0e7f379a9.webp",
+    "uploads/4a78d4545c44f6d48b653cb1391863998ff6733b4129dd8d4c9331385837bb0d.webp",
+    "uploads/07ed0eda0ed4346157d2e2489322179ad1b11d33eb3d4795144a42f07be57808.webp",
+    "uploads/44ca83ac7eac98717f10052c290e67a17192c64f7c725ab0d2f7db3acade0aaf.webp",
+    "uploads/63adb4e4a68551783b18ab30403a79ca6377705acf532e95800ab85054c9e4ff.webp",
+    "uploads/64e481d593cf13b3acff9f52a339e66903a9da8feb8e7ec8c3145c8275ca83ba.webp",
+    "uploads/64e17979b7dd083bf5ff4b4c893e43182d6019da18f922b90734fb04a349d9eb.webp",
+    "uploads/64faca50fe2c9608f379a1227df7fea9ae751d281cd0dc5ed5e386a4760be121.webp",
+    "uploads/118f0b531507819236efed0a9af9d63da270adb0bb597f81ffcdb93366937b46.webp"
+  ]
+}

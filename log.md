@@ -58,6 +58,139 @@ the amount line, Start over). Still open from the deploy: two search ingests the
 
 _Session spend: 13.86M tok (in 174 · out 117.4k · cache r 13.09M / w 649.7k) · fable-5-1 + opus-5-5 · 11:06→11:18_
 
+**The redesign, designed and planned (afternoon, the same session).** Ben passed Cut 1 on the dev
+server and brought in the Claude Design export, `docs/ambit_Redesign_4/` — "1b": black and white,
+Kelly green `#2BB24C` as the one accent, Hanken Grotesk + Geist Mono, square everything, and
+First Exhibition drawn at phone and desktop.
+
+**Shipped (docs and merges only — no restyle yet):** `feat/onboarding-trims` and `feat/reveal-redo`
+merged to `main` (local, not pushed, not deployed); `feat/redesign` branched from it with the
+package committed, `docs/DESIGN_redesign.md` (decisions, the token mapping, per-screen specs),
+`docs/PLAN_redesign.md` (seven phases; 1–2 cold-executable step by step, 3–7 as task lists against
+the design doc and the prototypes), and the copy deck's New column pre-filled from the prototype.
+
+**Decisions (Ben's, sixteen, DESIGN §2).** The ones that reverse something: the item chrome's 10 s
+loop goes for the prototype's rules; "Your mix" is grouped under facet headings again on the reveal
+and Profile → Topics (the 10-02 flat ruling, reversed for these two screens); the reading amount
+leaves the bank for a row on the reveal (bank v3); Keep becomes one picture at a time with Pass
+scoring nothing; one free-text question. The ones that hold a line against the package: shipped
+gestures stay on the phone picture screen (no swipe-to-feed), the feed layout picker stays
+rejected, "Proposed" means real topics Ambit added — never topics it lacks — and anything a
+prototype merely omits is kept, restyled. One branch, one deploy.
+
+**Findings:**
+
+- **The ink alpha ladder already is the package's grey scale.** With `--color-ink` at `#F2F2F2` on
+  `#0E0E0E`, `/62` is the package's ink-4, `/55` ink-5, `/40` ink-7, `/34` ink-8, and the border
+  steps are its seven hairlines. So the colours land by changing a handful of tokens, and ~250
+  class strings stay as they are.
+- **The package contradicts itself in four places** (DESIGN §0): Barlow Condensed survives in two
+  "final" prototypes against the README's own type rule; the README's segment order disagrees with
+  its screenshot; "tile hover stays as production" sits beside a different shadow token; and the
+  desktop feed draws a layout picker the README's first ground rule forbids.
+- **Most controls have no keyboard focus style today** — Button, Chip, Segmented, the rows. One
+  base `:focus-visible` rule in Phase 1 gives every one the green ring.
+- **`Segmented` is not a radiogroup** (buttons with `aria-pressed`), and three e2e specs find
+  segments that way; the redesign's is one, so those lookups move.
+- **Correction to this morning:** I told Ben about 31 of the copy deck's 120 New cells were filled.
+  That count was a bad parse of tables with different column orders — the column was empty. It is
+  pre-filled now, from the prototype.
+
+**Open / next:** execute `docs/PLAN_redesign.md` from Phase 1 in a cheaper session
+(`feat/redesign`); Ben looks after each phase. Ben may edit the copy deck at any point — three of
+its pre-filled lines are adapted rather than copied because the prototype's sentence would be
+untrue in the app, and each says so. Still open and unrelated: two search ingests then
+`graph:rebuild --confirm`.
+
+_Session spend: 22.63M tok (in 164 · out 227.6k · cache r 21.26M / w 1.14M) · fable-5-1 + opus-5-5 · 11:18→12:43_
+
+**The redesign, built (afternoon into evening, a second session).** All seven phases of
+`docs/PLAN_redesign.md` on `feat/redesign`, 71 commits from `4005bdc` to `8eeb875`, run as
+subagent-driven development: a fresh implementer per task, a reviewer per task, a fix round when
+the review found something, and the controller's rulings written into a ledger
+(`.superpowers/sdd/PLAN_redesign/progress.md`, local). The commits say what each screen became;
+this is what they don't.
+
+**Shipped:** tokens and fonts (Phase 1), the primitives (2), feed and sheets (3), the item screen
+(4), profile, topics, settings, saved and sign-up (5), onboarding bank v3 and the reveal (6), the
+leftovers and the audit (7). Docs: SPEC §10 is the 1b system, §3.2 and §8.1 describe the new
+onboarding, reveal and item screen; CLAUDE.md's redesign bullet says what was built.
+`bun run check` 2,517 green, `bun run e2e:prod` 70 passed / 0 failed / 9 skipped, the CI-shape
+run 70 / 0 — at `8eeb875`, before this commit.
+
+**Decisions (Ben's, this session):** after Phase 1, start Phase 2; after Phase 2, Phase 3
+straight on (so Phase 2's look folded into Phase 3's); after that, "keep going" at every stop.
+And one about the product: **rooms and pairs end in a real Skip**, replacing "None of these" and
+"Neither", logged as a neutral `skip` with no score (`133fb82`). It overrode my ruling that the
+copy deck's own buttons should be the only way forward. Why it matters: the review had found that
+"Neither" scores −0.5 on ten screens, so a reader with no opinion had no way to say nothing —
+every exit was a vote.
+
+**Rulings (the controller's; each written with its cost if wrong):**
+
+- **Segmented's arrow keys don't wrap, and an arrow onto "off" moves focus only** (`998db94`). A
+  real radio group moves the _choice_ with the arrow, and on Profile → Topics "off" removes the row,
+  so ←/→ with wrapping could delete a topic by one keypress too many. Space, Enter or a click
+  chooses "off"; focus then goes to the next row's checked radio, else the search box.
+- **Profile → Topics puts the exhibition below the search** (`edaab38`) — DESIGN §6.5 and the
+  prototype's order over §5.3's shared note. One move back if Ben prefers it above.
+- **Settings' stub rows went** (Muted sources, Camera roll, Language; `ae5083b`), per DESIGN §6.5's
+  "stubs … are not added". The reviewer noted the wording is weaker than Appearance's "removed" —
+  Ben's to confirm.
+- **The `?from=` share param is gone, producer and all** (`81d3cf6`). With "Shared by" deleted,
+  Share was still writing the sharer's first name into every shared URL for nothing to read —
+  a small disclosure with no purpose.
+- **The desktop chrome holds while keyboard focus is inside it** (`f5bbfbd`): a `focusin` wakes
+  it and a focus-within check runs before the idle hide. Without it, a keyboard reader tabbing to
+  "↓ Information" watched the button fade out from under the focus (WCAG 2.4.7).
+- **State sentences stay sentences** (`8bd2b12`): the feed's end / empty / error lines are 14 px
+  body text, not 10.5 px caps eyebrows; only the error gets the green dot. Eyebrows are labels.
+- **`INTERPRET_PER_HOUR` 10 → 30** (`133fb82`): the bonus screen now maps words live as the reader
+  pauses, and a retake inside the hour must not lose them. Each call is a fraction of a cent.
+  Continue awaits an in-flight call for the same words instead of asking again.
+- **The reveal's Reading row** opens on a retaking reader's stored `writing_amount`, else
+  `defaultReadingAmount` (the article cards), else Some — and is always sent. A retake must not
+  silently reset reading.
+- **`onboarding.complete` drops dangling hang and opened ids** rather than refusing the save
+  (`2627959`). Stored = what the reveal showed, minus what has gone; a hang left under two pictures
+  stores none. The cost is silently ignoring a forged id — harmless, since the worst case is
+  public pictures on one's own profile.
+
+**Findings — two real bugs, both found by e2e, neither by a unit test:**
+
+- **The keydown wake swallowed keys** (`4b417ca`). Phase 4's desktop chrome wakes on any keydown;
+  the wake re-rendered the screen mid-keypress, the key effect re-ran, and its cleanup removed the
+  very `onKey` listener the event was about to reach. So once the chrome had idled 250 ms, Escape,
+  ←/→ and `M` did nothing. The handler is a `useEffectEvent` now, a stable listener reading fresh
+  state. Found as two desktop specs that had passed at the Phase 3 gate; a bisect named `1e1d627`.
+- **The face cache could strand a save** (`2627959`). `question-faces.ts` memoises the questions'
+  pictures for ten minutes; a picture deleted in that window could be hung on the reveal, and
+  `onboarding.complete` refused the whole run with "Unknown item id(s)" — a reader stuck on the
+  last screen. Reproduced in CI shape (auth.spec, then a retake); fixed by the ruling above.
+
+**Findings — test-only flakes, understood:**
+
+- **`item.spec:514`** (feed → item → Escape) failed 3/3 in CI shape at Phase 5. Not the app: the
+  serial test before it leaves the reader on `/feed` long enough to mark all eleven CI fixtures
+  seen, so 514's feed is empty. Reproduced at a commit predating Phase 5 with a 4 s wait; 514 now
+  forgets its seen rows first (`bc226a0`).
+- **The spread's identity** (`99284b5`, `6649388`): the magazine-turn test compared pages by
+  `alt`, and two 70sscifiart posts share a title; by `src` alone, the CI fixtures share one
+  picture. A page is `alt + src`.
+- **`pwa.prod.spec:101` and `security.spec:222`** fail under the full parallel e2e run and pass
+  alone: `/api/img`'s 600/min limiter 429s when every worker loads pictures from one IP. The
+  known pair since 09-26; not a regression, and green in the final run.
+
+**Open / next:** Ben's device pass — 402 and 1440 against the screenshots, then the tailnet phone
+(`https://macbook-air-m5.halley-morpho.ts.net`); the deferred minors marked for his look are in
+the ledger (the double-tap pill flash, Firefox's Space on a segment, the 64 px name truncating at
+600 px, the kept Share row on the tile sheet, Back from the reveal resetting hand-set levels).
+Then merge, push and the one deploy; **migration 0014 runs at that boot** (it drops About you's
+three columns — a quiet minute, plan 7.5). Still open and unrelated: two search ingests then
+`graph:rebuild --confirm`.
+
+_Session spend: 198.22M tok (in 2.2k · out 441.2k · cache r 192.43M / w 5.35M) · opus-5-5 · 13:42→20:46_
+
 ### [[10-05-26 Mon]] — The questionnaire merges; its migration becomes 0012; First Exhibition is built and merged
 
 **Shipped:** `feat/onboarding-questionnaire` (bank v1, 28 commits) merged to `main` as

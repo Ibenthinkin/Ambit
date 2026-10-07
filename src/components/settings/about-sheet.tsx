@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { Logo } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import { Eyebrow } from "~/components/ui/eyebrow";
 
 // "About Ambit" — static copy, no queries, no state. The one place in the running app that says
 // what Ambit is and whose material it shows.
@@ -22,7 +23,7 @@ export function AboutSheet({ open, onClose, versionLabel }: AboutSheetProps) {
   return (
     <BottomSheet open={open} onClose={onClose} title="About Ambit">
       <div className="flex flex-col items-center px-6 pt-2 pb-4">
-        <Logo size={34} className="text-accent" />
+        <Logo size={34} className="text-ink" />
 
         <p className="text-ink/62 mt-[18px] text-center text-[14px] leading-[1.6]">
           A quiet, endless feed of public-domain pictures and writing — loosely
@@ -30,14 +31,14 @@ export function AboutSheet({ open, onClose, versionLabel }: AboutSheetProps) {
           else. No follows, no likes, no numbers going up.
         </p>
 
-        <p className="text-ink/34 mt-[22px] text-[12px]">
+        <Eyebrow as="p" className="mt-[22px] block">
           Ambit · invite-only · {versionLabel}
-        </p>
+        </Eyebrow>
 
-        <div className="border-ink/8 mt-[22px] w-full border-t-[0.5px] pt-[18px]">
-          <p className="text-ink/34 text-center text-[11px] font-semibold tracking-[1.2px] uppercase">
+        <div className="border-ink/10 mt-[22px] w-full border-t pt-[18px]">
+          <Eyebrow as="p" className="block text-center">
             With material from
-          </p>
+          </Eyebrow>
           <p className="text-ink/48 mt-[10px] text-center text-[12.5px] leading-[1.7]">
             The Metropolitan Museum of Art · The Art Institute of Chicago ·
             Cleveland Museum of Art · Wellcome Collection · Wikipedia

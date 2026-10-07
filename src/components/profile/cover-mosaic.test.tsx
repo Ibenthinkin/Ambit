@@ -49,4 +49,18 @@ describe("CoverMosaic", () => {
       expect(img).toHaveAttribute("alt", "");
     }
   });
+
+  it("thumb keeps card-2 gaps; tile uses #141414 gaps and #1A1A1A fillers", () => {
+    const { rerender } = render(<CoverMosaic covers={urls(3)} />);
+    let face = screen.getByTestId("cover-mosaic");
+    expect(face).toHaveClass("bg-card-2", "gap-px");
+    rerender(<CoverMosaic covers={urls(3)} variant="tile" />);
+    face = screen.getByTestId("cover-mosaic");
+    expect(face).toHaveClass("bg-[#141414]", "gap-0.5");
+    expect(face.querySelector("[data-filler]")).toHaveClass("bg-[#1A1A1A]");
+    rerender(<CoverMosaic covers={[]} variant="tile" />);
+    face = screen.getByTestId("cover-mosaic");
+    expect(face).toHaveClass("border", "border-ink/12");
+    expect(face).not.toHaveClass("bg-ink/3");
+  });
 });

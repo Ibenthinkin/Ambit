@@ -42,7 +42,7 @@ proxy-with-cache**. `/api/img/[itemId]` now fills a disk cache (`IMAGE_CACHE_DIR
 politely, per host). And the feed's page compose went from **138 ms to 22 ms** — `getTopicPools`
 had been dragging 9,848 full rows / 35.8 MB out of Postgres to pick twelve cards; it now returns a
 five-column projection and `getFeedPage` hydrates the winners by id. `bun run bench:feed` is the
-before/after. **8.1 shipped — public 08-29-26, closed 09-17-26. 8.2's guardrails shipped 09-20-26** — an ingest verdict (exit 2 on a dead source) + `ingest_run` rows read back by `/api/health` as `ingest: ok|stale|never|unknown`, `instrumentation.ts` mailing `OPS_EMAIL` once an hour per error signature, Coolify failure notifications through Resend (proven with a `fail-probe` task), two UptimeRobot monitors (HTTP + the `"ingest":"ok"` keyword, from Ashburn), and Beszel on VM 202; SPEC §13 has the alert map. **The beta week (8.2 T6) is open** — 3 accounts on production as of 09-20 — and its triage into Phase 9 closes the phase. **8.3, the landing redo, was built 09-25-26 on `feat/landing-redo`** (`docs/DESIGN_landing-redo.md`, `docs/PLAN_landing-redo.md`): an overture on black (`AMBIT — A quieter way to be curious.` collapsing into the wordmark), a server-picked reel of the ~2,700 score-9 public-domain pictures in two tempos (`cut` / `dissolve`, `?tempo=` honoured only under `FEED_DEBUG`), a closed-set `?w=960` image rendition derived from the cached master, and three candidate profile marks on `/dev/marks` — merged to `main` 09-25-26, **awaiting Ben's two picks** (plan Task 9). **The same night, after Ben's first phone look, the reel became shape-matched**: tall pictures for an upright phone, wide ones for a computer, at master size, read off new `item.image_width/height` columns (migration 0009, backfilled by `bun run img:dims`, which the container runs on every boot) — see the design's 09-25-26 amendment. **Reduced motion is a tempo, not a still, since 09-26-26** — Ben's "no animation on phone or computer" was Reduce Motion on at the OS level on both; a reader who asks for less gets the same overture collapse as everyone and the reel as drift-free cross-fades (`TEMPOS.gentle`), and `globals.css`'s 0.01 ms collapse exempts only `.motion-gentle`. **Ben picked the dissolve the same day** (`DEFAULT_TEMPO`), at 2 s a picture, 1 s fade, the sheet after 8, and the wordmark no longer stays over the reel. **All of it and the topic groups are merged to `main` and pushed (`deb36cb`, 09-26-26), not yet deployed** — Ben is making more UI changes first; pick up from `log.md` 09-26's last **Open / next**. **09-27-26: Ben's feed layout picker became spread mode on the desktop item screen** (see its Architecture bullet), built on `feat/spread-mode`. **09-28-26: writing Phase 1 (the writing curator) is built on `feat/writing`** (`docs/DESIGN_writing.md`, `docs/PLAN_writing.md`) — articles go to a text rubric (`WRITING_PROMPT`) with a kind, a reading time and a `news` drop, migration 0010; **Phase 2 (Wikipedia) is built on the same branch the same evening** — bodies fetched at ingest (`sources/enrich.ts`), Wikipedia's four reading lists (`sources/wikipedia-lists.ts`), and `config/reading-phrases.ts` (Ben edits it) in place of the sixteen `wikipedia` seed cells. Both phases are **merged and deployed (`39657f6`, 09-29-26)**; the Wikipedia backfill and the re-score's dry run have run on production, **`confirm` has not**. **09-30-26: writing Phase 4 (cards) is merged and deployed (`7224ace`); Phase 5 (publications) is built on `feat/publications`, not merged** — `NormalizedItem.curationText` (scored, never stored), `rss.ts`, `wp-rest` article mode, three publications registered and suspended pending Ben's verdicts (`docs/source-candidates.md`). **09-30-26: Ben dropped every "no news" rule** — he curates sources to keep news out — so the next session removes the news drop/demotion (not the prompt text, which keeps the cache) before `confirm`. **10-01-26: the Claude judge is built on `feat/claude-judge`, not merged** (`docs/DESIGN_claude-judge-ingest.md`, `docs/PLAN_claude-judge.md`): `CURATOR_JUDGE=claude` scores through `claude -p` on Ben's Max subscription (Haiku 4.5, ~400 tokens a judgment, pictures as ≤1024 px JPEG bytes, a clean stop at 80% of either usage window); unset is OpenRouter exactly as before, and production is untouched. **Its writing gate failed** — every Claude judge is ~1.4 points harsher than Ben's marks, so the publications stay suspended and un-backfilled — and `bun run vision:compare` puts pictures close (Spearman 0.72). **Future work item: move the judge to VM 202** once Ben has freed RAM and disk there (not a Mac host; design D11). **Pick up from `docs/HANDOFF_writing.md`.** The history: T1–T2 shipped 08-28-26 (`/api/health`,
+before/after. **8.1 shipped — public 08-29-26, closed 09-17-26. 8.2's guardrails shipped 09-20-26** — an ingest verdict (exit 2 on a dead source) + `ingest_run` rows read back by `/api/health` as `ingest: ok|stale|never|unknown`, `instrumentation.ts` mailing `OPS_EMAIL` once an hour per error signature, Coolify failure notifications through Resend (proven with a `fail-probe` task), two UptimeRobot monitors (HTTP + the `"ingest":"ok"` keyword, from Ashburn), and Beszel on VM 202; SPEC §13 has the alert map. **The beta week (8.2 T6) is open** — 3 accounts on production as of 09-20 — and its triage into Phase 9 closes the phase. **8.3, the landing redo, was built 09-25-26 on `feat/landing-redo`** (`docs/DESIGN_landing-redo.md`, `docs/PLAN_landing-redo.md`): an overture on black (`AMBIT — A quieter way to be curious.` collapsing into the wordmark), a server-picked reel of the ~2,700 score-9 public-domain pictures in two tempos (`cut` / `dissolve`, `?tempo=` honoured only under `FEED_DEBUG`), a closed-set `?w=960` image rendition derived from the cached master, and three candidate profile marks on `/dev/marks` — merged to `main` 09-25-26, **awaiting Ben's two picks** (plan Task 9). **The same night, after Ben's first phone look, the reel became shape-matched**: tall pictures for an upright phone, wide ones for a computer, at master size, read off new `item.image_width/height` columns (migration 0009, backfilled by `bun run img:dims`, which the container runs on every boot) — see the design's 09-25-26 amendment. **Reduced motion is a tempo, not a still, since 09-26-26** — Ben's "no animation on phone or computer" was Reduce Motion on at the OS level on both; a reader who asks for less gets the same overture collapse as everyone and the reel as drift-free cross-fades (`TEMPOS.gentle`), and `globals.css`'s 0.01 ms collapse exempts only `.motion-gentle`. **Ben picked the dissolve the same day** (`DEFAULT_TEMPO`), at 2 s a picture, 1 s fade, the sheet after 8, and the wordmark no longer stays over the reel. **All of it and the topic groups are merged to `main` and pushed (`deb36cb`, 09-26-26), not yet deployed** — Ben is making more UI changes first; pick up from `log.md` 09-26's last **Open / next**. **09-27-26: Ben's feed layout picker became spread mode on the desktop item screen** (see its Architecture bullet), built on `feat/spread-mode`. **09-28-26: writing Phase 1 (the writing curator) is built on `feat/writing`** (`docs/DESIGN_writing.md`, `docs/PLAN_writing.md`) — articles go to a text rubric (`WRITING_PROMPT`) with a kind, a reading time and a `news` drop, migration 0010; **Phase 2 (Wikipedia) is built on the same branch the same evening** — bodies fetched at ingest (`sources/enrich.ts`), Wikipedia's four reading lists (`sources/wikipedia-lists.ts`), and `config/reading-phrases.ts` (Ben edits it) in place of the sixteen `wikipedia` seed cells. Both phases are **merged and deployed (`39657f6`, 09-29-26)**; the Wikipedia backfill and the re-score's dry run have run on production, **`confirm` has not**. **09-30-26: writing Phase 4 (cards) is merged and deployed (`7224ace`); Phase 5 (publications) is built on `feat/publications`, not merged** — `NormalizedItem.curationText` (scored, never stored), `rss.ts`, `wp-rest` article mode, three publications registered and suspended pending Ben's verdicts (`docs/source-candidates.md`). **09-30-26: Ben dropped every "no news" rule** — he curates sources to keep news out — so the next session removes the news drop/demotion (not the prompt text, which keeps the cache) before `confirm`. **10-01-26: the Claude judge is built on `feat/claude-judge`, not merged** (`docs/DESIGN_claude-judge-ingest.md`, `docs/PLAN_claude-judge.md`): `CURATOR_JUDGE=claude` scores through `claude -p` on Ben's Max subscription (Haiku 4.5, ~400 tokens a judgment, pictures as ≤1024 px JPEG bytes, a clean stop at 80% of either usage window); unset is OpenRouter exactly as before, and production is untouched. **Its writing gate failed** — every Claude judge is ~1.4 points harsher than Ben's marks, so the publications stay suspended and un-backfilled — and `bun run vision:compare` puts pictures close (Spearman 0.72). **Future work item: move the judge to VM 202** once Ben has freed RAM and disk there (not a Mac host; design D11). **Pick up from `docs/HANDOFF_writing.md`.** **10-06-26: the sitewide redesign ("1b") is built on `feat/redesign`, not merged, not deployed** — every screen, seven phases, Ben looking after each (see its Architecture bullet); it waits on his device pass at 402 / 1440 and the tailnet phone, then one merge and one deploy, whose boot runs migration 0014. The history: T1–T2 shipped 08-28-26 (`/api/health`,
 `MAIL_FROM`, `cf-connecting-ip` for Better Auth in production, a `SOURCE_COMMIT`-first precache
 revision, and the `Dockerfile`/`.dockerignore` whose boot path — migrate, seed, `next start` — was
 proven locally against an empty database, cache volume and all). **T3 shipped 08-29-26** — Ambit is
@@ -217,8 +217,9 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   worktree `~/Dev/ambit-questionnaire`, not merged). Ben's verdict on the two bullets around this
   one: the facet stages and umbrella groups are "completely broken" _as things a reader sees_. So
   `/onboarding` is now thirteen skippable questions (two free-text, five picture face-offs, word
-  questions) → an optional About-you step → a **reveal** of levelled topics, and `/profile/topics`
-  is that reveal kept: a flat `TopicLevels` list, a search box, "Retake the questions". **No screen
+  questions) → an optional About-you step (gone 10-05-26) → a **reveal** of levelled topics, and `/profile/topics`
+  is that reveal kept: a `TopicLevels` list (flat until the redesign grouped it under facet
+  headings again), a search box, "Retake the questions". **No screen
   names a group or a facet any more**; both remain the vocabulary the _code_ speaks — the bank's
   answers (`src/lib/interview/bank.ts`, Ben edits it), the personas, `listTopics`'s
   `facet IS NOT NULL`. The parts that span files: `src/lib/interview/` is pure (bank, `askable`,
@@ -235,11 +236,11 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   missing key. **Reading is per person**: `user.writing_amount` (the level, never the share) →
   `resolveWriting` in `services/feed.ts`; "None" is `picturesOnly`, _not_ `writingShare: 0`, which
   would let articles back into the ordinary pools. Two traps it met: a `fixed` bar inside `<Rise>`
-  is captured by the animation's transform (the step bars are siblings of the rising body), and a
+  is captured by the animation's transform (the step bars were siblings of the rising body; the
+  redesign removed them), and a
   client component must import face types from `lib/interview/faces.ts`, not
   `services/question-faces.ts`, or it drags the database layer into the bundle. The demographics
-  (age range, location, gender) are a **trial** that reverses the personas design's "never
-  stored"; three columns to drop if it goes.
+  (age range, location, gender) were a **trial**, dropped 10-05-26 (migration 0014).
 - **The pickers show umbrella groups, not topics — 09-25-26** (design
   `docs/DESIGN_topic-facets-and-personas.md` §2a; branch `feat/topic-groups`). Ben's review of
   onboarding after round 2: 92 Subject chips was "just too many words". `src/server/config/topic-groups.ts`
@@ -252,8 +253,8 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   "Space & science fiction" is one chip that picks `astronomy` there and twelve topics on
   production — an unlisted id is one `setMine` refuses), and e2e specs press `ONBOARDING_GROUPS`
   and must accept both database shapes when asserting on picked topics. `/profile/topics` leads
-  each section with the group chips (tri-state; `Chip` gained `selected="mixed"`; tapping a mixed
-  group _completes_ it) and folds the flat list behind "Show all N topics". **Open:** every picked
+  each section with the group chips (tri-state; `Chip` gained `selected="mixed"` — removed in the redesign, nothing had used it
+  since 10-02; tapping a mixed group _completes_ it) and folds the flat list behind "Show all N topics". **Open:** every picked
   topic is still written at weight 1.0, so a twelve-topic group is drawn twelve times as often as
   a singleton in CORE/DRIFT/JUMP — shipped flat on purpose; dividing by group size in
   `setUserTopics` is the follow-up if `/dev/feed` says so.
@@ -268,9 +269,9 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   follows (`history.replaceState`); a tap toggles the chrome; **a quick downward flick at the top of
   the page, or Escape, leaves** — up is the browser's scroll, the track is `touch-action: pan-y` —
   and every exit is `useLeaveToFeed(entryItemId)`, so Back still pops to the intact feed after any
-  number of swipes. One trap it met, explained where it lives: the desktop summon is a
-  **`pointermove` filtered to `pointerType === "mouse"`** (a tap's compatibility `mousemove` would
-  re-show the chrome the instant a second tap hid it). Alongside it:
+  number of swipes. One trap it met, explained where it lives: a tap's compatibility `mousemove`
+  would re-show the chrome the instant a second tap hid it — so a desktop wake must never reach a
+  phone (the redesign's `use-chrome.ts` enforces it twice; see the redesign bullet). Alongside it:
   **`NewCollectionRow`** (`sheets/collection-rows.tsx`) is the app's one create form and ends every
   collection picker, the tile sheet gained **Share**, and the **landing slideshow never stops** —
   click and ←/→ step it, the sheet still rises after the first pass, and reduced motion is read
@@ -288,7 +289,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   the item screen both toolbars are chrome: the pill **fixed at the bottom** (it rode inside the
   caption until the review, moving with the picture's height) and the rail at the right, each
   with `visible={chrome.visible}` — `PillToolbar` gained `visible` for it. `BottomSheet` takes an
-  `anchor` + `placement` and becomes a 360 px **popover** beside its opener with an invisible
+  `anchor` + `placement` and becomes a **popover** (340 px since the redesign) beside its opener with an invisible
   scrim (`popoverStyle` is pure; its centring is the `translate` property because the menu
   keyframe owns `transform`). Feed tiles carry **`TileActions`** — mounted only under
   `HOVER_QUERY`, a sibling of the tile in the `group/tile relative` wrapper — naming the
@@ -298,7 +299,8 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `TILE_LIFT` on the card _wrapper_ in `FeedGrid` and `SavedTile` — 3.5% scale + `shadow-lift`
   over 350 ms, `hover:` and `has-[:focus-visible]:`, exempt from the reduced-motion collapse as
   `.motion-lift` (the element, not its subtree); the ring is 2 px inset `--color-focus-ring`; the
-  tier tag stays dev-only and fills with accent. Tailwind v4's `scale-*` is the standalone `scale`
+  tier tag stays dev-only and, since the redesign, hides while the tile is lifted; the lift holds
+  while the tile's collection picker is open. Tailwind v4's `scale-*` is the standalone `scale`
   property, so transitions and e2e name `scale`, never `transform` — and an unscaled element
   computes `scale: none`, not `1`. **`saves.saveToCollection` takes `topicId`** and bumps it only for a member
   — the feed-on-membership follow-up, closed.
@@ -338,8 +340,10 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `docs/PLAN_first-exhibition.md`; the study it adapts is `docs/first-exhibition/`; branch
   `feat/first-exhibition`, built 10-05-26, merged to `main` the same evening, not deployed;
   **About you removed 10-05-26** on `feat/onboarding-trims` (Cut 1 of
-  `docs/PLAN_onboarding-critique.md`; migration 0014 drops its three columns; nine steps now);
-  Ben's cosmetic critique, for the sitewide redesign, is `docs/NOTES_onboarding-critique.md`). Bank v2: eighteen picture-led questions in nine steps (`lib/interview/steps.ts`); the
+  `docs/PLAN_onboarding-critique.md`; migration 0014 drops its three columns);
+  Ben's cosmetic critique, for the sitewide redesign, is `docs/NOTES_onboarding-critique.md`;
+  **bank v3 since the redesign, 10-06-26 — sixteen questions in eight steps**, the reading amount
+  moved to the reveal; see the redesign bullet). Bank v2 was eighteen picture-led questions in nine steps (`lib/interview/steps.ts`); the
   playoff is a `show.top` display rule on a static `choice` (`lib/interview/show.ts`), not a
   question kind; reading cards are real articles (`question-faces.ts`'s writing branch) and score
   the item's memberships plus its kind's form topic (`KIND_FORM`); a reading card with no article
@@ -352,20 +356,69 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   sixteen) and are seeded at tier `grown` — ingest reads their queries off the row, and they have
   no graph edges until `graph:rebuild` runs after items arrive (drift stays put meanwhile). **So
   `db:seed` now writes 49 topics, and CI's database is the sixteen originals plus 33 empty hand
-  topics**, not the sixteen alone. Three things that bite: the amount question **preselects** a
+  topics**, not the sixteen alone. Two things that bite: the reveal's Reading row **preselects** a
   level read off the reading cards, so declining both reading screens preselects "None" — e2e's
-  `answerQuestionnaire` presses "Some" on purpose (the share a skipped amount always meant); the
-  forward button is named for what it does (`forwardLabel`: Skip / Next / "Nowhere in
-  particular" — the reading screens' "I’d rather look at pictures" went 10-05-26); and bank v2 has **no path to `the-ocean`** on either
+  `answerQuestionnaire` sets "Some" on purpose (the share a skipped amount always meant); and
+  bank v2 (v3 too) has **no path to `the-ocean`** on either
   database shape (the Land wing spreads its point too thin), so the retake spec steers to
-  geology and music, which `bank.test.ts` pins. **10-06-26, `feat/reveal-redo` (off
-  `feat/onboarding-trims`, not merged) — the non-visual half of the critique's Cut 4:** the
+  geology and music, which `bank.test.ts` pins. **10-06-26, `feat/reveal-redo` (merged to `main`
+  the same day) — the non-visual half of the critique's Cut 4:** the
   reveal's words are one `FRAME` object (`lib/interview/frame.ts`: eyebrow, adjective maps, the
   wings' nouns, which left `interview-wings.ts`), so renaming the reveal is one file; the
   subtitle and "You’d open" line are sentences (`exhibitionSubtitle`, `readingSummary`); the
   reveal's draft is `reveal-draft.ts` and **re-seeds when the proposal changes under it**; and
-  `hang.ts` + `kept-out.ts` are built and tested but **not drawn or stored yet** — the layout
-  half waits for Ben's Claude Design package (`docs/PLAN_onboarding-critique.md` §4 has the list).
+  `hang.ts` + `kept-out.ts`, which the redesign then drew and stored (the hang as taste `v: 2`).
+- **The sitewide redesign ("1b") is built — 10-06-26** (design `docs/DESIGN_redesign.md`, plan
+  `docs/PLAN_redesign.md`, the package `docs/ambit_Redesign_4/`, briefed by
+  `docs/BRIEF_claude-design-redesign.md`; branch `feat/redesign`, 72+ commits from `4005bdc`, all
+  seven phases, **not merged, not pushed, not deployed**). Ben's Claude Design export: black and
+  white, one green, square. The ledger of every task, ruling and finding is
+  `.superpowers/sdd/PLAN_redesign/progress.md` (local, not committed). What it changed that the
+  rest of this file used to say otherwise about:
+  - **The accent knob is retired.** `--color-accent` is a plain `#2BB24C` token with **seven
+    jobs** (SPEC §10: the 6 px dot, a progress tick and the compass markers, the focus ring, a
+    hovered control's 2 px underline, the saved bookmark, the "Proposed" tag, an input's focus
+    underline and the inline error). The default button is **white**, never green, and nothing
+    is ever white on green (2.8 : 1). `[data-accent]`, `--accent-raw`, the pre-paint script and
+    Settings → Appearance are gone, so `no-dangerous-html.test.ts`'s allow-list is now empty.
+  - **Hanken Grotesk + Geist Mono replace Sora**: regular-weight, sentence-case titles (no
+    `font-semibold` anywhere) and uppercase mono labels through `Eyebrow`. A type scale is
+    `@theme` tokens (`text-display` … `text-eyebrow`).
+  - **No radius** except the nav pill/rail and circular things; `src/no-rounded.test.ts` fails on
+    a `rounded-*` outside its reasoned allow-list. Lines are 1 px; four shadows; `--color-error`
+    and `--color-overlay` gone. **The ink alpha ladder stayed** — at `#F2F2F2` on `#0E0E0E` it
+    already is the package's grey scale, so ~250 class strings re-toned from two tokens.
+  - **Every control has a keyboard ring** (one `:focus-visible` base rule, the green). `Segmented`
+    is a real `radiogroup`: arrows move the choice but don't wrap, and onto the destructive "off"
+    move focus only — one arrow too many must not delete a topic on Profile → Topics.
+  - **The item chrome's 10 s loop is gone** (`hooks/use-chrome.ts` replaced
+    `use-chrome-cycle.ts`). **A phone taps**: hidden at first, a tap toggles, scrolling past
+    24 px shows it and it stays. **A desktop wakes on input** (mouse, key, wheel, touch, scroll)
+    **and idles out after 2.6 s**; **keyboard focus inside the chrome holds it**. One trap it met
+    (`4b417ca`): the keydown wake re-rendered mid-keypress and the key effect's cleanup removed
+    its own listener before it ran, so Escape / ←/→ / `M` were lost once the chrome had idled —
+    the handler is a `useEffectEvent` now. Below the fold the phone has fact rows and a white
+    link-out on every item with a source URL; the desktop a caption, "↓ Information" and three
+    columns; a magazine spread adds **Fig. 01 / Fig. 02** details. "Shared by" and the
+    `?from=` param are gone.
+  - **Onboarding is bank v3: sixteen questions in eight steps** (`BANK_VERSION = 3`; the amount
+    question left), one container with no header, bar or count, auto-advance at 380 ms, a quiet
+    Back, the keyboard as pure `keyAction` (`lib/interview/keys.ts`). Rooms and pairs end in a
+    **neutral Skip** (Ben's ruling, in place of "None of these" / "Neither"; `N` skips). Keep or
+    pass is one picture at a time, and a pass scores nothing.
+  - **The reveal** draws what Cut 4 computed: the title, the **hang** (six of the reader's own
+    pictures, stored as taste `v: 2`), temperament, compass, "You’d open", **Your mix grouped
+    under facet headings** (reversing the 10-02 flat list, on the reveal and Profile → Topics),
+    the **Reading mixed in** row (opens on a retake's stored amount, else the cards' default,
+    else Some), **Kept out** with Allow, the explore line, "Open my feed" and "Start over".
+    `onboarding.complete` drops hang/opened ids that have since gone rather than refusing
+    (`2627959`). `onboarding.interpret` is 30 an hour (was 10).
+  - Everything a prototype merely omits is kept, restyled (DESIGN decision 13): gestures, zoom,
+    the rail, magazine view, the Share row on the tile sheet.
+    Settings lost its stub rows (Muted sources, Camera roll, Language), Saved its back chevron.
+  Verified at the end: `bun run check` 2,517 green, `bun run e2e:prod` 70 passed / 0 failed, the
+  CI-shape run 70 / 0. **Open:** Ben's device pass (402, 1440, the tailnet phone; the deferred
+  minors marked for his look are in the ledger), then merge and the one deploy.
 - **Spread mode on the item screen — 09-27-26** (design `docs/DESIGN_spread-mode.md`, plan
   `docs/PLAN_spread-mode.md`; branch `feat/spread-mode`, pushed for Ben's look at 1440, not
   merged). It began as Ben's **feed** layout picker (1 / 2 / 4 columns, drawn in

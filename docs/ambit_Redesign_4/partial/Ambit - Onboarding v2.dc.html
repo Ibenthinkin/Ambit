@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;1,400&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    a { color: #F2F2F2; text-decoration: underline; text-underline-offset: 3px; }
+    a:hover { color: #FFFFFF; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#060606; padding:32px; font-family:'Hanken Grotesk', sans-serif;">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%; background:#0E0E0E;">
+
+      <div style="height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch;">
+
+
+        <div style="padding:62px 20px 0;">
+          <div style="font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:52px; line-height:0.9; text-transform:uppercase; color:#F2F2F2;">What pulls your attention?</div>
+          <div style="font-size:16px; line-height:1.5; color:#BDBDBD; margin-top:14px; text-wrap:pretty;">Choose as many as you like. Ambit starts here — then wanders sideways into things you'd never think to search for.</div>
+          <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; border-bottom:1px solid rgba(255,255,255,0.14); padding:24px 0 8px;"><span>Interests</span><span>{{ totalLabel }}</span></div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:8px; padding:16px 20px 180px;">
+          <sc-for list="{{ chips }}" as="chip" hint-placeholder-count="24">
+            <div onClick="{{ chip.onToggle }}" style="{{ chip.style }}">{{ chip.label }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="position:absolute; left:0; right:0; bottom:0; z-index:20; background:#0E0E0E; border-top:1px solid rgba(255,255,255,0.14); padding:14px 20px 38px;">
+        <div style="display:flex; align-items:center; gap:7px; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; margin-bottom:12px;">
+          <sc-if value="{{ canStart }}" hint-placeholder-val="{{ false }}"><span style="width:6px; height:6px; border-radius:50%; background:#2BB24C;"></span></sc-if>
+          <span>{{ countLabel }}</span>
+        </div>
+        <div onClick="{{ onStart }}" style="{{ ctaStyle }}">{{ ctaLabel }}</div>
+      </div>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;minPicks&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:3,&quot;min&quot;:1,&quot;max&quot;:8,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Onboarding&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.LABELS = [
+      'Art & painting', 'Architecture', 'Astronomy', 'The ocean', 'Ancient history',
+      'Maps', 'Typography', 'Botany', 'Birds', 'Physics', 'Machines', 'Photography',
+      'Mythology', 'Textiles', 'Poetry', 'Ceramics', 'Geology', 'Aviation', 'Music',
+      'Cinema', 'Mathematics', 'Chess', 'Insects', 'The deep sea', 'Space exploration',
+      'Sculpture', 'Calligraphy', 'Fossils', 'Weather', 'Bridges', 'Manuscripts', 'Gardens',
+    ];
+    this.state = { picked: this.loadPicked() };
+  }
+
+  loadPicked() {
+    try { return new Set(JSON.parse(localStorage.getItem('ambit.topics.v1') || '[]')); }
+    catch (e) { return new Set(); }
+  }
+  persist(s) {
+    try { localStorage.setItem('ambit.topics.v1', JSON.stringify([...s])); } catch (e) {}
+  }
+  toggle(label) {
+    this.setState(s => {
+      const n = new Set(s.picked);
+      if (n.has(label)) n.delete(label); else n.add(label);
+      this.persist(n);
+      return { picked: n };
+    });
+  }
+  start(canStart) {
+    if (!canStart) return;
+    this.persist(this.state.picked);
+    try { window.location.href = 'Ambit - Feed Masonry 4.dc.html'; } catch (e) {}
+  }
+
+  renderVals() {
+    const min = this.props.minPicks ?? 3;
+    const count = this.state.picked.size;
+    const canStart = count >= min;
+
+    const chips = this.LABELS.map(label => {
+      const on = this.state.picked.has(label);
+      return {
+        key: label, label,
+        onToggle: () => this.toggle(label),
+        style: {
+          fontFamily: "'Barlow Condensed', sans-serif",
+          fontWeight: 700, fontSize: '17px', lineHeight: 1,
+          textTransform: 'uppercase', letterSpacing: '0.2px',
+          whiteSpace: 'nowrap', flex: '0 0 auto',
+          padding: '10px 13px', cursor: 'pointer', userSelect: 'none',
+          transition: 'background .15s ease, color .15s ease, border-color .15s ease',
+          background: on ? '#F2F2F2' : 'transparent',
+          color: on ? '#0E0E0E' : '#F2F2F2',
+          border: '1.5px solid ' + (on ? '#F2F2F2' : 'rgba(255,255,255,0.28)'),
+        },
+      };
+    });
+
+    const countLabel = count === 0
+      ? 'Nothing picked yet'
+      : (String(count).padStart(2, '0') + (count === 1 ? ' interest' : ' interests') + ' chosen');
+
+    const ctaStyle = {
+      display: 'flex', alignItems: 'center', justifyContent: 'center', height: '52px',
+      fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '19px',
+      textTransform: 'uppercase', letterSpacing: '0.3px',
+      cursor: canStart ? 'pointer' : 'default',
+      transition: 'background .2s ease, color .2s ease, border-color .2s ease',
+      background: canStart ? '#F2F2F2' : 'transparent',
+      color: canStart ? '#0E0E0E' : '#6A6A6A',
+      border: '1.5px solid ' + (canStart ? '#F2F2F2' : 'rgba(255,255,255,0.18)'),
+    };
+
+    return {
+      deviceDark: true, chips, countLabel, ctaStyle, canStart,
+      totalLabel: String(this.LABELS.length),
+      ctaLabel: canStart ? 'Start exploring' : ('Pick ' + (min - count) + ' more'),
+      onStart: () => this.start(canStart),
+    };
+  }
+}
+</script>
+</body>
+</html>

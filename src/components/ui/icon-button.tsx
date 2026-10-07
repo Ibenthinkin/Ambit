@@ -2,8 +2,9 @@ import * as React from "react";
 
 import { cn } from "~/lib/utils";
 
-// The circular icon button — the single most-repeated element in the handoff bundle (header
-// bookmark toggle, card save/share, gallery chrome, close buttons...). Two fill/border tiers:
+// The square icon button (1b, DESIGN §4.6 — it was a circle) — the single most-repeated element
+// in the handoff bundle (header bookmark toggle, card save/share, gallery chrome, close
+// buttons...). Two fill/border tiers:
 // the default sits on the app's own background (Feed header's ~34px button, ~0.06/0.09 alphas);
 // `glass` is for buttons layered directly over photographic imagery (Gallery's chrome,
 // ~0.09-0.1/0.14-0.16), which needs a stronger border to stay legible against arbitrary image
@@ -33,7 +34,7 @@ export function IconButton({
       // here than `w-[34px] h-[34px]` repeated per call site.
       style={{ width: size, height: size, ...style }}
       className={cn(
-        "border-hairline text-ink/62 inline-flex flex-none items-center justify-center rounded-full transition-transform duration-150 active:scale-95",
+        "border-hairline text-ink/62 hover:text-ink inline-flex flex-none items-center justify-center transition-[transform,color] duration-150 active:scale-95",
         glass ? "bg-ink/9 border-ink/16" : "bg-ink/5 border-ink/12",
         className,
       )}

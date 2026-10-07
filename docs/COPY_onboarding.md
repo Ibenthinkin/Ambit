@@ -6,6 +6,12 @@ column (or writes `keep`), and Task 3.2 applies it slot by slot. A blank New cel
 decided yet", not "keep". Strings in the engine's attributes (`data-topics`, question ids, option
 keys) are not copy and are not here — the e2e helper steers by them, and they do not change._
 
+**Pre-filled 10-06-26 from the redesign prototype** (`docs/ambit_Redesign_4/Ambit - First
+Exhibition.dc.html`; redesign decision 12): wherever New was empty and the prototype had words for
+the slot, they are in New now. Edit any of them — this file still wins over the prototype. Three
+are *adapted* rather than copied, because the prototype's sentence would be untrue in the app;
+each says so in Notes. Rows marked `none` or `retired` are slots the redesign removes.
+
 Conventions worth knowing before writing:
 
 - **A question's wording may change freely.** `BANK_VERSION` bumps only when a question's
@@ -31,26 +37,28 @@ Conventions worth knowing before writing:
 
 | Slot                 | Current                                                                                                                                  | New | Notes                                   |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --- | --------------------------------------- |
-| Eyebrow              | Ambit · Setup                                                                                                                            |     | Retake: Ambit · Start again             |
-| Title                | Let’s find where to start                                                                                                                |     | Retake: Let’s ask again                 |
-| Lede                 | A few questions about what you like — some pictures, some words. Skip any of them. At the end you’ll see what we made of it, and you can change all of it. |     | Ben: "replace every word"               |
+| Eyebrow              | Ambit · Setup                                                                                                                            | First exhibition · About two minutes | Retake: Ambit · Start again             |
+| Title                | Let’s find where to start                                                                                                                | Before we hang anything, a few quiet questions. | Retake: Let’s ask again                 |
+| Lede                 | A few questions about what you like — some pictures, some words. Skip any of them. At the end you’ll see what we made of it, and you can change all of it. | Pick whatever you’d look at longer. Nothing here is a test, and you can change every setting at the end. | Ben: "replace every word" |
 | Retake warning       | Your answers will replace the topics you have now. _Cancel_                                                                              |     |                                         |
-| Begin button         | Begin                                                                                                                                    |     |                                         |
+| Begin button         | Begin                                                                                                                                    | Begin |                                         |
+| Intro bullets (new)   | —  | Ten quick picks between pictures and pieces of writing · Anything you would rather not see · Your first exhibition, and a feed tuned to it | Three lines, each behind a 6 px green dot |
 | Prototype, for reference | _Before we hang anything, a few quiet questions._ / _Pick whatever you would look at longer. Nothing here is a test, and you can change every setting at the end._ | | The study's own intro copy |
 
 ## 3. Chrome shared by every question
 
 | Slot                            | Current                                                                                                                          | New | Notes                                                        |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------------ |
-| Progress line                   | Step 3 of 9 · Feeling                                                                                                            |     | `STEP_LABELS` below supply the word after the dot             |
-| Back                            | Back                                                                                                                             |     |                                                              |
-| Forward, nothing said           | Skip                                                                                                                             |     |                                                              |
-| Forward, something said         | Next                                                                                                                             |     |                                                              |
-| Forward, destinations, none     | Nowhere in particular                                                                                                            |     |                                                              |
-| Multi hint, capped              | Pick up to three.                                                                                                                |     | `COUNT_WORDS`: one · two · three · four                        |
-| Multi hint, uncapped            | Pick any.                                                                                                                        |     | The Keep grid                                                 |
-| Pair: either / neither          | Either · Neither                                                                                                                 |     | Prototype: "Both, equally"                                    |
-| Choice: none                    | None of these                                                                                                                    |     | The wing screens and the playoff                              |
+| Progress line                   | Step 3 of 9 · Feeling                                                                                                            | `none` | `STEP_LABELS` below supply the word after the dot Redesign decision 1: no step count on screen. |
+| Back                            | Back                                                                                                                             | Back | A quiet text link, top-left (decision 1). |
+| Forward, nothing said           | Skip                                                                                                                             | `none` | Redesign: a pick advances by itself; each screen has its own way on instead (Skip on the rooms and the pairs · Both, equally · I’d rather look at pictures). **Ben, 10-06-26:** Skip replaced “None of these” and “Neither”. |
+| Forward, something said         | Next                                                                                                                             | Continue | Only on the screens that collect several answers (Travel, Rather not, Bonus). |
+| Forward, destinations, none     | Nowhere in particular                                                                                                            | Nowhere in particular | A text link beside Continue. |
+| Multi hint, capped              | Pick up to three.                                                                                                                | {n} of 3 chosen | `COUNT_WORDS`: one · two · three · four Mono, beside Continue. A chosen card reads “● Chosen”. |
+| Multi hint, uncapped            | Pick any.                                                                                                                        | `none` | The Keep grid The Keep grid is gone (keep or pass, one at a time). |
+| Pair: either / neither          | Either · Neither                                                                                                                 | Both, equally · Skip | Prototype: "Both, equally" Decision 9: “Both, equally” is the outline button. **Ben, 10-06-26:** the quiet link is a true _Skip_ (scores nothing), not “Neither”. |
+| Choice: none                    | None of these                                                                                                                    | Skip | The wing screens and the playoff. **Ben, 10-06-26:** a true skip (scores nothing), replacing “None of these”, which scored the starters down |
+| Key hints (new)                 | —  | Keys 1 to 4, or N to skip · Arrow keys, B for both, N to skip · Arrow keys work too · Keys 1 to 4 | Mono, beside each screen’s outline button; desktop only makes sense, but the prototype prints them on the phone too |
 | Interpreting                    | Putting it together…                                                                                                             |     | Shown while the free text is mapped                           |
 | Save error                      | Something went wrong saving your answers — try again.                                                                            |     |                                                              |
 | Free text help                  | Say as much or as little as you like. We use it to choose where to start.                                                        |     |                                                              |
@@ -58,6 +66,8 @@ Conventions worth knowing before writing:
 | Article card kicker             | ESSAY · 12 MIN                                                                                                                   |     | `face-card.tsx`; "min" is the unit word                       |
 
 ### Step labels (`lib/interview/steps.ts` `STEP_LABELS`)
+
+_Redesign (10-06-26): the progress line is gone, so these are no longer printed. Leave them._
 
 | #   | Current    | New |
 | --- | ---------- | --- |
@@ -77,8 +87,8 @@ Conventions worth knowing before writing:
 
 | Slot                              | Current                                | New | Notes                                                 |
 | --------------------------------- | -------------------------------------- | --- | ----------------------------------------------------- |
-| Prompt, `wings-1..3` (`WING_PROMPT`) | Which would you look at longer?     |     | Ben: "terrible". Prototype sub-line: _Pick one. Go with your first instinct._ |
-| Prompt, `playoff`                 | One more. Which would you look at longer? |  | Prototype: _Of your favourites, which first?_ / _These four pulled you in. Choose the one you would hang first._ |
+| Prompt, `wings-1..3` (`WING_PROMPT`) | Which would you look at longer?     | Which one is the most interesting? | Ben: "terrible". Prototype sub-line: _Pick one. Go with your first instinct._ Sub-line: _Pick one. Go with your first instinct._ |
+| Prompt, `playoff`                 | One more. Which would you look at longer? | Which one is the most interesting? | Prototype: _Of your favourites, which first?_ / _These four pulled you in. Choose the one you would hang first._ The redesign prototype uses the same prompt on all four screens. |
 
 **The twelve wings** (`server/config/interview-wings.ts`; D4). `label` is the text fallback and the
 reveal subtitle; `noun` is the reveal title's second word, and since 10-06-26 lives with the rest
@@ -117,8 +127,8 @@ New if a pair should show pictures alone like the wings do.
 
 | Slot            | Current                 | New | Notes                                                        |
 | --------------- | ----------------------- | --- | ------------------------------------------------------------ |
-| Prompt, `keep`  | Tap any you’d keep.     |     | Prototype (swipe stack, D3): _Keep or pass._ / _Ten quick ones. Drag the card, tap a button, or use the arrow keys._ |
-| Buttons (D3a)   | —                       |     | Prototype: Pass · Keep, and a `01 / 10` counter              |
+| Prompt, `keep`  | Tap any you’d keep.     | Keep or pass. | Prototype (swipe stack, D3): _Keep or pass._ / _Ten quick ones. Drag the card, tap a button, or use the arrow keys._ Redesign: phone sub-line _Ten quick ones. Tap a button, or use the arrow keys._ Desktop heading _Would you keep this one?_ with _Ten quick ones. Go with your gut._ |
+| Buttons (D3a)   | —                       | ← Pass · Keep → · counter `01 / 10` · header “Keep or pass” | Prototype: Pass · Keep, and a `01 / 10` counter              |
 
 The ten pictures' labels are text fallbacks only (Creatures · Growing things · Land, sea & sky ·
 Space · Machines · Cities · People · Myth · Abstract · Eerie); they follow the wing renames.
@@ -127,8 +137,8 @@ Space · Machines · Cities · People · Myth · Abstract · Eerie); they follow
 
 | Slot                 | Current              | New | Notes                                                                 |
 | -------------------- | -------------------- | --- | --------------------------------------------------------------------- |
-| Prompt, `read-1`     | Which would you open? |    | Prototype sub-line: _Four pieces from the feed. Pick the one you'd read first._ |
-| Prompt, `read-2`     | And one of these?    |     |                                                                       |
+| Prompt, `read-1`     | Which would you open? | Which would you open? | Prototype sub-line: _Four pieces from the feed. Pick the one you'd read first._ Sub-line: _Four pieces from the feed. Pick the one you’d read first. Set {n} of 2._ Outline button: _I’d rather look at pictures_ (Cut 1 had made it a plain Skip on Ben’s 10-05 note; the prototype brings the words back). |
+| Prompt, `read-2`     | And one of these?    | Which would you open? |                                                                       |
 
 **Fallback headlines** (`lib/interview/reading-fallback.ts`) — shown when the database has no
 article of that kind (CI, a fresh install, the local database today). Two per kind, short then long.
@@ -148,7 +158,7 @@ article of that kind (CI, a fresh install, the local database today). Two per ki
 
 | Slot                      | Current                   | New | Notes                                                        |
 | ------------------------- | ------------------------- | --- | ------------------------------------------------------------ |
-| Prompt, `destinations`    | Where would you go next?  |     | Prototype sub-line: _Choose up to three. We don't use these as places; they tell us what kind of world you're drawn to._ |
+| Prompt, `destinations`    | Where would you go next?  | Where would you go next? | Prototype sub-line: _Choose up to three. We don't use these as places; they tell us what kind of world you're drawn to._ Sub-line as the prototype has it. |
 
 Coordinates are gone (Cut 1). Each card: `where` small caps, `name` large, `line` under it.
 
@@ -174,7 +184,7 @@ swapped in.)
 
 | Slot                    | Current                        | New | Notes                                                          |
 | ----------------------- | ------------------------------ | --- | -------------------------------------------------------------- |
-| Prompt, `rather-not`    | Anything you’d rather not see? |     | Prototype sub-line: _We keep these out of your feed. You can change this at the end, or any time later._ — **not true yet** (scores only, design D3); don't promise a filter |
+| Prompt, `rather-not`    | Anything you’d rather not see? | Anything you would rather not see? | Prototype sub-line: _We keep these out of your feed. You can change this at the end, or any time later._ — **not true yet** (scores only, design D3); don't promise a filter **Sub-line adapted, not the prototype’s:** _We show less of these. You can change this at the end, or any time later._ Buttons: Continue · Show me everything. |
 | Option                  | Horror & gore                  |     |                                                                |
 | Option                  | Death & skeletons              |     |                                                                |
 | Option                  | Anatomy & medicine             |     |                                                                |
@@ -189,41 +199,44 @@ swapped in.)
 
 | Slot              | Current                                   | New | Notes                                      |
 | ----------------- | ----------------------------------------- | --- | ------------------------------------------ |
-| Prompt, `amount`  | How much reading do you want mixed in?    |     | Chips are `READING_LABELS` (§1); preselected from the cards |
+| Prompt, `amount`  | How much reading do you want mixed in?    | How much writing in the feed | Chips are `READING_LABELS` (§1); preselected from the cards Redesign decision 2: no longer a step — a row on the reveal under the heading “Reading mixed in”. |
 
 ### Step 9 — Your words (D5)
 
 | Slot                  | Current                                                                           | New | Notes                                              |
 | --------------------- | --------------------------------------------------------------------------------- | --- | -------------------------------------------------- |
-| Prompt, `look-at`     | What do you like to look at on the internet?                                      |     | Ben: awkward, vague, puts the reader on the spot    |
-| Prompt, `read-watch`  | What do you read or watch? Authors, magazines, a favourite film — anything.       |     | Ben: redundant with the above; D5 recommends merging into one |
-| Placeholder           | _(none today)_                                                                    |     | A concrete example or two inside the box would answer "on the spot" |
+| Prompt, `look-at`     | What do you like to look at on the internet?                                      | Name one thing you could read about for hours. | Ben: awkward, vague, puts the reader on the spot Eyebrow “Bonus question”. Sub-line adapted to keep the disclosure’s two facts: _Optional. A place, a period, an object, an obsession. It is sent to an AI service (OpenRouter) to match it to topics, and we keep it to learn what Ambit is missing._ Buttons: Continue to your exhibition · Clear and try again. Result line: _Mapped to {n} topics._ |
+| Prompt, `read-watch`  | What do you read or watch? Authors, magazines, a favourite film — anything.       | `retired` | Ben: redundant with the above; D5 recommends merging into one D5 answered by the prototype: one free-text question. |
+| Placeholder           | _(none today)_                                                                    | Lighthouses, Persian carpets, old seed catalogues | A concrete example or two inside the box would answer "on the spot" |
 
 ## 5. The reveal (`reveal-step.tsx`, `exhibition-card.tsx`, `lib/interview/frame.ts`, `exhibition.ts`, `compass.ts`, `config/temperament.ts`)
 
 | Slot                       | Current                                                                                                  | New | Notes                                                                  |
 | -------------------------- | -------------------------------------------------------------------------------------------------------- | --- | ---------------------------------------------------------------------- |
-| Card eyebrow (D6)          | Your first exhibition                                                                                    |     | `FRAME.eyebrow`. The frame word; "feed / blog / zine or similar"       |
-| Title fallback             | First Exhibition                                                                                         |     | `FRAME.untitled`. When no look or medium clears the floor: adjective "First", noun "Exhibition" |
+| Card eyebrow (D6)          | Your first exhibition                                                                                    | Your first exhibition | `FRAME.eyebrow`. The frame word; "feed / blog / zine or similar" D6 answered: the exhibition frame stays. |
+| Title fallback             | First Exhibition                                                                                         | First Exhibition | `FRAME.untitled`. When no look or medium clears the floor: adjective "First", noun "Exhibition" |
 | Subtitle                   | _Creatures, growing things and myth. Mostly photography and painting._ (top wings, then top mediums)    |     | `exhibition.ts` `exhibitionSubtitle`; a sentence since 10-06-26, a row of dots before. The word "Mostly" is the only fixed copy |
-| Heading                    | Here’s where we’ll start                                                                                 |     |                                                                        |
-| Lede                       | Turn anything up, down or off. Ambit wanders sideways from here, and you can change all of this later.   |     | Prototype: _About one post in ten comes from outside this mix, so the feed keeps learning from your likes and saves._ (state the real share, Cut 4) |
+| Heading                    | Here’s where we’ll start                                                                                 | Your mix |                                                                        |
+| Lede                       | Turn anything up, down or off. Ambit wanders sideways from here, and you can change all of this later.   | Set from your answers. Change anything. Topics marked proposed are ones Ambit added to round out the start. | Prototype: _About one post in ten comes from outside this mix, so the feed keeps learning from your likes and saves._ (state the real share, Cut 4) **New adapted:** the prototype says proposed topics “aren’t in Ambit yet”, which decision 4 makes untrue. |
 | Retake warning             | This replaces your current topics. _Cancel_                                                              |     |                                                                        |
-| Submit, enough             | Start exploring                                                                                          |     | Prototype: Open my feed                                                |
-| Submit, too few            | Keep at least three                                                                                      |     |                                                                        |
-| Start over (Cut 4)         | —                                                                                                        |     | Prototype: Start over                                                  |
-| Temperament eyebrow        | Temperament                                                                                              |     |                                                                        |
-| Temperament intro (Cut 4)  | —                                                                                                        |     | Prototype: _Five dimensions that hold across music, film and books. Kept now, they can seed what you watch and listen to later._ |
-| Compass eyebrow            | Travel compass                                                                                           |     |                                                                        |
-| Compass poles              | Built / Wild · New / Old · Lively / Still · Near / Far                                                    |     |                                                                        |
+| Submit, enough             | Start exploring                                                                                          | Open my feed | Prototype: Open my feed                                                |
+| Submit, too few            | Keep at least three                                                                                      | Keep at least three |                                                                        |
+| Start over (Cut 4)         | —                                                                                                        | Start over | Prototype: Start over                                                  |
+| Temperament eyebrow        | Temperament                                                                                              | Temperament |                                                                        |
+| Temperament intro (Cut 4)  | —                                                                                                        | Five dimensions that hold across music, film and books. Kept now, they can seed what you watch and listen to later. | Prototype: _Five dimensions that hold across music, film and books. Kept now, they can seed what you watch and listen to later._ |
+| Compass eyebrow            | Travel compass                                                                                           | Travel compass |                                                                        |
+| Compass poles              | Built / Wild · New / Old · Lively / Still · Near / Far                                                    | Wild / Built · Old / New · Quiet / Lively · Far / Near | Prototype order: the plus pole on the left; “Quiet” for “Still”. |
 | Compass sentence parts     | You’d travel for … wild places over cities / cities over wild places · the old over the new / the new over the old · quiet over crowds / crowds over quiet · a long way from home / somewhere close to home |  | `compass.ts` `PHRASES`; joined with commas and "and"       |
-| "You’d open" eyebrow       | You’d open                                                                                               |     |                                                                        |
+| "You’d open" eyebrow       | You’d open                                                                                               | You’d open |                                                                        |
 | Reader line, long          | You like a long read, and you went for _essays and criticism_.                                           |     | `exhibition.ts` `readingSummary`; mean ≥ 14 min                         |
 | Reader line, short         | You like something short, and you went for _essays_.                                                     |     | Mean ≤ 4 min                                                            |
 | Reader line, in between    | You went for _essays and criticism_.                                                                     |     |                                                                        |
 | Reader line, none opened   | You’d rather look than read.                                                                             |     | Prototype added _We'll keep writing to a minimum._ — left out: the amount question decides that, and the reader may have set it to anything |
 | Kinds, as "went for"       | essays · curiosities · criticism · the archive                                                           |     | `exhibition.ts` `KIND_WENT_FOR`                                         |
-| Kept out (Cut 4)           | —                                                                                                        |     | Prototype: eyebrow _Kept out_, chip suffix _Allow_, empty _Nothing kept out._ |
+| Kept out (Cut 4)           | —                                                                                                        | Kept out · Allow | Prototype: eyebrow _Kept out_, chip suffix _Allow_, empty _Nothing kept out._ |
+| Explore line (new)         | —  | About one post in {n} comes from outside this mix, so the feed keeps learning from what you save. | **Adapted:** the number is computed from the feed’s knobs, and “likes” is dropped (Ambit has none) |
+| Proposed tag (new)         | —  | Proposed | Green mono, above the topic’s name (decision 4: a row Ambit added, not one the answers scored) |
+| Mix headings (new)         | —  | Subjects · Mediums & traditions · Looks · Places · Writing · Reading mixed in | Decision 3. “Places” is not in the prototype; it shows only when a place topic is in the mix |
 
 ### Temperament dimensions (`server/config/temperament.ts`)
 
@@ -260,3 +273,31 @@ New adjective map, if the frame changes:
   screen readers as the button name even when not printed.
 - The e2e helper's forward-button regex (`e2e/support.ts`) must list whatever the forward labels
   become — the one place copy touches a test.
+
+## 7. Outside onboarding — the redesign's copy changes
+
+From the package's README ("Renames / copy changes") and the prototypes, for the screens the
+redesign touches (`docs/DESIGN_redesign.md` §6). Same rule: New is what gets built; edit freely.
+
+| Slot                                          | Current                                              | New                                                        | Notes                                                              |
+| --------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| Item credit (`item/credit-line.tsx`)          | from: _source_                                       | from _source_ ↗                                            | No colon; the link is underlined ink, not accent                    |
+| Item link-out (`item/link-out-row.tsx`)       | Read the post on _X_ · Read it on _X_ · See it on Public Domain Review | Read the original on _source_ ↗                | One wording, on every picture with a source URL                     |
+| Article link-out (`item/reader-item-body.tsx`) | Read on _source_ →                                   | [Read on _source_..]                                       | The bracket link form                                               |
+| Desktop item link-out                         | —                                                    | [Read the post on _source_..]                              | Under the large summary                                             |
+| Desktop item                                  | —                                                    | ↓ Information                                              | Scrolls to the details                                              |
+| "Shared by"                                   | _name_ shared this with you                          | `none`                                                     | The line is removed                                                 |
+| Fact label                                    | Maker                                                | By                                                         |                                                                    |
+| Article meta strip (new)                      | —                                                    | Source · Reading · Kept in                                 | Values: the source, “_n_ min”, the collection’s name or —           |
+| Long-press sheet                              | Closer Look                                          | Closer look                                                |                                                                    |
+| Collection row, saved here                    | Already saved here                                   | Saved here                                                 |                                                                    |
+| Feed loader                                   | finding something interesting…                       | Finding something interesting…                             | Set in mono uppercase either way                                    |
+| Join block body (picture)                     | Ambit is an invite-only feed of public-domain images and writing — no likes, no comments, no one performing for anyone. | Ambit hands you one interesting thing at a time, then quietly steps back. |                                          |
+| Join block (article)                          | Ambit is a quieter way to read.                      | Curiosity, without the doomscroll.                         | The picture screen’s title, per the prototype                       |
+| Sign-up, mode switch                          | First time? Create your account                      | New here? Create an account                                |                                                                    |
+| Sign-up, password placeholder                 | Password (8+ characters)                             | 8+ characters                                              | The label above now says “Password”                                 |
+| Sign-up, password hint                        | Passwords need at least 8 characters.                | Needs 8+ characters                                        | Green mono, right of the label                                      |
+| Profile identity meta                         | @_handle_                                            | @_handle_ · _n_ kept                                       |                                                                    |
+| Profile edit, email hint                      | Only used for your invite and sign-in.               | Email is only used for your invite and sign-in.            |                                                                    |
+| Topic tag                                     | suggested                                            | Proposed                                                   |                                                                    |
+

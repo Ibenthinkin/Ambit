@@ -95,19 +95,22 @@ export function RailToolbar({
   // Same as the pill: the 52px button, not the glyph, plays the tap (`icons/profile-glyph.tsx`).
   const glyph = React.useRef<ProfileGlyphHandle>(null);
 
+  // The item screen's desktop chrome (docs/DESIGN_redesign.md §6.3): a plain 450ms fade, no
+  // slide — the prototype's `opacity .45s ease`, shared with the caption over the hero.
   const fade: React.CSSProperties = {
     opacity: visible ? 1 : 0,
-    transform: visible ? "none" : "translateX(10px)",
     visibility: visible ? "visible" : "hidden",
-    transition: "opacity .6s ease, transform .6s ease, visibility .6s",
+    transition: "opacity .45s ease, visibility .45s",
   };
 
   return (
     <div
       data-testid="rail-toolbar"
+      data-chrome
       aria-hidden={!visible}
-      // `-translate-y-1/2` writes the standalone `translate` property (Tailwind v4), so the
-      // fade's `transform` nudge composes with it instead of replacing it.
+      // `-translate-y-1/2` writes the standalone `translate` property (Tailwind v4), so a
+      // `transform` on this element would compose with it rather than replace it. The fade has
+      // none today (opacity only), but that is why the centring is not written as a transform.
       className={cn(
         "fixed top-1/2 right-[26px] z-30 flex -translate-y-1/2 flex-col items-center gap-[14px]",
         className,

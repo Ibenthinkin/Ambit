@@ -34,10 +34,9 @@ describe("answersToward", () => {
     expect(byId(WIDE, ["eerie"]).unsettle).toEqual(["yes"]);
   });
 
-  it("skips what it has no use for — text and amount questions always", () => {
+  it("skips what it has no use for — a text question always", () => {
     const a = byId(WIDE, ["music"]);
     expect(a.words).toEqual([SKIP]);
-    expect(a["reading-amount"]).toEqual([SKIP]);
     expect(a["space-or-garden"]).toEqual([SKIP]);
   });
 

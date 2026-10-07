@@ -11,7 +11,7 @@ import {
 } from "~/server/config/reading-amount";
 
 // How much writing the reader wants mixed into their feed — the questionnaire's last question,
-// changeable here (docs/PLAN_onboarding-questionnaire.md §4). Modelled on `accent-sheet.tsx`: the
+// changeable here (docs/PLAN_onboarding-questionnaire.md §4). Modelled on the other settings sheets: the
 // sheet shows the current choice and reports a pick; the screen owns the mutation.
 //
 // A `Segmented` rather than a list of rows because the four amounts are points on one scale —
@@ -47,6 +47,7 @@ export function ReadingSheet({
           the pictures.
         </p>
         <Segmented
+          label="Reading amount"
           options={OPTIONS}
           value={current ?? DEFAULT_READING}
           onChange={onPick}

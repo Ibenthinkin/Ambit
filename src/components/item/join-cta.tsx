@@ -1,6 +1,8 @@
 import Link from "next/link";
 
-import { Card } from "~/components/ui/card";
+import { PRIMARY_BLOCK } from "~/components/ui/button";
+import { TextLink } from "~/components/ui/text-link";
+import { cn } from "~/lib/utils";
 
 // The invitation, shown only to signed-out visitors at the foot of an item page.
 //
@@ -11,6 +13,9 @@ import { Card } from "~/components/ui/card";
 // them to keep browsing, so the card offers the way back.
 //
 // Signed-in readers see nothing at all: they're already inside.
+//
+// DESIGN_redesign §6.2: no card — left-aligned type on the page itself, a 26 px title, 14.5 px
+// body and a 50 px white block.
 export interface JoinCtaProps {
   /** The article variant gets a quieter, shorter card — it sits under a long read, not a picture. */
   variant: "image" | "article";
@@ -20,53 +25,56 @@ export interface JoinCtaProps {
 
 function KeepExploring() {
   return (
-    <Link
-      href="/"
-      className="text-accent mt-[14px] block text-[13.5px] font-medium"
-    >
+    <TextLink href="/" className="mt-[16px] inline-block text-[13.5px]">
       Keep exploring
-    </Link>
+    </TextLink>
   );
 }
 
 export function JoinCta({ variant, exploring = false }: JoinCtaProps) {
   if (variant === "article") {
     return (
-      <Card className="mt-[30px] rounded-[22px] px-[22px] py-[24px] text-center">
-        <h2 className="text-ink-hi text-[22px] leading-[1.24] font-semibold">
+      <section className="mt-[44px]">
+        <h2 className="text-ink-hi text-[22px] leading-[1.2]">
           Ambit is a quieter way to read.
         </h2>
-        <p className="text-ink/58 mx-auto mt-[10px] max-w-[30ch] text-[13.5px] leading-[1.6]">
+        <p className="text-ink/68 mt-[10px] max-w-[34ch] text-[14.5px] leading-[1.5]">
           An invite-only feed of public-domain images and writing, tuned to what
           you&rsquo;re curious about.
         </p>
-        <Link
-          href="/"
-          className="text-accent mt-[16px] inline-block text-[13.5px] font-medium"
-        >
-          Get your invite →
-        </Link>
+        <GetInvite />
         {exploring ? <KeepExploring /> : null}
-      </Card>
+      </section>
     );
   }
 
   return (
-    <Card className="mt-[34px] rounded-[22px] px-[22px] py-[28px] text-center">
-      <h2 className="text-ink-hi text-[24px] leading-[1.22] font-semibold">
+    <section className="mt-[44px] pb-[40px]">
+      <h2 className="text-ink-hi text-[26px] leading-[1.12] tracking-[-0.015em]">
         Curiosity, without the doomscroll.
       </h2>
-      <p className="text-ink/58 mx-auto mt-[12px] max-w-[32ch] text-[14px] leading-[1.6]">
+      <p className="text-ink/68 mt-[10px] max-w-[40ch] text-[14.5px] leading-[1.5]">
         Ambit is an invite-only feed of public-domain images and writing — no
         likes, no comments, no one performing for anyone.
       </p>
-      <Link
-        href="/"
-        className="bg-accent text-on-accent rounded-pill mt-[20px] inline-block px-[22px] py-[11px] text-[14px] font-semibold"
-      >
-        Get your invite
-      </Link>
+      <GetInvite />
       {exploring ? <KeepExploring /> : null}
-    </Card>
+    </section>
+  );
+}
+
+// Button's `primary` colours at the prototype's 50 px (DESIGN §4.1) — a filled green CTA is not
+// one of the accent's seven jobs. A styled <Link> rather than a <Button>: it navigates.
+function GetInvite() {
+  return (
+    <Link
+      href="/"
+      className={cn(
+        PRIMARY_BLOCK,
+        "mt-[20px] flex h-[50px] items-center justify-center text-[15px]",
+      )}
+    >
+      Get your invite
+    </Link>
   );
 }

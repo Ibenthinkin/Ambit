@@ -43,7 +43,7 @@ export function CollectionChips({
     );
 
   return (
-    // The negative-margin edge bleed lets the row scroll under the header's own 20px padding
+    // The negative-margin edge bleed lets the row scroll under the title block's own 20px padding
     // rather than clipping mid-screen — the same trick as any full-bleed strip in a padded parent.
     <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
       <Chip size="sm" selected={activeId === undefined} onClick={() => go()}>

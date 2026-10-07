@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { useDesktopPress, usePress } from "~/hooks/use-press";
 import { cn } from "~/lib/utils";
 import { writingLabel } from "~/server/config/writing";
@@ -15,8 +16,7 @@ import { DebugBadge } from "./debug-badge";
 //
 // Square-cornered like the image tiles, deliberately: the redesign's feed is a single wall of
 // full-bleed rectangles, and a rounded card in the middle of it reads as a different component
-// from a different app. (There *is* a `--radius-card` token; it belongs to the item page's CTA
-// card, not here.)
+// from a different app. (Since 1b nothing in the app is rounded except the nav pill.)
 //
 // The press-scale is local state rather than something `usePress` exposes: the hook is
 // deliberately ref-only (it fires several times per gesture and re-rendering mid-press would be
@@ -69,14 +69,14 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
       aria-label={item.title}
       data-pressing={pressing ? "" : undefined}
       className={cn(
-        // The hover lift is one step up the fill ladder, not a transform: this card has a border,
+        // The hover lift is one step up the fill (card → card-2), not a transform: this card has a border,
         // and scaling a hairline is how you get a blurry hairline. (Since 10-04-26 the *wrapper*
         // around it does scale — the Lift, feed-grid.tsx / tile-lift.ts — which Ben accepted at
         // 1.035 for the design's own bordered Because card; this fill stays as the card's own
         // hover.) `hover:` and `focus-visible:` are both pointer/keyboard-gated, so a phone sees
         // neither (see `image-tile.tsx`). The ring is the Lift's (docs/PLAN_tile-hover.md
-        // Decision 3).
-        "border-hairline bg-ink/[3.5%] border-ink/7 focus-visible:outline-focus-ring hover:bg-ink/[5%] relative block w-full cursor-pointer touch-manipulation border px-[14px] pt-4 pb-[14px] transition-transform duration-200 outline-none select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
+        // Decision 3): 2 px of the accent green, inset −2 px, same as the picture tiles.
+        "border-hairline bg-card border-ink/8 focus-visible:outline-focus-ring hover:bg-card-2 relative block w-full cursor-pointer touch-manipulation border px-[14px] pt-4 pb-[14px] transition-transform duration-200 select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
         pressing && "scale-[0.985]",
       )}
       style={{ WebkitTouchCallout: "none" }}
@@ -84,10 +84,10 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
       {/* The writing label (docs/DESIGN_writing.md D5, 09-30-26) — what kind of read this is and
           how long, the same words a picture-led writing tile wears. It replaced the source name:
           "Wikipedia" says where, `CURIOSITY · 4 MIN` says whether to open it now. */}
-      <p className="text-ink/34 text-[9.5px] font-semibold tracking-[1.3px]">
+      <Eyebrow as="p" className="block">
         {writingLabel(item)}
-      </p>
-      <h2 className="text-ink-hi mt-[10px] text-[19px] leading-[1.25] font-semibold">
+      </Eyebrow>
+      <h2 className="text-ink-hi mt-[10px] text-[19px] leading-[1.2] font-normal">
         {item.title}
       </h2>
       {/* **Clamped, and the prototype isn't** — a divergence forced by real data. Every lede in
@@ -98,7 +98,7 @@ export function ArticleCard({ card, onTap, onLongPress }: ArticleCardProps) {
           lede *is* the body. Five lines clears the prototype's own longest lede untouched.
           `masonry.ts`'s height estimate caps at the same five, so packing still predicts the tile. */}
       {item.summary ? (
-        <p className="text-ink/58 mt-[9px] line-clamp-5 text-[13.5px] leading-[1.52]">
+        <p className="text-ink/62 mt-[9px] line-clamp-5 text-[13.5px] leading-[1.52]">
           {item.summary}
         </p>
       ) : null}

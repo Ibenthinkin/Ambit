@@ -39,8 +39,9 @@ import {
 //     reader. The screen says *what* turns (`motion`, built by `spread-motion.ts`); this file draws
 //     it, runs it, lifts the leaf with a drag, lets a short drag fall back, lays the spine over the
 //     seam, and fades the folios while a page is in the air.
-//   - **The chrome's fade.** The caption (and, below `md`, nothing else — the pill is the screen's
-//     own, fixed at the bottom) overlays the foot of the strip on the gallery's gradient and fades
+//   - **The chrome's fade.** The caption — **`md` and up only; a phone has none** (DESIGN_redesign
+//     §6.2: the pill and share disc are its whole chrome, and the title lives below the fold) —
+//     overlays the foot of the strip on the gallery's gradient and fades
 //     with `visibility`, so it is untappable while hidden.
 //
 // **The strip is the viewport, on every width (09-11-26).** Until Ben's review of the chrome
@@ -413,10 +414,11 @@ export function HeroRail({
 
         <div
           data-testid="gallery-chrome"
+          data-chrome
           aria-hidden={!chromeVisible}
-          // Bottom padding clears the fixed pill below `md` (56px + its 26px margin, plus room);
-          // above `md` the rail is at the right edge and the caption keeps the gallery's 42.
-          className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pt-[26px] pb-[108px] md:pb-[42px]"
+          // `hidden md:block`: no caption over the hero on a phone. Above `md` the rail is at the
+          // right edge, so the caption keeps the gallery's 42.
+          className="pointer-events-none absolute inset-x-0 bottom-0 hidden min-h-[180px] flex-col justify-end px-10 pb-[34px] md:flex"
           // **`visibility`, not `pointer-events`, is what makes it untappable while hidden.** An
           // ancestor's `pointer-events: none` can be overridden by any descendant that sets
           // `auto` — and the caption's own targets do exactly that. `visibility: hidden` cannot be
@@ -424,12 +426,13 @@ export function HeroRail({
           // at once, and back to hidden only after the fade has finished. An invisible control
           // that still takes taps is worse than no control at all.
           style={{
+            // The desktop caption's fade (docs/DESIGN_redesign.md §6.3): 450ms, opacity only,
+            // with the rail.
             opacity: chromeVisible ? 1 : 0,
-            transform: chromeVisible ? "none" : "translateY(10px)",
             visibility: chromeVisible ? "visible" : "hidden",
-            transition: "opacity .6s ease, transform .6s ease, visibility .6s",
+            transition: "opacity .45s ease, visibility .45s",
             background:
-              "linear-gradient(to top, rgba(11,10,8,0.94) 42%, transparent)",
+              "linear-gradient(to top, rgba(0,0,0,0.75), transparent)",
           }}
         >
           {/* Only the real targets inside take pointer events back (the screen sets

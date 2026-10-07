@@ -2,9 +2,10 @@
 
 import * as React from "react";
 
-import { Bookmark, Plus } from "~/components/icons";
+import { Bookmark } from "~/components/icons";
 import { CoverMosaic } from "~/components/profile/cover-mosaic";
 import { Button } from "~/components/ui/button";
+import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
@@ -13,9 +14,9 @@ import { api } from "~/trpc/react";
 // navigates — but the row is one design: a leading mark, name, sub-label, hairline rule.
 //
 // **Since 09-12-26 the mark is a face** (docs/DESIGN_list-screens.md §7): a collection leads with a
-// 36 px `CoverMosaic` of its four newest pictures, and the two pseudo-rows with a glyph square —
+// 38 px `CoverMosaic` of its four newest pictures, and the two pseudo-rows with a glyph square —
 // the same two squares the Collections tab's placeholder and dashed tile use, at row size. The
-// 9 px dot below is the fallback for a caller that passes no `leading`.
+// 7 px dot below is the fallback for a caller that passes no `leading`.
 //
 // Dot alphas come straight from the handoff: `accent` marks the collection an item is currently
 // in, 25% is an ordinary collection, and 40%/18% are the two pseudo-rows — "Everything kept" (the
@@ -30,10 +31,10 @@ const DOT_TONE: Record<DotTone, string> = {
 };
 
 /**
- * What leads a row (docs/DESIGN_list-screens.md §7). `covers` is a collection's face, 36 px,
- * ringed in the accent when `current` ("Already saved here"); `glyph` is one of the two
+ * What leads a row (docs/DESIGN_list-screens.md §7). `covers` is a collection's face, 38 px,
+ * marked with a trailing 7 px accent dot when `current` ("Already saved here"); `glyph` is one of the two
  * pseudo-rows' squares — the outline bookmark for "Everything kept", the dashed plus for
- * "New collection…". Absent, the row keeps its 9 px dot (`tone`).
+ * "New collection…". Absent, the row keeps its 7 px dot (`tone`).
  */
 export type RowLeading =
   | { kind: "covers"; covers: string[]; current?: boolean }
@@ -44,6 +45,8 @@ export interface CollectionRowProps {
   sub: string;
   tone?: DotTone;
   leading?: RowLeading;
+  /** "nav" is the browse sheet's row: 17 px name and a trailing mono arrow. Default "pick". */
+  variant?: "pick" | "nav";
   onPick: () => void;
 }
 
@@ -52,6 +55,7 @@ export function CollectionRow({
   sub,
   tone = "normal",
   leading,
+  variant = "pick",
   onPick,
 }: CollectionRowProps) {
   return (
@@ -60,18 +64,13 @@ export function CollectionRow({
       onClick={onPick}
       // Same rule as the pill's controls: a thumb resting here mid-scroll must not fire the row.
       onPointerDown={(e) => e.stopPropagation()}
-      className="border-hairline border-ink/6 flex w-full items-center gap-[13px] rounded-[14px] border-b px-3 py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
+      className="border-hairline border-ink/6 flex w-full items-center gap-[13px] border-b px-3 py-[14px] text-left transition-transform duration-150 active:scale-[0.99]"
     >
       {leading?.kind === "covers" ? (
-        <span
-          className={cn(
-            "size-9 flex-none overflow-hidden",
-            leading.current && "ring-accent ring-2",
-          )}
-        >
+        <span className="size-[38px] flex-none overflow-hidden">
           <CoverMosaic
             covers={leading.covers}
-            className="size-9"
+            className="size-[38px]"
             placeholderSize={14}
           />
         </span>
@@ -80,29 +79,55 @@ export function CollectionRow({
           data-testid="row-glyph"
           data-glyph={leading.glyph}
           className={cn(
-            "flex size-9 flex-none items-center justify-center",
+            "flex size-[38px] flex-none items-center justify-center",
             leading.glyph === "bookmark"
               ? "border-hairline border-ink/10 bg-ink/3"
-              : "border-ink/16 bg-ink/[4.5%] border-[0.5px] border-dashed",
+              : "border-ink/20 border border-dashed",
           )}
         >
           {leading.glyph === "bookmark" ? (
             <Bookmark size={14} className="text-ink/40" />
           ) : (
-            <Plus size={14} className="text-ink/55" />
+            <span className="text-ink/55 font-mono text-[14px] leading-none">
+              +
+            </span>
           )}
         </span>
       ) : (
         <span
-          className={cn("size-[9px] flex-none rounded-full", DOT_TONE[tone])}
+          className={cn("size-[7px] flex-none rounded-full", DOT_TONE[tone])}
         />
       )}
       <span className="min-w-0 flex-1">
-        <span className="text-ink block truncate text-[15px]">{label}</span>
-        <span className="text-ink/38 mt-0.5 block truncate text-[12px]">
+        <span
+          className={cn(
+            "text-ink block truncate",
+            variant === "nav" ? "text-[17px]" : "text-[15px]",
+          )}
+        >
+          {label}
+        </span>
+        <span className="text-ink/55 mt-1 block truncate font-mono text-[10.5px] tracking-[0.4px]">
           {sub}
         </span>
       </span>
+      {variant === "nav" ? (
+        <span
+          data-testid="row-arrow"
+          aria-hidden="true"
+          className="text-ink/55 flex-none font-mono text-[14px]"
+        >
+          →
+        </span>
+      ) : null}
+      {leading?.kind === "covers" && leading.current ? (
+        // "Already saved here": the 7 px green dot, one of the accent's seven jobs (DESIGN §3.2).
+        <span
+          data-testid="current-dot"
+          aria-hidden="true"
+          className="bg-accent size-[7px] flex-none rounded-full"
+        />
+      ) : null}
     </button>
   );
 }
@@ -193,30 +218,25 @@ export function NewCollectionRow({
       // Same rule as the rows: a thumb resting here mid-scroll must not reach the sheet's gestures.
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <Input
-        // Picking the row is asking to type, so the field takes focus at once — and in the
-        // profile's sheet, which opens straight onto this form, it is the only thing to do.
-        autoFocus
-        value={name}
-        maxLength={40}
-        placeholder="Collection name"
-        aria-label="Collection name"
-        onChange={(e) => {
-          setName(e.target.value);
-          // Clear a stale conflict as soon as the name changes — the error was about the old
-          // text, and leaving it up makes the new one look rejected too.
-          if (error) setError(null);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit();
-        }}
-      />
-
-      {error ? (
-        <span role="alert" className="text-error text-[12.5px]">
-          {error}
-        </span>
-      ) : null}
+      <Field label="Collection name" error={error}>
+        <Input
+          // Picking the row is asking to type, so the field takes focus at once — and in the
+          // profile's sheet, which opens straight onto this form, it is the only thing to do.
+          autoFocus
+          value={name}
+          maxLength={40}
+          placeholder="Collection name"
+          onChange={(e) => {
+            setName(e.target.value);
+            // Clear a stale conflict as soon as the name changes — the error was about the old
+            // text, and leaving it up makes the new one look rejected too.
+            if (error) setError(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+        />
+      </Field>
 
       <Button
         onClick={submit}

@@ -1,7 +1,8 @@
+import { Eyebrow } from "~/components/ui/eyebrow";
+import { TextLink } from "~/components/ui/text-link";
 import { sourceLabel } from "~/lib/source-label";
 import type { Item } from "~/server/db/items";
-import { CreditLine } from "./credit-line";
-import { hasLinkOutRow, LinkOutRow } from "./link-out-row";
+import { prefersLinkOutBlock, LinkOutRow } from "./link-out-row";
 import { ReaderBlocks } from "./reader-blocks";
 import { ReuseNotice } from "./reuse-notice";
 
@@ -14,35 +15,53 @@ import { ReuseNotice } from "./reuse-notice";
 // That block list was extracted into its own component on 09-02-26 so the image variant could
 // typeset a Public Domain Review collection's preamble with the same ramp.
 //
+// 1b (DESIGN_redesign §6.4): no eyebrow above the title; a three-column meta strip (Source /
+// Reading / Kept in) under the lede; the link-out at the foot is the bracket form. "Kept in" is
+// the signed-in reader's collection, resolved by the page on the server and passed in — a
+// stranger, or an article not kept, reads "—".
+//
 // The link-out at the foot is the generalized version of the blog posture (CLAUDE.md's 08-20-26
 // rights decision): the reader should always be one tap from the original. Blog-specific framing
 // is 6.3's.
 export interface ReaderItemBodyProps {
   item: Item;
+  /** The name of the reader's collection this item is kept in; null/absent renders "—". */
+  keptIn?: string | null;
 }
 
-export function ReaderItemBody({ item }: ReaderItemBodyProps) {
+function MetaCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <Eyebrow as="div">{label}</Eyebrow>
+      <div className="text-ink mt-[3px] text-[13px]">{value}</div>
+    </div>
+  );
+}
+
+export function ReaderItemBody({ item, keptIn = null }: ReaderItemBodyProps) {
+  const source = sourceLabel(item.source);
   return (
     <article>
-      <p className="text-accent text-[10.5px] font-semibold tracking-[1.3px] uppercase">
-        {sourceLabel(item.source)}
-      </p>
-
-      <h1 className="text-ink-hi mt-[10px] text-[30px] leading-[1.16] font-semibold">
+      <h1 className="text-ink-hi text-[32px] leading-[1.08] font-normal">
         {item.title}
       </h1>
-
-      <CreditLine source={item.source} sourceUrl={item.sourceUrl} />
 
       {/* The lede. When there's no stored body this is the whole read, which is why it isn't
           folded into the block list — it's always here, and always set larger. */}
       {item.summary ? (
-        <p className="text-ink/62 mt-[16px] text-[17px] leading-[1.5]">
+        <p className="text-ink/78 mt-[14px] text-[17px] leading-[1.45]">
           {item.summary}
         </p>
       ) : null}
 
-      <div className="bg-ink/10 mt-[22px] h-[0.5px] w-full" />
+      <div className="border-ink/14 mt-[18px] grid grid-cols-3 border-y py-[10px]">
+        <MetaCell label="Source" value={source} />
+        <MetaCell
+          label="Reading"
+          value={item.readingMinutes ? `${item.readingMinutes} min` : "—"}
+        />
+        <MetaCell label="Kept in" value={keptIn ?? "—"} />
+      </div>
 
       <ReuseNotice item={item} />
 
@@ -54,17 +73,19 @@ export function ReaderItemBody({ item }: ReaderItemBodyProps) {
           prominent row the image page uses; an open source's article (Wikipedia, PoetryDB,
           Loupe) keeps the quiet inline link — its body is the whole read, and the row's
           "go there instead" weight would be wrong for it. */}
-      {hasLinkOutRow(item.source) ? (
+      {prefersLinkOutBlock(item.source) ? (
         <LinkOutRow source={item.source} sourceUrl={item.sourceUrl} />
       ) : (
-        <a
-          href={item.sourceUrl}
-          target="_blank"
-          rel="noopener"
-          className="text-accent mt-[6px] inline-block text-[14px] font-medium"
-        >
-          Read on {sourceLabel(item.source)} →
-        </a>
+        <div className="mt-[20px]">
+          <TextLink
+            href={item.sourceUrl}
+            external
+            bracket
+            className="text-[13.5px]"
+          >
+            Read on {source}
+          </TextLink>
+        </div>
       )}
     </article>
   );

@@ -2,64 +2,79 @@ import * as React from "react";
 
 import { cn } from "~/lib/utils";
 
-// The two CTA shapes the prototypes use everywhere: Landing's full-width primary button
-// (Ambit - Landing.dc.html ~140-152, `rounded`/14px-radius) and Onboarding's compact pill CTA
-// (~130-142, `pill`/999px-radius). Both share the same accent/ghost + disabled treatment — only
-// the corner radius and default padding differ, which is why `shape` and `size` are independent
-// knobs rather than folding everything into one `variant` union.
-type ButtonVariant = "accent" | "ghost";
+// DESIGN_redesign §4.1. Three variants, three sizes, square, weight 400. `shape` is gone (the
+// pill and the rounded rect both went with the radius token), `accent` became `primary` and
+// `ghost` became `outline`.
+//
+//   primary  the one bright fill: `bg-ink` with dark text. Hover goes pure white and gains a 2 px
+//            green line along the bottom edge (an inset box-shadow, so it adds no height and
+//            never shifts layout); pressed dims a step.
+//   outline  transparent with a 1 px border; hover fills faintly, brightens the border and draws
+//            the same green line.
+//   link     no box at all — underlined text; hover whitens it and turns the underline green.
+//
+// Hover/pressed styling is dropped when disabled (a button that can't be pressed shouldn't react).
+// `size` is ignored for `link` (no box to size; it keeps its own 15 px text).
+// The keyboard focus ring is global (globals.css `:focus-visible`), so nothing is added here.
+type ButtonVariant = "primary" | "outline" | "link";
 type ButtonSize = "sm" | "md" | "lg";
-type ButtonShape = "pill" | "rounded";
 
+// lg is the 56 px block (auth card, install confirmation); md is the default CTA; sm has no fixed
+// height and is padded 6 × 14 (Settings' "Install", the intro card).
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "px-4 py-2 text-[13px]",
-  md: "px-5 py-3 text-[14.5px]",
-  lg: "px-6 py-4 text-[15.5px]",
+  lg: "h-14 px-6 text-[17px]",
+  md: "h-[46px] px-5 text-[15px]",
+  sm: "px-[14px] py-1.5 text-[14px]",
 };
 
-// Tailwind auto-generates a `rounded-<name>` utility for every `--radius-<name>` token in
-// globals.css's `@theme` block — no config-file mapping needed, this just names which one.
-const shapeClasses: Record<ButtonShape, string> = {
-  pill: "rounded-pill",
-  rounded: "rounded-input",
-};
+// The green underline shared by primary and outline hover.
+export const HOVER_LINE = "hover:shadow-[inset_0_-2px_0_var(--color-accent)]";
+
+/**
+ * The white primary block's colours, press state, hover line and 150 ms ease as one string, for
+ * the anchors that must look and press exactly like a primary Button (the link-out block, the
+ * join block) without being a <button>. Button composes from the same pieces.
+ */
+export const PRIMARY_BLOCK = cn(
+  "bg-ink text-on-accent transition-[background-color,box-shadow,border-color,color] duration-150 hover:bg-white active:bg-[#E6E6E6]",
+  HOVER_LINE,
+);
 
 export interface ButtonProps extends React.ComponentProps<"button"> {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  shape?: ButtonShape;
 }
 
 export function Button({
-  variant = "accent",
+  variant = "primary",
   size = "md",
-  shape = "pill",
   disabled,
   className,
   ...rest
 }: ButtonProps) {
+  const isLink = variant === "link";
   return (
     <button
       type="button"
       disabled={disabled}
       className={cn(
-        // Shared chrome: every CTA in the handoff is a solid/ghost pill or rounded rect with a
-        // 0.5px border, system-sans, semibold, centered, no text selection on tap.
-        "border-hairline inline-flex items-center justify-center gap-2 font-sans font-semibold tracking-[0.2px] whitespace-nowrap transition-[opacity,background-color,color,border-color] duration-200 select-none",
-        sizeClasses[size],
-        shapeClasses[shape],
-        // Disabled state (Onboarding's "Pick N more" CTA) reuses the ghost fill/border ladder
-        // stops regardless of `variant` — an accent button that can't be pressed shouldn't still
-        // look accent-colored. (Prototype used one-off 0.07/0.10 alphas here; normalized to the
-        // ladder's nearest named stops per PHASE5_PLAN.md Decision 1.)
-        variant === "accent" &&
+        // Shared: centred, weight 400, sentence case, 150 ms on the four things that change.
+        "inline-flex items-center justify-center gap-2 font-sans font-normal whitespace-nowrap transition-[background-color,box-shadow,border-color,color] duration-150 select-none",
+        // A link keeps its own text size and has no fixed height or padding box.
+        isLink ? "text-[15px]" : sizeClasses[size],
+        variant === "primary" &&
+          (disabled ? "text-ink/34 bg-white/12" : PRIMARY_BLOCK),
+        variant === "outline" &&
           (disabled
-            ? "bg-ink/5 border-ink/12 text-ink/38"
-            : "bg-accent border-accent text-on-accent"),
-        variant === "ghost" &&
+            ? "border-ink/16 text-ink/34 border"
+            : cn(
+                "border-ink/35 text-ink hover:border-ink border hover:bg-white/8",
+                HOVER_LINE,
+              )),
+        isLink &&
           (disabled
-            ? "bg-ink/5 border-ink/12 text-ink/38"
-            : "bg-ink/5 border-ink/12 text-ink/82"),
+            ? "text-ink/34"
+            : "text-ink/78 hover:decoration-accent underline decoration-1 underline-offset-[3px] hover:text-white"),
         disabled ? "cursor-default" : "cursor-pointer",
         className,
       )}

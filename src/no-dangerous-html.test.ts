@@ -8,9 +8,9 @@
 // keeps it that way: a source scan, not a lint plugin, because the rule is a whitelist of exactly
 // one file and a whitelist is cheaper to read than a plugin is to write.
 //
-// The one permitted use is the pre-paint accent script in `app/layout.tsx` — a constant string
-// written by hand in that file, which is also asserted below. If a second use ever becomes
-// genuinely necessary, adding it here should feel like the deliberate decision it is.
+// There is no permitted use. The one exception (the pre-paint accent script in `app/layout.tsx`)
+// went with the accent knob in redesign Task 1.3. If a use ever becomes genuinely necessary,
+// adding it to ALLOWED should feel like the deliberate decision it is.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -18,10 +18,10 @@ import { describe, expect, it } from "vitest";
 const SRC = new URL("../src", import.meta.url).pathname;
 
 /**
- * The only file allowed to contain `dangerouslySetInnerHTML`. Paths are repo-relative with forward
+ * Files allowed to contain `dangerouslySetInnerHTML` — none. Paths are repo-relative with forward
  * slashes so the assertion message reads the same on any platform.
  */
-const ALLOWED = ["src/app/layout.tsx"];
+const ALLOWED: string[] = [];
 
 /** Every `.tsx`/`.ts` file under `src/`, minus this file itself. A small recursive walk — no glob dependency. */
 function sourceFiles(dir: string, found: string[] = []): string[] {
@@ -42,7 +42,7 @@ function repoPath(absolute: string): string {
 }
 
 describe("no source text is ever rendered as HTML", () => {
-  it("only layout.tsx uses dangerouslySetInnerHTML", () => {
+  it("no file uses dangerouslySetInnerHTML", () => {
     const offenders = sourceFiles(SRC)
       .filter((file) => !file.endsWith("no-dangerous-html.test.ts"))
       .filter((file) =>
@@ -52,22 +52,5 @@ describe("no source text is ever rendered as HTML", () => {
       .sort();
 
     expect(offenders).toEqual(ALLOWED);
-  });
-
-  // The whitelist entry is only safe because the string is a constant. An interpolated one — even
-  // from something as innocent-looking as a theme token — is how this exception would turn into
-  // the vulnerability it is excepted from.
-  it("the one allowed use interpolates nothing", () => {
-    const layout = readFileSync(join(SRC, "app/layout.tsx"), "utf8");
-    const html = /__html:\s*`([^`]*)`/.exec(layout);
-
-    expect(
-      html,
-      "layout.tsx's __html should be a template literal",
-    ).toBeTruthy();
-    expect(
-      html![1],
-      "layout.tsx's inline script must interpolate nothing",
-    ).not.toContain("${");
   });
 });

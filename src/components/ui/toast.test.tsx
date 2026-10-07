@@ -24,6 +24,25 @@ describe("Toast", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
   });
 
+  // DESIGN §4.6: a white block (`bg-ink`) with dark mono caps — square, no blur, no shadow.
+  it("is a square white block with dark Geist Mono caps and no glass", () => {
+    render(<Toast text="Saved" open onDone={vi.fn()} />);
+    const cls = screen.getByRole("status").className;
+    for (const want of [
+      "bg-ink",
+      "text-on-accent",
+      "font-mono",
+      "text-[11px]",
+      "uppercase",
+      "tracking-[0.3px]",
+      "px-[14px]",
+      "py-[10px]",
+    ])
+      expect(cls).toContain(want);
+    for (const gone of ["rounded", "backdrop-blur", "shadow", "bg-overlay"])
+      expect(cls).not.toContain(gone);
+  });
+
   it("renders nothing when closed", () => {
     render(<Toast text="Saved" open={false} onDone={vi.fn()} />);
     expect(screen.queryByText("Saved")).not.toBeInTheDocument();

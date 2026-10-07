@@ -2,12 +2,11 @@ import "~/styles/globals.css";
 
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { type Metadata, type Viewport } from "next";
-import { headers } from "next/headers";
+import { connection } from "next/server";
 
-import { AccentSync } from "~/components/accent-sync";
 import { SwCleanup } from "~/components/dev/sw-cleanup";
 import { InstallListener } from "~/components/install/install-listener";
-import { sora } from "~/lib/fonts";
+import { geistMono, hanken } from "~/lib/fonts";
 import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
@@ -31,74 +30,25 @@ export const metadata: Metadata = {
 // CSS cascade and can't read a custom property — but it must be kept in sync with that token by
 // hand if the background ever changes.
 export const viewport: Viewport = {
-  themeColor: "#161411",
+  themeColor: "#0E0E0E",
 };
 
-// **Async, and that is load-bearing twice over** (Phase 7.2). `headers()` is a dynamic API, so
-// reading it here does two things at once: it hands us the per-request CSP nonce that `proxy.ts`
-// minted, and — because this is the *root* layout — it opts every route in the app into on-demand
-// rendering. Both are required by the policy: a nonce that was baked into static HTML at build
-// time would be the same nonce for every visitor, which is the same as having no nonce at all.
+// **Async, and that is load-bearing** (Phase 7.2). Awaiting `connection()` opts every route into
+// on-demand rendering. The CSP nonce that `proxy.ts` mints per request must not be baked into static
+// HTML at build time — that would be one nonce for every visitor, which is no nonce at all — and
+// Next stamps the nonce onto its own scripts only when it renders per request. (This layout once
+// read the nonce itself for the pre-paint accent script; that script went with the accent knob in
+// redesign Task 1.3, so nothing here needs the value any more, only the dynamic rendering.)
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  await connection();
 
   return (
-    // `data-accent="indigo"` is what the SERVER always renders — the default accent. Settings'
-    // picker (5.10) stores the reader's choice in `localStorage` and the inline script below
-    // re-applies it before first paint, so the attribute on a hydrated page is frequently *not*
-    // "indigo".
-    //
-    // `suppressHydrationWarning` is the price of that, and it's scoped to this one element on
-    // purpose: React would otherwise log a mismatch on every load for a reader whose accent isn't
-    // the default. It suppresses the warning for `<html>`'s own attributes only — nothing inside
-    // the tree is affected, so a genuine content mismatch anywhere else still shouts.
-    <html
-      lang="en"
-      data-accent="indigo"
-      suppressHydrationWarning
-      className={sora.variable}
-    >
-      <head>
-        {/* **Runs before the first paint, and before any module has loaded.** That timing is the
-            whole feature: applied from an effect instead, the page paints indigo and then flips to
-            the reader's accent a frame later — a flash on every single navigation, which is
-            precisely what a preference like this must not cost.
-
-            Being pre-module is also why this can't `import { storedAccent }` from
-            `~/lib/accent.ts`. The key and the four valid values are duplicated there, with a
-            keep-in-sync warning at the top of that file. The allow-list is not optional: without
-            it a hand-edited storage entry writes arbitrary text into an attribute selector.
-
-            `dangerouslySetInnerHTML` is how Next renders an inline script at all — the string is a
-            constant written here, with nothing interpolated into it. (`no-dangerous-html.test.ts`
-            asserts that this is the app's only use of it, and that this string stays a constant.)
-
-            The `nonce` is Phase 7.2's: under `script-src 'self' 'nonce-…' 'strict-dynamic'` an
-            inline script without one simply does not run, and this one running before paint is the
-            entire feature. It comes from `proxy.ts` via the `x-nonce` request header. */}
-        <script
-          nonce={nonce}
-          // **The nonce is why this needs `suppressHydrationWarning`.** The CSP spec tells
-          // browsers to *blank the `nonce` content attribute* once the element is parsed, so that
-          // a script on the page can never read it back out of the DOM and forge one. React's
-          // dev-only hydration check doesn't know that: it compares the server's
-          // `nonce="MzczM…"` against the browser's now-empty attribute and logs a mismatch on
-          // every page load. (The IDL property still holds the real value, and the script has
-          // already run by then — nothing is actually wrong.) Production builds don't log it, but
-          // three e2e specs assert "no console errors" against the dev server, and they were
-          // right to fail: an unexplained hydration error is exactly what they exist to catch.
-          // Scoped to this one element, like the `suppressHydrationWarning` on <html> above.
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: `try{var a=localStorage.getItem("ambit.accent.v1");if(a==="indigo"||a==="amber"||a==="green"||a==="red"){document.documentElement.dataset.accent=a}}catch(e){}`,
-          }}
-        />
-      </head>
+    <html lang="en" className={`${hanken.variable} ${geistMono.variable}`}>
       {/* `bg-bg`/`text-ink` set the base surface + text color app-wide (every screen but the
-          gallery, which opts into `bg-immersive` itself); `font-sans` is Sora, the redesign's one
-          typeface for everything — there is no second family to switch into. Titles opt into the
+          gallery, which opts into `bg-immersive` itself); `font-sans` is Hanken Grotesk
+          and `font-mono` Geist Mono (src/lib/fonts.ts). Titles opt into the
           brighter `text-ink-hi` per-component. */}
       <body className="bg-bg text-ink font-sans antialiased">
         {/* Registers src/app/serwist/sw.js/route.ts as the page's service worker on mount —
@@ -114,9 +64,6 @@ export default async function RootLayout({
             production branch on purpose: the install *flow* has nothing to do with the service
             worker, and a reader testing on a dev build should still see it behave. */}
         <InstallListener />
-        {/* Puts the reader's stored accent back on <html> after React's hydration pass reconciles
-            it away — see the component for the whole story. Renders nothing. */}
-        <AccentSync />
         {process.env.NODE_ENV === "production" ? (
           <SerwistProvider swUrl="/serwist/sw.js">
             <TRPCReactProvider>{children}</TRPCReactProvider>

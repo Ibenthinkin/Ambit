@@ -11,9 +11,9 @@ describe("askable", () => {
     expect(ids(WIDE)).toEqual(TEST_BANK.map((q) => q.id));
   });
 
-  it("always asks text and amount questions — they need no topics", () => {
+  it("always asks a text question — it needs no topics", () => {
     // …and a question whose options are all `always` (the reading cards).
-    expect(ids(new Set())).toEqual(["words", "read", "reading-amount"]);
+    expect(ids(new Set())).toEqual(["words", "read"]);
   });
 
   it("hides an answer with no listed topic, keeping the question while two remain", () => {

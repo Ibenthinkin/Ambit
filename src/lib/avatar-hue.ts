@@ -43,24 +43,6 @@ export function avatarHue(userId: string): number {
   return fnv1a(userId) % 360;
 }
 
-/**
- * The disc's background: a two-stop `linear-gradient` at the prototype's 150° angle, light stop to
- * mid stop, both on the same hue.
- *
- * Saturation and lightness are fixed rather than derived, which is the point — the *hue* is what
- * varies per user, so every avatar in the app has the same weight and legibility against the app's
- * near-black ground, and no unlucky id gets a muddy or blinding disc. The second stop's hue is
- * nudged +18° so the gradient reads as a gradient rather than a flat wash.
- *
- * Returned as a CSS string for an inline `style`, not a class: a generated `bg-[…]` utility can't
- * exist at build time, and a custom `bg-*` class would need registering with tailwind-merge's
- * `bg-image` group to survive sitting next to another `bg-*` (the trap `.bg-avatar-gradient` was
- * created to solve — see `avatar-chip.tsx`). Inline style sidesteps both.
- */
-export function avatarGradient(userId: string): string {
-  return gradientForHue(avatarHue(userId));
-}
-
 /** The same two-stop gradient for a hue directly — what the candidate profile marks
  *  (components/icons/marks.tsx, docs/DESIGN_landing-redo.md D7) are coloured from. */
 export function gradientForHue(hue: number): string {

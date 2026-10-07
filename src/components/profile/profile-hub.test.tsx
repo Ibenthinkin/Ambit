@@ -2,7 +2,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { avatarGradient } from "~/lib/avatar-hue";
 import { ProfileHub, useProfileHub } from "./profile-hub";
 
 // The shell every profile tab renders inside (docs/DESIGN_list-screens.md §1): identity block,
@@ -34,7 +33,7 @@ vi.mock("~/trpc/react", () => ({
     saves: {
       // `CollectionsSheet` mounts closed but still calls its hooks.
       collections: { useQuery: () => ({ data: [], isLoading: false }) },
-      count: { useQuery: () => ({ data: 0, isLoading: false }) },
+      count: { useQuery: () => ({ data: 7, isLoading: false }) },
       createCollection: {
         useMutation: () => ({ mutate: vi.fn(), isPending: false }),
       },
@@ -72,7 +71,7 @@ describe("ProfileHub", () => {
       </ProfileHub>,
     );
     expect(screen.getByText("Ben Traverse")).toBeInTheDocument();
-    expect(screen.getByText("@bentraverse")).toBeInTheDocument();
+    expect(screen.getByText("@bentraverse · 7 kept")).toBeInTheDocument();
     expect(screen.getByText("Maps, mostly.")).toBeInTheDocument();
     expect(screen.getByText("tab body")).toBeInTheDocument();
   });
@@ -85,22 +84,19 @@ describe("ProfileHub", () => {
     };
     render(<ProfileHub>x</ProfileHub>);
     expect(screen.getByText("Ben Traverse")).toBeInTheDocument();
-    expect(screen.queryByText(/^@/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/@/)).not.toBeInTheDocument();
+    expect(screen.getByText("7 kept")).toBeInTheDocument();
     expect(screen.queryByText("Maps, mostly.")).not.toBeInTheDocument();
   });
 
-  it("paints the avatar with this user's own deterministic gradient", () => {
+  it("draws the avatar as a flat disc and a mono `@handle · N kept` line", () => {
     const { container } = render(<ProfileHub>x</ProfileHub>);
-    // Two discs on screen: the 88px identity one and the toolbar's generic one. Only the first
-    // carries an inline gradient — the toolbar's has no user data (see avatar-chip.tsx).
-    const withGradient = [...container.querySelectorAll("span[aria-hidden]")]
-      .map((el) => (el as HTMLElement).style.backgroundImage)
-      .filter(Boolean);
-    // Through a probe element: jsdom's CSS parser rewrites `hsl(...)` stops as `rgb(...)`, so the
-    // literal from `avatarGradient` never matches what comes back out of `style`.
-    const probe = document.createElement("span");
-    probe.style.backgroundImage = avatarGradient(ME.id);
-    expect(withGradient).toEqual([probe.style.backgroundImage]);
+    const discs = [...container.querySelectorAll("span[aria-hidden]")].filter(
+      (el) => (el as HTMLElement).style.width === "88px",
+    );
+    expect(discs).toHaveLength(1);
+    expect((discs[0] as HTMLElement).style.backgroundImage).toBe("");
+    expect(screen.getByText("@bentraverse · 7 kept")).toBeInTheDocument();
   });
 
   it("offers the four tabs in order, as replacing links", () => {

@@ -367,14 +367,14 @@ describe("SavedScreen", () => {
   it("pops back when an in-app surface brought us here, pushes /feed on a cold open", () => {
     sessionStorage.setItem("ambit.savedOrigin.v1", "1");
     const { unmount } = render(<SavedScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Back to feed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Feed" }));
     expect(backMock).toHaveBeenCalledOnce();
     expect(pushMock).not.toHaveBeenCalled();
     unmount();
 
     sessionStorage.clear();
     render(<SavedScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Back to feed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Feed" }));
     expect(pushMock).toHaveBeenCalledWith("/feed");
   });
 

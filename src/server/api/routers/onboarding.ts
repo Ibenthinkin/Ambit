@@ -14,7 +14,7 @@ import {
   READING_AMOUNTS,
   type ReadingAmount,
 } from "~/server/config/reading-amount";
-import { tasteSchema } from "~/lib/interview/taste";
+import { tasteSchema, withKnownItems } from "~/lib/interview/taste";
 import { getItemsByIds } from "~/server/db/items";
 import { completeOnboarding } from "~/server/db/onboarding";
 import type { ErrorThrottle } from "~/server/services/error-report";
@@ -32,10 +32,13 @@ export const MAX_ANSWER_TEXT = 500;
 /**
  * `onboarding.interpret`'s own cap, far below the global 120/min (api/trpc.ts). Each call is a paid
  * model call on the same OpenRouter wallet the nightly ingest spends — a client looping it could
- * empty the wallet, and a 402 then fails the ingest too. A reader needs one call per pass; ten an
- * hour leaves room for retakes and Back-and-forth. Per process, like the global limiter.
+ * empty the wallet, and a 402 then fails the ingest too. The bonus question maps its words live,
+ * once per pause in typing (bonus-step.tsx), so a pass can spend a few; thirty an hour (raised
+ * from ten, 10-06-26 — each call is a fraction of a cent) leaves room for that, a retake inside
+ * the hour and Back-and-forth, without a retake silently losing the words. Per process, like the
+ * global limiter.
  */
-export const INTERPRET_PER_HOUR = 10;
+export const INTERPRET_PER_HOUR = 30;
 const interpretLimiter = new RateLimiter({
   limit: INTERPRET_PER_HOUR,
   windowMs: 60 * 60 * 1000,
@@ -108,16 +111,23 @@ export const onboardingRouter = createTRPCRouter({
               new Set(picks.map((p) => p.topicId)).size === picks.length,
             "Each topic once",
           ),
+        // Null or absent = "not said": the column is left as it was (db/onboarding.ts), and a
+        // reader who never set one reads at the feed's default. Bank v3 has no amount question —
+        // the reveal's Reading row sends it — so a v3 client may leave it out entirely.
         writingAmount: z
           .enum(READING_AMOUNTS as unknown as [string, ...string[]])
-          .nullable(),
+          .nullish(),
+        // Not checked against the bank either: a tab opened before a bank change still sends
+        // the retired questions' answers (v2's `amount`, `read-watch`), and they are logged
+        // under the `bankVersion` that asked them (pinned in onboarding.integration.test.ts).
         answers: z.array(answerSchema).max(40),
         bankVersion: z.number().int().positive(),
         // `about` (age range, place, gender) was here until 10-05-26. A stale client may still
         // send it: the object is not `.strict()`, so Zod strips the key rather than refusing the
         // run (pinned in onboarding.integration.test.ts).
         // What the reveal showed (bank v2). Bounded by its own schema: wing ids, 0…1 dimensions,
-        // at most two opened cards. Optional so a v1 client still completes.
+        // at most two opened cards, at most six hung pictures. Either version: a tab opened
+        // before taste v2 still sends a v1 (no hang). Optional so a bank-v1 client still completes.
         taste: tasteSchema.optional(),
       }),
     )
@@ -133,31 +143,40 @@ export const onboardingRouter = createTRPCRouter({
         });
       }
 
-      if (input.taste) {
-        // The opened cards name items; a stale tab after a corpus prune must not store a
-        // dangling id. Checked before the transaction, so a refusal writes nothing at all.
-        const ids = input.taste.opened.map((o) => o.itemId);
-        const found = await getItemsByIds(ids);
-        const gone = ids.filter((id) => !found.has(id));
-        if (gone.length > 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Unknown item id(s): ${gone.join(", ")}`,
-          });
-        }
-        // Mediums must be pickable topics, like picks.
-        const badMedium = input.taste.mediums.filter((id) => !validIds.has(id));
-        if (badMedium.length > 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Unknown medium id(s): ${badMedium.join(", ")}`,
-          });
-        }
+      let taste = input.taste;
+      if (taste) {
+        // The opened cards and the hang name items, and an item can be gone by the time the
+        // reader presses the button: a tab left open across a corpus prune, or — the one 6.7's
+        // e2e found — the faces' ten-minute memo (services/question-faces.ts) still showing a
+        // picture deleted since. So a dangling id is **dropped, never refused**: refusing would
+        // fail the whole run, and every retry would send the same taste and fail again, leaving
+        // the reader stuck on the reveal over a decoration. What is stored is what the reveal
+        // showed, less what no longer exists (`withKnownItems`; a hang left under two is empty).
+        // A hung id must also be a picture — an image row with an image, not an article with a
+        // lead picture — since the profile draws it again. Items are the shared corpus, not the
+        // reader's: there is no user to scope them to; the row written is `ctx.user.id`'s alone.
+        const opened = taste.opened.map((o) => o.itemId);
+        const hang = taste.v === 2 ? taste.hang : [];
+        const found = await getItemsByIds([...new Set([...opened, ...hang])]);
+        taste = withKnownItems(taste, {
+          items: new Set(found.keys()),
+          pictures: new Set(
+            [...found.values()]
+              .filter((r) => r.type === "image" && r.imageUrl)
+              .map((r) => r.id),
+          ),
+        });
+        // Mediums are decoration like the items above: one that is no longer a pickable topic is
+        // dropped, never refused (the same ruling, for the same reason — a retry would fail alike).
+        taste = {
+          ...taste,
+          mediums: taste.mediums.filter((id) => validIds.has(id)),
+        };
       }
 
       return completeOnboarding(ctx.user.id, {
         picks: input.picks,
-        writingAmount: input.writingAmount as ReadingAmount | null,
+        writingAmount: (input.writingAmount ?? null) as ReadingAmount | null,
         // To the stored shape: a free-text question's row holds the reader's words and the
         // topic ids they were mapped to; every other row holds its keys and no text.
         answers: input.answers.map((a) =>
@@ -170,7 +189,7 @@ export const onboardingRouter = createTRPCRouter({
             : { questionId: a.questionId, answer: a.keys, text: null },
         ),
         bankVersion: input.bankVersion,
-        taste: input.taste,
+        taste,
       });
     }),
 

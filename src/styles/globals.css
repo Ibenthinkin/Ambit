@@ -3,87 +3,95 @@
    PostCSS at the `@tailwindcss/postcss` plugin, which processes this file); `@theme` below is
    where design tokens (fonts, colors, spacing) get defined — each one becomes both a CSS variable
    and a Tailwind utility class (e.g. `--color-ink` here backs `text-ink`, `bg-ink`, `border-ink`).
-   Tokens are ported from docs/design_handoff_ambit_pwa_redesign/README.md — the redesign handoff
-   that replaced the original one in Phase 5.4 (see docs/PHASE5_PLAN_5.4.md for the migration and
-   docs/PHASE5_WALKTHROUGH_5.1.md for the original rationale that still holds); this file just
+   Tokens are ported from docs/DESIGN_redesign.md §3 (the sitewide 1b redesign); this file just
    encodes the result. */
 @import "tailwindcss";
 
-/* Tokens whose value is itself a var() that gets redefined at runtime — by a `[data-accent]`
-   attribute selector, or by next/font injecting a variable at the <html> element — MUST live in
-   `@theme inline`, not plain `@theme`. Plain `@theme` bakes the *outer* variable name into the
-   generated utility (`.bg-accent { background-color: var(--color-accent) }`), and that indirection
-   silently fails to pick up a scoped override on `--accent-raw` further down the cascade in some
-   browsers. `inline` skips the indirection and points the utility straight at the inner variable
-   (`.bg-accent { background-color: var(--accent-raw) }`), so it re-resolves live whenever
-   `--accent-raw` changes — no rebuild, no page reload. */
+/* Tokens whose value is a var() supplied at runtime by next/font (it injects its variable on the
+   <html> element) MUST live in `@theme inline`, not plain `@theme`: plain `@theme` bakes the
+   *outer* variable name into the generated utility and the indirection can fail to pick up a
+   value defined further down the cascade. `inline` points the utility straight at the inner
+   variable. (The accent used to be here too, while it was a runtime knob; it is a plain token now.) */
 @theme inline {
-  /* The single brand knob (README "Themeable props"): one accent, swapped as a whole set via
-     [data-accent] on <html> (see @layer base below). Phase 9.2 adds a user-facing picker; 5.1
-     shipped the mechanism, 5.4 re-pointed it at the redesign's set (indigo default). */
-  --color-accent: var(--accent-raw);
-  /* Points at whatever CSS variable next/font/google injects for Sora (src/lib/fonts.ts) — also
-     runtime-supplied, so it needs the same `inline` treatment. The redesign uses ONE typeface for
-     everything (headings, body, UI chrome), so this is the only font token; `--font-serif` is
-     gone along with Newsreader (Phase 5.4). */
-  --font-sans: var(--font-sora);
+  /* Point at the CSS variables next/font/google injects on <html> (src/lib/fonts.ts) — runtime-
+     supplied, so they need the same `inline` treatment. Hanken Grotesk is the readable face,
+     Geist Mono the label face; `--font-serif` is gone along with Newsreader (Phase 5.4). */
+  --font-sans: var(--font-hanken);
+  --font-mono: var(--font-geist-mono);
 }
 
 @theme {
-  /* Surfaces (README "Color"). */
-  --color-bg: #161411; /* screen background — every screen except the gallery */
-  --color-bg-app: #0c0b09; /* outer app chrome, outside any screen's content */
-  --color-surface: #1b1815; /* elevated surface: sheets, modals */
-  --color-immersive: #0b0a08; /* gallery only — deliberately darker for fullscreen immersion,
-                                  not drift from the standard --color-bg (see PHASE5_PLAN.md
-                                  Decision 8) */
-  --color-overlay: #1e1c18; /* toast / install-banner fill (used at low opacity, ~92%) */
-  --color-scrim: #090806; /* sheet + modal scrims (used at ~60-66% opacity) */
-  --color-tile-hi: #221e17; /* app-icon tile gradient, light stop */
-  --color-tile-lo: #0f0d09; /* app-icon tile gradient, dark stop */
+  /* The 1b palette (docs/DESIGN_redesign.md 3.1): black and white, no warmth left in it. */
+  --color-bg: #0e0e0e; /* screen background — every screen except the gallery */
+  --color-bg-app: #060606; /* outer app chrome, outside any screen's content */
+  --color-surface: #141414; /* bottom sheets, popovers */
+  --color-dialog: #121212; /* the centred desktop dialog and the sign-up sheet */
+  --color-card: #161616; /* article / Because / intro cards, image placeholder */
+  --color-card-2: #1e1e1e; /* empty thumb cells */
+  --color-immersive: #0a0a0a; /* behind a picture on the item screen — a shade darker than --color-bg on purpose */
+  --color-scrim: #000000; /* sheet + modal scrims, used at /60 with no blur */
+  --color-tile-hi: #161616; /* app-icon tile gradient, light stop (now a flat card colour) */
+  --color-tile-lo: #0e0e0e; /* app-icon tile gradient, dark stop */
 
   /* Ink — the one color the whole muted-text/hairline/subtle-fill system derives from. The
-     prototypes hand-authored dozens of one-off rgba(239,235,224, N) alphas; Tailwind v4's opacity
+     prototypes hand-authored dozens of one-off rgba(ink, N) alphas; Tailwind v4's opacity
      modifier runs on color-mix() and works on any --color-* value, so `text-ink/60`,
      `border-ink/12`, `bg-ink/5` etc. reproduce all of them from this single token. See the alpha
      ladder in docs/PHASE5_WALKTHROUGH_5.1.md / SPEC §10 for which modifier to use where — use
      those normalized stops, not a value eyeballed off one screen. */
-  --color-ink: #efebe0;
-  --color-ink-hi: #f5f1e7; /* the title tier ("text/primary" in the redesign README) — screen
-                               titles, item titles, article headlines ONLY. --color-ink above
-                               stays the body/high tier and the root of the alpha ladder; this is
-                               a second opaque stop above it, not a replacement. */
-  --color-focus-ring: #a8aeff; /* the keyboard ring on a feed tile: 2 px, inset, a fixed lavender
-                                   that is NOT the accent knob (docs/PLAN_tile-hover.md Decision 3).
-                                   Replaced the 3 px off-white of DESIGN_chrome-redesign.md §4 on
-                                   10-04-26, once the lift and shadow also marked focus. */
-  --color-on-accent: #17140e; /* text drawn on an accent-filled surface — always this, never
-                                  white; every CTA/selected-chip/save-icon uses it */
-  --color-error: #d98c6a;
+  --color-ink: #f2f2f2;
+  --color-ink-hi: #f2f2f2; /* same value as ink in 1b; the name stays so its uses need no edit (titles only) */
+  /* One accent, Kelly green (DESIGN_redesign §3.1-3.2): a single colour needs no runtime knob, so
+     it is a plain token. The alternatives we weighed are in
+     docs/ambit_Redesign_4/reference/Ambit - Accent Options.dc.html — we chose option 2e. */
+  --color-accent: #2bb24c;
+  --color-on-accent: #0e0e0e; /* 6.97 : 1 on the accent — never white on green (2.8 : 1) */
+  --color-focus-ring: var(--color-accent); /* the one keyboard-ring colour */
 
-  /* Shape (README "Shape and elevation"). Pills for buttons/chips/toasts/segments; the sheet
-     radius applies to top corners only (components implement that, not this token — Tailwind has
-     no "radius one side only" theme primitive).
-
-     NOTE: feed and saved image tiles are SQUARE-CORNERED full-bleed in the redesign — radius 0 is
-     the absence of a rounding class, not a token. Don't add one. */
+  /* Shape — 1b: no radius anywhere except the nav pill (docs/DESIGN_redesign.md §3.4). Square is
+     the absence of a rounding class, not a token, so there is exactly one radius token. The
+     other names (`--radius-card`, `-sheet`, `-tile`, `-input`, `-img-*`) sat at 0 through Phase 1
+     while their call sites were rewritten, and went with the last of them in Task 2.9. Round is
+     written `rounded-full`, on circular things only; src/no-rounded.test.ts pins the allow-list. */
   --radius-pill: 999px;
-  --radius-sheet: 22px; /* bottom sheets — top corners only */
-  --radius-card: 22px; /* the most common card radius (feed article card, item CTA card) */
-  --radius-img-lg: 20px; /* profile collection cover tiles */
-  --radius-tile: 18px; /* item-page hero image */
-  --radius-img-md: 16px; /* currently unassigned in the redesign — kept for the 16-18px band */
-  --radius-input: 14px; /* text inputs, primary buttons (landing) — NOT a pill */
-  --radius-img-sm: 12px; /* gallery slides */
 
-  /* Elevation — exactly four shadows exist anywhere in the redesign bundle. Resist adding more;
-     if a new component seems to need one, it's very likely one of these four. */
-  --shadow-toast: 0 8px 30px rgba(0, 0, 0, 0.4);
-  --shadow-banner: 0 12px 40px rgba(0, 0, 0, 0.45);
-  --shadow-sheet: 0 -20px 50px rgba(0, 0, 0, 0.45);
+  /* Elevation — exactly four shadows exist in 1b (DESIGN §3.4). Resist adding more; if a new
+     component seems to need one, it's very likely one of these four. The old sheet / toast /
+     banner shadows went with their users in Task 2.9 (a square sheet has a top border, not a
+     shadow). There is no error colour either: an error is the green mono hint (§3.2 job 7). */
+  --shadow-dialog: 0 30px 80px rgba(0, 0, 0, 0.6); /* the centred dialog (1b) */
+  --shadow-popover: 0 20px 50px rgba(0, 0, 0, 0.5); /* the anchored popover (1b) */
   --shadow-toolbar: 0 10px 30px rgba(0, 0, 0, 0.28); /* the floating pill toolbar (built 5.5) */
-  --shadow-lift: 0 22px 44px rgba(0, 0, 0, 0.6); /* a hovered or focused feed tile, risen above
+  --shadow-lift: 0 14px 34px rgba(0, 0, 0, 0.45); /* a hovered or focused feed tile, risen above
                                        its neighbours (docs/tile-hover/, "Lift", 10-04-26) */
+
+  /* The 1b type scale (docs/DESIGN_redesign.md 3.3). Tailwind v4 reads `--text-X--line-height` and
+     `--text-X--letter-spacing` as the sub-tokens of `text-X`. `lg`, `sm` and `xs` REDEFINE
+     Tailwind's own sizes (so the handful of existing `text-sm` uses move from 14 to 15 px); the
+     rest are new names. The eyebrow's uppercase and mono face are the component's job, not the
+     token's. */
+  --text-display: clamp(30px, 4.2vw, 40px);
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.02em;
+  --text-title: 32px;
+  --text-title--line-height: 1.08;
+  --text-title--letter-spacing: -0.02em;
+  --text-h2: 24px;
+  --text-h2--line-height: 1.35;
+  --text-h2--letter-spacing: -0.01em;
+  --text-card: 19px;
+  --text-card--line-height: 1.2;
+  --text-card--letter-spacing: -0.01em;
+  --text-lg: 17px;
+  --text-lg--line-height: 1.4;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-sm: 15px;
+  --text-sm--line-height: 1.4;
+  --text-xs: 13.5px;
+  --text-xs--line-height: 1.48;
+  --text-eyebrow: 10.5px;
+  --text-eyebrow--letter-spacing: 0.4px;
 
   /* Two deliberately-non-default easing curves — everything else is plain `ease` or `linear`.
      `settle` is the original: anything that comes to rest over a longer travel (the gallery
@@ -98,10 +106,9 @@
   /* Named animations. Each pairs a duration/easing/fill-mode with the matching @keyframes below,
      so a component just writes `animate-rise` etc. rather than repeating the shorthand.
      `ambitpop` in the prototypes was actually two unrelated animations sharing one name — split
-     here into `chip-pop` (selection feedback) and `pop-in` (entrance), per Decision 6. */
+     here; `chip-pop` was removed in 1b, leaving `pop-in` (entrance), per Decision 6. */
   --animate-rise: rise 0.6s ease both; /* section entrance on load, staggered per-caller via an
                                            inline animation-delay (see Rise primitive) */
-  --animate-chip-pop: chip-pop 0.22s ease; /* onboarding chip, on select */
   --animate-pop-in: pop-in 0.5s var(--ease-settle) both; /* install-flow checkmark entrance */
   /* Ben's "Reach" loader (docs/LoaderAnimation/, components/ui/loader.tsx): three motions on one
      2.4 s cycle. The ring breathes on its own ease; the orbit and the reach share the design's
@@ -112,9 +119,9 @@
   --animate-loader-reach: loader-reach 2400ms cubic-bezier(0.65, 0, 0.35, 1)
     infinite;
   --animate-toast-in: toast-in 0.22s ease both;
-  --animate-sheet-up: sheet-up 0.26s var(--ease-sheet) both; /* the standard pill-summoned bottom
-                                                                 sheet (redesign `sheetup`:
-                                                                 240-300ms; 260 chosen) */
+  --animate-sheet-up: sheet-up 0.24s var(--ease-sheet) both; /* the standard pill-summoned bottom
+                                                                 sheet (redesign `sheetup`,
+                                                                 240 ms) */
   --animate-sheet-gallery: sheet-gallery 0.4s var(--ease-settle) both; /* the gallery details
                                                                           modal ONLY (5.8) — a
                                                                           longer, further travel
@@ -164,17 +171,6 @@
     to {
       opacity: 1;
       transform: none;
-    }
-  }
-  @keyframes chip-pop {
-    0% {
-      transform: scale(1);
-    }
-    40% {
-      transform: scale(0.94);
-    }
-    100% {
-      transform: scale(1);
     }
   }
   @keyframes pop-in {
@@ -338,42 +334,27 @@
   }
 }
 
+/* Keyboard focus, everywhere (DESIGN_redesign.md §3.4). One base rule gives every control a 2 px
+   accent ring. `@layer base` sits BELOW `utilities`, so a component's own `focus-visible:*`
+   utility wins: a feed tile's `focus-visible:-outline-offset-2` changes only the offset (the ring
+   stays this rule's, drawn inset) — that is what keeps it one ring, not two. The second rule
+   removes the ring a mouse click would leave on a button, where the browser would show one. */
 @layer base {
-  /* The accent knob's actual values. `--accent-raw` is what @theme inline (above) points
-     --color-accent at; redefining it here per [data-accent] value is what makes `bg-accent` etc.
-     swap live when the attribute on <html> changes (src/app/layout.tsx sets the default). */
-  :root,
-  [data-accent="indigo"] {
-    --accent-raw: #4c5fe0; /* default */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
   }
-  [data-accent="amber"] {
-    --accent-raw: #d9a73c;
-  }
-  [data-accent="green"] {
-    --accent-raw: #3fa35c;
-  }
-  [data-accent="red"] {
-    --accent-raw: #d9483f;
+  :focus:not(:focus-visible) {
+    outline: none;
   }
 }
 
 @layer utilities {
-  /* Every border in the handoff is a 0.5px hairline — finer than Tailwind's built-in `border`
-     (1px) but not available as an arbitrary-value shorthand worth repeating everywhere
-     (`border-[0.5px]` at every call site). One utility, applied alongside a color/opacity
-     modifier: `border-hairline border-ink/12`. */
+  /* The name outlived the half-pixel: under the 1b redesign lines are 1 px (DESIGN 3.4), but ~300
+     call sites write `border-hairline border-ink/12`, so the utility keeps its name and the
+     width changed under it. (On-photo glass and the toolbar spell out an explicit 0.5 px.) */
   .border-hairline {
-    border-width: 0.5px;
-  }
-
-  /* The profile/avatar placeholder fill (redesign README "Color" table) — used by the pill
-     toolbar's profile dot and the Profile screen's avatar when the user has no image. Like
-     .border-hairline above, this is a custom class tailwind-merge can't classify on its own: an
-     unregistered custom `bg-` class gets misread as a background-COLOR utility and silently
-     dropped by cn() next to `bg-ink/NN`. It's registered in the `bg-image` group in
-     src/lib/utils.ts — keep that registration. */
-  .bg-avatar-gradient {
-    background-image: linear-gradient(150deg, #8e92f0, #6c7be8);
+    border-width: 1px;
   }
 }
 

@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { Item } from "~/server/db/items";
 import { JoinCta } from "./join-cta";
 import { ReaderItemBody } from "./reader-item-body";
-import { SharedByRow, sharedByName } from "./shared-by-row";
 import { WanderNext } from "./wander-next";
 
 // `next/link` renders a plain anchor — the assertions here are about hrefs and copy, not about
@@ -89,7 +88,7 @@ describe("ReaderItemBody", () => {
     expect(
       screen.getByRole("link", { name: /See it on The Public Domain Review/ }),
     ).toHaveAttribute("href", "https://publicdomainreview.org/essay/x/");
-    expect(screen.queryByRole("link", { name: /^Read on / })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Read on / })).toBeNull();
   });
 
   // Writing Phase 5: a publication's piece is a link card — its dek, and the prominent way out.
@@ -106,7 +105,36 @@ describe("ReaderItemBody", () => {
     expect(
       screen.getByRole("link", { name: /Read it on The Marginalian/ }),
     ).toHaveAttribute("href", "https://www.themarginalian.org/2026/09/30/x/");
-    expect(screen.queryByRole("link", { name: /^Read on / })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Read on / })).toBeNull();
+  });
+
+  it("shows the bracket link-out and no eyebrow above the title", () => {
+    render(<ReaderItemBody item={makeItem()} />);
+    expect(
+      screen.getByRole("link", { name: "[Read on Wikipedia..]" }),
+    ).toHaveAttribute("target", "_blank");
+    // The title is the first thing in the article.
+    expect(screen.getByRole("article").firstElementChild?.tagName).toBe("H1");
+  });
+
+  it("fills the meta strip from the stored minutes and the reader's collection", () => {
+    const { rerender } = render(
+      <ReaderItemBody
+        item={makeItem({ readingMinutes: 7 })}
+        keptIn="Articles"
+      />,
+    );
+    expect(screen.getByText("Source").nextSibling).toHaveTextContent(
+      "Wikipedia",
+    );
+    expect(screen.getByText("Reading").nextSibling).toHaveTextContent("7 min");
+    expect(screen.getByText("Kept in").nextSibling).toHaveTextContent(
+      "Articles",
+    );
+
+    rerender(<ReaderItemBody item={makeItem({ readingMinutes: null })} />);
+    expect(screen.getByText("Reading").nextSibling).toHaveTextContent("—");
+    expect(screen.getByText("Kept in").nextSibling).toHaveTextContent("—");
   });
 
   it("still reads as an article when there's no stored body at all", () => {
@@ -174,30 +202,6 @@ describe("JoinCta", () => {
   it("never offers a browse-without-an-account dead end", () => {
     render(<JoinCta variant="image" />);
     expect(screen.queryByText(/Keep browsing/i)).toBeNull();
-  });
-});
-
-describe("SharedByRow", () => {
-  it("names the sharer and derives their initial", () => {
-    render(<SharedByRow name="mara" />);
-
-    expect(screen.getByText("mara shared this with you")).toBeInTheDocument();
-    expect(screen.getByText("M")).toBeInTheDocument();
-  });
-});
-
-describe("sharedByName", () => {
-  it("accepts an ordinary name", () => {
-    expect(sharedByName("Mara")).toBe("Mara");
-    expect(sharedByName("  Mara  ")).toBe("Mara");
-  });
-
-  it("rejects absence, emptiness, a repeated param, and anything oversized", () => {
-    expect(sharedByName(undefined)).toBeNull();
-    expect(sharedByName("")).toBeNull();
-    expect(sharedByName("   ")).toBeNull();
-    expect(sharedByName(["a", "b"])).toBeNull();
-    expect(sharedByName("x".repeat(41))).toBeNull();
   });
 });
 

@@ -4,6 +4,8 @@ import * as React from "react";
 
 import { Download } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import { PRIMARY_BLOCK } from "~/components/ui/button";
+import { cn } from "~/lib/utils";
 
 // The share sheet. Copy-link row + a scrolling row of targets.
 //
@@ -19,7 +21,7 @@ import { BottomSheet } from "~/components/ui/bottom-sheet";
 // proxy: museum servers bot-block third-party fetchers (CLAUDE.md), so a cross-origin client-side
 // download couldn't work. With `/api/img/[itemId]` serving from Ambit's own origin, it can.
 
-/** Targets, in the design's order. The three letter-glyph brands render a Sora 700 character. */
+/** Targets, in the design's order. The three letter-glyph brands render a bold letter character. */
 const TARGETS = [
   { name: "Messages", glyph: "icon" as const },
   { name: "Stories", glyph: "icon" as const },
@@ -136,8 +138,8 @@ export function ShareSheet({
       placement={placement}
       title={collection ? "Share this collection" : "Share"}
     >
-      <div className="border-hairline border-ink/10 mx-[18px] flex items-center gap-2.5 rounded-full py-1.5 pr-1.5 pl-[15px]">
-        <span className="text-ink/60 min-w-0 flex-1 truncate font-mono text-[12.5px]">
+      <div className="border-ink/20 mx-5 mt-4 flex items-stretch border">
+        <span className="text-ink/78 flex min-w-0 flex-1 items-center truncate px-3 font-mono text-[11.5px]">
           {/* The scheme is noise in a share sheet — the design shows a bare host + path. */}
           {url.replace(/^https?:\/\//, "")}
         </span>
@@ -145,13 +147,13 @@ export function ShareSheet({
           type="button"
           onClick={copy}
           onPointerDown={(e) => e.stopPropagation()}
-          className="bg-accent text-on-accent flex-none rounded-full px-4 py-2 text-[12.5px] font-semibold"
+          className={cn(PRIMARY_BLOCK, "flex-none px-4 py-[11px] text-[15px]")}
         >
           Copy link
         </button>
       </div>
 
-      <div className="flex gap-[14px] overflow-x-auto px-[18px] pt-[18px] pb-1">
+      <div className="flex gap-3 overflow-x-auto px-5 pt-[18px] pb-1">
         {TARGETS.map((t) => (
           <button
             key={t.name}
@@ -166,15 +168,18 @@ export function ShareSheet({
           >
             <span
               aria-hidden
-              className="border-hairline bg-ink/6 border-ink/12 text-ink flex size-[52px] items-center justify-center rounded-full"
+              className="border-ink/20 text-ink flex size-[52px] items-center justify-center border"
             >
               {t.glyph === "icon" ? (
                 <TargetGlyph name={t.name} />
               ) : (
-                <span className="text-[19px] font-bold">{t.glyph}</span>
+                <span className="text-[19px]">{t.glyph}</span>
               )}
             </span>
-            <span aria-hidden className="text-ink/50 text-[10.5px]">
+            <span
+              aria-hidden
+              className="text-ink/55 font-mono text-[9.5px] uppercase"
+            >
               {t.name}
             </span>
           </button>
@@ -185,7 +190,6 @@ export function ShareSheet({
           someone can actually fetch it. A row that appears without a handler is a dead button. */}
       {imageContext && onSaveImage ? (
         <>
-          <div className="bg-ink/10 mx-[18px] mt-[14px] h-[0.5px]" />
           <button
             type="button"
             onClick={() => {
@@ -193,14 +197,12 @@ export function ShareSheet({
               onSaveImage();
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex w-full items-center gap-[13px] px-[18px] py-[15px] text-left"
+            className="border-ink/14 mx-5 mt-4 flex w-[calc(100%-40px)] items-center gap-[13px] border-y py-[14px] text-left"
           >
-            <Download size={18} className="text-accent flex-none" />
+            <Download size={18} className="text-ink/78 flex-none" />
             <span className="min-w-0">
-              <span className="text-ink block text-[14.5px] font-medium">
-                Save image
-              </span>
-              <span className="text-ink/42 mt-[2px] block text-[11.5px]">
+              <span className="text-ink block text-[14.5px]">Save image</span>
+              <span className="text-ink/55 mt-[2px] block font-mono text-[10.5px] tracking-[0.4px]">
                 Adds the full-resolution image to your camera roll
               </span>
             </span>

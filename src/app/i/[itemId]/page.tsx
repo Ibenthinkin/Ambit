@@ -9,11 +9,12 @@ import { ItemScreen } from "~/components/item/item-screen";
 import { ItemShell } from "~/components/item/item-shell";
 import { JoinCta } from "~/components/item/join-cta";
 import { ReaderItemBody } from "~/components/item/reader-item-body";
-import { SharedByRow, sharedByName } from "~/components/item/shared-by-row";
 import { WanderNext } from "~/components/item/wander-next";
 import { Rise } from "~/components/ui/rise";
 import { auth } from "~/lib/auth";
+import { getCollectionForUser } from "~/server/db/collections";
 import { getItemById } from "~/server/db/items";
+import { getSavedItemCollection } from "~/server/db/saves";
 import { topicLabelsFor } from "~/server/db/topics";
 import { railItemFrom } from "~/server/services/gallery-rail";
 import { api } from "~/trpc/server";
@@ -86,10 +87,8 @@ export async function generateMetadata({
 
 export default async function ItemPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ itemId: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { itemId } = await params;
   const item = await getItem(itemId);
@@ -103,10 +102,6 @@ export default async function ItemPage({
   // Resolved on the server, so a signed-out visitor's page costs them zero client requests. The
   // procedure is public precisely so this works (see routers/items.ts).
   const wander = await api.items.wanderNext({ itemId });
-
-  const sharedBy = sharedByName((await searchParams).from);
-  // First token only: a share link says "Mara shared this with you", not a full legal name.
-  const viewerName = session?.user.name?.trim().split(/\s+/)[0];
 
   // **Starts the hero's request before the browser has parsed the markup that needs it**
   // (Phase 7.3, T5). This is the LCP element of the app's one public page — the thing a stranger
@@ -142,10 +137,22 @@ export default async function ItemPage({
         initialWander={wander}
         authed={Boolean(session)}
         appUrl={env.BETTER_AUTH_URL}
-        viewerName={viewerName}
-        sharedBy={sharedBy}
       />
     );
+  }
+
+  // "Kept in" on the article's meta strip: the signed-in reader's collection for this item. Two
+  // existing lookups (the same pair `saves.forItem` and the collection guard use), signed-in only;
+  // a stranger, an unsaved item or an uncollected save is "—". Read once at render, so a save made
+  // from the pill shows on the next visit.
+  let keptIn: string | null = null;
+  if (session) {
+    const collectionId = await getSavedItemCollection(session.user.id, itemId);
+    if (collectionId) {
+      keptIn =
+        (await getCollectionForUser(session.user.id, collectionId))?.name ??
+        null;
+    }
   }
 
   // An article keeps the reader layout, inside the shell that gives it the pill and the exits.
@@ -156,7 +163,6 @@ export default async function ItemPage({
       hasImage={Boolean(item.imageUrl)}
       authed={Boolean(session)}
       appUrl={env.BETTER_AUTH_URL}
-      viewerName={viewerName}
     >
       {/* Bottom padding clears the floating pill; the column width and gutters are the redesign's. */}
       <main className="bg-bg text-ink min-h-dvh pt-[68px] pb-[110px]">
@@ -165,15 +171,9 @@ export default async function ItemPage({
             column so the gutters are column-then-padding: left outside, they would inset the
             content from a 720px band that is already centered with room to spare. */}
         <Column width="reader" className="px-[22px]">
-          {sharedBy ? (
-            <Rise>
-              <SharedByRow name={sharedBy} />
-            </Rise>
-          ) : null}
-
           <Rise delayMs={50}>
             <div className="mt-[18px]">
-              <ReaderItemBody item={item} />
+              <ReaderItemBody item={item} keptIn={keptIn} />
             </div>
           </Rise>
 

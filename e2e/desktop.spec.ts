@@ -147,7 +147,7 @@ test.describe.serial("desktop", () => {
     ).toBeVisible();
     await settle(panel);
     const box = (await panel.boundingBox())!;
-    expect(Math.round(box.width)).toBe(360);
+    expect(Math.round(box.width)).toBe(340);
     expect(box.x + box.width).toBeLessThan(railBox.x); // beside the rail, not over it
     // Centred on the button that opened it, not on the rail: on the feed the bookmark is the
     // third of the bar's three controls, below the rail's middle (design §2, `popoverStyle`).
@@ -159,6 +159,11 @@ test.describe.serial("desktop", () => {
     await expect(page.getByTestId("bottom-sheet-scrim")).toHaveCSS(
       "background-color",
       "rgba(0, 0, 0, 0)",
+    );
+    // ...and the page behind stays unblurred (no scrim blur anywhere since 1b).
+    await expect(page.getByTestId("bottom-sheet-scrim")).toHaveCSS(
+      "backdrop-filter",
+      "none",
     );
 
     await page.keyboard.press("Escape");
@@ -185,7 +190,7 @@ test.describe.serial("desktop", () => {
     // the computed value lists four transparent ones before ours, so match ours, not the whole.
     await expect(first).toHaveCSS(
       "box-shadow",
-      /rgba\(0, 0, 0, 0\.6\) 0px 22px 44px 0px/,
+      /rgba\(0, 0, 0, 0\.45\) 0px 14px 34px 0px/,
     );
     await expect(strip).toHaveCSS("opacity", "1");
     await strip.getByRole("button", { name: /^Save to / }).click();
@@ -205,7 +210,7 @@ test.describe.serial("desktop", () => {
     await settle(panel);
     const pillBox = (await pill.boundingBox())!;
     const box = (await panel.boundingBox())!;
-    expect(Math.round(box.width)).toBe(360);
+    expect(Math.round(box.width)).toBe(340);
     expect(box.y).toBeGreaterThanOrEqual(pillBox.y + pillBox.height); // under the pill
 
     await panel.getByRole("button", { name: /New collection/ }).click();
@@ -371,28 +376,82 @@ test.describe.serial("desktop", () => {
     expect(Math.round(box.width)).toBe(1440);
     expect(Math.round(box.y)).toBe(0); // top-aligned: nothing above the picture
 
-    const facts = page.getByRole("list", { name: "About this work" });
+    // The Information section is full width with 40 px gutters (DESIGN_redesign §6.3).
+    const facts = page.getByRole("region", { name: "Information" });
     const factsBox = (await facts.boundingBox())!;
-    expect(factsBox.width).toBeLessThanOrEqual(720);
+    expect(factsBox.width).toBeGreaterThan(1300);
     expect(factsBox.y).toBeGreaterThanOrEqual(900); // under the picture, not over it
 
-    // A mouse moving over the picture summons the caption.
-    await page.mouse.move(700, 300);
-    await page.mouse.move(720, 320);
-    await expect(page.getByTestId("gallery-chrome")).toHaveAttribute(
-      "aria-hidden",
-      "false",
-    );
+    // A mouse moving over the page wakes the caption (decision 7 of docs/DESIGN_redesign.md:
+    // any input on a computer). Retried for the item screen's quarter-second wake throttle — see
+    // the spread test's `summon`.
+    let nudge = 0;
+    await expect(async () => {
+      nudge = (nudge + 1) % 2;
+      await page.mouse.move(700 + nudge * 20, 300 + nudge * 20);
+      await expect(page.getByTestId("gallery-chrome")).toHaveAttribute(
+        "aria-hidden",
+        "false",
+        { timeout: 400 },
+      );
+    }).toPass();
     // The rail is chrome here too (decision 3): summoned by the same mouse move.
     await expect(page.getByTestId("rail-toolbar")).toHaveAttribute(
       "aria-hidden",
       "false",
     );
     await expect(page.getByRole("button", { name: "Share" })).toHaveCount(1);
+    // …and with the mouse still, 2.6 s of no input puts both away again. No loop brings them
+    // back: the old ten-second cycle is gone.
+    await expect(page.getByTestId("rail-toolbar")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+      { timeout: 5_000 },
+    );
+    await expect(page.getByTestId("gallery-chrome")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
 
     // And Escape leaves — the review's "Escape does nothing" (09-10-26), fixed on this screen.
     await page.keyboard.press("Escape");
     await page.waitForURL(/\/feed/);
+  });
+
+  // WCAG 2.4.7: the chrome must not idle away under keyboard focus.
+  test("keyboard focus in the caption holds the chrome up, and Information lands focus on the section", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const imageTile = page
+      .locator("[data-feed-id]:has(img):not(:has(h2))")
+      .first();
+    await expect(imageTile).toBeVisible();
+    await imageTile.locator("> *").first().click();
+    await page.waitForURL(/\/i\//);
+
+    const chrome = page.getByTestId("gallery-chrome");
+    // Let any wake from the navigation idle away.
+    await expect(chrome).toHaveAttribute("aria-hidden", "true", {
+      timeout: 8_000,
+    });
+
+    const info = page.getByRole("button", { name: "Information" });
+    for (let i = 0; i < 30; i++) {
+      await page.keyboard.press("Tab");
+      if (await info.evaluate((el) => el === document.activeElement)) break;
+    }
+    await expect(info).toBeFocused();
+    await expect(info).toBeVisible();
+    await page.waitForTimeout(3_000);
+    await expect(info).toBeVisible();
+    await expect(chrome).toHaveAttribute("aria-hidden", "false");
+
+    await page.keyboard.press("Enter");
+    const region = page.getByRole("region", { name: "Information" });
+    await expect(region).toBeFocused();
+    await expect(region).toBeInViewport();
   });
 
   // `/` (09-26-26): the signed-out taste at desktop width — four columns like /feed, the rail
@@ -424,12 +483,22 @@ test.describe.serial("desktop", () => {
       .locator("img");
     const alts = () =>
       current.evaluateAll((els) => els.map((e) => e.getAttribute("alt")));
+    // Which pictures are on the spread, as alt + src. Neither alone is an identity: on the real
+    // corpus a blog's posts can share one title ("70s Sci-Fi Art" twice in a row), and on CI's
+    // fixtures every picture is the same placeholder src. Together they name the page.
+    const srcs = () =>
+      current.evaluateAll((els) =>
+        els.map((e) => `${e.getAttribute("alt")}|${e.getAttribute("src")}`),
+      );
     const toggle = page.getByRole("button", { name: "Magazine view" });
-    // The item screen throttles its mouse-move summon to one per 250 ms, and Playwright moves
-    // faster than any hand — a summon right after another mouse action can be swallowed whole. So
-    // keep nudging the mouse until the rail answers.
+    // The item screen throttles its wake (mouse move, key, wheel, touch, scroll) to one per
+    // 250 ms, and Playwright moves faster than any hand — a summon right after another mouse
+    // action can be swallowed whole. So keep nudging the mouse until the rail answers — and the
+    // toggle's click is inside the same retry: on a computer the chrome hides after 2.6 s idle,
+    // so a stall between the summon and the click re-wakes it rather than timing out on a
+    // hidden button. The click is the block's last step, so a click that landed is never redone.
     let nudge = 0;
-    const summon = () =>
+    const summonAndToggle = () =>
       expect(async () => {
         nudge = (nudge + 1) % 2;
         await page.mouse.move(700 + nudge * 20, 300 + nudge * 20);
@@ -438,13 +507,21 @@ test.describe.serial("desktop", () => {
           "false",
           { timeout: 400 },
         );
+        await toggle.click({ timeout: 1_000 });
       }).toPass();
 
+    // The toggle's *state* is read through a locator that sees hidden elements: on a computer the
+    // chrome starts hidden (decision 7 of docs/DESIGN_redesign.md) — `visibility: hidden` and
+    // `aria-hidden`, which take the button out of the accessibility tree a plain `getByRole`
+    // searches. Before the summon, and 2.6 s after any click, there is no visible toggle to read.
+    const toggleState = page.getByRole("button", {
+      name: "Magazine view",
+      includeHidden: true,
+    });
     await expect(current).toHaveCount(1);
-    await summon();
-    await expect(toggle).toHaveAttribute("aria-pressed", "false");
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(toggleState).toHaveAttribute("aria-pressed", "false");
+    await summonAndToggle();
+    await expect(toggleState).toHaveAttribute("aria-pressed", "true");
 
     // The book opens (docs/PLAN_magazine-turn.md Task 6): a leaf swings, then lands.
     const leaf = page.getByTestId("spread-leaf");
@@ -461,7 +538,7 @@ test.describe.serial("desktop", () => {
     // centre line, and the track's `-33.3333%` translate lands them a fraction either side of it.
     expect(left.x + left.width).toBeLessThanOrEqual(CENTRE_X + 1);
     expect(right.x).toBeGreaterThanOrEqual(CENTRE_X - 1);
-    const first = await alts();
+    const first = await srcs();
 
     // A turn moves two: neither page of the new spread was on the old one.
     const url = page.url();
@@ -471,10 +548,11 @@ test.describe.serial("desktop", () => {
     await expect(leaf).toBeVisible();
     await expect(page).not.toHaveURL(url);
     await expect(leaf).toHaveCount(0);
-    await expect.poll(alts).not.toEqual(first);
+    await expect.poll(srcs).not.toEqual(first);
+    const turnedSrcs = await srcs();
+    expect(first).not.toContain(turnedSrcs[0]);
+    expect(first).not.toContain(turnedSrcs[1]);
     const turned = await alts();
-    expect(first).not.toContain(turned[0]);
-    expect(first).not.toContain(turned[1]);
 
     // A click on the right page makes it the item: the facts' title is its alt.
     await page.mouse.click(1080, CENTRE_Y);
@@ -485,15 +563,13 @@ test.describe.serial("desktop", () => {
     // The book folds shut first (Task 6). Mid-fold the cell already shows one picture, so the
     // count alone can pass early — wait for the leaf to land, or the next click lands mid-motion,
     // where the toggle is ignored (D3).
-    await summon();
-    await toggle.click();
+    await summonAndToggle();
     await expect(leaf).toHaveCount(0);
     await expect(current).toHaveCount(1);
     await expect(heading).toHaveText(turned[1]!);
 
     // Back on, then a reload: the device remembers the spread.
-    await summon();
-    await toggle.click();
+    await summonAndToggle();
     await expect(leaf).toHaveCount(0);
     await expect(current).toHaveCount(2);
     await page.reload();

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useState } from "react";
 
-import { Button } from "~/components/ui/button";
+import { Button, PRIMARY_BLOCK } from "~/components/ui/button";
+import { ERROR_HINT, Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Loader } from "~/components/ui/loader";
 import { authClient } from "~/lib/auth-client";
@@ -21,9 +22,6 @@ export function ResetPasswordCard({ token }: { token: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-
-  const newPasswordId = useId();
-  const confirmPasswordId = useId();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -56,16 +54,22 @@ export function ResetPasswordCard({ token }: { token: string }) {
   if (success) {
     return (
       <div className="py-1.5 text-center">
-        <div className="text-ink-hi text-[23px] font-semibold tracking-[-0.2px]">
+        <div className="text-ink-hi text-[23px] tracking-[-0.2px]">
           Password updated.
         </div>
         <div className="text-ink/62 mt-2 text-[15.5px] leading-[1.55]">
           Sign in with your new password.
         </div>
-        <Link href="/" className="mt-[22px] inline-block">
-          <Button shape="rounded" size="lg" className="px-8">
-            Sign in
-          </Button>
+        {/* An anchor in the white primary block (DESIGN §6.7: a 56 px full-width button) — a
+            <Button> inside a <Link> would be a nested interactive element and sized to its text. */}
+        <Link
+          href="/"
+          className={cn(
+            PRIMARY_BLOCK,
+            "mt-[22px] flex h-14 w-full items-center justify-center text-[17px]",
+          )}
+        >
+          Sign in
         </Link>
       </div>
     );
@@ -73,16 +77,12 @@ export function ResetPasswordCard({ token }: { token: string }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div className="text-ink-hi mb-5 text-[23px] font-semibold tracking-[-0.2px]">
+      <div className="text-ink-hi mb-5 text-[23px] tracking-[-0.2px]">
         Choose a new password.
       </div>
-      <div className="space-y-2.5">
-        <div>
-          <label htmlFor={newPasswordId} className="sr-only">
-            New password
-          </label>
+      <div className="space-y-[22px]">
+        <Field label="New password">
           <Input
-            id={newPasswordId}
             type="password"
             placeholder="New password (8+ characters)"
             autoComplete="new-password"
@@ -92,14 +92,10 @@ export function ResetPasswordCard({ token }: { token: string }) {
               setError("");
             }}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label htmlFor={confirmPasswordId} className="sr-only">
-            Confirm new password
-          </label>
+        <Field label="Confirm new password">
           <Input
-            id={confirmPasswordId}
             type="password"
             placeholder="Confirm new password"
             autoComplete="new-password"
@@ -109,15 +105,14 @@ export function ResetPasswordCard({ token }: { token: string }) {
               setError("");
             }}
           />
-        </div>
+        </Field>
 
         <Button
           type="submit"
-          shape="rounded"
           size="lg"
           aria-busy={submitting}
           className={cn(
-            "w-full",
+            "mt-[10px] w-full",
             submitting && "pointer-events-none opacity-80",
           )}
         >
@@ -130,7 +125,8 @@ export function ResetPasswordCard({ token }: { token: string }) {
         <div
           role="alert"
           data-testid="auth-error"
-          className="text-error mt-[11px] text-center font-sans text-[12.5px]"
+          // The green mono hint (DESIGN §3.2 job 7), as on the auth card.
+          className={cn(ERROR_HINT, "mt-[11px] text-center")}
         >
           {error}
         </div>

@@ -27,10 +27,11 @@ describe("cn", () => {
     expect(result).toContain("border-hairline");
     expect(result).toContain("border-ink/12");
   });
+});
 
-  it("keeps bg-avatar-gradient alongside a background color (custom bg-image group)", () => {
-    const result = cn("bg-avatar-gradient", "bg-ink/5");
-    expect(result).toContain("bg-avatar-gradient");
-    expect(result).toContain("bg-ink/5");
+describe("cn with the 1b type scale", () => {
+  it("keeps a new size name beside a colour, and lets a later size win", () => {
+    expect(cn("text-card", "text-ink")).toBe("text-card text-ink");
+    expect(cn("text-body", "text-h2")).toBe("text-h2");
   });
 });

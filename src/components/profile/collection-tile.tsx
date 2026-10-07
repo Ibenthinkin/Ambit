@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { Plus } from "~/components/icons";
+import { TILE_LIFT } from "~/components/feed/tile-lift";
 import { markSavedOrigin } from "~/components/saved/saved-origin";
 import { itemCountLabel } from "~/components/sheets/collection-rows";
 import { CoverMosaic } from "./cover-mosaic";
@@ -16,6 +17,8 @@ import { CoverMosaic } from "./cover-mosaic";
 // `db/collections.ts`'s `withCovers`), painted by `CoverMosaic` as a square-cornered 2×2
 // (docs/DESIGN_list-screens.md §2). A collection with no pictures in it — empty, or articles only —
 // shows the mosaic's outline-bookmark placeholder instead.
+const COUNT = "text-ink/55 mt-1 block font-mono text-[11px] uppercase";
+
 export interface CollectionTileProps {
   id: string;
   name: string;
@@ -32,28 +35,33 @@ export function CollectionTile({
   const router = useRouter();
 
   return (
-    <button
-      type="button"
-      data-collection-id={id}
-      onClick={() => {
-        // Identical to `CollectionsSheet.go` — one way into a filtered Saved, marker first so
-        // Saved's own exits pop back here instead of rebuilding the feed (`saved-origin.ts`).
-        markSavedOrigin();
-        router.push(`/saved?collection=${encodeURIComponent(id)}`);
-      }}
-      // Same rule as every other tappable surface in the app: a thumb resting here mid-scroll
-      // must not fire the tile.
-      onPointerDown={(e) => e.stopPropagation()}
-      className="w-full text-left transition-transform duration-150 active:scale-[0.98]"
-    >
-      <CoverMosaic covers={covers} className="aspect-square w-full" />
-      <span className="text-ink mt-[10px] block truncate text-[15px] font-medium">
-        {name}
-      </span>
-      <span className="text-ink/40 mt-[3px] block text-[12.5px]">
-        {itemCountLabel(itemCount)}
-      </span>
-    </button>
+    // The Lift on a wrapper (the feed's and Saved's 1.035 zoom — DESIGN §6.5), so the face, name
+    // and count rise together.
+    <div className={TILE_LIFT}>
+      <button
+        type="button"
+        data-collection-id={id}
+        onClick={() => {
+          // Identical to `CollectionsSheet.go` — one way into a filtered Saved, marker first so
+          // Saved's own exits pop back here instead of rebuilding the feed (`saved-origin.ts`).
+          markSavedOrigin();
+          router.push(`/saved?collection=${encodeURIComponent(id)}`);
+        }}
+        // Same rule as every other tappable surface in the app: a thumb resting here mid-scroll
+        // must not fire the tile.
+        onPointerDown={(e) => e.stopPropagation()}
+        className="w-full text-left transition-[scale] duration-150 active:scale-[0.98]"
+      >
+        {/* 2 px gaps and a hairline-only empty square on the tab (the prototype's numbers); the
+          sheets' 38 px rows keep the component's 1 px defaults. */}
+        <CoverMosaic
+          covers={covers}
+          className="border-ink/12 aspect-square w-full gap-0.5 bg-transparent"
+        />
+        <span className="text-ink mt-3 block truncate text-[17px]">{name}</span>
+        <span className={COUNT}>{itemCountLabel(itemCount)}</span>
+      </button>
+    </div>
   );
 }
 
@@ -64,21 +72,20 @@ export function CollectionTile({
  */
 export function NewCollectionTile({ onClick }: { onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      onPointerDown={(e) => e.stopPropagation()}
-      className="w-full text-left transition-transform duration-150 active:scale-[0.98]"
-    >
-      <div className="bg-ink/[4.5%] border-ink/16 flex aspect-square w-full items-center justify-center border-[0.5px] border-dashed">
-        <Plus size={26} className="text-ink/55" />
-      </div>
-      <span className="text-ink mt-[10px] block text-[15px] font-medium">
-        New collection
-      </span>
-      <span className="text-ink/40 mt-[3px] block text-[12.5px]">
-        Group what you keep
-      </span>
-    </button>
+    <div className={TILE_LIFT}>
+      <button
+        type="button"
+        onClick={onClick}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="w-full text-left transition-[scale] duration-150 active:scale-[0.98]"
+      >
+        {/* 1 px dashed ink/28, no fill (DESIGN §6.5). */}
+        <div className="border-ink/28 flex aspect-square w-full items-center justify-center border border-dashed">
+          <Plus size={26} className="text-ink/55" />
+        </div>
+        <span className="text-ink mt-3 block text-[17px]">New collection</span>
+        <span className={COUNT}>Group what you keep</span>
+      </button>
+    </div>
   );
 }

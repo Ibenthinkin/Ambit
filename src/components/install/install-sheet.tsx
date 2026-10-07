@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { PlusSquare, Share } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import { Eyebrow } from "~/components/ui/eyebrow";
 
 // "Add to home screen" — instructions, not an install button.
 //
@@ -34,14 +35,14 @@ function Step({
 }) {
   return (
     <li className="flex items-start gap-[13px]">
-      <span className="bg-ink/6 text-ink/55 mt-[1px] flex size-[22px] flex-none items-center justify-center rounded-full text-[12px] font-semibold">
+      <span className="border-ink/20 text-ink/55 mt-[1px] flex size-[22px] flex-none items-center justify-center border font-mono text-[11px]">
         {n}
       </span>
       <span className="text-ink/70 flex-1 text-[13.5px] leading-[1.6]">
         {children}
       </span>
       {icon ? (
-        <span className="text-ink/45 mt-[2px] flex-none">{icon}</span>
+        <span className="text-ink/48 mt-[2px] flex-none">{icon}</span>
       ) : null}
     </li>
   );
@@ -51,15 +52,15 @@ export function InstallSheet({ open, onClose }: InstallSheetProps) {
   return (
     <BottomSheet open={open} onClose={onClose} title="Add to home screen">
       <div className="flex flex-col gap-5 px-5 pt-1 pb-3">
-        <p className="text-ink/45 text-[13px] leading-[1.5]">
+        <p className="text-ink/55 text-[13.5px] leading-[1.5]">
           Ambit runs full-screen once it&apos;s on your home screen, and opens
           without the browser chrome.
         </p>
 
         <div>
-          <p className="text-ink/34 text-[11px] font-semibold tracking-[1.2px] uppercase">
+          <Eyebrow as="p" className="block">
             iPhone &amp; iPad
-          </p>
+          </Eyebrow>
           <ol className="mt-[10px] flex flex-col gap-[10px]">
             <Step n={1} icon={<Share size={15} />}>
               Tap the Share button in Safari&apos;s toolbar.
@@ -72,9 +73,9 @@ export function InstallSheet({ open, onClose }: InstallSheetProps) {
         </div>
 
         <div>
-          <p className="text-ink/34 text-[11px] font-semibold tracking-[1.2px] uppercase">
+          <Eyebrow as="p" className="block">
             Android
-          </p>
+          </Eyebrow>
           <ol className="mt-[10px] flex flex-col gap-[10px]">
             <Step n={1}>Open the browser menu (⋮).</Step>
             <Step n={2} icon={<PlusSquare size={15} />}>

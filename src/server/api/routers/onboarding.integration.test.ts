@@ -2,7 +2,7 @@
 // one mutation that ends the questionnaire. What only a database can prove — that picks, the
 // answer log and the user columns land together or not at all, that a retake *overwrites*, and
 // that deleting a reader takes their answers with them. Self-skips without DATABASE_URL.
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -43,18 +43,32 @@ describe.skipIf(!process.env.DATABASE_URL)(
     const badTasteUserId = `test-onboarding-badtaste-${nanoid(6)}`;
     const noTasteUserId = `test-onboarding-notaste-${nanoid(6)}`;
     const manyTopicsUserId = `test-onboarding-many-${nanoid(6)}`;
+    const staleUserId = `test-onboarding-stale-${nanoid(6)}`;
+    const noAmountUserId = `test-onboarding-noamount-${nanoid(6)}`;
+    const hangUserId = `test-onboarding-hang-${nanoid(6)}`;
+    const badHangUserId = `test-onboarding-badhang-${nanoid(6)}`;
     const USERS = [
+      hangUserId,
+      badHangUserId,
       userId,
       goneUserId,
       badTasteUserId,
       noTasteUserId,
       manyTopicsUserId,
+      staleUserId,
+      noAmountUserId,
     ];
     const tag = nanoid(8);
     const [a, b, c, d] = ["a", "b", "c", "d"].map(
       (n) => `test-onboarding-topic-${n}-${tag}`,
     ) as [string, string, string, string];
     const TOPICS = [a, b, c, d];
+    /** Three pictures for the hang, and two articles — one with a lead picture — neither of
+     *  which may be hung. */
+    const itemPrefix = `test-onboarding-item-${tag}-`;
+    let pictures: string[] = [];
+    let article = "";
+    let articleWithPicture = "";
 
     const answers = [
       {
@@ -79,6 +93,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
       ...over,
     });
 
+    /** A v3 run that says nothing about reading — no `writingAmount` key at all. */
+    const sayingNothingOfReading = () => {
+      const { picks, answers } = input();
+      return { picks, answers, bankVersion: 3 };
+    };
+
     const rowsFor = async (uid: string) => {
       const { db } = await import("~/server/db/client");
       const { interviewAnswer, user, userTopic } =
@@ -101,7 +121,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     beforeAll(async () => {
       const { db } = await import("~/server/db/client");
-      const { topic, user } = await import("~/server/db/schema");
+      const { item, topic, user } = await import("~/server/db/schema");
       await db.insert(topic).values(
         TOPICS.map((id) => ({
           id,
@@ -116,6 +136,30 @@ describe.skipIf(!process.env.DATABASE_URL)(
           facet: "subject" as const,
         })),
       );
+      // Homed under a test-only topic: unreachable from any feed (CLAUDE.md, the un-homed race).
+      const rows = await db
+        .insert(item)
+        .values(
+          ["p1", "p2", "p3", "article", "article-pic"].map((n) => ({
+            source: "met" as const,
+            sourceId: `${itemPrefix}${n}`,
+            type: n.startsWith("article")
+              ? ("article" as const)
+              : ("image" as const),
+            title: `Hang fixture ${n}`,
+            sourceUrl: `https://x.test/${itemPrefix}${n}`,
+            imageUrl:
+              n === "article" ? null : `https://x.test/${itemPrefix}${n}.jpg`,
+            topicId: a,
+            curationScore: 9,
+          })),
+        )
+        .returning({ id: item.id, sourceId: item.sourceId });
+      const idOf = (n: string) =>
+        rows.find((r) => r.sourceId === `${itemPrefix}${n}`)!.id;
+      pictures = ["p1", "p2", "p3"].map(idOf);
+      article = idOf("article");
+      articleWithPicture = idOf("article-pic");
       await db.insert(user).values(
         USERS.map((id) => ({
           id,
@@ -128,10 +172,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     afterAll(async () => {
       const { db } = await import("~/server/db/client");
-      const { topic, user, userTopic } = await import("~/server/db/schema");
+      const { item, topic, user, userTopic } =
+        await import("~/server/db/schema");
       // user_taste and interview_answer rows go with the user (ON DELETE CASCADE).
       await db.delete(userTopic).where(inArray(userTopic.userId, USERS));
       await db.delete(user).where(inArray(user.id, USERS));
+      await db.delete(item).where(like(item.sourceId, `${itemPrefix}%`));
       await db.delete(topic).where(inArray(topic.id, TOPICS));
     });
 
@@ -243,6 +289,70 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(runId).toBeTruthy();
     });
 
+    // Redesign Review focus 2 (docs/PLAN_redesign.md, Phase 6): bank v3 retired the `amount`
+    // and `read-watch` questions, but a tab opened before that deploy still asks them and sends
+    // their answers under `bankVersion: 2`. The answer log is a record of what was asked, so the
+    // run completes and both rows are logged under the version that asked them.
+    it("accepts and logs a bank v2 run from a stale tab (amount and read-watch answers)", async () => {
+      const caller = createCaller(authedContext(staleUserId));
+      const { runId } = await caller.onboarding.complete(
+        input({
+          writingAmount: "little",
+          bankVersion: 2,
+          answers: [
+            { questionId: "wings-1", keys: ["space"] },
+            { questionId: "amount", keys: ["little"] },
+            {
+              questionId: "look-at",
+              keys: [],
+              text: "star charts",
+              topicIds: [a],
+            },
+            {
+              questionId: "read-watch",
+              keys: [],
+              text: "Le Guin, old Omni magazines",
+              topicIds: [b],
+            },
+          ],
+        }),
+      );
+
+      const { me, log } = await rowsFor(staleUserId);
+      expect(me!.writingAmount).toBe("little");
+      expect(log).toHaveLength(4);
+      expect(log.every((r) => r.runId === runId && r.bankVersion === 2)).toBe(
+        true,
+      );
+      const by = Object.fromEntries(log.map((r) => [r.questionId, r]));
+      expect(by.amount).toMatchObject({ answer: ["little"], text: null });
+      expect(by["read-watch"]).toMatchObject({
+        answer: [b],
+        text: "Le Guin, old Omni magazines",
+      });
+    });
+
+    // Bank v3 has no amount question; the reveal's Reading row supplies it (Task 6.6). Until
+    // then — and for any client that never says — an absent amount means what a skipped one
+    // always meant: the column is left as it was, and NULL is the feed's default share.
+    it("accepts a run with no writingAmount at all and leaves the column untouched", async () => {
+      const caller = createCaller(authedContext(staleUserId));
+      // Its own earlier run sets "little", so the test stands alone.
+      await caller.onboarding.complete(input({ writingAmount: "little" }));
+      const { runId } = await caller.onboarding.complete(
+        sayingNothingOfReading(),
+      );
+      expect(runId).toBeTruthy();
+      // Still "little": absent is "not said", never "cleared".
+      expect((await rowsFor(staleUserId)).me!.writingAmount).toBe("little");
+    });
+
+    it("leaves a never-set amount NULL when a run says nothing about reading", async () => {
+      const caller = createCaller(authedContext(noAmountUserId));
+      await caller.onboarding.complete(sayingNothingOfReading());
+      expect((await rowsFor(noAmountUserId)).me!.writingAmount).toBeNull();
+    });
+
     it("deleting the reader deletes their answers (the foreign key cascades)", async () => {
       const { db } = await import("~/server/db/client");
       const { interviewAnswer, user, userTopic } =
@@ -291,6 +401,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const { runId } = await caller.onboarding.complete(input({ taste }));
       const stored = await caller.topics.taste();
       expect(stored?.title).toEqual({ adjective: "Quiet", noun: "Weathers" });
+      // Review focus 1: a v1 taste (a tab from before taste v2) reads back with no hang.
+      expect(stored?.v).toBe(1);
+      expect(stored?.hang).toEqual([]);
       const again = await caller.onboarding.complete(
         input({
           taste: { ...taste, title: { adjective: "Gilded", noun: "Myths" } },
@@ -300,30 +413,173 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect((await caller.topics.taste())?.title.adjective).toBe("Gilded");
     });
 
-    it("refuses a taste whose opened item does not exist, writing nothing", async () => {
+    /** The taste exactly as `user_taste` holds it — topics.taste filters on read, so a drop
+     *  at write time is only visible here. */
+    const storedTaste = async (uid: string) => {
+      const { db } = await import("~/server/db/client");
+      const { userTaste } = await import("~/server/db/schema");
+      const [row] = await db
+        .select({ taste: userTaste.taste })
+        .from(userTaste)
+        .where(eq(userTaste.userId, uid));
+      return row?.taste;
+    };
+
+    // A stale tab, or the faces' ten-minute memo outliving a deleted item: the save goes through
+    // and the dangling card is dropped, never a refusal the reader can't get past.
+    it("drops an opened card whose item does not exist and saves the rest", async () => {
       const caller = createCaller(authedContext(badTasteUserId));
-      await expect(
-        caller.onboarding.complete(
-          input({
-            taste: {
-              ...taste,
-              opened: [
-                {
-                  itemId: "no-such-item",
-                  title: "x",
-                  kind: "essay",
-                  minutes: 3,
-                },
-              ],
-            },
-          }),
-        ),
-      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
-      expect(await caller.topics.taste()).toBeNull();
-      // Nothing else landed either: the check runs before the transaction.
+      const card = (itemId: string, minutes: number) => ({
+        itemId,
+        title: "x",
+        kind: "essay" as const,
+        minutes,
+      });
+      await caller.onboarding.complete(
+        input({
+          taste: {
+            ...taste,
+            opened: [card("no-such-item", 3), card(article, 11)],
+            readingMinutes: 7,
+          },
+        }),
+      );
+      const stored = await storedTaste(badTasteUserId);
+      expect(stored?.opened.map((o) => o.itemId)).toEqual([article]);
+      expect(stored?.readingMinutes).toBe(11);
       const { picks, log } = await rowsFor(badTasteUserId);
-      expect(picks).toEqual({});
-      expect(log).toEqual([]);
+      expect(picks).toEqual({ [a]: 2, [b]: 1, [c]: 0.5 });
+      expect(log.length).toBeGreaterThan(0);
+    });
+
+    // Mediums are decoration too: an id that is no longer a pickable topic is dropped, not refused.
+    it("drops a medium that is not a pickable topic and saves the rest", async () => {
+      const caller = createCaller(authedContext(badTasteUserId));
+      await caller.onboarding.complete(
+        input({ taste: { ...taste, mediums: [a, "no-such-medium"] } }),
+      );
+      const stored = await storedTaste(badTasteUserId);
+      expect(stored?.mediums).toEqual([a]);
+    });
+
+    // Taste v2 (docs/DESIGN_redesign.md §5.1): the hang is item ids, checked like `opened`.
+    it("stores a v2 taste's hang and reads it back as pictures, in hanging order", async () => {
+      const caller = createCaller(authedContext(hangUserId));
+      const [p1, p2, p3] = pictures as [string, string, string];
+      await caller.onboarding.complete(
+        input({
+          bankVersion: 3,
+          taste: { ...taste, v: 2, hang: [p3, p1, p2] },
+        }),
+      );
+      const stored = await caller.topics.taste();
+      expect(stored?.v).toBe(2);
+      expect(stored?.hang).toEqual([
+        { itemId: p3, src: `/api/img/${p3}?w=960`, title: "Hang fixture p3" },
+        { itemId: p1, src: `/api/img/${p1}?w=960`, title: "Hang fixture p1" },
+        { itemId: p2, src: `/api/img/${p2}?w=960`, title: "Hang fixture p2" },
+      ]);
+    });
+
+    it("reads a v1 row written straight to user_taste — no hang, no throw", async () => {
+      const { db } = await import("~/server/db/client");
+      const { userTaste } = await import("~/server/db/schema");
+      const caller = createCaller(authedContext(hangUserId));
+      // As a bank-v2 run left it in production: `v: 1`, no `hang` key at all.
+      await db
+        .insert(userTaste)
+        .values({ userId: hangUserId, runId: "v1-run", bankVersion: 2, taste })
+        .onConflictDoUpdate({ target: userTaste.userId, set: { taste } });
+      const stored = await caller.topics.taste();
+      expect(stored?.v).toBe(1);
+      expect(stored?.title).toEqual(taste.title);
+      expect(stored?.hang).toEqual([]);
+    });
+
+    it("reads past a stored hang id that is an article, even one with a picture", async () => {
+      const { db } = await import("~/server/db/client");
+      const { userTaste } = await import("~/server/db/schema");
+      const caller = createCaller(authedContext(hangUserId));
+      const [p1, p2] = pictures as [string, string];
+      const v2 = {
+        ...taste,
+        v: 2 as const,
+        hang: [p1, articleWithPicture, p2],
+      };
+      await db
+        .insert(userTaste)
+        .values({
+          userId: hangUserId,
+          runId: "v2-run",
+          bankVersion: 3,
+          taste: v2,
+        })
+        .onConflictDoUpdate({ target: userTaste.userId, set: { taste: v2 } });
+      expect((await caller.topics.taste())?.hang.map((h) => h.itemId)).toEqual([
+        p1,
+        p2,
+      ]);
+    });
+
+    it("drops a hung id that does not exist or is not a picture, and stores the rest", async () => {
+      const caller = createCaller(authedContext(badHangUserId));
+      const [p1, p2] = pictures as [string, string];
+      for (const bad of ["no-such-item", article, articleWithPicture]) {
+        await caller.onboarding.complete(
+          input({
+            bankVersion: 3,
+            taste: { ...taste, v: 2, hang: [p1, bad, p2] },
+          }),
+        );
+        expect(await storedTaste(badHangUserId)).toMatchObject({
+          v: 2,
+          hang: [p1, p2],
+        });
+      }
+      // Left with one picture, there is no hang: stored empty, the run saved all the same.
+      await caller.onboarding.complete(
+        input({
+          bankVersion: 3,
+          taste: { ...taste, v: 2, hang: [p1, article] },
+        }),
+      );
+      expect(await storedTaste(badHangUserId)).toMatchObject({ hang: [] });
+      expect((await rowsFor(badHangUserId)).picks).toEqual({
+        [a]: 2,
+        [b]: 1,
+        [c]: 0.5,
+      });
+    });
+
+    it("saves when a hung picture is deleted between the reveal and Open my feed", async () => {
+      const { db } = await import("~/server/db/client");
+      const { item } = await import("~/server/db/schema");
+      const caller = createCaller(authedContext(badHangUserId));
+      const [p1, p2] = pictures as [string, string];
+      // The reveal hangs a picture (from the memoised faces)…
+      const [doomed] = await db
+        .insert(item)
+        .values({
+          source: "met",
+          sourceId: `${itemPrefix}doomed`,
+          type: "image",
+          title: "Hang fixture doomed",
+          sourceUrl: `https://x.test/${itemPrefix}doomed`,
+          imageUrl: `https://x.test/${itemPrefix}doomed.jpg`,
+          topicId: a,
+          curationScore: 9,
+        })
+        .returning({ id: item.id });
+      const hang = [doomed!.id, p1, p2];
+      // …and the corpus loses it before the reader presses the button.
+      await db.delete(item).where(eq(item.id, doomed!.id));
+      const { runId } = await caller.onboarding.complete(
+        input({ bankVersion: 3, taste: { ...taste, v: 2, hang } }),
+      );
+      expect(runId).toBeTruthy();
+      expect(await storedTaste(badHangUserId)).toMatchObject({
+        hang: [p1, p2],
+      });
     });
 
     it("topics.taste is null for a reader who has none", async () => {

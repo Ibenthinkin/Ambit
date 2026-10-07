@@ -227,14 +227,14 @@ export function ExploreScreen({
       {/* A failure must never read as an ordinary outcome — same rule as the feed. */}
       {feed.isError ? (
         <div className="flex flex-col items-center gap-4 px-8 py-24">
-          <span className="text-ink/40 text-center text-[14px]">
+          <span className="text-ink/62 flex items-center gap-2 text-center text-[14px]">
+            <span
+              aria-hidden="true"
+              className="bg-accent size-[6px] flex-none rounded-full"
+            />
             Couldn&apos;t load the feed.
           </span>
-          <Button
-            variant="ghost"
-            shape="pill"
-            onClick={() => void feed.refetch()}
-          >
+          <Button variant="outline" onClick={() => void feed.refetch()}>
             Try again
           </Button>
         </div>
@@ -251,7 +251,7 @@ export function ExploreScreen({
           {EXPLORE_ABOUT.paragraphs.map((p) => (
             <p
               key={p}
-              className="text-ink/72 mt-3 text-[14.5px] leading-[1.6] first:mt-1"
+              className="text-ink/70 mt-3 text-[14.5px] leading-[1.6] first:mt-1"
             >
               {p}
             </p>
@@ -262,7 +262,7 @@ export function ExploreScreen({
             </Button>
             <Button
               className="flex-1"
-              variant="ghost"
+              variant="outline"
               onClick={() => openAuth("signin")}
             >
               Sign in

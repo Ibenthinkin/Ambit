@@ -8,10 +8,16 @@ import { AuthSurface, useAuthSurface } from "~/components/explore/auth-surface";
 import { MessageTile } from "~/components/explore/message-tile";
 import { cameFromExplore } from "~/components/feed/feed-origin";
 import { HeroRail } from "~/components/item/hero-rail";
-import { ItemFacts } from "~/components/item/item-facts";
+import {
+  CAPTION_INDEX,
+  CAPTION_INFO_LINK,
+  CAPTION_MAKER,
+  CAPTION_TITLE,
+  INFORMATION_ID,
+} from "~/components/item/caption-type";
+import { ItemFacts, ItemFactsSpread } from "~/components/item/item-facts";
 import { JoinCta } from "~/components/item/join-cta";
 import { buildCells } from "~/components/item/rail-cells";
-import { SharedByRow } from "~/components/item/shared-by-row";
 import { SpreadToggle } from "~/components/item/spread-toggle";
 import {
   bookLayers,
@@ -23,12 +29,13 @@ import { WanderNext } from "~/components/item/wander-next";
 import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sheet";
 import { ShareSheet } from "~/components/sheets/share-sheet";
 import { Column } from "~/components/ui/column";
+import { Eyebrow } from "~/components/ui/eyebrow";
 import { PillToolbar } from "~/components/ui/pill-toolbar";
 import { RailToolbar } from "~/components/ui/rail-toolbar";
 import { Rise } from "~/components/ui/rise";
 import { Toast } from "~/components/ui/toast";
 import { EXPLORE_RAIL_CAP } from "~/config/explore";
-import { useChromeCycle } from "~/hooks/use-chrome-cycle";
+import { useChrome } from "~/hooks/use-chrome";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
 import { DESKTOP_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { useRailGestures } from "~/hooks/use-rail-gestures";
@@ -63,10 +70,11 @@ import { api } from "~/trpc/react";
 //     page you scroll: swipe sideways and the rail advances; scroll down and the facts are there.
 //     No details sheet, no "tap for more" — "the location of a tap makes too much difference in
 //     the response" (Ben's desktop review).
-//   - **The chrome starts hidden** and comes back on a ten-second loop (`useChromeCycle`). A tap
-//     brings it up, another puts it away; on desktop a mouse moving over the picture brings it up.
-//     The chrome is the caption over the picture's foot *and* the toolbar — the phone's pill fixed
-//     at the bottom, the desktop's rail at the right — both fading on the same 600ms.
+//   - **The chrome starts hidden** and follows decision 7 of docs/DESIGN_redesign.md (`useChrome`).
+//     On a phone a tap toggles it and a scroll past 24 px shows it for good; on a computer any input
+//     shows it and 2.6 s of none hides it. The chrome is the caption over the picture's foot *and*
+//     the toolbar — the phone's pill fixed at the bottom (350ms, a 12px rise), the desktop's rail at
+//     the right (450ms, with the caption).
 //   - **Swiping goes somewhere, and the page follows.** The rail is `services/gallery-rail.ts`'s
 //     endless wander — the topic graph chooses where, a curated-weighted draw chooses what — and
 //     it **never marks anything seen**: swiping spends none of the reader's corpus, which is the
@@ -99,10 +107,6 @@ export interface ItemScreenProps {
   authed: boolean;
   /** The app's own origin (`env.BETTER_AUTH_URL`), for building an absolute share URL. */
   appUrl: string;
-  /** The signed-in reader's first name, if any — becomes `?from=` on the link they share. */
-  viewerName?: string;
-  /** `?from=` on the link that brought this reader here, already validated by the page. */
-  sharedBy: string | null;
 }
 
 /** How many cells per fetch, and how close to an end the reader gets before the next one starts. */
@@ -149,8 +153,14 @@ function subscribeNever() {
   return () => undefined;
 }
 
-/** A mouse that jitters fires pointer moves at 60Hz; the chrome needs one call per quarter second. */
-const MOUSEMOVE_THROTTLE_MS = 250;
+/** Mouse moves, wheels and scrolls fire at 60Hz; the chrome needs one wake per quarter second. */
+const WAKE_THROTTLE_MS = 250;
+
+/** Whether keyboard focus is inside the chrome (caption or rail) — module-level so its identity
+ *  is stable for `useChrome`'s timer effect. */
+function focusInChrome(): boolean {
+  return !!document.activeElement?.closest("[data-chrome]");
+}
 
 export function ItemScreen({
   entryItem,
@@ -158,8 +168,6 @@ export function ItemScreen({
   initialWander,
   authed,
   appUrl,
-  viewerName,
-  sharedBy,
 }: ItemScreenProps) {
   const [items, setItems] = React.useState<RailItem[]>(initialRail);
   const [index, setIndex] = React.useState(0);
@@ -180,7 +188,16 @@ export function ItemScreen({
   const [toast, setToast] = React.useState<string | null>(null);
 
   const router = useRouter();
-  const chrome = useChromeCycle();
+  // Keyboard focus inside the chrome (the caption's Information link, any rail button) holds it up.
+  // The sign-up surface and the two sheets are declared here, ahead of `useChrome`, because the
+  // rail must not idle away under its own open Save/Share popover.
+  const auth = useAuthSurface();
+  const sheetOpen = saveOpen || shareOpen || auth.open;
+  const holdChrome = React.useCallback(
+    () => sheetOpen || focusInChrome(),
+    [sheetOpen],
+  );
+  const chrome = useChrome({ holdWhile: holdChrome });
 
   // ── the explore taste (09-26-26, docs/PLAN_explore-route.md) ──────────────────────────────────
   // A signed-out visitor who came from `/explore` gets a rail that ends, after `EXPLORE_RAIL_CAP`
@@ -197,9 +214,6 @@ export function ItemScreen({
   // Every signed-out exit goes to `/` — the shared-link stranger's too, since the toolbar gave
   // them a Feed button (09-26-26) and `/feed` would only bounce them there anyway.
   const leave = useLeaveToFeed(entryItem.id, { signedOut: !authed });
-  // The sign-up sheet Profile and Save raise for a stranger, and the end card's sign-in / sign-up
-  // open too (its "what is this?" still goes to `/`, which owns that dialog).
-  const auth = useAuthSurface();
   const railCount = React.useSyncExternalStore(
     subscribeRailCount,
     readRailCount,
@@ -393,7 +407,9 @@ export function ItemScreen({
   const advance = React.useCallback(
     (dir: 1 | -1) => {
       if (motion) return;
-      chrome.reset();
+      // A new picture, a fresh look at it: a phone puts the chrome away. (A computer ignores
+      // this — the key or drag that turned the page was input, and input wakes it.)
+      chrome.hide();
       // A new picture is the hero as it was (docs/DESIGN_hero-zoom.md D1). The hook already
       // refuses to advance while zoomed; this covers ←/→ and the explore cap.
       setZoom(null);
@@ -505,28 +521,43 @@ export function ItemScreen({
   // not a control. While a sheet is up it owns Escape (BottomSheet's own listener closes it), and
   // an arrow that changed the picture under an open sheet would be a surprise, so all three are
   // ignored until it's gone.
-  const sheetOpen = saveOpen || shareOpen || auth.open;
+  //
+  // **Subscribed once, reading the latest handlers through `useEffectEvent`** — never re-added
+  // when `advance` or `leave` change. The chrome's desktop wake (below) also listens for keydown
+  // on `window`, and its state update re-renders this screen *inside the same dispatch*: React
+  // flushes a discrete event's update in the microtask after each listener returns. `advance`
+  // depends on `chrome`, a fresh object every render, so an effect keyed on it tore this
+  // listener down mid-dispatch — and a listener removed during dispatch is never invoked. Every
+  // key that got past the wake's 250 ms throttle was swallowed: Escape after the chrome idled
+  // away did nothing, and neither did ← / → (found 10-06-26, broken since the chrome rules).
+  const onKey = React.useEffectEvent((e: KeyboardEvent) => {
+    // A modifier chord is the browser's (Alt/⌘+← is Back) — paging the rail as well would be a
+    // second, surprising thing happening on the way out.
+    if (e.altKey || e.metaKey || e.ctrlKey) return;
+    if (e.key === "ArrowRight") advance(1);
+    else if (e.key === "ArrowLeft") advance(-1);
+    else if (e.key === "Escape") leave();
+    // `M` for magazine, the view toggle's hotkey in Ben's design — desktop only, like the
+    // toggle itself. Nothing on this screen takes text, so no typing guard is needed.
+    else if (desktop && e.key.toLowerCase() === "m") toggleSpread();
+  });
+  // `sheetOpen` stays a dependency on purpose: the Escape that closes a sheet re-renders mid-
+  // dispatch too, and it is this listener being *absent* for that one event (re-added only after
+  // it) that keeps the same keypress from closing the sheet and then leaving the page.
   React.useEffect(() => {
     if (sheetOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      // A modifier chord is the browser's (Alt/⌘+← is Back) — paging the rail as well would be a
-      // second, surprising thing happening on the way out.
-      if (e.altKey || e.metaKey || e.ctrlKey) return;
-      if (e.key === "ArrowRight") advance(1);
-      else if (e.key === "ArrowLeft") advance(-1);
-      else if (e.key === "Escape") leave();
-      // `M` for magazine, the view toggle's hotkey in Ben's design — desktop only, like the
-      // toggle itself. Nothing on this screen takes text, so no typing guard is needed.
-      else if (desktop && e.key.toLowerCase() === "m") toggleSpread();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [sheetOpen, advance, leave, desktop, toggleSpread]);
+    const listener = (e: KeyboardEvent) => onKey(e);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, [sheetOpen]);
 
   // ── gestures ──────────────────────────────────────────────────────────────────────────────────
   const { ref, dragPx, dragging } = useRailGestures({
     // A tap only ever toggles the chrome now. The gallery's tap-again-for-details went with the
-    // details sheet: the details are on the page, under the picture.
+    // details sheet: the details are on the page, under the picture. **This is the phone's only
+    // toggle** (decision 7, Review focus 6): the hook reports a tap only for a press that neither
+    // travelled nor became a pinch, so a pinch, a pan or a swipe never reaches here. On a
+    // computer `toggle` is a wake — a click never hides the chrome there.
     // In a spread, a tap on the page that isn't the item makes it the item; any other tap is the
     // chrome toggle it always was. The current cell fills the viewport, so its halves are the
     // window's halves.
@@ -558,8 +589,9 @@ export function ItemScreen({
         startMid: { x: cx - m.left, y: cy - m.top },
       };
       setSnapping(false);
-      // A picture being inspected has no caption on it (D1).
-      chrome.reset();
+      // A picture being inspected has no chrome on it (D1). A hide, never a toggle: a pinch is
+      // not a tap (Review focus 6 of docs/PLAN_redesign.md), so it can only put the chrome away.
+      chrome.hide();
     },
     onPinch: ({ ratio, cx, cy }) => {
       const g = gesture.current;
@@ -618,7 +650,7 @@ export function ItemScreen({
       const m = measure();
       if (!m) return;
       setSnapping(true);
-      chrome.reset();
+      chrome.hide();
       putZoom(
         doubleTapTarget(
           zoomRef.current,
@@ -631,28 +663,52 @@ export function ItemScreen({
     },
   });
 
-  // Desktop: a mouse moving over the page is a request for the caption, and unlike a tap it never
-  // hides it. Throttled — pointer moves fire continuously. `-Infinity` so the very first one counts.
+  // ── the chrome's inputs (decision 7) ───────────────────────────────────────────────────────
+  // **A computer:** mouse move, key, wheel, touch and scroll anywhere on the window each wake the
+  // chrome and restart its 2.6 s idle timer. Throttled to one wake per quarter second — the
+  // continuous ones fire at 60Hz, and a timer 250ms short of 2.6 s is not a difference anyone
+  // sees. `-Infinity` so the very first input counts. (e2e's desktop summon retries for exactly
+  // this throttle: a move straight after another mouse action can be swallowed.)
   //
-  // **A pointer event filtered to `pointerType === "mouse"`, never `onMouseMove`.** After a tap on
-  // a touch screen the browser fires *compatibility* mouse events — `mousemove` among them — so a
-  // `mousemove` summon would re-show the chrome the instant a second tap had put it away, and
-  // tap-to-hide would simply never work on a phone. Compatibility events are mouse events, not
-  // pointer events; a finger's own `pointermove` says `touch`. So this hears a real mouse only.
-  const lastMove = React.useRef(Number.NEGATIVE_INFINITY);
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (e.pointerType !== "mouse") return;
-    if (e.timeStamp - lastMove.current < MOUSEMOVE_THROTTLE_MS) return;
-    lastMove.current = e.timeStamp;
-    chrome.show();
-  };
+  // **Desktop only, and that is what keeps a phone's tap-to-hide working.** After a tap on a touch
+  // screen the browser fires *compatibility* mouse events, `mousemove` among them; a phone that
+  // woke on those would re-show the chrome the instant a second tap put it away. Below `md` these
+  // listeners are never attached (`desktop` is `useMediaQuery` at `md`), and `useChrome`'s phone
+  // rules refuse a wake as well. A touch laptop or an iPad on its side is on the computer rules,
+  // where a stray compatibility move is harmless: nothing there hides but the clock.
+  //
+  // **A phone:** the window's scroll position. Past 24 px the chrome comes up and stays.
+  const lastWake = React.useRef(Number.NEGATIVE_INFINITY);
+  const { wake, onScroll: chromeOnScroll } = chrome;
+  React.useEffect(() => {
+    if (!desktop) {
+      const onScroll = () => chromeOnScroll(window.scrollY);
+      window.addEventListener("scroll", onScroll, { passive: true });
+      return () => window.removeEventListener("scroll", onScroll);
+    }
+    const onInput = (e: Event) => {
+      if (e.timeStamp - lastWake.current < WAKE_THROTTLE_MS) return;
+      lastWake.current = e.timeStamp;
+      wake();
+    };
+    const events = ["mousemove", "keydown", "wheel", "touchstart", "scroll"];
+    for (const ev of events)
+      window.addEventListener(ev, onInput, { passive: true });
+    // Focus arriving in the chrome wakes it, unthrottled: it is a keyboard reader's arrival.
+    const onFocusIn = (e: FocusEvent) => {
+      if ((e.target as Element | null)?.closest?.("[data-chrome]")) wake();
+    };
+    window.addEventListener("focusin", onFocusIn);
+    return () => {
+      for (const ev of events) window.removeEventListener(ev, onInput);
+      window.removeEventListener("focusin", onFocusIn);
+    };
+  }, [desktop, wake, chromeOnScroll]);
 
   // ── share + save ──────────────────────────────────────────────────────────────────────────────
   // Always `/i/{current}` — the picture on screen, which since the URL follows the rail is also
   // what the address bar says.
-  const shareUrl = `${appUrl}/i/${current.id}${
-    viewerName ? `?from=${encodeURIComponent(viewerName)}` : ""
-  }`;
+  const shareUrl = `${appUrl}/i/${current.id}`;
 
   /**
    * Hand the full-resolution image to the OS, keyed to whatever is on screen.
@@ -706,27 +762,45 @@ export function ItemScreen({
   // shifts the three cells one along.
   // One caption per picture on screen. An `<h2>`, not the gallery's old `<h1>`: the page's one
   // `<h1>` is `ItemFacts`'s, and e2e's `getByRole("heading", { level: 1 })` must find exactly one.
-  const captionFor = (item: RailItem) => (
-    <>
-      <h2 className="text-ink-hi text-[22px] leading-[1.24] font-semibold">
-        {item.title}
-      </h2>
-      <p className="text-ink/52 mt-[7px] text-[12.5px] tracking-[0.15px]">
-        {item.attribution ?? sourceLabel(item.source)}
-      </p>
-    </>
+  const goToInformation = () => {
+    const target = document.getElementById(INFORMATION_ID);
+    if (!target) return;
+    const calm = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    target.scrollIntoView({
+      behavior: calm ? "auto" : "smooth",
+      block: "start",
+    });
+    // Land focus on the section so a keyboard reader continues from there, without a second jump.
+    target.focus({ preventScroll: true });
+  };
+
+  const captionFor = (item: RailItem, number: string) => (
+    <div className="flex items-baseline gap-4">
+      <span data-testid="caption-index" className={CAPTION_INDEX}>
+        {number}
+      </span>
+      <div className="min-w-0">
+        <h2 className={CAPTION_TITLE}>{item.title}</h2>
+        <p className={CAPTION_MAKER}>
+          {item.attribution ?? sourceLabel(item.source)}
+        </p>
+      </div>
+    </div>
   );
 
   // Where the entry picture sits in the rail now — a head prepend shifts it, and the reader's
   // index with it, so the difference below is stable.
   const entryIndex = items.findIndex((i) => i.id === entryItem.id);
 
-  const caption =
+  const captionBody =
     spread && !atEnd ? (
       // **Folios** (plan D7): a magazine's page footer under each page — the page number, then
       // the title and maker, pushed to the page's *outer* edge. The page that isn't the item is
       // dimmed, which is the only on-screen sign of which one Save and Share will act on.
-      <div className="grid grid-cols-2 gap-12">
+      // 140 px between the folios clears the centred "↓ Information" link sitting on the spine.
+      <div className="grid grid-cols-2 gap-[140px]">
         {pair.map((page, side) =>
           page === "end" ? null : (
             <Folio
@@ -740,15 +814,32 @@ export function ItemScreen({
         )}
       </div>
     ) : (
-      <div className="pointer-events-auto">{captionFor(current)}</div>
+      <div className="pointer-events-auto max-w-[calc(50%-120px)]">
+        {captionFor(current, folioNumber(index - entryIndex + 1))}
+      </div>
     );
+
+  // The caption is chrome, so everything in it — index, title, maker and the Information link —
+  // fades with `chrome.visible` (HeroRail's wrapper owns the fade and `visibility`, which also
+  // takes the link out of the tab order while hidden).
+  const caption = (
+    <>
+      {captionBody}
+      <button
+        type="button"
+        className={cn(CAPTION_INFO_LINK, "pointer-events-auto")}
+        onClick={goToInformation}
+      >
+        <span aria-hidden="true">↓ </span>Information
+      </button>
+    </>
+  );
 
   return (
     // `overscroll-behavior-y: contain`: the down-flick exit must never also be a pull-to-refresh.
     <main
       className="bg-bg text-ink min-h-dvh pb-[110px]"
       style={{ overscrollBehaviorY: "contain" }}
-      onPointerMove={onPointerMove}
     >
       <HeroRail
         cells={cells}
@@ -803,8 +894,7 @@ export function ItemScreen({
         />
       ) : (
         // Decision 3 (docs/DESIGN_chrome-redesign.md): the rail is part of the chrome here — it
-        // fades with the caption, on the same 600ms, and a mouse moving over the picture summons
-        // both.
+        // fades with the caption, on the same 450ms, and any input summons both.
         <RailToolbar
           visible={chrome.visible}
           bookmark={saved.data?.saved ? "saved" : "idle"}
@@ -826,20 +916,37 @@ export function ItemScreen({
       {/* A book-width measure above `md` (docs/DESIGN_desktop-polish.md §1, §4) — the picture is
           the whole viewport, the words are not. `pt-[28px]`: a clear gap between the strip and
           the title on every width (Ben's review, 09-11-26). */}
-      <Column width="reader" className="px-[22px] pt-[28px]">
-        {sharedBy ? (
-          <Rise>
-            <SharedByRow name={sharedBy} />
+      {/* Above `md` the information is a full-width, three-column section (DESIGN_redesign §6.3);
+          only the join block stays at reader width. */}
+      {desktop ? (
+        <>
+          <Rise delayMs={50}>
+            {spread && !atEnd ? (
+              <ItemFactsSpread
+                pages={pair.filter((p): p is RailItem => p !== "end")}
+                focusSide={focusSide}
+              />
+            ) : (
+              <ItemFacts item={current} layout="wide" />
+            )}
           </Rise>
-        ) : null}
+          <Rise delayMs={120}>
+            <WanderNext rows={wander.data ?? []} layout="wide" />
+          </Rise>
+        </>
+      ) : null}
+      <Column width="reader" className="px-[22px] pt-[28px]">
+        {desktop ? null : (
+          <>
+            <Rise delayMs={50}>
+              <ItemFacts item={current} />
+            </Rise>
 
-        <Rise delayMs={50}>
-          <ItemFacts item={current} />
-        </Rise>
-
-        <Rise delayMs={120}>
-          <WanderNext rows={wander.data ?? []} />
-        </Rise>
+            <Rise delayMs={120}>
+              <WanderNext rows={wander.data ?? []} />
+            </Rise>
+          </>
+        )}
 
         {authed ? null : (
           <Rise delayMs={160}>
@@ -910,15 +1017,17 @@ function Folio({
   const num = (
     <span
       data-testid="folio-number"
-      className="text-ink/40 flex-none text-[11px] font-semibold tracking-[1.2px] tabular-nums"
+      className={cn(CAPTION_INDEX, "flex-none tabular-nums")}
     >
       {number}
     </span>
   );
   const words = (
     <div className="min-w-0">
-      <h2 className="text-ink-hi truncate text-[14px]">{item.title}</h2>
-      <p className="text-ink/46 mt-[3px] truncate text-[11.5px]">
+      <h2 className={cn(CAPTION_TITLE, "truncate text-[20px]")}>
+        {item.title}
+      </h2>
+      <p className={cn(CAPTION_MAKER, "truncate")}>
         {item.attribution ?? sourceLabel(item.source)}
       </p>
     </div>

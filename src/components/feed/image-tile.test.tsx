@@ -121,4 +121,7 @@ it("has no hover zoom of its own and a 2px inset focus ring", () => {
     "focus-visible:-outline-offset-2",
   );
   expect(tile).not.toHaveClass("focus-visible:outline-ink-hi");
+  // One ring only: no bare `outline-none` (the base rule in globals.css already hides the ring
+  // for mouse focus, and a bare one would suppress the keyboard ring too).
+  expect(tile.className).not.toMatch(/(^|\s)outline-none/);
 });

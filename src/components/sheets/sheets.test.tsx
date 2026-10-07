@@ -193,7 +193,7 @@ describe("SaveToCollectionSheet", () => {
     expect(screen.getByText("2 items")).toBeInTheDocument();
   });
 
-  it("leads every row with the collection's face, the current one ringed", () => {
+  it("leads every row with the collection's face, the current one dotted", () => {
     render(
       <SaveToCollectionSheet
         open
@@ -207,8 +207,27 @@ describe("SaveToCollectionSheet", () => {
     const faces = screen.getAllByTestId("cover-mosaic");
     // Articles has one picture, Art none, and the New-collection row is a glyph, not a face.
     expect(faces.map((f) => f.getAttribute("data-count"))).toEqual(["1", "0"]);
-    expect(faces[1]!.parentElement).toHaveClass("ring-accent");
-    expect(faces[0]!.parentElement).not.toHaveClass("ring-accent");
+    // The 7 px dot trails the current row only.
+    expect(screen.getAllByTestId("current-dot")).toHaveLength(1);
+    expect(
+      faces[1]!.closest("button")!.querySelector("[data-testid=current-dot]"),
+    ).not.toBeNull();
+    expect(
+      faces[0]!.closest("button")!.querySelector("[data-testid=current-dot]"),
+    ).toBeNull();
+  });
+
+  it("shows no arrow in the save picker", () => {
+    render(
+      <SaveToCollectionSheet
+        open
+        onClose={vi.fn()}
+        itemId="item-1"
+        onSaved={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId("row-arrow")).toBeNull();
   });
 
   it("uses the singular for a collection holding one item", () => {
@@ -357,12 +376,11 @@ describe("ItemSheet", () => {
     expect(screen.getByText("ambit.test/i/item-9")).toBeInTheDocument();
   });
 
-  it("puts the sharer's first name on the link", () => {
-    renderSheet({ viewerName: "Mara" });
+  it("puts no name on the link — the share URL carries no `from` param", () => {
+    renderSheet();
     fireEvent.click(screen.getByRole("button", { name: "Share" }));
-    expect(
-      screen.getByText("ambit.test/i/item-9?from=Mara"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("ambit.test/i/item-9")).toBeInTheDocument();
+    expect(screen.queryByText(/from=/)).toBeNull();
   });
 
   it("ends with a New collection row that files the tile into what it makes", () => {
@@ -476,6 +494,16 @@ describe("ItemSheet", () => {
 });
 
 describe("CollectionsSheet", () => {
+  it("ends every browse row, Everything kept included, in a mono arrow, 17 px", () => {
+    render(<CollectionsSheet open onClose={vi.fn()} />);
+    const arrows = screen.getAllByTestId("row-arrow");
+    // Everything kept + each collection; the New collection row navigates nowhere on tap.
+    expect(arrows).toHaveLength(collectionsData.current.length + 1);
+    expect(arrows[0]).toHaveAttribute("aria-hidden", "true");
+    expect(arrows[0]).toHaveClass("font-mono");
+    expect(screen.getByText("Everything kept")).toHaveClass("text-[17px]");
+  });
+
   it("brackets the collections with the two pseudo-rows, in order", () => {
     render(<CollectionsSheet open onClose={vi.fn()} />);
     expect(

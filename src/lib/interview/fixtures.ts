@@ -121,15 +121,6 @@ export const TEST_BANK: readonly Question[] = [
       },
     ],
   },
-  {
-    id: "reading-amount",
-    kind: "amount",
-    prompt: "How much reading do you want mixed in?",
-    options: [
-      { key: "none", label: "None", effects: [], reading: "none" },
-      { key: "lot", label: "A lot", effects: [], reading: "lot" },
-    ],
-  },
 ];
 
 /** A production-shaped list: everything the test bank names. */

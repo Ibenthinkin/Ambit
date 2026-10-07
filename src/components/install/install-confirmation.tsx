@@ -23,16 +23,18 @@ export function InstallConfirmation({ onDone }: InstallConfirmationProps) {
       data-testid="install-done"
       className="bg-bg/85 fixed inset-0 z-50 flex flex-col items-center justify-center px-8 text-center backdrop-blur-[6px]"
     >
-      <div className="bg-accent text-on-accent animate-pop-in flex size-[72px] items-center justify-center rounded-full">
+      {/* A white square with a dark tick — the primary button's colours, not green: a filled
+          badge is not one of the accent's seven jobs (DESIGN §3.2). */}
+      <div className="bg-ink text-on-accent animate-pop-in flex size-[72px] items-center justify-center">
         <Check size={34} />
       </div>
-      <h2 className="text-ink-hi mt-6 text-[22px] font-semibold tracking-[-0.2px]">
+      <h2 className="text-ink-hi mt-6 text-[24px] leading-[1.15]">
         Ambit is on your home screen
       </h2>
       <p className="text-ink/60 mt-2 max-w-[300px] text-[14.5px] leading-[1.55]">
         Open it anytime for one interesting thing — no browser, no noise.
       </p>
-      <Button shape="rounded" size="lg" onClick={onDone} className="mt-7">
+      <Button size="lg" onClick={onDone} className="mt-7 w-full max-w-[300px]">
         Start exploring
       </Button>
     </div>

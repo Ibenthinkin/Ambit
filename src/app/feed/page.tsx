@@ -55,12 +55,7 @@ export default async function FeedPage() {
 
   return (
     <HydrateClient>
-      <FeedScreen
-        topicLabels={topicLabels}
-        appUrl={env.BETTER_AUTH_URL}
-        // First token only: a share link says "Mara shared this with you", not a full legal name.
-        viewerName={session.user.name?.trim().split(/\s+/)[0]}
-      />
+      <FeedScreen topicLabels={topicLabels} appUrl={env.BETTER_AUTH_URL} />
     </HydrateClient>
   );
 }

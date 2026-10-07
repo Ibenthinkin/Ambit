@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;1,400&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    a { color: #F2F2F2; text-decoration: underline; text-underline-offset: 3px; }
+    a:hover { color: #FFFFFF; }
+    @keyframes ambitspin { to { transform: rotate(360deg); } }
+    @keyframes ambitfade { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes ambitsheetup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    image-slot { display: block; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#060606; padding:32px; font-family:'Hanken Grotesk', sans-serif;">
+
+  <x-import component-from-global-scope="image-slot" from="./image-slot.js" hint-size="1px,1px" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></x-import>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ deviceDark }}" hint-size="402px,874px">
+    <div style="position:relative; height:100%;">
+
+      <div ref="{{ scrollerRef }}" style="height:100%; overflow-y:auto; background:#0E0E0E; -webkit-overflow-scrolling:touch;">
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:58px 4px 0; align-items:start;">
+          <sc-for list="{{ columns }}" as="col" hint-placeholder-count="2">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <sc-for list="{{ col.items }}" as="item" hint-placeholder-count="4">
+                <div data-feed-id="{{ item.pid }}">
+
+                  <sc-if value="{{ item.isIntro }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:20px 16px 18px; background:#161616; border:1px solid rgba(255,255,255,0.08);">
+                      <div style="display:flex; align-items:center; gap:7px; font-family:'Geist Mono', monospace; font-size:10px; letter-spacing:0.6px; text-transform:uppercase; color:#9A9A9A;"><span style="width:6px; height:6px; border-radius:50%; background:#2BB24C;"></span>Ambit</div>
+                      <div style="font-size:20px; line-height:1.15; letter-spacing:-0.01em; color:#F2F2F2; margin-top:14px;">What is this?</div>
+                      <div style="font-size:14px; line-height:1.45; color:#9A9A9A; margin-top:8px;">A quiet feed of public-domain pictures and writing.</div>
+                      <a href="Ambit - Onboarding v2.dc.html" style="display:block; background:#F2F2F2; color:#0E0E0E; text-decoration:none; text-align:center; font-size:14px; padding:12px 0; margin-top:16px;">Read how it works</a>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ item.isLink }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:16px 13px; background:#161616; border:1px solid rgba(255,255,255,0.08);">
+                      <div style="display:flex; align-items:center; gap:7px; font-family:'Geist Mono', monospace; font-size:10px; letter-spacing:0.6px; text-transform:uppercase; color:#9A9A9A;"><span style="width:6px; height:6px; border-radius:50%; background:#2BB24C;"></span>Because</div>
+                      <div style="font-size:12.5px; line-height:1.45; color:#8A8A8A; margin-top:10px;">{{ item.linkFrom }}</div>
+                      <div style="font-size:15px; line-height:1.3; color:#F2F2F2; margin-top:6px;">→ {{ item.linkTo }}</div>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ item.isImage }}" hint-placeholder-val="{{ true }}">
+                    <div onPointerDown="{{ item.onPressStart }}" onPointerMove="{{ item.onPressMove }}" onPointerUp="{{ item.onPressEnd }}" onPointerCancel="{{ item.onPressCancel }}" onPointerLeave="{{ item.onPressCancel }}" style="position:relative; cursor:pointer; overflow:hidden;">
+                      <image-slot id="{{ item.slotId }}" shape="rect" src="{{ item.src }}" placeholder="{{ item.placeholder }}" style="{{ item.imgStyle }}"></image-slot>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ item.isArticle }}" hint-placeholder-val="{{ false }}">
+                    <div onPointerDown="{{ item.onPressStart }}" onPointerMove="{{ item.onPressMove }}" onPointerUp="{{ item.onPressEnd }}" onPointerCancel="{{ item.onPressCancel }}" onPointerLeave="{{ item.onPressCancel }}" style="{{ item.cardStyle }}">
+                      <span style="font-family:'Geist Mono', monospace; font-size:10px; letter-spacing:0.6px; text-transform:uppercase; color:#8A8A8A;">{{ item.source }}</span>
+                      <div style="font-size:19px; line-height:1.2; letter-spacing:-0.01em; color:#F2F2F2; margin-top:10px;">{{ item.title }}</div>
+                      <div style="font-size:13.5px; line-height:1.48; color:#9A9A9A; margin-top:9px;">{{ item.lede }}</div>
+                    </div>
+                  </sc-if>
+
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+
+        <div ref="{{ sentinelRef }}" style="height:1px;"></div>
+        <div style="display:flex; align-items:center; justify-content:center; gap:10px; padding:20px 0 26px;">
+          <div style="width:13px; height:13px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.16); border-top-color:#F2F2F2; animation:ambitspin .8s linear infinite;"></div>
+          <span style="font-family:'Geist Mono', monospace; font-size:10.5px; letter-spacing:0.4px; text-transform:uppercase; color:#7A7A7A;">Finding something interesting…</span>
+        </div>
+        <div style="height:96px;"></div>
+      </div>
+
+      <sc-if value="{{ pickOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ onPickClose }}" style="position:absolute; inset:0; z-index:22; background:rgba(0,0,0,0.6);"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:23; max-height:72%; display:flex; flex-direction:column; background:#141414; border-top:1px solid rgba(255,255,255,0.2); padding:10px 0 30px; animation:ambitsheetup .24s cubic-bezier(.22,.9,.3,1) both;">
+          <div style="width:36px; height:3px; background:#444; margin:0 auto 14px; flex-shrink:0;"></div>
+          <div style="display:flex; justify-content:space-between; padding:0 20px 10px; border-bottom:1px solid rgba(255,255,255,0.14); font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; flex-shrink:0;"><span>Your collections</span><span onClick="{{ onPickClose }}" style="cursor:pointer; color:#F2F2F2;">Close</span></div>
+          <div style="overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 20px;">
+            <sc-for list="{{ pickOptions }}" as="opt" hint-placeholder-count="4">
+              <div onClick="{{ opt.onPick }}" style="display:flex; align-items:center; gap:12px; padding:15px 0; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.08);">
+                <span style="flex:1; font-size:17px; color:#F2F2F2;">{{ opt.label }}</span>
+                <span style="font-family:'Geist Mono', monospace; font-size:10px; text-transform:uppercase; color:#8A8A8A;">{{ opt.sub }}</span>
+                <span style="font-family:'Geist Mono', monospace; color:#6A6A6A;">→</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ onSheetClose }}" style="position:absolute; inset:0; z-index:20; background:rgba(0,0,0,0.6);"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:21; background:#141414; border-top:1px solid rgba(255,255,255,0.2); padding:10px 20px 32px; animation:ambitsheetup .22s cubic-bezier(.22,.9,.3,1) both;">
+          <div style="width:36px; height:3px; background:#444; margin:0 auto 14px;"></div>
+          <div style="font-size:20px; line-height:1.2; letter-spacing:-0.01em; color:#F2F2F2; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.14);">{{ sheetTitle }}</div>
+          <div onClick="{{ onCloserLook }}" style="display:flex; align-items:center; justify-content:center; height:46px; margin-top:14px; background:#F2F2F2; color:#0E0E0E; font-size:15px; cursor:pointer;">Closer look</div>
+          <div style="font-family:'Geist Mono', monospace; font-size:10px; text-transform:uppercase; color:#7A7A7A; padding:20px 0 8px; border-bottom:1px solid rgba(255,255,255,0.14);">Save to collection</div>
+          <sc-for list="{{ collectionOptions }}" as="col" hint-placeholder-count="3">
+            <div onClick="{{ col.onPick }}" style="display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid rgba(255,255,255,0.08); cursor:pointer;">
+              <span style="flex:1; font-size:16px; color:#EDEDED;">{{ col.label }}</span>
+              <span style="font-family:'Geist Mono', monospace; font-size:13px; color:#8A8A8A;">+</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <div style="position:absolute; left:0; right:0; bottom:26px; z-index:16; display:flex; align-items:center; justify-content:center; gap:10px; pointer-events:none;">
+        <div style="pointer-events:auto; height:56px; display:flex; align-items:center; gap:26px; padding:0 22px; border-radius:999px; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+          <a href="Ambit - Profile.dc.html" aria-label="Profile" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; text-decoration:none;"><svg width="29" height="29" viewBox="0 0 24 24" style="display:block;"><defs><radialGradient id="pg-feed" gradientUnits="userSpaceOnUse" cx="12" cy="14" r="12"><stop offset="0" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#A8AEFF;#E0A184;#7FC4B0;#E8D48A;#A8AEFF" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.33" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#E8D48A;#A8AEFF;#E0A184;#7FC4B0;#E8D48A" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.66" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#7FC4B0;#E8D48A;#A8AEFF;#E0A184;#7FC4B0" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="1" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#E0A184;#7FC4B0;#E8D48A;#A8AEFF;#E0A184" dur="10s" repeatCount="indefinite"></animate></stop></radialGradient></defs><circle cx="12" cy="7.2" r="5" fill="url(#pg-feed)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#pg-feed)"></path></svg></a>
+          <div onClick="{{ onGoTop }}" aria-label="Feed" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer;"><svg width="31" height="31" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="rgba(255,255,255,0.95)"></circle><circle cx="21" cy="7" r="1.9" fill="rgba(255,255,255,0.95)"></circle></svg></div>
+          <div onClick="{{ onPickOpen }}" aria-label="Saved" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.82)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg></div>
+        </div>
+      </div>
+
+      <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:50%; bottom:100px; z-index:50; background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.3px; padding:10px 14px; white-space:nowrap; animation:ambitfade .22s ease both;">{{ toast.text }}</div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showSerendipity&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Feed&quot;},&quot;showIntro&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Feed&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.scrollerRef = React.createRef();
+    this.sentinelRef = React.createRef();
+    this.state = {
+      count: 14,
+      saved: this.loadSaved(),
+      collections: this.loadCollections(),
+      toast: null,
+      loadingMore: false,
+      pressingIdx: null,
+      sheetOpen: false,
+      sheetItem: null,
+      pickOpen: false,
+    };
+    this.COLLECTIONS = ['Articles', 'Art', 'Photos'];
+    this.POOL = [
+      { id: 'wave', kind: 'image', slotId: 'am-wave', ratio: 0.68, title: 'The Great Wave off Kanagawa', src: 'assets/wave.jpg', placeholder: 'Ukiyo-e woodblock print' },
+      { id: 'sky', kind: 'article', source: 'Wikipedia', title: 'Why the sky is blue', lede: 'The sky isn\u2019t coloured \u2014 it\u2019s scattered. Shorter blue wavelengths bounce off air molecules far more than red ones.' },
+      { id: 'link1', kind: 'link', from: 'you saved Rayleigh scattering', to: 'a painter chasing the same light' },
+      { id: 'turner', kind: 'image', slotId: 'am-turner', ratio: 0.78, title: 'Rain, Steam and Speed', src: 'assets/turner.jpg', placeholder: 'Romantic oil painting' },
+      { id: 'engine', kind: 'article', source: 'Wikipedia', title: 'The internal-combustion engine', lede: 'For over a century a controlled explosion, a few thousand times a minute, has moved most of the world.' },
+      { id: 'gp', kind: 'image', slotId: 'am-gp', ratio: 1.24, title: 'The Vanderbilt Cup', src: 'assets/vanderbilt.jpg', placeholder: 'Vintage motorsport photo' },
+      { id: 'link2', kind: 'link', from: 'you lingered on the combustion engine', to: 'the golden age of Grand Prix' },
+      { id: 'wayfinding', kind: 'article', source: 'Wikipedia', title: 'Polynesian wayfinding', lede: 'Navigators crossed thousands of miles of open Pacific reading only the swell, the stars and the colour of the water.' },
+      { id: 'nebula', kind: 'image', slotId: 'am-nebula', ratio: 1.3, title: 'The Pillars of Creation', src: 'assets/pillars.jpg', placeholder: 'Deep-space photograph' },
+      { id: 'wheatfield', kind: 'image', slotId: 'am-wheat', ratio: 0.62, title: 'Wheatfield with Crows', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Wheatfield%20with%20crows%20-%20Google%20Art%20Project.jpg?width=700', placeholder: 'Post-impressionist oil painting' },
+      { id: 'jellies', kind: 'image', slotId: 'am-jellies', ratio: 1.42, title: 'Discomedusae, Plate 88', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Haeckel%20Discomedusae%2088.jpg?width=700', placeholder: 'Scientific illustration of jellyfish' },
+      { id: 'milkmaid', kind: 'image', slotId: 'am-milkmaid', ratio: 1.18, title: 'The Milkmaid', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Johannes%20Vermeer%20-%20Het%20melkmeisje%20-%20Google%20Art%20Project.jpg?width=700', placeholder: 'Dutch Golden Age painting' },
+      { id: 'deepfield', kind: 'image', slotId: 'am-deepfield', ratio: 1.0, title: 'Hubble Ultra-Deep Field', src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Hubble%20ultra%20deep%20field%20high%20rez%20edit1.jpg?width=700', placeholder: 'Ten thousand galaxies in one frame' },
+      { id: 'tide', kind: 'article', source: 'Wikipedia', title: 'What the moon does to the sea', lede: 'Tides are the ocean leaning toward the moon \u2014 and, on the far side, leaning away from it.' },
+      { id: 'cyanotype', kind: 'article', source: 'Wikipedia', title: 'The first photobook was made of ferns', lede: 'Anna Atkins printed algae directly onto light-sensitive paper and, in 1843, published the first book illustrated with photographs.' },
+      { id: 'link3', kind: 'link', from: 'you spent a while with Haeckel', to: 'the woman who printed with sunlight' },
+      { id: 'roads', kind: 'article', source: 'Wikipedia', title: 'Why old roads bend', lede: 'Most pre-industrial roads are cattle paths that hardened. Curves are records of avoided mud, hills and property lines.' },
+      { id: 'sourdough', kind: 'article', source: 'Wikipedia', title: 'Bread is a domesticated ecosystem', lede: 'A sourdough starter is a stable truce between wild yeasts and lactic acid bacteria that can be kept for a century.' },
+      { id: 'ultramarine', kind: 'article', source: 'Wikipedia', title: 'The blue that cost more than gold', lede: 'Ultramarine came from a single Afghan mountain range, so Renaissance contracts specified exactly how much of it a painter could use.' },
+      { id: 'longitude', kind: 'article', source: 'Wikipedia', title: 'Longitude was a clock problem', lede: 'Latitude you can read off the sun. Longitude requires knowing what time it is somewhere else.' },
+      { id: 'crows', kind: 'article', source: 'Wikipedia', title: 'Crows hold grudges', lede: 'They recognise individual human faces, remember which ones threatened them, and pass the warning to birds that never met you.' },
+      { id: 'link4', kind: 'link', from: 'you saved Wheatfield with Crows', to: 'what crows remember about us' },
+      { id: 'venice', kind: 'article', source: 'Wikipedia', title: 'Venice stands on a forest', lede: 'The city is built on millions of alder piles driven into the lagoon mud, where the absence of oxygen keeps them from rotting.' },
+      { id: 'silence', kind: 'article', source: 'Wikipedia', title: 'There is no silent room', lede: 'In the quietest chambers ever built, people report hearing their own blood.' },
+      { id: 'maps', kind: 'article', source: 'Wikipedia', title: 'Every flat map lies', lede: 'You cannot flatten a sphere without tearing, stretching or shearing it. Projections are choices about which lie you prefer.' },
+      { id: 'clocks', kind: 'article', source: 'Wikipedia', title: 'Time zones were invented by railways', lede: 'Before timetables, every town kept its own noon. Trains made local time unworkable.' },
+      { id: 'octopus', kind: 'article', source: 'Wikipedia', title: 'An octopus sees with its skin', lede: 'They are colourblind by eye, yet their skin carries the same light-sensitive proteins found in their retinas.' },
+    ];
+  }
+
+  loadSaved() { try { return new Set(JSON.parse(localStorage.getItem('ambit.saved.v1') || '[]')); } catch (e) { return new Set(); } }
+  persistSaved(s) { try { localStorage.setItem('ambit.saved.v1', JSON.stringify([...s])); } catch (e) {} }
+  loadCollections() { try { return JSON.parse(localStorage.getItem('ambit.collections.v1') || '{}'); } catch (e) { return {}; } }
+  persistCollections(c) { try { localStorage.setItem('ambit.collections.v1', JSON.stringify(c)); } catch (e) {} }
+
+  componentDidMount() {
+    const attach = () => {
+      const sc = this.scrollerRef.current;
+      if (!sc) { this.attachTimer = setTimeout(attach, 120); return; }
+      this.onScroll = () => {
+        if (sc.scrollHeight - sc.scrollTop - sc.clientHeight < 600) this.loadMore();
+        try { sessionStorage.setItem('ambit.feedScroll.v1', String(sc.scrollTop)); } catch (e) {}
+      };
+      sc.addEventListener('scroll', this.onScroll, { passive: true });
+      if (this.sentinelRef.current) {
+        this.io = new IntersectionObserver((entries) => { if (entries.some(e => e.isIntersecting)) this.loadMore(); }, { root: sc, rootMargin: '500px' });
+        this.io.observe(this.sentinelRef.current);
+      }
+      this.onScroll();
+    };
+    attach();
+    try {
+      const focus = new URLSearchParams(window.location.search).get('focus');
+      const saved = parseFloat(sessionStorage.getItem('ambit.feedScroll.v1') || '0');
+      if (focus || saved > 0) {
+        const go = () => {
+          const sc = this.scrollerRef.current;
+          if (!sc) return;
+          const el = focus ? sc.querySelector('[data-feed-id="' + focus + '"]') : null;
+          if (el) sc.scrollTop = Math.max(0, el.offsetTop - 84);
+          else if (saved > 0 && sc.scrollTop < 4) sc.scrollTop = Math.min(saved, sc.scrollHeight);
+        };
+        [90, 350, 800].forEach(t => setTimeout(go, t));
+      }
+    } catch (e) {}
+  }
+  componentWillUnmount() {
+    if (this.io) this.io.disconnect();
+    if (this.attachTimer) clearTimeout(this.attachTimer);
+    if (this.onScroll && this.scrollerRef.current) this.scrollerRef.current.removeEventListener('scroll', this.onScroll);
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    if (this.pressTimer) clearTimeout(this.pressTimer);
+  }
+
+  pressStart(e, idx, item) {
+    if (e && e.button === 2) return;
+    this.pressPt = { x: e.clientX, y: e.clientY, moved: false };
+    this.longFired = false;
+    if (this.pressTimer) clearTimeout(this.pressTimer);
+    this.setState({ pressingIdx: idx });
+    this.pressTimer = setTimeout(() => {
+      this.longFired = true;
+      this.pressTimer = null;
+      this.setState({ pressingIdx: null, sheetOpen: true, sheetItem: item });
+      if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+    }, 450);
+  }
+  pressMove(e) {
+    if (!this.pressPt) return;
+    if (Math.abs(e.clientX - this.pressPt.x) > 10 || Math.abs(e.clientY - this.pressPt.y) > 10) {
+      this.pressPt.moved = true;
+      if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
+    }
+  }
+  pressEnd(e, idx, item) {
+    if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
+    this.setState({ pressingIdx: null });
+    const moved = this.pressPt && this.pressPt.moved;
+    const longFired = this.longFired;
+    this.pressPt = null; this.longFired = false;
+    if (longFired || moved) return;
+    this.openItem(item.id, item.kind);
+  }
+  pressCancel() {
+    if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
+    this.pressPt = null; this.longFired = false;
+    this.setState({ pressingIdx: null });
+  }
+  closeSheet() { this.setState({ sheetOpen: false, sheetItem: null }); }
+
+  collectionNames() {
+    let names = [...this.COLLECTIONS];
+    try {
+      const stored = JSON.parse(localStorage.getItem('ambit.collectionNames.v1') || 'null');
+      if (Array.isArray(stored) && stored.length) names = stored;
+    } catch (e) {}
+    Object.keys(this.state.collections || {}).forEach(id => {
+      const n = this.state.collections[id];
+      if (typeof n === 'string' && names.indexOf(n) === -1) names.push(n);
+    });
+    return names;
+  }
+  countIn(name) { const m = this.state.collections || {}; return Object.keys(m).filter(id => m[id] === name).length; }
+  pickOptions() {
+    const fmt = (n) => (n === 1 ? '1 item' : n + ' items');
+    const rows = this.collectionNames().map(name => ({ key: name, label: name, sub: fmt(this.countIn(name)), onPick: () => { window.location.href = 'Ambit - Saved.dc.html'; } }));
+    const total = (this.state.saved && this.state.saved.size) || 0;
+    rows.unshift({ key: '__all', label: 'Everything kept', sub: fmt(total), onPick: () => { window.location.href = 'Ambit - Saved.dc.html'; } });
+    rows.push({ key: '__new', label: 'New collection', sub: 'On your profile', onPick: () => { window.location.href = 'Ambit - Profile.dc.html'; } });
+    return rows;
+  }
+  saveToCollection(name) {
+    const item = this.state.sheetItem;
+    if (!item) return;
+    this.setState(s => {
+      const n = new Set(s.saved); n.add(item.id); this.persistSaved(n);
+      const cmap = { ...s.collections, [item.id]: name }; this.persistCollections(cmap);
+      return { saved: n, collections: cmap, sheetOpen: false, sheetItem: null };
+    });
+    this.hint('Saved to ' + name);
+  }
+  hint(text) {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: text });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1600);
+  }
+  loadMore() {
+    if (this.state.loadingMore) return;
+    this.setState({ loadingMore: true });
+    setTimeout(() => this.setState(s => ({ count: s.count + 6, loadingMore: false })), 600);
+  }
+  openItem(id, kind) {
+    const page = kind === 'article' ? 'Ambit - Item Text.dc.html' : 'Ambit - Item Image.dc.html';
+    try { window.location.href = page + '?itemId=' + encodeURIComponent(id); } catch (e) {}
+  }
+
+  estHeight(p, w) {
+    if (p.kind === 'image') return w * p.ratio;
+    if (p.kind === 'link') return 118;
+    if (p.kind === 'intro') return 200;
+    const titleLines = Math.ceil(p.title.length / 18);
+    const ledeLines = Math.ceil(p.lede.length / 30);
+    return 74 + titleLines * 24 + ledeLines * 21;
+  }
+
+  renderVals() {
+    const showSer = this.props.showSerendipity ?? true;
+    const showIntro = this.props.showIntro ?? true;
+    const colW = 196;
+
+    const seq = [];
+    for (let i = 0; i < this.state.count; i++) seq.push(this.POOL[i % this.POOL.length]);
+    const filtered = showSer ? seq : seq.filter(p => p.kind !== 'link');
+    if (showIntro) filtered.splice(2, 0, { id: 'intro', kind: 'intro' });
+
+    const build = (p, idx) => ({
+      key: idx, pid: p.id,
+      isImage: p.kind === 'image', isArticle: p.kind === 'article', isLink: p.kind === 'link', isIntro: p.kind === 'intro',
+      title: p.title, source: p.source, lede: p.lede,
+      slotId: (p.slotId || p.id) + '-' + idx, placeholder: p.placeholder, src: p.src,
+      imgStyle: { width: '100%', height: Math.round(colW * (p.ratio || 1)) + 'px', display: 'block', pointerEvents: 'none' },
+      linkFrom: p.from, linkTo: p.to,
+      cardStyle: {
+        cursor: 'pointer', background: '#161616', border: '1px solid rgba(255,255,255,0.08)',
+        padding: '16px 14px 14px', userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation',
+        transform: this.state.pressingIdx === idx ? 'scale(0.985)' : 'scale(1)', transition: 'transform .2s ease',
+      },
+      onPressStart: (e) => this.pressStart(e, idx, p),
+      onPressMove: (e) => this.pressMove(e),
+      onPressEnd: (e) => this.pressEnd(e, idx, p),
+      onPressCancel: () => this.pressCancel(),
+    });
+
+    const cols = [{ items: [], h: 0 }, { items: [], h: 0 }];
+    filtered.forEach((p, idx) => {
+      const target = cols[0].h <= cols[1].h ? cols[0] : cols[1];
+      target.items.push(build(p, idx));
+      target.h += this.estHeight(p, colW) + 4;
+    });
+
+    const sheetItem = this.state.sheetItem;
+    return {
+      columns: cols.map((c, i) => ({ key: i, items: c.items })),
+      deviceDark: true,
+      scrollerRef: this.scrollerRef, sentinelRef: this.sentinelRef,
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+      onGoTop: () => { const sc = this.scrollerRef.current; if (sc) sc.scrollTo({ top: 0, behavior: 'smooth' }); },
+      pickOpen: this.state.pickOpen,
+      pickOptions: this.pickOptions(),
+      onPickOpen: () => this.setState({ pickOpen: true }),
+      onPickClose: () => this.setState({ pickOpen: false }),
+      sheetOpen: this.state.sheetOpen,
+      sheetTitle: sheetItem ? (sheetItem.title || 'Serendipity') : '',
+      collectionOptions: this.COLLECTIONS.map(name => ({ key: name, label: name, onPick: () => this.saveToCollection(name) })),
+      onSheetClose: () => this.closeSheet(),
+      onCloserLook: () => { const it = this.state.sheetItem; this.closeSheet(); if (it) this.openItem(it.id, it.kind); },
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;1,400&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #060606; }
+    a { color: #E6E6E6; text-decoration: underline; text-underline-offset: 3px; }
+    a:hover { color: #FFFFFF; }
+    input::placeholder { color: #5A5A5A; }
+    [data-btn] { transition: background .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease; }
+    [data-btn="primary"]:hover { background: #FFFFFF !important; box-shadow: inset 0 -2px 0 #2BB24C; }
+    [data-btn="outline"]:hover { background: rgba(255,255,255,0.08) !important; border-color: #F2F2F2 !important; box-shadow: inset 0 -2px 0 #2BB24C; }
+    [data-btn="link"]:hover { color: #FFFFFF !important; text-decoration-color: #2BB24C !important; }
+    [data-btn]:focus { outline: none; }
+    [data-seg] { transition: background .15s ease, color .15s ease, box-shadow .15s ease; }
+    [data-seg="off"]:hover { background: rgba(255,255,255,0.08) !important; color: #F2F2F2 !important; box-shadow: inset 0 -2px 0 #2BB24C; }
+    [data-seg]:focus { outline: none; }
+    [data-seg]:focus-visible { outline: 2px solid #2BB24C; outline-offset: 2px; position: relative; z-index: 1; }
+    [data-btn]:focus-visible { outline: 2px solid #2BB24C; outline-offset: 3px; }
+    @keyframes ferise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</helmet>
+
+<div style="{{ outerStyle }}">
+<div style="{{ frameStyle }}">
+<div style="container-type:inline-size; min-height:100%; background:#0E0E0E; color:#E6E6E6; font-family:'Hanken Grotesk', sans-serif; display:flex; flex-direction:column;">
+
+
+  <div style="flex:1; padding:0 clamp(20px, 4cqw, 56px);">
+  <div style="max-width:1120px; margin:0 auto; padding:clamp(36px, 6cqw, 72px) 0 40px; animation:ferise .6s ease both;">
+
+    <!-- INTRO -->
+    <sc-if value="{{ isIntro }}" hint-placeholder-val="{{ true }}">
+      <div style="min-height:min(72vh, 640px); display:flex; align-items:center; justify-content:center; padding:0 4px;">
+        <div style="width:100%; max-width:480px; display:flex; flex-direction:column;">
+          <div style="font-family:'Geist Mono', monospace; font-size:11px; letter-spacing:0.4px; text-transform:uppercase; color:#8A8A8A;">First exhibition · About two minutes</div>
+          <div style="font-size:clamp(30px, 4.2cqw, 40px); line-height:1.1; letter-spacing:-0.02em; color:#F2F2F2; margin-top:16px; text-wrap:balance;">Before we hang anything, a few quiet questions.</div>
+          <div style="font-size:16px; line-height:1.5; color:#A8A8A8; margin-top:16px; text-wrap:pretty;">Pick whatever you'd look at longer. Nothing here is a test, and you can change every setting at the end.</div>
+          <div style="display:flex; flex-direction:column; gap:12px; margin-top:32px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.14);">
+            <sc-for list="{{ introSteps }}" as="st" hint-placeholder-count="3">
+              <div style="display:flex; align-items:baseline; gap:12px;">
+                <span style="width:6px; height:6px; border-radius:50%; background:#2BB24C; flex-shrink:0; transform:translateY(-2px);"></span>
+                <span style="font-size:16px; line-height:1.45; color:#E6E6E6;">{{ st.text }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <button type="button" data-btn="primary" onClick="{{ onNext }}" style="display:flex; align-items:center; justify-content:center; height:56px; margin-top:40px; background:#F2F2F2; color:#0E0E0E; font-size:17px; cursor:pointer; font-family:inherit; border:none; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">Begin</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ROOMS: pick one of four -->
+    <sc-if value="{{ isRooms }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:clamp(34px, 6cqw, 72px); line-height:1.04; letter-spacing:-0.025em; color:#F2F2F2; text-wrap:balance;">Which one is the most interesting?</div>
+      <div style="font-size:clamp(16px, 1.8cqw, 19px); color:#9A9A9A; margin-top:12px;">Pick one. Go with your first instinct.</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap:4px; margin-top:32px;">
+        <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+          <div onClick="{{ r.onPick }}" onMouseEnter="{{ r.onEnter }}" onMouseLeave="{{ r.onLeave }}" style="{{ r.cardStyle }}">
+            <div style="{{ r.frame }}"><div style="{{ r.bg }}"></div></div>
+            <div style="display:flex; gap:10px; margin-top:10px; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#BDBDBD;"><span style="color:#6A6A6A;">{{ r.num }}</span><span>{{ r.label }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap; margin-top:28px;">
+        <button type="button" data-btn="outline" onClick="{{ onNone }}" style="border:1px solid rgba(255,255,255,0.35); font-size:15px; padding:12px 22px; cursor:pointer; font-family:inherit; background:transparent; color:#F2F2F2; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">None of these</button>
+        <span style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#6A6A6A;">Keys 1 to 4, or N for none</span>
+      </div>
+    </sc-if>
+
+    <!-- PAIRS: hands / feeling -->
+    <sc-if value="{{ isPair }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:clamp(34px, 6cqw, 72px); line-height:1.04; letter-spacing:-0.025em; color:#F2F2F2; text-wrap:balance;">{{ pairTitle }}</div>
+      <div style="font-size:clamp(16px, 1.8cqw, 19px); color:#9A9A9A; margin-top:12px;">Which version would you keep? Pair {{ pairNum }} of 3.</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:32px; max-width:900px;">
+        <sc-for list="{{ pair }}" as="p" hint-placeholder-count="2">
+          <div onClick="{{ p.onPick }}" onMouseEnter="{{ p.onEnter }}" onMouseLeave="{{ p.onLeave }}" style="{{ p.cardStyle }}">
+            <div style="{{ p.bg }}"></div>
+            <div style="display:flex; gap:10px; margin-top:10px; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#BDBDBD;"><span style="color:#6A6A6A;">{{ p.arrow }}</span><span>{{ p.label }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap; margin-top:28px;">
+        <button type="button" data-btn="outline" onClick="{{ onBoth }}" style="border:1px solid rgba(255,255,255,0.35); font-size:15px; padding:12px 22px; cursor:pointer; font-family:inherit; background:transparent; color:#F2F2F2; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">Both, equally</button>
+        <span style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#6A6A6A;">Arrow keys, or B for both</span>
+      </div>
+    </sc-if>
+
+    <!-- KEEP OR PASS -->
+    <sc-if value="{{ isKeepDesktop }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid; grid-template-columns:minmax(260px, 1fr) minmax(0, 1.25fr); gap:clamp(40px, 6cqw, 96px); align-items:center; min-height:min(76vh, 760px);">
+        <div style="display:flex; flex-direction:column; max-width:400px;">
+          <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:11px; letter-spacing:0.4px; text-transform:uppercase; color:#8A8A8A; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.16);"><span>Keep or pass</span><span>{{ keepCount }}</span></div>
+          <div style="display:grid; grid-template-columns:repeat(10, 1fr); gap:3px; margin-top:12px;">
+            <sc-for list="{{ keepTicks }}" as="tk" hint-placeholder-count="10"><div style="{{ tk.style }}"></div></sc-for>
+          </div>
+          <div style="font-size:clamp(30px, 3.2cqw, 40px); line-height:1.1; letter-spacing:-0.02em; color:#F2F2F2; margin-top:36px;">Would you keep this one?</div>
+          <div style="font-size:16px; line-height:1.5; color:#A8A8A8; margin-top:14px;">Ten quick ones. Go with your gut.</div>
+          <div style="margin-top:36px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.16);">
+            <div style="font-size:17px; color:#F2F2F2;">{{ keepCard.label }}</div>
+            <div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#7A7A7A; margin-top:4px;">{{ keepCard.tag }}</div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:32px;">
+            <button type="button" data-btn="outline" onClick="{{ onPass }}" style="display:flex; align-items:center; justify-content:center; height:56px; border:1px solid rgba(255,255,255,0.35); font-size:16px; cursor:pointer; font-family:inherit; background:transparent; color:#F2F2F2; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">← Pass</button>
+            <button type="button" data-btn="primary" onClick="{{ onKeep }}" style="display:flex; align-items:center; justify-content:center; height:56px; background:#F2F2F2; color:#0E0E0E; font-size:16px; cursor:pointer; font-family:inherit; border:none; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">Keep →</button>
+          </div>
+          <div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#5A5A5A; margin-top:14px;">Arrow keys work too</div>
+        </div>
+        <div style="{{ keepHeroStyle }}"></div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isKeepPhone }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:clamp(34px, 6cqw, 72px); line-height:1.04; letter-spacing:-0.025em; color:#F2F2F2;">Keep or pass.</div>
+      <div style="font-size:clamp(16px, 1.8cqw, 19px); color:#9A9A9A; margin-top:12px;">Ten quick ones. Tap a button, or use the arrow keys.</div>
+      <div style="max-width:440px; margin:32px auto 0;">
+        <div style="{{ keepCard.bg }}"></div>
+        <div style="display:flex; justify-content:space-between; margin-top:10px; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#BDBDBD;"><span>{{ keepCard.label }}</span><span style="color:#6A6A6A;">{{ keepCard.tag }}</span></div>
+        <div style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; margin-top:20px;">
+          <button type="button" data-btn="outline" onClick="{{ onPass }}" style="border:1px solid rgba(255,255,255,0.35); text-align:center; font-size:15px; padding:13px 0; cursor:pointer; font-family:inherit; background:transparent; color:#F2F2F2; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">← Pass</button>
+          <span style="font-family:'Geist Mono', monospace; font-size:11px; color:#8A8A8A;">{{ keepCount }}</span>
+          <button type="button" data-btn="primary" onClick="{{ onKeep }}" style="background:#F2F2F2; color:#0E0E0E; text-align:center; font-size:15px; padding:14px 0; cursor:pointer; font-family:inherit; border:none; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">Keep →</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- READING -->
+    <sc-if value="{{ isRead }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:clamp(34px, 6cqw, 72px); line-height:1.04; letter-spacing:-0.025em; color:#F2F2F2;">Which would you open?</div>
+      <div style="font-size:clamp(16px, 1.8cqw, 19px); color:#9A9A9A; margin-top:12px;">Four pieces from the feed. Pick the one you'd read first. Set {{ readSet }} of 2.</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 240px), 1fr)); column-gap:24px; margin-top:32px;">
+        <sc-for list="{{ reads }}" as="r" hint-placeholder-count="4">
+          <div onClick="{{ r.onPick }}" onMouseEnter="{{ r.onEnter }}" onMouseLeave="{{ r.onLeave }}" style="{{ r.cardStyle }}">
+            <div style="{{ r.imgStyle }}"></div>
+            <div style="border-top:1px solid rgba(255,255,255,0.22); margin-top:12px; padding-top:12px;">
+            <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#8A8A8A;"><span>{{ r.kicker }}</span><span>{{ r.num }}</span></div>
+            <div style="font-size:clamp(22px, 2.6cqw, 30px); line-height:1.15; letter-spacing:-0.015em; color:#F2F2F2; margin-top:14px; text-wrap:balance;">{{ r.title }}</div>
+            <div style="font-size:15px; line-height:1.45; color:#9A9A9A; margin-top:10px;">{{ r.dek }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap; margin-top:12px;">
+        <button type="button" data-btn="outline" onClick="{{ onPictures }}" style="border:1px solid rgba(255,255,255,0.35); font-size:15px; padding:12px 22px; cursor:pointer; font-family:inherit; background:transparent; color:#F2F2F2; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">I'd rather look at pictures</button>
+        <span style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#6A6A6A;">Keys 1 to 4</span>
+      </div>
+    </sc-if>
+
+    <!-- TRAVEL -->
+    <sc-if value="{{ isTravel }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:clamp(34px, 6cqw, 72px); line-height:1.04; letter-spacing:-0.025em; color:#F2F2F2;">Where would you go next?</div>
+      <div style="font-size:clamp(16px, 1.8cqw, 19px); line-height:1.45; color:#9A9A9A; margin-top:12px; max-width:720px;">Choose up to three. We don't use these as places; they tell us what kind of world you're drawn to.</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 240px), 1fr)); column-gap:24px; margin-top:32px;">
+        <sc-for list="{{ places }}" as="pl" hint-placeholder-count="12">
+          <div onClick="{{ pl.onToggle }}" onMouseEnter="{{ pl.onEnter }}" onMouseLeave="{{ pl.onLeave }}" style="{{ pl.style }}">
+            <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#8A8A8A;"><span>{{ pl.country }}</span><span style="{{ pl.markStyle }}">{{ pl.mark }}</span></div>
+            <div style="font-size:22px; line-height:1.15; letter-spacing:-0.01em; color:#F2F2F2; margin-top:10px;">{{ pl.place }}</div>
+            <div style="font-size:14px; line-height:1.4; color:#9A9A9A; margin-top:6px;">{{ pl.line }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap; margin-top:20px;">
+        <button type="button" data-btn="primary" onClick="{{ onNext }}" style="background:#F2F2F2; color:#0E0E0E; font-size:15px; padding:14px 30px; cursor:pointer; font-family:inherit; border:none; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">Continue</button>
+        <button type="button" data-btn="link" onClick="{{ onNext }}" style="font-family:inherit; font-size:15px; color:#BDBDBD; text-decoration:underline; text-underline-offset:3px; cursor:pointer; background:none; border:none; padding:0;">Nowhere in particular</button>
+        <span style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#6A6A6A;">{{ placeCount }} of 3 chosen</span>
+      </div>
+    </sc-if>
+
+    <!-- RATHER NOT -->
+    <sc-if value="{{ isAvoid }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:clamp(34px, 6cqw, 72px); line-height:1.04; letter-spacing:-0.025em; color:#F2F2F2; text-wrap:balance;">Anything you would rather not see?</div>
+      <div style="font-size:clamp(16px, 1.8cqw, 19px); line-height:1.45; color:#9A9A9A; margin-top:12px; max-width:720px;">We keep these out of your feed. You can change this at the end, or any time later.</div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:32px; max-width:900px;">
+        <sc-for list="{{ avoids }}" as="a" hint-placeholder-count="9">
+          <div onClick="{{ a.onToggle }}" onMouseEnter="{{ a.onEnter }}" onMouseLeave="{{ a.onLeave }}" style="{{ a.style }}">{{ a.label }}</div>
+        </sc-for>
+      </div>
+      <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap; margin-top:32px;">
+        <button type="button" data-btn="primary" onClick="{{ onNext }}" style="background:#F2F2F2; color:#0E0E0E; font-size:15px; padding:14px 30px; cursor:pointer; font-family:inherit; border:none; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">Continue</button>
+        <button type="button" data-btn="link" onClick="{{ onShowAll }}" style="font-family:inherit; font-size:15px; color:#BDBDBD; text-decoration:underline; text-underline-offset:3px; cursor:pointer; background:none; border:none; padding:0;">Show me everything</button>
+      </div>
+    </sc-if>
+
+    <!-- BONUS -->
+    <sc-if value="{{ isBonus }}" hint-placeholder-val="{{ false }}">
+      <div style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A;">Bonus question</div>
+      <div style="font-size:clamp(34px, 6cqw, 72px); line-height:1.04; letter-spacing:-0.025em; color:#F2F2F2; margin-top:16px; text-wrap:balance;">Name one thing you could read about for hours.</div>
+      <div style="font-size:clamp(16px, 1.8cqw, 19px); line-height:1.45; color:#9A9A9A; margin-top:12px; max-width:720px;">Optional. A place, a period, an object, an obsession. A language model turns it into topics, including ones Ambit doesn't have yet.</div>
+      <input value="{{ bonusText }}" onChange="{{ onBonus }}" placeholder="Lighthouses, Persian carpets, old seed catalogues" style="width:100%; max-width:720px; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,0.35); color:#F2F2F2; font-family:'Hanken Grotesk', sans-serif; font-size:clamp(20px, 2.4cqw, 28px); padding:14px 0; outline:none; margin-top:28px;">
+      <sc-if value="{{ hasMapped }}" hint-placeholder-val="{{ false }}">
+        <div style="max-width:720px; margin-top:28px;">
+          <div style="font-size:16px; color:#BDBDBD; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.16);">Mapped to five topics. <span style="font-style:italic;">Two aren't in Ambit yet.</span></div>
+          <sc-for list="{{ mapped }}" as="m" hint-placeholder-count="5">
+            <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) 56px; gap:16px; align-items:baseline; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+              <span style="font-size:17px; color:#F2F2F2;">{{ m.topic }}<span style="{{ m.tagStyle }}">Proposed</span></span>
+              <span style="font-size:14px; color:#8A8A8A;">{{ m.why }}</span>
+              <span style="font-family:'Geist Mono', monospace; font-size:11px; color:#BDBDBD; text-align:right;">{{ m.score }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap; margin-top:32px;">
+        <button type="button" data-btn="primary" onClick="{{ onNext }}" style="background:#F2F2F2; color:#0E0E0E; font-size:15px; padding:14px 30px; cursor:pointer; font-family:inherit; border:none; transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;">Continue to your exhibition</button>
+        <button type="button" data-btn="link" onClick="{{ onClearBonus }}" style="font-family:inherit; font-size:15px; color:#BDBDBD; text-decoration:underline; text-underline-offset:3px; cursor:pointer; background:none; border:none; padding:0;">Clear and try again</button>
+      </div>
+    </sc-if>
+
+    <!-- REVEAL -->
+    <sc-if value="{{ isReveal }}" hint-placeholder-val="{{ false }}">
+      <div style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A;">Your first exhibition</div>
+      <div style="font-size:clamp(64px, 14cqw, 200px); line-height:0.92; letter-spacing:-0.04em; color:#F2F2F2; margin-top:16px;">Quiet<br>Gardens</div>
+      <div style="font-size:clamp(18px, 2.2cqw, 26px); line-height:1.4; color:#BDBDBD; margin-top:24px; max-width:760px; text-wrap:pretty;">Growing things, myth, ritual &amp; the ancient world and space &amp; tomorrow. <span style="font-style:italic;">Mostly photography and scientific drawing.</span></div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(min(46%, 180px), 1fr)); gap:4px; margin-top:40px;">
+        <sc-for list="{{ hang }}" as="h" hint-placeholder-count="6">
+          <div><div style="{{ h.bg }}"></div><div style="font-family:'Geist Mono', monospace; font-size:10px; text-transform:uppercase; color:#7A7A7A; margin-top:8px;">{{ h.num }} · {{ h.label }}</div></div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr)); column-gap:48px; margin-top:56px;">
+        <div>
+          <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.16);"><span>Temperament</span><span>05</span></div>
+          <div style="font-size:14px; line-height:1.45; color:#8A8A8A; margin:12px 0 4px;">Five dimensions that hold across music, film and books. Kept now, they can seed what you watch and listen to later.</div>
+          <sc-for list="{{ temper }}" as="t" hint-placeholder-count="5">
+            <div style="padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+              <div style="display:flex; justify-content:space-between; gap:12px; align-items:baseline;"><span style="font-size:17px; color:#F2F2F2;">{{ t.name }}</span><span style="font-size:13px; color:#8A8A8A;">{{ t.desc }}</span></div>
+              <div style="height:1px; background:rgba(255,255,255,0.14); margin-top:10px; position:relative;"><div style="{{ t.bar }}"></div></div>
+            </div>
+          </sc-for>
+        </div>
+        <div>
+          <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.16);"><span>Travel compass</span><span>04</span></div>
+          <div style="font-size:14px; line-height:1.45; color:#8A8A8A; margin:12px 0 4px;">You'd travel for wild places over cities, the old over the new, quiet over crowds and a long way from home.</div>
+          <sc-for list="{{ compass }}" as="c" hint-placeholder-count="4">
+            <div style="display:grid; grid-template-columns:64px minmax(0,1fr) 64px; align-items:center; gap:12px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,0.08); font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase;">
+              <span style="color:#F2F2F2;">{{ c.a }}</span>
+              <div style="height:1px; background:rgba(255,255,255,0.22); position:relative;"><span style="{{ c.dot }}"></span></div>
+              <span style="color:#6A6A6A; text-align:right;">{{ c.b }}</span>
+            </div>
+          </sc-for>
+          <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A; padding:36px 0 10px; border-bottom:1px solid rgba(255,255,255,0.16);"><span>You'd open</span><span>02</span></div>
+          <div style="font-size:14px; color:#8A8A8A; margin:12px 0 4px;">You'll read long or short, and you went for essays and archive finds.</div>
+          <sc-for list="{{ opened }}" as="o" hint-placeholder-count="2">
+            <div style="padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+              <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#8A8A8A;"><span>{{ o.kicker }}</span><span style="font-style:italic; text-transform:none; font-family:'Hanken Grotesk', sans-serif; font-size:13px;">{{ o.tone }}</span></div>
+              <div style="font-size:20px; line-height:1.2; color:#F2F2F2; margin-top:8px;">{{ o.title }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="margin-top:64px; max-width:860px;">
+        <div style="font-size:clamp(34px, 5cqw, 56px); line-height:1.04; letter-spacing:-0.025em; color:#F2F2F2;">Your mix</div>
+        <div style="font-size:15px; line-height:1.45; color:#8A8A8A; margin-top:10px; max-width:620px;">Set from your answers. Change anything. Topics marked proposed aren't in Ambit yet; they show what the wider vocabulary would add.</div>
+        <sc-for list="{{ mix }}" as="g" hint-placeholder-count="4">
+          <div>
+            <div style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A; padding:32px 0 10px; border-bottom:1px solid rgba(255,255,255,0.16);">{{ g.title }}</div>
+            <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="2">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+                <div style="min-width:0; flex:1 1 auto;">
+                  <div style="{{ r.tagStyle }}">Proposed</div>
+                  <div style="font-size:16px; line-height:1.25; color:#F2F2F2;">{{ r.name }}</div>
+                </div>
+                <div role="radiogroup" aria-label="{{ r.name }}" style="display:flex; flex-shrink:0; border:1px solid rgba(255,255,255,0.22);">
+                  <sc-for list="{{ r.levels }}" as="lv" hint-placeholder-count="4">
+                    <button type="button" role="radio" data-seg="{{ lv.state }}" aria-checked="{{ lv.checked }}" onClick="{{ lv.onClick }}" style="{{ lv.style }}">{{ lv.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+        <div style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A; padding:32px 0 10px; border-bottom:1px solid rgba(255,255,255,0.16);">Kept out</div>
+        <sc-for list="{{ keptOut }}" as="k" hint-placeholder-count="2">
+          <div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <span style="font-size:17px; color:#F2F2F2;">{{ k.label }}</span>
+            <span onClick="{{ k.onAllow }}" style="font-size:14px; color:#BDBDBD; text-decoration:underline; text-underline-offset:3px; cursor:pointer;">Allow</span>
+          </div>
+        </sc-for>
+        <div style="font-size:14px; font-style:italic; color:#7A7A7A; margin-top:20px;">About one post in ten comes from outside this mix, so the feed keeps learning from your likes and saves.</div>
+        <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap; margin-top:32px;">
+          <a href="Ambit - Feed Masonry 4.dc.html" data-btn="primary" style="background:#F2F2F2; color:#0E0E0E; font-size:16px; padding:15px 34px; text-decoration:none;">Open my feed</a>
+          <button type="button" data-btn="link" onClick="{{ onRestart }}" style="font-family:inherit; font-size:15px; color:#BDBDBD; text-decoration:underline; text-underline-offset:3px; cursor:pointer; background:none; border:none; padding:0;">Start over</button>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+  </div>
+
+  
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;frame&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;desktop&quot;,&quot;options&quot;:[&quot;desktop&quot;,&quot;phone&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;View&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const W = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+    this.P = {
+      turner: { src: 'assets/turner.jpg', label: 'A train in the rain', tag: 'Painting' },
+      wave: { src: 'assets/wave.jpg', label: 'A wave, and a mountain', tag: 'Prints' },
+      pillars: { src: 'assets/pillars.jpg', label: 'Pillars of dust, in space', tag: 'Space' },
+      gp: { src: 'assets/vanderbilt.jpg', label: 'A road race, 1908', tag: 'Photography' },
+      jellies: { src: W + 'Haeckel%20Discomedusae%2088.jpg?width=700', label: 'Jellyfish, a natural-history plate', tag: 'Scientific illustration' },
+      deep: { src: W + 'Hubble%20ultra%20deep%20field%20high%20rez%20edit1.jpg?width=700', label: 'Ten thousand galaxies', tag: 'Space' },
+      milk: { src: W + 'Johannes%20Vermeer%20-%20Het%20melkmeisje%20-%20Google%20Art%20Project.jpg?width=700', label: 'A maid pouring milk', tag: 'The everyday' },
+      wheat: { src: W + 'Vincent%20van%20Gogh%20-%20Wheatfield%20with%20crows%20-%20Google%20Art%20Project.jpg?width=700', label: 'Crows over a wheatfield', tag: 'Landscape' },
+    };
+    this.ROOM_SETS = [['milk', 'gp', 'pillars', 'wave'], ['jellies', 'wheat', 'deep', 'turner'], ['wave', 'deep', 'milk', 'gp'], ['turner', 'jellies', 'wheat', 'pillars']];
+    this.HANDS = [['jellies', 'deep'], ['turner', 'gp'], ['wave', 'wheat']];
+    this.FEEL = [['wheat', 'milk'], ['pillars', 'jellies'], ['gp', 'turner']];
+    this.KEEP = ['milk', 'jellies', 'gp', 'wave', 'deep', 'wheat', 'turner', 'pillars', 'jellies', 'milk'];
+    this.READS = [
+      [{ kicker: 'Essay · 18 min', title: 'The case for boring buildings', dek: 'An architect argues the plain apartment block did more good than any landmark.', tag: 'Essays' },
+       { kicker: 'Curiosity · 5 min', title: 'A field guide to the garden gnomes of suburban Ohio', dek: "Rarer than you'd think.", tag: 'Curiosities' },
+       { kicker: 'Criticism · 8 min', title: 'In defence of the romance novel', dek: 'The bestselling genre nobody admits to reading.', tag: 'Criticism' },
+       { kicker: 'Archive · 2 min', title: 'Six old Japanese poems about frogs', dek: 'Seventeen syllables each, and every one is a frog.', tag: 'Archive finds' }],
+      [{ kicker: 'Essay · 12 min', title: 'Why old roads bend', dek: 'Curves are records of avoided mud, hills and property lines.', tag: 'Essays' },
+       { kicker: 'Archive · 3 min', title: 'The first photobook was made of ferns', dek: 'Anna Atkins printed algae with sunlight.', tag: 'Archive finds' },
+       { kicker: 'Science · 6 min', title: 'Crows hold grudges', dek: 'They remember faces, and warn birds that never met you.', tag: 'Animals' },
+       { kicker: 'History · 9 min', title: 'Time zones were invented by railways', dek: 'Before timetables, every town kept its own noon.', tag: 'History' }],
+    ];
+    this.PLACES = [
+      ['Japan', 'Kyoto in the rain', 'Moss gardens, wet stone, a temple bell.', '35.01° N · 135.77° E'],
+      ['Germany', 'Berlin', 'Concrete, clubs and a century of history in one street.', '52.52° N · 13.40° E'],
+      ['Ecuador', 'The Galápagos', 'Where Darwin watched the finches.', '0.95° S · 90.97° W'],
+      ['Italy', 'Venice in January', 'Fog on the lagoon, empty palazzi.', '45.44° N · 12.32° E'],
+      ['Morocco', 'Marrakech medina', 'Tiled courtyards and a thousand colours.', '31.63° N · 7.99° W'],
+      ['Argentina & Chile', 'Patagonia', 'Wind, glaciers, granite towers, no one for miles.', '50.94° S · 73.41° W'],
+      ['Japan', 'Tokyo after midnight', 'Neon, vending machines, the last trains.', '35.68° N · 139.69° E'],
+      ['Egypt', 'Luxor and the Valley of the Kings', 'Painted tombs and the desert at dawn.', '25.69° N · 32.64° E'],
+      ['Denmark', 'Copenhagen', 'Bicycles, design shops, candlelit cafés.', '55.68° N · 12.57° E'],
+      ['Romania', 'Transylvania', 'Fortified churches, beech forests, old stories.', '46.77° N · 23.59° E'],
+      ['Iceland', 'The Icelandic highlands', 'Black sand, steam, light that never quite sets.', '64.96° N · 19.02° W'],
+      ['Türkiye', 'Istanbul', 'Domes and bazaars on two continents.', '41.01° N · 28.98° E'],
+    ];
+    this.AVOID = ['Horror & gore', 'Death & skeletons', 'Anatomy & medicine', 'Insects', 'Nudity', 'War & weapons', 'Propaganda', 'Religious imagery', 'Eerie & melancholy'];
+    // step plan: intro, rooms×4, hands, feeling, keep, read, travel, avoid, bonus, reveal
+    this.STEPS = ['intro', 'rooms', 'rooms', 'rooms', 'rooms', 'hands', 'feel', 'keep', 'read', 'travel', 'avoid', 'bonus', 'reveal'];
+    this.QNUM = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10 };
+    this.state = this.fresh();
+  }
+  fresh() {
+    return { step: 0, sub: 0, cursor: null, picked: null, collected: [], kept: [], places: [], avoid: ['Horror & gore', 'Nudity'], bonus: '', levels: {} };
+  }
+
+  componentDidMount() {
+    this.onKey = (e) => {
+      const kind = this.STEPS[this.state.step];
+      const k = e.key.toLowerCase();
+      if (kind === 'intro' && (k === 'enter' || '1234'.includes(k))) return this.next();
+      const counts = { rooms: 4, read: 4, travel: this.PLACES.length, avoid: this.AVOID.length };
+      if (counts[kind] && ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(k)) {
+        e.preventDefault();
+        const n = counts[kind], c = this.state.cursor;
+        const d = (k === 'arrowleft' || k === 'arrowup') ? -1 : 1;
+        return this.setState({ cursor: c == null ? (d > 0 ? 0 : n - 1) : (c + d + n) % n });
+      }
+      if (counts[kind] && k === 'enter' && this.state.cursor != null) {
+        const c = this.state.cursor;
+        if (kind === 'rooms') return this.pickRoom(c);
+        if (kind === 'read') return this.pickRead(c);
+        if (kind === 'travel') return this.togglePlace(c);
+        if (kind === 'avoid') return this.toggleAvoid(this.AVOID[c]);
+      }
+      if (kind === 'rooms' || kind === 'read') {
+        if ('1234'.includes(k) && k.length === 1) return kind === 'rooms' ? this.pickRoom(+k - 1) : this.pickRead(+k - 1);
+        if (k === 'n') return this.next();
+      }
+      if (kind === 'hands' || kind === 'feel') {
+        if (k === 'arrowleft') return this.pickPair(0);
+        if (k === 'arrowright') return this.pickPair(1);
+        if (k === 'b') return this.pickPair(-1);
+      }
+      if (kind === 'keep') {
+        if (k === 'arrowleft') return this.keep(false);
+        if (k === 'arrowright') return this.keep(true);
+      }
+    };
+    window.addEventListener('keydown', this.onKey);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this.onKey); if (this.t) clearTimeout(this.t); }
+
+  collect(tag) {
+    this.setState(s => ({ collected: [tag, ...s.collected.filter(x => x !== tag)].slice(0, 8) }));
+  }
+  next() {
+    if (this.t) clearTimeout(this.t);
+    this.setState(s => ({ step: Math.min(s.step + 1, this.STEPS.length - 1), sub: 0, picked: null, cursor: null }));
+    const sc = document.scrollingElement; if (sc) sc.scrollTo({ top: 0 });
+  }
+  advanceSoon() { this.t = setTimeout(() => this.next(), 380); }
+  pickRoom(i) {
+    const set = this.ROOM_SETS[this.state.step - 1] || this.ROOM_SETS[0];
+    const p = this.P[set[i]]; if (!p) return;
+    this.collect(p.tag); this.setState({ picked: i }); this.advanceSoon();
+  }
+  pickPair(i) {
+    const kind = this.STEPS[this.state.step];
+    const pairs = kind === 'hands' ? this.HANDS : this.FEEL;
+    const pr = pairs[this.state.sub];
+    if (i >= 0) this.collect(this.P[pr[i]].tag);
+    if (this.state.sub < 2) this.setState(s => ({ sub: s.sub + 1, cursor: null })); else this.next();
+  }
+  keep(yes) {
+    const id = this.KEEP[this.state.sub];
+    if (yes) { this.collect(this.P[id].tag); this.setState(s => ({ kept: [...s.kept, id] })); }
+    if (this.state.sub < this.KEEP.length - 1) this.setState(s => ({ sub: s.sub + 1 })); else this.next();
+  }
+  pickRead(i) {
+    const r = this.READS[this.state.sub][i]; if (!r) return;
+    this.collect(r.tag);
+    if (this.state.sub < 1) this.setState(s => ({ sub: s.sub + 1, cursor: null })); else this.next();
+  }
+  togglePlace(i) {
+    this.setState(st => {
+      if (st.places.includes(i)) return { places: st.places.filter(x => x !== i) };
+      if (st.places.length >= 3) return null;
+      return { places: [...st.places, i] };
+    });
+  }
+  toggleAvoid(a) {
+    this.setState(st => ({ avoid: st.avoid.includes(a) ? st.avoid.filter(x => x !== a) : [...st.avoid, a] }));
+  }
+  focusStyle(on, base) {
+    return Object.assign({ cursor: 'pointer', position: 'relative', zIndex: on ? 2 : 1, transform: on ? 'scale(1.035)' : 'scale(1)',
+      transition: 'transform .35s cubic-bezier(.2,.8,.2,1)' }, base || {});
+  }
+
+  renderVals() {
+    const s = this.state;
+    const kind = this.STEPS[s.step];
+    let qf = null; try { qf = new URLSearchParams(location.search).get('frame'); } catch (e) {}
+    const phone = (qf || this.props.frame || 'desktop') === 'phone';
+    const withBg = (o) => o && Object.assign({}, o, {
+      bg: { width: '100%', aspectRatio: '4 / 5', background: o.src ? 'url("' + o.src + '") center / cover' : '#161616' },
+      bgFill: { width: '100%', height: '100%', background: o.src ? 'url("' + o.src + '") center / cover' : '#161616' },
+    });
+    const pic = (id) => withBg(this.P[id]);
+
+    const qn = s.step >= 1 && s.step <= 10 ? s.step : 0;
+    const stepLabel = kind === 'intro' ? 'Vocabulary' : kind === 'bonus' ? 'Bonus' : kind === 'reveal' ? 'Reveal' : 'Question ' + String(qn).padStart(2, '0') + ' of 10';
+
+    const roomSet = this.ROOM_SETS[Math.max(0, s.step - 1)] || this.ROOM_SETS[0];
+    const rooms = roomSet.map((id, i) => ({
+      key: id + i, num: String(i + 1), label: pic(id).label, src: pic(id).src, bg: pic(id).bg,
+      onPick: () => this.pickRoom(i),
+      onEnter: () => this.setState({ cursor: i }), onLeave: () => this.setState({ cursor: null }),
+      cardStyle: this.focusStyle(s.cursor === i),
+      frame: { outline: s.picked === i ? '1.5px solid #F2F2F2' : 'none', outlineOffset: '3px', transition: 'outline .15s ease' },
+    }));
+
+    const pairs = kind === 'feel' ? this.FEEL : this.HANDS;
+    const pr = pairs[Math.min(s.sub, 2)];
+    const pair = pr.map((id, i) => ({ key: id + i, src: pic(id).src, bg: pic(id).bg, label: pic(id).label, arrow: i === 0 ? '←' : '→', onPick: () => this.pickPair(i),
+      onEnter: () => this.setState({ cursor: i }), onLeave: () => this.setState({ cursor: null }), cardStyle: this.focusStyle(s.cursor === i) }));
+
+    const kc = pic(this.KEEP[Math.min(s.sub, this.KEEP.length - 1)]);
+
+    const readPics = [['milk', 'jellies', 'wave', 'wheat'], ['gp', 'turner', 'deep', 'pillars']][Math.min(s.sub, 1)];
+    const reads = this.READS[Math.min(s.sub, 1)].map((r, i) => ({ ...r, key: r.title, num: String(i + 1), onPick: () => this.pickRead(i),
+      onEnter: () => this.setState({ cursor: i }), onLeave: () => this.setState({ cursor: null }), cardStyle: this.focusStyle(s.cursor === i, { padding: '0 0 28px' }),
+      imgStyle: { width: '100%', aspectRatio: '4 / 3', background: 'url("' + pic(readPics[i]).src + '") center / cover', backgroundColor: '#161616' } }));
+
+    const places = this.PLACES.map(([country, place, line, coords], i) => {
+      const on = s.places.includes(i);
+      return {
+        key: place, country, place, line, coords, mark: on ? '● Chosen' : '',
+        markStyle: { color: '#F2F2F2' },
+        style: this.focusStyle(s.cursor === i, { borderTop: '1px solid ' + (on || s.cursor === i ? '#F2F2F2' : 'rgba(255,255,255,0.18)'), padding: '14px 0 24px', opacity: !on && s.places.length >= 3 ? 0.4 : 1, transformOrigin: 'left center' }),
+        onEnter: () => this.setState({ cursor: i }), onLeave: () => this.setState({ cursor: null }),
+        onToggle: () => this.setState(st => {
+          if (st.places.includes(i)) return { places: st.places.filter(x => x !== i) };
+          if (st.places.length >= 3) return null;
+          this.collect(country === 'Japan' ? 'Japan' : 'Travel');
+          return { places: [...st.places, i] };
+        }),
+      };
+    });
+
+    const avoids = this.AVOID.map((a, ai) => {
+      const on = s.avoid.includes(a);
+      return {
+        key: a, label: a,
+        onToggle: () => this.setState(st => ({ avoid: on ? st.avoid.filter(x => x !== a) : [...st.avoid, a] })),
+        style: this.focusStyle(s.cursor === ai, { fontSize: '16px', padding: '11px 16px', border: '1px solid ' + (on ? '#F2F2F2' : s.cursor === ai ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.28)'), background: on ? '#F2F2F2' : 'transparent', color: on ? '#0E0E0E' : '#E6E6E6', transform: s.cursor === ai ? 'scale(1.05)' : 'scale(1)' }),
+        onEnter: () => this.setState({ cursor: ai }), onLeave: () => this.setState({ cursor: null }),
+      };
+    });
+
+    const mapped = [
+      { topic: 'Rugs & carpets', proposed: true, why: 'Persian carpets', score: '+1.35' },
+      { topic: 'The ocean', proposed: false, why: 'lighthouses stand at the edge of it', score: '+1.05' },
+      { topic: 'Towers', proposed: true, why: 'a lighthouse is a working tower', score: '+0.90' },
+      { topic: 'Botany', proposed: false, why: 'seed catalogues', score: '+0.90' },
+      { topic: 'Advertising', proposed: false, why: 'old catalogues were how things were sold', score: '+0.75' },
+    ].map(m => ({ ...m, key: m.topic, tagStyle: ((p) => ({ display: p ? 'inline' : 'none', fontFamily: "'Geist Mono', monospace", fontSize: '9.5px', textTransform: 'uppercase', color: '#2BB24C', marginLeft: '8px' }))(m.proposed) }));
+
+    const hangIds = (s.kept.length ? s.kept : ['jellies', 'milk', 'deep', 'wheat', 'wave', 'turner']).filter((v, i, a) => a.indexOf(v) === i).slice(0, 6);
+    const hang = hangIds.map((id, i) => ({ key: id, src: pic(id).src, bg: pic(id).bg, label: pic(id).label, num: String(i + 1).padStart(2, '0') }));
+
+    const temper = [['Communal', 'People, warmth, the everyday.', 0.42], ['Aesthetic', 'Form and craft for their own sake.', 0.86], ['Dark', 'Shadow, unease, the macabre.', 0.3], ['Thrilling', 'Adventure and the fantastic.', 0.55], ['Cerebral', 'Systems, ideas, how things work.', 0.74]]
+      .map(([name, desc, v]) => ({ key: name, name, desc, bar: { position: 'absolute', left: 0, top: '-1px', height: '3px', width: Math.round(v * 100) + '%', background: '#F2F2F2' } }));
+    const compass = [['Wild', 'Built', 0.18], ['Old', 'New', 0.26], ['Quiet', 'Lively', 0.22], ['Far', 'Near', 0.2]]
+      .map(([a, b, v]) => ({ key: a, a, b, dot: { position: 'absolute', top: '-4px', left: 'calc(' + Math.round(v * 100) + '% - 4px)', width: '9px', height: '9px', borderRadius: '50%', background: '#2BB24C' } }));
+    const opened = [{ key: 'a', kicker: 'Essay · 18 min', title: 'The case for boring buildings', tone: 'argumentative' }, { key: 'b', kicker: 'Archive · 2 min', title: 'Six old Japanese poems about frogs', tone: 'light' }];
+
+    const LV = ['Off', 'A little', 'Some', 'A lot'];
+    const lvRow = (name, def, proposed, levels) => {
+      const cur = s.levels[name] || def;
+      return {
+        key: name, name, proposed: !!proposed, tagStyle: ((p) => ({ display: p ? 'block' : 'none', marginBottom: '3px', letterSpacing: '0.4px', marginLeft: 0, fontFamily: "'Geist Mono', monospace", fontSize: '9.5px', textTransform: 'uppercase', color: '#2BB24C' }))(!!proposed),
+        levels: (levels || LV).map((l, i) => ({
+          key: l, label: l,
+          onClick: () => this.setState(st => ({ levels: { ...st.levels, [name]: l } })),
+          state: cur === l ? 'on' : 'off', checked: cur === l ? 'true' : 'false',
+          style: { fontFamily: "'Geist Mono', monospace", fontSize: phone ? '9.5px' : '10.5px', textTransform: 'uppercase', padding: phone ? '9px 7px' : '9px 11px', cursor: 'pointer', whiteSpace: 'nowrap', border: 'none',
+            borderLeft: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.22)',
+            background: cur === l ? '#F2F2F2' : 'transparent', color: cur === l ? '#0E0E0E' : '#9A9A9A' },
+        })),
+      };
+    };
+    const mix = [
+      { key: 's', title: 'Subjects', rows: [lvRow('Mushrooms', 'A lot'), lvRow('Religious art', 'Some', true), lvRow('Space art', 'Some'), lvRow('Night', 'A little')] },
+      { key: 'm', title: 'Mediums & traditions', rows: [lvRow('Photography', 'A lot'), lvRow('Scientific illustration', 'Some')] },
+      { key: 'l', title: 'Looks', rows: [lvRow('Minimal', 'Some', true), lvRow('Delicate', 'A little', true)] },
+      { key: 'w', title: 'Writing', rows: [lvRow('Essays', 'Some', true)] },
+      { key: 'r', title: 'Reading mixed in', rows: [lvRow('How much writing in the feed', 'Some', false, ['None', 'A little', 'Some', 'A lot'])] },
+    ];
+    const keptOut = s.avoid.map(a => ({ key: a, label: a, onAllow: () => this.setState(st => ({ avoid: st.avoid.filter(x => x !== a) })) }));
+
+    const introSteps = [
+      { key: 'a', num: '01', text: 'Ten quick picks between pictures and pieces of writing' },
+      { key: 'b', num: '02', text: 'Anything you would rather not see' },
+      { key: 'c', num: '03', text: 'Your first exhibition, and a feed tuned to it' },
+    ];
+
+    return {
+            outerStyle: phone
+        ? { minHeight: '100vh', background: '#060606', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '40px 20px' }
+        : { minHeight: '100vh', background: '#0E0E0E' },
+      frameStyle: phone
+        ? { width: '390px', height: '844px', overflowY: 'auto', borderRadius: '44px', boxShadow: '0 0 0 8px #0A0A0A, 0 0 0 9px #333, 0 40px 80px rgba(0,0,0,0.5)', background: '#0E0E0E', paddingTop: '30px' }
+        : { minHeight: '100vh' },
+      stepLabel,
+      isIntro: kind === 'intro', isRooms: kind === 'rooms', isPair: kind === 'hands' || kind === 'feel', isKeep: kind === 'keep',
+      isRead: kind === 'read', isTravel: kind === 'travel', isAvoid: kind === 'avoid', isBonus: kind === 'bonus', isReveal: kind === 'reveal',
+      introSteps, rooms,
+      pairTitle: kind === 'feel' ? 'Same subject, a different feeling.' : 'Same subject, different hands.',
+      pairNum: String(Math.min(s.sub, 2) + 1), pair,
+      isKeepDesktop: kind === 'keep' && !phone, isKeepPhone: kind === 'keep' && phone,
+      keepHeroStyle: { width: '100%', height: 'min(72vh, 720px)', background: kc && kc.src ? 'url("' + kc.src + '") center / contain no-repeat' : '#161616' },
+      keepTicks: Array.from({ length: 10 }, (_, i) => ({ key: 'k' + i, style: { height: '2px', background: i < Math.min(s.sub, 9) ? '#F2F2F2' : i === Math.min(s.sub, 9) ? '#2BB24C' : 'rgba(255,255,255,0.16)' } })),
+      keepCard: kc, keepCount: String(Math.min(s.sub, 9) + 1).padStart(2, '0') + ' / 10',
+      reads, readSet: String(Math.min(s.sub, 1) + 1),
+      places, placeCount: String(s.places.length),
+      avoids, mapped, bonusText: s.bonus, hasMapped: s.bonus.trim().length > 2,
+      hang, temper, compass, opened, mix, keptOut,
+      showCollected: kind !== 'intro' && kind !== 'reveal',
+      collectedText: s.collected.length ? s.collected.join(' · ') : 'Your picks collect here.',
+      onNext: () => this.next(),
+      onNone: () => this.next(),
+      onBoth: () => this.pickPair(-1),
+      onKeep: () => this.keep(true),
+      onPass: () => this.keep(false),
+      onPictures: () => this.next(),
+      onShowAll: () => { this.setState({ avoid: [] }); this.next(); },
+      onBonus: (e) => this.setState({ bonus: e.target.value }),
+      onClearBonus: () => this.setState({ bonus: '' }),
+      onRestart: () => { if (this.t) clearTimeout(this.t); this.setState(this.fresh()); },
+    };
+  }
+}
+</script>
+</body>
+</html>

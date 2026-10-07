@@ -12,18 +12,18 @@ import type { FeedCard } from "~/server/services/feed";
 // Decision 1, 10-04-26): the Lift design draws this tag on every tile, and Ben kept it dev-only —
 // production tiles stay the picture and nothing else.
 //
-// Its look is the design's tag (docs/tile-hover/ambit-tile.css `.ambit-tile__tag`): 10 px medium,
-// 0.6 px tracking, ink on the screen background at 72%, 3/6/3/5 padding. On the wrapper's hover
-// or keyboard focus it fills with the accent over 200 ms — `group-hover/tile` is the same group
-// the hover strip keys on (feed-grid.tsx), and `group-has-[:focus-visible]/tile` is the keyboard
-// half of the Lift (tile-lift.ts). The fill snaps under Reduce Motion: only the wrapper itself is
-// exempt from the collapse, by design.
+// Its look is the design's tag, set in 1b's mono: 9.5 px Geist Mono, 0.4 px tracking, ink on
+// `rgba(14,14,14,.78)`, 3/6/3/5 padding. It **hides while the tile is lifted** (DESIGN §6.1) —
+// on the wrapper's hover, keyboard focus or open picker — rather than filling with accent.
+// `group-hover/tile` is the same group the hover strip keys on (feed-grid.tsx), and
+// `group-has-[:focus-visible]/tile` is the keyboard half of the Lift (tile-lift.ts). The fade
+// snaps under Reduce Motion: only the wrapper itself is exempt from the collapse, by design.
 export function DebugBadge({ card }: { card: FeedCard }) {
   if (!card.debug) return null;
   return (
     <span
       title={card.debug.why}
-      className="bg-bg/72 text-ink group-hover/tile:bg-accent group-has-[:focus-visible]/tile:bg-accent absolute top-0 left-0 py-[3px] pr-[6px] pl-[5px] text-[10px] leading-[1.3] font-medium tracking-[0.6px] transition-colors duration-200"
+      className="text-ink absolute top-0 left-0 bg-[rgba(14,14,14,0.78)] py-[3px] pr-[6px] pl-[5px] font-mono text-[9.5px] leading-[1.3] tracking-[0.4px] transition-opacity duration-200 group-hover/tile:opacity-0 group-has-[:focus-visible]/tile:opacity-0 group-has-[[data-picker-open]]/tile:opacity-0"
     >
       {card.tier}
     </span>

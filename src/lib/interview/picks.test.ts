@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SKIP } from "./config";
-import { TEST_BANK } from "./fixtures";
-import { defaultReadingAmount, picksFrom, readingAmountFrom } from "./picks";
+import { defaultReadingAmount, isStarter, picksFrom } from "./picks";
 
 const listed = (ids: string[]) => new Set(ids);
 const STARTERS = ["astronomy", "botany", "music", "geology"];
@@ -152,22 +150,32 @@ describe("picksFrom", () => {
   });
 });
 
-describe("readingAmountFrom", () => {
-  it("reads the amount question's answer", () => {
-    expect(
-      readingAmountFrom(TEST_BANK, [
-        { questionId: "reading-amount", keys: ["lot"] },
-      ]),
-    ).toBe("lot");
+describe("isStarter", () => {
+  // The reveal tags a starter top-up "Proposed" (docs/DESIGN_redesign.md §5.1): a row the reader's
+  // answers did not earn — scored nothing, or scored down and proposed anyway.
+  const scores = new Map([
+    ["botany", 1.2],
+    ["astronomy", -0.5],
+  ]);
+
+  it("is false for a pick the answers scored up", () => {
+    expect(isStarter({ topicId: "botany", weight: 1 }, scores)).toBe(false);
   });
 
-  it("is null when skipped or never asked", () => {
+  it("is true for a pick the answers never touched", () => {
+    expect(isStarter({ topicId: "music", weight: 1 }, scores)).toBe(true);
+  });
+
+  it("is true for a starter the reader scored down (the third pass)", () => {
+    expect(isStarter({ topicId: "astronomy", weight: 1 }, scores)).toBe(true);
+  });
+
+  it("marks exactly the top-ups picksFrom adds", () => {
+    const listedHere = listed(["botany", ...STARTERS]);
+    const picks = picksFrom(scores, listedHere, STARTERS);
     expect(
-      readingAmountFrom(TEST_BANK, [
-        { questionId: "reading-amount", keys: [SKIP] },
-      ]),
-    ).toBeNull();
-    expect(readingAmountFrom(TEST_BANK, [])).toBeNull();
+      picks.filter((p) => isStarter(p, scores)).map((p) => p.topicId),
+    ).toEqual(["music", "geology"]);
   });
 });
 

@@ -2,26 +2,23 @@ import * as React from "react";
 
 import { cn } from "~/lib/utils";
 
-// Onboarding's interest chip (Ambit - Onboarding.dc.html): a pill toggle whose selected state
-// swaps fill/border/text to the accent and plays the `chip-pop` squash-and-recover animation
-// (globals.css — split from the prototype's overloaded "ambitpop" name, see PHASE5_PLAN.md
-// Decision 6).
+// DESIGN_redesign §4.2. A toggle ("rather not see", Saved's filters, onboarding's pick-all).
 //
-// The `serif` prop is gone as of Phase 5.4 — the redesign uses one typeface (Sora) everywhere, so
-// there is no second family to switch into.
+//   off  transparent, a 1 px `ink/28` border, `ink/95` text. Hover or the keyboard cursor
+//        brightens the border to `ink/70` and zooms the chip 1.05 over 350 ms.
+//   on   `bg-ink` with dark text — the same "white when chosen" as the primary button.
 //
-// `size="sm"` is the Saved screen's collection filter chip (5.9, `Ambit - Saved.dc.html`): the
-// same pill at 12.5px/500 with tighter padding — and **no pop on select**. The pop belongs to
-// onboarding, where toggling a chip is the screen's one event; Saved's chips are a filter row the
-// reader flicks between, and a squash animation on every flick reads as noise. The prototype's own
-// chips transition colors only, which the shared `transition ... duration-200` already covers.
+// Square: no radius class. `aria-pressed` is strictly true/false — the old tri-state `mixed`
+// (the umbrella-group chips) and the `chip-pop` squash animation are gone, along with the
+// accent fill; the accent is only for attention now.
 //
-// `selected="mixed"` (09-25-26, the umbrella groups): a group chip on `/profile/topics` whose
-// members are only partly picked. It reads `aria-pressed="mixed"` — the tri-state a toggle button
-// is allowed — and draws as an outline in the accent, neither the filled "on" nor the grey "off".
-// No pop: nothing was just toggled, the state is a description of the members below it.
+// The zoom is Tailwind v4's `scale-*`, i.e. the standalone `scale` property, so `scale` is what
+// the transition names. `.motion-lift` (globals.css) exempts the chip from the reduced-motion
+// collapse — Ben's machines run Reduce Motion, and a 5% zoom is not what the setting targets.
+// The keyboard focus ring is global (`:focus-visible`), so nothing outline-ish is added here.
 export interface ChipProps extends React.ComponentProps<"button"> {
-  selected?: boolean | "mixed";
+  selected?: boolean;
+  /** `sm` is Saved's filter chip: 13.5 px, 8 × 12. */
   size?: "md" | "sm";
 }
 
@@ -36,18 +33,15 @@ export function Chip({
       type="button"
       aria-pressed={selected}
       className={cn(
-        "border-hairline rounded-pill inline-flex flex-none items-center leading-none font-medium whitespace-nowrap transition-[background-color,color,border-color] duration-200 select-none",
+        "motion-lift inline-flex flex-none cursor-pointer items-center border leading-none font-normal whitespace-nowrap ease-out select-none",
+        "transition-[background-color,color,border-color,scale] duration-350",
+        "hover:scale-[1.05] focus-visible:scale-[1.05]",
         size === "md"
-          ? "px-[17px] py-[11px] text-[15px]"
-          : "px-[15px] py-2 text-[12.5px]",
-        selected === "mixed"
-          ? "bg-accent/10 border-accent text-ink/82"
-          : selected
-            ? cn(
-                "bg-accent border-accent text-on-accent",
-                size === "md" && "animate-chip-pop",
-              )
-            : "bg-ink/5 border-ink/12 text-ink/82",
+          ? "px-4 py-[11px] text-[16px]"
+          : "px-3 py-2 text-[13.5px]",
+        selected
+          ? "bg-ink border-ink text-on-accent"
+          : "border-ink/28 text-ink/95 hover:border-ink/70 bg-transparent",
         className,
       )}
       {...rest}

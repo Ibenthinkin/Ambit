@@ -11,7 +11,7 @@ import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import type { ReadingAmount } from "~/server/config/reading-amount";
-import type { TasteV1 } from "~/lib/interview/taste";
+import type { Taste } from "~/lib/interview/taste";
 import { interviewAnswer, user, userTaste } from "~/server/db/schema";
 import { replaceUserTopicsTx, type TopicPick } from "~/server/db/topics";
 
@@ -26,13 +26,14 @@ export interface AnswerRow {
 
 export interface OnboardingRun {
   picks: readonly TopicPick[];
-  /** Null = the amount question was skipped: the column is left as it was. */
+  /** Null = not said (bank v2's amount question skipped, or a v3 run without the reveal's
+   *  Reading row): the column is left as it was. */
   writingAmount: ReadingAmount | null;
   answers: readonly AnswerRow[];
   bankVersion: number;
   /** What the reveal showed (docs/DESIGN_first-exhibition.md §4), validated by the router;
    *  absent from a bank-v1 client, which leaves any stored taste as it was. */
-  taste?: TasteV1;
+  taste?: Taste;
 }
 
 /**

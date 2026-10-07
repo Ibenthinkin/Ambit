@@ -111,7 +111,7 @@ describe("CollectionRow's leading slot", () => {
     expect(document.querySelector(".rounded-full")).not.toBeNull();
   });
 
-  it("renders a mosaic of the covers, ringed when current", () => {
+  it("renders a mosaic of the covers, with the 7 px dot when current", () => {
     render(
       <CollectionRow
         label="Art"
@@ -126,7 +126,11 @@ describe("CollectionRow's leading slot", () => {
     );
     const face = screen.getByTestId("cover-mosaic");
     expect(face).toHaveAttribute("data-count", "1");
-    expect(face.parentElement).toHaveClass("ring-accent");
+    expect(screen.getByTestId("current-dot")).toHaveClass(
+      "size-[7px]",
+      "bg-accent",
+    );
+    expect(face.parentElement).not.toHaveClass("ring-accent");
   });
 
   it("renders a glyph square for the pseudo-rows", () => {

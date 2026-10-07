@@ -10,15 +10,17 @@ import { extendTailwindMerge } from "tailwind-merge";
 // Registering it in tailwind-merge's built-in `border-w` group fixes the classification at the
 // one shared choke point instead of patching every call site, and correctly makes it conflict
 // with *other* width utilities (`border`, `border-t`, ...) the way any border-width class should.
-// `.bg-avatar-gradient` (Phase 5.4) has the identical problem in the background family: an
-// unrecognized `bg-<word>` class is treated as a background-*color*, so it would conflict with —
-// and be dropped next to — `bg-ink/NN`. It belongs in the `bg-image` group, which is where a
-// background-image utility actually conflicts (with `bg-none`, `bg-linear-to-*`, ...).
 const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
       "border-w": ["border-hairline"],
-      "bg-image": ["bg-avatar-gradient"],
+      // The 1b type scale's new names (globals.css `--text-*`). Unregistered, tailwind-merge reads
+      // `text-card` / `text-body` as text-COLOR utilities and drops one of a size + colour pair.
+      "font-size": [
+        {
+          text: ["display", "title", "h2", "card", "body", "eyebrow"],
+        },
+      ],
     },
   },
 });

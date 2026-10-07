@@ -13,7 +13,6 @@ import { Rise } from "~/components/ui/rise";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { Toast } from "~/components/ui/toast";
 import { Toolbar } from "~/components/ui/toolbar";
-import { avatarGradient } from "~/lib/avatar-hue";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 
@@ -63,6 +62,8 @@ export function ProfileHub({ children }: { children: React.ReactNode }) {
 
   // Prefetched by the layout, input-less — the byte-identical-input contract holds trivially.
   const me = api.user.me.useQuery();
+  // "Everything kept": the per-user total `saves.count` already serves the collections sheet.
+  const kept = api.saves.count.useQuery();
 
   const [toastText, setToastText] = React.useState<string | null>(null);
   const [collectionsOpen, setCollectionsOpen] = React.useState(false);
@@ -105,11 +106,7 @@ export function ProfileHub({ children }: { children: React.ReactNode }) {
               <span className="text-ink/40 text-center text-[14px]">
                 Couldn&apos;t load your profile.
               </span>
-              <Button
-                variant="ghost"
-                shape="pill"
-                onClick={() => void me.refetch()}
-              >
+              <Button variant="outline" onClick={() => void me.refetch()}>
                 Try again
               </Button>
             </div>
@@ -118,21 +115,22 @@ export function ProfileHub({ children }: { children: React.ReactNode }) {
           {me.data ? (
             <>
               <Rise>
-                <div className="flex items-center gap-[18px] px-5 pt-14">
-                  <AvatarChip
-                    size={88}
-                    // Deterministic from the user id — see `lib/avatar-hue.ts` for why this
-                    // isn't stored, and why there is no upload.
-                    gradient={avatarGradient(me.data.id)}
-                  />
+                <div className="flex items-center gap-[18px] px-5 pt-14 md:flex-col md:items-start md:gap-6">
+                  <AvatarChip size={88} />
                   <div className="min-w-0">
-                    <h1 className="text-ink-hi truncate text-[28px] leading-[1.1] font-semibold">
+                    <h1 className="text-ink-hi truncate text-[34px] leading-none tracking-[-0.025em] md:text-[64px]">
                       {me.data.name}
                     </h1>
-                    {/* Stored bare and lowercase; the `@` is presentation only. */}
-                    {me.data.handle ? (
-                      <p className="text-ink/45 mt-[5px] truncate text-[15px]">
-                        @{me.data.handle}
+                    {/* Stored bare and lowercase; the `@` is presentation only. The kept count
+                        is `saves.count` ("Everything kept"), shown once it has loaded. */}
+                    {me.data.handle || kept.data !== undefined ? (
+                      <p className="text-ink/55 mt-3 truncate font-mono text-[12px] tracking-[0.4px] uppercase">
+                        {[
+                          me.data.handle ? `@${me.data.handle}` : null,
+                          kept.data !== undefined ? `${kept.data} kept` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
                     ) : null}
                   </div>
@@ -140,7 +138,7 @@ export function ProfileHub({ children }: { children: React.ReactNode }) {
               </Rise>
 
               {me.data.bio ? (
-                <p className="text-ink/58 px-5 pt-[14px] text-[14.5px] leading-[1.5]">
+                <p className="text-ink/78 px-5 pt-[14px] text-[14.5px] leading-[1.5]">
                   {me.data.bio}
                 </p>
               ) : null}
@@ -162,10 +160,10 @@ export function ProfileHub({ children }: { children: React.ReactNode }) {
                   replace
                   aria-current={current ? "page" : undefined}
                   className={cn(
-                    "-mb-px shrink-0 border-b-2 pb-3 text-[14px] font-medium whitespace-nowrap transition-colors",
+                    "-mb-px shrink-0 border-b pb-3 font-mono text-[12px] tracking-[0.4px] whitespace-nowrap uppercase transition-colors",
                     current
-                      ? "border-accent text-ink-hi"
-                      : "text-ink/55 border-transparent",
+                      ? "border-ink text-ink-hi"
+                      : "text-ink/48 border-transparent",
                   )}
                 >
                   {tab.label}

@@ -7,9 +7,9 @@ import { CollectionsSheet } from "~/components/sheets/collections-sheet";
 import { InstallFlow } from "~/components/install/install-flow";
 import { ItemSheet } from "~/components/sheets/item-sheet";
 import { Button } from "~/components/ui/button";
-import { Toolbar } from "~/components/ui/toolbar";
 import { Loader } from "~/components/ui/loader";
 import { Toast } from "~/components/ui/toast";
+import { Toolbar } from "~/components/ui/toolbar";
 import { HOVER_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { saveToastText } from "~/lib/save-toast";
 import type { FeedKnobs } from "~/server/services/feed-knobs";
@@ -68,16 +68,9 @@ export interface FeedScreenProps {
   dev?: FeedDevProps;
   /** The app's own origin (`env.BETTER_AUTH_URL`) — the tile sheet's Share row builds `/i/` links. */
   appUrl: string;
-  /** The reader's first name, for `?from=` on a shared link. */
-  viewerName?: string;
 }
 
-export function FeedScreen({
-  topicLabels,
-  dev,
-  appUrl,
-  viewerName,
-}: FeedScreenProps) {
+export function FeedScreen({ topicLabels, dev, appUrl }: FeedScreenProps) {
   const router = useRouter();
   const isDev = dev !== undefined;
 
@@ -316,7 +309,7 @@ export function FeedScreen({
 
       {showEnd ? (
         <div className="flex items-center justify-center pt-5 pb-[26px]">
-          <span className="text-ink/40 text-[14px]">
+          <span className="text-ink/62 text-[14px]">
             You&apos;ve reached the edge, for now.
           </span>
         </div>
@@ -324,7 +317,7 @@ export function FeedScreen({
 
       {showEmpty ? (
         <div className="flex flex-col items-center justify-center px-8 py-24">
-          <span className="text-ink/40 text-center text-[14px]">
+          <span className="text-ink/62 text-center text-[14px]">
             Nothing here yet. Check back soon.
           </span>
         </div>
@@ -336,14 +329,14 @@ export function FeedScreen({
           be indistinguishable from an ordinary outcome. */}
       {feed.isError ? (
         <div className="flex flex-col items-center gap-4 px-8 py-24">
-          <span className="text-ink/40 text-center text-[14px]">
+          <span className="text-ink/62 flex items-center gap-2 text-center text-[14px]">
+            <span
+              aria-hidden="true"
+              className="bg-accent size-[6px] flex-none rounded-full"
+            />
             Couldn&apos;t load the feed.
           </span>
-          <Button
-            variant="ghost"
-            shape="pill"
-            onClick={() => void feed.refetch()}
-          >
+          <Button variant="outline" onClick={() => void feed.refetch()}>
             Try again
           </Button>
         </div>
@@ -397,7 +390,6 @@ export function FeedScreen({
         }
         onError={setToast}
         appUrl={appUrl}
-        viewerName={viewerName}
         onToast={setToast}
       />
 

@@ -29,7 +29,7 @@ const light = (hue: number) => `hsl(${hue} 62% 72%)`;
 const mid = (hue: number) => `hsl(${(hue + 18) % 360} 54% 46%)`;
 const deep = (hue: number) => `hsl(${(hue + 18) % 360} 40% 22%)`;
 /** The screen ground (`--color-bg`), for the cut-outs. */
-const GROUND = "#161411";
+const GROUND = "#0E0E0E";
 
 /**
  * 1. **Orbit** — the Logo's geometry made personal: the reader's gradient as a disc, with the

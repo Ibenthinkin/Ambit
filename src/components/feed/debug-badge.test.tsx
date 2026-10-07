@@ -42,22 +42,23 @@ describe("DebugBadge", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  // The design's tag (docs/tile-hover/ README "Behaviour" row "Tag"): bg → accent on the
-  // wrapper's hover or keyboard focus, over 200 ms (docs/PLAN_tile-hover.md Decision 1).
-  it("wears the design's tag look and fills with accent on the wrapper's hover/focus", () => {
+  // DESIGN §6.1: mono 9.5 px on rgba(14,14,14,.78), and it hides while the tile is lifted
+  // (hover, keyboard focus, open picker) rather than filling with accent.
+  it("wears the design's tag look and hides while the tile is lifted", () => {
     render(<DebugBadge card={card(true)} />);
     const tag = screen.getByText("DRIFT");
     expect(tag).toHaveAttribute("title", "drift from botany");
     expect(tag).toHaveClass(
-      "bg-bg/72",
+      "bg-[rgba(14,14,14,0.78)]",
       "text-ink",
-      "text-[10px]",
-      "font-medium",
-      "tracking-[0.6px]",
-      "transition-colors",
-      "duration-200",
-      "group-hover/tile:bg-accent",
-      "group-has-[:focus-visible]/tile:bg-accent",
+      "text-[9.5px]",
+      "font-mono",
+      "tracking-[0.4px]",
+      "transition-opacity",
+      "group-hover/tile:opacity-0",
+      "group-has-[:focus-visible]/tile:opacity-0",
+      "group-has-[[data-picker-open]]/tile:opacity-0",
     );
+    expect(tag.className).not.toContain("bg-accent");
   });
 });

@@ -1,13 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 
-import { Envelope, Lock } from "~/components/icons";
+import { Envelope } from "~/components/icons";
+import { useReportAuthMode } from "~/components/landing/auth-sheet";
 import { Button } from "~/components/ui/button";
+import { ERROR_HINT, Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Loader } from "~/components/ui/loader";
+import { TEXT_LINK } from "~/components/ui/text-link";
 import { authClient } from "~/lib/auth-client";
 import { cn } from "~/lib/utils";
 
@@ -28,6 +31,13 @@ const emailSchema = z.string().email();
 const INVALID_EMAIL_OR_PASSWORD = "INVALID_EMAIL_OR_PASSWORD";
 const USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL =
   "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL";
+
+// The small underlined text button the card's secondary actions share (DESIGN §4.6's link, with the
+// 44 px tap target the old ones had).
+const LINK_BUTTON = cn(
+  TEXT_LINK,
+  "-my-3 inline-flex min-h-11 items-center justify-center py-3 font-sans text-[15px]",
+);
 
 // Landing's auth card (Ambit - Landing.dc.html, PHASE5_PLAN_5.2.md) — a single client component
 // covering all four states of the real email + password flow (sign-in, invited sign-up, forgot
@@ -52,9 +62,10 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const nameId = useId();
-  const emailId = useId();
-  const passwordId = useId();
+  // The sheet's header row shows the mode (DESIGN §6.7); the forgot states have no such label.
+  useReportAuthMode(
+    mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "",
+  );
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -151,21 +162,21 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
   if (mode === "forgot-sent") {
     return (
       <div className="py-1.5 text-center">
-        <div className="border-hairline border-ink/12 bg-ink/5 mx-auto flex size-14 items-center justify-center rounded-full">
-          <Envelope size={26} className="text-accent" />
+        <div className="border-hairline border-ink/12 bg-ink/5 mx-auto flex size-14 items-center justify-center">
+          <Envelope size={26} className="text-ink" />
         </div>
-        <div className="text-ink-hi mt-[18px] text-[23px] font-semibold tracking-[-0.2px]">
+        <div className="text-ink-hi mt-[18px] text-[23px] tracking-[-0.2px]">
           Check your inbox
         </div>
         <div className="text-ink/62 mt-2 text-[15.5px] leading-[1.55]">
           We sent a password reset link to{" "}
-          <span className="text-accent">{email.trim()}</span>. It expires in an
+          <span className="text-ink">{email.trim()}</span>. It expires in an
           hour.
         </div>
         <button
           type="button"
           onClick={() => switchMode("forgot")}
-          className="text-ink/55 mt-[22px] -mb-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
+          className={cn(LINK_BUTTON, "mt-[22px] -mb-3")}
         >
           Use a different email
         </button>
@@ -182,14 +193,10 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div className="space-y-2.5">
+      <div className="space-y-[22px]">
         {mode === "signup" && (
-          <div>
-            <label htmlFor={nameId} className="sr-only">
-              Name
-            </label>
+          <Field label="Name">
             <Input
-              id={nameId}
               type="text"
               placeholder="What should we call you?"
               autoComplete="name"
@@ -199,15 +206,11 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
                 setError("");
               }}
             />
-          </div>
+          </Field>
         )}
 
-        <div>
-          <label htmlFor={emailId} className="sr-only">
-            Email
-          </label>
+        <Field label="Email">
           <Input
-            id={emailId}
             type="email"
             inputMode="email"
             placeholder="you@example.com"
@@ -218,15 +221,20 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
               setError("");
             }}
           />
-        </div>
+        </Field>
 
         {mode !== "forgot" && (
-          <div>
-            <label htmlFor={passwordId} className="sr-only">
-              Password
-            </label>
+          <Field
+            label="Password"
+            hint={
+              mode === "signup" &&
+              password.length > 0 &&
+              password.length < MIN_PASSWORD_LENGTH
+                ? "Needs 8+ characters"
+                : undefined
+            }
+          >
             <Input
-              id={passwordId}
               type="password"
               placeholder={
                 mode === "signup" ? "Password (8+ characters)" : "Password"
@@ -240,16 +248,15 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
                 setError("");
               }}
             />
-          </div>
+          </Field>
         )}
 
         <Button
           type="submit"
-          shape="rounded"
           size="lg"
           aria-busy={submitting}
           className={cn(
-            "w-full",
+            "mt-[10px] w-full",
             submitting && "pointer-events-none opacity-80",
           )}
         >
@@ -262,7 +269,9 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
         <div
           role="alert"
           data-testid="auth-error"
-          className="text-error mt-[11px] text-center font-sans text-[12.5px]"
+          // DESIGN §3.2 job 7 / §4.4: an error is the green mono hint, the same face as `Field`'s
+          // note — 1b has no red or orange.
+          className={cn(ERROR_HINT, "mt-[11px] text-center")}
         >
           {error}
         </div>
@@ -273,28 +282,32 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
           <button
             type="button"
             onClick={() => switchMode("forgot")}
-            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
+            className={LINK_BUTTON}
           >
             Forgot your password?
           </button>
         </div>
       )}
 
-      {(mode === "signin" || mode === "signup") && (
-        <div className="mt-4 flex items-center justify-center gap-[7px]">
-          <Lock size={12} className="text-ink/40" />
-          <span className="text-ink/40 text-[11.5px] tracking-[0.2px]">
+      {/* The footer row (DESIGN §6.7): the green dot and the mono promise at the left, the mode
+          switch at the right. The forgot state keeps only its way back. */}
+      <div
+        className={cn(
+          "mt-5 flex flex-wrap items-center gap-x-3 gap-y-1",
+          mode === "forgot" ? "justify-center" : "justify-between",
+        )}
+      >
+        {(mode === "signin" || mode === "signup") && (
+          <span className="text-ink/48 flex items-center gap-[7px] font-mono text-[10.5px] tracking-[0.03em] uppercase">
+            <span aria-hidden className="bg-accent size-[6px] rounded-full" />
             Invite-only · no ads, no algorithm
           </span>
-        </div>
-      )}
-
-      <div className="mt-4 text-center">
+        )}
         {mode === "signin" && (
           <button
             type="button"
             onClick={() => switchMode("signup")}
-            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
+            className={LINK_BUTTON}
           >
             First time? Create your account
           </button>
@@ -303,7 +316,7 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
           <button
             type="button"
             onClick={() => switchMode("signin")}
-            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
+            className={LINK_BUTTON}
           >
             Already have an account? Sign in
           </button>
@@ -312,7 +325,7 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
           <button
             type="button"
             onClick={() => switchMode("signin")}
-            className="text-ink/55 -my-3 inline-flex min-h-11 items-center justify-center px-3 py-3 font-sans text-[13px] font-medium"
+            className={LINK_BUTTON}
           >
             Back to sign in
           </button>

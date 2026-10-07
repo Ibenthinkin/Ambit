@@ -114,7 +114,6 @@ function renderScreen(
       initialWander={[]}
       authed
       appUrl="https://ambit.test"
-      sharedBy={null}
       {...over}
     />,
   );
@@ -273,18 +272,49 @@ describe("ItemScreen", () => {
       expect(screen.queryByTestId("bottom-sheet-panel")).toBeNull();
     });
 
-    it("a mouse moving over the picture brings it up too", () => {
+    // Decision 7 (docs/DESIGN_redesign.md): a phone's chrome comes up past 24 px of scroll and
+    // then stays — scrolling back up is not a tap.
+    it("a scroll past 24 px brings it up, and it stays when the page scrolls back", () => {
       renderScreen();
-      act(
-        () =>
-          void track().dispatchEvent(
-            pointer("pointermove", 10, 10, { pointerType: "mouse" }),
-          ),
-      );
-      expect(screen.getByTestId("gallery-chrome")).toHaveAttribute(
-        "aria-hidden",
-        "false",
-      );
+      const chrome = screen.getByTestId("gallery-chrome");
+      const scrollTo = (y: number) => {
+        Object.defineProperty(window, "scrollY", {
+          value: y,
+          configurable: true,
+        });
+        act(() => void fireEvent.scroll(window));
+      };
+      scrollTo(24);
+      expect(chrome).toHaveAttribute("aria-hidden", "true");
+      scrollTo(25);
+      expect(chrome).toHaveAttribute("aria-hidden", "false");
+      scrollTo(0);
+      expect(chrome).toHaveAttribute("aria-hidden", "false");
+      // A tap still puts it away.
+      tap();
+      expect(chrome).toHaveAttribute("aria-hidden", "true");
+    });
+
+    // Review focus 6 (docs/PLAN_redesign.md): the phone's tap through `useRailGestures` is the
+    // only toggle. A pinch — and the pan a finger left down after it starts — is never read as
+    // one, or the chrome would come up over a picture being inspected.
+    it("a pinch, and the pan after it, never toggle the chrome", () => {
+      const restore = sizeThePicture();
+      try {
+        renderScreen();
+        const chrome = screen.getByTestId("gallery-chrome");
+        two("pointerdown", 1, 150, 400);
+        two("pointerdown", 2, 250, 400);
+        two("pointermove", 1, 100, 400);
+        two("pointermove", 2, 300, 400); // ×2
+        two("pointerup", 2, 300, 400);
+        expect(chrome).toHaveAttribute("aria-hidden", "true");
+        two("pointermove", 1, 130, 400); // the finger left down pans
+        two("pointerup", 1, 130, 400);
+        expect(chrome).toHaveAttribute("aria-hidden", "true");
+      } finally {
+        restore();
+      }
     });
 
     // The phone regression this guards: after a tap the browser fires compatibility *mouse*
@@ -297,6 +327,7 @@ describe("ItemScreen", () => {
       act(
         () => void fireEvent.mouseMove(track(), { clientX: 12, clientY: 12 }),
       );
+      act(() => void fireEvent.mouseMove(window, { clientX: 13, clientY: 13 }));
       send("pointermove", 14, 14); // pointerType "touch"
       expect(screen.getByTestId("gallery-chrome")).toHaveAttribute(
         "aria-hidden",
@@ -312,6 +343,75 @@ describe("ItemScreen", () => {
         "aria-hidden",
         "true",
       );
+    });
+  });
+
+  // Decision 7, the computer half: any input wakes it and restarts a 2.6 s idle timer; the timer
+  // is the only thing that hides it.
+  describe("chrome on a computer", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      stubMatchMedia([DESKTOP_QUERY]);
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    });
+    const chrome = () => screen.getByTestId("gallery-chrome");
+    const idle = (ms: number) => act(() => void vi.advanceTimersByTime(ms));
+
+    it("a mouse move wakes it, and 2.6 s of nothing hides it again", () => {
+      renderScreen();
+      expect(chrome()).toHaveAttribute("aria-hidden", "true");
+      act(() => void fireEvent.mouseMove(window, { clientX: 10, clientY: 10 }));
+      expect(chrome()).toHaveAttribute("aria-hidden", "false");
+      expect(screen.getByTestId("rail-toolbar")).toHaveAttribute(
+        "aria-hidden",
+        "false",
+      );
+      idle(2600);
+      expect(chrome()).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it.each([
+      ["a key", () => fireEvent.keyDown(window, { key: "Shift" })],
+      ["a wheel", () => fireEvent.wheel(window)],
+      ["a scroll", () => fireEvent.scroll(window)],
+      ["a touch", () => fireEvent.touchStart(window)],
+    ])("%s wakes it too", (_name, input) => {
+      renderScreen();
+      act(() => void input());
+      expect(chrome()).toHaveAttribute("aria-hidden", "false");
+    });
+
+    it("takes every wake listener off the window when it unmounts", () => {
+      const removed = vi.spyOn(window, "removeEventListener");
+      const { unmount } = renderScreen();
+      unmount();
+      const types = removed.mock.calls.map(([type]) => type);
+      for (const type of [
+        "mousemove",
+        "keydown",
+        "wheel",
+        "touchstart",
+        "scroll",
+      ])
+        expect(types).toContain(type);
+    });
+
+    it("a tap wakes it and never hides it", () => {
+      renderScreen();
+      tap();
+      expect(chrome()).toHaveAttribute("aria-hidden", "false");
+      tap();
+      expect(chrome()).toHaveAttribute("aria-hidden", "false");
+    });
+
+    it("an arrow key's new picture keeps it up — the key is input", () => {
+      renderScreen();
+      key("ArrowRight");
+      expect(heading()).toHaveTextContent("Plate r0");
+      expect(chrome()).toHaveAttribute("aria-hidden", "false");
     });
   });
 
@@ -480,11 +580,6 @@ describe("ItemScreen", () => {
       expect(pill).toHaveAttribute("aria-hidden", "true");
     });
   });
-
-  it("names the sharer when the link carried one", () => {
-    renderScreen({ sharedBy: "Mara" });
-    expect(screen.getByText(/Mara/)).toBeInTheDocument();
-  });
 });
 
 // `/explore` (09-26-26): a signed-out visitor who came from the explore feed gets a capped rail
@@ -587,14 +682,9 @@ describe("spread mode", () => {
 
   const spreadOn = () => localStorage.setItem(HERO_LAYOUT_KEY, "spread");
   /** The rail fades with the chrome, so the toggle is found the way a reader finds it: a mouse
-   *  moving over the picture brings it up. */
+   *  moving over the page brings it up. */
   const toggle = () => {
-    act(
-      () =>
-        void track().dispatchEvent(
-          pointer("pointermove", 10, 10, { pointerType: "mouse" }),
-        ),
-    );
+    act(() => void fireEvent.mouseMove(window, { clientX: 10, clientY: 10 }));
     return screen.getByRole("button", { name: "Magazine view" });
   };
   /** Summon first, click after: summoning inside the click's `act` would batch the summon's
@@ -672,7 +762,7 @@ describe("spread mode", () => {
     );
   });
 
-  it("a click on the focused page toggles the chrome, as a tap always has", () => {
+  it("a click on the focused page wakes the chrome, as any input does on a computer", () => {
     spreadOn();
     renderScreen();
     tapAt(200);

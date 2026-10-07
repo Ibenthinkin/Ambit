@@ -75,8 +75,58 @@ describe("globals.css keyframes survive the Tailwind build", () => {
       readFileSync(from, "utf8"),
       { from },
     );
-    expect(out.css).toContain("0 22px 44px");
+    expect(out.css).toContain("0 14px 34px");
     expect(out.css).toContain("--ease-lift");
     expect(out.css).toContain("--color-focus-ring");
+  }, 60_000);
+
+  // Task 1.4: one base rule gives every control a keyboard ring; the tile's utility overrides only
+  // the offset because utilities are a later layer than base.
+  it("emits the base keyboard-focus ring", async () => {
+    const from = join(__dirname, "globals.css");
+    const out = await postcss([tailwind()]).process(
+      readFileSync(from, "utf8"),
+      { from },
+    );
+    expect(out.css).toMatch(/:focus-visible\s*\{[^}]*outline-offset:\s*3px/);
+    expect(out.css).toMatch(/:focus-visible\s*\{[^}]*outline:\s*2px solid/);
+  }, 60_000);
+
+  // The 1b tokens (docs/DESIGN_redesign.md 3.1, 3.4). Tailwind emits a theme variable only when a
+  // utility uses it, so this proves the tokens are declared and emitted (not that every use is correct).
+  it("emits the 1b surfaces, dialog/popover shadows and the mono face", async () => {
+    const from = join(__dirname, "globals.css");
+    const out = await postcss([tailwind()]).process(
+      readFileSync(from, "utf8"),
+      { from },
+    );
+    for (const token of [
+      "--color-dialog",
+      "--color-card",
+      "--shadow-dialog",
+      "--shadow-popover",
+      "--font-mono",
+    ]) {
+      expect(out.css).toContain(token);
+    }
+  }, 60_000);
+});
+
+// One accent (redesign Task 1.3). The knob was deleted from `@theme inline` and the plain-`@theme`
+// replacement was initially forgotten, so `bg-accent` & co. resolved to nothing and no test noticed.
+// Tailwind emits a theme variable only when something uses it, so the probe rule below references
+// all three — then the compiled output must carry the real values.
+describe("globals.css accent tokens", () => {
+  it("defines accent, on-accent and a focus ring that is the accent", async () => {
+    const from = join(__dirname, "globals.css");
+    const probe =
+      ".probe{color:var(--color-accent);background:var(--color-on-accent);outline-color:var(--color-focus-ring)}";
+    const out = await postcss([tailwind()]).process(
+      readFileSync(from, "utf8") + probe,
+      { from },
+    );
+    expect(out.css).toMatch(/--color-accent:\s*#2bb24c/i);
+    expect(out.css).toMatch(/--color-on-accent:\s*#0e0e0e/i);
+    expect(out.css).toMatch(/--color-focus-ring:\s*var\(--color-accent\)/);
   }, 60_000);
 });

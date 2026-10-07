@@ -94,12 +94,28 @@ export function exhibitionSubtitle(
   wingLabels: readonly string[],
   mediumLabels: readonly string[],
 ): string {
-  const sentences: string[] = [];
-  if (wingLabels.length > 0)
-    sentences.push(`${capitalised(joinAnd(wingLabels.map(inSentence)))}.`);
-  if (mediumLabels.length > 0)
-    sentences.push(`Mostly ${joinAnd(mediumLabels.map(inSentence))}.`);
-  return sentences.join(" ");
+  const { wings, mostly } = exhibitionSubtitleParts(wingLabels, mediumLabels);
+  return [wings, mostly].filter(Boolean).join(" ");
+}
+
+/**
+ * The subtitle's two sentences apart — the reveal sets the "Mostly …" half in italics
+ * (docs/DESIGN_redesign.md §5.3 item 3). Each is "" when it has nothing to say.
+ */
+export function exhibitionSubtitleParts(
+  wingLabels: readonly string[],
+  mediumLabels: readonly string[],
+): { wings: string; mostly: string } {
+  return {
+    wings:
+      wingLabels.length > 0
+        ? `${capitalised(joinAnd(wingLabels.map(inSentence)))}.`
+        : "",
+    mostly:
+      mediumLabels.length > 0
+        ? `Mostly ${joinAnd(mediumLabels.map(inSentence))}.`
+        : "",
+  };
 }
 
 /** "You like something short" at or under this mean; "a long read" at or over LONG_READER_MIN. */
@@ -118,8 +134,8 @@ export const KIND_WENT_FOR: Readonly<Record<WritingKind, string>> = {
  * What the reading cards said, in one sentence: how long a read (only when the mean is clearly
  * long or short) and which kinds, in the order they were opened — "You like a long read, and you
  * went for essays and criticism." A reader who opened neither card gets "You’d rather look than
- * read." and no promise about how much writing follows: that is the amount question's answer,
- * which they may have set to anything.
+ * read." and no promise about how much writing follows: that is the reveal's Reading row,
+ * which replaced bank v2's amount question, and they may have set it to anything.
  */
 export function readingSummary(taste: {
   opened: readonly { kind: WritingKind }[];

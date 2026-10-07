@@ -33,7 +33,7 @@ export function CollectionsTab() {
       <div
         data-testid="collections-grid"
         className={cn(
-          "grid gap-4 px-5 pt-[18px] pb-[120px]",
+          "grid gap-x-5 gap-y-10 px-5 pt-7 pb-[120px]",
           GRID_COLS[columnCount],
         )}
       >

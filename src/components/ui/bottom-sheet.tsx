@@ -5,8 +5,8 @@ import * as React from "react";
 import { DESKTOP_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { cn } from "~/lib/utils";
 
-// The shared bottom-sheet shell: a 22px-top-radius panel sliding up from the bottom over a blurred
-// scrim. Closes on scrim click or Escape. Every sheet in the app is this shell plus content —
+// The shared bottom-sheet shell: a square panel sliding up from the bottom over a flat black/60
+// scrim (no blur — redesign 1b, DESIGN §4.5). Closes on scrim click or Escape. Every sheet in the app is this shell plus content —
 // save-to-collection, the pill's collections list, share (all 5.5), and the feed's long-press item
 // sheet (5.6).
 //
@@ -25,7 +25,7 @@ import { cn } from "~/lib/utils";
 // All three are additive and off by default: every 5.5/5.6 call site passes none of them and
 // behaves exactly as it did.
 //
-// Phase 5.4 note: `animate-sheet-up` resolves to the redesign's snappier 260ms `sheetup` curve. The
+// Phase 5.4 note: `animate-sheet-up` resolves to the redesign's snappier 240ms `sheetup` curve. The
 // longer 400ms travel this component originally used lives on as `animate-sheet-gallery`, reserved
 // for the gallery details modal (5.8).
 //
@@ -33,7 +33,12 @@ import { cn } from "~/lib/utils";
 // contextual menu, not an arriving surface, so it lifts and fades instead of sliding — but it is
 // otherwise this same shell, which is the whole point of putting the difference in one prop rather
 // than forking the component. `variant` (5.8) is the same idea one level up: it decides the panel's
-// *skin* — radius, height cap, border, shadow, and which animation pair applies.
+// *skin* — height cap, border, shadow, and which animation pair applies.
+//
+// Redesign Phase 2 (Task 2.5, DESIGN §4.5) squared all of it: no radius anywhere, a 1 px `ink/20`
+// top border in place of the sheet's shadow, a 3 px grabber, and the `title` became a mono header
+// row with a hairline under it. The popover is 340 px on `rgba(18,18,18,.94)` + a 20 px blur, the
+// desktop dialog sits on `bg-dialog` with `--shadow-dialog`. Behaviour is untouched.
 
 /**
  * Matched to each variant's exit animation, plus a little slack — `--animate-sheet-down` runs 260ms,
@@ -43,6 +48,10 @@ import { cn } from "~/lib/utils";
  * leaves a scrim swallowing every tap on the page.
  */
 const EXIT_MS = { pill: 300, gallery: 360 } as const;
+
+/** The header row's mono label (title and Close): §3.3's 10.5 px caps with +0.4 px tracking. */
+const HEADER_LABEL =
+  "text-ink font-mono text-[10.5px] tracking-[0.4px] uppercase";
 
 /** Past this much downward travel, releasing closes the sheet instead of snapping back. */
 const DRAG_CLOSE_PX = 56;
@@ -75,8 +84,22 @@ const SNAP = "transform .3s cubic-bezier(.22,.61,.36,1)";
 export interface BottomSheetProps {
   open: boolean;
   onClose: () => void;
-  /** Centered title, Sora 600 15px — every sheet in the design has one. */
+  /**
+   * The sheet's header: a left-aligned Geist Mono caps row (10.5 px) with an `ink/14` hairline
+   * under it (DESIGN §4.5). It is also the dialog's accessible name.
+   */
   title?: string;
+  /**
+   * A mono figure at the right of the header row, beside `title` (the save picker's collection
+   * count, "07"). Ignored when `closeLabel` is given — the two share the slot.
+   */
+  titleAside?: string;
+  /**
+   * For the sheets with no grabber (anything that is not dragged away): puts a "Close" button, in
+   * ink, at the right of the header row, and the value is the button's label. Omit it where the
+   * grabber, the scrim and Escape are enough.
+   */
+  closeLabel?: string;
   children: React.ReactNode;
   /**
    * Caps the panel height, with the caller's content doing the scrolling. The save sheet's list is
@@ -87,7 +110,7 @@ export interface BottomSheetProps {
   /**
    * How the panel arrives and leaves.
    *
-   * - `"sheet"` (default) — the 260ms slide up from off-screen. Every 5.5 sheet.
+   * - `"sheet"` (default) — the 240ms slide up from off-screen. Every 5.5 sheet.
    * - `"menu"` — a 200ms lift-and-fade. The feed's long-press sheet (5.6) is a *contextual menu*
    *   summoned by a finger already resting on the thing it acts on; sliding a whole surface up
    *   from the bottom overstates that. Same shell, same scrim, same keyboard contract — only the
@@ -97,12 +120,12 @@ export interface BottomSheetProps {
   /**
    * The panel's skin, and which animation pair applies.
    *
-   * - `"pill"` (default) — the 22px-radius surface every pill-summoned sheet uses. `animation`
-   *   still chooses between the slide and the menu lift.
-   * - `"gallery"` (5.8) — the immersive gallery's details sheet: a deeper 26px radius, a longer
-   *   400ms travel, a heavier shadow, and a darker scrim, because it opens over a full-bleed
-   *   picture on a near-black ground rather than over a page. `animation` is ignored here — the
-   *   gallery pair is the variant.
+   * - `"pill"` (default) — the square surface every pill-summoned sheet uses, divided from the
+   *   page by its top border alone. `animation` still chooses between the slide and the menu lift.
+   * - `"gallery"` (5.8) — the immersive gallery's details sheet: a longer 400ms travel and a
+   *   heavier shadow, because it opens over a full-bleed picture on a near-black ground rather
+   *   than over a page. `animation` is ignored here — the gallery pair is the variant. (Its 26 px
+   *   radius went with the rest, DESIGN §4.5.)
    */
   variant?: "pill" | "gallery";
   /**
@@ -145,30 +168,29 @@ const ANIMATIONS = {
   dialog: { in: "animate-dialog-in", out: "animate-dialog-out" },
 } as const;
 
-// Per-variant panel styling. The gallery values are the prototype's own, inlined here rather than
-// promoted to tokens: the 26px radius is deliberately *not* `--radius-sheet`'s 22 (a bigger surface
-// over a darker ground wants a deeper corner), and a one-off doesn't earn a theme name.
+// Per-variant panel styling. The pill sheet has no shadow at all (its 1 px top border does the
+// dividing); the gallery keeps its one-off heavier shadow, inlined rather than promoted to a token
+// because a one-off doesn't earn a theme name.
 const PANEL = {
-  pill: "rounded-t-sheet border-ink/12 shadow-sheet",
-  gallery:
-    "rounded-t-[26px] border-ink/12 shadow-[0_-12px_50px_rgba(0,0,0,0.5)] overscroll-contain",
+  pill: "",
+  gallery: "shadow-[0_-12px_50px_rgba(0,0,0,0.5)] overscroll-contain",
 } as const;
 
-// Above `md` the panel stops being a sheet: 520px, centered both ways, every corner rounded at
-// the sheet radius, a full hairline border rather than a top one. `md:inset-auto` clears the
+// Above `md` the panel stops being a sheet: 520px, centered both ways, on `bg-dialog` with
+// `--shadow-dialog`, a full 1 px border rather than a top one. `md:inset-auto` clears the
 // phone's `inset-x-0 bottom-0` before the `left/top` pair re-anchors it. `overscroll-contain`
 // so a wheel at the end of the rows doesn't scroll the page underneath.
 const PANEL_DESKTOP =
-  "md:inset-auto md:left-1/2 md:top-1/2 md:w-[520px] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-sheet md:border md:overscroll-contain";
+  "md:inset-auto md:left-1/2 md:top-1/2 md:w-[520px] md:-translate-x-1/2 md:-translate-y-1/2 md:border md:bg-dialog md:shadow-dialog md:overscroll-contain";
 
 // The desktop **popover** (docs/DESIGN_chrome-redesign.md §2, decision 5): with an `anchor` the
 // panel stops being a centred dialog and floats beside the control that opened it — left of a
-// rail button, under a tile's collection pill. 360px wide, the sheet radius, a full hairline
-// border, the *menu* animation pair (a lift-and-fade; a dialog's scale would read as arriving
+// rail button, under a tile's collection pill. 340px wide, 94% near-black over a 20px blur, a full
+// 1 px `ink/16` border, `--shadow-popover`, the *menu* animation pair (a lift-and-fade; a dialog's scale would read as arriving
 // from nowhere). Position is inline, computed by `popoverStyle` from the anchor's rect.
-export const POPOVER_W = 360;
+export const POPOVER_W = 340;
 const PANEL_POPOVER =
-  "md:inset-auto md:w-[360px] md:rounded-sheet md:border md:overscroll-contain";
+  "md:inset-auto md:w-[340px] md:border md:border-ink/16 md:bg-[rgba(18,18,18,0.94)] md:backdrop-blur-[20px] md:shadow-popover md:overscroll-contain";
 
 const POPOVER_GAP = 14; // between a rail button and its panel
 const BELOW_GAP = 8; // between a tile pill and its picker
@@ -242,6 +264,8 @@ export function BottomSheet({
   open,
   onClose,
   title,
+  titleAside,
+  closeLabel,
   children,
   maxHeightPct = 80,
   animation = "sheet",
@@ -340,10 +364,13 @@ export function BottomSheet({
     // No `offsetParent`-style visibility filter here: it reports `null` for everything in jsdom
     // (which has no layout engine), which would silently empty this list under test while working
     // in a browser — the worst of both. Sheets don't render hidden controls, so the selector alone
-    // is enough.
+    // is enough. `tabindex="-1"` buttons are *not* tabbable, so they are left out: a roving-tabindex
+    // radiogroup (`Segmented`) has one tabbable radio, and counting its unchecked siblings would
+    // make the trap think a later one is the sheet's edge, so Tab from the checked radio would
+    // walk out of the dialog instead of on to the next control.
     const focusablesIn = (root: HTMLElement) => [
       ...root.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        'a[href], button:not([disabled]):not([tabindex="-1"]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       ),
     ];
 
@@ -554,7 +581,7 @@ export function BottomSheet({
           "absolute inset-0",
           // Decision 5: a popover's scrim is an invisible click-catcher. The page stays fully
           // visible; click-outside, Escape and the focus trap all still work through it.
-          !anchored && "bg-scrim/66 backdrop-blur-[3px]",
+          !anchored && "bg-scrim/60",
           !anchored && (leaving ? "animate-scrim-out" : "animate-scrim-in"),
         )}
       />
@@ -581,27 +608,45 @@ export function BottomSheet({
           // `overflow-y-auto` as a floor: the collection sheets scroll their own row list (which
           // keeps the grabber and title pinned), but a sheet with free-form children taller than
           // the cap would otherwise spill out of the rounded panel and paint over the scrim.
-          "border-hairline bg-surface absolute inset-x-0 bottom-0 flex flex-col overflow-y-auto border-t pt-2 pb-[26px] outline-none",
+          // The 1 px top border is `border-t` alone: `.border-hairline` sets all four sides, which
+          // would box the phone sheet. `PANEL_DESKTOP`/`PANEL_POPOVER` add the other three at `md`.
+          "bg-surface border-ink/20 absolute inset-x-0 bottom-0 flex flex-col overflow-y-auto border-t pt-2 pb-[26px] outline-none",
           PANEL[variant],
           anchored ? PANEL_POPOVER : PANEL_DESKTOP,
           leaving ? ANIMATIONS[pair].out : ANIMATIONS[pair].in,
         )}
       >
-        {/* Grabber. 36×4 at the redesign's own 0.18 alpha, left off the text/border/fill ladder
-            (which has no "solid indicator bar" category to normalize this into). Decorative on
+        {/* Grabber (absent when `closeLabel` stands in for it). 36×3, square, a flat #444 (DESIGN §4.5) — left off the text/border/fill ladder,
+            which has no "solid indicator bar" category to normalize it into. Decorative on
             every sheet but the gallery's, which passes `dragToClose` and makes it mean what it
             looks like — the whole top {@link GRAB_ZONE_PX}px of the panel is the handle, not just
             these four pixels. */}
-        <div className="flex shrink-0 flex-col items-center py-4 md:hidden">
-          <div className="rounded-pill bg-ink/18 h-1 w-9" />
-        </div>
-        {title ? (
-          <h2
-            id={titleId}
-            className="text-ink-hi shrink-0 px-[18px] pb-3 text-center text-[15px] font-semibold"
-          >
-            {title}
-          </h2>
+        {closeLabel ? null : (
+          <div className="flex shrink-0 flex-col items-center py-4 md:hidden">
+            <div className="h-[3px] w-9 bg-[#444]" />
+          </div>
+        )}
+        {/* The header row (DESIGN §4.5): a mono title at the left, an optional ink "Close" at the
+            right, an `ink/14` hairline under both. It exists when either is given. */}
+        {title || closeLabel || titleAside ? (
+          <div className="border-ink/14 flex shrink-0 items-center justify-between gap-4 border-b px-[18px] pb-3">
+            {title ? (
+              <h2 id={titleId} className={HEADER_LABEL}>
+                {title}
+              </h2>
+            ) : (
+              <span />
+            )}
+            {closeLabel ? (
+              <button type="button" onClick={onClose} className={HEADER_LABEL}>
+                {closeLabel}
+              </button>
+            ) : titleAside ? (
+              <span className="text-ink/55 font-mono text-[10.5px] tracking-[0.4px]">
+                {titleAside}
+              </span>
+            ) : null}
+          </div>
         ) : null}
         {/* Horizontal padding is deliberately NOT on the shell: the save/collections sheets need
             edge-to-edge scrolling rows, so each sheet's content owns its own insets — matching the

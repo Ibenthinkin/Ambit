@@ -58,7 +58,7 @@ describe("BottomSheet", () => {
     expect(screen.getByText("Details")).toBeInTheDocument();
   });
 
-  it("renders a centered title when given one", () => {
+  it("renders a left-aligned mono header row under a hairline when given a title", () => {
     render(
       <BottomSheet open onClose={vi.fn()} title="Save to collection">
         <p>Details</p>
@@ -67,6 +67,64 @@ describe("BottomSheet", () => {
     expect(
       screen.getByRole("heading", { name: "Save to collection" }),
     ).toBeInTheDocument();
+    const title = screen.getByRole("heading", { name: "Save to collection" });
+    expect(title).toHaveClass("font-mono", "uppercase");
+    expect(title).not.toHaveClass("text-center");
+    expect(title.parentElement).toHaveClass("border-b", "border-ink/14");
+  });
+
+  it("puts a Close button at the right of the header row when given a closeLabel", () => {
+    const onClose = vi.fn();
+    render(
+      <BottomSheet open onClose={onClose} title="Share" closeLabel="Close">
+        <p>Details</p>
+      </BottomSheet>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops the grabber when a closeLabel stands in for it", () => {
+    const { container, rerender } = render(
+      <BottomSheet open onClose={vi.fn()} title="Share">
+        <p>Details</p>
+      </BottomSheet>,
+    );
+    expect(
+      container.ownerDocument.querySelector(".bg-\\[\\#444\\]"),
+    ).not.toBeNull();
+    rerender(
+      <BottomSheet open onClose={vi.fn()} title="Share" closeLabel="Close">
+        <p>Details</p>
+      </BottomSheet>,
+    );
+    expect(
+      container.ownerDocument.querySelector(".bg-\\[\\#444\\]"),
+    ).toBeNull();
+  });
+
+  it("has no header row, and no Close, without a title or closeLabel", () => {
+    render(
+      <BottomSheet open onClose={vi.fn()}>
+        <p>Details</p>
+      </BottomSheet>,
+    );
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("is a square sheet: top border, no shadow, no radius, a flat scrim without blur", () => {
+    render(
+      <BottomSheet open onClose={vi.fn()}>
+        <p>Details</p>
+      </BottomSheet>,
+    );
+    const panel = screen.getByTestId("bottom-sheet-panel");
+    expect(panel).toHaveClass("bg-surface", "border-t", "border-ink/20");
+    expect(panel.className).not.toMatch(/rounded|shadow-sheet/);
+    const scrim = screen.getByTestId("bottom-sheet-scrim");
+    expect(scrim).toHaveClass("bg-scrim/60");
+    expect(scrim.className).not.toMatch(/blur/);
   });
 
   it("calls onClose when the scrim is clicked", () => {
@@ -397,7 +455,8 @@ describe("BottomSheet", () => {
       );
       const panel = screen.getByTestId("bottom-sheet-panel");
       expect(panel).toHaveClass("animate-sheet-gallery");
-      expect(panel).toHaveClass("rounded-t-[26px]");
+      // Square now (DESIGN §4.5): the gallery's 26 px top radius went with every other radius.
+      expect(panel.className).not.toMatch(/rounded/);
 
       rerender(
         <BottomSheet open={false} onClose={vi.fn()} variant="gallery">
@@ -676,7 +735,7 @@ describe("above md — a centered dialog", () => {
   beforeEach(() => stubMatchMedia([DESKTOP_QUERY]));
   afterEach(() => vi.unstubAllGlobals());
 
-  it("is 520px, centered, rounded on every corner, and arrives by the dialog pair", () => {
+  it("is 520px, centered, square on bg-dialog with the dialog shadow, and arrives by the dialog pair", () => {
     render(
       <BottomSheet open onClose={vi.fn()} title="Save to collection">
         <p>Rows</p>
@@ -689,9 +748,12 @@ describe("above md — a centered dialog", () => {
       "md:top-1/2",
       "md:-translate-x-1/2",
       "md:-translate-y-1/2",
-      "md:rounded-sheet",
+      "md:border",
+      "md:bg-dialog",
+      "md:shadow-dialog",
       "animate-dialog-in",
     );
+    expect(panel.className).not.toMatch(/rounded/);
     expect(panel).not.toHaveClass("animate-sheet-up");
   });
 
@@ -821,11 +883,18 @@ describe("BottomSheet — anchored (desktop popover)", () => {
     const panel = screen.getByTestId("bottom-sheet-panel");
     expect(panel.style.right).toBe("92px");
     expect(panel.style.top).toBe("450px");
-    expect(panel).toHaveClass("md:w-[360px]", "animate-menu-rise");
+    expect(panel).toHaveClass(
+      "md:w-[340px]",
+      "md:border-ink/16",
+      "md:backdrop-blur-[20px]",
+      "md:shadow-popover",
+      "animate-menu-rise",
+    );
+    expect(panel.className).not.toMatch(/rounded/);
     expect(panel).not.toHaveClass("md:left-1/2");
     const scrim = screen.getByTestId("bottom-sheet-scrim");
-    expect(scrim).not.toHaveClass("bg-scrim/66");
-    expect(scrim).not.toHaveClass("backdrop-blur-[3px]");
+    expect(scrim).not.toHaveClass("bg-scrim/60");
+    expect(scrim.className).not.toMatch(/blur/);
   });
 
   it("still closes on the invisible scrim and on Escape", () => {
@@ -852,6 +921,6 @@ describe("BottomSheet — anchored (desktop popover)", () => {
       "md:left-1/2",
       "animate-dialog-in",
     );
-    expect(screen.getByTestId("bottom-sheet-scrim")).toHaveClass("bg-scrim/66");
+    expect(screen.getByTestId("bottom-sheet-scrim")).toHaveClass("bg-scrim/60");
   });
 });

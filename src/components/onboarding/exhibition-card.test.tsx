@@ -48,11 +48,14 @@ describe("ExhibitionCard", () => {
     expect(
       screen.getByRole("heading", { name: "Quiet Weathers" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Land, sea & sky, growing things and creatures. Mostly photography and engraving.",
-      ),
-    ).toBeInTheDocument();
+    const subtitle = screen.getByText(/^Land, sea & sky, growing things/);
+    expect(subtitle).toHaveTextContent(
+      "Land, sea & sky, growing things and creatures. Mostly photography and engraving.",
+    );
+    // The "Mostly …" half in italics (DESIGN_redesign §5.3 item 3).
+    expect(subtitle.querySelector("em")).toHaveTextContent(
+      "Mostly photography and engraving.",
+    );
     expect(
       screen.getByRole("group", { name: "Temperament" }),
     ).toHaveTextContent("Aesthetic");
@@ -72,6 +75,22 @@ describe("ExhibitionCard", () => {
       ),
     ).toBeInTheDocument();
   });
+  it("puts the plus pole on the left: +1 is the left end of the line", () => {
+    render(
+      <ExhibitionCard
+        taste={{ ...taste, compass: { wild: 1, old: -1, still: 0, far: 0.5 } }}
+        topicLabels={labels}
+      />,
+    );
+    const dot = (pole: string) =>
+      screen
+        .getByText(pole, { selector: "[data-on]" })
+        .parentElement!.querySelector<HTMLElement>(".bg-accent")!.style.left;
+    expect(dot("Wild")).toBe("0%");
+    expect(dot("Old")).toBe("100%");
+    expect(dot("Quiet")).toBe("50%");
+    expect(dot("Far")).toBe("25%");
+  });
   it("sets the pole the reader leans to in ink and leaves the other grey", () => {
     render(
       <ExhibitionCard
@@ -82,11 +101,12 @@ describe("ExhibitionCard", () => {
         topicLabels={labels}
       />,
     );
-    const on = (name: string) => screen.getByText(name).getAttribute("data-on");
+    const on = (name: string) =>
+      screen.getByText(name, { selector: "[data-on]" }).getAttribute("data-on");
     expect([on("Wild"), on("Built")]).toEqual(["true", "false"]);
     expect([on("Old"), on("New")]).toEqual(["false", "true"]);
     // Inside the threshold neither pole is claimed — as the sentence claims neither.
-    expect([on("Still"), on("Lively")]).toEqual(["false", "false"]);
+    expect([on("Quiet"), on("Lively")]).toEqual(["false", "false"]);
   });
   it("omits the compass and the opened block when there is nothing to show", () => {
     render(
@@ -121,6 +141,37 @@ describe("ExhibitionCard", () => {
     expect(screen.queryByText(/You like/)).toBeNull();
     expect(
       screen.getByText("You went for essays and the archive."),
+    ).toBeInTheDocument();
+  });
+  it("hangs nothing for a v1 taste, and the hang it is given otherwise", () => {
+    const { rerender } = render(
+      <ExhibitionCard taste={taste} topicLabels={labels} />,
+    );
+    expect(screen.queryByRole("list", { name: "Hung pictures" })).toBeNull();
+    rerender(
+      <ExhibitionCard
+        taste={taste}
+        topicLabels={labels}
+        hang={[
+          { itemId: "a", src: "/api/img/a", title: "One" },
+          { itemId: "b", src: "/api/img/b", title: "Two" },
+        ]}
+      />,
+    );
+    expect(
+      screen.getByRole("list", { name: "Hung pictures" }).children,
+    ).toHaveLength(2);
+  });
+  it("is the page's heading on the reveal and a section's on the profile", () => {
+    const { rerender } = render(
+      <ExhibitionCard taste={taste} topicLabels={labels} headingLevel="h1" />,
+    );
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Quiet Weathers" }),
+    ).toBeInTheDocument();
+    rerender(<ExhibitionCard taste={taste} topicLabels={labels} />);
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Quiet Weathers" }),
     ).toBeInTheDocument();
   });
 });

@@ -22,7 +22,7 @@
 // **Memoised in-process for ten minutes**, like the landing's pool: a dozen small rows, and a
 // sign-up costs no query. An empty result is never remembered, so the first ingest shows up on
 // the next visit rather than ten minutes later.
-import { imageSrc } from "~/lib/image-src";
+import { cardSrc } from "~/lib/image-src";
 import { QUESTIONS } from "~/lib/interview/bank";
 import {
   faceKey,
@@ -44,13 +44,6 @@ export { faceKey, type QuestionFace, type QuestionFaces };
 export const FACES_TTL_MS = 10 * 60 * 1000;
 /** Two per topic — the spare is what a pair falls back to when its sides share a top picture. */
 const PER_TOPIC = 2;
-
-/** A card is at most half a desktop screen wide, so the closed-set 960 px rendition (see
- *  services/image-cache.ts) is plenty; the e2e corpus's inline `data:` pixels pass through. */
-function faceSrc(id: string, imageUrl: string): string {
-  const src = imageSrc(id, imageUrl);
-  return src.startsWith("data:") ? src : `${src}?w=960`;
-}
 
 /** How many articles to fetch per kind — enough to find a short and a long one. */
 const PER_KIND = 6;
@@ -123,7 +116,8 @@ async function build(bank: readonly Question[]): Promise<QuestionFaces> {
       used.add(c.id);
       faces[faceKey(q.id, o.key)] = {
         itemId: c.id,
-        ...(c.imageUrl ? { src: faceSrc(c.id, c.imageUrl) } : {}),
+        ...(c.imageUrl ? { src: cardSrc(c.id, c.imageUrl) } : {}),
+        title: c.title,
         writing: {
           title: c.title,
           dek: dekOf(c.summary),
@@ -149,7 +143,8 @@ async function build(bank: readonly Question[]): Promise<QuestionFaces> {
     used.add(choice.id);
     faces[faceKey(q.id, o.key)] = {
       itemId: choice.id,
-      src: faceSrc(choice.id, choice.imageUrl),
+      src: cardSrc(choice.id, choice.imageUrl),
+      title: choice.title,
     };
   }
   return faces;

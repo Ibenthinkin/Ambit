@@ -229,9 +229,9 @@ test.describe.serial("settings", () => {
       page.getByText(/^(Astronomy, Botany, Music|[^,]+, [^,]+, [^,]+ \+\d+)$/),
     ).toBeVisible({ timeout: 15_000 });
 
-    // The row is a link to /profile/topics: the questionnaire's reveal, kept (10-02-26) — one
-    // flat list of the reader's topics, each with a level, and a search box to add one. No facet
-    // sections and no group chips any more.
+    // The row is a link to /profile/topics: the questionnaire's reveal, kept (10-02-26) — the
+    // reader's topics under facet headings (DESIGN_redesign decision 3), each with a level, and
+    // a search box to add one. No group chips.
     await page.getByText("What you see").click();
     await page.waitForURL("/profile/topics");
     await expect(
@@ -249,7 +249,7 @@ test.describe.serial("settings", () => {
     await expect(page.getByRole("group", { name: "Maps level" })).toBeVisible();
     await savedMaps;
 
-    // A second, from what used to be another facet. Ceramics, not a grown topic: CI's database
+    // A second, from another facet heading. Ceramics, not a grown topic: CI's database
     // is `db:migrate` + `db:seed`, the sixteen config topics and nothing else. That grown topics
     // are acceptable to `setMine` is pinned by routers.integration.test.ts.
     const savedCeramics = waitForSetMine(page);
@@ -263,10 +263,10 @@ test.describe.serial("settings", () => {
 
     // A level is its own, smaller write. A topic added by name arrives at "a lot".
     await expect(
-      ceramics.getByRole("button", { name: "a lot", pressed: true }),
+      ceramics.getByRole("radio", { name: "a lot", checked: true }),
     ).toBeVisible();
     const savedLevel = waitForSetWeight(page);
-    await ceramics.getByRole("button", { name: "a little" }).click();
+    await ceramics.getByRole("radio", { name: "a little" }).click();
     await savedLevel;
 
     // Every change saved as it happened — no Done button to press, so a reload is the proof.
@@ -274,7 +274,7 @@ test.describe.serial("settings", () => {
     await expect(
       page
         .getByRole("group", { name: "Ceramics level" })
-        .getByRole("button", { name: "a little", pressed: true }),
+        .getByRole("radio", { name: "a little", checked: true }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("group", { name: "Maps level" })).toBeVisible();
 
@@ -297,7 +297,7 @@ test.describe.serial("settings", () => {
     );
     await page
       .getByRole("dialog", { name: "Reading" })
-      .getByRole("button", { name: "A lot" })
+      .getByRole("radio", { name: "A lot" })
       .click();
     await savedReading;
     await expect(reading).toContainText("A lot");
@@ -307,12 +307,8 @@ test.describe.serial("settings", () => {
       { timeout: 15_000 },
     );
 
-    // Appearance: the knob applies live, and survives a reload via layout.tsx's inline script.
-    await page.getByText("Appearance").click();
-    await page.getByText("Amber").click();
-    await expect(page.locator("html")).toHaveAttribute("data-accent", "amber");
-    await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("data-accent", "amber");
+    // The accent knob is retired (one colour) — there is no Appearance row to find.
+    await expect(page.getByText("Appearance")).toHaveCount(0);
 
     // A stub says so rather than showing an invented value.
     await page.getByText("Serendipity").click();

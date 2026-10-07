@@ -27,7 +27,7 @@ export interface SaveToCollectionSheetProps {
   open: boolean;
   onClose: () => void;
   itemId: string;
-  /** Which collection the item is in right now, if any — drives the accent dot. */
+  /** Which collection the item is in right now, if any — drives the 7 px dot. */
   currentCollectionId?: string;
   /**
    * The slot the card was served under, when opened from a feed tile — the save bumps it
@@ -37,7 +37,7 @@ export interface SaveToCollectionSheetProps {
   /**
    * Called after a successful save. Carries the id as well as the name because the caller almost
    * always needs both: the name to toast with, and the id to move its own `currentCollectionId` to
-   * so reopening the sheet shows the accent dot on the right row. `drift` (Phase 6.1) is what the
+   * so reopening the sheet shows the 7 px dot on the right row. `drift` (Phase 6.1) is what the
    * save just taught the feed — null on a move between collections — so callers can build the
    * combined toast via `saveToastText`.
    */
@@ -112,6 +112,11 @@ export function SaveToCollectionSheet({
       anchor={anchor}
       placement={placement}
       title="Save to collection"
+      titleAside={
+        collections.data
+          ? String(collections.data.length).padStart(2, "0")
+          : undefined
+      }
       maxHeightPct={72}
     >
       {collections.isLoading ? (

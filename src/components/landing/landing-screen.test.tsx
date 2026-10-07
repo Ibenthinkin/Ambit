@@ -177,7 +177,7 @@ describe("LandingScreen — cycle", () => {
     expect(currentId()).toBe(showing);
   });
 
-  it("is a centered 520px card above md, transparent and inert when closed", async () => {
+  it("is a centered, square 520px card above md, transparent and inert when closed", async () => {
     await renderScreen();
     expect(sheet()).toHaveClass(
       "md:inset-auto",
@@ -185,8 +185,11 @@ describe("LandingScreen — cycle", () => {
       "md:top-1/2",
       "md:w-[520px]",
       "md:-translate-x-1/2",
-      "md:rounded-[28px]",
     );
+    // 1b is square-cornered (DESIGN §3.4): neither the phone sheet nor the desktop card rounds.
+    expect(sheet().className).not.toMatch(/rounded/);
+    // DESIGN §6.7: the dialog surface, a full border and the dialog shadow at md.
+    expect(sheet()).toHaveClass("bg-dialog", "md:border", "md:shadow-dialog");
     expect(sheet()).toHaveClass("md:opacity-0", "md:pointer-events-none");
   });
 

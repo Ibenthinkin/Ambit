@@ -7,11 +7,8 @@ import type { FeedCard } from "~/server/services/feed";
 import { buildTiles, GRID_COLS, packColumns } from "~/components/feed/masonry";
 import { cameToSavedFromApp } from "~/components/saved/saved-origin";
 import { CollectionsSheet } from "~/components/sheets/collections-sheet";
-import { Bookmark, ChevronLeft } from "~/components/icons";
 import { Button } from "~/components/ui/button";
 import { Column } from "~/components/ui/column";
-import { GlassHeader } from "~/components/ui/glass-header";
-import { IconButton } from "~/components/ui/icon-button";
 import { Toolbar } from "~/components/ui/toolbar";
 import { Rise } from "~/components/ui/rise";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
@@ -121,24 +118,19 @@ export function SavedScreen() {
 
   return (
     <main className="bg-bg text-ink min-h-dvh">
-      <GlassHeader width="wide" className="flex-col items-stretch">
-        <div className="flex items-center gap-3">
-          <IconButton size={34} aria-label="Back to feed" onClick={leaveSaved}>
-            <ChevronLeft size={16} />
-          </IconButton>
-          <div>
-            <h1 className="text-ink-hi text-[26px] leading-none font-semibold">
-              Saved
-            </h1>
-            <p className="text-ink/45 mt-[5px] text-[12px] tracking-[0.15px]">
-              {countLine(total)}
-            </p>
-          </div>
-        </div>
+      {/* A title block that scrolls with the page (DESIGN §6.6, decision 15): no sticky bar, no
+          back chevron — the toolbar's Feed is the way out. Same scale as the profile's name. */}
+      <Column width="wide" className="px-5 pt-14">
+        <h1 className="text-ink-hi text-[34px] leading-none tracking-[-0.025em] md:text-[64px]">
+          Saved
+        </h1>
+        <p className="text-ink/55 mt-3 font-mono text-[12px] tracking-[0.4px] uppercase">
+          {countLine(total)}
+        </p>
         {/* The chips only exist once there is something to filter — the empty state below owns
             the whole zero-saves screen, chips included. */}
         {total > 0 ? (
-          <div className="mt-4">
+          <div className="mt-5">
             <CollectionChips
               collections={collections.data ?? []}
               total={total}
@@ -146,7 +138,7 @@ export function SavedScreen() {
             />
           </div>
         ) : null}
-      </GlassHeader>
+      </Column>
 
       {/* The desktop cap: the feed's column and column count (docs/DESIGN_list-screens.md §6).
           Until 09-12-26 this was `narrow` and two columns at every width, on the reasoning that four
@@ -165,11 +157,7 @@ export function SavedScreen() {
             <span className="text-ink/40 text-center text-[14px]">
               Couldn&apos;t load your saved things.
             </span>
-            <Button
-              variant="ghost"
-              shape="pill"
-              onClick={() => void list.refetch()}
-            >
+            <Button variant="outline" onClick={() => void list.refetch()}>
               Try again
             </Button>
           </div>
@@ -178,19 +166,16 @@ export function SavedScreen() {
         {showEmpty ? (
           <Rise>
             <div className="flex flex-col items-center px-10 py-[90px]">
-              <div className="border-hairline bg-ink/5 border-ink/10 flex size-[66px] items-center justify-center rounded-full">
-                {/* Outline, not filled — nothing is kept yet, so the glyph shows the affordance
-                  rather than a state. */}
-                <Bookmark size={28} className="text-accent" />
-              </div>
-              <h2 className="text-ink-hi mt-[22px] text-[23px] font-semibold">
-                Nothing kept yet
-              </h2>
+              <h2 className="text-ink-hi text-[24px]">Nothing kept yet</h2>
               <p className="text-ink/55 mt-[9px] max-w-[250px] text-center text-[15px] leading-[1.5]">
                 Tap the bookmark on anything that catches you. It&apos;ll wait
                 for you here — no rush, no expiry.
               </p>
-              <Button className="mt-[26px]" onClick={leaveSaved}>
+              <Button
+                variant="outline"
+                className="mt-[26px]"
+                onClick={leaveSaved}
+              >
                 Back to exploring
               </Button>
             </div>
@@ -208,11 +193,11 @@ export function SavedScreen() {
         ) : null}
 
         {/* The feed's own masonry geometry, verbatim: independent stacks, `items-start` so a short
-          column doesn't stretch. `pt-2` tucks the first row right under the sticky header. */}
+          column doesn't stretch. `pt-6` sets the wall off from the title block. */}
         <div
           data-testid="saved-columns"
           className={cn(
-            "grid items-start gap-1 px-1 pt-2",
+            "grid items-start gap-1 px-1 pt-6",
             GRID_COLS[columnCount],
           )}
         >

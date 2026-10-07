@@ -3,25 +3,28 @@
 import * as React from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 
 import { ExhibitionCard } from "~/components/onboarding/exhibition-card";
 import { useProfileHub } from "~/components/profile/profile-hub";
-import { TopicLevels } from "~/components/topics/topic-levels";
+import { levelRowOrder, TopicLevels } from "~/components/topics/topic-levels";
+import { Button } from "~/components/ui/button";
+import { Eyebrow } from "~/components/ui/eyebrow";
+import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Rise } from "~/components/ui/rise";
+import { TextLink } from "~/components/ui/text-link";
 import { pickWeight, weightOf } from "~/server/config/topic-levels";
 import { api } from "~/trpc/react";
 
 // /profile/topics — the Topics tab of the Profile hub, after the questionnaire (10-02-26,
 // docs/PLAN_onboarding-questionnaire.md §4). It is the questionnaire's reveal, kept: the same
-// flat list of the reader's topics, each at *a little · some · a lot · off*, plus a search box to
+// level rows of the reader's topics, each at *a little · some · a lot · off*, plus a search box to
 // add one and a link to answer the questions again. Every change saves at once — no Done button,
 // no confirmation, an optimistic `topics.mine` so the reader sees the result before the server.
 //
-// What it no longer has: four facet sections and umbrella-group chips. Facets and groups are how
-// the code files topics (and what the questionnaire's answers are written in); a reader never
-// sees either. Finding a topic is the search box's job now.
+// The rows sit under facet headings again (DESIGN_redesign decision 3, 10-06-26) — `TopicLevels`
+// draws them, shared with the reveal. What it still does not have is umbrella-group chips:
+// finding a topic is the search box's job.
 //
 // Two writes:
 //   - `setWeight` — a level change. One row, snapped to the level's canonical weight.
@@ -57,9 +60,6 @@ const WRITE_SCOPE = { id: "topics.setMine" };
 /** How many search results to offer — a short list to choose from, not a second browse page. */
 const MAX_RESULTS = 8;
 
-const EYEBROW =
-  "text-accent font-sans text-[11px] font-semibold tracking-[1.8px] uppercase";
-
 /**
  * Label search over `topics`, minus what's already picked: case-insensitive, anywhere in the
  * label, with labels that *start* with the words first ("bo" → Books, Botany before any "…bo…"),
@@ -92,10 +92,40 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
   const taste = api.topics.taste.useQuery();
   const [query, setQuery] = React.useState("");
 
+  // Where keyboard focus goes when a row is switched off. The "off" cell unmounts with its row,
+  // which would drop focus to <body> and strand a keyboard reader at the top of the page.
+  // `removed` is the topic just switched off; `target` is the row to land on (the next one, or
+  // the previous if it was last) or "search" when nothing is left. An effect finishes the job
+  // once the row has actually left the list (the removal is optimistic, a tick later).
+  const focusAfterRemoval = React.useRef<{
+    removed: string;
+    target: string;
+  } | null>(null);
+  const addSectionRef = React.useRef<HTMLElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
+
   // Every current pick, topic id → weight.
   const picks = new Map((mine.data ?? []).map((p) => [p.topicId, p.weight]));
-  const all = (topics.data ?? []).map((t) => ({ id: t.id, label: t.label }));
+  const all = (topics.data ?? []).map((t) => ({
+    id: t.id,
+    label: t.label,
+    facet: t.facet,
+  }));
   const results = searchTopics(all, new Set(picks.keys()), query);
+
+  // Finish the focus hand-off above once the removed row has actually left `picks`.
+  React.useEffect(() => {
+    const pending = focusAfterRemoval.current;
+    if (!pending || picks.has(pending.removed)) return;
+    focusAfterRemoval.current = null;
+    const el =
+      pending.target === "search"
+        ? addSectionRef.current?.querySelector<HTMLElement>("input")
+        : listRef.current?.querySelector<HTMLElement>(
+            `[data-topic="${pending.target}"] [role="radio"][aria-checked="true"]`,
+          );
+    el?.focus();
+  });
 
   /** Refetch `topics.mine` — unless another write is still queued behind this one (file header).
    *  `isMutating` counts mutations whose status is `pending`, and TanStack Query flips a mutation
@@ -168,41 +198,28 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
 
   return (
     // Left-aligned at the list measure inside the hub's wide column (docs/DESIGN_list-screens.md
-    // §6) — a plain div, not `Column`, which centres.
-    <div className="md:max-w-[600px]">
+    // §6) — a plain div, not `Column`, which centres. 720 px is DESIGN_redesign §6.5's.
+    <div className="md:max-w-[720px]">
       <Rise>
-        <p className="text-ink/62 px-5 pt-5 text-[15px] leading-[1.5]">
-          {picks.size} on. Changes save as you go.
+        <p className="text-ink px-5 pt-8 text-[24px] leading-[1.35] tracking-[-0.01em]">
+          <span>{picks.size} on.</span>{" "}
+          <span className="text-ink/62 italic">Changes save as you go.</span>
         </p>
       </Rise>
 
-      {/* The reader's first exhibition, as the reveal showed it; a retake replaces it. */}
-      {taste.data && (
-        <Rise>
-          <div className="px-5 pt-5">
-            <ExhibitionCard
-              taste={taste.data}
-              topicLabels={new Map(all.map((t) => [t.id, t.label]))}
-            />
-          </div>
-        </Rise>
-      )}
-
       {/* Add — a search over every pickable topic the reader doesn't have yet. */}
       <Rise delayMs={60}>
-        <section className="px-5 pt-7">
-          <label htmlFor="topics-search" className={EYEBROW}>
-            Add a topic
-          </label>
-          <Input
-            id="topics-search"
-            type="search"
-            value={query}
-            placeholder="Search — film, maps, the sea…"
-            autoComplete="off"
-            className="mt-3"
-            onChange={(e) => setQuery(e.target.value)}
-          />
+        <section ref={addSectionRef} className="px-5 pt-10">
+          <Field label="Add a topic">
+            <Input
+              size="lg"
+              type="search"
+              value={query}
+              placeholder="Search — film, maps, the sea…"
+              autoComplete="off"
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </Field>
           {query.trim() !== "" && (
             <div aria-live="polite" className="pt-3">
               {results.length === 0 ? (
@@ -213,18 +230,18 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
                 <ul className="flex flex-wrap gap-[10px]">
                   {results.map((t) => (
                     <li key={t.id}>
-                      <button
-                        type="button"
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => {
                           // Naming one topic by itself is a strong signal — `pickWeight(1)`,
                           // "a lot" — and the level is one tap away if that is too much.
                           commit(new Map(picks).set(t.id, pickWeight(1)));
                           setQuery("");
                         }}
-                        className="border-hairline rounded-pill border-ink/12 bg-ink/5 text-ink/82 px-[17px] py-[11px] text-[15px] leading-none font-medium"
                       >
                         Add {t.label}
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -234,19 +251,44 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
         </section>
       </Rise>
 
+      {/* The reader's first exhibition, as the reveal showed it; a retake replaces it.
+          Below the search, as DESIGN_redesign §6.5 orders the screen. */}
+      {taste.data && (
+        <Rise delayMs={90}>
+          <div className="px-5 pt-10">
+            <ExhibitionCard
+              taste={taste.data}
+              hang={taste.data.hang}
+              topicLabels={new Map(all.map((t) => [t.id, t.label]))}
+            />
+          </div>
+        </Rise>
+      )}
+
       {/* Tune or drop. `onLevel` is a direct `setWeight` — it never changes *which* topics are
           picked; `onOff` removes the row through the floor-checked `commit`. */}
       <Rise delayMs={120}>
-        <section aria-labelledby="topics-mine" className="px-5 pt-7">
-          <p id="topics-mine" className={EYEBROW}>
+        <section aria-labelledby="topics-mine" className="px-5 pt-11">
+          {/* An h2, so the facet headings (h3) under it don't skip a level. */}
+          <Eyebrow as="h2" id="topics-mine" className="block text-[11px]">
             Your topics
-          </p>
-          <div className="pt-4">
+          </Eyebrow>
+          <div ref={listRef} className="pt-6">
             <TopicLevels
               topics={all}
               picks={picks}
               onLevel={(topicId, level) => setWeight.mutate({ topicId, level })}
               onOff={(topicId) => {
+                // Choose the focus target from the list as drawn (by heading, then label —
+                // `levelRowOrder` is TopicLevels' own order) before the row goes. The
+                // last-topic floor refuses in `commit`; the effect then never sees the row
+                // leave, so nothing moves.
+                const order = levelRowOrder(all, picks);
+                const i = order.indexOf(topicId);
+                focusAfterRemoval.current = {
+                  removed: topicId,
+                  target: order[i + 1] ?? order[i - 1] ?? "search",
+                };
                 const next = new Map(picks);
                 next.delete(topicId);
                 commit(next);
@@ -257,14 +299,11 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
       </Rise>
 
       <Rise delayMs={180}>
-        <p className="text-ink/62 px-5 pt-7 text-[15px] leading-[1.5]">
+        <p className="text-ink/62 px-5 pt-10 text-[15px] leading-[1.5]">
           Want to start over?{" "}
-          <Link
-            href="/onboarding?retake=1"
-            className="text-accent underline underline-offset-2"
-          >
+          <TextLink href="/onboarding?retake=1" tone="body">
             Retake the questions
-          </Link>
+          </TextLink>
         </p>
       </Rise>
 
@@ -273,7 +312,7 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
           <button
             type="button"
             onClick={() => resetWeights.mutate()}
-            className="border-hairline rounded-pill border-ink/18 text-ink h-[40px] px-5 text-[13px]"
+            className="border-hairline border-ink/18 text-ink h-[40px] px-5 text-[13px]"
           >
             Reset weights
           </button>

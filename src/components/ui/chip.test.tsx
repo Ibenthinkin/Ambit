@@ -4,17 +4,55 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Chip } from "./chip";
 
+// DESIGN_redesign §4.2: square, ink-filled when on, a cursor zoom of 1.05 over 350 ms, no
+// `mixed` state and no pop animation.
 describe("Chip", () => {
-  it("applies different classes for selected vs unselected", () => {
-    render(<Chip selected>On</Chip>);
+  it("is an outline with a 28% border when off", () => {
     render(<Chip>Off</Chip>);
-
-    const on = screen.getByRole("button", { name: "On" });
     const off = screen.getByRole("button", { name: "Off" });
+    expect(off).toHaveClass("border-ink/28", "text-ink/95", "bg-transparent");
+    expect(off).toHaveClass("hover:border-ink/70");
+    expect(off).not.toHaveClass("bg-ink");
+  });
 
-    expect(on.className).not.toBe(off.className);
-    expect(on).toHaveClass("bg-accent");
-    expect(off).toHaveClass("bg-ink/5");
+  it("fills with ink and takes dark text when on", () => {
+    render(<Chip selected>On</Chip>);
+    const on = screen.getByRole("button", { name: "On" });
+    expect(on).toHaveClass("bg-ink", "border-ink", "text-on-accent");
+    expect(on).not.toHaveClass("bg-accent");
+  });
+
+  it("is square: no radius class at all", () => {
+    render(<Chip selected>Square</Chip>);
+    expect(screen.getByRole("button").className).not.toMatch(/rounded/);
+  });
+
+  it("zooms 1.05 over 350 ms on hover and keyboard focus, and keeps easing under Reduce Motion", () => {
+    render(<Chip>Zoom</Chip>);
+    const chip = screen.getByRole("button", { name: "Zoom" });
+    expect(chip).toHaveClass(
+      "hover:scale-[1.05]",
+      "focus-visible:scale-[1.05]",
+      "duration-350",
+      "ease-out",
+      "motion-lift",
+    );
+    // Tailwind v4's scale-* is the standalone `scale` property, so that is what transitions.
+    expect(chip.className).toMatch(/transition-\[[^\]]*\bscale\b/);
+  });
+
+  it("has no pop animation, selected or not, at either size", () => {
+    render(
+      <>
+        <Chip selected>A</Chip>
+        <Chip selected size="sm">
+          B
+        </Chip>
+      </>,
+    );
+    for (const b of screen.getAllByRole("button")) {
+      expect(b.className).not.toMatch(/animate-chip-pop/);
+    }
   });
 
   it("fires its click handler", () => {
@@ -24,38 +62,32 @@ describe("Chip", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  // The 5.9 size variant: Saved's filter chips are the same pill, smaller — and deliberately
-  // without the onboarding pop on select (see the component's header comment).
-  it("renders the small variant's sizing classes", () => {
-    render(<Chip size="sm">Articles</Chip>);
-    const chip = screen.getByRole("button", { name: "Articles" });
-    expect(chip).toHaveClass("px-[15px]", "py-2", "text-[12.5px]");
-  });
-
-  it("reports pressed state on a selected small chip without playing the pop", () => {
+  it("sizes: md is 16 px with 11 x 16 padding, sm is 13.5 px with 8 x 12", () => {
     render(
-      <Chip size="sm" selected>
-        Art
-      </Chip>,
+      <>
+        <Chip>Medium</Chip>
+        <Chip size="sm">Small</Chip>
+      </>,
     );
-    render(<Chip selected>Onboarding</Chip>);
-
-    const sm = screen.getByRole("button", { name: "Art" });
-    expect(sm).toHaveAttribute("aria-pressed", "true");
-    expect(sm).not.toHaveClass("animate-chip-pop");
-    // The default size keeps it — proof the suppression is the variant's, not a regression.
-    expect(screen.getByRole("button", { name: "Onboarding" })).toHaveClass(
-      "animate-chip-pop",
+    expect(screen.getByRole("button", { name: "Medium" })).toHaveClass(
+      "px-4",
+      "py-[11px]",
+      "text-[16px]",
+    );
+    expect(screen.getByRole("button", { name: "Small" })).toHaveClass(
+      "px-3",
+      "py-2",
+      "text-[13.5px]",
     );
   });
 
-  // Replaced the old serif-variant test in Phase 5.4: the `serif` prop is gone (the redesign has
-  // one typeface), so the meaningful thing left to assert about the toggle is that it reports its
-  // state to assistive tech, which the onboarding grid depends on.
-  it("reports its toggle state via aria-pressed", () => {
-    render(<Chip selected>On</Chip>);
-    render(<Chip>Off</Chip>);
-
+  it("reports its toggle state via aria-pressed, only ever true or false", () => {
+    render(
+      <>
+        <Chip selected>On</Chip>
+        <Chip>Off</Chip>
+      </>,
+    );
     expect(screen.getByRole("button", { name: "On" })).toHaveAttribute(
       "aria-pressed",
       "true",

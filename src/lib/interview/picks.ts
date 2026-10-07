@@ -3,15 +3,7 @@ import { groupOf } from "~/server/config/topic-groups";
 import { weightOf, type Level } from "~/server/config/topic-levels";
 import type { ReadingAmount } from "~/server/config/reading-amount";
 
-import {
-  GROUP_CAP,
-  LOT_FROM,
-  MAX_PICKS,
-  MIN_PICKS,
-  SKIP,
-  SOME_FROM,
-} from "./config";
-import type { Answer, Question } from "./types";
+import { GROUP_CAP, LOT_FROM, MAX_PICKS, MIN_PICKS, SOME_FROM } from "./config";
 
 /** The shape `onboarding.complete` and `topics.setMine` take. */
 export interface Pick {
@@ -81,31 +73,31 @@ export function picksFrom(
   return picks;
 }
 
-/** The level the `amount` question's answer stores — null if it was skipped or never asked,
- *  which leaves `user.writing_amount` NULL and the feed on its default. */
-export function readingAmountFrom(
-  bank: readonly Question[],
-  answers: readonly Answer[],
-): ReadingAmount | null {
-  for (const q of bank) {
-    if (q.kind !== "amount") continue;
-    const a = answers.find((x) => x.questionId === q.id);
-    if (!a || a.keys[0] === SKIP) return null;
-    return q.options.find((o) => o.key === a.keys[0])?.reading ?? null;
-  }
-  return null;
+/**
+ * Is this pick a starter top-up rather than something the answers earned? True when the reader's
+ * scores gave its topic nothing positive — the second and third passes of `picksFrom` above. The
+ * reveal tags such a row "Proposed" (docs/DESIGN_redesign.md §5.1).
+ *
+ * Read off the scores, not off which pass added it, so it needs no extra field on `Pick` and
+ * stays true after the reader edits a level. (A positively scored starter that the group cap kept
+ * out of the first pass and a later pass let in reads as earned — it was.)
+ */
+export function isStarter(
+  pick: Pick,
+  scores: ReadonlyMap<string, number>,
+): boolean {
+  return !((scores.get(pick.topicId) ?? 0) > 0);
 }
 
 /** A long read, for the reading default and the reveal's "You like a long read". */
 export const LONG_READ_MINUTES = 12;
 
 /**
- * What the `amount` question opens on when the reader has already said something about reading
- * by opening (or declining) the article cards (docs/DESIGN_first-exhibition.md §2): both
- * declined → none; one opened → a little; two → some, or a lot when both were long reads. Null
- * when no reading question was reached, so the question opens blank as it did in v1. The screen
- * preselects this as the amount question's draft; the reader can change it, and what is stored
- * is still the amount question's answer.
+ * What the reveal's "Reading mixed in" row opens on, read off the article cards
+ * (docs/DESIGN_first-exhibition.md §2; the row is docs/DESIGN_redesign.md §5.1's — bank v2 asked
+ * it as a question): both declined → none; one opened → a little; two → some, or a lot when both
+ * were long reads. Null when no reading question was reached. The reader can change it, and what
+ * is stored is the row's value.
  */
 export function defaultReadingAmount(
   opened: readonly { minutes: number }[],

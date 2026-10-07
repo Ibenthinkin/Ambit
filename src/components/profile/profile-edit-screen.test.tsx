@@ -269,11 +269,14 @@ describe("ProfileEditScreen", () => {
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
   });
 
-  // Inside the hub's wide column (docs/DESIGN_list-screens.md §6) the form sits left-aligned at
-  // the list measure. One cap, not two: there is no header of its own any more.
-  it("caps itself at the list measure, once", () => {
+  // DESIGN_redesign §6.5: from `md` the avatar and the fields sit in two columns, the fields
+  // capped at 560 px.
+  it("lays out as 1fr / 2fr from md, the fields capped at 560", () => {
     renderScreen();
-    expect(document.querySelectorAll(".md\\:max-w-\\[600px\\]")).toHaveLength(
+    expect(
+      document.querySelectorAll(".md\\:grid-cols-\\[1fr_2fr\\]"),
+    ).toHaveLength(1);
+    expect(document.querySelectorAll(".md\\:max-w-\\[560px\\]")).toHaveLength(
       1,
     );
   });

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;1,400&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0E0E0E; }
+    a { color: #E6E6E6; text-decoration: underline; text-underline-offset: 3px; }
+    a:hover { color: #FFFFFF; }
+    input, textarea { font: inherit; }
+    input::placeholder, textarea::placeholder { color: #5A5A5A; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; background:#0E0E0E; color:#E6E6E6; font-family:'Hanken Grotesk', sans-serif; padding:0 120px 120px;">
+  <div style="max-width:1080px; margin:0 auto;">
+
+
+    <div style="display:flex; align-items:center; gap:28px; padding:72px 0 48px;">
+      <span style="width:88px; height:88px; border-radius:50%; background:#2A2A2A; flex-shrink:0;"></span>
+      <div>
+        <div style="font-size:64px; line-height:1; letter-spacing:-0.025em; color:#F2F2F2;">{{ name }}</div>
+        <div style="font-family:'Geist Mono', monospace; font-size:12px; color:#8A8A8A; margin-top:10px;">{{ handle }} · {{ keptLabel }}</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:32px; border-bottom:1px solid rgba(255,255,255,0.16);">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+        <div onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</div>
+      </sc-for>
+    </div>
+
+    <!-- COLLECTIONS -->
+    <sc-if value="{{ isCollections }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:40px 20px; padding-top:28px;">
+        <div onClick="{{ onNewCollection }}" style="cursor:pointer;">
+          <div style="aspect-ratio:1; border:1px dashed rgba(255,255,255,0.28); display:flex; align-items:center; justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" stroke="#BDBDBD" stroke-width="1.3"><path d="M12 3v18M3 12h18"></path></svg></div>
+          <div style="font-size:17px; color:#F2F2F2; margin-top:12px;">New collection</div>
+          <div style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A; margin-top:4px;">Group what you keep</div>
+        </div>
+        <sc-for list="{{ collections }}" as="c" hint-placeholder-count="7">
+          <div style="cursor:pointer;">
+            <sc-if value="{{ c.isEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="aspect-ratio:1; border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center;"><svg width="18" height="22" viewBox="0 0 24 30"><path d="M2 2h20v26l-10-6.4L2 28z" fill="none" stroke="#5A5A5A" stroke-width="1.5" stroke-linejoin="round"></path></svg></div>
+            </sc-if>
+            <sc-if value="{{ c.isSingle }}" hint-placeholder-val="{{ true }}">
+              <div style="{{ c.coverStyle }}"></div>
+            </sc-if>
+            <sc-if value="{{ c.isCollage }}" hint-placeholder-val="{{ false }}">
+              <div style="aspect-ratio:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:2px; background:#141414;">
+                <sc-for list="{{ c.tiles }}" as="tile" hint-placeholder-count="4">
+                  <div style="background:#1A1A1A; overflow:hidden;"><sc-if value="{{ tile.has }}" hint-placeholder-val="{{ true }}"><div style="{{ tile.bg }}"></div></sc-if></div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <div style="font-size:17px; color:#F2F2F2; margin-top:12px;">{{ c.name }}</div>
+            <div style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A; margin-top:4px;">{{ c.count }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- TOPICS -->
+    <sc-if value="{{ isTopics }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:720px; padding-top:32px;">
+        <div style="font-size:24px; line-height:1.35; letter-spacing:-0.01em; color:#E6E6E6;">{{ topicsOn }} on. <span style="font-style:italic; color:#9A9A9A;">Changes save as you go.</span></div>
+        <div style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A; margin-top:40px;">Add a topic</div>
+        <input placeholder="Search — film, maps, the sea…" style="width:100%; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,0.28); color:#F2F2F2; font-size:22px; padding:12px 0; outline:none; margin-top:6px;">
+        <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A; margin-top:44px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.16);"><span>Your topics</span><span>{{ topicCount }}</span></div>
+        <sc-for list="{{ topics }}" as="tp" hint-placeholder-count="10">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <span style="{{ tp.labelStyle }}">{{ tp.name }}</span>
+            <div style="display:flex; border:1px solid rgba(255,255,255,0.22);">
+              <sc-for list="{{ tp.levels }}" as="lv" hint-placeholder-count="4">
+                <div onClick="{{ lv.onClick }}" style="{{ lv.style }}">{{ lv.label }}</div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- EDIT PROFILE -->
+    <sc-if value="{{ isEdit }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); column-gap:40px; padding-top:32px;">
+        <div>
+          <span style="width:120px; height:120px; border-radius:50%; background:#2A2A2A; display:block;"></span>
+          <a href="#" style="display:inline-block; font-size:15px; margin-top:16px;">[Change photo..]</a>
+        </div>
+        <div style="max-width:560px; display:flex; flex-direction:column; gap:30px;">
+          <sc-for list="{{ fields }}" as="fd" hint-placeholder-count="3">
+            <label style="display:block;">
+              <span style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A;">{{ fd.label }}</span>
+              <input value="{{ fd.value }}" onChange="{{ fd.onChange }}" placeholder="{{ fd.placeholder }}" style="display:block; width:100%; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,0.28); color:#F2F2F2; font-size:22px; padding:10px 0; outline:none;">
+            </label>
+          </sc-for>
+          <label style="display:block;">
+            <span style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A;">About</span>
+            <textarea rows="3" value="{{ bio }}" onChange="{{ onBio }}" placeholder="What are you curious about?" style="display:block; width:100%; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,0.28); color:#F2F2F2; font-size:22px; line-height:1.35; padding:10px 0; outline:none; resize:none;"></textarea>
+          </label>
+          <div style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#6A6A6A; margin-top:-14px;">Email is only used for your invite and sign-in.</div>
+          <div style="display:flex; align-items:center; gap:28px; margin-top:8px;">
+            <div onClick="{{ onSave }}" style="background:#F2F2F2; color:#0E0E0E; font-size:16px; padding:14px 28px; cursor:pointer;">Save changes</div>
+            <span onClick="{{ onDiscard }}" style="font-size:15px; color:#9A9A9A; text-decoration:underline; text-underline-offset:3px; cursor:pointer;">Discard</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- SETTINGS -->
+    <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:720px; padding-top:8px;">
+        <sc-for list="{{ settings }}" as="g" hint-placeholder-count="4">
+          <div>
+            <div style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A; padding:32px 0 10px; border-bottom:1px solid rgba(255,255,255,0.16);">{{ g.title }}</div>
+            <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+              <div onClick="{{ r.onClick }}" style="display:flex; align-items:center; gap:12px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,0.08); cursor:pointer;">
+                <span style="flex:1; font-size:18px; color:#F2F2F2;">{{ r.label }}</span>
+                <sc-if value="{{ r.isRed }}" hint-placeholder-val="{{ false }}"><span style="width:6px; height:6px; border-radius:50%; background:#2BB24C;"></span></sc-if>
+                <sc-if value="{{ r.hasValue }}" hint-placeholder-val="{{ true }}"><span style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A;">{{ r.value }}</span></sc-if>
+                <sc-if value="{{ r.hasAction }}" hint-placeholder-val="{{ false }}"><span style="background:#F2F2F2; color:#0E0E0E; font-size:14px; padding:6px 14px;">{{ r.action }}</span></sc-if>
+                <sc-if value="{{ r.hasArrow }}" hint-placeholder-val="{{ true }}"><span style="font-family:'Geist Mono', monospace; color:#6A6A6A;">→</span></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+        <div onClick="{{ onSignOut }}" style="font-size:18px; color:#F2F2F2; padding:16px 0; margin-top:32px; border-top:1px solid rgba(255,255,255,0.16); border-bottom:1px solid rgba(255,255,255,0.16); cursor:pointer;">Sign out</div>
+        <div style="font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#5A5A5A; margin-top:28px;">Ambit · invite-only · v0.5</div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <div style="position:fixed; right:24px; top:50%; transform:translateY(-50%); z-index:40; display:flex; flex-direction:column; align-items:center; gap:22px; padding:20px 9px; border-radius:999px; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.22); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+    <span style="width:36px; height:36px; display:flex; align-items:center; justify-content:center;"><svg width="29" height="29" viewBox="0 0 24 24" style="display:block;"><defs><radialGradient id="pg-pd" gradientUnits="userSpaceOnUse" cx="12" cy="14" r="12"><stop offset="0" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#A8AEFF;#E0A184;#7FC4B0;#E8D48A;#A8AEFF" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.33" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#E8D48A;#A8AEFF;#E0A184;#7FC4B0;#E8D48A" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.66" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#7FC4B0;#E8D48A;#A8AEFF;#E0A184;#7FC4B0" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="1" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#E0A184;#7FC4B0;#E8D48A;#A8AEFF;#E0A184" dur="10s" repeatCount="indefinite"></animate></stop></radialGradient></defs><circle cx="12" cy="7.2" r="5" fill="url(#pg-pd)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#pg-pd)"></path></svg></span>
+    <a href="Ambit - Feed Masonry 4.dc.html" style="display:flex; text-decoration:none;"><svg width="30" height="30" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="#fff" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="#fff"></circle><circle cx="21" cy="7" r="1.9" fill="#fff"></circle></svg></a>
+    <div onClick="{{ onCollectionsTab }}" style="display:flex; cursor:pointer;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg></div>
+  </div>
+
+  <sc-if value="{{ toast.active }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; left:50%; bottom:40px; transform:translateX(-50%); z-index:60; background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; padding:10px 14px; white-space:nowrap;">{{ toast.text }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const W = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+    this.IMG = {
+      turner: 'assets/turner.jpg', wave: 'assets/wave.jpg', pillars: 'assets/pillars.jpg', gp: 'assets/vanderbilt.jpg',
+      jellies: W + 'Haeckel%20Discomedusae%2088.jpg?width=400',
+      deep: W + 'Hubble%20ultra%20deep%20field%20high%20rez%20edit1.jpg?width=400',
+      milk: W + 'Johannes%20Vermeer%20-%20Het%20melkmeisje%20-%20Google%20Art%20Project.jpg?width=400',
+      wheat: W + 'Vincent%20van%20Gogh%20-%20Wheatfield%20with%20crows%20-%20Google%20Art%20Project.jpg?width=400',
+    };
+    this.TOPICS = ['Abstract', 'Activism', 'Advertising', 'Aerial views', 'Aliens', 'Ancient history', 'Animals', 'Books', 'Botany', 'Cinematic', 'Color', 'Deserts', 'Dragons', 'Eerie', 'Emotions', 'Engraving', 'Fantasy', 'Fashion'];
+    const levels = {};
+    this.TOPICS.forEach((t, i) => { levels[t] = i === 4 ? 'off' : (i % 5 === 2 ? 'a lot' : 'some'); });
+    let p = { name: 'ben', handle: '@ibenthinkin', bio: '', email: 'benjamin.reilly@gmail.com' };
+    try { p = Object.assign(p, JSON.parse(localStorage.getItem('ambit.profile.v1') || '{}')); } catch (e) {}
+    let tab = 'collections';
+    try { const q = new URLSearchParams(window.location.search).get('tab'); if (q) tab = q; } catch (e) {}
+    this.state = { tab, levels, profile: p, draft: { ...p }, extra: [], toast: null };
+  }
+  componentWillUnmount() { if (this.toastTimer) clearTimeout(this.toastTimer); }
+  flash(text) {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.setState({ toast: text });
+    this.toastTimer = setTimeout(() => this.setState({ toast: null }), 1700);
+  }
+
+  renderVals() {
+    const I = this.IMG;
+    const tab = this.state.tab;
+    const TABS = [['collections', 'Collections'], ['topics', 'Topics'], ['edit', 'Edit profile'], ['settings', 'Settings']];
+    const tabs = TABS.map(([k, label]) => ({
+      key: k, label, onClick: () => this.setState({ tab: k }),
+      style: {
+        fontFamily: "'Geist Mono', monospace", fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.3px',
+        padding: '0 0 12px', marginBottom: '-1px', cursor: 'pointer',
+        color: tab === k ? '#F2F2F2' : '#7A7A7A',
+        borderBottom: '1px solid ' + (tab === k ? '#F2F2F2' : 'transparent'),
+      },
+    }));
+
+    const fmt = n => (n === 1 ? '1 item' : n + ' items');
+    const mk = (name, srcs, n) => {
+      const count = n ?? srcs.length;
+      const bg = (s) => ({ width: '100%', height: '100%', backgroundImage: s ? 'url("' + s + '")' : 'none', backgroundSize: 'cover', backgroundPosition: 'center' });
+      const tiles = [0, 1, 2, 3].map(i => ({ key: 't' + i, src: srcs[i] || '', has: !!srcs[i], bg: bg(srcs[i]) }));
+      return { key: name, name, count: fmt(count), cover: srcs[0] || '', coverStyle: Object.assign(bg(srcs[0]), { height: 'auto', aspectRatio: '1' }), tiles,
+        isEmpty: srcs.length === 0, isSingle: srcs.length === 1, isCollage: srcs.length > 1 };
+    };
+    const collections = [
+      mk('Articles', [], 0), mk('Art', [I.turner, I.wave, I.wheat]), mk('Photos', [I.gp, I.jellies, I.pillars]),
+      mk('Comics', [I.milk]), mk('Funny things', [I.deep]), mk('Posters', [I.wave]), mk('Nature', [I.pillars]),
+      ...this.state.extra.map(n => mk(n, [], 0)),
+    ];
+
+    const LV = ['a little', 'some', 'a lot', 'off'];
+    const topics = this.TOPICS.map(t => {
+      const cur = this.state.levels[t];
+      return {
+        key: t, name: t,
+        labelStyle: { fontSize: '18px', color: cur === 'off' ? '#5A5A5A' : '#F2F2F2' },
+        levels: LV.map((l, i) => ({
+          key: l, label: l,
+          onClick: () => this.setState(s => ({ levels: { ...s.levels, [t]: l } })),
+          style: {
+            fontFamily: "'Geist Mono', monospace", fontSize: '11px', textTransform: 'uppercase',
+            padding: '8px 12px', cursor: 'pointer', whiteSpace: 'nowrap',
+            borderLeft: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.22)',
+            background: cur === l ? (l === 'off' ? '#2A2A2A' : '#F2F2F2') : 'transparent',
+            color: cur === l ? (l === 'off' ? '#BDBDBD' : '#0E0E0E') : '#9A9A9A',
+          },
+        })),
+      };
+    });
+    const topicsOn = this.TOPICS.filter(t => this.state.levels[t] !== 'off').length;
+
+    const d = this.state.draft;
+    const setD = (k) => (e) => { const v = e.target.value; this.setState(s => ({ draft: { ...s.draft, [k]: v } })); };
+    const fields = [
+      { key: 'name', label: 'Name', value: d.name || '', placeholder: 'Your name', onChange: setD('name') },
+      { key: 'handle', label: 'Handle', value: d.handle || '', placeholder: '@you', onChange: setD('handle') },
+      { key: 'email', label: 'Email', value: d.email || '', placeholder: 'you@example.com', onChange: setD('email') },
+    ];
+
+    const go = (href) => () => { window.location.href = href; };
+    const soon = (l) => () => this.flash(l + ' · coming soon');
+    const row = (label, o) => {
+      o = o || {};
+      return { key: label, label, value: o.value || '', hasValue: !!o.value, action: o.action || '', hasAction: !!o.action,
+        hasArrow: !o.action, isRed: !!o.red, onClick: o.onClick || soon(label) };
+    };
+    const settings = [
+      { key: 'a', title: 'Account', rows: [row('Account details', { onClick: () => this.setState({ tab: 'edit' }) }), row('Invite a friend', { value: '2 left' }), row('Add to home screen', { action: 'Install', onClick: go('Ambit - Install.dc.html') })] },
+      { key: 'f', title: 'Your feed', rows: [row('What you see', { value: 'Abstract, Activism +' + Math.max(0, topicsOn - 2), onClick: () => this.setState({ tab: 'topics' }) }), row('Reading', { value: 'Some' }), row('Muted sources', { value: 'None' }), row('Serendipity', { value: 'Often' })] },
+      { key: 'p', title: 'Permissions', rows: [row('Camera roll', { value: 'Not set' }), row('Notifications', { value: 'Not asked', red: true })] },
+      { key: 'o', title: 'Other', rows: [row('Appearance', { value: 'Dark' }), row('Language', { value: 'English' }), row('About Ambit'), row('Get in touch')] },
+    ];
+
+    const p = this.state.profile;
+    return {
+      name: p.name || 'ben', handle: p.handle || '@you',
+      keptLabel: '28 kept',
+      tabs,
+      isCollections: tab === 'collections', isTopics: tab === 'topics', isEdit: tab === 'edit', isSettings: tab === 'settings',
+      collections,
+      onNewCollection: () => this.setState(s => { const n = 'Collection ' + (s.extra.length + 1); this.flash(n + ' created'); return { extra: [...s.extra, n] }; }),
+      topics, topicsOn: String(topicsOn), topicCount: String(this.TOPICS.length),
+      fields, bio: d.bio || '', onBio: setD('bio'),
+      onSave: () => {
+        try { localStorage.setItem('ambit.profile.v1', JSON.stringify(this.state.draft)); } catch (e) {}
+        this.setState(s => ({ profile: { ...s.draft } }));
+        this.flash('Profile saved');
+      },
+      onDiscard: () => this.setState(s => ({ draft: { ...s.profile } })),
+      settings,
+      onSignOut: soon('Sign out'),
+      onCollectionsTab: () => this.setState({ tab: 'collections' }),
+      toast: { active: !!this.state.toast, text: this.state.toast || '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

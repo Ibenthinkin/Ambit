@@ -24,7 +24,7 @@ import { openRouterComplete } from "./openrouter";
 /** The curator's picture judge: cheap, fast, and already what the account is set up for. Named
  *  here rather than imported from curator.ts so the web server doesn't bundle the curator. */
 export const INTERPRET_MODEL = "google/gemini-2.5-flash-lite";
-/** How long the reader waits behind "Putting it together…" before the flow moves on without. */
+/** How long the flow waits on the last question (its forward button busy) before moving on without. */
 export const INTERPRET_TIMEOUT_MS = 8_000;
 /** A named favourite or two is a signal; a model listing twenty topics is not. */
 export const MAX_TOPICS_PER_TEXT = 6;

@@ -40,14 +40,34 @@ describe("Loader", () => {
     expect(ring(LOADER_SIZES.hero)).toBe("1.7");
   });
 
-  it("is drawn in currentColor on the accent, so the accent knob recolours it", () => {
+  it("draws the ring in ink (currentColor) and the dot in the accent", () => {
     const { container } = render(<Loader />);
     const status = screen.getByRole("status");
-    expect(status.className).toContain("text-accent");
+    expect(status.className).toContain("text-ink");
+    expect(status.className).not.toContain("text-accent");
     expect(status.style.color).toBe("");
     expect(container.querySelector("circle")!.getAttribute("stroke")).toBe(
       "currentColor",
     );
+  });
+
+  it("fills the orbiting dot with the accent, not the ring's ink", () => {
+    const { container } = render(<Loader />);
+    expect(
+      container.querySelector(".animate-loader-reach")!.className,
+    ).toContain("bg-accent");
+  });
+
+  it("sets the label in 10.5px Geist Mono caps at ink/48", () => {
+    render(<Loader label="Finding" />);
+    const label = screen.getByText("Finding");
+    for (const want of [
+      "font-mono",
+      "text-[10.5px]",
+      "uppercase",
+      "text-ink/48",
+    ])
+      expect(label.className).toContain(want);
   });
 
   it("lets a caller recolour it", () => {

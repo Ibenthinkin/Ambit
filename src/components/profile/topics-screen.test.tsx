@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProfileHubContext } from "~/components/profile/profile-hub";
 
-import type { TasteV1 } from "~/lib/interview/taste";
+import type { ProfileTaste } from "~/lib/interview/taste";
 
 import { TopicsScreen } from "./topics-screen";
 
@@ -47,7 +47,7 @@ const {
     topics: [] as { id: string; label: string; facet: string }[],
     mine: [] as Pick[],
     mineOpts: undefined as SetMineOpts | undefined,
-    taste: null as TasteV1 | null,
+    taste: null as ProfileTaste | null,
   },
 }));
 
@@ -145,18 +145,60 @@ beforeEach(() => {
 });
 
 describe("TopicsScreen", () => {
-  it("lists the reader's topics as one flat list of levels — no facet sections, no group chips", () => {
+  it("lists the reader's topics under facet headings, with no group chips", () => {
+    state.mine = [
+      { topicId: "astronomy", weight: 2 },
+      { topicId: "ceramics", weight: 1 },
+      { topicId: "japan", weight: 1 },
+    ];
     render(<TopicsScreen dev={false} />);
+    // "3 on." then the second sentence in italics (DESIGN_redesign §6.5).
+    const summary = screen.getByText(
+      (_, el) =>
+        el?.tagName === "P" &&
+        el.textContent === "3 on. Changes save as you go.",
+    );
     expect(
-      screen.getByText("2 on. Changes save as you go."),
-    ).toBeInTheDocument();
+      within(summary).getByText("Changes save as you go.").className,
+    ).toContain("italic");
+    expect(
+      screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent),
+    ).toEqual(["Subjects", "Mediums & traditions", "Places"]);
     expect(
       screen.getAllByRole("group").map((g) => g.getAttribute("aria-label")),
-    ).toEqual(["Astronomy level", "Ceramics level"]);
-    expect(screen.queryByText(/^(Subject|Medium|Look|Place)$/)).toBeNull();
+    ).toEqual(["Astronomy level", "Ceramics level", "Japan level"]);
     expect(
       screen.queryByRole("button", { name: /Space|Plants|Show all/ }),
     ).toBeNull();
+  });
+
+  it("offers search results as outline buttons", () => {
+    render(<TopicsScreen dev={false} />);
+    fireEvent.change(screen.getByRole("searchbox", { name: "Add a topic" }), {
+      target: { value: "bot" },
+    });
+    expect(
+      screen.getByRole("button", { name: "Add Botany" }).className,
+    ).toContain("border-ink/35");
+  });
+
+  it("moves focus in the order drawn — by heading, then label — when a row goes", async () => {
+    // Drawn: Subjects [Astronomy], Mediums [Album art], Places [Japan]. Label order alone would
+    // put Album art first and send focus from Astronomy to Japan.
+    state.mine = [
+      { topicId: "album-art", weight: 1 },
+      { topicId: "astronomy", weight: 1 },
+      { topicId: "japan", weight: 1 },
+    ];
+    const { rerender } = render(<TopicsScreen dev={false} />);
+    fireEvent.click(
+      within(levelRow("Astronomy")).getByRole("radio", { name: "off" }),
+    );
+    await waitFor(() => expect(state.mine).toHaveLength(2));
+    rerender(<TopicsScreen dev={false} />);
+    expect(
+      within(levelRow("Album art")).getByRole("radio", { name: "some" }),
+    ).toHaveFocus();
   });
 
   describe("search", () => {
@@ -216,7 +258,7 @@ describe("TopicsScreen", () => {
   it("a level change is one setWeight, touching no other topic", () => {
     render(<TopicsScreen dev={false} />);
     fireEvent.click(
-      within(levelRow("Ceramics")).getByRole("button", { name: "a little" }),
+      within(levelRow("Ceramics")).getByRole("radio", { name: "a little" }),
     );
     expect(setWeightMock).toHaveBeenCalledExactlyOnceWith({
       topicId: "ceramics",
@@ -228,16 +270,52 @@ describe("TopicsScreen", () => {
   it("off removes the topic through setMine", () => {
     render(<TopicsScreen dev={false} />);
     fireEvent.click(
-      within(levelRow("Ceramics")).getByRole("button", { name: "off" }),
+      within(levelRow("Ceramics")).getByRole("radio", { name: "off" }),
     );
     expect(lastWrite()).toEqual([{ topicId: "astronomy", weight: 2 }]);
+  });
+
+  it("removing a row by keyboard leaves focus on the next row, or the previous when it was last", async () => {
+    state.mine = [
+      { topicId: "astronomy", weight: 1 },
+      { topicId: "botany", weight: 1 },
+      { topicId: "ceramics", weight: 1 },
+    ];
+    const { rerender } = render(<TopicsScreen dev={false} />);
+    // Botany: arrow onto "off" (focus only), then Space to choose it.
+    const some = within(levelRow("Botany")).getByRole("radio", {
+      name: "some",
+    });
+    some.focus();
+    fireEvent.keyDown(some, { key: "End" });
+    const off = within(levelRow("Botany")).getByRole("radio", { name: "off" });
+    expect(off).toHaveFocus();
+    expect(mutateMock).not.toHaveBeenCalled();
+    fireEvent.keyDown(off, { key: " " });
+    await waitFor(() => expect(state.mine).toHaveLength(2));
+    rerender(<TopicsScreen dev={false} />);
+    // The next row (Ceramics), its checked radio — not <body>.
+    expect(
+      within(levelRow("Ceramics")).getByRole("radio", { name: "some" }),
+    ).toHaveFocus();
+
+    // Now remove the last row: focus goes to the previous one.
+    const cOff = within(levelRow("Ceramics")).getByRole("radio", {
+      name: "off",
+    });
+    fireEvent.click(cOff);
+    await waitFor(() => expect(state.mine).toHaveLength(1));
+    rerender(<TopicsScreen dev={false} />);
+    expect(
+      within(levelRow("Astronomy")).getByRole("radio", { name: "some" }),
+    ).toHaveFocus();
   });
 
   it("refuses to switch off the last topic, with a toast and no write", () => {
     state.mine = [{ topicId: "astronomy", weight: 1 }];
     render(<TopicsScreen dev={false} />);
     fireEvent.click(
-      within(levelRow("Astronomy")).getByRole("button", { name: "off" }),
+      within(levelRow("Astronomy")).getByRole("radio", { name: "off" }),
     );
     expect(mutateMock).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith("Keep at least one topic.");
@@ -247,7 +325,7 @@ describe("TopicsScreen", () => {
     render(<TopicsScreen dev={false} />);
     const previous = [...state.mine];
     fireEvent.click(
-      within(levelRow("Ceramics")).getByRole("button", { name: "off" }),
+      within(levelRow("Ceramics")).getByRole("radio", { name: "off" }),
     );
     // The optimistic patch lands a tick later: `onMutate` awaits `cancel()` first.
     await waitFor(() => expect(state.mine).toHaveLength(1));
@@ -274,8 +352,9 @@ describe("TopicsScreen", () => {
 
   // First Exhibition (docs/DESIGN_first-exhibition.md §6): the stored exhibition, above the list.
   describe("the exhibition card", () => {
-    const taste: TasteV1 = {
+    const taste: ProfileTaste = {
       v: 1,
+      hang: [],
       title: { adjective: "Quiet", noun: "Weathers" },
       wings: ["land"],
       mediums: ["ceramics"],
@@ -291,19 +370,51 @@ describe("TopicsScreen", () => {
       readingMinutes: null,
     };
 
-    it("shows the stored exhibition above the topic search", () => {
+    it("shows the stored exhibition below the topic search, above the level rows", () => {
       state.taste = taste;
       render(<TopicsScreen dev={false} />);
       const title = screen.getByRole("heading", { name: "Quiet Weathers" });
       const search = screen.getByText("Add a topic");
+      const rows = screen.getByRole("heading", {
+        level: 2,
+        name: "Your topics",
+      });
+      // DESIGN_redesign §6.5: summary, search, then the exhibition, then the rows.
       expect(
-        title.compareDocumentPosition(search) &
+        search.compareDocumentPosition(title) &
           Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
-      // Medium labels come from topics.list.
       expect(
-        screen.getByText("Land, sea & sky. Mostly ceramics."),
+        title.compareDocumentPosition(rows) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      // Medium labels come from topics.list. (The "Mostly …" half is its own <em>.)
+      expect(screen.getByText(/^Land, sea & sky\./)).toHaveTextContent(
+        "Land, sea & sky. Mostly ceramics.",
+      );
+    });
+
+    it("shows the stored hang under the subtitle for a v2 taste", () => {
+      state.taste = {
+        ...taste,
+        v: 2,
+        hang: [
+          { itemId: "a", src: "/api/img/a", title: "Heron" },
+          { itemId: "b", src: "/api/img/b", title: "Lantern" },
+        ],
+      };
+      render(<TopicsScreen dev={false} />);
+      const hang = screen.getByRole("list", { name: "Hung pictures" });
+      expect(within(hang).getByText("01 · Heron")).toBeInTheDocument();
+      expect(within(hang).getByText("02 · Lantern")).toBeInTheDocument();
+    });
+
+    it("shows no hang, and does not throw, for a v1 taste", () => {
+      state.taste = taste;
+      render(<TopicsScreen dev={false} />);
+      expect(
+        screen.getByRole("heading", { name: "Quiet Weathers" }),
       ).toBeInTheDocument();
+      expect(screen.queryByRole("list", { name: "Hung pictures" })).toBeNull();
     });
 
     it("shows no card for a reader with no stored taste", () => {

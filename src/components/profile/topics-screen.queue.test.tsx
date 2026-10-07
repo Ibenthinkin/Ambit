@@ -142,7 +142,7 @@ describe("TopicsScreen — the write queue", () => {
     // Write 2, tapped while write 1 is still in flight: Astronomy to "a lot" (a setWeight).
     fireEvent.click(
       within(screen.getByRole("group", { name: "Astronomy level" })).getByRole(
-        "button",
+        "radio",
         { name: "a lot" },
       ),
     );

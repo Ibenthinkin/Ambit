@@ -17,10 +17,10 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/feed",
     display: "standalone",
     // Matches the design handoff's dark screen background (README: "Background (screen):
-    // #161411") — background_color is what paints during the splash-screen instant between tap
+    // #0E0E0E") — background_color is what paints during the splash-screen instant between tap
     // and first paint, theme_color tints the OS status bar / browser chrome around the app.
-    background_color: "#161411",
-    theme_color: "#161411",
+    background_color: "#0E0E0E",
+    theme_color: "#0E0E0E",
     icons: [
       // `purpose: "any"` icons render as-is; the OS is responsible for cropping them into
       // whatever shape it uses (circle, squircle, ...) — so they can bleed to the edge.

@@ -1,0 +1,117 @@
+/* Ambit redesign "1b" — design tokens (dark scheme only; no light theme).
+   Flat name → value. Map onto globals.css --color-* / --radius-* / --font-*. */
+:root {
+  /* Surfaces */
+  --color-bg:            #0E0E0E; /* app background, feed */
+  --color-bg-deep:       #0A0A0A; /* item/gallery hero behind images */
+  --color-bg-desk:       #060606; /* outside phone frame only (prototype) */
+  --color-sheet:         #121212; /* sign-up sheet / dialog */
+  --color-sheet-2:       #141414; /* bottom sheets, popovers */
+  --color-card:          #161616; /* article / because / intro cards, image placeholder */
+  --color-card-2:        #1E1E1E; /* empty thumb cells */
+  --color-scrim:         rgba(0,0,0,0.60);  /* behind sheets */
+  --color-scrim-soft:    rgba(6,6,6,0.62);  /* behind sign-up */
+
+  /* Ink (text) */
+  --color-ink:           #F2F2F2; /* primary text, white block fill */
+  --color-ink-1:         #E6E6E6; /* body on dark */
+  --color-ink-2:         #BDBDBD; /* secondary, text links */
+  --color-ink-3:         #A8A8A8; /* intro / lede */
+  --color-ink-4:         #9A9A9A; /* card lede, mono labels */
+  --color-ink-5:         #8A8A8A; /* meta, counts */
+  --color-ink-6:         #7A7A7A; /* mono row labels */
+  --color-ink-7:         #6A6A6A; /* hints */
+  --color-ink-8:         #5A5A5A; /* placeholders, disabled */
+
+  /* Hairlines (white alpha) */
+  --color-line-faint:    rgba(255,255,255,0.08); /* row dividers, card border */
+  --color-line-soft:     rgba(255,255,255,0.12);
+  --color-line:          rgba(255,255,255,0.14); /* section dividers */
+  --color-line-strong:   rgba(255,255,255,0.16); /* header rules */
+  --color-line-ctrl:     rgba(255,255,255,0.22); /* segmented outline */
+  --color-line-input:    rgba(255,255,255,0.28); /* input underline, chip off */
+  --color-line-btn:      rgba(255,255,255,0.35); /* outline button */
+
+  /* Accent — ONE colour, accent knob retired */
+  --color-accent:        #2BB24C; /* Kelly green */
+  --color-on-accent:     #0E0E0E; /* 6.97:1 on accent. White on accent = 2.8:1 (fails) */
+
+  /* Toolbar glass (production — unchanged) */
+  --glass-phone:         rgba(240,237,231,0.225);
+  --glass-desktop:       rgba(240,237,231,0.14);
+  --glass-blur:          blur(26px) saturate(180%);
+  --glass-border-phone:  0.5px solid rgba(255,255,255,0.28);
+  --glass-border-desk:   0.5px solid rgba(255,255,255,0.22);
+  --glass-shadow:        0 10px 30px rgba(0,0,0,0.28);
+  /* On-photo controls (save chip/bookmark): keep very low opacity */
+  --photo-ctrl-bg:       rgba(14,14,14,0.30);
+  --photo-ctrl-blur:     blur(10px);
+  --photo-ctrl-border:   0.5px solid rgba(255,255,255,0.18);
+
+  /* Type */
+  --font-sans:  'Hanken Grotesk', system-ui, sans-serif;   /* replaces Sora */
+  --font-mono:  'Geist Mono', ui-monospace, monospace;      /* eyebrows / labels / meta */
+  /* Size scale (px). Titles are regular (400) weight, sentence case, tight tracking. */
+  --text-display: clamp(30px, 4.2vw, 40px); /* page titles (onboarding, sign-up 26–32) */
+  --text-title:   32px;  /* item title (phone) */
+  --text-h2:      24px;  /* section heads, desktop body-large 28 */
+  --text-card:    19px;  /* article card title */
+  --text-lg:      17px;  /* rows, list items, primary button */
+  --text-body:    16px;  /* body, inputs 18 */
+  --text-sm:      15px;  /* buttons, links, row values */
+  --text-xs:      13.5px;/* card lede */
+  --text-eyebrow: 10.5px;/* mono uppercase; 9.5–12 range */
+  --tracking-title: -0.02em;
+  --tracking-display: -0.025em;
+  --tracking-eyebrow: 0.4px;
+  --leading-title: 1.1;
+  --leading-body: 1.5;
+
+  /* Radius — none everywhere except: */
+  --radius-none: 0;
+  --radius-pill: 999px; /* nav toolbar pill/rail ONLY */
+  --radius-round: 50%;  /* share disc, avatars, 6px dots, spinner */
+
+  /* Spacing (px) */
+  --space-1: 4px;   /* feed gutter — do not change */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 56px;
+
+  /* Sizes */
+  --btn-h-lg: 56px; --btn-h-md: 46px; --tap-min: 44px;
+  --dot: 6px;
+  --share-disc-phone: 56px; --share-disc-desk: 68px; --toolbar-h-phone: 56px;
+  --w-narrow: 600px; --w-reader: 720px; --w-wide: 1120px; --w-dialog: 520px;
+
+  /* Elevation */
+  --shadow-lift:   0 14px 34px rgba(0,0,0,0.45);   /* feed tile hover */
+  --shadow-dialog: 0 30px 80px rgba(0,0,0,0.60);
+  --shadow-popover:0 20px 50px rgba(0,0,0,0.50);
+
+  /* Motion */
+  --ease-out:  cubic-bezier(.2,.8,.2,1);
+  --ease-sheet:cubic-bezier(.22,.9,.3,1);
+  --dur-fast: 150ms;  /* button/segment hover */
+  --dur-fade: 250ms;  /* on-photo controls */
+  --dur-sheet: 240ms;
+  --dur-lift: 350ms;  /* tile zoom 3.5% */
+  --zoom-focus: 1.035;
+}
+
+/* Interaction recipes (attribute-based so they work on any element) */
+[data-btn]               { transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease; }
+[data-btn="primary"]:hover { background: #FFFFFF; box-shadow: inset 0 -2px 0 var(--color-accent); }
+[data-btn="outline"]:hover { background: rgba(255,255,255,0.08); border-color: var(--color-ink); box-shadow: inset 0 -2px 0 var(--color-accent); }
+[data-btn="link"]:hover    { color: #FFFFFF; text-decoration-color: var(--color-accent); }
+[data-btn]:focus, [data-seg]:focus { outline: none; }
+[data-btn]:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+[data-seg="off"]:hover   { background: rgba(255,255,255,0.08); color: var(--color-ink); box-shadow: inset 0 -2px 0 var(--color-accent); }
+[data-seg]:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; position: relative; z-index: 1; }
+[data-input]:hover       { border-bottom-color: rgba(255,255,255,0.6); }
+[data-input]:focus       { outline: none; border-bottom-color: var(--color-accent); box-shadow: 0 1px 0 var(--color-accent); }
