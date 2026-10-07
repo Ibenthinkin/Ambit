@@ -11,7 +11,13 @@ import {
 } from "./http";
 
 function stub(
-  responses: { ok: boolean; status: number; body?: unknown; text?: string }[],
+  responses: {
+    ok: boolean;
+    status: number;
+    body?: unknown;
+    text?: string;
+    headers?: Record<string, string>;
+  }[],
 ) {
   const calls: string[] = [];
   let i = 0;
@@ -21,7 +27,7 @@ function stub(
     return Promise.resolve({
       ok: r.ok,
       status: r.status,
-      headers: new Headers({ "x-wp-totalpages": "4" }),
+      headers: new Headers({ "x-wp-totalpages": "4", ...r.headers }),
       json: () => Promise.resolve(r.body ?? {}),
       text: () => Promise.resolve(r.text ?? ""),
     });
@@ -52,6 +58,41 @@ describe("fetchJson", () => {
       fetchJson("https://example.test/a", { noRetryOn: [401, 403] }),
     ).rejects.toBeInstanceOf(HttpRefusedError);
     expect(calls).toHaveLength(1);
+  });
+
+  // 10-07-26: the first two scheduled ingests on VM 202 lost all seven Tumblr blogs to an HTTP
+  // 403 that the log recorded as nothing but its status — and that could not be reproduced an
+  // hour later. A refusal must carry what the server said, so the next one can be diagnosed
+  // from the log alone.
+  it("a refusal's message carries the response's telling headers and a body snippet", async () => {
+    stub([
+      {
+        ok: false,
+        status: 403,
+        headers: { server: "nginx", "retry-after": "30", "cf-ray": "abc-EWR" },
+        text: "<html>\n  Forbidden by Tumblr\n</html>",
+      },
+    ]);
+    const err = await fetchJson("https://example.test/a", {
+      noRetryOn: [403],
+    }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(HttpRefusedError);
+    const message = (err as Error).message;
+    expect(message).toContain("server: nginx");
+    expect(message).toContain("retry-after: 30");
+    expect(message).toContain("cf-ray: abc-EWR");
+    // Whitespace collapsed, so the log line stays one line.
+    expect(message).toContain("<html> Forbidden by Tumblr </html>");
+  });
+
+  it("a refusal's body snippet is cut at 160 characters", async () => {
+    stub([{ ok: false, status: 403, text: "x".repeat(500) }]);
+    const err = await fetchJson("https://example.test/a", {
+      noRetryOn: [403],
+    }).catch((e: unknown) => e);
+    const message = (err as Error).message;
+    expect(message).toContain("x".repeat(160) + "…");
+    expect(message).not.toContain("x".repeat(161));
   });
 
   // 09-02-26: a thisiscolossal walk hung for good on a keep-alive socket the far end had dropped
