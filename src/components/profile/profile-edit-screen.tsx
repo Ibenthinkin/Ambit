@@ -5,7 +5,7 @@ import * as React from "react";
 import { AvatarChip } from "~/components/ui/avatar-chip";
 import { Button } from "~/components/ui/button";
 import { Rise } from "~/components/ui/rise";
-import { Field } from "~/components/ui/field";
+import { ERROR_HINT, Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { Textarea } from "~/components/ui/textarea";
@@ -199,10 +199,7 @@ function EditForm({ profile }: { profile: UserProfile }) {
         </div>
 
         {formError ? (
-          <span
-            role="alert"
-            className="text-accent font-mono text-[10.5px] tracking-[0.04em]"
-          >
+          <span role="alert" className={ERROR_HINT}>
             {formError}
           </span>
         ) : null}

@@ -30,7 +30,7 @@ describe("Toast", () => {
     const cls = screen.getByRole("status").className;
     for (const want of [
       "bg-ink",
-      "text-bg",
+      "text-on-accent",
       "font-mono",
       "text-[11px]",
       "uppercase",

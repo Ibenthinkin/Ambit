@@ -61,7 +61,7 @@ export function Toast({
       <div
         role="status"
         aria-live="polite"
-        className="animate-toast-in bg-ink text-bg px-[14px] py-[10px] font-mono text-[11px] tracking-[0.3px] whitespace-nowrap uppercase"
+        className="animate-toast-in bg-ink text-on-accent px-[14px] py-[10px] font-mono text-[11px] tracking-[0.3px] whitespace-nowrap uppercase"
       >
         {text}
       </div>

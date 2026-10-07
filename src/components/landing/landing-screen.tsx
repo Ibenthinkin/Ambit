@@ -212,7 +212,7 @@ export function LandingScreen({
           onClick={reel.skip}
           className="border-ink/14 fixed bottom-[28px] left-1/2 z-20 flex size-[54px] -translate-x-1/2 items-center justify-center rounded-full border backdrop-blur-[14px]"
           style={{
-            background: "rgba(27,24,21,0.72)",
+            background: "color-mix(in srgb, var(--color-bg) 72%, transparent)",
             boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
           }}
         >

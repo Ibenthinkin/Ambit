@@ -4,6 +4,8 @@ import * as React from "react";
 
 import { Download } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
+import { PRIMARY_BLOCK } from "~/components/ui/button";
+import { cn } from "~/lib/utils";
 
 // The share sheet. Copy-link row + a scrolling row of targets.
 //
@@ -145,9 +147,7 @@ export function ShareSheet({
           type="button"
           onClick={copy}
           onPointerDown={(e) => e.stopPropagation()}
-          // The primary button's colours (white, dark text): a filled button is not one of the
-          // accent's seven jobs (DESIGN §3.2).
-          className="bg-ink text-on-accent flex-none px-4 py-[11px] text-[15px]"
+          className={cn(PRIMARY_BLOCK, "flex-none px-4 py-[11px] text-[15px]")}
         >
           Copy link
         </button>

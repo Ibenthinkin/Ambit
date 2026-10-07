@@ -548,7 +548,7 @@ export async function completeOnboarding(
 /**
  * Resolves when a `topics.setMine` call comes back 200 — the one honest proof that a toggle on
  * /profile/topics reached Postgres. The screen is optimistic by design, so the chip's own
- * `aria-pressed` flips before the server has answered; asserting on it and then reloading tests
+ * `aria-checked` flips before the server has answered; asserting on it and then reloading tests
  * nothing, and worse, the reload cancels the in-flight request. Start this *before* the click.
  */
 export async function waitForSetMine(page: Page) {

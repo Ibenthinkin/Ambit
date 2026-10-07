@@ -218,8 +218,12 @@ describe("RevealStep", () => {
       ],
       starters: new Set(["music"]),
     });
+    // No taste, so "Your mix" is the h1 and the facet headers sit one level under it.
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Your mix",
+    );
     const headings = screen
-      .getAllByRole("heading", { level: 3 })
+      .getAllByRole("heading", { level: 2 })
       .map((h) => h.textContent);
     expect(headings).toEqual(
       expect.arrayContaining(["Subjects", "Mediums & traditions"]),

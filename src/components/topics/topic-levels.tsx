@@ -2,7 +2,10 @@
 
 import * as React from "react";
 
-import { SectionHeader } from "~/components/onboarding/section-header";
+import {
+  SectionHeader,
+  type SectionHeadingLevel,
+} from "~/components/onboarding/section-header";
 import { Eyebrow } from "~/components/ui/eyebrow";
 import { Segmented } from "~/components/ui/segmented";
 import { cn } from "~/lib/utils";
@@ -128,6 +131,8 @@ export interface TopicLevelsProps {
   proposed?: ReadonlySet<string>;
   onLevel: (topicId: string, level: Level) => void;
   onOff: (topicId: string) => void;
+  /** Rank of the facet headers: h3 under a host's h2, h2 when the host's title is the h1. */
+  headingLevel?: SectionHeadingLevel;
 }
 
 // The segmented control's four options, built once at module scope — the three real levels plus
@@ -145,6 +150,7 @@ export function TopicLevels({
   proposed,
   onLevel,
   onOff,
+  headingLevel = "h3",
 }: TopicLevelsProps) {
   if (picks.size === 0 && !off?.size) {
     return <p className="text-ink/62 text-[15px]">Nothing picked yet.</p>;
@@ -167,7 +173,7 @@ export function TopicLevels({
             <SectionHeader
               title={group.heading}
               count={group.rows.length}
-              level="h3"
+              level={headingLevel}
             />
           )}
           {group.rows.map((topic) => (

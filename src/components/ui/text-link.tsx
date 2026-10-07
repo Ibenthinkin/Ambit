@@ -14,8 +14,14 @@ import { cn } from "~/lib/utils";
 // One component, two elements: an internal href renders Next's <Link> (client-side navigation,
 // prefetch); `external` renders a plain <a>, because Link is for in-app routes. An `href` that
 // is not a path (http(s):, mailto:) should be passed with `external`.
+/** The link's look as one string, for the rare `<button>` that must wear it (auth-card's). */
+export const TEXT_LINK =
+  "underline underline-offset-3 decoration-1 transition-colors text-ink/78 hover:text-white hover:decoration-accent";
+
 export interface TextLinkProps extends Omit<React.ComponentProps<"a">, "href"> {
   href: string;
+  /** Internal links only: replace the history entry instead of pushing one. */
+  replace?: boolean;
   external?: boolean;
   bracket?: boolean;
   tone?: "default" | "body";
@@ -26,16 +32,12 @@ export function TextLink({
   external = false,
   bracket = false,
   tone = "default",
+  replace,
   className,
   children,
   ...rest
 }: TextLinkProps) {
-  const classes = cn(
-    "underline underline-offset-3 decoration-1 transition-colors",
-    tone === "body" ? "text-ink" : "text-ink/78",
-    "hover:text-white hover:decoration-accent",
-    className,
-  );
+  const classes = cn(TEXT_LINK, tone === "body" && "text-ink", className);
   const label = bracket ? <>[{children}..]</> : children;
 
   if (external) {
@@ -52,7 +54,7 @@ export function TextLink({
     );
   }
   return (
-    <Link href={href} className={classes} {...rest}>
+    <Link href={href} replace={replace} className={classes} {...rest}>
       {label}
     </Link>
   );

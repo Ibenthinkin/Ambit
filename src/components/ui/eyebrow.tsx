@@ -27,7 +27,7 @@ export function Eyebrow({
   return (
     <Tag
       className={cn(
-        "text-ink/55 font-mono text-[10.5px] leading-none font-normal tracking-[0.4px] uppercase",
+        "text-ink/55 text-eyebrow font-mono leading-none font-normal uppercase",
         dot && "inline-flex items-center gap-2",
         className,
       )}

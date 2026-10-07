@@ -189,7 +189,15 @@ export function ItemScreen({
 
   const router = useRouter();
   // Keyboard focus inside the chrome (the caption's Information link, any rail button) holds it up.
-  const chrome = useChrome({ holdWhile: focusInChrome });
+  // The sign-up surface and the two sheets are declared here, ahead of `useChrome`, because the
+  // rail must not idle away under its own open Save/Share popover.
+  const auth = useAuthSurface();
+  const sheetOpen = saveOpen || shareOpen || auth.open;
+  const holdChrome = React.useCallback(
+    () => sheetOpen || focusInChrome(),
+    [sheetOpen],
+  );
+  const chrome = useChrome({ holdWhile: holdChrome });
 
   // ── the explore taste (09-26-26, docs/PLAN_explore-route.md) ──────────────────────────────────
   // A signed-out visitor who came from `/explore` gets a rail that ends, after `EXPLORE_RAIL_CAP`
@@ -206,9 +214,6 @@ export function ItemScreen({
   // Every signed-out exit goes to `/` — the shared-link stranger's too, since the toolbar gave
   // them a Feed button (09-26-26) and `/feed` would only bounce them there anyway.
   const leave = useLeaveToFeed(entryItem.id, { signedOut: !authed });
-  // The sign-up sheet Profile and Save raise for a stranger, and the end card's sign-in / sign-up
-  // open too (its "what is this?" still goes to `/`, which owns that dialog).
-  const auth = useAuthSurface();
   const railCount = React.useSyncExternalStore(
     subscribeRailCount,
     readRailCount,
@@ -525,7 +530,6 @@ export function ItemScreen({
   // listener down mid-dispatch — and a listener removed during dispatch is never invoked. Every
   // key that got past the wake's 250 ms throttle was swallowed: Escape after the chrome idled
   // away did nothing, and neither did ← / → (found 10-06-26, broken since the chrome rules).
-  const sheetOpen = saveOpen || shareOpen || auth.open;
   const onKey = React.useEffectEvent((e: KeyboardEvent) => {
     // A modifier chord is the browser's (Alt/⌘+← is Back) — paging the rail as well would be a
     // second, surprising thing happening on the way out.

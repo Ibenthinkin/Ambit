@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
-import Link from "next/link";
 
 import { LandingScreen } from "~/components/landing/landing-screen";
 import { ResetPasswordCard } from "~/components/landing/reset-password-card";
 import { TEMPOS } from "~/components/landing/tempos";
+import { TextLink } from "~/components/ui/text-link";
 import { guessShape } from "~/server/config/landing-pool";
 import { getReels } from "~/server/services/landing-pool";
 
@@ -39,12 +39,12 @@ export default async function ResetPasswordPage({
             Password reset links are valid for one hour. Request a new one from
             the sign-in screen.
           </div>
-          <Link
+          <TextLink
             href="/"
-            className="text-ink/78 hover:decoration-accent mt-[22px] inline-block font-sans text-[15px] underline decoration-1 underline-offset-3 hover:text-white"
+            className="mt-[22px] inline-block font-sans text-[15px]"
           >
             Back to sign in
-          </Link>
+          </TextLink>
         </div>
       )}
     </LandingScreen>

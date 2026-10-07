@@ -452,6 +452,16 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(log.length).toBeGreaterThan(0);
     });
 
+    // Mediums are decoration too: an id that is no longer a pickable topic is dropped, not refused.
+    it("drops a medium that is not a pickable topic and saves the rest", async () => {
+      const caller = createCaller(authedContext(badTasteUserId));
+      await caller.onboarding.complete(
+        input({ taste: { ...taste, mediums: [a, "no-such-medium"] } }),
+      );
+      const stored = await storedTaste(badTasteUserId);
+      expect(stored?.mediums).toEqual([a]);
+    });
+
     // Taste v2 (docs/DESIGN_redesign.md §5.1): the hang is item ids, checked like `opened`.
     it("stores a v2 taste's hang and reads it back as pictures, in hanging order", async () => {
       const caller = createCaller(authedContext(hangUserId));

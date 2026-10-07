@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 import { TopicLevels, type LevelTopic } from "~/components/topics/topic-levels";
 import { Button } from "~/components/ui/button";
+import { ERROR_HINT } from "~/components/ui/field";
 import { Rise } from "~/components/ui/rise";
 import { Segmented } from "~/components/ui/segmented";
+import { TextLink } from "~/components/ui/text-link";
 import { MIN_PICKS } from "~/lib/interview/config";
 import { exploreOneIn } from "~/lib/interview/explore-share";
 import type { Pick } from "~/lib/interview/picks";
@@ -127,6 +128,8 @@ export function RevealStep({
 
   // Back is the shell's (onboarding-screen.tsx, top-left, the same as every question's). The
   // button and any failure sit in the flow under the mix, so all of it rises together.
+  const mixLevel = taste ? "h3" : "h2";
+
   return (
     <Rise>
       <div data-step="reveal">
@@ -140,7 +143,8 @@ export function RevealStep({
         )}
 
         <div className={cn("max-w-[860px]", taste && "mt-16")}>
-          {/* With no exhibition above it, "Your mix" is the page's heading. */}
+          {/* With no exhibition above it, "Your mix" is the page's heading, and the headers under
+              it are h2s so the outline does not skip a level. */}
           {taste ? (
             <h2 className={MIX_HEADING}>Your mix</h2>
           ) : (
@@ -153,14 +157,9 @@ export function RevealStep({
           {retake && (
             <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
               This replaces your current topics.{" "}
-              {/* TextLink's look (DESIGN §4.6) on a plain <Link>, for `replace`. */}
-              <Link
-                href="/profile/topics"
-                replace
-                className="text-ink hover:decoration-accent underline decoration-1 underline-offset-3 transition-colors hover:text-white"
-              >
+              <TextLink href="/profile/topics" replace tone="body">
                 Cancel
-              </Link>
+              </TextLink>
             </p>
           )}
 
@@ -174,12 +173,13 @@ export function RevealStep({
                 setDraft((d) => withLevel(d, id, weightOf(level)))
               }
               onOff={(id) => setDraft((d) => withOff(d, id))}
+              headingLevel={mixLevel}
             />
           </div>
 
           {/* Reading mixed in (decision 2): bank v3's amount question, as one more row. */}
           <div className="mt-11">
-            <SectionHeader title="Reading mixed in" />
+            <SectionHeader title="Reading mixed in" level={mixLevel} />
             <div className="border-ink/8 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b py-3">
               <span className="text-ink block text-[18px] leading-[1.25]">
                 How much writing in the feed
@@ -195,7 +195,7 @@ export function RevealStep({
 
           {keptOut.length > 0 && (
             <div className="mt-8">
-              <SectionHeader title="Kept out" />
+              <SectionHeader title="Kept out" level={mixLevel} />
               <ul>
                 {keptOut.map((k) => (
                   <li
@@ -229,7 +229,7 @@ export function RevealStep({
               role="alert"
               data-testid="onboarding-error"
               // The green mono hint (DESIGN §3.2 job 7) — 1b has no error colour.
-              className="text-accent mt-8 font-mono text-[10.5px] tracking-[0.04em]"
+              className={cn(ERROR_HINT, "mt-8")}
             >
               {error}
             </div>

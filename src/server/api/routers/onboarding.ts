@@ -166,14 +166,12 @@ export const onboardingRouter = createTRPCRouter({
               .map((r) => r.id),
           ),
         });
-        // Mediums must be pickable topics, like picks.
-        const badMedium = taste.mediums.filter((id) => !validIds.has(id));
-        if (badMedium.length > 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Unknown medium id(s): ${badMedium.join(", ")}`,
-          });
-        }
+        // Mediums are decoration like the items above: one that is no longer a pickable topic is
+        // dropped, never refused (the same ruling, for the same reason — a retry would fail alike).
+        taste = {
+          ...taste,
+          mediums: taste.mediums.filter((id) => validIds.has(id)),
+        };
       }
 
       return completeOnboarding(ctx.user.id, {

@@ -4,6 +4,8 @@ import * as React from "react";
 
 import { cn } from "~/lib/utils";
 
+import { HOVER_LINE } from "./button";
+
 // DESIGN_redesign §4.3. One 1 px `ink/22` outline around joined cells with a 1 px divider between
 // them — the four-way level control on a topic row, and the reading amount.
 //
@@ -132,9 +134,10 @@ export function Segmented<T extends string>({
               checked
                 ? option.tone === "muted"
                   ? "text-ink/78 bg-[#2A2A2A]"
-                  : "bg-ink text-bg"
+                  : "bg-ink text-on-accent"
                 : // Hover: a faint lift, brighter text, and the 2 px green inset underline.
-                  "text-ink/62 hover:text-ink bg-transparent hover:bg-white/8 hover:shadow-[inset_0_-2px_0_var(--color-accent)]",
+                  "text-ink/62 hover:text-ink bg-transparent hover:bg-white/8",
+              HOVER_LINE,
             )}
           >
             {option.label}

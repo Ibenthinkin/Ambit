@@ -7,9 +7,10 @@ import { z } from "zod";
 import { Envelope } from "~/components/icons";
 import { useReportAuthMode } from "~/components/landing/auth-sheet";
 import { Button } from "~/components/ui/button";
-import { Field } from "~/components/ui/field";
+import { ERROR_HINT, Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Loader } from "~/components/ui/loader";
+import { TEXT_LINK } from "~/components/ui/text-link";
 import { authClient } from "~/lib/auth-client";
 import { cn } from "~/lib/utils";
 
@@ -33,8 +34,10 @@ const USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL =
 
 // The small underlined text button the card's secondary actions share (DESIGN §4.6's link, with the
 // 44 px tap target the old ones had).
-const LINK_BUTTON =
-  "text-ink/78 hover:text-white hover:decoration-accent -my-3 inline-flex min-h-11 items-center justify-center py-3 font-sans text-[15px] underline decoration-1 underline-offset-3 transition-colors";
+const LINK_BUTTON = cn(
+  TEXT_LINK,
+  "-my-3 inline-flex min-h-11 items-center justify-center py-3 font-sans text-[15px]",
+);
 
 // Landing's auth card (Ambit - Landing.dc.html, PHASE5_PLAN_5.2.md) — a single client component
 // covering all four states of the real email + password flow (sign-in, invited sign-up, forgot
@@ -268,7 +271,7 @@ export function AuthCard({ initialMode = "signin" }: AuthCardProps = {}) {
           data-testid="auth-error"
           // DESIGN §3.2 job 7 / §4.4: an error is the green mono hint, the same face as `Field`'s
           // note — 1b has no red or orange.
-          className="text-accent mt-[11px] text-center font-mono text-[10.5px] tracking-[0.04em]"
+          className={cn(ERROR_HINT, "mt-[11px] text-center")}
         >
           {error}
         </div>

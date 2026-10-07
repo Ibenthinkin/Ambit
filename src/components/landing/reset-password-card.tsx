@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button, PRIMARY_BLOCK } from "~/components/ui/button";
-import { Field } from "~/components/ui/field";
+import { ERROR_HINT, Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Loader } from "~/components/ui/loader";
 import { authClient } from "~/lib/auth-client";
@@ -126,7 +126,7 @@ export function ResetPasswordCard({ token }: { token: string }) {
           role="alert"
           data-testid="auth-error"
           // The green mono hint (DESIGN §3.2 job 7), as on the auth card.
-          className="text-accent mt-[11px] text-center font-mono text-[10.5px] tracking-[0.04em]"
+          className={cn(ERROR_HINT, "mt-[11px] text-center")}
         >
           {error}
         </div>

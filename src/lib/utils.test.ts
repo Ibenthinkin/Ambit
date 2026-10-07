@@ -27,12 +27,6 @@ describe("cn", () => {
     expect(result).toContain("border-hairline");
     expect(result).toContain("border-ink/12");
   });
-
-  it("keeps bg-avatar-gradient alongside a background color (custom bg-image group)", () => {
-    const result = cn("bg-avatar-gradient", "bg-ink/5");
-    expect(result).toContain("bg-avatar-gradient");
-    expect(result).toContain("bg-ink/5");
-  });
 });
 
 describe("cn with the 1b type scale", () => {

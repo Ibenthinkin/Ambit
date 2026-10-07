@@ -28,7 +28,7 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 // The green underline shared by primary and outline hover.
-const HOVER_LINE = "hover:shadow-[inset_0_-2px_0_var(--color-accent)]";
+export const HOVER_LINE = "hover:shadow-[inset_0_-2px_0_var(--color-accent)]";
 
 /**
  * The white primary block's colours, press state, hover line and 150 ms ease as one string, for

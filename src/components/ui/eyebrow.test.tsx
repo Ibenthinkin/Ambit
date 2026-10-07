@@ -13,8 +13,7 @@ describe("Eyebrow", () => {
     for (const c of [
       "font-mono",
       "uppercase",
-      "text-[10.5px]",
-      "tracking-[0.4px]",
+      "text-eyebrow", // the token carries 10.5 px and 0.4 px tracking (globals.css)
       "text-ink/55",
     ]) {
       expect(el.className).toContain(c);

@@ -1,5 +1,11 @@
 import * as React from "react";
 
+import { cn } from "~/lib/utils";
+
+/** The green mono hint (DESIGN §3.2 job 7) — 1b has no error colour. Layout classes stay with the caller. */
+export const ERROR_HINT =
+  "text-accent font-mono text-[10.5px] tracking-[0.04em]";
+
 /**
  * A visible label above one input (DESIGN §4.4): Geist Mono, 10.5 px, uppercase, `ink/55`, with
  * a right-aligned slot in the same row for a hint or an error — both green mono ("Needs 8+
@@ -61,7 +67,7 @@ export function Field({
           <span
             id={noteId}
             role={error ? "alert" : undefined}
-            className="text-accent text-right font-mono text-[10.5px] tracking-[0.04em]"
+            className={cn(ERROR_HINT, "text-right")}
           >
             {note}
           </span>

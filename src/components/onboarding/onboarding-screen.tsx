@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -15,6 +14,7 @@ import type { LevelTopic } from "~/components/topics/topic-levels";
 import { Button } from "~/components/ui/button";
 import { Eyebrow } from "~/components/ui/eyebrow";
 import { Rise } from "~/components/ui/rise";
+import { TextLink } from "~/components/ui/text-link";
 import {
   isAnswered,
   keepOrPass,
@@ -608,15 +608,9 @@ export function OnboardingScreen({
                     {retake && (
                       <p className="text-ink/82 mt-3 text-[15px] leading-[1.55]">
                         Your answers will replace the topics you have now.{" "}
-                        {/* TextLink's look (DESIGN §4.6) on a plain <Link>: TextLink doesn't
-                            pass `replace` through, and this one must not add a history entry. */}
-                        <Link
-                          href="/profile/topics"
-                          replace
-                          className="text-ink hover:decoration-accent underline decoration-1 underline-offset-3 transition-colors hover:text-white"
-                        >
+                        <TextLink href="/profile/topics" replace tone="body">
                           Cancel
-                        </Link>
+                        </TextLink>
                       </p>
                     )}
                     {/* What is coming, each line behind the 6 px green dot (accent job 1). */}

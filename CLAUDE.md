@@ -370,7 +370,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   `hang.ts` + `kept-out.ts`, which the redesign then drew and stored (the hang as taste `v: 2`).
 - **The sitewide redesign ("1b") is built — 10-06-26** (design `docs/DESIGN_redesign.md`, plan
   `docs/PLAN_redesign.md`, the package `docs/ambit_Redesign_4/`, briefed by
-  `docs/BRIEF_claude-design-redesign.md`; branch `feat/redesign`, 71 commits from `4005bdc`, all
+  `docs/BRIEF_claude-design-redesign.md`; branch `feat/redesign`, 72+ commits from `4005bdc`, all
   seven phases, **not merged, not pushed, not deployed**). Ben's Claude Design export: black and
   white, one green, square. The ledger of every task, ruling and finding is
   `.superpowers/sdd/PLAN_redesign/progress.md` (local, not committed). What it changed that the
