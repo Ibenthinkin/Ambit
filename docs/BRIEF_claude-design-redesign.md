@@ -1,5 +1,11 @@
 # Ambit — brief for the Claude Design session (sitewide redesign, onboarding first)
 
+> **Answered.** Ben ran the session from this brief and exported `docs/ambit_Redesign_4/` ("1b");
+> `docs/DESIGN_redesign.md` (10-06-26) records which of its choices Ambit takes, and the redesign
+> was built on `feat/redesign` the same day (`docs/PLAN_redesign.md`, `log.md` 10-06-26). Kept as
+> the record of what was asked. Its description of the app below is the app **before** the
+> redesign — nine onboarding steps, the accent knob, Sora — and is no longer current.
+
 _Written 10-05-26 to paste into Claude Design. It describes what the app has **today** so the
 design starts from the real thing, lists what the redesign has to decide, and says what the
 exported package should contain so it drops onto the code. Companion documents:
