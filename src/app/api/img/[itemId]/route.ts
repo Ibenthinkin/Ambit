@@ -21,6 +21,7 @@
 // same allowance. So each item is now fetched upstream once, resized to ≤1600 px WebP, and written
 // to disk; concurrent misses for the same item share a single fetch. This handler is what's left:
 // rate-limit, resolve the id, hand off, answer. Failures are never cached (D4).
+import { env } from "~/env";
 import { getItemById } from "~/server/db/items";
 import {
   getOrFill,
@@ -32,8 +33,12 @@ import { RateLimiter, trustedClientIp } from "~/server/services/rate-limit";
 
 // A separate limiter instance from the tRPC middleware's (120/min), and generously sized on
 // purpose: one feed page loads ~24 images, so sharing the API's budget would let a single scroll
-// starve the reader's own procedure calls. This is abuse cover for the proxy alone.
-const limiter = new RateLimiter({ limit: 600, windowMs: 60_000 });
+// starve the reader's own procedure calls. This is abuse cover for the proxy alone. The budget
+// is `IMG_RATE_LIMIT_PER_MIN` (600 unless set — see env.js for who sets it and why).
+const limiter = new RateLimiter({
+  limit: env.IMG_RATE_LIMIT_PER_MIN,
+  windowMs: 60_000,
+});
 
 /** Failures must never be cached; a 403 that sticks for a year is indistinguishable from a dead image. */
 const NO_STORE = { "Cache-Control": "no-store" } as const;
