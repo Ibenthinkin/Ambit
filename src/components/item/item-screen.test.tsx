@@ -11,6 +11,7 @@ import {
 } from "vitest";
 
 import { markExploreOrigin } from "~/components/feed/feed-origin";
+import { OUTLINE_BLOCK } from "~/components/ui/button";
 import type * as ExploreConfig from "~/config/explore";
 import { EXPLORE_BLOCKS } from "~/config/explore";
 import { DESKTOP_QUERY } from "~/hooks/use-media-query";
@@ -662,6 +663,17 @@ describe("the explore rail cap", () => {
     expect(
       screen.getByRole("link", { name: "Keep exploring" }),
     ).toHaveAttribute("href", "/");
+  });
+
+  // Ben's 10-08-26 phone look: a 13.5 px underlined link hanging off the corner of a 50 px white
+  // block read as an afterthought. The way back is the second of a stacked pair now — the outline
+  // block at the primary's height and width.
+  it("draws the way back as an outline block under the invite", () => {
+    markExploreOrigin();
+    renderScreen({ authed: false });
+    const back = screen.getByRole("link", { name: "Keep exploring" });
+    expect(back).toHaveClass(...OUTLINE_BLOCK.split(" "), "h-[50px]");
+    expect(back).not.toHaveClass("underline");
   });
 
   it("offers no such link to a cold visitor", () => {

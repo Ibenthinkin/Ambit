@@ -40,6 +40,15 @@ export const PRIMARY_BLOCK = cn(
   HOVER_LINE,
 );
 
+/**
+ * The outline block's border, hover fill and hover line as one string — `PRIMARY_BLOCK`'s quieter
+ * sibling, for the anchor that stands second to a primary (the join block's "Keep exploring").
+ */
+export const OUTLINE_BLOCK = cn(
+  "border-ink/35 text-ink hover:border-ink border transition-[background-color,box-shadow,border-color,color] duration-150 hover:bg-white/8",
+  HOVER_LINE,
+);
+
 export interface ButtonProps extends React.ComponentProps<"button"> {
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -65,12 +74,7 @@ export function Button({
         variant === "primary" &&
           (disabled ? "text-ink/34 bg-white/12" : PRIMARY_BLOCK),
         variant === "outline" &&
-          (disabled
-            ? "border-ink/16 text-ink/34 border"
-            : cn(
-                "border-ink/35 text-ink hover:border-ink border hover:bg-white/8",
-                HOVER_LINE,
-              )),
+          (disabled ? "border-ink/16 text-ink/34 border" : OUTLINE_BLOCK),
         isLink &&
           (disabled
             ? "text-ink/34"
