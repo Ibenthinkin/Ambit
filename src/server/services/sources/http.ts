@@ -20,10 +20,45 @@ export class HttpRefusedError extends Error {
   constructor(
     public readonly status: number,
     url: string,
+    /** What the server said, from `describeRefusal`; empty when nothing could be read. */
+    detail = "",
   ) {
-    super(`HTTP ${status} for ${redactUrl(url)} — refused; not retried`);
+    super(
+      `HTTP ${status} for ${redactUrl(url)} — refused; not retried${detail ? ` (${detail})` : ""}`,
+    );
     this.name = "HttpRefusedError";
   }
+}
+
+/** Response headers worth quoting in a refusal: who answered, whether it names a wait, and
+ *  Cloudflare's request id (the one thing their support can look up). */
+const REFUSAL_HEADERS = ["server", "retry-after", "cf-ray"] as const;
+const REFUSAL_BODY_CHARS = 160;
+
+/**
+ * One line about a refused response — the telling headers plus the start of the body, whitespace
+ * collapsed so a log stays one line per event. Exists because of 10-07-26: the first two scheduled
+ * ingests on VM 202 lost every Tumblr blog to a 403 that the log recorded as a bare status, and
+ * that answered 200 again an hour later. Whether that was a throttle (a `retry-after`), a bot
+ * challenge (an HTML body) or an outage is exactly what the response would have said. Never
+ * throws: the refusal is the news, and a body that cannot be read must not replace it.
+ */
+async function describeRefusal(res: Response): Promise<string> {
+  const parts: string[] = [];
+  for (const name of REFUSAL_HEADERS) {
+    const value = res.headers.get(name);
+    if (value) parts.push(`${name}: ${value}`);
+  }
+  try {
+    const body = (await res.text()).replace(/\s+/g, " ").trim();
+    if (body)
+      parts.push(
+        `body: ${body.length > REFUSAL_BODY_CHARS ? body.slice(0, REFUSAL_BODY_CHARS) + "…" : body}`,
+      );
+  } catch {
+    // An unreadable body is not worth more than the headers already say.
+  }
+  return parts.join("; ");
 }
 
 /**
@@ -114,7 +149,11 @@ async function fetchWithRetry<T>(
       });
       if (!res.ok) {
         if (opts?.noRetryOn?.includes(res.status))
-          throw new HttpRefusedError(res.status, url);
+          throw new HttpRefusedError(
+            res.status,
+            url,
+            await describeRefusal(res),
+          );
         throw new Error(`HTTP ${res.status} for ${redactUrl(url)}`);
       }
       return { data: await read(res), headers: res.headers };

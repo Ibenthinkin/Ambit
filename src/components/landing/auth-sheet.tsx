@@ -51,6 +51,18 @@ function OrbitGlyph() {
   );
 }
 
+/** The header's mark: the orbit glyph beside a mono "Ambit" — drawn once for both of its hosts. */
+function Brand() {
+  return (
+    <>
+      <OrbitGlyph />
+      <span className="text-ink/85 font-mono text-[11px] tracking-[0.04em] uppercase">
+        Ambit
+      </span>
+    </>
+  );
+}
+
 export interface AuthSheetProps {
   open: boolean;
   /**
@@ -128,17 +140,11 @@ export function AuthSheet({
               onClick={onCollapse}
               className="text-ink flex items-center gap-[10px]"
             >
-              <OrbitGlyph />
-              <span className="text-ink/85 font-mono text-[11px] tracking-[0.04em] uppercase">
-                Ambit
-              </span>
+              <Brand />
             </button>
           ) : (
             <div className="text-ink flex items-center gap-[10px]">
-              <OrbitGlyph />
-              <span className="text-ink/85 font-mono text-[11px] tracking-[0.04em] uppercase">
-                Ambit
-              </span>
+              <Brand />
             </div>
           )}
           <span className="text-ink/55 font-mono text-[11px] tracking-[0.04em] uppercase">

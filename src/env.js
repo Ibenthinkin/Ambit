@@ -85,6 +85,12 @@ export const env = createEnv({
     // **8.1 mounts this as a persistent volume** so a deploy doesn't send the whole corpus back to
     // the museums.
     IMAGE_CACHE_DIR: z.string().min(1).default(".cache/img"),
+    // The image proxy's per-IP budget, requests per minute (`/api/img`, Phase 7.3). 600 is abuse
+    // cover sized for a reader — one feed page is ~24 pictures — and is what production runs. The
+    // knob exists for the e2e suite (10-07-26): five Playwright workers loading pictures from one
+    // address spent the budget, and `pwa.prod.spec` / `security.spec` 429'd under the full run
+    // while passing alone. `playwright.config.ts` raises it for the server it boots, nothing else.
+    IMG_RATE_LIMIT_PER_MIN: z.coerce.number().int().positive().default(600),
     // Optional (Phase 4.1 decision): gates the feed engine's debug affordances (SPEC §9's "dev
     // affordances stay in" — the debug overlay's `why`/`curationScore` on each card, and whether
     // `feed.page` honors ad hoc knob overrides at all). Left unset, it defaults to "on" in
@@ -131,6 +137,7 @@ export const env = createEnv({
     LOUPE_API_TOKEN: process.env.LOUPE_API_TOKEN,
     SMITHSONIAN_API_KEY: process.env.SMITHSONIAN_API_KEY,
     IMAGE_CACHE_DIR: process.env.IMAGE_CACHE_DIR,
+    IMG_RATE_LIMIT_PER_MIN: process.env.IMG_RATE_LIMIT_PER_MIN,
     FEED_DEBUG: process.env.FEED_DEBUG,
     NODE_ENV: process.env.NODE_ENV,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,

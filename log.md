@@ -5,6 +5,76 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
+### [[10-07-26 Wed]] — The redesign is live; the scheduled ingest has been losing Tumblr at 08:00 UTC
+
+Ben away for the day after a first look at the deployed redesign ("looked pretty good"; the
+thorough device pass is still his). This session checked the deploy and then went looking for
+work that needed no decision. Everything built is on `fix/walk-refusal-detail` (pushed, not
+merged).
+
+**Deploy, verified read-only:** production is `c26b6b5`, health ok, and migration 0014 ran at that
+boot — `drizzle.__drizzle_migrations` id 15 at 21:38 UTC 10-05, and the `user` table has no
+`age_range` / `location` / `gender` left.
+
+**Findings:**
+
+- **Both scheduled pictures ingests failed, and nothing said so.** `PLAN_judge-on-vm202`'s Step 8
+  ("the first scheduled fire is the proof of the schedule") had never been read. The schedule
+  fires — `ingest_run` rows at 08:00:04 UTC Mon 10-05 and Tue 10-06 — but both **exited 2**: all
+  seven Tumblr blogs answered **HTTP 403** on `/api/read/json?start=0&num=50` for the whole 35 s
+  retry window (5/10/20 s), so the verdict was "dead sources" and no blog post from the week was
+  walked. The search lane was fine (Tuesday inserted 4,997; the hand topics got their first
+  pictures — `medieval` 251, `renaissance` 214, `illuminated-manuscripts` 228). Health still reads
+  `ok` because it counts successes under an 8 d 6 h rule: it flips to `stale` on 10-12 ~14:00 UTC,
+  and only if Monday fails again. Coolify's Resend notification is the one thing that should have
+  fired — Ben presumably has two task-failure mails.
+- **It is not the VM, the address, the User-Agent or the request shape.** At 13:18 UTC the same
+  request returned 200 from the VM's shell, from inside the app container through Bun's own
+  `fetch`, and as a seven-blog concurrent burst in the ingest's exact shape (egress IP identical to
+  the Mac's). And **fourteen nightlies at 01:30 UTC (09-20 → 10-03) plus the 10-04 manual run
+  contain not one Tumblr 403** — hundreds of pages per blog, every night. So either Tumblr's legacy
+  API has a daily window around 08:00 UTC (bot defence, maintenance) or a block came and went on
+  10-05/06. A probe is running on VM 202 to tell them apart — `~/tumblr-probe.sh` →
+  `~/tumblr-probe.log`, one request per blog every 30 minutes for 26 hours from 13:18 UTC; the
+  08:00 UTC sweep on 10-08 is the answer. If it 403s there, the fix is a different hour for the
+  pictures job (Coolify's `scheduled_tasks.frequency`, one `update`), not code.
+- The walker's refusal log recorded nothing but the status, which is why the above took probes
+  rather than a `grep`. Fixed below.
+
+**Shipped (on `fix/walk-refusal-detail`, four commits, each TDD):**
+
+- **A refused response says what the server said** (`51d52b0`): `HttpRefusedError` carries the
+  response's `server` / `retry-after` / `cf-ray` and the first 160 characters of the body,
+  whitespace collapsed. Reading the body can never replace the refusal itself.
+- **The `/api/img` 429 e2e flake is closed** (`d857765`; open since 09-26): `IMG_RATE_LIMIT_PER_MIN`
+  (default 600, `env.test.ts` pins it) is the proxy's budget; `playwright.config.ts` gives the
+  server it boots 6000, because five workers are one address. Production sets nothing. Proof:
+  `bun run e2e:prod` **70 passed / 0 failed**, `pwa.prod.spec:101` and `security.spec:222` among
+  them under the full parallel run.
+- **Four of the redesign ledger's deferred minors** (`34af33d`): TextLink's bracket glyphs are
+  `aria-hidden` so the link is named by its words; Profile → Topics withdraws the focus hand-off
+  when the floor refuses a removal (left waiting, it fired whenever that row next left the list
+  and dragged focus into the search box — reproduced in a test first); `getUserTaste` parses the
+  stored jsonb (`parseStoredTaste`) and answers null rather than hand `ExhibitionCard` a shape it
+  would throw on; the auth sheet's glyph + wordmark is one `Brand`. `bun run check` 2,524 green.
+
+**Decisions (mine, small):** the "8+ hint after an empty submit" minor is **not** done — today the
+error slot already says "Passwords need at least 8 characters."; adding the field hint too would
+say it twice, which is a design call. A longer backoff for a walk's 403 (the Met's 403 is a known
+throttle that clears after a pause) is a policy change to 6.3's "a refused bot does not retry"
+rule, left to Ben.
+
+**Open / next:** Ben's thorough device pass (402 / 1440 / tailnet phone; the ledger's for-his-look
+items: double-tap pill flash, Firefox Space on a segment, the 64 px name at 600 px, the kept
+Share row, Back from the reveal, off-ladder greys). Read `~/tumblr-probe.log` on VM 202 after
+08:30 UTC 10-08. Decide the 403 backoff, and whether to re-run pictures by hand before Monday
+(`.cache/judge-run-prod.sh`). `graph:rebuild --confirm` is actionable now that the hand topics
+have items. Merge `fix/walk-refusal-detail` (no migration; the next push deploys it). The
+checkout is left on that branch and :3000 is free (last night's `next dev` was stopped for the
+e2e run).
+
+_Session spend: 30.97M tok (in 5.1k · out 161.1k · cache r 30.01M / w 787.9k) · fable-5-1 + opus-5-5 · 09:12→09:33_
+
 ### [[10-06-26 Tue]] — While the design is drawn: the red explore test, and the reveal's non-visual half
 
 Ben is finishing the sitewide redesign in Claude Design; the export gates Cut 5 and the reveal's

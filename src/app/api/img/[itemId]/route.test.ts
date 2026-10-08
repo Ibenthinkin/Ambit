@@ -10,6 +10,8 @@ import { GET } from "./route";
 // there is no other way for a caller to influence what gets fetched.
 const getItemById = vi.hoisted(() => vi.fn());
 vi.mock("~/server/db/items", () => ({ getItemById }));
+// Only the knob the route reads; anything else it touched would be a new dependency to pin here.
+vi.mock("~/env", () => ({ env: { IMG_RATE_LIMIT_PER_MIN: 42 } }));
 
 // A stand-in limiter so the 429 branch is one flag away instead of 600 requests away. It records
 // what it was constructed with and what key it was asked about, which is the part worth asserting:
@@ -197,8 +199,11 @@ describe("GET /api/img/[itemId]", () => {
     expect(getOrFill).not.toHaveBeenCalled();
   });
 
-  it("buys its own budget rather than sharing the API's", async () => {
-    expect(limiterState.options).toEqual({ limit: 600, windowMs: 60_000 });
+  // The budget is `IMG_RATE_LIMIT_PER_MIN` (default 600 — pinned in env.test.ts). The knob
+  // exists for the e2e suite: five parallel workers loading pictures from one IP spent the
+  // production budget and two specs 429'd under the full run while passing alone (09-26 → 10-07).
+  it("buys its own budget, read from IMG_RATE_LIMIT_PER_MIN, rather than sharing the API's", async () => {
+    expect(limiterState.options).toEqual({ limit: 42, windowMs: 60_000 });
   });
 });
 

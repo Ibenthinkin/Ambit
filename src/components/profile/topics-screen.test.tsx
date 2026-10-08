@@ -321,6 +321,24 @@ describe("TopicsScreen", () => {
     expect(toastMock).toHaveBeenCalledWith("Keep at least one topic.");
   });
 
+  it("a refused removal leaves no focus hand-off waiting", async () => {
+    state.mine = [{ topicId: "astronomy", weight: 1 }];
+    const { rerender } = render(<TopicsScreen dev={false} />);
+    const off = within(levelRow("Astronomy")).getByRole("radio", {
+      name: "off",
+    });
+    off.focus();
+    fireEvent.click(off);
+    expect(toastMock).toHaveBeenCalledWith("Keep at least one topic.");
+    expect(off).toHaveFocus();
+
+    // Later the row leaves by another path — a refetch after a retake, say. The hand-off the
+    // refused click wrote must not fire now and yank focus into the search box.
+    state.mine = [];
+    rerender(<TopicsScreen dev={false} />);
+    expect(screen.getByRole("searchbox")).not.toHaveFocus();
+  });
+
   it("a failed save puts the picks back and says so", async () => {
     render(<TopicsScreen dev={false} />);
     const previous = [...state.mine];

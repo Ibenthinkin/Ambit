@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildTaste,
   chosenDestinations,
+  parseStoredTaste,
   profileTaste,
   withKnownItems,
   tasteSchema,
@@ -176,6 +177,24 @@ describe("profileTaste", () => {
   it("tolerates a malformed hang in the stored jsonb rather than throwing", () => {
     const bad = { ...V1_ROW, v: 2, hang: "p1" } as unknown as TasteV1;
     expect(profileTaste(bad, cards).hang).toEqual([]);
+  });
+});
+
+// The read side of "what is stored is what the reveal showed": a row is validated when written,
+// so one that no longer parses is corruption or a schema change — and the profile shows no
+// exhibition rather than handing ExhibitionCard a shape it would throw on (redesign ledger 6.2).
+describe("parseStoredTaste", () => {
+  it("returns a stored v1 or v2 row as is", () => {
+    expect(parseStoredTaste(V1_ROW)).toEqual(V1_ROW);
+    const v2 = { ...V1_ROW, v: 2, hang: ["p1", "p2"] };
+    expect(parseStoredTaste(v2)).toEqual(v2);
+  });
+
+  it("returns null for an unknown version or a shape the schema refuses", () => {
+    expect(parseStoredTaste({ ...V1_ROW, v: 3 })).toBeNull();
+    expect(parseStoredTaste({ v: 2 })).toBeNull();
+    expect(parseStoredTaste("not even an object")).toBeNull();
+    expect(parseStoredTaste(null)).toBeNull();
   });
 });
 

@@ -121,6 +121,11 @@ export default defineConfig({
     // only that one, so an ordinary `bun run dev` still has it. Inert under PROD (a production
     // build renders no indicator) and harmless when an existing server is reused, which is the one
     // case it cannot fix: a dev server started by hand never saw this variable.
-    env: { E2E_HIDE_DEV_INDICATOR: "1" },
+    //
+    // The image proxy's per-IP budget is 600/min in production, sized for one reader. Here one
+    // address is every worker at once, and under the full parallel run that budget ran out:
+    // `pwa.prod.spec` and `security.spec` 429'd on pictures while passing alone (09-26 → 10-07).
+    // Ten times the budget for the server this suite boots; production never reads this.
+    env: { E2E_HIDE_DEV_INDICATOR: "1", IMG_RATE_LIMIT_PER_MIN: "6000" },
   },
 });
