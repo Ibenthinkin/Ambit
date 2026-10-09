@@ -87,6 +87,36 @@ usage plan above — whichever lands first keeps it.
 
 _Session spend: 7.96M tok (in 1.5k · out 132.1k · cache r 7.11M / w 716.3k) · fable-5-1 + opus-5-5 · 20:46→12:27_
 
+**Later still — More or less, Part 1 built (`feat/more-or-less`, `cb5bcc5..6007b9a`, not pushed, not merged).**
+Ben asked for Part 1 then Part 2 in one session. **Shipped, each task TDD:** migration 0015
+(`item_feedback`, `user_topic_cool`); `db/feedback.ts` — `setFeedback` / `clearFeedback` in one
+transaction with an exact undo (what a tap did is recorded, so clearing it puts the weights back
+as they were), an advisory transaction lock per user+item so two first taps on one item serialise,
+and a `FeedbackEffect` that says whether a cool is new; `feedback.set/clear/mine/list` and
+`topics.cools/warm`; a retake of the questionnaire clears cools; "more" feeds `getTasteKeywords`;
+the feed engine's `coolStrength` knob (cools weigh only where DRIFT and JUMP _land_; at 0, or with
+no cools, the page is byte-for-byte today's, same rng consumption); `feedbackToastText`; the Saved
+"More of this" shelf (the chip row now also shows for readers with marks but no saves); Profile →
+Topics "Showing less of" with Warm up; `/dev/feed`'s "Your topics" readout.
+
+**Decisions:** a more-then-less flip on a topic the "more" had _newly picked_ leaves that pick at
+0.75, not removed — D2's clear-then-apply undoes the "more" exactly, then the "less" cools a topic
+that is still picked. **Flagged for Ben**: it reads oddly (a topic you said "less" to stays in your
+picks) and is the one place the exact-undo promise bends the intuitive result.
+
+**Verification:** typecheck green; lint only the known `.cache/capacity-probe/load.ts` error;
+prettier green on changed files; `bun run test` 2,597 tests (one run hit the known parallel
+un-homed-fixture race in `feed.integration.test.ts`'s "writes no seen_item rows", green on re-run).
+`e2e:prod` 58 passed / 2 failed / 9 skipped / 12 did not run — both failures
+(`item.spec.ts:295` article link name, `desktop.spec.ts:464` spread sign-in) **fail identically
+on `main` `cb5bcc5`**, so they are not this branch's. CI-shape run (fresh postgres, port 5434 — 5433 was held by another container): 57 passed, 2 failed — `item.spec.ts:295` again, and a tile-opens-the-page spec (`explore.spec.ts:138`) that passes alone on both branch and `main`; `main`'s own CI-shape run is red the same way (`feed.spec.ts:194` + `item.spec.ts:295`), and the failures stop the `desktop` project from running at all. The saved spec's `More of this` locator also matched the `Undo More of this` badge (strict-mode violation) — fixed with `exact: true`.
+
+**Open / next:** Part 2 in progress on the same branch (the surfaces, per
+`docs/design_handoff_more_or_less/`); Ben to rule on the 0.75 flip; the two red e2e specs on `main`
+(stale `[Read on …]` bracket name; spread test's sign-in never reaching `/feed`) want their own fix.
+
+*Session spend: 18.59M tok (in 376 · out 65.2k · cache r 17.32M / w 1.20M) · opus-5-5 · 12:35→13:24*
+
 ### [[10-08-26 Thu]] — The device pass closes; the Tumblr probe answers "no"; the join block's way back
 
 Ben's look at the deployed redesign on the phone and at 1440: "more or less ok, enough that I

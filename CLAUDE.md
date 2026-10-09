@@ -456,6 +456,23 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   and starts a pan in the _same_ pointer event, before React re-renders — so the latest zoom
   lives in `zoomRef` as well as state, and the pan reads the ref. Device-judged, plus one
   Chromium CDP pinch smoke in `item.spec.ts`.
+- **More or less — 10-09-26** (design `docs/DESIGN_more-or-less.md`, plan
+  `docs/PLAN_more-or-less.md`, handoff `docs/design_handoff_more_or_less/`; designed 10-08, Part 1
+  built 10-09 on `feat/more-or-less`, **not merged, not deployed**; Part 2, the on-page surfaces,
+  in progress on the same branch). A worded Less of this / More of this pair on the item. The parts
+  that span files: two tables (migration 0015) — `item_feedback` (one row per user+item) and
+  `user_topic_cool` (a topic the reader has cooled); `db/feedback.ts` writes in one transaction
+  and **undoes exactly** (`clearFeedback` reverses what the tap recorded, never "recomputes"),
+  serialising first taps with an advisory xact lock per user+item, and returns a `FeedbackEffect`
+  (incl. `isNewCool`) that `lib/feedback-toast.ts` words; `resolveSlotTopic` in `db/items.ts` is
+  the one rule for which topic a tap on a slot means. A "more" bumps the topic like a save and
+  feeds `getTasteKeywords`; a **cool weighs only where DRIFT and JUMP land** (never CORE — the
+  reader's own picks), through the `coolStrength` knob in `feed-knobs.ts`, and at 0 or with no
+  cools the draw path and rng consumption are unchanged, so the page is byte-for-byte today's.
+  A retake clears cools; `topics.cools` / `topics.warm` back Profile → Topics' "Showing less of";
+  Saved gained a "More of this" shelf; `/dev/feed` a "Your topics" readout. **Known bend:** a
+  more→less flip on a topic the "more" newly picked leaves the pick at 0.75 (clear-then-apply),
+  flagged for Ben. No toolbar changes — the pill, rail and Share disc are untouched by design.
 - **The dev knob panel shipped 09-05-26** — `/dev/feed` (local, `FEED_DEBUG`; a 404 under a
   production build), every feed knob live including the two Cut 2a levers
   `grownEdgeScale`/`grownHopPenalty` (identities at `1`, so `/feed` composes exactly as before),
