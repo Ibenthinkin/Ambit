@@ -54,8 +54,32 @@ checklist is kept as a page for reference: https://claude.ai/artifact/KXrAo7iuge
 pictures re-run before Monday (`.cache/judge-run-prod.sh`), `graph:rebuild --confirm`, Task 9
 (the publications backfill).
 
+**Planned, same evening — "More or less" (`docs/BRIEF_more-or-less.md`,
+`docs/DESIGN_more-or-less.md`, `docs/PLAN_more-or-less.md`):** Ben asked whether a **like button**
+would help dial in readers' preferences, since "saving things to lists is not something everyone
+does." The answer, agreed in chat: a quiet pair — **More of this / Less of this** — not a like.
+The positive half is the save→weight loop at a smaller step (`MORE_STEP` 0.25 against a save's
+0.5; a like comes five or ten times as often and would pin everything at the 3.0 cap in a week).
+The negative half is the signal the feed has never had: weights only go up today, unsave doesn't
+decrement, and in a feed that spends 60 % of a page outside the reader's picks the useful
+information is _which drift directions were wrong_. "Less" steps a picked topic down (floor 0.25,
+never deletes a pick) and **cools** the topic as a drift/jump _destination_ in a new
+`user_topic_cool` table — not `user_topic`, because a row there means "a pick" to five readers of
+it. Every feedback row stores the delta it applied, so undo is exact. **Ben's rulings:** the pair
+goes everywhere Save is; "less" lowers and cools rather than muting a source or just hiding the
+item; "more" items get an **automatic shelf on Saved** (over "store it, surface nothing yet");
+wording "More of this / Less of this"; glyphs plus / minus with **marked = inverted ink**, no
+eighth job for the green. **One geometry fact sent the look to Claude Design:** the phone's item
+pill is 244 px wide and five buttons would make it 396 on a 402 screen, so the phone placement is
+the brief's question (four options drawn out for him). The plan is in two parts: **Part 1
+(Tasks 1–9: tables, the transactional write, the `feedback` router, cools under one `coolStrength`
+knob, toasts, the Saved chip, "Showing less of" on Topics, a `/dev/feed` weights readout) needs
+nothing from Claude Design** and a cheaper session can run it now; Part 2 (the surfaces) has a
+`VERDICT:` slot per task for his instructions back.
+
 _Session spend: 14.81M tok (in 2.9k · out 79.0k · cache r 14.18M / w 547.3k) · fable-5-1 · 15:46→19:27_
 _Session spend: 10.80M tok (in 1.6k · out 82.5k · cache r 10.52M / w 203.6k) · fable-5-1 + opus-5-5 · 19:27→20:13_
+_Session spend: 6.37M tok (in 1.1k · out 125.8k · cache r 5.61M / w 626.5k) · fable-5-1 + opus-5-5 · 19:18→20:46_
 
 ### [[10-07-26 Wed]] — The redesign is live; the scheduled ingest has been losing Tumblr at 08:00 UTC
 
