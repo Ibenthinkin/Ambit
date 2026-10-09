@@ -651,7 +651,12 @@ export function ChatBubble({ size = 17, className, ...rest }: IconProps) {
  * same reasoning that gives `Logo` its own 26 grid — this glyph sits at Logo's scale, not the
  * settings rows'.
  */
-export function Plus({ size = 26, className, ...rest }: IconProps) {
+export function Plus({
+  size = 26,
+  strokeWidth = 1.5,
+  className,
+  ...rest
+}: IconProps & { strokeWidth?: number }) {
   return (
     <svg
       width={size}
@@ -659,12 +664,39 @@ export function Plus({ size = 26, className, ...rest }: IconProps) {
       viewBox="0 0 26 26"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.5}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       className={className}
       {...rest}
     >
       <path d="M13 5.5v15M5.5 13h15" />
+    </svg>
+  );
+}
+
+/**
+ * Minus — the "Less of this" half of the More-or-less pair. The same 26 grid and the same
+ * `strokeWidth` knob as `Plus`, so the two sit as a matched set (the pair passes 2).
+ */
+export function Minus({
+  size = 26,
+  strokeWidth = 1.5,
+  className,
+  ...rest
+}: IconProps & { strokeWidth?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 26 26"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      className={className}
+      {...rest}
+    >
+      <path d="M6 13h14" />
     </svg>
   );
 }

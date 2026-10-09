@@ -2,6 +2,7 @@ import { Eyebrow } from "~/components/ui/eyebrow";
 import { TextLink } from "~/components/ui/text-link";
 import { useUsage } from "~/components/usage/usage-provider";
 import { sourceLabel } from "~/lib/source-label";
+import { cn } from "~/lib/utils";
 import type { RailItem } from "~/server/services/gallery-rail";
 import { INFORMATION_ID } from "./caption-type";
 import { CreditLine } from "./credit-line";
@@ -27,7 +28,19 @@ export interface ItemFactsProps {
   /** `column` (default) is the phone / reader-width stack; `wide` is the desktop "Information"
    *  section, full width in three columns (DESIGN_redesign §6.3). Both read `itemFactRows`. */
   layout?: "column" | "wide";
+  feedback?: FeedbackSlot;
 }
+
+/**
+ * The More-or-less pair, as a **render slot** (docs/DESIGN_more-or-less.md D6): a function the
+ * screen hands in, called with the item a block is about. Why a slot and not the component
+ * itself: three layouts share one placement rule — *the pair follows the thing it's about* (under
+ * the summary in `wide`, under each figure's title in the spread) — and the pair needs tRPC,
+ * state and the screen's toast, while this file stays pure (no queries, no router, no state). So
+ * this file decides *where*, and owns the spacing above it; the screen decides *what*. The
+ * `column` layout places none: on a phone the pair sits above the title, which is the screen's.
+ */
+export type FeedbackSlot = (item: RailItem) => React.ReactNode;
 
 /**
  * One row of the facts table: `92px | 1fr`, a mono 10.5 px label over a 15 px value, an `ink/14`
@@ -119,7 +132,13 @@ const MONO_LINE =
  * section is a named landmark and focusable, which is what "↓ Information" scrolls to and lands
  * focus on. A PDR essay (`body`) runs on under the grid at reader width.
  */
-function ItemFactsWide({ item }: { item: RailItem }) {
+function ItemFactsWide({
+  item,
+  feedback,
+}: {
+  item: RailItem;
+  feedback?: FeedbackSlot;
+}) {
   const { track } = useUsage();
   const maker = makerOf(item);
   const rows = itemFactRows(item);
@@ -168,8 +187,16 @@ function ItemFactsWide({ item }: { item: RailItem }) {
               {item.summary}
             </p>
           ) : null}
+          {/* The frame's D2B: the pair 22 px under the summary (the frame calls it "the
+              title"), and the bracket link-out 22 px under the pair — 20 when there is no pair.
+              No summary: the pair leads the column. */}
+          {feedback ? (
+            <div className={item.summary ? "mt-[22px]" : undefined}>
+              {feedback(item)}
+            </div>
+          ) : null}
           {item.sourceUrl ? (
-            <p className="mt-5 text-[16px]">
+            <p className={cn(feedback ? "mt-[22px]" : "mt-5", "text-[16px]")}>
               <TextLink
                 href={item.sourceUrl}
                 external
@@ -209,9 +236,11 @@ function ItemFactsWide({ item }: { item: RailItem }) {
 export function ItemFactsSpread({
   pages,
   focusSide,
+  feedback,
 }: {
   pages: RailItem[];
   focusSide: number;
+  feedback?: FeedbackSlot;
 }) {
   // A capped rail can leave the right slot as the end card, so only one real page remains; focus
   // on that slot falls back to the page that is there, keeping exactly one `<h1>`.
@@ -255,7 +284,13 @@ export function ItemFactsSpread({
               <Title className="text-ink-hi mt-[18px] text-[40px] leading-[1.08] font-normal tracking-[-0.015em] text-pretty">
                 {item.title}
               </Title>
-              <div className="text-ink/88 mt-6 text-[15px] leading-[1.45]">
+              {/* One pair per figure (the frame's D3B), 24 px under its title: each work can sit
+                  in a different topic, so each gets its own verdict. */}
+              {feedback ? <div className="mt-6">{feedback(item)}</div> : null}
+              <div
+                data-maker
+                className="text-ink/88 mt-6 text-[15px] leading-[1.45]"
+              >
                 {maker ? <div>{maker}</div> : null}
                 <div className={`${MONO_LINE} mt-4`}>
                   From{" "}
@@ -303,8 +338,13 @@ export function ItemFactsSpread({
   );
 }
 
-export function ItemFacts({ item, layout = "column" }: ItemFactsProps) {
-  if (layout === "wide") return <ItemFactsWide item={item} />;
+export function ItemFacts({
+  item,
+  layout = "column",
+  feedback,
+}: ItemFactsProps) {
+  if (layout === "wide")
+    return <ItemFactsWide item={item} feedback={feedback} />;
   return (
     <article>
       {/* Stays an `<h1>`: it's the page's actual subject, and e2e leans on it. */}

@@ -234,6 +234,47 @@ test.describe.serial("desktop", () => {
     ).toBeGreaterThanOrEqual(2);
   });
 
+  // docs/DESIGN_more-or-less.md D6: the strip's − and + squares, left of the bookmark. + marks
+  // in place (inked, pressed) and toasts; − veils the tile where it stands and the strip goes
+  // with it; [Undo..] lifts the veil.
+  test("the strip's + marks the tile; its − veils it in place, and Undo lifts the veil", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const tile = page.locator("[data-feed-id]:has(img)").nth(3);
+    await expect(tile).toBeVisible();
+    const toast = (text: RegExp | string) =>
+      page.getByRole("status").filter({ hasText: text });
+
+    await tile.hover();
+    const strip = tile.getByTestId("tile-actions");
+    await expect(strip).toHaveCSS("opacity", "1");
+    // Right-aligned −, +, bookmark.
+    const names = await strip
+      .getByRole("button")
+      .evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
+    expect(names.slice(1, 3)).toEqual(["Less of this", "More of this"]);
+    expect(names[3]).toMatch(/^Save(d)? to /);
+
+    const more = strip.getByRole("button", { name: "More of this" });
+    await more.click();
+    await expect(more).toHaveAttribute("aria-pressed", "true");
+    await expect(toast(/More of this/)).toHaveText(/^More of this/);
+
+    const grid = page.getByTestId("feed-columns");
+    const heightBefore = (await grid.boundingBox())!.height;
+    await strip.getByRole("button", { name: "Less of this" }).click();
+    const veil = tile.getByTestId("tile-veil");
+    await expect(veil).toBeVisible();
+    await expect(tile.getByTestId("tile-actions")).toHaveCount(0);
+    expect((await grid.boundingBox())!.height).toBe(heightBefore);
+
+    await veil.getByRole("button", { name: "Undo" }).click();
+    await expect(tile.getByTestId("tile-veil")).toHaveCount(0);
+    await expect(toast("Undone")).toHaveText("Undone");
+  });
+
   // docs/DESIGN_list-screens.md §6: the hub is the feed's wide column, left-aligned, and packs
   // four collection tiles across; Saved packs four stacks.
   // The keyboard half of the Lift (docs/PLAN_tile-hover.md Task 6, Review focus 5): Tab onto a
@@ -381,6 +422,35 @@ test.describe.serial("desktop", () => {
     const factsBox = (await facts.boundingBox())!;
     expect(factsBox.width).toBeGreaterThan(1300);
     expect(factsBox.y).toBeGreaterThanOrEqual(900); // under the picture, not over it
+
+    // More or less, the frame D2B: one pair, in the Information section's third column, under
+    // the summary when there is one and always above the bracket link-out, two 220 px buttons.
+    const pair = facts.getByRole("group", { name: "More or less of this" });
+    await expect(pair).toHaveCount(1);
+    const linkOut = facts.getByRole("link", {
+      name: /^(Read the|Read it on|See it on)/,
+    });
+    const [pairBox, linkBox] = [
+      (await pair.boundingBox())!,
+      (await linkOut.boundingBox())!,
+    ];
+    expect(pairBox.y + pairBox.height).toBeLessThanOrEqual(linkBox.y);
+    // …22 px under it, as the frame's anchor sits (`margin-top: 22px`). Measured to the link's
+    // paragraph — its line box — because an inline link's own box starts at the glyphs, a few
+    // pixels below. No verdict is on for this reader, so the group's bottom is the pair's.
+    const linkLine = (await linkOut.locator("xpath=..").boundingBox())!;
+    expect(
+      Math.abs(linkLine.y - (pairBox.y + pairBox.height) - 22),
+    ).toBeLessThanOrEqual(1);
+    // The group is a grid as wide as the column; its two tracks are fixed and left-aligned.
+    const buttons = pair.getByRole("button");
+    const [less, more] = [
+      (await buttons.nth(0).boundingBox())!,
+      (await buttons.nth(1).boundingBox())!,
+    ];
+    expect(Math.round(less.width)).toBe(220);
+    expect(Math.round(more.x - (less.x + less.width))).toBe(10);
+    expect(Math.round(less.x)).toBe(Math.round(pairBox.x));
 
     // A mouse moving over the page wakes the caption (decision 7 of docs/DESIGN_redesign.md:
     // any input on a computer). Retried for the item screen's quarter-second wake throttle — see
@@ -539,6 +609,15 @@ test.describe.serial("desktop", () => {
     expect(left.x + left.width).toBeLessThanOrEqual(CENTRE_X + 1);
     expect(right.x).toBeGreaterThanOrEqual(CENTRE_X - 1);
     const first = await srcs();
+
+    // More or less, the frame D3B: one pair per figure, under that figure's title.
+    const figs = page.getByTestId("spread-fig");
+    await expect(figs).toHaveCount(2);
+    for (const fig of await figs.all()) {
+      await expect(
+        fig.getByRole("group", { name: "More or less of this" }),
+      ).toHaveCount(1);
+    }
 
     // A turn moves two: neither page of the new spread was on the old one.
     const url = page.url();

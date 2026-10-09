@@ -5,7 +5,7 @@
 import { and, count, desc, eq } from "drizzle-orm";
 
 import type { Item } from "~/server/db/items";
-import { item, savedItem } from "~/server/db/schema";
+import { item, itemFeedback, savedItem } from "~/server/db/schema";
 
 // Note on where saving lives (Phase 5.5): the *write* path is `collections.ts`'s
 // `setItemCollection`, because every save in the redesign goes through the save-to-collection
@@ -69,6 +69,26 @@ export async function getSavedItemCollection(
 }
 
 /**
+ * One row of a shelf of kept things — `saves.list`'s rows, and since 10-09-26 `feedback.list`'s
+ * ("More of this", docs/DESIGN_more-or-less.md D2) too, so `SavedTile` draws both with one type.
+ * Today it is the whole `item` row; naming it is what lets the shelves narrow it together later.
+ */
+export type SavedItemRow = Item;
+
+/**
+ * The select both shelves share: `{ item }` over whatever table joins the reader to their items
+ * (`saved_item`, `item_feedback`). Drizzle nests a selection under its key, so a query built on it
+ * comes back as `{ item: Item }[]` and `toSavedItemRows` unwraps it. One projection, one unwrap —
+ * so the two shelves cannot drift apart in what a row carries.
+ */
+export const SAVED_ITEM_PROJECTION = { item } as const;
+
+/** Unwraps rows selected with `SAVED_ITEM_PROJECTION`. */
+export function toSavedItemRows(rows: { item: Item }[]): SavedItemRow[] {
+  return rows.map((row) => row.item);
+}
+
+/**
  * A user's saved items, most-recently-saved first (SPEC §7's `saves.list`) — joins `saved_item` to
  * `item` so the caller gets full item records, not just ids.
  *
@@ -79,10 +99,10 @@ export async function getSavedItemCollection(
 export async function getSavedItems(
   userId: string,
   opts: { collectionId?: string } = {},
-): Promise<Item[]> {
+): Promise<SavedItemRow[]> {
   const { db } = await import("./client");
   const rows = await db
-    .select({ item })
+    .select(SAVED_ITEM_PROJECTION)
     .from(savedItem)
     .innerJoin(item, eq(savedItem.itemId, item.id))
     .where(
@@ -94,7 +114,7 @@ export async function getSavedItems(
           ),
     )
     .orderBy(desc(savedItem.savedAt));
-  return rows.map((row) => row.item);
+  return toSavedItemRows(rows);
 }
 
 /**
@@ -167,15 +187,35 @@ export async function getTasteKeywords(
   const cap = opts.cap ?? 24;
   const scanLimit = opts.scanLimit ?? 30;
   const { db } = await import("./client");
-  const rows = await db
-    .select({ aestheticTags: item.aestheticTags })
-    .from(savedItem)
-    .innerJoin(item, eq(savedItem.itemId, item.id))
-    .where(eq(savedItem.userId, userId))
-    .orderBy(desc(savedItem.savedAt))
-    .limit(scanLimit);
+  // The union of two time-ordered streams: saves (by `saved_at`) and "More of this" verdicts (by
+  // `created_at`) — a "more" is a taste statement at least as strong as a save (More or less D4).
+  // Each is capped at `scanLimit` on its own, then the two are merged newest-first and cut to
+  // `scanLimit` again: the newest `scanLimit` of the union can only come from the newest
+  // `scanLimit` of each part. An item both saved and "more"d appears twice; deriveTasteKeywords
+  // dedupes tags, so that costs a slot in the scan, not a duplicate keyword.
+  const [saved, more] = await Promise.all([
+    db
+      .select({ at: savedItem.savedAt, tags: item.aestheticTags })
+      .from(savedItem)
+      .innerJoin(item, eq(savedItem.itemId, item.id))
+      .where(eq(savedItem.userId, userId))
+      .orderBy(desc(savedItem.savedAt))
+      .limit(scanLimit),
+    db
+      .select({ at: itemFeedback.createdAt, tags: item.aestheticTags })
+      .from(itemFeedback)
+      .innerJoin(item, eq(itemFeedback.itemId, item.id))
+      .where(
+        and(eq(itemFeedback.userId, userId), eq(itemFeedback.verdict, "more")),
+      )
+      .orderBy(desc(itemFeedback.createdAt))
+      .limit(scanLimit),
+  ]);
+  const rows = [...saved, ...more]
+    .sort((x, y) => y.at.getTime() - x.at.getTime())
+    .slice(0, scanLimit);
   return deriveTasteKeywords(
-    rows.map((row) => row.aestheticTags),
+    rows.map((row) => row.tags),
     cap,
   );
 }

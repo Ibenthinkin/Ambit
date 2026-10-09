@@ -313,9 +313,11 @@ test.describe.serial("item pages", () => {
       0,
     );
 
-    // `sourceLabel`'s title-case fallback for an unknown source.
+    // `sourceLabel`'s title-case fallback for an unknown source. An open source's article keeps
+    // the quiet bracket link, not the white "Original source" block (`prefersLinkOutBlock`), and
+    // `TextLink` hides the brackets from assistive tech — so the link's name is the label alone.
     await expect(
-      page.getByRole("link", { name: "Read on E2e" }),
+      page.getByRole("link", { name: "Read on E2e", exact: true }),
     ).toHaveAttribute("href", "https://example.test/e2e/article");
     await expect(
       page.getByText("Ambit is a quieter way to read."),
@@ -500,6 +502,35 @@ test.describe.serial("item pages", () => {
     await expect(
       page.getByRole("list", { name: "About this work" }),
     ).toBeVisible();
+
+    // More or less (docs/DESIGN_more-or-less.md D6, the frame P2): the first row under the
+    // picture. Scrolled to the middle of the screen, not merely into view — at the bottom edge
+    // the fixed pill would sit over it and take the tap.
+    const pair = page.getByRole("group", { name: "More or less of this" });
+    await pair.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    const more = pair.getByRole("button", { name: "More of this" });
+    await expect(more).toHaveAttribute("aria-pressed", "false");
+    // The title 30 px under the pair (the frame P2), measured with no verdict on — the note a
+    // verdict adds would push it down. One `evaluate`, one frame: no rise caught mid-flight.
+    const gap = await page.evaluate(() => {
+      const group = document.querySelector(
+        "[aria-label='More or less of this']",
+      )!;
+      const title = document.querySelector("h1")!;
+      return (
+        title.getBoundingClientRect().top - group.getBoundingClientRect().bottom
+      );
+    });
+    expect(Math.abs(gap - 30)).toBeLessThanOrEqual(1);
+    await more.click();
+    await expect(page.getByRole("status")).toHaveText(/^More of this/);
+    await expect(more).toHaveAttribute("aria-pressed", "true");
+    // The picture stays put — the pair is a verdict, not a navigation.
+    await expect(page).toHaveURL(new RegExp(`/i/${imageId}$`));
+    // Tapping the lit one takes it back.
+    await more.click();
+    await expect(page.getByRole("status")).toHaveText("Undone");
+    await expect(more).toHaveAttribute("aria-pressed", "false");
   });
 
   test("/g/ redirects to the item page", async ({ page }) => {
@@ -601,6 +632,42 @@ test.describe.serial("item pages", () => {
     ).toBeVisible();
     // No invitation for someone already inside.
     await expect(page.getByText("Get your invite")).toHaveCount(0);
+  });
+
+  // More or less at the end of an article (docs/DESIGN_more-or-less.md D6, frame P1): under a
+  // "Finished" label, after the source link. Signed in, so the verdict reaches the server.
+  test("an article ends with Finished and the Less / More pair", async ({
+    page,
+  }) => {
+    await page.goto("/feed");
+    await signIn(page, EMAIL, PASSWORD);
+    await page.goto(`/i/${articleId}`);
+
+    const finished = page.getByRole("region", { name: "Finished" });
+    await finished.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    // The fixture has no reading time, so the label is the bare word.
+    await expect(finished.getByText("Finished", { exact: true })).toBeVisible();
+
+    // The block 34 px under the source link's line box (the frame P1's inline-block link), measured on the rendered page — a
+    // CSS margin can collapse into a neighbour's and read differently from its class.
+    const gap = await page.evaluate(() => {
+      const link = [...document.querySelectorAll("a")].find((a) =>
+        a.textContent?.includes("Read on E2e"),
+      )!;
+      const block = document.querySelector("section[aria-label='Finished']")!;
+      return (
+        block.getBoundingClientRect().top -
+        link.parentElement!.getBoundingClientRect().bottom
+      );
+    });
+    expect(Math.abs(gap - 34)).toBeLessThanOrEqual(1);
+
+    const less = finished.getByRole("button", { name: "Less of this" });
+    await less.click();
+    await expect(page.getByRole("status")).toHaveText(/^Less of this/);
+    await expect(less).toHaveAttribute("aria-pressed", "true");
+    await less.click();
+    await expect(page.getByRole("status")).toHaveText("Undone");
   });
 
   // The sentence the whole rail design turns on (the 08-20-26 corpus-burn postmortem): swiping is

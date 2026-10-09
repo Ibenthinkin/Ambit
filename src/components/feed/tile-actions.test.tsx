@@ -14,6 +14,7 @@ const {
   setDataMock,
   getDataMock,
   invalidateMock,
+  fb,
 } = vi.hoisted(() => ({
   mutateMock: vi.fn(),
   mutationOpts: {
@@ -38,6 +39,16 @@ const {
   setDataMock: vi.fn(),
   getDataMock: vi.fn(() => ["z"]),
   invalidateMock: vi.fn().mockResolvedValue(undefined),
+  // More or less: `feedback.mine`'s cache, the two writes, and the options each was built with.
+  fb: {
+    mine: { current: { more: [] as string[], less: [] as string[] } },
+    setMutate: vi.fn(),
+    clearMutate: vi.fn(),
+    setData: vi.fn(),
+    getData: vi.fn(),
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- vi.hoisted widens
+    setOpts: { current: null } as { current: unknown },
+  },
 }));
 
 vi.mock("~/trpc/react", () => ({
@@ -54,7 +65,30 @@ vi.mock("~/trpc/react", () => ({
         list: { invalidate: invalidateMock },
         count: { invalidate: invalidateMock },
       },
+      feedback: {
+        mine: {
+          cancel: vi.fn().mockResolvedValue(undefined),
+          getData: fb.getData,
+          setData: fb.setData,
+          invalidate: invalidateMock,
+        },
+        list: { invalidate: invalidateMock },
+      },
+      topics: {
+        cools: { invalidate: invalidateMock },
+        mine: { invalidate: invalidateMock },
+      },
     }),
+    feedback: {
+      mine: { useQuery: () => ({ data: fb.mine.current }) },
+      set: {
+        useMutation: (o: unknown) => {
+          fb.setOpts.current = o;
+          return { mutate: fb.setMutate };
+        },
+      },
+      clear: { useMutation: () => ({ mutate: fb.clearMutate }) },
+    },
     saves: {
       collections: {
         useQuery: () => ({
@@ -138,6 +172,10 @@ beforeEach(() => {
   mutateMock.mockClear();
   setDataMock.mockClear();
   idsData.current = [];
+  fb.mine.current = { more: [], less: [] };
+  fb.setMutate.mockClear();
+  fb.clearMutate.mockClear();
+  fb.setData.mockClear();
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -207,5 +245,98 @@ describe("TileActions — docs/DESIGN_chrome-redesign.md §3", () => {
     expect(
       screen.getByRole("heading", { name: "Save to collection" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("TileActions — More or less (docs/DESIGN_more-or-less.md D6, hover strip)", () => {
+  type Mine = { more: string[]; less: string[] };
+  type SetOpts = {
+    onMutate: (v: {
+      itemId: string;
+      verdict: "more" | "less";
+    }) => Promise<{ previous?: Mine }>;
+    onError: (e: unknown, v: unknown, ctx?: { previous?: Mine }) => void;
+  };
+
+  it("right-aligns −, +, then the bookmark", () => {
+    renderStrip();
+    const names = screen
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label"));
+    expect(names).toEqual([
+      "Choose collection",
+      "Less of this",
+      "More of this",
+      "Save to Articles",
+    ]);
+    // The chip yields half the strip to the three squares.
+    expect(
+      screen.getByRole("button", { name: "Choose collection" }),
+    ).toHaveClass("max-w-[50%]");
+  });
+
+  it("a square sets the verdict on the card, under its slot topic", () => {
+    renderStrip();
+    fireEvent.click(screen.getByRole("button", { name: "Less of this" }));
+    expect(fb.setMutate).toHaveBeenCalledWith({
+      itemId: "a",
+      verdict: "less",
+      topicId: "surreal",
+    });
+  });
+
+  it("a marked square is inked, keylined and pressed; clicking it clears", () => {
+    fb.mine.current = { more: ["a"], less: [] };
+    renderStrip();
+    const more = screen.getByRole("button", { name: "More of this" });
+    expect(more).toHaveAttribute("aria-pressed", "true");
+    expect(more).toHaveClass(
+      "bg-ink",
+      "text-on-accent",
+      "hover:bg-white",
+      "shadow-[0_0_0_0.5px_rgba(14,14,14,0.45),0_2px_8px_rgba(0,0,0,0.25)]",
+    );
+    // One hover shadow carrying both the accent underline and the keyline, so the keyline
+    // survives the hover (a lone HOVER_LINE would replace it).
+    const hoverShadow = more.className
+      .split(" ")
+      .find((c) => c.startsWith("hover:shadow-"));
+    expect(hoverShadow).toContain("inset_0_-2px_0_var(--color-accent)");
+    expect(hoverShadow).toContain("0_0_0_0.5px_rgba(14,14,14,0.45)");
+    // Glass is the rest state only.
+    expect(more.className).not.toContain("backdrop-blur");
+    const less = screen.getByRole("button", { name: "Less of this" });
+    expect(less).toHaveAttribute("aria-pressed", "false");
+    expect(less.className).toContain("backdrop-blur");
+    expect(less).toHaveClass("hover:bg-bg/48", "active:scale-[0.94]");
+    fireEvent.click(more);
+    expect(fb.clearMutate).toHaveBeenCalledWith({ itemId: "a" });
+    expect(fb.setMutate).not.toHaveBeenCalled();
+  });
+
+  it("is optimistic on feedback.mine, and an error restores it", async () => {
+    const { onToast } = renderStrip();
+    const opts = fb.setOpts.current as SetOpts;
+    const before: Mine = { more: ["z"], less: [] };
+    fb.getData.mockReturnValue(before);
+    await act(() => opts.onMutate({ itemId: "a", verdict: "more" }));
+    expect(fb.setData).toHaveBeenCalledWith(undefined, {
+      more: ["z", "a"],
+      less: [],
+    });
+    act(() => opts.onError(new Error("x"), {}, { previous: before }));
+    expect(fb.setData).toHaveBeenLastCalledWith(undefined, before);
+    expect(onToast).toHaveBeenCalledWith("Couldn't save that. Try again.");
+  });
+
+  it("the squares swallow a pointer-down, like every strip control", () => {
+    const parent = vi.fn();
+    render(
+      <div className="group/tile relative" onPointerDown={parent}>
+        <TileActions card={card("a")} onToast={vi.fn()} />
+      </div>,
+    );
+    fireEvent.pointerDown(screen.getByRole("button", { name: "More of this" }));
+    expect(parent).not.toHaveBeenCalled();
   });
 });

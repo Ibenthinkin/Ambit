@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
+import { Plus } from "~/components/icons";
 import { Chip } from "~/components/ui/chip";
 
 // Saved's filter row (`Ambit - Saved.dc.html`): "All" plus one chip per collection, horizontally
@@ -29,12 +30,15 @@ export interface CollectionChipsProps {
   total: number;
   /** The raw `?collection=` value, or undefined when unfiltered. */
   activeId?: string;
+  /** True when `?shelf=more` is the open view — "More of this" is selected, "All" is not. */
+  shelf?: boolean;
 }
 
 export function CollectionChips({
   collections,
   total,
   activeId,
+  shelf = false,
 }: CollectionChipsProps) {
   const router = useRouter();
   const go = (id?: string) =>
@@ -42,13 +46,30 @@ export function CollectionChips({
       id ? `/saved?collection=${encodeURIComponent(id)}` : "/saved",
     );
 
+  const goShelf = () => router.replace("/saved?shelf=more");
+
   return (
     // The negative-margin edge bleed lets the row scroll under the title block's own 20px padding
     // rather than clipping mid-screen — the same trick as any full-bleed strip in a padded parent.
     <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
-      <Chip size="sm" selected={activeId === undefined} onClick={() => go()}>
+      <Chip
+        size="sm"
+        selected={activeId === undefined && !shelf}
+        onClick={() => go()}
+      >
         {chipLabel("All", total)}
       </Chip>
+      {/* The "More of this" shelf (docs/DESIGN_more-or-less.md D6): what the reader marked with
+          the item page's pair, kept apart from what they saved. No count, as drawn. */}
+      <Chip size="sm" selected={shelf} onClick={goShelf}>
+        <Plus size={11} strokeWidth={2.6} className="mr-1.5" aria-hidden />
+        More of this
+      </Chip>
+      {/* A hairline between the two kinds of filter: the shelf, then the collections. */}
+      <span
+        aria-hidden
+        className="border-hairline border-ink/22 mx-0.5 my-1 self-stretch border-l"
+      />
       {collections.map((c) => (
         <Chip
           key={c.id}

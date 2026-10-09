@@ -30,7 +30,16 @@ const {
   unsaveOpts,
   trackMock,
   invalidateMock,
+  mineInvalidateMock,
+  coolsInvalidateMock,
+  topicsMineInvalidateMock,
   setDataMock,
+  shelfState,
+  clearMutateMock,
+  clearOpts,
+  shelfSetDataMock,
+  shelfEnabled,
+  mineData,
 } = vi.hoisted(() => ({
   listState: {
     current: { data: [] as unknown[], isPending: false, isError: false },
@@ -58,7 +67,28 @@ const {
         },
   },
   invalidateMock: vi.fn().mockResolvedValue(undefined),
+  mineInvalidateMock: vi.fn().mockResolvedValue(undefined),
+  coolsInvalidateMock: vi.fn().mockResolvedValue(undefined),
+  topicsMineInvalidateMock: vi.fn().mockResolvedValue(undefined),
   setDataMock: vi.fn(),
+  // The "More of this" shelf (`api.feedback.list`) and its undo (`api.feedback.clear`).
+  shelfState: {
+    current: { data: [] as unknown[], isPending: false, isError: false },
+  },
+  clearMutateMock: vi.fn(),
+  clearOpts: {
+    current: undefined as
+      | undefined
+      | {
+          onMutate: (vars: { itemId: string }) => void;
+          onError: () => void;
+          onSettled: () => Promise<unknown>;
+        },
+  },
+  shelfSetDataMock: vi.fn(),
+  /** The `enabled` flag each `feedback.list.useQuery` call was given. */
+  shelfEnabled: { current: [] as unknown[] },
+  mineData: { current: { more: [] as string[], less: [] as string[] } },
 }));
 
 vi.mock("~/trpc/react", () => ({
@@ -69,7 +99,30 @@ vi.mock("~/trpc/react", () => ({
         list: { invalidate: invalidateMock, setData: setDataMock },
         count: { invalidate: invalidateMock },
       },
+      feedback: {
+        list: { invalidate: invalidateMock, setData: shelfSetDataMock },
+        mine: { invalidate: mineInvalidateMock },
+      },
+      topics: {
+        cools: { invalidate: coolsInvalidateMock },
+        mine: { invalidate: topicsMineInvalidateMock },
+      },
     }),
+    feedback: {
+      mine: { useQuery: () => ({ data: mineData.current }) },
+      list: {
+        useQuery: (_input: unknown, opts?: { enabled?: boolean }) => {
+          shelfEnabled.current.push(opts?.enabled);
+          return { ...shelfState.current, refetch: vi.fn() };
+        },
+      },
+      clear: {
+        useMutation: (opts: NonNullable<typeof clearOpts.current>) => {
+          clearOpts.current = opts;
+          return { mutate: clearMutateMock, isPending: false };
+        },
+      },
+    },
     saves: {
       list: {
         useQuery: (input: unknown) => {
@@ -175,6 +228,11 @@ beforeEach(() => {
   trackMock.mockClear();
   invalidateMock.mockClear();
   setDataMock.mockClear();
+  shelfSetDataMock.mockClear();
+  clearMutateMock.mockClear();
+  shelfEnabled.current = [];
+  mineData.current = { more: [], less: [] };
+  shelfState.current = { data: [], isPending: false, isError: false };
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -415,5 +473,125 @@ describe("SavedScreen", () => {
     expect(
       screen.getByTestId("saved-columns").querySelectorAll(":scope > div"),
     ).toHaveLength(4);
+  });
+
+  // The "More of this" shelf (docs/DESIGN_more-or-less.md D6): a chip beside All, `?shelf=more`
+  // in the URL, the same wall of tiles fed by `feedback.list`.
+  describe("the More of this shelf", () => {
+    it("puts a More of this chip straight after All, then a divider, then the collections", () => {
+      render(<SavedScreen />);
+      const chip = screen.getByRole("button", { name: "More of this" });
+      expect(chip).toHaveAttribute("aria-pressed", "false");
+      // No count — the drawing has none.
+      expect(chip.textContent).toBe("More of this");
+      // Order: All, More of this, divider, Articles.
+      const row = chip.parentElement!;
+      const kids = Array.from(row.children);
+      expect(kids[0]).toHaveTextContent("All · 2");
+      expect(kids[1]).toBe(chip);
+      expect(kids[2]).toHaveAttribute("aria-hidden", "true");
+      expect(kids[2]).toHaveClass("border-l", "self-stretch");
+      expect(kids[3]).toHaveTextContent("Articles · 1");
+    });
+
+    it("navigates to ?shelf=more", () => {
+      render(<SavedScreen />);
+      fireEvent.click(screen.getByRole("button", { name: "More of this" }));
+      expect(replaceMock).toHaveBeenCalledWith("/saved?shelf=more");
+    });
+
+    it("selects the chip, deselects All, and renders the shelf's rows", () => {
+      searchParams.current = new URLSearchParams("shelf=more");
+      shelfState.current = {
+        data: [makeItem({ id: "m1", title: "Shelved" })],
+        isPending: false,
+        isError: false,
+      };
+      render(<SavedScreen />);
+
+      expect(
+        screen.getByRole("button", { name: "More of this" }),
+      ).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "All · 2" })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+      // The wall shows the shelf, not the saves; the count line stays saves.count.
+      expect(document.querySelectorAll("[data-saved-id]")).toHaveLength(1);
+      expect(document.querySelector('[data-saved-id="m1"]')).not.toBeNull();
+      expect(screen.getByText("2 things kept")).toBeInTheDocument();
+    });
+
+    it("only fetches the shelf when it is the open view", () => {
+      render(<SavedScreen />);
+      expect(shelfEnabled.current.every((e) => e === false)).toBe(true);
+      cleanup();
+      shelfEnabled.current = [];
+      searchParams.current = new URLSearchParams("shelf=more");
+      render(<SavedScreen />);
+      expect(shelfEnabled.current.every((e) => e === true)).toBe(true);
+    });
+
+    it("undoes from the badge: Undo More of this label, optimistic filter, Undone toast", async () => {
+      searchParams.current = new URLSearchParams("shelf=more");
+      shelfState.current = {
+        data: [makeItem({ id: "m1" })],
+        isPending: false,
+        isError: false,
+      };
+      render(<SavedScreen />);
+
+      expect(
+        screen.queryByRole("button", { name: "Remove from Saved" }),
+      ).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Undo More of this" }),
+      );
+      expect(clearMutateMock).toHaveBeenCalledWith({ itemId: "m1" });
+      expect(unsaveMutateMock).not.toHaveBeenCalled();
+
+      act(() => clearOpts.current!.onMutate({ itemId: "m1" }));
+      expect(shelfSetDataMock).toHaveBeenCalledWith(
+        undefined,
+        expect.any(Function),
+      );
+      expect(screen.getByText("Undone")).toBeInTheDocument();
+
+      // The settle re-reads all four: the shelf, the marks, the cooled topics, the topic weights.
+      invalidateMock.mockClear();
+      await act(async () => void (await clearOpts.current!.onSettled()));
+      expect(invalidateMock).toHaveBeenCalledTimes(1); // feedback.list
+      expect(mineInvalidateMock).toHaveBeenCalledTimes(1);
+      expect(coolsInvalidateMock).toHaveBeenCalledTimes(1);
+      expect(topicsMineInvalidateMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("says so when the shelf is empty", () => {
+      searchParams.current = new URLSearchParams("shelf=more");
+      render(<SavedScreen />);
+      expect(
+        screen.getByText("Nothing marked More of this yet."),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Nothing kept yet")).toBeNull();
+    });
+
+    it("keeps the chip row for a reader with marks but no saves, above the empty state", () => {
+      listState.current = { data: [], isPending: false, isError: false };
+      countData.current = 0;
+      collectionsData.current = [];
+      mineData.current = { more: ["x1"], less: [] };
+      render(<SavedScreen />);
+
+      expect(screen.getByText("Nothing kept yet")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "More of this" }));
+      expect(replaceMock).toHaveBeenCalledWith("/saved?shelf=more");
+    });
+
+    it("shows no chip row with no saves and no marks", () => {
+      listState.current = { data: [], isPending: false, isError: false };
+      countData.current = 0;
+      render(<SavedScreen />);
+      expect(screen.queryByRole("button", { name: "More of this" })).toBeNull();
+    });
   });
 });

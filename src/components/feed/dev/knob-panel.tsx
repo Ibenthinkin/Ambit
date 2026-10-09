@@ -7,7 +7,7 @@ import { Eyebrow } from "~/components/ui/eyebrow";
 import { Slider } from "~/components/ui/slider";
 import type { FeedCard } from "~/server/services/feed";
 import type { FeedKnobs } from "~/server/services/feed-knobs";
-import { sumStats, type PageStats } from "./feed-stats";
+import { sumStats, type PageStats, type YourTopicRow } from "./feed-stats";
 import { KNOB_SPECS } from "./use-dev-knobs";
 
 // The drawer (plan 09-05-26, Decision D8): a fixed right column of sliders and readouts. It is
@@ -29,6 +29,8 @@ export interface KnobPanelProps {
   served: number;
   forgotten: number;
   forgetError: string | null;
+  /** Merged picks + cools, already ranked and cut to twelve (`mergeYourTopics`). */
+  yourTopics: YourTopicRow[];
 }
 
 const SECTIONS = [
@@ -116,6 +118,7 @@ export function KnobPanel({
   served,
   forgotten,
   forgetError,
+  yourTopics,
 }: KnobPanelProps) {
   const [open, setOpen] = React.useState(true);
   const tierTotal =
@@ -210,6 +213,21 @@ export function KnobPanel({
           />
         ) : null}
         <StatsBlock title="Session" stats={session} topicLabels={topicLabels} />
+
+        {yourTopics.length > 0 ? (
+          <div className="flex flex-col gap-1" data-testid="your-topics">
+            <SectionLabel>Your topics</SectionLabel>
+            {yourTopics.map((t) => (
+              <Stat
+                key={t.topicId}
+                label={t.label}
+                value={`${t.weight === null ? "—" : t.weight.toFixed(2)}${
+                  t.cool === null ? "" : ` · cool ${t.cool.toFixed(2)}`
+                }`}
+              />
+            ))}
+          </div>
+        ) : null}
 
         {lastPage.length > 0 ? (
           <div className="flex flex-col gap-1">

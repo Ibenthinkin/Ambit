@@ -105,6 +105,7 @@ The sixteen topics of §3.2 were always a floor, not a ceiling (`server/config/t
 - Save toggles an item into the user's saved set (synced).
 - Share invokes the native share sheet with the item's public URL.
 - Saves feed back into related-topic weighting (§9 — a new save bumps the topic's weight; shipped in Phase 6.1).
+- **More of this / Less of this (10-09-26, `docs/DESIGN_more-or-less.md`; look: `docs/design_handoff_more_or_less/`).** A worded pair, 220 + 220 on a desktop, on every surface that shows one item. **The item page:** a phone puts it under the picture and again under the title (the title sits 30 px below it); a desktop puts it under the 28 px summary in the Information section's third column; Magazine view gives each figure its own pair under its title; `+` / `-` are the keys. **An article** ends with "Finished · N min read", the pair, then "Where Ambit would wander next". **The tile sheet** carries the pair as two rows, and **the desktop hover strip** reads − + bookmark; a Less **veils the tile in place** (nothing reflows) with an `[Undo]`. A mark shows as a one-line note under the pair and an inverted button, the toast names the topic, and `/saved?shelf=more` is the shelf of everything marked More. Signed-out visitors see no pair.
 
 ### 3.5 Sharing / public item
 
@@ -264,6 +265,30 @@ CREATE TABLE saved_item (
 **One collection per item, by construction** (Phase 5.5): the primary key is `(user_id, item_id)`, so there is exactly one row per saved item and therefore exactly one collection. That's the design's own model — the prototypes key collections as `{ [itemId]: collectionName }`, render a single accent dot, and label exactly one row "Already saved here" — so picking a different collection _moves_ the item (an `UPDATE`) rather than adding a second membership.
 
 `collection_id` is **nullable**, meaning "saved but uncollected": such a row is counted by the UI's "Everything kept" total but appears under no named collection. `ON DELETE SET NULL` rather than `CASCADE` because deleting a collection must never silently delete the user's saves.
+
+### 5.4d `item_feedback` and `user_topic_cool` (migration 0016, "More or less", 10-09-26)
+
+```sql
+CREATE TABLE item_feedback (
+  user_id        TEXT NOT NULL REFERENCES "user"(id),
+  item_id        TEXT NOT NULL REFERENCES item(id) ON DELETE CASCADE,
+  verdict        TEXT NOT NULL,             -- 'more' | 'less'
+  topic_id       TEXT REFERENCES topic(id), -- the topic charged; NULL for an un-homed item
+  weight_applied REAL NOT NULL DEFAULT 0,   -- exact delta written to user_topic.weight, after the clamp
+  cool_applied   REAL NOT NULL DEFAULT 1,   -- exact factor written to user_topic_cool.cool, after the clamp
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, item_id)
+);
+
+CREATE TABLE user_topic_cool (
+  user_id  TEXT NOT NULL REFERENCES "user"(id),
+  topic_id TEXT NOT NULL REFERENCES topic(id),
+  cool     REAL NOT NULL,                   -- (COOL_FLOOR … 1]; a row at 1 is deleted, not kept
+  PRIMARY KEY (user_id, topic_id)
+);
+```
+
+One verdict per (user, item). The `*_applied` columns are what make a clear or flip an exact undo despite the clamps (§9, "More or less"). `user_topic` is untouched: a cool is not a weight, so a cooled topic is still a pick.
 
 ### 5.4c `collection`
 
@@ -443,6 +468,12 @@ Single tRPC router mounted at `app/api/trpc/[trpc]/route.ts`. Protected procedur
 | `saves.count`            | query    | —                                                                                                                   | `number`                                                                                                                                                                                                                                                                                                  |
 | `saves.ids`              | query    | —                                                                                                                   | `string[]` — every saved item id, for the feed's tile strips                                                                                                                                                                                                                                              |
 | `saves.forItem`          | query    | `{ itemId: string }`                                                                                                | `{ saved: true, collectionId: string \| null } \| { saved: false, collectionId: null }`                                                                                                                                                                                                                   |
+| `feedback.set`           | mutation | `{ itemId, verdict: "more" \| "less", topicId? }`                                                                   | `{ verdict, drift: { topicLabel, isNew } \| null }` — `isNew` = created the pick (more) / first cool of that topic (less); `drift` null for an un-homed item; `NOT_FOUND` on a missing item; `topicId` honoured only for a member (the `saveToCollection` rule)                                           |
+| `feedback.clear`         | mutation | `{ itemId }`                                                                                                        | `{ cleared: boolean }` — reverses the verdict's exact deltas                                                                                                                                                                                                                                              |
+| `feedback.mine`          | query    | —                                                                                                                   | `{ more: string[], less: string[] }` — item ids, for marked state (the shape `saves.ids` has)                                                                                                                                                                                                             |
+| `feedback.list`          | query    | —                                                                                                                   | the "More of this" shelf, `SavedItemRow[]` newest first (same projection as `saves.list`)                                                                                                                                                                                                                 |
+| `topics.cools`           | query    | —                                                                                                                   | `{ topicId, label, cool }[]` — Profile → Topics' "Showing less of"                                                                                                                                                                                                                                        |
+| `topics.warm`            | mutation | `{ topicId }`                                                                                                       | `{ warmed: boolean }` — deletes the cool row                                                                                                                                                                                                                                                              |
 
 - **`saves.saveToCollection` is the API's only authorization-sensitive input** (Phase 5.5). Every other protected procedure is scoped by `ctx.user.id` alone, and the four public procedures take no user id at all — this is the one place a client supplies the id of a _user-owned_ row. It verifies the collection belongs to the caller and throws `NOT_FOUND`, not `FORBIDDEN`, for both "no such collection" and "someone else's": a probe must not be able to tell a real collection id from a fake one. It also saves the item if it wasn't already, so there is no separate "save" procedure.
 - `saves.toggle` **was removed in Phase 5.5** (it had become dead code — nothing outside its own tests ever called it, not even the throwaway `/feed` placeholder). A collection-less save is also semantically wrong now that every save routes through the save-to-collection sheet.
@@ -657,6 +688,8 @@ This is where the product lives. Validated end-to-end in Phase 0.5 (`phase0/feed
 
 **Personalisation = topics, not items** (shipped in Phase 6.1). A **new** save — not a move between collections — does `LEAST(3.0, weight + 0.5)` on the saved item's topic (`WEIGHT_BUMP`/`WEIGHT_CAP` in `db/topics.ts`, phase0's defaults), creating the `user_topic` row at 1.5 when the user never picked that topic. That row creation is the _entire_ "related topics inferred from saves" mechanism — deliberately no graph-neighbour spillover, because DRIFT/JUMP already spread a raised weight structurally (weighted draws pick the start of graph walks, and `reachableTopics` widens the fetched pools two hops out). Moves between collections don't re-bump; unsave doesn't decrement (weights record demonstrated interest; unsave is collection housekeeping). Taste keywords are **derived at feed time, never stored**: the last-24 unique `aesthetic_tags` across the user's most recent saves, recency-ordered, case-insensitively deduped (`getTasteKeywords` in `db/saves.ts`) — so there is nothing to migrate or decay, and unsave self-heals the list. Visibility is the combined save toast ("Saved to Art · Now drifting toward Cartography") — the UI _says_ it reweighted, because an invisible feedback loop reads as random, xikipedia's core failure. Item-level nearest-neighbour personalisation is dead (Phase 0.4) and stays dead.
 
+**More or less (10-09-26, `docs/DESIGN_more-or-less.md`).** The reader can say "More of this" or "Less of this" about one item, and the verdict moves two numbers, both charged to the **slot topic** (the topic the card was served under, honoured only if the item is a member — `resolveSlotTopic`, the save rule — else the display topic; an un-homed item records the verdict and charges nothing). _More_: `user_topic.weight += 0.25` (`MORE_STEP`, capped at `WEIGHT_CAP`, creating the pick at 1.25 when there was none) and warms any cool by one step. _Less_: the weight `−= 0.25` (`LESS_STEP`, floored at `WEIGHT_FLOOR`, **only where a pick already exists** — a "less" never makes a drift topic a pick) and the topic's **cool** `×= 0.6` (`COOL_STEP`, floored at `COOL_FLOOR` 0.15) in `user_topic_cool`; the item is marked `seen_item`. A cool is a separate multiplier in (0.15 … 1], not a weight, so a cooled topic stays a pick and the feed engine consumes cools as DESIGN D3 describes. Each `item_feedback` row stores the deltas **actually applied** after the clamps, so clearing or flipping a verdict reverses exactly that (one net effect). "More" items also feed `getTasteKeywords` (unioned with saves by time), they form the "More of this" shelf on Saved, and a retake of the questionnaire clears every cool (verdicts stay). Profile → Topics lists cooled topics under "Showing less of" with a Warm up (`topics.cools` / `topics.warm`).
+
 **The topic graph** feeding DRIFT/JUMP is a checked-in JSON (§5.2): topic centroids = mean of member-item vectors, **minus the global mean centroid** (load-bearing — skipping the centering makes one hub topic every row's neighbour), cosine-ranked. Regenerate offline when the corpus grows; hand-edit rows freely. Since Cut 2a it is a hybrid over two tiers — see §5.2 for the rule and the reason.
 
 **The signed-out visitor (10-01-26, `docs/PLAN_explore-personas.md`).** `getFeedPage(null)` used to compose on `coldStartWeights()` — uniform over the sixteen originals, an even smear Ben called boring. Now each visit is **dealt one of the twenty personas** (`config/personas.ts`): `personaForSeed(seed)` is `PERSONAS[seed % 20]`, and the seed is the one the cursor already carries, so every page of a visit is the same reader, a reload deals again, and nothing is stored or read about the caller. `exploreWeights(seed, existing)` flattens the persona (`personaTopics()`: each named umbrella group's members plus its single topics) to weight 1 per topic — flat, as `setUserTopics` writes a real reader's — keeps only ids that are pickable rows in this database (one `listTopics()` read), and **falls back to the uniform cold start when fewer than three survive**, which is what CI's sixteen-topic database mostly does. A signed-in reader with no picks is unchanged. Under `FEED_DEBUG`, `FeedPage.debug.persona` names the deal (`null` = fell back). **The personas keep up with the vocabulary by naming groups**: a topic promoted and filed into a group reaches every persona holding it with no edit; `personas.test.ts` fails on a group or topic id that no longer exists and on **a group no persona holds**; and `db:seed` re-applies the picks to the persona accounts that exist on every boot (`syncPersonaTopics`, which creates nothing). Open, and the same item as for real readers: flat weights mean a ten-topic group out-draws a singleton ten to one.
@@ -724,22 +757,22 @@ title uses need no edit) plus an alpha ladder. **The ladder _is_ the package's g
 `#0E0E0E` each step lands within a shade of a named grey, so 1b re-toned ~250 class strings by
 changing two tokens. Use these stops for anything new (DESIGN §3.1 has the full table):
 
-| Role                         | Class           | Package name  |
-| ---------------------------- | --------------- | ------------- |
-| Titles, primary text, fill   | `text-ink`      | `ink`         |
-| Secondary, text links        | `text-ink/78`   | `ink-2`       |
-| Intro / lede                 | `text-ink/68`   | `ink-3`       |
-| Card lede, mono labels       | `text-ink/62`   | `ink-4`       |
-| Meta, counts, most eyebrows  | `text-ink/55`   | `ink-5`       |
-| Mono row labels              | `text-ink/48`   | `ink-6`       |
-| Hints                        | `text-ink/40`   | `ink-7`       |
-| Placeholders, disabled       | `text-ink/34`   | `ink-8`       |
-| Row dividers, card border    | `border-ink/8`  | `line-faint`  |
-| Section dividers             | `border-ink/14` | `line`        |
-| Header rules                 | `border-ink/16` | `line-strong` |
-| Segmented outline            | `border-ink/22` | `line-ctrl`   |
-| Input underline, chip off    | `border-ink/28` | `line-input`  |
-| Outline button               | `border-ink/35` | `line-btn`    |
+| Role                        | Class           | Package name  |
+| --------------------------- | --------------- | ------------- |
+| Titles, primary text, fill  | `text-ink`      | `ink`         |
+| Secondary, text links       | `text-ink/78`   | `ink-2`       |
+| Intro / lede                | `text-ink/68`   | `ink-3`       |
+| Card lede, mono labels      | `text-ink/62`   | `ink-4`       |
+| Meta, counts, most eyebrows | `text-ink/55`   | `ink-5`       |
+| Mono row labels             | `text-ink/48`   | `ink-6`       |
+| Hints                       | `text-ink/40`   | `ink-7`       |
+| Placeholders, disabled      | `text-ink/34`   | `ink-8`       |
+| Row dividers, card border   | `border-ink/8`  | `line-faint`  |
+| Section dividers            | `border-ink/14` | `line`        |
+| Header rules                | `border-ink/16` | `line-strong` |
+| Segmented outline           | `border-ink/22` | `line-ctrl`   |
+| Input underline, chip off   | `border-ink/28` | `line-input`  |
+| Outline button              | `border-ink/35` | `line-btn`    |
 
 **One accent, and it has seven jobs.** `--color-accent: #2BB24C` is a plain `@theme` token; the
 runtime accent knob (`[data-accent]` on `<html>`, `--accent-raw`, a pre-paint script, Settings →
@@ -751,7 +784,7 @@ underline on a hovered button or segment, and a hovered link's underline; (5) th
 bookmark's fill; (6) the "Proposed" tag; (7) an input's focus underline and an inline error
 hint. Everything else — eyebrows, links, icons, filled buttons, selected chips and segments, the
 loader — is ink. **The default button is white** (`bg-ink`, `text-on-accent`). `--color-on-accent
-#0E0E0E` is 6.97 : 1 on the green; **never white on green** (2.8 : 1).
+#0E0E0E` is 6.97 : 1 on the green; **never white on green** (2.8 : 1). **The More/Less pair uses two of the seven jobs, not an eighth:** its hover underline (job 4) and the keyboard ring (job 3); a marked control is inverted ink (white fill), and a marked control that is hovered is plain `bg-white` with its keyline kept under the accent line (`ink-hi` equals `ink`, so the token cannot show the hover).
 
 **Fonts:** **Hanken Grotesk** (`--font-sans`; 400, 500, italic 400) for everything readable and
 **Geist Mono** (`--font-mono`; 400, 500) for eyebrows, labels, counts and meta — uppercase,
@@ -832,6 +865,7 @@ Production-grade from the start (portfolio / work-transferable practice — non-
   **CI runs the whole suite against a production build** since Phase 7.1 (`bun run build` → `next start`, Postgres + Mailpit as service containers) — which is what lets `pwa.prod.spec.ts` join it, and what surfaced two production-only bugs the dev server had been hiding. Two local scripts go with it: `bun run e2e:prod` reproduces the CI configuration (`E2E_PROD=1`), and `bun run e2e:clean` retires the users the suite leaves behind by design.
   Every DB-touching spec seeds its own `source: "e2e"` corpus under a spec-specific `sourceId` prefix and cleans it up children-first, scoped to that prefix — never to `source: "e2e"` as a whole, which would pull a parallel worker's fixtures out from under it. Sizing matters on an empty database: the feed excludes each reader's `seen_item` rows, so a file's corpus has to cover roughly a page (12) per feed load it performs.
   Two rules the suite learned the hard way in 5.6, both in `e2e/support.ts` / `playwright.config.ts` with comments: **Playwright's output must not live in the project root** (its mid-run writes trigger the dev server's Fast Refresh, which remounts the app mid-test), and **landing-page interactions must wait for hydration** (the auth form's submit button submits natively before React attaches, reloading to `/?` and discarding the input).
+- **More or less (10-09-26) is tested at every layer:** `db/feedback.integration.test.ts` (exact reversal across the clamps, the flip, the advisory lock on first taps), the `feedback` and `topics.cools/warm` router tests, the feed tests (a cool weighs only DRIFT and JUMP landings; `coolStrength` 0 or no cools composes the same page for the same cursor), `feedback-toast.test.ts`, component tests for `MoreOrLess`, the item page's placements, the article's Finished row, the tile sheet and hover strip, Saved's shelf and Profile → Topics' "Showing less of". `saved.spec.ts`, `item.spec.ts`, `feed.spec.ts` and `desktop.spec.ts` drive the pair end to end, including the phone's rendered 30 px and the D2B 22 px gaps.
 - **Not tests, but the measurements that keep them honest:** `bun run bench:feed` times `getFeedPage` over N cursor-followed pages and reports the `getTopicPools` payload separately (Phase 7.3 — it is what showed the pools were dragging 35.8 MB per page). Lighthouse evidence for `/` and `/feed` on a throttled mobile profile lives in `docs/phase7.3-evidence/` as committed JSON (the HTML reports are gitignored). Neither is a gate; both are the before/after a performance claim has to cite.
 - Aim for strong coverage on adapters + the feed algorithm (highest-value, highest-risk).
 

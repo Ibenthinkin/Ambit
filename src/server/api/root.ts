@@ -1,3 +1,4 @@
+import { feedbackRouter } from "~/server/api/routers/feedback";
 import { feedRouter } from "~/server/api/routers/feed";
 import { itemsRouter } from "~/server/api/routers/items";
 import { onboardingRouter } from "~/server/api/routers/onboarding";
@@ -18,6 +19,7 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 export const appRouter = createTRPCRouter({
   topics: topicsRouter,
   feed: feedRouter,
+  feedback: feedbackRouter,
   items: itemsRouter,
   saves: savesRouter,
   // Phase 5.10: the reader's own profile row (`handle`/`bio` are invisible on `ctx.user` — see

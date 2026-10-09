@@ -13,7 +13,7 @@ import { Eyebrow } from "~/components/ui/eyebrow";
 import { Field } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Rise } from "~/components/ui/rise";
-import { TextLink } from "~/components/ui/text-link";
+import { TEXT_LINK, TextLink } from "~/components/ui/text-link";
 import { pickWeight, weightOf } from "~/server/config/topic-levels";
 import { api } from "~/trpc/react";
 
@@ -91,6 +91,8 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
   const mine = api.topics.mine.useQuery();
   // The stored exhibition (First Exhibition); null for a reader who signed up on bank v1.
   const taste = api.topics.taste.useQuery();
+  // Topics "Less of this" has cooled (docs/DESIGN_more-or-less.md D6), most-cooled first.
+  const cools = api.topics.cools.useQuery();
   const [query, setQuery] = React.useState("");
 
   // Where keyboard focus goes when a row is switched off. The "off" cell unmounts with its row,
@@ -184,6 +186,27 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
       hub.toast("Couldn't save that — try again.");
     },
     onSettled: settle,
+  });
+
+  // "Warm up": forget a topic's cool. The optimistic shape, in four beats — `onMutate` cancels any
+  // refetch in flight (so it cannot land over our patch), snapshots the cache, patches it (the row
+  // vanishes now), and returns the snapshot as `ctx`; `onError` puts the snapshot back; and
+  // `onSettled` refetches either way, so the cache ends on the server's truth. Not in the
+  // `WRITE_SCOPE` queue: it touches `topics.cools`, which the weight writes never read or write.
+  const warm = api.topics.warm.useMutation({
+    onMutate: async ({ topicId }) => {
+      await utils.topics.cools.cancel();
+      const previous = utils.topics.cools.getData();
+      utils.topics.cools.setData(undefined, (prev) =>
+        (prev ?? []).filter((c) => c.topicId !== topicId),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) utils.topics.cools.setData(undefined, ctx.previous);
+      hub.toast("Couldn't save that — try again.");
+    },
+    onSettled: () => void utils.topics.cools.invalidate(),
   });
 
   const resetWeights = api.topics.resetWeights.useMutation({
@@ -319,6 +342,46 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
           </div>
         </section>
       </Rise>
+
+      {/* Hidden when empty. The label is the reader's word for what they marked, so the helper
+          names the gesture that cooled it. */}
+      {cools.data && cools.data.length > 0 && (
+        <Rise delayMs={150}>
+          <section aria-labelledby="topics-less" className="mt-[30px] px-5">
+            <div className="border-ink/14 flex justify-between border-b pb-2">
+              <Eyebrow as="h2" id="topics-less" className="text-[11px]">
+                Showing less of
+              </Eyebrow>
+              <Eyebrow className="text-[11px]">{cools.data.length}</Eyebrow>
+            </div>
+            <ul>
+              {cools.data.map((c) => (
+                <li
+                  key={c.topicId}
+                  className="border-ink/10 flex items-baseline justify-between border-b py-[13px]"
+                >
+                  <span className="text-ink/78 text-[15px]">{c.label}</span>
+                  <button
+                    type="button"
+                    className={`${TEXT_LINK} text-[14px]`}
+                    onClick={() => {
+                      warm.mutate({ topicId: c.topicId });
+                      hub.toast(`Warmed up ${c.label}`);
+                    }}
+                  >
+                    <span aria-hidden="true">[</span>Warm up
+                    <span aria-hidden="true">..]</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="text-ink/55 mt-[10px] text-[13px] leading-[1.45]">
+              Cooled by “Less of this”. The feed won&apos;t drift or jump to
+              these until you warm them up.
+            </p>
+          </section>
+        </Rise>
+      )}
 
       <Rise delayMs={180}>
         <p className="text-ink/62 px-5 pt-10 text-[15px] leading-[1.5]">

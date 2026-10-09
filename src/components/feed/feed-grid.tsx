@@ -59,7 +59,7 @@ export interface FeedGridProps {
   onOpen: (id: string) => void;
   /** A long-press on a card. Absent → cards have no item menu. */
   onLongPress?: (item: PressedItem) => void;
-  /** Drawn over a card as a sibling of it (the hover strip). */
+  /** Drawn over a card as a sibling of it (the hover strip; the Less veil). */
   renderTileExtras?: (tile: CardTile) => React.ReactNode;
   /** `/explore`'s message blocks. Only a screen that asks `buildTiles` for them gets any. */
   renderMessage?: (tile: MessageTileData) => React.ReactNode;

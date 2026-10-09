@@ -440,6 +440,58 @@ export const seenItem = pgTable(
   // No extra user_id index: the composite PK's btree already serves user-scoped lookups.
 );
 
+// "More of this" / "Less of this" (docs/DESIGN_more-or-less.md D1): one verdict per (user, item),
+// so flipping a verdict is an UPDATE, not a second row. The row also records *exactly* what the
+// verdict changed — `weightApplied` and `coolApplied` are the post-clamp deltas — so clearing it
+// can undo precisely that and no more, even if a clamp swallowed part of the step.
+export const itemFeedback = pgTable(
+  "item_feedback",
+  {
+    // Cascade like interview_answer / user_taste: a deleted account takes its verdicts with it.
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Cascade, unlike seen_item: feedback about an item that no longer exists has nothing left
+    // to mean.
+    itemId: text("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "cascade" }),
+    verdict: text("verdict").$type<"more" | "less">().notNull(),
+    // The topic charged for the verdict (the slot's topic, not necessarily the item's display
+    // topic). NULL for an un-homed item, which records the verdict with no topic effect.
+    topicId: text("topic_id").references(() => topic.id),
+    // The exact (+/−) amount added to user_topic.weight, after the cap/floor clamp. 0 = untouched.
+    weightApplied: real("weight_applied").notNull().default(0),
+    // The exact factor multiplied into user_topic_cool.cool, after the clamp. 1 = untouched.
+    coolApplied: real("cool_applied").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.itemId] }),
+    index("idx_item_feedback_user").on(table.userId),
+  ],
+);
+
+// A per-reader damping factor on a topic's drift/jump landings, written by "Less of this". It is
+// deliberately NOT a user_topic row: a user_topic row means "a pick" to topics.mine,
+// hasCompletedOnboarding, replaceUserTopicsTx and Profile → Topics, and a cooled drift topic must
+// not become one. A row at 1 (no damping) is deleted, never kept.
+export const userTopicCool = pgTable(
+  "user_topic_cool",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    topicId: text("topic_id")
+      .notNull()
+      .references(() => topic.id),
+    cool: real("cool").notNull(), // (COOL_FLOOR … 1]
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.topicId] })],
+);
+
 // What a reader *did*, as named events from a closed vocabulary (config/usage.ts; design in
 // docs/DESIGN_usage.md). Like `seen_item` it is a per-reader log, but it records actions the other
 // tables leave no trace of (a link-out, a zoom, an unsave). What it is NOT: there is no ip, user

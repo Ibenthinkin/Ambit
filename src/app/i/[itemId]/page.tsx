@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { Column } from "~/components/ui/column";
+import { FinishedRow } from "~/components/item/finished-row";
 import { ItemScreen } from "~/components/item/item-screen";
 import { ItemShell } from "~/components/item/item-shell";
 import { JoinCta } from "~/components/item/join-cta";
@@ -145,15 +146,20 @@ export default async function ItemPage({
   // existing lookups (the same pair `saves.forItem` and the collection guard use), signed-in only;
   // a stranger, an unsaved item or an uncollected save is "—". Read once at render, so a save made
   // from the pill shows on the next visit.
-  let keptIn: string | null = null;
-  if (session) {
+  // The article's topic label (for the "Finished" pair's confirmation note) is independent of
+  // the lookups, so it runs alongside them rather than after.
+  const keptInLookup = async (): Promise<string | null> => {
+    if (!session) return null;
     const collectionId = await getSavedItemCollection(session.user.id, itemId);
-    if (collectionId) {
-      keptIn =
-        (await getCollectionForUser(session.user.id, collectionId))?.name ??
-        null;
-    }
-  }
+    if (!collectionId) return null;
+    return (
+      (await getCollectionForUser(session.user.id, collectionId))?.name ?? null
+    );
+  };
+  const [keptIn, labels] = await Promise.all([
+    keptInLookup(),
+    topicLabelsFor([item.topicId]),
+  ]);
 
   // An article keeps the reader layout, inside the shell that gives it the pill and the exits.
   return (
@@ -175,6 +181,21 @@ export default async function ItemPage({
             <div className="mt-[18px]">
               <ReaderItemBody item={item} keptIn={keptIn} />
             </div>
+          </Rise>
+
+          {/* At the end of the text, after the source link, above the wander list — never mid-text
+              (docs/DESIGN_more-or-less.md D6). `WanderNext` keeps its own 44 px top margin; the
+              frames show 40 / 56, and the handoff ranks the article's spacing below the picture
+              screens', so that tolerance is accepted. */}
+          <Rise delayMs={90}>
+            <FinishedRow
+              itemId={item.id}
+              topicId={item.topicId}
+              topicLabel={
+                item.topicId ? (labels.get(item.topicId) ?? null) : null
+              }
+              readingMinutes={item.readingMinutes}
+            />
           </Rise>
 
           <Rise delayMs={120}>

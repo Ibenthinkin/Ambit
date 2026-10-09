@@ -32,6 +32,10 @@ const {
   invalidateMock,
   queryInputs,
   forgetMock,
+  topicQueryEnabled,
+  feedbackMine,
+  feedbackSetMock,
+  feedbackClearMock,
 } = vi.hoisted(() => ({
   feedState: {
     current: {},
@@ -47,6 +51,13 @@ const {
   // panel (09-05-26) made the input vary, and /feed's `{}` contract is pinned by reading it.
   queryInputs: [] as unknown[],
   forgetMock: vi.fn(),
+  // The `enabled` flag each "Your topics" query was called with — the readout must not fetch on
+  // the production /feed.
+  topicQueryEnabled: [] as unknown[],
+  // More or less (docs/DESIGN_more-or-less.md D6): the reader's marks, and the two writes.
+  feedbackMine: { current: { more: [] as string[], less: [] as string[] } },
+  feedbackSetMock: vi.fn(),
+  feedbackClearMock: vi.fn(),
 }));
 
 vi.mock("~/trpc/react", () => ({
@@ -64,7 +75,25 @@ vi.mock("~/trpc/react", () => ({
         list: { invalidate: invalidateMock },
         count: { invalidate: invalidateMock },
       },
+      feedback: {
+        mine: {
+          cancel: vi.fn(),
+          getData: vi.fn(),
+          setData: vi.fn(),
+          invalidate: invalidateMock,
+        },
+        list: { invalidate: invalidateMock },
+      },
+      topics: {
+        cools: { invalidate: invalidateMock },
+        mine: { invalidate: invalidateMock },
+      },
     }),
+    feedback: {
+      mine: { useQuery: () => ({ data: feedbackMine.current }) },
+      set: { useMutation: () => ({ mutate: feedbackSetMock }) },
+      clear: { useMutation: () => ({ mutate: feedbackClearMock }) },
+    },
     feed: {
       page: {
         useInfiniteQuery: (input: unknown) => {
@@ -75,6 +104,22 @@ vi.mock("~/trpc/react", () => ({
       markSeen: { useMutation: () => ({ mutate: ackSeenMock }) },
       forgetSince: {
         useMutation: () => ({ mutateAsync: forgetMock, isPending: false }),
+      },
+    },
+    topics: {
+      mine: {
+        useQuery: (_: unknown, opts: { enabled: boolean }) => {
+          topicQueryEnabled.push(opts.enabled);
+          return { data: [{ topicId: "botany", weight: 1 }] };
+        },
+      },
+      cools: {
+        useQuery: (_: unknown, opts: { enabled: boolean }) => {
+          topicQueryEnabled.push(opts.enabled);
+          return {
+            data: [{ topicId: "astronomy", label: "Astronomy", cool: 0.4 }],
+          };
+        },
       },
     },
     saves: {
@@ -266,7 +311,11 @@ beforeEach(() => {
   pushMock.mockClear();
   saveMutateMock.mockClear();
   ackSeenMock.mockClear();
+  feedbackMine.current = { more: [], less: [] };
+  feedbackSetMock.mockClear();
+  feedbackClearMock.mockClear();
   queryInputs.length = 0;
+  topicQueryEnabled.length = 0;
   forgetMock.mockReset().mockResolvedValue({ forgotten: 0 });
 });
 
@@ -464,6 +513,76 @@ describe("FeedScreen", () => {
     }
   });
 
+  describe("more or less (docs/DESIGN_more-or-less.md D6)", () => {
+    const longPress = (id: string) => {
+      const tile = document.querySelector(
+        `[data-feed-id="${id}"]`,
+      )!.firstElementChild!;
+      fireEvent.pointerDown(tile, { button: 0, clientX: 5, clientY: 5 });
+      act(() => void vi.advanceTimersByTime(450));
+    };
+
+    it("the sheet's More of this row sets the verdict on the pressed item, under its slot topic", () => {
+      vi.useFakeTimers();
+      try {
+        render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+        longPress("j1");
+        fireEvent.click(screen.getByRole("button", { name: "More of this" }));
+        expect(feedbackSetMock).toHaveBeenCalledWith({
+          itemId: "j1",
+          verdict: "more",
+          topicId: "astronomy",
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("the sheet shows the pressed item's mark, and tapping it clears", () => {
+      feedbackMine.current = { more: ["i2"], less: [] };
+      vi.useFakeTimers();
+      try {
+        render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+        longPress("i2");
+        const more = screen.getByRole("button", { name: "More of this" });
+        expect(more).toHaveAttribute("aria-pressed", "true");
+        fireEvent.click(more);
+        expect(feedbackClearMock).toHaveBeenCalledWith({ itemId: "i2" });
+        expect(feedbackSetMock).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("veils a Less'd tile in place — inside its wrapper, every tile still there", () => {
+      feedbackMine.current = { more: [], less: ["i1"] };
+      render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+      const wrapper = document.querySelector('[data-feed-id="i1"]')!;
+      expect(wrapper.querySelector('[data-testid="tile-veil"]')).not.toBeNull();
+      expect(screen.getAllByTestId("tile-veil")).toHaveLength(1);
+      expect(document.querySelectorAll("[data-feed-id]")).toHaveLength(6);
+    });
+
+    it("the veil's Undo clears the verdict", () => {
+      feedbackMine.current = { more: [], less: ["i1"] };
+      render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      expect(feedbackClearMock).toHaveBeenCalledWith({ itemId: "i1" });
+    });
+
+    it("a veiled tile carries no hover strip", () => {
+      feedbackMine.current = { more: [], less: ["i1"] };
+      stubMatchMedia([HOVER_QUERY]);
+      render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+      const wrapper = document.querySelector('[data-feed-id="i1"]')!;
+      expect(wrapper.querySelector('[data-testid="tile-actions"]')).toBeNull();
+      const other = document.querySelector('[data-feed-id="i2"]')!;
+      expect(
+        other.querySelector('[data-testid="tile-actions"]'),
+      ).not.toBeNull();
+    });
+  });
+
   // Receipt, not render, is what spends an item (5.7). The server composes a page and writes
   // nothing; this effect is the only thing that tells the DB the reader got it.
   it("acks each received page exactly once", () => {
@@ -655,6 +774,15 @@ describe("FeedScreen without `dev` — the /feed contract", () => {
   });
 });
 
+describe("FeedScreen without `dev`", () => {
+  it("leaves the Your topics queries disabled and the readout absent", () => {
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+    expect(topicQueryEnabled.length).toBeGreaterThan(0);
+    expect(topicQueryEnabled.every((e) => e === false)).toBe(true);
+    expect(screen.queryByTestId("your-topics")).toBeNull();
+  });
+});
+
 describe("FeedScreen with `dev`", () => {
   // Botany is core, astronomy is grown, as far as this fixture is concerned — the split is decided
   // by the ids the shell passes, not by anything the screen knows on its own.
@@ -676,6 +804,17 @@ describe("FeedScreen with `dev`", () => {
     expect(input.knobs.tierCore).toBe(40);
     expect(input.knobs.grownEdgeScale).toBe(1);
     expect(input.nonce).toBe(0);
+  });
+
+  it("shows Your topics: the pick's weight, and a cooled non-pick with a dash and its cool", () => {
+    render(
+      <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} dev={dev} />,
+    );
+    const block = screen.getByTestId("your-topics");
+    expect(block).toHaveTextContent("1.00");
+    expect(block).toHaveTextContent("Astronomy");
+    expect(block).toHaveTextContent("— · cool 0.40");
+    expect(topicQueryEnabled).toContain(true);
   });
 
   it("still acks pages (tuning must exercise the real seen filter)", () => {

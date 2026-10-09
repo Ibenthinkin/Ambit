@@ -416,10 +416,10 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   - Everything a prototype merely omits is kept, restyled (DESIGN decision 13): gestures, zoom,
     the rail, magazine view, the Share row on the tile sheet.
     Settings lost its stub rows (Muted sources, Camera roll, Language), Saved its back chevron.
-  Verified at the end: `bun run check` 2,517 green, `bun run e2e:prod` 70 passed / 0 failed, the
-  CI-shape run 70 / 0. **Open:** Ben's device pass (402, 1440, the tailnet phone; the deferred
-  minors marked for his look are in the ledger), then merge and the one deploy.
-- **Usage data is recorded, minimally — 10-09-26** (design `docs/DESIGN_usage.md`, plan `docs/PLAN_usage.md`; branch `feat/usage`, built in the worktree `~/Dev/ambit-usage`, not merged, not deployed). The posture: Ambit records which screens and items a reader opens and a handful of actions, to see whether the beta is used — never an IP, user-agent, URL or referrer, and a signed-out visitor's events keep only `visit.*` and `screen.open`. The vocabulary is one no-import file, `src/config/usage.ts` (kinds, screens, a strict per-kind `META_SPEC`), so widening what is recorded is a visible diff; `POST /api/usage` (a route handler, `sendBeacon` cannot speak tRPC) validates against it, checks `Origin`, rate-limits, caps the body, and always answers 204; `bun run usage:report [--days N] [--weeks N] [--prune] [--mail]` is the only reader (`--prune` deletes rows older than 90 days; opt-in, unscheduled), and **nothing at request time reads the table**. Off switch: the runtime env var `USAGE_ENABLED=1` (read per request in the root layout; **unset on production until Ben sets it on Coolify** and restarts — a `NEXT_PUBLIC_` var would be inlined at build time and the Dockerfile passes none). Run the report with `docker exec "$C" bun run usage:report` (container by port). SPEC §5.7, §8.1, §11, §13. **Migration clash:** this branch's migration is `0015_usage_event`, and `feat/more-or-less` (unmerged) also has a 0015 — whichever merges second regenerates its migration as 0016.
+    Verified at the end: `bun run check` 2,517 green, `bun run e2e:prod` 70 passed / 0 failed, the
+    CI-shape run 70 / 0. **Open:** Ben's device pass (402, 1440, the tailnet phone; the deferred
+    minors marked for his look are in the ledger), then merge and the one deploy.
+- **Usage data is recorded, minimally — 10-09-26** (design `docs/DESIGN_usage.md`, plan `docs/PLAN_usage.md`; branch `feat/usage`, built in the worktree `~/Dev/ambit-usage`, not merged, not deployed). The posture: Ambit records which screens and items a reader opens and a handful of actions, to see whether the beta is used — never an IP, user-agent, URL or referrer, and a signed-out visitor's events keep only `visit.*` and `screen.open`. The vocabulary is one no-import file, `src/config/usage.ts` (kinds, screens, a strict per-kind `META_SPEC`), so widening what is recorded is a visible diff; `POST /api/usage` (a route handler, `sendBeacon` cannot speak tRPC) validates against it, checks `Origin`, rate-limits, caps the body, and always answers 204; `bun run usage:report [--days N] [--weeks N] [--prune] [--mail]` is the only reader (`--prune` deletes rows older than 90 days; opt-in, unscheduled), and **nothing at request time reads the table**. Off switch: the runtime env var `USAGE_ENABLED=1` (read per request in the root layout; **unset on production until Ben sets it on Coolify** and restarts — a `NEXT_PUBLIC_` var would be inlined at build time and the Dockerfile passes none). Run the report with `docker exec "$C" bun run usage:report` (container by port). SPEC §5.7, §8.1, §11, §13. Its migration is `0015_usage_event`; `feat/more-or-less` merged after it and took `0016`.
 - **Spread mode on the item screen — 09-27-26** (design `docs/DESIGN_spread-mode.md`, plan
   `docs/PLAN_spread-mode.md`; branch `feat/spread-mode`, pushed for Ben's look at 1440, not
   merged). It began as Ben's **feed** layout picker (1 / 2 / 4 columns, drawn in
@@ -457,6 +457,36 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   and starts a pan in the _same_ pointer event, before React re-renders — so the latest zoom
   lives in `zoomRef` as well as state, and the pan reads the ref. Device-judged, plus one
   Chromium CDP pinch smoke in `item.spec.ts`.
+- **More or less — 10-09-26** (design `docs/DESIGN_more-or-less.md`, plan
+  `docs/PLAN_more-or-less.md`, handoff `docs/design_handoff_more_or_less/`; designed 10-08, Part 1
+  built 10-09 on `feat/more-or-less`; **Part 2 shipped on the branch the same day — the pair on
+  every surface per `docs/design_handoff_more_or_less/`: item page, article end, tile sheet, hover
+  strip; merged to `main` 10-09-26, not deployed** — the deploy's boot runs migration 0016). A worded Less of this / More of this pair on the item. The parts
+  that span files: two tables (migration 0016) — `item_feedback` (one row per user+item) and
+  `user_topic_cool` (a topic the reader has cooled); `db/feedback.ts` writes in one transaction
+  and **undoes exactly** (`clearFeedback` reverses what the tap recorded, never "recomputes"),
+  serialising first taps with an advisory xact lock per user+item, and returns a `FeedbackEffect`
+  (incl. `isNewCool`) that `lib/feedback-toast.ts` words; `resolveSlotTopic` in `db/items.ts` is
+  the one rule for which topic a tap on a slot means. A "more" bumps the topic like a save and
+  feeds `getTasteKeywords`; a **cool weighs only where DRIFT and JUMP land** (never CORE — the
+  reader's own picks), through the `coolStrength` knob in `feed-knobs.ts`, and at 0 or with no
+  cools the draw path and rng consumption are unchanged, so the page is byte-for-byte today's.
+  A retake clears cools; `topics.cools` / `topics.warm` back Profile → Topics' "Showing less of";
+  Saved gained a "More of this" shelf; `/dev/feed` a "Your topics" readout. **Known bend:** a
+  more→less flip on a topic the "more" newly picked leaves the pick at 0.75 (clear-then-apply),
+  flagged for Ben. **Part 2's cross-file facts:** `useFeedback` in `components/feedback/more-or-less.tsx`
+  is the one optimistic shape (cache write, toast, rollback) that the pair, the `+`/`-` keys, the
+  tile sheet and the hover strip all share — never a second mutation pair. `item-facts` takes a
+  `feedback` **render slot**, so one facts component places the pair on a phone, a desktop and per
+  figure in a spread; the article's server-rendered `FinishedRow` reaches the screen's state
+  through `ItemShell`'s context (`useItemShell`). A Less **veils** a feed tile with a sibling
+  overlay, so nothing reflows (a veiled tile still Lifts on hover — flagged for Ben). A marked
+  control's on+hover fill is `bg-white`, not `bg-ink-hi`, which equals `ink` and shows nothing;
+  it keeps its keyline through one combined shadow class. **Margins collapse:** the phone pair's
+  30 px to the title is the wrapper's `pt-[22px]` plus the `<h1>`'s 8 — a `mt-` rendered 22,
+  because the title's margin escaped through the bare `<article>`; the e2e measures the rendered
+  gap. The D2B link-out sits 22 px under the pair (the frame wins). The Saved chip row shows for a
+  non-saver with a More. No toolbar changes — the pill, rail and Share disc are untouched by design.
 - **The dev knob panel shipped 09-05-26** — `/dev/feed` (local, `FEED_DEBUG`; a 404 under a
   production build), every feed knob live including the two Cut 2a levers
   `grownEdgeScale`/`grownHopPenalty` (identities at `1`, so `/feed` composes exactly as before),

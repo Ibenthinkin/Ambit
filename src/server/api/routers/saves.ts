@@ -15,7 +15,7 @@ import {
   getCollections,
   setItemCollection,
 } from "~/server/db/collections";
-import { getItemById, isItemInTopic } from "~/server/db/items";
+import { getItemById, resolveSlotTopic } from "~/server/db/items";
 import {
   getSavedCount,
   getSavedItemIds,
@@ -114,14 +114,9 @@ export const savesRouter = createTRPCRouter({
       if (wasSaved) {
         return { collectionName: collection.name, drift: null } as const;
       }
-      // The topic to bump. The feed draws on membership (09-11-26), so a card is routinely served
-      // under a topic that is not its display topic; the client says which slot it saved from and
-      // the server honours it **only for a member** (`isItemInTopic`) — the display topic is the
-      // fallback, and a bogus `topicId` can bump nothing it shouldn't.
-      const slotTopic =
-        input.topicId && (await isItemInTopic(input.itemId, input.topicId))
-          ? input.topicId
-          : item.topicId;
+      // The topic to bump: the slot the card was served under if the item is a member of it, else
+      // the display topic (`resolveSlotTopic`, shared with feedback.set).
+      const slotTopic = await resolveSlotTopic(item, input.topicId);
       // An un-homed item with no slot — a walk post no current topic fits (Cut 1, design §5) — has
       // no topic to bump. The save itself is recorded above; the toast just reads "Saved to X", the
       // same `drift: null` shape a move between collections produces. Cut 2's promotion is what

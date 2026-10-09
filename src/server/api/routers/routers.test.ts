@@ -231,6 +231,33 @@ describe("protected procedures reject a null session", () => {
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
+  it("feedback.set throws UNAUTHORIZED", async () => {
+    await expect(
+      caller.feedback.set({ itemId: "x", verdict: "more" }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("feedback.clear / mine / list throw UNAUTHORIZED", async () => {
+    await expect(caller.feedback.clear({ itemId: "x" })).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(caller.feedback.mine()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(caller.feedback.list()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  it("topics.cools / warm throw UNAUTHORIZED", async () => {
+    await expect(caller.topics.cools()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(caller.topics.warm({ topicId: "x" })).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
   it("topics.mine throws UNAUTHORIZED", async () => {
     await expect(caller.topics.mine()).rejects.toMatchObject({
       code: "UNAUTHORIZED",
@@ -653,6 +680,21 @@ describe("feed.page forwards knobs to getFeedPage unconditionally", () => {
     expect(mockedGetFeedPage).toHaveBeenCalledWith("user-42", undefined, knobs);
   });
 
+  it("forwards coolStrength like every knob, and refuses one above 3 (10-09-26)", async () => {
+    const caller = createCaller(authedContext("user-42"));
+    await caller.feed.page({ knobs: { coolStrength: 0 } });
+    expect(mockedGetFeedPage).toHaveBeenCalledWith("user-42", undefined, {
+      coolStrength: 0,
+    });
+    await expect(
+      caller.feed.page({ knobs: { coolStrength: 3.5 } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      caller.feed.page({ knobs: { coolStrength: -0.1 } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(mockedGetFeedPage).toHaveBeenCalledTimes(1);
+  });
+
   it("omitting knobs forwards undefined", async () => {
     const caller = createCaller(authedContext("user-42"));
 
@@ -755,8 +797,8 @@ describe("appRouter shape", () => {
   // 09-28-26 retires `topics.weights` — the product reads weights through `topics.mine` now —
   // and adds `topics.setWeight`, so the count stays twenty-two. The questionnaire (10-02-26) adds
   // `user.readingAmount`, `user.setReadingAmount`, `onboarding.complete` and `onboarding.interpret` — twenty-six. First Exhibition (10-04-26) adds
-  // `topics.taste`, the stored taste profile — twenty-seven.
-  it("exposes exactly the twenty-seven SPEC §7 procedures, no leftover post router", () => {
+  // `topics.taste`, the stored taste profile — twenty-seven. "More or less" (10-09-26) adds `feedback.set/clear/mine/list` and `topics.cools/warm` — thirty-three.
+  it("exposes exactly the thirty-three SPEC §7 procedures, no leftover post router", () => {
     const def = appRouter._def.procedures;
     expect(Object.keys(def).sort()).toEqual(
       [
@@ -787,6 +829,12 @@ describe("appRouter shape", () => {
         "topics.setWeight",
         "topics.resetWeights",
         "topics.taste",
+        "feedback.set",
+        "feedback.clear",
+        "feedback.mine",
+        "feedback.list",
+        "topics.cools",
+        "topics.warm",
       ].sort(),
     );
   });

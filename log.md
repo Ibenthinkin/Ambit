@@ -166,6 +166,62 @@ usage plan above — whichever lands first keeps it.
 
 _Session spend: 7.96M tok (in 1.5k · out 132.1k · cache r 7.11M / w 716.3k) · fable-5-1 + opus-5-5 · 20:46→12:27_
 
+**Later still — More or less, Part 1 built (`feat/more-or-less`, `cb5bcc5..6007b9a`, not pushed, not merged).**
+Ben asked for Part 1 then Part 2 in one session. **Shipped, each task TDD:** migration 0015
+(`item_feedback`, `user_topic_cool`); `db/feedback.ts` — `setFeedback` / `clearFeedback` in one
+transaction with an exact undo (what a tap did is recorded, so clearing it puts the weights back
+as they were), an advisory transaction lock per user+item so two first taps on one item serialise,
+and a `FeedbackEffect` that says whether a cool is new; `feedback.set/clear/mine/list` and
+`topics.cools/warm`; a retake of the questionnaire clears cools; "more" feeds `getTasteKeywords`;
+the feed engine's `coolStrength` knob (cools weigh only where DRIFT and JUMP _land_; at 0, or with
+no cools, the page is byte-for-byte today's, same rng consumption); `feedbackToastText`; the Saved
+"More of this" shelf (the chip row now also shows for readers with marks but no saves); Profile →
+Topics "Showing less of" with Warm up; `/dev/feed`'s "Your topics" readout.
+
+**Decisions:** a more-then-less flip on a topic the "more" had _newly picked_ leaves that pick at
+0.75, not removed — D2's clear-then-apply undoes the "more" exactly, then the "less" cools a topic
+that is still picked. **Flagged for Ben**: it reads oddly (a topic you said "less" to stays in your
+picks) and is the one place the exact-undo promise bends the intuitive result.
+
+**Verification:** typecheck green; lint only the known `.cache/capacity-probe/load.ts` error;
+prettier green on changed files; `bun run test` 2,597 tests (one run hit the known parallel
+un-homed-fixture race in `feed.integration.test.ts`'s "writes no seen_item rows", green on re-run).
+`e2e:prod` 58 passed / 2 failed / 9 skipped / 12 did not run — both failures
+(`item.spec.ts:295` article link name, `desktop.spec.ts:464` spread sign-in) **fail identically
+on `main` `cb5bcc5`**, so they are not this branch's. CI-shape run (fresh postgres, port 5434 — 5433 was held by another container): 57 passed, 2 failed — `item.spec.ts:295` again, and a tile-opens-the-page spec (`explore.spec.ts:138`) that passes alone on both branch and `main`; `main`'s own CI-shape run is red the same way (`feed.spec.ts:194` + `item.spec.ts:295`), and the failures stop the `desktop` project from running at all. The saved spec's `More of this` locator also matched the `Undo More of this` badge (strict-mode violation) — fixed with `exact: true`.
+
+**Open / next:** Part 2 in progress on the same branch (the surfaces, per
+`docs/design_handoff_more_or_less/`); Ben to rule on the 0.75 flip; the two red e2e specs on `main`
+(stale `[Read on …]` bracket name; spread test's sign-in never reaching `/feed`) want their own fix.
+
+*Session spend: 18.59M tok (in 376 · out 65.2k · cache r 17.32M / w 1.20M) · opus-5-5 · 12:35→13:24*
+
+**Later still — More or less, Part 2 built (`feat/more-or-less`, `f01abe5..b43ba87`; not pushed, not merged, not deployed).**
+**Shipped:** the `MoreOrLess` pair (220 + 220) and `useFeedback`, the one optimistic shape the pair, the `+`/`-` keys, the tile sheet and the hover strip share; the item page's three placements (phone: under the picture and under the title; desktop: under the 28 px summary in the Information section's third column; Magazine view: one pair per figure); the article's "Finished · N min read" row; the tile sheet's rows, the desktop hover strip (− + bookmark), and a Less that veils the tile in place with an `[Undo]`.
+
+**Decisions** (rulings that change behaviour or look): a more→less flip on a topic the "more" newly picked leaves a 0.75 pick (R5). First taps on one item serialise on a `pg_advisory_xact_lock`, because `FOR UPDATE` locks nothing before the row exists (R6). The "More of this" shelf chip shows to non-savers who have any More, not only to savers (R7). On+hover is `bg-white`, since `ink-hi` equals `ink` and the hover would not show (R9), and a marked strip square keeps its keyline under the accent line by one combined shadow class (R11). The D2B link-out is 22 px under the pair, because the frame wins over the brief (R10). The phone's pair→title gap is 30 px, not the 22 that a `mt-` rendered: the title's margin collapsed through the bare `<article>`, so the wrapper uses `pt-[22px]`, and the e2e now measures the rendered gap. Migration 0015 was amended before it ever shipped so `item_feedback.user_id` and `user_topic_cool.user_id` cascade on user delete (R13) — the first cut had no `onDelete`, which broke `e2e:clean` and any suite that deletes users.
+
+**Verification:** typecheck green; lint only the known `.cache/capacity-probe/load.ts` error; `bun run test` 2,644 tests / 205 files green. `e2e:prod` **75 passed / 0 failed / 9 skipped** (63 chromium + 12 desktop; the 9 skips are the dev-only specs). CI-shape run (fresh postgres on port 5434): **75 / 0 / 9**, the same. Part 1's two red specs (`item.spec.ts:295`, `desktop.spec.ts:464`) are green now.
+
+**Open / next — Ben's look (402 / 1440 / the tailnet phone):**
+1. Phone picture: one short scroll, the pair under the picture, More: the toast names the topic, the button inverts, the note appears, and `/saved?shelf=more` shows it.
+2. Desktop picture: the pair under the 28 px summary in the Information section's third column, 220 + 220; Magazine view: one pair per figure under each title; the `+` / `-` keys.
+3. Article, both widths: "Finished · N min read" after the source link, the pair, then "Where Ambit would wander next".
+4. Feed: long-press, Less: the tile veils in place and nothing moves, then `[Undo]`; on the desktop the strip reads − + bookmark with the chip at 50 %.
+5. Saved: the "More of this" chip with its + and the hairline; Topics: "Showing less of" with the count and `[Warm up]`.
+6. `/dev/feed`: Your topics moves; `coolStrength 0` gives the old page for the same cursor (Restart feed between).
+7. Nothing green that wasn't green before.
+8. Explorations, deferred: should a marked strip square stay visible after hover ends? Want the 400 ms mono label on strip squares?
+9. The more→less flip leaving a 0.75 pick (a topic you said Less to stays in your picks).
+10. A veiled tile still Lifts on hover.
+11. The phone's note line pushes the title down while a verdict is on.
+
+*Session spend: 18.45M tok (in 282 · out 52.1k · cache r 17.99M / w 409.7k) · opus-5-5 · 13:24→15:23*
+
+**Evening — More or less merged to `main` (not pushed, not deployed).** `feat/usage` had landed first, so `main` was merged into the branch in a worktree (`~/Dev/ambit-merge`, the main checkout being another session's) and the migration regenerated as **`0016_more_or_less`** — the SQL byte-identical to the old 0015. Seven conflicts, all both-sides: the schema's two table blocks, `ItemFactsWide` (the feedback slot + the link-out `track`), the test's hoisted mocks, one locator's `exact: true`, CLAUDE.md, the 0015 snapshot and the journal. The local database already held both tables, so 0016's hash was recorded in `drizzle.__drizzle_migrations` by hand rather than re-run; a fresh `postgres:17-alpine` applied all seventeen. **Verified on the merge:** typecheck, lint (warnings only), format; `bun run test` 2,796 passed with one red file — `routers.integration.test.ts`'s `items.galleryRail` cases time out at 5 s against today's 200,620-item local corpus and **fail identically on `main`**, passing in a 60 s budget; CI-shape e2e 73 passed + 1 explore draw flake (24/24 on three repeats); `e2e:prod` 75 passed + `pwa.prod.spec`'s offline test over its 30 s under load (3/3 alone, ~25 s each — near its limit). **Open / next:** Ben's device look (the list above), push, deploy — the boot runs 0016.
+
+*Session spend: 24.17M tok (in 346 · out 84.7k · cache r 23.67M / w 409.6k) · opus-5-5 · 15:23→17:36*
+
 ### [[10-08-26 Thu]] — The device pass closes; the Tumblr probe answers "no"; the join block's way back
 
 Ben's look at the deployed redesign on the phone and at 1440: "more or less ok, enough that I

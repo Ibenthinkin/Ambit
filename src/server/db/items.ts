@@ -153,6 +153,22 @@ export async function getItemById(id: string): Promise<Item | undefined> {
 }
 
 /**
+ * Which topic a card-level action (a save, a "more/less") is charged to — the save rule, shared
+ * by `saves.saveToCollection` and `feedback.set`. The feed draws on membership, so a card is
+ * routinely served under a topic that is not its display topic; the client says which slot it came
+ * from and the server honours that **only for a member** (`isItemInTopic`). Otherwise the item's
+ * display topic (null for an un-homed item) — so a bogus `topicId` can charge nothing it shouldn't.
+ */
+export async function resolveSlotTopic(
+  row: Pick<Item, "id" | "topicId">,
+  topicId?: string,
+): Promise<string | null> {
+  return topicId && (await isItemInTopic(row.id, topicId))
+    ? topicId
+    : row.topicId;
+}
+
+/**
  * The batch form: full rows for a set of ids, in one query (Phase 7.3).
  *
  * **Why it exists.** The feed engine composes a page out of `PoolItem` projections (db/feed.ts) —

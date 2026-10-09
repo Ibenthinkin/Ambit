@@ -12,6 +12,7 @@ import { nanoid } from "nanoid";
 
 import type { ReadingAmount } from "~/server/config/reading-amount";
 import type { Taste } from "~/lib/interview/taste";
+import { clearUserCools } from "~/server/db/feedback";
 import { interviewAnswer, user, userTaste } from "~/server/db/schema";
 import { replaceUserTopicsTx, type TopicPick } from "~/server/db/topics";
 
@@ -99,6 +100,9 @@ export async function completeOnboarding(
     // Last, so the rollback test means something: an unknown topic id fails here, on the
     // foreign key, after the two writes above — and takes them with it.
     await replaceUserTopicsTx(tx, userId, run.picks, "overwrite");
+    // A retake is a fresh start for the picks (above) and for the cools — "Showing less of"
+    // empties (More or less D4). Verdicts stay recorded; only the multipliers go.
+    await clearUserCools(tx, userId);
   });
 
   return { runId };

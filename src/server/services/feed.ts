@@ -23,6 +23,7 @@ import { drawWeight, getItemsByIds } from "~/server/db/items";
 import { getTasteKeywords } from "~/server/db/saves";
 import { getUserTopicWeights, listTopics } from "~/server/db/topics";
 import { getUserWritingAmount } from "~/server/db/users";
+import { getUserTopicCools } from "~/server/db/feedback";
 import {
   readingShare,
   type ReadingAmount,
@@ -147,6 +148,9 @@ export interface FeedPage {
   debug?: {
     plannedTopics: number;
     fallback: boolean;
+    /** How many of the page's cards landed on a topic the reader has cooled ("Less of this",
+     *  10-09-26) — 0 for a reader with no cools and for a signed-out page. */
+    cooled: number;
     /** Signed-out pages only: the persona the seed dealt, or null when too few of its topics
      *  exist here and the page fell back to the uniform cold start. */
     persona?: string | null;
@@ -285,6 +289,28 @@ export interface TopicPick {
   driftPath?: string[];
 }
 
+/**
+ * A reader's "Less of this" cools as a landing applies them (10-09-26, docs/DESIGN_more-or-less.md
+ * D3): `cools` is topic id → cool in (0.15, 1] (`getUserTopicCools`; absent means 1, uncooled) and
+ * `strength` is the `coolStrength` knob, the exponent. Read only where DRIFT and JUMP *land*.
+ */
+export interface Cooling {
+  cools: ReadonlyMap<string, number>;
+  strength: number;
+}
+
+/** No cools at all — every caller written before them, and a signed-out page. */
+export const NO_COOLING: Cooling = { cools: new Map(), strength: 0 };
+
+/** How much a landing on `topic` is scaled: `cool ** strength`, and exactly 1 for an uncooled
+ *  topic or at strength 0. Exactly 1 matters: `x * 1 === x` in floating point, so a factor of 1
+ *  multiplies nothing away and the draw it feeds is today's to the last bit. */
+function coolFactor(cooling: Cooling, topic: string): number {
+  if (cooling.strength === 0) return 1;
+  const cool = cooling.cools.get(topic);
+  return cool === undefined ? 1 : cool ** cooling.strength;
+}
+
 /** CORE: a straight weighted draw over the user's own topics (`user_topic.weight`). */
 export function pickCore(
   weights: Map<string, number>,
@@ -308,6 +334,7 @@ function hop(
     coreIds: CORE_TOPIC_IDS,
     penalty: 1,
   },
+  cooling: Cooling = NO_COOLING,
 ): GraphNeighbor | null {
   // Only positive-sim neighbours count as bridges — a weak row must not let "drift" walk a
   // near-zero or negative edge and call it a connection. No bridge → the caller falls back to
@@ -316,11 +343,26 @@ function hop(
   // With `penalty: 0` and a row whose only positive bridges are grown, every weight is 0 and
   // weightedPick returns null — the same "no doorway" fallback. That is what "drift stays inside
   // the core sixteen" means mechanically.
+  //
+  // **The softmax.** `exp(sim / temp)` turns similarities into positive weights, and
+  // `weightedPick` divides by their sum as it draws — together that is a softmax: each bridge's
+  // chance is `exp(sim/temp) / Σ exp(sim'/temp)`. The exponential is what makes `temp` the knob:
+  // a gap of 0.3 in sim is a factor of e² ≈ 7.4 at temp 0.15, and of e^0.3 ≈ 1.35 at temp 1, so a
+  // low temperature lets the strongest bridge dominate and a high one flattens the row. Two plain
+  // multipliers then ride on the softmax mass — scaling a weight by k scales its share of the
+  // normalised total by roughly k — so they read as "this much less likely":
+  //   - `grownHopPenalty` for a grown neighbour (Cut 2a's lever);
+  //   - the reader's cool on this *destination* (10-09-26, "Less of this"), `cool ** coolStrength`.
+  //     Applied here, where the hop lands, never to `from`. An uncooled neighbour's factor is
+  //     exactly 1, and `x * 1 === x`, so with no cools (or strength 0) every weight — and so every
+  //     draw and the rng it consumes — is the pre-cool hop's, bit for bit.
   const row = (graph[from] ?? []).filter((n) => n.sim > 0);
   return weightedPick(
     row.map((n): [GraphNeighbor, number] => [
       n,
-      Math.exp(n.sim / temp) * (grown.coreIds.has(n.topic) ? 1 : grown.penalty),
+      Math.exp(n.sim / temp) *
+        (grown.coreIds.has(n.topic) ? 1 : grown.penalty) *
+        coolFactor(cooling, n.topic),
     ]),
     rng,
   );
@@ -341,12 +383,14 @@ export function pickDrift(
   knobs: Pick<FeedKnobs, "temp" | "hop2" | "grownHopPenalty">,
   rng: () => number,
   coreIds: ReadonlySet<string> = CORE_TOPIC_IDS,
+  cooling: Cooling = NO_COOLING,
 ): TopicPick | null {
+  // The start is the reader's own weights, uncooled — a cool weighs landings only (D3).
   const start = weightedPick([...weights.entries()], rng);
   if (!start) return null;
 
   const grown = { coreIds, penalty: knobs.grownHopPenalty };
-  const first = hop(graph, start, knobs.temp, rng, grown);
+  const first = hop(graph, start, knobs.temp, rng, grown, cooling);
   if (!first) {
     return {
       topicId: start,
@@ -360,7 +404,7 @@ export function pickDrift(
   let driftPath = [start, first.topic];
 
   if (rng() < knobs.hop2) {
-    const second = hop(graph, first.topic, knobs.temp, rng, grown);
+    const second = hop(graph, first.topic, knobs.temp, rng, grown, cooling);
     if (second && second.topic !== start) {
       topicId = second.topic;
       why = `DRIFT · ${start} → ${first.topic} → ${second.topic} (${first.sim.toFixed(2)}, ${second.sim.toFixed(2)})`;
@@ -376,18 +420,32 @@ export function pickDrift(
  * topics' adjacency rows. Deliberately not the strict antipode: tail ordering in a 16-point
  * mean-centered similarity space is noise, and pretending rank 15 is meaningfully "farther" than
  * rank 12 would be false precision.
+ *
+ * "Less of this" (10-09-26): a cooled tail topic is drawn `cool ** coolStrength` as often — the
+ * uniform draw becomes a `weightedPick` over those factors. Only when some factor is not 1,
+ * though: with none cooled (or strength 0) this is the old `floor(rng() × n)` line itself, not a
+ * weighted draw that happens to be uniform — the two agree almost always but not at every float
+ * (an `r` landing exactly on a whole number rounds the other way), and a page must not change
+ * because a reader who never pressed "less" was routed through new arithmetic.
  */
 export function pickJump(
   weights: Map<string, number>,
   graph: TopicGraph,
   rng: () => number,
+  cooling: Cooling = NO_COOLING,
 ): TopicPick | null {
   const start = weightedPick([...weights.entries()], rng);
   if (!start) return null;
 
   const row = graph[start] ?? [];
   const tail = row.slice(Math.floor(row.length / 2));
-  const pick = tail[Math.floor(rng() * tail.length)];
+  const factors = tail.map((n) => coolFactor(cooling, n.topic));
+  const pick = factors.every((f) => f === 1)
+    ? tail[Math.floor(rng() * tail.length)]
+    : (weightedPick(
+        tail.map((n, i): [GraphNeighbor, number] => [n, factors[i]!]),
+        rng,
+      ) ?? undefined);
   if (!pick) {
     return {
       topicId: start,
@@ -423,6 +481,7 @@ export function pickSlot(
   knobs: FeedKnobs,
   rng: () => number,
   coreTopicIds: ReadonlySet<string>,
+  cools: ReadonlyMap<string, number> = new Map(),
 ): SlotPick | null {
   const tier = weightedPick<Tier>(
     [
@@ -435,12 +494,15 @@ export function pickSlot(
   );
   if (!tier) return null; // all tier weights <= 0 — degenerate knobs; the caller's guard bounds the retry
   if (tier === "WILD") return { tier, pick: null };
+  // CORE never reads the cools: it draws the reader's own picks by weight, and a "less" on a
+  // picked topic has already lowered that weight (D2). DRIFT and JUMP land on them.
+  const cooling: Cooling = { cools, strength: knobs.coolStrength };
   const pick =
     tier === "CORE"
       ? pickCore(weights, rng)
       : tier === "DRIFT"
-        ? pickDrift(weights, graph, knobs, rng, coreTopicIds)
-        : pickJump(weights, graph, rng);
+        ? pickDrift(weights, graph, knobs, rng, coreTopicIds, cooling)
+        : pickJump(weights, graph, rng, cooling);
   return { tier, pick };
 }
 
@@ -482,6 +544,9 @@ export function planTopics(opts: {
   rng: () => number;
   coreTopicIds?: ReadonlySet<string>;
   horizon?: number;
+  /** The reader's cools — **the same map `composePage` gets**, or the plan replays a different
+   *  topic sequence and a cooled page meets pools it never fetched (10-09-26). */
+  cools?: ReadonlyMap<string, number>;
 }): Set<string> {
   const {
     weights,
@@ -490,11 +555,12 @@ export function planTopics(opts: {
     rng,
     coreTopicIds = CORE_TOPIC_IDS,
     horizon = knobs.pageSize * PLAN_HORIZON_PAGES,
+    cools = new Map<string, number>(),
   } = opts;
   const planned = new Set<string>();
   const topicCounts = new Map<string, number>();
   for (let i = 0; i < horizon; i++) {
-    const slot = pickSlot(weights, graph, knobs, rng, coreTopicIds);
+    const slot = pickSlot(weights, graph, knobs, rng, coreTopicIds, cools);
     if (!slot || slot.tier === "WILD" || !slot.pick) continue;
     const { topicId } = slot.pick;
     if ((topicCounts.get(topicId) ?? 0) >= knobs.topicCap) continue;
@@ -636,6 +702,10 @@ export interface ComposePageOpts {
   /** The stream `writingPositions` draws from. **Absent ⇒ no writing slots at all**, so every
    *  caller written before them composes exactly as it did. */
   writingRng?: () => number;
+  /** The reader's "Less of this" cools (10-09-26, docs/DESIGN_more-or-less.md D3): topic id →
+   *  cool in (0.15, 1], absent = 1. Weighs DRIFT and JUMP landings under `knobs.coolStrength`.
+   *  Absent or empty ⇒ the page composed before cools existed. `planTopics` must get the same. */
+  cools?: ReadonlyMap<string, number>;
 }
 
 /**
@@ -662,6 +732,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
     writingPools = new Map<string, PoolItem[]>(),
     writingWildPool = [],
     writingRng,
+    cools = new Map<string, number>(),
   } = opts;
 
   // Working copies of each topic's pool: an item drawn this page is spliced out immediately, so
@@ -795,7 +866,7 @@ export function composePage(opts: ComposePageOpts): ComposedCard[] {
   ) {
     // The tier draw and the topic pick, from the TOPIC stream — see `pickSlot` for why they are
     // one function now. Everything after this line that draws uses `itemRng`.
-    const slot = pickSlot(weights, graph, knobs, rng, coreTopicIds);
+    const slot = pickSlot(weights, graph, knobs, rng, coreTopicIds, cools);
     if (!slot) continue; // all tier weights <= 0 — degenerate knobs; guard bounds the retry
     const tierName = slot.tier;
 
@@ -1041,18 +1112,23 @@ export async function getFeedPage(
   let dealt: string | null | undefined;
   // How much writing this reader asked for. A visitor never said, so explore is untouched.
   let writingAmount: ReadingAmount | null = null;
+  // "Less of this" (10-09-26): the reader's cools, empty for a visitor and for anyone who never
+  // pressed it. One PK-indexed read beside the other three.
+  let cools: ReadonlyMap<string, number> = new Map();
   if (userId === null) {
     const existing = new Set((await listTopics()).map((t) => t.id));
     const explore = exploreWeights(seed, existing);
     weights = explore.weights;
     dealt = explore.persona;
   } else {
-    const [rawWeights, keywords, amount] = await Promise.all([
+    const [rawWeights, keywords, amount, userCools] = await Promise.all([
       getUserTopicWeights(userId),
       getTasteKeywords(userId),
       getUserWritingAmount(userId),
+      getUserTopicCools(userId),
     ]);
     writingAmount = amount;
+    cools = userCools;
     weights = rawWeights.size > 0 ? rawWeights : coldStartWeights();
     tasteKeywords = keywords;
   }
@@ -1136,6 +1212,7 @@ export async function getFeedPage(
       writingPools,
       writingWildPool,
       ...(writingOn ? { writingRng: writingStream() } : {}),
+      cools,
     });
   };
 
@@ -1145,7 +1222,7 @@ export async function getFeedPage(
   // from membership now, which made the every-reachable fetch ~2.8× dearer overnight and would
   // make it grow with every promoted topic; this makes the page's cost a function of page size.
   const planned = [
-    ...planTopics({ weights, graph, knobs, rng: topicStream() }),
+    ...planTopics({ weights, graph, knobs, rng: topicStream(), cools }),
   ];
   let composed = await compose(planned);
   let fallback = false;
@@ -1200,6 +1277,9 @@ export async function getFeedPage(
           debug: {
             plannedTopics: planned.length,
             fallback,
+            cooled: composed.filter(
+              (c) => c.topicId !== null && cools.has(c.topicId),
+            ).length,
             ...(dealt !== undefined ? { persona: dealt } : {}),
           },
         }

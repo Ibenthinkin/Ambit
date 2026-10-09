@@ -37,8 +37,18 @@ const {
   invalidateMock,
   backMock,
   pushMock,
+  feedbackSetMock,
+  feedbackClearMock,
+  feedbackMine,
+  saveMutateMock,
+  collectionsMock,
   trackMock,
 } = vi.hoisted(() => ({
+  feedbackSetMock: vi.fn(),
+  feedbackClearMock: vi.fn(),
+  feedbackMine: { current: { more: [] as string[], less: [] as string[] } },
+  saveMutateMock: vi.fn(),
+  collectionsMock: vi.fn(),
   trackMock: vi.fn(),
   railFetchMock: vi.fn(),
   savedForItemMock: vi.fn(),
@@ -60,13 +70,36 @@ vi.mock("~/trpc/react", () => ({
         forItem: { invalidate: invalidateMock },
         collections: { invalidate: invalidateMock },
       },
+      feedback: {
+        mine: {
+          cancel: invalidateMock,
+          getData: () => feedbackMine.current,
+          setData: vi.fn(),
+          invalidate: invalidateMock,
+        },
+        list: { invalidate: invalidateMock },
+      },
+      topics: {
+        cools: { invalidate: invalidateMock },
+        mine: { invalidate: invalidateMock },
+      },
     }),
     items: { wanderNext: { useQuery: wanderQueryMock } },
+    // The More-or-less pair's three procedures (its own logic is `more-or-less.test.tsx`'s).
+    feedback: {
+      mine: {
+        useQuery: (_: undefined, o: { enabled: boolean }) => ({
+          data: o.enabled ? feedbackMine.current : undefined,
+        }),
+      },
+      set: { useMutation: () => ({ mutate: feedbackSetMock }) },
+      clear: { useMutation: () => ({ mutate: feedbackClearMock }) },
+    },
     saves: {
       forItem: { useQuery: savedForItemMock },
-      collections: { useQuery: () => ({ data: [], isLoading: false }) },
+      collections: { useQuery: collectionsMock },
       saveToCollection: {
-        useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+        useMutation: () => ({ mutate: saveMutateMock, isPending: false }),
       },
       createCollection: {
         useMutation: () => ({ mutate: vi.fn(), isPending: false }),
@@ -228,6 +261,11 @@ beforeEach(() => {
   savedForItemMock.mockReturnValue({ data: undefined });
   wanderQueryMock.mockReturnValue({ data: [] });
   invalidateMock.mockClear();
+  feedbackSetMock.mockClear();
+  feedbackClearMock.mockClear();
+  feedbackMine.current = { more: [], less: [] };
+  saveMutateMock.mockClear();
+  collectionsMock.mockReturnValue({ data: [], isLoading: false });
   backMock.mockClear();
   pushMock.mockClear();
   trackMock.mockClear();
@@ -252,12 +290,15 @@ describe("ItemScreen", () => {
     expect(heading()).toHaveTextContent("Plate entry");
     const facts = screen.getByRole("list", { name: "About this work" });
     expect(facts).toBeInTheDocument();
-    // "Some automatic spacing between the image and the description" (Ben, 09-11-26): the
-    // reader column starts a clear 28px under the strip, on every width.
+    // "Some automatic spacing between the image and the description" (Ben, 09-11-26). Since the
+    // More-or-less pair (10-09-26, the frame P2) the phone's column starts 18px under the strip
+    // with the pair, and the title follows 30px under that (22px of padding + the <h1>'s 8).
     const column = [...document.querySelectorAll<HTMLElement>("*")].find(
-      (el) => el.className.includes?.("pt-[28px]") && el.contains(facts),
+      (el) => el.className.includes?.("pt-[18px]") && el.contains(facts),
     );
     expect(column).toBeDefined();
+    // Padding, not margin: a margin would collapse with the <h1>'s own 8px (22, not 30).
+    expect(facts.closest(".pt-\\[22px\\]")).not.toBeNull();
   });
 
   it("renders only the three cells around the reader", () => {
@@ -588,6 +629,134 @@ describe("ItemScreen", () => {
 
       tap();
       expect(pill).toHaveAttribute("aria-hidden", "true");
+    });
+  });
+});
+
+// More or less (docs/DESIGN_more-or-less.md D6): "the pair follows the thing it's about".
+describe("the More-or-less pair", () => {
+  const pair = () =>
+    screen.getByRole("group", { name: "More or less of this" });
+
+  it("sits under the picture on a phone, above the title", () => {
+    renderScreen();
+    const group = pair();
+    expect(
+      group.compareDocumentPosition(heading()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      within(group).getByRole("button", { name: "More of this" }),
+    ).toBeInTheDocument();
+  });
+
+  it("+ and = mark more, - marks less, on the picture under the reader", () => {
+    renderScreen();
+    key("+");
+    expect(feedbackSetMock).toHaveBeenLastCalledWith({
+      itemId: "entry",
+      verdict: "more",
+      topicId: "botany",
+    });
+    key("=");
+    expect(feedbackSetMock).toHaveBeenCalledTimes(2);
+    key("-");
+    expect(feedbackSetMock).toHaveBeenLastCalledWith({
+      itemId: "entry",
+      verdict: "less",
+      topicId: "botany",
+    });
+  });
+
+  it("a held +/- (autorepeat) counts once", () => {
+    renderScreen();
+    const down = (k: string, repeat: boolean) =>
+      act(() => void fireEvent.keyDown(window, { key: k, repeat }));
+    down("+", false);
+    down("+", true);
+    down("+", true);
+    down("-", true);
+    expect(feedbackSetMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("a key on the verdict that is on takes it back", () => {
+    feedbackMine.current = { more: ["entry"], less: [] };
+    renderScreen();
+    key("+");
+    expect(feedbackClearMock).toHaveBeenCalledWith({ itemId: "entry" });
+    expect(feedbackSetMock).not.toHaveBeenCalled();
+  });
+
+  it("a less does not advance the rail — the picture stays put", () => {
+    renderScreen();
+    key("-");
+    act(
+      () =>
+        void fireEvent.click(
+          within(pair()).getByRole("button", { name: "Less of this" }),
+        ),
+    );
+    expect(heading()).toHaveTextContent("Plate entry");
+    expect(replaceState).not.toHaveBeenCalled();
+  });
+
+  it("a stranger's key asks them to sign up instead of writing", () => {
+    renderScreen({ authed: false });
+    key("+");
+    expect(feedbackSetMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("auth-card")).toHaveTextContent("signup");
+  });
+
+  it("a save from the item screen bumps the picture's own topic", () => {
+    collectionsMock.mockReturnValue({
+      data: [{ id: "c1", name: "Plates", count: 0, covers: [] }],
+      isLoading: false,
+    });
+    renderScreen();
+    tap();
+    act(
+      () =>
+        void fireEvent.click(
+          screen.getByRole("button", { name: "Save to collection" }),
+        ),
+    );
+    act(() => void fireEvent.click(screen.getByText("Plates")));
+    expect(saveMutateMock).toHaveBeenCalledWith({
+      itemId: "entry",
+      collectionId: "c1",
+      topicId: "botany",
+    });
+  });
+
+  describe("on a computer", () => {
+    beforeEach(() => {
+      localStorage.clear();
+      stubMatchMedia([DESKTOP_QUERY]);
+    });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("single: one pair, inside the Information section", () => {
+      renderScreen();
+      const info = screen.getByRole("region", { name: "Information" });
+      expect(within(info).getAllByRole("group")).toHaveLength(1);
+    });
+
+    it("spread: one pair per figure, each about its own picture", () => {
+      localStorage.setItem(HERO_LAYOUT_KEY, "spread");
+      renderScreen();
+      const figs = screen.getAllByTestId("spread-fig");
+      expect(figs).toHaveLength(2);
+      act(
+        () =>
+          void fireEvent.click(
+            within(figs[1]!).getByRole("button", { name: "More of this" }),
+          ),
+      );
+      expect(feedbackSetMock).toHaveBeenLastCalledWith({
+        itemId: "r0",
+        verdict: "more",
+        topicId: "botany",
+      });
     });
   });
 });

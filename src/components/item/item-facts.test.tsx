@@ -220,3 +220,81 @@ describe("ItemFactsSpread (magazine view's Information)", () => {
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 });
+
+// The More-or-less pair is a render slot (docs/DESIGN_more-or-less.md D6): the layouts decide
+// *where* it goes, the screen decides *what* it is. A stand-in proves the placement.
+describe("the feedback slot", () => {
+  const slot = (item: RailItem) => (
+    <div data-testid="pair" data-item={item.id} />
+  );
+  // `compareDocumentPosition`'s FOLLOWING bit: `b` comes after `a` in document order.
+  const after = (a: Node, b: Node) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it("wide: under the summary, above the bracket link-out, in the third column", () => {
+    render(<ItemFacts item={cell()} layout="wide" feedback={slot} />);
+    const pair = screen.getByTestId("pair");
+    expect(pair).toHaveAttribute("data-item", "item-1");
+    expect(after(screen.getByText("A caption."), pair)).toBe(true);
+    const linkOut = screen.getByRole("link", { name: /Read the original on/ });
+    expect(after(pair, linkOut)).toBe(true);
+    // Same column as the summary, in a wrapper 22 px under it — the frame's D2B.
+    const wrapper = pair.parentElement!;
+    expect(wrapper.parentElement).toBe(
+      screen.getByText("A caption.").parentElement,
+    );
+    expect(wrapper).toHaveClass("mt-[22px]");
+    // And the link-out 22 px under the pair (D2B), where without a pair it keeps 20.
+    expect(linkOut.closest("p")).toHaveClass("mt-[22px]");
+  });
+
+  it("wide with no summary: the pair leads the column", () => {
+    render(
+      <ItemFacts
+        item={cell({ summary: null })}
+        layout="wide"
+        feedback={slot}
+      />,
+    );
+    const wrapper = screen.getByTestId("pair").parentElement!;
+    expect(wrapper.parentElement?.firstElementChild).toBe(wrapper);
+    expect(wrapper).not.toHaveClass("mt-[22px]");
+  });
+
+  it("spread: one per figure, keyed on that figure's item, under its title", () => {
+    render(
+      <ItemFactsSpread
+        pages={[cell(), cell({ id: "item-2", title: "Another plate" })]}
+        focusSide={0}
+        feedback={slot}
+      />,
+    );
+    const pairs = screen.getAllByTestId("pair");
+    expect(pairs.map((p) => p.getAttribute("data-item"))).toEqual([
+      "item-1",
+      "item-2",
+    ]);
+    const figs = screen.getAllByTestId("spread-fig");
+    figs.forEach((fig, i) => {
+      const title = fig.querySelector("h1, h2")!;
+      expect(fig.contains(pairs[i]!)).toBe(true);
+      expect(after(title, pairs[i]!)).toBe(true);
+      // The frame's D3B: 24 px under the 40 px title.
+      expect(pairs[i]!.parentElement).toHaveClass("mt-6");
+      // Above the maker block.
+      expect(after(pairs[i]!, fig.querySelector("[data-maker]")!)).toBe(true);
+    });
+  });
+
+  it("wide without a slot: the link-out keeps its 20 px", () => {
+    render(<ItemFacts item={cell()} layout="wide" />);
+    expect(
+      screen.getByRole("link", { name: /Read the original on/ }).closest("p"),
+    ).toHaveClass("mt-5");
+  });
+
+  it("column: the layout places no pair — the phone screen puts it above the facts", () => {
+    render(<ItemFacts item={cell()} feedback={slot} />);
+    expect(screen.queryByTestId("pair")).toBeNull();
+  });
+});

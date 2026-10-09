@@ -50,6 +50,9 @@ const feedKnobsSchema = z
     // Writing slots (09-30-26). Half a page is already more writing than the design asks for.
     writingShare: z.number().min(0).max(0.5),
     writingScoreFloor: z.number().min(1).max(10),
+    // "Less of this" (10-09-26): the exponent on a cool. 0 ignores cools; 3 is already a cooled
+    // topic all but gone (one "less" → 0.6³ ≈ 0.2×).
+    coolStrength: z.number().min(0).max(3),
   })
   .partial();
 

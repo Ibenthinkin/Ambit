@@ -28,6 +28,31 @@ import { api } from "~/trpc/react";
 // anonymous visitor's behalf. Feed takes a stranger to `/`, the taste, never `/feed`.
 //
 // The gesture works for everyone: leaving is not a privilege.
+/**
+ * What the shell lends to the server-rendered article around it. The article page is a server
+ * component: it renders `FinishedRow` as a *child* of the shell, so the shell's state (its toast,
+ * its sign-up sheet) can't reach that row as props — a server component can't read a client
+ * component's state. Context is the way across: the shell provides, any client component beneath
+ * it consumes with `useItemShell()`, and the row shares the one `Toast` instead of mounting a
+ * second.
+ */
+export interface ItemShellValue {
+  authed: boolean;
+  toast: (text: string) => void;
+  /** Raise the sign-up sheet in place (a signed-out reader pressed something gated). */
+  requireAuth: () => void;
+}
+
+export const ItemShellContext = React.createContext<ItemShellValue | null>(
+  null,
+);
+
+export function useItemShell(): ItemShellValue {
+  const value = React.useContext(ItemShellContext);
+  if (!value) throw new Error("useItemShell must be used inside <ItemShell>");
+  return value;
+}
+
 export interface ItemShellProps {
   itemId: string;
   /** Rides into the OS share sheet alongside the URL. */
@@ -81,6 +106,17 @@ export function ItemShell({
   // protected procedure and collect an UNAUTHORIZED in their console.
   const saved = api.saves.forItem.useQuery({ itemId }, { enabled: authed });
 
+  // Memoised so a re-render of the shell (a sheet opening) doesn't re-render every consumer.
+  const { openAuth } = auth;
+  const shellValue = React.useMemo<ItemShellValue>(
+    () => ({
+      authed,
+      toast: setToast,
+      requireAuth: () => openAuth("signup"),
+    }),
+    [authed, openAuth],
+  );
+
   const shareUrl = `${appUrl}/i/${itemId}`;
 
   /**
@@ -128,7 +164,9 @@ export function ItemShell({
       {/* `touch-action: pan-y` tells the browser vertical panning is always its own — the window
           is the scroller here, as on /feed, and the gesture only ever claims horizontal travel. */}
       <div ref={swipeRef} style={{ touchAction: "pan-y" }}>
-        {children}
+        <ItemShellContext.Provider value={shellValue}>
+          {children}
+        </ItemShellContext.Provider>
       </div>
 
       <Toolbar

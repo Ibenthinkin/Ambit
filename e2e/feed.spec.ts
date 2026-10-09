@@ -277,6 +277,52 @@ test.describe.serial("feed", () => {
       timeout: 15_000,
     });
   });
+  // docs/DESIGN_more-or-less.md D6: the tile sheet's two rows, and the veil a Less leaves. One
+  // feed load for both halves — every load spends a page of the seed (see SEED_COUNT).
+  test("the item sheet's More of this toasts; Less of this veils the tile in place, and Undo lifts it", async ({
+    page,
+  }) => {
+    await onFeed(page);
+    await waitForFeedToSettle(page);
+
+    const longPress = async (wrapper: ReturnType<Page["locator"]>) => {
+      const box = (await wrapper.locator("> *").first().boundingBox())!;
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.waitForTimeout(550); // past usePress's 450 ms
+      await page.mouse.up();
+    };
+    const sheet = page.getByTestId("bottom-sheet-panel");
+    // The feed's toast (role="status"); filtered, since the Reach loader may hold that role too.
+    const toast = (text: RegExp | string) =>
+      page.getByRole("status").filter({ hasText: text });
+
+    // More: the sheet closes and the feed's toast says what moved.
+    const first = page.locator("[data-feed-id]").first();
+    await longPress(first);
+    await sheet.getByRole("button", { name: "More of this" }).click();
+    await expect(toast(/More of this/)).toHaveText(/^More of this/);
+
+    // Less: the tile is covered where it stands — the masonry must not move.
+    const grid = page.getByTestId("feed-columns");
+    const heightBefore = (await grid.boundingBox())!.height;
+    const second = page.locator("[data-feed-id]").nth(1);
+    await longPress(second);
+    await sheet.getByRole("button", { name: "Less of this" }).click();
+    const veil = second.getByTestId("tile-veil");
+    await expect(veil).toBeVisible();
+    await expect(veil.getByRole("button", { name: "Undo" })).toHaveText(
+      "[Undo..]",
+    );
+    await expect(toast(/Less of this/)).toHaveText(/^Less of this ·/);
+    expect((await grid.boundingBox())!.height).toBe(heightBefore);
+    expect(await page.locator("[data-feed-id]").count()).toBeGreaterThan(1);
+
+    await veil.getByRole("button", { name: "Undo" }).click();
+    await expect(second.getByTestId("tile-veil")).toHaveCount(0);
+    await expect(toast("Undone")).toHaveText("Undone");
+  });
+
   test("returning from an item page restores the same feed without drawing new items", async ({
     page,
   }) => {
