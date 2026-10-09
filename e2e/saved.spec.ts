@@ -340,7 +340,7 @@ test.describe.serial("saved", () => {
 
     await page.goto("/saved?shelf=more");
     await expect(
-      page.getByRole("button", { name: "More of this" }),
+      page.getByRole("button", { name: "More of this", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     const tile = page.locator(`[data-saved-id="${markedId}"]`);
     await expect(tile).toBeVisible({ timeout: 15_000 });
