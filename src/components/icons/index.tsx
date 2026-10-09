@@ -673,3 +673,30 @@ export function Plus({
     </svg>
   );
 }
+
+/**
+ * Minus — the "Less of this" half of the More-or-less pair. The same 26 grid and the same
+ * `strokeWidth` knob as `Plus`, so the two sit as a matched set (the pair passes 2).
+ */
+export function Minus({
+  size = 26,
+  strokeWidth = 1.5,
+  className,
+  ...rest
+}: IconProps & { strokeWidth?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 26 26"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      className={className}
+      {...rest}
+    >
+      <path d="M6 13h14" />
+    </svg>
+  );
+}
