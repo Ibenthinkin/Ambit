@@ -502,6 +502,23 @@ test.describe.serial("item pages", () => {
     await expect(
       page.getByRole("list", { name: "About this work" }),
     ).toBeVisible();
+
+    // More or less (docs/DESIGN_more-or-less.md D6, the frame P2): the first row under the
+    // picture. Scrolled to the middle of the screen, not merely into view — at the bottom edge
+    // the fixed pill would sit over it and take the tap.
+    const pair = page.getByRole("group", { name: "More or less of this" });
+    await pair.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    const more = pair.getByRole("button", { name: "More of this" });
+    await expect(more).toHaveAttribute("aria-pressed", "false");
+    await more.click();
+    await expect(page.getByRole("status")).toHaveText(/^More of this/);
+    await expect(more).toHaveAttribute("aria-pressed", "true");
+    // The picture stays put — the pair is a verdict, not a navigation.
+    await expect(page).toHaveURL(new RegExp(`/i/${imageId}$`));
+    // Tapping the lit one takes it back.
+    await more.click();
+    await expect(page.getByRole("status")).toHaveText("Undone");
+    await expect(more).toHaveAttribute("aria-pressed", "false");
   });
 
   test("/g/ redirects to the item page", async ({ page }) => {

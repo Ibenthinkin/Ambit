@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { AuthSurface, useAuthSurface } from "~/components/explore/auth-surface";
 import { MessageTile } from "~/components/explore/message-tile";
 import { cameFromExplore } from "~/components/feed/feed-origin";
+import { MoreOrLess, useMoreOrLess } from "~/components/feedback/more-or-less";
 import { HeroRail } from "~/components/item/hero-rail";
 import {
   CAPTION_INDEX,
@@ -15,7 +16,11 @@ import {
   CAPTION_TITLE,
   INFORMATION_ID,
 } from "~/components/item/caption-type";
-import { ItemFacts, ItemFactsSpread } from "~/components/item/item-facts";
+import {
+  ItemFacts,
+  ItemFactsSpread,
+  type FeedbackSlot,
+} from "~/components/item/item-facts";
 import { JoinCta } from "~/components/item/join-cta";
 import { buildCells } from "~/components/item/rail-cells";
 import { SpreadToggle } from "~/components/item/spread-toggle";
@@ -325,6 +330,36 @@ export function ItemScreen({
   const current =
     focused && focused !== "end" ? focused : (items[index] ?? entryItem);
 
+  // ── More or less (docs/DESIGN_more-or-less.md D6) ─────────────────────────────────────────────
+  // "The pair follows the thing it's about": under the picture on a phone, under the summary on a
+  // computer, under each figure's title in a spread. `feedbackFor` is the render slot the two
+  // desktop layouts call per item (`item-facts.tsx` explains why a slot); `key={item.id}` gives
+  // each picture its own instance, so a swipe never carries one picture's pending write onto the
+  // next. A "less" deliberately does **not** advance the rail — the inverted button, the note
+  // under it and the toast are the acknowledgement, and the picture staying put is what P3 draws.
+  const requireAuth = () => auth.openAuth("signup");
+  const feedbackFor: FeedbackSlot = (item) => (
+    <MoreOrLess
+      key={item.id}
+      itemId={item.id}
+      topicId={item.topicId}
+      topicLabel={item.topicLabel}
+      size="desktop"
+      authed={authed}
+      onToast={setToast}
+      onRequireAuth={requireAuth}
+    />
+  );
+  // The keyboard's handle on the same verdict: `+` / `-` press exactly what a tap on the pair
+  // under `current` would (same optimistic write, toast and undo).
+  const feedback = useMoreOrLess({
+    itemId: current.id,
+    topicId: current.topicId,
+    authed,
+    onToast: setToast,
+    onRequireAuth: requireAuth,
+  });
+
   const utils = api.useUtils();
   // `enabled: authed` is the auth boundary in client form — an anonymous visitor must not fire a
   // protected procedure and collect an UNAUTHORIZED in their console. Same rule as `item-shell`.
@@ -540,6 +575,11 @@ export function ItemScreen({
     // `M` for magazine, the view toggle's hotkey in Ben's design — desktop only, like the
     // toggle itself. Nothing on this screen takes text, so no typing guard is needed.
     else if (desktop && e.key.toLowerCase() === "m") toggleSpread();
+    // More or less, on the picture under the reader: `+` (and `=`, the same key unshifted on most
+    // layouts, so nobody needs Shift) for more, `-` for less. Both toggle — pressing the verdict
+    // that is on takes it back, as a tap does. Not on the explore end card: no picture is up.
+    else if (!atEnd && (e.key === "+" || e.key === "=")) feedback.press("more");
+    else if (!atEnd && e.key === "-") feedback.press("less");
   });
   // `sheetOpen` stays a dependency on purpose: the Escape that closes a sheet re-renders mid-
   // dispatch too, and it is this listener being *absent* for that one event (re-added only after
@@ -925,9 +965,10 @@ export function ItemScreen({
               <ItemFactsSpread
                 pages={pair.filter((p): p is RailItem => p !== "end")}
                 focusSide={focusSide}
+                feedback={feedbackFor}
               />
             ) : (
-              <ItemFacts item={current} layout="wide" />
+              <ItemFacts item={current} layout="wide" feedback={feedbackFor} />
             )}
           </Rise>
           <Rise delayMs={120}>
@@ -935,11 +976,29 @@ export function ItemScreen({
           </Rise>
         </>
       ) : null}
-      <Column width="reader" className="px-[22px] pt-[28px]">
+      {/* The phone's frame P2: the pair is the first row under the picture (18 px), the title 30 px
+          under it (the wrapper's 22 + the `<h1>`'s own 8). Above `md` this column holds only the
+          join block, which keeps its 28. */}
+      <Column
+        width="reader"
+        className={cn("px-[22px]", desktop ? "pt-[28px]" : "pt-[18px]")}
+      >
         {desktop ? null : (
           <>
             <Rise delayMs={50}>
-              <ItemFacts item={current} />
+              <MoreOrLess
+                key={current.id}
+                itemId={current.id}
+                topicId={current.topicId}
+                topicLabel={current.topicLabel}
+                size="phone"
+                authed={authed}
+                onToast={setToast}
+                onRequireAuth={requireAuth}
+              />
+              <div className="mt-[22px]">
+                <ItemFacts item={current} />
+              </div>
             </Rise>
 
             <Rise delayMs={120}>
@@ -961,6 +1020,9 @@ export function ItemScreen({
           onClose={() => setSaveOpen(false)}
           anchor={saveAnchor}
           itemId={current.id}
+          // The slot-topic rule for Save (docs/DESIGN_more-or-less.md D2): the picture's own
+          // topic is bumped, the same one its More-or-less pair would charge.
+          topicId={current.topicId}
           currentCollectionId={saved.data?.collectionId ?? undefined}
           onSaved={async (collection, drift) => {
             setToast(saveToastText(collection.name, drift));

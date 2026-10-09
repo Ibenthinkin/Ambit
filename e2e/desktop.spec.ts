@@ -382,6 +382,28 @@ test.describe.serial("desktop", () => {
     expect(factsBox.width).toBeGreaterThan(1300);
     expect(factsBox.y).toBeGreaterThanOrEqual(900); // under the picture, not over it
 
+    // More or less, the frame D2B: one pair, in the Information section's third column, under
+    // the summary when there is one and always above the bracket link-out, two 220 px buttons.
+    const pair = facts.getByRole("group", { name: "More or less of this" });
+    await expect(pair).toHaveCount(1);
+    const linkOut = facts.getByRole("link", {
+      name: /^(Read the|Read it on|See it on)/,
+    });
+    const [pairBox, linkBox] = [
+      (await pair.boundingBox())!,
+      (await linkOut.boundingBox())!,
+    ];
+    expect(pairBox.y + pairBox.height).toBeLessThanOrEqual(linkBox.y);
+    // The group is a grid as wide as the column; its two tracks are fixed and left-aligned.
+    const buttons = pair.getByRole("button");
+    const [less, more] = [
+      (await buttons.nth(0).boundingBox())!,
+      (await buttons.nth(1).boundingBox())!,
+    ];
+    expect(Math.round(less.width)).toBe(220);
+    expect(Math.round(more.x - (less.x + less.width))).toBe(10);
+    expect(Math.round(less.x)).toBe(Math.round(pairBox.x));
+
     // A mouse moving over the page wakes the caption (decision 7 of docs/DESIGN_redesign.md:
     // any input on a computer). Retried for the item screen's quarter-second wake throttle — see
     // the spread test's `summon`.
@@ -539,6 +561,15 @@ test.describe.serial("desktop", () => {
     expect(left.x + left.width).toBeLessThanOrEqual(CENTRE_X + 1);
     expect(right.x).toBeGreaterThanOrEqual(CENTRE_X - 1);
     const first = await srcs();
+
+    // More or less, the frame D3B: one pair per figure, under that figure's title.
+    const figs = page.getByTestId("spread-fig");
+    await expect(figs).toHaveCount(2);
+    for (const fig of await figs.all()) {
+      await expect(
+        fig.getByRole("group", { name: "More or less of this" }),
+      ).toHaveCount(1);
+    }
 
     // A turn moves two: neither page of the new spread was on the old one.
     const url = page.url();

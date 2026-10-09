@@ -67,16 +67,24 @@ function patchMine(prev: Mine | undefined, itemId: string, verdict?: Verdict) {
   return next;
 }
 
-export function MoreOrLess({
+export type MoreOrLessState = Pick<
+  MoreOrLessProps,
+  "itemId" | "topicId" | "authed" | "onToast" | "onRequireAuth"
+>;
+
+/**
+ * The pair's state and its one action, as a hook: `current` is the verdict on this item (or
+ * null), `press(verdict)` sets it — or, pressing the one that is on, takes it back. The pair
+ * below uses it, and so does the item screen's keyboard (`+` / `-`), so a key and a tap are the
+ * same press: same optimistic write, same toast, same undo.
+ */
+export function useMoreOrLess({
   itemId,
   topicId,
-  topicLabel,
-  size,
   authed,
   onToast,
   onRequireAuth,
-  className,
-}: MoreOrLessProps) {
+}: MoreOrLessState) {
   const utils = api.useUtils();
   // `enabled: authed` — a signed-out reader has no marks, and the procedure is protected, so
   // asking would only be a 401. Shared by every pair on the page: one request (same key).
@@ -137,6 +145,26 @@ export function MoreOrLess({
     else set.mutate({ itemId, verdict, topicId: topicId ?? undefined });
   };
 
+  return { current, press };
+}
+
+export function MoreOrLess({
+  itemId,
+  topicId,
+  topicLabel,
+  size,
+  authed,
+  onToast,
+  onRequireAuth,
+  className,
+}: MoreOrLessProps) {
+  const { current, press } = useMoreOrLess({
+    itemId,
+    topicId,
+    authed,
+    onToast,
+    onRequireAuth,
+  });
   const s = SIZES[size];
   const button = (verdict: Verdict, label: string, glyph: React.ReactNode) => {
     const on = current === verdict;

@@ -31,7 +31,8 @@ export interface SaveToCollectionSheetProps {
   currentCollectionId?: string;
   /**
    * The slot the card was served under, when opened from a feed tile — the save bumps it
-   * (docs/DESIGN_chrome-redesign.md §5). The item screen passes none.
+   * (docs/DESIGN_chrome-redesign.md §5). The item screen passes the picture's own topic
+   * (docs/DESIGN_more-or-less.md D2).
    */
   topicId?: string | null;
   /**
