@@ -99,6 +99,15 @@ export const KNOB_SPECS: readonly KnobSpec[] = [
     note: "The same, for WILD cards only — where it is the slot's one personalization signal.",
   },
   {
+    key: "coolStrength",
+    label: "Less-of-this strength",
+    section: "Taste",
+    min: 0,
+    max: 2,
+    step: 0.1,
+    note: "0 ignores Less-of-this cools",
+  },
+  {
     key: "temp",
     label: "Drift temperature",
     section: "Drift shape",

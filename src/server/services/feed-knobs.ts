@@ -70,6 +70,14 @@ export interface FeedKnobs {
    *  rubric (Wikipedia averages ~7 under it against the pictures' ~8.5); it starts equal to
    *  `scoreFloor`. */
   writingScoreFloor: number;
+  // ── "Less of this" (10-09-26, docs/DESIGN_more-or-less.md D3) ────────────────────────────────
+  /** The exponent on a reader's per-topic cool (`user_topic_cool.cool`, in (0.15, 1]) wherever
+   *  DRIFT or JUMP *lands* on a topic: a destination's chance is multiplied by
+   *  `cool ** coolStrength`. Never where a walk starts (a cooled pick's own weight already fell),
+   *  and CORE, WILD and writing never read it. 1 = the cool as written (one "less" → 0.6×, two
+   *  → 0.36×); 2 = squared, harsher; **0 = ignore cools — today's feed exactly**, byte for byte
+   *  for the same cursor, which is what the /dev/feed slider's left end is for. */
+  coolStrength: number;
 }
 
 // Drift-heavy on purpose — Ben's Phase 0.5 verdict was "what I enjoy the most is the higher
@@ -93,4 +101,5 @@ export const DEFAULT_KNOBS: FeedKnobs = {
   grownHopPenalty: 1,
   writingShare: 0.125,
   writingScoreFloor: 4,
+  coolStrength: 1,
 };

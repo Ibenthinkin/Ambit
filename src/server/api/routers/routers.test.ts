@@ -680,6 +680,21 @@ describe("feed.page forwards knobs to getFeedPage unconditionally", () => {
     expect(mockedGetFeedPage).toHaveBeenCalledWith("user-42", undefined, knobs);
   });
 
+  it("forwards coolStrength like every knob, and refuses one above 3 (10-09-26)", async () => {
+    const caller = createCaller(authedContext("user-42"));
+    await caller.feed.page({ knobs: { coolStrength: 0 } });
+    expect(mockedGetFeedPage).toHaveBeenCalledWith("user-42", undefined, {
+      coolStrength: 0,
+    });
+    await expect(
+      caller.feed.page({ knobs: { coolStrength: 3.5 } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      caller.feed.page({ knobs: { coolStrength: -0.1 } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(mockedGetFeedPage).toHaveBeenCalledTimes(1);
+  });
+
   it("omitting knobs forwards undefined", async () => {
     const caller = createCaller(authedContext("user-42"));
 

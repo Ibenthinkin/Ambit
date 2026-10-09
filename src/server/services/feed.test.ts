@@ -32,6 +32,7 @@ const {
   mockGetWritingWildPool,
   mockMarkSeen,
   mockGetItemsByIds,
+  mockGetUserTopicCools,
   itemRegistry,
 } = vi.hoisted(() => ({
   mockEnv: { FEED_DEBUG: undefined as boolean | undefined, NODE_ENV: "test" },
@@ -46,6 +47,9 @@ const {
   mockGetWritingWildPool: vi.fn(),
   mockMarkSeen: vi.fn(),
   mockGetItemsByIds: vi.fn(),
+  // No "Less of this" cools unless a test says otherwise (10-09-26) — an empty map is a reader
+  // who never pressed it, which is every page these tests composed before cools existed.
+  mockGetUserTopicCools: vi.fn().mockResolvedValue(new Map<string, number>()),
   // Every fixture `makeItem` ever built, by id — the stand-in for the `item` table that
   // `getItemsByIds` reads (Phase 7.3: the engine composes from projections and hydrates the
   // winners at the end, so a `getFeedPage` test needs both halves mocked, not just the pools).
@@ -67,6 +71,9 @@ vi.mock("~/server/db/users", () => ({
 vi.mock("~/server/db/saves", async (importActual) => ({
   ...(await importActual<typeof import("~/server/db/saves")>()),
   getTasteKeywords: mockGetTasteKeywords,
+}));
+vi.mock("~/server/db/feedback", () => ({
+  getUserTopicCools: mockGetUserTopicCools,
 }));
 vi.mock("~/server/db/feed", () => ({
   getTopicPools: mockGetTopicPools,
@@ -1335,6 +1342,7 @@ describe("getFeedPage — planned fetch (09-11-26)", () => {
     expect(page.debug).toEqual({
       plannedTopics: asked.length,
       fallback: false,
+      cooled: 0,
     });
   });
 
@@ -1564,6 +1572,287 @@ describe("planTopics (09-11-26)", () => {
     });
     expect(planned.size).toBeLessThanOrEqual(7);
     for (const id of planned) expect(TOPIC_IDS).toContain(id);
+  });
+});
+
+// ── "Less of this" cools (10-09-26, docs/DESIGN_more-or-less.md D3, D7) ─────────────────────
+// A cool is a factor in (0.15, 1] per topic. It weighs where DRIFT and JUMP *land*, never where
+// they start (a cooled pick already has a lowered weight for that), and CORE / WILD / writing
+// never read it. What must hold: a cooled landing is measurably rarer; `coolStrength: 0` is
+// today's page byte for byte; all-1 cools are today's uniform JUMP draw; and `planTopics` still
+// covers every topic `composePage` serves when both are handed the same cools.
+describe("Less-of-this cools (10-09-26)", () => {
+  // The rotated 4-topic graph of the learned-weights tests above: every topic plays every role
+  // once, so with uniform weights each one's landing share is 0.25 and the cool is the only
+  // variable.
+  const topics = ["a", "b", "c", "d"];
+  const ROTATED_SIMS = [0.9, 0.5, 0.1];
+  const graph: TopicGraph = Object.fromEntries(
+    topics.map((t, i) => [
+      t,
+      ROTATED_SIMS.map((sim, hop) => ({
+        topic: topics[(i + hop + 1) % topics.length]!,
+        sim,
+      })),
+    ]),
+  );
+  const weights = new Map(topics.map((t) => [t, 1]));
+  const fullPools = (size = 400) =>
+    new Map(
+      topics.map((t) => [
+        t,
+        Array.from({ length: size }, (_, i) =>
+          makeItem({ id: `cool-${t}-${i}`, topicId: t, curationScore: 7 }),
+        ),
+      ]),
+    );
+
+  /** Topic a's share of the DRIFT + JUMP landings, eight seeds pooled. */
+  function landingShareOfA(
+    cools: Map<string, number> | undefined,
+    coolStrength = DEFAULT_KNOBS.coolStrength,
+  ): { share: number; landings: number } {
+    const knobs: FeedKnobs = {
+      ...DEFAULT_KNOBS,
+      topicCap: 1000,
+      pageSize: 1000,
+      coolStrength,
+    };
+    let a = 0;
+    let landings = 0;
+    for (let seed = 0; seed < 8; seed++) {
+      const cards = composePage({
+        weights,
+        graph,
+        pools: fullPools(),
+        rng: mulberry32(hashSeed(`cool-share:${seed}`)),
+        knobs,
+        ...(cools ? { cools } : {}),
+      });
+      for (const c of cards) {
+        if (c.tier !== "DRIFT" && c.tier !== "JUMP") continue;
+        landings++;
+        if (c.topicId === "a") a++;
+      }
+    }
+    return { share: a / landings, landings };
+  }
+
+  it("a cooled destination's landing share falls (by more than 0.05)", () => {
+    const plain = landingShareOfA(undefined);
+    // Two "less"es at the default step: 0.6² = 0.36.
+    const cooled = landingShareOfA(new Map([["a", 0.36]]));
+    expect(plain.landings).toBeGreaterThanOrEqual(400);
+    expect(cooled.landings).toBeGreaterThanOrEqual(400);
+    expect(plain.share).toBeGreaterThan(0.25 - 0.03);
+    expect(plain.share).toBeLessThan(0.25 + 0.03);
+    expect(cooled.share).toBeLessThan(plain.share - 0.05);
+  });
+
+  it("coolStrength 0 composes the cool-less page byte for byte", () => {
+    for (let seed = 0; seed < 20; seed++) {
+      // One set of fixtures per seed, shared by both compositions — `makeItem` mints a fresh
+      // source and timestamp every call, so rebuilding them would differ for reasons that are
+      // not the engine's. `composePage` works on its own copies and never mutates these.
+      const pools = fullPools(30);
+      const wildPool = Array.from({ length: 30 }, (_, i) =>
+        makeUnhomed({ id: `cool-wild-${i}` }),
+      );
+      const compose = (
+        cools: Map<string, number> | undefined,
+        coolStrength: number,
+      ) =>
+        composePage({
+          weights,
+          graph,
+          pools,
+          wildPool,
+          rng: mulberry32(hashSeed(`cool-zero:${seed}`)),
+          itemRng: mulberry32(hashSeed(`cool-zero:${seed}:items`)),
+          knobs: { ...DEFAULT_KNOBS, coolStrength },
+          debug: true,
+          ...(cools ? { cools } : {}),
+        });
+      const a = compose(undefined, DEFAULT_KNOBS.coolStrength);
+      const b = compose(
+        new Map([
+          ["a", 0.15],
+          ["c", 0.6],
+        ]),
+        0,
+      );
+      expect(b).toEqual(a);
+    }
+  });
+
+  it("with no cools the default knobs compose today's page (an empty map is no map)", () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const pools = fullPools(30);
+      const compose = (cools?: Map<string, number>) =>
+        composePage({
+          weights,
+          graph,
+          pools,
+          rng: mulberry32(hashSeed(`cool-none:${seed}`)),
+          knobs: DEFAULT_KNOBS,
+          debug: true,
+          ...(cools ? { cools } : {}),
+        });
+      expect(compose(new Map())).toEqual(compose());
+    }
+  });
+
+  it("pickJump with every cool at 1 is the uniform draw, rng call for rng call", () => {
+    const row = [
+      { topic: "s0", sim: 0.9 },
+      { topic: "s1", sim: 0.7 },
+      { topic: "s2", sim: 0.5 },
+      { topic: "s3", sim: 0.1 },
+      { topic: "s4", sim: -0.2 },
+      { topic: "s5", sim: -0.6 },
+    ];
+    const jumpGraph: TopicGraph = { start: row };
+    const start = new Map([["start", 1]]);
+    const ones = new Map(row.map((n) => [n.topic, 1]));
+    for (let seed = 0; seed < 200; seed++) {
+      const r1 = mulberry32(hashSeed(`jump-ones:${seed}`));
+      const r2 = mulberry32(hashSeed(`jump-ones:${seed}`));
+      expect(
+        pickJump(start, jumpGraph, r2, { cools: ones, strength: 1 }),
+      ).toEqual(pickJump(start, jumpGraph, r1));
+      // …and the streams are left in the same place.
+      expect(r2()).toBe(r1());
+    }
+  });
+
+  it("pickJump draws a cooled tail topic less often", () => {
+    const row = [
+      { topic: "s0", sim: 0.9 },
+      { topic: "s1", sim: 0.5 },
+      { topic: "s2", sim: 0.1 },
+      { topic: "s3", sim: -0.5 },
+    ];
+    const jumpGraph: TopicGraph = { start: row };
+    const start = new Map([["start", 1]]);
+    const rng = mulberry32(hashSeed("jump-cooled"));
+    let s2 = 0;
+    for (let i = 0; i < 2000; i++) {
+      const pick = pickJump(start, jumpGraph, rng, {
+        cools: new Map([["s2", 0.25]]),
+        strength: 1,
+      });
+      if (pick?.topicId === "s2") s2++;
+    }
+    // Weights 0.25 : 1 over the tail {s2, s3} → s2's share 0.2.
+    expect(s2 / 2000).toBeGreaterThan(0.16);
+    expect(s2 / 2000).toBeLessThan(0.24);
+  });
+
+  it("a cool never moves the start of a walk, only where it lands", () => {
+    // A cooled *start* topic with no row: DRIFT and JUMP both stay on it, cool or not.
+    const solo = new Map([["solo", 1]]);
+    const cooling = { cools: new Map([["solo", 0.15]]), strength: 1 };
+    const rng = mulberry32(hashSeed("cool-start"));
+    expect(pickJump(solo, {}, rng, cooling)?.topicId).toBe("solo");
+    expect(
+      pickDrift(
+        solo,
+        {},
+        { temp: 0.15, hop2: 0.5, grownHopPenalty: 1 },
+        rng,
+        CORE_TOPIC_IDS,
+        cooling,
+      )?.topicId,
+    ).toBe("solo");
+  });
+
+  it("planTopics, handed the same cools, covers every topic composePage serves (200 seeds)", () => {
+    const TOPIC_IDS = Array.from({ length: 12 }, (_, i) => `t${i}`);
+    const dense: TopicGraph = Object.fromEntries(
+      TOPIC_IDS.map((from) => [
+        from,
+        TOPIC_IDS.filter((t) => t !== from).map((topic, j) => ({
+          topic,
+          sim: 0.9 - j * 0.15,
+        })),
+      ]),
+    );
+    const picks = new Map(TOPIC_IDS.slice(0, 3).map((id) => [id, 1]));
+    const cools = new Map([
+      ["t3", 0.15],
+      ["t5", 0.36],
+      ["t9", 0.6],
+    ]);
+    const knobs: FeedKnobs = { ...DEFAULT_KNOBS, tierWild: 0 };
+    const core = new Set(TOPIC_IDS);
+    for (let seed = 0; seed < 200; seed++) {
+      const planned = planTopics({
+        weights: picks,
+        graph: dense,
+        knobs,
+        rng: mulberry32(hashSeed(`cool-plan:${seed}`)),
+        coreTopicIds: core,
+        cools,
+      });
+      const cards = composePage({
+        weights: picks,
+        graph: dense,
+        pools: new Map(
+          TOPIC_IDS.map((id) => [
+            id,
+            Array.from({ length: 60 }, () => makeItem({ topicId: id })),
+          ]),
+        ),
+        rng: mulberry32(hashSeed(`cool-plan:${seed}`)),
+        itemRng: mulberry32(hashSeed(`cool-plan:${seed}:items`)),
+        knobs,
+        coreTopicIds: core,
+        cools,
+      });
+      for (const card of cards) expect(planned.has(card.topicId!)).toBe(true);
+    }
+  });
+
+  describe("getFeedPage reads the reader's cools", () => {
+    const PICKED = ["cool-p0", "cool-p1", "cool-p2", "cool-p3"];
+    beforeEach(() => {
+      mockEnv.FEED_DEBUG = true;
+      mockEnv.NODE_ENV = "test";
+      mockGetUserTopicWeights
+        .mockReset()
+        .mockResolvedValue(new Map(PICKED.map((id) => [id, 1])));
+      mockGetTasteKeywords.mockReset().mockResolvedValue([]);
+      mockGetWildPool.mockReset().mockResolvedValue([]);
+      mockGetTopicPools.mockReset().mockImplementation(
+        async (topicIds: string[]) =>
+          new Map(
+            topicIds.map((topicId) => [
+              topicId,
+              Array.from({ length: 12 }, (_, i) =>
+                makeItem({
+                  id: `${topicId}-${i}`,
+                  topicId,
+                  curationScore: 7,
+                }),
+              ),
+            ]),
+          ),
+      );
+      mockGetUserTopicCools.mockReset().mockResolvedValue(new Map());
+    });
+    afterAll(() => {
+      mockGetUserTopicCools.mockReset().mockResolvedValue(new Map());
+    });
+
+    it("asks for the signed-in reader's cools and counts the cards that landed on one", async () => {
+      // These ids have no graph row, so every tier stays on its start topic: the page is CORE-ish
+      // draws over the four picks, and the cooled pick's cards are what `cooled` counts.
+      mockGetUserTopicCools.mockResolvedValue(new Map([["cool-p0", 0.6]]));
+      const page = await getFeedPage("user-cools");
+      expect(mockGetUserTopicCools).toHaveBeenCalledWith("user-cools");
+      const onCooled = page.cards.filter((c) => c.topicId === "cool-p0").length;
+      expect(page.debug?.cooled).toBe(onCooled);
+    });
   });
 });
 
