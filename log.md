@@ -5,6 +5,58 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
+### [[10-08-26 Thu]] — The device pass closes; the Tumblr probe answers "no"; the join block's way back
+
+Ben's look at the deployed redesign on the phone and at 1440: "more or less ok, enough that I
+think we can close it." One finding, below. `fix/walk-refusal-detail` merged and pushed first
+(`6ec8640`, = deploy, no migration).
+
+**Findings:**
+
+- **The Tumblr probe found nothing.** 26 hours, seven blogs, one request each every 30 minutes
+  from 10-07 13:18 UTC: **zero 403s**, the 07:50 and 08:20 UTC sweeps on 10-08 included. So the
+  "Tumblr has a window around 08:00 UTC" hypothesis from yesterday is dead; the 10-05/06 failures
+  were a block that came and went — or something only the ingest's full-depth walk triggers that
+  a single request per blog does not. Nothing to reproduce today, no reason to move the schedule
+  hour. The next evidence is Monday 10-12 08:00 UTC, and it is only _useful_ evidence now that
+  the refusal detail (server, cf-ray, 160 chars of body) is deployed ahead of it.
+- **Ben's one finding from the pass:** signed out, on the phone, the join block at the foot of
+  an item (the picture variant — "Curiosity, without the doomscroll.") looked awkward: a full-width
+  50 px white "Get your invite" with a 13.5 px underlined "Keep exploring" hanging off its left
+  corner, the pill right under. The block itself is what DESIGN §6.2 draws; the link is not in
+  the prototype (added 09-26 for a visitor who came from the explore feed) and read as an
+  afterthought beside it.
+
+**Shipped (on `fix/join-cta-keep-exploring`, `cab1fc8`, TDD):** "Keep exploring" is a 50 px
+**outline block** the same width as the primary, 10 px under it — a stacked pair in the design's
+own button language. Ben chose it from three drawn options (the others: drop the link, since the
+pill's Feed disc already returns an explore visitor; or the two side by side). `OUTLINE_BLOCK`
+joins `PRIMARY_BLOCK` in `button.tsx` and `Button`'s outline variant composes from it. Measured
+at 402 on the dev server: both 358 × 50, the pill clearing the second block by 66 px at the end
+of the scroll. `bun run check` 2,525 green.
+
+**Second finding, from the dev server (`a6cf9fb`):** the link-out block itself — the full-width
+50 px white "Read the post on The Vault of the Atomic Space Age ↗" above the wander rows —
+"looks like a whole page divided section" rather than a button. Ben's ask: no arrow, no blog name,
+smaller. It is a **40 px inline button** now, **"Original post"** for a blog or publication and
+**"Original source"** for a museum, library or PDR item (`linkOutLabel`); the source's name
+stays in the From row two lines up. This overrules DESIGN §6.2's block (noted there and in SPEC
+§8). The desktop summary's bracketed prose link keeps `linkOutCopy`'s sentence. 116 × 40 at 402.
+
+**Decisions:** the device pass is **closed** (the ⚑ items the build left for Ben's judgement —
+the Share row on the tile sheet, the Settings stub rows gone, the reveal's Back, the pill's three
+quirks, the off-ladder greys — are accepted as they stand unless he raises one later). The
+checklist is kept as a page for reference: https://claude.ai/artifact/KXrAo7iugeSgNFjnnKUK9o.
+
+**Open / next:** both fixes merged and pushed (= deploy) at the end of the session, Ben's
+"fine for now". Monday 10-12's pictures run is the Tumblr question's next witness — read
+`ingest_run` and the refusal log after 09:00 UTC. Still Ben's: the 403 backoff policy, a manual
+pictures re-run before Monday (`.cache/judge-run-prod.sh`), `graph:rebuild --confirm`, Task 9
+(the publications backfill).
+
+_Session spend: 14.81M tok (in 2.9k · out 79.0k · cache r 14.18M / w 547.3k) · fable-5-1 · 15:46→19:27_
+_Session spend: 10.80M tok (in 1.6k · out 82.5k · cache r 10.52M / w 203.6k) · fable-5-1 + opus-5-5 · 19:27→20:13_
+
 ### [[10-07-26 Wed]] — The redesign is live; the scheduled ingest has been losing Tumblr at 08:00 UTC
 
 Ben away for the day after a first look at the deployed redesign ("looked pretty good"; the

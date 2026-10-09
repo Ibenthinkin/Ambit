@@ -86,13 +86,13 @@ describe("ReaderItemBody", () => {
       />,
     );
     expect(
-      screen.getByRole("link", { name: /See it on The Public Domain Review/ }),
+      screen.getByRole("link", { name: "Original source" }),
     ).toHaveAttribute("href", "https://publicdomainreview.org/essay/x/");
     expect(screen.queryByRole("link", { name: /Read on / })).toBeNull();
   });
 
   // Writing Phase 5: a publication's piece is a link card — its dek, and the prominent way out.
-  it("gives a publication's piece the link-out row, naming the publication", () => {
+  it("gives a publication's piece the link-out button, as a post", () => {
     render(
       <ReaderItemBody
         item={makeItem({
@@ -103,7 +103,7 @@ describe("ReaderItemBody", () => {
       />,
     );
     expect(
-      screen.getByRole("link", { name: /Read it on The Marginalian/ }),
+      screen.getByRole("link", { name: "Original post" }),
     ).toHaveAttribute("href", "https://www.themarginalian.org/2026/09/30/x/");
     expect(screen.queryByRole("link", { name: /Read on / })).toBeNull();
   });
