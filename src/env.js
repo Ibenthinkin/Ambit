@@ -113,6 +113,8 @@ export const env = createEnv({
    */
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    // The usage-beacon off switch: "1" mounts <UsageProvider>; anything else tracks nothing.
+    NEXT_PUBLIC_USAGE_ENABLED: z.string().optional(),
   },
 
   /**
@@ -141,6 +143,7 @@ export const env = createEnv({
     FEED_DEBUG: process.env.FEED_DEBUG,
     NODE_ENV: process.env.NODE_ENV,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
+    NEXT_PUBLIC_USAGE_ENABLED: process.env.NEXT_PUBLIC_USAGE_ENABLED,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

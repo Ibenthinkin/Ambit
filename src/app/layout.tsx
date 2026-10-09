@@ -6,6 +6,8 @@ import { connection } from "next/server";
 
 import { SwCleanup } from "~/components/dev/sw-cleanup";
 import { InstallListener } from "~/components/install/install-listener";
+import { UsageProvider } from "~/components/usage/usage-provider";
+import { env } from "~/env";
 import { geistMono, hanken } from "~/lib/fonts";
 import { TRPCReactProvider } from "~/trpc/react";
 
@@ -64,6 +66,8 @@ export default async function RootLayout({
             production branch on purpose: the install *flow* has nothing to do with the service
             worker, and a reader testing on a dev build should still see it behave. */}
         <InstallListener />
+        {/* The after-beta off switch: unset NEXT_PUBLIC_USAGE_ENABLED and redeploy. */}
+        {env.NEXT_PUBLIC_USAGE_ENABLED === "1" ? <UsageProvider /> : null}
         {process.env.NODE_ENV === "production" ? (
           <SerwistProvider swUrl="/serwist/sw.js">
             <TRPCReactProvider>{children}</TRPCReactProvider>
