@@ -1,6 +1,6 @@
 "use client";
 
-// Mounts the usage client once (layout.tsx, only when NEXT_PUBLIC_USAGE_ENABLED === "1"): starts
+// Mounts the usage client once (layout.tsx, only when USAGE_ENABLED === "1"): starts
 // the visit, flushes on page hide, and records one `screen.open` per route change. Renders nothing.
 import { nanoid } from "nanoid";
 import { usePathname, useSearchParams } from "next/navigation";
