@@ -91,10 +91,25 @@ query that can only come back empty), and `gallery-rail.test.ts` mocks it non-em
 two-step draw stays exercised. Adapter, seed cells and rows stay; un-retiring is one line.
 Takes effect on the next deploy.
 
+**Late — the system map redrawn.** The Ambit System Map
+(<https://claude.ai/artifact/9PYvVzncEo82A5oLbTB7vw>, same URL) was a month and ~520 commits
+stale (`90cc6f0`, 09-09). Redrawn against `main @ d499803` / production `9f5b2b1`, with **every
+count read from production's database** (read-only `psql` in the DB container): 214,018 items,
+678,004 memberships, 193 topics (16 original + 177 grown, 192 faceted), 23 users, 15 tables — so
+the old "these are the Mac's numbers" caveat is gone. New sections: how a reader is first met
+(landing reel, persona feeds, First Exhibition → `onboarding.complete`'s four writes) and how the
+system watches itself (the alert map). Changed: the judge on VM 202 with the weekly kind split
+and ceiling stop; the feed on membership with writing slots and `planTopics` before the dice;
+renditions and image dimensions; the page re-skinned in the 1b look. **One correction worth
+having:** "no model call in any request path" had stopped being true — `onboarding.interpret`
+calls OpenRouter once per new reader — so it now reads "no model call in the feed". Not
+re-measured: page timing (still 09-11's `bench:feed`) and the image cache's size, left out.
+
 _Session spend: 14.81M tok (in 2.9k · out 79.0k · cache r 14.18M / w 547.3k) · fable-5-1 · 15:46→19:27_
 _Session spend: 10.80M tok (in 1.6k · out 82.5k · cache r 10.52M / w 203.6k) · fable-5-1 + opus-5-5 · 19:27→20:13_
 _Session spend: 6.37M tok (in 1.1k · out 125.8k · cache r 5.61M / w 626.5k) · fable-5-1 + opus-5-5 · 19:18→20:46_
 *Session spend: 4.64M tok (in 1.3k · out 35.5k · cache r 4.32M / w 281.4k) · fable-5-1 · 22:19→22:23*
+*Session spend: 7.91M tok (in 90 · out 73.5k · cache r 7.16M / w 672.4k) · opus-5-5 + <synthetic> · 22:53→10:59*
 
 ### [[10-07-26 Wed]] — The redesign is live; the scheduled ingest has been losing Tumblr at 08:00 UTC
 
