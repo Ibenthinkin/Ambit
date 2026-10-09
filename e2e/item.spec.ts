@@ -634,6 +634,42 @@ test.describe.serial("item pages", () => {
     await expect(page.getByText("Get your invite")).toHaveCount(0);
   });
 
+  // More or less at the end of an article (docs/DESIGN_more-or-less.md D6, frame P1): under a
+  // "Finished" label, after the source link. Signed in, so the verdict reaches the server.
+  test("an article ends with Finished and the Less / More pair", async ({
+    page,
+  }) => {
+    await page.goto("/feed");
+    await signIn(page, EMAIL, PASSWORD);
+    await page.goto(`/i/${articleId}`);
+
+    const finished = page.getByRole("region", { name: "Finished" });
+    await finished.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    // The fixture has no reading time, so the label is the bare word.
+    await expect(finished.getByText("Finished", { exact: true })).toBeVisible();
+
+    // The block 34 px under the source link's line box (the frame P1's inline-block link), measured on the rendered page — a
+    // CSS margin can collapse into a neighbour's and read differently from its class.
+    const gap = await page.evaluate(() => {
+      const link = [...document.querySelectorAll("a")].find((a) =>
+        a.textContent?.includes("Read on E2e"),
+      )!;
+      const block = document.querySelector("section[aria-label='Finished']")!;
+      return (
+        block.getBoundingClientRect().top -
+        link.parentElement!.getBoundingClientRect().bottom
+      );
+    });
+    expect(Math.abs(gap - 34)).toBeLessThanOrEqual(1);
+
+    const less = finished.getByRole("button", { name: "Less of this" });
+    await less.click();
+    await expect(page.getByRole("status")).toHaveText(/^Less of this/);
+    await expect(less).toHaveAttribute("aria-pressed", "true");
+    await less.click();
+    await expect(page.getByRole("status")).toHaveText("Undone");
+  });
+
   // The sentence the whole rail design turns on (the 08-20-26 corpus-burn postmortem): swiping is
   // free. Asserted from the outside, on a real signed-up account, after a real rail session.
   test("a rail session spends none of the reader's corpus", async ({

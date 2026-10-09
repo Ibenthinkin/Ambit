@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ItemShell } from "./item-shell";
+import { ItemShell, useItemShell } from "./item-shell";
 
 // The article page's client layer. Its sheets and pill are the same components the merged image
 // screen uses, tested there; what is pinned here is Escape, and the signed-out toolbar's wiring.
@@ -68,7 +68,37 @@ beforeEach(() => {
   sessionStorage.clear();
 });
 
+function ShellProbe() {
+  const shell = useItemShell();
+  return (
+    <>
+      <span data-testid="authed">{String(shell.authed)}</span>
+      <button onClick={() => shell.toast("Hello from a child")}>say</button>
+      <button onClick={shell.requireAuth}>gate</button>
+    </>
+  );
+}
+
 describe("ItemShell", () => {
+  it("shares authed, toast and requireAuth with a child (the server page's FinishedRow)", () => {
+    render(
+      <ItemShell
+        itemId="a1"
+        title="An article"
+        hasImage={false}
+        authed={false}
+        appUrl="https://ambit.test"
+      >
+        <ShellProbe />
+      </ItemShell>,
+    );
+    expect(screen.getByTestId("authed")).toHaveTextContent("false");
+    fireEvent.click(screen.getByText("say"));
+    expect(screen.getByText("Hello from a child")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("gate"));
+    expect(screen.getByTestId("auth-card")).toBeInTheDocument();
+  });
+
   it("Escape leaves — pushes a focused feed on a cold open", () => {
     renderShell();
     escape();

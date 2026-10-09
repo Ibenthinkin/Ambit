@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { Column } from "~/components/ui/column";
+import { FinishedRow } from "~/components/item/finished-row";
 import { ItemScreen } from "~/components/item/item-screen";
 import { ItemShell } from "~/components/item/item-shell";
 import { JoinCta } from "~/components/item/join-cta";
@@ -155,6 +156,9 @@ export default async function ItemPage({
     }
   }
 
+  // The article's topic label, for the "Finished" pair's confirmation note.
+  const labels = await topicLabelsFor([item.topicId]);
+
   // An article keeps the reader layout, inside the shell that gives it the pill and the exits.
   return (
     <ItemShell
@@ -175,6 +179,21 @@ export default async function ItemPage({
             <div className="mt-[18px]">
               <ReaderItemBody item={item} keptIn={keptIn} />
             </div>
+          </Rise>
+
+          {/* At the end of the text, after the source link, above the wander list — never mid-text
+              (docs/DESIGN_more-or-less.md D6). `WanderNext` keeps its own 44 px top margin; the
+              frames show 40 / 56, and the handoff ranks the article's spacing below the picture
+              screens', so that tolerance is accepted. */}
+          <Rise delayMs={90}>
+            <FinishedRow
+              itemId={item.id}
+              topicId={item.topicId}
+              topicLabel={
+                item.topicId ? (labels.get(item.topicId) ?? null) : null
+              }
+              readingMinutes={item.readingMinutes}
+            />
           </Rise>
 
           <Rise delayMs={120}>
