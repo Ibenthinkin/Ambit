@@ -380,3 +380,36 @@ export async function retentionByWeek(opts: {
     group by cur.wk order by cur.wk
   `);
 }
+
+// ---- 3.x readerLabels -----------------------------------------------------------------------
+
+export type ReaderLabel = {
+  userId: string;
+  /** 1-based position by account creation, among all non-excluded users. Stable week to week. */
+  n: number;
+  joinedAt: Date;
+};
+
+/**
+ * Numbers every reader by when their account was created, so the report can say `#3 (joined
+ * 09-20)` instead of an email. It numbers *all* readers, not just the active ones in a window,
+ * which is what keeps `#3` meaning the same person from one report to the next.
+ * `row_number() over (order by …)` is the numbering; `id` breaks a created_at tie.
+ */
+export async function readerLabels(
+  excludeEmails: string[],
+  runner?: Runner,
+): Promise<ReaderLabel[]> {
+  const out = await rows<{ userId: string; n: number; joinedAt: string }>(
+    sql`
+    select id as "userId",
+           (row_number() over (order by created_at, id))::int as n,
+           created_at as "joinedAt"
+    from "user"
+    where ${readerFilter(sql`id`, excludeEmails)}
+    order by n
+  `,
+    runner,
+  );
+  return out.map((r) => ({ ...r, joinedAt: new Date(r.joinedAt) }));
+}

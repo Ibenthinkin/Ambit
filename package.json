@@ -21,6 +21,7 @@
     "judge:probe": "bun run scripts/judge-probe.ts",
     "retire": "bun run scripts/retire-source-rows.ts",
     "invite": "bun run scripts/invite.ts",
+    "usage:report": "bun run scripts/usage-report.ts",
     "seed:personas": "bun run scripts/seed-personas.ts",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",

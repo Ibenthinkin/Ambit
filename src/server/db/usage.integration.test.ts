@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   onboardingRuns,
+  readerLabels,
   readersActive,
   retentionByWeek,
   savesPerHundred,
@@ -279,6 +280,21 @@ describe.skipIf(!process.env.DATABASE_URL)(
         { week: "2020-09-07", active: 2, returning: 0 },
         { week: "2020-09-14", active: 2, returning: 1 },
       ]);
+    });
+
+    it("readerLabels numbers readers by account creation and leaves the excluded out", async () => {
+      const r = await readerLabels(exclude);
+      const ids = r.map((l) => l.userId);
+      expect(ids).not.toContain(PERSONA.id);
+      expect(ids).not.toContain(E2E.id);
+      expect(ids).toContain(A.id);
+      // numbered 1..N in order, with joinedAt non-decreasing
+      expect(r.map((l) => l.n)).toEqual(r.map((_, i) => i + 1));
+      for (let i = 1; i < r.length; i++) {
+        expect(r[i]!.joinedAt.getTime()).toBeGreaterThanOrEqual(
+          r[i - 1]!.joinedAt.getTime(),
+        );
+      }
     });
   },
 );
