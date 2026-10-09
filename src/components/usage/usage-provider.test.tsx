@@ -26,7 +26,8 @@ describe("UsageProvider", () => {
     useUsage().track("item.zoom");
     unmount();
     const events = h.bodies.flatMap((b) => b.events);
-    expect(events.map((e) => e.kind)).toEqual([
+    // Unmount also ends the visit (a visit.end if any ms elapsed), so don't pin it.
+    expect(events.map((e) => e.kind).filter((k) => k !== "visit.end")).toEqual([
       "visit.start",
       "screen.open",
       "item.zoom",
