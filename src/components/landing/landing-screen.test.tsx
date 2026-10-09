@@ -225,9 +225,7 @@ describe("LandingScreen — cycle", () => {
 
   it("shows the pitch", async () => {
     await renderScreen();
-    expect(
-      screen.getByText("A quieter way to be curious."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("The internet’s quiet car.")).toBeInTheDocument();
   });
 
   it("Save-Data: the overture plays, then the first picture holds and the sheet still rises", async () => {
@@ -262,7 +260,7 @@ describe("LandingScreen — static (/reset-password)", () => {
   it("drops the marketing hero — a reset link lands mid-task, not mid-pitch", async () => {
     await renderScreen("static");
     expect(
-      screen.queryByText("A quieter way to be curious."),
+      screen.queryByText("The internet’s quiet car."),
     ).not.toBeInTheDocument();
   });
 });

@@ -156,11 +156,12 @@ export function AuthSheet({
         {showHero ? (
           <div className="mt-6 text-left">
             <div className="text-ink-hi text-[clamp(26px,3vw,32px)] leading-[1.12] font-normal tracking-[-0.02em]">
-              A quieter way to be curious.
+              The internet’s quiet car.
             </div>
             <p className="text-ink/68 mt-3 text-[16px] leading-[1.5] text-pretty">
-              No feeds engineered to keep you. Ambit hands you one interesting
-              thing at a time, then quietly steps back.
+              Pictures and writing from today back to the good old web. An
+              algorithm you can see and change. No ads, no tracking, no
+              comments.
             </p>
           </div>
         ) : null}

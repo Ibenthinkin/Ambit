@@ -63,7 +63,20 @@ connections see 64 MB; the app's pool follows as it recycles or on the next depl
 The usage plan's Cut 0 is
 executable by a cheaper session as soon as the design is approved.
 
+**Afternoon — the tagline.** Ben: "a quieter way to be curious...doesnt quite capture it",
+then a description of Ambit worth keeping verbatim (`docs/NOTES_tagline.md` §1). The line is now
+**`AMBIT — Wander the best of the internet.`**, the sign-in sheet's headline **"The internet’s
+quiet car."** (Ben's), the paragraph rewritten to carry the span and the honest algorithm. Two
+rulings: the overture stays one line (its tail clips into the mark; a second line has nowhere to
+move), so the two registers go one to the overture and one to the sheet; and "…in peace and
+quiet" was too long (54 characters of tail overflows a 402 px phone, and it repeats the sheet).
+Built on `feat/landing-copy` in the worktree `~/Dev/ambit-landing-copy` — **another session was
+committing on `feat/more-or-less` in the main checkout**, which this session briefly switched
+under it and put back. **Open:** the phone fit at 402 px; the join block's "Ambit is a quieter
+way to read." is the last line in the old voice.
+
 *Session spend: 13.86M tok (in 2.3k · out 221.0k · cache r 12.09M / w 1.55M) · fable-5-1 + <synthetic> · 22:52→10:56*
+*Session spend: 5.09M tok (in 988 · out 34.7k · cache r 4.68M / w 372.2k) · fable-5-1 + opus-5-5 · 12:50→13:11*
 
 **Later that morning — "More or less" gets its look.** Ben took `docs/BRIEF_more-or-less.md` to
 Claude Design and came back with `docs/design_handoff_more_or_less/` (README + two prototypes +

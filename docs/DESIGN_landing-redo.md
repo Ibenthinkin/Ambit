@@ -286,6 +286,17 @@ The sheet's three lines ("A quieter way to be curious." / "No feeds engineered t
 item is its own small task once the tempo is chosen — settling a voice under a motion decision
 that has not been made would be settling it twice.
 
+**Amendment, 10-09-26 — the copy task, done.** Ben's brainstorm settled the voice in two
+registers: the overture says what Ambit is, the sheet says what it feels like.
+Overture: **`AMBIT — Wander the best of the internet.`** (35 characters of tail against the old
+31, so the collapse travels about the same distance and the one-row phone fit is unchanged).
+Sheet headline: **"The internet’s quiet car."** Sheet paragraph: *"Pictures and writing from
+today back to the good old web. An algorithm you can see and change. No ads, no tracking, no
+comments."* Rejected: a second overture line (the row is one no-wrap line whose tail clips
+into the mark; nothing else can move in that motion), and "…in peace and quiet" on the
+overture (54 characters overflows a 402 px phone, and it double-covers the sheet's headline).
+The item page's join block ("Ambit is a quieter way to read.") is untouched.
+
 ## Amendment, 09-25-26 — tall pictures for phones, wide ones for computers
 
 **Ben's first device look:** "the second image is a super blurry close up … I think we need to have
