@@ -30,12 +30,24 @@ type SetMineOpts = {
   ) => void;
 };
 
+type Cool = { topicId: string; label: string; cool: number };
+type WarmOpts = {
+  onMutate?: (v: { topicId: string }) => unknown;
+  onError?: (
+    err: unknown,
+    v: { topicId: string },
+    ctx: { previous?: Cool[] },
+  ) => void;
+};
+
 const {
   mutateMock,
   setWeightMock,
   resetMock,
   toastMock,
   invalidateMock,
+  warmMock,
+  coolsInvalidateMock,
   state,
 } = vi.hoisted(() => ({
   mutateMock: vi.fn<(v: { picks: Pick[] }) => void>(),
@@ -43,11 +55,15 @@ const {
   resetMock: vi.fn(),
   toastMock: vi.fn<(text: string) => void>(),
   invalidateMock: vi.fn(),
+  warmMock: vi.fn<(v: { topicId: string }) => void>(),
+  coolsInvalidateMock: vi.fn(),
   state: {
     topics: [] as { id: string; label: string; facet: string }[],
     mine: [] as Pick[],
     mineOpts: undefined as SetMineOpts | undefined,
     taste: null as ProfileTaste | null,
+    cools: [] as { topicId: string; label: string; cool: number }[],
+    warmOpts: undefined as WarmOpts | undefined,
   },
 }));
 
@@ -55,6 +71,17 @@ vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({
       topics: {
+        cools: {
+          invalidate: coolsInvalidateMock,
+          cancel: vi.fn(),
+          getData: () => state.cools,
+          setData: (_input: unknown, updater: unknown) => {
+            state.cools =
+              typeof updater === "function"
+                ? (updater as (p: Cool[]) => Cool[])(state.cools)
+                : (updater as Cool[]);
+          },
+        },
         mine: {
           invalidate: invalidateMock,
           cancel: vi.fn(),
@@ -72,6 +99,18 @@ vi.mock("~/trpc/react", () => ({
       list: { useQuery: () => ({ data: state.topics }) },
       mine: { useQuery: () => ({ data: state.mine }) },
       taste: { useQuery: () => ({ data: state.taste }) },
+      cools: { useQuery: () => ({ data: state.cools }) },
+      warm: {
+        useMutation: (opts?: WarmOpts) => {
+          state.warmOpts = opts;
+          return {
+            mutate: (v: { topicId: string }) => {
+              void opts?.onMutate?.(v);
+              warmMock(v);
+            },
+          };
+        },
+      },
       setMine: {
         useMutation: (opts?: SetMineOpts) => {
           state.mineOpts = opts;
@@ -134,8 +173,11 @@ beforeEach(() => {
     resetMock,
     toastMock,
     invalidateMock,
+    warmMock,
+    coolsInvalidateMock,
   ])
     m.mockReset();
+  state.cools = [];
   state.topics = TOPICS;
   state.taste = null;
   state.mine = [
@@ -438,6 +480,60 @@ describe("TopicsScreen", () => {
     it("shows no card for a reader with no stored taste", () => {
       render(<TopicsScreen dev={false} />);
       expect(screen.queryByText("Your first exhibition")).toBeNull();
+    });
+  });
+
+  describe("Showing less of", () => {
+    const COOLS = [
+      { topicId: "japan", label: "Japan", cool: 0.5 },
+      { topicId: "books", label: "Books", cool: 0.7 },
+    ];
+
+    it("is absent when nothing is cooled", () => {
+      render(<TopicsScreen dev={false} />);
+      expect(screen.queryByText("Showing less of")).toBeNull();
+    });
+
+    it("lists the cooled topics with a count, a Warm up each, and the helper", () => {
+      state.cools = COOLS;
+      render(<TopicsScreen dev={false} />);
+      const section = screen
+        .getByRole("heading", { level: 2, name: "Showing less of" })
+        .closest("section")!;
+      expect(within(section).getByText("2")).toBeTruthy();
+      expect(within(section).getByText("Japan")).toBeTruthy();
+      expect(within(section).getByText("Books")).toBeTruthy();
+      expect(
+        within(section).getAllByRole("button", { name: "Warm up" }),
+      ).toHaveLength(2);
+      expect(
+        within(section).getByText(/^Cooled by “Less of this”\./).textContent,
+      ).toContain("won't drift or jump to these until you warm them up.");
+    });
+
+    it("Warm up removes the row at once, toasts, and rolls back on error", async () => {
+      state.cools = COOLS;
+      const { rerender } = render(<TopicsScreen dev={false} />);
+      fireEvent.click(screen.getAllByRole("button", { name: "Warm up" })[0]!);
+      expect(warmMock).toHaveBeenCalledWith({ topicId: "japan" });
+      expect(toastMock).toHaveBeenCalledWith("Warmed up Japan");
+      // `onMutate` awaits `cancel()` first, so the patch lands a microtask later.
+      await waitFor(() =>
+        expect(state.cools.map((c) => c.topicId)).toEqual(["books"]),
+      );
+      const previous = COOLS;
+
+      // A failed write puts the snapshot back and says so.
+      state.warmOpts!.onError!(
+        new Error("x"),
+        { topicId: "japan" },
+        {
+          previous,
+        },
+      );
+      rerender(<TopicsScreen dev={false} />);
+      expect(state.cools).toEqual(COOLS);
+      expect(toastMock).toHaveBeenCalledWith("Couldn't save that — try again.");
     });
   });
 });

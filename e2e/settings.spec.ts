@@ -1,5 +1,5 @@
 import { expect, test, type Cookie, type Page } from "@playwright/test";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, like } from "drizzle-orm";
 
 import {
   cleanupSeeded,
@@ -325,6 +325,48 @@ test.describe.serial("settings", () => {
       "page",
     );
     await expect(page.getByText("Ambit · invite-only · v0.5")).toBeVisible();
+  });
+
+  // "Showing less of" (docs/DESIGN_more-or-less.md D6). The pair's UI lives on the item screen, so
+  // the cool is seeded through the real endpoint with this test's session cookies — the same
+  // write the pair makes (a non-batched mutation POST takes superjson's `{ json: input }`).
+  test("a cooled topic is listed under Showing less of, and Warm up clears it", async ({
+    page,
+  }) => {
+    const { db, item } = conn;
+    const [seeded] = await db
+      .select({ id: item.id })
+      .from(item)
+      .where(
+        and(like(item.sourceId, "e2e-settings-%"), isNotNull(item.topicId)),
+      )
+      .limit(1);
+
+    await restoreSession(page, session);
+    // An origin for relative `request` URLs; `page.request` shares the context's cookie jar.
+    await page.goto("/profile/topics");
+    const set = await page.request.post("/api/trpc/feedback.set", {
+      data: { json: { itemId: seeded!.id, verdict: "less" } },
+    });
+    expect(set.status()).toBe(200);
+
+    await page.reload();
+    const heading = page.getByRole("heading", { name: "Showing less of" });
+    await expect(heading).toBeVisible({ timeout: 15_000 });
+    const section = page.locator("section", { has: heading });
+    await expect(section.getByRole("button", { name: "Warm up" })).toHaveCount(
+      1,
+    );
+
+    await section.getByRole("button", { name: "Warm up" }).click();
+    await expect(page.getByText(/^Warmed up /)).toBeVisible();
+    await expect(heading).toHaveCount(0);
+    // And it stays gone: the write reached the server.
+    await page.reload();
+    await expect(
+      page.getByRole("group", { name: "Astronomy level" }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(heading).toHaveCount(0);
   });
 
   test("sign out from its permanent home ends the session", async ({
