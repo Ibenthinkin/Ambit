@@ -5,7 +5,7 @@ like button? … saving things to lists is not something everyone does") and the
 **Status:** mechanics approved in chat 10-08-26; **the look is settled 10-09-26** by Ben's Claude
 Design session — the export is `docs/design_handoff_more_or_less/` (its `README.md` is the
 authority for every look; D6 below is the mechanics plus a summary of it); plan
-`docs/PLAN_more-or-less.md`, both parts executable.
+`docs/PLAN_more-or-less.md`, both parts executable. **Built 10-09-26** on `feat/more-or-less` (Part 1: data, API, feed engine, Saved, Profile, `/dev/feed`; Part 2: the pair on every surface per the handoff) — not merged, not deployed; what is open is Ben's device pass (`log.md` 10-09-26).
 
 ## Why
 

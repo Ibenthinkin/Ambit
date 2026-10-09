@@ -117,6 +117,28 @@ on `main` `cb5bcc5`**, so they are not this branch's. CI-shape run (fresh postgr
 
 *Session spend: 18.59M tok (in 376 · out 65.2k · cache r 17.32M / w 1.20M) · opus-5-5 · 12:35→13:24*
 
+**Later still — More or less, Part 2 built (`feat/more-or-less`, `6007b9a..` Task 14; not pushed, not merged, not deployed).**
+**Shipped:** the `MoreOrLess` pair (220 + 220) and `useFeedback`, the one optimistic shape the pair, the `+`/`-` keys, the tile sheet and the hover strip share; the item page's three placements (phone: under the picture and under the title; desktop: under the 28 px summary in the Information section's third column; Magazine view: one pair per figure); the article's "Finished · N min read" row; the tile sheet's rows, the desktop hover strip (− + bookmark), and a Less that veils the tile in place with an `[Undo]`.
+
+**Decisions** (rulings that change behaviour or look): a more→less flip on a topic the "more" newly picked leaves a 0.75 pick (R5). First taps on one item serialise on a `pg_advisory_xact_lock`, because `FOR UPDATE` locks nothing before the row exists (R6). The "More of this" shelf chip shows to non-savers who have any More, not only to savers (R7). On+hover is `bg-white`, since `ink-hi` equals `ink` and the hover would not show (R9), and a marked strip square keeps its keyline under the accent line by one combined shadow class (R11). The D2B link-out is 22 px under the pair, because the frame wins over the brief (R10). The phone's pair→title gap is 30 px, not the 22 that a `mt-` rendered: the title's margin collapsed through the bare `<article>`, so the wrapper uses `pt-[22px]`, and the e2e now measures the rendered gap.
+
+**Verification:** typecheck green; lint only the known `.cache/capacity-probe/load.ts` error; `bun run test` 2,644 tests / 205 files green. `e2e:prod` **75 passed / 0 failed / 9 skipped** (63 chromium + 12 desktop; the 9 skips are the dev-only specs). CI-shape run (fresh postgres on port 5434): **75 / 0 / 9**, the same. Part 1's two red specs (`item.spec.ts:295`, `desktop.spec.ts:464`) are green now.
+
+**Open / next — Ben's look (402 / 1440 / the tailnet phone):**
+1. Phone picture: one short scroll, the pair under the picture, More: the toast names the topic, the button inverts, the note appears, and `/saved?shelf=more` shows it.
+2. Desktop picture: the pair under the 28 px summary in the Information section's third column, 220 + 220; Magazine view: one pair per figure under each title; the `+` / `-` keys.
+3. Article, both widths: "Finished · N min read" after the source link, the pair, then "Where Ambit would wander next".
+4. Feed: long-press, Less: the tile veils in place and nothing moves, then `[Undo]`; on the desktop the strip reads − + bookmark with the chip at 50 %.
+5. Saved: the "More of this" chip with its + and the hairline; Topics: "Showing less of" with the count and `[Warm up]`.
+6. `/dev/feed`: Your topics moves; `coolStrength 0` gives the old page for the same cursor (Restart feed between).
+7. Nothing green that wasn't green before.
+8. Explorations, deferred: should a marked strip square stay visible after hover ends? Want the 400 ms mono label on strip squares?
+9. The more→less flip leaving a 0.75 pick (a topic you said Less to stays in your picks).
+10. A veiled tile still Lifts on hover.
+11. The phone's note line pushes the title down while a verdict is on.
+
+*Session spend: 18.45M tok (in 282 · out 52.1k · cache r 17.99M / w 409.7k) · opus-5-5 · 13:24→15:23*
+
 ### [[10-08-26 Thu]] — The device pass closes; the Tumblr probe answers "no"; the join block's way back
 
 Ben's look at the deployed redesign on the phone and at 1440: "more or less ok, enough that I
