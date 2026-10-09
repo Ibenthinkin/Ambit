@@ -337,8 +337,7 @@ test.describe.serial("item pages", () => {
       page.getByRole("heading", { name: "A seeded post", level: 1 }),
     ).toBeVisible();
     await expect(page.getByText(/The blog's own excerpt/)).toBeVisible();
-    // The credit line, the facts table's From row and the link-out row all point at the post.
-    // `exact`, or Playwright's substring match also catches "Read the post on Door of Perception".
+    // The credit line, the facts table's From row and the link-out button all point at the post.
     const credits = page.getByRole("link", {
       name: "Door of Perception",
       exact: true,
@@ -350,9 +349,7 @@ test.describe.serial("item pages", () => {
         "https://doorofperception.com/2026/01/a-seeded-post/",
       );
     }
-    const linkOut = page.getByRole("link", {
-      name: /Read the post on Door of Perception/,
-    });
+    const linkOut = page.getByRole("link", { name: "Original post" });
     await expect(linkOut).toBeVisible();
     await expect(linkOut).toHaveAttribute("target", "_blank");
     // No typeset article: the reader body's section headings never render for a blog item.

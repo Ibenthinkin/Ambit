@@ -12,9 +12,7 @@ describe("LinkOutRow", () => {
         sourceUrl="https://doorofperception.com/2026/08/the-geologic-atlas-of-the-moon/"
       />,
     );
-    const link = screen.getByRole("link", {
-      name: /Read the post on Door of Perception/,
-    });
+    const link = screen.getByRole("link", { name: "Original post" });
     expect(link).toHaveAttribute(
       "href",
       "https://doorofperception.com/2026/08/the-geologic-atlas-of-the-moon/",
@@ -23,7 +21,22 @@ describe("LinkOutRow", () => {
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
 
-  it("renders the link-out for a Public Domain Review item with its own copy", () => {
+  // Ben's 10-08-26 phone look: the full-width 50 px block with the blog's name and an arrow read as
+  // "a whole page section", not a button. It is a button now: inline, 40 px, two words, no glyph.
+  it("is an inline button, not a full-width block, and carries no arrow", () => {
+    render(
+      <LinkOutRow
+        source="doorofperception"
+        sourceUrl="https://doorofperception.com/p/"
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Original post" });
+    expect(link).toHaveClass("inline-flex", "h-[40px]");
+    expect(link).not.toHaveClass("w-full", "justify-between");
+    expect(link.textContent).not.toContain("↗");
+  });
+
+  it("calls a Public Domain Review item's link-out the source, not a post", () => {
     render(
       <LinkOutRow
         source="pdr"
@@ -31,14 +44,14 @@ describe("LinkOutRow", () => {
       />,
     );
     expect(
-      screen.getByRole("link", { name: /See it on The Public Domain Review/ }),
+      screen.getByRole("link", { name: "Original source" }),
     ).toHaveAttribute(
       "href",
       "https://publicdomainreview.org/collection/atlantic-city-sand-sculpture/",
     );
   });
 
-  it("renders the plain original link for a museum source too", () => {
+  it("renders the source link for a museum too", () => {
     render(
       <LinkOutRow
         source="met"
@@ -46,7 +59,7 @@ describe("LinkOutRow", () => {
       />,
     );
     expect(
-      screen.getByRole("link", { name: /Read the original on The Met/ }),
+      screen.getByRole("link", { name: "Original source" }),
     ).toHaveAttribute(
       "href",
       "https://www.metmuseum.org/art/collection/search/1",

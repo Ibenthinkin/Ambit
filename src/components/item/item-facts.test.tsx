@@ -120,16 +120,16 @@ describe("ItemFacts", () => {
     expect(labels).toEqual(["From", "By", "License", "Topic"]);
   });
 
-  it("renders the link-out block on every item with a source URL, naming the source", () => {
+  it("renders the link-out button on every item with a source URL — a post for a blog, the source otherwise", () => {
     const { rerender } = render(
       <ItemFacts item={cell({ source: "doorofperception" })} />,
     );
     expect(
-      screen.getByRole("link", { name: /Read the post on/ }),
+      screen.getByRole("link", { name: "Original post" }),
     ).toBeInTheDocument();
     rerender(<ItemFacts item={cell()} />);
     expect(
-      screen.getByRole("link", { name: /Read the original on The Met/ }),
+      screen.getByRole("link", { name: "Original source" }),
     ).toHaveAttribute("href", "https://example.test/o/1");
   });
 });

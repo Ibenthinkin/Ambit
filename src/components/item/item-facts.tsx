@@ -330,7 +330,7 @@ export function ItemFacts({ item, layout = "column" }: ItemFactsProps) {
         </>
       ) : null}
 
-      {/* The white "Read the original" block — on every item with a source URL. */}
+      {/* The white "Original post" / "Original source" button — on every item with a source URL. */}
       <LinkOutRow source={item.source} sourceUrl={item.sourceUrl} />
     </article>
   );

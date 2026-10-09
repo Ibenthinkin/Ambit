@@ -436,7 +436,9 @@ Values are in the prototypes; this section is the decisions and the mapping.
   `text-ink/55` with the source an underlined ink link; summary 16 px / 1.55 `text-ink/78`; fact
   rows — `92px | 1fr`, mono 10.5 px label, 15 px value, `ink/14` rules: **From ↗ · By · License ·
   Topic** (plus Debug under the flag; "Date" and "Held at" are not stored and are absent); a white
-  block "Read the original on _source_ ↗" **on every item with a source URL** (today only blog
+  block "Read the original on _source_ ↗" **on every item with a source URL** (**overruled
+  10-08-26 after Ben's phone look: a 40 px inline white button, "Original post" for a blog or
+  publication, "Original source" otherwise, no arrow** — `link-out-row.tsx`) (today only blog
   and PDR items have a link-out row); "Where Ambit would wander next" as hairline rows — green
   dot, 18 px title, 13 px reason, mono `→`; the join block for strangers — left-aligned, no card,
   26 px title, 14.5 px body, a 50 px white "Get your invite" block.
