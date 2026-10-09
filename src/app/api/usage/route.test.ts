@@ -156,6 +156,34 @@ describe("POST /api/usage", () => {
       expect(recordEvents).not.toHaveBeenCalled();
     });
 
+    it("rejects the literal Origin: null and a prefix look-alike", async () => {
+      await post(beacon([SCREEN_OPEN]), { Origin: "null" });
+      await post(beacon([SCREEN_OPEN]), {
+        Origin: "https://ambit.example.evil.test",
+      });
+      await post(beacon([SCREEN_OPEN]), {
+        Origin: "https://ambit.example:8443",
+      });
+      expect(recordEvents).not.toHaveBeenCalled();
+    });
+
+    it("outside production also accepts the dev tailnet origins", async () => {
+      const dev = "https://macbook-air-m5.halley-morpho.ts.net";
+      await post(beacon([SCREEN_OPEN]), { Origin: dev });
+      expect(recordEvents).toHaveBeenCalledTimes(1);
+    });
+
+    it("in production accepts only the app's own origin", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      await post(beacon([SCREEN_OPEN]), {
+        Origin: "https://macbook-air-m5.halley-morpho.ts.net",
+      });
+      expect(recordEvents).not.toHaveBeenCalled();
+      await post(beacon([SCREEN_OPEN]), { Origin: ORIGIN });
+      expect(recordEvents).toHaveBeenCalledTimes(1);
+      vi.unstubAllEnvs();
+    });
+
     it("compares the origin, not the whole BETTER_AUTH_URL", async () => {
       await post(beacon([SCREEN_OPEN]), { Origin: ORIGIN });
       expect(recordEvents).toHaveBeenCalledTimes(1);
@@ -210,6 +238,45 @@ describe("POST /api/usage", () => {
       );
       expect(wide.length).toBeLessThan(64 * 1024);
       await post(wide);
+      expect(recordEvents).not.toHaveBeenCalled();
+    });
+
+    it("refuses an oversized Content-Length without reading the body", async () => {
+      const req = new Request("https://ambit.example/api/usage", {
+        method: "POST",
+        headers: { Origin: ORIGIN, "Content-Length": "70000" },
+        body: JSON.stringify(beacon([SCREEN_OPEN])),
+      });
+      const text = vi.spyOn(req, "text");
+      const res = await POST(req);
+      expect(res.status).toBe(204);
+      expect(recordEvents).not.toHaveBeenCalled();
+      expect(text).not.toHaveBeenCalled();
+    });
+
+    it("cancels a streamed body that passes the cap, with no or a lying Content-Length", async () => {
+      let pulled = 0;
+      let cancelled = false;
+      const chunk = new Uint8Array(16 * 1024).fill(120);
+      const stream = new ReadableStream<Uint8Array>({
+        pull(c) {
+          pulled += 1;
+          c.enqueue(chunk); // endless: only a cancel stops it
+        },
+        cancel() {
+          cancelled = true;
+        },
+      });
+      const req = new Request("https://ambit.example/api/usage", {
+        method: "POST",
+        headers: { Origin: ORIGIN, "Content-Length": "10" }, // lies
+        body: stream,
+        duplex: "half",
+      } as RequestInit);
+      const res = await POST(req);
+      expect(res.status).toBe(204);
+      expect(cancelled).toBe(true);
+      expect(pulled).toBeLessThan(10);
       expect(recordEvents).not.toHaveBeenCalled();
     });
 
@@ -285,6 +352,18 @@ describe("POST /api/usage", () => {
           at: iso(-5),
           meta: { digest: "d".repeat(33) },
         },
+      ],
+      [
+        "visit.end seconds over 24 h",
+        { kind: "visit.end", at: iso(-5), meta: { seconds: 86_401 } },
+      ],
+      [
+        "visit.end seconds of 1e300",
+        { kind: "visit.end", at: iso(-5), meta: { seconds: 1e300 } },
+      ],
+      [
+        "visit.end negative seconds",
+        { kind: "visit.end", at: iso(-5), meta: { seconds: -1 } },
       ],
       ["a non-object event", "screen.open"],
       ["a null event", null],

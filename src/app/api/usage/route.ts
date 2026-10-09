@@ -26,6 +26,7 @@
 // `screen.open` (design posture 6), (g) the write, (h) the 204.
 import { z } from "zod";
 
+import { devTrustedOrigins } from "~/config/dev-origins.js";
 import {
   MAX_EVENTS_PER_BEACON,
   META_SPEC,
@@ -63,7 +64,6 @@ const SIGNED_OUT_KINDS: ReadonlySet<UsageKind> = new Set([
 function valueSchema(rule: MetaRule): z.ZodTypeAny {
   if (Array.isArray(rule)) return z.enum(rule as [string, ...string[]]);
   if (rule === "bool") return z.boolean();
-  if (rule === "int") return z.number().int().min(0);
   if ("int" in (rule as object)) {
     const { min, max } = (rule as { int: { min: number; max: number } }).int;
     return z.number().int().min(min).max(max);
@@ -108,6 +108,31 @@ const bodySchema = z.object({
   events: z.array(z.unknown()),
 });
 
+/** The body's bytes, or null if it runs past `max` (the stream is cancelled, not drained). */
+async function readCapped(req: Request, max: number) {
+  if (!req.body) return new Uint8Array(0);
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out;
+}
+
 type Drops = Record<string, number>;
 
 export async function POST(req: Request) {
@@ -135,7 +160,16 @@ async function handle(
   // (a) Origin. Dynamic import: `~/env` validates the environment at load, which CI's
   // `bun run test` does not have (see trpc.ts's createTRPCContext).
   const { env } = await import("~/env");
-  if (req.headers.get("origin") !== new URL(env.BETTER_AUTH_URL).origin) {
+  const origin = req.headers.get("origin");
+  // Exact string match against a set of full origins — never a prefix or `includes`, so
+  // `http://localhost:3000.evil.test` and the literal `null` (sandboxed iframes) both fail.
+  // `devTrustedOrigins()` is the tailnet/LAN list Better Auth already trusts; it is `[]` in
+  // production, so there the check is the app's own origin alone.
+  const allowed = new Set([
+    new URL(env.BETTER_AUTH_URL).origin,
+    ...(process.env.NODE_ENV === "production" ? [] : devTrustedOrigins()),
+  ]);
+  if (origin === null || !allowed.has(origin)) {
     drop("origin");
     return 0;
   }
@@ -160,12 +194,21 @@ async function handle(
     return 0;
   }
 
-  // (c) Body: bytes first (a string's `.length` counts UTF-16 units, not bytes), then JSON.
-  const text = await req.text();
-  if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) {
+  // (c) Body. `req.text()` would buffer whatever is sent before we could look at its size, so
+  // the cap would not bound memory. Instead: trust a declared Content-Length only to refuse early,
+  // then read the stream with a running byte count and cancel it the moment it passes the cap
+  // (a missing or lying Content-Length changes nothing). Decode only after.
+  const declared = Number(req.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
     drop("size");
     return 0;
   }
+  const bytes = await readCapped(req, MAX_BODY_BYTES);
+  if (bytes === null) {
+    drop("size");
+    return 0;
+  }
+  const text = new TextDecoder().decode(bytes);
   let json: unknown;
   try {
     json = JSON.parse(text);

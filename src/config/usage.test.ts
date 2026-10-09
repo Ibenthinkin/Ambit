@@ -100,7 +100,10 @@ describe("usage vocabulary", () => {
     ]);
     expect(META_SPEC["visit.start"].standalone).toBe("bool");
     expect(META_SPEC["item.magazine"].on).toBe("bool");
-    expect(META_SPEC["visit.end"].seconds).toBe("int");
+    // A sitting longer than a day is not a sitting: bounded so nobody can poison active-time sums.
+    expect(META_SPEC["visit.end"].seconds).toEqual({
+      int: { min: 0, max: 86_400 },
+    });
     expect(META_SPEC["client.error"].digest).toEqual({ string: { max: 32 } });
   });
 

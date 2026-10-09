@@ -55,7 +55,6 @@ export const DIGEST_MAX = 32;
 export type MetaRule =
   | readonly string[]
   | "bool"
-  | "int"
   | { readonly int: { readonly min: number; readonly max: number } }
   | { readonly string: { readonly max: number } };
 
@@ -72,7 +71,7 @@ export const META_SPEC = {
     standalone: "bool",
     via: ["direct", "link", "internal"],
   },
-  "visit.end": { seconds: "int" },
+  "visit.end": { seconds: { int: { min: 0, max: 86_400 } } },
   "screen.open": {},
   "item.open": {
     from: ["feed", "rail", "saved", "wander", "link", "explore", "hang"],
