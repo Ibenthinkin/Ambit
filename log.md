@@ -75,8 +75,21 @@ committing on `feat/more-or-less` in the main checkout**, which this session bri
 under it and put back. **Open:** the phone fit at 402 px; the join block's "Ambit is a quieter
 way to read." is the last line in the old voice.
 
+**Later — a contact address, and its plan.** Ben set up **`ambit.app@proton.me`** as Ambit's
+public contact (separate from `OPS_EMAIL`, which is his own address for error mail, and from
+the Resend sender). Found while planning: Settings → "Get in touch" has been a mailto to **Ben's
+personal Gmail** since 5.10, and three other surfaces already say "tell us" / "ask someone" with
+no address — the About sheet's removal line, the signed-out "What is Ambit?" dialog, and the
+uninvited sign-up error. **Ruling: no contact page.** `/?open=about` is already the shareable
+about link; the address goes into the four places that exist, from one no-import leaf
+(`config/contact.ts`), as `mailto:` links with prefilled subjects so the inbox sorts itself.
+`docs/PLAN_contact.md` is executable by a cheaper session on `feat/contact`. Noticed on the way,
+not fixed: the About sheet's "With material from" list is stale (no LoC, NASA, Smithsonian, PDR,
+blogs).
+
 *Session spend: 13.86M tok (in 2.3k · out 221.0k · cache r 12.09M / w 1.55M) · fable-5-1 + <synthetic> · 22:52→10:56*
 *Session spend: 5.09M tok (in 988 · out 34.7k · cache r 4.68M / w 372.2k) · fable-5-1 + opus-5-5 · 12:50→13:11*
+*Session spend: 8.67M tok (in 1.4k · out 58.1k · cache r 8.37M / w 244.4k) · fable-5-1 + opus-5-5 · 13:11→14:14*
 
 **Later that morning — "More or less" gets its look.** Ben took `docs/BRIEF_more-or-less.md` to
 Claude Design and came back with `docs/design_handoff_more_or_less/` (README + two prototypes +
