@@ -269,7 +269,7 @@ describe("renderReport", () => {
 
       ## Onboarding funnel
 
-      3 started; each reader's latest visit.
+      3 started; each reader's latest visit. A step counts when it is left (answered or skipped), so "Reached" is last step completed.
 
       | Step | Reached | Stopped here |
       | --- | --- | --- |
@@ -283,6 +283,8 @@ describe("renderReport", () => {
       | 8 | 1 | 1 |
 
       ## Installs
+
+      Card = the Add button was pressed; prompt / appinstalled = the browser installed it.
 
       | How | Count |
       | --- | --- |

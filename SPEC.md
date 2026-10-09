@@ -337,7 +337,7 @@ CREATE INDEX usage_event_user_at_idx ON usage_event(user_id, at);
 CREATE INDEX usage_event_at_idx      ON usage_event(at);
 ```
 
-An append-only log of what a reader does in the app, kept so Ben can see whether the beta is used. **There are no identity columns: no IP, no user-agent, no URL, no referrer** (the entry source is a closed `via` enum in `meta`, not the referrer string). Nothing at request time reads this table; only `bun run usage:report` does, and it prunes rows older than 90 days. Deleting an account deletes its events (the cascade).
+An append-only log of what a reader does in the app, kept so Ben can see whether the beta is used. **There are no identity columns: no IP, no user-agent, no URL, no referrer** (the entry source is a closed `via` enum in `meta`, not the referrer string). Nothing at request time reads this table; only `bun run usage:report` does, and with `--prune` it deletes rows older than 90 days (opt-in, unscheduled). Deleting an account deletes its events (the cascade).
 
 ## 6. Backend — ingestion, curation, repositories
 

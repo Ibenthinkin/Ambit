@@ -314,7 +314,7 @@ export function renderReport(d: ReportData): string {
       "Onboarding funnel",
       d.funnel.readers === 0
         ? "_Nobody started onboarding in this window._"
-        : `${d.funnel.readers} started; each reader's latest visit.\n\n` +
+        : `${d.funnel.readers} started; each reader's latest visit. A step counts when it is left (answered or skipped), so \"Reached\" is last step completed.\n\n` +
             table([
               ["Step", "Reached", "Stopped here"],
               ...d.funnel.reached.map((n, i) => [
@@ -329,7 +329,8 @@ export function renderReport(d: ReportData): string {
       "Installs",
       Object.keys(d.installs).length === 0
         ? "_No installs._"
-        : countTable("How", d.installs),
+        : "Card = the Add button was pressed; prompt / appinstalled = the browser installed it.\n\n" +
+            countTable("How", d.installs),
     ),
 
     section(
