@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
+import { useFeedback } from "~/components/feedback/more-or-less";
 import { CollectionsSheet } from "~/components/sheets/collections-sheet";
 import { InstallFlow } from "~/components/install/install-flow";
 import { ItemSheet } from "~/components/sheets/item-sheet";
@@ -21,6 +22,7 @@ import { useDevKnobs } from "./dev/use-dev-knobs";
 import { clearExploreOrigin, markFeedOrigin } from "./feed-origin";
 import { FeedGrid, type PressedItem } from "./feed-grid";
 import { TileActions } from "./tile-actions";
+import { TileVeil } from "./tile-veil";
 import { buildTiles } from "./masonry";
 import { useFeedScroll } from "./use-feed-scroll";
 
@@ -255,6 +257,15 @@ export function FeedScreen({ topicLabels, dev, appUrl }: FeedScreenProps) {
   // (docs/DESIGN_chrome-redesign.md §3). On touch the strip does not exist at all.
   const hoverCapable = useMediaQuery(HOVER_QUERY);
 
+  // More or less (docs/DESIGN_more-or-less.md D6). The marks are one shared read; the sheet asks
+  // what its pressed item carries, and every card the reader has said "Less" to is veiled in
+  // place (TileVeil) rather than removed — the masonry never moves under the reader.
+  const feedback = useFeedback({ authed: true, onToast: setToast });
+  const lessIds = React.useMemo(
+    () => new Set(feedback.mine?.less ?? []),
+    [feedback.mine],
+  );
+
   const { tiles, firstPageCount, cardCount } = React.useMemo(() => {
     const tiles = buildTiles(pages, topicLabels);
     // Rebuilding page one on its own is a dozen cards' worth of work and unambiguously correct,
@@ -311,11 +322,21 @@ export function FeedScreen({ topicLabels, dev, appUrl }: FeedScreenProps) {
         fetchNextPage={fetchNextPage}
         onOpen={openItem}
         onLongPress={openItemSheet}
-        renderTileExtras={
-          hoverCapable
-            ? (tile) => <TileActions card={tile.card} onToast={setToast} />
-            : undefined
-        }
+        // Each card's overlays, siblings of the tile in its `group/tile relative` wrapper: the hover
+        // strip (a real hover only) and, after a Less, the veil — which replaces the strip, as the
+        // explorations draw it. The veil comes last so it paints over everything in the tile.
+        renderTileExtras={(tile) => {
+          const id = tile.card.item.id;
+          const veiled = lessIds.has(id);
+          return (
+            <>
+              {hoverCapable && !veiled ? (
+                <TileActions card={tile.card} onToast={setToast} />
+              ) : null}
+              {veiled ? <TileVeil onUndo={() => feedback.undo(id)} /> : null}
+            </>
+          );
+        }}
       />
 
       {showLoader ? (
@@ -409,6 +430,11 @@ export function FeedScreen({ topicLabels, dev, appUrl }: FeedScreenProps) {
         onError={setToast}
         appUrl={appUrl}
         onToast={setToast}
+        marked={pressedItem ? feedback.verdictOf(pressedItem.id) : null}
+        onFeedback={(verdict) => {
+          if (pressedItem)
+            feedback.press(pressedItem.id, pressedItem.topicId, verdict);
+        }}
       />
 
       {/* The install ask lives here rather than in the layout: the feed is the only screen where

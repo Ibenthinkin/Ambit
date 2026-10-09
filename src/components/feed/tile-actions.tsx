@@ -3,13 +3,16 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 
-import { Bookmark, ChevronDown } from "~/components/icons";
+import { Bookmark, ChevronDown, Minus, Plus } from "~/components/icons";
+import { useFeedback } from "~/components/feedback/more-or-less";
 import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sheet";
 import {
   useLastCollection,
   writeLastCollectionId,
 } from "~/lib/last-collection";
+import type { Verdict } from "~/lib/feedback-toast";
 import { saveToastText } from "~/lib/save-toast";
+import { HOVER_LINE } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import type { FeedCard } from "~/server/services/feed";
 import { api } from "~/trpc/react";
@@ -27,10 +30,28 @@ import { api } from "~/trpc/react";
 //
 // Saved-state comes from `saves.ids`, one list for the whole feed, and the save is optimistic on
 // it — the glyph lights the instant it is clicked and rolls back if the write fails.
+//
+// Since 10-09-26 (docs/DESIGN_more-or-less.md D6) two more squares sit left of the bookmark —
+// **−** (Less of this) and **+** (More of this) — optimistic on `feedback.mine` in exactly the
+// same shape, through `useFeedback` (more-or-less.tsx), so the strip, the sheet and the item
+// screen's pair can't drift apart in what a press does. A Less veils the whole tile (TileVeil),
+// and the screen drops this strip from a veiled tile.
 
 /** Square, low-opacity glass (DESIGN §6.1): `rgba(14,14,14,.30)` + blur 10 + a 0.5 px white/18 edge. */
 const GLASS =
   "border-hairline border-white/18 bg-[rgba(14,14,14,0.30)] backdrop-blur-[10px] text-ink-hi";
+
+// The −/+ squares' two looks (the explorations' "Glass square, 32 px" table). Rest is the glass,
+// brightening on hover; marked inverts to ink — no glass, no border, a hairline keyline and a soft
+// drop instead — and on hover takes the accent's hovered-control underline (HOVER_LINE).
+const SQUARE_REST = cn(
+  GLASS,
+  "hover:bg-bg/48 hover:border-ink/30 hover:text-ink-hi",
+);
+const SQUARE_MARKED = cn(
+  "bg-ink text-on-accent hover:bg-ink-hi shadow-[0_0_0_0.5px_rgba(14,14,14,0.45),0_2px_8px_rgba(0,0,0,0.25)]",
+  HOVER_LINE,
+);
 
 export interface TileActionsProps {
   card: FeedCard;
@@ -49,6 +70,9 @@ export function TileActions({ card, onToast }: TileActionsProps) {
   const ids = api.saves.ids.useQuery();
   const target = useLastCollection(collections.data);
   const saved = ids.data?.includes(card.item.id) ?? false;
+  // The strip is only ever mounted on the authed /feed, so `authed: true`.
+  const feedback = useFeedback({ authed: true, onToast });
+  const marked = feedback.verdictOf(card.item.id);
 
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [anchor, setAnchor] = React.useState<DOMRect | null>(null);
@@ -83,21 +107,39 @@ export function TileActions({ card, onToast }: TileActionsProps) {
       ]),
   });
 
-  // Nothing to offer until the collections are known — a strip with no target has no verb.
-  if (!target) return null;
-
   const openPicker = (e: React.MouseEvent<HTMLButtonElement>) => {
     setAnchor(e.currentTarget.getBoundingClientRect());
     setPickerOpen(true);
   };
   const saveHere = () => {
-    if (save.isPending) return;
+    if (save.isPending || !target) return;
     save.mutate({
       itemId: card.item.id,
       collectionId: target.id,
       // The slot the card was served under, for the bump (design §5); null for a WILD card.
       topicId: card.topicId ?? undefined,
     });
+  };
+
+  // One −/+ square. A press sets the verdict, or — on the marked one — takes it back.
+  const square = (verdict: Verdict, label: string, Glyph: typeof Plus) => {
+    const on = marked === verdict;
+    return (
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={on}
+        onClick={() => feedback.press(card.item.id, card.topicId, verdict)}
+        onPointerDown={stop}
+        className={cn(
+          "pointer-events-auto flex size-8 items-center justify-center",
+          "transition-[background-color,border-color,color,box-shadow,scale] duration-[120ms] ease-out active:scale-[0.94]",
+          on ? SQUARE_MARKED : SQUARE_REST,
+        )}
+      >
+        <Glyph size={15} strokeWidth={2.2} />
+      </button>
+    );
   };
 
   return (
@@ -112,40 +154,52 @@ export function TileActions({ card, onToast }: TileActionsProps) {
         // `focus-within` reveals it for a keyboard — its buttons are tab stops even when unseen.
         className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-[10px] opacity-0 transition-opacity duration-[250ms] group-hover/tile:opacity-100 focus-within:opacity-100 data-[picker-open]:opacity-100"
       >
-        <button
-          type="button"
-          aria-label="Choose collection"
-          onClick={openPicker}
-          onPointerDown={stop}
-          className={cn(
-            GLASS,
-            "pointer-events-auto flex h-8 max-w-[70%] items-center gap-[6px] px-[11px]",
-          )}
-        >
-          <span className="truncate text-[14px]">{target.name}</span>
-          <ChevronDown size={9} className="text-ink/70 flex-none" />
-        </button>
+        {/* The chip and the bookmark need a target collection; until the collections are known
+            there is none, and only the −/+ squares show. */}
+        {target ? (
+          <button
+            type="button"
+            aria-label="Choose collection"
+            onClick={openPicker}
+            onPointerDown={stop}
+            className={cn(
+              GLASS,
+              "pointer-events-auto flex h-8 max-w-[50%] items-center gap-[6px] px-[11px]",
+            )}
+          >
+            <span className="truncate text-[14px]">{target.name}</span>
+            <ChevronDown size={9} className="text-ink/70 flex-none" />
+          </button>
+        ) : null}
 
-        <button
-          type="button"
-          aria-label={
-            saved ? `Saved to ${target.name}` : `Save to ${target.name}`
-          }
-          // Lit means "already kept": a second click is a move, so it opens the picker — what
-          // the item screen's lit bookmark does — rather than re-saving into the same place.
-          onClick={saved ? openPicker : saveHere}
-          onPointerDown={stop}
-          className={cn(
-            GLASS,
-            "pointer-events-auto flex size-8 items-center justify-center",
-          )}
-        >
-          <Bookmark
-            size={15}
-            filled={saved}
-            className={saved ? "text-accent" : "text-ink-hi"}
-          />
-        </button>
+        {/* `ml-auto` keeps the squares right-aligned with or without the chip. */}
+        <div className="ml-auto flex gap-[6px]">
+          {square("less", "Less of this", Minus)}
+          {square("more", "More of this", Plus)}
+          {target ? (
+            <button
+              type="button"
+              aria-label={
+                saved ? `Saved to ${target.name}` : `Save to ${target.name}`
+              }
+              // Lit means "already kept": a second click is a move, so it opens the picker —
+              // what the item screen's lit bookmark does — rather than re-saving into the same
+              // place.
+              onClick={saved ? openPicker : saveHere}
+              onPointerDown={stop}
+              className={cn(
+                GLASS,
+                "pointer-events-auto flex size-8 items-center justify-center",
+              )}
+            >
+              <Bookmark
+                size={15}
+                filled={saved}
+                className={saved ? "text-accent" : "text-ink-hi"}
+              />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* **Portalled to `<body>`, not rendered in place.** This strip lives inside a feed tile, so

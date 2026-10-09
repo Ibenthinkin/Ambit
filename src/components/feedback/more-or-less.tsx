@@ -73,27 +73,26 @@ export type MoreOrLessState = Pick<
 >;
 
 /**
- * The pair's state and its one action, as a hook: `current` is the verdict on this item (or
- * null), `press(verdict)` sets it — or, pressing the one that is on, takes it back. The pair
- * below uses it, and so does the item screen's keyboard (`+` / `-`), so a key and a tap are the
- * same press: same optimistic write, same toast, same undo.
+ * Every mark on the page, and the two writes, as one hook — for a surface that acts on *many*
+ * items: the feed screen (its sheet and its veils) and each hover strip. `verdictOf(id)` reads
+ * the shared `feedback.mine`; `press(id, topicId, verdict)` sets a verdict or, pressing the one
+ * that is on, takes it back; `undo(id)` takes it back outright. `useMoreOrLess` below is this,
+ * narrowed to one item — so every surface shares one optimistic shape, one toast, one undo.
  */
-export function useMoreOrLess({
-  itemId,
-  topicId,
+export function useFeedback({
   authed,
   onToast,
-  onRequireAuth,
-}: MoreOrLessState) {
+}: Pick<MoreOrLessProps, "authed" | "onToast">) {
   const utils = api.useUtils();
   // `enabled: authed` — a signed-out reader has no marks, and the procedure is protected, so
-  // asking would only be a 401. Shared by every pair on the page: one request (same key).
+  // asking would only be a 401. Shared by every caller on the page: one request (same key).
   const mine = api.feedback.mine.useQuery(undefined, { enabled: authed });
-  const current: Verdict | null = mine.data?.more.includes(itemId)
-    ? "more"
-    : mine.data?.less.includes(itemId)
-      ? "less"
-      : null;
+  const verdictOf = (itemId: string): Verdict | null =>
+    mine.data?.more.includes(itemId)
+      ? "more"
+      : mine.data?.less.includes(itemId)
+        ? "less"
+        : null;
 
   // On settle, everything a verdict can change is re-read: the marks, the Saved shelf, the
   // cooled topics and the topic weights.
@@ -138,13 +137,35 @@ export function useMoreOrLess({
     onSettled: settle,
   });
 
-  const press = (verdict: Verdict) => {
-    if (!authed) return onRequireAuth();
+  const undo = (itemId: string) => clear.mutate({ itemId });
+  const press = (itemId: string, topicId: string | null, verdict: Verdict) => {
     // Tapping the verdict that is on takes it back.
-    if (current === verdict) clear.mutate({ itemId });
+    if (verdictOf(itemId) === verdict) undo(itemId);
     else set.mutate({ itemId, verdict, topicId: topicId ?? undefined });
   };
 
+  return { mine: mine.data, verdictOf, press, undo };
+}
+
+/**
+ * The pair's state and its one action, as a hook: `current` is the verdict on this item (or
+ * null), `press(verdict)` sets it — or, pressing the one that is on, takes it back. The pair
+ * below uses it, and so does the item screen's keyboard (`+` / `-`), so a key and a tap are the
+ * same press: same optimistic write, same toast, same undo.
+ */
+export function useMoreOrLess({
+  itemId,
+  topicId,
+  authed,
+  onToast,
+  onRequireAuth,
+}: MoreOrLessState) {
+  const feedback = useFeedback({ authed, onToast });
+  const current = feedback.verdictOf(itemId);
+  const press = (verdict: Verdict) => {
+    if (!authed) return onRequireAuth();
+    feedback.press(itemId, topicId, verdict);
+  };
   return { current, press };
 }
 

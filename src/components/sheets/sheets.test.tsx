@@ -358,6 +358,8 @@ describe("ItemSheet", () => {
         onError={vi.fn()}
         appUrl="https://ambit.test"
         onToast={vi.fn()}
+        marked={null}
+        onFeedback={vi.fn()}
         {...props}
       />,
     );

@@ -234,6 +234,47 @@ test.describe.serial("desktop", () => {
     ).toBeGreaterThanOrEqual(2);
   });
 
+  // docs/DESIGN_more-or-less.md D6: the strip's − and + squares, left of the bookmark. + marks
+  // in place (inked, pressed) and toasts; − veils the tile where it stands and the strip goes
+  // with it; [Undo..] lifts the veil.
+  test("the strip's + marks the tile; its − veils it in place, and Undo lifts the veil", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signIn(page, EMAIL, PASSWORD);
+    const tile = page.locator("[data-feed-id]:has(img)").nth(3);
+    await expect(tile).toBeVisible();
+    const toast = (text: RegExp | string) =>
+      page.getByRole("status").filter({ hasText: text });
+
+    await tile.hover();
+    const strip = tile.getByTestId("tile-actions");
+    await expect(strip).toHaveCSS("opacity", "1");
+    // Right-aligned −, +, bookmark.
+    const names = await strip
+      .getByRole("button")
+      .evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
+    expect(names.slice(1, 3)).toEqual(["Less of this", "More of this"]);
+    expect(names[3]).toMatch(/^Save(d)? to /);
+
+    const more = strip.getByRole("button", { name: "More of this" });
+    await more.click();
+    await expect(more).toHaveAttribute("aria-pressed", "true");
+    await expect(toast(/More of this/)).toHaveText(/^More of this/);
+
+    const grid = page.getByTestId("feed-columns");
+    const heightBefore = (await grid.boundingBox())!.height;
+    await strip.getByRole("button", { name: "Less of this" }).click();
+    const veil = tile.getByTestId("tile-veil");
+    await expect(veil).toBeVisible();
+    await expect(tile.getByTestId("tile-actions")).toHaveCount(0);
+    expect((await grid.boundingBox())!.height).toBe(heightBefore);
+
+    await veil.getByRole("button", { name: "Undo" }).click();
+    await expect(tile.getByTestId("tile-veil")).toHaveCount(0);
+    await expect(toast("Undone")).toHaveText("Undone");
+  });
+
   // docs/DESIGN_list-screens.md §6: the hub is the feed's wide column, left-aligned, and packs
   // four collection tiles across; Saved packs four stacks.
   // The keyboard half of the Lift (docs/PLAN_tile-hover.md Task 6, Review focus 5): Tab onto a

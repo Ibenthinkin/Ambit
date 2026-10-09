@@ -3,11 +3,12 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import { Share } from "~/components/icons";
+import { Minus, Plus, Share } from "~/components/icons";
 import { CoverMosaic } from "~/components/profile/cover-mosaic";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Button } from "~/components/ui/button";
 import { Eyebrow } from "~/components/ui/eyebrow";
+import type { Verdict } from "~/lib/feedback-toast";
 import { writeLastCollectionId } from "~/lib/last-collection";
 import type { SaveDrift } from "~/lib/save-toast";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
@@ -62,6 +63,13 @@ export interface ItemSheetProps {
   appUrl: string;
   /** The sheet has no toast of its own; the Share sheet's "Link copied" goes through the feed's. */
   onToast: (message: string) => void;
+  /** The verdict already on `item` (from the screen's `feedback.mine`), or null. */
+  marked: Verdict | null;
+  /**
+   * A More/Less row was tapped (the sheet has already closed). The screen decides what that
+   * means — set the verdict, or clear it when it is the one already marked — and toasts it.
+   */
+  onFeedback: (verdict: Verdict) => void;
 }
 
 export function ItemSheet({
@@ -72,6 +80,8 @@ export function ItemSheet({
   onError,
   appUrl,
   onToast,
+  marked,
+  onFeedback,
 }: ItemSheetProps) {
   const router = useRouter();
   const utils = api.useUtils();
@@ -132,6 +142,52 @@ export function ItemSheet({
     setShareOpen(true);
   };
 
+  // Close first, then let the screen write — the save rows' order, and the toast rises on the feed.
+  const feedback = (verdict: Verdict) => {
+    if (!item) return;
+    onClose();
+    onFeedback(verdict);
+  };
+
+  // One More/Less row, in the Share row's anatomy (18 px glyph, 15 px label, `ink/8` hairline,
+  // 13 px padding). Marked (docs/DESIGN_more-or-less.md D6, the explorations' sheet): the glyph
+  // turns over into a 24 px ink square, and a mono note trails — "On · tap to undo", which reads
+  // "Undo" under a hovering pointer. The square's `-m-[3px]` gives back the 6 px it has over the
+  // 18 px glyph, so the label never shifts when a row is marked and stays aligned with Share's.
+  // `group` lets the hover swap the two trailing spans; `hover:` is hover-capable devices only.
+  const feedbackRow = (verdict: Verdict, label: string, Glyph: typeof Plus) => {
+    const on = marked === verdict;
+    return (
+      <button
+        type="button"
+        // The trailing note is decoration for the eye: the name stays the verb, `aria-pressed`
+        // says it's on.
+        aria-label={label}
+        aria-pressed={on}
+        onClick={() => feedback(verdict)}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="group border-ink/8 flex w-full items-center gap-[11px] border-b py-[13px] text-left transition-transform duration-150 active:scale-[0.99]"
+      >
+        {on ? (
+          <span className="bg-ink text-on-accent -m-[3px] flex size-6 flex-none items-center justify-center">
+            <Glyph size={16} strokeWidth={2.2} />
+          </span>
+        ) : (
+          <Glyph size={18} strokeWidth={2} className="text-ink/78 flex-none" />
+        )}
+        <span className="text-ink flex-1 text-[15px]">{label}</span>
+        {on ? (
+          <span className="font-mono text-[10.5px] uppercase">
+            <span className="text-ink/55 group-hover:hidden">
+              On · tap to undo
+            </span>
+            <span className="text-ink hidden group-hover:inline">Undo</span>
+          </span>
+        ) : null}
+      </button>
+    );
+  };
+
   return (
     <>
       <BottomSheet open={open} onClose={onClose} animation="menu">
@@ -163,6 +219,10 @@ export function ItemSheet({
             <Share size={18} className="text-ink/78 flex-none" />
             <span className="text-ink text-[15px]">Share</span>
           </button>
+
+          {/* More or less (docs/DESIGN_more-or-less.md D6): Less first, as the pair has it. */}
+          {feedbackRow("less", "Less of this", Minus)}
+          {feedbackRow("more", "More of this", Plus)}
 
           <Eyebrow
             as="p"
