@@ -14,7 +14,7 @@ import { Rise } from "~/components/ui/rise";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { Toast } from "~/components/ui/toast";
 import { useColumnCount } from "~/hooks/use-media-query";
-import { UNDONE_TOAST } from "~/lib/feedback-toast";
+import { UNDO_FAILED_TOAST, UNDONE_TOAST } from "~/lib/feedback-toast";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { CollectionChips } from "./collection-chips";
@@ -101,7 +101,7 @@ export function SavedScreen() {
       );
       setToast(UNDONE_TOAST);
     },
-    onError: () => setToast("Couldn't undo that — it's still here."),
+    onError: () => setToast(UNDO_FAILED_TOAST),
     onSettled: () => utils.feedback.list.invalidate(),
   });
 

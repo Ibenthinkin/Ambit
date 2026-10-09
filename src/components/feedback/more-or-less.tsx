@@ -7,6 +7,7 @@ import { HOVER_LINE } from "~/components/ui/button";
 import {
   feedbackNoteText,
   feedbackToastText,
+  UNDO_FAILED_TOAST,
   UNDONE_TOAST,
   type Verdict,
 } from "~/lib/feedback-toast";
@@ -123,7 +124,7 @@ export function MoreOrLess({
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.previous) utils.feedback.mine.setData(undefined, ctx.previous);
-      onToast("Couldn't undo that. Try again.");
+      onToast(UNDO_FAILED_TOAST);
     },
     onSuccess: () => onToast(UNDONE_TOAST),
     onSettled: settle,
@@ -153,7 +154,7 @@ export function MoreOrLess({
           HOVER_LINE,
           s.button,
           on
-            ? "bg-ink border-ink text-on-accent hover:bg-ink-hi"
+            ? "bg-ink border-ink text-on-accent hover:bg-white"
             : "border-ink/32 text-ink hover:bg-ink/6 hover:border-ink/60 hover:text-ink-hi bg-transparent",
         )}
       >

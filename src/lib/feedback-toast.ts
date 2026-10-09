@@ -45,3 +45,6 @@ export function feedbackNoteText(verdict: Verdict, topicLabel: string | null) {
   if (!topicLabel) return "This one won't come back. Tap again to undo.";
   return `This one won't come back. ${topicLabel} is cooled — Profile → Topics to warm it up. Tap again to undo.`;
 }
+
+/** When taking a mark back fails. The same words Saved uses for a failed un-mark. */
+export const UNDO_FAILED_TOAST = "Couldn't undo that — it's still here.";

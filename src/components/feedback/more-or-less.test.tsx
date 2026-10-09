@@ -15,6 +15,7 @@ type SetOpts = {
 };
 type ClearOpts = {
   onMutate: (v: { itemId: string }) => Promise<{ previous?: Mine }>;
+  onError: (e: unknown, v: unknown, ctx?: { previous?: Mine }) => void;
   onSuccess: () => void;
 };
 
@@ -184,6 +185,19 @@ describe("MoreOrLess", () => {
     });
     c.onSuccess();
     expect(onToast).toHaveBeenLastCalledWith("Undone");
+  });
+
+  it("rolls feedback.mine back and toasts when clear fails", async () => {
+    const { onToast } = setup();
+    const prev: Mine = { more: ["i1"], less: [] };
+    h.getData.mockReturnValue(prev);
+    const c = captured<ClearOpts>(h.clearOpts);
+    const ctx = await c.onMutate({ itemId: "i1" });
+    c.onError(new Error("x"), {}, ctx);
+    expect(h.setData).toHaveBeenLastCalledWith(undefined, prev);
+    expect(onToast).toHaveBeenCalledWith(
+      "Couldn't undo that — it's still here.",
+    );
   });
 
   it("signed out: no query, both buttons ask for sign-in", () => {
