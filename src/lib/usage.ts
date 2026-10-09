@@ -198,8 +198,11 @@ export function createUsage(deps: UsageDeps): Usage {
       bank();
       // pagehide and visibilitychange→hidden both fire on a tab close; the second finds nothing
       // banked and must not send a second `visit.end` of 0 seconds.
-      if (accruedMs > 0) {
-        track("visit.end", { meta: { seconds: clampSeconds(accruedMs) } });
+      // Whole seconds only: a sub-second sitting reports nothing and stays banked, so it adds to
+      // the next report instead of being lost or sent as a meaningless 0.
+      const seconds = clampSeconds(accruedMs);
+      if (seconds > 0) {
+        track("visit.end", { meta: { seconds } });
         accruedMs = 0;
       }
       flush();

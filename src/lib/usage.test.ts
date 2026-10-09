@@ -244,3 +244,19 @@ describe("screenFor / viaFor", () => {
     expect(viaFor("garbage", "https://a.io")).toBe("link");
   });
 });
+
+describe("visit.end whole seconds", () => {
+  it("sub-second sends nothing and stays banked", () => {
+    const h = setup();
+    h.usage.start({ device: "phone", standalone: false, via: "direct" });
+    h.advance(400);
+    h.usage.end();
+    h.usage.resume();
+    h.advance(700);
+    h.usage.end();
+    const ends = h.sent
+      .flatMap((b) => b.events)
+      .filter((e) => e.kind === "visit.end");
+    expect(ends.map((e) => e.meta)).toEqual([{ seconds: 1 }]);
+  });
+});

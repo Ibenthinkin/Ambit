@@ -66,8 +66,10 @@ export default async function RootLayout({
             production branch on purpose: the install *flow* has nothing to do with the service
             worker, and a reader testing on a dev build should still see it behave. */}
         <InstallListener />
-        {/* The after-beta off switch: unset NEXT_PUBLIC_USAGE_ENABLED and redeploy. */}
-        {env.NEXT_PUBLIC_USAGE_ENABLED === "1" ? <UsageProvider /> : null}
+        {/* The after-beta off switch: set or unset USAGE_ENABLED=1 on Coolify and restart/redeploy.
+            A runtime server var, read here because this layout renders per request (connection()
+            above); a NEXT_PUBLIC_ var would be frozen into the build. */}
+        {env.USAGE_ENABLED === "1" ? <UsageProvider /> : null}
         {process.env.NODE_ENV === "production" ? (
           <SerwistProvider swUrl="/serwist/sw.js">
             <TRPCReactProvider>{children}</TRPCReactProvider>
