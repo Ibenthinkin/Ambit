@@ -2,8 +2,10 @@
 
 **Written:** 10-08-26 by Fable 5.1, from Ben's question ("what do you think about introducing a
 like button? … saving things to lists is not something everyone does") and the chat that followed.
-**Status:** mechanics approved in chat 10-08-26; the surfaces' look goes to Claude Design
-(`docs/BRIEF_more-or-less.md`); plan `docs/PLAN_more-or-less.md`.
+**Status:** mechanics approved in chat 10-08-26; **the look is settled 10-09-26** by Ben's Claude
+Design session — the export is `docs/design_handoff_more_or_less/` (its `README.md` is the
+authority for every look; D6 below is the mechanics plus a summary of it); plan
+`docs/PLAN_more-or-less.md`, both parts executable.
 
 ## Why
 
@@ -25,10 +27,13 @@ what it did (SPEC §9's rule: an invisible feedback loop reads as random).
 
 ## Decisions (with Ben, 10-08-26)
 
-1. **Surfaces: everywhere Save is.** Tile sheet rows, the desktop hover strip, the item screen's
-   chrome. The phone item screen's placement is **open, to Claude Design** (the pill can't take two
-   more 48 px buttons: 244 → 396 px at 402); until the verdict the phone's one-tap surface is the
-   tile sheet.
+1. **Surfaces: everywhere Save is** — tile sheet rows, the desktop hover strip, and the item
+   screen. **The item screen's placement was answered 10-09-26 by Claude Design: option 1a**, a
+   worded pair **on the page, never on glass**, as the first row after the thing it is about — under
+   the picture on the phone; under the 28 px summary in the desktop Information column; one pair per
+   figure under its title in a spread; after an article's text under a "Finished · N min read"
+   label. **The pill, the rail and the Share disc are unchanged.** (The pill could not take two more
+   48 px buttons — 244 → 396 px at 402 — which is why the question went to design at all.)
 2. **"Less of this" lowers the topic and keeps it reachable.** It steps a *picked* topic's weight
    down (floor above zero, never deletes a pick) and **cools** the topic as a DRIFT/JUMP
    destination whether or not it is picked. The item itself never returns. Reversible: tap again,
@@ -196,29 +201,72 @@ feedbackToastText("less", null)                                          // "Les
 UNDONE_TOAST                                                             // "Undone"
 ```
 
-## D6. Surfaces (mechanics here; look from Claude Design)
+The handoff adds a **note line under the pair while it is on** (mono 10.5 px uppercase, `ink/55`,
+10 px below the buttons) — `feedbackNoteText(verdict, topicLabel)`:
 
-- **Tile sheet** (`item-sheet.tsx`): two rows beside Share — "More of this" (+), "Less of this"
-  (−), marked state drawn per the export; tapping a marked row clears. The sheet closes, the toast
-  rises (`FeedScreen`'s), `feedback.mine` and `saves`-adjacent queries invalidate. A "less" also
-  **removes the tile from the page** (filter it out of the rendered cards — it is seen now, and
-  leaving it there contradicts the toast).
-- **Hover strip** (`tile-actions.tsx`): two 32 px glass squares beside the bookmark, optimistic
-  against `feedback.mine` exactly as the bookmark is against `saves.ids` (`onMutate` cancel / set /
-  rollback). `onPointerDown={stop}` like every strip control. The chip shrinks to make room.
-- **Item screen, desktop** (`rail-toolbar.tsx`): two `RailButton`s with `pressed` = marked, placed
-  per the export; `item-screen.tsx` passes `topicId: current.topicId` (and starts passing it to
-  Save too). A "less" on the item screen advances the rail by one (`advance(1)`) when a next page
-  exists, else nothing — the toast is the acknowledgement.
-- **Item screen, phone:** **the export decides** (brief §4). Whatever it is, it is a control inside
-  `ItemScreen` driven by the same `feedback.set` call and marked by `feedback.mine`.
-- **Keyboard** (item screen): `+` / `=` → more, `−` → less, in the `useEffectEvent` handler beside
-  `M`; both toggle. `?` is not touched.
-- **Saved** (`collection-chips.tsx`, `saved-screen.tsx`): a "More of this" chip in the filter row →
-  `/saved?shelf=more`, rendering `feedback.list` through the same `SavedTile` wall; the badge is a
-  + that clears (optimistic filter, toast "Undone"). The title's count stays `saves.count`.
-- **Profile → Topics** (`topics-screen.tsx`): a "Showing less of" section under the grouped mix,
-  rows "‹label› — Warm up", from `topics.cools`; hidden when empty. The level control already
+```ts
+feedbackNoteText("more", "Cartography")  // 'Added to your "More of this" shelf on Saved. Tap again to undo.'
+feedbackNoteText("less", "Cartography")  // "This one won't come back. Cartography is cooled — Profile → Topics to warm it up. Tap again to undo."
+feedbackNoteText("less", null)           // "This one won't come back. Tap again to undo."
+```
+
+The `Toast` component sets Geist Mono caps itself, so every string here is sentence case and the
+frames' `MORE OF THIS · NOW DRIFTING TOWARD …` is the CSS.
+
+## D6. Surfaces (mechanics here; the look is the handoff's)
+
+The authority for every look is `docs/design_handoff_more_or_less/README.md` and its frames; this
+section says what each surface **does** and summarises what it looks like. The handoff's one rule:
+**the pair follows the thing it's about.** Its one component: a worded **Less of this / More of
+this** pair (order fixed, left → right), square outline buttons; marked = inverted ink
+(`#F2F2F2` fill, `#0E0E0E` glyph and label); hover = `ink/6` fill + the accent's 2 px inset
+underline; focus = the global ring; `aria-pressed`. Three sizes — phone 48 px / 15 px label,
+desktop 48 px / 16 px in a fixed `220px 220px` grid, reader 52 px / 16 px full width. While on, a
+mono note line sits under it (D5). Toolbars, pill and Share disc are **unchanged**.
+
+- **Item screen, phone picture (P2):** the pair is the first row under the picture (18 px below
+  it, 22 px gutters), the title 30 px below the pair. One short scroll from the full-bleed picture.
+- **Item screen, desktop picture (D2B):** in the Information section's third column, 22 px under
+  the 28 px summary and above the bracket link-out, `220 + 220`. The README says this placement
+  matters most.
+- **Item screen, magazine spread (D3B):** **one pair per figure**, 24 px under each 40 px title,
+  above the maker line — the two works can belong to different topics, so each is charged on its
+  own. State is per figure. (The handoff also draws a phone-stacked magazine, P3; no such view
+  exists today — when one does, the rule is the same: a pair 14 px under each figure's picture,
+  18 px above its title.)
+- **Item screen, articles (P1 / D1):** at the **end of the text, after the source link**, under a
+  "Finished · N min read" label (phone: one 10.5 px mono line; desktop: `Finished` left, `N min
+  read` right, 11 px), above "Where Ambit would wander next". Never mid-text. The row reads toast
+  and auth from a small `ItemShell` context, because the server page renders it between the body
+  and the wander rows.
+- **A "less" on the item screen does not advance the rail.** The marked button, the note and the
+  toast are the acknowledgement (the picture stays; it just won't come back from the feed).
+- **Keyboard** (pictures only): `+` / `=` → more, `-` → less, both toggling, beside `M`. The item
+  screen passes `topicId: current.topicId` to the pair **and now to Save** (the slot-topic rule
+  for Save, D2).
+- **Tile sheet** (`item-sheet.tsx`) _(explorations, not locked)_: two rows **after Share** — Less
+  of this (−), More of this (+) — in the Share row's anatomy. A marked row shows its glyph in a
+  24 px inverted square with a trailing mono "On · tap to undo" (hover: "Undo"); tapping it clears.
+  The sheet closes and the feed's toast rises.
+- **Hover strip** (`tile-actions.tsx`) _(explorations, not locked)_: the squares read **−, +,
+  bookmark**, 32 px glass, 6 px gaps; the chip shrinks to 50 %. A marked square is inverted ink
+  with a thin dark keyline — no green but the saved bookmark's. Optimistic against `feedback.mine`
+  as the bookmark is against `saves.ids`. _Deferred to Ben's look:_ keeping a marked square visible
+  after hover ends (today the whole strip is hover-only), and the 400 ms mono label.
+- **The veil** _(explorations; replaces this design's earlier "remove the tile")_: a card the
+  reader said "less" to is **veiled in place** — `bg/82` over the picture, mono "Less of this",
+  `[Undo..]` — and the masonry does not move. It is `seen_item` now, so the next load skips it.
+  Undo clears the feedback and lifts the veil ("Undone").
+- **Saved** (`collection-chips.tsx`, `saved-screen.tsx`, `saved-tile.tsx`) _(explorations)_: a
+  "More of this" chip **straight after All**, with an 11 px `+` and no count, then a hairline
+  before the collection chips → `/saved?shelf=more`, rendering `feedback.list` through the same
+  `SavedTile` wall; the tile's badge is the 30 px glass square with a 14 px `+` in ink (not green,
+  not inverted) that clears (optimistic filter, toast "Undone"). The title's count stays
+  `saves.count`.
+- **Profile → Topics** (`topics-screen.tsx`) _(explorations)_: a "Showing less of" section between
+  "Your topics" and the retake line — a mono header with the count on the right, rows "‹label›
+  … [Warm up..]", and a 13 px helper: _Cooled by "Less of this". The feed won't drift or jump to
+  these until you warm them up._ From `topics.cools`; hidden when empty. The level control already
   reads a stepped weight back as a level (0.25 → "a little").
 - **Signed out:** every control opens the auth sheet, as Save does. The strip is hidden signed out
   already.
@@ -256,4 +304,6 @@ UNDONE_TOAST                                                             // "Und
   doesn't change that arithmetic.
 - **Item opens as an implicit signal.** Free and strong, but invisible to the reader; stays out
   until the explicit pair has been read on `/dev/feed`.
+- **Two strip details from the explorations page**, deferred to Ben's look after Part 2: a marked
+  square that stays visible when the hover ends, and a mono label appearing 400 ms into a hover.
 

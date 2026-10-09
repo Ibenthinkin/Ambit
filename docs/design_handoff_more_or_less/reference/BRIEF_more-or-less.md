@@ -6,16 +6,6 @@ below is drawn in it). It describes the one feature, what the app already has wh
 goes, the one question Ben wants to settle visually, and what the export should contain so it
 drops onto the code. Companion: `docs/DESIGN_more-or-less.md` (the mechanics, which are fixed)._
 
-> **Answered 10-09-26.** Ben's Claude Design session chose §4's option **A**, drawn as "1a,
-> everywhere": a worded **Less of this / More of this** pair as the first row after the thing it is
-> about — under the picture on the phone, under the 28 px summary in the desktop Information
-> column, one pair per figure under its title in a spread, and after an article's text under a
-> "Finished · N min read" label. Toolbars unchanged; order Less → More; marked = inverted ink; a
-> mono note line under the pair while on. The export is **`docs/design_handoff_more_or_less/`**
-> (`README.md` is the authority; `Ambit - More or Less 1a Screens.dc.html` the spec). §5's items are
-> drawn on its `reference/` explorations page and marked "not yet locked" — the plan builds them as
-> drawn and lists them for Ben's look.
-
 ---
 
 ## 1. The feature in one paragraph

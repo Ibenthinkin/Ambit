@@ -4,19 +4,25 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**Written:** 10-08-26 by Fable 5.1 (planning session), base `main` at `6ec8640`, branch
-`feat/more-or-less` — a plain branch in `~/Dev/ambit`, never a worktree.
+**Written:** 10-08-26 by Fable 5.1 (planning session), base `main` at `6ec8640`; **Part 2's
+verdicts filled 10-09-26** from Ben's Claude Design export (base is now `main` at `67907c0`).
+Branch `feat/more-or-less` — a plain branch in `~/Dev/ambit`, never a worktree.
 
 **Goal:** the "More of this" / "Less of this" pair of `docs/DESIGN_more-or-less.md`: a feedback
 table and a cool table, a transactional write with exact undo, cools applied to drift/jump
 landings under one knob, the shelf on Saved, "Showing less of" on Profile → Topics, the dev
 readout, and the pair on every save surface.
 
-**Two parts.** **Part 1 (Tasks 1–9) depends on nothing from Claude Design** — data, engine, API,
-toasts, Saved chip, Topics section, dev panel, and the tests for all of it. Execute it now.
-**Part 2 (Tasks 10–14) is the surfaces** and waits on Ben's instructions back from the Claude
-Design session (`docs/BRIEF_more-or-less.md`); each of those tasks has a **`VERDICT:`** slot to
-fill from his message before starting it. Commit Part 1 before Part 2; do not push or merge.
+**Two parts, both executable now.** **Part 1 (Tasks 1–9)** is data, engine, API, toasts, the
+Saved shelf, the Topics section, the dev panel, and their tests. **Part 2 (Tasks 10–14)** is the
+surfaces. Ben's Claude Design session answered the brief on 10-09-26 and the export is checked in
+at **`docs/design_handoff_more_or_less/`** — its `README.md` is the authority for every look in
+this plan, and `Ambit - More or Less 1a Screens.dc.html` is the spec (open it in a browser with
+`support.js` beside it; frames P1–P3 phone, D1/D2B/D3B desktop). Where the README and a frame
+conflict, the frame wins (the redesign's convention). Each Part 2 task's `VERDICT:` line is filled
+from it; details marked _(explorations)_ come from `reference/Ambit - More or Less
+(explorations).dc.html`, which the README calls "not yet locked" — build them as drawn and Task 14
+lists each for Ben's look. Commit Part 1 before Part 2; do not push or merge.
 
 **Spec:** `docs/DESIGN_more-or-less.md` (D1–D7). Read it first; this plan does not repeat the
 reasoning.
@@ -62,7 +68,10 @@ reasoning.
 - Modify: `src/server/db/topics.ts` (~L262–271): `MORE_STEP`, `LESS_STEP`, `WEIGHT_FLOOR`,
   `COOL_STEP`, `COOL_FLOOR` beside `WEIGHT_BUMP` / `WEIGHT_CAP`, same teaching comment style.
 - Create: `drizzle/0015_more_or_less.sql` via `bun run db:generate --name more_or_less`
-  (check the journal entry lands in `drizzle/meta/_journal.json`).
+  (check the journal entry lands in `drizzle/meta/_journal.json`). **Number clash:**
+  `docs/PLAN_usage.md` (10-09, uncommitted) also claims `0015` for `usage_event`. Whichever lands
+  first is 0015 and the other is 0016 — `db:generate` numbers from the journal, so read the name it
+  produced and use that everywhere this plan says 0015.
 - Test: `src/server/db/schema.test.ts` if one exists, else a `topics.test.ts` assertion that the
   constants satisfy `0 < WEIGHT_FLOOR < 1 < WEIGHT_CAP`, `0 < COOL_FLOOR < COOL_STEP < 1`.
 
@@ -168,8 +177,10 @@ Produces `FeedbackEffect`.
 
 ### Task 5: The toasts — `lib/feedback-toast.ts`
 
-**Files:** Create `src/lib/feedback-toast.ts` + `feedback-toast.test.ts` (the seven strings of
-DESIGN D5, modelled on `save-toast.ts` / `.test.ts`).
+**Files:** Create `src/lib/feedback-toast.ts` + `feedback-toast.test.ts` (the seven toast strings
+of DESIGN D5 **and `feedbackNoteText`** — the mono line under a marked pair, three strings —
+modelled on `save-toast.ts` / `.test.ts`). The `Toast` component already sets Geist Mono caps, so
+the strings are written in sentence case and the CSS does the uppercasing the frames show.
 
 - [ ] Test → FAIL → implement → PASS. Commit: `feat(lib): feedbackToastText`.
 
@@ -179,16 +190,19 @@ DESIGN D5, modelled on `save-toast.ts` / `.test.ts`).
 
 **Files:**
 
-- Modify: `src/components/saved/collection-chips.tsx` — a chip "More of this" after the collection
-  chips, `selected` when `?shelf=more`, count from `feedback.list`'s length (or a `feedback.count`
-  if the chips need it before the list loads — follow how `saves.count` is used).
+- Modify: `src/components/saved/collection-chips.tsx` — a `Chip size="sm"` **straight after
+  "All"**: an 11 px `Plus` (`strokeWidth={2.6}`) then "More of this", **no count** (the drawing
+  has none); `selected` when `?shelf=more`. After it, before the collection chips, a vertical
+  hairline divider (`aria-hidden`, `border-hairline border-l border-ink/22 my-1 mx-0.5
+  self-stretch`). _(explorations — the Saved frame of the reference page.)_
 - Modify: `src/components/saved/saved-screen.tsx` — read `shelf` from `useSearchParams`; when
   `more`, the wall renders `api.feedback.list` through the same `SavedTile`s; the badge calls
   `feedback.clear` with the same optimistic filter + "Undone" toast the unsave path uses (L63–81).
   The title block's count stays `saves.count`.
 - Modify: `src/components/saved/saved-tile.tsx` — a `badge: "unsave" | "unmore"` prop; the
-  `unmore` badge draws `Plus` (a 13–14 px `+`) in place of the filled bookmark, `aria-label="Undo
-  More of this"`. **Look is provisional until Task 13's verdict**; keep it to the glyph swap.
+  `unmore` badge is the same 30 px glass square with a 14 px `Plus` (`strokeWidth={2.4}`) in
+  `text-ink` — **not green, not inverted** — `aria-label="Undo More of this"`. _(explorations.)_
+  `Plus` gains a `strokeWidth` prop in Task 10; if Task 6 runs first, add it here (default 1.5).
 - Test: `saved-screen.test.tsx` / `collection-chips.test.tsx` (existing files or beside them).
 - Then `e2e/saved.spec.ts`: set "more" on a seeded item via a direct `feedback.set` call (through
   the UI once Task 10 exists; until then, via the tRPC endpoint with the test's session cookie, the
@@ -203,11 +217,15 @@ DESIGN D5, modelled on `save-toast.ts` / `.test.ts`).
 
 **Files:**
 
-- Modify: `src/components/profile/topics-screen.tsx` — under the grouped `TopicLevels`, when
-  `api.topics.cools` is non-empty: an `Eyebrow as="h2"` "Showing less of", rows
-  `border-ink/8 … border-b py-3` with the label at 15 px and a text-link button "Warm up" (the
-  tertiary link style, `button.tsx`'s), optimistic removal (`onMutate` patches `topics.cools`),
-  `hub.toast("Warmed up ‹label›")`.
+- Modify: `src/components/profile/topics-screen.tsx` — between the "Your topics" section and the
+  "Want to start over?" line, when `api.topics.cools` is non-empty _(explorations — the Topics
+  frame)_: a `section` `mt-[30px]`; header row `flex justify-between border-ink/14 border-b pb-2`
+  with `Eyebrow as="h2"` "Showing less of" left and the count (mono, same size) right; rows
+  `flex items-baseline justify-between border-ink/10 border-b py-[13px]`, the label 15 px
+  `text-ink/78`, a `TextLink bracket` button at 14 px reading "Warm up" (renders `[Warm up..]`);
+  under the rows a helper `text-ink/55 mt-[10px] text-[13px] leading-[1.45]`: `Cooled by "Less of
+  this". The feed won't drift or jump to these until you warm them up.` Optimistic removal
+  (`onMutate` patches `topics.cools`), `hub.toast("Warmed up ‹label›")`; hidden when empty.
 - Test: `topics-screen.test.tsx`; `e2e/profile.spec.ts` (or the spec that covers `/profile/topics`)
   — seed a cool via `feedback.set` "less", see the section, Warm up, gone.
 
@@ -241,87 +259,229 @@ weight shown as the raw number — this is the dev panel, the one place a weight
 
 ---
 
-## Part 2 — the surfaces, after Ben's verdict from Claude Design
+## Part 2 — the surfaces, per the handoff
 
-> Each task below starts with a `VERDICT:` line. Fill it from Ben's message (geometry, states,
-> order, glyph paths) before writing the first test. If the verdict renames anything, update
-> DESIGN D6 and `feedback-toast.ts` in the same task. If the verdict adds a surface not listed
-> here (brief §4 D), add a task for it in this file before building.
+> Every look below is the handoff's (`docs/design_handoff_more_or_less/README.md`; the frames in
+> `Ambit - More or Less 1a Screens.dc.html`). `VERDICT:` lines are filled. _(explorations)_ marks a
+> detail from `reference/…(explorations).dc.html` that the README calls not yet locked — build it
+> as drawn; Task 14 lists each for Ben's look. **Nothing in Part 2 touches the pill, the rail or
+> the Share disc** — the toolbars are unchanged (README decision 1). Colour notes: the frames'
+> `rgba(255,255,255,.32)` borders etc. are the ink alpha ladder (`border-ink/32`); `#0E0E0E` on
+> `#F2F2F2` is `bg-ink text-on-accent` (how a selected `Chip` is drawn); `#8A8A8A` / `#9A9A9A`
+> mono is `text-ink/55`; `#BDBDBD` is `text-ink/78`.
 
-### Task 10: The tile sheet rows
+### Task 10: The pair itself — `MoreOrLess`, the glyphs, the note line
 
-**VERDICT:** _(row order relative to Share; marked-row treatment; glyph size)_
+The one component every surface but the sheet rows and the strip squares renders.
 
-**Files:** `src/components/sheets/item-sheet.tsx` (two rows with the Share row's anatomy, L157–165;
-marked state per verdict; tapping a marked row → `feedback.clear`), `src/components/icons/index.tsx`
-(`Minus`, same grid as `Plus` L654; both exported), `feed-screen.tsx` (`onFeedback` → toast via
-`feedbackToastText`; on "less", drop the card from the rendered pages). Tests: `item-sheet.test.tsx`,
-`icons.test.tsx`; `e2e/feed.spec.ts` long-press → "More of this" → `/^More of this/`; long-press →
-"Less of this" → the tile is gone.
+**VERDICT:** a worded pair, order **Less → More** (left → right), square, **on the page, never on
+glass**. Three sizes:
 
-- [ ] Tests → FAIL → implement → PASS → e2e. Commit: `feat(feed): More/Less rows on the tile sheet`.
+| `size`    | button | label | glyph | icon–label gap | grid                                  | gap   |
+| --------- | ------ | ----- | ----- | -------------- | ------------------------------------- | ----- |
+| `phone`   | 48 px  | 15 px | 16 px | 9 px           | `1fr 1fr`, full content width         | 8 px  |
+| `desktop` | 48 px  | 16 px | 16 px | 10 px          | `220px 220px`, fixed, left-aligned    | 10 px |
+| `reader`  | 52 px  | 16 px | 16 px | 10 px          | `1fr 1fr`, the full 720 reader width  | 10 px |
 
-### Task 11: The hover strip
+States (the README's table): **rest** transparent, 1 px `border-ink/32`, `text-ink` label and
+glyph; **hover** `bg-ink/6`, `border-ink/60`, `text-ink-hi`, plus the 2 px inset bottom accent
+underline (`shadow-[inset_0_-2px_0_var(--color-accent)]` — the accent's existing hovered-control
+job), 120 ms ease; **focus-visible** = the global green ring (nothing added); **pressed**
+`active:scale-[0.97]` over 90 ms; **on** `bg-ink border-ink text-on-accent`, fill swap 120 ms;
+**on + hover** `bg-ink-hi` + the underline. `aria-pressed` on each button; tapping the on button
+clears. Glyphs: Less `M6 13h14`, More `M13 6v14M6 13h14` on the 26 grid, stroke 2, round caps.
 
-**VERDICT:** _(order of −, +, bookmark; chip max-width; marked state on glass)_
+**Note line while on** (under the pair): mono 10.5 px uppercase `text-ink/55`, leading 1.5,
+`mt-[10px]`, text from `feedbackNoteText` (DESIGN D5).
 
-**Files:** `src/components/feed/tile-actions.tsx` — two squares, optimistic against
-`api.feedback.mine` with the bookmark's `onMutate`/`onError`/`onSettled` shape (L61–84); chip
-`max-w-[50%]` or per verdict. Tests: `tile-actions.test.tsx` (rollback on error);
-`e2e/desktop.spec.ts` beside the strip test (L175–235): hover → `+` → toast → the square inverted.
+**Files:**
 
-- [ ] Tests → FAIL → implement → PASS → e2e. Commit: `feat(feed): More/Less on the hover strip`.
+- Create: `src/components/feedback/more-or-less.tsx` (client). Props
+  `{ itemId, topicId, topicLabel, size, authed, onToast, onRequireAuth, className? }`. Reads
+  `api.feedback.mine` (`enabled: authed`); `feedback.set` / `feedback.clear` **optimistic against
+  `feedback.mine`** with the strip's `onMutate` cancel / set / `onError` rollback / `onSettled`
+  invalidate shape; toast through `feedbackToastText` / `UNDONE_TOAST`; on settle also invalidate
+  `feedback.list`, `topics.cools`, `topics.mine`. Signed out: no query, both buttons call
+  `onRequireAuth`. Markup: `<div role="group" aria-label="More or less of this">` → two
+  `<button type="button" aria-pressed>` → the note `<p>` while on. Teaching comments: the
+  optimistic shape, why `aria-pressed` and not `aria-checked`.
+- Modify: `src/components/icons/index.tsx` — `Minus` (26 grid, `M6 13h14`, round caps) beside
+  `Plus` (L654); both take `strokeWidth?` (default 1.5 so `Plus`'s one existing use is unchanged;
+  the pair passes 2, the strip 2.2, the Saved badge 2.4, the chip 2.6). `Plus`'s path
+  (`M13 5.5v15M5.5 13h15`) is the design's glyph half a pixel longer per arm — reuse it rather than
+  ship two pluses.
+- Modify: `src/lib/feedback-toast.ts` — `feedbackNoteText` if Task 5 didn't add it.
+- Test: `more-or-less.test.tsx` (order, both `aria-pressed` states, clear path, rollback restores
+  `feedback.mine`, signed-out → `onRequireAuth` and no query, note text per verdict and with a null
+  topic), `icons.test.tsx` (`Minus` renders, `strokeWidth` forwarded).
 
-### Task 12: The item screen — rail, phone placement, keys
+- [ ] Tests → FAIL → implement → PASS. Commit: `feat(ui): MoreOrLess — the Less-of-this /
+      More-of-this pair`.
 
-**VERDICT:** _(rail order; the phone answer A/B/C/D with geometry; marked state)_
+---
 
-**Files:** `src/components/ui/rail-toolbar.tsx` (two `RailButton`s with `pressed`, via a new
-`feedback` prop or the `extra` slot — per verdict), `src/components/item/item-screen.tsx` (the
-`feedback.set` mutation keyed on `current.id` with `topicId: current.topicId`; pass `topicId` to
-`SaveToCollectionSheet` too; `+`/`=`/`−` in the `onKey` `useEffectEvent` L533–552; "less" calls
-`advance(1)` when a next page exists; the phone control per verdict — if A, a row component in
-`item-facts.tsx`'s phone stack; if B, `pill-toolbar.tsx` changes and `no-rounded.test.ts`'s
-allow-list is unchanged; if C, a `RailDisc`-like 56 px disc in the pill grid's `col-start-1` plus
-a two-row `BottomSheet`). `item-shell.tsx` (articles) gets the same pair through `Toolbar`.
-Tests: `item-screen.test.tsx`, `rail-toolbar.test.tsx`, `pill-toolbar.test.tsx` as touched;
-`e2e/item.spec.ts` (phone) and `desktop.spec.ts` (rail) — remember the 250 ms mouse-summon
-throttle (`toPass`).
+### Task 11: The item screen — pictures (phone, desktop single, spread) + keys
 
-- [ ] Tests → FAIL → implement → PASS → e2e both projects. Commit: `feat(item): More/Less in the
-      chrome, keys + / −`.
+**VERDICT:** _"the pair follows the thing it's about."_ No rail buttons, no pill change, no disc.
 
-### Task 13: Saved badge and Topics section — final look
+- **Phone single (P2):** the first row under the picture — `padding: 18px 22px 0`, `size="phone"`;
+  the title 30 px below the pair. Today the `Column` is `pt-[28px]` and `ItemFacts`'s `<h1>` is
+  `mt-[8px]` (36 px picture → title); now `Column pt-[18px]` → pair → an `mt-[22px]` wrapper →
+  `ItemFacts` (its `mt-[8px]` makes the 30).
+- **Desktop single (D2B):** inside `ItemFactsWide`'s third (`2fr`) column, `mt-[22px]` under the
+  28 px summary — the frame calls that text "the title"; in the app the 28 px text in that column
+  is the summary, and the title is column two's italic `<h1>` — and above the bracket link-out
+  (which keeps its `mt-5`). No summary → the pair leads the column. `size="desktop"`,
+  `220px 220px`. **Match this one exactly** (the README says it matters most).
+- **Desktop spread (D3B):** **one pair per figure**, `mt-6` under each 40 px title, above the
+  maker block (which keeps its own `mt-6`). Keyed on the figure's item; state is per figure.
+- **Phone magazine (P3):** no such view exists — the spread is `desktop && layout === "spread"` —
+  so there is nothing to build; DESIGN D6 records the frame for when one does.
+- **A "less" does not advance the rail.** DESIGN D6's `advance(1)` is dropped: P3 shows the marked
+  picture staying put, and the inverted button, the note and the toast are the acknowledgement.
+- **Keys** (pictures only): `+` / `=` → more, `-` → less, both toggling, in the `onKey`
+  `useEffectEvent` (`item-screen.tsx` L533–552) beside `M`. Articles get no keys in this cut.
 
-**VERDICT:** _(badge glyph/state; "Showing less of" row treatment)_
+**Files:**
 
-**Files:** `saved-tile.tsx`, `topics-screen.tsx` — restyle Tasks 6–7's provisional look to the
-export. Tests already exist; update assertions.
+- Modify: `src/components/item/item-facts.tsx` — `ItemFacts` and `ItemFactsSpread` take
+  `feedback?: (item: RailItem) => React.ReactNode`, a **render slot**: `ItemFactsWide` places it
+  after the summary `<p>` (before the link-out), `ItemFactsSpread` after each `<Title>`; the
+  column layout does not place it (the phone pair sits above `ItemFacts`, in the screen). Comment
+  why a slot: three layouts share one placement rule, and this file stays pure (no tRPC, no state).
+- Modify: `src/components/item/item-screen.tsx` — `const feedbackFor = (item: RailItem) =>
+  <MoreOrLess key={item.id} itemId={item.id} topicId={item.topicId} topicLabel={item.topicLabel}
+  size="desktop" authed={authed} onToast={setToast} onRequireAuth={() => auth.openAuth("signup")} />`
+  passed to both wide layouts; the phone stack renders `size="phone"` for `current` directly in
+  the `Column` before `ItemFacts` (inside the same `Rise delayMs={50}`); the keys; and
+  `SaveToCollectionSheet` gets `topicId={current.topicId}` (the save router already takes it —
+  the slot-topic rule for Save, DESIGN D2's last paragraph).
+- Test: `item-facts.test.tsx` (slot position in `wide` and `spread`; absent in `column`),
+  `item-screen.test.tsx` (phone pair rendered above the facts, `+`/`-` call `feedback.set`, a
+  "less" leaves `index` alone, `topicId` reaches the save sheet), `e2e/item.spec.ts` (phone: scroll
+  the pair into view, tap "More of this" → toast `/^More of this/`, the button `aria-pressed=true`;
+  tap again → "Undone"), `e2e/desktop.spec.ts` (D2B: the pair inside the Information section after
+  the summary; Magazine view: two `role="group"` pairs). The 250 ms mouse-summon throttle still
+  applies to anything that wakes the chrome (`toPass`).
 
-- [ ] Commit: `style(saved,profile): More-of-this badge and Showing-less-of per the export`.
+- [ ] Tests → FAIL → implement → PASS → e2e both projects. Commit: `feat(item): the pair under the
+      picture, under the title, per figure; keys + / -`.
 
-### Task 14: Close — docs, SPEC §10, log, Ben's look
+---
 
-- [ ] `SPEC.md` §3 (the surfaces per screen), §10 (one line: "a marked More/Less control is
-      inverted ink — the accent's seven jobs are unchanged"), §12 (the new tests).
-- [ ] `docs/DESIGN_more-or-less.md` **Status** line → built; D6 updated with the verdict.
-- [ ] `docs/BRIEF_more-or-less.md` gets the `> **Answered.**` blockquote the redesign's brief has.
-- [ ] `CLAUDE.md` bullet → Part 2 shipped; `log.md` extends the day (second spend line).
+### Task 12: The item screen — articles (`FinishedRow`)
+
+**VERDICT:** at the **end of the text, after the source link**, under a "Finished" label, above
+"Where Ambit would wander next"; never mid-text. Phone and desktop (P1 / D1):
+
+- Phone: block `mt-[34px] border-ink/14 border-t pt-[14px]`; one mono 10.5 px `text-ink/55` line
+  `Finished · 4 min read` (`Finished` alone when `readingMinutes` is null); pair `mt-[12px]`
+  `size="phone"`; the note line.
+- Desktop (`md` and up): block `mt-12` (48 px) `border-ink/16 border-t pt-[14px]`; the label is two
+  mono 11 px spans in `flex justify-between` — `Finished` left, `4 min read` right; pair `mt-4`
+  `size="reader"` (52 px); the note.
+- `WanderNext` below keeps its own `mt-[44px]` (the frames show 40 / 56; the README ranks the
+  article's spacing below the picture screens' — accepted tolerance, say so in a comment).
+
+**Files:**
+
+- Create: `src/components/item/finished-row.tsx` (client):
+  `{ itemId, topicId, topicLabel, readingMinutes }` → the label + `MoreOrLess`. It takes toast and
+  auth from **`useItemShell()`**, a small context `ItemShell` now provides
+  (`{ authed, toast(text), requireAuth() }`): the row is rendered by the **server** page between
+  `ReaderItemBody` and `WanderNext`, so no prop from the shell can reach it, and a second `Toast`
+  on one screen would be wrong. Teaching comment: context as "props across a server boundary".
+- Modify: `src/components/item/item-shell.tsx` — the provider (`setToast`, `auth.openAuth`,
+  `authed`); `src/app/i/[itemId]/page.tsx` — `topicLabelsFor([item.topicId])` for the article
+  branch too, then `<Rise delayMs={90}><FinishedRow … /></Rise>` between the body's `Rise` and
+  `WanderNext`'s.
+- Test: `finished-row.test.tsx` (label with and without minutes; tap → the context's toast;
+  signed out → `requireAuth`), `item-shell.test.tsx` (the context reaches a child),
+  `e2e/item.spec.ts` article: scroll to "Finished" → "Less of this" → toast `/^Less of this/`.
+
+- [ ] Tests → FAIL → implement → PASS → e2e. Commit: `feat(item): Finished · N min read, with the
+      pair, at the end of an article`.
+
+---
+
+### Task 13: The feed — tile sheet rows, hover strip, the veil
+
+**VERDICT:**
+
+- **Sheet** _(explorations)_: two rows **after Share**, in order **Less of this** (−) then **More
+  of this** (+), the Share row's anatomy (`item-sheet.tsx` L157–165: 18 px glyph at stroke 2,
+  15 px label, `ink/8` hairline, 13 px vertical padding). **Marked row:** the glyph at 16 px inside
+  a 24 px `bg-ink` square in `text-on-accent` ink (stroke 2.2), and a trailing mono 10.5 px
+  `text-ink/55` "On · tap to undo"; hover → the trailing text reads "Undo" in `text-ink`. Tapping a
+  marked row clears. The sheet closes; the feed's toast rises.
+- **Strip** _(explorations)_: the squares right-aligned in order **−, +, bookmark**, 32 px, 6 px
+  gaps; the chip `max-w-[50%]`. Square states: rest = the strip's glass; hover `bg-bg/48
+  border-ink/30 text-ink-hi`; pressed `active:scale-[0.94]`; **marked** `bg-ink text-on-accent`,
+  no glass border, keyline `shadow-[0_0_0_0.5px_rgba(14,14,14,0.45),0_2px_8px_rgba(0,0,0,0.25)]`;
+  marked + hover `bg-ink-hi` + the accent underline. Glyphs 15 px at stroke 2.2. Optimistic against
+  `feedback.mine` exactly as the bookmark is against `saves.ids` (`tile-actions.tsx` L61–84);
+  `onPointerDown={stop}` like every strip control.
+  - **Deferred, not built, on Ben's list:** the explorations' "a marked square stays visible after
+    hover ends, like a saved bookmark" — today's strip is hover-only, bookmark included, so that is
+    a strip decision, not a More/Less one; and the "mono label after 400 ms" on a square — no
+    tooltip primitive exists, `aria-label` carries the name.
+- **The veil** _(explorations; replaces DESIGN D6's "remove the tile")_: a rendered card whose id is
+  in `feedback.mine.less` is **veiled in place** — the masonry must not move — by a sibling overlay
+  in the `group/tile relative` wrapper (the Saved badge's pattern: a sibling, so its clicks never
+  reach the tile's press handlers): `bg-bg/82`, mono 11 px `text-ink/78` "Less of this" over a
+  14 px `TextLink bracket` button "Undo" (renders `[Undo..]`) → `feedback.clear` → the veil lifts,
+  toast "Undone". The card is `seen_item` now, so the next load skips it. Phone and desktop alike:
+  the veil lives in the grid, not in the strip.
+
+**Files:** `src/components/sheets/item-sheet.tsx` (the two rows; an `onFeedback(verdict)` prop;
+`marked: Verdict | null` from the screen), `src/components/feed/tile-actions.tsx` (two squares),
+a new `src/components/feed/tile-veil.tsx` mounted by the card wrapper (`FeedGrid` — find the
+`group/tile relative` wrapper the strip already uses), `src/components/feed/feed-screen.tsx`
+(`api.feedback.mine` → `lessIds` / the sheet's `marked`; `onFeedback` → `feedback.set` → toast
+via `feedbackToastText`; `onUndo` → `feedback.clear` → "Undone"). Tests: `item-sheet.test.tsx`
+(rows, order, marked trailing text, clear), `tile-actions.test.tsx` (order, marked classes,
+rollback restores `feedback.mine`), `tile-veil.test.tsx`; `e2e/feed.spec.ts` long-press → "More of
+this" → toast `/^More of this/`; long-press → "Less of this" → `[Undo..]` on that tile and the
+grid's height unchanged → Undo → the veil gone; `e2e/desktop.spec.ts` strip `−` / `+` beside the
+existing strip test (L175–235).
+
+- [ ] Tests → FAIL → implement → PASS → e2e both projects. Commit: `feat(feed): More/Less on the
+      tile sheet and the hover strip; a Less veils the tile in place`.
+
+---
+
+### Task 14: Close — docs, SPEC, log, Ben's look
+
+- [ ] `SPEC.md` §3 (the pair per screen and where it sits), §10 (one line: "a marked More/Less
+      control is inverted ink — the accent's seven jobs are unchanged; the pair uses two of them,
+      the hover underline and the ring"), §12 (the new tests).
+- [ ] `docs/DESIGN_more-or-less.md` **Status** → built. (`docs/BRIEF_more-or-less.md` already
+      carries its **Answered** note.)
+- [ ] `CLAUDE.md` bullet → Part 2 shipped, naming `docs/design_handoff_more_or_less/`; `log.md`
+      extends the day (second spend line).
 - [ ] `bun run check`, `bun run e2e:prod`, the CI-shape run. **Do not push or merge.**
-- [ ] **Ben's look** (numbered, for his device pass at 402 / 1440 / the tailnet phone):
-      1. Long-press a tile → More of this → toast names the topic → `/saved?shelf=more` shows it.
-      2. Less of this on a drift card → the tile leaves → `/profile/topics` shows the topic under
-         "Showing less of" → Warm up removes it.
-      3. On the item screen: + / − keys on desktop; the phone control where the verdict put it.
-      4. `/dev/feed` → Your topics shows the weight and cool moving; `coolStrength 0` → the same
-         page as before for the same cursor (Restart feed between).
-      5. Nothing green that wasn't green before.
+- [ ] **Ben's look** (numbered, for 402 / 1440 / the tailnet phone):
+      1. Phone picture: one short scroll → the pair under the picture → More → the toast names
+         the topic, the button inverts, the note appears → `/saved?shelf=more` shows it.
+      2. Desktop picture: the pair under the 28 px summary in the Information section's third
+         column, 220 + 220; Magazine view: one pair per figure under each title; `+` / `-` keys.
+      3. Article, both widths: "Finished · N min read" after the source link, the pair, then
+         "Where Ambit would wander next".
+      4. Feed: long-press → Less → the tile veils in place and nothing moves → `[Undo..]`; on the
+         desktop the strip reads − + bookmark with the chip at 50 %.
+      5. Saved: the "More of this" chip with its + and the hairline; Topics: "Showing less of"
+         with the count and `[Warm up..]`.
+      6. `/dev/feed` → Your topics moves; `coolStrength 0` → the old page for the same cursor
+         (Restart feed between).
+      7. Nothing green that wasn't green before.
+      8. _(explorations, deferred — two decisions)_ Should a marked strip square stay visible after
+         hover ends? Want the 400 ms mono label on strip squares?
 
 ## Self-review
 
 **Spec coverage.** D1 → Task 1; D2 → Task 2; D3 → Task 4 + 8; D4 → Task 3; D5 → Task 5; D6 →
-Tasks 6, 7, 10–13; D7 → every task's test step plus Task 9's CI-shape run. The brief's §4 question
-lands in Task 12's VERDICT; its §5 items in Tasks 10, 11, 13.
+Tasks 6, 7, 10–13 (D6 itself is rewritten to the handoff); D7 → every task's test step plus Task 9's CI-shape run. The brief's §4 question
+is answered 1a (Tasks 11–12); its §5 items are Tasks 6, 7, 10 and 13.
 
 **Type consistency.** `FeedbackEffect` (Task 2) is what the router (Task 3) maps to
 `{ verdict, drift }`; `FeedbackDrift` (Task 5) has the save toast's shape so the strip and sheet

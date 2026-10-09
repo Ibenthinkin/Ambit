@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;1,400&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #060606; }
+    a { color: #F2F2F2; text-decoration: underline; text-underline-offset: 3px; }
+    a:hover { color: #FFFFFF; text-decoration-color: #2BB24C; }
+  </style>
+</helmet>
+
+<section style="padding:96px 96px 160px; background:#060606; color:#E6E6E6; font-family:'Hanken Grotesk', sans-serif; display:flex; flex-direction:column; gap:110px;">
+
+  <svg width="0" height="0" style="position:absolute;"><defs><radialGradient id="pg" gradientUnits="userSpaceOnUse" cx="12" cy="14" r="12"><stop offset="0" stop-color="#A8AEFF"><animate attributeName="stop-color" values="#A8AEFF;#E0A184;#7FC4B0;#E8D48A;#A8AEFF" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="0.5" stop-color="#E8D48A"><animate attributeName="stop-color" values="#E8D48A;#A8AEFF;#E0A184;#7FC4B0;#E8D48A" dur="10s" repeatCount="indefinite"></animate></stop><stop offset="1" stop-color="#7FC4B0"><animate attributeName="stop-color" values="#7FC4B0;#E8D48A;#A8AEFF;#E0A184;#7FC4B0" dur="10s" repeatCount="indefinite"></animate></stop></radialGradient></defs></svg>
+
+  <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:80px; max-width:1800px; border-top:0.5px solid rgba(255,255,255,0.3); padding-top:18px;">
+    <div>
+      <div style="font-family:'Geist Mono', monospace; font-size:12px; text-transform:uppercase; color:#9A9A9A;">Ambit · More or less · 1a across item types · 10-09-26</div>
+      <div style="font-size:72px; line-height:1.02; letter-spacing:-0.025em; color:#F2F2F2; margin-top:22px;">1a, everywhere</div>
+    </div>
+    <div style="font-size:22px; line-height:1.4; color:#BDBDBD; padding-top:40px; text-wrap:pretty;">The pair is always the first row after the thing itself. On pictures that's directly under the image. On a spread each work gets its own pair. On articles it waits until the end of the text, so it never interrupts reading. Frames are shown scrolled to where the pair sits. <a href="Ambit - Item Image 1a.dc.html">[Open the phone prototype..]</a></div>
+  </div>
+
+  <!-- PHONE -->
+  <div style="display:flex; flex-direction:column; gap:28px;">
+    <div style="display:flex; justify-content:space-between; border-top:0.5px solid rgba(255,255,255,0.18); padding-top:14px; font-family:'Geist Mono', monospace; font-size:12px; text-transform:uppercase; color:#9A9A9A;"><span>01 — Phone · 402 × 874</span><span>Article · Single image · Magazine</span></div>
+    <div style="display:flex; flex-wrap:wrap; gap:72px;">
+
+      <!-- P1 article -->
+      <div id="p1" style="display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; align-items:baseline; gap:12px;"><span style="background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:13px; padding:4px 8px;">P1</span><span style="font-size:24px; color:#F2F2F2;">Article · end of text</span></div>
+        <div style="position:relative; width:402px; height:874px; border-radius:54px; overflow:hidden; background:#0E0E0E; box-shadow:0 0 0 9px #161616, 0 0 0 10px #2E2E2E;">
+          <div style="position:absolute; left:0; right:0; top:-40px; padding:0 22px;">
+            <div style="font-size:17px; line-height:1.6; color:#D6D6D6; text-wrap:pretty;">A wayfinder memorised a "star compass", the points on the horizon where key stars rise and set, and held course by them through the night.</div>
+            <div style="font-size:17px; line-height:1.6; color:#D6D6D6; margin-top:18px; text-wrap:pretty;">By day they read the interference of ocean swells against islands they couldn't yet see, and the birds that flew out from land at dawn and home at dusk.</div>
+            <div style="font-size:17px; line-height:1.6; color:#D6D6D6; margin-top:18px; text-wrap:pretty;">The knowledge was almost lost. In 1976 the voyaging canoe Hōkūleʻa sailed from Hawaiʻi to Tahiti with no instruments at all, and proved it still worked.</div>
+            <a href="#" style="display:inline-block; font-size:13.5px; color:#DADADA; margin-top:20px;">[Read on Wikipedia..]</a>
+            <div style="margin-top:34px; border-top:0.5px solid rgba(255,255,255,0.14); padding-top:14px;">
+              <div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#8A8A8A;">Finished · 4 min read</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
+                <div style="height:48px; display:flex; align-items:center; justify-content:center; gap:9px; border:1px solid rgba(255,255,255,0.32); color:#F2F2F2; font-size:15px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"><path d="M6 13h14"></path></svg>Less of this</div>
+                <div style="height:48px; display:flex; align-items:center; justify-content:center; gap:9px; background:#F2F2F2; border:1px solid #F2F2F2; color:#0E0E0E; font-size:15px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#0E0E0E" stroke-width="2" stroke-linecap="round"><path d="M13 6v14M6 13h14"></path></svg>More of this</div>
+              </div>
+              <div style="font-family:'Geist Mono', monospace; font-size:10.5px; line-height:1.5; text-transform:uppercase; color:#8A8A8A; margin-top:10px;">Added to your "More of this" shelf on Saved. Tap again to undo.</div>
+            </div>
+            <div style="margin-top:40px; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; padding-bottom:10px; border-bottom:0.5px solid rgba(255,255,255,0.14);">Where Ambit would wander next</div>
+            <div style="display:flex; gap:12px; padding:16px 0; border-bottom:0.5px solid rgba(255,255,255,0.14);"><span style="width:6px; height:6px; border-radius:50%; background:#2BB24C; flex-shrink:0; margin-top:9px;"></span><div><div style="font-size:18px; color:#F2F2F2;">The Great Wave off Kanagawa</div><div style="font-size:13px; color:#8A8A8A; margin-top:5px;">The same swell, read as force</div></div></div>
+            <div style="display:flex; gap:12px; padding:16px 0; border-bottom:0.5px solid rgba(255,255,255,0.14);"><span style="width:6px; height:6px; border-radius:50%; background:#2BB24C; flex-shrink:0; margin-top:9px;"></span><div><div style="font-size:18px; color:#F2F2F2;">The Pillars of Creation</div><div style="font-size:13px; color:#8A8A8A; margin-top:5px;">The stars these become</div></div></div>
+          </div>
+          <div style="position:absolute; left:79px; bottom:26px; width:244px; height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 22px; border-radius:999px; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+            <svg width="29" height="29" viewBox="0 0 24 24"><circle cx="12" cy="7.2" r="5" fill="url(#pg)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#pg)"></path></svg>
+            <svg width="31" height="31" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="rgba(255,255,255,0.95)"></circle><circle cx="21" cy="7" r="1.9" fill="rgba(255,255,255,0.95)"></circle></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg>
+          </div>
+          <div style="position:absolute; right:11px; bottom:26px; width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28);"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M12 3v12M7.5 7.5L12 3l4.5 4.5"></path></svg></div>
+          <div style="position:absolute; top:0; left:0; right:0; height:54px; display:flex; align-items:center; justify-content:space-between; padding:4px 34px 0 40px; font-family:-apple-system, 'Helvetica Neue', sans-serif; font-weight:600; font-size:16px; color:#fff; background:linear-gradient(#0E0E0E 70%, rgba(14,14,14,0));"><span>9:41</span><span style="width:124px; height:36px; border-radius:20px; background:#000;"></span><svg width="27" height="13" viewBox="0 0 27 13"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" fill="none" stroke="#fff" opacity="0.4"></rect><rect x="2" y="2" width="18" height="9" rx="2" fill="#fff"></rect></svg></div>
+          <div style="position:absolute; bottom:8px; left:134px; width:134px; height:5px; border-radius:3px; background:#fff;"></div>
+        </div>
+        <div style="width:402px; font-size:15px; line-height:1.45; color:#BDBDBD; text-wrap:pretty;">After the last paragraph and the source link, under a "Finished" label. Shown with More of this marked.</div>
+      </div>
+
+      <!-- P2 single -->
+      <div id="p2" style="display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; align-items:baseline; gap:12px;"><span style="background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:13px; padding:4px 8px;">P2</span><span style="font-size:24px; color:#F2F2F2;">Single image · under the picture</span></div>
+        <div style="position:relative; width:402px; height:874px; border-radius:54px; overflow:hidden; background:#0A0A0A; box-shadow:0 0 0 9px #161616, 0 0 0 10px #2E2E2E;">
+          <div style="position:absolute; left:0; right:0; top:-330px;">
+            <div style="height:874px; background:#0A0A0A url('assets/ml/t1.webp') center/cover no-repeat;"></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:18px 22px 0;">
+              <div style="height:48px; display:flex; align-items:center; justify-content:center; gap:9px; border:1px solid rgba(255,255,255,0.32); color:#F2F2F2; font-size:15px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"><path d="M6 13h14"></path></svg>Less of this</div>
+              <div style="height:48px; display:flex; align-items:center; justify-content:center; gap:9px; border:1px solid rgba(255,255,255,0.32); color:#F2F2F2; font-size:15px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"><path d="M13 6v14M6 13h14"></path></svg>More of this</div>
+            </div>
+            <div style="padding:30px 22px 0;">
+              <div style="font-size:32px; line-height:1.08; letter-spacing:-0.02em; color:#F2F2F2;">Tiger in snow</div>
+              <div style="font-size:14px; color:#8A8A8A; margin-top:10px;">from <span style="color:#F2F2F2; text-decoration:underline; text-underline-offset:3px;">Unsplash ↗</span></div>
+              <div style="font-size:16px; line-height:1.55; color:#BDBDBD; margin-top:20px;">A tiger mid-snarl, shot from above against packed snow. The coat that hides it in grass makes it impossible to miss here.</div>
+            </div>
+          </div>
+          <div style="position:absolute; left:79px; bottom:26px; width:244px; height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 22px; border-radius:999px; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+            <svg width="29" height="29" viewBox="0 0 24 24"><circle cx="12" cy="7.2" r="5" fill="url(#pg)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#pg)"></path></svg>
+            <svg width="31" height="31" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="rgba(255,255,255,0.95)"></circle><circle cx="21" cy="7" r="1.9" fill="rgba(255,255,255,0.95)"></circle></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg>
+          </div>
+          <div style="position:absolute; right:11px; bottom:26px; width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28);"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M12 3v12M7.5 7.5L12 3l4.5 4.5"></path></svg></div>
+          <div style="position:absolute; top:0; left:0; right:0; height:54px; display:flex; align-items:center; justify-content:space-between; padding:4px 34px 0 40px; font-family:-apple-system, 'Helvetica Neue', sans-serif; font-weight:600; font-size:16px; color:#fff;"><span>9:41</span><span style="width:124px; height:36px; border-radius:20px; background:#000;"></span><svg width="27" height="13" viewBox="0 0 27 13"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" fill="none" stroke="#fff" opacity="0.4"></rect><rect x="2" y="2" width="18" height="9" rx="2" fill="#fff"></rect></svg></div>
+          <div style="position:absolute; bottom:8px; left:134px; width:134px; height:5px; border-radius:3px; background:#fff;"></div>
+        </div>
+        <div style="width:402px; font-size:15px; line-height:1.45; color:#BDBDBD; text-wrap:pretty;">The picture fills the screen; one short scroll brings up the pair, then title and text. Same as the prototype.</div>
+      </div>
+
+      <!-- P3 magazine -->
+      <div id="p3" style="display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; align-items:baseline; gap:12px;"><span style="background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:13px; padding:4px 8px;">P3</span><span style="font-size:24px; color:#F2F2F2;">Magazine · a pair per work</span></div>
+        <div style="position:relative; width:402px; height:874px; border-radius:54px; overflow:hidden; background:#0A0A0A; box-shadow:0 0 0 9px #161616, 0 0 0 10px #2E2E2E;">
+          <div style="position:absolute; left:0; right:0; top:-200px;">
+            <div style="display:flex; justify-content:space-between; padding:0 22px 10px; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A;"><span>Fig. 1</span><span>Painting</span></div>
+            <div style="height:560px; margin:0 22px; background:#0A0A0A url('assets/ml/t2.webp') center/cover no-repeat;"></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:14px 22px 0;">
+              <div style="height:48px; display:flex; align-items:center; justify-content:center; gap:9px; background:#F2F2F2; border:1px solid #F2F2F2; color:#0E0E0E; font-size:15px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#0E0E0E" stroke-width="2" stroke-linecap="round"><path d="M6 13h14"></path></svg>Less of this</div>
+              <div style="height:48px; display:flex; align-items:center; justify-content:center; gap:9px; border:1px solid rgba(255,255,255,0.32); color:#F2F2F2; font-size:15px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"><path d="M13 6v14M6 13h14"></path></svg>More of this</div>
+            </div>
+            <div style="padding:18px 22px 0;">
+              <div style="font-size:26px; line-height:1.1; letter-spacing:-0.015em; color:#F2F2F2;">Patience with a lamb</div>
+              <div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#8A8A8A; margin-top:8px;">Allegory · 19th c.</div>
+            </div>
+            <div style="margin:30px 22px 0; border-top:0.5px solid rgba(255,255,255,0.16); padding-top:12px; display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A;"><span>Fig. 2</span><span>Gouache</span></div>
+            <div style="height:560px; margin:10px 22px 0; background:#0A0A0A url('assets/ml/t5.webp') center/cover no-repeat;"></div>
+          </div>
+          <div style="position:absolute; left:50%; bottom:96px; transform:translateX(-50%); background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.3px; padding:10px 14px; white-space:nowrap;">Less of this · Drifting away from Painting</div>
+          <div style="position:absolute; left:79px; bottom:26px; width:244px; height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 22px; border-radius:999px; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+            <svg width="29" height="29" viewBox="0 0 24 24"><circle cx="12" cy="7.2" r="5" fill="url(#pg)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#pg)"></path></svg>
+            <svg width="31" height="31" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="rgba(255,255,255,0.95)"></circle><circle cx="21" cy="7" r="1.9" fill="rgba(255,255,255,0.95)"></circle></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg>
+          </div>
+          <div style="position:absolute; right:11px; bottom:26px; width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(240,237,231,0.225); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.28);"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M12 3v12M7.5 7.5L12 3l4.5 4.5"></path></svg></div>
+          <div style="position:absolute; top:0; left:0; right:0; height:54px; display:flex; align-items:center; justify-content:space-between; padding:4px 34px 0 40px; font-family:-apple-system, 'Helvetica Neue', sans-serif; font-weight:600; font-size:16px; color:#fff; background:linear-gradient(#0A0A0A 70%, rgba(10,10,10,0));"><span>9:41</span><span style="width:124px; height:36px; border-radius:20px; background:#000;"></span><svg width="27" height="13" viewBox="0 0 27 13"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" fill="none" stroke="#fff" opacity="0.4"></rect><rect x="2" y="2" width="18" height="9" rx="2" fill="#fff"></rect></svg></div>
+          <div style="position:absolute; bottom:8px; left:134px; width:134px; height:5px; border-radius:3px; background:#fff;"></div>
+        </div>
+        <div style="width:402px; font-size:15px; line-height:1.45; color:#BDBDBD; text-wrap:pretty;">The spread stacks on phone. Each figure carries its own pair, because the two works can belong to different topics. Shown with Less marked on Fig. 1.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- DESKTOP -->
+  <div style="display:flex; flex-direction:column; gap:28px;">
+    <div style="display:flex; justify-content:space-between; border-top:0.5px solid rgba(255,255,255,0.18); padding-top:14px; font-family:'Geist Mono', monospace; font-size:12px; text-transform:uppercase; color:#9A9A9A;"><span>02 — Desktop</span><span>Article (reader 720) · Single image · Magazine spread</span></div>
+    <div style="display:flex; flex-wrap:wrap; gap:72px;">
+
+      <!-- D1 article -->
+      <div id="d1" style="display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; align-items:baseline; gap:12px;"><span style="background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:13px; padding:4px 8px;">D1</span><span style="font-size:24px; color:#F2F2F2;">Article · end of text</span></div>
+        <div style="position:relative; width:1440px; height:900px; overflow:hidden; background:#0E0E0E;">
+          <div style="position:absolute; left:360px; top:-20px; width:720px;">
+            <div style="font-size:21px; line-height:1.6; color:#D6D6D6; text-wrap:pretty;">A wayfinder memorised a "star compass", the points on the horizon where key stars rise and set, and held course by them through the night. By day they read the interference of ocean swells against islands they couldn't yet see.</div>
+            <div style="font-size:21px; line-height:1.6; color:#D6D6D6; margin-top:22px; text-wrap:pretty;">The knowledge was almost lost. In 1976 the voyaging canoe Hōkūleʻa sailed from Hawaiʻi to Tahiti with no instruments at all, and proved it still worked.</div>
+            <a href="#" style="display:inline-block; font-size:16px; color:#E6E6E6; margin-top:24px;">[Read on Wikipedia..]</a>
+            <div style="margin-top:48px; border-top:0.5px solid rgba(255,255,255,0.16); padding-top:14px;">
+              <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A;"><span>Finished</span><span>4 min read</span></div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px;">
+                <div style="height:52px; display:flex; align-items:center; justify-content:center; gap:10px; border:1px solid rgba(255,255,255,0.32); color:#F2F2F2; font-size:16px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"><path d="M6 13h14"></path></svg>Less of this</div>
+                <div style="height:52px; display:flex; align-items:center; justify-content:center; gap:10px; border:1px solid rgba(255,255,255,0.6); color:#FFFFFF; font-size:16px; background:rgba(255,255,255,0.06); box-shadow:inset 0 -2px 0 #2BB24C;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"><path d="M13 6v14M6 13h14"></path></svg>More of this</div>
+              </div>
+            </div>
+            <div style="margin-top:56px; display:flex; justify-content:space-between; border-top:0.5px solid rgba(255,255,255,0.16); padding:14px 0 10px; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A;"><span>Where Ambit would wander next</span><span>2</span></div>
+            <div style="display:grid; grid-template-columns:48px minmax(0,1.3fr) minmax(0,1fr); column-gap:20px; align-items:baseline; padding:18px 0; border-top:0.5px solid rgba(255,255,255,0.1);"><span style="font-family:'Geist Mono', monospace; font-size:11px; color:#8A8A8A;">01</span><span style="font-size:24px; color:#F2F2F2;">The Great Wave off Kanagawa</span><span style="font-size:15px; color:#9A9A9A;">The same swell, read as force</span></div>
+            <div style="display:grid; grid-template-columns:48px minmax(0,1.3fr) minmax(0,1fr); column-gap:20px; align-items:baseline; padding:18px 0; border-top:0.5px solid rgba(255,255,255,0.1);"><span style="font-family:'Geist Mono', monospace; font-size:11px; color:#8A8A8A;">02</span><span style="font-size:24px; color:#F2F2F2;">The Pillars of Creation</span><span style="font-size:15px; color:#9A9A9A;">The stars these become</span></div>
+          </div>
+          <div style="position:absolute; right:24px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; align-items:center; gap:12px;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:22px; padding:20px 9px; border-radius:999px; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.22);">
+              <svg width="29" height="29" viewBox="0 0 24 24"><circle cx="12" cy="7.2" r="5" fill="url(#pg)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#pg)"></path></svg>
+              <svg width="30" height="30" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="#fff" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="#fff"></circle><circle cx="21" cy="7" r="1.9" fill="#fff"></circle></svg>
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg>
+            </div>
+            <span style="width:68px; height:68px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px); -webkit-backdrop-filter:blur(26px); border:0.5px solid rgba(255,255,255,0.22);"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M12 3v12M7.5 7.5L12 3l4.5 4.5"></path></svg></span>
+          </div>
+        </div>
+        <div style="width:720px; font-size:15px; line-height:1.45; color:#BDBDBD; text-wrap:pretty;">The pair is full reader width, under "Finished", above where Ambit would wander next. Shown with the hover state on More of this.</div>
+      </div>
+
+      <!-- D2/D3 matched to production -->
+      <div style="width:100%; display:flex; justify-content:space-between; border-top:0.5px solid rgba(255,255,255,0.12); padding-top:12px; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#8A8A8A;"><span>D2–D3 rebuilt from production screenshots · 2520 × 1355 css viewport, shown at 50%</span><span>Measured: hero 100vh · info grid 1fr 1fr 2fr / 1fr 1fr, 40 gap, 40 margins · rail 68 wide, right 27</span></div>
+
+      <div id="d2b" style="display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; align-items:baseline; gap:12px;"><span style="background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:13px; padding:4px 8px;">D2B</span><span style="font-size:24px; color:#F2F2F2;">Single — under the title (chosen)</span></div>
+        <div style="position:relative; width:1260px; height:678px; overflow:hidden; box-shadow:0 0 0 1px #2E2E2E;">
+          <div style="position:absolute; left:0; top:0; width:2520px; height:1355px; transform:scale(0.5); transform-origin:0 0; overflow:hidden; background:#0E0E0E; color:#E6E6E6;">
+            <div style="position:absolute; left:0; right:0; top:-437px;">
+              <div style="position:relative; height:1355px; background:#0A0A0A;">
+                <div style="position:absolute; inset:0; background:url('assets/ml/t10.webp') center/contain no-repeat;"></div>
+                <div style="position:absolute; left:0; right:0; bottom:0; height:260px; background:linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0));"></div>
+                <div style="position:absolute; left:40px; bottom:34px; display:flex; gap:14px; align-items:baseline;"><span style="font-family:'Geist Mono', monospace; font-size:11px; color:#9A9A9A;">14</span><div><div style="font-size:22px; line-height:1.2; color:#F2F2F2;">The overgrown gate</div><div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; margin-top:6px;">Unsplash</div></div></div>
+                <div style="position:absolute; left:50%; bottom:34px; transform:translateX(-50%); font-family:'Geist Mono', monospace; font-size:10.5px; letter-spacing:0.5px; text-transform:uppercase; color:#BDBDBD;">↓ Information</div>
+              </div>
+              <div style="padding:0 40px;">
+                <div style="display:flex; justify-content:space-between; gap:24px; padding:22px 0 14px; border-bottom:0.5px solid rgba(255,255,255,0.16); font-family:'Geist Mono', monospace; font-size:12px; text-transform:uppercase; color:#DADADA;"><span>Ambit</span><span>Architecture</span><a href="#" style="color:#DADADA;">Unsplash ↗</a></div>
+                <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr); column-gap:40px; padding:14px 0 72px;">
+                <div style="font-family:'Geist Mono', monospace; font-size:12px; text-transform:uppercase; color:#9A9A9A;">Photograph</div>
+                <div style="font-size:16px; line-height:1.45; color:#E6E6E6;"><span style="font-style:italic;">The overgrown gate</span><div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#8A8A8A; margin-top:16px; line-height:1.6;">From <a href="#" style="color:#DADADA;">Unsplash ↗</a><br>Rights retained by original authors — displayed with credit and link</div></div>
+                <div><div style="font-size:28px; line-height:1.32; letter-spacing:-0.01em; color:#E6E6E6;">The overgrown gate</div><div style="margin-top:22px;"><div style="display:grid; grid-template-columns:220px 220px; gap:10px;"><div style="height:48px; display:flex; align-items:center; justify-content:center; gap:10px; border:1px solid rgba(255,255,255,0.32); color:#F2F2F2; font-size:16px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"><path d="M6 13h14"></path></svg>Less of this</div><div style="height:48px; display:flex; align-items:center; justify-content:center; gap:10px; background:#F2F2F2; border:1px solid #F2F2F2; color:#0E0E0E; font-size:16px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#0E0E0E" stroke-width="2" stroke-linecap="round"><path d="M13 6v14M6 13h14"></path></svg>More of this</div></div></div><a href="#" style="display:inline-block; font-size:16px; color:#E6E6E6; margin-top:22px;">[Read the post on Unsplash..] ↗</a></div>
+              </div>
+                
+              <div style="display:flex; justify-content:space-between; border-top:0.5px solid rgba(255,255,255,0.16); padding:14px 0 10px; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A;"><span>Where Ambit would wander next</span><span>03</span></div>
+              <div style="display:grid; grid-template-columns:84px minmax(0,1.3fr) minmax(0,1fr) 30px; column-gap:0; align-items:baseline; padding:18px 0; border-top:0.5px solid rgba(255,255,255,0.1);"><span style="font-family:'Geist Mono', monospace; font-size:11px; color:#8A8A8A;">01</span><span style="font-size:24px; line-height:1.2; color:#F2F2F2;">The Great Wave off Kanagawa</span><span style="font-size:15px; color:#9A9A9A;">a drift from gardens into woodblock</span><span style="font-family:'Geist Mono', monospace; color:#8A8A8A; text-align:right;">→</span></div><div style="display:grid; grid-template-columns:84px minmax(0,1.3fr) minmax(0,1fr) 30px; column-gap:0; align-items:baseline; padding:18px 0; border-top:0.5px solid rgba(255,255,255,0.1);"><span style="font-family:'Geist Mono', monospace; font-size:11px; color:#8A8A8A;">02</span><span style="font-size:24px; line-height:1.2; color:#F2F2F2;">The Pillars of Creation</span><span style="font-size:15px; color:#9A9A9A;">a drift from pattern into space</span><span style="font-family:'Geist Mono', monospace; color:#8A8A8A; text-align:right;">→</span></div><div style="display:grid; grid-template-columns:84px minmax(0,1.3fr) minmax(0,1fr) 30px; column-gap:0; align-items:baseline; padding:18px 0; border-top:0.5px solid rgba(255,255,255,0.1);"><span style="font-family:'Geist Mono', monospace; font-size:11px; color:#8A8A8A;">03</span><span style="font-size:24px; line-height:1.2; color:#F2F2F2;">Rain, Steam and Speed</span><span style="font-size:15px; color:#9A9A9A;">more from painting</span><span style="font-family:'Geist Mono', monospace; color:#8A8A8A; text-align:right;">→</span></div>
+              </div>
+            </div>
+          <div style="position:absolute; right:27px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; align-items:center; gap:18px; z-index:5;">
+            <div style="width:68px; display:flex; flex-direction:column; align-items:center; gap:34px; padding:22px 0; border-radius:999px; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.22); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+              <span style="width:34px; height:34px; display:flex; align-items:center; justify-content:center;"><svg width="34" height="34" viewBox="0 0 24 24"><circle cx="12" cy="7.2" r="5" fill="url(#pg)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#pg)"></path></svg></span>
+              <span style="width:34px; height:34px; display:flex; align-items:center; justify-content:center;"><svg width="36" height="36" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="#fff" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="#fff"></circle><circle cx="21" cy="7" r="1.9" fill="#fff"></circle></svg></span>
+              <span style="width:34px; height:34px; display:flex; align-items:center; justify-content:center;"><svg width="30" height="30" viewBox="0 0 24 24"><rect x="7" y="4" width="10" height="16" fill="#fff"></rect></svg></span>
+              <span style="width:34px; height:34px; display:flex; align-items:center; justify-content:center;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg></span>
+            </div>
+            <span style="width:68px; height:68px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.22); box-shadow:0 10px 30px rgba(0,0,0,0.28);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M12 3v12M7.5 7.5L12 3l4.5 4.5"></path></svg></span>
+          </div>
+          </div>
+        </div>
+        <div style="width:760px; font-size:15px; line-height:1.45; color:#BDBDBD; text-wrap:pretty;">The pair sits in the right-hand column between the 28 px title and "[Read the post..]". Same rule as the spread: the pair follows the title. Shown with More of this marked.</div>
+      </div>
+
+      <div id="d3b" style="display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; align-items:baseline; gap:12px;"><span style="background:#F2F2F2; color:#0E0E0E; font-family:'Geist Mono', monospace; font-size:13px; padding:4px 8px;">D3B</span><span style="font-size:24px; color:#F2F2F2;">Spread — under each title (chosen)</span></div>
+        <div style="position:relative; width:1260px; height:678px; overflow:hidden; box-shadow:0 0 0 1px #2E2E2E;">
+          <div style="position:absolute; left:0; top:0; width:2520px; height:1355px; transform:scale(0.5); transform-origin:0 0; overflow:hidden; background:#0E0E0E; color:#E6E6E6;">
+            <div style="position:absolute; left:0; right:0; top:-655px;">
+              <div style="position:relative; height:1355px; background:#0A0A0A; display:grid; grid-template-columns:1fr 1fr;">
+                <div style="background:url('assets/ml/t12.webp') right center/contain no-repeat;"></div>
+                <div style="background:url('assets/ml/t8.webp') left center/contain no-repeat;"></div>
+                <div style="position:absolute; left:0; right:0; bottom:0; height:260px; background:linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0));"></div>
+                <div style="position:absolute; left:40px; bottom:34px; display:flex; gap:14px; align-items:baseline;"><span style="font-family:'Geist Mono', monospace; font-size:11px; color:#9A9A9A;">13</span><div><div style="font-size:20px; line-height:1.2; color:#F2F2F2;">In the wheat</div><div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; margin-top:6px;">Personal archive</div></div></div>
+                <div style="position:absolute; right:110px; bottom:34px; text-align:right;"><div style="font-size:20px; line-height:1.2; color:#F2F2F2;">Palace of many faces</div><div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#9A9A9A; margin-top:6px;">This isn't happiness</div></div>
+                <div style="position:absolute; left:50%; bottom:34px; transform:translateX(-50%); font-family:'Geist Mono', monospace; font-size:10.5px; letter-spacing:0.5px; text-transform:uppercase; color:#BDBDBD;">↓ Information</div>
+              </div>
+              <div style="padding:0 40px;">
+                
+                <div style="margin-top:35px; display:flex; justify-content:space-between; border-top:0.5px solid rgba(255,255,255,0.16); padding:14px 0 0; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A;"><span>Spread / In the wheat / Palace of many faces</span><span>Two works</span></div>
+                <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:40px; margin-top:24px; padding-bottom:72px;">
+                  <div style="border-top:0.5px solid rgba(255,255,255,0.16); padding-top:12px;">
+                    <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A;"><span>Fig. 01</span><span>Portraits</span></div>
+                    <div style="font-size:40px; line-height:1.08; letter-spacing:-0.015em; color:#F2F2F2; margin-top:18px;">In the wheat</div>
+                    <div style="margin-top:24px;"><div style="display:grid; grid-template-columns:220px 220px; gap:10px;"><div style="height:48px; display:flex; align-items:center; justify-content:center; gap:10px; background:#F2F2F2; border:1px solid #F2F2F2; color:#0E0E0E; font-size:16px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#0E0E0E" stroke-width="2" stroke-linecap="round"><path d="M6 13h14"></path></svg>Less of this</div><div style="height:48px; display:flex; align-items:center; justify-content:center; gap:10px; border:1px solid rgba(255,255,255,0.32); color:#F2F2F2; font-size:16px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"><path d="M13 6v14M6 13h14"></path></svg>More of this</div></div></div>
+                    <div style="font-size:15px; color:#E6E6E6; margin-top:24px;">Personal archive</div>
+                    <div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#8A8A8A; margin-top:18px; line-height:1.6;">From <a href="#" style="color:#DADADA;">Archive ↗</a><br>Rights retained by original authors — displayed with credit and link</div>
+                    <div style="font-size:15px; line-height:1.47; color:#BDBDBD; margin-top:18px; max-width:1180px;">A woman crouches in ripe wheat, looking down at a stalk between her fingers. The warm light flattens everything to the same gold, so the figure and the field read as one surface.</div>
+                    <a href="#" style="display:inline-block; font-size:16px; color:#E6E6E6; margin-top:20px;">[Read the original on Archive..] ↗</a>
+                  </div>
+                  <div style="border-top:0.5px solid rgba(255,255,255,0.16); padding-top:12px;">
+                    <div style="display:flex; justify-content:space-between; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A;"><span>Fig. 02</span><span>Outsider art</span></div>
+                    <div style="font-size:40px; line-height:1.08; letter-spacing:-0.015em; color:#F2F2F2; margin-top:18px;">Palace of many faces</div>
+                    <div style="margin-top:24px;"><div style="display:grid; grid-template-columns:220px 220px; gap:10px;"><div style="height:48px; display:flex; align-items:center; justify-content:center; gap:10px; border:1px solid rgba(255,255,255,0.32); color:#F2F2F2; font-size:16px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"><path d="M6 13h14"></path></svg>Less of this</div><div style="height:48px; display:flex; align-items:center; justify-content:center; gap:10px; border:1px solid rgba(255,255,255,0.32); color:#F2F2F2; font-size:16px;"><svg width="16" height="16" viewBox="0 0 26 26" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"><path d="M13 6v14M6 13h14"></path></svg>More of this</div></div></div>
+                    <div style="font-size:15px; color:#E6E6E6; margin-top:24px;">Ink and colour</div>
+                    <div style="font-family:'Geist Mono', monospace; font-size:10.5px; text-transform:uppercase; color:#8A8A8A; margin-top:18px; line-height:1.6;">From <a href="#" style="color:#DADADA;">This isn't happiness ↗</a><br>Rights retained by original authors — displayed with credit and link</div>
+                    <div style="font-size:15px; line-height:1.47; color:#BDBDBD; margin-top:18px; max-width:1180px;">A towering, symmetrical palace drawn line by line, each window holding a figure. It reads as architecture from far away and as a crowd up close.</div>
+                    <a href="#" style="display:inline-block; font-size:16px; color:#E6E6E6; margin-top:20px;">[Read the original on This isn't happiness..] ↗</a>
+                  </div>
+                </div>
+                
+              <div style="display:flex; justify-content:space-between; border-top:0.5px solid rgba(255,255,255,0.16); padding:14px 0 10px; font-family:'Geist Mono', monospace; font-size:11px; text-transform:uppercase; color:#9A9A9A;"><span>Where Ambit would wander next</span><span>03</span></div>
+              <div style="display:grid; grid-template-columns:84px minmax(0,1.3fr) minmax(0,1fr) 30px; column-gap:0; align-items:baseline; padding:18px 0; border-top:0.5px solid rgba(255,255,255,0.1);"><span style="font-family:'Geist Mono', monospace; font-size:11px; color:#8A8A8A;">01</span><span style="font-size:24px; line-height:1.2; color:#F2F2F2;">The Great Wave off Kanagawa</span><span style="font-size:15px; color:#9A9A9A;">a drift from gardens into woodblock</span><span style="font-family:'Geist Mono', monospace; color:#8A8A8A; text-align:right;">→</span></div><div style="display:grid; grid-template-columns:84px minmax(0,1.3fr) minmax(0,1fr) 30px; column-gap:0; align-items:baseline; padding:18px 0; border-top:0.5px solid rgba(255,255,255,0.1);"><span style="font-family:'Geist Mono', monospace; font-size:11px; color:#8A8A8A;">02</span><span style="font-size:24px; line-height:1.2; color:#F2F2F2;">The Pillars of Creation</span><span style="font-size:15px; color:#9A9A9A;">a drift from pattern into space</span><span style="font-family:'Geist Mono', monospace; color:#8A8A8A; text-align:right;">→</span></div><div style="display:grid; grid-template-columns:84px minmax(0,1.3fr) minmax(0,1fr) 30px; column-gap:0; align-items:baseline; padding:18px 0; border-top:0.5px solid rgba(255,255,255,0.1);"><span style="font-family:'Geist Mono', monospace; font-size:11px; color:#8A8A8A;">03</span><span style="font-size:24px; line-height:1.2; color:#F2F2F2;">Rain, Steam and Speed</span><span style="font-size:15px; color:#9A9A9A;">more from painting</span><span style="font-family:'Geist Mono', monospace; color:#8A8A8A; text-align:right;">→</span></div>
+              </div>
+            </div>
+          <div style="position:absolute; right:27px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; align-items:center; gap:18px; z-index:5;">
+            <div style="width:68px; display:flex; flex-direction:column; align-items:center; gap:34px; padding:22px 0; border-radius:999px; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.22); box-shadow:0 10px 30px rgba(0,0,0,0.28);">
+              <span style="width:34px; height:34px; display:flex; align-items:center; justify-content:center;"><svg width="34" height="34" viewBox="0 0 24 24"><circle cx="12" cy="7.2" r="5" fill="url(#pg)"></circle><path d="M2.8 20.2C2.8 15.9 7 13.5 12 13.5S21.2 15.9 21.2 20.2Q21.2 22.4 19 22.4H5Q2.8 22.4 2.8 20.2Z" fill="url(#pg)"></path></svg></span>
+              <span style="width:34px; height:34px; display:flex; align-items:center; justify-content:center;"><svg width="36" height="36" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="#fff" stroke-width="1.7"></circle><circle cx="13" cy="13" r="3.6" fill="#fff"></circle><circle cx="21" cy="7" r="1.9" fill="#fff"></circle></svg></span>
+              <span style="width:34px; height:34px; display:flex; align-items:center; justify-content:center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="#fff"><path d="M2.5 5.5C5.5 4.6 8.6 4.9 11.3 6.6V20C8.6 18.4 5.5 18.1 2.5 19Z"></path><path d="M21.5 5.5C18.5 4.6 15.4 4.9 12.7 6.6V20C15.4 18.4 18.5 18.1 21.5 19Z"></path></svg></span>
+              <span style="width:34px; height:34px; display:flex; align-items:center; justify-content:center;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"></path></svg></span>
+            </div>
+            <span style="width:68px; height:68px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(240,237,231,0.14); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%); border:0.5px solid rgba(255,255,255,0.22); box-shadow:0 10px 30px rgba(0,0,0,0.28);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M12 3v12M7.5 7.5L12 3l4.5 4.5"></path></svg></span>
+          </div>
+          </div>
+        </div>
+        <div style="width:760px; font-size:15px; line-height:1.45; color:#BDBDBD; text-wrap:pretty;">Each figure column puts its pair straight under its 40 px title and above the maker and source. Pair and title read as one unit. Shown with Less marked on Fig. 01.</div>
+      </div>
+
+    </div>
+  </div>
+
+</section>
+</x-dc>
+</body>
+</html>
