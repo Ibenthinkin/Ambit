@@ -271,6 +271,25 @@ export const WEIGHT_BUMP = 0.5;
 export const WEIGHT_CAP = 3.0;
 
 /**
+ * The "More of this" / "Less of this" pair's write-side steps (docs/DESIGN_more-or-less.md D1).
+ * Like `WEIGHT_BUMP` above these are *write* constants, not knobs: knobs are compose-side and
+ * zod-mirrored in `routers/feed.ts`, and nothing here is tunable from /dev/feed.
+ *
+ *   - "More": `user_topic.weight += MORE_STEP`, capped at `WEIGHT_CAP`.
+ *   - "Less": `user_topic.weight -= LESS_STEP`, floored at `WEIGHT_FLOOR` and only when a row
+ *     already exists. The floor is never 0 — a pick stays a pick (0.25 reads back as "a little").
+ *   - A *cool* is a separate multiplier in `user_topic_cool` (a cool is not a weight, so a cooled
+ *     drift topic never becomes a "pick"): "Less" does `cool *= COOL_STEP`, "More" does
+ *     `cool /= COOL_STEP` capped at 1, and it never sinks below `COOL_FLOOR` — four "less" on
+ *     one topic reach it (0.6^4 = 0.13, clamped up to 0.15).
+ */
+export const MORE_STEP = 0.25;
+export const LESS_STEP = 0.25;
+export const WEIGHT_FLOOR = 0.25;
+export const COOL_STEP = 0.6;
+export const COOL_FLOOR = 0.15;
+
+/**
  * Bumps a user's weight for one topic — the write half of SPEC §9's "saving an item nudges its
  * topic's weight up". A single atomic upsert:
  *
