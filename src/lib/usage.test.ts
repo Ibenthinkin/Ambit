@@ -8,6 +8,7 @@ import {
   clampSeconds,
   createUsage,
   installUsage,
+  randomVisitId,
   screenFor,
   track,
   viaFor,
@@ -298,5 +299,16 @@ describe("visit.end whole seconds", () => {
       .flatMap((b) => b.events)
       .filter((e) => e.kind === "visit.end");
     expect(ends.map((e) => e.meta)).toEqual([{ seconds: 1 }]);
+  });
+});
+
+describe("randomVisitId", () => {
+  it("is always 16 characters, even when Math.random prints short", () => {
+    for (const v of [0.5, 0, 0.125, 0.999999999999]) {
+      vi.spyOn(Math, "random").mockReturnValue(v);
+      expect(randomVisitId()).toHaveLength(16);
+      vi.restoreAllMocks();
+    }
+    expect(randomVisitId()).toMatch(/^[0-9a-z]{16}$/);
   });
 });

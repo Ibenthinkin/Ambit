@@ -141,7 +141,7 @@ export function createUsage(deps: UsageDeps): Usage {
     /* in-memory fallback below */
   }
   if (visit.length < 8 || visit.length > 32) {
-    visit = (deps.newId ?? (() => Math.random().toString(36).slice(2, 12)))();
+    visit = (deps.newId ?? randomVisitId)();
     try {
       storage.set(VISIT_KEY, visit);
     } catch {
@@ -337,3 +337,13 @@ export const browserStorage: UsageStorage = {
   get: (k) => window.sessionStorage.getItem(k),
   set: (k, v) => window.sessionStorage.setItem(k, v),
 };
+
+/**
+ * The fallback visit key: 16 base-36 characters. `Math.random().toString(36)` is variable length
+ * (a value like 0.5 prints as "0.i"), and the route drops keys under 8 characters, so draw twice
+ * and pad.
+ */
+export function randomVisitId(): string {
+  const part = () => Math.random().toString(36).slice(2);
+  return (part() + part() + "0".repeat(16)).slice(0, 16);
+}

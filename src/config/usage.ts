@@ -73,6 +73,8 @@ export const META_SPEC = {
   },
   "visit.end": { seconds: { int: { min: 0, max: 86_400 } } },
   "screen.open": {},
+  // `hang` is in the vocabulary (it is in the design table) but nothing emits it yet: the reveal's
+  // hang pictures are not links.
   "item.open": {
     from: ["feed", "rail", "saved", "wander", "link", "explore", "hang"],
   },
