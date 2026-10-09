@@ -58,6 +58,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
     let x: string[] = []; // ten srcX items
     let a: string[] = []; // three srcA items
     let b: string[] = []; // one srcB item
+    let art: string[] = []; // one srcA *article*: served, but not in the picture corpus
 
     beforeAll(async () => {
       const { db } = await import("./client");
@@ -87,6 +88,21 @@ describe.skipIf(!process.env.DATABASE_URL)(
       x = (await mkItems(srcX, 10)).map((r) => r.id);
       a = (await mkItems(srcA, 3)).map((r) => r.id);
       b = (await mkItems(srcB, 1)).map((r) => r.id);
+      art = (
+        await insertHomedItems(db, [
+          {
+            source: srcA,
+            sourceId: `${srcA}-article`,
+            type: "article" as const,
+            title: `usage fixture ${srcA} article`,
+            sourceUrl: `https://example.com/${srcA}-article`,
+            imageUrl: `https://example.com/${srcA}-article.jpg`,
+            topicId: null,
+            curationScore: 9,
+            aestheticTags: [],
+          },
+        ])
+      ).map((r) => r.id);
 
       const seen = (u: { id: string }, itemId: string, when: Date) => ({
         userId: u.id,
@@ -108,6 +124,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
         // Source share (June 2020): one srcA and one srcB served, 1:1, against a 3:1 corpus.
         seen(C, a[0]!, at("2020-06-01T10:00:00Z")),
         seen(C, b[0]!, at("2020-06-01T10:01:00Z")),
+        // An article served in the same window: sourceShare is about pictures, so it must not count.
+        seen(C, art[0]!, at("2020-06-01T10:02:00Z")),
         // Retention: weeks of Sep 7 (R1, R2) and Sep 14 (R2, R3).
         seen(R1, x[0]!, at("2020-09-08T10:00:00Z")),
         seen(R2, x[0]!, at("2020-09-09T10:00:00Z")),
