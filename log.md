@@ -65,6 +65,58 @@ executable by a cheaper session as soon as the design is approved.
 
 *Session spend: 13.86M tok (in 2.3k · out 221.0k · cache r 12.09M / w 1.55M) · fable-5-1 + <synthetic> · 22:52→10:56*
 
+**Afternoon — the usage plan built, both cuts, on `feat/usage`** (Tasks 2–12 of
+`docs/PLAN_usage.md`, executed task by task with a review after each; built in a throwaway
+worktree because `~/Dev/ambit` was holding `feat/more-or-less` with uncommitted work).
+`bun run usage:report [--days] [--weeks] [--prune] [--mail]` over the old tables and the new
+`usage_event` (migration 0015); `POST /api/usage`; the client queue + provider; `track()` at
+every surface; a new `app/error.tsx`. Not merged, not deployed.
+
+**Decisions taken on the way (each in the branch's docs):**
+
+- **The off switch is `USAGE_ENABLED`, a runtime server variable**, not the plan's
+  `NEXT_PUBLIC_USAGE_ENABLED`. A `NEXT_PUBLIC_` value is inlined at build time and the
+  Dockerfile passes no such build argument, so recording could never have switched on in
+  production. Set `USAGE_ENABLED=1` on Coolify and restart; nothing is recorded until then.
+- **Every meta key the design lists is required**, extras rejected, and the vocabulary is keyed
+  per kind (`META_SPEC`), so the route's validator and `track()`'s types come from one place. A
+  wrong key is a type error before it is a dropped event.
+- **`item.open`'s `from` travels in sessionStorage, never the URL** (item links are shared). With
+  no note, only a document's first route loaded by a real navigation counts as `link`; Back,
+  Forward and reload record nothing.
+- **Visits mean distinct visit keys** in every section, and active time is the per-visit sum of
+  `visit.end` fragments (a phone sends one per app switch, so a median over fragments read low).
+
+**Findings:**
+
+- The security review caught two real holes in the first route: the 64 KB cap was checked after
+  reading the whole body, and `visit.end` seconds had no ceiling, so an anonymous visitor could
+  poison the report. The body is now counted while streaming and cancelled past the cap;
+  seconds are capped at a day.
+- Events tracked before the provider mounted were lost on every full page load. The provider
+  hydrates later, inside its Suspense boundary, so a shared link's `item.open` never landed. A
+  capped pre-install buffer fixes it.
+- The exact-origin check would have dropped every beacon on a tailnet device pass. Outside
+  production the `dev-origins.js` hosts are accepted too.
+- Two e2e specs on `main` were stale (the knob panel's "original / grown / wild", the
+  article's "Read on E2e"). Both are fixed here, and `feat/more-or-less` fixed them as well, so
+  expect a conflict.
+- A test or format run rewrote 23 source-adapter fixture files once. They were swept into a
+  commit and restored before review. Watch for it.
+
+**Verified:** `bun run check` 2,677 green. `bun run e2e:prod` with the beacon on was 80/80
+mid-branch; the last run was 71 passed and 2 failed, and both failures passed twice each when
+re-run alone. The CI-shape run fails `dev-feed:132` with the beacon off too, and `main`'s own CI
+is already red there.
+
+**Open / next (Ben):** look at the branch, then merge and deploy. **Migration clash:** this
+branch and `feat/more-or-less` both add a 0015; whichever merges second regenerates its
+migration as 0016. After the deploy, set `USAGE_ENABLED=1` on Coolify and restart. A week later,
+run `sh .cache/usage-report-prod.sh` (add `--prune` when you want the 90-day cut). Cut 2 is
+scheduling `--mail` and blanking `session.ip_address` / `user_agent`.
+
+*Session spend: 27.99M tok (in 3.3k · out 305.2k · cache r 25.10M / w 2.58M) · fable-5-1 + opus-5-5 + <synthetic> · 22:52→12:56*
+
 **Later that morning — "More or less" gets its look.** Ben took `docs/BRIEF_more-or-less.md` to
 Claude Design and came back with `docs/design_handoff_more_or_less/` (README + two prototypes +
 an explorations page). **The verdict is the brief's option A, drawn as "1a, everywhere":** a worded
