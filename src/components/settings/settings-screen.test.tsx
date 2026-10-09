@@ -2,6 +2,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CONTACT_EMAIL, contactMailto } from "~/config/contact";
+
 import { SettingsScreen } from "./settings-screen";
 
 // The screen's subject: which rows are real, which are honest stubs, and what each one does. The
@@ -185,6 +187,24 @@ describe("SettingsScreen — rows", () => {
 
     fireEvent.click(screen.getByText("Serendipity"));
     expect(screen.getByText("Serendipity · coming soon")).toBeInTheDocument();
+  });
+
+  it("Get in touch shows the public address and opens a mailto to it", () => {
+    // jsdom's `location.href` setter navigates (and logs "not implemented"), so the setter is
+    // swapped for a spy for the one tap.
+    const assign = vi.fn();
+    vi.stubGlobal("location", {
+      get href() {
+        return "";
+      },
+      set href(v: string) {
+        assign(v);
+      },
+    });
+    renderScreen();
+    expect(screen.getByText(CONTACT_EMAIL)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Get in touch"));
+    expect(assign).toHaveBeenCalledWith(contactMailto("Ambit"));
   });
 
   it("shows the version footer it was handed", () => {

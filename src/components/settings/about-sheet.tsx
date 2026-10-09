@@ -5,6 +5,9 @@ import * as React from "react";
 import { Logo } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Eyebrow } from "~/components/ui/eyebrow";
+import { TEXT_LINK } from "~/components/ui/text-link";
+import { CONTACT_EMAIL, contactMailto } from "~/config/contact";
+import { cn } from "~/lib/utils";
 
 // "About Ambit" — static copy, no queries, no state. The one place in the running app that says
 // what Ambit is and whose material it shows.
@@ -45,8 +48,16 @@ export function AboutSheet({ open, onClose, versionLabel }: AboutSheetProps) {
           </p>
           <p className="text-ink/34 mt-[14px] text-center text-[11.5px] leading-[1.6]">
             Each item keeps its own attribution and licence, shown on its page.
-            Anything credited to a blog links back to the original — tell us and
-            we&apos;ll remove it.
+            Anything credited to a blog links back to the original — write to{" "}
+            {/* A plain <a>, not <TextLink>: its external mode opens a new tab and adds ↗, wrong
+              for a mailto. A step brighter than the paragraph so it reads as a link. */}
+            <a
+              href={contactMailto("Removal request")}
+              className={cn(TEXT_LINK, "text-ink/60")}
+            >
+              {CONTACT_EMAIL}
+            </a>{" "}
+            and we&apos;ll remove it.
           </p>
         </div>
       </div>

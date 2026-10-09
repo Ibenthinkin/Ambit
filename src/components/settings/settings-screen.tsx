@@ -13,6 +13,7 @@ import { InstallSheet } from "~/components/install/install-sheet";
 import { isStandalone, useInstall } from "~/lib/install-store";
 import { purgePagesCache } from "~/lib/sw-rules";
 import { SettingsGroup, SettingsRow } from "./settings-row";
+import { CONTACT_EMAIL, contactMailto } from "~/config/contact";
 import { useNotificationPermission } from "./use-notification-permission";
 
 // `/profile/settings` (`Ambit - Settings.dc.html`) — the Settings tab of the Profile hub since
@@ -39,9 +40,6 @@ import { useNotificationPermission } from "./use-notification-permission";
 
 /** Display mode never changes within a page's life, so this subscription has nothing to report. */
 const subscribeToNothing = () => () => undefined;
-
-/** Ben's address — the "Get in touch" row is a mailto, not a form; there's no inbox to build. */
-const CONTACT_EMAIL = "benjamin.reilly@gmail.com";
 
 /** The one sheet open at a time, as a discriminant rather than four booleans that could disagree. */
 type OpenSheet = "about" | "install" | "reading" | null;
@@ -201,10 +199,14 @@ export function SettingsScreen({ versionLabel }: SettingsScreenProps) {
               label="About Ambit"
               onClick={() => setOpenSheet("about")}
             />
+            {/* A mailto, not a form — Proton's inbox is the inbox (docs/PLAN_contact.md). The address
+              is shown in the clear so a device with no mail handler can still read it. */}
             <SettingsRow
               label="Get in touch"
+              value={CONTACT_EMAIL}
+              verbatim
               onClick={() => {
-                window.location.href = `mailto:${CONTACT_EMAIL}`;
+                window.location.href = contactMailto("Ambit");
               }}
             />
           </SettingsGroup>

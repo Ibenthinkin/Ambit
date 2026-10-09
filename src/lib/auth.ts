@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
 
+import { CONTACT_EMAIL } from "~/config/contact";
 import { devTrustedOrigins } from "~/config/dev-origins.js";
 import { env } from "~/env";
 import { db } from "~/server/db/client";
@@ -79,8 +80,7 @@ export const auth = betterAuth({
 
           if (!pending) {
             throw new APIError("BAD_REQUEST", {
-              message:
-                "Ambit is invite-only right now. Ask someone who's already in for an invite.",
+              message: `Ambit is invite-only right now. Ask someone who's already in for an invite, or write to ${CONTACT_EMAIL}.`,
             });
           }
 

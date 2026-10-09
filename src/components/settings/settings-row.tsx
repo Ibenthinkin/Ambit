@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Eyebrow } from "~/components/ui/eyebrow";
+import { cn } from "~/lib/utils";
 
 // The chrome of `/profile/settings` (DESIGN_redesign §6.5, `Ambit - Profile Desktop.dc.html`'s
 // Settings tab): a mono group header over an `ink/16` rule, then rows with `ink/8` hairlines.
@@ -24,6 +25,11 @@ export interface SettingsRowProps {
    * words ("Off") carry the meaning.
    */
   attention?: boolean;
+  /**
+   * Show the value as written rather than in the mono uppercase — for an email address, which
+   * reads wrong shouted ("Get in touch").
+   */
+  verbatim?: boolean;
   /** A right-aligned label set like a small primary button instead of an arrow ("Install"). */
   action?: string;
   onClick?: () => void;
@@ -33,6 +39,7 @@ export function SettingsRow({
   label,
   value,
   attention = false,
+  verbatim = false,
   action,
   onClick,
 }: SettingsRowProps) {
@@ -54,7 +61,12 @@ export function SettingsRow({
         />
       ) : null}
       {value ? (
-        <span className="text-ink/55 flex-none font-mono text-[11px] uppercase">
+        <span
+          className={cn(
+            "text-ink/55 flex-none font-mono text-[11px]",
+            !verbatim && "uppercase",
+          )}
+        >
           {value}
         </span>
       ) : null}

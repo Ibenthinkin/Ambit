@@ -88,9 +88,27 @@ about link; the address goes into the four places that exist, from one no-import
 not fixed: the About sheet's "With material from" list is stale (no LoC, NASA, Smithsonian, PDR,
 blogs).
 
+**Evening — the contact plan built on `feat/contact`** (Opus, straight through the plan).
+`src/config/contact.ts` holds the address and `contactMailto(subject)`; Settings → Get in touch
+now shows `ambit.app@proton.me` as the row's value and mails it (subject `Ambit`) — the Gmail
+mailto is gone; the About sheet's removal line links it (`Removal request`); the `/?open=about`
+dialog ends "No invite yet? Write to … and say what you’re curious about." (`Invite request`,
+copy in `EXPLORE_ABOUT.contact`); the uninvited sign-up error names it in plain text. One
+deviation from the plan: `SettingsRow` values are mono **uppercase**, which shouts an email, so
+the row gained a `verbatim` prop rather than show `AMBIT.APP@PROTON.ME`. SPEC §3.1 and §13's
+`OPS_EMAIL` row say where the reader-facing address lives. Verified: `bun run check` (lint clean
+on `src`/`e2e`; full Vitest 2,682 green — two earlier runs each lost one DB integration test to
+the known parallel races), `e2e:prod` settings + auth + explore 20/20, and a 402 × 874 screenshot
+of the dialog: five paragraphs and both buttons fit. **Open / next (Ben):** merge `feat/contact`
+(a push of `main` deploys; no migration, no env); the About sheet's stale source list is still
+its own small task. Unrelated, seen on the way: `eslint .` fails on `.cache/capacity-probe/load.ts`
+(the capacity scripts sit outside the tsconfig) — `bun run lint` is red locally until that
+directory is ignored or moved.
+
 *Session spend: 13.86M tok (in 2.3k · out 221.0k · cache r 12.09M / w 1.55M) · fable-5-1 + <synthetic> · 22:52→10:56*
 *Session spend: 5.09M tok (in 988 · out 34.7k · cache r 4.68M / w 372.2k) · fable-5-1 + opus-5-5 · 12:50→13:11*
 *Session spend: 8.67M tok (in 1.4k · out 58.1k · cache r 8.37M / w 244.4k) · fable-5-1 + opus-5-5 · 13:11→14:14*
+*Session spend: 4.86M tok (in 88 · out 21.0k · cache r 4.65M / w 186.7k) · opus-5-5 · 17:16→17:25*
 
 **Afternoon — the usage plan built, both cuts, on `feat/usage`** (Tasks 2–12 of
 `docs/PLAN_usage.md`, executed task by task with a review after each; built in a throwaway
