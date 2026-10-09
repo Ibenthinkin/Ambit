@@ -283,12 +283,13 @@ describe("ItemScreen", () => {
     expect(facts).toBeInTheDocument();
     // "Some automatic spacing between the image and the description" (Ben, 09-11-26). Since the
     // More-or-less pair (10-09-26, the frame P2) the phone's column starts 18px under the strip
-    // with the pair, and the title follows 22px under that.
+    // with the pair, and the title follows 30px under that (22px of padding + the <h1>'s 8).
     const column = [...document.querySelectorAll<HTMLElement>("*")].find(
       (el) => el.className.includes?.("pt-[18px]") && el.contains(facts),
     );
     expect(column).toBeDefined();
-    expect(facts.closest(".mt-\\[22px\\]")).not.toBeNull();
+    // Padding, not margin: a margin would collapse with the <h1>'s own 8px (22, not 30).
+    expect(facts.closest(".pt-\\[22px\\]")).not.toBeNull();
   });
 
   it("renders only the three cells around the reader", () => {

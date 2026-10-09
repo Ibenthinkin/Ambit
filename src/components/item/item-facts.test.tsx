@@ -244,6 +244,8 @@ describe("the feedback slot", () => {
       screen.getByText("A caption.").parentElement,
     );
     expect(wrapper).toHaveClass("mt-[22px]");
+    // And the link-out 22 px under the pair (D2B), where without a pair it keeps 20.
+    expect(linkOut.closest("p")).toHaveClass("mt-[22px]");
   });
 
   it("wide with no summary: the pair leads the column", () => {
@@ -282,6 +284,13 @@ describe("the feedback slot", () => {
       // Above the maker block.
       expect(after(pairs[i]!, fig.querySelector("[data-maker]")!)).toBe(true);
     });
+  });
+
+  it("wide without a slot: the link-out keeps its 20 px", () => {
+    render(<ItemFacts item={cell()} layout="wide" />);
+    expect(
+      screen.getByRole("link", { name: /Read the original on/ }).closest("p"),
+    ).toHaveClass("mt-5");
   });
 
   it("column: the layout places no pair — the phone screen puts it above the facts", () => {

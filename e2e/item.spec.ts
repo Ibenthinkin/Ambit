@@ -510,6 +510,18 @@ test.describe.serial("item pages", () => {
     await pair.evaluate((el) => el.scrollIntoView({ block: "center" }));
     const more = pair.getByRole("button", { name: "More of this" });
     await expect(more).toHaveAttribute("aria-pressed", "false");
+    // The title 30 px under the pair (the frame P2), measured with no verdict on — the note a
+    // verdict adds would push it down. One `evaluate`, one frame: no rise caught mid-flight.
+    const gap = await page.evaluate(() => {
+      const group = document.querySelector(
+        "[aria-label='More or less of this']",
+      )!;
+      const title = document.querySelector("h1")!;
+      return (
+        title.getBoundingClientRect().top - group.getBoundingClientRect().bottom
+      );
+    });
+    expect(Math.abs(gap - 30)).toBeLessThanOrEqual(1);
     await more.click();
     await expect(page.getByRole("status")).toHaveText(/^More of this/);
     await expect(more).toHaveAttribute("aria-pressed", "true");

@@ -1,6 +1,7 @@
 import { Eyebrow } from "~/components/ui/eyebrow";
 import { TextLink } from "~/components/ui/text-link";
 import { sourceLabel } from "~/lib/source-label";
+import { cn } from "~/lib/utils";
 import type { RailItem } from "~/server/services/gallery-rail";
 import { INFORMATION_ID } from "./caption-type";
 import { CreditLine } from "./credit-line";
@@ -184,15 +185,16 @@ function ItemFactsWide({
               {item.summary}
             </p>
           ) : null}
-          {/* The frame's D2B: 22 px under the summary (the frame calls it "the title"), the
-              bracket link-out keeping its own 20 below. No summary: the pair leads the column. */}
+          {/* The frame's D2B: the pair 22 px under the summary (the frame calls it "the
+              title"), and the bracket link-out 22 px under the pair — 20 when there is no pair.
+              No summary: the pair leads the column. */}
           {feedback ? (
             <div className={item.summary ? "mt-[22px]" : undefined}>
               {feedback(item)}
             </div>
           ) : null}
           {item.sourceUrl ? (
-            <p className="mt-5 text-[16px]">
+            <p className={cn(feedback ? "mt-[22px]" : "mt-5", "text-[16px]")}>
               <TextLink href={item.sourceUrl} external bracket tone="body">
                 {linkOutCopy(item.source)}
               </TextLink>

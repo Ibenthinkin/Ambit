@@ -394,6 +394,13 @@ test.describe.serial("desktop", () => {
       (await linkOut.boundingBox())!,
     ];
     expect(pairBox.y + pairBox.height).toBeLessThanOrEqual(linkBox.y);
+    // …22 px under it, as the frame's anchor sits (`margin-top: 22px`). Measured to the link's
+    // paragraph — its line box — because an inline link's own box starts at the glyphs, a few
+    // pixels below. No verdict is on for this reader, so the group's bottom is the pair's.
+    const linkLine = (await linkOut.locator("xpath=..").boundingBox())!;
+    expect(
+      Math.abs(linkLine.y - (pairBox.y + pairBox.height) - 22),
+    ).toBeLessThanOrEqual(1);
     // The group is a grid as wide as the column; its two tracks are fixed and left-aligned.
     const buttons = pair.getByRole("button");
     const [less, more] = [

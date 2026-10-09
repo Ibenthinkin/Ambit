@@ -977,7 +977,7 @@ export function ItemScreen({
         </>
       ) : null}
       {/* The phone's frame P2: the pair is the first row under the picture (18 px), the title 30 px
-          under it (the wrapper's 22 + the `<h1>`'s own 8). Above `md` this column holds only the
+          under it (the wrapper's 22 of padding + the `<h1>`'s own 8). Above `md` this column holds only the
           join block, which keeps its 28. */}
       <Column
         width="reader"
@@ -996,7 +996,12 @@ export function ItemScreen({
                 onToast={setToast}
                 onRequireAuth={requireAuth}
               />
-              <div className="mt-[22px]">
+              {/* `pt-`, not `mt-`: vertical margins *collapse* — when a box has no padding or
+                  border at its top, its first child's top margin escapes through it and the two
+                  merge into the larger one. A `mt-[22px]` here met the `<h1>`'s own `mt-[8px]`
+                  (through the bare `<article>`) and came out max(22, 8) = 22. Padding is a wall
+                  the margin can't cross, so 22 + 8 = the frame's 30. */}
+              <div className="pt-[22px]">
                 <ItemFacts item={current} />
               </div>
             </Rise>
