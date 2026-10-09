@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Item } from "~/server/db/items";
@@ -19,6 +19,11 @@ vi.mock("next/link", () => ({
       {children}
     </a>
   ),
+}));
+
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock("~/components/usage/usage-provider", () => ({
+  useUsage: () => ({ track }),
 }));
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
@@ -72,6 +77,17 @@ describe("ReaderItemBody", () => {
       "href",
       "https://en.wikipedia.org/?curid=19003265",
     );
+  });
+
+  it("records item.linkout when the inline source link is clicked", () => {
+    track.mockClear();
+    render(<ReaderItemBody item={makeItem()} />);
+    const link = screen.getByRole("link", { name: /Read on Wikipedia/ });
+    fireEvent.click(link);
+    expect(track).toHaveBeenCalledWith("item.linkout", { itemId: "item-1" });
+    track.mockClear();
+    fireEvent(link, new MouseEvent("auxclick", { bubbles: true, button: 1 }));
+    expect(track).toHaveBeenCalledTimes(1);
   });
 
   // Writing Phase 4: a link-card or PDR article's link-out is the prominent row, not a second
