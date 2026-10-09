@@ -16,9 +16,11 @@
 // query builder is for. Timestamps go in as ISO strings cast `::timestamptz`, and counts come out
 // `::int`, because Postgres returns `count(*)` as a bigint, which the driver hands back as a
 // string.
-import { sql, type SQL } from "drizzle-orm";
+import { inArray, sql, type SQL } from "drizzle-orm";
 
 import { SUSPENDED_SOURCES } from "~/server/config/suspended-sources";
+
+import type { NewUsageEvent } from "./schema";
 
 /** The e2e suite signs up `ambit-<something>@example.com`; none of those are readers. */
 export const E2E_EMAIL_PATTERN = "ambit-%@example.com";
@@ -412,4 +414,408 @@ export async function readerLabels(
     runner,
   );
   return out.map((r) => ({ ...r, joinedAt: new Date(r.joinedAt) }));
+}
+
+// =============================================================================================
+// Cut 1: the `usage_event` table (docs/DESIGN_usage.md). A writer for `POST /api/usage` (Task 7)
+// and readers for `usage:report` (Task 10).
+// =============================================================================================
+
+// ---- the writer -----------------------------------------------------------------------------
+
+/**
+ * Store a batch of validated events. One multi-row `INSERT` (a single round trip however many
+ * events), and it **never throws**: analytics must not be able to break the thing it measures,
+ * and the route answers `204` regardless. A failure is one `console.error` line carrying the
+ * count only, never the contents. Returns how many rows landed (0 on failure).
+ *
+ * Two columns are foreign keys to rows that can vanish between the click and the beacon (an item
+ * deleted by a re-ingest, a topic removed). One dead id would fail the whole statement, so the
+ * ids are checked first, in one query each, and a dead one is set to null: the event still
+ * counts, it just no longer points at anything. (Ruled 10-09-26.)
+ */
+export async function recordEvents(rows: NewUsageEvent[]): Promise<number> {
+  if (rows.length === 0) return 0;
+  try {
+    const { db } = await import("./client");
+    const { item, topic, usageEvent } = await import("./schema");
+
+    const itemIds = [
+      ...new Set(rows.flatMap((r) => (r.itemId ? [r.itemId] : []))),
+    ];
+    const topicIds = [
+      ...new Set(rows.flatMap((r) => (r.topicId ? [r.topicId] : []))),
+    ];
+    const [liveItems, liveTopics] = await Promise.all([
+      itemIds.length
+        ? db.select({ id: item.id }).from(item).where(inArray(item.id, itemIds))
+        : [],
+      topicIds.length
+        ? db
+            .select({ id: topic.id })
+            .from(topic)
+            .where(inArray(topic.id, topicIds))
+        : [],
+    ]);
+    const okItems = new Set(liveItems.map((r) => r.id));
+    const okTopics = new Set(liveTopics.map((r) => r.id));
+
+    // `id` is left out: the schema's `$defaultFn(nanoid)` fills it per row on insert.
+    await db.insert(usageEvent).values(
+      rows.map((r) => ({
+        ...r,
+        itemId: r.itemId && okItems.has(r.itemId) ? r.itemId : null,
+        topicId: r.topicId && okTopics.has(r.topicId) ? r.topicId : null,
+      })),
+    );
+    return rows.length;
+  } catch {
+    console.error(
+      `usage: dropped a batch of ${rows.length} events (insert failed)`,
+    );
+    return 0;
+  }
+}
+
+/**
+ * Delete events older than `olderThanDays` and return how many went. `now` is injectable for
+ * tests. The `WITH d AS (DELETE … RETURNING 1)` form is a data-modifying CTE: Postgres runs the
+ * delete and lets the outer `SELECT` count what it removed, in one statement.
+ */
+export async function pruneEvents(
+  olderThanDays: number,
+  now: Date = new Date(),
+  runner?: Runner,
+): Promise<number> {
+  const cutoff = new Date(now.getTime() - olderThanDays * 86_400_000);
+  const [r] = await rows<{ n: number }>(
+    sql`
+    with d as (delete from usage_event where at < ${ts(cutoff)} returning 1)
+    select count(*)::int as n from d
+  `,
+    runner,
+  );
+  return r?.n ?? 0;
+}
+
+// ---- shared bits for the event readers ------------------------------------------------------
+
+/**
+ * `WHERE`-ready: events inside the window from readers. **Signed-out events (`user_id` null) are
+ * part of the data** (a shared-link visit is how the share -> sign-up funnel is seen), so the
+ * exclusion is written `user_id is null or <not an excluded user>`. It has to be explicit:
+ * `null not in (…)` is not true in SQL, it is *unknown*, and a bare `readerFilter` would silently
+ * drop every signed-out row.
+ */
+function eventFilter(w: UsageWindow, col: SQL = sql`user_id`): SQL {
+  return sql`at >= ${ts(w.since)} and at < ${ts(w.until)}
+    and (${col} is null or ${readerFilter(col, w.excludeEmails)})`;
+}
+
+/** Turns `[{k, n}]` rows into `{ k: n }`. */
+function toMap(
+  list: { k: string | null; n: number }[],
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const r of list) if (r.k != null) out[r.k] = r.n;
+  return out;
+}
+
+/** Count events of one kind grouped by a meta key (`meta->>'key'`). */
+async function countByMeta(
+  w: UsageWindow,
+  kind: string,
+  key: string,
+): Promise<Record<string, number>> {
+  return toMap(
+    await rows<{ k: string | null; n: number }>(sql`
+      select meta->>${key} as k, count(*)::int as n from usage_event
+      where kind = ${kind} and ${eventFilter(w)}
+      group by 1
+    `),
+  );
+}
+
+// ---- visits ---------------------------------------------------------------------------------
+
+export type VisitSummary = {
+  /** `visit.start` events: one per visit. */
+  count: number;
+  /** Of those, how many had no user. */
+  signedOut: number;
+  /** Median / 90th percentile of `visit.end.seconds`; null with no ended visits. */
+  medianSeconds: number | null;
+  p90Seconds: number | null;
+  device: Record<string, number>;
+  via: Record<string, number>;
+  /** Fraction of visits run as an installed app; null with no visits. */
+  standaloneShare: number | null;
+};
+
+export async function visits(w: UsageWindow): Promise<VisitSummary> {
+  // `percentile_cont(0.5) within group (order by x)` is Postgres's median (an *ordered-set
+  // aggregate*; 0.9 gives p90). It interpolates between the two middle values, and returns null
+  // when no row passes the FILTER.
+  const [r] = await rows<{
+    count: number;
+    signedOut: number;
+    standalone: number;
+    median: number | null;
+    p90: number | null;
+  }>(sql`
+    select
+      (count(*) filter (where kind = 'visit.start'))::int as count,
+      (count(*) filter (where kind = 'visit.start' and user_id is null))::int as "signedOut",
+      (count(*) filter (where kind = 'visit.start' and meta->>'standalone' = 'true'))::int
+        as standalone,
+      percentile_cont(0.5) within group (order by (meta->>'seconds')::int)
+        filter (where kind = 'visit.end') as median,
+      percentile_cont(0.9) within group (order by (meta->>'seconds')::int)
+        filter (where kind = 'visit.end') as p90
+    from usage_event
+    where kind in ('visit.start', 'visit.end') and ${eventFilter(w)}
+  `);
+  const count = r?.count ?? 0;
+  return {
+    count,
+    signedOut: r?.signedOut ?? 0,
+    medianSeconds: r?.median ?? null,
+    p90Seconds: r?.p90 ?? null,
+    device: await countByMeta(w, "visit.start", "device"),
+    via: await countByMeta(w, "visit.start", "via"),
+    standaloneShare: count > 0 ? (r?.standalone ?? 0) / count : null,
+  };
+}
+
+// ---- screens per visit ----------------------------------------------------------------------
+
+export type ScreensPerVisit = {
+  /** Distinct visits with any event in the window. */
+  visits: number;
+  total: number;
+  mean: number | null;
+  median: number | null;
+  max: number;
+  byScreen: Record<string, number>;
+};
+
+export async function screensPerVisit(
+  w: UsageWindow,
+): Promise<ScreensPerVisit> {
+  // One row per visit with its number of `screen.open`s (0 for a visit that opened none), then
+  // aggregate those counts.
+  const [r] = await rows<{
+    visits: number;
+    total: number;
+    median: number | null;
+    max: number | null;
+  }>(sql`
+    with per as (
+      select visit, (count(*) filter (where kind = 'screen.open'))::int as n
+      from usage_event where ${eventFilter(w)} group by visit
+    )
+    select count(*)::int as visits, coalesce(sum(n), 0)::int as total,
+           percentile_cont(0.5) within group (order by n) as median, max(n) as max
+    from per
+  `);
+  const byScreen = toMap(
+    await rows<{ k: string | null; n: number }>(sql`
+      select screen as k, count(*)::int as n from usage_event
+      where kind = 'screen.open' and ${eventFilter(w)} group by 1
+    `),
+  );
+  const visitCount = r?.visits ?? 0;
+  const total = r?.total ?? 0;
+  return {
+    visits: visitCount,
+    total,
+    mean: visitCount > 0 ? total / visitCount : null,
+    median: r?.median ?? null,
+    max: r?.max ?? 0,
+    byScreen,
+  };
+}
+
+// ---- item opens and swipe depth -------------------------------------------------------------
+
+export type ItemOpens = {
+  opens: number;
+  /** Opens divided by distinct visits with any event in the window; null with no visits. */
+  perVisit: number | null;
+  from: Record<string, number>;
+  /** Runs of consecutive `from: rail` opens within a visit (the wander's depth). */
+  swipe: { runs: number; median: number | null; max: number };
+};
+
+export async function itemOpens(w: UsageWindow): Promise<ItemOpens> {
+  const [c] = await rows<{ opens: number; visits: number }>(sql`
+    select (count(*) filter (where kind = 'item.open'))::int as opens,
+           count(distinct visit)::int as visits
+    from usage_event where ${eventFilter(w)}
+  `);
+  // Swipe depth is another gaps-and-islands (see `sittings`), here without timestamps:
+  //  - number every `item.open` of a visit in time order (`rn`; the id breaks a same-instant tie);
+  //  - number the *rail* ones among themselves (`rr`);
+  //  - for consecutive rail opens both counters step by 1, so `rn - rr` is constant across the
+  //    run and changes the moment a non-rail open intervenes. Group on (visit, rn - rr).
+  // "Consecutive" is among that visit's `item.open` events only: a linkout, zoom or screen.open
+  // between two rail opens does not break the run, because the swipe is still going.
+  const [s] = await rows<{
+    runs: number;
+    median: number | null;
+    max: number | null;
+  }>(sql`
+    with opens as (
+      select visit, meta->>'from' as frm,
+             row_number() over (partition by visit order by at, id) as rn
+      from usage_event where kind = 'item.open' and ${eventFilter(w)}
+    ),
+    rail as (
+      select visit, rn, row_number() over (partition by visit order by rn) as rr
+      from opens where frm = 'rail'
+    ),
+    runs as (select count(*) as len from rail group by visit, rn - rr)
+    select count(*)::int as runs, percentile_cont(0.5) within group (order by len) as median,
+           max(len)::int as max
+    from runs
+  `);
+  const visitCount = c?.visits ?? 0;
+  return {
+    opens: c?.opens ?? 0,
+    perVisit: visitCount > 0 ? (c?.opens ?? 0) / visitCount : null,
+    from: await countByMeta(w, "item.open", "from"),
+    swipe: { runs: s?.runs ?? 0, median: s?.median ?? null, max: s?.max ?? 0 },
+  };
+}
+
+// ---- item actions ---------------------------------------------------------------------------
+
+export type Rate = { count: number; per100: number | null };
+export type ItemActions = {
+  opens: number;
+  linkout: Rate;
+  /** `byMethod` is the share / copy / image split. */
+  share: Rate & { byMethod: Record<string, number> };
+  zoom: Rate;
+  /** Magazine view switched *on* (the off events are not counted). */
+  magazine: Rate;
+  unsave: Rate;
+};
+
+export async function itemActions(w: UsageWindow): Promise<ItemActions> {
+  const [r] = await rows<{
+    opens: number;
+    linkout: number;
+    share: number;
+    zoom: number;
+    magazine: number;
+    unsave: number;
+  }>(sql`
+    select
+      (count(*) filter (where kind = 'item.open'))::int as opens,
+      (count(*) filter (where kind = 'item.linkout'))::int as linkout,
+      (count(*) filter (where kind = 'item.share'))::int as share,
+      (count(*) filter (where kind = 'item.zoom'))::int as zoom,
+      (count(*) filter (where kind = 'item.magazine' and meta->>'on' = 'true'))::int as magazine,
+      (count(*) filter (where kind = 'item.unsave'))::int as unsave
+    from usage_event where ${eventFilter(w)}
+  `);
+  const opens = r?.opens ?? 0;
+  const rate = (count: number): Rate => ({
+    count,
+    per100: opens > 0 ? (count * 100) / opens : null,
+  });
+  return {
+    opens,
+    linkout: rate(r?.linkout ?? 0),
+    share: {
+      ...rate(r?.share ?? 0),
+      byMethod: await countByMeta(w, "item.share", "method"),
+    },
+    zoom: rate(r?.zoom ?? 0),
+    magazine: rate(r?.magazine ?? 0),
+    unsave: rate(r?.unsave ?? 0),
+  };
+}
+
+// ---- topic edits, installs, errors ----------------------------------------------------------
+
+export async function topicEdits(
+  w: UsageWindow,
+): Promise<{ total: number; byAction: Record<string, number> }> {
+  const byAction = await countByMeta(w, "topics.edit", "action");
+  return {
+    total: Object.values(byAction).reduce((a, b) => a + b, 0),
+    byAction,
+  };
+}
+
+/** `pwa.install` events by `how` (prompt / card / appinstalled). */
+export async function installs(
+  w: UsageWindow,
+): Promise<Record<string, number>> {
+  return countByMeta(w, "pwa.install", "how");
+}
+
+export type ClientErrorRow = {
+  digest: string;
+  screen: string | null;
+  count: number;
+};
+
+/** Client errors grouped by (digest, screen), most frequent first. */
+export async function clientErrors(w: UsageWindow): Promise<ClientErrorRow[]> {
+  return rows<ClientErrorRow>(sql`
+    select meta->>'digest' as digest, screen, count(*)::int as count
+    from usage_event where kind = 'client.error' and ${eventFilter(w)}
+    group by 1, 2 order by count desc, digest, screen
+  `);
+}
+
+// ---- onboarding funnel ----------------------------------------------------------------------
+
+export type OnboardingFunnel = {
+  /** Readers (or signed-out visits) that touched onboarding in the window. */
+  readers: number;
+  /** `reached[n-1]`: how many got to step n or beyond in their latest onboarding visit. */
+  reached: number[];
+  /** `stoppedAt[n-1]`: how many had step n as their final `onboarding.step` event there. */
+  stoppedAt: number[];
+};
+
+/**
+ * Per reader, take their *latest* visit that contains any `onboarding.step` (a retake or a
+ * second attempt supersedes the first). A signed-out visitor has no identity, so each of their
+ * visits counts as its own "reader". For that visit: the highest step seen says how far they
+ * got (`reached`), and the step of the chronologically last event says where they stopped
+ * (`stoppedAt`; it differs from the max when they pressed Back).
+ */
+export async function onboardingFunnel(
+  w: UsageWindow,
+): Promise<OnboardingFunnel> {
+  const steps = 8;
+  const out = await rows<{ maxStep: number; lastStep: number }>(sql`
+    with per_visit as (
+      select coalesce(user_id, 'visit:' || visit) as who, visit,
+             max((meta->>'step')::int) as max_step,
+             max(at) as last_at,
+             -- array_agg ordered by time, then [last]: the step of the final event
+             (array_agg((meta->>'step')::int order by at, id))[count(*)] as last_step
+      from usage_event
+      where kind = 'onboarding.step' and ${eventFilter(w)}
+      group by 1, 2
+    )
+    -- distinct on keeps the first row per reader in the given order: the newest visit.
+    select distinct on (who) max_step as "maxStep", last_step as "lastStep"
+    from per_visit order by who, last_at desc, visit
+  `);
+  const reached = Array.from(
+    { length: steps },
+    (_, i) => out.filter((r) => r.maxStep >= i + 1).length,
+  );
+  const stoppedAt = Array.from(
+    { length: steps },
+    (_, i) => out.filter((r) => r.lastStep === i + 1).length,
+  );
+  return { readers: out.length, reached, stoppedAt };
 }
