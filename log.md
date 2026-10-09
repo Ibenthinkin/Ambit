@@ -35,17 +35,27 @@ joins `PRIMARY_BLOCK` in `button.tsx` and `Button`'s outline variant composes fr
 at 402 on the dev server: both 358 × 50, the pill clearing the second block by 66 px at the end
 of the scroll. `bun run check` 2,525 green.
 
+**Second finding, from the dev server (`a6cf9fb`):** the link-out block itself — the full-width
+50 px white "Read the post on The Vault of the Atomic Space Age ↗" above the wander rows —
+"looks like a whole page divided section" rather than a button. Ben's ask: no arrow, no blog name,
+smaller. It is a **40 px inline button** now, **"Original post"** for a blog or publication and
+**"Original source"** for a museum, library or PDR item (`linkOutLabel`); the source's name
+stays in the From row two lines up. This overrules DESIGN §6.2's block (noted there and in SPEC
+§8). The desktop summary's bracketed prose link keeps `linkOutCopy`'s sentence. 116 × 40 at 402.
+
 **Decisions:** the device pass is **closed** (the ⚑ items the build left for Ben's judgement —
 the Share row on the tile sheet, the Settings stub rows gone, the reveal's Back, the pill's three
 quirks, the off-ladder greys — are accepted as they stand unless he raises one later). The
 checklist is kept as a page for reference: https://claude.ai/artifact/KXrAo7iugeSgNFjnnKUK9o.
 
-**Open / next:** merge `fix/join-cta-keep-exploring` (Ben's call; push = deploy). Monday
-10-12's pictures run is the Tumblr question's next witness — read `ingest_run` and the refusal
-log after 09:00 UTC. Still Ben's: the 403 backoff policy, a manual pictures re-run before Monday
-(`.cache/judge-run-prod.sh`), `graph:rebuild --confirm`, Task 9 (the publications backfill).
+**Open / next:** both fixes merged and pushed (= deploy) at the end of the session, Ben's
+"fine for now". Monday 10-12's pictures run is the Tumblr question's next witness — read
+`ingest_run` and the refusal log after 09:00 UTC. Still Ben's: the 403 backoff policy, a manual
+pictures re-run before Monday (`.cache/judge-run-prod.sh`), `graph:rebuild --confirm`, Task 9
+(the publications backfill).
 
 _Session spend: 14.81M tok (in 2.9k · out 79.0k · cache r 14.18M / w 547.3k) · fable-5-1 · 15:46→19:27_
+_Session spend: 10.80M tok (in 1.6k · out 82.5k · cache r 10.52M / w 203.6k) · fable-5-1 + opus-5-5 · 19:27→20:13_
 
 ### [[10-07-26 Wed]] — The redesign is live; the scheduled ingest has been losing Tumblr at 08:00 UTC
 
