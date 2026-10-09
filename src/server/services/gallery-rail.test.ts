@@ -29,6 +29,12 @@ vi.mock("~/server/db/items", () => ({
   drawImageAnywhere: mockDrawImageAnywhere,
 }));
 vi.mock("~/env", () => ({ env: mockEnv }));
+// The wildcard preference is mocked non-empty so the two-step draw (preferred sources first, then
+// the whole corpus) is exercised whatever the real list says — it is empty again since 10-08-26,
+// when the archive was retired, and an empty list makes one draw, not two.
+vi.mock("~/server/config/wildcard-sources", () => ({
+  WILDCARD_SOURCES: ["preferred-source"],
+}));
 // The one query the shell makes of its own: every drawn cell's topic label (09-10-26). Partial, so
 // `feed.ts`'s import of `getUserTopicWeights` still resolves; the labels are the ids upper-cased so
 // a test can tell a resolved label from a missing one.

@@ -150,6 +150,15 @@ export const SUSPENDED_SOURCES: SourceId[] = [
   // is removing it from this list once Loupe has a reachable host and the two env vars are in
   // Coolify (docs/PLAN_loupe-hookup.md).
   "loupe",
+  // **archive** (ambit-archive, Ben's personal photographs — **retired** 10-08-26, Ben's call).
+  // It was added in Phase A.5 because the early corpus did not have enough pictures; at 214,018
+  // items (2,218 of them archive, ~1%) it no longer earns its place, and Ben would rather it not
+  // show up at all. Suspension rather than removal, on this file's standing rule: the adapter,
+  // its seed cells in `config/topics.ts` and the rows stay, the nightly ingest stops calling the
+  // archive's `/search`, and no draw path reaches the rows — including the item rail's wildcard,
+  // which used to *prefer* this source (`config/wildcard-sources.ts`, emptied the same day).
+  // Un-retiring is removing this line and restoring that list.
+  "archive",
   // Round 4, KEPT 09-13-26 and quota'd (blogs.ts), registered 09-15-26, walked one at a time
   // with a readout between, exactly as round 3's four above. `jareckiworld` WALKED 09-16-26
   // (13,700 rows @ 8.60, 98.3% ≥ 8, 13 un-homed) and `kvetchlandia` the same day (12,500 rows
