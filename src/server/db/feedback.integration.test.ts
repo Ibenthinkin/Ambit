@@ -288,6 +288,25 @@ describe.skipIf(!process.env.DATABASE_URL)("db/feedback (integration)", () => {
     expect([...mine.less].sort()).toEqual([ids.a1!, ids.a2!].sort());
   });
 
+  it("concurrent first taps on one item apply one step, and the stored delta matches it", async () => {
+    // No item_feedback row exists yet, so a `FOR UPDATE` on it would lock nothing and both taps
+    // would step the weight while only one delta survived. The advisory lock serialises them.
+    const { db } = await import("./client");
+    const { itemFeedback } = await import("./schema");
+    const { setFeedback } = await import("./feedback");
+    const u = await freshUser({ [topicA]: 1 });
+    // Eight at once rather than two: a pair often doesn't overlap at all, eight reliably do.
+    await Promise.all(
+      Array.from({ length: 8 }, () => setFeedback(u, ids.a6!, "more", topicA)),
+    );
+    const [row] = await db
+      .select()
+      .from(itemFeedback)
+      .where(and(eq(itemFeedback.userId, u), eq(itemFeedback.itemId, ids.a6!)));
+    expect(await weightOf(u, topicA)).toBeCloseTo(1 + row!.weightApplied);
+    expect(await weightOf(u, topicA)).toBeCloseTo(1 + MORE_STEP);
+  });
+
   it("clear reverses a 'less' exactly and leaves the item seen", async () => {
     const { clearFeedback, getFeedbackIds, setFeedback } =
       await import("./feedback");

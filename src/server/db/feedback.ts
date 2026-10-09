@@ -10,8 +10,8 @@
 // delta that was *actually* applied (`weight_applied`, `cool_applied`), read back from the rows
 // inside the same transaction, and clearing or flipping a verdict reverses exactly that.
 //
-// Every write here is one `db.transaction`, and every number it changes is first read with
-// `SELECT … FOR UPDATE` — see `lockFeedback` for what that buys.
+// Every write here is one `db.transaction` that first takes an advisory lock on (user, item) —
+// see `lockItem` — and every number it changes is then read with `SELECT … FOR UPDATE`.
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import {
@@ -93,8 +93,34 @@ async function lockCool(tx: Tx, userId: string, topicId: string) {
   return row?.cool;
 }
 
-/** Locks and reads the reader's verdict on one item — step 1 of D2. Locking it is what makes two
- *  quick taps on the same item (or a tap racing an undo) run one after the other, not interleaved. */
+/**
+ * Serialises every write about one (user, item) — two quick taps, or a tap racing an undo — so
+ * they run one after the other instead of interleaved. Called first in `setFeedback` and
+ * `clearFeedback`.
+ *
+ * Why not just `SELECT … FOR UPDATE` on the item_feedback row? Because on a *first* tap that row
+ * doesn't exist yet, and FOR UPDATE locks rows, not the absence of one: two first taps would both
+ * read "no verdict", both step the weight, and the second feedback write would overwrite the
+ * first's delta — the weight moved twice, one step recorded, undo leaves a 0.25 residue.
+ *
+ * A Postgres *advisory lock* is a lock on an arbitrary number the application chooses, with no
+ * row behind it — so it exists before the row does. `hashtext` turns "user:item" into that
+ * number (a hash collision only makes two unrelated taps wait for each other, never wrong).
+ * The `_xact_` flavour is released automatically when the transaction commits or rolls back, so
+ * there is no unlock to forget.
+ */
+async function lockItem(tx: Tx, userId: string, itemId: string) {
+  await tx.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${userId} || ':' || ${itemId}))`,
+  );
+}
+
+/**
+ * Reads the reader's verdict on one item — step 1 of D2 — under `lockItem`. The advisory lock is
+ * what serialises taps; the `FOR UPDATE` here is kept as a second guard on the row itself, so a
+ * future writer of item_feedback that forgets the advisory lock still can't change an existing
+ * verdict out from under us. It costs nothing on a row we already hold the only path to.
+ */
 async function lockFeedback(tx: Tx, userId: string, itemId: string) {
   const [row] = await tx
     .select()
@@ -139,8 +165,9 @@ async function writeCool(
  *   saved-then-unsaved topic sits at 1.5 today.
  * - Cool: `× 1 / coolApplied`, clamped to [COOL_FLOOR, 1], from 1 when there is no row (a "more"
  *   that warmed a cool to 1 deleted it, and undoing that "more" must bring the cool back). At 1
- *   the row is deleted. The floor side of the clamp is only belt-and-braces: a "more" divides by
- *   at most 1/COOL_FLOOR, so honest reversals never reach it.
+ *   the row is deleted. The floor side is reachable when verdicts interleave — less, less,
+ *   more (a3), less, less, then clearing a3 computes 0.1296 — and the clamp raises that to
+ *   COOL_FLOOR, keeping the column's (COOL_FLOOR … 1] invariant.
  */
 async function reverseTx(
   tx: Tx,
@@ -265,7 +292,7 @@ async function moreCool(tx: Tx, userId: string, topicId: string) {
 /**
  * Records the reader's verdict on one item and applies it (D2). One transaction, in D2's order:
  *
- *   1. lock the item's feedback row; the same verdict again is a no-op returning what is stored;
+ *   1. take the (user, item) lock and read the item's feedback row; the same verdict again is a no-op returning what is stored;
  *      the other verdict is reversed first, so a flip nets to exactly one effect;
  *   2. the weight (`moreWeight` / `lessWeight`);
  *   3. the cool (`moreCool` / `lessCool`);
@@ -286,6 +313,7 @@ export async function setFeedback(
   // (see items.ts's drawFromTopic comment for the canonical explanation).
   const { db } = await import("./client");
   return db.transaction(async (tx) => {
+    await lockItem(tx, userId, itemId);
     const existing = await lockFeedback(tx, userId, itemId);
     if (existing?.verdict === verdict) return storedEffect(existing);
     if (existing) await reverseTx(tx, userId, existing);
@@ -345,6 +373,7 @@ export async function clearFeedback(
 ): Promise<FeedbackEffect | null> {
   const { db } = await import("./client");
   return db.transaction(async (tx) => {
+    await lockItem(tx, userId, itemId);
     const existing = await lockFeedback(tx, userId, itemId);
     if (!existing) return null;
     await reverseTx(tx, userId, existing);
