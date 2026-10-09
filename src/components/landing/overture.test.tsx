@@ -14,7 +14,7 @@ describe("Overture", () => {
     expect(screen.getByTestId("overture-tail").textContent).toBe(TAGLINE);
     expect(line.className).toContain("font-inter-test");
     expect(WORDMARK).toBe("AMBIT");
-    expect(TAGLINE).toBe(" — A quieter way to be curious.");
+    expect(TAGLINE).toBe(" — Wander the best of the internet.");
   });
 
   it("collapse clips and fades the tail and drifts the wordmark by half the tail's width — no layout properties", () => {

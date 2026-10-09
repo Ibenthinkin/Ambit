@@ -15,6 +15,7 @@ import { Button } from "~/components/ui/button";
 import { Eyebrow } from "~/components/ui/eyebrow";
 import { Rise } from "~/components/ui/rise";
 import { TextLink } from "~/components/ui/text-link";
+import { useUsage } from "~/components/usage/usage-provider";
 import {
   isAnswered,
   keepOrPass,
@@ -168,6 +169,7 @@ export function OnboardingScreen({
   storedReading = null,
 }: OnboardingScreenProps) {
   const router = useRouter();
+  const { track } = useUsage();
   const utils = api.useUtils();
   const complete = api.onboarding.complete.useMutation();
   const interpret = api.onboarding.interpret.useMutation();
@@ -257,6 +259,21 @@ export function OnboardingScreen({
   useEffect(() => {
     if (currentId) document.getElementById(`q-${currentId}`)?.focus();
   }, [currentId]);
+
+  // The reveal is a step inside /onboarding, not a route, so the usage provider's URL-derived
+  // `screen.open` never sees it; this is its one source. The ref is the StrictMode guard (an
+  // effect runs twice in development) and is cleared when the phase leaves the reveal, so going
+  // Back and forward again counts as a second look.
+  const revealSeen = useRef(false);
+  useEffect(() => {
+    if (phase !== "reveal") {
+      revealSeen.current = false;
+      return;
+    }
+    if (revealSeen.current) return;
+    revealSeen.current = true;
+    track("screen.open", { screen: "reveal" });
+  }, [phase, track]);
 
   /** After the last question: map any free text to topics, then on to the reveal. The last
    *  question stays on screen meanwhile (its forward button busy) — there is no screen between. */
@@ -351,9 +368,20 @@ export function OnboardingScreen({
     setStackAt(0);
   }
 
+  /** One `onboarding.step` for the step being left. A question outside the bank's step map (a
+   *  test bank, a future question) has no step number to report, so it records nothing. */
+  function trackStep(
+    questionId: string | undefined,
+    action: "answer" | "skip" | "back",
+  ) {
+    const step = questionId ? STEP_OF[questionId] : undefined;
+    if (step) track("onboarding.step", { meta: { step, action } });
+  }
+
   /** Leaves the question on screen with `answer` (or a skip) and moves on. */
   function advance(answer: Answer | undefined) {
     if (!current || finishing) return;
+    trackStep(current.id, isAnswered(answer) ? "answer" : "skip");
     resetScreen();
     const kept: Answer = isAnswered(answer)
       ? answer.text !== undefined
@@ -396,6 +424,14 @@ export function OnboardingScreen({
   /** Back from a question: the previous one, with what was said there; or the intro. A pick
    *  still waiting out its beat is dropped with the question it was made on. */
   function back() {
+    // From the reveal the step being left is the last question's (there is no step 9); from a
+    // question it is that question's.
+    trackStep(
+      phase === "reveal"
+        ? answers[answers.length - 1]?.questionId
+        : current?.id,
+      "back",
+    );
     resetScreen();
     finishRun.current += 1;
     setFinishing(false);
@@ -534,6 +570,7 @@ export function OnboardingScreen({
 
   /** "Start over" on the reveal: every answer cleared, back to the intro. */
   function restart() {
+    track("onboarding.retake");
     resetScreen();
     finishRun.current += 1;
     setFinishing(false);

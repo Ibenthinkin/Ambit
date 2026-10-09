@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { LinkOutRow } from "./link-out-row";
+
+const track = vi.fn();
+vi.mock("~/components/usage/usage-provider", () => ({
+  useUsage: () => ({ track }),
+}));
 
 describe("LinkOutRow", () => {
   it("renders a prominent link to the post for a blog source", () => {
@@ -10,6 +15,7 @@ describe("LinkOutRow", () => {
       <LinkOutRow
         source="doorofperception"
         sourceUrl="https://doorofperception.com/2026/08/the-geologic-atlas-of-the-moon/"
+        itemId="i1"
       />,
     );
     const link = screen.getByRole("link", { name: "Original post" });
@@ -28,6 +34,7 @@ describe("LinkOutRow", () => {
       <LinkOutRow
         source="doorofperception"
         sourceUrl="https://doorofperception.com/p/"
+        itemId="i1"
       />,
     );
     const link = screen.getByRole("link", { name: "Original post" });
@@ -41,6 +48,7 @@ describe("LinkOutRow", () => {
       <LinkOutRow
         source="pdr"
         sourceUrl="https://publicdomainreview.org/collection/atlantic-city-sand-sculpture/"
+        itemId="i1"
       />,
     );
     expect(
@@ -56,6 +64,7 @@ describe("LinkOutRow", () => {
       <LinkOutRow
         source="met"
         sourceUrl="https://www.metmuseum.org/art/collection/search/1"
+        itemId="i1"
       />,
     );
     expect(
@@ -67,7 +76,9 @@ describe("LinkOutRow", () => {
   });
 
   it("renders nothing without a source URL", () => {
-    const { container } = render(<LinkOutRow source="met" sourceUrl="" />);
+    const { container } = render(
+      <LinkOutRow source="met" sourceUrl="" itemId="i1" />,
+    );
     expect(container).toBeEmptyDOMElement();
   });
 
@@ -78,6 +89,7 @@ describe("LinkOutRow", () => {
       <LinkOutRow
         source="doorofperception"
         sourceUrl="https://doorofperception.com/p/"
+        itemId="i1"
         className="mt-0"
       />,
     );
@@ -87,5 +99,26 @@ describe("LinkOutRow", () => {
     );
     // `cn` resolves the conflict: the caller's margin wins over the row's own.
     expect(classes).not.toContain("mt-[24px]");
+  });
+
+  it("records item.linkout (the item, never the URL) on a click", () => {
+    track.mockClear();
+    render(
+      <LinkOutRow source="met" sourceUrl="https://example.org/x" itemId="i1" />,
+    );
+    fireEvent.click(screen.getByRole("link"));
+    expect(track).toHaveBeenCalledWith("item.linkout", { itemId: "i1" });
+  });
+
+  it("records a middle click but not a right click", () => {
+    track.mockClear();
+    render(
+      <LinkOutRow source="met" sourceUrl="https://example.org/x" itemId="i1" />,
+    );
+    const link = screen.getByRole("link");
+    fireEvent(link, new MouseEvent("auxclick", { bubbles: true, button: 2 }));
+    expect(track).not.toHaveBeenCalled();
+    fireEvent(link, new MouseEvent("auxclick", { bubbles: true, button: 1 }));
+    expect(track).toHaveBeenCalledWith("item.linkout", { itemId: "i1" });
   });
 });

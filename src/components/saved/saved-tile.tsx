@@ -10,6 +10,7 @@ import { TILE_LIFT } from "~/components/feed/tile-lift";
 import { WritingTile } from "~/components/feed/writing-tile";
 import { Bookmark, Plus } from "~/components/icons";
 import { Rise } from "~/components/ui/rise";
+import { markArrival } from "~/lib/item-arrival";
 import { cn } from "~/lib/utils";
 
 // One tile on the Saved masonry: the feed's own `ImageTile`/`ArticleCard`, unchanged, plus the
@@ -51,6 +52,7 @@ export function SavedTile({
   // to Saved under a button labeled Feed. Accepted seam: leaving a Saved-opened item page pushes a
   // fresh `/feed?focus=` (browser back still returns here).
   const openItem = () => {
+    markArrival(item.id, "saved");
     router.push(`/i/${item.id}`);
   };
 

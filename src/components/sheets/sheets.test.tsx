@@ -27,7 +27,9 @@ const {
   mutationOpts,
   createMock,
   createOpts,
+  trackMock,
 } = vi.hoisted(() => ({
+  trackMock: vi.fn(),
   createMock: vi.fn(),
   // The New-collection row's mutation, captured the same way as `mutationOpts` so a test can play
   // the server's "created" answer at the moment it wants.
@@ -117,6 +119,10 @@ vi.mock("~/trpc/react", () => ({
   },
 }));
 
+vi.mock("~/components/usage/usage-provider", () => ({
+  useUsage: () => ({ track: trackMock }),
+}));
+
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
 
 const DEFAULT_COLLECTIONS = [
@@ -134,6 +140,7 @@ beforeEach(() => {
   mutateMock.mockClear();
   pushMock.mockClear();
   createMock.mockClear();
+  trackMock.mockClear();
 });
 
 /** Opens a sheet's New-collection row, names it, submits, and plays the server's "created". */
@@ -580,5 +587,64 @@ describe("CollectionsSheet", () => {
     fireEvent.click(screen.getByText("Everything kept"));
     expect(sessionStorage.getItem("ambit.savedOrigin.v1")).toBe("1");
     expect(pushMock).toHaveBeenCalledWith("/saved");
+  });
+});
+
+describe("ShareSheet usage", () => {
+  const renderShare = (itemId?: string) =>
+    render(
+      <ShareSheet
+        open
+        onClose={vi.fn()}
+        url="https://ambit.test/i/x"
+        title="X"
+        itemId={itemId}
+        onCopied={vi.fn()}
+        onShareUnavailable={vi.fn()}
+      />,
+    );
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("records a successful copy as method:copy", async () => {
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    renderShare("x");
+    fireEvent.click(screen.getByRole("button", { name: /Copy link/i }));
+    await waitFor(() =>
+      expect(trackMock).toHaveBeenCalledWith("item.share", {
+        itemId: "x",
+        meta: { method: "copy" },
+      }),
+    );
+  });
+
+  it("records a successful navigator.share, but nothing when the reader cancels", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { share });
+    renderShare("x");
+    fireEvent.click(screen.getByRole("button", { name: "Share via Messages" }));
+    await waitFor(() =>
+      expect(trackMock).toHaveBeenCalledWith("item.share", {
+        itemId: "x",
+        meta: { method: "share" },
+      }),
+    );
+
+    trackMock.mockClear();
+    share.mockRejectedValue(
+      Object.assign(new Error("x"), { name: "AbortError" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Share via Messages" }));
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(2));
+    expect(trackMock).not.toHaveBeenCalled();
+  });
+
+  it("records nothing for a collection share (no itemId)", async () => {
+    vi.stubGlobal("navigator", { share: vi.fn().mockResolvedValue(undefined) });
+    renderShare();
+    fireEvent.click(screen.getByRole("button", { name: "Share via Messages" }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(trackMock).not.toHaveBeenCalled();
   });
 });

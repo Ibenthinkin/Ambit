@@ -121,7 +121,7 @@ describe.skipIf(!process.env.DATABASE_URL)("db/feedback (integration)", () => {
     return rows.length > 0;
   }
 
-  it("deleting a user cascades their feedback and cool rows (migration 0015)", async () => {
+  it("deleting a user cascades their feedback and cool rows (migration 0016)", async () => {
     const { db } = await import("./client");
     const { setFeedback } = await import("./feedback");
     const { itemFeedback, user, userTopicCool } = await import("./schema");

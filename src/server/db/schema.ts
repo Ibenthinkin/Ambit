@@ -492,6 +492,36 @@ export const userTopicCool = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.topicId] })],
 );
 
+// What a reader *did*, as named events from a closed vocabulary (config/usage.ts; design in
+// docs/DESIGN_usage.md). Like `seen_item` it is a per-reader log, but it records actions the other
+// tables leave no trace of (a link-out, a zoom, an unsave). What it is NOT: there is no ip, user
+// agent, url or referrer column — by construction, the columns do not exist — and `screen` holds a
+// route *name*, never a path. `user_id` is nullable (a signed-out visit still has a sitting) and
+// cascades, so deleting an account deletes its events. Nothing at request time reads this table;
+// only scripts do (`usage:report`). `at` is the client's clock, clamped by the route.
+export const usageEvent = pgTable(
+  "usage_event",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    // Per-tab random key (sessionStorage) that groups events into a sitting.
+    visit: text("visit").notNull(),
+    kind: text("kind").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    screen: text("screen"),
+    itemId: text("item_id").references(() => item.id, { onDelete: "cascade" }),
+    topicId: text("topic_id").references(() => topic.id),
+    meta: jsonb("meta").$type<Record<string, string | number | boolean>>(),
+  },
+  (table) => [
+    index("usage_event_user_at_idx").on(table.userId, table.at),
+    index("usage_event_at_idx").on(table.at),
+  ],
+);
+export type NewUsageEvent = typeof usageEvent.$inferInsert;
+
 export const invite = pgTable("invite", {
   id: text("id")
     .primaryKey()

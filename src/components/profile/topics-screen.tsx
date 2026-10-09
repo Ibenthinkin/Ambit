@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { ExhibitionCard } from "~/components/onboarding/exhibition-card";
 import { useProfileHub } from "~/components/profile/profile-hub";
+import { useUsage } from "~/components/usage/usage-provider";
 import { levelRowOrder, TopicLevels } from "~/components/topics/topic-levels";
 import { Button } from "~/components/ui/button";
 import { Eyebrow } from "~/components/ui/eyebrow";
@@ -141,6 +142,12 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
     if (inScope <= 1) void utils.topics.mine.invalidate();
   }
 
+  // Recorded when the reader acts, not when the server answers: these rows are optimistic and
+  // the floor-of-one refusal (`commit` returning false) is the only "no" worth honouring, so
+  // add/remove check it and level changes (which cannot be refused) just go. `topicId` rides in
+  // the event's own column, never in `meta`.
+  const { track } = useUsage();
+
   const setMine = api.topics.setMine.useMutation({
     // See the file header: one serial queue shared with `setWeight`.
     scope: WRITE_SCOPE,
@@ -261,7 +268,12 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
                         onClick={() => {
                           // Naming one topic by itself is a strong signal — `pickWeight(1)`,
                           // "a lot" — and the level is one tap away if that is too much.
-                          commit(new Map(picks).set(t.id, pickWeight(1)));
+                          if (commit(new Map(picks).set(t.id, pickWeight(1)))) {
+                            track("topics.edit", {
+                              topicId: t.id,
+                              meta: { action: "add" },
+                            });
+                          }
                           setQuery("");
                         }}
                       >
@@ -302,7 +314,10 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
             <TopicLevels
               topics={all}
               picks={picks}
-              onLevel={(topicId, level) => setWeight.mutate({ topicId, level })}
+              onLevel={(topicId, level) => {
+                setWeight.mutate({ topicId, level });
+                track("topics.edit", { topicId, meta: { action: level } });
+              }}
               onOff={(topicId) => {
                 // Choose the focus target from the list as drawn (by heading, then label —
                 // `levelRowOrder` is TopicLevels' own order) before the row goes. If the
@@ -317,7 +332,11 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
                 };
                 const next = new Map(picks);
                 next.delete(topicId);
-                if (!commit(next)) focusAfterRemoval.current = null;
+                if (commit(next)) {
+                  track("topics.edit", { topicId, meta: { action: "remove" } });
+                } else {
+                  focusAfterRemoval.current = null;
+                }
               }}
             />
           </div>
@@ -367,7 +386,11 @@ export function TopicsScreen({ dev }: { dev: boolean }) {
       <Rise delayMs={180}>
         <p className="text-ink/62 px-5 pt-10 text-[15px] leading-[1.5]">
           Want to start over?{" "}
-          <TextLink href="/onboarding?retake=1" tone="body">
+          <TextLink
+            href="/onboarding?retake=1"
+            tone="body"
+            onClick={() => track("onboarding.retake")}
+          >
             Retake the questions
           </TextLink>
         </p>

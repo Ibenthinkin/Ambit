@@ -7,6 +7,7 @@ import {
   isNextStatic,
   isStaticAsset,
   isTrpc,
+  isUsageBeacon,
   PAGES_CACHE,
   purgePagesCache,
   type MatchInput,
@@ -187,5 +188,20 @@ describe("purgePagesCache", () => {
     });
 
     await expect(purgePagesCache()).resolves.toBeUndefined();
+  });
+});
+
+describe("isUsageBeacon", () => {
+  it("matches the usage beacon, which must never be cached or replayed", () => {
+    expect(isUsageBeacon(req("/api/usage"))).toBe(true);
+  });
+
+  it("does not match other API routes, a page, or another origin", () => {
+    expect(isUsageBeacon(req("/api/trpc/feed.page"))).toBe(false);
+    expect(isUsageBeacon(req("/api/img/abc123"))).toBe(false);
+    expect(isUsageBeacon(nav("/usage"))).toBe(false);
+    expect(
+      isUsageBeacon(req("/api/usage", { origin: "https://elsewhere.test" })),
+    ).toBe(false);
   });
 });

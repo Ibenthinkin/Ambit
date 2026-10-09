@@ -7,11 +7,12 @@ import { cn } from "~/lib/utils";
 
 import { OVERTURE, type OverturePhase } from "./use-overture";
 
-// The opening line (docs/DESIGN_landing-redo.md D4): `AMBIT — A quieter way to be curious.` on
-// black, whose tail collapses into the wordmark — and then the whole line goes with the cut into
-// the reel. Ben, 09-26-26: no text hovering over the slideshow. (Until then the wordmark stayed over
-// the pictures in `mix-blend-mode: difference`; the blend is kept for the collapse, which plays over
-// the reel's first frame whenever the pictures beat the overture.)
+// The opening line (docs/DESIGN_landing-redo.md D4; the words since 10-09-26, see D9's
+// amendment): `AMBIT — Wander the best of the internet.` on black, whose tail collapses into
+// the wordmark — and then the whole line goes with the cut into the reel. Ben, 09-26-26: no text
+// hovering over the slideshow. (Until then the wordmark stayed over the pictures in
+// `mix-blend-mode: difference`; the blend is kept for the collapse, which plays over the reel's
+// first frame whenever the pictures beat the overture.)
 //
 // Copied from the reference's `#intro-text`, with one deliberate difference: the reference
 // collapses the tail with a `width` transition, which moves its siblings and is counted as layout
@@ -29,7 +30,7 @@ import { OVERTURE, type OverturePhase } from "./use-overture";
 // motion changes (the `gentle` tempo — no drift, a soft first frame).
 
 export const WORDMARK = "AMBIT";
-export const TAGLINE = " — A quieter way to be curious.";
+export const TAGLINE = " — Wander the best of the internet.";
 
 export interface OvertureProps {
   phase: OverturePhase;

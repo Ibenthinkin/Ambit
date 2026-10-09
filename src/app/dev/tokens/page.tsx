@@ -542,7 +542,7 @@ export default function TokensPage() {
                   {t.where}
                 </span>
                 <span className={`${t.cls} text-ink font-sans`}>
-                  A quieter way to be curious.
+                  Wander the best of the internet.
                 </span>
               </div>
             ))}

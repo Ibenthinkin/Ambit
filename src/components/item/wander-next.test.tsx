@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { takeArrival } from "~/lib/item-arrival";
 import { WanderNext } from "./wander-next";
 
 vi.mock("next/link", () => ({
@@ -29,5 +30,14 @@ describe("WanderNext layout=wide", () => {
       "href",
       "/i/a",
     );
+  });
+});
+
+describe("WanderNext arrival", () => {
+  it("leaves a wander note for the item a row opens", () => {
+    sessionStorage.clear();
+    render(<WanderNext rows={rows} />);
+    fireEvent.click(screen.getByRole("link", { name: /Second/ }));
+    expect(takeArrival("b")).toBe("wander");
   });
 });

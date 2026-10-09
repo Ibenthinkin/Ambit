@@ -60,7 +60,7 @@ Calls made here and stated rather than asked:
 
 ## D1. Data
 
-Migration **0015_more_or_less**, two tables, nothing backfilled.
+Migration **0016_more_or_less** (planned as 0015; renumbered at merge, after `0015_usage_event`), two tables, nothing backfilled.
 
 ```sql
 item_feedback (
