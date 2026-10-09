@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+
+import { markArrival } from "~/lib/item-arrival";
 
 import { Eyebrow } from "~/components/ui/eyebrow";
 import type { WanderRow } from "~/server/services/wander";
@@ -41,6 +45,7 @@ export function WanderNext({ rows, layout = "column" }: WanderNextProps) {
             <li key={row.id}>
               <Link
                 href={`/i/${row.id}`}
+                onClick={() => markArrival(row.id, "wander")}
                 className="border-ink/10 grid grid-cols-[60px_minmax(0,1.3fr)_minmax(0,1fr)_30px] items-baseline gap-x-6 border-t py-[18px]"
               >
                 <span
@@ -81,6 +86,7 @@ export function WanderNext({ rows, layout = "column" }: WanderNextProps) {
           <li key={row.id}>
             <Link
               href={`/i/${row.id}`}
+              onClick={() => markArrival(row.id, "wander")}
               className="border-ink/14 flex items-start gap-3 border-b py-4"
             >
               <span

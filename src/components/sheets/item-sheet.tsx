@@ -11,6 +11,7 @@ import { Eyebrow } from "~/components/ui/eyebrow";
 import { writeLastCollectionId } from "~/lib/last-collection";
 import type { SaveDrift } from "~/lib/save-toast";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
+import { markArrival } from "~/lib/item-arrival";
 import { api } from "~/trpc/react";
 import { NewCollectionRow } from "./collection-rows";
 import { ShareSheet } from "./share-sheet";
@@ -122,6 +123,7 @@ export function ItemSheet({
   const closerLook = () => {
     if (!item) return;
     onClose();
+    markArrival(item.id, "feed");
     router.push(`/i/${item.id}`);
   };
 
@@ -214,6 +216,7 @@ export function ItemSheet({
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         url={shareUrl}
+        itemId={item?.id}
         title={item?.title ?? ""}
         onCopied={() => onToast("Link copied")}
         onShareUnavailable={() => onToast("Sharing isn't available here")}

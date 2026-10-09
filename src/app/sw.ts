@@ -30,6 +30,7 @@ import {
   isNextStatic,
   isStaticAsset,
   isTrpc,
+  isUsageBeacon,
   NEXT_STATIC_CACHE,
   PAGES_CACHE,
   STATIC_CACHE,
@@ -88,6 +89,8 @@ const serwist = new Serwist({
     // Never stored. Every tRPC response is per-reader, and a feed page is *spent* when received
     // (the client acks it as seen), so replaying one would show items the server thinks are done.
     { matcher: isTrpc, handler: new NetworkOnly() },
+    // The usage beacon is a write: never stored, never replayed.
+    { matcher: isUsageBeacon, handler: new NetworkOnly() },
     {
       // Immutable by construction — the route serves `max-age=31536000, immutable` — and the
       // single most expensive thing the app fetches. 150 entries is roughly six feed pages'

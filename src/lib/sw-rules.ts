@@ -46,6 +46,15 @@ export const isTrpc = ({ url, sameOrigin }: MatchInput): boolean =>
   sameOrigin && url.pathname.startsWith("/api/trpc/");
 
 /**
+ * The usage beacon (`POST /api/usage`). **Network only, never stored.** A beacon is a write the
+ * reader never sees: caching or replaying it later would record events that did not happen then.
+ * (A service worker only sees `POST` as a `fetch` it chooses to handle; naming the rule keeps the
+ * terminator from ever being the only thing standing between a beacon and a cache.)
+ */
+export const isUsageBeacon = ({ url, sameOrigin }: MatchInput): boolean =>
+  sameOrigin && url.pathname === "/api/usage";
+
+/**
  * The image proxy. Cache-first and generously sized: these are immutable by construction (the
  * route serves `public, max-age=31536000, immutable`), they are the single most expensive thing
  * the app fetches, and they are what makes an offline feed look like a feed rather than a

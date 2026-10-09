@@ -1,5 +1,6 @@
 import { Eyebrow } from "~/components/ui/eyebrow";
 import { TextLink } from "~/components/ui/text-link";
+import { useUsage } from "~/components/usage/usage-provider";
 import { sourceLabel } from "~/lib/source-label";
 import type { RailItem } from "~/server/services/gallery-rail";
 import { INFORMATION_ID } from "./caption-type";
@@ -20,7 +21,7 @@ import { ReuseNotice } from "./reuse-notice";
 //
 // It takes a `RailItem`, not an `Item`, because it renders for whichever cell of the rail is under
 // the reader's finger — and a `RailItem` is exactly the public projection every visitor may see.
-// Pure: no queries, no router, no state. `WanderNext` and `JoinCta` sit below it in `ItemScreen`.
+// No queries, no router, no state; its only side effect is recording a link-out click (`item.linkout`). `WanderNext` and `JoinCta` sit below it in `ItemScreen`.
 export interface ItemFactsProps {
   item: RailItem;
   /** `column` (default) is the phone / reader-width stack; `wide` is the desktop "Information"
@@ -119,6 +120,7 @@ const MONO_LINE =
  * focus on. A PDR essay (`body`) runs on under the grid at reader width.
  */
 function ItemFactsWide({ item }: { item: RailItem }) {
+  const { track } = useUsage();
   const maker = makerOf(item);
   const rows = itemFactRows(item);
   const topic = rowValue(rows, "Topic");
@@ -168,7 +170,17 @@ function ItemFactsWide({ item }: { item: RailItem }) {
           ) : null}
           {item.sourceUrl ? (
             <p className="mt-5 text-[16px]">
-              <TextLink href={item.sourceUrl} external bracket tone="body">
+              <TextLink
+                href={item.sourceUrl}
+                external
+                bracket
+                tone="body"
+                onClick={() => track("item.linkout", { itemId: item.id })}
+                onAuxClick={(e) => {
+                  if (e.button === 1)
+                    track("item.linkout", { itemId: item.id });
+                }}
+              >
                 {linkOutCopy(item.source)}
               </TextLink>
             </p>
@@ -204,6 +216,7 @@ export function ItemFactsSpread({
   // A capped rail can leave the right slot as the end card, so only one real page remains; focus
   // on that slot falls back to the page that is there, keeping exactly one `<h1>`.
   const h1Side = focusSide < pages.length ? focusSide : 0;
+  const { track } = useUsage();
   return (
     <section
       id={INFORMATION_ID}
@@ -262,6 +275,11 @@ export function ItemFactsSpread({
                       external
                       bracket
                       tone="body"
+                      onClick={() => track("item.linkout", { itemId: item.id })}
+                      onAuxClick={(e) => {
+                        if (e.button === 1)
+                          track("item.linkout", { itemId: item.id });
+                      }}
                     >
                       {linkOutCopy(item.source)}
                     </TextLink>
@@ -331,7 +349,11 @@ export function ItemFacts({ item, layout = "column" }: ItemFactsProps) {
       ) : null}
 
       {/* The white "Original post" / "Original source" button — on every item with a source URL. */}
-      <LinkOutRow source={item.source} sourceUrl={item.sourceUrl} />
+      <LinkOutRow
+        source={item.source}
+        sourceUrl={item.sourceUrl}
+        itemId={item.id}
+      />
     </article>
   );
 }

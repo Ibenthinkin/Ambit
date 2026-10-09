@@ -193,7 +193,7 @@ Pure where it can be: the queue and the visit clock take injected `now`, `send`,
   is absent. Note in a comment: a `Blob` with an explicit JSON type is what makes the beacon
   carry `Content-Type` (a string body is sent as `text/plain`).
 - [ ] 8.4 `components/usage/usage-provider.tsx`: a client component mounted once in
-  `app/layout.tsx` beside `SwCleanup` — **only when `NEXT_PUBLIC_USAGE_ENABLED` is `"1"`**
+  `app/layout.tsx` beside `SwCleanup` — **only when `NEXT_PUBLIC_USAGE_ENABLED` is `"1"`** _(as built: the runtime server env var `USAGE_ENABLED`, read per request in the root layout — a `NEXT_PUBLIC_` var is inlined at build time and the Dockerfile passes no such ARG)_
   (`env.js` client section; unset = nothing mounts, nothing is tracked, the route still answers
   `204`). This is the after-beta off switch: one env var on Coolify, one redeploy; on mount `start(entry)` with `device` from
   `useMediaQuery("(min-width: 768px)")` (the same `md` as everything else), `standalone` from

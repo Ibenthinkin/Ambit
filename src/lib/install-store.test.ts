@@ -22,6 +22,9 @@ import {
   type InstallState,
 } from "./install-store";
 
+const { trackMock } = vi.hoisted(() => ({ trackMock: vi.fn() }));
+vi.mock("~/lib/usage", () => ({ track: trackMock }));
+
 const NOW = 1_780_000_000_000;
 
 function state(overrides: Partial<InstallState> = {}): InstallState {
@@ -31,6 +34,7 @@ function state(overrides: Partial<InstallState> = {}): InstallState {
 beforeEach(() => {
   localStorage.clear();
   resetInstallStoreForTests();
+  trackMock.mockClear();
 });
 
 afterEach(() => {
@@ -200,6 +204,41 @@ describe("useInstall", () => {
     expect(outcome).toBe("accepted");
     // Single-use: the browser will not accept the same event twice.
     expect(result.current.canPrompt).toBe(false);
+  });
+
+  it("records nothing for a declined prompt", async () => {
+    attachInstallListeners();
+    fireBeforeInstallPrompt("dismissed");
+    const { result } = renderHook(() => useInstall());
+    await act(async () => {
+      await result.current.prompt();
+    });
+    expect(trackMock).not.toHaveBeenCalled();
+  });
+
+  it("counts one install once: prompt accepted, then the appinstalled that follows it", async () => {
+    attachInstallListeners();
+    fireBeforeInstallPrompt("accepted");
+    const { result } = renderHook(() => useInstall());
+    await act(async () => {
+      await result.current.prompt();
+    });
+    act(() => {
+      window.dispatchEvent(new Event("appinstalled"));
+    });
+    expect(trackMock).toHaveBeenCalledExactlyOnceWith("pwa.install", {
+      meta: { how: "prompt" },
+    });
+  });
+
+  it("records how:appinstalled when the browser reports an install the page did not prompt", () => {
+    attachInstallListeners();
+    act(() => {
+      window.dispatchEvent(new Event("appinstalled"));
+    });
+    expect(trackMock).toHaveBeenCalledExactlyOnceWith("pwa.install", {
+      meta: { how: "appinstalled" },
+    });
   });
 
   it("reports a declined prompt as dismissed", async () => {

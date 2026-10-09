@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { track } from "~/lib/usage";
+
 // Everything the app knows about being installed: whether it already is, whether the browser has
 // offered us a prompt to trigger, and whether this reader has earned (or refused) the banner.
 //
@@ -173,6 +175,19 @@ let snapshot: InstallSnapshot = { canPrompt: false, installed: false };
 let attached = false;
 const listeners = new Set<() => void>();
 
+// `pwa.install` is recorded once per page life. On Chromium one install raises two witnesses — the
+// prompt's `userChoice` resolving "accepted" and the window's `appinstalled` event — and counting
+// both would call one install two. Whichever speaks first is recorded; the other is ignored. (The
+// banner's own Add is a different event, `how: "card"`, recorded by the flow: it is the ask, this
+// is the answer.) The `attached` guard below already means there is only ever one `appinstalled`
+// listener.
+let installRecorded = false;
+function recordInstall(how: "prompt" | "appinstalled") {
+  if (installRecorded) return;
+  installRecorded = true;
+  track("pwa.install", { meta: { how } });
+}
+
 function emit() {
   // A fresh object each time, but only when something actually changed — `useSyncExternalStore`
   // compares snapshots by identity and would loop forever on a new object per read.
@@ -194,6 +209,7 @@ export function attachInstallListeners(target: Window = window): void {
 
   target.addEventListener("appinstalled", () => {
     installed = true;
+    recordInstall("appinstalled");
     // The prompt is spent — a second call would reject.
     deferred = null;
     emit();
@@ -204,6 +220,7 @@ export function attachInstallListeners(target: Window = window): void {
 export function resetInstallStoreForTests(): void {
   deferred = null;
   installed = false;
+  installRecorded = false;
   attached = false;
   listeners.clear();
   snapshot = { canPrompt: false, installed: false };
@@ -245,6 +262,7 @@ export function useInstall(): InstallSnapshot & {
     emit();
     await event.prompt();
     const { outcome } = await event.userChoice;
+    if (outcome === "accepted") recordInstall("prompt");
     return outcome;
   }, []);
 

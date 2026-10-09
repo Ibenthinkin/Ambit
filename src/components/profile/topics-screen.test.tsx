@@ -35,6 +35,7 @@ const {
   setWeightMock,
   resetMock,
   toastMock,
+  trackMock,
   invalidateMock,
   state,
 } = vi.hoisted(() => ({
@@ -42,6 +43,7 @@ const {
   setWeightMock: vi.fn(),
   resetMock: vi.fn(),
   toastMock: vi.fn<(text: string) => void>(),
+  trackMock: vi.fn(),
   invalidateMock: vi.fn(),
   state: {
     topics: [] as { id: string; label: string; facet: string }[],
@@ -49,6 +51,10 @@ const {
     mineOpts: undefined as SetMineOpts | undefined,
     taste: null as ProfileTaste | null,
   },
+}));
+
+vi.mock("~/components/usage/usage-provider", () => ({
+  useUsage: () => ({ track: trackMock }),
 }));
 
 vi.mock("~/trpc/react", () => ({
@@ -133,6 +139,7 @@ beforeEach(() => {
     setWeightMock,
     resetMock,
     toastMock,
+    trackMock,
     invalidateMock,
   ])
     m.mockReset();
@@ -350,6 +357,45 @@ describe("TopicsScreen", () => {
     state.mineOpts!.onError!(new Error("x"), { picks: [] }, { previous });
     expect(state.mine).toEqual(previous);
     expect(toastMock).toHaveBeenCalledWith("Couldn't save that — try again.");
+  });
+
+  it("records topics.edit for add, each level and off — and nothing for a refused removal", () => {
+    render(<TopicsScreen dev={false} />);
+    fireEvent.click(
+      within(levelRow("Ceramics")).getByRole("radio", { name: "a little" }),
+    );
+    expect(trackMock).toHaveBeenLastCalledWith("topics.edit", {
+      topicId: "ceramics",
+      meta: { action: "little" },
+    });
+    fireEvent.click(
+      within(levelRow("Ceramics")).getByRole("radio", { name: "off" }),
+    );
+    expect(trackMock).toHaveBeenLastCalledWith("topics.edit", {
+      topicId: "ceramics",
+      meta: { action: "remove" },
+    });
+    search("bot");
+    fireEvent.click(screen.getByRole("button", { name: "Add Botany" }));
+    expect(trackMock).toHaveBeenLastCalledWith("topics.edit", {
+      topicId: "botany",
+      meta: { action: "add" },
+    });
+  });
+
+  it("records no topics.edit when the last-topic floor refuses the removal", () => {
+    state.mine = [{ topicId: "astronomy", weight: 1 }];
+    render(<TopicsScreen dev={false} />);
+    fireEvent.click(
+      within(levelRow("Astronomy")).getByRole("radio", { name: "off" }),
+    );
+    expect(trackMock).not.toHaveBeenCalled();
+  });
+
+  it("records onboarding.retake when the retake link is followed", () => {
+    render(<TopicsScreen dev={false} />);
+    fireEvent.click(screen.getByRole("link", { name: "Retake the questions" }));
+    expect(trackMock).toHaveBeenCalledWith("onboarding.retake");
   });
 
   it("links to the questionnaire as a retake", () => {

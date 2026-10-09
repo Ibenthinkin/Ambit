@@ -126,6 +126,12 @@ export default defineConfig({
     // address is every worker at once, and under the full parallel run that budget ran out:
     // `pwa.prod.spec` and `security.spec` 429'd on pictures while passing alone (09-26 → 10-07).
     // Ten times the budget for the server this suite boots; production never reads this.
-    env: { E2E_HIDE_DEV_INDICATOR: "1", IMG_RATE_LIMIT_PER_MIN: "6000" },
+    env: {
+      E2E_HIDE_DEV_INDICATOR: "1",
+      IMG_RATE_LIMIT_PER_MIN: "6000",
+      // The usage beacon runs on every screen the specs visit, so the suite runs with it on
+      // (layout.tsx mounts the client only when this is "1"); off, it would never be exercised.
+      USAGE_ENABLED: "1",
+    },
   },
 });

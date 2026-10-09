@@ -18,14 +18,33 @@ import { OnboardingScreen } from "./onboarding-screen";
 // vi.mock factories are hoisted above imports, so the mock functions they close over have to be
 // created through vi.hoisted(). Each tRPC procedure is a *hook returning an object*, so the mock
 // models that shape rather than a bare vi.fn().
-const { completeMock, interpretMock, replaceMock, invalidateMock } = vi.hoisted(
-  () => ({
+const { completeMock, interpretMock, replaceMock, invalidateMock, trackMock } =
+  vi.hoisted(() => ({
+    trackMock: vi.fn(),
     completeMock: vi.fn(),
     interpretMock: vi.fn(),
     replaceMock: vi.fn(),
     invalidateMock: vi.fn(),
-  }),
-);
+  }));
+
+vi.mock("~/components/usage/usage-provider", () => ({
+  useUsage: () => ({ track: trackMock }),
+}));
+
+// The fixture bank's ids are not the real bank's, so they have no step; give them one each.
+vi.mock("~/lib/interview/steps", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/lib/interview/steps")>();
+  return {
+    ...actual,
+    STEP_OF: {
+      ...actual.STEP_OF,
+      words: 1,
+      "space-or-garden": 2,
+      evening: 3,
+      unsettle: 4,
+    },
+  };
+});
 
 vi.mock("~/trpc/react", () => ({
   api: {
@@ -147,6 +166,7 @@ beforeEach(() => {
   interpretMock.mockReset().mockResolvedValue([]);
   replaceMock.mockReset();
   invalidateMock.mockReset().mockResolvedValue(undefined);
+  trackMock.mockClear();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -402,6 +422,35 @@ describe("OnboardingScreen", () => {
     click("Back");
     click("Back");
     expect(screen.getByRole("button", { name: "Begin" })).toBeInTheDocument();
+  });
+
+  it("records onboarding.step for an answer, a skip and a back, and the reveal's screen.open", () => {
+    show();
+    click("Begin");
+    leave(); // "words", step 1, skipped
+    expect(trackMock).toHaveBeenLastCalledWith("onboarding.step", {
+      meta: { step: 1, action: "skip" },
+    });
+    pick("A garden"); // step 2, answered
+    expect(trackMock).toHaveBeenLastCalledWith("onboarding.step", {
+      meta: { step: 2, action: "answer" },
+    });
+    click("Back"); // leaving "evening", step 3
+    expect(trackMock).toHaveBeenLastCalledWith("onboarding.step", {
+      meta: { step: 3, action: "back" },
+    });
+    expect(trackMock).not.toHaveBeenCalledWith(
+      "screen.open",
+      expect.anything(),
+    );
+    leave();
+    leave();
+    pick("Yes");
+    expect(onReveal()).toBe(true);
+    expect(trackMock).toHaveBeenCalledWith("screen.open", { screen: "reveal" });
+    expect(
+      trackMock.mock.calls.filter(([k]) => k === "screen.open"),
+    ).toHaveLength(1);
   });
 
   it("Back from the reveal returns to the last question, with its answer showing", () => {
@@ -1195,6 +1244,7 @@ describe("OnboardingScreen", () => {
       click("I’d rather look at pictures");
       await finishToReveal();
       click("Start over");
+      expect(trackMock).toHaveBeenCalledWith("onboarding.retake");
       expect(onReveal()).toBe(false);
       expect(screen.getByRole("button", { name: "Begin" })).toBeInTheDocument();
       begin();

@@ -7,7 +7,9 @@ import { SaveToCollectionSheet } from "~/components/sheets/save-to-collection-sh
 import { ShareSheet } from "~/components/sheets/share-sheet";
 import { Toolbar } from "~/components/ui/toolbar";
 import { Toast } from "~/components/ui/toast";
+import { useUsage } from "~/components/usage/usage-provider";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
+import { useTrackItemOpen } from "~/hooks/use-track-item-open";
 import { useSwipeBack } from "~/hooks/use-swipe-back";
 import { imageFileName } from "~/lib/image-filename";
 import { saveToastText } from "~/lib/save-toast";
@@ -46,6 +48,8 @@ export function ItemShell({
   appUrl,
   children,
 }: ItemShellProps) {
+  const { track } = useUsage();
+  useTrackItemOpen(itemId);
   const leave = useLeaveToFeed(itemId, { signedOut: !authed });
   const swipeRef = useSwipeBack({ onCommit: leave });
   const auth = useAuthSurface();
@@ -98,6 +102,7 @@ export function ItemShell({
       if (navigator.canShare?.({ files: [file] })) {
         try {
           await navigator.share({ files: [file] });
+          track("item.share", { itemId: itemId, meta: { method: "image" } });
         } catch (err) {
           // Dismissing the OS sheet rejects with AbortError — a normal outcome, not a failure.
           if ((err as Error)?.name !== "AbortError") throw err;
@@ -111,11 +116,12 @@ export function ItemShell({
       a.download = name;
       a.click();
       URL.revokeObjectURL(href);
+      track("item.share", { itemId: itemId, meta: { method: "image" } });
       setToast("Image saved");
     } catch {
       setToast("Couldn't save that image");
     }
-  }, [itemId]);
+  }, [itemId, track]);
 
   return (
     <>
@@ -165,6 +171,7 @@ export function ItemShell({
         anchor={shareAnchor}
         url={shareUrl}
         title={title}
+        itemId={itemId}
         imageContext={hasImage}
         onSaveImage={() => void saveImage()}
         onCopied={() => setToast("Link copied")}

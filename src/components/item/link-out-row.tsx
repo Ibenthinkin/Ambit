@@ -1,3 +1,4 @@
+import { LinkOutAnchor } from "~/components/item/link-out-anchor";
 import { PRIMARY_BLOCK } from "~/components/ui/button";
 import { sourceLabel } from "~/lib/source-label";
 import { cn } from "~/lib/utils";
@@ -18,13 +19,16 @@ import { isLinkCardSource } from "~/server/config/publications";
 // desktop's bracketed link in the summary keeps `linkOutCopy`'s full sentence, because there the
 // link is a line of prose, not a control.
 //
-// Server-safe on purpose: no hooks, no handlers, a plain anchor — so it renders unchanged inside
+// Server-safe on purpose: it has no hooks or handlers of its own — the anchor is the tiny client
+// island `LinkOutAnchor`, which only records the click — so it renders unchanged inside
 // the reader (a server component) and inside `ItemFacts` under the client `ItemScreen` alike.
 // The reader still asks `prefersLinkOutBlock` before using it: an open source's article keeps its quiet
 // inline link there (writing Phase 4).
 export interface LinkOutRowProps {
   source: string;
   sourceUrl: string;
+  /** Which item the click is recorded against (`item.linkout`). */
+  itemId: string;
   className?: string;
 }
 
@@ -52,10 +56,16 @@ export function linkOutCopy(source: string): string {
   return `Read the original on ${sourceLabel(source)}`;
 }
 
-export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
+export function LinkOutRow({
+  source,
+  sourceUrl,
+  itemId,
+  className,
+}: LinkOutRowProps) {
   if (!sourceUrl) return null;
   return (
-    <a
+    <LinkOutAnchor
+      itemId={itemId}
       href={sourceUrl}
       target="_blank"
       rel="noopener noreferrer"
@@ -66,6 +76,6 @@ export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
       )}
     >
       {linkOutLabel(source)}
-    </a>
+    </LinkOutAnchor>
   );
 }

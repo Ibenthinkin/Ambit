@@ -13,6 +13,7 @@ import { Toolbar } from "~/components/ui/toolbar";
 import { Rise } from "~/components/ui/rise";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { Toast } from "~/components/ui/toast";
+import { useUsage } from "~/components/usage/usage-provider";
 import { useColumnCount } from "~/hooks/use-media-query";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
@@ -60,6 +61,7 @@ export function SavedScreen() {
   // "Unsave is immediate" (prototype): the tile leaves the visible list optimistically, then the
   // settle invalidates the same trio every save path invalidates (`item-sheet.tsx`), which either
   // confirms the removal or — on a failed write — resurrects the tile with the truth.
+  const { track } = useUsage();
   const unsave = api.saves.unsave.useMutation({
     onMutate: ({ itemId }) => {
       utils.saves.list.setData(
@@ -68,6 +70,9 @@ export function SavedScreen() {
       );
       setToast("Removed from Saved");
     },
+    // Recorded on the server's yes, not on the tap: `onMutate` is optimistic and a failed write
+    // brings the tile back, so counting there would record unsaves that never happened.
+    onSuccess: (_data, { itemId }) => track("item.unsave", { itemId }),
     // Same house rule as the sheets' `onError`: the optimistic removal already told the user it
     // worked, so a failed write must say so out loud — the invalidation below brings the tile
     // back, and this explains why.

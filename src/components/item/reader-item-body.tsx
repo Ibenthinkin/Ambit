@@ -1,7 +1,9 @@
 import { Eyebrow } from "~/components/ui/eyebrow";
-import { TextLink } from "~/components/ui/text-link";
+import { ARROW, TEXT_LINK } from "~/components/ui/text-link";
+import { cn } from "~/lib/utils";
 import { sourceLabel } from "~/lib/source-label";
 import type { Item } from "~/server/db/items";
+import { LinkOutAnchor } from "./link-out-anchor";
 import { prefersLinkOutBlock, LinkOutRow } from "./link-out-row";
 import { ReaderBlocks } from "./reader-blocks";
 import { ReuseNotice } from "./reuse-notice";
@@ -74,17 +76,27 @@ export function ReaderItemBody({ item, keptIn = null }: ReaderItemBodyProps) {
           Loupe) keeps the quiet inline link — its body is the whole read, and the row's
           "go there instead" weight would be wrong for it. */}
       {prefersLinkOutBlock(item.source) ? (
-        <LinkOutRow source={item.source} sourceUrl={item.sourceUrl} />
+        <LinkOutRow
+          source={item.source}
+          sourceUrl={item.sourceUrl}
+          itemId={item.id}
+        />
       ) : (
         <div className="mt-[20px]">
-          <TextLink
+          {/* `TextLink external bracket`'s markup, on the usage-tracking anchor so the click
+              records `item.linkout` like the row's does. */}
+          <LinkOutAnchor
+            itemId={item.id}
             href={item.sourceUrl}
-            external
-            bracket
-            className="text-[13.5px]"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(TEXT_LINK, "text-[13.5px]")}
           >
+            <span aria-hidden="true">[</span>
             Read on {source}
-          </TextLink>
+            <span aria-hidden="true">..]</span>{" "}
+            <span aria-hidden="true">{ARROW}</span>
+          </LinkOutAnchor>
         </div>
       )}
     </article>

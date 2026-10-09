@@ -16,6 +16,7 @@ import type * as ExploreConfig from "~/config/explore";
 import { EXPLORE_BLOCKS } from "~/config/explore";
 import { DESKTOP_QUERY } from "~/hooks/use-media-query";
 import { HERO_LAYOUT_KEY } from "~/lib/hero-layout";
+import { markArrival, resetArrivalForTests } from "~/lib/item-arrival";
 import { stubMatchMedia } from "~/test/match-media";
 import type { RailItem } from "~/server/services/gallery-rail";
 import { ItemScreen } from "./item-screen";
@@ -36,13 +37,19 @@ const {
   invalidateMock,
   backMock,
   pushMock,
+  trackMock,
 } = vi.hoisted(() => ({
+  trackMock: vi.fn(),
   railFetchMock: vi.fn(),
   savedForItemMock: vi.fn(),
   wanderQueryMock: vi.fn(),
   invalidateMock: vi.fn().mockResolvedValue(undefined),
   backMock: vi.fn(),
   pushMock: vi.fn(),
+}));
+
+vi.mock("~/components/usage/usage-provider", () => ({
+  useUsage: () => ({ track: trackMock }),
 }));
 
 vi.mock("~/trpc/react", () => ({
@@ -223,7 +230,9 @@ beforeEach(() => {
   invalidateMock.mockClear();
   backMock.mockClear();
   pushMock.mockClear();
+  trackMock.mockClear();
   sessionStorage.clear();
+  resetArrivalForTests();
   Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
     value: 400,
     configurable: true,
@@ -1133,5 +1142,77 @@ describe("zoom (docs/DESIGN_hero-zoom.md)", () => {
     doubleTap();
     expect(currentImg().style.transform).toBe(UNZOOMED);
     expect(track().style.touchAction).toBe("pan-y");
+  });
+});
+
+describe("usage tracking (docs/DESIGN_usage.md)", () => {
+  const opens = () =>
+    trackMock.mock.calls.filter(([kind]) => kind === "item.open");
+
+  it("records the arrival once, from the screen that left the note", () => {
+    markArrival("entry", "saved");
+    renderScreen();
+    expect(opens()).toEqual([
+      ["item.open", { itemId: "entry", meta: { from: "saved" } }],
+    ]);
+  });
+
+  it("reads a navigated cold open as a link, ignoring a note for another item", () => {
+    markArrival("someone-else", "feed");
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue([
+      { type: "navigate", name: "https://ambit.test/i/entry" },
+    ] as unknown as PerformanceEntryList);
+    renderScreen();
+    expect(opens()).toEqual([
+      ["item.open", { itemId: "entry", meta: { from: "link" } }],
+    ]);
+  });
+
+  it("records nothing for an arrival with no note that is not a fresh navigation (reload, Back)", () => {
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue([
+      { type: "reload", name: "https://ambit.test/i/entry" },
+    ] as unknown as PerformanceEntryList);
+    renderScreen();
+    expect(opens()).toEqual([]);
+  });
+
+  it("records each rail advance as from:rail, and a swipe back counts again", () => {
+    renderScreen();
+    trackMock.mockClear();
+    key("ArrowRight");
+    expect(opens()).toEqual([
+      ["item.open", { itemId: "r0", meta: { from: "rail" } }],
+    ]);
+    key("ArrowLeft");
+    expect(opens()).toHaveLength(2);
+    expect(opens()[1]).toEqual([
+      "item.open",
+      { itemId: "entry", meta: { from: "rail" } },
+    ]);
+  });
+
+  it("records one item.zoom per zoom in, not per frame", () => {
+    const restore = sizeThePicture();
+    renderScreen();
+    doubleTap(200, 400);
+    expect(trackMock.mock.calls.filter(([k]) => k === "item.zoom")).toEqual([
+      ["item.zoom", { itemId: "entry" }],
+    ]);
+    doubleTap(200, 400); // zooming back out records nothing
+    expect(
+      trackMock.mock.calls.filter(([k]) => k === "item.zoom"),
+    ).toHaveLength(1);
+    restore();
+  });
+
+  it("records item.magazine with the new state, for the key", () => {
+    stubMatchMedia([DESKTOP_QUERY]);
+    localStorage.clear();
+    renderScreen();
+    key("m");
+    expect(trackMock.mock.calls.filter(([k]) => k === "item.magazine")).toEqual(
+      [["item.magazine", { itemId: "entry", meta: { on: true } }]],
+    );
+    vi.unstubAllGlobals();
   });
 });

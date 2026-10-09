@@ -108,7 +108,7 @@ test.describe.serial("dev knob panel", () => {
 
     const panel = page.getByTestId("knob-panel");
     await expect(panel).toBeVisible();
-    await expect(panel).toContainText("core / grown / wild");
+    await expect(panel).toContainText("original / grown / wild");
 
     const feedUrls: string[] = [];
     page.on("request", (r) => {

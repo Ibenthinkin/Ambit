@@ -38,6 +38,9 @@ export const env = createEnv({
     // CI and the Mac's .env on purpose, so a dev-server error never mails anyone. Not a secret —
     // just Ben's address, set in Coolify's environment for production.
     OPS_EMAIL: z.string().email().optional(),
+    // The usage-beacon off switch, read per request by the root layout: "1" mounts
+    // <UsageProvider>; anything else tracks nothing. Runtime, not NEXT_PUBLIC_ (build-inlined).
+    USAGE_ENABLED: z.string().optional(),
     // Optional here (unlike the two above): only the ingest-time curator (server/services/
     // curator.ts, Phase 3.3) and offline embedding tooling read it, never a request path, so
     // there's no reason to fail app boot over it. curator.ts checks for its own presence at call
@@ -126,6 +129,7 @@ export const env = createEnv({
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     MAIL_FROM: process.env.MAIL_FROM,
     OPS_EMAIL: process.env.OPS_EMAIL,
+    USAGE_ENABLED: process.env.USAGE_ENABLED,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     CURATOR_JUDGE: process.env.CURATOR_JUDGE,
     CLAUDE_JUDGE_MAX_UTILIZATION: process.env.CLAUDE_JUDGE_MAX_UTILIZATION,
