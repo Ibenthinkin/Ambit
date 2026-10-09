@@ -10,6 +10,10 @@
 // `db/usage.ts` (and through it the database client) — important because CI runs unit tests with
 // no environment at all.
 import type {
+  ClientErrorRow,
+  ItemActions,
+  ItemOpens,
+  OnboardingFunnel,
   OnboardingSummary,
   ReaderActivity,
   ReaderLabel,
@@ -17,7 +21,9 @@ import type {
   SaveRate,
   SignInDay,
   Sitting,
+  ScreensPerVisit,
   SourceShare,
+  VisitSummary,
 } from "~/server/db/usage";
 
 export type ReportData = {
@@ -32,6 +38,15 @@ export type ReportData = {
   signIns: SignInDay[];
   sources: SourceShare[];
   retention: RetentionWeek[];
+  // Cut 1 — the event-table sections.
+  visits: VisitSummary;
+  screens: ScreensPerVisit;
+  opens: ItemOpens;
+  actions: ItemActions;
+  topicEdits: { total: number; byAction: Record<string, number> };
+  funnel: OnboardingFunnel;
+  installs: Record<string, number>;
+  errors: ClientErrorRow[];
 };
 
 export type SittingSummary = {
@@ -83,6 +98,28 @@ function table(rows: string[][]): string {
     "\n",
   );
 }
+
+/** `{ phone: 6, desktop: 3 }` -> `phone 6, desktop 3`, biggest first (ties by name). */
+function counts(rec: Record<string, number>): string {
+  return Object.entries(rec)
+    .sort(([ka, a], [kb, b]) => b - a || ka.localeCompare(kb))
+    .map(([k, n]) => `${k} ${n}`)
+    .join(", ");
+}
+
+/** A two-column table of a count map, biggest first. */
+function countTable(head: string, rec: Record<string, number>): string {
+  return table([
+    [head, "Count"],
+    ...Object.entries(rec)
+      .sort(([ka, a], [kb, b]) => b - a || ka.localeCompare(kb))
+      .map(([k, n]) => [k, String(n)]),
+  ]);
+}
+
+/** A rate cell: `3 (30 per 100 opens)`, or just the count when there were no opens. */
+const rate = (r: { count: number; per100: number | null }) =>
+  r.per100 === null ? String(r.count) : `${r.count} (${num(r.per100)} per 100)`;
 
 const NOBODY = "_Nobody in this window._";
 
@@ -192,6 +229,123 @@ export function renderReport(d: ReportData): string {
             ]),
     ),
 
+    // ---- Cut 1: what the event table (usage_event) knows. Counts only, no readers named. ----
+
+    section(
+      "Visits",
+      d.visits.count === 0
+        ? "_No visits recorded._"
+        : table([
+            ["Measure", "Value"],
+            ["Visits", String(d.visits.count)],
+            ["Signed out", String(d.visits.signedOut)],
+            [
+              "Median active minutes",
+              d.visits.medianSeconds === null
+                ? "n/a"
+                : num(d.visits.medianSeconds / 60),
+            ],
+            [
+              "90th percentile active minutes",
+              d.visits.p90Seconds === null
+                ? "n/a"
+                : num(d.visits.p90Seconds / 60),
+            ],
+            ["Device", counts(d.visits.device) || "n/a"],
+            ["Opened via", counts(d.visits.via) || "n/a"],
+            [
+              "Installed-app share",
+              d.visits.standaloneShare === null
+                ? "n/a"
+                : pct(d.visits.standaloneShare),
+            ],
+          ]),
+    ),
+
+    section(
+      "Screens",
+      d.screens.visits === 0
+        ? "_No visits recorded._"
+        : `Per visit: mean ${d.screens.mean === null ? "n/a" : num(d.screens.mean)}, median ${d.screens.median === null ? "n/a" : num(d.screens.median)}, max ${d.screens.max}.\n\n` +
+            countTable("Screen", d.screens.byScreen),
+    ),
+
+    section(
+      "Items",
+      d.opens.opens === 0
+        ? "_No items opened._"
+        : table([
+            ["Measure", "Value"],
+            ["Opened", String(d.opens.opens)],
+            [
+              "Per visit",
+              d.opens.perVisit === null ? "n/a" : num(d.opens.perVisit),
+            ],
+            ["Opened from", counts(d.opens.from) || "n/a"],
+            [
+              "Swipe runs (median / max depth)",
+              d.opens.swipe.runs === 0
+                ? "none"
+                : `${d.opens.swipe.runs} (${d.opens.swipe.median === null ? "n/a" : num(d.opens.swipe.median)} / ${d.opens.swipe.max})`,
+            ],
+            ["Link-outs", rate(d.actions.linkout)],
+            [
+              "Shares",
+              rate(d.actions.share) +
+                (Object.keys(d.actions.share.byMethod).length
+                  ? ` — ${counts(d.actions.share.byMethod)}`
+                  : ""),
+            ],
+            ["Zooms", rate(d.actions.zoom)],
+            ["Magazine view", rate(d.actions.magazine)],
+            ["Unsaves", rate(d.actions.unsave)],
+          ]),
+    ),
+
+    section(
+      "Topic edits",
+      d.topicEdits.total === 0
+        ? "_No topic edits._"
+        : `${d.topicEdits.total} in all.\n\n` +
+            countTable("Action", d.topicEdits.byAction),
+    ),
+
+    section(
+      "Onboarding funnel",
+      d.funnel.readers === 0
+        ? "_Nobody started onboarding in this window._"
+        : `${d.funnel.readers} started; each reader's latest visit.\n\n` +
+            table([
+              ["Step", "Reached", "Stopped here"],
+              ...d.funnel.reached.map((n, i) => [
+                String(i + 1),
+                String(n),
+                String(d.funnel.stoppedAt[i] ?? 0),
+              ]),
+            ]),
+    ),
+
+    section(
+      "Installs",
+      Object.keys(d.installs).length === 0
+        ? "_No installs._"
+        : countTable("How", d.installs),
+    ),
+
+    section(
+      "Errors",
+      d.errors.length === 0
+        ? "_No client errors._"
+        : table([
+            ["Digest", "Screen", "Count"],
+            ...d.errors.map((e) => [
+              e.digest,
+              e.screen ?? "n/a",
+              String(e.count),
+            ]),
+          ]),
+    ),
+
     section(
       "Retention",
       d.retention.length === 0
@@ -208,4 +362,16 @@ export function renderReport(d: ReportData): string {
     ),
   ];
   return out.join("\n\n") + "\n";
+}
+
+/**
+ * The digest as an email: the subject names the week, the markdown is the plain-text body (a
+ * markdown table reads fine in a monospace mail client, and there is no HTML to sanitise).
+ * `date` is the window's first day as `YYYY-MM-DD`, the same ISO form the report prints.
+ */
+export function renderMail(
+  markdown: string,
+  date: string,
+): { subject: string; text: string } {
+  return { subject: `Ambit — usage, week of ${date}`, text: markdown };
 }
