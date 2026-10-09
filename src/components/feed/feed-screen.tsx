@@ -16,6 +16,7 @@ import type { FeedKnobs } from "~/server/services/feed-knobs";
 import { api } from "~/trpc/react";
 import { pageStats } from "./dev/feed-stats";
 import { KnobPanel } from "./dev/knob-panel";
+import { mergeYourTopics } from "./dev/feed-stats";
 import { useDevKnobs } from "./dev/use-dev-knobs";
 import { clearExploreOrigin, markFeedOrigin } from "./feed-origin";
 import { FeedGrid, type PressedItem } from "./feed-grid";
@@ -102,6 +103,22 @@ export function FeedScreen({ topicLabels, dev, appUrl }: FeedScreenProps) {
   // authoritative) and `nonce` exists purely to vary the query key: tRPC's input is a `z.object`,
   // which strips unknown keys, so the server never sees it. feed-screen.test.tsx pins the `{}`.
   const feedInput = isDev ? { knobs: devKnobs.knobs, nonce } : {};
+
+  // The "Your topics" readout's two reads. `enabled: isDev` keeps them off the production /feed
+  // entirely (a disabled query never fetches), and they don't touch the feed.page hydration key.
+  const minePicks = api.topics.mine.useQuery(undefined, { enabled: isDev });
+  const mineCools = api.topics.cools.useQuery(undefined, { enabled: isDev });
+  const yourTopics = React.useMemo(
+    () =>
+      isDev
+        ? mergeYourTopics(
+            minePicks.data ?? [],
+            mineCools.data ?? [],
+            topicLabels,
+          )
+        : [],
+    [isDev, minePicks.data, mineCools.data, topicLabels],
+  );
 
   const feed = api.feed.page.useInfiniteQuery(
     // **`{}`, not `undefined`.** This object is half of a hydration contract: /feed's RSC shell
@@ -358,6 +375,7 @@ export function FeedScreen({ topicLabels, dev, appUrl }: FeedScreenProps) {
           served={cardCount}
           forgotten={forgotten}
           forgetError={forgetError}
+          yourTopics={yourTopics}
         />
       ) : null}
 

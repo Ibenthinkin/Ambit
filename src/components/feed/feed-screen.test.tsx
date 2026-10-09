@@ -32,6 +32,7 @@ const {
   invalidateMock,
   queryInputs,
   forgetMock,
+  topicQueryEnabled,
 } = vi.hoisted(() => ({
   feedState: {
     current: {},
@@ -47,6 +48,9 @@ const {
   // panel (09-05-26) made the input vary, and /feed's `{}` contract is pinned by reading it.
   queryInputs: [] as unknown[],
   forgetMock: vi.fn(),
+  // The `enabled` flag each "Your topics" query was called with — the readout must not fetch on
+  // the production /feed.
+  topicQueryEnabled: [] as unknown[],
 }));
 
 vi.mock("~/trpc/react", () => ({
@@ -75,6 +79,22 @@ vi.mock("~/trpc/react", () => ({
       markSeen: { useMutation: () => ({ mutate: ackSeenMock }) },
       forgetSince: {
         useMutation: () => ({ mutateAsync: forgetMock, isPending: false }),
+      },
+    },
+    topics: {
+      mine: {
+        useQuery: (_: unknown, opts: { enabled: boolean }) => {
+          topicQueryEnabled.push(opts.enabled);
+          return { data: [{ topicId: "botany", weight: 1 }] };
+        },
+      },
+      cools: {
+        useQuery: (_: unknown, opts: { enabled: boolean }) => {
+          topicQueryEnabled.push(opts.enabled);
+          return {
+            data: [{ topicId: "astronomy", label: "Astronomy", cool: 0.4 }],
+          };
+        },
       },
     },
     saves: {
@@ -267,6 +287,7 @@ beforeEach(() => {
   saveMutateMock.mockClear();
   ackSeenMock.mockClear();
   queryInputs.length = 0;
+  topicQueryEnabled.length = 0;
   forgetMock.mockReset().mockResolvedValue({ forgotten: 0 });
 });
 
@@ -655,6 +676,15 @@ describe("FeedScreen without `dev` — the /feed contract", () => {
   });
 });
 
+describe("FeedScreen without `dev`", () => {
+  it("leaves the Your topics queries disabled and the readout absent", () => {
+    render(<FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} />);
+    expect(topicQueryEnabled.length).toBeGreaterThan(0);
+    expect(topicQueryEnabled.every((e) => e === false)).toBe(true);
+    expect(screen.queryByTestId("your-topics")).toBeNull();
+  });
+});
+
 describe("FeedScreen with `dev`", () => {
   // Botany is core, astronomy is grown, as far as this fixture is concerned — the split is decided
   // by the ids the shell passes, not by anything the screen knows on its own.
@@ -676,6 +706,17 @@ describe("FeedScreen with `dev`", () => {
     expect(input.knobs.tierCore).toBe(40);
     expect(input.knobs.grownEdgeScale).toBe(1);
     expect(input.nonce).toBe(0);
+  });
+
+  it("shows Your topics: the pick's weight, and a cooled non-pick with a dash and its cool", () => {
+    render(
+      <FeedScreen appUrl="https://ambit.test" topicLabels={LABELS} dev={dev} />,
+    );
+    const block = screen.getByTestId("your-topics");
+    expect(block).toHaveTextContent("1.00");
+    expect(block).toHaveTextContent("Astronomy");
+    expect(block).toHaveTextContent("— · cool 0.40");
+    expect(topicQueryEnabled).toContain(true);
   });
 
   it("still acks pages (tuning must exercise the real seen filter)", () => {

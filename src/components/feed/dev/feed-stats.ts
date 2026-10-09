@@ -86,3 +86,52 @@ export function sumStats(pages: PageStats[]): PageStats {
   }
   return t;
 }
+
+/** One row of the panel's "Your topics" readout. `weight` is null for a cooled topic the reader
+ *  has not picked (it has no weight to show); `cool` is null for a topic that is not cooled. */
+export interface YourTopicRow {
+  topicId: string;
+  label: string;
+  weight: number | null;
+  cool: number | null;
+}
+
+/**
+ * Merge `topics.mine` and `topics.cools` into the readout: one row per topic in either list,
+ * ranked by weight (a cooled non-pick has none, so it sorts after every pick), top twelve.
+ * Dev panel only — the one place a weight is shown as a raw number.
+ */
+export function mergeYourTopics(
+  picks: { topicId: string; weight: number }[],
+  cools: { topicId: string; label: string; cool: number }[],
+  topicLabels: Record<string, string>,
+  limit = 12,
+): YourTopicRow[] {
+  const byId = new Map<string, YourTopicRow>();
+  for (const p of picks) {
+    byId.set(p.topicId, {
+      topicId: p.topicId,
+      label: topicLabels[p.topicId] ?? p.topicId,
+      weight: p.weight,
+      cool: null,
+    });
+  }
+  for (const c of cools) {
+    const row = byId.get(c.topicId);
+    if (row) row.cool = c.cool;
+    else
+      byId.set(c.topicId, {
+        topicId: c.topicId,
+        label: c.label,
+        weight: null,
+        cool: c.cool,
+      });
+  }
+  return [...byId.values()]
+    .sort(
+      (a, b) =>
+        (b.weight ?? -Infinity) - (a.weight ?? -Infinity) ||
+        a.label.localeCompare(b.label),
+    )
+    .slice(0, limit);
+}

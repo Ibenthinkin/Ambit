@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { FeedCard } from "~/server/services/feed";
-import { pageStats, sumStats } from "./feed-stats";
+import { mergeYourTopics, pageStats, sumStats } from "./feed-stats";
 
 // The readout is only as useful as it is honest, and "honest" here is arithmetic: counts must
 // match what a person would get tallying the badges by hand.
@@ -88,5 +88,39 @@ describe("pageStats", () => {
     expect(t.tiers.WILD).toBe(2);
     // A wild card contributes to no topic histogram — it has no topic to contribute to.
     expect([...t.topics.keys()]).toEqual(["poetry"]);
+  });
+});
+
+describe("mergeYourTopics", () => {
+  const labels = { a: "Alpha", b: "Beta", c: "Gamma" };
+
+  it("joins picks and cools, ranks by weight and keeps the top twelve", () => {
+    const picks = Array.from({ length: 14 }, (_, i) => ({
+      topicId: `t${i}`,
+      weight: i + 1,
+    }));
+    const rows = mergeYourTopics(picks, [], {});
+    expect(rows).toHaveLength(12);
+    expect(rows[0]).toMatchObject({ topicId: "t13", weight: 14, cool: null });
+    expect(rows.at(-1)!.topicId).toBe("t2");
+  });
+
+  it("shows the cool beside the weight, and a cooled non-pick with a null weight last", () => {
+    const rows = mergeYourTopics(
+      [
+        { topicId: "a", weight: 1 },
+        { topicId: "b", weight: 0.5 },
+      ],
+      [
+        { topicId: "b", label: "Beta", cool: 0.4 },
+        { topicId: "c", label: "Gamma", cool: 0.7 },
+      ],
+      labels,
+    );
+    expect(rows.map((r) => [r.label, r.weight, r.cool])).toEqual([
+      ["Alpha", 1, null],
+      ["Beta", 0.5, 0.4],
+      ["Gamma", null, 0.7],
+    ]);
   });
 });
