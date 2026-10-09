@@ -14,6 +14,11 @@ import { cn } from "~/lib/utils";
 // One component, two elements: an internal href renders Next's <Link> (client-side navigation,
 // prefetch); `external` renders a plain <a>, because Link is for in-app routes. An `href` that
 // is not a path (http(s):, mailto:) should be passed with `external`.
+/** `↗` followed by U+FE0E, the text-presentation selector. A bare U+2197 has an emoji form, and
+ *  iOS draws it as a blue emoji tile rather than the font's arrow; the selector asks for the
+ *  glyph. Exported so tests can name it. */
+export const ARROW = "↗︎";
+
 /** The link's look as one string, for the rare `<button>` that must wear it (auth-card's). */
 export const TEXT_LINK =
   "underline underline-offset-3 decoration-1 transition-colors text-ink/78 hover:text-white hover:decoration-accent";
@@ -58,7 +63,7 @@ export function TextLink({
         rel="noopener noreferrer"
         className={classes}
       >
-        {label} <span aria-hidden="true">↗</span>
+        {label} <span aria-hidden="true">{ARROW}</span>
       </a>
     );
   }

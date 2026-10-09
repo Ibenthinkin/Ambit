@@ -42,8 +42,9 @@ describe("TextLink", () => {
     const el = screen.getByRole("link", { name: "Example" });
     expect(el.getAttribute("target")).toBe("_blank");
     expect(el.getAttribute("rel")).toBe("noopener noreferrer");
-    expect(el.textContent).toBe("Example ↗");
-    expect(el.querySelector("[aria-hidden='true']")?.textContent).toBe("↗");
+    expect(el.textContent).toBe("Example ↗︎");
+    // The text-presentation selector keeps iOS from drawing the arrow as an emoji tile.
+    expect(el.querySelector("[aria-hidden='true']")?.textContent).toBe("↗︎");
   });
 
   it("a caller's rel or target cannot drop noopener on an external link", () => {
