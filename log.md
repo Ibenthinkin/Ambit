@@ -218,6 +218,10 @@ on `main` `cb5bcc5`**, so they are not this branch's. CI-shape run (fresh postgr
 
 *Session spend: 18.45M tok (in 282 · out 52.1k · cache r 17.99M / w 409.7k) · opus-5-5 · 13:24→15:23*
 
+**Evening — More or less merged to `main` (not pushed, not deployed).** `feat/usage` had landed first, so `main` was merged into the branch in a worktree (`~/Dev/ambit-merge`, the main checkout being another session's) and the migration regenerated as **`0016_more_or_less`** — the SQL byte-identical to the old 0015. Seven conflicts, all both-sides: the schema's two table blocks, `ItemFactsWide` (the feedback slot + the link-out `track`), the test's hoisted mocks, one locator's `exact: true`, CLAUDE.md, the 0015 snapshot and the journal. The local database already held both tables, so 0016's hash was recorded in `drizzle.__drizzle_migrations` by hand rather than re-run; a fresh `postgres:17-alpine` applied all seventeen. **Verified on the merge:** typecheck, lint (warnings only), format; `bun run test` 2,796 passed with one red file — `routers.integration.test.ts`'s `items.galleryRail` cases time out at 5 s against today's 200,620-item local corpus and **fail identically on `main`**, passing in a 60 s budget; CI-shape e2e 73 passed + 1 explore draw flake (24/24 on three repeats); `e2e:prod` 75 passed + `pwa.prod.spec`'s offline test over its 30 s under load (3/3 alone, ~25 s each — near its limit). **Open / next:** Ben's device look (the list above), push, deploy — the boot runs 0016.
+
+*Session spend: 24.17M tok (in 346 · out 84.7k · cache r 23.67M / w 409.6k) · opus-5-5 · 15:23→17:36*
+
 ### [[10-08-26 Thu]] — The device pass closes; the Tumblr probe answers "no"; the join block's way back
 
 Ben's look at the deployed redesign on the phone and at 1440: "more or less ok, enough that I
