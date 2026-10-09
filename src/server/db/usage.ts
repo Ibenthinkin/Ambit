@@ -58,10 +58,13 @@ function readerFilter(col: SQL, excludeEmails: string[]): SQL {
 
 // `db.execute` bypasses Drizzle's column mapping, so timestamps arrive as Postgres text
 // ("2020-03-02 10:00:00+00"); readers that return one wrap it in `new Date(…)`.
-async function rows<T>(query: SQL): Promise<T[]> {
-  const { db } = await import("./client");
+/** Anything that can run a query: the shared client, or a transaction (tests use the latter). */
+export type Runner = { execute: (q: SQL) => PromiseLike<unknown> };
+
+async function rows<T>(query: SQL, runner?: Runner): Promise<T[]> {
+  const run = runner ?? (await import("./client")).db;
   // postgres-js returns the rows array itself (node-postgres would wrap it in `{ rows }`).
-  return (await db.execute(query)) as unknown as T[];
+  return (await run.execute(query)) as T[];
 }
 
 // ---- 2.1 readersActive ----------------------------------------------------------------------
@@ -232,16 +235,28 @@ export async function onboardingRuns(
 export type SignInDay = { day: string; sessions: number; readers: number };
 
 /** Sessions created per UTC day, and how many different readers they were. `day` is YYYY-MM-DD. */
-export async function signIns(w: UsageWindow): Promise<SignInDay[]> {
-  return rows<SignInDay>(sql`
-    select to_char(created_at at time zone 'UTC', 'YYYY-MM-DD') as day,
+export async function signIns(
+  w: UsageWindow,
+  runner?: Runner,
+): Promise<SignInDay[]> {
+  // `session.created_at` is a plain `timestamp` (no zone) holding UTC wall-clock time, unlike
+  // the other tables' `timestamptz`. Comparing it to a timestamptz would silently cast it using
+  // the database session's TimeZone, so we say "this is UTC" explicitly with `at time zone
+  // 'UTC'` (which turns it into a timestamptz) for the comparison, and bucket the plain value
+  // directly with to_char, which involves no zone at all.
+  return rows<SignInDay>(
+    sql`
+    select to_char(created_at, 'YYYY-MM-DD') as day,
            count(*)::int as sessions,
            count(distinct user_id)::int as readers
     from session
-    where created_at >= ${ts(w.since)} and created_at < ${ts(w.until)}
+    where (created_at at time zone 'UTC') >= ${ts(w.since)}
+      and (created_at at time zone 'UTC') < ${ts(w.until)}
       and ${readerFilter(sql`user_id`, w.excludeEmails)}
     group by 1 order by 1
-  `);
+  `,
+    runner,
+  );
 }
 
 // ---- 2.6 sourceShare ------------------------------------------------------------------------

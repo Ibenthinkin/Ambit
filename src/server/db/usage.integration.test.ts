@@ -128,15 +128,14 @@ describe.skipIf(!process.env.DATABASE_URL)(
         updatedAt: new Date(when),
         expiresAt: new Date("2030-01-01T00:00:00Z"),
       });
-      await db
-        .insert(session)
-        .values([
-          sess(A, "2020-04-01T08:00:00Z"),
-          sess(A, "2020-04-01T20:00:00Z"),
-          sess(B, "2020-04-01T09:00:00Z"),
-          sess(A, "2020-04-02T08:00:00Z"),
-          sess(PERSONA, "2020-04-02T08:00:00Z"),
-        ]);
+      await db.insert(session).values([
+        sess(A, "2020-04-01T08:00:00Z"),
+        sess(A, "2020-04-01T20:00:00Z"),
+        sess(B, "2020-04-01T09:00:00Z"),
+        sess(A, "2020-04-02T08:00:00Z"),
+        sess(PERSONA, "2020-04-02T08:00:00Z"),
+        sess(B, "2020-04-10T23:30:00Z"), // near midnight UTC, for the time-zone test
+      ]);
 
       const ans = (
         u: { id: string },
@@ -240,6 +239,22 @@ describe.skipIf(!process.env.DATABASE_URL)(
         { day: "2020-04-01", sessions: 3, readers: 2 },
         { day: "2020-04-02", sessions: 1, readers: 1 },
       ]);
+    });
+
+    it("signIns reads session.created_at as UTC whatever the database TimeZone is", async () => {
+      const { db } = await import("./client");
+      const { sql } = await import("drizzle-orm");
+      // 23:30Z on Apr 10 is already Apr 11 in Asia/Tokyo and still Apr 10 in New York; a reader
+      // that leaned on the session zone would move the row across the window edge or the day.
+      for (const zone of ["America/New_York", "Asia/Tokyo"]) {
+        const r = await db.transaction(async (tx) => {
+          await tx.execute(sql.raw(`set local time zone '${zone}'`));
+          return signIns(win("2020-04-10", "2020-04-11", exclude), tx);
+        });
+        expect(r, zone).toEqual([
+          { day: "2020-04-10", sessions: 1, readers: 1 },
+        ]);
+      }
     });
 
     it("sourceShare compares served share with corpus share (3:1 corpus, 1:1 served)", async () => {
