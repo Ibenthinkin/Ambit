@@ -5,6 +5,7 @@ import * as React from "react";
 import { Download } from "~/components/icons";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { PRIMARY_BLOCK } from "~/components/ui/button";
+import { useUsage } from "~/components/usage/usage-provider";
 import { cn } from "~/lib/utils";
 
 // The share sheet. Copy-link row + a scrolling row of targets.
@@ -74,6 +75,11 @@ export interface ShareSheetProps {
   title: string;
   /** Sharing a collection rather than an item (5.9) — only changes the sheet's title. */
   collection?: boolean;
+  /**
+   * The item being shared, for `item.share`. Absent when sharing a collection, which the usage
+   * vocabulary has no event for — nothing is recorded then.
+   */
+  itemId?: string;
   /** Whether the thing being shared is an image — gates the Save-image row. */
   imageContext?: boolean;
   /**
@@ -96,6 +102,7 @@ export function ShareSheet({
   url,
   title,
   collection = false,
+  itemId,
   imageContext = false,
   onSaveImage,
   onCopied,
@@ -103,10 +110,17 @@ export function ShareSheet({
   anchor,
   placement,
 }: ShareSheetProps) {
+  const { track } = useUsage();
+  // Only a share that *happened* is recorded: the awaits below sit before the call, so a failed
+  // clipboard write or a dismissed OS sheet (AbortError) never reaches it.
+  const shared = (method: "share" | "copy") => {
+    if (itemId) track("item.share", { itemId, meta: { method } });
+  };
   const copy = async () => {
     onClose();
     try {
       await navigator.clipboard.writeText(url);
+      shared("copy");
       onCopied(url);
     } catch {
       // Clipboard access needs a secure context; it's simply absent over plain http on a LAN,
@@ -123,6 +137,7 @@ export function ShareSheet({
     }
     try {
       await navigator.share({ title, url });
+      shared("share");
     } catch (err) {
       // Dismissing the OS sheet rejects with AbortError. That's a normal outcome, not a failure —
       // toasting an error there would be actively wrong.

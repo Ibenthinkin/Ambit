@@ -216,6 +216,7 @@ export function ItemSheet({
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         url={shareUrl}
+        itemId={item?.id}
         title={item?.title ?? ""}
         onCopied={() => onToast("Link copied")}
         onShareUnavailable={() => onToast("Sharing isn't available here")}

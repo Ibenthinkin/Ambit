@@ -764,6 +764,7 @@ export function ItemScreen({
       if (navigator.canShare?.({ files: [file] })) {
         try {
           await navigator.share({ files: [file] });
+          track("item.share", { itemId: currentId, meta: { method: "image" } });
         } catch (err) {
           // Dismissing the OS sheet rejects with AbortError — a normal outcome, not a failure.
           if ((err as Error)?.name !== "AbortError") throw err;
@@ -777,11 +778,12 @@ export function ItemScreen({
       a.download = name;
       a.click();
       URL.revokeObjectURL(href);
+      track("item.share", { itemId: currentId, meta: { method: "image" } });
       setToast("Image saved");
     } catch {
       setToast("Couldn't save that image");
     }
-  }, [currentId]);
+  }, [currentId, track]);
 
   // ── render ────────────────────────────────────────────────────────────────────────────────────
 
@@ -1011,6 +1013,7 @@ export function ItemScreen({
         title={current.title}
         // Always true here: this screen is only ever a picture.
         imageContext
+        itemId={current.id}
         onSaveImage={() => void saveImage()}
         onCopied={() => setToast("Link copied")}
         onShareUnavailable={() => setToast("Sharing isn't available here")}
