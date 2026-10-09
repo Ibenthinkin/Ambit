@@ -5,6 +5,88 @@ messages. `/brief` reads this. Newest on top.
 
 ## 2026-10
 
+### [[10-09-26 Fri]] — Overnight: a usage-data plan for the beta, and the box measured
+
+Ben, going to sleep: "come up with a complete plan… a strategy and plan to gather usage data in
+a non-invasive way… and a plan for how to estimate how many users I can support with the current
+hosting architecture and if possible execute that plan." Two documents and one measurement
+session; **nothing committed, nothing built, nothing changed on production.**
+
+**Written (uncommitted on `main`):**
+
+- `docs/DESIGN_usage.md` + `docs/PLAN_usage.md` — first-party only, behaviour never identity, a
+  closed vocabulary of fourteen events in `src/config/usage.ts`, `navigator.sendBeacon` to a
+  `POST /api/usage` route handler, 90-day retention, `bun run usage:report`. **Cut 0 is a report
+  over the tables that already exist** (`seen_item` sittings by gaps-and-islands, saves per
+  hundred served, onboarding runs, sign-ins, source share, weekly retention) and ships before
+  any column; Cut 1 adds the `usage_event` table (migration 0015) and the call sites. Three
+  ⚖️ cracks for Ben: no Settings toggle until Cut 2 (the install note is the consent); signed-out
+  visits counted under a per-tab key; the weekly mail after the CLI. Found on the way: Better
+  Auth's `session` table already stores `ip_address` and `user_agent` — more than anything the
+  design adds.
+- `docs/CAPACITY_2026-10.md` — the estimate, measured.
+
+**Findings (production, read-only, load from the Mac over the LAN at `192.168.1.202:3000`,
+CPU sampled over ssh; the classifier refused copying a probe onto the VM):**
+
+- **The wall is Postgres CPU on `getTopicPools`, at ~2.5 feed pages/s for the whole VM.** A
+  signed-out page (`feed.explore`) is 637 ms p50 alone; two concurrent saturate the four cores
+  (87 % busy); at four, Postgres is at 381 % CPU and the app at 15 %, p50 1.5 s, p95 3.3 s, no
+  errors. The one signed-in `feed.page` in tonight's log was 1,303 ms. Item page 313 ms p50,
+  3.8/s at four. **Comfortable: ~20–35 people scrolling at the same moment**; by beta ratios
+  several hundred invited. The next few dozen invites are nowhere near it.
+- `EXPLAIN ANALYZE` for the 35 biggest topics: the join produces **502,135 rows** (planner
+  estimate 124k), sorted on disk (45 MB past `work_mem` 4 MB), md5-hashed and window-numbered to
+  keep 2,061. **Settings buy ≤ 11 %** (`work_mem` 96 MB → 2,432 ms from 2,733; parallel off and
+  JIT off within noise). The 10× lever is the sample's shape: an indexed random key on
+  `item_topic` and a range draw per topic (lever 2 in the doc) — a design task for after the
+  usage Cut 0, before ~50 invites.
+- Everything else is far away: images **240 req/s** off disk at 30 % CPU; **≥ 100 Mbit/s**
+  through Cloudflare + the tunnel (120 uncached masters, 12 in parallel, 21.7 MB in 1.8 s);
+  **Cloudflare edge-caches `/api/img`** (`cf-cache-status: HIT` on a repeat); 6 GB RAM free; disk
+  is the clock, not readers — 34 GB free, the cache 29 GB / 205k masters, +0.75 GB a week.
+- `getFeedPage` writes nothing (the client acks), so `bench:feed`'s header comment ("writes
+  `seen_item` rows") is stale — and the script is safe to run in the container.
+
+**Morning, Ben ran the signed-in bench** (`bench:feed`, his account, 12 real pages in the
+production container): **p50 1,190 ms, p95 1,429 ms, min 637 ms** — 1.9× the signed-out page, so
+the estimate settles at its lower bound: **~20 readers scrolling at once comfortable, ~40
+saturated, ~400–800 invited by the ratios.** `getTopicPools` over all 193 topics: 2,012 ms,
+10,785 rows, 1.9 MB.
+
+**Applied, Ben's "let's run it":** `work_mem` 4 → 64 MB on production — as
+`ALTER DATABASE ambit SET`, because `ALTER SYSTEM` answered `permission denied` (the `ambit`
+role owns the database and is not a superuser; `postgres` is — the backups lesson again). New
+connections see 64 MB; the app's pool follows as it recycles or on the next deploy.
+
+**Open / next (Ben):** read the two designs and overrule the ⚖️ marks; decide whether lever 2 becomes `docs/DESIGN_pool-sampling-by-key.md`;
+The usage plan's Cut 0 is
+executable by a cheaper session as soon as the design is approved.
+
+*Session spend: 13.86M tok (in 2.3k · out 221.0k · cache r 12.09M / w 1.55M) · fable-5-1 + <synthetic> · 22:52→10:56*
+
+**Later that morning — "More or less" gets its look.** Ben took `docs/BRIEF_more-or-less.md` to
+Claude Design and came back with `docs/design_handoff_more_or_less/` (README + two prototypes +
+an explorations page). **The verdict is the brief's option A, drawn as "1a, everywhere":** a worded
+Less of this / More of this pair **on the page, never on glass** — the first row under the picture
+on the phone, under the 28 px summary in the desktop Information column (`220 + 220`), one pair per
+figure under its title in a spread, and after an article's text under a "Finished · N min read"
+label. Pill, rail and Share disc untouched, which dissolves the 244 → 396 px problem rather than
+solving it. Two things the handoff changed in the design: a "less" on a feed tile now **veils it in
+place** (the masonry must not move) instead of removing it, and a "less" on the item screen no
+longer advances the rail — the inverted button, a new mono note line and the toast are the
+acknowledgement. Three things it drew that the app doesn't have and the plan says so: a
+phone-stacked magazine (no such view), a marked strip square that stays visible after hover (the
+strip is hover-only today), a 400 ms mono label on strip squares (no tooltip primitive) — the
+last two go on Ben's look list. `PLAN_more-or-less.md` Part 2 is rewritten with every `VERDICT:`
+filled (a `MoreOrLess` component in three sizes; a render slot on `ItemFacts` so it stays pure; a
+`FinishedRow` reading toast and auth through an `ItemShell` context, because the server page
+renders it); DESIGN D5/D6 and the brief carry the answer. **Both parts are executable by a cheaper
+session now.** One clash to watch: migration `0015` is claimed by this plan and by the uncommitted
+usage plan above — whichever lands first keeps it.
+
+_Session spend: 7.96M tok (in 1.5k · out 132.1k · cache r 7.11M / w 716.3k) · fable-5-1 + opus-5-5 · 20:46→12:27_
+
 ### [[10-08-26 Thu]] — The device pass closes; the Tumblr probe answers "no"; the join block's way back
 
 Ben's look at the deployed redesign on the phone and at 1440: "more or less ok, enough that I
