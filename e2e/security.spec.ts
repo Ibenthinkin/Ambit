@@ -238,4 +238,53 @@ test.describe.serial("security headers", () => {
     expect(health.status(), "the health probe should be ready").toBe(200);
     expect(health.headers()["x-content-type-options"]).toBe("nosniff");
   });
+
+  // **The beacon's Origin check, proved against the running app** (usage plan 9.8). The route
+  // answers 204 whatever happens (a beacon cannot act on an error), so the status alone proves
+  // nothing; the table is the witness. Rows are counted by this test's own unique `visit` key so
+  // anything else writing to `usage_event` concurrently cannot move the number.
+  test("a beacon from a foreign Origin answers 204 and writes nothing", async ({
+    request,
+  }) => {
+    const visit =
+      `e2e${Date.now()}${Math.random().toString(36).slice(2, 8)}`.slice(0, 32);
+    const body = {
+      visit,
+      events: [
+        { kind: "screen.open", at: new Date().toISOString(), screen: "feed" },
+      ],
+    };
+    const { eq } = await import("drizzle-orm");
+    const countRows = async () =>
+      (
+        await conn.db
+          .select({ id: conn.usageEvent.id })
+          .from(conn.usageEvent)
+          .where(eq(conn.usageEvent.visit, visit))
+      ).length;
+
+    try {
+      expect(await countRows()).toBe(0);
+
+      const foreign = await request.post("/api/usage", {
+        data: body,
+        headers: { Origin: "https://evil.example" },
+      });
+      expect(foreign.status()).toBe(204);
+      expect(await countRows(), "a foreign Origin must write nothing").toBe(0);
+
+      // Positive control: the same body from the app's own origin, signed out, is kept. Without
+      // it the zero above could just mean the endpoint is broken.
+      const own = await request.post("/api/usage", {
+        data: body,
+        headers: { Origin: "http://localhost:3000" },
+      });
+      expect(own.status()).toBe(204);
+      await expect.poll(countRows).toBe(1);
+    } finally {
+      await conn.db
+        .delete(conn.usageEvent)
+        .where(eq(conn.usageEvent.visit, visit));
+    }
+  });
 });
