@@ -148,7 +148,11 @@ export async function POST(req: Request) {
     drop("error");
   }
   const dropped = Object.values(drops).reduce((a, b) => a + b, 0);
-  if (dropped > 0) console.warn("usage beacon", { dropped, kept, drops });
+  // A signed-out reader's item.* / rail / zoom events are dropped by design (the item screen
+  // tracks them for everyone; the posture keeps only visit.* and screen.open for no-one-signed-in),
+  // so those alone are not worth a log line per beacon. Anything else dropped still is.
+  if (dropped > (drops["signed-out"] ?? 0))
+    console.warn("usage beacon", { dropped, kept, drops });
   return new Response(null, NO_CONTENT);
 }
 

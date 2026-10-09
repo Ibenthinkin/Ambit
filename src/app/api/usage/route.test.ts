@@ -490,6 +490,31 @@ describe("POST /api/usage", () => {
   });
 
   describe("the drop log", () => {
+    it("is silent when the only drops are a signed-out reader's item events", async () => {
+      getSession.mockResolvedValue(null);
+      const res = await post(
+        beacon([
+          SCREEN_OPEN,
+          { kind: "item.open", at: iso(-6), meta: { from: "feed" } },
+          { kind: "item.zoom", at: iso(-5) },
+        ]),
+      );
+      expect(res.status).toBe(204);
+      expect(written()).toHaveLength(1);
+      expect(console.warn).not.toHaveBeenCalled();
+    });
+
+    it("still warns when a signed-out beacon also carries an invalid event", async () => {
+      getSession.mockResolvedValue(null);
+      await post(
+        beacon([
+          { kind: "item.zoom", at: iso(-5) },
+          { ...SCREEN_OPEN, kind: "secret-kind-name" },
+        ]),
+      );
+      expect(console.warn).toHaveBeenCalledTimes(1);
+    });
+
     it("warns once with counts only, never contents", async () => {
       await post(
         beacon([
