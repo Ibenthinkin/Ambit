@@ -183,13 +183,53 @@ describe("visit clock", () => {
 
 describe("singleton", () => {
   it("track is a no-op without a provider and forwards once installed", () => {
+    installUsage(null); // clears anything buffered by earlier tests
     expect(() => track("item.zoom")).not.toThrow();
+    installUsage(null);
     const h = setup();
     installUsage(h.usage);
     track("item.open", { meta: { from: "feed" } });
     h.usage.flush();
     installUsage(null);
     expect(h.sent[0]!.events[0]!.kind).toBe("item.open");
+  });
+
+  it("buffers events tracked before install and replays them in order with their own time", () => {
+    installUsage(null);
+    track("item.open", { itemId: "a", meta: { from: "feed" } });
+    track("item.zoom", { itemId: "a" });
+    const h = setup();
+    h.advance(60_000);
+    installUsage(h.usage);
+    h.usage.flush();
+    installUsage(null);
+    const events = h.sent[0]!.events;
+    expect(events.map((e) => e.kind)).toEqual(["item.open", "item.zoom"]);
+    expect(Date.parse(events[0]!.at)).toBeLessThan(Date.now() + 1000);
+  });
+
+  it("caps the pre-install buffer, keeping the oldest, and never sends with no provider", () => {
+    installUsage(null);
+    for (let i = 0; i < MAX_EVENTS_PER_BEACON + 10; i++)
+      track("item.open", { itemId: `i${i}`, meta: { from: "feed" } });
+    const h = setup();
+    installUsage(h.usage);
+    h.usage.flush();
+    installUsage(null);
+    const ids = h.sent.flatMap((b) => b.events.map((e) => e.itemId));
+    expect(ids).toHaveLength(MAX_EVENTS_PER_BEACON);
+    expect(ids[0]).toBe("i0");
+  });
+
+  it("uninstalling clears the buffer so it cannot leak into the next install", () => {
+    installUsage(null);
+    track("item.zoom", { itemId: "a" });
+    installUsage(null);
+    const h = setup();
+    installUsage(h.usage);
+    h.usage.flush();
+    installUsage(null);
+    expect(h.sent).toEqual([]);
   });
 
   it("is typed from META_SPEC", () => {

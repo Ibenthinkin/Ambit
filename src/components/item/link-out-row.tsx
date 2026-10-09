@@ -19,7 +19,8 @@ import { isLinkCardSource } from "~/server/config/publications";
 // desktop's bracketed link in the summary keeps `linkOutCopy`'s full sentence, because there the
 // link is a line of prose, not a control.
 //
-// Server-safe on purpose: no hooks, no handlers, a plain anchor — so it renders unchanged inside
+// Server-safe on purpose: it has no hooks or handlers of its own — the anchor is the tiny client
+// island `LinkOutAnchor`, which only records the click — so it renders unchanged inside
 // the reader (a server component) and inside `ItemFacts` under the client `ItemScreen` alike.
 // The reader still asks `prefersLinkOutBlock` before using it: an open source's article keeps its quiet
 // inline link there (writing Phase 4).

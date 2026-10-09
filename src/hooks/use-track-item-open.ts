@@ -7,10 +7,10 @@ import { takeArrival } from "~/lib/item-arrival";
 
 /**
  * Records `item.open` once per arrival on an item page (docs/DESIGN_usage.md). `from` comes from
- * the marker the previous screen left (`lib/item-arrival.ts`); a page opened cold reads as
- * `link` — including for a signed-out visitor on a shared link, whose event the server drops
- * (signed-out readers record only `visit.*` and `screen.open`). It is kept anyway: it costs
- * nothing and starts to count the day that rule changes.
+ * the marker the previous screen left (`lib/item-arrival.ts`); a document navigated to cold reads
+ * as `link`; a Back/Forward/reload arrival records nothing. A signed-out visitor's event is
+ * dropped by the server (they record only `visit.*` and `screen.open`); the call is kept anyway:
+ * it costs nothing and starts to count the day that rule changes.
  *
  * The ref is the StrictMode guard: in development React runs every effect, tears it down and runs
  * it again, so an unguarded effect would record two arrivals (and the first run would already
@@ -22,6 +22,7 @@ export function useTrackItemOpen(itemId: string): void {
   React.useEffect(() => {
     if (opened.current === itemId) return;
     opened.current = itemId;
-    track("item.open", { itemId, meta: { from: takeArrival(itemId) } });
+    const from = takeArrival(itemId);
+    if (from) track("item.open", { itemId, meta: { from } });
   }, [itemId, track]);
 }

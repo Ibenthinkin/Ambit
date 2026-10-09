@@ -17,5 +17,15 @@ export function LinkOutAnchor({
 }: React.ComponentProps<"a"> & { itemId: string }) {
   const { track } = useUsage();
   const record = () => track("item.linkout", { itemId });
-  return <a {...rest} onClick={record} onAuxClick={record} />;
+  return (
+    <a
+      {...rest}
+      onClick={record}
+      onAuxClick={(e) => {
+        // `auxclick` is every non-primary button — a right-click (the context menu) included.
+        // Only the middle button opens the link.
+        if (e.button === 1) record();
+      }}
+    />
+  );
 }

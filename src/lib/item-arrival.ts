@@ -30,12 +30,39 @@ export function markArrival(itemId: string, from: ArrivalFrom): void {
   }
 }
 
+// Whether this document has yet answered "how did I get here?" for an item page. A full page
+// load can only be the first route once; after that, an arrival with no note is a client-side
+// navigation we did not mark (Back, Forward) — and history navigation is not a thing to record.
+let firstRoute = true;
+
+/** Test seam. */
+export function resetArrivalForTests(): void {
+  firstRoute = true;
+}
+
+/** Was this document loaded by a plain navigation (a link, the address bar) to this item? A
+ *  reload or a back/forward restore reports another `type`, and so does a document that is not
+ *  this item's (the reader got here by client-side routing). */
+function loadedByNavigation(itemId: string): boolean {
+  try {
+    const nav = performance.getEntriesByType("navigation")[0] as
+      PerformanceNavigationTiming | undefined;
+    if (nav?.type !== "navigate") return false;
+    return new URL(nav.name).pathname === `/i/${itemId}`;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Read-and-clear the note for `itemId`. A note for a different item is left alone (it belongs to
- * a navigation still in flight); no note at all means the page was opened cold — a pasted link,
- * a bookmark, a reload — which is the closest to "link".
+ * a navigation still in flight). With no note, the arrival is a cold `link` only when it is this
+ * document's first route and the browser says the document was navigated to (not reloaded or
+ * restored); every other no-note arrival (Back, Forward, reload) returns `null`: record nothing.
  */
-export function takeArrival(itemId: string): ArrivalFrom {
+export function takeArrival(itemId: string): ArrivalFrom | null {
+  const first = firstRoute;
+  firstRoute = false;
   try {
     const raw = sessionStorage.getItem(KEY);
     if (raw) {
@@ -46,7 +73,7 @@ export function takeArrival(itemId: string): ArrivalFrom {
       }
     }
   } catch {
-    /* fall through to "link" */
+    /* fall through */
   }
-  return "link";
+  return first && loadedByNavigation(itemId) ? "link" : null;
 }

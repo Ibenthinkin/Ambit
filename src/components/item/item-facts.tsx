@@ -21,7 +21,7 @@ import { ReuseNotice } from "./reuse-notice";
 //
 // It takes a `RailItem`, not an `Item`, because it renders for whichever cell of the rail is under
 // the reader's finger — and a `RailItem` is exactly the public projection every visitor may see.
-// Pure: no queries, no router, no state. `WanderNext` and `JoinCta` sit below it in `ItemScreen`.
+// No queries, no router, no state; its only side effect is recording a link-out click (`item.linkout`). `WanderNext` and `JoinCta` sit below it in `ItemScreen`.
 export interface ItemFactsProps {
   item: RailItem;
   /** `column` (default) is the phone / reader-width stack; `wide` is the desktop "Information"
@@ -176,7 +176,10 @@ function ItemFactsWide({ item }: { item: RailItem }) {
                 bracket
                 tone="body"
                 onClick={() => track("item.linkout", { itemId: item.id })}
-                onAuxClick={() => track("item.linkout", { itemId: item.id })}
+                onAuxClick={(e) => {
+                  if (e.button === 1)
+                    track("item.linkout", { itemId: item.id });
+                }}
               >
                 {linkOutCopy(item.source)}
               </TextLink>
@@ -273,9 +276,10 @@ export function ItemFactsSpread({
                       bracket
                       tone="body"
                       onClick={() => track("item.linkout", { itemId: item.id })}
-                      onAuxClick={() =>
-                        track("item.linkout", { itemId: item.id })
-                      }
+                      onAuxClick={(e) => {
+                        if (e.button === 1)
+                          track("item.linkout", { itemId: item.id });
+                      }}
                     >
                       {linkOutCopy(item.source)}
                     </TextLink>

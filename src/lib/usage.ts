@@ -51,6 +51,14 @@ export type Track = <K extends UsageKind>(
     : [props: TrackProps<K>]
 ) => void;
 
+/** `TrackProps` with the kind erased: internal plumbing past the typed `track` front door. */
+type LooseProps = {
+  screen?: Screen;
+  itemId?: string;
+  topicId?: string;
+  meta?: Record<string, unknown>;
+};
+
 type WireEvent = {
   kind: UsageKind;
   at: string;
@@ -95,6 +103,8 @@ export type VisitEntry = {
 
 export type Usage = {
   track: Track;
+  /** Like `track`, but keeps a timestamp taken earlier (the pre-install buffer's replay). */
+  trackAt(at: string, kind: UsageKind, props?: LooseProps): void;
   flush(): void;
   start(entry: VisitEntry): void;
   /** The page was hidden: report active seconds since the last report, and flush. */
@@ -168,9 +178,9 @@ export function createUsage(deps: UsageDeps): Usage {
     }
   }
 
-  const track: Track = (kind, ...rest) => {
-    const props = (rest[0] ?? {}) as TrackProps<UsageKind>;
-    const event: WireEvent = { kind, at: new Date(now()).toISOString() };
+  const trackAt = (at: string, kind: UsageKind, given?: LooseProps) => {
+    const props = given ?? {};
+    const event: WireEvent = { kind, at };
     if (props.screen) event.screen = props.screen;
     if (props.itemId) event.itemId = props.itemId;
     if (props.topicId) event.topicId = props.topicId;
@@ -178,9 +188,12 @@ export function createUsage(deps: UsageDeps): Usage {
     queue.push(event);
     if (queue.length >= MAX_EVENTS_PER_BEACON) flush();
   };
+  const track = ((kind: UsageKind, props?: LooseProps) =>
+    trackAt(new Date(now()).toISOString(), kind, props)) as unknown as Track;
 
   return {
     track,
+    trackAt,
     flush,
     start(entry) {
       if (timer === null) timer = setTimer(flush, FLUSH_MS);
@@ -224,12 +237,28 @@ let current: Usage | null = null;
 /** The provider installs its instance here; `null` uninstalls (unmount, tests). */
 export function installUsage(usage: Usage | null) {
   current = usage;
+  // Events tracked before the provider existed are replayed in order with their own timestamps;
+  // uninstalling (null) drops whatever is buffered so one mount's leftovers never reach the next.
+  const pending = early;
+  early = [];
+  if (usage) for (const e of pending) usage.trackAt(e.at, e.kind, e.props);
 }
 
+// Why a buffer: the provider mounts inside <Suspense>, which React hydrates in a *later* pass than
+// the page around it, so a page component's effect (`item.open`, `client.error`) can run before the
+// provider's effect has installed anything. Those first events would be lost. With the flag off no
+// provider ever installs, so the buffer is capped at one beacon's worth; past the cap the NEWEST is
+// dropped (the oldest, the page's arrival, is the one worth keeping).
+type Early = { at: string; kind: UsageKind; props?: LooseProps };
+let early: Early[] = [];
+
 /** Module-level so any component can call it without prop drilling; a no-op with no provider. */
-export const track: Track = (kind, ...rest) => {
-  current?.track(kind, ...rest);
-};
+export const track = ((kind: UsageKind, props?: LooseProps) => {
+  if (current) current.trackAt(new Date().toISOString(), kind, props);
+  else if (early.length < MAX_EVENTS_PER_BEACON) {
+    early.push({ at: new Date().toISOString(), kind, props });
+  }
+}) as unknown as Track;
 
 // ---------------------------------------------------------------- pure helpers
 

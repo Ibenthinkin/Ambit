@@ -109,4 +109,16 @@ describe("LinkOutRow", () => {
     fireEvent.click(screen.getByRole("link"));
     expect(track).toHaveBeenCalledWith("item.linkout", { itemId: "i1" });
   });
+
+  it("records a middle click but not a right click", () => {
+    track.mockClear();
+    render(
+      <LinkOutRow source="met" sourceUrl="https://example.org/x" itemId="i1" />,
+    );
+    const link = screen.getByRole("link");
+    fireEvent(link, new MouseEvent("auxclick", { bubbles: true, button: 2 }));
+    expect(track).not.toHaveBeenCalled();
+    fireEvent(link, new MouseEvent("auxclick", { bubbles: true, button: 1 }));
+    expect(track).toHaveBeenCalledWith("item.linkout", { itemId: "i1" });
+  });
 });

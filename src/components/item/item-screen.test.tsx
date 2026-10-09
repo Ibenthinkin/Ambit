@@ -16,7 +16,7 @@ import type * as ExploreConfig from "~/config/explore";
 import { EXPLORE_BLOCKS } from "~/config/explore";
 import { DESKTOP_QUERY } from "~/hooks/use-media-query";
 import { HERO_LAYOUT_KEY } from "~/lib/hero-layout";
-import { markArrival } from "~/lib/item-arrival";
+import { markArrival, resetArrivalForTests } from "~/lib/item-arrival";
 import { stubMatchMedia } from "~/test/match-media";
 import type { RailItem } from "~/server/services/gallery-rail";
 import { ItemScreen } from "./item-screen";
@@ -232,6 +232,7 @@ beforeEach(() => {
   pushMock.mockClear();
   trackMock.mockClear();
   sessionStorage.clear();
+  resetArrivalForTests();
   Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
     value: 400,
     configurable: true,
@@ -1156,12 +1157,23 @@ describe("usage tracking (docs/DESIGN_usage.md)", () => {
     ]);
   });
 
-  it("reads a cold open as a link, and ignores a note for another item", () => {
+  it("reads a navigated cold open as a link, ignoring a note for another item", () => {
     markArrival("someone-else", "feed");
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue([
+      { type: "navigate", name: "https://ambit.test/i/entry" },
+    ] as unknown as PerformanceEntryList);
     renderScreen();
     expect(opens()).toEqual([
       ["item.open", { itemId: "entry", meta: { from: "link" } }],
     ]);
+  });
+
+  it("records nothing for an arrival with no note that is not a fresh navigation (reload, Back)", () => {
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue([
+      { type: "reload", name: "https://ambit.test/i/entry" },
+    ] as unknown as PerformanceEntryList);
+    renderScreen();
+    expect(opens()).toEqual([]);
   });
 
   it("records each rail advance as from:rail, and a swipe back counts again", () => {
