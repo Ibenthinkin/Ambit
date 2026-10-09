@@ -8,6 +8,7 @@ import { ShareSheet } from "~/components/sheets/share-sheet";
 import { Toolbar } from "~/components/ui/toolbar";
 import { Toast } from "~/components/ui/toast";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
+import { useTrackItemOpen } from "~/hooks/use-track-item-open";
 import { useSwipeBack } from "~/hooks/use-swipe-back";
 import { imageFileName } from "~/lib/image-filename";
 import { saveToastText } from "~/lib/save-toast";
@@ -46,6 +47,7 @@ export function ItemShell({
   appUrl,
   children,
 }: ItemShellProps) {
+  useTrackItemOpen(itemId);
   const leave = useLeaveToFeed(itemId, { signedOut: !authed });
   const swipeRef = useSwipeBack({ onCommit: leave });
   const auth = useAuthSurface();

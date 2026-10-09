@@ -74,7 +74,11 @@ export function ReaderItemBody({ item, keptIn = null }: ReaderItemBodyProps) {
           Loupe) keeps the quiet inline link — its body is the whole read, and the row's
           "go there instead" weight would be wrong for it. */}
       {prefersLinkOutBlock(item.source) ? (
-        <LinkOutRow source={item.source} sourceUrl={item.sourceUrl} />
+        <LinkOutRow
+          source={item.source}
+          sourceUrl={item.sourceUrl}
+          itemId={item.id}
+        />
       ) : (
         <div className="mt-[20px]">
           <TextLink

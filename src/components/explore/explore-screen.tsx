@@ -21,6 +21,7 @@ import {
   EXPLORE_FEED_IMAGE_CAP,
   type ExploreAction,
 } from "~/config/explore";
+import { markArrival } from "~/lib/item-arrival";
 import { api } from "~/trpc/react";
 import { AuthSurface, useAuthSurface, type AuthMode } from "./auth-surface";
 import { capTiles } from "./explore-tiles";
@@ -130,6 +131,7 @@ export function ExploreScreen({
   const openItem = (id: string) => {
     markFeedOrigin(id);
     markExploreOrigin();
+    markArrival(id, "explore");
     router.push(`/i/${id}`);
   };
 

@@ -37,6 +37,8 @@ import { Toast } from "~/components/ui/toast";
 import { EXPLORE_RAIL_CAP } from "~/config/explore";
 import { useChrome } from "~/hooks/use-chrome";
 import { useLeaveToFeed } from "~/hooks/use-leave-to-feed";
+import { useTrackItemOpen } from "~/hooks/use-track-item-open";
+import { useUsage } from "~/components/usage/usage-provider";
 import { DESKTOP_QUERY, useMediaQuery } from "~/hooks/use-media-query";
 import { useRailGestures } from "~/hooks/use-rail-gestures";
 import {
@@ -188,6 +190,10 @@ export function ItemScreen({
   const [toast, setToast] = React.useState<string | null>(null);
 
   const router = useRouter();
+  const { track } = useUsage();
+  // The arrival at the entry item (`from` is whatever screen left a note, else a cold "link").
+  // Later pictures on the rail are tracked below, once `current` is known.
+  useTrackItemOpen(entryItem.id);
   // Keyboard focus inside the chrome (the caption's Information link, any rail button) holds it up.
   // The sign-up surface and the two sheets are declared here, ahead of `useChrome`, because the
   // rail must not idle away under its own open Save/Share popover.
@@ -475,6 +481,29 @@ export function ItemScreen({
     document.title = `${current.title} · Ambit`;
   }, [current.id, current.title, entryItem.id]);
 
+  // Each picture the rail brings under the reader is one `item.open{from:"rail"}`. The entry item
+  // was recorded on arrival (`useTrackItemOpen`), so the ref starts there; a swipe back to it
+  // counts again, because the reader is looking at it again. In a spread, clicking the right page
+  // to focus it also lands here — it is the picture now "being the item" — and that is accepted.
+  const lastOpened = React.useRef(entryItem.id);
+  React.useEffect(() => {
+    if (current.id === lastOpened.current) return;
+    lastOpened.current = current.id;
+    track("item.open", { itemId: current.id, meta: { from: "rail" } });
+  }, [current.id, track]);
+
+  // One `item.zoom` per zoom-*in*: the moment the picture goes from the hero to a transform. The
+  // pan and pinch frames that follow keep `zoomed` true and add nothing; settling back to the hero
+  // and pinching again is a new look and counts again. `useEffectEvent` reads the latest `current`
+  // without making the effect re-run (and double-count) when the rail advances.
+  const zoomed = zoom !== null;
+  const recordZoom = React.useEffectEvent(() =>
+    track("item.zoom", { itemId: current.id }),
+  );
+  React.useEffect(() => {
+    if (zoomed) recordZoom();
+  }, [zoomed]);
+
   // ── the toggle: the book opens and closes (plan Task 6) ───────────────────────────────────────
   // Opening: the spread appears with its right page folded over the left one — whose picture is
   // the single picture the reader was looking at — and swings it open. Closing: the page folds
@@ -483,6 +512,8 @@ export function ItemScreen({
   // page has nothing to fold, so it just switches.
   const toggleSpread = React.useCallback(() => {
     if (motion) return;
+    // Click and the `M` key both come through here, so this is the one place to count them.
+    track("item.magazine", { itemId: current.id, meta: { on: !spread } });
     if (!spread) {
       writeHeroLayout("spread");
       const layers = bookLayers("open", items.slice(index, index + 2), 0);
@@ -506,7 +537,7 @@ export function ItemScreen({
       from: 0,
       to: 1,
     });
-  }, [motion, spread, items, index, atEnd, pair, focusSide]);
+  }, [motion, spread, items, index, atEnd, pair, focusSide, track, current.id]);
 
   // Not a `setMotion(m => …)` updater: an updater runs during render, and `writeHeroLayout`
   // notifies the layout store's subscribers — a store write mid-render is a React error.

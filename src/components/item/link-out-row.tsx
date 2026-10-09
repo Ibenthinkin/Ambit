@@ -1,3 +1,4 @@
+import { LinkOutAnchor } from "~/components/item/link-out-anchor";
 import { PRIMARY_BLOCK } from "~/components/ui/button";
 import { sourceLabel } from "~/lib/source-label";
 import { cn } from "~/lib/utils";
@@ -25,6 +26,8 @@ import { isLinkCardSource } from "~/server/config/publications";
 export interface LinkOutRowProps {
   source: string;
   sourceUrl: string;
+  /** Which item the click is recorded against (`item.linkout`). */
+  itemId: string;
   className?: string;
 }
 
@@ -52,10 +55,16 @@ export function linkOutCopy(source: string): string {
   return `Read the original on ${sourceLabel(source)}`;
 }
 
-export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
+export function LinkOutRow({
+  source,
+  sourceUrl,
+  itemId,
+  className,
+}: LinkOutRowProps) {
   if (!sourceUrl) return null;
   return (
-    <a
+    <LinkOutAnchor
+      itemId={itemId}
       href={sourceUrl}
       target="_blank"
       rel="noopener noreferrer"
@@ -66,6 +75,6 @@ export function LinkOutRow({ source, sourceUrl, className }: LinkOutRowProps) {
       )}
     >
       {linkOutLabel(source)}
-    </a>
+    </LinkOutAnchor>
   );
 }
