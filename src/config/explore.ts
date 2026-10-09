@@ -71,4 +71,12 @@ export const EXPLORE_ABOUT = {
     "No ads, no likes, no followers, no one else's opinions. It's meant to be something you can wander in and put down.",
     "Ambit is invite-only for now. If someone sent you an invite, sign up with that email address.",
   ],
+  /**
+   * The last line, around a mailto link the component draws: `${lead} <address> ${tail}`. Split
+   * in two because a config string can't carry a link; the address itself is `config/contact.ts`.
+   */
+  contact: {
+    lead: "No invite yet? Write to",
+    tail: "and say what you’re curious about.",
+  },
 } as const;

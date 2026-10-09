@@ -8,6 +8,7 @@ import {
   EXPLORE_BLOCKS,
   EXPLORE_DISSOLVE_MS,
 } from "~/config/explore";
+import { CONTACT_EMAIL, contactMailto } from "~/config/contact";
 import { OVERTURE_MS } from "~/components/landing/use-overture";
 import type { Item } from "~/server/db/items";
 import type { FeedCard, FeedPage } from "~/server/services/feed";
@@ -145,6 +146,10 @@ describe("ExploreScreen", () => {
     expect(
       within(dialog).getByText(EXPLORE_ABOUT.paragraphs[0]),
     ).toBeInTheDocument();
+    // The stranger without an invite gets the address, with the subject prefilled.
+    expect(
+      within(dialog).getByRole("link", { name: CONTACT_EMAIL }),
+    ).toHaveAttribute("href", contactMailto("Invite request"));
   });
 
   it("the about dialog's sign-up button opens the card in sign-up", () => {

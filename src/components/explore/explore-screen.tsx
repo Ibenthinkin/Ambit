@@ -14,7 +14,9 @@ import { useOverture } from "~/components/landing/use-overture";
 import { BottomSheet } from "~/components/ui/bottom-sheet";
 import { Button } from "~/components/ui/button";
 import { Loader } from "~/components/ui/loader";
+import { TEXT_LINK } from "~/components/ui/text-link";
 import { Toolbar } from "~/components/ui/toolbar";
+import { CONTACT_EMAIL, contactMailto } from "~/config/contact";
 import {
   EXPLORE_ABOUT,
   EXPLORE_DISSOLVE_MS,
@@ -258,6 +260,13 @@ export function ExploreScreen({
               {p}
             </p>
           ))}
+          <p className="text-ink/70 mt-3 text-[14.5px] leading-[1.6]">
+            {EXPLORE_ABOUT.contact.lead}{" "}
+            <a href={contactMailto("Invite request")} className={TEXT_LINK}>
+              {CONTACT_EMAIL}
+            </a>{" "}
+            {EXPLORE_ABOUT.contact.tail}
+          </p>
           <div className="mt-5 flex gap-2">
             <Button className="flex-1" onClick={() => openAuth("signup")}>
               Sign up

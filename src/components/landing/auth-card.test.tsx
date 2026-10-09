@@ -2,7 +2,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CONTACT_EMAIL } from "~/config/contact";
 import { AuthCard } from "./auth-card";
+
+// The server's sentence (`lib/auth.ts`), built from the same constant so the address and the
+// message can't drift apart.
+const UNINVITED = `Ambit is invite-only right now. Ask someone who's already in for an invite, or write to ${CONTACT_EMAIL}.`;
 
 // vi.mock factories are hoisted above imports, so the mock functions they close over have to be
 // created through vi.hoisted() rather than declared as plain top-level consts (which would still
@@ -142,8 +147,7 @@ describe("AuthCard", () => {
   it("surfaces the uninvited-signup message verbatim", async () => {
     signUpEmailMock.mockResolvedValue({
       error: {
-        message:
-          "Ambit is invite-only right now. Ask someone who's already in for an invite.",
+        message: UNINVITED,
       },
     });
     render(<AuthCard />);
@@ -161,9 +165,7 @@ describe("AuthCard", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Ambit is invite-only right now. Ask someone who's already in for an invite.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(UNINVITED);
   });
 
   it("passes name, email, and password on signup", async () => {

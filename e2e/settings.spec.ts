@@ -315,6 +315,9 @@ test.describe.serial("settings", () => {
     await expect(page.getByText("Serendipity · coming soon")).toBeVisible();
 
     await expect(page.getByText("Ambit · invite-only · v0.5")).toBeVisible();
+
+    // Get in touch shows the public address in the clear (docs/PLAN_contact.md).
+    await expect(page.getByText("ambit.app@proton.me")).toBeVisible();
   });
 
   test("/settings lands on the Settings tab", async ({ page }) => {

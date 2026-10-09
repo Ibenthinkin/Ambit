@@ -75,7 +75,7 @@ The sixteen topics of §3.2 were always a floor, not a ceiling (`server/config/t
 ### 3.1 Authentication
 
 - **Email + password** via **Better Auth** (`emailAndPassword: { enabled: true }`): built-in sign-up, sign-in, password hashing (scrypt), and password reset.
-- **Invite-gated sign-up:** account creation is rejected unless the email has a valid `invite` row — enforced server-side in Better Auth's `databaseHooks.user.create.before` hook (throw `APIError` for uninvited emails); accepting an invite flips its status.
+- **Invite-gated sign-up:** account creation is rejected unless the email has a valid `invite` row — enforced server-side in Better Auth's `databaseHooks.user.create.before` hook (throw `APIError` for uninvited emails); accepting an invite flips its status. **The public contact address is `ambit.app@proton.me`** (10-09-26, `docs/PLAN_contact.md`) — one constant in `src/config/contact.ts`, never an env var, surfaced as a `mailto` with a prefilled subject in four places: Settings → Get in touch (`Ambit`), the About sheet's removal line (`Removal request`), the signed-out "What is Ambit?" dialog at `/?open=about` (`Invite request`), and the uninvited sign-up message, which names it in plain text. No contact page and no form, by ruling.
 - **Password reset** emails via the transactional mail provider (Mailpit in dev, Resend in prod) through `emailAndPassword.sendResetPassword`. Email _verification_ is skipped — the invite list (addresses Ben issued invites to) is the trust anchor, so verification would be redundant friction. `revokeSessionsOnPasswordReset: true` (Phase 5.2) kills any other live sessions the moment a reset completes.
 - **Sessions are database-backed** (Better Auth default; `session` table) — revocable server-side, read on the server via `auth.api.getSession({ headers })`.
 - Auth state available on server (SSR / protected routes) and client (UI, via `better-auth/react` client).
@@ -724,22 +724,22 @@ title uses need no edit) plus an alpha ladder. **The ladder _is_ the package's g
 `#0E0E0E` each step lands within a shade of a named grey, so 1b re-toned ~250 class strings by
 changing two tokens. Use these stops for anything new (DESIGN §3.1 has the full table):
 
-| Role                         | Class           | Package name  |
-| ---------------------------- | --------------- | ------------- |
-| Titles, primary text, fill   | `text-ink`      | `ink`         |
-| Secondary, text links        | `text-ink/78`   | `ink-2`       |
-| Intro / lede                 | `text-ink/68`   | `ink-3`       |
-| Card lede, mono labels       | `text-ink/62`   | `ink-4`       |
-| Meta, counts, most eyebrows  | `text-ink/55`   | `ink-5`       |
-| Mono row labels              | `text-ink/48`   | `ink-6`       |
-| Hints                        | `text-ink/40`   | `ink-7`       |
-| Placeholders, disabled       | `text-ink/34`   | `ink-8`       |
-| Row dividers, card border    | `border-ink/8`  | `line-faint`  |
-| Section dividers             | `border-ink/14` | `line`        |
-| Header rules                 | `border-ink/16` | `line-strong` |
-| Segmented outline            | `border-ink/22` | `line-ctrl`   |
-| Input underline, chip off    | `border-ink/28` | `line-input`  |
-| Outline button               | `border-ink/35` | `line-btn`    |
+| Role                        | Class           | Package name  |
+| --------------------------- | --------------- | ------------- |
+| Titles, primary text, fill  | `text-ink`      | `ink`         |
+| Secondary, text links       | `text-ink/78`   | `ink-2`       |
+| Intro / lede                | `text-ink/68`   | `ink-3`       |
+| Card lede, mono labels      | `text-ink/62`   | `ink-4`       |
+| Meta, counts, most eyebrows | `text-ink/55`   | `ink-5`       |
+| Mono row labels             | `text-ink/48`   | `ink-6`       |
+| Hints                       | `text-ink/40`   | `ink-7`       |
+| Placeholders, disabled      | `text-ink/34`   | `ink-8`       |
+| Row dividers, card border   | `border-ink/8`  | `line-faint`  |
+| Section dividers            | `border-ink/14` | `line`        |
+| Header rules                | `border-ink/16` | `line-strong` |
+| Segmented outline           | `border-ink/22` | `line-ctrl`   |
+| Input underline, chip off   | `border-ink/28` | `line-input`  |
+| Outline button              | `border-ink/35` | `line-btn`    |
 
 **One accent, and it has seven jobs.** `--color-accent: #2BB24C` is a plain `@theme` token; the
 runtime accent knob (`[data-accent]` on `<html>`, `--accent-raw`, a pre-paint script, Settings →
@@ -844,20 +844,20 @@ _Rewritten 09-17-26 as **what is deployed** (8.1 shipped). The plan is `docs/PHA
 - **One instance, always.** Both rate limiters, the image proxy's in-flight map and the curation cache assume a single process on a single volume. Never set replicas; never publish a second container against `ambit-cache`.
 - **Environment (Coolify, runtime; _Build Variable_ ticked only on `BETTER_AUTH_URL`):**
 
-  | Variable                          | Value / source                                                                                                                                                                                                        |
-  | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | `DATABASE_URL`                    | Coolify's internal URL for `ambit-db` (Postgres 17, internal network only, no public port)                                                                                                                            |
-  | `BETTER_AUTH_SECRET`              | minted for production (`openssl rand -base64 32`), never the Mac's                                                                                                                                                    |
-  | `BETTER_AUTH_URL`                 | `https://ambit.benreilly.io` — runtime **and** build                                                                                                                                                                  |
-  | `MAIL_FROM`                       | `Ambit <noreply@ambit.benreilly.io>` — Resend-verified subdomain `send.ambit.benreilly.io`, DKIM passing                                                                                                              |
-  | `OPS_EMAIL`                       | Ben's address (8.2 T2, set 09-18-26). A server-side throw mails one line here at most once an hour per error signature; **unset = log only**, which is what every dev server runs as                                  |
-  | `RESEND_API_KEY`                  | Resend sending-access key. **Unset** means the Mailpit fallback and mail silently vanishes — there is no error path                                                                                                   |
-  | `OPENROUTER_API_KEY`              | the shared account's key; a $75/month key limit (09-16-26)                                                                                                                                                            |
-  | `ARCHIVE_URL` / `ARCHIVE_API_KEY` | `http://192.168.1.202:3001` — the archive's host-published port on the same VM; the key is the standing one, now in **three** places (Mac `.env`, archive's Coolify env, Ambit's) — rotate all three together or none |
-  | `SMITHSONIAN_API_KEY`             | the museum key                                                                                                                                                                                                        |
-  | `IMAGE_CACHE_DIR`                 | `/app/.cache/img` on the volume                                                                                                                                                                                       |
-  | `PERSONA_PASSWORD`                | set 09-11-26 for `seed:personas`                                                                                                                                                                                      |
-  | `FEED_DEBUG`, `LOUPE_*`           | unset — `/dev/feed` is a 404 in production; Loupe has no production host and is in `SUSPENDED_SOURCES`                                                                                                                |
+  | Variable                          | Value / source                                                                                                                                                                                                                                                                       |
+  | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | `DATABASE_URL`                    | Coolify's internal URL for `ambit-db` (Postgres 17, internal network only, no public port)                                                                                                                                                                                           |
+  | `BETTER_AUTH_SECRET`              | minted for production (`openssl rand -base64 32`), never the Mac's                                                                                                                                                                                                                   |
+  | `BETTER_AUTH_URL`                 | `https://ambit.benreilly.io` — runtime **and** build                                                                                                                                                                                                                                 |
+  | `MAIL_FROM`                       | `Ambit <noreply@ambit.benreilly.io>` — Resend-verified subdomain `send.ambit.benreilly.io`, DKIM passing                                                                                                                                                                             |
+  | `OPS_EMAIL`                       | Ben's address (8.2 T2, set 09-18-26). A server-side throw mails one line here at most once an hour per error signature; **unset = log only**, which is what every dev server runs as. Never shown to a reader — the reader-facing address is `src/config/contact.ts`, not an env var |
+  | `RESEND_API_KEY`                  | Resend sending-access key. **Unset** means the Mailpit fallback and mail silently vanishes — there is no error path                                                                                                                                                                  |
+  | `OPENROUTER_API_KEY`              | the shared account's key; a $75/month key limit (09-16-26)                                                                                                                                                                                                                           |
+  | `ARCHIVE_URL` / `ARCHIVE_API_KEY` | `http://192.168.1.202:3001` — the archive's host-published port on the same VM; the key is the standing one, now in **three** places (Mac `.env`, archive's Coolify env, Ambit's) — rotate all three together or none                                                                |
+  | `SMITHSONIAN_API_KEY`             | the museum key                                                                                                                                                                                                                                                                       |
+  | `IMAGE_CACHE_DIR`                 | `/app/.cache/img` on the volume                                                                                                                                                                                                                                                      |
+  | `PERSONA_PASSWORD`                | set 09-11-26 for `seed:personas`                                                                                                                                                                                                                                                     |
+  | `FEED_DEBUG`, `LOUPE_*`           | unset — `/dev/feed` is a 404 in production; Loupe has no production host and is in `SUSPENDED_SOURCES`                                                                                                                                                                               |
 
   Every secret lives in ≥2 places (Coolify + the password manager); agreement is checked by sha256 fingerprint, never by eye.
 
