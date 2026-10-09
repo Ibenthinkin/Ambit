@@ -313,9 +313,11 @@ test.describe.serial("item pages", () => {
       0,
     );
 
-    // `sourceLabel`'s title-case fallback for an unknown source.
+    // `sourceLabel`'s title-case fallback for an unknown source. An open source's article keeps
+    // the quiet bracket link, not the white "Original source" block (`prefersLinkOutBlock`), and
+    // `TextLink` hides the brackets from assistive tech — so the link's name is the label alone.
     await expect(
-      page.getByRole("link", { name: "[Read on E2e..]" }),
+      page.getByRole("link", { name: "Read on E2e", exact: true }),
     ).toHaveAttribute("href", "https://example.test/e2e/article");
     await expect(
       page.getByText("Ambit is a quieter way to read."),
