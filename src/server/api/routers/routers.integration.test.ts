@@ -177,14 +177,29 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
 
   afterAll(async () => {
     const { db } = await import("~/server/db/client");
-    const { collection, item, savedItem, seenItem, topic, user, userTopic } =
-      await import("~/server/db/schema");
+    const {
+      collection,
+      item,
+      itemFeedback,
+      savedItem,
+      seenItem,
+      topic,
+      user,
+      userTopic,
+      userTopicCool,
+    } = await import("~/server/db/schema");
     // FK-safe order: rows that reference item/topic/user/collection go first. `saved_item` before
     // `collection` specifically — its `collection_id` FK is ON DELETE SET NULL, so the delete
     // would succeed either way, but doing it in dependency order keeps this readable as the
     // graph it is.
     await db.delete(savedItem).where(inArray(savedItem.userId, BOTH_USERS));
-    await db.delete(seenItem).where(eq(seenItem.userId, userId));
+    await db.delete(seenItem).where(inArray(seenItem.userId, BOTH_USERS));
+    await db
+      .delete(itemFeedback)
+      .where(inArray(itemFeedback.userId, BOTH_USERS));
+    await db
+      .delete(userTopicCool)
+      .where(inArray(userTopicCool.userId, BOTH_USERS));
     await db.delete(userTopic).where(inArray(userTopic.userId, BOTH_USERS));
     await db.delete(collection).where(inArray(collection.userId, BOTH_USERS));
     await db.delete(item).where(and(eq(item.topicId, topicA)));
@@ -890,6 +905,196 @@ describe.skipIf(!process.env.DATABASE_URL)("tRPC routers (integration)", () => {
       // retraction (locked 6.1 decision — no decrement).
       const weights = await getUserTopicWeights(otherUserId);
       expect(weights.get(topicA)).toBeCloseTo(3.0);
+    });
+  });
+
+  describe("More or less — feedback.* and topics.cools / warm", () => {
+    // Its own reader, so the other describes' users (and their weights) are left alone.
+    const fbUser = `test-router-fb-${nanoid(8)}`;
+    let unhomedId: string;
+
+    beforeAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { user, item } = await import("~/server/db/schema");
+      await db.insert(user).values({
+        id: fbUser,
+        name: "Test feedback user",
+        email: `${fbUser}@example.com`,
+        emailVerified: false,
+      });
+      const [row] = await db
+        .insert(item)
+        .values({
+          source: "met" as const,
+          sourceId: `test-router-fb-unhomed-${nanoid(8)}`,
+          type: "article" as const,
+          title: "Un-homed feedback fixture",
+          sourceUrl: `https://example.com/fb-${nanoid(8)}`,
+          topicId: null,
+          curationScore: 1,
+          aestheticTags: ["feedbackonlytag"],
+        })
+        .returning({ id: item.id });
+      unhomedId = row!.id;
+    });
+
+    afterAll(async () => {
+      const { db } = await import("~/server/db/client");
+      const { user, item, itemFeedback, seenItem, userTopic, userTopicCool } =
+        await import("~/server/db/schema");
+      await db.delete(itemFeedback).where(eq(itemFeedback.userId, fbUser));
+      await db.delete(seenItem).where(eq(seenItem.userId, fbUser));
+      await db.delete(userTopicCool).where(eq(userTopicCool.userId, fbUser));
+      await db.delete(userTopic).where(eq(userTopic.userId, fbUser));
+      await db.delete(item).where(eq(item.id, unhomedId));
+      await db.delete(user).where(eq(user.id, fbUser));
+    });
+
+    it("set 'more' reports the topic and that it is a new pick, then not", async () => {
+      const caller = createCaller(authedContext(fbUser));
+      const first = await caller.feedback.set({
+        itemId: itemOneId,
+        verdict: "more",
+      });
+      expect(first).toEqual({
+        verdict: "more",
+        drift: { topicLabel: "Test router topic A", isNew: true },
+      });
+      // A different item in the same topic: the pick exists now.
+      const second = await caller.feedback.set({
+        itemId: itemTwoId,
+        verdict: "more",
+      });
+      expect(second.drift).toEqual({
+        topicLabel: "Test router topic A",
+        isNew: false,
+      });
+      expect((await caller.feedback.mine()).more).toEqual(
+        expect.arrayContaining([itemOneId, itemTwoId]),
+      );
+      await caller.feedback.clear({ itemId: itemOneId });
+      await caller.feedback.clear({ itemId: itemTwoId });
+    });
+
+    it("honours a slot topic only for a member (the save rule), else charges the display topic", async () => {
+      const { addItemTopics } = await import("~/server/db/items");
+      const caller = createCaller(authedContext(fbUser));
+      await addItemTopics(itemFourId, [topicB], "curator");
+
+      const served = await caller.feedback.set({
+        itemId: itemFourId,
+        verdict: "less",
+        topicId: topicB,
+      });
+      expect(served.drift?.topicLabel).toBe("Test router topic B");
+      await caller.feedback.clear({ itemId: itemFourId });
+
+      const bogus = await caller.feedback.set({
+        itemId: itemFourId,
+        verdict: "less",
+        topicId: "test-router-not-a-member",
+      });
+      expect(bogus.drift?.topicLabel).toBe("Test router topic A");
+      await caller.feedback.clear({ itemId: itemFourId });
+    });
+
+    it("an un-homed item is recorded with drift null; 'less' still hides it", async () => {
+      const caller = createCaller(authedContext(fbUser));
+      expect(
+        await caller.feedback.set({ itemId: unhomedId, verdict: "less" }),
+      ).toEqual({ verdict: "less", drift: null });
+      expect((await caller.feedback.mine()).less).toContain(unhomedId);
+      await caller.feedback.clear({ itemId: unhomedId });
+    });
+
+    it("a missing item is NOT_FOUND", async () => {
+      const caller = createCaller(authedContext(fbUser));
+      await expect(
+        caller.feedback.set({ itemId: "no-such-item", verdict: "more" }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("'less' reports isNew only for a topic's first cool; a flip returns the new verdict's drift", async () => {
+      const caller = createCaller(authedContext(fbUser));
+      const first = await caller.feedback.set({
+        itemId: itemThreeId,
+        verdict: "less",
+      });
+      expect(first.drift).toEqual({
+        topicLabel: "Test router topic A",
+        isNew: true,
+      });
+      const second = await caller.feedback.set({
+        itemId: itemFourId,
+        verdict: "less",
+      });
+      expect(second.drift?.isNew).toBe(false);
+
+      // Flip itemThree to "more": the returned drift is the new verdict's.
+      const flipped = await caller.feedback.set({
+        itemId: itemThreeId,
+        verdict: "more",
+      });
+      expect(flipped.verdict).toBe("more");
+      expect(flipped.drift?.topicLabel).toBe("Test router topic A");
+      const mine = await caller.feedback.mine();
+      expect(mine.more).toContain(itemThreeId);
+      expect(mine.less).not.toContain(itemThreeId);
+    });
+
+    it("topics.cools lists cooled topics with labels; topics.warm forgets one", async () => {
+      const caller = createCaller(authedContext(fbUser));
+      // The flip above warmed topicA back to 1 (a "more" warms by the same step a "less" cools),
+      // so cool it afresh.
+      await caller.feedback.set({ itemId: itemFiveId, verdict: "less" });
+      const cools = await caller.topics.cools();
+      const a = cools.find((c) => c.topicId === topicA);
+      expect(a?.label).toBe("Test router topic A");
+      expect(a?.cool).toBeLessThan(1);
+
+      expect(await caller.topics.warm({ topicId: topicA })).toEqual({
+        warmed: true,
+      });
+      expect(await caller.topics.warm({ topicId: topicA })).toEqual({
+        warmed: false,
+      });
+      expect(
+        (await caller.topics.cools()).find((c) => c.topicId === topicA),
+      ).toBeUndefined();
+      await caller.feedback.clear({ itemId: itemFiveId });
+    });
+
+    it("clear on nothing is { cleared: false }; on a verdict, { cleared: true }", async () => {
+      const caller = createCaller(authedContext(fbUser));
+      expect(await caller.feedback.clear({ itemId: itemFiveId })).toEqual({
+        cleared: false,
+      });
+      await caller.feedback.set({ itemId: itemFiveId, verdict: "more" });
+      expect(await caller.feedback.clear({ itemId: itemFiveId })).toEqual({
+        cleared: true,
+      });
+    });
+
+    it("feedback.list is the 'More of this' shelf, newest first, without any 'less'", async () => {
+      const caller = createCaller(authedContext(fbUser));
+      await caller.feedback.set({ itemId: itemOneId, verdict: "more" });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await caller.feedback.set({ itemId: itemTwoId, verdict: "more" });
+      const shelf = await caller.feedback.list();
+      const ids = shelf.map((r) => r.id);
+      expect(ids.indexOf(itemTwoId)).toBeLessThan(ids.indexOf(itemOneId));
+      expect(ids).not.toContain(itemFourId); // itemFour holds a "less"
+    });
+
+    it("a 'more' item's tags join the taste keywords; a 'less' adds none", async () => {
+      const { getTasteKeywords } = await import("~/server/db/saves");
+      const caller = createCaller(authedContext(fbUser));
+      // fbUser has saved nothing, so every keyword here comes from the feedback union.
+      await caller.feedback.set({ itemId: itemThreeId, verdict: "more" });
+      expect(await getTasteKeywords(fbUser)).toEqual(
+        expect.arrayContaining(["etching", "botanical plate"]),
+      );
+      expect(await getTasteKeywords(fbUser)).not.toContain("sepia");
     });
   });
 

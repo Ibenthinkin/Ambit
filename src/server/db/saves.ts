@@ -5,7 +5,7 @@
 import { and, count, desc, eq } from "drizzle-orm";
 
 import type { Item } from "~/server/db/items";
-import { item, savedItem } from "~/server/db/schema";
+import { item, itemFeedback, savedItem } from "~/server/db/schema";
 
 // Note on where saving lives (Phase 5.5): the *write* path is `collections.ts`'s
 // `setItemCollection`, because every save in the redesign goes through the save-to-collection
@@ -187,15 +187,35 @@ export async function getTasteKeywords(
   const cap = opts.cap ?? 24;
   const scanLimit = opts.scanLimit ?? 30;
   const { db } = await import("./client");
-  const rows = await db
-    .select({ aestheticTags: item.aestheticTags })
-    .from(savedItem)
-    .innerJoin(item, eq(savedItem.itemId, item.id))
-    .where(eq(savedItem.userId, userId))
-    .orderBy(desc(savedItem.savedAt))
-    .limit(scanLimit);
+  // The union of two time-ordered streams: saves (by `saved_at`) and "More of this" verdicts (by
+  // `created_at`) — a "more" is a taste statement at least as strong as a save (More or less D4).
+  // Each is capped at `scanLimit` on its own, then the two are merged newest-first and cut to
+  // `scanLimit` again: the newest `scanLimit` of the union can only come from the newest
+  // `scanLimit` of each part. An item both saved and "more"d appears twice; deriveTasteKeywords
+  // dedupes tags, so that costs a slot in the scan, not a duplicate keyword.
+  const [saved, more] = await Promise.all([
+    db
+      .select({ at: savedItem.savedAt, tags: item.aestheticTags })
+      .from(savedItem)
+      .innerJoin(item, eq(savedItem.itemId, item.id))
+      .where(eq(savedItem.userId, userId))
+      .orderBy(desc(savedItem.savedAt))
+      .limit(scanLimit),
+    db
+      .select({ at: itemFeedback.createdAt, tags: item.aestheticTags })
+      .from(itemFeedback)
+      .innerJoin(item, eq(itemFeedback.itemId, item.id))
+      .where(
+        and(eq(itemFeedback.userId, userId), eq(itemFeedback.verdict, "more")),
+      )
+      .orderBy(desc(itemFeedback.createdAt))
+      .limit(scanLimit),
+  ]);
+  const rows = [...saved, ...more]
+    .sort((x, y) => y.at.getTime() - x.at.getTime())
+    .slice(0, scanLimit);
   return deriveTasteKeywords(
-    rows.map((row) => row.aestheticTags),
+    rows.map((row) => row.tags),
     cap,
   );
 }

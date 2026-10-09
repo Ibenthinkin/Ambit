@@ -172,8 +172,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     afterAll(async () => {
       const { db } = await import("~/server/db/client");
-      const { item, topic, user, userTopic } =
+      const { item, topic, user, userTopic, userTopicCool } =
         await import("~/server/db/schema");
+      // user_topic_cool has no cascade from user (nor does user_topic): delete first.
+      await db
+        .delete(userTopicCool)
+        .where(inArray(userTopicCool.userId, USERS));
       // user_taste and interview_answer rows go with the user (ON DELETE CASCADE).
       await db.delete(userTopic).where(inArray(userTopic.userId, USERS));
       await db.delete(user).where(inArray(user.id, USERS));
@@ -232,6 +236,19 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(me!.writingAmount).toBe("lot");
       expect(log).toHaveLength(answers.length + 1);
       expect(log.filter((r) => r.runId === runId)).toHaveLength(1);
+    });
+
+    it("a retake clears the reader's cools (More or less D4): the questionnaire is a fresh start", async () => {
+      const { db } = await import("~/server/db/client");
+      const { userTopicCool } = await import("~/server/db/schema");
+      const caller = createCaller(authedContext(userId));
+      await db.insert(userTopicCool).values({ userId, topicId: b, cool: 0.36 });
+      await caller.onboarding.complete(input());
+      const left = await db
+        .select()
+        .from(userTopicCool)
+        .where(eq(userTopicCool.userId, userId));
+      expect(left).toEqual([]);
     });
 
     it("refuses an unpickable topic with BAD_REQUEST and writes nothing", async () => {

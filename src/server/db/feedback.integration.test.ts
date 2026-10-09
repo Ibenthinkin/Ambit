@@ -131,6 +131,7 @@ describe.skipIf(!process.env.DATABASE_URL)("db/feedback (integration)", () => {
       weightApplied: MORE_STEP,
       coolApplied: 1,
       isNewPick: false,
+      isNewCool: false,
     });
     expect(await weightOf(u, topicA)).toBeCloseTo(1 + MORE_STEP);
     // "more" never marks seen — only "less" does.
@@ -186,8 +187,10 @@ describe.skipIf(!process.env.DATABASE_URL)("db/feedback (integration)", () => {
     const u = await freshUser({ [topicA]: 0.4 });
     const first = await setFeedback(u, ids.a1!, "less", topicA);
     expect(first.weightApplied).toBeCloseTo(WEIGHT_FLOOR - 0.4, 5);
+    expect(first.isNewCool).toBe(true);
     const second = await setFeedback(u, ids.a2!, "less", topicA);
     expect(second.weightApplied).toBe(0);
+    expect(second.isNewCool).toBe(false); // the topic's cool row already existed
     expect(await weightOf(u, topicA)).toBeCloseTo(WEIGHT_FLOOR);
   });
 
@@ -246,6 +249,7 @@ describe.skipIf(!process.env.DATABASE_URL)("db/feedback (integration)", () => {
       weightApplied: 0,
       coolApplied: 1,
       isNewPick: false,
+      isNewCool: false,
     });
     expect(await seen(u, orphan!.id)).toBe(true);
     expect(await getFeedbackIds(u)).toEqual({ more: [], less: [orphan!.id] });

@@ -51,6 +51,10 @@ export interface FeedbackEffect {
   /** "more" created the `user_topic` row — the topic is a new pick. Never true for a stored effect
    *  read back (the row does not keep it), which is fine: it only matters on the write that did it. */
   isNewPick: boolean;
+  /** "less" created the topic's `user_topic_cool` row — its first cool. The router's toast reads
+   *  "Drifting away from" for that and "further from" after. Like `isNewPick`, true only on the
+   *  write that did it. */
+  isNewCool: boolean;
 }
 
 /**
@@ -259,7 +263,8 @@ async function lessWeight(tx: Tx, userId: string, topicId: string) {
 }
 
 /** Step 3 for "less": the cool × COOL_STEP, floored at COOL_FLOOR; a first cool starts from 1.
- *  Returns the factor actually applied (new / old), which the floor can make anything up to 1. */
+ *  Returns the factor actually applied (new / old), which the floor can make anything up to 1,
+ *  and whether this created the row (`xmax = 0`, as in `moreWeight`). */
 async function lessCool(tx: Tx, userId: string, topicId: string) {
   const locked = await lockCool(tx, userId, topicId);
   const [row] = await tx
@@ -276,7 +281,7 @@ async function lessCool(tx: Tx, userId: string, topicId: string) {
   // Same three cases as moreWeight's old weight: locked, freshly inserted (from 1), or a racing
   // insert we then updated — a fresh 0.6 that one step takes to 0.36, never near the floor.
   const old = locked ?? (isNew ? 1 : cool / COOL_STEP);
-  return cool / old;
+  return { coolApplied: cool / old, isNewCool: isNew };
 }
 
 /** Step 3 for "more": a cooled topic warms by ÷ COOL_STEP, capped at 1 (where the row goes). No
@@ -321,13 +326,14 @@ export async function setFeedback(
     let weightApplied = 0;
     let coolApplied = 1;
     let isNewPick = false;
+    let isNewCool = false;
     if (topicId !== null) {
       if (verdict === "more") {
         ({ weightApplied, isNewPick } = await moreWeight(tx, userId, topicId));
         coolApplied = await moreCool(tx, userId, topicId);
       } else {
         weightApplied = await lessWeight(tx, userId, topicId);
-        coolApplied = await lessCool(tx, userId, topicId);
+        ({ coolApplied, isNewCool } = await lessCool(tx, userId, topicId));
       }
     }
 
@@ -347,7 +353,7 @@ export async function setFeedback(
         // A flip is a new verdict: it moves to the front of the "More of this" shelf.
         set: { ...values, createdAt: sql`now()` },
       });
-    return { ...values, isNewPick };
+    return { ...values, isNewPick, isNewCool };
   });
 }
 
@@ -359,6 +365,7 @@ function storedEffect(row: typeof itemFeedback.$inferSelect): FeedbackEffect {
     weightApplied: row.weightApplied,
     coolApplied: row.coolApplied,
     isNewPick: false,
+    isNewCool: false,
   };
 }
 

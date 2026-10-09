@@ -17,9 +17,11 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { getUserTopicCools, warmTopic } from "~/server/db/feedback";
 import {
   getUserTaste,
   getUserTopicPicks,
+  listAllTopics,
   listTopics,
   resetUserTopicWeights,
   setUserTopics,
@@ -39,6 +41,31 @@ export const topicsRouter = createTRPCRouter({
    * both pickers' segmented controls read straight off without a second round trip.
    */
   mine: protectedProcedure.query(({ ctx }) => getUserTopicPicks(ctx.user.id)),
+
+  /**
+   * The caller's cooled topics for Profile → Topics' "Showing less of" (More or less D4), most
+   * cooled first. A topic with no row is not cooled and is absent. Labels come from `listAllTopics`
+   * — a cool can sit on a topic that is no longer pickable, which `listTopics` would drop.
+   */
+  cools: protectedProcedure.query(async ({ ctx }) => {
+    const cools = await getUserTopicCools(ctx.user.id);
+    if (cools.size === 0) return [];
+    const labels = new Map((await listAllTopics()).map((t) => [t.id, t.label]));
+    return [...cools]
+      .map(([topicId, cool]) => ({
+        topicId,
+        label: labels.get(topicId) ?? topicId,
+        cool,
+      }))
+      .sort((a, b) => a.cool - b.cool || a.label.localeCompare(b.label));
+  }),
+
+  /** "Warm up": forget a topic's cool outright. `warmed` is false when there was none. */
+  warm: protectedProcedure
+    .input(z.object({ topicId: z.string() }))
+    .mutation(async ({ ctx, input }) => ({
+      warmed: await warmTopic(ctx.user.id, input.topicId),
+    })),
 
   /**
    * The caller's taste profile (First Exhibition, docs/DESIGN_first-exhibition.md §4) — the
