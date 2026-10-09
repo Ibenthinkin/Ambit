@@ -102,9 +102,10 @@ describe("ReaderItemBody", () => {
         })}
       />,
     );
-    expect(
-      screen.getByRole("link", { name: "Original post" }),
-    ).toHaveAttribute("href", "https://www.themarginalian.org/2026/09/30/x/");
+    expect(screen.getByRole("link", { name: "Original post" })).toHaveAttribute(
+      "href",
+      "https://www.themarginalian.org/2026/09/30/x/",
+    );
     expect(screen.queryByRole("link", { name: /Read on / })).toBeNull();
   });
 
