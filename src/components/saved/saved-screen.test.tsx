@@ -28,6 +28,7 @@ const {
   backMock,
   unsaveMutateMock,
   unsaveOpts,
+  trackMock,
   invalidateMock,
   setDataMock,
 } = vi.hoisted(() => ({
@@ -43,6 +44,7 @@ const {
   replaceMock: vi.fn(),
   backMock: vi.fn(),
   unsaveMutateMock: vi.fn(),
+  trackMock: vi.fn(),
   // Captures the mutation options so a test can drive onMutate/onSettled by hand — the mocked
   // `mutate` doesn't run the lifecycle the way real React Query does (same move as sheets.test).
   unsaveOpts: {
@@ -51,6 +53,7 @@ const {
       | {
           onMutate: (vars: { itemId: string }) => void;
           onError: () => void;
+          onSuccess: (data: unknown, vars: { itemId: string }) => void;
           onSettled: () => Promise<unknown>;
         },
   },
@@ -93,6 +96,10 @@ vi.mock("~/trpc/react", () => ({
       },
     },
   },
+}));
+
+vi.mock("~/components/usage/usage-provider", () => ({
+  useUsage: () => ({ track: trackMock }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -165,6 +172,7 @@ beforeEach(() => {
   replaceMock.mockClear();
   backMock.mockClear();
   unsaveMutateMock.mockClear();
+  trackMock.mockClear();
   invalidateMock.mockClear();
   setDataMock.mockClear();
 });
@@ -275,6 +283,15 @@ describe("SavedScreen", () => {
 
     await act(async () => void (await unsaveOpts.current!.onSettled()));
     expect(invalidateMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("records item.unsave only once the server has said yes", () => {
+    render(<SavedScreen />);
+    act(() => unsaveOpts.current!.onMutate({ itemId: "img1" }));
+    act(() => unsaveOpts.current!.onError());
+    expect(trackMock).not.toHaveBeenCalled();
+    act(() => unsaveOpts.current!.onSuccess(undefined, { itemId: "img1" }));
+    expect(trackMock).toHaveBeenCalledWith("item.unsave", { itemId: "img1" });
   });
 
   it("says so when the unsave write fails, instead of letting the removal stand silently", () => {
