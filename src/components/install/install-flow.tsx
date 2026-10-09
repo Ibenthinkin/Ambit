@@ -15,6 +15,8 @@ import {
   type InstallState,
 } from "~/lib/install-store";
 
+import { useUsage } from "~/components/usage/usage-provider";
+
 import { InstallBanner } from "./install-banner";
 import { InstallConfirmation } from "./install-confirmation";
 import { InstallSheet } from "./install-sheet";
@@ -66,6 +68,7 @@ export function InstallFlow({ now = () => Date.now() }: InstallFlowProps) {
     onServer,
   );
   const install = useInstall();
+  const { track } = useUsage();
 
   // Computed once, from reads only — no writes, because a lazy initializer can be invoked twice
   // (StrictMode does exactly that to surface impurity) and counting a visit twice would bring the
@@ -106,6 +109,8 @@ export function InstallFlow({ now = () => Date.now() }: InstallFlowProps) {
     install.installed && !confirmationClosed ? "done" : stage;
 
   async function handleAdd() {
+    // The ask itself, whatever follows (the browser's prompt, or the instructions sheet).
+    track("pwa.install", { meta: { how: "card" } });
     if (!install.canPrompt) {
       setStage("sheet");
       return;

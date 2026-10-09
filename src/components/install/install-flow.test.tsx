@@ -24,6 +24,11 @@ const stubs = vi.hoisted(() => ({
   prompt: vi.fn<() => Promise<PromptResult>>(),
 }));
 
+const { trackMock } = vi.hoisted(() => ({ trackMock: vi.fn() }));
+vi.mock("~/components/usage/usage-provider", () => ({
+  useUsage: () => ({ track: trackMock }),
+}));
+
 vi.mock("~/lib/install-store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/lib/install-store")>();
   return {
@@ -58,6 +63,7 @@ const instructions = () => screen.queryByText("Add to home screen");
 
 beforeEach(() => {
   localStorage.clear();
+  trackMock.mockClear();
   stubs.standalone = false;
   stubs.canPrompt = false;
   stubs.installed = false;
@@ -105,6 +111,16 @@ describe("InstallFlow — when it asks", () => {
 describe("InstallFlow — answering the banner", () => {
   beforeEach(() => {
     seed({ feedVisits: 1, lastVisitAt: NOW - VISIT_GAP_MS - 1 });
+  });
+
+  it("records the card's own Add as pwa.install how:card, whichever way it then goes", async () => {
+    renderFlow();
+    await act(async () => {
+      screen.getByRole("button", { name: "Add" }).click();
+    });
+    expect(trackMock).toHaveBeenCalledExactlyOnceWith("pwa.install", {
+      meta: { how: "card" },
+    });
   });
 
   it("shows instructions when the browser has no prompt to offer", async () => {
