@@ -315,7 +315,7 @@ test.describe.serial("item pages", () => {
 
     // `sourceLabel`'s title-case fallback for an unknown source.
     await expect(
-      page.getByRole("link", { name: "[Read on E2e..]" }),
+      page.getByRole("link", { name: "Read on E2e" }),
     ).toHaveAttribute("href", "https://example.test/e2e/article");
     await expect(
       page.getByText("Ambit is a quieter way to read."),
