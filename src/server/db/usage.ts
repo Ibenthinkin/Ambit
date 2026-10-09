@@ -309,6 +309,7 @@ export async function sourceShare(
       from seen_item s join item i on i.id = s.item_id
       where s.served_at >= ${ts(w.since)} and s.served_at < ${ts(w.until)}
         and ${readerFilter(sql`s.user_id`, w.excludeEmails)} ${only}
+        and i.type = 'image' and i.curation_score >= 4 ${suspended}
       group by i.source
     ),
     corpus as (
@@ -521,29 +522,41 @@ function toMap(
   return out;
 }
 
-/** Count events of one kind grouped by a meta key (`meta->>'key'`). */
+/**
+ * Count events of one kind grouped by a meta key (`meta->>'key'`). With `firstPerVisit`, each
+ * `visit` key counts once, by its earliest event of that kind.
+ */
 async function countByMeta(
   w: UsageWindow,
   kind: string,
   key: string,
+  firstPerVisit = false,
 ): Promise<Record<string, number>> {
   return toMap(
-    await rows<{ k: string | null; n: number }>(sql`
+    await rows<{ k: string | null; n: number }>(
+      firstPerVisit
+        ? sql`
+      select meta->>${key} as k, count(*)::int as n from (
+        select distinct on (visit) meta from usage_event
+        where kind = ${kind} and ${eventFilter(w)}
+        order by visit, at, id
+      ) f group by 1`
+        : sql`
       select meta->>${key} as k, count(*)::int as n from usage_event
       where kind = ${kind} and ${eventFilter(w)}
-      group by 1
-    `),
+      group by 1`,
+    ),
   );
 }
 
 // ---- visits ---------------------------------------------------------------------------------
 
 export type VisitSummary = {
-  /** `visit.start` events: one per visit. */
+  /** Distinct visit keys that started in the window (a reload's second `visit.start` is not a second visit). */
   count: number;
   /** Of those, how many had no user. */
   signedOut: number;
-  /** Median / 90th percentile of `visit.end.seconds`; null with no ended visits. */
+  /** Median / 90th percentile of a visit's summed `visit.end.seconds`; null with no ended visits. */
   medianSeconds: number | null;
   p90Seconds: number | null;
   device: Record<string, number>;
@@ -553,36 +566,51 @@ export type VisitSummary = {
 };
 
 export async function visits(w: UsageWindow): Promise<VisitSummary> {
+  // "A visit" is one `visit` key, everywhere in the report. Two traps in the raw events:
+  //  - `visit.start` fires on every document load, so a visit that reloads has several. Take each
+  //    key's *first* start (`distinct on (visit)` keeps the first row per key under the ORDER BY)
+  //    for the count and the device / via / standalone splits.
+  //  - `visit.end` fires on every visibilitychange -> hidden, so one sitting with five app
+  //    switches writes five small `seconds` fragments. Sum them per visit before taking a median.
   // `percentile_cont(0.5) within group (order by x)` is Postgres's median (an *ordered-set
   // aggregate*; 0.9 gives p90). It interpolates between the two middle values, and returns null
-  // when no row passes the FILTER.
+  // when there are no rows.
   const [r] = await rows<{
     count: number;
     signedOut: number;
     standalone: number;
-    median: number | null;
-    p90: number | null;
   }>(sql`
+    with firsts as (
+      select distinct on (visit) visit, user_id, meta
+      from usage_event
+      where kind = 'visit.start' and ${eventFilter(w)}
+      order by visit, at, id
+    )
     select
-      (count(*) filter (where kind = 'visit.start'))::int as count,
-      (count(*) filter (where kind = 'visit.start' and user_id is null))::int as "signedOut",
-      (count(*) filter (where kind = 'visit.start' and meta->>'standalone' = 'true'))::int
-        as standalone,
-      percentile_cont(0.5) within group (order by (meta->>'seconds')::int)
-        filter (where kind = 'visit.end') as median,
-      percentile_cont(0.9) within group (order by (meta->>'seconds')::int)
-        filter (where kind = 'visit.end') as p90
-    from usage_event
-    where kind in ('visit.start', 'visit.end') and ${eventFilter(w)}
+      count(*)::int as count,
+      (count(*) filter (where user_id is null))::int as "signedOut",
+      (count(*) filter (where meta->>'standalone' = 'true'))::int as standalone
+    from firsts
+  `);
+  const [m] = await rows<{ median: number | null; p90: number | null }>(sql`
+    with per as (
+      select visit, sum((meta->>'seconds')::int) as s
+      from usage_event
+      where kind = 'visit.end' and ${eventFilter(w)}
+      group by visit
+    )
+    select percentile_cont(0.5) within group (order by s) as median,
+           percentile_cont(0.9) within group (order by s) as p90
+    from per
   `);
   const count = r?.count ?? 0;
   return {
     count,
     signedOut: r?.signedOut ?? 0,
-    medianSeconds: r?.median ?? null,
-    p90Seconds: r?.p90 ?? null,
-    device: await countByMeta(w, "visit.start", "device"),
-    via: await countByMeta(w, "visit.start", "via"),
+    medianSeconds: m?.median ?? null,
+    p90Seconds: m?.p90 ?? null,
+    device: await countByMeta(w, "visit.start", "device", true),
+    via: await countByMeta(w, "visit.start", "via", true),
     standaloneShare: count > 0 ? (r?.standalone ?? 0) / count : null,
   };
 }

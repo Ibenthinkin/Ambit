@@ -111,7 +111,13 @@ describe.skipIf(!process.env.DATABASE_URL)("usage events (integration)", () => {
       ev("v1", A, D1, 14, "topics.edit", { meta: { action: "add" } }),
       ev("v1", A, D1, 15, "topics.edit", { meta: { action: "add" } }),
       ev("v1", A, D1, 16, "topics.edit", { meta: { action: "remove" } }),
-      ev("v1", A, D1, 17, "visit.end", { meta: { seconds: 120 } }),
+      // Two app switches wrote two `visit.end` fragments (50 + 70 = 120 s), and a reload wrote a
+      // second `visit.start` (via "internal", device "desktop") — neither may count as a visit.
+      ev("v1", A, D1, 17, "visit.end", { meta: { seconds: 50 } }),
+      ev("v1", A, D1, 18, "visit.start", {
+        meta: { device: "desktop", standalone: false, via: "internal" },
+      }),
+      ev("v1", A, D1, 19, "visit.end", { meta: { seconds: 70 } }),
       // V2 (signed out, desktop, via a shared link): counted, not followed.
       ev("v2", null, D1, 0, "visit.start", {
         meta: { device: "desktop", standalone: false, via: "link" },
@@ -306,6 +312,8 @@ describe.skipIf(!process.env.DATABASE_URL)("usage events (integration)", () => {
       const r = await visits(w1());
       expect(r.count).toBe(3);
       expect(r.signedOut).toBe(1);
+      // Per visit, not per fragment: v1 = 50 + 70, v2 = 60, v3 = 300 -> median 120. (Per fragment
+      // it would be the median of 50, 70, 60, 300 = 65.)
       expect(r.medianSeconds).toBe(120);
       expect(r.p90Seconds).toBeCloseTo(264, 5);
       expect(r.device).toEqual({ phone: 2, desktop: 1 });
