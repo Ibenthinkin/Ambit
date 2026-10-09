@@ -290,8 +290,19 @@ describe("TileActions — More or less (docs/DESIGN_more-or-less.md D6, hover st
     renderStrip();
     const more = screen.getByRole("button", { name: "More of this" });
     expect(more).toHaveAttribute("aria-pressed", "true");
-    expect(more).toHaveClass("bg-ink", "text-on-accent", "hover:bg-ink-hi");
-    expect(more.className).toContain("shadow-[0_0_0_0.5px");
+    expect(more).toHaveClass(
+      "bg-ink",
+      "text-on-accent",
+      "hover:bg-white",
+      "shadow-[0_0_0_0.5px_rgba(14,14,14,0.45),0_2px_8px_rgba(0,0,0,0.25)]",
+    );
+    // One hover shadow carrying both the accent underline and the keyline, so the keyline
+    // survives the hover (a lone HOVER_LINE would replace it).
+    const hoverShadow = more.className
+      .split(" ")
+      .find((c) => c.startsWith("hover:shadow-"));
+    expect(hoverShadow).toContain("inset_0_-2px_0_var(--color-accent)");
+    expect(hoverShadow).toContain("0_0_0_0.5px_rgba(14,14,14,0.45)");
     // Glass is the rest state only.
     expect(more.className).not.toContain("backdrop-blur");
     const less = screen.getByRole("button", { name: "Less of this" });

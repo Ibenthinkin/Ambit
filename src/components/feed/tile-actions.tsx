@@ -12,7 +12,6 @@ import {
 } from "~/lib/last-collection";
 import type { Verdict } from "~/lib/feedback-toast";
 import { saveToastText } from "~/lib/save-toast";
-import { HOVER_LINE } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import type { FeedCard } from "~/server/services/feed";
 import { api } from "~/trpc/react";
@@ -43,15 +42,16 @@ const GLASS =
 
 // The −/+ squares' two looks (the explorations' "Glass square, 32 px" table). Rest is the glass,
 // brightening on hover; marked inverts to ink — no glass, no border, a hairline keyline and a soft
-// drop instead — and on hover takes the accent's hovered-control underline (HOVER_LINE).
+// drop instead — and on hover turns white and takes the accent's hovered-control underline.
 const SQUARE_REST = cn(
   GLASS,
   "hover:bg-bg/48 hover:border-ink/30 hover:text-ink-hi",
 );
-const SQUARE_MARKED = cn(
-  "bg-ink text-on-accent hover:bg-ink-hi shadow-[0_0_0_0.5px_rgba(14,14,14,0.45),0_2px_8px_rgba(0,0,0,0.25)]",
-  HOVER_LINE,
-);
+// Not `HOVER_LINE`: a shadow utility replaces the *whole* box-shadow, so on hover it would wipe
+// the keyline. The hover shadow is therefore the same accent underline written out together with
+// the keyline layers — the same hovered-control-underline job, not a new accent use.
+const SQUARE_MARKED =
+  "bg-ink text-on-accent hover:bg-white shadow-[0_0_0_0.5px_rgba(14,14,14,0.45),0_2px_8px_rgba(0,0,0,0.25)] hover:shadow-[inset_0_-2px_0_var(--color-accent),0_0_0_0.5px_rgba(14,14,14,0.45),0_2px_8px_rgba(0,0,0,0.25)]";
 
 export interface TileActionsProps {
   card: FeedCard;
