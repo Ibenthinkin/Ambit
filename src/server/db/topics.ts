@@ -111,8 +111,9 @@ export interface TopicPick {
 }
 
 /** A Drizzle transaction handle, typed off the client without importing it at runtime (a type
- *  import is erased, so this keeps the file's "no static ./client import" rule). */
-type Tx = Parameters<
+ *  import is erased, so this keeps the file's "no static ./client import" rule). Exported for the
+ *  other `…Tx` writers that run inside a caller's transaction (db/feedback.ts's `clearUserCools`). */
+export type Tx = Parameters<
   Parameters<Awaited<typeof import("./client")>["db"]["transaction"]>[0]
 >[0];
 
