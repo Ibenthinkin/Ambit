@@ -4,7 +4,7 @@ import {
   FLUSH_MS,
   MAX_EVENTS_PER_BEACON,
   META_KEYS,
-  META_VALUES,
+  META_SPEC,
   SCREENS,
   USAGE_KINDS,
   USAGE_RETENTION_DAYS,
@@ -60,8 +60,8 @@ describe("usage vocabulary", () => {
     ]);
   });
 
-  it("closes enumerated meta values to the design's", () => {
-    expect(META_VALUES.from).toEqual([
+  it("closes each kind's meta values to the design's", () => {
+    expect(META_SPEC["item.open"].from).toEqual([
       "feed",
       "rail",
       "saved",
@@ -70,24 +70,45 @@ describe("usage vocabulary", () => {
       "explore",
       "hang",
     ]);
-    expect(META_VALUES.action).toEqual([
+    expect(META_SPEC["topics.edit"].action).toEqual([
       "add",
       "remove",
       "little",
       "some",
       "lot",
     ]);
-    expect(META_VALUES.stepAction).toEqual(["answer", "skip", "back"]);
-    expect(META_VALUES.method).toEqual(["share", "copy", "image"]);
-    expect(META_VALUES.how).toEqual(["prompt", "card", "appinstalled"]);
-    expect(META_VALUES.device).toEqual(["phone", "desktop"]);
-    expect(META_VALUES.via).toEqual(["direct", "link", "internal"]);
+    // `action` is a different set on onboarding.step — which is why the spec is keyed per kind.
+    expect(META_SPEC["onboarding.step"].action).toEqual([
+      "answer",
+      "skip",
+      "back",
+    ]);
+    expect(META_SPEC["onboarding.step"].step).toEqual({
+      int: { min: 1, max: 8 },
+    });
+    expect(META_SPEC["item.share"].method).toEqual(["share", "copy", "image"]);
+    expect(META_SPEC["pwa.install"].how).toEqual([
+      "prompt",
+      "card",
+      "appinstalled",
+    ]);
+    expect(META_SPEC["visit.start"].device).toEqual(["phone", "desktop"]);
+    expect(META_SPEC["visit.start"].via).toEqual([
+      "direct",
+      "link",
+      "internal",
+    ]);
+    expect(META_SPEC["visit.start"].standalone).toBe("bool");
+    expect(META_SPEC["item.magazine"].on).toBe("bool");
+    expect(META_SPEC["visit.end"].seconds).toBe("int");
+    expect(META_SPEC["client.error"].digest).toEqual({ string: { max: 32 } });
   });
 
-  it("every enumerated meta key is a real key of some kind", () => {
-    const all = new Set(Object.values(META_KEYS).flat());
-    for (const k of Object.keys(META_VALUES)) {
-      expect(all.has(k) || k === "stepAction").toBe(true);
+  it("META_KEYS is exactly the keys of each kind's spec", () => {
+    for (const kind of USAGE_KINDS) {
+      expect([...META_KEYS[kind]].sort()).toEqual(
+        Object.keys(META_SPEC[kind]).sort(),
+      );
     }
   });
 

@@ -45,44 +45,58 @@ export const SCREENS = [
 ] as const;
 export type Screen = (typeof SCREENS)[number];
 
-/** The closed meta keys per kind. Anything else in `meta` is dropped by the route. */
-export const META_KEYS: Record<UsageKind, readonly string[]> = {
-  "visit.start": ["device", "standalone", "via"],
-  "visit.end": ["seconds"],
-  "screen.open": [],
-  "item.open": ["from"],
-  "item.linkout": [],
-  "item.share": ["method"],
-  "item.zoom": [],
-  "item.magazine": ["on"],
-  "item.unsave": [],
-  "topics.edit": ["action"],
-  "onboarding.step": ["step", "action"],
-  "onboarding.retake": [],
-  "pwa.install": ["how"],
-  "client.error": ["digest"],
-};
-
-/**
- * The allowed values for the enumerated meta keys, shared by the server's zod schema and the
- * client's call sites. Keyed by meta key name — except `stepAction`, because `action` means two
- * different sets (`topics.edit` vs `onboarding.step`); a schema builder maps
- * onboarding.step's `action` to `stepAction`.
- * Not enumerated here (their shape is the validator's job): `step` is an int 1..8, `seconds`
- * an int, `standalone` / `on` booleans, `digest` a string of at most 32 characters.
- */
-export const META_VALUES = {
-  device: ["phone", "desktop"],
-  via: ["direct", "link", "internal"],
-  from: ["feed", "rail", "saved", "wander", "link", "explore", "hang"],
-  method: ["share", "copy", "image"],
-  action: ["add", "remove", "little", "some", "lot"],
-  stepAction: ["answer", "skip", "back"],
-  how: ["prompt", "card", "appinstalled"],
-} as const;
-
 export const ONBOARDING_STEPS = { min: 1, max: 8 } as const;
 export const DIGEST_MAX = 32;
+
+/**
+ * What one meta value may be. A string list is an enum (the value must be one of them); the
+ * other forms are the shapes the design leaves open but bounded.
+ */
+export type MetaRule =
+  | readonly string[]
+  | "bool"
+  | "int"
+  | { readonly int: { readonly min: number; readonly max: number } }
+  | { readonly string: { readonly max: number } };
+
+/**
+ * For each kind, each meta key it carries and what that key accepts — the one place that says so.
+ * Keyed per kind (not per meta key) because the same name means different things: `action` is
+ * add/remove/little/some/lot on `topics.edit` but answer/skip/back on `onboarding.step`.
+ * Every key listed is required on its kind; a key not listed is rejected (the route's schemas
+ * are `.strict()`), and a kind with `{}` rejects any meta at all.
+ */
+export const META_SPEC = {
+  "visit.start": {
+    device: ["phone", "desktop"],
+    standalone: "bool",
+    via: ["direct", "link", "internal"],
+  },
+  "visit.end": { seconds: "int" },
+  "screen.open": {},
+  "item.open": {
+    from: ["feed", "rail", "saved", "wander", "link", "explore", "hang"],
+  },
+  "item.linkout": {},
+  "item.share": { method: ["share", "copy", "image"] },
+  "item.zoom": {},
+  "item.magazine": { on: "bool" },
+  "item.unsave": {},
+  "topics.edit": { action: ["add", "remove", "little", "some", "lot"] },
+  "onboarding.step": {
+    step: { int: ONBOARDING_STEPS },
+    action: ["answer", "skip", "back"],
+  },
+  "onboarding.retake": {},
+  "pwa.install": { how: ["prompt", "card", "appinstalled"] },
+  "client.error": { digest: { string: { max: DIGEST_MAX } } },
+} as const satisfies Record<UsageKind, Record<string, MetaRule>>;
+
+/** The closed meta keys per kind — derived from `META_SPEC`, so the two cannot disagree. */
+export const META_KEYS: Record<UsageKind, readonly string[]> =
+  Object.fromEntries(
+    USAGE_KINDS.map((kind) => [kind, Object.keys(META_SPEC[kind])]),
+  ) as unknown as Record<UsageKind, readonly string[]>;
 
 /** Most events one beacon may carry; the 51st and later are dropped. */
 export const MAX_EVENTS_PER_BEACON = 50;
