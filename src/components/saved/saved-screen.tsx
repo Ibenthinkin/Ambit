@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { FeedCard } from "~/server/services/feed";
 import { buildTiles, GRID_COLS, packColumns } from "~/components/feed/masonry";
 import { cameToSavedFromApp } from "~/components/saved/saved-origin";
+import { invalidateFeedbackReaders } from "~/components/feedback/more-or-less";
 import { CollectionsSheet } from "~/components/sheets/collections-sheet";
 import { Button } from "~/components/ui/button";
 import { Column } from "~/components/ui/column";
@@ -102,7 +103,7 @@ export function SavedScreen() {
       setToast(UNDONE_TOAST);
     },
     onError: () => setToast(UNDO_FAILED_TOAST),
-    onSettled: () => utils.feedback.list.invalidate(),
+    onSettled: () => invalidateFeedbackReaders(utils),
   });
 
   // Pop when an in-app surface brought us here, push when /saved was opened cold (a bookmark, a

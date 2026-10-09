@@ -172,6 +172,11 @@ async function writeCool(
  *   the row is deleted. The floor side is reachable when verdicts interleave — less, less,
  *   more (a3), less, less, then clearing a3 computes 0.1296 — and the clamp raises that to
  *   COOL_FLOOR, keeping the column's (COOL_FLOOR … 1] invariant.
+ *
+ * Undo is exact by design, not "best effort": it replays the *stored* inverse, even when the
+ * world has moved on. So undoing a "more" after a Warm up (which deleted the cool row) recreates
+ * the cool the "more" had warmed away, and undoing one after a retake (which overwrote weights)
+ * moves the fresh weight by the stored delta. Both are what "take back exactly what it did" means.
  */
 async function reverseTx(
   tx: Tx,
@@ -439,7 +444,9 @@ export async function getUserTopicCools(
 /**
  * "Warm up" on Profile → Topics: forgets a topic's cool outright. The verdicts that made it stay
  * recorded; undoing one of those "less"es later reverses its factor from 1, which the ≤ 1 clamp
- * turns into no cool at all — so a warmed topic is not re-cooled by taking back a "less". Returns
+ * turns into no cool at all — so a warmed topic is not re-cooled by taking back a "less". (A
+ * "more" is the opposite case: it stored the factor that warmed a cool, and undoing it after a
+ * Warm up re-applies that inverse, recreating a cool row. That is exact undo, by design.) Returns
  * whether there was a cool to forget.
  */
 export async function warmTopic(

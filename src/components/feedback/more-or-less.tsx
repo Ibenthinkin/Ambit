@@ -79,6 +79,22 @@ export type MoreOrLessState = Pick<
  * that is on, takes it back; `undo(id)` takes it back outright. `useMoreOrLess` below is this,
  * narrowed to one item — so every surface shares one optimistic shape, one toast, one undo.
  */
+/**
+ * Everything a verdict can change, re-read: the marks, the Saved shelf, the cooled topics and the
+ * topic weights. One owner, so every place that writes (or undoes) a verdict settles the same four
+ * caches — the Saved shelf's undo had settled only the shelf and left the rest stale.
+ */
+export function invalidateFeedbackReaders(
+  utils: ReturnType<typeof api.useUtils>,
+) {
+  return Promise.all([
+    utils.feedback.mine.invalidate(),
+    utils.feedback.list.invalidate(),
+    utils.topics.cools.invalidate(),
+    utils.topics.mine.invalidate(),
+  ]);
+}
+
 export function useFeedback({
   authed,
   onToast,
@@ -94,15 +110,8 @@ export function useFeedback({
         ? "less"
         : null;
 
-  // On settle, everything a verdict can change is re-read: the marks, the Saved shelf, the
-  // cooled topics and the topic weights.
-  const settle = () =>
-    Promise.all([
-      utils.feedback.mine.invalidate(),
-      utils.feedback.list.invalidate(),
-      utils.topics.cools.invalidate(),
-      utils.topics.mine.invalidate(),
-    ]);
+  // On settle, everything a verdict can change is re-read (see invalidateFeedbackReaders).
+  const settle = () => invalidateFeedbackReaders(utils);
 
   // The optimistic shape (the hover strip's bookmark uses it too): `onMutate` cancels any
   // in-flight read so it can't overwrite our guess, snapshots the cache, and writes the guess;

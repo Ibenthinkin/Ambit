@@ -569,6 +569,10 @@ export function ItemScreen({
     // A modifier chord is the browser's (Alt/⌘+← is Back) — paging the rail as well would be a
     // second, surprising thing happening on the way out.
     if (e.altKey || e.metaKey || e.ctrlKey) return;
+    // Holding + or - autorepeats keydown; each repeat would toggle the verdict off and on again.
+    // Only the first press counts. (Arrows and M keep repeating: paging by holding is wanted, and
+    // M's repeat is the existing behaviour.)
+    if (e.repeat && ["+", "=", "-"].includes(e.key)) return;
     if (e.key === "ArrowRight") advance(1);
     else if (e.key === "ArrowLeft") advance(-1);
     else if (e.key === "Escape") leave();

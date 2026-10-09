@@ -473,7 +473,7 @@ bun run ingest   # bun run scripts/ingest.ts (cron-triggered ingestion)
   A retake clears cools; `topics.cools` / `topics.warm` back Profile → Topics' "Showing less of";
   Saved gained a "More of this" shelf; `/dev/feed` a "Your topics" readout. **Known bend:** a
   more→less flip on a topic the "more" newly picked leaves the pick at 0.75 (clear-then-apply),
-  flagged for Ben. **Part 2's cross-file facts:** `useFeedback` in `components/ui/more-or-less.tsx`
+  flagged for Ben. **Part 2's cross-file facts:** `useFeedback` in `components/feedback/more-or-less.tsx`
   is the one optimistic shape (cache write, toast, rollback) that the pair, the `+`/`-` keys, the
   tile sheet and the hover strip all share — never a second mutation pair. `item-facts` takes a
   `feedback` **render slot**, so one facts component places the pair on a phone, a desktop and per

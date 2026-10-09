@@ -146,18 +146,20 @@ export default async function ItemPage({
   // existing lookups (the same pair `saves.forItem` and the collection guard use), signed-in only;
   // a stranger, an unsaved item or an uncollected save is "—". Read once at render, so a save made
   // from the pill shows on the next visit.
-  let keptIn: string | null = null;
-  if (session) {
+  // The article's topic label (for the "Finished" pair's confirmation note) is independent of
+  // the lookups, so it runs alongside them rather than after.
+  const keptInLookup = async (): Promise<string | null> => {
+    if (!session) return null;
     const collectionId = await getSavedItemCollection(session.user.id, itemId);
-    if (collectionId) {
-      keptIn =
-        (await getCollectionForUser(session.user.id, collectionId))?.name ??
-        null;
-    }
-  }
-
-  // The article's topic label, for the "Finished" pair's confirmation note.
-  const labels = await topicLabelsFor([item.topicId]);
+    if (!collectionId) return null;
+    return (
+      (await getCollectionForUser(session.user.id, collectionId))?.name ?? null
+    );
+  };
+  const [keptIn, labels] = await Promise.all([
+    keptInLookup(),
+    topicLabelsFor([item.topicId]),
+  ]);
 
   // An article keeps the reader layout, inside the shell that gives it the pill and the exits.
   return (

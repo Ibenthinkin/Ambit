@@ -29,6 +29,9 @@ const {
   unsaveMutateMock,
   unsaveOpts,
   invalidateMock,
+  mineInvalidateMock,
+  coolsInvalidateMock,
+  topicsMineInvalidateMock,
   setDataMock,
   shelfState,
   clearMutateMock,
@@ -61,6 +64,9 @@ const {
         },
   },
   invalidateMock: vi.fn().mockResolvedValue(undefined),
+  mineInvalidateMock: vi.fn().mockResolvedValue(undefined),
+  coolsInvalidateMock: vi.fn().mockResolvedValue(undefined),
+  topicsMineInvalidateMock: vi.fn().mockResolvedValue(undefined),
   setDataMock: vi.fn(),
   // The "More of this" shelf (`api.feedback.list`) and its undo (`api.feedback.clear`).
   shelfState: {
@@ -92,6 +98,11 @@ vi.mock("~/trpc/react", () => ({
       },
       feedback: {
         list: { invalidate: invalidateMock, setData: shelfSetDataMock },
+        mine: { invalidate: mineInvalidateMock },
+      },
+      topics: {
+        cools: { invalidate: coolsInvalidateMock },
+        mine: { invalidate: topicsMineInvalidateMock },
       },
     }),
     feedback: {
@@ -529,8 +540,13 @@ describe("SavedScreen", () => {
       );
       expect(screen.getByText("Undone")).toBeInTheDocument();
 
+      // The settle re-reads all four: the shelf, the marks, the cooled topics, the topic weights.
+      invalidateMock.mockClear();
       await act(async () => void (await clearOpts.current!.onSettled()));
-      expect(invalidateMock).toHaveBeenCalled();
+      expect(invalidateMock).toHaveBeenCalledTimes(1); // feedback.list
+      expect(mineInvalidateMock).toHaveBeenCalledTimes(1);
+      expect(coolsInvalidateMock).toHaveBeenCalledTimes(1);
+      expect(topicsMineInvalidateMock).toHaveBeenCalledTimes(1);
     });
 
     it("says so when the shelf is empty", () => {

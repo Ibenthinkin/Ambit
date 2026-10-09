@@ -447,9 +447,10 @@ export const seenItem = pgTable(
 export const itemFeedback = pgTable(
   "item_feedback",
   {
+    // Cascade like interview_answer / user_taste: a deleted account takes its verdicts with it.
     userId: text("user_id")
       .notNull()
-      .references(() => user.id),
+      .references(() => user.id, { onDelete: "cascade" }),
     // Cascade, unlike seen_item: feedback about an item that no longer exists has nothing left
     // to mean.
     itemId: text("item_id")
@@ -482,7 +483,7 @@ export const userTopicCool = pgTable(
   {
     userId: text("user_id")
       .notNull()
-      .references(() => user.id),
+      .references(() => user.id, { onDelete: "cascade" }),
     topicId: text("topic_id")
       .notNull()
       .references(() => topic.id),

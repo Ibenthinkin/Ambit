@@ -659,6 +659,17 @@ describe("the More-or-less pair", () => {
     });
   });
 
+  it("a held +/- (autorepeat) counts once", () => {
+    renderScreen();
+    const down = (k: string, repeat: boolean) =>
+      act(() => void fireEvent.keyDown(window, { key: k, repeat }));
+    down("+", false);
+    down("+", true);
+    down("+", true);
+    down("-", true);
+    expect(feedbackSetMock).toHaveBeenCalledTimes(1);
+  });
+
   it("a key on the verdict that is on takes it back", () => {
     feedbackMine.current = { more: ["entry"], less: [] };
     renderScreen();

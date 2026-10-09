@@ -761,7 +761,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "item_feedback_item_id_item_id_fk": {
@@ -1450,7 +1450,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "user_topic_cool_topic_id_topic_id_fk": {

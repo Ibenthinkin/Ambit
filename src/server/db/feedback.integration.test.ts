@@ -121,6 +121,32 @@ describe.skipIf(!process.env.DATABASE_URL)("db/feedback (integration)", () => {
     return rows.length > 0;
   }
 
+  it("deleting a user cascades their feedback and cool rows (migration 0015)", async () => {
+    const { db } = await import("./client");
+    const { setFeedback } = await import("./feedback");
+    const { itemFeedback, user, userTopicCool } = await import("./schema");
+    const u = await freshUser({ [topicA]: 1 });
+    await setFeedback(u, ids.a1!, "less", topicA); // a feedback row and a cool row
+    expect(
+      await db.select().from(itemFeedback).where(eq(itemFeedback.userId, u)),
+    ).toHaveLength(1);
+    expect(
+      await db.select().from(userTopicCool).where(eq(userTopicCool.userId, u)),
+    ).toHaveLength(1);
+    // user_topic and seen_item have no cascade, so clear them first; the two new tables must not
+    // need it.
+    const { seenItem, userTopic } = await import("./schema");
+    await db.delete(seenItem).where(eq(seenItem.userId, u));
+    await db.delete(userTopic).where(eq(userTopic.userId, u));
+    await db.delete(user).where(eq(user.id, u));
+    expect(
+      await db.select().from(itemFeedback).where(eq(itemFeedback.userId, u)),
+    ).toHaveLength(0);
+    expect(
+      await db.select().from(userTopicCool).where(eq(userTopicCool.userId, u)),
+    ).toHaveLength(0);
+  });
+
   it("'more' on a picked topic steps its weight by MORE_STEP and records the delta", async () => {
     const { setFeedback } = await import("./feedback");
     const u = await freshUser({ [topicA]: 1 });
