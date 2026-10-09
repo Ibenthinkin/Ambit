@@ -54,6 +54,10 @@ export function SavedScreen() {
   );
   const marked = api.feedback.list.useQuery(undefined, { enabled: shelf });
   const list = shelf ? marked : saved;
+  // How many items carry a "More of this" mark — decides whether the chip row shows for a reader
+  // with no saves (they mark without ever saving; the shelf is for them too).
+  const mine = api.feedback.mine.useQuery();
+  const moreCount = mine.data?.more.length ?? 0;
   const collections = api.saves.collections.useQuery();
   const count = api.saves.count.useQuery();
 
@@ -152,9 +156,11 @@ export function SavedScreen() {
         <p className="text-ink/55 mt-3 font-mono text-[12px] tracking-[0.4px] uppercase">
           {countLine(total)}
         </p>
-        {/* The chips only exist once there is something to filter — the empty state below owns
-            the whole zero-saves screen, chips included. */}
-        {total > 0 ? (
+        {/* The chips exist once there is something to filter: a save, or a "More of this" mark
+            (a reader who never saves still reaches the shelf). With neither, the empty state below
+            owns the whole screen, chips included; with marks but no saves, the row (All + the
+            shelf) sits above that empty state. */}
+        {total > 0 || moreCount > 0 || shelf ? (
           <div className="mt-5">
             <CollectionChips
               collections={collections.data ?? []}

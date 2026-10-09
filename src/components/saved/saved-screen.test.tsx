@@ -35,6 +35,7 @@ const {
   clearOpts,
   shelfSetDataMock,
   shelfEnabled,
+  mineData,
 } = vi.hoisted(() => ({
   listState: {
     current: { data: [] as unknown[], isPending: false, isError: false },
@@ -78,6 +79,7 @@ const {
   shelfSetDataMock: vi.fn(),
   /** The `enabled` flag each `feedback.list.useQuery` call was given. */
   shelfEnabled: { current: [] as unknown[] },
+  mineData: { current: { more: [] as string[], less: [] as string[] } },
 }));
 
 vi.mock("~/trpc/react", () => ({
@@ -93,6 +95,7 @@ vi.mock("~/trpc/react", () => ({
       },
     }),
     feedback: {
+      mine: { useQuery: () => ({ data: mineData.current }) },
       list: {
         useQuery: (_input: unknown, opts?: { enabled?: boolean }) => {
           shelfEnabled.current.push(opts?.enabled);
@@ -209,6 +212,7 @@ beforeEach(() => {
   shelfSetDataMock.mockClear();
   clearMutateMock.mockClear();
   shelfEnabled.current = [];
+  mineData.current = { more: [], less: [] };
   shelfState.current = { data: [], isPending: false, isError: false };
 });
 
@@ -536,6 +540,25 @@ describe("SavedScreen", () => {
         screen.getByText("Nothing marked More of this yet."),
       ).toBeInTheDocument();
       expect(screen.queryByText("Nothing kept yet")).toBeNull();
+    });
+
+    it("keeps the chip row for a reader with marks but no saves, above the empty state", () => {
+      listState.current = { data: [], isPending: false, isError: false };
+      countData.current = 0;
+      collectionsData.current = [];
+      mineData.current = { more: ["x1"], less: [] };
+      render(<SavedScreen />);
+
+      expect(screen.getByText("Nothing kept yet")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "More of this" }));
+      expect(replaceMock).toHaveBeenCalledWith("/saved?shelf=more");
+    });
+
+    it("shows no chip row with no saves and no marks", () => {
+      listState.current = { data: [], isPending: false, isError: false };
+      countData.current = 0;
+      render(<SavedScreen />);
+      expect(screen.queryByRole("button", { name: "More of this" })).toBeNull();
     });
   });
 });
