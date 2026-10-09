@@ -77,9 +77,24 @@ knob, toasts, the Saved chip, "Showing less of" on Topics, a `/dev/feed` weights
 nothing from Claude Design** and a cheaper session can run it now; Part 2 (the surfaces) has a
 `VERDICT:` slot per task for his instructions back.
 
+**Later the same evening — the personal archive is retired (`d371e82`, on `main`, not
+deployed).** Ben: the archive "was just something that I added because there wasn't enough
+photos in the beginning" — remove it, or make it almost never show up, whichever is easier.
+Suspension was, by a wide margin: `SUSPENDED_SOURCES` is already read by the feed pools, the
+item rail, every item draw, `img:warm` and the nightly ingest, so one line stops the rows being
+drawn anywhere and stops the ingest calling ambit-archive's `/search`. Measured first: 2,218
+archive rows in production's 214,018 (~1 %, avg 8.13, one saved; 59 locally). The part worth
+knowing is _why_ it felt more present than 1 %: the item rail's wildcard slot — 10 % of cells
+— was wired in Phase A.5 to **prefer the archive** and fall through to the corpus only when it
+came back empty. `WILDCARD_SOURCES` is `[]` again (a preference for a suspended source is a
+query that can only come back empty), and `gallery-rail.test.ts` mocks it non-empty so the
+two-step draw stays exercised. Adapter, seed cells and rows stay; un-retiring is one line.
+Takes effect on the next deploy.
+
 _Session spend: 14.81M tok (in 2.9k · out 79.0k · cache r 14.18M / w 547.3k) · fable-5-1 · 15:46→19:27_
 _Session spend: 10.80M tok (in 1.6k · out 82.5k · cache r 10.52M / w 203.6k) · fable-5-1 + opus-5-5 · 19:27→20:13_
 _Session spend: 6.37M tok (in 1.1k · out 125.8k · cache r 5.61M / w 626.5k) · fable-5-1 + opus-5-5 · 19:18→20:46_
+*Session spend: 4.64M tok (in 1.3k · out 35.5k · cache r 4.32M / w 281.4k) · fable-5-1 · 22:19→22:23*
 
 ### [[10-07-26 Wed]] — The redesign is live; the scheduled ingest has been losing Tumblr at 08:00 UTC
 
