@@ -651,7 +651,12 @@ export function ChatBubble({ size = 17, className, ...rest }: IconProps) {
  * same reasoning that gives `Logo` its own 26 grid — this glyph sits at Logo's scale, not the
  * settings rows'.
  */
-export function Plus({ size = 26, className, ...rest }: IconProps) {
+export function Plus({
+  size = 26,
+  strokeWidth = 1.5,
+  className,
+  ...rest
+}: IconProps & { strokeWidth?: number }) {
   return (
     <svg
       width={size}
@@ -659,7 +664,7 @@ export function Plus({ size = 26, className, ...rest }: IconProps) {
       viewBox="0 0 26 26"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.5}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       className={className}
       {...rest}

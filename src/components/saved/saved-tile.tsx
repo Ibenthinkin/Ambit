@@ -8,7 +8,7 @@ import { ImageTile } from "~/components/feed/image-tile";
 import type { CardTile } from "~/components/feed/masonry";
 import { TILE_LIFT } from "~/components/feed/tile-lift";
 import { WritingTile } from "~/components/feed/writing-tile";
-import { Bookmark } from "~/components/icons";
+import { Bookmark, Plus } from "~/components/icons";
 import { Rise } from "~/components/ui/rise";
 import { cn } from "~/lib/utils";
 
@@ -31,9 +31,15 @@ export interface SavedTileProps {
   tile: CardTile;
   /** Fires with no arguments — the screen already knows which item this tile is. */
   onUnsave: () => void;
+  /** Which badge: the saved wall's unsave bookmark (default), or the More-of-this shelf's undo. */
+  badge?: "unsave" | "unmore";
 }
 
-export function SavedTile({ tile, onUnsave }: SavedTileProps) {
+export function SavedTile({
+  tile,
+  onUnsave,
+  badge = "unsave",
+}: SavedTileProps) {
   const router = useRouter();
   const { item } = tile.card;
 
@@ -80,7 +86,9 @@ export function SavedTile({ tile, onUnsave }: SavedTileProps) {
             quiet article card. */}
         <button
           type="button"
-          aria-label="Remove from Saved"
+          aria-label={
+            badge === "unmore" ? "Undo More of this" : "Remove from Saved"
+          }
           onClick={onUnsave}
           onPointerDown={(e) => e.stopPropagation()}
           className={
@@ -89,11 +97,16 @@ export function SavedTile({ tile, onUnsave }: SavedTileProps) {
               : "border-hairline border-ink/10 bg-ink/5 absolute top-[12px] right-[12px] flex size-[28px] items-center justify-center"
           }
         >
-          <Bookmark
-            filled
-            size={overPicture ? 14 : 13}
-            className="text-accent"
-          />
+          {badge === "unmore" ? (
+            // Not green and not inverted: the shelf's mark is quiet ink, like the pair itself.
+            <Plus size={14} strokeWidth={2.4} className="text-ink" />
+          ) : (
+            <Bookmark
+              filled
+              size={overPicture ? 14 : 13}
+              className="text-accent"
+            />
+          )}
         </button>
       </div>
     </Rise>

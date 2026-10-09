@@ -14,6 +14,7 @@ import { Rise } from "~/components/ui/rise";
 import { LOADER_SIZES, Loader } from "~/components/ui/loader";
 import { Toast } from "~/components/ui/toast";
 import { useColumnCount } from "~/hooks/use-media-query";
+import { UNDONE_TOAST } from "~/lib/feedback-toast";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { CollectionChips } from "./collection-chips";
@@ -43,9 +44,16 @@ export function SavedScreen() {
 
   // **The input expression is byte-identical to the RSC shell's prefetch** (`app/saved/page.tsx`)
   // — same hydration contract as /feed, though missing it here costs a round trip, not corpus.
-  const list = api.saves.list.useQuery(
+  //
+  // `?shelf=more` swaps the wall for the "More of this" shelf: one query is live at a time
+  // (`enabled`), so opening the shelf doesn't also pay for the saves list, and vice versa.
+  const shelf = useSearchParams().get("shelf") === "more";
+  const saved = api.saves.list.useQuery(
     activeId ? { collectionId: activeId } : {},
+    { enabled: !shelf },
   );
+  const marked = api.feedback.list.useQuery(undefined, { enabled: shelf });
+  const list = shelf ? marked : saved;
   const collections = api.saves.collections.useQuery();
   const count = api.saves.count.useQuery();
 
@@ -80,6 +88,19 @@ export function SavedScreen() {
       ]),
   });
 
+  // Undoing a "More of this" is the unsave path's twin: filter the shelf at once, say "Undone",
+  // and let the settle either confirm it or bring the tile back if the write failed.
+  const unmore = api.feedback.clear.useMutation({
+    onMutate: ({ itemId }) => {
+      utils.feedback.list.setData(undefined, (prev) =>
+        prev?.filter((item) => item.id !== itemId),
+      );
+      setToast(UNDONE_TOAST);
+    },
+    onError: () => setToast("Couldn't undo that — it's still here."),
+    onSettled: () => utils.feedback.list.invalidate(),
+  });
+
   // Pop when an in-app surface brought us here, push when /saved was opened cold (a bookmark, a
   // reload) and there is nothing behind it. Pushing unconditionally would rebuild a dynamic feed
   // and burn two pages of corpus per trip — see `saved-origin.ts` for the whole account.
@@ -109,8 +130,12 @@ export function SavedScreen() {
 
   // Empty means *confirmed* empty — while the count or list is still on its way, the loader
   // below holds the space rather than flashing the empty state at a user with plenty kept.
-  const showEmpty = count.data === 0 && !list.isPending && !list.isError;
+  const showEmpty =
+    !shelf && count.data === 0 && !list.isPending && !list.isError;
+  const showShelfEmpty =
+    shelf && !list.isPending && !list.isError && (list.data?.length ?? 0) === 0;
   const showFilteredEmpty =
+    !shelf &&
     total > 0 &&
     !list.isPending &&
     !list.isError &&
@@ -135,6 +160,7 @@ export function SavedScreen() {
               collections={collections.data ?? []}
               total={total}
               activeId={activeId}
+              shelf={shelf}
             />
           </div>
         ) : null}
@@ -192,6 +218,14 @@ export function SavedScreen() {
           </div>
         ) : null}
 
+        {showShelfEmpty ? (
+          <div className="flex justify-center py-24">
+            <span className="text-ink/40 text-center text-[14px]">
+              Nothing marked More of this yet.
+            </span>
+          </div>
+        ) : null}
+
         {/* The feed's own masonry geometry, verbatim: independent stacks, `items-start` so a short
           column doesn't stretch. `pt-6` sets the wall off from the title block. */}
         <div
@@ -210,8 +244,11 @@ export function SavedScreen() {
                   <SavedTile
                     key={tile.card.item.id}
                     tile={tile}
+                    badge={shelf ? "unmore" : "unsave"}
                     onUnsave={() =>
-                      unsave.mutate({ itemId: tile.card.item.id })
+                      shelf
+                        ? unmore.mutate({ itemId: tile.card.item.id })
+                        : unsave.mutate({ itemId: tile.card.item.id })
                     }
                   />
                 ),

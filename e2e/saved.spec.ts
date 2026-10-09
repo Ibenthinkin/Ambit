@@ -315,4 +315,43 @@ test.describe.serial("saved", () => {
     expect(await feedIds()).toEqual(before);
     expect(draws).toEqual([]);
   });
+  // The "More of this" shelf (docs/DESIGN_more-or-less.md D6). The pair's own UI is a later task,
+  // so the verdict is seeded through the real tRPC endpoint with this test's session cookies —
+  // the same write the pair will make. A non-batched POST to a mutation takes superjson's
+  // `{ json: input }` envelope.
+  test("the More of this shelf lists a marked item, and the badge undoes it", async ({
+    page,
+  }) => {
+    const { db, item } = conn;
+    const [seeded] = await db
+      .select({ id: item.id })
+      .from(item)
+      .where(inArray(item.sourceId, ["e2e-saved-2"]));
+    const markedId = seeded!.id;
+
+    await restoreSession(page, session);
+    // The page must have an origin for relative `request` URLs to resolve and for the cookies
+    // to be sent; `page.request` shares the context's cookie jar.
+    await page.goto("/saved");
+    const set = await page.request.post("/api/trpc/feedback.set", {
+      data: { json: { itemId: markedId, verdict: "more" } },
+    });
+    expect(set.status()).toBe(200);
+
+    await page.goto("/saved?shelf=more");
+    await expect(
+      page.getByRole("button", { name: "More of this" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    const tile = page.locator(`[data-saved-id="${markedId}"]`);
+    await expect(tile).toBeVisible({ timeout: 15_000 });
+    // Only the marked item: the saves are not on this wall.
+    await expect(page.locator("[data-saved-id]")).toHaveCount(1);
+
+    await tile.getByRole("button", { name: "Undo More of this" }).click();
+    await expect(page.getByText("Undone")).toBeVisible();
+    await expect(tile).toHaveCount(0);
+    await expect(
+      page.getByText("Nothing marked More of this yet."),
+    ).toBeVisible();
+  });
 });
