@@ -72,8 +72,9 @@ move), so the two registers go one to the overture and one to the sheet; and "�
 quiet" was too long (54 characters of tail overflows a 402 px phone, and it repeats the sheet).
 Built on `feat/landing-copy` in the worktree `~/Dev/ambit-landing-copy` — **another session was
 committing on `feat/more-or-less` in the main checkout**, which this session briefly switched
-under it and put back. **Open:** the phone fit at 402 px; the join block's "Ambit is a quieter
-way to read." is the last line in the old voice.
+under it and put back. Deployed the same afternoon; **Ben checked the phone: the line fits, "the
+copy looks fine."** **Open:** the join block's "Ambit is a quieter way to read." is the last
+line in the old voice.
 
 **Later — a contact address, and its plan.** Ben set up **`ambit.app@proton.me`** as Ambit's
 public contact (separate from `OPS_EMAIL`, which is his own address for error mail, and from
